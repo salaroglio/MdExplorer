@@ -1,0 +1,18 @@
+<div class="indexing-progress" *ngIf="state$ | async as state">
+  <div class="indexing-progress__header">
+    <mat-icon class="indexing-progress__icon" [class.is-done]="state.done">
+      {{ state.done ? 'check_circle' : 'auto_awesome' }}
+    </mat-icon>
+    <span class="indexing-progress__label">{{ 'SIGNALR.INDEXING_DOCS' | translate }}</span>
+    <span class="indexing-progress__percent">{{ state.percent }}%</span>
+  </div>
+  <mat-progress-bar
+    class="indexing-progress__bar"
+    mode="determinate"
+    [value]="state.percent"
+    [color]="state.done ? 'accent' : 'primary'">
+  </mat-progress-bar>
+  <div class="indexing-progress__footer" *ngIf="state.total > 0">
+    <span class="indexing-progress__counter">{{ state.processed }} / {{ state.total }}</span>
+  </div>
+</div>

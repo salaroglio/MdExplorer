@@ -147,6 +147,12 @@
                     {{ 'PROJECT_SETTINGS.INTELLIJ' | translate }}
                   </span>
                 </mat-radio-button>
+                <mat-radio-button value="copilot" class="ide-radio">
+                  <span class="ide-label">
+                    <mat-icon class="ide-icon-inline copilot-color">smart_toy</mat-icon>
+                    {{ 'PROJECT_SETTINGS.COPILOT' | translate }}
+                  </span>
+                </mat-radio-button>
               </mat-radio-group>
             </div>
 
@@ -384,6 +390,371 @@
       <div *ngIf="appsLoading" class="loading-container">
         <mat-spinner diameter="30"></mat-spinner>
         <span>{{ 'PROJECT_SETTINGS.LOADING_APPS' | translate }}</span>
+      </div>
+    </mat-tab>
+
+    <!-- Tab 5: Knowledge Graph (Neo4j) -->
+    <mat-tab [label]="'PROJECT_SETTINGS.KG_TAB' | translate">
+      <div class="tab-content">
+
+        <mat-card class="settings-section">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.KG_TITLE' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="setting-item" *ngIf="!kgLoading">
+              <mat-checkbox
+                [(ngModel)]="kgEnabled"
+                (change)="onKgEnabledChange()"
+                [disabled]="kgSaving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.KG_ENABLE' | translate }}</span>
+              </mat-checkbox>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.KG_ENABLE_DESC' | translate }}
+              </p>
+            </div>
+
+            <div *ngIf="kgLoading" class="loading-container">
+              <mat-spinner diameter="30"></mat-spinner>
+              <span>{{ 'PROJECT_SETTINGS.LOADING_SETTINGS' | translate }}</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="settings-section" *ngIf="!kgLoading && kgEnabled">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.KG_CONNECTION' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.KG_URI' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="kgUri" placeholder="bolt://localhost:7687" [disabled]="kgSaving">
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.KG_DATABASE' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="kgDatabase" placeholder="neo4j" [disabled]="kgSaving">
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.KG_USERNAME' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="kgUsername" placeholder="neo4j" [disabled]="kgSaving">
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.KG_PASSWORD' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput type="password" [(ngModel)]="kgPassword"
+                  [placeholder]="kgHasPassword ? ('PROJECT_SETTINGS.KG_PASSWORD_KEEP' | translate) : ''"
+                  [disabled]="kgSaving">
+                <mat-hint *ngIf="kgHasPassword">{{ 'PROJECT_SETTINGS.KG_PASSWORD_HINT_KEEP' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-row kg-actions">
+              <button mat-stroked-button (click)="onTestKgConnection()" [disabled]="kgSaving || kgTesting">
+                <mat-icon *ngIf="!kgTesting">cable</mat-icon>
+                <mat-spinner *ngIf="kgTesting" diameter="18" class="inline-spinner"></mat-spinner>
+                {{ kgTesting ? ('PROJECT_SETTINGS.KG_TESTING' | translate) : ('PROJECT_SETTINGS.KG_TEST' | translate) }}
+              </button>
+              <button mat-raised-button color="primary" (click)="onSaveKgSettings()" [disabled]="kgSaving || kgTesting">
+                <mat-icon>save</mat-icon>
+                {{ 'COMMON.SAVE' | translate }}
+              </button>
+              <mat-spinner *ngIf="kgSaving" diameter="20" class="inline-spinner"></mat-spinner>
+              <span class="kg-status-ok" *ngIf="kgTestMessage && kgTestSuccess">{{ kgTestMessage }}</span>
+              <span class="kg-status-fail" *ngIf="kgTestMessage && !kgTestSuccess">{{ kgTestMessage }}</span>
+            </div>
+
+            <div class="kg-row">
+              <mat-checkbox [(ngModel)]="kgSyncOnTocGeneration" [disabled]="kgSaving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.KG_SYNC_ON_TOC' | translate }}</span>
+              </mat-checkbox>
+            </div>
+            <div class="kg-row">
+              <mat-checkbox [(ngModel)]="kgSyncOnKgFileSave" [disabled]="kgSaving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.KG_SYNC_ON_SAVE' | translate }}</span>
+              </mat-checkbox>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="settings-section" *ngIf="!kgLoading && kgEnabled && kgHasPassword">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.KG_SYNC' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="kg-state" *ngIf="kgStateLoaded">
+              <div class="status-row">
+                <span class="status-label">{{ 'PROJECT_SETTINGS.KG_STATS_FILES' | translate }}</span>
+                <span>{{ kgStateTotals?.files || 0 }}</span>
+              </div>
+              <div class="status-row">
+                <span class="status-label">{{ 'PROJECT_SETTINGS.KG_STATS_CONCEPTS' | translate }}</span>
+                <span>{{ kgStateTotals?.concepts || 0 }}</span>
+              </div>
+              <div class="status-row">
+                <span class="status-label">{{ 'PROJECT_SETTINGS.KG_STATS_RELATIONSHIPS' | translate }}</span>
+                <span>{{ kgStateTotals?.relationships || 0 }}</span>
+              </div>
+              <div class="status-row" *ngIf="kgStateTotals?.lastSyncAt">
+                <span class="status-label">{{ 'PROJECT_SETTINGS.KG_LAST_SYNC' | translate }}</span>
+                <span>{{ kgStateTotals.lastSyncAt | date:'short' }}</span>
+              </div>
+
+              <div class="kg-namespaces" *ngIf="kgPerNamespace?.length">
+                <h4>{{ 'PROJECT_SETTINGS.KG_NAMESPACES' | translate }}</h4>
+                <div class="status-row" *ngFor="let ns of kgPerNamespace">
+                  <span class="status-label">{{ ns.graphNamespace }}</span>
+                  <span>{{ ns.files }} {{ 'PROJECT_SETTINGS.KG_STATS_FILES' | translate }} · {{ ns.concepts }} / {{ ns.relationships }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="kg-actions">
+              <button mat-stroked-button color="primary" (click)="onSyncKgProject()" [disabled]="kgSyncing || kgResetting">
+                <mat-icon *ngIf="!kgSyncing">sync</mat-icon>
+                <mat-spinner *ngIf="kgSyncing" diameter="18" class="inline-spinner"></mat-spinner>
+                {{ kgSyncing ? ('PROJECT_SETTINGS.KG_SYNCING' | translate) : ('PROJECT_SETTINGS.KG_SYNC_ALL' | translate) }}
+              </button>
+              <button mat-stroked-button color="warn" (click)="onResetKg()" [disabled]="kgSyncing || kgResetting">
+                <mat-icon *ngIf="!kgResetting">delete_sweep</mat-icon>
+                <mat-spinner *ngIf="kgResetting" diameter="18" class="inline-spinner"></mat-spinner>
+                {{ kgResetting ? ('PROJECT_SETTINGS.KG_RESETTING' | translate) : ('PROJECT_SETTINGS.KG_RESET' | translate) }}
+              </button>
+            </div>
+
+            <p class="kg-message" *ngIf="kgSyncMessage">{{ kgSyncMessage }}</p>
+
+            <div *ngIf="kgSyncErrors?.length" class="kg-errors">
+              <h4>{{ 'PROJECT_SETTINGS.KG_FILES_WITH_ERRORS' | translate }}</h4>
+              <div class="kg-error-row" *ngFor="let err of kgSyncErrors">
+                <strong>{{ err.sourceDocPath }}</strong>
+                <span>{{ err.error }}</span>
+                <ul *ngIf="err.errorDetails?.length">
+                  <li *ngFor="let d of err.errorDetails">{{ d }}</li>
+                </ul>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+      </div>
+    </mat-tab>
+
+    <!-- Tab 6: Apache Jena Fuseki -->
+    <mat-tab [label]="'PROJECT_SETTINGS.FUSEKI_TAB' | translate">
+      <div class="tab-content">
+
+        <mat-card class="settings-section">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.FUSEKI_TITLE' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="setting-item" *ngIf="!fsLoading">
+              <mat-checkbox
+                [(ngModel)]="fsEnabled"
+                (change)="onFusekiEnabledChange()"
+                [disabled]="fsSaving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.FUSEKI_ENABLE' | translate }}</span>
+              </mat-checkbox>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.FUSEKI_ENABLE_DESC' | translate }}
+              </p>
+            </div>
+
+            <div *ngIf="fsLoading" class="loading-container">
+              <mat-spinner diameter="30"></mat-spinner>
+              <span>{{ 'PROJECT_SETTINGS.LOADING_SETTINGS' | translate }}</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="settings-section" *ngIf="!fsLoading && fsEnabled">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.FUSEKI_CONNECTION' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.FUSEKI_URI' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="fsUri" placeholder="http://localhost:3030" [disabled]="fsSaving">
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">
+                {{ 'PROJECT_SETTINGS.FUSEKI_DATASET' | translate }}
+                <span class="setting-description" *ngIf="fsDefaultDataset && fsDefaultDataset !== fsDataset">
+                  ({{ 'PROJECT_SETTINGS.FUSEKI_DATASET_DEFAULT' | translate }}: <code>{{ fsDefaultDataset }}</code>)
+                </span>
+              </label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="fsDataset" [placeholder]="fsDefaultDataset" [disabled]="fsSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.FUSEKI_DATASET_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">
+                {{ 'PROJECT_SETTINGS.FUSEKI_USERNAME' | translate }}
+                <span class="setting-description">({{ 'PROJECT_SETTINGS.FUSEKI_AUTH_OPTIONAL' | translate }})</span>
+              </label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="fsUsername" placeholder="" [disabled]="fsSaving">
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.FUSEKI_PASSWORD' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput type="password" [(ngModel)]="fsPassword"
+                  [placeholder]="fsHasPassword ? ('PROJECT_SETTINGS.KG_PASSWORD_KEEP' | translate) : ''"
+                  [disabled]="fsSaving">
+                <mat-hint *ngIf="fsHasPassword">{{ 'PROJECT_SETTINGS.KG_PASSWORD_HINT_KEEP' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-row kg-actions">
+              <button mat-stroked-button (click)="onTestFusekiConnection(false)" [disabled]="fsSaving || fsTesting">
+                <mat-icon *ngIf="!fsTesting">cable</mat-icon>
+                <mat-spinner *ngIf="fsTesting" diameter="18" class="inline-spinner"></mat-spinner>
+                {{ fsTesting ? ('PROJECT_SETTINGS.FUSEKI_TESTING' | translate) : ('PROJECT_SETTINGS.FUSEKI_TEST' | translate) }}
+              </button>
+              <button mat-stroked-button color="accent" (click)="onCreateFusekiDataset()" [disabled]="fsSaving || fsTesting">
+                <mat-icon>add_box</mat-icon>
+                {{ 'PROJECT_SETTINGS.FUSEKI_CREATE_DATASET' | translate }}
+              </button>
+              <button mat-raised-button color="primary" (click)="onSaveFusekiSettings()" [disabled]="fsSaving || fsTesting">
+                <mat-icon>save</mat-icon>
+                {{ 'COMMON.SAVE' | translate }}
+              </button>
+              <mat-spinner *ngIf="fsSaving" diameter="20" class="inline-spinner"></mat-spinner>
+              <span class="kg-status-ok" *ngIf="fsTestMessage && fsTestSuccess">{{ fsTestMessage }}</span>
+              <span class="kg-status-fail" *ngIf="fsTestMessage && !fsTestSuccess">{{ fsTestMessage }}</span>
+            </div>
+
+            <div class="kg-row">
+              <mat-checkbox [(ngModel)]="fsSyncOnTocGeneration" [disabled]="fsSaving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.KG_SYNC_ON_TOC' | translate }}</span>
+              </mat-checkbox>
+            </div>
+            <div class="kg-row">
+              <mat-checkbox [(ngModel)]="fsSyncOnKgFileSave" [disabled]="fsSaving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.KG_SYNC_ON_SAVE' | translate }}</span>
+              </mat-checkbox>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+      </div>
+    </mat-tab>
+
+    <!-- Tab 7: Atlassian (Jira/Confluence) -->
+    <mat-tab [label]="'PROJECT_SETTINGS.ATLASSIAN_TAB' | translate">
+      <div class="tab-content">
+
+        <mat-card class="settings-section">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.ATLASSIAN_TITLE' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="setting-item" *ngIf="!atlLoading">
+              <mat-checkbox
+                [(ngModel)]="atlEnabled"
+                (change)="onAtlassianEnabledChange()"
+                [disabled]="atlSaving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.ATLASSIAN_ENABLE' | translate }}</span>
+              </mat-checkbox>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.ATLASSIAN_ENABLE_DESC' | translate }}
+              </p>
+            </div>
+
+            <div *ngIf="atlLoading" class="loading-container">
+              <mat-spinner diameter="30"></mat-spinner>
+              <span>{{ 'PROJECT_SETTINGS.LOADING_SETTINGS' | translate }}</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="settings-section" *ngIf="!atlLoading && atlEnabled">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.ATLASSIAN_CONNECTION' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.ATLASSIAN_BASE_URL' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="atlBaseUrl" placeholder="https://acme.atlassian.net" [disabled]="atlSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.ATLASSIAN_SHARED_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.ATLASSIAN_PROJECT_KEYS' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="atlProjectKeys" placeholder="BCO, OFELIA" [disabled]="atlSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.ATLASSIAN_PROJECT_KEYS_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.ATLASSIAN_PLANNING_FOLDER' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="atlPlanningFolder" placeholder="specs/da-jira" [disabled]="atlSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.ATLASSIAN_PLANNING_FOLDER_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.ATLASSIAN_EMAIL' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="atlEmail" placeholder="you@company.com" [disabled]="atlSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.ATLASSIAN_PERSONAL_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.ATLASSIAN_TOKEN' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput type="password" [(ngModel)]="atlToken"
+                  [placeholder]="atlHasToken ? ('PROJECT_SETTINGS.ATLASSIAN_TOKEN_KEEP' | translate) : ''"
+                  [disabled]="atlSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.ATLASSIAN_TOKEN_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-row kg-actions">
+              <button mat-stroked-button (click)="onTestAtlassianConnection()" [disabled]="atlSaving || atlTesting">
+                <mat-icon *ngIf="!atlTesting">cable</mat-icon>
+                <mat-spinner *ngIf="atlTesting" diameter="18" class="inline-spinner"></mat-spinner>
+                {{ atlTesting ? ('PROJECT_SETTINGS.ATLASSIAN_TESTING' | translate) : ('PROJECT_SETTINGS.ATLASSIAN_TEST' | translate) }}
+              </button>
+              <button mat-raised-button color="primary" (click)="onSaveAtlassianSettings()" [disabled]="atlSaving || atlTesting">
+                <mat-icon>save</mat-icon>
+                {{ 'COMMON.SAVE' | translate }}
+              </button>
+              <mat-spinner *ngIf="atlSaving" diameter="20" class="inline-spinner"></mat-spinner>
+              <span class="kg-status-ok" *ngIf="atlTestMessage && atlTestSuccess">{{ atlTestMessage }}</span>
+              <span class="kg-status-fail" *ngIf="atlTestMessage && !atlTestSuccess">{{ atlTestMessage }}</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
       </div>
     </mat-tab>
 

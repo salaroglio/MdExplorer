@@ -37,6 +37,19 @@ export class MdServerMessagesService {
   // Observable for App Store publish progress (backend → Nexus upload)
   public publishProgress$ = new Subject<{ appId: string, percent: number, phase: string }>();
 
+  // Observable for the Mark folder-summarizer job progress (MarkActionsController)
+  public markFolderProgress$ = new Subject<any>();
+
+  // Observable for KG drift events (emitted by FileSystemWatcherManager when a .md
+  // diverges from the // sourceDocHash header of its adjacent .kg.cypher).
+  public kgStale$ = new Subject<{
+    sourceMdPath: string,
+    kgFilePath: string,
+    storedSourceDocHash: string,
+    currentSourceDocHash: string,
+    reason: 'header-missing' | 'hash-mismatch'
+  }>();
+
   // Observable for Screenshot Annotation Wizard (from iframe Ctrl+V)
   public screenshotAnnotationRequest$ = new Subject<{
     success: boolean,
@@ -85,14 +98,14 @@ export class MdServerMessagesService {
       this.hubConnection.on('documentNavigated', (data) => {
         this.processCallBack(data, 'documentNavigated');
       });
-      this.hubConnection.on('parsingProjectStart', (data) => {
-        this.parsingProjectProvider.show(data);
-      });
+      // parsingProjectStart/Stop NON aprono più la MatDialog modale "Building knowledge"
+      // (era il blocker UX: backdrop modale → utente inibito per tutta l'indicizzazione).
+      // Dopo il refactor del 2026-05-23 la pipeline è davvero async (Task.Yield in
+      // IndexingPipelineService.RunAsync) e mostriamo il progresso con una snackbar
+      // custom (IndexingProgressSnackComponent) montata da md-tree.component.ts via
+      // addParsingProjectStartListener (sotto).
       this.hubConnection.on('openingApplication', (data) => {
         this.openingApplicationProvider.show(data);
-      });
-      this.hubConnection.on('parsingProjectStop', (data) => {
-        this.parsingProjectProvider.hide(data);
       });
       this.hubConnection.on('plantumlWorkStart', (data) => {
         this.plantumlWorkingProvider.show(data);
@@ -130,6 +143,17 @@ export class MdServerMessagesService {
       // App Store publish progress (backend → Nexus upload)
       this.hubConnection.on('publishProgress', (data) => {
         this.publishProgress$.next(data);
+      });
+
+      // Mark folder-summarizer job progress
+      this.hubConnection.on('markFolderProgress', (data) => {
+        this.markFolderProgress$.next(data);
+      });
+
+      // KG drift detection — .md edited but .kg.cypher is out of sync
+      this.hubConnection.on('kgStale', (data) => {
+        console.warn('⚠️ SignalR event received: kgStale', data);
+        this.kgStale$.next(data);
       });
 
       // Runnable fenced code blocks — streaming output from MdExecutionController
@@ -312,6 +336,18 @@ export class MdServerMessagesService {
 
   public addParsingProjectStopListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
     this.hubConnection.on('parsingProjectStop', (data) => {
+      callback(data, objectThis);
+    });
+  }
+
+  /**
+   * "Building knowledge" progress event — emesso da IndexingPipelineService
+   * dopo ogni cartella nella fase ParseLinks. Payload:
+   *   { processed: number, total: number, percent: 0..100 }
+   * Pilotato verso IndexingProgressService dalla snackbar custom in md-tree.
+   */
+  public addKnowledgeProgressListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.hubConnection.on('knowledgeProgress', (data) => {
       callback(data, objectThis);
     });
   }

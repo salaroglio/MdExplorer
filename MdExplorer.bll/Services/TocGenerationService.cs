@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -34,25 +35,31 @@ namespace MdExplorer.Features.Services
     /// <list type="bullet">
     /// <item><description>the file system (list of *.md);</description></item>
     /// <item><description>each document's <c>## TL;DR</c> block (parsed in-process);</description></item>
-    /// <item><description>each document's MD5 hash;</description></item>
-    /// <item><description>the sibling <c>.mde-doc/*.kg.md</c> payloads aggregated into the
-    ///   "Grafo aggregato" sections.</description></item>
+    /// <item><description>each document's MD5 hash.</description></item>
     /// </list>
+    /// The only content carried over between runs is the user "safe zone" — a marked
+    /// region at the top of the file whose notes are read back and re-emitted verbatim
+    /// on every regeneration (see <see cref="ExtractSafeZoneContent"/>).
+    /// After writing the TOC, fires <c>IKgSyncOrchestrator.SyncFolderAsync</c> so any
+    /// <c>.mde-doc/*.kg.cypher</c> scripts in the folder get pushed to Neo4j.
     /// </summary>
     public class TocGenerationService : ITocGenerationService
     {
         private readonly ILogger<TocGenerationService> _logger;
         private readonly IYamlDefaultGenerator _yamlDefaultGenerator;
+        private readonly KnowledgeGraph.IKgSyncOrchestrator _kgSyncOrchestrator;
 
         public event EventHandler<TocGenerationProgress> ProgressChanged;
         public event EventHandler<string> GenerationCompleted;
 
         public TocGenerationService(
             ILogger<TocGenerationService> logger,
-            IYamlDefaultGenerator yamlDefaultGenerator)
+            IYamlDefaultGenerator yamlDefaultGenerator,
+            KnowledgeGraph.IKgSyncOrchestrator kgSyncOrchestrator)
         {
             _logger = logger;
             _yamlDefaultGenerator = yamlDefaultGenerator;
+            _kgSyncOrchestrator = kgSyncOrchestrator;
         }
 
         public async Task<bool> GenerateTocAsync(string directoryPath, string tocFilePath, CancellationToken ct = default)
@@ -66,13 +73,78 @@ namespace MdExplorer.Features.Services
                     .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                _logger.LogInformation($"[TocGeneration] Found {mdFiles.Count} markdown file(s) to process");
+                // Subfolders are listed in the table too. Hidden/system folders (.md,
+                // .git, .github, .mde-doc, …) are skipped — they aren't part of the
+                // documentation a reader navigates.
+                var subFolders = Directory.GetDirectories(directoryPath)
+                    .Where(d => !Path.GetFileName(d).StartsWith(".", StringComparison.Ordinal))
+                    .OrderBy(d => d, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
 
+                _logger.LogInformation($"[TocGeneration] Found {subFolders.Count} subfolder(s) and {mdFiles.Count} markdown file(s) to process");
+
+                // The index is emitted as a raw HTML <table> block — NOT a markdown pipe
+                // table — so Markdig passes the whole thing through untouched. Cell text
+                // is HTML-encoded (a total, standard function): markdown-active characters
+                // like *, _, |, backtick, newline are then literal inside cells, with no
+                // escape rules to maintain. The deliberate HTML (<details>, <ul>, <li>)
+                // is just regular HTML nested in a regular <td>.
                 var tableContent = new StringBuilder();
-                tableContent.AppendLine("| Titolo | TL;DR | Hash | Link |");
-                tableContent.AppendLine("|--------|-------|------|------|");
+                tableContent.AppendLine("<table class=\"table\">");
+                tableContent.AppendLine("<thead><tr><th>Titolo</th><th>TL;DR</th><th>Hash</th><th>Link</th></tr></thead>");
+                tableContent.AppendLine("<tbody>");
 
+                int total = subFolders.Count + mdFiles.Count;
                 int processed = 0;
+
+                // ---- Subfolders first (file-explorer convention) ----
+                // A folder's description comes from the "Area appunti utente" safe zone
+                // of its own TOC file (<subfolder>/<subfolder>.md.directory).
+                foreach (var folder in subFolders)
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        _logger.LogWarning("[TocGeneration] Cancellation requested");
+                        break;
+                    }
+
+                    try
+                    {
+                        var folderName = Path.GetFileName(folder);
+                        var folderTocPath = Path.Combine(folder, folderName + ".md.directory");
+                        var notes = ExtractSafeZoneContent(folderTocPath);
+
+                        // Only a note the user actually wrote counts as a description;
+                        // a missing TOC or the untouched default placeholder does not.
+                        var descCell = (string.IsNullOrWhiteSpace(notes) || notes == DefaultSafeZoneNote)
+                            ? "<em>(nessuna descrizione — apri la cartella e compila «Area appunti utente»)</em>"
+                            : MakeTableCellSafe(notes);
+
+                        // Link to the subfolder's own TOC so the index stays navigable;
+                        // when it has no TOC yet, show the bare folder name (no link).
+                        string linkCell;
+                        if (File.Exists(folderTocPath))
+                        {
+                            var folderTocRel = GetRelativePath(directoryPath, folderTocPath);
+                            linkCell = $"<a href=\"{WebUtility.HtmlEncode(EncodePathForMarkdownUrl(folderTocRel))}\">{WebUtility.HtmlEncode(folderName)}/</a>";
+                        }
+                        else
+                        {
+                            linkCell = $"{WebUtility.HtmlEncode(folderName)}/";
+                        }
+
+                        tableContent.AppendLine($"<tr><td>📁 {WebUtility.HtmlEncode(folderName)}</td><td>{descCell}</td><td>—</td><td>{linkCell}</td></tr>");
+
+                        processed++;
+                        NotifyProgress(directoryPath, processed, total, $"Processing folder: {folderName}");
+                    }
+                    catch (Exception folderEx)
+                    {
+                        _logger.LogError($"[TocGeneration] Error processing folder {folder}: {folderEx.Message}");
+                    }
+                }
+
+                // ---- Markdown files ----
                 foreach (var file in mdFiles)
                 {
                     if (ct.IsCancellationRequested)
@@ -86,18 +158,18 @@ namespace MdExplorer.Features.Services
                         var fileName = Path.GetFileName(file);
                         var title = GetFileTitle(file);
                         var relativePath = GetRelativePath(directoryPath, file);
-                        var fileHash = ComputeFileHash(file);
-                        var hashShort = fileHash.Substring(0, Math.Min(8, fileHash.Length));
+                        var urlPath = EncodePathForMarkdownUrl(relativePath);
+                        var hashShort = ComputeShortHash(file);
                         var tldr = ExtractTldrFromFile(file);
 
                         var summaryCell = string.IsNullOrEmpty(tldr)
-                            ? "*(TL;DR mancante — aggiungi `## TL;DR` al documento secondo la skill mde-doc)*"
+                            ? "<em>(TL;DR mancante — aggiungi <code>## TL;DR</code> al documento secondo la skill mde-doc)</em>"
                             : tldr;
 
-                        tableContent.AppendLine($"| {title} | {summaryCell} | `{hashShort}` | [{fileName}]({relativePath}) |");
+                        tableContent.AppendLine($"<tr><td>{WebUtility.HtmlEncode(title)}</td><td>{summaryCell}</td><td><code>{hashShort}</code></td><td><a href=\"{WebUtility.HtmlEncode(urlPath)}\">{WebUtility.HtmlEncode(fileName)}</a></td></tr>");
 
                         processed++;
-                        NotifyProgress(directoryPath, processed, mdFiles.Count, $"Processing: {fileName}");
+                        NotifyProgress(directoryPath, processed, total, $"Processing: {fileName}");
                     }
                     catch (Exception fileEx)
                     {
@@ -105,8 +177,26 @@ namespace MdExplorer.Features.Services
                     }
                 }
 
-                var aggregateRelativePath = await WriteAggregateKgFileAsync(directoryPath, ct);
-                await WriteTocFileAsync(tocFilePath, directoryPath, mdFiles.Count, tableContent.ToString(), aggregateRelativePath, ct);
+                tableContent.AppendLine("</tbody>");
+                tableContent.AppendLine("</table>");
+
+                await WriteTocFileAsync(tocFilePath, directoryPath, tableContent.ToString(), ct);
+
+                // Auto-sync hook into Neo4j (best-effort; orchestrator swallows errors and
+                // honors ProjectNeo4jSettings.Enabled + SyncOnTocGeneration).
+                try
+                {
+                    var outcome = await _kgSyncOrchestrator.SyncFolderAsync(directoryPath, KnowledgeGraph.KgSyncTrigger.TocGeneration, ct);
+                    if (outcome.Triggered)
+                    {
+                        _logger.LogInformation("[TocGeneration] KG auto-sync: {Ok} ok, {Sk} skipped, {Fail} failed",
+                            outcome.SucceededFiles, outcome.SkippedFiles, outcome.FailedFiles);
+                    }
+                }
+                catch (Exception kgEx)
+                {
+                    _logger.LogWarning(kgEx, "[TocGeneration] KG auto-sync threw — TOC generation considered successful");
+                }
 
                 NotifyCompletion(directoryPath);
                 _logger.LogInformation($"[TocGeneration] TOC generation completed for: {directoryPath}");
@@ -120,29 +210,155 @@ namespace MdExplorer.Features.Services
             }
         }
 
-        private async Task WriteTocFileAsync(string tocFilePath, string directoryPath, int fileCount, string tableContent, string aggregateRelativePath, CancellationToken ct)
+        // ============================ Safe zone (user notes) ============================
+        //
+        // The TOC file is regenerated from scratch on every call, so anything the user
+        // adds would normally be lost. To keep their notes, a single "safe zone" delimited
+        // by HTML-comment markers is carved out at the top of the document. Its content is
+        // read back before each regeneration and re-emitted verbatim. Everything outside
+        // the markers is overwritten.
+
+        // Stable prefixes used to LOCATE the markers when reading an existing file.
+        // Kept short so extra descriptive text inside the comment doesn't break matching.
+        private const string SafeZoneStartTag = "<!-- MDE:SAFE-ZONE:START";
+        private const string SafeZoneEndTag = "<!-- MDE:SAFE-ZONE:END";
+
+        // Full marker lines emitted into the generated file.
+        private const string SafeZoneStartLine =
+            "<!-- MDE:SAFE-ZONE:START · area appunti utente — il testo fino a "
+            + "MDE:SAFE-ZONE:END viene preservato a ogni rigenerazione · NON rimuovere questo marcatore -->";
+
+        private const string SafeZoneEndLine =
+            "<!-- MDE:SAFE-ZONE:END · NON rimuovere questo marcatore -->";
+
+        // Visible heading rendered above the safe zone (regenerated every run, so it
+        // can't be accidentally deleted by the user).
+        private const string SafeZoneCallout = "> ✏️ **Area appunti utente**";
+
+        // Seeded into the safe zone only on the very first generation (or for a TOC
+        // produced before this feature existed, which has no markers at all).
+        private const string DefaultSafeZoneNote =
+            "_Scrivi qui le tue annotazioni su questa cartella: è l'unica parte del "
+            + "documento che non viene sovrascritta._";
+
+        private async Task WriteTocFileAsync(string tocFilePath, string directoryPath, string tableContent, CancellationToken ct)
         {
             var directoryName = Path.GetFileName(directoryPath);
             var yamlHeader = _yamlDefaultGenerator.GenerateDefaultYaml(directoryPath);
+
+            // Carry over the user's notes. ExtractSafeZoneContent returns null only when
+            // the existing file has no markers at all — then we seed the default note.
+            var userNotes = ExtractSafeZoneContent(tocFilePath) ?? DefaultSafeZoneNote;
 
             var content = new StringBuilder();
             content.AppendLine(yamlHeader);
             content.AppendLine($"# {directoryName}");
             content.AppendLine();
-            content.AppendLine($"> 📁 **File analizzati**: {fileCount}");
-            content.AppendLine($"> 📅 **Ultimo aggiornamento**: {DateTime.Now:yyyy-MM-dd HH:mm}");
+
+            // ---- Safe zone: the only user-editable part of this generated file ----
+            content.AppendLine(SafeZoneCallout);
             content.AppendLine();
+            content.AppendLine(SafeZoneStartLine);
+            content.AppendLine();
+            content.AppendLine(userNotes);
+            content.AppendLine();
+            content.AppendLine(SafeZoneEndLine);
+            content.AppendLine();
+            // ---- everything below is regenerated on every run ----
+
             content.AppendLine("## 📑 Indice Rapido");
             content.AppendLine();
             content.Append(tableContent);
 
-            if (!string.IsNullOrEmpty(aggregateRelativePath))
-            {
-                content.AppendLine();
-                content.AppendLine($"> 🧠 **Grafo aggregato dei concetti**: [{aggregateRelativePath}]({aggregateRelativePath})");
-            }
-
             await File.WriteAllTextAsync(tocFilePath, content.ToString(), Encoding.UTF8, ct);
+        }
+
+        /// <summary>
+        /// Instance wrapper around <see cref="ReadSafeZone"/> used during TOC regeneration.
+        /// Logs (rather than throws) on an IO failure: a read error here would otherwise
+        /// silently drop the user's notes on the next write.
+        /// </summary>
+        private string ExtractSafeZoneContent(string tocFilePath)
+        {
+            try
+            {
+                return ReadSafeZone(tocFilePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[TocGeneration] Could not read safe-zone notes from '{Path}'", tocFilePath);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Reads back the user "safe zone" from an existing TOC file: the text between the
+        /// <c>MDE:SAFE-ZONE:START</c> and <c>MDE:SAFE-ZONE:END</c> comment markers, trimmed.
+        /// Returns <c>null</c> when the file does not exist or has no markers (first
+        /// generation, or a TOC produced before this feature). An empty-but-marked zone is
+        /// returned as an empty string. IO errors propagate to the caller.
+        /// </summary>
+        public static string ReadSafeZone(string tocFilePath)
+        {
+            if (!File.Exists(tocFilePath)) return null;
+
+            var content = File.ReadAllText(tocFilePath, Encoding.UTF8);
+
+            var startTag = content.IndexOf(SafeZoneStartTag, StringComparison.Ordinal);
+            if (startTag < 0) return null;
+
+            // Skip past the end of the START comment ("-->") to the actual notes.
+            var afterStart = content.IndexOf("-->", startTag, StringComparison.Ordinal);
+            if (afterStart < 0) return null;
+            afterStart += "-->".Length;
+
+            var endTag = content.IndexOf(SafeZoneEndTag, afterStart, StringComparison.Ordinal);
+            if (endTag < 0) return null;
+
+            return content.Substring(afterStart, endTag - afterStart)
+                          .Trim('\r', '\n', ' ', '\t');
+        }
+
+        /// <summary>
+        /// True when the safe zone is "untouched by a human": no markers / no content, or
+        /// exactly the seeded <see cref="DefaultSafeZoneNote"/> placeholder. Used to decide
+        /// whether an automated synthesis may fill it (a user-written note is never overwritten).
+        /// </summary>
+        public static bool IsSafeZoneEmptyOrDefault(string tocFilePath)
+        {
+            var notes = ReadSafeZone(tocFilePath);
+            return string.IsNullOrWhiteSpace(notes) || notes == DefaultSafeZoneNote;
+        }
+
+        /// <summary>
+        /// Replaces the safe-zone notes of an existing TOC file in place, between the
+        /// <c>MDE:SAFE-ZONE:START</c> and <c>MDE:SAFE-ZONE:END</c> markers. Everything
+        /// outside the markers (heading, table, YAML) is preserved verbatim. Throws if the
+        /// markers are missing — the caller must only invoke this on a TOC it just generated.
+        /// </summary>
+        public static void WriteSafeZone(string tocFilePath, string newContent)
+        {
+            var content = File.ReadAllText(tocFilePath, Encoding.UTF8);
+
+            var startTag = content.IndexOf(SafeZoneStartTag, StringComparison.Ordinal);
+            if (startTag < 0)
+                throw new InvalidOperationException($"Safe-zone start marker not found in '{tocFilePath}'.");
+
+            var afterStart = content.IndexOf("-->", startTag, StringComparison.Ordinal);
+            if (afterStart < 0)
+                throw new InvalidOperationException($"Malformed safe-zone start marker in '{tocFilePath}'.");
+            afterStart += "-->".Length;
+
+            var endTag = content.IndexOf(SafeZoneEndTag, afterStart, StringComparison.Ordinal);
+            if (endTag < 0)
+                throw new InvalidOperationException($"Safe-zone end marker not found in '{tocFilePath}'.");
+
+            var nl = Environment.NewLine;
+            var rebuilt = content.Substring(0, afterStart)
+                          + nl + nl + (newContent ?? string.Empty).Trim() + nl + nl
+                          + content.Substring(endTag);
+
+            File.WriteAllText(tocFilePath, rebuilt, Encoding.UTF8);
         }
 
         // ============================ TL;DR extraction ============================
@@ -151,8 +367,9 @@ namespace MdExplorer.Features.Services
         /// Deterministically extracts the TL;DR block from a markdown document produced under the
         /// mde-doc skill. Looks for a heading matching <c>## TL;DR</c> (case-insensitive, also
         /// accepts <c>TLDR</c> and trailing semicolons) and gathers prose + bullet lines until the
-        /// next <c>##</c> heading or EOF. Returns a single-line, table-cell-safe string, or null
-        /// if no TL;DR section is found.
+        /// next <c>##</c> heading or EOF. The prose becomes the visible cell preview; the whole
+        /// bullet list (with its nesting) is always moved into a collapsible <c>&lt;details&gt;</c>
+        /// block. Returns a single-line, table-cell-safe string, or null if no TL;DR is found.
         /// </summary>
         private static string ExtractTldrFromFile(string filePath)
         {
@@ -179,64 +396,163 @@ namespace MdExplorer.Features.Services
                 if (startIdx < 0) return null;
 
                 var prose = new List<string>();
-                var bullets = new List<string>();
+                var rawBullets = new List<(int Indent, string Text)>();
                 bool sawBullet = false;
+                // A blank line seen after a bullet does NOT decide on its own — the next
+                // non-blank line does. This lets the loop tell apart a hard-wrapped bullet,
+                // a "loose" list (blank lines between items) and trailing prose.
+                bool pendingBlank = false;
 
                 for (int i = startIdx; i < lines.Length; i++)
                 {
-                    var trimmed = lines[i].TrimEnd('\r').Trim();
+                    var raw = lines[i].TrimEnd('\r');
+                    var trimmed = raw.Trim();
 
+                    // Next ## heading → the TL;DR section ends here.
                     if (trimmed.StartsWith("##", StringComparison.Ordinal) &&
                         !trimmed.StartsWith("###", StringComparison.Ordinal))
                     {
                         break;
                     }
 
+                    // Blank line: defer the decision to the next non-blank line.
                     if (string.IsNullOrEmpty(trimmed))
                     {
-                        if (sawBullet && bullets.Count > 0) break;
+                        if (sawBullet) pendingBlank = true;
                         continue;
                     }
 
-                    if (trimmed.StartsWith("-") || trimmed.StartsWith("*"))
+                    // A real markdown bullet is "- "/"* " (marker + space) or a bare "-"/"*".
+                    // Anything else following a bullet is continuation text, not a new item.
+                    bool isBullet =
+                        trimmed.StartsWith("- ", StringComparison.Ordinal) ||
+                        trimmed.StartsWith("* ", StringComparison.Ordinal) ||
+                        trimmed == "-" || trimmed == "*";
+
+                    // Resolve a deferred blank line now:
+                    //   blank + bullet     → a "loose" list gap → keep collecting;
+                    //   blank + non-bullet → trailing prose → the TL;DR list is over.
+                    if (pendingBlank)
                     {
-                        bullets.Add(trimmed.TrimStart('-', '*').Trim());
+                        if (!isBullet) break;
+                        pendingBlank = false;
+                    }
+
+                    if (isBullet)
+                    {
+                        // Leading whitespace width drives the nesting level (mapped below).
+                        int indent = raw.Length - raw.TrimStart(' ', '\t').Length;
+                        rawBullets.Add((indent, trimmed.TrimStart('-', '*').Trim()));
                         sawBullet = true;
                     }
                     else if (!sawBullet)
                     {
                         prose.Add(trimmed);
                     }
-                    else
+                    else if (rawBullets.Count > 0)
                     {
-                        break;
+                        // Non-bullet line right after a bullet, with no blank line between:
+                        // a hard-wrapped continuation → fold it back into the last bullet.
+                        var last = rawBullets[rawBullets.Count - 1];
+                        rawBullets[rawBullets.Count - 1] = (last.Indent, (last.Text + " " + trimmed).Trim());
                     }
                 }
 
-                if (prose.Count == 0 && bullets.Count == 0) return null;
+                if (prose.Count == 0 && rawBullets.Count == 0) return null;
 
-                var sb = new StringBuilder();
-                if (prose.Count > 0) sb.Append(string.Join(" ", prose));
-                if (bullets.Count > 0)
-                {
-                    if (sb.Length > 0) sb.Append(" — ");
-                    sb.Append(string.Join(" · ", bullets));
-                }
+                // The TL;DR prose stays visible in the cell; the whole bullet list is
+                // always tucked into a collapsible <details> block — collapsed even when
+                // it would still fit — so the table stays scannable while the expanded
+                // view keeps the original list structure (incl. nested points).
+                var bullets = MapBulletLevels(rawBullets);
+                var proseText = WebUtility.HtmlEncode(string.Join(" ", prose));
+                var bulletHtml = bullets.Count > 0 ? BuildBulletListHtml(bullets) : null;
 
-                var compact = sb.ToString().Replace("|", "\\|");
-
-                const int maxLen = 280;
-                if (compact.Length > maxLen)
-                {
-                    compact = compact.Substring(0, maxLen - 1) + "…";
-                }
-
-                return compact;
+                return ComposeTldrCell(proseText, bulletHtml, bullets.Count);
             }
             catch (Exception)
             {
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Maps each bullet's raw leading-whitespace width to a 0-based nesting level.
+        /// Distinct indent widths are sorted ascending and their position becomes the
+        /// level, so 2-space, 4-space or tab indentation all collapse cleanly to 0,1,2,…
+        /// </summary>
+        private static List<(int Level, string Text)> MapBulletLevels(
+            List<(int Indent, string Text)> raw)
+        {
+            var result = new List<(int Level, string Text)>();
+            if (raw.Count == 0) return result;
+
+            var distinctIndents = raw.Select(b => b.Indent).Distinct().OrderBy(x => x).ToList();
+            foreach (var b in raw)
+            {
+                result.Add((distinctIndents.IndexOf(b.Indent), b.Text));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Renders a leveled bullet list as a properly nested HTML <c>&lt;ul&gt;/&lt;li&gt;</c>
+        /// tree on a single physical line (no newlines), so it survives inside a markdown
+        /// table cell while still rendering as a real, indented list when expanded.
+        /// </summary>
+        private static string BuildBulletListHtml(List<(int Level, string Text)> bullets)
+        {
+            var sb = new StringBuilder();
+            int prevLevel = -1;
+
+            foreach (var (level, text) in bullets)
+            {
+                if (level > prevLevel)
+                {
+                    for (int l = prevLevel; l < level; l++) sb.Append("<ul>");
+                }
+                else if (level < prevLevel)
+                {
+                    for (int l = prevLevel; l > level; l--) sb.Append("</li></ul>");
+                    sb.Append("</li>");
+                }
+                else
+                {
+                    sb.Append("</li>");
+                }
+
+                sb.Append("<li>").Append(WebUtility.HtmlEncode(text));
+                prevLevel = level;
+            }
+
+            for (int l = prevLevel; l >= 0; l--) sb.Append("</li></ul>");
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Assembles the final table-cell string: the full TL;DR prose stays inline and
+        /// the bullet list goes into an inline collapsible <c>&lt;details&gt;</c>. The cell
+        /// never contains a newline.
+        /// </summary>
+        private static string ComposeTldrCell(string proseText, string bulletHtml, int bulletCount)
+        {
+            // Nothing to collapse: no bullets → just the prose.
+            if (bulletHtml == null)
+                return proseText;
+
+            var summary = bulletCount == 1 ? "📋 1 punto" : $"📋 {bulletCount} punti";
+
+            var details = new StringBuilder();
+            details.Append("<details style=\"display:inline\">")
+                   .Append("<summary style=\"display:inline;color:#0d6efd;cursor:pointer;font-weight:bold\" title=\"Mostra tutto\">")
+                   .Append(summary)
+                   .Append("</summary>")
+                   .Append(bulletHtml)
+                   .Append("</details>");
+
+            return string.IsNullOrEmpty(proseText)
+                ? details.ToString()
+                : proseText + " " + details.ToString();
         }
 
         // ============================ Hash ============================
@@ -247,6 +563,19 @@ namespace MdExplorer.Features.Services
             using var stream = File.OpenRead(filePath);
             var hash = md5.ComputeHash(stream);
             return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+        }
+
+        /// <summary>
+        /// Short content hash of a file: the first 8 chars of the MD5 hex digest.
+        /// This is the exact value rendered in the TOC "Hash" column. It is exposed so
+        /// other services (e.g. the Mark folder summarizer) can compare a document
+        /// against its recorded TOC hash without re-implementing the algorithm — keeping
+        /// a single source of truth and avoiding hash drift.
+        /// </summary>
+        public static string ComputeShortHash(string filePath)
+        {
+            var hash = ComputeFileHash(filePath);
+            return hash.Substring(0, Math.Min(8, hash.Length));
         }
 
         // ============================ File utilities ============================
@@ -278,6 +607,30 @@ namespace MdExplorer.Features.Services
             return rel.Replace('\\', '/');
         }
 
+        /// <summary>
+        /// Percent-encodes a POSIX-style relative path for use as the URL part of a markdown
+        /// link ([text](url)). Each segment is encoded individually so that '/' is preserved
+        /// as separator while spaces, parentheses, brackets, etc. become %20/%28/...
+        /// </summary>
+        private static string EncodePathForMarkdownUrl(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return path;
+            return string.Join('/', path.Split('/').Select(Uri.EscapeDataString));
+        }
+
+        /// <summary>
+        /// Makes an arbitrary (possibly multi-line) string safe to drop into a single
+        /// HTML <c>&lt;td&gt;</c>: HTML-encodes the text (so any <c>&lt;</c> / <c>&gt;</c>
+        /// / <c>&amp;</c> in the user's notes is literal, not interpreted as a tag) and
+        /// converts line breaks into <c>&lt;br&gt;</c>.
+        /// </summary>
+        private static string MakeTableCellSafe(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            var unified = text.Replace("\r\n", "\n").Replace("\r", "\n");
+            return WebUtility.HtmlEncode(unified).Replace("\n", "<br>");
+        }
+
         // ============================ Notification helpers ============================
 
         private void NotifyProgress(string directoryPath, int processed, int total, string status)
@@ -297,331 +650,5 @@ namespace MdExplorer.Features.Services
             GenerationCompleted?.Invoke(this, directoryPath);
         }
 
-        // ============================ Aggregated concepts from .mde-doc/*.kg.md ============================
-
-        // Matches PlantUML component-diagram arrows like:  [Concept A] --> [Concept B] : free-form label
-        private static readonly Regex PlantUmlArrowRegex = new(
-            @"^\s*\[([^\]]+)\]\s*-->\s*\[([^\]]+)\]\s*(?::\s*(.+?))?\s*$",
-            RegexOptions.Compiled);
-
-        private const string AggregateKgFileName = "_aggregate.kg.md";
-
-        /// <summary>
-        /// Scans <c>{directoryPath}/.mde-doc/*.kg.md</c> (excluding <c>_aggregate.kg.md</c> itself to
-        /// avoid self-reference) and writes a deduplicated aggregate to <c>.mde-doc/_aggregate.kg.md</c>.
-        /// The aggregate uses the same schema as the per-document <c>.kg.md</c> files (PlantUML graph +
-        /// Neo4j Concepts/Relationships tables), so the v2 Cypher pipeline can process singles and
-        /// aggregates with one parser. Returns the relative path of the aggregate file (relative to
-        /// <paramref name="directoryPath"/>) if it was written, or <c>null</c> if there were no source
-        /// payloads. If sources disappear, the stale aggregate file is removed.
-        /// </summary>
-        private async Task<string> WriteAggregateKgFileAsync(string directoryPath, CancellationToken ct)
-        {
-            try
-            {
-                var mdeDocDir = Path.Combine(directoryPath, ".mde-doc");
-                var aggregatePath = Path.Combine(mdeDocDir, AggregateKgFileName);
-
-                if (!Directory.Exists(mdeDocDir))
-                {
-                    _logger.LogDebug($"[TocGeneration] No .mde-doc/ folder in {directoryPath}; no aggregate to write");
-                    return null;
-                }
-
-                var kgFiles = Directory.GetFiles(mdeDocDir, "*.kg.md", SearchOption.TopDirectoryOnly)
-                    .Where(f => !string.Equals(Path.GetFileName(f), AggregateKgFileName, StringComparison.OrdinalIgnoreCase))
-                    .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                if (kgFiles.Count == 0)
-                {
-                    if (File.Exists(aggregatePath))
-                    {
-                        try { File.Delete(aggregatePath); _logger.LogInformation($"[TocGeneration] Removed stale {aggregatePath} (no source .kg.md files)"); }
-                        catch (Exception ex) { _logger.LogWarning($"[TocGeneration] Could not delete stale aggregate: {ex.Message}"); }
-                    }
-                    return null;
-                }
-
-                var plantumlEdges = new Dictionary<(string From, string To), HashSet<string>>();
-                var concepts = new Dictionary<string, SortedSet<string>>(StringComparer.Ordinal);
-                var relationships = new Dictionary<(string From, string Type, string To), SortedSet<string>>();
-
-                foreach (var kgFile in kgFiles)
-                {
-                    if (ct.IsCancellationRequested) return null;
-
-                    try
-                    {
-                        var content = await File.ReadAllTextAsync(kgFile, ct);
-                        // Strip both .md and .kg suffixes:  foo.kg.md -> foo.kg -> foo
-                        var docName = Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(kgFile));
-                        ParseKgFile(content, docName, plantumlEdges, concepts, relationships);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning($"[TocGeneration] Failed to parse {kgFile}: {ex.Message}");
-                    }
-                }
-
-                if (plantumlEdges.Count == 0 && concepts.Count == 0 && relationships.Count == 0)
-                {
-                    _logger.LogInformation($"[TocGeneration] {kgFiles.Count} .kg.md file(s) yielded no parseable graph; aggregate not written");
-                    return null;
-                }
-
-                var folderName = Path.GetFileName(directoryPath);
-                var aggregateContent = BuildAggregateKgDocument(folderName, plantumlEdges, concepts, relationships);
-                await File.WriteAllTextAsync(aggregatePath, aggregateContent, Encoding.UTF8, ct);
-
-                _logger.LogInformation($"[TocGeneration] Wrote aggregate from {kgFiles.Count} .kg.md file(s) to {aggregatePath}");
-                return $".mde-doc/{AggregateKgFileName}";
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[TocGeneration] Aggregate generation failed for {directoryPath}: {ex.Message}");
-                return null;
-            }
-        }
-
-        private static void ParseKgFile(
-            string content,
-            string sourceDoc,
-            Dictionary<(string From, string To), HashSet<string>> plantumlEdges,
-            Dictionary<string, SortedSet<string>> concepts,
-            Dictionary<(string From, string Type, string To), SortedSet<string>> relationships)
-        {
-            var lines = content.Split('\n');
-
-            bool inPlantumlFence = false;
-            string currentTable = null;       // "concepts" | "relationships" | null
-            bool tableHeaderConsumed = false;
-
-            foreach (var rawLine in lines)
-            {
-                var line = rawLine.TrimEnd('\r');
-                var trimmed = line.Trim();
-
-                if (trimmed.StartsWith("```plantuml", StringComparison.OrdinalIgnoreCase))
-                {
-                    inPlantumlFence = true;
-                    continue;
-                }
-                if (inPlantumlFence && trimmed.StartsWith("```"))
-                {
-                    inPlantumlFence = false;
-                    continue;
-                }
-                if (inPlantumlFence)
-                {
-                    var m = PlantUmlArrowRegex.Match(line);
-                    if (m.Success)
-                    {
-                        var from = m.Groups[1].Value.Trim();
-                        var to = m.Groups[2].Value.Trim();
-                        var label = m.Groups[3].Success ? m.Groups[3].Value.Trim() : string.Empty;
-
-                        var key = (from, to);
-                        if (!plantumlEdges.TryGetValue(key, out var labels))
-                        {
-                            labels = new HashSet<string>(StringComparer.Ordinal);
-                            plantumlEdges[key] = labels;
-                        }
-                        if (!string.IsNullOrEmpty(label)) labels.Add(label);
-                    }
-                    continue;
-                }
-
-                if (trimmed.StartsWith("## ") || trimmed == "##")
-                {
-                    currentTable = null;
-                    tableHeaderConsumed = false;
-                    continue;
-                }
-                if (trimmed.StartsWith("### "))
-                {
-                    var headingText = trimmed.TrimStart('#').Trim();
-                    if (headingText.Equals("Concepts", StringComparison.OrdinalIgnoreCase) ||
-                        headingText.Equals("Concetti", StringComparison.OrdinalIgnoreCase))
-                    {
-                        currentTable = "concepts";
-                        tableHeaderConsumed = false;
-                    }
-                    else if (headingText.Equals("Relationships", StringComparison.OrdinalIgnoreCase) ||
-                             headingText.Equals("Relazioni", StringComparison.OrdinalIgnoreCase))
-                    {
-                        currentTable = "relationships";
-                        tableHeaderConsumed = false;
-                    }
-                    else
-                    {
-                        currentTable = null;
-                    }
-                    continue;
-                }
-
-                if (currentTable != null && trimmed.StartsWith("|") && trimmed.EndsWith("|"))
-                {
-                    bool isSeparator = trimmed.All(c => c == '-' || c == '|' || c == ' ' || c == ':');
-                    if (isSeparator) continue;
-
-                    if (!tableHeaderConsumed)
-                    {
-                        tableHeaderConsumed = true;
-                        continue;
-                    }
-
-                    var cells = trimmed
-                        .Trim('|')
-                        .Split('|')
-                        .Select(c => c.Trim().Replace("\\|", "|"))
-                        .ToList();
-
-                    if (currentTable == "concepts" && cells.Count >= 1)
-                    {
-                        var name = cells[0];
-                        if (!string.IsNullOrEmpty(name))
-                        {
-                            if (!concepts.TryGetValue(name, out var docs))
-                            {
-                                docs = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-                                concepts[name] = docs;
-                            }
-                            docs.Add(sourceDoc);
-                        }
-                    }
-                    else if (currentTable == "relationships" && cells.Count >= 3)
-                    {
-                        var from = cells[0];
-                        var type = cells[1];
-                        var to = cells[2];
-                        if (!string.IsNullOrEmpty(from) && !string.IsNullOrEmpty(type) && !string.IsNullOrEmpty(to))
-                        {
-                            var key = (from, type, to);
-                            if (!relationships.TryGetValue(key, out var docs))
-                            {
-                                docs = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
-                                relationships[key] = docs;
-                            }
-                            docs.Add(sourceDoc);
-                        }
-                    }
-                }
-                else if (currentTable != null && !string.IsNullOrEmpty(trimmed))
-                {
-                    currentTable = null;
-                    tableHeaderConsumed = false;
-                }
-            }
-        }
-
-        private static string BuildAggregateKgDocument(
-            string folderName,
-            Dictionary<(string From, string To), HashSet<string>> plantumlEdges,
-            Dictionary<string, SortedSet<string>> concepts,
-            Dictionary<(string From, string Type, string To), SortedSet<string>> relationships)
-        {
-            // Schema-compatible with the per-document .kg.md files produced by the mde-doc skill,
-            // plus an extra "Source documents" column that records which siblings each
-            // concept/relationship came from.
-            var sb = new StringBuilder();
-
-            sb.AppendLine($"# Knowledge graph — {folderName} (aggregate)");
-            sb.AppendLine();
-            sb.AppendLine("> *Auto-generated by MdExplorer from sibling `.kg.md` files. Do not edit manually — regenerated on every TOC refresh.*");
-            sb.AppendLine();
-
-            sb.AppendLine("## 🖼️ Graph (PlantUML)");
-            sb.AppendLine();
-            if (plantumlEdges.Count == 0)
-            {
-                sb.AppendLine("*No PlantUML graph found in source `.kg.md` files.*");
-            }
-            else
-            {
-                sb.AppendLine("```plantuml");
-                sb.AppendLine("@startuml");
-                // Mandatory MdExplorer styling preamble — must match the one in
-                // skills/mde-doc/SKILL.md so the aggregated graph looks identical to the
-                // per-document graphs the AI produces.
-                sb.AppendLine("!theme plain");
-                sb.AppendLine("skinparam backgroundColor #FAFAFA");
-                sb.AppendLine("skinparam shadowing false");
-                sb.AppendLine("skinparam roundCorner 8");
-                sb.AppendLine("skinparam DefaultFontName \"Segoe UI\"");
-                sb.AppendLine("skinparam ArrowColor #5B6B7F");
-                sb.AppendLine("skinparam ArrowFontColor #4B5563");
-                sb.AppendLine("skinparam component {");
-                sb.AppendLine("  BackgroundColor #EAF1F8");
-                sb.AppendLine("  BorderColor #5B6B7F");
-                sb.AppendLine("  FontColor #1F2937");
-                sb.AppendLine("}");
-                foreach (var kvp in plantumlEdges
-                    .OrderBy(k => k.Key.From, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(k => k.Key.To, StringComparer.OrdinalIgnoreCase))
-                {
-                    var from = kvp.Key.From;
-                    var to = kvp.Key.To;
-                    var label = kvp.Value.Count == 0
-                        ? string.Empty
-                        : string.Join(" / ", kvp.Value.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
-                    sb.AppendLine(string.IsNullOrEmpty(label)
-                        ? $"[{from}] --> [{to}]"
-                        : $"[{from}] --> [{to}] : {label}");
-                }
-                sb.AppendLine("@enduml");
-                sb.AppendLine("```");
-            }
-
-            sb.AppendLine();
-            sb.AppendLine("## 🗃️ Graph (Neo4j)");
-            sb.AppendLine();
-            sb.AppendLine("### Concepts");
-            sb.AppendLine();
-            if (concepts.Count == 0)
-            {
-                sb.AppendLine("*No concepts found.*");
-            }
-            else
-            {
-                sb.AppendLine("| Name | Source documents |");
-                sb.AppendLine("|------|------------------|");
-                foreach (var kvp in concepts.OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
-                {
-                    var docs = string.Join(", ", kvp.Value);
-                    sb.AppendLine($"| {EscapeTableCell(kvp.Key)} | {EscapeTableCell(docs)} |");
-                }
-            }
-
-            sb.AppendLine();
-            sb.AppendLine("### Relationships");
-            sb.AppendLine();
-            if (relationships.Count == 0)
-            {
-                sb.AppendLine("*No relationships found.*");
-            }
-            else
-            {
-                sb.AppendLine("| From | Type | To | Source documents |");
-                sb.AppendLine("|------|------|----|------------------|");
-                foreach (var kvp in relationships
-                    .OrderBy(k => k.Key.From, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(k => k.Key.Type, StringComparer.OrdinalIgnoreCase)
-                    .ThenBy(k => k.Key.To, StringComparer.OrdinalIgnoreCase))
-                {
-                    var (from, type, to) = kvp.Key;
-                    var docs = string.Join(", ", kvp.Value);
-                    sb.AppendLine($"| {EscapeTableCell(from)} | {EscapeTableCell(type)} | {EscapeTableCell(to)} | {EscapeTableCell(docs)} |");
-                }
-            }
-
-            return sb.ToString();
-        }
-
-        private static string EscapeTableCell(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return s;
-            return s.Replace("|", "\\|").Replace("\r", "").Replace("\n", " ");
-        }
     }
 }

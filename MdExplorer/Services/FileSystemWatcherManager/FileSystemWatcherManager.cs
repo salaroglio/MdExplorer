@@ -10,6 +10,7 @@ using MdExplorer.Service.Models;
 using MdExplorer.Service.Services;
 using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Features.Services.AI;
+using MdExplorer.Features.Services.KnowledgeGraph;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using System;
@@ -679,6 +680,16 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     return;
                 }
 
+                // .kg.cypher files trigger only the KG sync hook (no markdown DB
+                // parsing, no RAG embedding, no SignalR notify). They live under
+                // .mde-doc/ and are the source-of-truth for Neo4j.
+                if (IsKgPayloadFile(e.FullPath))
+                {
+                    _logger.LogInformation($"🧠 [{context.ConnectionId}] KG cypher file changed: {e.FullPath}");
+                    _ = SyncKgFileBestEffortAsync(e.FullPath, context.ConnectionId);
+                    return;
+                }
+
                 // Only process markdown files — skip non-md files BEFORE storm detection
                 // so that .git/FETCH_HEAD, .lock files, etc. don't trigger false storms
                 if (!isMarkdown)
@@ -757,6 +768,11 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 // RAG: re-embed changed file in background (fire-and-forget)
                 _ = ReEmbedFileAsync(context, e.FullPath);
+
+                // KG drift: if a .kg.cypher exists for this .md, compare MD5(.md) with the
+                // // sourceDocHash header inside it. Mismatch → emit "kgStale" so the UI can
+                // surface a "graph out of sync — regenerate" affordance.
+                _ = CheckKgDriftBestEffortAsync(e.FullPath, context.ConnectionId);
             }
             catch (Exception ex)
             {
@@ -908,6 +924,15 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 var fileExtension = Path.GetExtension(e.FullPath);
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
                 var isDirectory = Directory.Exists(e.FullPath);
+
+                // .kg.cypher files trigger only the KG sync hook (no markdown DB
+                // parsing, no SignalR fileCreated event for the tree).
+                if (IsKgPayloadFile(e.FullPath))
+                {
+                    _logger.LogInformation($"🧠 [{context.ConnectionId}] KG cypher file created: {e.FullPath}");
+                    _ = SyncKgFileBestEffortAsync(e.FullPath, context.ConnectionId);
+                    return;
+                }
 
                 // Skip non-markdown, non-directory files BEFORE storm detection
                 // (prevents .git/FETCH_HEAD, .lock files etc. from triggering false storms)
@@ -1499,6 +1524,95 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             {
                 _logger.LogError(ex, $"❌ [{context.ConnectionId}] Error in RemoveFileFromDB");
                 // Don't throw - we still want to notify the client even if DB cleanup fails
+            }
+        }
+
+        // ============================================================
+        //   KG auto-sync helpers
+        // ============================================================
+
+        private static bool IsKgPayloadFile(string fullPath)
+        {
+            if (string.IsNullOrEmpty(fullPath)) return false;
+            if (!fullPath.EndsWith(".kg.cypher", StringComparison.OrdinalIgnoreCase)) return false;
+            var parent = Path.GetFileName(Path.GetDirectoryName(fullPath));
+            return string.Equals(parent, ".mde-doc", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private async Task SyncKgFileBestEffortAsync(string fullPath, string connectionId)
+        {
+            try
+            {
+                using var scope = _serviceScopeFactory.CreateScope();
+                var orchestrator = scope.ServiceProvider.GetRequiredService<IKgSyncOrchestrator>();
+                var outcome = await orchestrator.SyncFileAsync(fullPath, KgSyncTrigger.KgFileSave);
+                if (!string.IsNullOrEmpty(outcome.AutoCreatedNamespace))
+                {
+                    _logger.LogInformation($"🧠 [{connectionId}] KG namespace auto-created: '{outcome.AutoCreatedNamespace}' (folder had none in .development.yml)");
+                }
+                if (!outcome.Triggered)
+                {
+                    _logger.LogInformation($"[{connectionId}] KG auto-sync skipped for {fullPath}: {outcome.Reason}");
+                    return;
+                }
+                if (outcome.FailedFiles > 0)
+                {
+                    _logger.LogWarning($"[{connectionId}] KG auto-sync FAILED for {fullPath}: {outcome.FirstError}");
+                    // TODO (M3.4 follow-up): emit a SignalR notification so the UI surfaces the error.
+                }
+                else
+                {
+                    _logger.LogInformation($"[{connectionId}] KG auto-synced: {fullPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"[{connectionId}] KG auto-sync threw for {fullPath}");
+            }
+        }
+
+        /// <summary>
+        /// When a .md changes, check whether the adjacent <c>.mde-doc/&lt;name&gt;.kg.cypher</c>
+        /// (if any) still matches the .md's MD5 via the <c>// sourceDocHash</c> header. On
+        /// mismatch — or when the header is absent — emit a <c>kgStale</c> SignalR event so the
+        /// UI can offer to regenerate the graph. The hash is stored INSIDE the .kg.cypher (by
+        /// KgIngestService post-ingest), so this check needs no DB lookup and works across clones.
+        /// </summary>
+        private async Task CheckKgDriftBestEffortAsync(string mdFullPath, string connectionId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(mdFullPath)) return;
+                var dir = Path.GetDirectoryName(mdFullPath);
+                if (string.IsNullOrEmpty(dir)) return;
+                var baseName = Path.GetFileNameWithoutExtension(mdFullPath);
+                if (string.IsNullOrEmpty(baseName)) return;
+                var kgPath = Path.Combine(dir, ".mde-doc", baseName + ".kg.cypher");
+                if (!System.IO.File.Exists(kgPath)) return;
+
+                var kgContent = await System.IO.File.ReadAllTextAsync(kgPath);
+                var storedHash = MdExplorer.Features.Services.KnowledgeGraph.KgIngestService.ExtractSourceDocHash(kgContent);
+                var currentHash = MdExplorer.Features.Services.KnowledgeGraph.KgIngestService.ComputeFileMd5(mdFullPath);
+                if (string.IsNullOrEmpty(currentHash)) return;
+
+                // Stale when: header missing, or header hash differs from current .md MD5.
+                var isStale = string.IsNullOrEmpty(storedHash) || !string.Equals(storedHash, currentHash, StringComparison.OrdinalIgnoreCase);
+                if (!isStale) return;
+
+                var payload = new
+                {
+                    sourceMdPath = mdFullPath,
+                    kgFilePath = kgPath,
+                    storedSourceDocHash = storedHash,
+                    currentSourceDocHash = currentHash,
+                    reason = string.IsNullOrEmpty(storedHash) ? "header-missing" : "hash-mismatch"
+                };
+                _logger.LogInformation($"⚠️  [{connectionId}] KG drift detected for {mdFullPath} ({payload.reason})");
+                await _hubContext.Clients.Client(connectionId).SendAsync("kgStale", payload);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"[{connectionId}] KG drift check threw for {mdFullPath}");
             }
         }
 

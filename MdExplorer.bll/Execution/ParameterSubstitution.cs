@@ -77,9 +77,23 @@ namespace MdExplorer.Features.Execution
             return false;
         }
 
+        // Integer / decimal / boolean literals — safe to inject bare (no shell metachars).
+        // Quoting them breaks downstream parsing: e.g. `--port '3030'` is rejected by Java as
+        // a bad port number, and `"https://api/'3030'"` yields a malformed URL.
+        private static readonly Regex BareSafeLiteralRegex = new(
+            @"^(?:-?\d+(?:\.\d+)?|true|false)$",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
         private static string QuoteForShell(string value, string language)
         {
             value ??= string.Empty;
+
+            // Numeric / boolean values don't need shell-quoting and quoting them actually breaks
+            // common cases (process args, URL fragments, casts to [int]). Stringy values still
+            // get the protective quoting below.
+            if (BareSafeLiteralRegex.IsMatch(value))
+                return value;
+
             switch (language)
             {
                 case "bash":

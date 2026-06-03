@@ -81,7 +81,12 @@ namespace MdExplorer.Features.Commands
                     var language = NormalizeLanguage(match.Groups[1].Value);
                     var escapedCode = match.Groups[2].Value;
                     var rawCode = HttpUtility.HtmlDecode(escapedCode);
-                    var blockId = ComputeBlockId(language, rawCode);
+                    // Suffix with the occurrence index so two blocks with identical
+                    // language+code don't collide on the same id. A pure content hash
+                    // would make duplicates share one id, which breaks output/state
+                    // routing (the clicked block hangs on "Running…" while its twin
+                    // shows the output). `i` is the document-order index of the match.
+                    var blockId = ComputeBlockId(language, rawCode) + "-" + i;
 
                     var parameters = ParameterExtractor.Extract(rawCode, language);
                     var paramsJson = JsonConvert.SerializeObject(parameters, ParamsJsonSettings);

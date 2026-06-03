@@ -114,14 +114,28 @@
   color: white;
 }
 
-// Stili per file non indicizzati
-.md-file {
-  &:not(.indexed) {
-    opacity: 0.5;
-    cursor: not-allowed;
-    pointer-events: none;
-  }
-}
+// Stili per file non indicizzati — RIMOSSI il 2026-05-23 (gating UI).
+//
+// Prima questa regola disabilitava i click (pointer-events: none) sui file
+// markdown finché la pipeline async non aveva indicizzato il file. Risultato:
+// MDE appariva "inibito" per l'intera durata dell'indicizzazione, in
+// contraddizione con il design async della pipeline (vedi
+// IndexingPipelineService.RunAsync + Task.Yield).
+//
+// L'indicizzazione popola i link cross-file (LinkInsideMarkdown) e
+// l'embedding RAG — l'apertura del file in sé non dipende da questi dati.
+//
+// Lasciato vuoto come marker storico; rimosso del tutto se nessun listener
+// dipendesse dalla classe .md-file (controllato: solo questo blocco SCSS la
+// targetava per dimming/gating).
+//
+// .md-file {
+//   &:not(.indexed) {
+//     opacity: 0.5;
+//     cursor: not-allowed;
+//     pointer-events: none;
+//   }
+// }
 
 // Animazione per cartelle con indicizzazione in corso
 .folder-node {
@@ -364,4 +378,27 @@
 @keyframes reveal-flash {
   0% { background-color: rgba(255, 193, 7, 0.4); }
   100% { background-color: transparent; }
+}
+
+// Document icon on a folder node when it owns a generated TOC file.
+// Clickable, opens <dirname>.md.directory directly.
+.toc-indicator {
+  cursor: pointer;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  margin-left: 6px;
+  color: #1565c0;
+  vertical-align: middle;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+:host-context(body.dark-theme) .toc-indicator {
+  color: #64b5f6;
 }

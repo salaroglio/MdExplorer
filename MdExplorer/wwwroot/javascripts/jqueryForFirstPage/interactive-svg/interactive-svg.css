@@ -1,17 +1,32 @@
 /**
  * MdExplorer - Interactive SVG Styles
  * ====================================
- * Visual styles for interactive PlantUML SVG diagrams
+ * Visual styles for interactive PlantUML SVG diagrams.
  *
- * Color Scheme:
- * - BLUE (#2196F3): Selected source element
- * - RED (#f44336): Boxes sending info TO selected (incoming connections)
- * - GREEN (#4CAF50): Boxes receiving info FROM selected (outgoing connections)
- * - YELLOW (#FFC107): Note/comment boxes (GMN*)
- * - ORANGE (#FF9800): Highlighted links/arrows
+ * Format-agnostic: uses marker classes added by interactive-svg.js
+ *   - .interactive-svg-box   : every clickable box (legacy elem_/cluster_/GMN + new g.entity/g.cluster)
+ *   - .interactive-svg-link  : every link group   (legacy link_*                + new g.link)
+ *   - .interactive-svg-note  : GMN/note boxes (subset of .interactive-svg-box)
+ *
+ * State classes (added at click time by the JS):
+ *   .source-selected         : the clicked box
+ *   .destination-incoming    : a box that points INTO the selected one (sender)   — RED
+ *   .destination-outgoing    : a box the selected one points TO (receiver)        — GREEN
+ *   .destination-note        : a note connected to the selected one               — YELLOW
+ *   .destination             : legacy alias kept for back-compat (treated like incoming)
+ *   .link-highlighted        : a link connected to the selection                  — ORANGE
+ *   .has-selection           : on the <svg> while a selection is active           (drives dimming)
+ *   .interactive-svg-active  : on the <svg> while a selection is active           (enables ESC)
+ *
+ * Color scheme:
+ *   BLUE   #2196F3  selected source
+ *   RED    #f44336  incoming (sender)
+ *   GREEN  #4CAF50  outgoing (receiver)
+ *   YELLOW #FFC107  note
+ *   ORANGE #FF9800  highlighted link
  */
 
-/* === BASE SVG STYLES === */
+/* === BASE === */
 
 svg.interactive-svg {
     cursor: default;
@@ -19,44 +34,35 @@ svg.interactive-svg {
 
 /* === ALL BOXES ARE CLICKABLE === */
 
-svg.interactive-svg g[id^="cluster_"],
-svg.interactive-svg g[id^="cluster_"] *,
-svg.interactive-svg g[id^="elem_"],
-svg.interactive-svg g[id^="elem_"] *,
-svg.interactive-svg g[id^="GMN"],
-svg.interactive-svg g[id^="GMN"] * {
+svg.interactive-svg g.interactive-svg-box,
+svg.interactive-svg g.interactive-svg-box * {
     pointer-events: all !important;
     cursor: pointer;
 }
 
 /* === LINKS ARE CLICKABLE === */
 
-svg.interactive-svg g[id^="link_"],
-svg.interactive-svg g[id^="link_"] * {
+svg.interactive-svg g.interactive-svg-link,
+svg.interactive-svg g.interactive-svg-link * {
     pointer-events: stroke !important;
     cursor: pointer;
 }
 
 /* === HOVER EFFECTS === */
 
-svg.interactive-svg g[id^="elem_"]:hover > rect,
-svg.interactive-svg g[id^="elem_"]:hover > path,
-svg.interactive-svg g[id^="elem_"]:hover  ellipse,
-svg.interactive-svg g[id^="cluster_"]:hover > rect,
-svg.interactive-svg g[id^="cluster_"]:hover > path,
-svg.interactive-svg g[id^="cluster_"]:hover  ellipse,
-svg.interactive-svg g[id^="GMN"]:hover > rect,
-svg.interactive-svg g[id^="GMN"]:hover > path {
+svg.interactive-svg g.interactive-svg-box:hover > rect,
+svg.interactive-svg g.interactive-svg-box:hover > path,
+svg.interactive-svg g.interactive-svg-box:hover  ellipse {
     stroke-width: 2 !important;
     filter: drop-shadow(0 0 4px rgba(33, 150, 243, 0.5));
 }
 
-svg.interactive-svg g[id^="link_"]:hover path:not(.hit-area) {
+svg.interactive-svg g.interactive-svg-link:hover path:not(.hit-area) {
     stroke: #2196F3 !important;
     stroke-width: 3 !important;
 }
 
-svg.interactive-svg g[id^="link_"]:hover polygon {
+svg.interactive-svg g.interactive-svg-link:hover polygon {
     fill: #2196F3 !important;
     stroke: #2196F3 !important;
 }
@@ -69,6 +75,17 @@ svg.interactive-svg g.source-selected  ellipse {
     stroke: #2196F3 !important;
     stroke-width: 3 !important;
     filter: drop-shadow(0 0 8px #2196F3) drop-shadow(0 0 16px #2196F3) !important;
+}
+
+/* === CLUSTER CONTAINED - BLU SOFT === */
+/* Applied to every box inside a clicked cluster (descendant entities + sub-clusters) */
+
+svg.interactive-svg g.cluster-contained > rect,
+svg.interactive-svg g.cluster-contained > path,
+svg.interactive-svg g.cluster-contained  ellipse {
+    stroke: #64B5F6 !important;
+    stroke-width: 3 !important;
+    filter: drop-shadow(0 0 6px #64B5F6) drop-shadow(0 0 12px #64B5F6) !important;
 }
 
 /* === DESTINATION BOXES - INCOMING (senders) - RED === */
@@ -120,14 +137,12 @@ svg.interactive-svg g.link-highlighted polygon {
 
 /* === DIM NON-RELATED ELEMENTS === */
 
-svg.interactive-svg.has-selection g[id^="cluster_"]:not(.source-selected):not(.destination):not(.destination-incoming):not(.destination-outgoing):not(.destination-note),
-svg.interactive-svg.has-selection g[id^="elem_"]:not(.source-selected):not(.destination):not(.destination-incoming):not(.destination-outgoing):not(.destination-note),
-svg.interactive-svg.has-selection g[id^="GMN"]:not(.source-selected):not(.destination):not(.destination-incoming):not(.destination-outgoing):not(.destination-note) {
+svg.interactive-svg.has-selection g.interactive-svg-box:not(.source-selected):not(.destination):not(.destination-incoming):not(.destination-outgoing):not(.destination-note):not(.cluster-contained) {
     opacity: 0.3;
     transition: opacity 0.2s ease;
 }
 
-svg.interactive-svg.has-selection g[id^="link_"]:not(.link-highlighted) {
+svg.interactive-svg.has-selection g.interactive-svg-link:not(.link-highlighted) {
     opacity: 0.15;
     transition: opacity 0.2s ease;
 }
@@ -135,48 +150,48 @@ svg.interactive-svg.has-selection g[id^="link_"]:not(.link-highlighted) {
 /* === ALTERNATIVE LINK SELECTION COLORS === */
 
 /* Selected - BLUE */
-svg.interactive-svg g[id^="link_"].selected path:not(.hit-area) {
+svg.interactive-svg g.interactive-svg-link.selected path:not(.hit-area) {
     stroke: #2196F3 !important;
     stroke-width: 4 !important;
     filter: drop-shadow(0 0 8px #2196F3) drop-shadow(0 0 16px #2196F3);
 }
-svg.interactive-svg g[id^="link_"].selected polygon {
+svg.interactive-svg g.interactive-svg-link.selected polygon {
     fill: #2196F3 !important;
     stroke: #2196F3 !important;
     filter: drop-shadow(0 0 8px #2196F3);
 }
 
 /* Selected - GREEN */
-svg.interactive-svg g[id^="link_"].selected-green path:not(.hit-area) {
+svg.interactive-svg g.interactive-svg-link.selected-green path:not(.hit-area) {
     stroke: #4CAF50 !important;
     stroke-width: 4 !important;
     filter: drop-shadow(0 0 8px #4CAF50) drop-shadow(0 0 16px #4CAF50);
 }
-svg.interactive-svg g[id^="link_"].selected-green polygon {
+svg.interactive-svg g.interactive-svg-link.selected-green polygon {
     fill: #4CAF50 !important;
     stroke: #4CAF50 !important;
     filter: drop-shadow(0 0 8px #4CAF50);
 }
 
 /* Selected - ORANGE */
-svg.interactive-svg g[id^="link_"].selected-orange path:not(.hit-area) {
+svg.interactive-svg g.interactive-svg-link.selected-orange path:not(.hit-area) {
     stroke: #FF9800 !important;
     stroke-width: 4 !important;
     filter: drop-shadow(0 0 8px #FF9800) drop-shadow(0 0 16px #FF9800);
 }
-svg.interactive-svg g[id^="link_"].selected-orange polygon {
+svg.interactive-svg g.interactive-svg-link.selected-orange polygon {
     fill: #FF9800 !important;
     stroke: #FF9800 !important;
     filter: drop-shadow(0 0 8px #FF9800);
 }
 
 /* Selected - CYAN */
-svg.interactive-svg g[id^="link_"].selected-cyan path:not(.hit-area) {
+svg.interactive-svg g.interactive-svg-link.selected-cyan path:not(.hit-area) {
     stroke: #00BCD4 !important;
     stroke-width: 4 !important;
     filter: drop-shadow(0 0 8px #00BCD4) drop-shadow(0 0 16px #00BCD4);
 }
-svg.interactive-svg g[id^="link_"].selected-cyan polygon {
+svg.interactive-svg g.interactive-svg-link.selected-cyan polygon {
     fill: #00BCD4 !important;
     stroke: #00BCD4 !important;
     filter: drop-shadow(0 0 8px #00BCD4);
@@ -194,22 +209,15 @@ svg.interactive-svg .hit-area {
 
 /* === TRANSITIONS === */
 
-svg.interactive-svg g[id^="elem_"],
-svg.interactive-svg g[id^="cluster_"],
-svg.interactive-svg g[id^="GMN"],
-svg.interactive-svg g[id^="link_"] {
+svg.interactive-svg g.interactive-svg-box,
+svg.interactive-svg g.interactive-svg-link {
     transition: opacity 0.2s ease;
 }
 
-svg.interactive-svg g[id^="elem_"] > rect,
-svg.interactive-svg g[id^="elem_"] > path,
-svg.interactive-svg g[id^="elem_"]  ellipse,
-svg.interactive-svg g[id^="cluster_"] > rect,
-svg.interactive-svg g[id^="cluster_"] > path,
-svg.interactive-svg g[id^="cluster_"]  ellipse,
-svg.interactive-svg g[id^="GMN"] > rect,
-svg.interactive-svg g[id^="GMN"] > path,
-svg.interactive-svg g[id^="link_"] path,
-svg.interactive-svg g[id^="link_"] polygon {
+svg.interactive-svg g.interactive-svg-box > rect,
+svg.interactive-svg g.interactive-svg-box > path,
+svg.interactive-svg g.interactive-svg-box  ellipse,
+svg.interactive-svg g.interactive-svg-link path,
+svg.interactive-svg g.interactive-svg-link polygon {
     transition: stroke 0.2s ease, stroke-width 0.2s ease, fill 0.2s ease, filter 0.2s ease;
 }

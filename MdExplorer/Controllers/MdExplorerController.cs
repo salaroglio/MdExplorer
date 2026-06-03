@@ -762,7 +762,7 @@ namespace MdExplorer.Controllers
             }
         }
 
-        private string AddButtonTextOnVerticalBar(string onHoverJs, string text, string Id)
+        private string AddButtonTextOnVerticalBar(string onClickJs, string text, string Id)
         {
             try
             {
@@ -770,13 +770,13 @@ namespace MdExplorer.Controllers
                 var body = doc1.CreateElement("div");
                 var a = doc1.CreateElement("div");
                 a.InnerText = text;
-                var attHover = doc1.CreateAttribute("onMouseEnter");
-                attHover.Value = onHoverJs;
+                var attClick = doc1.CreateAttribute("onClick");
+                attClick.Value = onClickJs;
                 var attStyle = doc1.CreateAttribute("style");
                 attStyle.Value = "cursor: pointer";
                 var attId = doc1.CreateAttribute("id");
                 attId.Value = Id;
-                a.Attributes.Append(attHover);
+                a.Attributes.Append(attClick);
                 a.Attributes.Append(attStyle);
                 a.Attributes.Append(attId);
                 body.AppendChild(a);
@@ -785,7 +785,7 @@ namespace MdExplorer.Controllers
             catch (Exception ex)
             {
                 _logger.LogWarning($"⚠️ [MdExplorer] Could not create text button {Id}: {ex.Message}");
-                return $"<div><div onmouseenter=\"{onHoverJs}\" style=\"cursor: pointer\" id=\"{Id}\">{text}</div></div>";
+                return $"<div><div onclick=\"{onClickJs}\" style=\"cursor: pointer\" id=\"{Id}\">{text}</div></div>";
             }
         }
 

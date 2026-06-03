@@ -5536,6 +5536,75 @@ class ProjectSettingsService {
       forceReindex
     });
   }
+  // ============================================================
+  //   Knowledge Graph (Neo4j) settings + sync
+  // ============================================================
+  getKgSettings(projectId) {
+    return this.http.get(`../api/kg/settings/${encodeURIComponent(projectId)}`);
+  }
+  saveKgSettings(projectId, body) {
+    return this.http.put(`../api/kg/settings/${encodeURIComponent(projectId)}`, body);
+  }
+  testKgConnection(body) {
+    return this.http.post('../api/kg/test-connection', body);
+  }
+  syncKgProject(projectId) {
+    return this.http.post('../api/kg/ingest/project', {
+      projectId
+    });
+  }
+  syncKgFolder(projectId, relativeFolderPath) {
+    return this.http.post('../api/kg/ingest/folder', {
+      projectId,
+      relativeFolderPath
+    });
+  }
+  syncKgFile(projectId, relativeKgPath) {
+    return this.http.post('../api/kg/ingest/file', {
+      projectId,
+      relativeKgPath
+    });
+  }
+  resetKg(projectId) {
+    return this.http.post('../api/kg/reset', {
+      projectId,
+      confirm: true
+    });
+  }
+  getKgState(projectId) {
+    return this.http.get(`../api/kg/state/${encodeURIComponent(projectId)}`);
+  }
+  // ============================================================
+  //   Apache Jena Fuseki settings (parallelo a KG/Neo4j)
+  // ============================================================
+  getFusekiSettings(projectId) {
+    return this.http.get(`../api/fs/settings/${encodeURIComponent(projectId)}`);
+  }
+  saveFusekiSettings(projectId, body) {
+    return this.http.put(`../api/fs/settings/${encodeURIComponent(projectId)}`, body);
+  }
+  testFusekiConnection(body) {
+    return this.http.post('../api/fs/test-connection', body);
+  }
+  ensureFusekiDataset(projectId) {
+    return this.http.post('../api/fs/ensure-dataset', {
+      projectId
+    });
+  }
+  // ============================================================
+  //   Atlassian (Jira/Confluence) settings
+  //   Shared config (base url, project keys, planning folder) -> .development.yml
+  //   Personal token -> UserDB (encrypted). Both saved in one PUT.
+  // ============================================================
+  getAtlassianSettings(projectId) {
+    return this.http.get(`../api/atlassian/settings/${encodeURIComponent(projectId)}`);
+  }
+  saveAtlassianSettings(projectId, body) {
+    return this.http.put(`../api/atlassian/settings/${encodeURIComponent(projectId)}`, body);
+  }
+  testAtlassianConnection(body) {
+    return this.http.post('../api/atlassian/test-connection', body);
+  }
   static {
     this.ɵfac = function ProjectSettingsService_Factory(t) {
       return new (t || ProjectSettingsService)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_1__.HttpClient));

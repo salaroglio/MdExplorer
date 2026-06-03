@@ -26,9 +26,16 @@
     let _overlay = null;
     let _graph = null;          // active graph instance (2D or 3D)
     let _mode = '2d';           // default
+    let _source = 'files';      // 'files' = links between markdown files (default, legacy)
+                                 // 'concepts' = concept graph from Neo4j (.kg.md payloads)
     let _data = null;
     let _layout = null;         // cluster layout for current data
     let _isDark = false;
+    let _currentProjectId = null;
+    let _availableNamespaces = [];
+    let _selectedNamespace = ''; // '' = all namespaces (for concept source)
+    let _fullData = null;        // pristine concept graph; _data is the rendered (possibly focused) subset
+    let _focusId = null;         // when set, isolate this node's directed neighborhood
 
     // ---- Palette ------------------------------------------------------------
     const PALETTE = [
@@ -126,21 +133,51 @@
     function buildNodeTooltip(node) {
         const label = escapeHtml(node.label || node.id || '');
         const isExt = !!node.isExternal;
-        const meta = isExt
+        let meta = isExt
             ? (node.cluster ? escapeHtml(node.cluster) : 'external')
             : (node.mdContext ? escapeHtml(node.mdContext) : 'root');
+        if (node.nodeType) meta += ' · ' + escapeHtml(node.nodeType);
+        if (node.kind)     meta += ' · ' + escapeHtml(node.kind);
         const icon = isExt ? '🌐 ' : (node.isCenter ? '◈ ' : '📄 ');
-        const tldrHtml = renderTldrHtml(node.tldr);
-        const tldrBlock = tldrHtml
-            ? '<div class="kgTipTldr">' + tldrHtml + '</div>'
-            : (isExt ? '' : '<div class="kgTipNote">No TLDR; available</div>');
+        let srcBlock = '';
+        if (node.docPath) {
+            let src = escapeHtml(node.docPath);
+            if (node.lineStart != null) {
+                src += ' : ' + node.lineStart +
+                    (node.lineEnd != null && node.lineEnd !== node.lineStart ? '-' + node.lineEnd : '');
+            }
+            srcBlock = '<div class="kgTipMeta">' + src + '</div>';
+        }
+        // The transformation rule is the logic — show it first when present.
+        const ruleHtml = renderTldrHtml(node.rule);
+        const ruleBlock = ruleHtml ? '<div class="kgTipTldr">' + ruleHtml + '</div>' : '';
+        const descHtml = renderTldrHtml(node.tldr);
+        const descBlock = (descHtml && node.tldr !== node.rule)
+            ? '<div class="kgTipTldr">' + descHtml + '</div>'
+            : ((!ruleBlock && !isExt) ? '<div class="kgTipNote">No description</div>' : '');
         return '<div class="kgTooltip">' +
             '<div class="kgTipHead">' +
                 '<span class="kgTipIcon">' + icon + '</span>' +
                 '<span class="kgTipLabel">' + label + '</span>' +
             '</div>' +
             '<div class="kgTipMeta">' + meta + '</div>' +
-            tldrBlock +
+            srcBlock +
+            ruleBlock +
+            descBlock +
+        '</div>';
+    }
+
+    function buildLinkTooltip(link) {
+        const t = escapeHtml((link.relType || link.linkType || 'link').toUpperCase()) +
+            (link.role ? ' · ' + escapeHtml(link.role) : '');
+        const descHtml = renderTldrHtml(link.description);
+        const descBlock = descHtml ? '<div class="kgTipTldr">' + descHtml + '</div>' : '';
+        return '<div class="kgTooltip">' +
+            '<div class="kgTipHead">' +
+                '<span class="kgTipIcon">&rarr; </span>' +
+                '<span class="kgTipLabel">' + t + '</span>' +
+            '</div>' +
+            descBlock +
         '</div>';
     }
 
@@ -384,6 +421,7 @@
             .nodeResolution(24)
             .nodeThreeObjectExtend(true)
             .nodeThreeObject(buildLabelSprite3D)
+            .linkLabel(buildLinkTooltip)
             .linkColor(linkColor)
             .linkOpacity(0.55)
             .linkWidth(1.1)
@@ -395,7 +433,7 @@
             .linkDirectionalParticleSpeed(0.006)
             .linkDirectionalParticleWidth(2)
             .linkDirectionalParticleColor(linkColor)
-            .onNodeClick(navigateToNode)
+            .onNodeClick(handleNodeClick)
             .onNodeHover(function (node) { container.style.cursor = node ? 'pointer' : null; })
             .graphData(data);
         try {
@@ -488,6 +526,7 @@
                 ctx.fillStyle = color;
                 ctx.fill();
             })
+            .linkLabel(buildLinkTooltip)
             .linkColor(linkColor)
             .linkWidth(function (l) { return 1.4; })
             .linkCurvature(0.08)
@@ -498,7 +537,7 @@
             .linkDirectionalParticleSpeed(0.006)
             .linkDirectionalParticleWidth(2)
             .linkDirectionalParticleColor(linkColor)
-            .onNodeClick(navigateToNode)
+            .onNodeClick(handleNodeClick)
             .onNodeHover(function (node) { container.style.cursor = node ? 'pointer' : null; })
             .cooldownTicks(120)
             .onRenderFramePre(function (ctx, globalScale) {
@@ -588,17 +627,45 @@
         o.innerHTML =
             '<div class="kgHeader">' +
                 '<div class="kgTitle"><span class="kgTitleIcon">◈</span>Knowledge Graph</div>' +
-                '<div class="kgViewTabs" role="tablist">' +
+                '<div class="kgViewTabs" role="tablist" aria-label="Source">' +
+                    '<button type="button" class="kgViewTab" data-source="files"    role="tab" title="Links between markdown files (legacy view)">Files</button>' +
+                    '<button type="button" class="kgViewTab" data-source="concepts" role="tab" title="Concept graph from .kg.md (Neo4j)">Concepts</button>' +
+                '</div>' +
+                '<div class="kgViewTabs" role="tablist" aria-label="Render mode" style="margin-left:8px">' +
                     '<button type="button" class="kgViewTab" data-mode="2d" role="tab">2D</button>' +
                     '<button type="button" class="kgViewTab" data-mode="3d" role="tab">3D</button>' +
                 '</div>' +
+                '<select class="kgNsPicker" style="margin-left:8px;display:none" title="Namespace filter (concepts only)">' +
+                    '<option value="">All namespaces</option>' +
+                '</select>' +
+                '<input type="text" class="kgFocusCtl kgFocusInput" list="kgNodeList" placeholder="Vai al campo…" title="Isola un campo e le sue relazioni" style="display:none">' +
+                '<datalist id="kgNodeList"></datalist>' +
+                '<select class="kgFocusCtl kgFocusDir" title="Direzione del focus" style="display:none">' +
+                    '<option value="up">◄ a monte</option>' +
+                    '<option value="down">► a valle</option>' +
+                    '<option value="both" selected>↔ entrambe</option>' +
+                '</select>' +
+                '<select class="kgFocusCtl kgFocusDepth" title="Profondità" style="display:none">' +
+                    '<option value="1">1 salto</option>' +
+                    '<option value="2">2 salti</option>' +
+                    '<option value="3">3 salti</option>' +
+                    '<option value="0" selected>tutto</option>' +
+                '</select>' +
+                '<button type="button" class="kgBtn kgBtnIcon kgFocusClear" data-act="focus-clear" title="Esci dal focus" style="display:none">✕</button>' +
                 '<div class="kgHeaderSpacer"></div>' +
                 '<div class="kgActions">' +
+                    '<button type="button" class="kgBtn kgBtnIcon kgSanityBtn" data-act="sanity" title="Sanity report" style="display:none">⚕</button>' +
                     '<button type="button" class="kgBtn kgBtnIcon" data-act="refresh" title="Refresh">⟳</button>' +
                     '<button type="button" class="kgBtn kgBtnClose" data-act="close" title="Close (Esc)">✕</button>' +
                 '</div>' +
             '</div>' +
             '<div class="kgBody"></div>' +
+            '<aside class="kgSanityDrawer" style="display:none">' +
+                '<div class="kgSanityHeader"><span>Sanity report</span>' +
+                    '<button type="button" class="kgBtn kgBtnIcon" data-act="sanity-close" title="Close panel">✕</button>' +
+                '</div>' +
+                '<div class="kgSanityBody"><div class="kgSanityLoading">Loading…</div></div>' +
+            '</aside>' +
             '<div class="kgFooter">' +
                 '<div class="kgLegend">' +
                     '<span class="kgLegendGroup"><strong>Nodes</strong>' +
@@ -623,9 +690,27 @@
             if (!btn) return;
             const act = btn.getAttribute('data-act');
             const mode = btn.getAttribute('data-mode');
+            const source = btn.getAttribute('data-source');
             if (act === 'close') closeOverlay();
             else if (act === 'refresh') refresh();
+            else if (act === 'sanity') toggleSanityPanel();
+            else if (act === 'sanity-close') hideSanityPanel();
+            else if (act === 'focus-clear') clearFocus();
             else if (mode) setMode(mode);
+            else if (source) setSource(source);
+        });
+        const nsPicker = o.querySelector('.kgNsPicker');
+        if (nsPicker) {
+            nsPicker.addEventListener('change', function () {
+                _selectedNamespace = nsPicker.value || '';
+                if (_source === 'concepts') refresh();
+            });
+        }
+        const focusInput = o.querySelector('.kgFocusInput');
+        if (focusInput) focusInput.addEventListener('change', onFocusInputChange);
+        ['.kgFocusDir', '.kgFocusDepth'].forEach(function (sel) {
+            const el = o.querySelector(sel);
+            if (el) el.addEventListener('change', function () { if (_focusId) applyView(); });
         });
         document.addEventListener('keydown', escClose);
         window.addEventListener('resize', resize);
@@ -636,15 +721,145 @@
         if (!_overlay) return;
         const tabs = _overlay.querySelectorAll('.kgViewTab');
         tabs.forEach(function (t) {
-            if (t.getAttribute('data-mode') === _mode) t.classList.add('kgViewTabActive');
-            else t.classList.remove('kgViewTabActive');
+            const m = t.getAttribute('data-mode');
+            const s = t.getAttribute('data-source');
+            let active = false;
+            if (m && m === _mode) active = true;
+            else if (s && s === _source) active = true;
+            t.classList.toggle('kgViewTabActive', active);
         });
         const hint = _overlay.querySelector('.kgHint');
         if (hint) {
+            const sourceLbl = _source === 'concepts' ? 'concepts' : 'files';
             hint.textContent = _mode === '3d'
-                ? 'drag to orbit • scroll to zoom • click a node to open'
-                : 'drag to pan • scroll to zoom • click a node to open';
+                ? 'drag to orbit • scroll to zoom • click a node — viewing ' + sourceLbl
+                : 'drag to pan • scroll to zoom • click a node — viewing ' + sourceLbl;
         }
+        const nsPicker = _overlay.querySelector('.kgNsPicker');
+        if (nsPicker) nsPicker.style.display = _source === 'concepts' ? '' : 'none';
+        const showFocus = _source === 'concepts';
+        ['.kgFocusInput', '.kgFocusDir', '.kgFocusDepth'].forEach(function (sel) {
+            const el = _overlay.querySelector(sel);
+            if (el) el.style.display = showFocus ? '' : 'none';
+        });
+        const focusClear = _overlay.querySelector('.kgFocusClear');
+        if (focusClear) focusClear.style.display = (showFocus && _focusId) ? '' : 'none';
+        const sanityBtn = _overlay.querySelector('.kgSanityBtn');
+        if (sanityBtn) sanityBtn.style.display = _source === 'concepts' ? '' : 'none';
+        if (_source !== 'concepts') hideSanityPanel();
+    }
+
+    // ---- Sanity report panel ---------------------------------------------------
+
+    function toggleSanityPanel() {
+        if (!_overlay) return;
+        const drawer = _overlay.querySelector('.kgSanityDrawer');
+        if (!drawer) return;
+        if (drawer.style.display === 'none' || drawer.style.display === '') {
+            drawer.style.display = 'flex';
+            loadSanity();
+        } else {
+            hideSanityPanel();
+        }
+    }
+
+    function hideSanityPanel() {
+        if (!_overlay) return;
+        const drawer = _overlay.querySelector('.kgSanityDrawer');
+        if (drawer) drawer.style.display = 'none';
+    }
+
+    function loadSanity() {
+        const body = _overlay && _overlay.querySelector('.kgSanityBody');
+        if (!body) return;
+        body.innerHTML = '<div class="kgSanityLoading">Loading…</div>';
+        resolveProjectIdAsync().then(function (projectId) {
+            if (!projectId) { body.innerHTML = '<div class="kgSanityErr">No project resolved.</div>'; return; }
+            let url = '/api/kg/sanity/' + encodeURIComponent(projectId);
+            if (_selectedNamespace) url += '?ns=' + encodeURIComponent(_selectedNamespace);
+            return $.get(url);
+        }).then(function (resp) {
+            if (!resp) return;
+            body.innerHTML = renderSanityHtml(resp);
+            // Wire click-to-focus on each finding
+            body.querySelectorAll('[data-focus-id]').forEach(function (el) {
+                el.addEventListener('click', function () {
+                    const id = el.getAttribute('data-focus-id');
+                    focusNodeById(id);
+                });
+            });
+        }).fail(function (xhr) {
+            body.innerHTML = '<div class="kgSanityErr">Failed: HTTP ' + (xhr ? xhr.status : '?') + '</div>';
+        });
+    }
+
+    function renderSanityHtml(r) {
+        const sb = [];
+        const ratio = r.relatedToRatio || { totalEdges: 0, relatedToEdges: 0, ratio: 0 };
+        const ratioPct = Math.round(ratio.ratio * 100);
+        const ratioCls = ratio.ratio >= 0.5 ? 'kgSanityWarn' : '';
+        sb.push('<div class="kgSanitySec ' + ratioCls + '">');
+        sb.push('<h4>RELATED_TO ratio</h4>');
+        sb.push('<p>' + ratio.relatedToEdges + ' of ' + ratio.totalEdges + ' edges (' + ratioPct + '%) use the fallback type.');
+        if (ratio.ratio >= 0.5) sb.push(' &nbsp;<strong>⚠ over 50% — closed vocabulary not respected</strong>');
+        sb.push('</p>');
+        sb.push('</div>');
+
+        const orphans = r.orphans || [];
+        sb.push('<div class="kgSanitySec"><h4>Orphan concepts (no relationships) — ' + orphans.length + '</h4>');
+        if (orphans.length === 0) sb.push('<p class="kgSanityOk">None ✓</p>');
+        else {
+            sb.push('<ul>');
+            orphans.slice(0, 50).forEach(function (o) {
+                const id = (o.graph || '') + '::' + (o.name || '');
+                sb.push('<li><a href="#" data-focus-id="' + escapeHtml(id) + '"><strong>' + escapeHtml(o.name) + '</strong></a> <span class="kgMuted">(' + escapeHtml(o.graph) + ')</span></li>');
+            });
+            if (orphans.length > 50) sb.push('<li class="kgMuted">… +' + (orphans.length - 50) + ' more</li>');
+            sb.push('</ul>');
+        }
+        sb.push('</div>');
+
+        const hot = r.hot || [];
+        sb.push('<div class="kgSanitySec"><h4>Hot concepts (degree > 10) — ' + hot.length + '</h4>');
+        if (hot.length === 0) sb.push('<p class="kgSanityOk">None ✓</p>');
+        else {
+            sb.push('<ul>');
+            hot.slice(0, 50).forEach(function (h) {
+                const id = (h.graph || '') + '::' + (h.name || '');
+                sb.push('<li><a href="#" data-focus-id="' + escapeHtml(id) + '"><strong>' + escapeHtml(h.name) + '</strong></a> <span class="kgMuted">(' + escapeHtml(h.graph) + ', deg ' + h.degree + ')</span></li>');
+            });
+            sb.push('</ul>');
+        }
+        sb.push('</div>');
+
+        const cols = r.casingCollisions || [];
+        sb.push('<div class="kgSanitySec ' + (cols.length > 0 ? 'kgSanityWarn' : '') + '"><h4>Casing collisions — ' + cols.length + '</h4>');
+        if (cols.length === 0) sb.push('<p class="kgSanityOk">None ✓</p>');
+        else {
+            sb.push('<ul>');
+            cols.forEach(function (c) {
+                sb.push('<li><code>' + escapeHtml(c.key) + '</code> → ' + (c.names || []).map(function (n) { return '<strong>' + escapeHtml(n) + '</strong>'; }).join(', ') + '</li>');
+            });
+            sb.push('</ul>');
+        }
+        sb.push('</div>');
+        return sb.join('');
+    }
+
+    function focusNodeById(nodeId) {
+        if (!_graph || !_data) return;
+        const node = _data.nodes.find(function (n) { return n.id === nodeId; });
+        if (!node) return;
+        try {
+            if (_mode === '2d' && _graph.centerAt) {
+                if (node.x != null && node.y != null) _graph.centerAt(node.x, node.y, 800);
+                if (_graph.zoom) _graph.zoom(3, 800);
+            } else if (_mode === '3d' && _graph.cameraPosition) {
+                const distance = 200;
+                const distRatio = 1 + distance / Math.hypot(node.x || 1, node.y || 1, node.z || 1);
+                _graph.cameraPosition({ x: (node.x || 0) * distRatio, y: (node.y || 0) * distRatio, z: (node.z || 0) * distRatio }, node, 1000);
+            }
+        } catch (e) { /* noop */ }
     }
 
     function setMode(mode) {
@@ -654,6 +869,21 @@
         setActiveTab();
         if (!_data || !_data.nodes || _data.nodes.length === 0) return;
         renderActive();
+    }
+
+    function setSource(source) {
+        if (source !== 'files' && source !== 'concepts') return;
+        if (source === _source) return;
+        _source = source;
+        setActiveTab();
+        const body = _overlay && _overlay.querySelector('.kgBody');
+        if (body) body.innerHTML = '';
+        _graph = null;
+        _data = null;
+        _layout = null;
+        _fullData = null;
+        _focusId = null;
+        loadAndRender();
     }
 
     function escClose(e) { if (e.key === 'Escape') closeOverlay(); }
@@ -702,6 +932,10 @@
     }
 
     function loadAndRender() {
+        if (_source === 'concepts') {
+            loadConceptGraphAndRender();
+            return;
+        }
         const pathFile = getDocumentPath();
         if (!pathFile) { showError('Could not determine current document path.'); return; }
         showLoading(true);
@@ -724,6 +958,262 @@
                 console.error('[KG] fetch failed', xhr && xhr.status, xhr && xhr.statusText);
                 showError('Failed to load Knowledge Graph (HTTP ' + (xhr ? xhr.status : '?') + ').');
             });
+    }
+
+    // ---- Concept graph (Neo4j) source -----------------------------------------
+
+    function normalizeConcepts(raw) {
+        if (!raw || !raw.nodes) return { nodes: [], links: [] };
+        return {
+            nodes: raw.nodes.map(function (n) {
+                return {
+                    id: n.id,
+                    label: n.name || n.id,
+                    cluster: n.graph,       // cluster halo grouped by graph namespace
+                    mdContext: n.graph,     // reused for legend / friendly label
+                    sourceDocs: n.sourceDocs || [],
+                    nodeType: n.type || '',     // secondary label (TargetField, Transformation, …)
+                    kind: n.kind || '',         // transformation kind (LOOKUP, CONDITIONAL, …)
+                    rule: n.rule || '',         // transformation logic
+                    description: n.description || '',
+                    docPath: n.docPath || '',
+                    lineStart: n.lineStart,
+                    lineEnd: n.lineEnd,
+                    isCenter: false,
+                    isExternal: false,
+                    inDegree: 0,
+                    outDegree: 0,
+                    tldr: n.description || ''   // feed the shared node tooltip
+                };
+            }),
+            links: (raw.links || []).map(function (l) {
+                return {
+                    source: l.source,
+                    target: l.target,
+                    linkType: (l.type || 'link').toLowerCase(),
+                    relType: l.type || 'link',
+                    role: l.role || '',
+                    description: l.description || '',
+                    sourceDocs: l.sourceDocs || []
+                };
+            })
+        };
+    }
+
+    function resolveProjectIdAsync() {
+        if (_currentProjectId) return $.Deferred().resolve(_currentProjectId).promise();
+        const pathFile = getDocumentPath();
+        return $.get('/api/MdProjects/GetProjects').then(function (projects) {
+            if (!projects || !projects.length) return null;
+            const norm = function (p) { return (p || '').replace(/\\/g, '/').replace(/\/$/, '').toLowerCase(); };
+            const target = norm(pathFile);
+            let best = null;
+            for (let i = 0; i < projects.length; i++) {
+                const p = projects[i];
+                const pp = norm(p.path || '');
+                if (!pp) continue;
+                if (target === pp || target.indexOf(pp + '/') === 0) {
+                    if (!best || pp.length > norm(best.path).length) best = p;
+                }
+            }
+            _currentProjectId = best ? best.id : null;
+            return _currentProjectId;
+        });
+    }
+
+    function populateNamespacePicker(namespaces) {
+        if (!_overlay) return;
+        const picker = _overlay.querySelector('.kgNsPicker');
+        if (!picker) return;
+        const current = _selectedNamespace;
+        picker.innerHTML = '<option value="">All namespaces</option>';
+        (namespaces || []).forEach(function (ns) {
+            const opt = document.createElement('option');
+            opt.value = ns.graph;
+            opt.textContent = ns.graph + ' (' + ns.conceptCount + ')';
+            if (ns.graph === current) opt.selected = true;
+            picker.appendChild(opt);
+        });
+    }
+
+    function loadConceptGraphAndRender() {
+        showLoading(true);
+        resolveProjectIdAsync().then(function (projectId) {
+            if (!projectId) { showError('Could not resolve current project for concept graph.'); return; }
+            $.get('/api/kg/query/namespaces/' + encodeURIComponent(projectId))
+                .done(function (nsResp) {
+                    _availableNamespaces = (nsResp && nsResp.namespaces) || [];
+                    populateNamespacePicker(_availableNamespaces);
+                });
+            let url = '/api/kg/graph/' + encodeURIComponent(projectId);
+            if (_selectedNamespace) url += '?ns=' + encodeURIComponent(_selectedNamespace);
+            return $.get(url);
+        }).then(function (raw) {
+            if (!raw) return;
+            const data = normalizeConcepts(raw);
+            showLoading(false);
+            if (!data.nodes.length) {
+                _fullData = null;
+                const body = _overlay && _overlay.querySelector('.kgBody');
+                if (body) body.innerHTML = '<div class="kgEmpty"><div class="kgEmptyIcon">🕸️</div><div>No concepts in Neo4j yet — sync from Project Settings → Knowledge Graph.</div></div>';
+                return;
+            }
+            _fullData = data;
+            _focusId = null;
+            const fi = _overlay && _overlay.querySelector('.kgFocusInput');
+            if (fi) fi.value = '';
+            populateNodeDatalist(data.nodes);
+            setActiveTab();
+            applyView();
+        }).fail(function (xhr) {
+            console.error('[KG] concept fetch failed', xhr && xhr.status, xhr && xhr.statusText);
+            const errBody = xhr && xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : ('HTTP ' + (xhr ? xhr.status : '?'));
+            showError('Failed to load concept graph: ' + errBody);
+        });
+    }
+
+    // ---- Focus mode: isolate a node's neighborhood --------------------------
+    // The concept graph is loaded whole into _fullData; _data is the rendered
+    // subset. With _focusId set, only that node's directed neighborhood
+    // (upstream / downstream / both, to a depth) survives — the rest is removed.
+
+    function focusDir() {
+        const s = _overlay && _overlay.querySelector('.kgFocusDir');
+        return s ? s.value : 'up';
+    }
+    function focusDepth() {
+        const s = _overlay && _overlay.querySelector('.kgFocusDepth');
+        return s ? (parseInt(s.value, 10) || 0) : 0;   // 0 = unlimited
+    }
+    function linkEndId(e) { return (e && typeof e === 'object') ? e.id : e; }
+
+    function populateNodeDatalist(nodes) {
+        if (!_overlay) return;
+        const dl = _overlay.querySelector('#kgNodeList');
+        if (!dl) return;
+        const seen = Object.create(null);
+        const opts = [];
+        (nodes || []).forEach(function (n) {
+            const lbl = n.label || n.id;
+            if (!lbl || seen[lbl]) return;
+            seen[lbl] = true;
+            opts.push('<option value="' + escapeHtml(lbl) + '"></option>');
+        });
+        dl.innerHTML = opts.join('');
+    }
+
+    function onFocusInputChange() {
+        const input = _overlay && _overlay.querySelector('.kgFocusInput');
+        if (!input || !_fullData) return;
+        const val = (input.value || '').trim();
+        if (!val) { clearFocus(); return; }
+        const node = _fullData.nodes.find(function (n) {
+            return n.label === val || n.id === val;
+        });
+        if (!node) return;            // typed text matches no node — leave as-is
+        _focusId = node.id;
+        setActiveTab();
+        applyView();
+    }
+
+    function clearFocus() {
+        _focusId = null;
+        const input = _overlay && _overlay.querySelector('.kgFocusInput');
+        if (input) input.value = '';
+        setActiveTab();
+        applyView();
+    }
+
+    // Click a node → focus on it. Direction/depth combos drive the chain.
+    function focusOnNode(node) {
+        if (!node || !node.id) return;
+        _focusId = node.id;
+        const input = _overlay && _overlay.querySelector('.kgFocusInput');
+        if (input) input.value = node.label || node.id;
+        setActiveTab();
+        applyView();
+    }
+
+    function handleNodeClick(node) {
+        if (_source === 'concepts') { focusOnNode(node); return; }
+        navigateToNode(node);
+    }
+
+    function computeFocusSet(focusId, dir, maxDepth) {
+        const succ = Object.create(null), pred = Object.create(null);
+        _fullData.links.forEach(function (l) {
+            const s = linkEndId(l.source), t = linkEndId(l.target);
+            (succ[s] = succ[s] || []).push(t);
+            (pred[t] = pred[t] || []).push(s);
+        });
+        // A walk is MONOTONIC: once it follows a direction it never turns back.
+        // 'down' follows successors only, 'up' follows predecessors only — so
+        // the chain stops at its ends instead of re-spreading from every node.
+        function walk(adj) {
+            const seen = Object.create(null);
+            seen[focusId] = true;
+            let frontier = [focusId];
+            let depth = 0;
+            while (frontier.length && (maxDepth === 0 || depth < maxDepth)) {
+                const next = [];
+                frontier.forEach(function (id) {
+                    (adj[id] || []).forEach(function (nid) {
+                        if (!seen[nid]) { seen[nid] = true; next.push(nid); }
+                    });
+                });
+                frontier = next;
+                depth++;
+            }
+            return seen;
+        }
+        const keep = Object.create(null);
+        keep[focusId] = true;
+        // 'both' = pure-upstream walk UNION pure-downstream walk, never mixed.
+        if (dir === 'down' || dir === 'both') {
+            const d = walk(succ);
+            for (var k1 in d) keep[k1] = true;
+        }
+        if (dir === 'up' || dir === 'both') {
+            const u = walk(pred);
+            for (var k2 in u) keep[k2] = true;
+        }
+        return keep;
+    }
+
+    // Recompute _data from _fullData applying the current focus, then render.
+    // Fresh object copies go to the renderer so _fullData stays pristine
+    // (ForceGraph mutates the node/link objects it is handed).
+    function applyView() {
+        if (!_fullData) return;
+        let nodes = _fullData.nodes;
+        let links = _fullData.links;
+        if (_focusId && nodes.some(function (n) { return n.id === _focusId; })) {
+            const keep = computeFocusSet(_focusId, focusDir(), focusDepth());
+            nodes = nodes.filter(function (n) { return keep[n.id]; });
+            links = links.filter(function (l) {
+                return keep[linkEndId(l.source)] && keep[linkEndId(l.target)];
+            });
+        } else {
+            _focusId = null;
+        }
+        _data = {
+            nodes: nodes.map(function (n) {
+                const c = Object.assign({}, n);
+                if (_focusId && c.id === _focusId) c.isCenter = true;   // highlight the chain's origin
+                return c;
+            }),
+            links: links.map(function (l) {
+                return {
+                    source: linkEndId(l.source),
+                    target: linkEndId(l.target),
+                    linkType: l.linkType,
+                    relType: l.relType,
+                    description: l.description
+                };
+            })
+        };
+        _layout = computeLayout(_data);
+        renderActive();
     }
 
     function resize() {
@@ -756,6 +1246,12 @@
         _graph = null;
         _data = null;
         _layout = null;
+        _currentProjectId = null;
+        _availableNamespaces = [];
+        _selectedNamespace = '';
+        _fullData = null;
+        _focusId = null;
+        _source = 'files';
     }
 
     function refresh() {
@@ -765,6 +1261,8 @@
         _graph = null;
         _data = null;
         _layout = null;
+        _fullData = null;
+        _focusId = null;
         loadAndRender();
     }
 

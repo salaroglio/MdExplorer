@@ -45,6 +45,11 @@ export interface MarkAction {
 export interface MarkStep {
   /** ngx-translate key for the dialog text. */
   textKey: string;
+  /**
+   * Optional interpolation params for `textKey` (passed to translate.get).
+   * Used e.g. by the folder-actions lesson to inject the folder name.
+   */
+  textParams?: { [key: string]: any };
   /** CSS selector for the spotlight target; null/undefined = no spotlight. */
   targetSelector: string | null;
   /** Pause after typewriter completes, before next step. Default 1700ms. */
@@ -109,6 +114,17 @@ export interface MarkLesson {
    * instead of bouncing back to the action menu.
    */
   onCompleteNext?: MarkOnCompleteNext;
+}
+
+/**
+ * Context handed to Mark when he is summoned from a folder's context menu.
+ * Drives the folder-actions lesson and the summarize job.
+ */
+export interface MarkFolderContext {
+  /** Absolute path of the folder Mark was invoked on. */
+  folderFullPath: string;
+  /** Display name of the folder (last path segment). */
+  folderName: string;
 }
 
 /** Snapshot of a target element's position, used for the spotlight rect. */

@@ -22,6 +22,9 @@ export interface IFileInfoNode {
   indexingProgress?: number; // 0-100
   developmentTags?: string[]; // Tags for development folders (e.g., "program", "tests", "docs")
 
+  // True when the folder owns a generated TOC file (<dirname>.md.directory)
+  hasToc?: boolean;
+
   // Compact folder properties (VS Code-style)
   isCompacted?: boolean;                // True if this node is the result of compacting multiple folders
   compactedPath?: string;               // Compacted display path: "src / main / java"

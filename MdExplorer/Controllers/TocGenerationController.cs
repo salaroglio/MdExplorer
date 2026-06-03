@@ -17,8 +17,9 @@ namespace MdExplorer.Controllers
 {
     /// <summary>
     /// TOC generation endpoints. The TOC is deterministic (no AI, no cache): every call rebuilds
-    /// <c>&lt;dirname&gt;.md.directory</c> from the file system + each document's TL;DR + MD5 hash,
-    /// then appends the aggregated knowledge graph from sibling <c>.mde-doc/*.kg.md</c> payloads.
+    /// <c>&lt;dirname&gt;.md.directory</c> from the file system + each document's TL;DR + MD5 hash.
+    /// After writing the TOC, the Neo4j sync hook pushes any sibling <c>.mde-doc/*.kg.cypher</c>
+    /// scripts into the project's Knowledge Graph (best-effort).
     /// </summary>
     [ApiController]
     [Route("api/toc")]
@@ -45,17 +46,16 @@ namespace MdExplorer.Controllers
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(request?.DirectoryPath))
+                if (string.IsNullOrWhiteSpace(request?.FolderFullPath))
                 {
-                    return BadRequest("Directory path is required");
+                    return BadRequest("Folder full path is required");
                 }
 
-                var rootPath = GetProjectPath();
-                var absoluteDirectoryPath = Path.Combine(rootPath, request.DirectoryPath);
+                var absoluteDirectoryPath = request.FolderFullPath;
 
                 if (!Directory.Exists(absoluteDirectoryPath))
                 {
-                    return NotFound($"Directory not found: {request.DirectoryPath}");
+                    return NotFound($"Directory not found: {request.FolderFullPath}");
                 }
 
                 var directoryName = Path.GetFileName(absoluteDirectoryPath);
@@ -70,10 +70,13 @@ namespace MdExplorer.Controllers
                     tocFilePath,
                     cts.Token);
 
+                var rootPath = GetProjectPath();
+                var relativeTocPath = Path.GetRelativePath(rootPath, tocFilePath);
+
                 return Ok(new
                 {
                     success,
-                    tocPath = Path.Combine(request.DirectoryPath, tocFileName),
+                    tocPath = relativeTocPath,
                     message = success ? "TOC generated successfully" : "TOC generation failed (see server logs)"
                 });
             }
@@ -122,6 +125,6 @@ namespace MdExplorer.Controllers
 
     public class TocGenerationRequest
     {
-        public string DirectoryPath { get; set; }
+        public string FolderFullPath { get; set; }
     }
 }

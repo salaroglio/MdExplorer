@@ -74,6 +74,22 @@ namespace MdExplorer.Features.Services.AI
             return null;
         }
 
+        /// <summary>
+        /// Deterministic installation check: PATH scan for copilot.exe/.cmd/.ps1.
+        /// Single-digit ms, no process spawn, no timeout.
+        /// <para>
+        /// Old behaviour was a <c>copilot --version</c> probe with 5-second timeout. That
+        /// conflated "installed" (file exists in PATH) with "starts within 5s" (runtime
+        /// performance). Symptom: Copilot CLI 1.0.51 cold-starts in ~8.5s while it runs
+        /// its own update check; MDE killed the process at 5s and concluded "not installed"
+        /// on a perfectly installed system. Verified 2026-05-24.
+        /// </para>
+        /// <para>
+        /// We don't probe the version. If the file is there, it's installed. If a real
+        /// launch later fails (corrupt binary, permission denied, ...) that's a separate
+        /// concern surfaced at use time with the real error, not as a silent "not available".
+        /// </para>
+        /// </summary>
         public bool IsAvailable()
         {
             if (_cachedAvailability.HasValue && DateTime.UtcNow < _availabilityCacheExpiry)
@@ -81,50 +97,15 @@ namespace MdExplorer.Features.Services.AI
                 return _cachedAvailability.Value;
             }
 
-            try
+            var resolvable = CopilotProcessLauncher.IsResolvable();
+            _cachedAvailability = resolvable;
+            _availabilityCacheExpiry = DateTime.UtcNow + AvailabilityCacheDuration;
+            if (!resolvable)
             {
-                var psi = CopilotProcessLauncher.BuildStartInfo("--version");
-                psi.RedirectStandardOutput = true;
-                psi.RedirectStandardError = true;
-                psi.UseShellExecute = false;
-                psi.CreateNoWindow = true;
-
-                using var process = Process.Start(psi);
-                if (process == null)
-                {
-                    _cachedAvailability = false;
-                    _availabilityCacheExpiry = DateTime.UtcNow + AvailabilityCacheDuration;
-                    return false;
-                }
-
-                // Drain stdout/stderr concurrently — the WinGet copilot.exe launcher
-                // keeps the pipes open until they are read, so WaitForExit alone
-                // times out even though the process is otherwise idle.
-                var stdoutTask = process.StandardOutput.ReadToEndAsync();
-                var stderrTask = process.StandardError.ReadToEndAsync();
-
-                var completed = process.WaitForExit(AVAILABILITY_CHECK_TIMEOUT_MS);
-                if (!completed)
-                {
-                    try { process.Kill(); } catch { }
-                    _cachedAvailability = false;
-                    _availabilityCacheExpiry = DateTime.UtcNow + AvailabilityCacheDuration;
-                    return false;
-                }
-
-                try { Task.WaitAll(new Task[] { stdoutTask, stderrTask }, 1000); } catch { }
-
-                _cachedAvailability = process.ExitCode == 0;
-                _availabilityCacheExpiry = DateTime.UtcNow + AvailabilityCacheDuration;
-                return _cachedAvailability.Value;
+                _logger.LogInformation(
+                    "[CopilotCliProvider.IsAvailable] copilot.exe/.cmd/.ps1 not found in PATH — Copilot CLI not installed");
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Copilot CLI not available");
-                _cachedAvailability = false;
-                _availabilityCacheExpiry = DateTime.UtcNow + AvailabilityCacheDuration;
-                return false;
-            }
+            return resolvable;
         }
 
         public ProviderCapabilities GetCapabilities()

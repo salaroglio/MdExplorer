@@ -46,6 +46,56 @@ namespace MdExplorer.Utilities
                 "mde-doc",
                 "MdExplorer.Service.skills.mde_doc.SKILL.md"
             ),
+            (
+                "mde-features",
+                "MdExplorer.Service.skills.mde_features.SKILL.md"
+            ),
+            (
+                "mde-tbox",
+                "MdExplorer.Service.skills.mde_tbox.SKILL.md"
+            ),
+            (
+                "mde-abox",
+                "MdExplorer.Service.skills.mde_abox.SKILL.md"
+            ),
+            (
+                "mde-shacl",
+                "MdExplorer.Service.skills.mde_shacl.SKILL.md"
+            ),
+        };
+
+        /// <summary>
+        /// Built-in agent catalog: tuples of (agent name, embedded resource name).
+        /// Each agent is installed as <c>.github/agents/&lt;name&gt;.agent.md</c>.
+        /// Add an entry here when you add a new MdE-managed agent.
+        /// </summary>
+        private static readonly (string Name, string ResourceName)[] BuiltInAgents = new[]
+        {
+            (
+                "mde-skillcreator",
+                "MdExplorer.Service.skills.mde_skillcreator.agent.md"
+            ),
+        };
+
+        /// <summary>
+        /// Built-in prompt catalog: tuples of (prompt name, embedded resource name).
+        /// Each prompt is installed as <c>.github/prompts/&lt;name&gt;.prompt.md</c>.
+        /// Add an entry here when you add a new MdE-managed prompt.
+        /// </summary>
+        private static readonly (string Name, string ResourceName)[] BuiltInPrompts = new[]
+        {
+            (
+                "mde-codegen-graph",
+                "MdExplorer.Service.skills.mde_codegen_graph.prompt.md"
+            ),
+            (
+                "mde-mark-summarize",
+                "MdExplorer.Service.skills.mde_mark_summarize.prompt.md"
+            ),
+            (
+                "mde-mark-folder-synthesis",
+                "MdExplorer.Service.skills.mde_mark_folder_synthesis.prompt.md"
+            ),
         };
 
         private const string OriginMarker = "mdexplorer";
@@ -70,28 +120,63 @@ namespace MdExplorer.Utilities
             if (string.IsNullOrWhiteSpace(projectPath) || !Directory.Exists(projectPath))
                 return;
 
+            // Skills → .github/skills/<name>/SKILL.md
             var skillsRoot = Path.Combine(projectPath, ".github", "skills");
             Directory.CreateDirectory(skillsRoot);
-
             foreach (var (name, resource) in BuiltInSkills)
             {
                 try
                 {
-                    EnsureSkillInstalled(skillsRoot, name, resource);
+                    var targetPath = Path.Combine(skillsRoot, name, "SKILL.md");
+                    Directory.CreateDirectory(Path.GetDirectoryName(targetPath));
+                    EnsureFileInstalled(targetPath, name, resource, kind: "skill");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[MdeSkillUpdater] Failed to install/update '{name}': {ex.Message}");
+                    Console.WriteLine($"[MdeSkillUpdater] Failed to install/update skill '{name}': {ex.Message}");
+                }
+            }
+
+            // Agents → .github/agents/<name>.agent.md (flat file, matching the existing
+            // convention of user-authored agents like ondata.agent.md in BCCS_Ofelia)
+            var agentsRoot = Path.Combine(projectPath, ".github", "agents");
+            Directory.CreateDirectory(agentsRoot);
+            foreach (var (name, resource) in BuiltInAgents)
+            {
+                try
+                {
+                    var targetPath = Path.Combine(agentsRoot, name + ".agent.md");
+                    EnsureFileInstalled(targetPath, name, resource, kind: "agent");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MdeSkillUpdater] Failed to install/update agent '{name}': {ex.Message}");
+                }
+            }
+
+            // Prompts → .github/prompts/<name>.prompt.md (reusable Copilot prompt files)
+            var promptsRoot = Path.Combine(projectPath, ".github", "prompts");
+            Directory.CreateDirectory(promptsRoot);
+            foreach (var (name, resource) in BuiltInPrompts)
+            {
+                try
+                {
+                    var targetPath = Path.Combine(promptsRoot, name + ".prompt.md");
+                    EnsureFileInstalled(targetPath, name, resource, kind: "prompt");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MdeSkillUpdater] Failed to install/update prompt '{name}': {ex.Message}");
                 }
             }
         }
 
-        private static void EnsureSkillInstalled(string skillsRoot, string skillName, string resourceName)
+        /// <summary>
+        /// Installs or updates an MdE-managed file (skill SKILL.md or agent .agent.md) at the given
+        /// absolute path. Uses the <c>mde:</c> frontmatter marker to detect user ownership and version.
+        /// </summary>
+        private static void EnsureFileInstalled(string targetPath, string name, string resourceName, string kind)
         {
-            var folder = Path.Combine(skillsRoot, skillName);
-            Directory.CreateDirectory(folder);
-            var targetPath = Path.Combine(folder, "SKILL.md");
-
             var embeddedContent = ReadEmbeddedText(resourceName);
             if (embeddedContent == null)
             {
@@ -104,7 +189,7 @@ namespace MdExplorer.Utilities
             if (!File.Exists(targetPath))
             {
                 File.WriteAllText(targetPath, embeddedContent);
-                Console.WriteLine($"[MdeSkillUpdater] Installed skill '{skillName}' v{embeddedVersion}: {targetPath}");
+                Console.WriteLine($"[MdeSkillUpdater] Installed {kind} '{name}' v{embeddedVersion}: {targetPath}");
                 return;
             }
 
@@ -112,7 +197,7 @@ namespace MdExplorer.Utilities
             try { existingContent = File.ReadAllText(targetPath); }
             catch (Exception ex)
             {
-                Console.WriteLine($"[MdeSkillUpdater] Cannot read existing skill '{skillName}': {ex.Message}");
+                Console.WriteLine($"[MdeSkillUpdater] Cannot read existing {kind} '{name}': {ex.Message}");
                 return;
             }
 
@@ -122,7 +207,7 @@ namespace MdExplorer.Utilities
             if (!string.Equals(existingMarker.Origin, OriginMarker, StringComparison.OrdinalIgnoreCase))
             {
                 Console.WriteLine(
-                    $"[MdeSkillUpdater] Skill '{skillName}' is user-owned (origin='{existingMarker.Origin ?? "<missing>"}') — skipped.");
+                    $"[MdeSkillUpdater] {kind} '{name}' is user-owned (origin='{existingMarker.Origin ?? "<missing>"}') — skipped.");
                 return;
             }
 
@@ -135,7 +220,7 @@ namespace MdExplorer.Utilities
 
             File.WriteAllText(targetPath, embeddedContent);
             Console.WriteLine(
-                $"[MdeSkillUpdater] Updated skill '{skillName}' v{existingVersion} → v{embeddedVersion}: {targetPath}");
+                $"[MdeSkillUpdater] Updated {kind} '{name}' v{existingVersion} → v{embeddedVersion}: {targetPath}");
         }
 
         private static string ReadEmbeddedText(string resourceName)

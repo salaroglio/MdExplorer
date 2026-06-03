@@ -36,6 +36,31 @@ namespace MdExplorer.Service.Models
         /// Name is intentionally NOT stored here — it is a per-user local label in UserDB.
         /// </summary>
         public ProjectConfig Project { get; set; } = new ProjectConfig();
+
+        /// <summary>
+        /// Shared, non-secret Atlassian (Jira/Confluence) configuration. Null when
+        /// the project does not use the integration (omitted from the YAML). The
+        /// per-user API token is NEVER stored here — it lives encrypted in UserDB.
+        /// </summary>
+        public AtlassianConfig Atlassian { get; set; }
+    }
+
+    /// <summary>
+    /// Shared Atlassian config committed in .development.yml. Travels with the
+    /// repo so a colleague who clones the project only has to add their own token.
+    /// </summary>
+    public class AtlassianConfig
+    {
+        /// <summary>Jira/Confluence Cloud site, e.g. https://acme.atlassian.net.</summary>
+        public string JiraBaseUrl { get; set; }
+
+        /// <summary>Project keys the triage search is scoped to, e.g. ["BCO", "OFELIA"].</summary>
+        public List<string> JiraProjectKeys { get; set; } = new List<string>();
+
+        /// <summary>
+        /// Project-relative folder where issue plans are written, e.g. "specs/da-jira".
+        /// </summary>
+        public string PlanningFolder { get; set; }
     }
 
     /// <summary>
@@ -138,6 +163,29 @@ namespace MdExplorer.Service.Models
         /// Optional description of the folder's purpose
         /// </summary>
         public string Description { get; set; }
+
+        /// <summary>
+        /// Optional Knowledge Graph configuration for this folder. Preserved on
+        /// .development.yml round-trips so ProjectMetadataService writes
+        /// (description, participants, icon) do not strip the KG namespace.
+        /// </summary>
+        public FolderKnowledgeGraphConfig KnowledgeGraph { get; set; }
+    }
+
+    /// <summary>
+    /// Per-folder Knowledge Graph settings stored in .development.yml.
+    /// </summary>
+    public class FolderKnowledgeGraphConfig
+    {
+        /// <summary>
+        /// Neo4j graph namespace the folder's .kg.cypher files ingest into.
+        /// </summary>
+        public string Namespace { get; set; }
+
+        /// <summary>
+        /// Whether KG sync is enabled for this folder.
+        /// </summary>
+        public bool Enabled { get; set; }
     }
 
     /// <summary>

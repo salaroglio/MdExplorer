@@ -23,9 +23,9 @@ export class TocGenerationService {
 
   constructor(private http: HttpClient) { }
 
-  generateToc(directoryPath: string): Observable<TocGenerationResult> {
+  generateToc(folderFullPath: string): Observable<TocGenerationResult> {
     return this.http.post<TocGenerationResult>(`${this.baseUrl}/generate`, {
-      directoryPath: directoryPath
+      folderFullPath: folderFullPath
     });
   }
 

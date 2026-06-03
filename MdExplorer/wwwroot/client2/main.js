@@ -12,18 +12,22 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "AppComponent": () => (/* binding */ AppComponent)
 /* harmony export */ });
 /* harmony import */ var _shared_animations__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./shared/animations */ 6055);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/platform-browser */ 4497);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/platform-browser */ 4497);
 /* harmony import */ var _services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./services/app-current-metadata.service */ 1804);
-/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/router */ 124);
+/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/router */ 124);
 /* harmony import */ var _services_ai_notification_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./services/ai-notification.service */ 2843);
 /* harmony import */ var _services_url_handler_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./services/url-handler.service */ 3876);
 /* harmony import */ var _services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./services/file-change-notification.service */ 322);
 /* harmony import */ var _services_language_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./services/language.service */ 1155);
 /* harmony import */ var _services_theme_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./services/theme.service */ 8140);
 /* harmony import */ var _services_execution_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./services/execution.service */ 2512);
-/* harmony import */ var _mark_assistant_mark_assistant_component__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./mark-assistant/mark-assistant.component */ 9937);
-/* harmony import */ var _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./components/title-bar/title-bar.component */ 9063);
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./signalR/services/server-messages.service */ 8635);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
+/* harmony import */ var _mark_assistant_mark_assistant_component__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./mark-assistant/mark-assistant.component */ 9937);
+/* harmony import */ var _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./components/title-bar/title-bar.component */ 9063);
+
+
 
 
 
@@ -46,7 +50,7 @@ class AppComponent {
     }
     //
   }
-  constructor(titleService, currentFolder, route, router, aiNotificationService, urlHandlerService, fileChangeNotificationService, languageService, themeService, executionService) {
+  constructor(titleService, currentFolder, route, router, aiNotificationService, urlHandlerService, fileChangeNotificationService, languageService, themeService, executionService, serverMessages, snackBar) {
     this.titleService = titleService;
     this.currentFolder = currentFolder;
     this.route = route;
@@ -57,6 +61,8 @@ class AppComponent {
     this.languageService = languageService;
     this.themeService = themeService;
     this.executionService = executionService;
+    this.serverMessages = serverMessages;
+    this.snackBar = snackBar;
     this.title = 'client2';
     currentFolder.folderName.subscribe(data => {
       this.titleService.setTitle(data.currentFolder);
@@ -66,21 +72,32 @@ class AppComponent {
     this.urlHandlerService.initialize();
     // Initialize file change notification service (taskbar flash)
     this.fileChangeNotificationService.initialize();
+    // KG drift surface: when a .md edit invalidates the adjacent .kg.cypher, show
+    // a snackbar pointing the user at the file that needs regeneration. The
+    // backend (FileSystemWatcherManager.CheckKgDriftBestEffortAsync) already
+    // throttles by only emitting on actual mismatch.
+    this.serverMessages.kgStale$.subscribe(evt => {
+      const filename = (evt?.sourceMdPath ?? '').split(/[\\\/]/).pop() || 'documento';
+      this.snackBar.open(`⚠️  Knowledge Graph non aggiornato per "${filename}". Rigenera il grafo.`, 'OK', {
+        duration: 6000,
+        panelClass: ['kg-stale-snack']
+      });
+    });
   }
   static {
     this.ɵfac = function AppComponent_Factory(t) {
-      return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_11__.Title), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_1__.AppCurrentMetadataService), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_12__.ActivatedRoute), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_12__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdirectiveInject"](_services_ai_notification_service__WEBPACK_IMPORTED_MODULE_2__.AiNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdirectiveInject"](_services_url_handler_service__WEBPACK_IMPORTED_MODULE_3__.UrlHandlerService), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdirectiveInject"](_services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_4__.FileChangeNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdirectiveInject"](_services_language_service__WEBPACK_IMPORTED_MODULE_5__.LanguageService), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdirectiveInject"](_services_theme_service__WEBPACK_IMPORTED_MODULE_6__.ThemeService), _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdirectiveInject"](_services_execution_service__WEBPACK_IMPORTED_MODULE_7__.ExecutionService));
+      return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_12__.Title), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_1__.AppCurrentMetadataService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_13__.ActivatedRoute), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_13__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_services_ai_notification_service__WEBPACK_IMPORTED_MODULE_2__.AiNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_services_url_handler_service__WEBPACK_IMPORTED_MODULE_3__.UrlHandlerService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_4__.FileChangeNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_services_language_service__WEBPACK_IMPORTED_MODULE_5__.LanguageService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_services_theme_service__WEBPACK_IMPORTED_MODULE_6__.ThemeService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_services_execution_service__WEBPACK_IMPORTED_MODULE_7__.ExecutionService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_8__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_14__.MatLegacySnackBar));
     };
   }
   static {
-    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵdefineComponent"]({
+    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdefineComponent"]({
       type: AppComponent,
       selectors: [["app-root"]],
       hostBindings: function AppComponent_HostBindings(rf, ctx) {
         if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵlistener"]("unload", function AppComponent_unload_HostBindingHandler($event) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("unload", function AppComponent_unload_HostBindingHandler($event) {
             return ctx.unloadHandler($event);
-          }, false, _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵresolveWindow"]);
+          }, false, _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresolveWindow"]);
         }
       },
       decls: 5,
@@ -88,19 +105,19 @@ class AppComponent {
       consts: [[1, "container", "app-content"], ["o", "outlet"]],
       template: function AppComponent_Template(rf, ctx) {
         if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelement"](0, "app-title-bar");
-          _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelementStart"](1, "div", 0);
-          _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelement"](2, "router-outlet", null, 1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵelement"](4, "app-mark-assistant");
+          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelement"](0, "app-title-bar");
+          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "div", 0);
+          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelement"](2, "router-outlet", null, 1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelement"](4, "app-mark-assistant");
         }
         if (rf & 2) {
-          const _r0 = _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵreference"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_10__["ɵɵproperty"]("@routeAnimations", _r0.isActivated ? _r0.activatedRoute : "");
+          const _r0 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵreference"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵproperty"]("@routeAnimations", _r0.isActivated ? _r0.activatedRoute : "");
         }
       },
-      dependencies: [_angular_router__WEBPACK_IMPORTED_MODULE_12__.RouterOutlet, _mark_assistant_mark_assistant_component__WEBPACK_IMPORTED_MODULE_8__.MarkAssistantComponent, _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_9__.TitleBarComponent],
+      dependencies: [_angular_router__WEBPACK_IMPORTED_MODULE_13__.RouterOutlet, _mark_assistant_mark_assistant_component__WEBPACK_IMPORTED_MODULE_9__.MarkAssistantComponent, _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_10__.TitleBarComponent],
       styles: [".flex-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-flow: row wrap;\n  flex-direction: row;\n  flex-wrap: wrap;\n}\n\n.flex-item[_ngcontent-%COMP%] {\n  background: tomato;\n}\n\n.app-content[_ngcontent-%COMP%] {\n  margin-top: 30px;\n  height: calc(100vh - 30px);\n  display: flex;\n  flex-direction: column;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvYXBwLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSxlQUFBO0FBQ0Y7O0FBRUE7RUFDRSxrQkFBQTtBQUNGOztBQUVBO0VBQ0UsZ0JBQUE7RUFDQSwwQkFBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtBQUNGIiwic291cmNlc0NvbnRlbnQiOlsiLmZsZXgtY29udGFpbmVyIHtcclxuICBkaXNwbGF5OiBmbGV4O1xyXG4gIGZsZXgtZmxvdzogcm93IHdyYXA7XHJcbiAgZmxleC1kaXJlY3Rpb246IHJvdztcclxuICBmbGV4LXdyYXA6IHdyYXA7ICBcclxufVxyXG5cclxuLmZsZXgtaXRlbSB7XHJcbiAgYmFja2dyb3VuZDogdG9tYXRvO1xyXG59XHJcblxyXG4uYXBwLWNvbnRlbnQge1xyXG4gIG1hcmdpbi10b3A6IDMwcHg7IC8vIFNwYWNlIGZvciB0aXRsZSBiYXJcclxuICBoZWlnaHQ6IGNhbGMoMTAwdmggLSAzMHB4KTsgLy8gSW1wb3N0YSBsJ2FsdGV6emEgcGVyIG9jY3VwYXJlIHR1dHRvIGxvIHNwYXppbyBkaXNwb25pYmlsZVxyXG4gIGRpc3BsYXk6IGZsZXg7XHJcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcclxufVxyXG5cclxuIl0sInNvdXJjZVJvb3QiOiIifQ== */"],
       data: {
         animation: [_shared_animations__WEBPACK_IMPORTED_MODULE_0__.slideInAnimation]
@@ -8231,6 +8248,52 @@ const DEMO_CLONE_TOUR = {
 
 /***/ }),
 
+/***/ 4773:
+/*!**********************************************************!*\
+  !*** ./src/app/mark-assistant/lessons/folder-actions.ts ***!
+  \**********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "buildFolderActions": () => (/* binding */ buildFolderActions)
+/* harmony export */ });
+/**
+ * Folder-actions lesson — shown when the user summons Mark from a folder's
+ * context menu in md-tree. Mark presents a context-aware menu of things he
+ * can do with that folder.
+ *
+ * Today there is a single action ("Riassumi documentazione"); the lesson is
+ * built so more actions are just extra entries in the `actions` array.
+ *
+ * Built via factory: the action handler needs to call back into
+ * MarkAssistantService (to start the job) and must carry the folder context,
+ * so it can't be a plain constant.
+ */
+function buildFolderActions(ctx, deps) {
+  return {
+    id: 'folder-actions',
+    context: 'always',
+    withStatic: false,
+    markAsCompleted: false,
+    dim: false,
+    steps: [{
+      textKey: 'MARK.FOLDER.PROMPT',
+      textParams: {
+        name: ctx.folderName
+      },
+      targetSelector: null,
+      actions: [{
+        labelKey: 'MARK.FOLDER.SUMMARIZE',
+        icon: '📚',
+        handler: () => deps.runSummarize()
+      }]
+    }]
+  };
+}
+
+/***/ }),
+
 /***/ 482:
 /*!*****************************************************!*\
   !*** ./src/app/mark-assistant/lessons/idle-menu.ts ***!
@@ -8520,6 +8583,59 @@ const WELCOME_TOUR = {
     localStorage.setItem('mark.welcomeTour.completed', 'true');
   }
 };
+
+/***/ }),
+
+/***/ 572:
+/*!********************************************************!*\
+  !*** ./src/app/mark-assistant/mark-actions.service.ts ***!
+  \********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "MarkActionsService": () => (/* binding */ MarkActionsService)
+/* harmony export */ });
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/common/http */ 8987);
+
+
+/**
+ * HTTP client for Mark's context actions on a folder (MarkActionsController).
+ * The actual progress comes back over SignalR (markFolderProgress) — these
+ * calls only start / cancel the background job.
+ */
+class MarkActionsService {
+  constructor(http) {
+    this.http = http;
+    this.baseUrl = '/api/markactions';
+  }
+  /** Starts the recursive "Riassumi documentazione" job for a folder subtree. */
+  summarizeFolder(folderFullPath, connectionId) {
+    return this.http.post(`${this.baseUrl}/summarize-folder`, {
+      folderFullPath,
+      connectionId
+    });
+  }
+  /** Requests cancellation of the running job for this connection. */
+  cancel(connectionId) {
+    return this.http.post(`${this.baseUrl}/cancel`, {
+      connectionId
+    });
+  }
+  static {
+    this.ɵfac = function MarkActionsService_Factory(t) {
+      return new (t || MarkActionsService)(_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_1__.HttpClient));
+    };
+  }
+  static {
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_0__["ɵɵdefineInjectable"]({
+      token: MarkActionsService,
+      factory: MarkActionsService.ɵfac,
+      providedIn: 'root'
+    });
+  }
+}
 
 /***/ }),
 
@@ -9066,18 +9182,24 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "MarkAssistantService": () => (/* binding */ MarkAssistantService)
 /* harmony export */ });
 /* harmony import */ var C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/router */ 124);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 6317);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 6562);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs */ 4363);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs/operators */ 116);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs/operators */ 7260);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs/operators */ 9295);
+/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/router */ 124);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs */ 6562);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! rxjs */ 4363);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs/operators */ 116);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! rxjs/operators */ 7260);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! rxjs/operators */ 9295);
 /* harmony import */ var _lessons__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./lessons */ 6708);
-/* harmony import */ var _handlers__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./handlers */ 3512);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
-/* harmony import */ var _md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../md-explorer/services/projects.service */ 9753);
+/* harmony import */ var _lessons_folder_actions__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./lessons/folder-actions */ 4773);
+/* harmony import */ var _handlers__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./handlers */ 3512);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../md-explorer/services/projects.service */ 9753);
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
+/* harmony import */ var _mark_actions_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./mark-actions.service */ 572);
+
+
+
 
 
 
@@ -9115,40 +9237,42 @@ class MarkAssistantService {
   get isUndocked() {
     return this._isUndocked.getValue();
   }
-  constructor(translate, projectsService, router, injector) {
+  constructor(translate, projectsService, router, injector, serverMessages, markActions) {
     this.translate = translate;
     this.projectsService = projectsService;
     this.router = router;
     this.injector = injector;
+    this.serverMessages = serverMessages;
+    this.markActions = markActions;
     // ── Public observable state (subscribed by the component) ────────────────
-    this._state = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject('hidden');
+    this._state = new rxjs__WEBPACK_IMPORTED_MODULE_7__.BehaviorSubject('hidden');
     this.state$ = this._state.asObservable();
-    this._text = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject('');
+    this._text = new rxjs__WEBPACK_IMPORTED_MODULE_7__.BehaviorSubject('');
     this.text$ = this._text.asObservable();
-    this._staticMode = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(false);
+    this._staticMode = new rxjs__WEBPACK_IMPORTED_MODULE_7__.BehaviorSubject(false);
     this.staticMode$ = this._staticMode.asObservable();
-    this._spotlight = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
+    this._spotlight = new rxjs__WEBPACK_IMPORTED_MODULE_7__.BehaviorSubject(null);
     this.spotlight$ = this._spotlight.asObservable();
-    this._dim = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(false);
+    this._dim = new rxjs__WEBPACK_IMPORTED_MODULE_7__.BehaviorSubject(false);
     this.dim$ = this._dim.asObservable();
-    this._continueArrow = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(false);
+    this._continueArrow = new rxjs__WEBPACK_IMPORTED_MODULE_7__.BehaviorSubject(false);
     this.continueArrow$ = this._continueArrow.asObservable();
     /** True while waiting for an input handler's response (typewriter still going). */
-    this._isResponding = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(false);
+    this._isResponding = new rxjs__WEBPACK_IMPORTED_MODULE_7__.BehaviorSubject(false);
     this.isResponding$ = this._isResponding.asObservable();
     /**
      * Action buttons for the current step (when set, the lesson loop is paused
      * waiting for the user to click one). The component renders these below
      * the dialog text.
      */
-    this._actions = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(null);
+    this._actions = new rxjs__WEBPACK_IMPORTED_MODULE_7__.BehaviorSubject(null);
     this.actions$ = this._actions.asObservable();
     /**
      * True when Mark is detached into a separate Electron BrowserWindow.
      * While undocked, the in-app overlay hides itself and the service
      * forwards every state emit to the floating window via Electron IPC.
      */
-    this._isUndocked = new rxjs__WEBPACK_IMPORTED_MODULE_4__.BehaviorSubject(false);
+    this._isUndocked = new rxjs__WEBPACK_IMPORTED_MODULE_7__.BehaviorSubject(false);
     this.isUndocked$ = this._isUndocked.asObservable();
     // ── Internal ─────────────────────────────────────────────────────────────
     this.abortFlag = false;
@@ -9165,6 +9289,8 @@ class MarkAssistantService {
     this.undockCleanups = [];
     /** Resolver for the in-flight "wait for the user to click an action" promise. */
     this.actionResolve = null;
+    /** Subscription to the SignalR folder-summarizer progress stream (active during a job). */
+    this.folderProgressSub = null;
     this.scheduleSpotlightRecompute = () => {
       if (this.rafScheduled) return;
       if (!this.currentSpotlightSelector) return;
@@ -9210,7 +9336,7 @@ class MarkAssistantService {
       // were still docked. Without actions$/continueArrow$/state$ in this list
       // an undock during an active "Prosegui" step would strand the user — the
       // dialog text would be there but the button to advance wouldn't.
-      const sub = (0,rxjs__WEBPACK_IMPORTED_MODULE_5__.combineLatest)([_this.text$, _this.staticMode$, _this.isResponding$, _this.actions$, _this.continueArrow$, _this.state$]).subscribe(() => {
+      const sub = (0,rxjs__WEBPACK_IMPORTED_MODULE_8__.combineLatest)([_this.text$, _this.staticMode$, _this.isResponding$, _this.actions$, _this.continueArrow$, _this.state$]).subscribe(() => {
         api.pushState(_this.snapshotState());
       });
       _this.undockSubs.push(sub);
@@ -9316,7 +9442,7 @@ class MarkAssistantService {
    * by priority (descending). Higher-priority handlers are consulted first.
    */
   registerInputHandlers() {
-    const handlers = _handlers__WEBPACK_IMPORTED_MODULE_2__.INPUT_HANDLER_TYPES.map(t => this.injector.get(t));
+    const handlers = _handlers__WEBPACK_IMPORTED_MODULE_3__.INPUT_HANDLER_TYPES.map(t => this.injector.get(t));
     handlers.sort((a, b) => b.priority - a.priority);
     this.inputHandlers = handlers;
   }
@@ -9327,7 +9453,7 @@ class MarkAssistantService {
    * title-bar always brings him back on demand.
    */
   subscribeRouteChanges() {
-    this.router.events.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.filter)(e => e instanceof _angular_router__WEBPACK_IMPORTED_MODULE_7__.NavigationEnd)).subscribe(e => {
+    this.router.events.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.filter)(e => e instanceof _angular_router__WEBPACK_IMPORTED_MODULE_10__.NavigationEnd)).subscribe(e => {
       if (this.currentState === 'hidden') return;
       const ctx = this.currentLesson?.context ?? 'always';
       if (!this.isContextActive(ctx, e.urlAfterRedirects)) {
@@ -9355,7 +9481,7 @@ class MarkAssistantService {
     // mdProjects is a BehaviorSubject seeded with [] at service construction.
     // skip(1) ignores that init emit and waits for the first real fetch result
     // (triggered by ProjectsComponent.ngOnInit -> fetchProjects()).
-    this.projectsService.mdProjects.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.skip)(1), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.filter)(p => p !== null && p !== undefined), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.take)(1)).subscribe(projects => {
+    this.projectsService.mdProjects.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.skip)(1), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.filter)(p => p !== null && p !== undefined), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.take)(1)).subscribe(projects => {
       if (this.autoStartChecked) return;
       this.autoStartChecked = true;
       const hasNoProjects = !projects || projects.length === 0;
@@ -9447,7 +9573,7 @@ class MarkAssistantService {
           _this2._spotlight.next(null);
         }
         // Typewriter the step text
-        const text = yield _this2.translateKey(step.textKey);
+        const text = yield _this2.translateKey(step.textKey, step.textParams);
         yield _this2.typewriter(text);
         if (_this2.abortFlag) return;
         // 3 cases for advancing past a step:
@@ -9527,6 +9653,130 @@ class MarkAssistantService {
       return _this3.launch('idle-menu');
     })();
   }
+  // ── Folder context actions ───────────────────────────────────────────────
+  /**
+   * Summons Mark scoped to a folder (invoked from md-tree's context menu).
+   * Builds the folder-actions lesson on demand — it can't be a static
+   * registry entry because it carries the per-invocation folder context.
+   */
+  launchFolderActions(ctx) {
+    var _this4 = this;
+    return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      const lesson = (0,_lessons_folder_actions__WEBPACK_IMPORTED_MODULE_2__.buildFolderActions)(ctx, {
+        runSummarize: () => _this4.startFolderSummarize(ctx)
+      });
+      _this4.lessonRegistry[lesson.id] = lesson;
+      yield _this4.launch(lesson.id);
+    })();
+  }
+  /**
+   * Starts the recursive "Riassumi documentazione" job and turns Mark's window
+   * into a live progress display. Takes manual control of the dialog (aborts
+   * the folder-actions lesson loop, same trick as submitUserInput) so the
+   * lesson's natural completion can't minimize Mark mid-job.
+   */
+  startFolderSummarize(ctx) {
+    var _this5 = this;
+    return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      // Abort the folder-actions lesson loop BEFORE its first await so it bails
+      // out at its abortFlag check instead of running to completion + minimize.
+      _this5.abortFlag = true;
+      yield _this5.sleep(60);
+      _this5.abortFlag = false;
+      _this5.currentLesson = null;
+      _this5.currentSpotlightSelector = null;
+      _this5._spotlight.next(null);
+      _this5._dim.next(false);
+      _this5._staticMode.next(false);
+      _this5._actions.next(null);
+      _this5._continueArrow.next(false);
+      _this5._isResponding.next(false);
+      _this5.resolveAction(null);
+      _this5._state.next('playing');
+      const connectionId = _this5.serverMessages.connectionId;
+      if (!connectionId) {
+        yield _this5.endFolderSummarize(_this5.translate.instant('MARK.FOLDER.PROGRESS.ERROR'));
+        return;
+      }
+      // Subscribe to the progress stream BEFORE firing the POST so no event is missed.
+      _this5.folderProgressSub?.unsubscribe();
+      _this5.folderProgressSub = _this5.serverMessages.markFolderProgress$.subscribe(p => {
+        _this5.onFolderProgress(p);
+      });
+      _this5._text.next(_this5.translate.instant('MARK.FOLDER.PROGRESS.STARTING'));
+      _this5.markActions.summarizeFolder(ctx.folderFullPath, connectionId).subscribe({
+        error: err => {
+          console.warn('[Mark] summarize-folder request failed', err);
+          const key = err?.status === 409 ? 'MARK.FOLDER.PROGRESS.ALREADY_RUNNING' : 'MARK.FOLDER.PROGRESS.ERROR';
+          _this5.endFolderSummarize(_this5.translate.instant(key));
+        }
+      });
+    })();
+  }
+  /** Renders one progress event into Mark's dialog; terminal phases end the job. */
+  onFolderProgress(p) {
+    if (!p) return;
+    // `toc-ready` is a side-channel only the md-tree consumes (to flip the
+    // folder's hasToc icon live). Don't let it overwrite the dialog text —
+    // the "generating-toc..." line should stay until the next real phase.
+    if (p.phase === 'toc-ready') return;
+    if (p.phase === 'done' || p.phase === 'error' || p.phase === 'cancelled') {
+      this.endFolderSummarize(this.formatFolderProgress(p));
+      return;
+    }
+    this._continueArrow.next(false);
+    this._text.next(this.formatFolderProgress(p));
+  }
+  /** Tears down the progress subscription and typewriters the closing message. */
+  endFolderSummarize(finalMessage) {
+    var _this6 = this;
+    return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      _this6.folderProgressSub?.unsubscribe();
+      _this6.folderProgressSub = null;
+      yield _this6.typewriter(finalMessage);
+    })();
+  }
+  /** Builds the user-facing progress string for a structured progress event. */
+  formatFolderProgress(p) {
+    const t = (k, params) => this.translate.instant(k, params);
+    switch (p.phase) {
+      case 'started':
+        return t('MARK.FOLDER.PROGRESS.STARTING');
+      case 'summarizing-doc':
+        return t('MARK.FOLDER.PROGRESS.SUMMARIZING', {
+          i: p.docIndex,
+          n: p.docTotal,
+          doc: p.docName
+        });
+      case 'skipped-doc':
+        return t('MARK.FOLDER.PROGRESS.SKIPPED', {
+          i: p.docIndex,
+          n: p.docTotal,
+          doc: p.docName
+        });
+      case 'generating-toc':
+        return t('MARK.FOLDER.PROGRESS.GENERATING_TOC', {
+          folder: p.folderName
+        });
+      case 'synthesizing-folder':
+        return t('MARK.FOLDER.PROGRESS.SYNTHESIZING', {
+          folder: p.folderName
+        });
+      case 'done':
+        return t('MARK.FOLDER.PROGRESS.DONE', {
+          summarized: p.summarized,
+          skipped: p.skipped,
+          tocs: p.tocs,
+          synthesized: p.synthesized
+        });
+      case 'cancelled':
+        return t('MARK.FOLDER.PROGRESS.CANCELLED');
+      case 'error':
+        return t(p.message === 'no-provider' ? 'MARK.FOLDER.PROGRESS.NO_PROVIDER' : 'MARK.FOLDER.PROGRESS.ERROR');
+      default:
+        return this._text.getValue();
+    }
+  }
   /**
    * Plays the "next" applicable micro-tip in the queue.
    *
@@ -9542,25 +9792,25 @@ class MarkAssistantService {
    * on screen.
    */
   launchNextMicroTip() {
-    var _this4 = this;
+    var _this7 = this;
     return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-      let idx = _this4.readNextTipIndex();
-      const url = _this4.router.url;
+      let idx = _this7.readNextTipIndex();
+      const url = _this7.router.url;
       // Skip tips whose context doesn't match the current route
       while (idx < _lessons__WEBPACK_IMPORTED_MODULE_1__.MICRO_TIPS.length) {
         const tip = _lessons__WEBPACK_IMPORTED_MODULE_1__.MICRO_TIPS[idx];
         const ctx = tip.context ?? 'always';
-        if (_this4.isContextActive(ctx, url)) break;
+        if (_this7.isContextActive(ctx, url)) break;
         idx++;
       }
       if (idx >= _lessons__WEBPACK_IMPORTED_MODULE_1__.MICRO_TIPS.length) {
         // No more applicable tips → "all done" message + reset cursor
-        _this4.writeNextTipIndex(0);
-        return _this4.launch(_lessons__WEBPACK_IMPORTED_MODULE_1__.MICRO_TIPS_DONE.id);
+        _this7.writeNextTipIndex(0);
+        return _this7.launch(_lessons__WEBPACK_IMPORTED_MODULE_1__.MICRO_TIPS_DONE.id);
       }
       const tip = _lessons__WEBPACK_IMPORTED_MODULE_1__.MICRO_TIPS[idx];
-      _this4.writeNextTipIndex(idx + 1);
-      return _this4.launch(tip.id);
+      _this7.writeNextTipIndex(idx + 1);
+      return _this7.launch(tip.id);
     })();
   }
   readNextTipIndex() {
@@ -9598,13 +9848,13 @@ class MarkAssistantService {
    * proceed (or the action handler can transition to a different lesson).
    */
   submitAction(index) {
-    var _this5 = this;
+    var _this8 = this;
     return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-      const actions = _this5._actions.getValue();
+      const actions = _this8._actions.getValue();
       if (!actions || index < 0 || index >= actions.length) return;
       const picked = actions[index];
-      _this5._actions.next(null);
-      _this5.resolveAction(picked);
+      _this8._actions.next(null);
+      _this8.resolveAction(picked);
       try {
         yield picked.handler();
       } catch (err) {
@@ -9644,73 +9894,73 @@ class MarkAssistantService {
    * back as Mark's reply.
    */
   submitUserInput(text) {
-    var _this6 = this;
+    var _this9 = this;
     return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
       const trimmed = (text ?? '').trim();
       if (!trimmed) return;
-      if (_this6._isResponding.getValue()) return; // ignore re-entry while responding
+      if (_this9._isResponding.getValue()) return; // ignore re-entry while responding
       const ctx = {
-        routeUrl: _this6.router.url,
-        activeLessonId: _this6.currentLesson?.id ?? null
+        routeUrl: _this9.router.url,
+        activeLessonId: _this9.currentLesson?.id ?? null
       };
-      const handler = _this6.inputHandlers.find(h => h.canHandle(trimmed, ctx));
+      const handler = _this9.inputHandlers.find(h => h.canHandle(trimmed, ctx));
       if (!handler) return;
       // Abort any running lesson playback so the answer takes the stage
-      _this6.abortFlag = true;
-      yield _this6.sleep(60);
-      _this6.abortFlag = false;
-      _this6._isResponding.next(true);
-      _this6.currentSpotlightSelector = null;
-      _this6._spotlight.next(null);
-      _this6._continueArrow.next(false);
-      _this6._staticMode.next(false);
-      _this6._actions.next(null);
-      _this6.resolveAction(null);
+      _this9.abortFlag = true;
+      yield _this9.sleep(60);
+      _this9.abortFlag = false;
+      _this9._isResponding.next(true);
+      _this9.currentSpotlightSelector = null;
+      _this9._spotlight.next(null);
+      _this9._continueArrow.next(false);
+      _this9._staticMode.next(false);
+      _this9._actions.next(null);
+      _this9.resolveAction(null);
       // Make sure Mark is visible (if minimized → expand; if hidden → playing)
-      if (_this6.currentState !== 'playing') {
-        _this6._state.next('playing');
-        _this6._dim.next(false);
-        yield _this6.sleep(300);
+      if (_this9.currentState !== 'playing') {
+        _this9._state.next('playing');
+        _this9._dim.next(false);
+        yield _this9.sleep(300);
       }
       try {
-        const reply = yield (0,rxjs__WEBPACK_IMPORTED_MODULE_10__.firstValueFrom)(handler.handle(trimmed, ctx));
-        yield _this6.typewriter(reply);
+        const reply = yield (0,rxjs__WEBPACK_IMPORTED_MODULE_13__.firstValueFrom)(handler.handle(trimmed, ctx));
+        yield _this9.typewriter(reply);
       } catch (err) {
         console.warn('[Mark] Input handler error:', err);
       } finally {
-        _this6._isResponding.next(false);
+        _this9._isResponding.next(false);
       }
     })();
   }
   // ── helpers ──────────────────────────────────────────────────────────────
   typewriter(_x) {
-    var _this7 = this;
+    var _this0 = this;
     return (0,C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (text, charDelay = 32) {
-      _this7._text.next('');
-      _this7._continueArrow.next(false);
+      _this0._text.next('');
+      _this0._continueArrow.next(false);
       let buf = '';
       for (const ch of text) {
-        if (_this7.abortFlag) return;
+        if (_this0.abortFlag) return;
         buf += ch;
-        _this7._text.next(buf);
-        yield _this7.sleep(ch === ' ' ? charDelay / 2 : charDelay);
+        _this0._text.next(buf);
+        yield _this0.sleep(ch === ' ' ? charDelay / 2 : charDelay);
       }
-      _this7._continueArrow.next(true);
+      _this0._continueArrow.next(true);
     }).apply(this, arguments);
   }
-  translateKey(key) {
-    return (0,rxjs__WEBPACK_IMPORTED_MODULE_10__.firstValueFrom)(this.translate.get(key));
+  translateKey(key, params) {
+    return (0,rxjs__WEBPACK_IMPORTED_MODULE_13__.firstValueFrom)(this.translate.get(key, params));
   }
   sleep(ms) {
     return new Promise(r => setTimeout(r, ms));
   }
   static {
     this.ɵfac = function MarkAssistantService_Factory(t) {
-      return new (t || MarkAssistantService)(_angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵinject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_12__.TranslateService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵinject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_3__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵinject"](_angular_router__WEBPACK_IMPORTED_MODULE_7__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_11__.Injector));
+      return new (t || MarkAssistantService)(_angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵinject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_15__.TranslateService), _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵinject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_4__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵinject"](_angular_router__WEBPACK_IMPORTED_MODULE_10__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_14__.Injector), _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_5__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵinject"](_mark_actions_service__WEBPACK_IMPORTED_MODULE_6__.MarkActionsService));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵdefineInjectable"]({
       token: MarkAssistantService,
       factory: MarkAssistantService.ɵfac,
       providedIn: 'root'
@@ -10412,6 +10662,10 @@ class MdFileService {
       node.compactedSegments = segments;
       // I figli diventano quelli dell'ultimo nodo compresso
       node.childrens = current.childrens;
+      // La riga compattata rappresenta il segmento FINALE della catena: l'icona
+      // TOC e openTocFile() operano sull'ultimo segmento, quindi hasToc deve
+      // riflettere quello, non il primo segmento (dove resta congelato).
+      node.hasToc = current.hasToc;
       // Il fullPath del nodo diventa quello dell'ultimo segmento per le operazioni di default
       // Ma manteniamo il path originale per la visualizzazione
     }
@@ -11530,9 +11784,9 @@ class TocGenerationService {
     this.http = http;
     this.baseUrl = '/api/toc';
   }
-  generateToc(directoryPath) {
+  generateToc(folderFullPath) {
     return this.http.post(`${this.baseUrl}/generate`, {
-      directoryPath: directoryPath
+      folderFullPath: folderFullPath
     });
   }
   getTocStatus(directoryPath) {
@@ -15561,6 +15815,11 @@ class MdServerMessagesService {
     this.ragIndexingProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for App Store publish progress (backend → Nexus upload)
     this.publishProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    // Observable for the Mark folder-summarizer job progress (MarkActionsController)
+    this.markFolderProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    // Observable for KG drift events (emitted by FileSystemWatcherManager when a .md
+    // diverges from the // sourceDocHash header of its adjacent .kg.cypher).
+    this.kgStale$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for Screenshot Annotation Wizard (from iframe Ctrl+V)
     this.screenshotAnnotationRequest$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable streams for runnable fenced code blocks (MdExecutionController)
@@ -15581,14 +15840,14 @@ class MdServerMessagesService {
         this.hubConnection.on('documentNavigated', data => {
           this.processCallBack(data, 'documentNavigated');
         });
-        this.hubConnection.on('parsingProjectStart', data => {
-          this.parsingProjectProvider.show(data);
-        });
+        // parsingProjectStart/Stop NON aprono più la MatDialog modale "Building knowledge"
+        // (era il blocker UX: backdrop modale → utente inibito per tutta l'indicizzazione).
+        // Dopo il refactor del 2026-05-23 la pipeline è davvero async (Task.Yield in
+        // IndexingPipelineService.RunAsync) e mostriamo il progresso con una snackbar
+        // custom (IndexingProgressSnackComponent) montata da md-tree.component.ts via
+        // addParsingProjectStartListener (sotto).
         this.hubConnection.on('openingApplication', data => {
           this.openingApplicationProvider.show(data);
-        });
-        this.hubConnection.on('parsingProjectStop', data => {
-          this.parsingProjectProvider.hide(data);
         });
         this.hubConnection.on('plantumlWorkStart', data => {
           this.plantumlWorkingProvider.show(data);
@@ -15621,6 +15880,15 @@ class MdServerMessagesService {
         // App Store publish progress (backend → Nexus upload)
         this.hubConnection.on('publishProgress', data => {
           this.publishProgress$.next(data);
+        });
+        // Mark folder-summarizer job progress
+        this.hubConnection.on('markFolderProgress', data => {
+          this.markFolderProgress$.next(data);
+        });
+        // KG drift detection — .md edited but .kg.cypher is out of sync
+        this.hubConnection.on('kgStale', data => {
+          console.warn('⚠️ SignalR event received: kgStale', data);
+          this.kgStale$.next(data);
         });
         // Runnable fenced code blocks — streaming output from MdExecutionController
         this.hubConnection.on('execution.output', data => {
@@ -15778,6 +16046,17 @@ class MdServerMessagesService {
   }
   addParsingProjectStopListener(callback, objectThis) {
     this.hubConnection.on('parsingProjectStop', data => {
+      callback(data, objectThis);
+    });
+  }
+  /**
+   * "Building knowledge" progress event — emesso da IndexingPipelineService
+   * dopo ogni cartella nella fase ParseLinks. Payload:
+   *   { processed: number, total: number, percent: 0..100 }
+   * Pilotato verso IndexingProgressService dalla snackbar custom in md-tree.
+   */
+  addKnowledgeProgressListener(callback, objectThis) {
+    this.hubConnection.on('knowledgeProgress', data => {
       callback(data, objectThis);
     });
   }
@@ -15955,8 +16234,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.05.17.2',
-  buildTime: '2026.05.17 17:03:24'
+  version: '2026.06.02.2',
+  buildTime: '2026.06.02 11:12:23'
 };
 
 /***/ }),

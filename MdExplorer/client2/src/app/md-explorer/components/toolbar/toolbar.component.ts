@@ -1064,19 +1064,24 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Get the relative path of the TOC file
-    let tocPath = this.currentMdFile.relativePath || '';
-    
-    // Remove leading backslash if present
-    if (tocPath.startsWith('\\')) {
-      tocPath = tocPath.substring(1);
+    // The .md.directory file is not a folder, so fullPath is a regular absolute
+    // file path; its parent directory is the folder we need to regenerate.
+    const fileFullPath = this.currentMdFile.fullPath || '';
+    const lastSep = Math.max(fileFullPath.lastIndexOf('\\'), fileFullPath.lastIndexOf('/'));
+    const folderFullPath = lastSep > 0 ? fileFullPath.substring(0, lastSep) : fileFullPath;
+
+    // Display path for the progress dialog: relative form when available.
+    let displayPath = this.currentMdFile.relativePath || '';
+    if (displayPath.startsWith('\\')) {
+      displayPath = displayPath.substring(1);
     }
+    const lastSepRel = Math.max(displayPath.lastIndexOf('/'), displayPath.lastIndexOf('\\'));
+    if (lastSepRel > 0) {
+      displayPath = displayPath.substring(0, lastSepRel);
+    }
+    this.tocProgressService.showProgress(displayPath);
 
-    // Show progress dialog
-    const directoryPath = tocPath.substring(0, tocPath.lastIndexOf('/')) || tocPath.substring(0, tocPath.lastIndexOf('\\'));
-    this.tocProgressService.showProgress(directoryPath);
-
-    this.tocService.generateToc(directoryPath).subscribe({
+    this.tocService.generateToc(folderFullPath).subscribe({
       next: (result) => {
         // Progress dialog will be closed by SignalR event
         if (result.success) {

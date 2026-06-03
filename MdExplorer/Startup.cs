@@ -83,6 +83,9 @@ namespace MdExplorer
             // Pipeline asincrona di indicizzazione (vedi docs-internal/md-tree-evolution2/passo-async-indexing.md)
             services.AddSingleton<Services.IndexingPipeline.IIndexingPipelineService, Services.IndexingPipeline.IndexingPipelineService>();
 
+            // Mark folder-summarizer job (azione ibrida algoritmo + LLM evocata da Mark)
+            services.AddSingleton<Services.MarkActions.IMarkFolderJobService, Services.MarkActions.MarkFolderJobService>();
+
             // Shell execution for fenced code blocks (bash/sh/powershell/pwsh/cmd)
             services.AddSingleton<Services.Execution.ShellRegistry>();
             services.AddTransient<Services.Execution.ShellRunner>();
@@ -154,6 +157,21 @@ namespace MdExplorer
             // Register both TocGenerationService and TocGenerationHubService
             services.AddScoped<Features.Services.TocGenerationService>();
             services.AddScoped<Features.Services.ITocGenerationService, Services.TocGenerationHubService>();
+
+            // Knowledge Graph (Neo4j) ingest pipeline
+            services.AddSingleton<Features.Services.KnowledgeGraph.IPasswordProtector, Features.Services.KnowledgeGraph.DpapiPasswordProtector>();
+            services.AddSingleton<Features.Services.KnowledgeGraph.INeo4jConnectionPool, Features.Services.KnowledgeGraph.Neo4jConnectionPool>();
+            services.AddSingleton<Features.Services.KnowledgeGraph.IKgIngestService, Features.Services.KnowledgeGraph.KgIngestService>();
+            services.AddScoped<Features.Services.KnowledgeGraph.IFolderKgConfigResolver, Features.Services.KnowledgeGraph.FolderKgConfigResolver>();
+            services.AddScoped<Features.Services.KnowledgeGraph.IFolderKgConfigWriter, Services.FolderKgConfigWriter>();
+            services.AddScoped<Features.Services.KnowledgeGraph.IKgSyncOrchestrator, Features.Services.KnowledgeGraph.KgSyncOrchestrator>();
+
+            // Apache Jena Fuseki integration (parallelo a Neo4j, su un triplestore RDF)
+            services.AddSingleton<Features.Services.KnowledgeGraph.IFusekiClient, Features.Services.KnowledgeGraph.FusekiClient>();
+
+            // Atlassian (Jira/Confluence) integration — read-only triage MVP.
+            services.AddSingleton<Features.Services.Atlassian.IJiraClient, Features.Services.Atlassian.JiraClient>();
+            services.AddSingleton<Services.IAtlassianConfigService, Services.AtlassianConfigService>();
 
             // Register Team Chat services
             services.AddHttpClient("MdChat");

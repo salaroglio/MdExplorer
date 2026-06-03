@@ -97,6 +97,44 @@ namespace MdExplorer.Service.Utilities
             }
         }
 
+        /// <summary>
+        /// Opens an interactive Copilot CLI session in a visible terminal whose
+        /// working directory is the project root. Unlike VS Code / IntelliJ (GUI
+        /// processes spawned with <c>CreateNoWindow=true</c>), Copilot CLI is a
+        /// terminal app, so we launch a PowerShell window (<c>UseShellExecute=true</c>)
+        /// that sets its location to the project root and runs <c>copilot</c>.
+        /// Resolution of the <c>copilot</c> shim is left to PowerShell, which honors
+        /// PATHEXT (copilot.exe/.cmd/.ps1); the caller is expected to pre-check
+        /// installation via <see cref="MdExplorer.Features.Services.AI.CopilotAcp.CopilotProcessLauncher.IsResolvable"/>.
+        /// </summary>
+        public void OpenFolderWithCopilotCli(string projectPath)
+        {
+            // Escape single quotes for PowerShell single-quoted string literals.
+            var safePath = (projectPath ?? string.Empty).Replace("'", "''");
+
+            // PowerShell on Windows is "powershell.exe"; on Linux/macOS it is "pwsh".
+            var shell = OperatingSystem.IsWindows() ? "powershell.exe" : "pwsh";
+
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = shell,
+                Arguments = $"-NoExit -Command \"Set-Location -LiteralPath '{safePath}'; copilot\"",
+                WorkingDirectory = projectPath,
+                UseShellExecute = true   // give the terminal its own visible window
+            };
+
+            try
+            {
+                Process.Start(startInfo);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error opening Copilot CLI: {ex.Message}");
+                Console.WriteLine($"Project path: {projectPath}");
+                throw;
+            }
+        }
+
         public void KillVisualStudioCode()
         {
             if (_currentVisualStudio != null && !_currentVisualStudio.HasExited)

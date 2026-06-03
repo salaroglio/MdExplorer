@@ -17,6 +17,7 @@ using System.Web;
 using MdExplorer.Utilities;
 using MdExplorer.Service.Models;
 using MdExplorer.Features.Configuration.Models;
+using MdExplorer.Features.Services.AI.CopilotAcp;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using MdExplorer.Hubs;
@@ -170,6 +171,13 @@ namespace MdExplorer.Service.Controllers
             // Gated by MDE_DOCKER=1 so non-container deployments are unaffected.
             if (Environment.GetEnvironmentVariable("MDE_DOCKER") == "1")
             {
+                if (selectedIde?.ToLowerInvariant() == "copilot")
+                {
+                    // Copilot CLI needs a host-side terminal; there is no URL scheme to
+                    // hand off to the browser the way vscode:// / jetbrains:// allow.
+                    return BadRequest(new { error = "Copilot CLI cannot be launched in Docker mode: it requires a host terminal session." });
+                }
+
                 var hostUrl = TryBuildHostEditorUrl(path, selectedIde);
                 if (hostUrl != null)
                 {
@@ -182,7 +190,19 @@ namespace MdExplorer.Service.Controllers
             }
 
             // Open with selected IDE
-            if (selectedIde?.ToLowerInvariant() == "intellij")
+            if (selectedIde?.ToLowerInvariant() == "copilot")
+            {
+                if (!CopilotProcessLauncher.IsResolvable())
+                {
+                    return BadRequest(new { error = "Copilot CLI not found in PATH. Install it via 'winget install GitHub.Copilot' or 'npm install -g @github/copilot'." });
+                }
+
+                // Copilot CLI is interactive: open a terminal on the project root,
+                // ignoring the specific file path (the folder is what matters here).
+                _processUtil.OpenFolderWithCopilotCli(projectPath);
+                return Ok(new { message = "opened Copilot CLI on project root" });
+            }
+            else if (selectedIde?.ToLowerInvariant() == "intellij")
             {
                 var intellijPath = settingDal.GetList().Where(_ => _.Name == "IntelliJPath").FirstOrDefault()?.ValueString;
 

@@ -67,6 +67,49 @@ var InteractiveSvg = (function() {
         return map;
     }
 
+    /**
+     * Apply format-agnostic marker classes so the CSS can target boxes and links
+     * without knowing whether the SVG uses the legacy (id^="elem_"/"cluster_"/"link_"/"GMN")
+     * or the new (g.entity/g.cluster/g.link) PlantUML naming.
+     *
+     *   - .interactive-svg-box   : on every clickable box (entity, cluster, GMN note, elem_*)
+     *   - .interactive-svg-link  : on every link group
+     *   - .interactive-svg-note  : extra marker for GMN note boxes (used for dim/hover overrides if needed)
+     */
+    function applyMarkerClasses(svg) {
+        svg.querySelectorAll(SEL_BOXES).forEach(function(box) {
+            box.classList.add('interactive-svg-box');
+            if (box.id && box.id.indexOf('GMN') === 0) {
+                box.classList.add('interactive-svg-note');
+            }
+        });
+        svg.querySelectorAll(SEL_LINKS).forEach(function(link) {
+            link.classList.add('interactive-svg-link');
+        });
+    }
+
+    /**
+     * Remove the marker classes applied by applyMarkerClasses (used by destroy()).
+     */
+    function removeMarkerClasses(svg) {
+        svg.querySelectorAll('.interactive-svg-box, .interactive-svg-link, .interactive-svg-note')
+           .forEach(function(el) {
+               el.classList.remove('interactive-svg-box', 'interactive-svg-link', 'interactive-svg-note');
+           });
+    }
+
+    // Safe CSS ident pattern (no Unicode, but covers all PlantUML-generated identifiers)
+    var RE_CSS_IDENT = /^-?[A-Za-z_][\w-]*$/;
+
+    function isValidCssIdent(name) {
+        return typeof name === 'string' && RE_CSS_IDENT.test(name);
+    }
+
+    function escapeAttrValue(s) {
+        // Escape backslash and double-quote for use inside an [attr="..."] selector
+        return String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    }
+
     var _wrapperStyleInjected = false;
     function injectWrapperStyle() {
         if (_wrapperStyleInjected) return;
@@ -357,7 +400,8 @@ var InteractiveSvg = (function() {
     function clearSelection(svg) {
         var classes = ['selected', 'selected-green', 'selected-orange', 'selected-cyan',
                        'source-selected', 'destination', 'destination-outgoing',
-                       'destination-incoming', 'destination-note', 'link-highlighted'];
+                       'destination-incoming', 'destination-note', 'cluster-contained',
+                       'link-highlighted'];
 
         svg.querySelectorAll('.' + classes.join(', .')).forEach(function(el) {
             classes.forEach(function(cls) {
@@ -392,17 +436,173 @@ var InteractiveSvg = (function() {
 
     /**
      * Find a box element by its qualified name, supporting both old and new formats.
+     *
+     * The new format (PlantUML v1.2026.1+) can produce qualified names containing
+     * spaces, dots and other characters that are NOT valid CSS identifiers
+     * (e.g. "Layer 1 . COBOL.Programma . Chiamate Esterne.CobolFunction"). Building
+     * a `#elem_<name>` selector from such a name makes querySelector throw a
+     * SyntaxError, which previously aborted the click handler mid-forEach and broke
+     * incoming/outgoing highlighting.
+     *
+     * Order matters here:
+     *   1. attribute selector — always safe, just escape `\` and `"` in the value
+     *   2. ID selectors — only attempted when the name is a valid CSS identifier
      */
     function findBoxByName(svg, name) {
-        // Legacy format
-        var el = svg.querySelector('#elem_' + name) ||
-                 svg.querySelector('#cluster_' + name) ||
-                 svg.querySelector('#' + name);
+        if (!name) return null;
+
+        // 1. New format: g[data-qualified-name="..."]
+        var el = svg.querySelector('g[data-qualified-name="' + escapeAttrValue(name) + '"]');
         if (el) return el;
 
-        // New format: find by data-qualified-name
-        el = svg.querySelector('g[data-qualified-name="' + name + '"]');
-        return el;
+        // 2. Legacy format: #elem_*, #cluster_*, #GMN* — only if name is a valid ident
+        if (isValidCssIdent(name)) {
+            el = svg.querySelector('#elem_' + name) ||
+                 svg.querySelector('#cluster_' + name) ||
+                 svg.querySelector('#' + name);
+            if (el) return el;
+        }
+
+        return null;
+    }
+
+    /**
+     * Is this box a cluster (package/container)?
+     */
+    function isClusterElement(el) {
+        if (!el) return false;
+        if (el.classList && el.classList.contains('cluster')) return true;       // new format
+        if (el.id && el.id.indexOf('cluster_') === 0) return true;                // legacy
+        return false;
+    }
+
+    /**
+     * Find all DOM siblings that conceptually live INSIDE a cluster.
+     *
+     * PlantUML does NOT nest g.cluster/g.entity DOM-wise — they are all flat siblings.
+     * The containment is encoded only in the `data-qualified-name` attribute
+     * (new format v1.2026.1+): every box inside "Layer 1 . COBOL" has a qname
+     * that begins with "Layer 1 . COBOL." (note the trailing dot separator).
+     *
+     * For legacy format we cannot determine descendants from the ID alone, so
+     * we return an empty array — the cluster click then degrades to the normal
+     * entity behaviour (highlight outgoing/incoming of the cluster itself).
+     *
+     * @returns {{ qnames: Set<string>, els: Element[] }}
+     */
+    function findClusterDescendants(svg, cluster) {
+        var qname = cluster.getAttribute && cluster.getAttribute('data-qualified-name');
+        if (!qname) return { qnames: new Set(), els: [] };
+
+        var prefix = qname + '.';
+        var qnames = new Set();
+        var els = [];
+        svg.querySelectorAll('g.entity, g.cluster').forEach(function(el) {
+            if (el === cluster) return;
+            var q = el.getAttribute('data-qualified-name');
+            if (q && q.indexOf(prefix) === 0) {
+                qnames.add(q);
+                els.push(el);
+            }
+        });
+        return { qnames: qnames, els: els };
+    }
+
+    /**
+     * Resolve a link group's endpoints to qualified names (or legacy names),
+     * using the linkMap context (entityIdMap, knownNames).
+     */
+    function resolveLinkEndpoints(linkEl, linkMap) {
+        var from, to;
+        if (linkEl.classList.contains('link')) {
+            // New format
+            var eid1 = linkEl.getAttribute('data-entity-1');
+            var eid2 = linkEl.getAttribute('data-entity-2');
+            from = linkMap.entityIdMap[eid1] || eid1;
+            to = linkMap.entityIdMap[eid2] || eid2;
+        } else {
+            from = linkEl.dataset.from;
+            to = linkEl.dataset.to;
+            if (!from || !to) {
+                var parsed = parseLinkId(linkEl.id, linkMap.knownNames);
+                if (parsed) {
+                    from = from || parsed.from;
+                    to = to || parsed.to;
+                }
+            }
+        }
+        return { from: from, to: to };
+    }
+
+    /**
+     * Highlight a cluster: mark every contained box and every link that touches
+     * the cluster (internal, outgoing, or incoming). External endpoints reached
+     * via outgoing/incoming links are coloured GREEN/RED as for entity click.
+     */
+    function handleClusterClick(cluster, clusterName, svg, linkMap, onSelect) {
+        var descendants = findClusterDescendants(svg, cluster);
+
+        // 1. Light up all descendants (cluster-contained — BLU soft)
+        descendants.els.forEach(function(el) {
+            el.classList.add('cluster-contained');
+            highlightEllipses(el, '#64B5F6');
+        });
+
+        // 2. Walk every link to classify it relative to the cluster boundary
+        var internalCount = 0, outCount = 0, inCount = 0;
+        var externalConnected = [];
+
+        function markExternal(name, kind) {
+            if (externalConnected.indexOf(name) !== -1) return;
+            externalConnected.push(name);
+            var el = findBoxByName(svg, name);
+            if (!el || el === cluster) return;
+            if (name.indexOf && name.indexOf('GMN') === 0) {
+                el.classList.add('destination-note');
+                highlightEllipses(el, '#FFC107');
+            } else if (kind === 'outgoing') {
+                el.classList.add('destination-outgoing');
+                highlightEllipses(el, '#4CAF50');
+            } else {
+                el.classList.add('destination-incoming');
+                highlightEllipses(el, '#f44336');
+            }
+        }
+
+        svg.querySelectorAll('g.interactive-svg-link').forEach(function(linkEl) {
+            var ep = resolveLinkEndpoints(linkEl, linkMap);
+            if (!ep.from || !ep.to) return;
+
+            var fromInside = (ep.from === clusterName) || descendants.qnames.has(ep.from);
+            var toInside   = (ep.to   === clusterName) || descendants.qnames.has(ep.to);
+
+            if (fromInside && toInside) {
+                linkEl.classList.add('link-highlighted');
+                internalCount++;
+            } else if (fromInside && !toInside) {
+                linkEl.classList.add('link-highlighted');
+                outCount++;
+                markExternal(ep.to, 'outgoing');
+            } else if (!fromInside && toInside) {
+                linkEl.classList.add('link-highlighted');
+                inCount++;
+                markExternal(ep.from, 'incoming');
+            }
+        });
+
+        if (onSelect && typeof onSelect === 'function') {
+            onSelect({
+                type: 'cluster',
+                element: cluster,
+                name: clusterName,
+                formattedName: formatName(clusterName),
+                descendantCount: descendants.els.length,
+                internalLinkCount: internalCount,
+                outgoingCount: outCount,
+                incomingCount: inCount,
+                connectedBoxes: externalConnected.map(formatName)
+            });
+        }
     }
 
     function handleBoxClick(boxElement, svg, linkMap, onSelect) {
@@ -415,6 +615,11 @@ var InteractiveSvg = (function() {
         highlightEllipses(boxElement, '#2196F3');
         svg.classList.add('has-selection');
         svg.classList.add('interactive-svg-active');
+
+        // Cluster click → light up all contents + all touching links
+        if (isClusterElement(boxElement)) {
+            return handleClusterClick(boxElement, boxName, svg, linkMap, onSelect);
+        }
 
         var connectedBoxes = [];
         var outCount = 0, inCount = 0;
@@ -541,6 +746,10 @@ var InteractiveSvg = (function() {
         // Mark as initialized
         initializedSvgs.add(svg);
         svg.classList.add('interactive-svg');
+
+        // Tag every box and link with format-agnostic marker classes so the CSS
+        // works for both legacy (id^="elem_"…) and new (g.entity/g.link) formats.
+        applyMarkerClasses(svg);
 
         // Prepare SVG
         reorderLinks(svg);
@@ -680,6 +889,9 @@ var InteractiveSvg = (function() {
         // Clear selection and classes
         clearSelection(svg);
         svg.classList.remove('interactive-svg');
+
+        // Remove the format-agnostic marker classes added in init()
+        removeMarkerClasses(svg);
 
         // Remove hit areas
         svg.querySelectorAll('.hit-area').forEach(function(el) {

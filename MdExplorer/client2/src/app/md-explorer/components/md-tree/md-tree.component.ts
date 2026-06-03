@@ -35,6 +35,9 @@ import { BulkExportProgressService } from '../../services/bulk-export-progress.s
 import { FileEventsService } from '../../services/file-events.service';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
+import { MarkAssistantService } from '../../../mark-assistant/mark-assistant.service';
+import { IndexingProgressService } from '../../services/indexing-progress.service';
+import { IndexingProgressSnackComponent } from '../indexing-progress-snack/indexing-progress-snack.component';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -113,6 +116,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       indexingStatus: node.indexingStatus,
       indexingProgress: node.indexingProgress,
       developmentTags: node.developmentTags,
+      // True when the folder owns a generated TOC file (drives the TOC icon)
+      hasToc: node.hasToc,
       // Compact folder properties
       isCompacted: node.isCompacted,
       compactedPath: node.compactedPath,
@@ -125,8 +130,20 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       appDescription: node.appDescription
     };
   }
+  // trackBy per fullPath: l'expansionModel del FlatTreeControl di default usa
+  // l'IDENTITÀ dell'oggetto-nodo. Gli update incrementali (compact-folder break,
+  // createMissingFolderHierarchy, re-fetch) sostituiscono le istanze dei nodi →
+  // l'identità cambia → l'espansione "si stacca" dai nodi correnti (icone e figli
+  // non si aprono più). Chiavando l'espansione per fullPath (stabile e unico),
+  // lo stato di espansione sopravvive al cambio di istanza. Gemello del [trackBy]
+  // sul <mat-tree> che riconcilia le righe DOM.
   treeControl = new FlatTreeControl<IFileInfoNode>(
-    node => node.level, node => node.expandable);
+    node => node.level, node => node.expandable,
+    // Return tipizzato `any` di proposito: manteniamo K=IFileInfoNode (così i
+    // generics di MatTreeFlatDataSource/Flattener restano invariati e il build
+    // non va in cascata), ma a runtime l'expansionModel usa la stringa fullPath
+    // come chiave — è esattamente ciò che serve per resistere al churn di istanze.
+    { trackBy: (node: IFileInfoNode): any => node.fullPath });
 
   treeFlattener = new MatTreeFlattener(
     this._transformer, node => node.level, node => node.expandable, node => node.childrens);
@@ -175,7 +192,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private bulkExportProgressService: BulkExportProgressService,
     private fileEventsService: FileEventsService,
     private http: HttpClient,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private markAssistant: MarkAssistantService,
+    private indexingProgressService: IndexingProgressService
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.subscribe(_ => {      
@@ -210,18 +229,19 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.changeDetectorRef.detectChanges();
     }, this);
 
-    // Reset contatore quando inizia una nuova indicizzazione
+    // Building knowledge progress — UNA sola snackbar custom (basso a destra) per tutta
+    // l'indicizzazione. Lo stato (percent / processed / total) è pilotato da
+    // IndexingProgressService e popolato dall'evento SignalR knowledgeProgress.
+    // Prima qui c'era un MatSnackBar.open() ripetuto per ogni folderIndexingComplete
+    // → "scoppiettare" di snackbar. Adesso una sola istanza, vive da parsingProjectStart
+    // a parsingProjectStop + 1.5s.
     this.mdServerMessages.addParsingProjectStartListener((data, component) => {
-      this.indexedFoldersCount = 0;
-      // Non chiudiamo la snackbar, la riutilizzeremo per i nuovi aggiornamenti
-      if (this.currentSnackbarRef) {
-        this.updateSnackbarContent('Iniziando indicizzazione...');
-      }
+      this.indexingProgressService.reset();
+      this.openIndexingSnackbar();
     }, this);
 
-    // Aggiungi listener per cartelle in indicizzazione
+    // Folder spinner sulla tree (independent dal progresso globale)
     this.mdServerMessages.addFolderIndexingStartListener((data, component) => {
-      console.warn('🔴 [DIAG] folderIndexingStart received:', { path: data.path, timestamp: new Date().toISOString() });
       const node = this.findNodeByPath(data.path);
       if (node) {
         node.indexingStatus = 'indexing';
@@ -234,24 +254,43 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       if (node) {
         node.indexingStatus = 'completed';
         this.changeDetectorRef.detectChanges();
-        
-        // Mostra snackbar throttled per cartella indicizzata
-        this.showIndexingSnackbar(node.name);
       }
+      // Non aprire più snackbar qui — il progresso ora è unificato via knowledgeProgress
+      // sul componente IndexingProgressSnackComponent.
     }, this);
-    
-    // Listener per fine indicizzazione completa
+
+    // Avanzamento globale "Building knowledge" alimentato dal backend dopo
+    // ogni cartella nella fase ParseLinks.
+    this.mdServerMessages.addKnowledgeProgressListener((data, component) => {
+      const processed = data?.processed ?? 0;
+      const total = data?.total ?? 0;
+      const percent = data?.percent ?? 0;
+      this.indexingProgressService.setProgress(processed, total, percent);
+    }, this);
+
+    // Fine indicizzazione: forza 100% e auto-dismiss dopo 1.5s
     this.mdServerMessages.addParsingProjectStopListener((data, component) => {
-      if (this.currentSnackbarRef) {
-        // Aggiorna con messaggio finale e chiudi dopo 3 secondi
-        this.updateSnackbarContent(`Completato! ${this.indexedFoldersCount} directory indicizzate`);
-        setTimeout(() => {
-          if (this.currentSnackbarRef) {
-            this.currentSnackbarRef.dismiss();
-          }
-        }, 3000);
-      }
+      this.indexingProgressService.setComplete();
+      setTimeout(() => {
+        if (this.currentSnackbarRef) {
+          this.currentSnackbarRef.dismiss();
+        }
+      }, 1500);
     }, this);
+
+    // Mark Actions — recursive "Riassumi documentazione" job emits a `toc-ready`
+    // event per folder right after its <name>.md.directory is (re)generated. We
+    // flip node.hasToc here so the document icon appears on the folder right
+    // away, without waiting for the user to reopen the project. The Mark dialog
+    // ignores this phase (MarkAssistantService.onFolderProgress).
+    this.mdServerMessages.markFolderProgress$.subscribe(p => {
+      if (p?.phase !== 'toc-ready' || !p.folderFullPath) return;
+      const node = this.findNodeByPath(p.folderFullPath);
+      if (node) {
+        node.hasToc = true;
+        this.changeDetectorRef.markForCheck();
+      }
+    });
 
     // Listener per la creazione di nuovi file markdown (queued + debounced)
     this.mdServerMessages.addMarkdownFileCreatedListener((data, component) => {
@@ -345,28 +384,18 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.mdFiles = this.mdFileService.mdFiles;
     this.mdFileService.mdFiles.subscribe(data => {
       // Ignora emissioni vuote (BehaviorSubject emette [] inizialmente)
-      // Nascondi skeleton solo quando arrivano dati reali
       if (data && data.length > 0) {
-        // Inizializza ricorsivamente tutte le proprietà
-        this.initializeNodeProperties(data);
-        // Crea una NUOVA array per forzare il change detection con OnPush
-        this.dataSource.data = [...data];
-
-        // Restore expansion state if we have saved state (from branch switch)
-        if (this.expansionStateBeforeRefresh !== null) {
-          console.log('🔄 Restoring expansion state after branch switch');
-          this.restoreExpansionState(this.expansionStateBeforeRefresh);
-          this.expansionStateBeforeRefresh = null; // Clear after use
-        }
-
-        // Nascondi skeleton loader quando i dati REALI arrivano
-        this.isLoading = false;
-        console.log('📂 Tree data loaded, hiding skeleton');
-
-        // Con OnPush, forza il re-check del componente
-        this.changeDetectorRef.markForCheck();
-        // Forza anche il detectChanges per sicurezza
-        this.changeDetectorRef.detectChanges();
+        // COALESCE: durante una raffica di update incrementali (es. un agente che
+        // crea molti file) questa subscription emette N volte in un singolo stack
+        // sincrono. Il vecchio codice faceva N volte `dataSource.data=[...]` +
+        // `detectChanges()` rientrante: i render del CDK MatTree si calpestavano,
+        // corrompendo il suo differ e lasciando righe DOM orfane NON più rimovibili
+        // (nemmeno con dataSource.data=[]; solo il reload le sanava).
+        // Ora bufferizziamo l'ultima emissione e applichiamo UN solo render per
+        // microtask → il differ resta consistente. I DATI restano incrementali:
+        // cambia solo la cadenza con cui vengono spinti nella view.
+        this._pendingTreeData = data;
+        this.scheduleTreeRender();
       }
     });
     this.mdFileService.loadAll(this.deferredOpenProject, this);
@@ -386,6 +415,42 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       if (node.childrens && node.childrens.length > 0) {
         this.initializeNodeProperties(node.childrens);
       }
+    });
+  }
+
+  // ── Coalescing del rendering dell'albero ──
+  // Buffer dell'ultima emissione + flag di scheduling. Più emissioni nello stesso
+  // stack sincrono (raffica) collassano in un solo render nel microtask successivo,
+  // evitando il rendering rientrante che corrompe il differ del MatTree.
+  private _pendingTreeData: any[] | null = null;
+  private _treeRenderScheduled = false;
+
+  private scheduleTreeRender(): void {
+    if (this._treeRenderScheduled) { return; }
+    this._treeRenderScheduled = true;
+    Promise.resolve().then(() => {
+      this._treeRenderScheduled = false;
+      const data = this._pendingTreeData;
+      this._pendingTreeData = null;
+      if (!data || data.length === 0) { return; }
+
+      // Inizializza ricorsivamente tutte le proprietà
+      this.initializeNodeProperties(data);
+      // Una NUOVA array per il change detection con OnPush
+      this.dataSource.data = [...data];
+
+      // Restore expansion state if we have saved state (from branch switch)
+      if (this.expansionStateBeforeRefresh !== null) {
+        this.restoreExpansionState(this.expansionStateBeforeRefresh);
+        this.expansionStateBeforeRefresh = null; // Clear after use
+      }
+
+      // Nascondi skeleton loader quando i dati REALI arrivano
+      this.isLoading = false;
+
+      // OnPush: solo markForCheck. NIENTE detectChanges() sincrono: era la fonte
+      // del rendering rientrante che corrompeva il differ del MatTree.
+      this.changeDetectorRef.markForCheck();
     });
   }
 
@@ -456,10 +521,27 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Store the selected segment for use in create operations
     this.selectedCompactSegment = segment;
 
-    // Create a temporary item with the segment's path for the context menu
+    // Build a synthetic MdFile representing the clicked segment. Downstream
+    // consumers (openTocDirectory → navigateToTocFile, createDirectoryOn, etc.)
+    // rely on relativePath being populated; without it they hit the no-prefix
+    // fallback and end up writing files at the project root.
     const segmentItem = new MdFile(segment.name, segment.fullPath, segment.level, true);
     segmentItem.fullPath = segment.fullPath;
     segmentItem.type = 'folder';
+
+    if (node.isCompacted && node.compactedSegments && node.relativePath != null) {
+      // The compact node's own relativePath is the FIRST segment of the chain
+      // (compactSingleNode never reassigns it). Extend it forward by appending
+      // the names of the segments between index 1 and the clicked segment.
+      const idx = node.compactedSegments.findIndex(s => s.fullPath === segment.fullPath);
+      const baseRel = node.relativePath.replace(/\\/g, '/');
+      if (idx === 0) {
+        segmentItem.relativePath = node.relativePath;
+      } else if (idx > 0) {
+        const extra = node.compactedSegments.slice(1, idx + 1).map(s => s.name).join('/');
+        segmentItem.relativePath = `${baseRel}/${extra}`;
+      }
+    }
 
     this.menuTopLeftPosition.x = event.clientX;
     this.menuTopLeftPosition.y = event.clientY;
@@ -470,11 +552,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // ==================== End Compact Folder Methods ====================
 
   public async getNode(node: MdFile) {
-    if (this.isFileWaiting(node)) {
-      // Feedback per file in indicizzazione
-      this.snackBar.open(this.translate.instant('MD_TREE.FILE_INDEXING'), 'OK', { duration: 3000 });
-      return;
-    }
+    // NOTA gating rimosso il 2026-05-23:
+    // Prima qui c'era un early-return per `isFileWaiting(node)` (file non
+    // ancora indicizzato) che apriva una snackbar "FILE_INDEXING" e bloccava
+    // l'apertura. L'indicizzazione popola LinkInsideMarkdown ed embedding RAG,
+    // ma il file in sé è leggibile da subito. Il blocco contraddiceva il
+    // design async della pipeline (vedi IndexingPipelineService + Task.Yield).
 
     // External app: check for updates, then navigate to embedded view
     if (node.type === 'externalApp') {
@@ -820,6 +903,33 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // the aggregated knowledge graph from any .mde-doc/*.kg.md siblings. No AI involved.
     this.generateTocWithAI(node, true);
   }
+
+  /**
+   * Summons the Mark assistant scoped to a folder. Mark opens its window with a
+   * context menu of folder actions (currently just "Riassumi documentazione").
+   * Resolves the folder path through the same compact-folder convention as
+   * generateTocWithAI — for a compacted node the real folder is the LAST segment.
+   */
+  openMarkForFolder(node: MdFile) {
+    if (node == null) return;
+    const lastSeg = node.isCompacted && node.compactedSegments?.length
+      ? node.compactedSegments[node.compactedSegments.length - 1]
+      : null;
+    const folderFullPath = lastSeg ? lastSeg.fullPath : node.fullPath;
+    const folderName = lastSeg ? lastSeg.name : node.name;
+    this.markAssistant.launchFolderActions({ folderFullPath, folderName });
+  }
+
+  /**
+   * Opens the folder's existing TOC file (<dirname>.md.directory) directly,
+   * without regenerating it. Wired to the document icon shown on folder nodes
+   * whose node.hasToc === true.
+   */
+  openTocFile(node: MdFile, event: MouseEvent) {
+    // Stop the click from bubbling to the folder row (which would toggle it).
+    event.stopPropagation();
+    this.navigateToTocFile(node);
+  }
   
   exportFolderToWord(node: MdFile) {
     // Use fullPath (absolute) to avoid issues with compact folders
@@ -851,17 +961,23 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private generateTocWithAI(node: MdFile, navigateAfter: boolean) {
-    // Remove leading backslash if present
-    let directoryPath = node.relativePath || node.name;
-    if (directoryPath.startsWith('\\')) {
-      directoryPath = directoryPath.substring(1);
-    }
-    console.log('[MdTreeComponent] generateTocWithAI - directoryPath:', directoryPath);
-    
+    // For compact folders node.fullPath points to the FIRST segment of the chain
+    // (compactSingleNode never reassigns it — see the TODO comment in md-file.service.ts).
+    // The folder whose children the user is actually looking at is the LAST segment;
+    // findFolderInDataStore follows the same convention.
+    const lastSeg = node.isCompacted && node.compactedSegments?.length
+      ? node.compactedSegments[node.compactedSegments.length - 1]
+      : null;
+    const folderFullPath = lastSeg ? lastSeg.fullPath : node.fullPath;
+    const displayPath = node.isCompacted && node.compactedSegments
+      ? node.compactedSegments.map(s => s.name).join('/')
+      : (node.relativePath || node.name);
+    console.log('[MdTreeComponent] generateTocWithAI - folderFullPath:', folderFullPath);
+
     // Mostra il progress dialog
-    this.tocProgressService.showProgress(directoryPath);
-    
-    this.tocService.generateToc(directoryPath).subscribe({
+    this.tocProgressService.showProgress(displayPath);
+
+    this.tocService.generateToc(folderFullPath).subscribe({
       next: (result) => {
         console.log('[MdTreeComponent] TOC generation result:', result);
         
@@ -870,7 +986,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         
         if (result.success) {
           this.snackBar.open(this.translate.instant('MD_TREE.TOC_GENERATED'), 'OK', { duration: 3000 });
-          
+
+          // The folder now owns a TOC file: surface the clickable document icon
+          // right away, without waiting for a full tree reload.
+          node.hasToc = true;
+          this.changeDetectorRef.markForCheck();
+
           if (navigateAfter) {
             // Naviga al file TOC generato
             setTimeout(() => {
@@ -911,16 +1032,28 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   
   private async navigateToTocFile(node: MdFile) {
-    const directoryName = node.name;
-    const relativePath = node.relativePath ? 
-      `${node.relativePath}/${directoryName}.md.directory` : 
-      `${directoryName}.md.directory`;
-    
+    // For compact folders node.name/relativePath/fullPath all freeze at the
+    // FIRST segment of the chain (compactSingleNode never reassigns them).
+    // The backend names the TOC file after the LAST segment (Path.GetFileName
+    // of the absolute folder), so the frontend must match or it would point at
+    // a stale <firstSegment>.md.directory.
+    const lastSeg = node.isCompacted && node.compactedSegments?.length
+      ? node.compactedSegments[node.compactedSegments.length - 1]
+      : null;
+    const directoryName = lastSeg ? lastSeg.name : node.name;
+    const folderRelativePath = node.isCompacted && node.compactedSegments
+      ? node.compactedSegments.map(s => s.name).join('/')
+      : node.relativePath;
+    const folderFullPath = lastSeg ? lastSeg.fullPath : node.fullPath;
+    const relativePath = folderRelativePath
+      ? `${folderRelativePath}/${directoryName}.md.directory`
+      : `${directoryName}.md.directory`;
+
     // Crea un oggetto MdFile per il file .md.directory
     const tocFile: MdFile = {
       name: `${directoryName}.md.directory`,
       relativePath: relativePath,
-      fullPath: node.fullPath ? `${node.fullPath}/${directoryName}.md.directory` : `${directoryName}.md.directory`,
+      fullPath: folderFullPath ? `${folderFullPath}/${directoryName}.md.directory` : `${directoryName}.md.directory`,
       path: node.path,
       type: 'mdFile',
       index: 0,
@@ -1312,12 +1445,15 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     return isMarkdownFile && !isIndexed;
   }
   
-  // TrackBy function per ottimizzare il rendering dell'albero
-  // Usa una chiave stabile che non cambia durante i rename
+  // TrackBy function per il rendering dell'albero.
+  // DEVE restituire una chiave STABILE e UNICA per nodo: il fullPath identifica
+  // univocamente ogni nodo dell'albero (verificato: i fullPath sono tutti distinti).
+  // NON includere `index`: lo renderebbe dipendente dalla posizione, e tra
+  // un'emissione di dataSource.data e la successiva Material non riconcilierebbe
+  // le righe → lascerebbe nel DOM le righe vecchie e ne appenderebbe di nuove,
+  // duplicando l'intera struttura (copia "morta" + copia "viva").
   trackByPath(index: number, node: MdFile): string {
-    // Per i rename, il path della directory rimane lo stesso, solo il nome cambia
-    // Usiamo path + level per creare una chiave stabile
-    return `${node.path || ''}_${node.level || 0}_${index}`;
+    return node.fullPath || `${node.path || ''}_${node.level || 0}`;
   }
   
   // Helper per verificare se un nodo è selezionato
@@ -1364,57 +1500,38 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   
   // Gestione intelligente delle notifiche di indicizzazione
-  private showIndexingSnackbar(folderName: string): void {
-    
-    this.indexedFoldersCount++;
-    
-    // Se non c'è una snackbar attiva, creane una nuova
-    if (!this.currentSnackbarRef) {
-      this.currentSnackbarRef = this.snackBar.open(
-        this.translate.instant('MD_TREE.DIR_INDEXED', { count: this.indexedFoldersCount, folder: folderName }),
-        this.translate.instant('COMMON.CLOSE'),
-        {
-          duration: 0, // Non scade automaticamente
-          horizontalPosition: 'right',
-          verticalPosition: 'bottom',
-          panelClass: ['success-snackbar']
-        }
-      );
-      
-      // Cleanup quando viene chiusa manualmente
-      this.currentSnackbarRef.afterDismissed().subscribe(() => {
-        this.currentSnackbarRef = null;
-        this.indexedFoldersCount = 0; // Reset del contatore
-      });
-    } else {
-      // Aggiorna il contenuto della snackbar esistente
-      this.updateSnackbarContent(folderName);
-    }
-  }
-  
-  private updateSnackbarContent(folderName: string): void {
-    if (this.currentSnackbarRef && this.currentSnackbarRef.instance) {
-      try {
-        // Prova ad aggiornare il messaggio della snackbar esistente
-        const newMessage = this.translate.instant('MD_TREE.DIR_INDEXED', { count: this.indexedFoldersCount, folder: folderName });
-        
-        // Accesso diretto al componente della snackbar
-        if (this.currentSnackbarRef.instance.snackBarRef) {
-          this.currentSnackbarRef.instance.snackBarRef._data.message = newMessage;
-        } else if (this.currentSnackbarRef.instance.data) {
-          this.currentSnackbarRef.instance.data.message = newMessage;
-        }
-        
-        // Forza il change detection per aggiornare la vista
-        this.changeDetectorRef.detectChanges();
-      } catch (error) {
-        // Se l'aggiornamento fallisce, chiudi la vecchia e crea una nuova silenziosamente
-        this.currentSnackbarRef.dismiss();
-        this.currentSnackbarRef = null;
-        this.showIndexingSnackbar(folderName);
+  /**
+   * Apre la snackbar custom "Building knowledge" in basso a destra.
+   * No-op se ne esiste già una. Il contenuto (IndexingProgressSnackComponent)
+   * si abbevera da IndexingProgressService — non vanno chiamati update qui:
+   * la progress avanza via setProgress() / setComplete() del service.
+   *
+   * Stile: la classe `.indexing-progress-snackbar` in styles.scss controlla
+   * margine, width e padding del contenitore Material.
+   */
+  private openIndexingSnackbar(): void {
+    if (this.currentSnackbarRef) return;
+
+    this.currentSnackbarRef = this.snackBar.openFromComponent(
+      IndexingProgressSnackComponent,
+      {
+        duration: 0, // Vive finché parsingProjectStop non innesca dismiss
+        horizontalPosition: 'right',
+        verticalPosition: 'bottom',
+        panelClass: ['indexing-progress-snackbar']
       }
-    }
+    );
+
+    this.currentSnackbarRef.afterDismissed().subscribe(() => {
+      this.currentSnackbarRef = null;
+    });
   }
+
+  // RIMOSSI: showIndexingSnackbar e updateSnackbarContent.
+  // Prima venivano chiamati per ogni folderIndexingComplete (1 snackbar nuova
+  // o un update con dismiss+riapri di fallback) → flicker visivo.
+  // Adesso la snackbar è UNA sola, aperta a parsingProjectStart, aggiornata
+  // tramite IndexingProgressService dal knowledgeProgress event.
 
   // ── Event Queue with debounce + batching ──
 

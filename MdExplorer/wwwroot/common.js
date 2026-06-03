@@ -44,6 +44,9 @@ if (window.commonJsLoaded) {
     loadScriptOnce('/prismjs/prism-python.min.js');
     loadScriptOnce('/prismjs/prism-sql.min.js');
     loadScriptOnce('/prismjs/prism-markup.min.js');
+    loadScriptOnce('/prismjs/prism-turtle.min.js');
+    loadScriptOnce('/prismjs/prism-json.min.js');
+    loadScriptOnce('/prismjs/prism-yaml.min.js');
 
     // Always load mermaid but configure it differently based on environment
     const isElectron = navigator.userAgent.includes('Electron');
@@ -150,6 +153,10 @@ if (window.commonJsLoaded) {
         // HTML-PREVIEW: Live HTML preview with tabs for ```html code blocks
         document.write("<link href='/javascripts/jqueryForFirstPage/html-preview/html-preview.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/html-preview/html-preview.js');
+
+        // TEXT-INCLUDE: Single-pane source view for ```text(path) blocks
+        document.write("<link href='/javascripts/jqueryForFirstPage/text-include/text-include.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/text-include/text-include.js');
 
         // EXECUTION: Runnable fenced code blocks (bash/sh/powershell/pwsh/cmd)
         document.write("<link href='/javascripts/jqueryForFirstPage/execution/mde-exec-blocks.css' rel='stylesheet' />");
