@@ -6,6 +6,7 @@ using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Features.Services.KnowledgeGraph;
+using MdExplorer.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -138,7 +139,17 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
                 }
 
                 settingsDal.Save(settings);
+                var projectPath = project.Path;
                 _userSettingsDB.Commit();
+
+                // Now that the project is configured for Fuseki, deploy the Fuseki/Jena
+                // skills (TBox/ABox/SHACL) into .github immediately — without waiting for
+                // the next project open. Gated on Enabled; never removes on disable.
+                if (req.Enabled && !string.IsNullOrWhiteSpace(projectPath))
+                {
+                    try { MdeSkillUpdater.EnsureAllSkillsInstalled(projectPath, fusekiEnabled: true); }
+                    catch (Exception skEx) { _logger.LogWarning(skEx, "[FsController] Fuseki skill install failed for {ProjectId}", projectId); }
+                }
 
                 return Ok(new { ok = true, dataset = settings.Dataset });
             }

@@ -1,9 +1,11 @@
 ﻿using Ad.Tools.Dal;
 using Ad.Tools.Dal.Concrete;
+using Ad.Tools.Dal.Extensions;
 using Ad.Tools.FluentMigrator.Interfaces;
 using FluentMigrator.Runner;
 using LibGit2Sharp;
 using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.DataAccess.Engine;
@@ -32,7 +34,9 @@ namespace MdExplorer.Service
     {
         public static bool SetNewProject(IServiceProvider serviceProvider, string pathFromParameter, bool initializeGit = true, bool addCopilotInstructions = true)
         {
-            ConfigTemplates(pathFromParameter, null, addCopilotInstructions);
+            // Fuseki/Jena skills are deployed only for projects configured for Fuseki.
+            var fusekiEnabled = IsFusekiEnabled(serviceProvider, pathFromParameter);
+            ConfigTemplates(pathFromParameter, null, addCopilotInstructions, fusekiEnabled);
 
             // Initialize Git repository only if requested
             bool gitInitialized = false;
@@ -68,6 +72,46 @@ namespace MdExplorer.Service
 
             // Migration complete
             return gitInitialized;
+        }
+
+        /// <summary>
+        /// Reads the global UserDB to tell whether the project at <paramref name="projectPath"/>
+        /// has the Apache Jena Fuseki integration enabled. Used to gate the deployment
+        /// of the Fuseki/Jena skills. Safe: returns false on any error or when the
+        /// project / settings row does not exist yet.
+        /// </summary>
+        private static bool IsFusekiEnabled(IServiceProvider serviceProvider, string projectPath)
+        {
+            if (serviceProvider == null || string.IsNullOrWhiteSpace(projectPath))
+                return false;
+            try
+            {
+                var db = serviceProvider.GetService<IUserSettingsDB>();
+                if (db == null) return false;
+
+                var normalized = projectPath.TrimEnd('/', '\\');
+                db.BeginTransaction();
+                try
+                {
+                    var project = db.GetDal<Project>().GetList()
+                        .FirstOrDefault(p => p.Path != null &&
+                            string.Equals(p.Path.TrimEnd('/', '\\'), normalized, StringComparison.OrdinalIgnoreCase));
+                    if (project == null) return false;
+
+                    var settings = db.GetDal<ProjectFusekiSettings>().GetList()
+                        .FirstOrDefault(s => s.Project.Id == project.Id);
+                    return settings?.Enabled ?? false;
+                }
+                finally
+                {
+                    db.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ProjectsManager] IsFusekiEnabled check failed: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>
@@ -197,7 +241,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
     return effectivePath; // Return the path that was actually used.
 }
 
-        public static void ConfigTemplates(string mdPath, IServiceCollection services = null, bool addCopilotInstructions = true)
+        public static void ConfigTemplates(string mdPath, IServiceCollection services = null, bool addCopilotInstructions = true, bool fusekiEnabled = false)
         {
             //var directory = $"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md";
             var directory = $"{mdPath}{Path.DirectorySeparatorChar}.md";
@@ -207,7 +251,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             Directory.CreateDirectory(directoryEmoji);
 
             // Copy configuration files to project root if they don't exist
-            CopyConfigurationFilesToProject(mdPath, addCopilotInstructions);
+            CopyConfigurationFilesToProject(mdPath, addCopilotInstructions, fusekiEnabled);
 
             var assembly = Assembly.GetExecutingAssembly();
             var embeddedSubfolder = "MdExplorer.Service.EmojiForPandoc.";
@@ -303,7 +347,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             }
         }
         
-        private static void CopyConfigurationFilesToProject(string projectPath, bool addCopilotInstructions = true)
+        private static void CopyConfigurationFilesToProject(string projectPath, bool addCopilotInstructions = true, bool fusekiEnabled = false)
         {
             try
             {
@@ -358,7 +402,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     // Each MdE-managed skill has an `mde:` block in its frontmatter; the updater
                     // upgrades it on every project open if the embedded version is newer, but
                     // leaves user-customized skills alone (when `origin` differs or is missing).
-                    MdeSkillUpdater.EnsureAllSkillsInstalled(projectPath);
+                    MdeSkillUpdater.EnsureAllSkillsInstalled(projectPath, fusekiEnabled);
                 }
 
                 // Create .vscode folder with MCP server configuration

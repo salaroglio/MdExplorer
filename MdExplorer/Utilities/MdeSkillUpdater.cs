@@ -33,34 +33,44 @@ namespace MdExplorer.Utilities
     public static class MdeSkillUpdater
     {
         /// <summary>
-        /// Built-in skill catalog: tuples of (folder name under <c>.github/skills/</c>, embedded resource name).
-        /// Add an entry here when you add a new MdE-managed skill.
+        /// Built-in skill catalog: tuples of (folder name under <c>.github/skills/</c>,
+        /// embedded resource name, requiresFuseki). Skills with
+        /// <c>RequiresFuseki = true</c> are the semantic-web / Apache Jena Fuseki
+        /// skills (TBox/ABox/SHACL); they are installed ONLY for projects that have
+        /// the Fuseki integration enabled and configured. Add an entry here when you
+        /// add a new MdE-managed skill.
         /// </summary>
-        private static readonly (string Name, string ResourceName)[] BuiltInSkills = new[]
+        private static readonly (string Name, string ResourceName, bool RequiresFuseki)[] BuiltInSkills = new[]
         {
             (
                 "mde-readme",
-                "MdExplorer.Service.skills.mde_readme.SKILL.md"
+                "MdExplorer.Service.skills.mde_readme.SKILL.md",
+                false
             ),
             (
                 "mde-doc",
-                "MdExplorer.Service.skills.mde_doc.SKILL.md"
+                "MdExplorer.Service.skills.mde_doc.SKILL.md",
+                false
             ),
             (
                 "mde-features",
-                "MdExplorer.Service.skills.mde_features.SKILL.md"
+                "MdExplorer.Service.skills.mde_features.SKILL.md",
+                false
             ),
             (
                 "mde-tbox",
-                "MdExplorer.Service.skills.mde_tbox.SKILL.md"
+                "MdExplorer.Service.skills.mde_tbox.SKILL.md",
+                true
             ),
             (
                 "mde-abox",
-                "MdExplorer.Service.skills.mde_abox.SKILL.md"
+                "MdExplorer.Service.skills.mde_abox.SKILL.md",
+                true
             ),
             (
                 "mde-shacl",
-                "MdExplorer.Service.skills.mde_shacl.SKILL.md"
+                "MdExplorer.Service.skills.mde_shacl.SKILL.md",
+                true
             ),
         };
 
@@ -115,7 +125,15 @@ namespace MdExplorer.Utilities
             @"^[ \t]+(?<key>[A-Za-z][A-Za-z0-9]*):\s*(?<value>[^\r\n]*)",
             RegexOptions.Compiled | RegexOptions.Multiline);
 
-        public static void EnsureAllSkillsInstalled(string projectPath)
+        /// <param name="projectPath">Project root.</param>
+        /// <param name="fusekiEnabled">
+        /// Whether the project has the Apache Jena Fuseki integration enabled and
+        /// configured. When false, the Fuseki/Jena skills (TBox/ABox/SHACL) are NOT
+        /// installed. This only gates installation — it never removes skills already
+        /// on disk (a project that later disables Fuseki keeps any already-deployed
+        /// copies).
+        /// </param>
+        public static void EnsureAllSkillsInstalled(string projectPath, bool fusekiEnabled = false)
         {
             if (string.IsNullOrWhiteSpace(projectPath) || !Directory.Exists(projectPath))
                 return;
@@ -123,8 +141,15 @@ namespace MdExplorer.Utilities
             // Skills → .github/skills/<name>/SKILL.md
             var skillsRoot = Path.Combine(projectPath, ".github", "skills");
             Directory.CreateDirectory(skillsRoot);
-            foreach (var (name, resource) in BuiltInSkills)
+            foreach (var (name, resource, requiresFuseki) in BuiltInSkills)
             {
+                // Fuseki/Jena skills are deployed only when the project is configured
+                // for Fuseki. Don't even create the folder for a skipped skill.
+                if (requiresFuseki && !fusekiEnabled)
+                {
+                    Console.WriteLine($"[MdeSkillUpdater] Skipped Fuseki skill '{name}' (Fuseki not configured for this project).");
+                    continue;
+                }
                 try
                 {
                     var targetPath = Path.Combine(skillsRoot, name, "SKILL.md");
