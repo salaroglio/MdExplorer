@@ -99,11 +99,40 @@
             if (runBtn) {
                 runBtn.addEventListener('click', function (evt) {
                     evt.preventDefault();
-                    requestRun(parsed);
+                    // When a service is running this block, the main button acts as Stop.
+                    if (element.classList.contains('is-service-running')) {
+                        requestStopService(parsed);
+                    } else {
+                        requestRun(parsed, 'batch');
+                    }
+                });
+            }
+
+            // Split-button caret → toggle the "Run as service" menu.
+            var caret = element.querySelector('.mde-run-caret');
+            var menu = element.querySelector('.mde-run-menu');
+            if (caret && menu) {
+                caret.addEventListener('click', function (evt) {
+                    evt.preventDefault();
+                    evt.stopPropagation();
+                    menu.hidden = !menu.hidden;
+                });
+            }
+            var svcBtn = element.querySelector('.mde-run-service');
+            if (svcBtn) {
+                svcBtn.addEventListener('click', function (evt) {
+                    evt.preventDefault();
+                    if (menu) menu.hidden = true;
+                    requestRun(parsed, 'service');
                 });
             }
         });
     }
+
+    // Close any open run-menu when clicking elsewhere in the document.
+    document.addEventListener('click', function () {
+        document.querySelectorAll('.mde-run-menu').forEach(function (m) { m.hidden = true; });
+    });
 
     function harvestInlineValues(element, declaredParams) {
         // If the toolbar renders param inputs, harvest current values; otherwise
@@ -178,8 +207,9 @@
         return (s || '').replace(/(["\\])/g, '\\$1');
     }
 
-    function requestRun(parsed) {
-        markRunning(parsed);
+    function requestRun(parsed, mode) {
+        mode = mode || 'batch';
+        markRunning(parsed, mode);
         try {
             // Project path is written on <body ProjectPath="..."> by the server when the iframe
             // is rendered. The Angular parent still validates it.
@@ -193,6 +223,7 @@
                 params: harvested.params,
                 paramsInline: harvested.inline,
                 projectPath: projectPath,
+                mode: mode,
             }, '*');
         } catch (e) {
             console.error('[mde-exec] postMessage to parent failed:', e);
@@ -200,17 +231,61 @@
         }
     }
 
-    function markRunning(parsed) {
+    function requestStopService(parsed) {
+        try {
+            window.parent.postMessage({
+                type: 'mde-exec.requestStopService',
+                blockId: parsed.blockId,
+                serviceId: parsed.serviceId || null,
+            }, '*');
+        } catch (e) {
+            console.error('[mde-exec] stop-service postMessage failed:', e);
+        }
+    }
+
+    function enterServiceRunningState(parsed, serviceId) {
+        parsed.serviceId = serviceId;
+        parsed.element.classList.remove('is-running');
+        parsed.element.classList.add('is-service-running');
+        var btn = parsed.element.querySelector('.mde-run-btn');
+        if (btn) {
+            btn.disabled = false;
+            var label = btn.querySelector('.mde-run-label');
+            var icon = btn.querySelector('.mde-run-icon');
+            if (label) label.textContent = ' Stop';
+            if (icon) icon.innerHTML = '&#9632;'; // ■
+        }
+        var statusEl = parsed.element.querySelector('.mde-exec-output-status');
+        if (statusEl) statusEl.textContent = 'Service running…';
+    }
+
+    function exitServiceRunningState(parsed, status) {
+        parsed.serviceId = null;
+        parsed.element.classList.remove('is-service-running');
+        var btn = parsed.element.querySelector('.mde-run-btn');
+        if (btn) {
+            btn.disabled = false;
+            var label = btn.querySelector('.mde-run-label');
+            var icon = btn.querySelector('.mde-run-icon');
+            if (label) label.textContent = ' Run';
+            if (icon) icon.innerHTML = '&#9654;'; // ▶
+        }
+        var statusEl = parsed.element.querySelector('.mde-exec-output-status');
+        if (statusEl) statusEl.textContent = status || '';
+    }
+
+    function markRunning(parsed, mode) {
         var output = parsed.element.querySelector('.mde-exec-output');
         var content = parsed.element.querySelector('.mde-exec-output-content');
         var status = parsed.element.querySelector('.mde-exec-output-status');
         if (content) content.textContent = '';
         if (output) output.hidden = false;
-        if (status) status.textContent = 'Running…';
+        if (status) status.textContent = (mode === 'service') ? 'Starting service…' : 'Running…';
         parsed.element.classList.add('is-running');
         parsed.element.classList.remove('is-error');
         var btn = parsed.element.querySelector('.mde-run-btn');
-        if (btn) btn.disabled = true;
+        // For service mode we keep the button enabled (it will flip to Stop once started).
+        if (btn) btn.disabled = (mode !== 'service');
         // Reset ANSI parser state for a fresh run
         parsed.ansi = (typeof AnsiUp !== 'undefined') ? new AnsiUp() : null;
     }
@@ -285,6 +360,19 @@
                 if (data.path && data.paramName) {
                     applyPickedPath(parsed, data.paramName, data.path);
                 }
+                break;
+            case 'mde-exec.serviceStarted':
+                enterServiceRunningState(parsed, data.serviceId);
+                break;
+            case 'mde-exec.serviceStopped':
+                // Ignore a stale "stopped" for a previous service id (e.g. during stop+restart),
+                // otherwise it would revert the block while the new service is actually running.
+                if (parsed.serviceId && data.serviceId && data.serviceId !== parsed.serviceId) break;
+                var parts = [];
+                if (data.status === 'killed') parts.push('stopped');
+                else parts.push('service exited');
+                if (typeof data.exitCode === 'number') parts.push('exit ' + data.exitCode);
+                exitServiceRunningState(parsed, parts.join(' · '));
                 break;
         }
     });

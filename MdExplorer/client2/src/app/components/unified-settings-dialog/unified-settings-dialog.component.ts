@@ -13,6 +13,8 @@ import { TocGenerationService } from '../../md-explorer/services/toc-generation.
 import { LanguageService } from '../../services/language.service';
 import { ThemeService, ThemeMode } from '../../services/theme.service';
 import { TranslateService } from '@ngx-translate/core';
+import { ServicesMonitorService, ServiceDto } from '../../services/services-monitor.service';
+import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 
 @Component({
   selector: 'app-unified-settings-dialog',
@@ -100,6 +102,11 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
   editMaxEmbeddingChars: number = 12000;
   editSelectedModel: string = '';
 
+  // === Services tab ===
+  services: ServiceDto[] = [];
+  servicesLoading: boolean = false;
+  private servicesPollTimer: any = null;
+
   constructor(
     private dialogRef: MatDialogRef<UnifiedSettingsDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: any,
@@ -111,7 +118,9 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     private snackBar: MatSnackBar,
     private languageService: LanguageService,
     private themeService: ThemeService,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private servicesMonitor: ServicesMonitorService,
+    private serverMessages: MdServerMessagesService
   ) {
     this.isElectronEnvironment = !!(window as any).electronAPI?.flashTaskbarIcon;
     if (data?.initialTab) {
@@ -149,10 +158,27 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
           this.loadGpuInfo();
         }
       });
+
+    // Keep the Services list fresh whenever a service starts/stops anywhere.
+    this.serverMessages.serviceStarted$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => { if (this.selectedCategory === 'services') this.loadServices(); });
+    this.serverMessages.serviceStopped$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => { if (this.selectedCategory === 'services') this.loadServices(); });
+
+    if (this.selectedCategory === 'services') {
+      this.startServicesPolling();
+    }
   }
 
   selectCategory(category: string): void {
     this.selectedCategory = category;
+    if (category === 'services') {
+      this.startServicesPolling();
+    } else {
+      this.stopServicesPolling();
+    }
   }
 
   // ============================
@@ -533,7 +559,68 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     this.dialogRef.close();
   }
 
+  // ============================
+  //  SERVICES TAB
+  // ============================
+
+  private startServicesPolling(): void {
+    this.loadServices();
+    if (this.servicesPollTimer) return;
+    // Refresh periodically so the uptime column stays current while the panel is open.
+    this.servicesPollTimer = setInterval(() => this.loadServices(), 3000);
+  }
+
+  private stopServicesPolling(): void {
+    if (this.servicesPollTimer) {
+      clearInterval(this.servicesPollTimer);
+      this.servicesPollTimer = null;
+    }
+  }
+
+  loadServices(): void {
+    this.servicesLoading = true;
+    this.servicesMonitor.list().subscribe({
+      next: (list) => {
+        this.services = list || [];
+        this.servicesLoading = false;
+      },
+      error: () => { this.servicesLoading = false; }
+    });
+  }
+
+  stopService(svc: ServiceDto): void {
+    const msg = this.translate.instant('UNIFIED_SETTINGS.SERVICES_STOP_CONFIRM');
+    if (!window.confirm(msg)) return;
+    this.servicesMonitor.stop(svc.id).subscribe({
+      next: () => this.loadServices(),
+      error: () => this.loadServices(),
+    });
+  }
+
+  openInBrowser(svc: ServiceDto): void {
+    if (!svc.detectedPort) return;
+    const url = `http://localhost:${svc.detectedPort}`;
+    const api = (window as any).electronAPI;
+    if (api?.openExternal) {
+      api.openExternal(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  }
+
+  formatUptime(ms: number): string {
+    if (!ms || ms < 0) return '0s';
+    const totalSec = Math.floor(ms / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  }
+
   ngOnDestroy(): void {
+    this.stopServicesPolling();
     this.destroy$.next();
     this.destroy$.complete();
   }

@@ -382,9 +382,10 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 Directory.CreateDirectory(vscodePath);
 
                 var mcpJsonPath = Path.Combine(vscodePath, "mcp.json");
-                var projectName = new DirectoryInfo(projectPath).Name;
 
-                // Build the MdExplorer server entry
+                // Build the MdExplorer server entry.
+                // NOTE: the MCP server does NOT take a launch-time project argument — tools
+                // receive the project name per call (the LLM discovers it via GetProjects).
                 var baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 var mcpExePath = Path.Combine(baseDir, "MdExplorer.Mcp.exe");
 
@@ -394,8 +395,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     serverEntry = new System.Text.Json.Nodes.JsonObject
                     {
                         ["type"] = "stdio",
-                        ["command"] = mcpExePath,
-                        ["args"] = new System.Text.Json.Nodes.JsonArray("--project", projectName)
+                        ["command"] = mcpExePath
                     };
                 }
                 else
@@ -405,7 +405,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     {
                         ["type"] = "stdio",
                         ["command"] = "dotnet",
-                        ["args"] = new System.Text.Json.Nodes.JsonArray("run", "--project", mcpProjectPath, "--", "--project", projectName)
+                        ["args"] = new System.Text.Json.Nodes.JsonArray("run", "--project", mcpProjectPath)
                     };
                 }
 

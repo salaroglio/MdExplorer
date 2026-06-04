@@ -3,6 +3,22 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
+// ── cwd probe (temporary) ───────────────────────────────────────────
+// Records the working directory each time this MCP server is spawned, so we
+// can verify whether Copilot launches it with cwd = the open project folder
+// (the premise of project→account cwd-resolution). Append-only, failsafe.
+try
+{
+    var cwdLog = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "MdExplorer", "mcp-cwd.log");
+    var pid = System.Diagnostics.Process.GetCurrentProcess().Id;
+    File.AppendAllText(cwdLog,
+        $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] pid={pid} cwd={Directory.GetCurrentDirectory()}{Environment.NewLine}");
+}
+catch { /* a diagnostic must never break startup */ }
+// ────────────────────────────────────────────────────────────────────
+
 var builder = Host.CreateApplicationBuilder(args);
 
 // Log to stderr only (stdout is reserved for MCP JSON-RPC)

@@ -65,6 +65,11 @@ export class MdServerMessagesService {
   public executionCompleted$ = new Subject<{ blockId: string, exitCode: number, durationMs: number, timedOut: boolean }>();
   public executionError$ = new Subject<{ blockId: string, message: string }>();
 
+  // Observable streams for long-running "services" (MdServicesController)
+  public serviceStarted$ = new Subject<any>();
+  public serviceOutput$ = new Subject<{ serviceId: string, blockId: string, stream: string, chunk: string }>();
+  public serviceStopped$ = new Subject<any>();
+
   constructor(
     private parsingProjectProvider: ParsingProjectProvider,
     private plantumlWorkingProvider: PlantumlWorkingProvider,
@@ -165,6 +170,17 @@ export class MdServerMessagesService {
       });
       this.hubConnection.on('execution.error', (data) => {
         this.executionError$.next(data);
+      });
+
+      // Long-running services — lifecycle + streaming output from MdServicesController
+      this.hubConnection.on('service.started', (data) => {
+        this.serviceStarted$.next(data);
+      });
+      this.hubConnection.on('service.output', (data) => {
+        this.serviceOutput$.next(data);
+      });
+      this.hubConnection.on('service.stopped', (data) => {
+        this.serviceStopped$.next(data);
       });
 
       this.hubConnection.on('consoleClosed', (data) => {

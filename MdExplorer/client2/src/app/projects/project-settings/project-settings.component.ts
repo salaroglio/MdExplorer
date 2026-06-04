@@ -83,14 +83,18 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   fsTestSuccess: boolean = false;
 
   // Atlassian (Jira/Confluence) settings
-  // Shared (jiraBaseUrl/projectKeys/planningFolder) -> .development.yml.
+  // Shared (jiraBaseUrl/projectKeys/confluence) -> .development.yml.
   // Token -> UserDB encrypted. Email lives in UserDB (personal).
   atlLoading: boolean = false;
   atlSaving: boolean = false;
   atlEnabled: boolean = false;
   atlBaseUrl: string = '';
   atlProjectKeys: string = '';     // comma-separated in the UI, split on save
-  atlPlanningFolder: string = '';
+  // Confluence shares the Atlassian site & token. Base URL is derived as
+  // {jiraBaseUrl}/wiki; the override is only for the rare different-site case.
+  atlConfluenceBaseUrl: string = '';          // optional override (empty = derived)
+  atlConfluenceBaseUrlEffective: string = '';  // read-only, what will actually be used
+  atlConfluenceSpaceKeys: string = '';         // comma-separated in the UI
   atlEmail: string = '';
   atlToken: string = '';
   atlHasToken: boolean = false;
@@ -967,7 +971,9 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.atlEnabled = !!r.enabled;
         this.atlBaseUrl = r.jiraBaseUrl || '';
         this.atlProjectKeys = (r.jiraProjectKeys || []).join(', ');
-        this.atlPlanningFolder = r.planningFolder || '';
+        this.atlConfluenceBaseUrl = r.confluenceBaseUrl || '';
+        this.atlConfluenceBaseUrlEffective = r.confluenceBaseUrlEffective || '';
+        this.atlConfluenceSpaceKeys = (r.confluenceSpaceKeys || []).join(', ');
         this.atlEmail = r.email || '';
         this.atlHasToken = !!r.hasToken;
         this.atlToken = '';
@@ -997,6 +1003,13 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
 
   private parseProjectKeys(): string[] {
     return (this.atlProjectKeys || '')
+      .split(',')
+      .map(k => k.trim())
+      .filter(k => k.length > 0);
+  }
+
+  private parseConfluenceSpaceKeys(): string[] {
+    return (this.atlConfluenceSpaceKeys || '')
       .split(',')
       .map(k => k.trim())
       .filter(k => k.length > 0);
@@ -1040,7 +1053,8 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       enabled: this.atlEnabled,
       jiraBaseUrl: this.atlBaseUrl,
       jiraProjectKeys: this.parseProjectKeys(),
-      planningFolder: this.atlPlanningFolder,
+      confluenceBaseUrl: this.atlConfluenceBaseUrl,
+      confluenceSpaceKeys: this.parseConfluenceSpaceKeys(),
       email: this.atlEmail,
       apiToken: this.atlToken || ''
     }).subscribe({
@@ -1050,6 +1064,8 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
           this.atlHasToken = true;
           this.atlToken = '';
         }
+        // Refresh the derived/effective Confluence base URL after save.
+        this.loadAtlassianSettings();
       },
       error: (err) => {
         this.atlSaving = false;

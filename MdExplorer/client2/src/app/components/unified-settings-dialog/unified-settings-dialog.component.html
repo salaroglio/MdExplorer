@@ -22,6 +22,11 @@
         <mat-icon matListItemIcon>hub</mat-icon>
         <span>{{ 'SETTINGS.EMBEDDING' | translate }}</span>
       </mat-list-item>
+      <mat-list-item (click)="selectCategory('services')"
+                     [class.active]="selectedCategory === 'services'">
+        <mat-icon matListItemIcon>dns</mat-icon>
+        <span>{{ 'SETTINGS.SERVICES' | translate }}</span>
+      </mat-list-item>
     </mat-list>
   </div>
 
@@ -465,6 +470,53 @@
         <mat-card-content>
           <mat-icon>warning</mat-icon>
           <p [innerHTML]="'UNIFIED_SETTINGS.REINDEX_WARNING' | translate"></p>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- ================================ -->
+    <!-- SERVICES TAB                     -->
+    <!-- ================================ -->
+    <div *ngIf="selectedCategory === 'services'" class="tab-panel">
+      <h3>{{ 'UNIFIED_SETTINGS.SERVICES_TITLE' | translate }}</h3>
+
+      <p *ngIf="services.length === 0 && !servicesLoading" class="hint-text">
+        {{ 'UNIFIED_SETTINGS.SERVICES_EMPTY' | translate }}
+      </p>
+
+      <mat-card *ngFor="let svc of services" class="service-card" style="margin-bottom: 12px;">
+        <mat-card-content>
+          <div class="service-row">
+            <div class="service-info">
+              <div class="service-command">
+                <span class="service-lang">{{ svc.language }}</span>
+                <code>{{ svc.codePreview }}</code>
+              </div>
+              <div class="service-meta">
+                <span>{{ 'UNIFIED_SETTINGS.SERVICES_PROJECT' | translate }}: {{ svc.projectPath }}</span>
+                <span>{{ 'UNIFIED_SETTINGS.SERVICES_PID' | translate }}: {{ svc.pid }}</span>
+                <span>{{ 'UNIFIED_SETTINGS.SERVICES_UPTIME' | translate }}: {{ formatUptime(svc.uptimeMs) }}</span>
+                <span *ngIf="svc.detectedPort">
+                  {{ 'UNIFIED_SETTINGS.SERVICES_PORT' | translate }}: {{ svc.detectedPort }}
+                </span>
+                <span *ngIf="!svc.detectedPort" class="hint-text">
+                  {{ 'UNIFIED_SETTINGS.SERVICE_NO_PORT' | translate }}
+                </span>
+              </div>
+            </div>
+            <div class="service-actions">
+              <button mat-stroked-button color="primary"
+                      [disabled]="!svc.detectedPort"
+                      (click)="openInBrowser(svc)">
+                <mat-icon>open_in_browser</mat-icon>
+                {{ 'UNIFIED_SETTINGS.SERVICES_OPEN_BROWSER' | translate }}
+              </button>
+              <button mat-stroked-button color="warn" (click)="stopService(svc)">
+                <mat-icon>stop</mat-icon>
+                {{ 'UNIFIED_SETTINGS.SERVICES_STOP' | translate }}
+              </button>
+            </div>
+          </div>
         </mat-card-content>
       </mat-card>
     </div>

@@ -330,3 +330,57 @@
   }
 }
 
+
+// === Services tab ===
+.service-card {
+  .service-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .service-info {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .service-command {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+
+    .service-lang {
+      font-size: 0.72em;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: rgba(25, 135, 84, 0.15);
+      color: #198754;
+      flex-shrink: 0;
+    }
+
+    code {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .service-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    font-size: 0.82em;
+    opacity: 0.85;
+  }
+
+  .service-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+}

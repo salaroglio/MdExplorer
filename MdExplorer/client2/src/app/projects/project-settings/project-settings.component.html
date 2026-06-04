@@ -712,11 +712,28 @@
               </mat-form-field>
             </div>
 
+            <!-- Confluence shares the Atlassian site & token. Base URL is normally
+                 derived as {jiraBaseUrl}/wiki — these fields are optional. -->
             <div class="kg-field-group">
-              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.ATLASSIAN_PLANNING_FOLDER' | translate }}</label>
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.CONFLUENCE_SPACE_KEYS' | translate }}</label>
               <mat-form-field appearance="outline" class="kg-field">
-                <input matInput [(ngModel)]="atlPlanningFolder" placeholder="specs/da-jira" [disabled]="atlSaving">
-                <mat-hint>{{ 'PROJECT_SETTINGS.ATLASSIAN_PLANNING_FOLDER_HINT' | translate }}</mat-hint>
+                <input matInput [(ngModel)]="atlConfluenceSpaceKeys" placeholder="DEV, ARCH" [disabled]="atlSaving">
+                <mat-hint>{{ 'PROJECT_SETTINGS.CONFLUENCE_SPACE_KEYS_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="kg-field-group">
+              <label class="kg-field-label">{{ 'PROJECT_SETTINGS.CONFLUENCE_BASE_URL' | translate }}</label>
+              <mat-form-field appearance="outline" class="kg-field">
+                <input matInput [(ngModel)]="atlConfluenceBaseUrl"
+                       [placeholder]="atlConfluenceBaseUrlEffective || 'https://acme.atlassian.net/wiki'"
+                       [disabled]="atlSaving">
+                <mat-hint>
+                  {{ 'PROJECT_SETTINGS.CONFLUENCE_BASE_URL_HINT' | translate }}
+                  <span *ngIf="atlConfluenceBaseUrlEffective">
+                    — {{ 'PROJECT_SETTINGS.CONFLUENCE_BASE_URL_EFFECTIVE' | translate }}: {{ atlConfluenceBaseUrlEffective }}
+                  </span>
+                </mat-hint>
               </mat-form-field>
             </div>
 

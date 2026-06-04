@@ -89,6 +89,9 @@ namespace MdExplorer
             // Shell execution for fenced code blocks (bash/sh/powershell/pwsh/cmd)
             services.AddSingleton<Services.Execution.ShellRegistry>();
             services.AddTransient<Services.Execution.ShellRunner>();
+            // Long-running "services" started from code blocks (detached, no timeout)
+            services.AddSingleton<Services.Execution.ServiceRegistry>();
+            services.AddTransient<Services.Execution.ServiceRunner>();
 
             // Add modern Git services with native credential management
             services.AddModernGitServices(_Configuration);
@@ -171,6 +174,7 @@ namespace MdExplorer
 
             // Atlassian (Jira/Confluence) integration — read-only triage MVP.
             services.AddSingleton<Features.Services.Atlassian.IJiraClient, Features.Services.Atlassian.JiraClient>();
+            services.AddSingleton<Features.Services.Atlassian.IConfluenceClient, Features.Services.Atlassian.ConfluenceClient>();
             services.AddSingleton<Services.IAtlassianConfigService, Services.AtlassianConfigService>();
 
             // Register Team Chat services
@@ -384,6 +388,23 @@ namespace MdExplorer
               DiscoverAddresses(app.ServerFeatures, logger);
           });
             //#endif
+
+            // Best-effort graceful cleanup of long-running services on shutdown (dev: Ctrl+C / dotnet run stop).
+            // In the packaged app Electron hard-kills the backend, so the robust guarantee is the
+            // Electron tree-kill of the backend pid (index.js will-quit); this hook covers graceful exits.
+            lifetime.ApplicationStopping.Register(() =>
+            {
+                try
+                {
+                    var runner = (Services.Execution.ServiceRunner)app.ApplicationServices
+                        .GetService(typeof(Services.Execution.ServiceRunner));
+                    runner?.StopAll();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "[Startup] Failed to stop services on shutdown");
+                }
+            });
         }
 
         void DiscoverAddresses(IFeatureCollection features, ILogger<Startup> logger)

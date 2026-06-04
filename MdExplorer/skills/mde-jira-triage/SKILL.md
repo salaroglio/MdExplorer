@@ -1,9 +1,9 @@
 ---
 name: mde-jira-triage
-description: Triage the user's Jira issues and draft an implementation plan as markdown. Use when the user asks to find their most urgent / next Jira issue, or to plan/prepare work for a Jira issue. Read-only on Jira; writes only a local markdown plan into the project's planning folder.
+description: Triage the user's Jira issues and draft an implementation plan as markdown. Use when the user asks to find their most urgent / next Jira issue, or to plan/prepare work for a Jira issue. Read-only on Jira; writes only a local markdown plan into a project folder the user chooses.
 mde:
   origin: mdexplorer
-  version: 1
+  version: 2
   updatePolicy: replace
 ---
 
@@ -28,7 +28,7 @@ MdExplorer MCP tools. **Read-only on Jira. The only thing written is a local
 
 - `GetProjects` — discover the current project name (needed by the tools below).
 - `JiraFindMyIssues(project, maxResults?)` — open issues assigned to the user,
-  most urgent first. The response also carries `planningFolder` (where to write).
+  most urgent first.
 - `JiraGetIssue(project, issueKey)` — full issue detail (description, acceptance
   criteria, comments, links), rich text already flattened to markdown.
 
@@ -43,11 +43,9 @@ MdExplorer MCP tools. **Read-only on Jira. The only thing written is a local
 3. **Read the issue.** Call `JiraGetIssue` for the chosen key. Base the plan
    ONLY on what it returns plus the project's own docs — do not invent
    requirements.
-4. **Write the plan.** Create one markdown file at:
-   `<planningFolder>/<ISSUE-KEY>-piano.md`
-   where `<planningFolder>` is the value returned by the tools (project-relative).
-   If `planningFolder` is empty, ask the user where to put the plan before
-   writing — do not guess a location.
+4. **Write the plan.** Ask the user which project folder to save the plan in (it
+   is the documentation author's call — there is no fixed setting), then create
+   one markdown file named `<ISSUE-KEY>-piano.md` there. Do not guess a location.
 5. **Confirm.** Report the file path you wrote and a one-line summary. MdExplorer
    indexes the new file automatically; it will appear in the tree.
 

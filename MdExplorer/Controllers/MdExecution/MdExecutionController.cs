@@ -25,7 +25,10 @@ namespace MdExplorer.Service.Controllers.MdExecution
         private readonly ShellRunner _shellRunner;
         private readonly ILogger<MdExecutionController> _logger;
 
-        private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(60);
+        // Batch runs are one-shot; a generous 1-hour ceiling lets long scripts finish while still
+        // guaranteeing the process can't hang forever. Persistent servers should use "Run as service"
+        // (MdServicesController) which has no timeout at all.
+        private static readonly TimeSpan DefaultTimeout = TimeSpan.FromHours(1);
 
         public MdExecutionController(
             IUserSettingsDB userSettingsDB,

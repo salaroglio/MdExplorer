@@ -11,6 +11,7 @@ import {
 } from '../commons/components/run-command-dialog/run-command-dialog.component';
 import { ShowFileSystemComponent } from '../commons/components/show-file-system/show-file-system.component';
 import { ShowFileMetadata } from '../commons/components/show-file-system/show-file-metadata';
+import { TranslateService } from '@ngx-translate/core';
 
 interface RunRequestPayload {
   type: 'mde-exec.requestRun';
@@ -20,6 +21,7 @@ interface RunRequestPayload {
   params: Array<{ name: string; defaultValue: string; isSecret: boolean; description?: string; kind?: string }>;
   paramsInline?: boolean;
   projectPath: string;
+  mode?: 'batch' | 'service';
 }
 
 /**
@@ -32,6 +34,7 @@ interface RunRequestPayload {
 @Injectable({ providedIn: 'root' })
 export class ExecutionService {
   private readonly baseUrl = '../api/MdExecution';
+  private readonly serviceBaseUrl = '../api/MdServices';
   private readonly trustCache = new Map<string, boolean>();
 
   // While a block is running we remember which iframe originated it so that
@@ -39,10 +42,15 @@ export class ExecutionService {
   // but targeted postMessage is cheaper and less noisy in devtools).
   private readonly runningBlocks = new Map<string, Window>();
 
+  // Tracks which block currently owns a running service (blockId -> serviceId),
+  // used for the "already running — stop and restart?" guard.
+  private readonly runningServicesByBlock = new Map<string, string>();
+
   constructor(
     private http: HttpClient,
     private dialog: MatDialog,
     private serverMessages: MdServerMessagesService,
+    private translate: TranslateService,
   ) {
     this.setupIframeListener();
     this.setupSignalRListeners();
@@ -61,6 +69,14 @@ export class ExecutionService {
           this.postToIframe(src, 'mde-exec.error', {
             blockId: data.blockId,
             message: err?.message || 'Unexpected error',
+          });
+        });
+      } else if (data.type === 'mde-exec.requestStopService') {
+        this.handleStopServiceRequest(src, data).catch(err => {
+          console.error('[ExecutionService] Stop service error:', err);
+          this.postToIframe(src, 'mde-exec.error', {
+            blockId: data.blockId,
+            message: err?.message || 'Failed to stop service',
           });
         });
       } else if (data.type === 'mde-exec.requestPathPicker') {
@@ -134,6 +150,36 @@ export class ExecutionService {
       this.dispatch(data.blockId, 'mde-exec.error', data);
       this.runningBlocks.delete(data.blockId);
     });
+
+    // Long-running services
+    this.serverMessages.serviceStarted$.subscribe(dto => {
+      if (dto?.blockId) {
+        this.runningServicesByBlock.set(dto.blockId, dto.id);
+        this.dispatch(dto.blockId, 'mde-exec.serviceStarted', { blockId: dto.blockId, serviceId: dto.id, pid: dto.pid });
+      }
+    });
+    this.serverMessages.serviceOutput$.subscribe(data => {
+      this.dispatch(data.blockId, 'mde-exec.output', data);
+    });
+    this.serverMessages.serviceStopped$.subscribe(dto => {
+      if (dto?.blockId) {
+        this.runningServicesByBlock.delete(dto.blockId);
+        this.dispatch(dto.blockId, 'mde-exec.serviceStopped', {
+          blockId: dto.blockId, serviceId: dto.id, exitCode: dto.exitCode, status: dto.status,
+        });
+        this.runningBlocks.delete(dto.blockId);
+      }
+    });
+  }
+
+  private async handleStopServiceRequest(
+    source: Window | null,
+    req: { blockId: string; serviceId: string | null },
+  ): Promise<void> {
+    const serviceId = req.serviceId || this.runningServicesByBlock.get(req.blockId);
+    if (!serviceId) return;
+    await firstValueFrom(this.http.post(`${this.serviceBaseUrl}/StopService`, { serviceId }));
+    // The serviceStopped$ SignalR event will revert the block UI.
   }
 
   private async handleRunRequest(source: Window | null, req: RunRequestPayload): Promise<void> {
@@ -219,6 +265,11 @@ export class ExecutionService {
     // Remember the iframe so streamed chunks can be routed back.
     if (source) this.runningBlocks.set(req.blockId, source);
 
+    if (req.mode === 'service') {
+      await this.startService(source, req, projectPath, parametersForRun);
+      return;
+    }
+
     try {
       await firstValueFrom(this.http.post(`${this.baseUrl}/Run`, {
         blockId: req.blockId,
@@ -229,6 +280,50 @@ export class ExecutionService {
       }));
     } catch (err: any) {
       const message = err?.error?.error || err?.message || 'Execution failed';
+      this.postToIframe(source, 'mde-exec.error', { blockId: req.blockId, message });
+      this.runningBlocks.delete(req.blockId);
+    }
+  }
+
+  private async startService(
+    source: Window | null,
+    req: RunRequestPayload,
+    projectPath: string,
+    parameters: { [name: string]: string },
+  ): Promise<void> {
+    // Duplicate guard: if a service is already running for this block, ask to stop & restart.
+    const existing = this.runningServicesByBlock.get(req.blockId);
+    if (existing) {
+      const ok = window.confirm(
+        this.translate.instant('UNIFIED_SETTINGS.SERVICE_RESTART_CONFIRM')
+      );
+      if (!ok) {
+        this.postToIframe(source, 'mde-exec.cancelled', { blockId: req.blockId });
+        return;
+      }
+      try {
+        await firstValueFrom(this.http.post(`${this.serviceBaseUrl}/StopService`, { serviceId: existing }));
+        this.runningServicesByBlock.delete(req.blockId);
+      } catch (err: any) {
+        this.postToIframe(source, 'mde-exec.error', {
+          blockId: req.blockId,
+          message: 'Failed to stop the existing service: ' + (err?.error?.error || err?.message || err),
+        });
+        return;
+      }
+    }
+
+    try {
+      await firstValueFrom(this.http.post(`${this.serviceBaseUrl}/RunService`, {
+        blockId: req.blockId,
+        language: req.lang,
+        code: req.code,
+        projectPath,
+        parameters,
+      }));
+      // The service.started SignalR event flips the block into its running state.
+    } catch (err: any) {
+      const message = err?.error?.error || err?.message || 'Service start failed';
       this.postToIframe(source, 'mde-exec.error', { blockId: req.blockId, message });
       this.runningBlocks.delete(req.blockId);
     }

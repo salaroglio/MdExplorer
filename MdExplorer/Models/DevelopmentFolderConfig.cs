@@ -58,9 +58,18 @@ namespace MdExplorer.Service.Models
         public List<string> JiraProjectKeys { get; set; } = new List<string>();
 
         /// <summary>
-        /// Project-relative folder where issue plans are written, e.g. "specs/da-jira".
+        /// Optional override for the Confluence base URL. On Atlassian Cloud
+        /// Confluence lives on the same site as Jira under /wiki, so when this is
+        /// null the base is derived as {JiraBaseUrl}/wiki. Set it explicitly only
+        /// for the rare case where Confluence sits on a different site.
         /// </summary>
-        public string PlanningFolder { get; set; }
+        public string ConfluenceBaseUrl { get; set; }
+
+        /// <summary>
+        /// Confluence space keys the search/browse is scoped to, e.g. ["DEV", "ARCH"].
+        /// Optional — used as a hint for the agent; CQL queries may target any space.
+        /// </summary>
+        public List<string> ConfluenceSpaceKeys { get; set; } = new List<string>();
     }
 
     /// <summary>

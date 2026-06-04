@@ -24,6 +24,7 @@ namespace MdExplorer.Service.Controllers.Atlassian
         private readonly IPasswordProtector _passwordProtector;
         private readonly IAtlassianConfigService _configService;
         private readonly IJiraClient _jiraClient;
+        private readonly IConfluenceClient _confluenceClient;
         private readonly ILogger<AtlassianController> _logger;
 
         private const string TokenMask = "********";
@@ -33,13 +34,29 @@ namespace MdExplorer.Service.Controllers.Atlassian
             IPasswordProtector passwordProtector,
             IAtlassianConfigService configService,
             IJiraClient jiraClient,
+            IConfluenceClient confluenceClient,
             ILogger<AtlassianController> logger)
         {
             _userSettingsDB = userSettingsDB;
             _passwordProtector = passwordProtector;
             _configService = configService;
             _jiraClient = jiraClient;
+            _confluenceClient = confluenceClient;
             _logger = logger;
+        }
+
+        /// <summary>
+        /// Resolves the effective Confluence base URL: the explicit override when
+        /// set, otherwise {JiraBaseUrl}/wiki (Confluence lives on the same Atlassian
+        /// site under /wiki). Returns null when there is no Jira base URL either.
+        /// </summary>
+        private static string ResolveConfluenceBaseUrl(AtlassianConfig cfg)
+        {
+            if (cfg == null) return null;
+            if (!string.IsNullOrWhiteSpace(cfg.ConfluenceBaseUrl))
+                return cfg.ConfluenceBaseUrl.Trim().TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(cfg.JiraBaseUrl)) return null;
+            return cfg.JiraBaseUrl.Trim().TrimEnd('/') + "/wiki";
         }
 
         // ============================================================
@@ -69,7 +86,9 @@ namespace MdExplorer.Service.Controllers.Atlassian
                     hasToken = !string.IsNullOrEmpty(settings?.ApiTokenEncrypted),
                     jiraBaseUrl = cfg.JiraBaseUrl ?? string.Empty,
                     jiraProjectKeys = cfg.JiraProjectKeys ?? new List<string>(),
-                    planningFolder = cfg.PlanningFolder ?? string.Empty,
+                    confluenceBaseUrl = cfg.ConfluenceBaseUrl ?? string.Empty,
+                    confluenceBaseUrlEffective = ResolveConfluenceBaseUrl(cfg) ?? string.Empty,
+                    confluenceSpaceKeys = cfg.ConfluenceSpaceKeys ?? new List<string>(),
                     lastTestedAt = settings?.LastTestedAt,
                     lastTestSuccess = settings?.LastTestSuccess
                 });
@@ -86,7 +105,8 @@ namespace MdExplorer.Service.Controllers.Atlassian
             public bool Enabled { get; set; }
             public string JiraBaseUrl { get; set; }
             public List<string> JiraProjectKeys { get; set; }
-            public string PlanningFolder { get; set; }
+            public string ConfluenceBaseUrl { get; set; }   // optional override; empty = derive from JiraBaseUrl + /wiki
+            public List<string> ConfluenceSpaceKeys { get; set; }
             public string Email { get; set; }
             public string ApiToken { get; set; }   // plaintext; empty/mask = keep existing
         }
@@ -127,10 +147,15 @@ namespace MdExplorer.Service.Controllers.Atlassian
                     .Where(k => !string.IsNullOrWhiteSpace(k))
                     .Select(k => k.Trim())
                     .ToList();
+                var spaceKeys = (req.ConfluenceSpaceKeys ?? new List<string>())
+                    .Where(k => !string.IsNullOrWhiteSpace(k))
+                    .Select(k => k.Trim())
+                    .ToList();
                 var baseUrl = req.JiraBaseUrl?.Trim();
-                var planning = req.PlanningFolder?.Trim();
+                var confluenceBaseUrl = req.ConfluenceBaseUrl?.Trim();
 
-                if (string.IsNullOrEmpty(baseUrl) && keys.Count == 0 && string.IsNullOrEmpty(planning))
+                if (string.IsNullOrEmpty(baseUrl) && keys.Count == 0 &&
+                    string.IsNullOrEmpty(confluenceBaseUrl) && spaceKeys.Count == 0)
                 {
                     _configService.Set(project.Path, null);   // nothing shared → omit the block
                 }
@@ -140,7 +165,8 @@ namespace MdExplorer.Service.Controllers.Atlassian
                     {
                         JiraBaseUrl = string.IsNullOrEmpty(baseUrl) ? null : baseUrl,
                         JiraProjectKeys = keys,
-                        PlanningFolder = string.IsNullOrEmpty(planning) ? null : planning
+                        ConfluenceBaseUrl = string.IsNullOrEmpty(confluenceBaseUrl) ? null : confluenceBaseUrl,
+                        ConfluenceSpaceKeys = spaceKeys
                     });
                 }
 
@@ -253,7 +279,6 @@ namespace MdExplorer.Service.Controllers.Atlassian
                 {
                     projectId,
                     jql,
-                    planningFolder = ctx.PlanningFolder,
                     count = issues.Count,
                     issues
                 });
@@ -308,7 +333,7 @@ namespace MdExplorer.Service.Controllers.Atlassian
             try
             {
                 var detail = await _jiraClient.GetIssueAsync(ctx.Connection, key);
-                return Ok(new { projectId, planningFolder = ctx.PlanningFolder, issue = detail });
+                return Ok(new { projectId, issue = detail });
             }
             catch (AtlassianApiException ex)
             {
@@ -513,6 +538,128 @@ namespace MdExplorer.Service.Controllers.Atlassian
         }
 
         // ============================================================
+        //   Confluence (read-only) endpoints
+        // ============================================================
+
+        // GET /api/atlassian/confluence/spaces?projectId=&limit=
+        [HttpGet("confluence/spaces")]
+        public async Task<IActionResult> ConfluenceSpaces([FromQuery] Guid projectId, [FromQuery] int limit = 50)
+        {
+            var ctx = BuildConfluenceContext(projectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            try
+            {
+                var spaces = await _confluenceClient.ListSpacesAsync(ctx.Connection, limit);
+                return Ok(new { projectId, count = spaces.Count, spaces });
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] ConfluenceSpaces failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        // GET /api/atlassian/confluence/search?projectId=&cql=&limit=
+        [HttpGet("confluence/search")]
+        public async Task<IActionResult> ConfluenceSearch([FromQuery] Guid projectId, [FromQuery] string cql, [FromQuery] int limit = 20)
+        {
+            if (string.IsNullOrWhiteSpace(cql)) return BadRequest(new { error = "cql query param required" });
+            var ctx = BuildConfluenceContext(projectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            try
+            {
+                var hits = await _confluenceClient.SearchAsync(ctx.Connection, cql, limit);
+                return Ok(new { projectId, cql, count = hits.Count, results = hits });
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] ConfluenceSearch failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        // GET /api/atlassian/confluence/page/{id}?projectId=
+        [HttpGet("confluence/page/{id}")]
+        public async Task<IActionResult> ConfluencePage(string id, [FromQuery] Guid projectId)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "page id required" });
+            var ctx = BuildConfluenceContext(projectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            try
+            {
+                var page = await _confluenceClient.GetPageAsync(ctx.Connection, id);
+                return Ok(new { projectId, page });
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] ConfluencePage failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        public class ConfluenceCreatePageRequestDto
+        {
+            public Guid ProjectId { get; set; }
+            public string Title { get; set; }
+            public string? SpaceKey { get; set; }   // optional if SpaceId given
+            public string? SpaceId { get; set; }
+            public string? MarkdownBody { get; set; }
+            public string? ParentId { get; set; }
+        }
+
+        // POST /api/atlassian/confluence/page   (create — WRITE)
+        [HttpPost("confluence/page")]
+        public async Task<IActionResult> ConfluenceCreatePage([FromBody] ConfluenceCreatePageRequestDto req)
+        {
+            if (req == null) return BadRequest(new { error = "body required" });
+            if (string.IsNullOrWhiteSpace(req.Title)) return BadRequest(new { error = "title required" });
+            var ctx = BuildConfluenceContext(req.ProjectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+
+            var spaceKey = string.IsNullOrWhiteSpace(req.SpaceKey) ? ctx.SpaceKeys.FirstOrDefault() : req.SpaceKey.Trim();
+            if (string.IsNullOrWhiteSpace(req.SpaceId) && string.IsNullOrWhiteSpace(spaceKey))
+                return BadRequest(new { error = "No Confluence space: pass spaceKey/spaceId or configure confluenceSpaceKeys in Project Settings → Atlassian." });
+
+            try
+            {
+                var created = await _confluenceClient.CreatePageAsync(ctx.Connection, new ConfluenceCreatePageRequest
+                {
+                    SpaceKey = spaceKey,
+                    SpaceId = req.SpaceId,
+                    Title = req.Title,
+                    MarkdownBody = req.MarkdownBody,
+                    ParentId = req.ParentId
+                });
+                return Ok(new { projectId = req.ProjectId, created });
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] ConfluenceCreatePage failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        public class ConfluenceUpdatePageRequestDto
+        {
+            public Guid ProjectId { get; set; }
+            public string? Title { get; set; }
+            public string? MarkdownBody { get; set; }
+            public string? VersionMessage { get; set; }
+        }
+
+        // PUT /api/atlassian/confluence/page/{id}   (update — WRITE)
+        [HttpPut("confluence/page/{id}")]
+        public async Task<IActionResult> ConfluenceUpdatePage(string id, [FromBody] ConfluenceUpdatePageRequestDto req)
+        {
+            if (req == null) return BadRequest(new { error = "body required" });
+            if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "page id required" });
+            var ctx = BuildConfluenceContext(req.ProjectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+
+            try
+            {
+                var updated = await _confluenceClient.UpdatePageAsync(ctx.Connection, new ConfluenceUpdatePageRequest
+                {
+                    PageId = id,
+                    Title = req.Title,
+                    MarkdownBody = req.MarkdownBody,
+                    VersionMessage = req.VersionMessage
+                });
+                return Ok(new { projectId = req.ProjectId, updated });
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] ConfluenceUpdatePage failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        // ============================================================
         //   Internal helper
         // ============================================================
         private class AtlassianContext
@@ -520,7 +667,6 @@ namespace MdExplorer.Service.Controllers.Atlassian
             public IActionResult ErrorResult { get; set; }
             public JiraConnection Connection { get; set; }
             public List<string> ProjectKeys { get; set; } = new List<string>();
-            public string PlanningFolder { get; set; }
         }
 
         private AtlassianContext BuildContext(Guid projectId)
@@ -564,7 +710,64 @@ namespace MdExplorer.Service.Controllers.Atlassian
                     ApiToken = _passwordProtector.Unprotect(settings.ApiTokenEncrypted)
                 };
                 ctx.ProjectKeys = cfg.JiraProjectKeys ?? new List<string>();
-                ctx.PlanningFolder = cfg.PlanningFolder;
+                return ctx;
+            }
+            catch (Exception ex)
+            {
+                ctx.ErrorResult = StatusCode(500, new { error = ex.Message });
+                return ctx;
+            }
+        }
+
+        private class ConfluenceContext
+        {
+            public IActionResult ErrorResult { get; set; }
+            public ConfluenceConnection Connection { get; set; }
+            public List<string> SpaceKeys { get; set; } = new List<string>();
+        }
+
+        private ConfluenceContext BuildConfluenceContext(Guid projectId)
+        {
+            var ctx = new ConfluenceContext();
+            try
+            {
+                _userSettingsDB.BeginTransaction();
+                var project = _userSettingsDB.GetDal<Project>().GetList().FirstOrDefault(p => p.Id == projectId);
+                var settings = _userSettingsDB.GetDal<ProjectAtlassianSettings>().GetList()
+                    .FirstOrDefault(s => s.Project.Id == projectId);
+                _userSettingsDB.Commit();
+
+                if (project == null)
+                {
+                    ctx.ErrorResult = NotFound(new { error = $"Project {projectId} not found" });
+                    return ctx;
+                }
+                if (settings == null || !settings.Enabled)
+                {
+                    ctx.ErrorResult = BadRequest(new { error = "Atlassian integration is disabled for this project (Project Settings → Atlassian)." });
+                    return ctx;
+                }
+                if (string.IsNullOrEmpty(settings.ApiTokenEncrypted))
+                {
+                    ctx.ErrorResult = BadRequest(new { error = "Atlassian API token not set. Add it in Project Settings → Atlassian." });
+                    return ctx;
+                }
+
+                var cfg = _configService.Get(project.Path);
+                var confluenceBaseUrl = ResolveConfluenceBaseUrl(cfg);
+                if (string.IsNullOrWhiteSpace(confluenceBaseUrl))
+                {
+                    ctx.ErrorResult = BadRequest(new { error = "Confluence base URL not configured. Set the Jira base URL (Confluence is derived as {site}/wiki) or a Confluence base URL override in Project Settings → Atlassian." });
+                    return ctx;
+                }
+
+                ctx.Connection = new ConfluenceConnection
+                {
+                    BaseUrl = confluenceBaseUrl,
+                    Email = settings.Email,
+                    ApiToken = _passwordProtector.Unprotect(settings.ApiTokenEncrypted)
+                };
+                ctx.SpaceKeys = cfg?.ConfluenceSpaceKeys ?? new List<string>();
                 return ctx;
             }
             catch (Exception ex)

@@ -169,6 +169,89 @@
     transform: translateY(-1px);
 }
 
+/* ---- Split button: Run + caret menu (Run as service) ---- */
+.mde-run-split {
+    display: inline-flex;
+    position: relative;
+    flex-shrink: 0;
+}
+
+/* In a split group the main button keeps only its left corners rounded. */
+.mde-run-split .mde-run-btn {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.mde-run-caret {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2em 0.45em;
+    border: 1px solid #198754;
+    border-left: none;
+    border-top-right-radius: 3px;
+    border-bottom-right-radius: 3px;
+    background: #fff;
+    color: #198754;
+    cursor: pointer;
+    font-size: 0.75em;
+    line-height: 1.3;
+    transition: background 0.1s, color 0.1s;
+}
+
+.mde-run-caret:hover {
+    background: #198754;
+    color: #fff;
+}
+
+.mde-run-menu {
+    position: absolute;
+    top: calc(100% + 2px);
+    right: 0;
+    z-index: 20;
+    min-width: 150px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    padding: 0.2em;
+}
+
+.mde-run-service {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.35em 0.6em;
+    border: none;
+    border-radius: 3px;
+    background: transparent;
+    color: #198754;
+    cursor: pointer;
+    font-size: 0.85em;
+    white-space: nowrap;
+}
+
+.mde-run-service:hover {
+    background: #198754;
+    color: #fff;
+}
+
+/* When a service is running, the main button becomes a red "Stop". */
+.mde-exec-block.is-service-running .mde-run-btn {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.mde-exec-block.is-service-running .mde-run-btn:hover:not(:disabled) {
+    background: #dc3545;
+    color: #fff;
+}
+
+.mde-exec-block.is-service-running .mde-run-caret {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
 /* Keep the existing <pre><code> styling from Prism; just remove the margin
    since we already have a container border. */
 .mde-exec-block > pre {
@@ -320,4 +403,44 @@ body.dark-theme .mde-exec-block.is-running {
 
 body.dark-theme .mde-exec-block.is-error {
     border-color: #ef6f6f;
+}
+
+/* ---- Split button (dark theme) ---- */
+body.dark-theme .mde-exec-block .mde-run-caret {
+    background: transparent;
+    border: 1px solid #4ec27a;
+    border-left: none;
+    color: #8de3a6;
+}
+
+body.dark-theme .mde-exec-block .mde-run-caret:hover {
+    background: #2d6a3f;
+    border-color: #5fd28a;
+    color: #ffffff;
+}
+
+body.dark-theme .mde-exec-block .mde-run-menu {
+    background: #2a2f3a;
+    border-color: #3a4150;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-theme .mde-exec-block .mde-run-service {
+    color: #8de3a6;
+}
+
+body.dark-theme .mde-exec-block .mde-run-service:hover {
+    background: #2d6a3f;
+    color: #ffffff;
+}
+
+body.dark-theme .mde-exec-block.is-service-running .mde-run-btn,
+body.dark-theme .mde-exec-block.is-service-running .mde-run-caret {
+    border-color: #ef6f6f;
+    color: #ff9a9a;
+}
+
+body.dark-theme .mde-exec-block.is-service-running .mde-run-btn:hover:not(:disabled) {
+    background: #7a2230;
+    color: #ffffff;
 }

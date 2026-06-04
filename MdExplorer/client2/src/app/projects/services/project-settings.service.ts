@@ -207,7 +207,8 @@ export class ProjectSettingsService {
     enabled: boolean;
     jiraBaseUrl: string;
     jiraProjectKeys: string[];
-    planningFolder: string;
+    confluenceBaseUrl?: string;
+    confluenceSpaceKeys?: string[];
     email: string;
     apiToken: string;
   }): Observable<any> {

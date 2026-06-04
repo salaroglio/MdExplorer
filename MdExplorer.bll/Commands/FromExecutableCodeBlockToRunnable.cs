@@ -133,7 +133,11 @@ namespace MdExplorer.Features.Commands
                 $@"<div class=""mde-exec-toolbar"">" +
                 $@"<span class=""mde-exec-lang"">{HttpUtility.HtmlEncode(language)}</span>" +
                 paramsHtml +
+                $@"<span class=""mde-run-split"">" +
                 $@"<button class=""mde-run-btn"" type=""button"" aria-label=""Run""><span class=""mde-run-icon"">&#9654;</span><span class=""mde-run-label""> Run</span></button>" +
+                $@"<button class=""mde-run-caret"" type=""button"" aria-label=""More run options"" aria-haspopup=""true"">&#9662;</button>" +
+                $@"<div class=""mde-run-menu"" hidden><button class=""mde-run-service"" type=""button"">Run as service</button></div>" +
+                $@"</span>" +
                 $@"</div>" +
                 originalPreCode +
                 $@"<div class=""mde-exec-output"" hidden>" +
