@@ -10729,6 +10729,11 @@ class MdFileService {
     this.appStoreService = appStoreService;
     this._navigationArray = []; // deve morire
     this._revealInTree = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
+    // Epoch counter for loadAll: every call invalidates the previous one. Without
+    // it, two overlapping reloads (e.g. git pull + branch switch in quick
+    // succession) raced and whichever HTTP response landed LAST won — possibly
+    // the older one, leaving a stale tree. The last REQUEST must win.
+    this._loadAllEpoch = 0;
     var defaultSelectedMdFile = [];
     this.dataStore = {
       mdFiles: [],
@@ -10752,6 +10757,13 @@ class MdFileService {
     // Subscribe to Git pull events to refresh tree
     this.mdServerMessages.gitPullRefreshed$.subscribe(data => {
       console.log('🌳 Git pull completed - refreshing tree. Files changed:', data.fileCount);
+      this.loadAll(null, null);
+    });
+    // FSW buffer overflow / error: the backend LOST filesystem events, so the
+    // incremental tree state can't be trusted anymore. Explicit recovery: full
+    // reload. (md-tree shows the user-visible warning.)
+    this.mdServerMessages.fileSystemWatcherError$.subscribe(data => {
+      console.error('🌳 FileSystemWatcher error (' + data.reason + ') - events lost, full tree reload');
       this.loadAll(null, null);
     });
     // Subscribe to project changing events - clear data to show skeleton loader
@@ -10987,10 +10999,17 @@ class MdFileService {
     return this.http.get('../api/mdfiles/GetShallowStructure');
   }
   loadAll(callback, objectThis) {
-    console.warn('🔴 [DIAG] loadAll() CALLED at:', new Date().toISOString(), '- stack trace:', new Error().stack);
+    const epoch = ++this._loadAllEpoch;
+    console.warn(`🔄 [loadAll] epoch ${epoch} started at:`, new Date().toISOString());
     // Pre-fetch catalog + installed apps for update checks
     this.appStoreService.prefetchCatalogAndInstalled();
     return this.http.get('../api/mdfiles/GetShallowStructure').subscribe(data => {
+      if (epoch !== this._loadAllEpoch) {
+        // A newer loadAll was issued while this response was in flight:
+        // applying it would overwrite fresher data. Discard, with a trace.
+        console.warn(`🔄 [loadAll] epoch ${epoch} response DISCARDED (current epoch: ${this._loadAllEpoch})`);
+        return;
+      }
       // Assicuriamo che tutte le proprietà siano definite fin dall'inizio
       this.initializeIndexingProperties(data);
       // Compatta le cartelle annidate (VS Code-style)
@@ -11001,7 +11020,7 @@ class MdFileService {
         callback(data, objectThis);
       }
     }, error => {
-      console.log("failed to fetch mdfile list");
+      console.error(`❌ [loadAll] epoch ${epoch} failed to fetch mdfile list:`, error);
     });
   }
   initializeIndexingProperties(nodes) {
@@ -11072,6 +11091,19 @@ class MdFileService {
    * @returns true se il file è stato aggiunto, false se la cartella parent non è stata trovata
    */
   addFileToParent(file, parentFullPath) {
+    // IDEMPOTENZA: se il nodo esiste già (evento duplicato, replay post-storm,
+    // race tra handler) si aggiorna in place — MAI un secondo insert. I doppioni
+    // nel tree erano una delle cause della corruzione su raffiche di eventi.
+    const existing = this.findNodeInDataStore(this.dataStore.mdFiles, file.fullPath);
+    if (existing) {
+      if (file.type === 'mdFile' || file.type === 'mdFileTimer') {
+        existing.isIndexed = file.isIndexed ?? existing.isIndexed;
+        existing.indexingStatus = file.indexingStatus ?? existing.indexingStatus;
+      }
+      console.log(`[addFileToParent] '${file.fullPath}' già nel tree — update in place, nessun insert duplicato`);
+      this._mdFiles.next([...this.dataStore.mdFiles]);
+      return true;
+    }
     // Cerca la cartella parent nel dataStore (incluse compact folders)
     const parentFolder = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
     if (parentFolder) {
@@ -11124,6 +11156,30 @@ class MdFileService {
       return true;
     }
     return false;
+  }
+  /**
+   * Cerca ricorsivamente un nodo (di QUALSIASI tipo) per fullPath, case-insensitive.
+   * Usato per i check di idempotenza prima degli insert.
+   */
+  findNodeInDataStore(nodes, targetFullPath) {
+    if (!nodes || !targetFullPath) return null;
+    const target = targetFullPath.toLowerCase();
+    for (const node of nodes) {
+      if (node.fullPath && node.fullPath.toLowerCase() === target) {
+        return node;
+      }
+      if (node.isCompacted && node.compactedSegments) {
+        const lastSegment = node.compactedSegments[node.compactedSegments.length - 1];
+        if (lastSegment && lastSegment.fullPath.toLowerCase() === target) {
+          return node;
+        }
+      }
+      if (node.childrens && node.childrens.length > 0) {
+        const found = this.findNodeInDataStore(node.childrens, targetFullPath);
+        if (found) return found;
+      }
+    }
+    return null;
   }
   /**
    * Cerca ricorsivamente una cartella nel dataStore, gestendo le compact folders.
@@ -11297,6 +11353,15 @@ class MdFileService {
     missingPaths.reverse();
     let lastCreated = null;
     for (const folderPath of missingPaths) {
+      // IDEMPOTENZA: ricontrolla prima di OGNI insert — un evento concorrente
+      // (es. folderCreated arrivato tra il walk-up e questo punto) può aver già
+      // creato la cartella. Inserire senza ricontrollo produceva nodi duplicati.
+      const alreadyThere = this.findFolderInDataStore(this.dataStore.mdFiles, folderPath);
+      if (alreadyThere) {
+        anchorParent = alreadyThere;
+        lastCreated = alreadyThere;
+        continue;
+      }
       const folderName = folderPath.substring(Math.max(folderPath.lastIndexOf('\\'), folderPath.lastIndexOf('/')) + 1);
       // Calculate level relative to project root
       const relativeParts = folderPath.substring(projectRoot.length + 1).split(/[\\\/]/);
@@ -16391,9 +16456,11 @@ class MdServerMessagesService {
     this.injector = injector;
     /** Emits the connectionId once available (and on every reconnection). ReplaySubject(1) so late subscribers get the last value immediately. */
     this.connectionId$ = new rxjs__WEBPACK_IMPORTED_MODULE_6__.ReplaySubject(1);
-    // Observable for Git branch switch events
+    // Observable for Git branch switch events.
+    // changedFiles: repo-relative paths ('/' separators) of the operation's commit diff —
+    // used to reload the open document, NOT to decide whether to refresh the tree.
     this.gitBranchSwitched$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
-    // Observable for Git pull refresh events
+    // Observable for Git pull refresh events (same payload contract as gitBranchSwitched$)
     this.gitPullRefreshed$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for RAG indexing progress events
     this.ragIndexingProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
@@ -16414,6 +16481,29 @@ class MdServerMessagesService {
     this.serviceStarted$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     this.serviceOutput$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     this.serviceStopped$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    // ── File/folder/indexing events (md-tree & co.) ──
+    // Each SignalR event below is registered EXACTLY ONCE on the hub connection
+    // (in startConnection) and fanned out through these Subjects. Components must
+    // subscribe with takeUntil(destroy$). The legacy add*Listener wrappers used to
+    // call hubConnection.on() on every invocation: SignalR ACCUMULATES handlers,
+    // so every component re-creation (e.g. leaving/re-entering a project) added a
+    // duplicate handler bound to a dead component — events got processed N times.
+    this.markdownFileChanged$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'markdownfileischanged'
+    this.markdownFileCreated$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'markdownFileCreated'
+    this.markdownFileDeleted$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'markdownFileDeleted'
+    this.folderCreated$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderCreated'
+    this.folderDeleted$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderDeleted'
+    this.folderRenamed$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderRenamed'
+    this.fileSystemStorm$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'fileSystemStorm'
+    this.fileIndexed$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'fileIndexed'
+    this.folderIndexingStart$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderIndexingStart'
+    this.folderIndexingComplete$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderIndexingComplete'
+    this.parsingProjectStart$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'parsingProjectStart'
+    this.parsingProjectStop$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'parsingProjectStop'
+    this.knowledgeProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'knowledgeProgress'
+    // FSW buffer overflow / internal error: events were LOST server-side.
+    // Consumers must do a full reload — incremental state can no longer be trusted.
+    this.fileSystemWatcherError$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     this.connectionIsLost = false;
     this.consoleIsClosed = false;
     this.startConnection = () => {
@@ -16498,6 +16588,57 @@ class MdServerMessagesService {
         this.hubConnection.on('service.stopped', data => {
           this.serviceStopped$.next(data);
         });
+        // File/folder/indexing events — registered ONCE here, fanned out via Subjects.
+        // NEVER register these again elsewhere: SignalR accumulates handlers.
+        this.hubConnection.on('markdownfileischanged', data => {
+          this.markdownFileChanged$.next(data);
+        });
+        this.hubConnection.on('markdownFileCreated', data => {
+          console.log('📄 [SignalR] markdownFileCreated:', data?.fullPath || data?.FullPath);
+          this.markdownFileCreated$.next(data);
+        });
+        this.hubConnection.on('markdownFileDeleted', data => {
+          console.log('🗑️ [SignalR] markdownFileDeleted:', data?.fullPath || data?.FullPath);
+          this.markdownFileDeleted$.next(data);
+        });
+        this.hubConnection.on('folderCreated', data => {
+          console.log('📁 [SignalR] folderCreated:', data?.fullPath || data?.FullPath);
+          this.folderCreated$.next(data);
+        });
+        this.hubConnection.on('folderDeleted', data => {
+          console.log('🗑️ [SignalR] folderDeleted:', data?.fullPath || data?.FullPath);
+          this.folderDeleted$.next(data);
+        });
+        this.hubConnection.on('folderRenamed', data => {
+          console.log('✏️ [SignalR] folderRenamed:', data?.oldFullPath || data?.OldFullPath, '→', data?.fullPath || data?.FullPath);
+          this.folderRenamed$.next(data);
+        });
+        this.hubConnection.on('fileSystemStorm', data => {
+          console.log(`⚡ [SignalR] fileSystemStorm: ${data?.length || 0} changes after storm`);
+          this.fileSystemStorm$.next(data);
+        });
+        this.hubConnection.on('fileIndexed', data => {
+          this.fileIndexed$.next(data);
+        });
+        this.hubConnection.on('folderIndexingStart', data => {
+          this.folderIndexingStart$.next(data);
+        });
+        this.hubConnection.on('folderIndexingComplete', data => {
+          this.folderIndexingComplete$.next(data);
+        });
+        this.hubConnection.on('parsingProjectStart', data => {
+          this.parsingProjectStart$.next(data);
+        });
+        this.hubConnection.on('parsingProjectStop', data => {
+          this.parsingProjectStop$.next(data);
+        });
+        this.hubConnection.on('knowledgeProgress', data => {
+          this.knowledgeProgress$.next(data);
+        });
+        this.hubConnection.on('fileSystemWatcherError', data => {
+          console.error('⚠️ [SignalR] fileSystemWatcherError — events were lost server-side:', data);
+          this.fileSystemWatcherError$.next(data);
+        });
         this.hubConnection.on('consoleClosed', data => {
           console.log('consoleClosed');
           this.consoleIsClosed = true;
@@ -16532,11 +16673,15 @@ class MdServerMessagesService {
       callback(data, objectThis);
     });
   }
+  /**
+   * @deprecated Subscribe to markdownFileChanged$ with takeUntil(destroy$) instead.
+   * This wrapper delegates to the Subject (hub handler registered once in
+   * startConnection), but the callback itself is never unsubscribed: do NOT call
+   * it from components that get destroyed/recreated.
+   */
   addMarkdownFileListener(callback, objectThis) {
-    this.hubConnection.on('markdownfileischanged', data => {
-      // Modern Git service will automatically update via polling - no manual refresh needed
+    this.markdownFileChanged$.subscribe(data => {
       callback(data, objectThis);
-      console.log('markdownfileischanged');
     });
   }
   processCallBack(data, signalREvent) {
@@ -16604,46 +16749,45 @@ class MdServerMessagesService {
       this.rule1ForceUpdateRegistered.handleRule1ForceUpdate(filePath);
     }
   }
+  /** @deprecated Subscribe to fileIndexed$ with takeUntil(destroy$) instead. */
   addFileIndexedListener(callback, objectThis) {
-    this.hubConnection.on('fileIndexed', data => {
+    this.fileIndexed$.subscribe(data => {
       callback(data, objectThis);
     });
   }
+  /** @deprecated Subscribe to folderIndexingStart$ with takeUntil(destroy$) instead. */
   addFolderIndexingStartListener(callback, objectThis) {
-    this.hubConnection.on('folderIndexingStart', data => {
+    this.folderIndexingStart$.subscribe(data => {
       callback(data, objectThis);
     });
   }
+  /** @deprecated Subscribe to folderIndexingComplete$ with takeUntil(destroy$) instead. */
   addFolderIndexingCompleteListener(callback, objectThis) {
-    this.hubConnection.on('folderIndexingComplete', data => {
+    this.folderIndexingComplete$.subscribe(data => {
       callback(data, objectThis);
     });
   }
+  /** @deprecated Subscribe to parsingProjectStart$ with takeUntil(destroy$) instead. */
   addParsingProjectStartListener(callback, objectThis) {
-    this.hubConnection.on('parsingProjectStart', data => {
+    this.parsingProjectStart$.subscribe(data => {
       callback(data, objectThis);
     });
   }
+  /** @deprecated Subscribe to markdownFileCreated$ with takeUntil(destroy$) instead. */
   addMarkdownFileCreatedListener(callback, objectThis) {
-    this.hubConnection.on('markdownFileCreated', data => {
-      console.log('📄 [SignalR] Evento markdownFileCreated ricevuto:');
-      console.log('📄 [SignalR] Data ricevuta:', JSON.stringify(data, null, 2));
-      console.log('📄 [SignalR] Nome file:', data.name);
-      console.log('📄 [SignalR] Path completo:', data.fullPath);
+    this.markdownFileCreated$.subscribe(data => {
       callback(data, objectThis);
     });
   }
+  /** @deprecated Subscribe to markdownFileDeleted$ with takeUntil(destroy$) instead. */
   addMarkdownFileDeletedListener(callback, objectThis) {
-    this.hubConnection.on('markdownFileDeleted', data => {
-      console.log('🗑️ [SignalR] Evento markdownFileDeleted ricevuto:');
-      console.log('🗑️ [SignalR] Data ricevuta:', JSON.stringify(data, null, 2));
-      console.log('🗑️ [SignalR] Nome file:', data.name);
-      console.log('🗑️ [SignalR] Path completo:', data.fullPath);
+    this.markdownFileDeleted$.subscribe(data => {
       callback(data, objectThis);
     });
   }
+  /** @deprecated Subscribe to parsingProjectStop$ with takeUntil(destroy$) instead. */
   addParsingProjectStopListener(callback, objectThis) {
-    this.hubConnection.on('parsingProjectStop', data => {
+    this.parsingProjectStop$.subscribe(data => {
       callback(data, objectThis);
     });
   }
@@ -16651,10 +16795,10 @@ class MdServerMessagesService {
    * "Building knowledge" progress event — emesso da IndexingPipelineService
    * dopo ogni cartella nella fase ParseLinks. Payload:
    *   { processed: number, total: number, percent: 0..100 }
-   * Pilotato verso IndexingProgressService dalla snackbar custom in md-tree.
+   * @deprecated Subscribe to knowledgeProgress$ with takeUntil(destroy$) instead.
    */
   addKnowledgeProgressListener(callback, objectThis) {
-    this.hubConnection.on('knowledgeProgress', data => {
+    this.knowledgeProgress$.subscribe(data => {
       callback(data, objectThis);
     });
   }
@@ -16752,27 +16896,27 @@ class MdServerMessagesService {
       callback(data, objectThis);
     });
   }
+  /** @deprecated Subscribe to folderCreated$ with takeUntil(destroy$) instead. */
   addFolderCreatedListener(callback, objectThis) {
-    this.hubConnection.on('folderCreated', data => {
-      console.log('📁 [SignalR] Evento folderCreated ricevuto:', data?.fullPath || data?.FullPath);
+    this.folderCreated$.subscribe(data => {
       callback(data, objectThis);
     });
   }
+  /** @deprecated Subscribe to folderDeleted$ with takeUntil(destroy$) instead. */
   addFolderDeletedListener(callback, objectThis) {
-    this.hubConnection.on('folderDeleted', data => {
-      console.log('🗑️ [SignalR] Evento folderDeleted ricevuto:', data?.fullPath || data?.FullPath);
+    this.folderDeleted$.subscribe(data => {
       callback(data, objectThis);
     });
   }
+  /** @deprecated Subscribe to folderRenamed$ with takeUntil(destroy$) instead. */
   addFolderRenamedListener(callback, objectThis) {
-    this.hubConnection.on('folderRenamed', data => {
-      console.log('✏️ [SignalR] Evento folderRenamed ricevuto:', data?.oldFullPath || data?.OldFullPath, '→', data?.fullPath || data?.FullPath);
+    this.folderRenamed$.subscribe(data => {
       callback(data, objectThis);
     });
   }
+  /** @deprecated Subscribe to fileSystemStorm$ with takeUntil(destroy$) instead. */
   addFileSystemStormListener(callback, objectThis) {
-    this.hubConnection.on('fileSystemStorm', data => {
-      console.log(`⚡ [SignalR] fileSystemStorm: ${data?.length || 0} changes after storm`);
+    this.fileSystemStorm$.subscribe(data => {
       callback(data, objectThis);
     });
   }
@@ -16832,8 +16976,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.06.10.4',
-  buildTime: '2026.06.10 16:10:12'
+  version: '2026.06.10.5',
+  buildTime: '2026.06.10 17:30:46'
 };
 
 /***/ }),

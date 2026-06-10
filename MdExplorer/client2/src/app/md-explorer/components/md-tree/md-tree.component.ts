@@ -4,8 +4,8 @@ import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { MatLegacyMenuTrigger as MatMenuTrigger } from '@angular/material/legacy-menu';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
-import { Observable, BehaviorSubject, Subscription, fromEvent } from 'rxjs';
-import { auditTime } from 'rxjs/operators';
+import { Observable, BehaviorSubject, Subject, Subscription, fromEvent } from 'rxjs';
+import { auditTime, takeUntil } from 'rxjs/operators';
 import { CompactSegment, IFileInfoNode } from '../../models/IFileInfoNode';
 import { MdFile } from '../../models/md-file';
 import { MdFileService } from '../../services/md-file.service';
@@ -56,6 +56,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   private activeNode: any;
   public selectedNode: MdFile | null = null;
   mdFiles: Observable<MdFile[]>;
+
+  // Completed in ngOnDestroy: EVERY subscription in this component must pipe
+  // takeUntil(destroy$). This component is destroyed/recreated on each project
+  // enter/exit; un-torn-down subscriptions kept dead instances alive and made
+  // every file event get processed N times.
+  private destroy$ = new Subject<void>();
   
   // BehaviorSubject per tracciare lo stato di indicizzazione
   private indexedFilesSubject = new BehaviorSubject<Set<string>>(new Set());
@@ -197,37 +203,41 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private indexingProgressService: IndexingProgressService
   ) {
     this.dataSource.data = TREE_DATA;
-    this.mdFileService.serverSelectedMdFile.subscribe(_ => {      
+    this.mdFileService.serverSelectedMdFile.pipe(takeUntil(this.destroy$)).subscribe(_ => {
       const myClonedArray = [];
       _.forEach(val => myClonedArray.push(Object.assign({}, val)));
       while (myClonedArray.length > 1) {
         var toExpand = myClonedArray.pop();
-        var test = this.treeControl.dataNodes.find(_ => _.path == toExpand.path);
-        this.treeControl.expand(test);
+        var test = this.treeControl.dataNodes?.find(_ => _.path == toExpand.path);
+        if (test) {
+          this.treeControl.expand(test);
+        }
       }
       if (myClonedArray.length > 0) {
         var toExpand = myClonedArray.pop();
-        this.activeNode = this.treeControl.dataNodes.find(_ => _.path == toExpand.path);
-        
-        if (this.activeNode!= undefined && this.activeNode.type == "folder") {
+        this.activeNode = this.treeControl.dataNodes?.find(_ => _.path == toExpand.path);
+
+        if (this.activeNode != undefined && this.activeNode.type == "folder") {
           this.treeControl.expand(this.activeNode);
         }
       }
     });
 
-    // Aggiungi listener per file indicizzati
-    this.mdServerMessages.addFileIndexedListener((data, component) => {
+    // File indicizzati: aggiorna lo stato del nodo. SOLO markForCheck — un
+    // detectChanges() sincrono per ogni fileIndexed (la pipeline ne emette uno
+    // PER FILE) è il pattern di render rientrante che corrompe il differ del
+    // MatTree mentre loadAll sta sostituendo l'albero.
+    this.mdServerMessages.fileIndexed$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       const currentSet = this.indexedFilesSubject.value;
       const newSet = new Set(currentSet);
       newSet.add(data.path);
       this.indexedFilesSubject.next(newSet);
-      
+
       // Trova e aggiorna direttamente il nodo nel dataSource
       this.updateNodeIndexStatus(data.path, true);
-      
-      // Forza il refresh del tree
-      this.changeDetectorRef.detectChanges();
-    }, this);
+
+      this.changeDetectorRef.markForCheck();
+    });
 
     // Building knowledge progress — UNA sola snackbar custom (basso a destra) per tutta
     // l'indicizzazione. Lo stato (percent / processed / total) è pilotato da
@@ -235,55 +245,55 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Prima qui c'era un MatSnackBar.open() ripetuto per ogni folderIndexingComplete
     // → "scoppiettare" di snackbar. Adesso una sola istanza, vive da parsingProjectStart
     // a parsingProjectStop + 1.5s.
-    this.mdServerMessages.addParsingProjectStartListener((data, component) => {
+    this.mdServerMessages.parsingProjectStart$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.indexingProgressService.reset();
       this.openIndexingSnackbar();
-    }, this);
+    });
 
     // Folder spinner sulla tree (independent dal progresso globale)
-    this.mdServerMessages.addFolderIndexingStartListener((data, component) => {
+    this.mdServerMessages.folderIndexingStart$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       const node = this.findNodeByPath(data.path);
       if (node) {
         node.indexingStatus = 'indexing';
-        this.changeDetectorRef.detectChanges();
+        this.changeDetectorRef.markForCheck();
       }
-    }, this);
+    });
 
-    this.mdServerMessages.addFolderIndexingCompleteListener((data, component) => {
+    this.mdServerMessages.folderIndexingComplete$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       const node = this.findNodeByPath(data.path);
       if (node) {
         node.indexingStatus = 'completed';
-        this.changeDetectorRef.detectChanges();
+        this.changeDetectorRef.markForCheck();
       }
       // Non aprire più snackbar qui — il progresso ora è unificato via knowledgeProgress
       // sul componente IndexingProgressSnackComponent.
-    }, this);
+    });
 
     // Avanzamento globale "Building knowledge" alimentato dal backend dopo
     // ogni cartella nella fase ParseLinks.
-    this.mdServerMessages.addKnowledgeProgressListener((data, component) => {
+    this.mdServerMessages.knowledgeProgress$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       const processed = data?.processed ?? 0;
       const total = data?.total ?? 0;
       const percent = data?.percent ?? 0;
       this.indexingProgressService.setProgress(processed, total, percent);
-    }, this);
+    });
 
     // Fine indicizzazione: forza 100% e auto-dismiss dopo 1.5s
-    this.mdServerMessages.addParsingProjectStopListener((data, component) => {
+    this.mdServerMessages.parsingProjectStop$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.indexingProgressService.setComplete();
       setTimeout(() => {
         if (this.currentSnackbarRef) {
           this.currentSnackbarRef.dismiss();
         }
       }, 1500);
-    }, this);
+    });
 
     // Mark Actions — recursive "Riassumi documentazione" job emits a `toc-ready`
     // event per folder right after its <name>.md.directory is (re)generated. We
     // flip node.hasToc here so the document icon appears on the folder right
     // away, without waiting for the user to reopen the project. The Mark dialog
     // ignores this phase (MarkAssistantService.onFolderProgress).
-    this.mdServerMessages.markFolderProgress$.subscribe(p => {
+    this.mdServerMessages.markFolderProgress$.pipe(takeUntil(this.destroy$)).subscribe(p => {
       if (p?.phase !== 'toc-ready' || !p.folderFullPath) return;
       const node = this.findNodeByPath(p.folderFullPath);
       if (node) {
@@ -292,28 +302,28 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
 
-    // Listener per la creazione di nuovi file markdown (queued + debounced)
-    this.mdServerMessages.addMarkdownFileCreatedListener((data, component) => {
+    // Creazione di nuovi file markdown (queued + debounced)
+    this.mdServerMessages.markdownFileCreated$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       this.enqueueEvent(() => this.handleNewMarkdownFileCreated(data), 'fileCreated');
-    }, this);
+    });
 
-    // Listener per la cancellazione di file markdown (queued + debounced)
-    this.mdServerMessages.addMarkdownFileDeletedListener((data, component) => {
+    // Cancellazione di file markdown (queued + debounced)
+    this.mdServerMessages.markdownFileDeleted$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       this.enqueueEvent(() => this.handleMarkdownFileDeleted(data), 'fileDeleted');
-    }, this);
+    });
 
-    // Listener per creazione cartella (queued + debounced)
-    this.mdServerMessages.addFolderCreatedListener((data, component) => {
+    // Creazione cartella (queued + debounced)
+    this.mdServerMessages.folderCreated$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       this.enqueueEvent(() => this.handleFolderCreated(data), 'folderCreated');
-    }, this);
+    });
 
-    // Listener per cancellazione cartella (queued + debounced)
-    this.mdServerMessages.addFolderDeletedListener((data, component) => {
+    // Cancellazione cartella (queued + debounced)
+    this.mdServerMessages.folderDeleted$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       this.enqueueEvent(() => this.handleFolderDeleted(data), 'folderDeleted');
-    }, this);
+    });
 
-    // Listener per rename cartella → rewrite ricorsivo dei path nel tree
-    this.mdServerMessages.addFolderRenamedListener((data, component) => {
+    // Rename cartella → rewrite ricorsivo dei path nel tree
+    this.mdServerMessages.folderRenamed$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       const oldFullPath = data.oldFullPath || data.OldFullPath;
       const newFullPath = data.fullPath || data.FullPath;
       console.log(`✏️ folderRenamed: ${oldFullPath} → ${newFullPath}`);
@@ -323,58 +333,67 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         console.log('📂 [folderRenamed] Folder not in tree (unexpanded) — nothing to update');
       }
       this.changeDetectorRef.markForCheck();
-    }, this);
+    });
 
-    // Listener per storm FSW → processa il payload deduplicato incrementalmente
-    this.mdServerMessages.addFileSystemStormListener((changes, component) => {
+    // Storm FSW → processa il payload deduplicato incrementalmente.
+    // NON scarta la coda eventi: gli eventi individuali pre-soglia NON fanno
+    // parte del batch storm (il backend batcha solo i post-soglia), quindi
+    // buttarli via significava perdere cambiamenti. Le mutazioni sono
+    // idempotenti, l'eventuale sovrapposizione è innocua.
+    this.mdServerMessages.fileSystemStorm$.pipe(takeUntil(this.destroy$)).subscribe(changes => {
       console.log(`⚡ FileSystem storm ended - ${changes?.length || 0} deduplicated changes`);
-      this.clearEventQueue();
+      this.flushEventQueue();
       if (changes && changes.length > 0) {
         this.processStormChanges(changes);
       }
-    }, this);
+    });
 
     // Listener per forzare change detection (Rule #1 fix) - seguendo il pattern SignalR
     this.mdServerMessages.addRule1ForceUpdateListener((data, component) => {
       // Questo non verrà mai chiamato perché non c'è un vero evento SignalR
     }, this);
 
-    // Listener for Git branch switch - capture expansion state BEFORE refresh
-    this.mdServerMessages.gitBranchSwitched$.subscribe((data) => {
+    // Git branch switch / pull - capture expansion state BEFORE refresh
+    this.mdServerMessages.gitBranchSwitched$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       console.log('🔄 Git branch switched detected - capturing expansion state');
       this.expansionStateBeforeRefresh = this.captureExpansionState();
       console.log('📦 Captured', this.expansionStateBeforeRefresh.size, 'expanded nodes');
     });
 
-    // Listener for Git pull - capture expansion state BEFORE refresh
-    this.mdServerMessages.gitPullRefreshed$.subscribe((data) => {
+    this.mdServerMessages.gitPullRefreshed$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       console.log('🔄 Git pull detected - capturing expansion state');
       this.expansionStateBeforeRefresh = this.captureExpansionState();
       console.log('📦 Captured', this.expansionStateBeforeRefresh.size, 'expanded nodes');
     });
 
     // Listener per cambio progetto - mostra skeleton loader
-    this.projectsService.projectChanging$.subscribe(() => {
+    this.projectsService.projectChanging$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       console.log('🔄 Project changing - showing skeleton loader');
       this.isLoading = true;
       this.changeDetectorRef.markForCheck();
     });
 
     // Listener per "Reveal in Tree" dal pulsante mirino nel sidenav
-    this.mdFileService.revealInTree$.subscribe(file => {
+    this.mdFileService.revealInTree$.pipe(takeUntil(this.destroy$)).subscribe(file => {
       this.revealAndScrollToNode(file);
+    });
+
+    // FSW overflow/errore: md-file.service fa già il reload completo; qui solo
+    // il feedback visibile all'utente (mai recovery silenzioso).
+    this.mdServerMessages.fileSystemWatcherError$.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.snackBar.open(this.translate.instant('MD_TREE.WATCHER_OVERFLOW_RELOAD'), '', { duration: 5000 });
     });
   }
  
   //="{ value: '', params: { delay: node.index * 100 } }"
   ngOnInit(): void {
     // Subscribe to P2P availability
-    this.p2pService.isAvailable$.subscribe(available => {
+    this.p2pService.isAvailable$.pipe(takeUntil(this.destroy$)).subscribe(available => {
       this.isP2PAvailable = available;
     });
 
     // Subscribe to RAG enabled status
-    this.projectsService.ragEnabled$.subscribe(enabled => {
+    this.projectsService.ragEnabled$.pipe(takeUntil(this.destroy$)).subscribe(enabled => {
       this.isRagEnabled = enabled;
       this.changeDetectorRef.markForCheck();
     });
@@ -382,7 +401,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadStickyScrollSetting();
 
     this.mdFiles = this.mdFileService.mdFiles;
-    this.mdFileService.mdFiles.subscribe(data => {
+    this.mdFileService.mdFiles.pipe(takeUntil(this.destroy$)).subscribe(data => {
       // Ignora emissioni vuote (BehaviorSubject emette [] inizialmente)
       if (data && data.length > 0) {
         // COALESCE: durante una raffica di update incrementali (es. un agente che
@@ -1552,21 +1571,25 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.isProcessingQueue || this.eventQueue.length === 0) return;
     this.isProcessingQueue = true;
 
-    // Take all pending events
-    const batch = this.eventQueue.splice(0);
+    try {
+      // Take all pending events
+      const batch = this.eventQueue.splice(0);
 
-    // Process all events incrementally — no loadAll() fallback
-    for (const item of batch) {
-      try {
-        item.handler();
-      } catch (err) {
-        console.error('Error processing queued event:', err);
+      // Process all events incrementally — no loadAll() fallback
+      for (const item of batch) {
+        try {
+          item.handler();
+        } catch (err) {
+          console.error('Error processing queued event:', err);
+        }
       }
+      // Single change detection cycle for the whole batch
+      this.changeDetectorRef.markForCheck();
+    } finally {
+      // Without the finally an exception here left isProcessingQueue=true
+      // forever and the queue stopped being processed for the session.
+      this.isProcessingQueue = false;
     }
-    // Single change detection cycle for the whole batch
-    this.changeDetectorRef.markForCheck();
-
-    this.isProcessingQueue = false;
   }
 
   private clearEventQueue(): void {
@@ -1575,6 +1598,20 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       clearTimeout(this.batchTimer);
       this.batchTimer = null;
     }
+  }
+
+  /**
+   * Processes any queued events RIGHT NOW instead of discarding them.
+   * Used when a fileSystemStorm batch arrives: the pre-threshold individual
+   * events sitting in the queue are NOT part of the storm payload (the backend
+   * batches only post-threshold ones), so dropping them lost changes.
+   */
+  private flushEventQueue(): void {
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = null;
+    }
+    this.processEventBatch();
   }
 
   // ── Storm batch processing ──
@@ -1930,21 +1967,22 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
    * Expands all nodes whose fullPath is in the provided Set
    */
   private restoreExpansionState(expandedPaths: Set<string>): void {
-    // Wait for tree to render with new data
-    setTimeout(() => {
-      if (this.treeControl && this.treeControl.dataNodes) {
-        this.treeControl.dataNodes.forEach(node => {
-          // If this node was expanded before AND still exists, re-expand it
-          if (expandedPaths.has(node.fullPath)) {
-            this.treeControl.expand(node);
-          }
-        });
-
-        // Force change detection after expansion
-        this.changeDetectorRef.detectChanges();
-        console.log('✅ Expansion state restored');
-      }
-    }, 100);
+    // SYNCHRONOUS, inside the same render transaction as the dataSource.data
+    // assignment: MatTreeFlatDataSource flattens synchronously, so dataNodes is
+    // already up to date here. The old setTimeout(100) + detectChanges() raced
+    // with subsequent renders (and with the user's own expansions) and the
+    // synchronous detectChanges was the reentrant-render pattern that corrupts
+    // the MatTree differ. markForCheck is enough: the caller schedules CD.
+    if (this.treeControl && this.treeControl.dataNodes) {
+      this.treeControl.dataNodes.forEach(node => {
+        // If this node was expanded before AND still exists, re-expand it
+        if (expandedPaths.has(node.fullPath)) {
+          this.treeControl.expand(node);
+        }
+      });
+      this.changeDetectorRef.markForCheck();
+      console.log('✅ Expansion state restored');
+    }
   }
 
   // ========== Skeleton Loader Helper Methods ==========
@@ -2111,6 +2149,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    // Tear down EVERY takeUntil(destroy$) subscription (SignalR Subjects, services).
+    // Without this, dead component instances kept processing file events.
+    this.destroy$.next();
+    this.destroy$.complete();
+
     // Pulisci il timer se esiste
     if (this.updateTimer) {
       clearTimeout(this.updateTimer);

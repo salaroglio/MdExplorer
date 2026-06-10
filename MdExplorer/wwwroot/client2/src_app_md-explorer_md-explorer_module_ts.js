@@ -13533,7 +13533,10 @@ class MainContentComponent {
       return hasError;
     }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.distinctUntilChanged)(), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_13__.takeUntil)(this.destroy$));
     this.errorMessage$ = this.contentState$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.map)(state => state.errorMessage || this.translate.instant('MAIN_CONTENT.LOAD_ERROR')), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.distinctUntilChanged)(), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_13__.takeUntil)(this.destroy$));
-    this.monitorMDService.addMarkdownFileListener(this.markdownFileIsChanged, this);
+    // takeUntil(destroy$): this component is destroyed/recreated when leaving and
+    // re-entering a project; the legacy addMarkdownFileListener accumulated one
+    // handler per instantiation and the document got reloaded N times per event.
+    this.monitorMDService.markdownFileChanged$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_13__.takeUntil)(this.destroy$)).subscribe(data => this.markdownFileIsChanged(data, this));
   }
   ngOnInit() {
     // Initialize P2P message listener for iframe communication
@@ -13590,6 +13593,12 @@ class MainContentComponent {
     this.fileEventsService.fileDeleted$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_13__.takeUntil)(this.destroy$)).subscribe(event => {
       this.handleFileDeleted(event.fullPath, event.name);
     });
+    // After a git pull / branch switch, reload the open document if the operation
+    // touched it. The watcher is OFF during git operations, so no
+    // markdownfileischanged will ever arrive for these files: this is the only
+    // channel that keeps the open document in sync with the pulled content.
+    this.monitorMDService.gitPullRefreshed$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_13__.takeUntil)(this.destroy$)).subscribe(data => this.reloadOpenDocumentIfChanged(data?.changedFiles, 'git pull'));
+    this.monitorMDService.gitBranchSwitched$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_13__.takeUntil)(this.destroy$)).subscribe(data => this.reloadOpenDocumentIfChanged(data?.changedFiles, 'branch switch'));
     // Subscribe to layout changes - RIMOSSO per usare solo CSS
     // this.layoutService.sidenavWidth$.pipe(
     //   takeUntil(this.destroy$)
@@ -13685,6 +13694,33 @@ class MainContentComponent {
           this.setupIframeEventListeners();
         }, 200);
       }
+    }
+  }
+  /**
+   * Reloads the currently open document when a git operation (pull / branch switch)
+   * changed it. `changedFiles` are repo-relative paths with '/' separators.
+   * Honors the user's autoload preference. A document deleted by the operation
+   * surfaces through the iframe error path (visible, not silent).
+   */
+  reloadOpenDocumentIfChanged(changedFiles, source) {
+    if (!changedFiles?.length) {
+      return;
+    }
+    const currentPath = this.contentState$.value.currentPath;
+    if (!currentPath) {
+      return;
+    }
+    if (localStorage.getItem('mdexplorer_autoload_disabled') === 'true') {
+      console.log(`[MainContent] ⏸️ Autoload disabled by user, not reloading open document after ${source}`);
+      return;
+    }
+    const normalize = p => p.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+    const current = normalize(currentPath);
+    if (changedFiles.some(p => normalize(p) === current)) {
+      console.log(`[MainContent] 🔄 Open document was changed by ${source} — reloading`);
+      this.loadMarkdownFile({
+        relativePath: currentPath
+      });
     }
   }
   markdownFileIsChanged(data, objectThis) {
@@ -14329,18 +14365,20 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "MdTreeComponent": () => (/* binding */ MdTreeComponent)
 /* harmony export */ });
 /* harmony import */ var C_sviluppo_mdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var _angular_cdk_tree__WEBPACK_IMPORTED_MODULE_29__ = __webpack_require__(/*! @angular/cdk/tree */ 5183);
-/* harmony import */ var _angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_39__ = __webpack_require__(/*! @angular/material/legacy-menu */ 1051);
-/* harmony import */ var _angular_material_tree__WEBPACK_IMPORTED_MODULE_30__ = __webpack_require__(/*! @angular/material/tree */ 3453);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_28__ = __webpack_require__(/*! rxjs */ 6317);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_31__ = __webpack_require__(/*! rxjs */ 3280);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_32__ = __webpack_require__(/*! rxjs/operators */ 998);
+/* harmony import */ var _angular_cdk_tree__WEBPACK_IMPORTED_MODULE_30__ = __webpack_require__(/*! @angular/cdk/tree */ 5183);
+/* harmony import */ var _angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_41__ = __webpack_require__(/*! @angular/material/legacy-menu */ 1051);
+/* harmony import */ var _angular_material_tree__WEBPACK_IMPORTED_MODULE_31__ = __webpack_require__(/*! @angular/material/tree */ 3453);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_28__ = __webpack_require__(/*! rxjs */ 228);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_29__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_33__ = __webpack_require__(/*! rxjs */ 3280);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_32__ = __webpack_require__(/*! rxjs/operators */ 8951);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_34__ = __webpack_require__(/*! rxjs/operators */ 998);
 /* harmony import */ var _models_md_file__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../models/md-file */ 1115);
 /* harmony import */ var _dialogs_change_directory_change_directory_component__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../dialogs/change-directory/change-directory.component */ 9730);
 /* harmony import */ var _dialogs_new_directory_new_directory_component__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../dialogs/new-directory/new-directory.component */ 6645);
 /* harmony import */ var _dialogs_new_markdown_new_markdown_component__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../dialogs/new-markdown/new-markdown.component */ 5576);
 /* harmony import */ var _dialogs_delete_markdown_delete_markdown_component__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../dialogs/delete-markdown/delete-markdown.component */ 2142);
-/* harmony import */ var angular_animations__WEBPACK_IMPORTED_MODULE_45__ = __webpack_require__(/*! angular-animations */ 9862);
+/* harmony import */ var angular_animations__WEBPACK_IMPORTED_MODULE_47__ = __webpack_require__(/*! angular-animations */ 9862);
 /* harmony import */ var _dialogs_copy_from_clipboard_copy_from_clipboard_component__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../dialogs/copy-from-clipboard/copy-from-clipboard.component */ 9744);
 /* harmony import */ var _dialogs_move_md_file_move_md_file_component__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../dialogs/move-md-file/move-md-file.component */ 898);
 /* harmony import */ var _dialogs_add_new_file_to_mde_add_new_file_to_mde_component__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ../dialogs/add-new-file-to-mde/add-new-file-to-mde.component */ 8074);
@@ -14349,12 +14387,12 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _dialogs_install_wizard_install_wizard_component__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ../dialogs/install-wizard/install-wizard.component */ 2125);
 /* harmony import */ var _indexing_progress_snack_indexing_progress_snack_component__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! ../indexing-progress-snack/indexing-progress-snack.component */ 7013);
 /* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_27__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_33__ = __webpack_require__(/*! @angular/router */ 124);
+/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_35__ = __webpack_require__(/*! @angular/router */ 124);
 /* harmony import */ var _services_md_file_service__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! ../../services/md-file.service */ 4169);
 /* harmony import */ var _services_md_navigation_service__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! ../../services/md-navigation.service */ 9245);
-/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_34__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
-/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_35__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
-/* harmony import */ var _angular_cdk_clipboard__WEBPACK_IMPORTED_MODULE_36__ = __webpack_require__(/*! @angular/cdk/clipboard */ 6079);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_36__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_37__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
+/* harmony import */ var _angular_cdk_clipboard__WEBPACK_IMPORTED_MODULE_38__ = __webpack_require__(/*! @angular/cdk/clipboard */ 6079);
 /* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! ../../../signalR/services/server-messages.service */ 8635);
 /* harmony import */ var _services_toc_generation_service__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! ../../services/toc-generation.service */ 6170);
 /* harmony import */ var _services_toc_progress_service__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! ../../services/toc-progress.service */ 6394);
@@ -14365,15 +14403,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _services_app_store_service__WEBPACK_IMPORTED_MODULE_22__ = __webpack_require__(/*! ../../services/app-store.service */ 451);
 /* harmony import */ var _services_bulk_export_progress_service__WEBPACK_IMPORTED_MODULE_23__ = __webpack_require__(/*! ../../services/bulk-export-progress.service */ 4867);
 /* harmony import */ var _services_file_events_service__WEBPACK_IMPORTED_MODULE_24__ = __webpack_require__(/*! ../../services/file-events.service */ 6575);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_37__ = __webpack_require__(/*! @angular/common/http */ 8987);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_38__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_39__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_40__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
 /* harmony import */ var _mark_assistant_mark_assistant_service__WEBPACK_IMPORTED_MODULE_25__ = __webpack_require__(/*! ../../../mark-assistant/mark-assistant.service */ 5270);
 /* harmony import */ var _services_indexing_progress_service__WEBPACK_IMPORTED_MODULE_26__ = __webpack_require__(/*! ../../services/indexing-progress.service */ 4654);
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_40__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_41__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
-/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_42__ = __webpack_require__(/*! @angular/material/icon */ 7822);
-/* harmony import */ var _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_43__ = __webpack_require__(/*! @angular/material/legacy-progress-spinner */ 7578);
-/* harmony import */ var _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_44__ = __webpack_require__(/*! @angular/material/legacy-tooltip */ 3370);
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_42__ = __webpack_require__(/*! @angular/common */ 4666);
+/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_43__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
+/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_44__ = __webpack_require__(/*! @angular/material/icon */ 7822);
+/* harmony import */ var _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_45__ = __webpack_require__(/*! @angular/material/legacy-progress-spinner */ 7578);
+/* harmony import */ var _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_46__ = __webpack_require__(/*! @angular/material/legacy-tooltip */ 3370);
 
 
 
@@ -15878,8 +15916,13 @@ class MdTreeComponent {
     this.indexingProgressService = indexingProgressService;
     this.hooked = false;
     this.selectedNode = null;
+    // Completed in ngOnDestroy: EVERY subscription in this component must pipe
+    // takeUntil(destroy$). This component is destroyed/recreated on each project
+    // enter/exit; un-torn-down subscriptions kept dead instances alive and made
+    // every file event get processed N times.
+    this.destroy$ = new rxjs__WEBPACK_IMPORTED_MODULE_28__.Subject();
     // BehaviorSubject per tracciare lo stato di indicizzazione
-    this.indexedFilesSubject = new rxjs__WEBPACK_IMPORTED_MODULE_28__.BehaviorSubject(new Set());
+    this.indexedFilesSubject = new rxjs__WEBPACK_IMPORTED_MODULE_29__.BehaviorSubject(new Set());
     this.indexedFiles$ = this.indexedFilesSubject.asObservable();
     // Debouncing per aggiornamenti batch
     this.pendingUpdates = new Map();
@@ -15948,7 +15991,7 @@ class MdTreeComponent {
     // non si aprono più). Chiavando l'espansione per fullPath (stabile e unico),
     // lo stato di espansione sopravvive al cambio di istanza. Gemello del [trackBy]
     // sul <mat-tree> che riconcilia le righe DOM.
-    this.treeControl = new _angular_cdk_tree__WEBPACK_IMPORTED_MODULE_29__.FlatTreeControl(node => node.level, node => node.expandable,
+    this.treeControl = new _angular_cdk_tree__WEBPACK_IMPORTED_MODULE_30__.FlatTreeControl(node => node.level, node => node.expandable,
     // Return tipizzato `any` di proposito: manteniamo K=IFileInfoNode (così i
     // generics di MatTreeFlatDataSource/Flattener restano invariati e il build
     // non va in cascata), ma a runtime l'expansionModel usa la stringa fullPath
@@ -15956,8 +15999,8 @@ class MdTreeComponent {
     {
       trackBy: node => node.fullPath
     });
-    this.treeFlattener = new _angular_material_tree__WEBPACK_IMPORTED_MODULE_30__.MatTreeFlattener(this._transformer, node => node.level, node => node.expandable, node => node.childrens);
-    this.dataSource = new _angular_material_tree__WEBPACK_IMPORTED_MODULE_30__.MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
+    this.treeFlattener = new _angular_material_tree__WEBPACK_IMPORTED_MODULE_31__.MatTreeFlattener(this._transformer, node => node.level, node => node.expandable, node => node.childrens);
+    this.dataSource = new _angular_material_tree__WEBPACK_IMPORTED_MODULE_31__.MatTreeFlatDataSource(this.treeControl, this.treeFlattener);
     this.hasChild = (_, node) => node.expandable;
     this.isFolder = (_, node) => node.type == "folder";
     this.isMdPublish = (_, node) => node.type == "folder" && node.name == "mdPublish";
@@ -15978,83 +16021,87 @@ class MdTreeComponent {
     this._pendingTreeData = null;
     this._treeRenderScheduled = false;
     this.dataSource.data = TREE_DATA;
-    this.mdFileService.serverSelectedMdFile.subscribe(_ => {
+    this.mdFileService.serverSelectedMdFile.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(_ => {
       const myClonedArray = [];
       _.forEach(val => myClonedArray.push(Object.assign({}, val)));
       while (myClonedArray.length > 1) {
         var toExpand = myClonedArray.pop();
-        var test = this.treeControl.dataNodes.find(_ => _.path == toExpand.path);
-        this.treeControl.expand(test);
+        var test = this.treeControl.dataNodes?.find(_ => _.path == toExpand.path);
+        if (test) {
+          this.treeControl.expand(test);
+        }
       }
       if (myClonedArray.length > 0) {
         var toExpand = myClonedArray.pop();
-        this.activeNode = this.treeControl.dataNodes.find(_ => _.path == toExpand.path);
+        this.activeNode = this.treeControl.dataNodes?.find(_ => _.path == toExpand.path);
         if (this.activeNode != undefined && this.activeNode.type == "folder") {
           this.treeControl.expand(this.activeNode);
         }
       }
     });
-    // Aggiungi listener per file indicizzati
-    this.mdServerMessages.addFileIndexedListener((data, component) => {
+    // File indicizzati: aggiorna lo stato del nodo. SOLO markForCheck — un
+    // detectChanges() sincrono per ogni fileIndexed (la pipeline ne emette uno
+    // PER FILE) è il pattern di render rientrante che corrompe il differ del
+    // MatTree mentre loadAll sta sostituendo l'albero.
+    this.mdServerMessages.fileIndexed$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(data => {
       const currentSet = this.indexedFilesSubject.value;
       const newSet = new Set(currentSet);
       newSet.add(data.path);
       this.indexedFilesSubject.next(newSet);
       // Trova e aggiorna direttamente il nodo nel dataSource
       this.updateNodeIndexStatus(data.path, true);
-      // Forza il refresh del tree
-      this.changeDetectorRef.detectChanges();
-    }, this);
+      this.changeDetectorRef.markForCheck();
+    });
     // Building knowledge progress — UNA sola snackbar custom (basso a destra) per tutta
     // l'indicizzazione. Lo stato (percent / processed / total) è pilotato da
     // IndexingProgressService e popolato dall'evento SignalR knowledgeProgress.
     // Prima qui c'era un MatSnackBar.open() ripetuto per ogni folderIndexingComplete
     // → "scoppiettare" di snackbar. Adesso una sola istanza, vive da parsingProjectStart
     // a parsingProjectStop + 1.5s.
-    this.mdServerMessages.addParsingProjectStartListener((data, component) => {
+    this.mdServerMessages.parsingProjectStart$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(() => {
       this.indexingProgressService.reset();
       this.openIndexingSnackbar();
-    }, this);
+    });
     // Folder spinner sulla tree (independent dal progresso globale)
-    this.mdServerMessages.addFolderIndexingStartListener((data, component) => {
+    this.mdServerMessages.folderIndexingStart$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(data => {
       const node = this.findNodeByPath(data.path);
       if (node) {
         node.indexingStatus = 'indexing';
-        this.changeDetectorRef.detectChanges();
+        this.changeDetectorRef.markForCheck();
       }
-    }, this);
-    this.mdServerMessages.addFolderIndexingCompleteListener((data, component) => {
+    });
+    this.mdServerMessages.folderIndexingComplete$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(data => {
       const node = this.findNodeByPath(data.path);
       if (node) {
         node.indexingStatus = 'completed';
-        this.changeDetectorRef.detectChanges();
+        this.changeDetectorRef.markForCheck();
       }
       // Non aprire più snackbar qui — il progresso ora è unificato via knowledgeProgress
       // sul componente IndexingProgressSnackComponent.
-    }, this);
+    });
     // Avanzamento globale "Building knowledge" alimentato dal backend dopo
     // ogni cartella nella fase ParseLinks.
-    this.mdServerMessages.addKnowledgeProgressListener((data, component) => {
+    this.mdServerMessages.knowledgeProgress$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(data => {
       const processed = data?.processed ?? 0;
       const total = data?.total ?? 0;
       const percent = data?.percent ?? 0;
       this.indexingProgressService.setProgress(processed, total, percent);
-    }, this);
+    });
     // Fine indicizzazione: forza 100% e auto-dismiss dopo 1.5s
-    this.mdServerMessages.addParsingProjectStopListener((data, component) => {
+    this.mdServerMessages.parsingProjectStop$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(() => {
       this.indexingProgressService.setComplete();
       setTimeout(() => {
         if (this.currentSnackbarRef) {
           this.currentSnackbarRef.dismiss();
         }
       }, 1500);
-    }, this);
+    });
     // Mark Actions — recursive "Riassumi documentazione" job emits a `toc-ready`
     // event per folder right after its <name>.md.directory is (re)generated. We
     // flip node.hasToc here so the document icon appears on the folder right
     // away, without waiting for the user to reopen the project. The Mark dialog
     // ignores this phase (MarkAssistantService.onFolderProgress).
-    this.mdServerMessages.markFolderProgress$.subscribe(p => {
+    this.mdServerMessages.markFolderProgress$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(p => {
       if (p?.phase !== 'toc-ready' || !p.folderFullPath) return;
       const node = this.findNodeByPath(p.folderFullPath);
       if (node) {
@@ -16062,24 +16109,24 @@ class MdTreeComponent {
         this.changeDetectorRef.markForCheck();
       }
     });
-    // Listener per la creazione di nuovi file markdown (queued + debounced)
-    this.mdServerMessages.addMarkdownFileCreatedListener((data, component) => {
+    // Creazione di nuovi file markdown (queued + debounced)
+    this.mdServerMessages.markdownFileCreated$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(data => {
       this.enqueueEvent(() => this.handleNewMarkdownFileCreated(data), 'fileCreated');
-    }, this);
-    // Listener per la cancellazione di file markdown (queued + debounced)
-    this.mdServerMessages.addMarkdownFileDeletedListener((data, component) => {
+    });
+    // Cancellazione di file markdown (queued + debounced)
+    this.mdServerMessages.markdownFileDeleted$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(data => {
       this.enqueueEvent(() => this.handleMarkdownFileDeleted(data), 'fileDeleted');
-    }, this);
-    // Listener per creazione cartella (queued + debounced)
-    this.mdServerMessages.addFolderCreatedListener((data, component) => {
+    });
+    // Creazione cartella (queued + debounced)
+    this.mdServerMessages.folderCreated$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(data => {
       this.enqueueEvent(() => this.handleFolderCreated(data), 'folderCreated');
-    }, this);
-    // Listener per cancellazione cartella (queued + debounced)
-    this.mdServerMessages.addFolderDeletedListener((data, component) => {
+    });
+    // Cancellazione cartella (queued + debounced)
+    this.mdServerMessages.folderDeleted$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(data => {
       this.enqueueEvent(() => this.handleFolderDeleted(data), 'folderDeleted');
-    }, this);
-    // Listener per rename cartella → rewrite ricorsivo dei path nel tree
-    this.mdServerMessages.addFolderRenamedListener((data, component) => {
+    });
+    // Rename cartella → rewrite ricorsivo dei path nel tree
+    this.mdServerMessages.folderRenamed$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(data => {
       const oldFullPath = data.oldFullPath || data.OldFullPath;
       const newFullPath = data.fullPath || data.FullPath;
       console.log(`✏️ folderRenamed: ${oldFullPath} → ${newFullPath}`);
@@ -16089,56 +16136,66 @@ class MdTreeComponent {
         console.log('📂 [folderRenamed] Folder not in tree (unexpanded) — nothing to update');
       }
       this.changeDetectorRef.markForCheck();
-    }, this);
-    // Listener per storm FSW → processa il payload deduplicato incrementalmente
-    this.mdServerMessages.addFileSystemStormListener((changes, component) => {
+    });
+    // Storm FSW → processa il payload deduplicato incrementalmente.
+    // NON scarta la coda eventi: gli eventi individuali pre-soglia NON fanno
+    // parte del batch storm (il backend batcha solo i post-soglia), quindi
+    // buttarli via significava perdere cambiamenti. Le mutazioni sono
+    // idempotenti, l'eventuale sovrapposizione è innocua.
+    this.mdServerMessages.fileSystemStorm$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(changes => {
       console.log(`⚡ FileSystem storm ended - ${changes?.length || 0} deduplicated changes`);
-      this.clearEventQueue();
+      this.flushEventQueue();
       if (changes && changes.length > 0) {
         this.processStormChanges(changes);
       }
-    }, this);
+    });
     // Listener per forzare change detection (Rule #1 fix) - seguendo il pattern SignalR
     this.mdServerMessages.addRule1ForceUpdateListener((data, component) => {
       // Questo non verrà mai chiamato perché non c'è un vero evento SignalR
     }, this);
-    // Listener for Git branch switch - capture expansion state BEFORE refresh
-    this.mdServerMessages.gitBranchSwitched$.subscribe(data => {
+    // Git branch switch / pull - capture expansion state BEFORE refresh
+    this.mdServerMessages.gitBranchSwitched$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(() => {
       console.log('🔄 Git branch switched detected - capturing expansion state');
       this.expansionStateBeforeRefresh = this.captureExpansionState();
       console.log('📦 Captured', this.expansionStateBeforeRefresh.size, 'expanded nodes');
     });
-    // Listener for Git pull - capture expansion state BEFORE refresh
-    this.mdServerMessages.gitPullRefreshed$.subscribe(data => {
+    this.mdServerMessages.gitPullRefreshed$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(() => {
       console.log('🔄 Git pull detected - capturing expansion state');
       this.expansionStateBeforeRefresh = this.captureExpansionState();
       console.log('📦 Captured', this.expansionStateBeforeRefresh.size, 'expanded nodes');
     });
     // Listener per cambio progetto - mostra skeleton loader
-    this.projectsService.projectChanging$.subscribe(() => {
+    this.projectsService.projectChanging$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(() => {
       console.log('🔄 Project changing - showing skeleton loader');
       this.isLoading = true;
       this.changeDetectorRef.markForCheck();
     });
     // Listener per "Reveal in Tree" dal pulsante mirino nel sidenav
-    this.mdFileService.revealInTree$.subscribe(file => {
+    this.mdFileService.revealInTree$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(file => {
       this.revealAndScrollToNode(file);
+    });
+    // FSW overflow/errore: md-file.service fa già il reload completo; qui solo
+    // il feedback visibile all'utente (mai recovery silenzioso).
+    this.mdServerMessages.fileSystemWatcherError$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(() => {
+      this.snackBar.open(this.translate.instant('MD_TREE.WATCHER_OVERFLOW_RELOAD'), '', {
+        duration: 5000
+      });
     });
   }
   //="{ value: '', params: { delay: node.index * 100 } }"
   ngOnInit() {
     // Subscribe to P2P availability
-    this.p2pService.isAvailable$.subscribe(available => {
+    this.p2pService.isAvailable$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(available => {
       this.isP2PAvailable = available;
     });
     // Subscribe to RAG enabled status
-    this.projectsService.ragEnabled$.subscribe(enabled => {
+    this.projectsService.ragEnabled$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(enabled => {
       this.isRagEnabled = enabled;
       this.changeDetectorRef.markForCheck();
     });
     this.loadStickyScrollSetting();
     this.mdFiles = this.mdFileService.mdFiles;
-    this.mdFileService.mdFiles.subscribe(data => {
+    this.mdFileService.mdFiles.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(data => {
       // Ignora emissioni vuote (BehaviorSubject emette [] inizialmente)
       if (data && data.length > 0) {
         // COALESCE: durante una raffica di update incrementali (es. un agente che
@@ -17243,19 +17300,24 @@ class MdTreeComponent {
   processEventBatch() {
     if (this.isProcessingQueue || this.eventQueue.length === 0) return;
     this.isProcessingQueue = true;
-    // Take all pending events
-    const batch = this.eventQueue.splice(0);
-    // Process all events incrementally — no loadAll() fallback
-    for (const item of batch) {
-      try {
-        item.handler();
-      } catch (err) {
-        console.error('Error processing queued event:', err);
+    try {
+      // Take all pending events
+      const batch = this.eventQueue.splice(0);
+      // Process all events incrementally — no loadAll() fallback
+      for (const item of batch) {
+        try {
+          item.handler();
+        } catch (err) {
+          console.error('Error processing queued event:', err);
+        }
       }
+      // Single change detection cycle for the whole batch
+      this.changeDetectorRef.markForCheck();
+    } finally {
+      // Without the finally an exception here left isProcessingQueue=true
+      // forever and the queue stopped being processed for the session.
+      this.isProcessingQueue = false;
     }
-    // Single change detection cycle for the whole batch
-    this.changeDetectorRef.markForCheck();
-    this.isProcessingQueue = false;
   }
   clearEventQueue() {
     this.eventQueue.length = 0;
@@ -17263,6 +17325,19 @@ class MdTreeComponent {
       clearTimeout(this.batchTimer);
       this.batchTimer = null;
     }
+  }
+  /**
+   * Processes any queued events RIGHT NOW instead of discarding them.
+   * Used when a fileSystemStorm batch arrives: the pre-threshold individual
+   * events sitting in the queue are NOT part of the storm payload (the backend
+   * batches only post-threshold ones), so dropping them lost changes.
+   */
+  flushEventQueue() {
+    if (this.batchTimer) {
+      clearTimeout(this.batchTimer);
+      this.batchTimer = null;
+    }
+    this.processEventBatch();
   }
   // ── Storm batch processing ──
   processStormChanges(changes) {
@@ -17561,20 +17636,22 @@ class MdTreeComponent {
    * Expands all nodes whose fullPath is in the provided Set
    */
   restoreExpansionState(expandedPaths) {
-    // Wait for tree to render with new data
-    setTimeout(() => {
-      if (this.treeControl && this.treeControl.dataNodes) {
-        this.treeControl.dataNodes.forEach(node => {
-          // If this node was expanded before AND still exists, re-expand it
-          if (expandedPaths.has(node.fullPath)) {
-            this.treeControl.expand(node);
-          }
-        });
-        // Force change detection after expansion
-        this.changeDetectorRef.detectChanges();
-        console.log('✅ Expansion state restored');
-      }
-    }, 100);
+    // SYNCHRONOUS, inside the same render transaction as the dataSource.data
+    // assignment: MatTreeFlatDataSource flattens synchronously, so dataNodes is
+    // already up to date here. The old setTimeout(100) + detectChanges() raced
+    // with subsequent renders (and with the user's own expansions) and the
+    // synchronous detectChanges was the reentrant-render pattern that corrupts
+    // the MatTree differ. markForCheck is enough: the caller schedules CD.
+    if (this.treeControl && this.treeControl.dataNodes) {
+      this.treeControl.dataNodes.forEach(node => {
+        // If this node was expanded before AND still exists, re-expand it
+        if (expandedPaths.has(node.fullPath)) {
+          this.treeControl.expand(node);
+        }
+      });
+      this.changeDetectorRef.markForCheck();
+      console.log('✅ Expansion state restored');
+    }
   }
   // ========== Skeleton Loader Helper Methods ==========
   /**
@@ -17665,7 +17742,7 @@ class MdTreeComponent {
     const wrapper = document.querySelector('.tree-scroll-wrapper');
     if (!wrapper) return;
     this.scrollSub?.unsubscribe();
-    this.scrollSub = (0,rxjs__WEBPACK_IMPORTED_MODULE_31__.fromEvent)(wrapper, 'scroll').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.auditTime)(16)).subscribe(() => this.updateStickyAncestors(wrapper));
+    this.scrollSub = (0,rxjs__WEBPACK_IMPORTED_MODULE_33__.fromEvent)(wrapper, 'scroll').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_34__.auditTime)(16)).subscribe(() => this.updateStickyAncestors(wrapper));
   }
   updateStickyAncestors(wrapper) {
     if (!this.stickyScrollEnabled) {
@@ -17720,6 +17797,10 @@ class MdTreeComponent {
     }
   }
   ngOnDestroy() {
+    // Tear down EVERY takeUntil(destroy$) subscription (SignalR Subjects, services).
+    // Without this, dead component instances kept processing file events.
+    this.destroy$.next();
+    this.destroy$.complete();
     // Pulisci il timer se esiste
     if (this.updateTimer) {
       clearTimeout(this.updateTimer);
@@ -17816,7 +17897,7 @@ class MdTreeComponent {
   }
   static {
     this.ɵfac = function MdTreeComponent_Factory(t) {
-      return new (t || MdTreeComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_33__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_13__.MdFileService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_md_navigation_service__WEBPACK_IMPORTED_MODULE_14__.MdNavigationService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_34__.MatLegacyDialog), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_35__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_angular_cdk_clipboard__WEBPACK_IMPORTED_MODULE_36__.Clipboard), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_27__.ChangeDetectorRef), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_15__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_toc_generation_service__WEBPACK_IMPORTED_MODULE_16__.TocGenerationService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_toc_progress_service__WEBPACK_IMPORTED_MODULE_17__.TocProgressService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_projects_service__WEBPACK_IMPORTED_MODULE_18__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_url_handler_service__WEBPACK_IMPORTED_MODULE_19__.UrlHandlerService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_p2p_service__WEBPACK_IMPORTED_MODULE_20__.P2PService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_projects_services_project_settings_service__WEBPACK_IMPORTED_MODULE_21__.ProjectSettingsService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_app_store_service__WEBPACK_IMPORTED_MODULE_22__.AppStoreService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_bulk_export_progress_service__WEBPACK_IMPORTED_MODULE_23__.BulkExportProgressService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_file_events_service__WEBPACK_IMPORTED_MODULE_24__.FileEventsService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_37__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_38__.TranslateService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_mark_assistant_mark_assistant_service__WEBPACK_IMPORTED_MODULE_25__.MarkAssistantService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_indexing_progress_service__WEBPACK_IMPORTED_MODULE_26__.IndexingProgressService));
+      return new (t || MdTreeComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_35__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_md_file_service__WEBPACK_IMPORTED_MODULE_13__.MdFileService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_md_navigation_service__WEBPACK_IMPORTED_MODULE_14__.MdNavigationService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_36__.MatLegacyDialog), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_37__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_angular_cdk_clipboard__WEBPACK_IMPORTED_MODULE_38__.Clipboard), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_angular_core__WEBPACK_IMPORTED_MODULE_27__.ChangeDetectorRef), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_15__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_toc_generation_service__WEBPACK_IMPORTED_MODULE_16__.TocGenerationService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_toc_progress_service__WEBPACK_IMPORTED_MODULE_17__.TocProgressService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_projects_service__WEBPACK_IMPORTED_MODULE_18__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_url_handler_service__WEBPACK_IMPORTED_MODULE_19__.UrlHandlerService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_p2p_service__WEBPACK_IMPORTED_MODULE_20__.P2PService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_projects_services_project_settings_service__WEBPACK_IMPORTED_MODULE_21__.ProjectSettingsService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_app_store_service__WEBPACK_IMPORTED_MODULE_22__.AppStoreService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_bulk_export_progress_service__WEBPACK_IMPORTED_MODULE_23__.BulkExportProgressService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_file_events_service__WEBPACK_IMPORTED_MODULE_24__.FileEventsService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_39__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_40__.TranslateService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_mark_assistant_mark_assistant_service__WEBPACK_IMPORTED_MODULE_25__.MarkAssistantService), _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵdirectiveInject"](_services_indexing_progress_service__WEBPACK_IMPORTED_MODULE_26__.IndexingProgressService));
     };
   }
   static {
@@ -17825,7 +17906,7 @@ class MdTreeComponent {
       selectors: [["app-md-tree"]],
       viewQuery: function MdTreeComponent_Query(rf, ctx) {
         if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵviewQuery"](_angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_39__.MatLegacyMenuTrigger, 7);
+          _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵviewQuery"](_angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_41__.MatLegacyMenuTrigger, 7);
         }
         if (rf & 2) {
           let _t;
@@ -17860,10 +17941,10 @@ class MdTreeComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵproperty"]("ngIf", !ctx.isLoading);
         }
       },
-      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_40__.NgClass, _angular_common__WEBPACK_IMPORTED_MODULE_40__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_40__.NgIf, _angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_39__.MatLegacyMenu, _angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_39__.MatLegacyMenuItem, _angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_39__.MatLegacyMenuTrigger, _angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_39__.MatLegacyMenuContent, _angular_material_tree__WEBPACK_IMPORTED_MODULE_30__.MatTreeNodeDef, _angular_material_tree__WEBPACK_IMPORTED_MODULE_30__.MatTreeNodePadding, _angular_material_tree__WEBPACK_IMPORTED_MODULE_30__.MatTreeNodeToggle, _angular_material_tree__WEBPACK_IMPORTED_MODULE_30__.MatTree, _angular_material_tree__WEBPACK_IMPORTED_MODULE_30__.MatTreeNode, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_41__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_42__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_43__.MatLegacyProgressSpinner, _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_44__.MatLegacyTooltip, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_38__.TranslatePipe],
+      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_42__.NgClass, _angular_common__WEBPACK_IMPORTED_MODULE_42__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_42__.NgIf, _angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_41__.MatLegacyMenu, _angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_41__.MatLegacyMenuItem, _angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_41__.MatLegacyMenuTrigger, _angular_material_legacy_menu__WEBPACK_IMPORTED_MODULE_41__.MatLegacyMenuContent, _angular_material_tree__WEBPACK_IMPORTED_MODULE_31__.MatTreeNodeDef, _angular_material_tree__WEBPACK_IMPORTED_MODULE_31__.MatTreeNodePadding, _angular_material_tree__WEBPACK_IMPORTED_MODULE_31__.MatTreeNodeToggle, _angular_material_tree__WEBPACK_IMPORTED_MODULE_31__.MatTree, _angular_material_tree__WEBPACK_IMPORTED_MODULE_31__.MatTreeNode, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_43__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_44__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_45__.MatLegacyProgressSpinner, _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_46__.MatLegacyTooltip, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_40__.TranslatePipe],
       styles: [".tree-scroll-container[_ngcontent-%COMP%] {\n  position: relative;\n  height: calc(100vh - 128px);\n}\n\n.tree-scroll-wrapper[_ngcontent-%COMP%] {\n  height: 100%;\n  overflow-y: auto;\n}\n\n.mat-tree[_ngcontent-%COMP%] {\n  height: auto;\n}\n\nbody.dark-theme[_nghost-%COMP%]   .tree-scroll-container[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .tree-scroll-container[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .tree-scroll-container[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .tree-scroll-container[_ngcontent-%COMP%] {\n  background-color: var(--mde-bg-primary);\n  color: var(--mde-text-primary);\n}\nbody.dark-theme[_nghost-%COMP%]   .mat-tree[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .mat-tree[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .mat-tree[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .mat-tree[_ngcontent-%COMP%] {\n  background-color: var(--mde-bg-primary);\n  color: var(--mde-text-primary);\n}\nbody.dark-theme[_nghost-%COMP%]   .github-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .github-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .github-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .github-icon[_ngcontent-%COMP%] {\n  filter: invert(1);\n}\n\n.sticky-ancestors-panel[_ngcontent-%COMP%] {\n  position: absolute;\n  top: 0;\n  left: 0;\n  right: 0;\n  z-index: 10;\n  background: var(--mde-bg-secondary);\n  border-bottom: 1px solid var(--mde-border-color);\n  box-shadow: 0 2px 4px var(--mde-shadow-color);\n}\n.sticky-ancestors-panel[_ngcontent-%COMP%]   .sticky-ancestor-row[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  height: 40px;\n  min-height: 40px;\n  cursor: pointer;\n  padding-right: 8px;\n  gap: 4px;\n  background: var(--mde-bg-secondary);\n  border-bottom: 1px solid var(--mde-border-color);\n}\n.sticky-ancestors-panel[_ngcontent-%COMP%]   .sticky-ancestor-row[_ngcontent-%COMP%]:last-child {\n  border-bottom: none;\n}\n.sticky-ancestors-panel[_ngcontent-%COMP%]   .sticky-ancestor-row[_ngcontent-%COMP%]:hover {\n  background: var(--mde-bg-hover);\n}\n.sticky-ancestors-panel[_ngcontent-%COMP%]   .sticky-ancestor-row[_ngcontent-%COMP%]   .folder-name[_ngcontent-%COMP%] {\n  font-size: 13px;\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}\n.sticky-ancestors-panel[_ngcontent-%COMP%]   .sticky-ancestor-row[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 20px;\n  width: 20px;\n  height: 20px;\n  flex-shrink: 0;\n}\n\n.mat-tree-node[_ngcontent-%COMP%] {\n  min-height: 40px !important;\n}\n\nbody.dark-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%] {\n  color: var(--mde-text-primary);\n}\nbody.dark-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   .mat-icon[_ngcontent-%COMP%]:not(.folder-icon):not(.gold-icon):not(.terminal-icon), body.dark-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   .mat-icon[_ngcontent-%COMP%]:not(.folder-icon):not(.gold-icon):not(.terminal-icon), body.milan-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   .mat-icon[_ngcontent-%COMP%]:not(.folder-icon):not(.gold-icon):not(.terminal-icon), body.milan-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   .mat-icon[_ngcontent-%COMP%]:not(.folder-icon):not(.gold-icon):not(.terminal-icon) {\n  color: var(--mde-icon-color) !important;\n}\nbody.dark-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   button.mat-primary[_ngcontent-%COMP%]   .mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   button.mat-primary[_ngcontent-%COMP%]   .mat-icon[_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-primary[_ngcontent-%COMP%]   .mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-primary[_ngcontent-%COMP%]   .mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   button.mat-primary[_ngcontent-%COMP%]   .mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   button.mat-primary[_ngcontent-%COMP%]   .mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-primary[_ngcontent-%COMP%]   .mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-primary[_ngcontent-%COMP%]   .mat-icon[_ngcontent-%COMP%] {\n  color: var(--mde-accent-primary) !important;\n}\nbody.dark-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   .node-text[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   .node-text[_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   .folder-name[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   .folder-name[_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   span[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   span[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   .node-text[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   .node-text[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   .folder-name[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   .folder-name[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   span[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   span[_ngcontent-%COMP%] {\n  color: var(--mde-text-primary);\n}\nbody.dark-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   button[_ngcontent-%COMP%]:not(.mat-primary), body.dark-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   button[_ngcontent-%COMP%]:not(.mat-primary), body.milan-theme[_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   button[_ngcontent-%COMP%]:not(.mat-primary), body.milan-theme   [_nghost-%COMP%]   .mat-tree-node[_ngcontent-%COMP%]   button[_ngcontent-%COMP%]:not(.mat-primary) {\n  color: var(--mde-text-primary) !important;\n}\n\n.blue-link[_ngcontent-%COMP%] {\n  color: blue;\n  border-bottom-width: 1px;\n  border-bottom: dashed;\n  border-bottom-color: grey;\n}\n\n.background-highlight[_ngcontent-%COMP%] {\n  background-color: blue;\n  color: white;\n}\n\n.folder-node.indexing[_ngcontent-%COMP%]   .folder-icon[_ngcontent-%COMP%] {\n  position: relative;\n}\n.folder-node.indexing[_ngcontent-%COMP%]   .folder-icon[_ngcontent-%COMP%]::after {\n  content: \"\";\n  position: absolute;\n  top: -2px;\n  right: -2px;\n  width: 8px;\n  height: 8px;\n  background-color: #2196F3;\n  border-radius: 50%;\n  animation: _ngcontent-%COMP%_indexing-pulse 1.5s ease-in-out infinite;\n}\n.folder-node.indexing[_ngcontent-%COMP%]   .folder-name[_ngcontent-%COMP%]::after {\n  content: \" (indicizzazione...)\";\n  font-size: 0.8em;\n  color: #666;\n  font-style: italic;\n  animation: _ngcontent-%COMP%_fade-in-out 2s ease-in-out infinite;\n}\n\n@keyframes _ngcontent-%COMP%_indexing-pulse {\n  0% {\n    transform: scale(1);\n    opacity: 1;\n  }\n  50% {\n    transform: scale(1.5);\n    opacity: 0.5;\n  }\n  100% {\n    transform: scale(1);\n    opacity: 1;\n  }\n}\n@keyframes _ngcontent-%COMP%_fade-in-out {\n  0%, 100% {\n    opacity: 0.3;\n  }\n  50% {\n    opacity: 1;\n  }\n}\n.mat-tree-node.not-indexed[_ngcontent-%COMP%]   .mat-icon[_ngcontent-%COMP%] {\n  opacity: 0.5;\n}\n.mat-tree-node.indexing[_ngcontent-%COMP%]   .mat-icon[_ngcontent-%COMP%] {\n  animation: _ngcontent-%COMP%_rotate 2s linear infinite;\n}\n\n.folder-spinner[_ngcontent-%COMP%] {\n  margin: 2px;\n  display: inline-block;\n}\n\n@keyframes _ngcontent-%COMP%_rotate {\n  from {\n    transform: rotate(0deg);\n  }\n  to {\n    transform: rotate(360deg);\n  }\n}\n.mat-tree-node.selected[_ngcontent-%COMP%] {\n  background-color: var(--mde-accent-light);\n  border-left: 3px solid var(--mde-accent-primary);\n}\n.mat-tree-node.selected[_ngcontent-%COMP%]   .node-text[_ngcontent-%COMP%] {\n  color: var(--mde-accent-primary);\n  font-weight: 500;\n}\n.mat-tree-node[_ngcontent-%COMP%]:hover:not(.selected) {\n  background-color: var(--mde-bg-tertiary);\n}\n\n.node-text[_ngcontent-%COMP%] {\n  transition: color 0.2s ease;\n}\n\n.app-icon-img[_ngcontent-%COMP%] {\n  width: 24px;\n  height: 24px;\n  object-fit: contain;\n  vertical-align: middle;\n}\n\n  .success-snackbar {\n  background-color: #4caf50 !important;\n  color: white !important;\n}\n  .success-snackbar .mat-button {\n  color: white !important;\n}\n  .success-snackbar .mat-simple-snackbar-action {\n  color: #e8f5e8 !important;\n}\n\n.drag-over[_ngcontent-%COMP%] {\n  background-color: rgba(33, 150, 243, 0.15) !important;\n  border: 2px dashed #2196F3;\n  border-radius: 4px;\n}\n\n.folder-row-clickable[_ngcontent-%COMP%] {\n  width: 100%;\n}\n.folder-row-clickable[_ngcontent-%COMP%]:hover {\n  background-color: var(--mde-hover-overlay);\n}\n.folder-row-clickable[_ngcontent-%COMP%]:active {\n  background-color: var(--mde-bg-hover);\n}\n\n.compacted-folder[_ngcontent-%COMP%] {\n  display: inline-flex;\n  align-items: center;\n  flex-wrap: wrap;\n}\n.compacted-folder[_ngcontent-%COMP%]   .compact-segment[_ngcontent-%COMP%] {\n  cursor: pointer;\n  padding: 2px 4px;\n  border-radius: 3px;\n  transition: background-color 0.15s ease, outline 0.15s ease;\n}\n.compacted-folder[_ngcontent-%COMP%]   .compact-segment[_ngcontent-%COMP%]:hover, .compacted-folder[_ngcontent-%COMP%]   .compact-segment.segment-hover[_ngcontent-%COMP%] {\n  background-color: rgba(33, 150, 243, 0.15);\n}\n.compacted-folder[_ngcontent-%COMP%]   .compact-segment[_ngcontent-%COMP%]:active {\n  background-color: rgba(33, 150, 243, 0.25);\n}\n.compacted-folder[_ngcontent-%COMP%]   .compact-segment.segment-drag-over[_ngcontent-%COMP%] {\n  background-color: rgba(33, 150, 243, 0.3);\n  outline: 2px dashed #2196F3;\n  outline-offset: 1px;\n}\n.compacted-folder[_ngcontent-%COMP%]   .compact-separator[_ngcontent-%COMP%] {\n  color: var(--mde-text-hint);\n  margin: 0 1px;\n  -webkit-user-select: none;\n          user-select: none;\n}\n\n.md-tree-skeleton[_ngcontent-%COMP%] {\n  padding: 8px 0;\n}\n.md-tree-skeleton[_ngcontent-%COMP%]   .skeleton-item[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  height: 40px;\n  padding: 0 16px;\n}\n.md-tree-skeleton[_ngcontent-%COMP%]   .skeleton-item[_ngcontent-%COMP%]   .skeleton-icon[_ngcontent-%COMP%] {\n  width: 24px;\n  height: 24px;\n  border-radius: 4px;\n  background: linear-gradient(90deg, var(--mde-border-color) 25%, var(--mde-bg-tertiary) 50%, var(--mde-border-color) 75%);\n  background-size: 200% 100%;\n  animation: _ngcontent-%COMP%_skeleton-pulse 1.5s ease-in-out infinite;\n  margin-right: 8px;\n  flex-shrink: 0;\n}\n.md-tree-skeleton[_ngcontent-%COMP%]   .skeleton-item[_ngcontent-%COMP%]   .skeleton-text[_ngcontent-%COMP%] {\n  height: 14px;\n  border-radius: 4px;\n  background: linear-gradient(90deg, var(--mde-border-color) 25%, var(--mde-bg-tertiary) 50%, var(--mde-border-color) 75%);\n  background-size: 200% 100%;\n  animation: _ngcontent-%COMP%_skeleton-pulse 1.5s ease-in-out infinite;\n}\n.md-tree-skeleton[_ngcontent-%COMP%]   .skeleton-item.indent-0[_ngcontent-%COMP%] {\n  padding-left: 16px;\n}\n.md-tree-skeleton[_ngcontent-%COMP%]   .skeleton-item.indent-1[_ngcontent-%COMP%] {\n  padding-left: 40px;\n}\n.md-tree-skeleton[_ngcontent-%COMP%]   .skeleton-item.indent-2[_ngcontent-%COMP%] {\n  padding-left: 64px;\n}\n\n@keyframes _ngcontent-%COMP%_skeleton-pulse {\n  0% {\n    background-position: 200% 0;\n  }\n  100% {\n    background-position: -200% 0;\n  }\n}\n.mat-tree-node.reveal-highlight[_ngcontent-%COMP%] {\n  animation: _ngcontent-%COMP%_reveal-flash 1.5s ease-out;\n}\n\n@keyframes _ngcontent-%COMP%_reveal-flash {\n  0% {\n    background-color: rgba(255, 193, 7, 0.4);\n  }\n  100% {\n    background-color: transparent;\n  }\n}\n.toc-indicator[_ngcontent-%COMP%] {\n  cursor: pointer;\n  font-size: 18px;\n  width: 18px;\n  height: 18px;\n  line-height: 18px;\n  margin-left: 6px;\n  color: #1565c0;\n  vertical-align: middle;\n  opacity: 0.7;\n  transition: opacity 0.15s ease;\n}\n.toc-indicator[_ngcontent-%COMP%]:hover {\n  opacity: 1;\n}\n\nbody.dark-theme[_nghost-%COMP%]   .toc-indicator[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .toc-indicator[_ngcontent-%COMP%] {\n  color: #64b5f6;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvbWQtZXhwbG9yZXIvY29tcG9uZW50cy9tZC10cmVlL21kLXRyZWUuY29tcG9uZW50LnNjc3MiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQ0E7RUFDRSxrQkFBQTtFQUNBLDJCQUFBO0FBQUY7O0FBSUE7RUFDRSxZQUFBO0VBQ0EsZ0JBQUE7QUFERjs7QUFJQTtFQUNFLFlBQUE7QUFERjs7QUFPRTs7RUFDRSx1Q0FBQTtFQUNBLDhCQUFBO0FBSEo7QUFNRTs7RUFDRSx1Q0FBQTtFQUNBLDhCQUFBO0FBSEo7QUFNRTs7RUFDRSxpQkFBQTtBQUhKOztBQVNBO0VBQ0Usa0JBQUE7RUFDQSxNQUFBO0VBQ0EsT0FBQTtFQUNBLFFBQUE7RUFDQSxXQUFBO0VBQ0EsbUNBQUE7RUFDQSxnREFBQTtFQUNBLDZDQUFBO0FBTkY7QUFRRTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFlBQUE7RUFDQSxnQkFBQTtFQUNBLGVBQUE7RUFDQSxrQkFBQTtFQUNBLFFBQUE7RUFDQSxtQ0FBQTtFQUNBLGdEQUFBO0FBTko7QUFRSTtFQUFlLG1CQUFBO0FBTG5CO0FBT0k7RUFDRSwrQkFBQTtBQUxOO0FBUUk7RUFDRSxlQUFBO0VBQ0EsbUJBQUE7RUFDQSxnQkFBQTtFQUNBLHVCQUFBO0FBTk47QUFTSTtFQUNFLGVBQUE7RUFDQSxXQUFBO0VBQ0EsWUFBQTtFQUNBLGNBQUE7QUFQTjs7QUFXQTtFQUNFLDJCQUFBO0FBUkY7O0FBV0E7O0VBRUUsOEJBQUE7QUFSRjtBQVVFOztFQUNFLHVDQUFBO0FBUEo7QUFXRTs7OztFQUVFLDJDQUFBO0FBUEo7QUFVRTs7OztFQUNFLDhCQUFBO0FBTEo7QUFRRTs7RUFDRSx5Q0FBQTtBQUxKOztBQVFBO0VBQ0UsV0FBQTtFQUNBLHdCQUFBO0VBQ0EscUJBQUE7RUFDQSx5QkFBQTtBQUxGOztBQVFBO0VBQ0Usc0JBQUE7RUFDQSxZQUFBO0FBTEY7O0FBa0NJO0VBQ0Usa0JBQUE7QUEvQk47QUFpQ007RUFDRSxXQUFBO0VBQ0Esa0JBQUE7RUFDQSxTQUFBO0VBQ0EsV0FBQTtFQUNBLFVBQUE7RUFDQSxXQUFBO0VBQ0EseUJBQUE7RUFDQSxrQkFBQTtFQUNBLG1EQUFBO0FBL0JSO0FBb0NNO0VBQ0UsK0JBQUE7RUFDQSxnQkFBQTtFQUNBLFdBQUE7RUFDQSxrQkFBQTtFQUNBLDhDQUFBO0FBbENSOztBQXdDQTtFQUNFO0lBQ0UsbUJBQUE7SUFDQSxVQUFBO0VBckNGO0VBdUNBO0lBQ0UscUJBQUE7SUFDQSxZQUFBO0VBckNGO0VBdUNBO0lBQ0UsbUJBQUE7SUFDQSxVQUFBO0VBckNGO0FBQ0Y7QUF3Q0E7RUFDRTtJQUNFLFlBQUE7RUF0Q0Y7RUF3Q0E7SUFDRSxVQUFBO0VBdENGO0FBQ0Y7QUE0Q0k7RUFDRSxZQUFBO0FBMUNOO0FBK0NJO0VBQ0Usb0NBQUE7QUE3Q047O0FBa0RBO0VBQ0UsV0FBQTtFQUNBLHFCQUFBO0FBL0NGOztBQWtEQTtFQUNFO0lBQ0UsdUJBQUE7RUEvQ0Y7RUFpREE7SUFDRSx5QkFBQTtFQS9DRjtBQUNGO0FBb0RFO0VBQ0UseUNBQUE7RUFDQSxnREFBQTtBQWxESjtBQW9ESTtFQUNFLGdDQUFBO0VBQ0EsZ0JBQUE7QUFsRE47QUFzREU7RUFDRSx3Q0FBQTtBQXBESjs7QUF3REE7RUFDRSwyQkFBQTtBQXJERjs7QUF3REE7RUFDRSxXQUFBO0VBQ0EsWUFBQTtFQUNBLG1CQUFBO0VBQ0Esc0JBQUE7QUFyREY7O0FBeURBO0VBQ0Usb0NBQUE7RUFDQSx1QkFBQTtBQXRERjtBQXdERTtFQUNFLHVCQUFBO0FBdERKO0FBeURFO0VBQ0UseUJBQUE7QUF2REo7O0FBNERBO0VBQ0UscURBQUE7RUFDQSwwQkFBQTtFQUNBLGtCQUFBO0FBekRGOztBQTZEQTtFQUNFLFdBQUE7QUExREY7QUE0REU7RUFDRSwwQ0FBQTtBQTFESjtBQTZERTtFQUNFLHFDQUFBO0FBM0RKOztBQWdFQTtFQUNFLG9CQUFBO0VBQ0EsbUJBQUE7RUFDQSxlQUFBO0FBN0RGO0FBK0RFO0VBQ0UsZUFBQTtFQUNBLGdCQUFBO0VBQ0Esa0JBQUE7RUFDQSwyREFBQTtBQTdESjtBQStESTtFQUVFLDBDQUFBO0FBOUROO0FBaUVJO0VBQ0UsMENBQUE7QUEvRE47QUFtRUk7RUFDRSx5Q0FBQTtFQUNBLDJCQUFBO0VBQ0EsbUJBQUE7QUFqRU47QUFxRUU7RUFDRSwyQkFBQTtFQUNBLGFBQUE7RUFDQSx5QkFBQTtVQUFBLGlCQUFBO0FBbkVKOztBQXdFQTtFQUNFLGNBQUE7QUFyRUY7QUF1RUU7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxZQUFBO0VBQ0EsZUFBQTtBQXJFSjtBQXVFSTtFQUNFLFdBQUE7RUFDQSxZQUFBO0VBQ0Esa0JBQUE7RUFDQSx3SEFBQTtFQUNBLDBCQUFBO0VBQ0EsbURBQUE7RUFDQSxpQkFBQTtFQUNBLGNBQUE7QUFyRU47QUF3RUk7RUFDRSxZQUFBO0VBQ0Esa0JBQUE7RUFDQSx3SEFBQTtFQUNBLDBCQUFBO0VBQ0EsbURBQUE7QUF0RU47QUEwRUk7RUFDRSxrQkFBQTtBQXhFTjtBQTBFSTtFQUNFLGtCQUFBO0FBeEVOO0FBMEVJO0VBQ0Usa0JBQUE7QUF4RU47O0FBNkVBO0VBQ0U7SUFDRSwyQkFBQTtFQTFFRjtFQTRFQTtJQUNFLDRCQUFBO0VBMUVGO0FBQ0Y7QUE4RUE7RUFDRSxxQ0FBQTtBQTVFRjs7QUErRUE7RUFDRTtJQUFLLHdDQUFBO0VBM0VMO0VBNEVBO0lBQU8sNkJBQUE7RUF6RVA7QUFDRjtBQTZFQTtFQUNFLGVBQUE7RUFDQSxlQUFBO0VBQ0EsV0FBQTtFQUNBLFlBQUE7RUFDQSxpQkFBQTtFQUNBLGdCQUFBO0VBQ0EsY0FBQTtFQUNBLHNCQUFBO0VBQ0EsWUFBQTtFQUNBLDhCQUFBO0FBM0VGO0FBNkVFO0VBQ0UsVUFBQTtBQTNFSjs7QUErRUE7RUFDRSxjQUFBO0FBNUVGIiwic291cmNlc0NvbnRlbnQiOlsiLy8gT3V0ZXIgY29udGFpbmVyOiBwb3NpdGlvbmluZyBjb250ZXh0IGZvciBhYnNvbHV0ZSBvdmVybGF5XHJcbi50cmVlLXNjcm9sbC1jb250YWluZXIge1xyXG4gIHBvc2l0aW9uOiByZWxhdGl2ZTtcclxuICBoZWlnaHQ6IGNhbGMoMTAwdmggLSAxMjhweCk7XHJcbn1cclxuXHJcbi8vIFNjcm9sbCBjb250YWluZXJcclxuLnRyZWUtc2Nyb2xsLXdyYXBwZXIge1xyXG4gIGhlaWdodDogMTAwJTtcclxuICBvdmVyZmxvdy15OiBhdXRvO1xyXG59XHJcblxyXG4ubWF0LXRyZWUge1xyXG4gIGhlaWdodDogYXV0bztcclxufVxyXG5cclxuLy8gRGFyay1iYXNlZCB0aGVtZXMgKGRhcmsgKyBtaWxhbik6IG92ZXJyaWRlIGJhY2tncm91bmRzIGFuZCB0ZXh0IGNvbG9yc1xyXG46aG9zdC1jb250ZXh0KGJvZHkuZGFyay10aGVtZSksXHJcbjpob3N0LWNvbnRleHQoYm9keS5taWxhbi10aGVtZSkge1xyXG4gIC50cmVlLXNjcm9sbC1jb250YWluZXIge1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogdmFyKC0tbWRlLWJnLXByaW1hcnkpO1xyXG4gICAgY29sb3I6IHZhcigtLW1kZS10ZXh0LXByaW1hcnkpO1xyXG4gIH1cclxuXHJcbiAgLm1hdC10cmVlIHtcclxuICAgIGJhY2tncm91bmQtY29sb3I6IHZhcigtLW1kZS1iZy1wcmltYXJ5KTtcclxuICAgIGNvbG9yOiB2YXIoLS1tZGUtdGV4dC1wcmltYXJ5KTtcclxuICB9XHJcblxyXG4gIC5naXRodWItaWNvbiB7XHJcbiAgICBmaWx0ZXI6IGludmVydCgxKTtcclxuICB9XHJcbn1cclxuXHJcbi8vID09PT09PT09PT09PT09PT09PT09IFN0aWNreSBTY3JvbGwgUGFuZWwgPT09PT09PT09PT09PT09PT09PT1cclxuLy8gT3ZlcmxheSBhc3NvbHV0bzogZnVvcmkgZGFsIGZsdXNzbyBzY3JvbGwsIG5lc3N1biBmZWVkYmFjayBsb29wXHJcbi5zdGlja3ktYW5jZXN0b3JzLXBhbmVsIHtcclxuICBwb3NpdGlvbjogYWJzb2x1dGU7XHJcbiAgdG9wOiAwO1xyXG4gIGxlZnQ6IDA7XHJcbiAgcmlnaHQ6IDA7XHJcbiAgei1pbmRleDogMTA7XHJcbiAgYmFja2dyb3VuZDogdmFyKC0tbWRlLWJnLXNlY29uZGFyeSk7XHJcbiAgYm9yZGVyLWJvdHRvbTogMXB4IHNvbGlkIHZhcigtLW1kZS1ib3JkZXItY29sb3IpO1xyXG4gIGJveC1zaGFkb3c6IDAgMnB4IDRweCB2YXIoLS1tZGUtc2hhZG93LWNvbG9yKTtcclxuXHJcbiAgLnN0aWNreS1hbmNlc3Rvci1yb3cge1xyXG4gICAgZGlzcGxheTogZmxleDtcclxuICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgICBoZWlnaHQ6IDQwcHg7XHJcbiAgICBtaW4taGVpZ2h0OiA0MHB4O1xyXG4gICAgY3Vyc29yOiBwb2ludGVyO1xyXG4gICAgcGFkZGluZy1yaWdodDogOHB4O1xyXG4gICAgZ2FwOiA0cHg7XHJcbiAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtYmctc2Vjb25kYXJ5KTtcclxuICAgIGJvcmRlci1ib3R0b206IDFweCBzb2xpZCB2YXIoLS1tZGUtYm9yZGVyLWNvbG9yKTtcclxuXHJcbiAgICAmOmxhc3QtY2hpbGQgeyBib3JkZXItYm90dG9tOiBub25lOyB9XHJcblxyXG4gICAgJjpob3ZlciB7XHJcbiAgICAgIGJhY2tncm91bmQ6IHZhcigtLW1kZS1iZy1ob3Zlcik7XHJcbiAgICB9XHJcblxyXG4gICAgLmZvbGRlci1uYW1lIHtcclxuICAgICAgZm9udC1zaXplOiAxM3B4O1xyXG4gICAgICB3aGl0ZS1zcGFjZTogbm93cmFwO1xyXG4gICAgICBvdmVyZmxvdzogaGlkZGVuO1xyXG4gICAgICB0ZXh0LW92ZXJmbG93OiBlbGxpcHNpcztcclxuICAgIH1cclxuXHJcbiAgICBtYXQtaWNvbiB7XHJcbiAgICAgIGZvbnQtc2l6ZTogMjBweDtcclxuICAgICAgd2lkdGg6IDIwcHg7XHJcbiAgICAgIGhlaWdodDogMjBweDtcclxuICAgICAgZmxleC1zaHJpbms6IDA7XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcbi5tYXQtdHJlZS1ub2RlIHtcclxuICBtaW4taGVpZ2h0OiA0MHB4ICFpbXBvcnRhbnQ7XHJcbn1cclxuXHJcbjpob3N0LWNvbnRleHQoYm9keS5kYXJrLXRoZW1lKSAubWF0LXRyZWUtbm9kZSxcclxuOmhvc3QtY29udGV4dChib2R5Lm1pbGFuLXRoZW1lKSAubWF0LXRyZWUtbm9kZSB7XHJcbiAgY29sb3I6IHZhcigtLW1kZS10ZXh0LXByaW1hcnkpO1xyXG5cclxuICAubWF0LWljb246bm90KC5mb2xkZXItaWNvbik6bm90KC5nb2xkLWljb24pOm5vdCgudGVybWluYWwtaWNvbikge1xyXG4gICAgY29sb3I6IHZhcigtLW1kZS1pY29uLWNvbG9yKSAhaW1wb3J0YW50O1xyXG4gIH1cclxuXHJcbiAgLy8gUHJlc2VydmUgTWF0ZXJpYWwgY29sb3I9XCJwcmltYXJ5XCIgb24gYnV0dG9ucyBhbmQgdGhlaXIgaWNvbnNcclxuICBidXR0b24ubWF0LXByaW1hcnkgLm1hdC1pY29uLFxyXG4gIGJ1dHRvbi5tYXQtbWRjLWljb24tYnV0dG9uLm1hdC1wcmltYXJ5IC5tYXQtaWNvbiB7XHJcbiAgICBjb2xvcjogdmFyKC0tbWRlLWFjY2VudC1wcmltYXJ5KSAhaW1wb3J0YW50O1xyXG4gIH1cclxuXHJcbiAgLm5vZGUtdGV4dCwgLmZvbGRlci1uYW1lLCBzcGFuIHtcclxuICAgIGNvbG9yOiB2YXIoLS1tZGUtdGV4dC1wcmltYXJ5KTtcclxuICB9XHJcblxyXG4gIGJ1dHRvbjpub3QoLm1hdC1wcmltYXJ5KSB7XHJcbiAgICBjb2xvcjogdmFyKC0tbWRlLXRleHQtcHJpbWFyeSkgIWltcG9ydGFudDtcclxuICB9XHJcbn1cclxuLmJsdWUtbGluayB7XHJcbiAgY29sb3I6IGJsdWU7XHJcbiAgYm9yZGVyLWJvdHRvbS13aWR0aDogMXB4O1xyXG4gIGJvcmRlci1ib3R0b206IGRhc2hlZDtcclxuICBib3JkZXItYm90dG9tLWNvbG9yOiBncmV5O1xyXG59XHJcblxyXG4uYmFja2dyb3VuZC1oaWdobGlnaHQge1xyXG4gIGJhY2tncm91bmQtY29sb3I6IGJsdWU7XHJcbiAgY29sb3I6IHdoaXRlO1xyXG59XHJcblxyXG4vLyBTdGlsaSBwZXIgZmlsZSBub24gaW5kaWNpenphdGkgw6LCgMKUIFJJTU9TU0kgaWwgMjAyNi0wNS0yMyAoZ2F0aW5nIFVJKS5cclxuLy9cclxuLy8gUHJpbWEgcXVlc3RhIHJlZ29sYSBkaXNhYmlsaXRhdmEgaSBjbGljayAocG9pbnRlci1ldmVudHM6IG5vbmUpIHN1aSBmaWxlXHJcbi8vIG1hcmtkb3duIGZpbmNow4PCqSBsYSBwaXBlbGluZSBhc3luYyBub24gYXZldmEgaW5kaWNpenphdG8gaWwgZmlsZS4gUmlzdWx0YXRvOlxyXG4vLyBNREUgYXBwYXJpdmEgXCJpbmliaXRvXCIgcGVyIGwnaW50ZXJhIGR1cmF0YSBkZWxsJ2luZGljaXp6YXppb25lLCBpblxyXG4vLyBjb250cmFkZGl6aW9uZSBjb24gaWwgZGVzaWduIGFzeW5jIGRlbGxhIHBpcGVsaW5lICh2ZWRpXHJcbi8vIEluZGV4aW5nUGlwZWxpbmVTZXJ2aWNlLlJ1bkFzeW5jICsgVGFzay5ZaWVsZCkuXHJcbi8vXHJcbi8vIEwnaW5kaWNpenphemlvbmUgcG9wb2xhIGkgbGluayBjcm9zcy1maWxlIChMaW5rSW5zaWRlTWFya2Rvd24pIGVcclxuLy8gbCdlbWJlZGRpbmcgUkFHIMOiwoDClCBsJ2FwZXJ0dXJhIGRlbCBmaWxlIGluIHPDg8KpIG5vbiBkaXBlbmRlIGRhIHF1ZXN0aSBkYXRpLlxyXG4vL1xyXG4vLyBMYXNjaWF0byB2dW90byBjb21lIG1hcmtlciBzdG9yaWNvOyByaW1vc3NvIGRlbCB0dXR0byBzZSBuZXNzdW4gbGlzdGVuZXJcclxuLy8gZGlwZW5kZXNzZSBkYWxsYSBjbGFzc2UgLm1kLWZpbGUgKGNvbnRyb2xsYXRvOiBzb2xvIHF1ZXN0byBibG9jY28gU0NTUyBsYVxyXG4vLyB0YXJnZXRhdmEgcGVyIGRpbW1pbmcvZ2F0aW5nKS5cclxuLy9cclxuLy8gLm1kLWZpbGUge1xyXG4vLyAgICY6bm90KC5pbmRleGVkKSB7XHJcbi8vICAgICBvcGFjaXR5OiAwLjU7XHJcbi8vICAgICBjdXJzb3I6IG5vdC1hbGxvd2VkO1xyXG4vLyAgICAgcG9pbnRlci1ldmVudHM6IG5vbmU7XHJcbi8vICAgfVxyXG4vLyB9XHJcblxyXG4vLyBBbmltYXppb25lIHBlciBjYXJ0ZWxsZSBjb24gaW5kaWNpenphemlvbmUgaW4gY29yc29cclxuLmZvbGRlci1ub2RlIHtcclxuICAmLmluZGV4aW5nIHtcclxuICAgIC5mb2xkZXItaWNvbiB7XHJcbiAgICAgIHBvc2l0aW9uOiByZWxhdGl2ZTtcclxuICAgICAgXHJcbiAgICAgICY6OmFmdGVyIHtcclxuICAgICAgICBjb250ZW50OiBcIlwiO1xyXG4gICAgICAgIHBvc2l0aW9uOiBhYnNvbHV0ZTtcclxuICAgICAgICB0b3A6IC0ycHg7XHJcbiAgICAgICAgcmlnaHQ6IC0ycHg7XHJcbiAgICAgICAgd2lkdGg6IDhweDtcclxuICAgICAgICBoZWlnaHQ6IDhweDtcclxuICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjMjE5NkYzO1xyXG4gICAgICAgIGJvcmRlci1yYWRpdXM6IDUwJTtcclxuICAgICAgICBhbmltYXRpb246IGluZGV4aW5nLXB1bHNlIDEuNXMgZWFzZS1pbi1vdXQgaW5maW5pdGU7XHJcbiAgICAgIH1cclxuICAgIH1cclxuICAgIFxyXG4gICAgLmZvbGRlci1uYW1lIHtcclxuICAgICAgJjo6YWZ0ZXIge1xyXG4gICAgICAgIGNvbnRlbnQ6IFwiIChpbmRpY2l6emF6aW9uZS4uLilcIjtcclxuICAgICAgICBmb250LXNpemU6IDAuOGVtO1xyXG4gICAgICAgIGNvbG9yOiAjNjY2O1xyXG4gICAgICAgIGZvbnQtc3R5bGU6IGl0YWxpYztcclxuICAgICAgICBhbmltYXRpb246IGZhZGUtaW4tb3V0IDJzIGVhc2UtaW4tb3V0IGluZmluaXRlO1xyXG4gICAgICB9XHJcbiAgICB9XHJcbiAgfVxyXG59XHJcblxyXG5Aa2V5ZnJhbWVzIGluZGV4aW5nLXB1bHNlIHtcclxuICAwJSB7XHJcbiAgICB0cmFuc2Zvcm06IHNjYWxlKDEpO1xyXG4gICAgb3BhY2l0eTogMTtcclxuICB9XHJcbiAgNTAlIHtcclxuICAgIHRyYW5zZm9ybTogc2NhbGUoMS41KTtcclxuICAgIG9wYWNpdHk6IDAuNTtcclxuICB9XHJcbiAgMTAwJSB7XHJcbiAgICB0cmFuc2Zvcm06IHNjYWxlKDEpO1xyXG4gICAgb3BhY2l0eTogMTtcclxuICB9XHJcbn1cclxuXHJcbkBrZXlmcmFtZXMgZmFkZS1pbi1vdXQge1xyXG4gIDAlLCAxMDAlIHtcclxuICAgIG9wYWNpdHk6IDAuMztcclxuICB9XHJcbiAgNTAlIHtcclxuICAgIG9wYWNpdHk6IDE7XHJcbiAgfVxyXG59XHJcblxyXG4vLyBTdGlsaSBhZ2dpdW50aXZpIHBlciBsJ2FsYmVyb1xyXG4ubWF0LXRyZWUtbm9kZSB7XHJcbiAgJi5ub3QtaW5kZXhlZCB7XHJcbiAgICAubWF0LWljb24ge1xyXG4gICAgICBvcGFjaXR5OiAwLjU7XHJcbiAgICB9XHJcbiAgfVxyXG4gIFxyXG4gICYuaW5kZXhpbmcge1xyXG4gICAgLm1hdC1pY29uIHtcclxuICAgICAgYW5pbWF0aW9uOiByb3RhdGUgMnMgbGluZWFyIGluZmluaXRlO1xyXG4gICAgfVxyXG4gIH1cclxufVxyXG5cclxuLmZvbGRlci1zcGlubmVyIHtcclxuICBtYXJnaW46IDJweDtcclxuICBkaXNwbGF5OiBpbmxpbmUtYmxvY2s7XHJcbn1cclxuXHJcbkBrZXlmcmFtZXMgcm90YXRlIHtcclxuICBmcm9tIHtcclxuICAgIHRyYW5zZm9ybTogcm90YXRlKDBkZWcpO1xyXG4gIH1cclxuICB0byB7XHJcbiAgICB0cmFuc2Zvcm06IHJvdGF0ZSgzNjBkZWcpO1xyXG4gIH1cclxufVxyXG5cclxuLy8gU3RpbGkgcGVyIGlsIG5vZG8gc2VsZXppb25hdG9cclxuLm1hdC10cmVlLW5vZGUge1xyXG4gICYuc2VsZWN0ZWQge1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogdmFyKC0tbWRlLWFjY2VudC1saWdodCk7XHJcbiAgICBib3JkZXItbGVmdDogM3B4IHNvbGlkIHZhcigtLW1kZS1hY2NlbnQtcHJpbWFyeSk7XHJcblxyXG4gICAgLm5vZGUtdGV4dCB7XHJcbiAgICAgIGNvbG9yOiB2YXIoLS1tZGUtYWNjZW50LXByaW1hcnkpO1xyXG4gICAgICBmb250LXdlaWdodDogNTAwO1xyXG4gICAgfVxyXG4gIH1cclxuXHJcbiAgJjpob3Zlcjpub3QoLnNlbGVjdGVkKSB7XHJcbiAgICBiYWNrZ3JvdW5kLWNvbG9yOiB2YXIoLS1tZGUtYmctdGVydGlhcnkpO1xyXG4gIH1cclxufVxyXG5cclxuLm5vZGUtdGV4dCB7XHJcbiAgdHJhbnNpdGlvbjogY29sb3IgMC4ycyBlYXNlO1xyXG59XHJcblxyXG4uYXBwLWljb24taW1nIHtcclxuICB3aWR0aDogMjRweDtcclxuICBoZWlnaHQ6IDI0cHg7XHJcbiAgb2JqZWN0LWZpdDogY29udGFpbjtcclxuICB2ZXJ0aWNhbC1hbGlnbjogbWlkZGxlO1xyXG59XHJcblxyXG4vLyBTdGlsaSBwZXIgc25hY2tiYXIgZGkgc3VjY2Vzc29cclxuOjpuZy1kZWVwIC5zdWNjZXNzLXNuYWNrYmFyIHtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiAjNGNhZjUwICFpbXBvcnRhbnQ7XHJcbiAgY29sb3I6IHdoaXRlICFpbXBvcnRhbnQ7XHJcblxyXG4gIC5tYXQtYnV0dG9uIHtcclxuICAgIGNvbG9yOiB3aGl0ZSAhaW1wb3J0YW50O1xyXG4gIH1cclxuXHJcbiAgLm1hdC1zaW1wbGUtc25hY2tiYXItYWN0aW9uIHtcclxuICAgIGNvbG9yOiAjZThmNWU4ICFpbXBvcnRhbnQ7XHJcbiAgfVxyXG59XHJcblxyXG4vLyA9PT09PT09PT09PT09PT09PT09PSBEcmFnICYgRHJvcCA9PT09PT09PT09PT09PT09PT09PVxyXG4uZHJhZy1vdmVyIHtcclxuICBiYWNrZ3JvdW5kLWNvbG9yOiByZ2JhKDMzLCAxNTAsIDI0MywgMC4xNSkgIWltcG9ydGFudDtcclxuICBib3JkZXI6IDJweCBkYXNoZWQgIzIxOTZGMztcclxuICBib3JkZXItcmFkaXVzOiA0cHg7XHJcbn1cclxuXHJcbi8vID09PT09PT09PT09PT09PT09PT09IEZvbGRlciBSb3cgQ2xpY2thYmxlID09PT09PT09PT09PT09PT09PT09XHJcbi5mb2xkZXItcm93LWNsaWNrYWJsZSB7XHJcbiAgd2lkdGg6IDEwMCU7XHJcblxyXG4gICY6aG92ZXIge1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogdmFyKC0tbWRlLWhvdmVyLW92ZXJsYXkpO1xyXG4gIH1cclxuXHJcbiAgJjphY3RpdmUge1xyXG4gICAgYmFja2dyb3VuZC1jb2xvcjogdmFyKC0tbWRlLWJnLWhvdmVyKTtcclxuICB9XHJcbn1cclxuXHJcbi8vID09PT09PT09PT09PT09PT09PT09IENvbXBhY3QgRm9sZGVycyAoVlMgQ29kZS1zdHlsZSkgPT09PT09PT09PT09PT09PT09PT1cclxuLmNvbXBhY3RlZC1mb2xkZXIge1xyXG4gIGRpc3BsYXk6IGlubGluZS1mbGV4O1xyXG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XHJcbiAgZmxleC13cmFwOiB3cmFwO1xyXG5cclxuICAuY29tcGFjdC1zZWdtZW50IHtcclxuICAgIGN1cnNvcjogcG9pbnRlcjtcclxuICAgIHBhZGRpbmc6IDJweCA0cHg7XHJcbiAgICBib3JkZXItcmFkaXVzOiAzcHg7XHJcbiAgICB0cmFuc2l0aW9uOiBiYWNrZ3JvdW5kLWNvbG9yIDAuMTVzIGVhc2UsIG91dGxpbmUgMC4xNXMgZWFzZTtcclxuXHJcbiAgICAmOmhvdmVyLFxyXG4gICAgJi5zZWdtZW50LWhvdmVyIHtcclxuICAgICAgYmFja2dyb3VuZC1jb2xvcjogcmdiYSgzMywgMTUwLCAyNDMsIDAuMTUpO1xyXG4gICAgfVxyXG5cclxuICAgICY6YWN0aXZlIHtcclxuICAgICAgYmFja2dyb3VuZC1jb2xvcjogcmdiYSgzMywgMTUwLCAyNDMsIDAuMjUpO1xyXG4gICAgfVxyXG5cclxuICAgIC8vIEhpZ2hsaWdodCB3aGVuIGEgZmlsZSBpcyBiZWluZyBkcmFnZ2VkIG92ZXIgdGhpcyBzZWdtZW50XHJcbiAgICAmLnNlZ21lbnQtZHJhZy1vdmVyIHtcclxuICAgICAgYmFja2dyb3VuZC1jb2xvcjogcmdiYSgzMywgMTUwLCAyNDMsIDAuMyk7XHJcbiAgICAgIG91dGxpbmU6IDJweCBkYXNoZWQgIzIxOTZGMztcclxuICAgICAgb3V0bGluZS1vZmZzZXQ6IDFweDtcclxuICAgIH1cclxuICB9XHJcblxyXG4gIC5jb21wYWN0LXNlcGFyYXRvciB7XHJcbiAgICBjb2xvcjogdmFyKC0tbWRlLXRleHQtaGludCk7XHJcbiAgICBtYXJnaW46IDAgMXB4O1xyXG4gICAgdXNlci1zZWxlY3Q6IG5vbmU7XHJcbiAgfVxyXG59XHJcblxyXG4vLyA9PT09PT09PT09PT09PT09PT09PSBTa2VsZXRvbiBMb2FkZXIgPT09PT09PT09PT09PT09PT09PT1cclxuLm1kLXRyZWUtc2tlbGV0b24ge1xyXG4gIHBhZGRpbmc6IDhweCAwO1xyXG5cclxuICAuc2tlbGV0b24taXRlbSB7XHJcbiAgICBkaXNwbGF5OiBmbGV4O1xyXG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcclxuICAgIGhlaWdodDogNDBweDtcclxuICAgIHBhZGRpbmc6IDAgMTZweDtcclxuXHJcbiAgICAuc2tlbGV0b24taWNvbiB7XHJcbiAgICAgIHdpZHRoOiAyNHB4O1xyXG4gICAgICBoZWlnaHQ6IDI0cHg7XHJcbiAgICAgIGJvcmRlci1yYWRpdXM6IDRweDtcclxuICAgICAgYmFja2dyb3VuZDogbGluZWFyLWdyYWRpZW50KDkwZGVnLCB2YXIoLS1tZGUtYm9yZGVyLWNvbG9yKSAyNSUsIHZhcigtLW1kZS1iZy10ZXJ0aWFyeSkgNTAlLCB2YXIoLS1tZGUtYm9yZGVyLWNvbG9yKSA3NSUpO1xyXG4gICAgICBiYWNrZ3JvdW5kLXNpemU6IDIwMCUgMTAwJTtcclxuICAgICAgYW5pbWF0aW9uOiBza2VsZXRvbi1wdWxzZSAxLjVzIGVhc2UtaW4tb3V0IGluZmluaXRlO1xyXG4gICAgICBtYXJnaW4tcmlnaHQ6IDhweDtcclxuICAgICAgZmxleC1zaHJpbms6IDA7XHJcbiAgICB9XHJcblxyXG4gICAgLnNrZWxldG9uLXRleHQge1xyXG4gICAgICBoZWlnaHQ6IDE0cHg7XHJcbiAgICAgIGJvcmRlci1yYWRpdXM6IDRweDtcclxuICAgICAgYmFja2dyb3VuZDogbGluZWFyLWdyYWRpZW50KDkwZGVnLCB2YXIoLS1tZGUtYm9yZGVyLWNvbG9yKSAyNSUsIHZhcigtLW1kZS1iZy10ZXJ0aWFyeSkgNTAlLCB2YXIoLS1tZGUtYm9yZGVyLWNvbG9yKSA3NSUpO1xyXG4gICAgICBiYWNrZ3JvdW5kLXNpemU6IDIwMCUgMTAwJTtcclxuICAgICAgYW5pbWF0aW9uOiBza2VsZXRvbi1wdWxzZSAxLjVzIGVhc2UtaW4tb3V0IGluZmluaXRlO1xyXG4gICAgfVxyXG5cclxuICAgIC8vIEluZGVudGF6aW9uZSBwZXIgc2ltdWxhcmUgZ2VyYXJjaGlhIGFkIGFsYmVyb1xyXG4gICAgJi5pbmRlbnQtMCB7XHJcbiAgICAgIHBhZGRpbmctbGVmdDogMTZweDtcclxuICAgIH1cclxuICAgICYuaW5kZW50LTEge1xyXG4gICAgICBwYWRkaW5nLWxlZnQ6IDQwcHg7XHJcbiAgICB9XHJcbiAgICAmLmluZGVudC0yIHtcclxuICAgICAgcGFkZGluZy1sZWZ0OiA2NHB4O1xyXG4gICAgfVxyXG4gIH1cclxufVxyXG5cclxuQGtleWZyYW1lcyBza2VsZXRvbi1wdWxzZSB7XHJcbiAgMCUge1xyXG4gICAgYmFja2dyb3VuZC1wb3NpdGlvbjogMjAwJSAwO1xyXG4gIH1cclxuICAxMDAlIHtcclxuICAgIGJhY2tncm91bmQtcG9zaXRpb246IC0yMDAlIDA7XHJcbiAgfVxyXG59XHJcblxyXG4vLyA9PT09PT09PT09PT09PT09PT09PSBSZXZlYWwgaW4gVHJlZSBIaWdobGlnaHQgPT09PT09PT09PT09PT09PT09PT1cclxuLm1hdC10cmVlLW5vZGUucmV2ZWFsLWhpZ2hsaWdodCB7XHJcbiAgYW5pbWF0aW9uOiByZXZlYWwtZmxhc2ggMS41cyBlYXNlLW91dDtcclxufVxyXG5cclxuQGtleWZyYW1lcyByZXZlYWwtZmxhc2gge1xyXG4gIDAlIHsgYmFja2dyb3VuZC1jb2xvcjogcmdiYSgyNTUsIDE5MywgNywgMC40KTsgfVxyXG4gIDEwMCUgeyBiYWNrZ3JvdW5kLWNvbG9yOiB0cmFuc3BhcmVudDsgfVxyXG59XHJcblxyXG4vLyBEb2N1bWVudCBpY29uIG9uIGEgZm9sZGVyIG5vZGUgd2hlbiBpdCBvd25zIGEgZ2VuZXJhdGVkIFRPQyBmaWxlLlxyXG4vLyBDbGlja2FibGUsIG9wZW5zIDxkaXJuYW1lPi5tZC5kaXJlY3RvcnkgZGlyZWN0bHkuXHJcbi50b2MtaW5kaWNhdG9yIHtcclxuICBjdXJzb3I6IHBvaW50ZXI7XHJcbiAgZm9udC1zaXplOiAxOHB4O1xyXG4gIHdpZHRoOiAxOHB4O1xyXG4gIGhlaWdodDogMThweDtcclxuICBsaW5lLWhlaWdodDogMThweDtcclxuICBtYXJnaW4tbGVmdDogNnB4O1xyXG4gIGNvbG9yOiAjMTU2NWMwO1xyXG4gIHZlcnRpY2FsLWFsaWduOiBtaWRkbGU7XHJcbiAgb3BhY2l0eTogMC43O1xyXG4gIHRyYW5zaXRpb246IG9wYWNpdHkgMC4xNXMgZWFzZTtcclxuXHJcbiAgJjpob3ZlciB7XHJcbiAgICBvcGFjaXR5OiAxO1xyXG4gIH1cclxufVxyXG5cclxuOmhvc3QtY29udGV4dChib2R5LmRhcmstdGhlbWUpIC50b2MtaW5kaWNhdG9yIHtcclxuICBjb2xvcjogIzY0YjVmNjtcclxufVxyXG4iXSwic291cmNlUm9vdCI6IiJ9 */"],
       data: {
-        animation: [(0,angular_animations__WEBPACK_IMPORTED_MODULE_45__.fadeInOnEnterAnimation)()]
+        animation: [(0,angular_animations__WEBPACK_IMPORTED_MODULE_47__.fadeInOnEnterAnimation)()]
       },
       changeDetection: 0
     });

@@ -90,7 +90,11 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                                  | NotifyFilters.DirectoryName
                                  | NotifyFilters.LastWrite,
                     IncludeSubdirectories = true,
-                    EnableRaisingEvents = true
+                    EnableRaisingEvents = true,
+                    // Default is 8KB ≈ ~160 events: a git checkout/agent burst overflows
+                    // it and .NET silently STOPS delivering events (only the Error event
+                    // fires). 64KB is the documented maximum useful size.
+                    InternalBufferSize = 64 * 1024
                 };
 
                 // Create context
@@ -121,6 +125,12 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 watcher.Created += createdHandler;
                 watcher.Renamed += renamedHandler;
                 watcher.Deleted += deletedHandler;
+
+                // Buffer overflow / internal error: events HAVE BEEN LOST. Without
+                // this handler the loss was silent and the tree drifted out of sync
+                // until the user reopened the project. Recovery is explicit: tell
+                // the client to do a full reload.
+                watcher.Error += (sender, e) => OnWatcherError(context, e);
 
                 // Cache LinkIndexingEnabled setting from UserDB (Project table)
                 // Use IServiceScopeFactory because FileSystemWatcherManager is Singleton
@@ -232,34 +242,51 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             return _watchers.TryGetValue(connectionId, out var context) ? context.ProjectPath : null;
         }
 
-        public void SetWatcherEnabled(string connectionId, bool enabled)
+        public bool SetWatcherEnabled(string connectionId, bool enabled)
         {
             if (string.IsNullOrEmpty(connectionId))
             {
-                _logger.LogWarning("SetWatcherEnabled called with null/empty connectionId");
-                return;
+                _logger.LogWarning("SetWatcherEnabled called with null/empty connectionId — request NOT applied");
+                return false;
             }
 
             if (_watchers.TryGetValue(connectionId, out var context))
             {
-                // If the user explicitly disabled the watcher, skip internal re-enable requests
-                if (enabled && context.UserDisabledWatcher)
+                lock (context.DisableCountLock)
                 {
-                    _logger.LogDebug($"[{connectionId}] SetWatcherEnabled(true) skipped - user disabled watcher");
-                    return;
-                }
+                    if (enabled)
+                    {
+                        // Decrement the nesting counter; floor at 0 so a stray
+                        // double-enable cannot corrupt the bookkeeping.
+                        context.DisableCount = Math.Max(0, context.DisableCount - 1);
+                    }
+                    else
+                    {
+                        context.DisableCount++;
+                    }
 
-                // Set defense-in-depth flag BEFORE changing EnableRaisingEvents
-                // This catches .NET FileSystemWatcher buffered events that fire
-                // even after EnableRaisingEvents = false
-                context.IsTemporarilyDisabled = !enabled;
-                context.Watcher.EnableRaisingEvents = enabled;
-                _logger.LogDebug($"[{connectionId}] FileSystemWatcher EnableRaisingEvents set to {enabled}");
+                    // Events flow only when NO temporary disable is outstanding AND
+                    // the user has not disabled the watcher explicitly. With a flat
+                    // boolean, two independent owners (pull's finally vs indexing
+                    // pipeline's finally) re-enabled the watcher under each other.
+                    var shouldRaise = context.DisableCount == 0 && !context.UserDisabledWatcher;
+
+                    // Set defense-in-depth flag BEFORE changing EnableRaisingEvents
+                    // This catches .NET FileSystemWatcher buffered events that fire
+                    // even after EnableRaisingEvents = false
+                    context.IsTemporarilyDisabled = !shouldRaise;
+                    context.Watcher.EnableRaisingEvents = shouldRaise;
+
+                    _logger.LogDebug($"[{connectionId}] SetWatcherEnabled({enabled}) → disableCount={context.DisableCount}, raisingEvents={shouldRaise}");
+                }
+                return true;
             }
-            else
-            {
-                _logger.LogWarning($"SetWatcherEnabled: No watcher found for connection {connectionId}");
-            }
+
+            // Explicit failure: the caller asked to (un)guard the filesystem but no
+            // watcher context exists (e.g. stale connectionId after a SignalR
+            // reconnect). Callers must not assume the request took effect.
+            _logger.LogWarning($"SetWatcherEnabled: No watcher found for connection {connectionId} — request NOT applied");
+            return false;
         }
 
         public void SetUserWatcherPreference(string connectionId, bool enabled)
@@ -272,13 +299,48 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
             if (_watchers.TryGetValue(connectionId, out var context))
             {
-                context.UserDisabledWatcher = !enabled;
-                context.Watcher.EnableRaisingEvents = enabled;
+                lock (context.DisableCountLock)
+                {
+                    context.UserDisabledWatcher = !enabled;
+                    // Honor any outstanding temporary disables: re-enabling the user
+                    // preference must not turn events back on mid-git-operation.
+                    var shouldRaise = context.DisableCount == 0 && !context.UserDisabledWatcher;
+                    context.IsTemporarilyDisabled = !shouldRaise;
+                    context.Watcher.EnableRaisingEvents = shouldRaise;
+                }
                 _logger.LogInformation($"[{connectionId}] User watcher preference set to {enabled}");
             }
             else
             {
                 _logger.LogWarning($"SetUserWatcherPreference: No watcher found for connection {connectionId}");
+            }
+        }
+
+        /// <summary>
+        /// FileSystemWatcher.Error handler: the OS buffer overflowed (or the watcher
+        /// hit an internal error) and events HAVE BEEN LOST. Recovery is explicit:
+        /// notify the client with 'fileSystemWatcherError' so it performs a full
+        /// tree reload. Silent loss is never acceptable.
+        /// </summary>
+        private void OnWatcherError(WatcherContext context, ErrorEventArgs e)
+        {
+            var ex = e.GetException();
+            _logger.LogError(ex,
+                "⚠️ [{ConnectionId}] FileSystemWatcher ERROR (events lost, buffer overflow likely) — asking client for a full reload",
+                context.ConnectionId);
+
+            try
+            {
+                _hubContext.Clients.Client(context.ConnectionId)
+                    .SendAsync("fileSystemWatcherError", new
+                    {
+                        reason = ex is InternalBufferOverflowException ? "buffer-overflow" : "watcher-error",
+                        message = ex?.Message
+                    });
+            }
+            catch (Exception sendEx)
+            {
+                _logger.LogError(sendEx, "[{ConnectionId}] Could not notify client of watcher error", context.ConnectionId);
             }
         }
 

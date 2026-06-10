@@ -58,6 +58,23 @@ namespace MdExplorer.Services.IndexingPipeline
         // Singleton non può consumare Scoped. Si ottiene via _serviceScopeFactory.CreateScope()
         // alla fine della fase Embed per InvalidateCache. Stesso pattern di ReEmbedFileAsync (FSW).
 
+        // ── Serializzazione per projectPath ──
+        // Due pipeline concorrenti sullo stesso progetto interleavano
+        // CleanupDatabase + IndexFiles sullo stesso SQLite (duplicati/record persi).
+        // Una nuova RunAsync per lo stesso path CANCELLA la run precedente e
+        // ATTENDE che abbia rilasciato il DB prima di partire. Mai due attive.
+        private sealed class PipelineRun
+        {
+            public CancellationTokenSource Cts { get; init; }
+            // TCS (not the raw Task) so a successor can await release even if it
+            // observes this run between registration and core start.
+            public TaskCompletionSource<bool> Done { get; } =
+                new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+        private readonly object _runsLock = new object();
+        private readonly Dictionary<string, PipelineRun> _activeRuns =
+            new Dictionary<string, PipelineRun>(StringComparer.OrdinalIgnoreCase);
+
         public IndexingPipelineService(
             ILogger<IndexingPipelineService> logger,
             IDatabaseManager databaseManager,
@@ -95,19 +112,53 @@ namespace MdExplorer.Services.IndexingPipeline
             // per "staccare" la pipeline dalla response HTTP.
             //
             // Senza Task.Yield qui, l'intero metodo gira sincrono sul thread del controller
-            // finché non incontra un await che effettivamente cede. SignalR SendAsync, cleanup
-            // DB e IndexFiles sono tutti operazioni che spesso completano sincrone
-            // (SignalR torna subito quando il client è connesso e veloce; le DB ops NHibernate
-            // sono sincrone). Risultato osservato sui log:
-            //   - GetShallowStructure CALLED 12:13:09
-            //   - [IndexingPipeline] STARTED  12:13:09  ← gira nel thread del controller
-            //   - [IndexingPipeline] COMPLETED 12:13:36
-            //   - 📊 [ProjectScan] wall: 26819 ms ← response bloccata 27 secondi
-            //
-            // Task.Yield posta la continuazione sul ThreadPool: il chiamante riprende
-            // immediatamente, RunAsync continua su un thread separato.
+            // finché non incontra un await che effettivamente cede (SignalR SendAsync e le
+            // DB ops NHibernate spesso completano sincrone). Task.Yield posta la
+            // continuazione sul ThreadPool: il chiamante riprende immediatamente.
             await Task.Yield();
 
+            // ── Serializzazione per projectPath ──
+            // Una sola run attiva per progetto: la nuova CANCELLA la precedente e
+            // ATTENDE che abbia rilasciato l'IsolatedEngineDB prima di partire.
+            // Senza questo, due run (es. doppio loadAll ravvicinato) interleavavano
+            // CleanupDatabase + IndexFiles sullo stesso SQLite.
+            var run = new PipelineRun { Cts = CancellationTokenSource.CreateLinkedTokenSource(ct) };
+            PipelineRun previous;
+            lock (_runsLock)
+            {
+                _activeRuns.TryGetValue(projectPath, out previous);
+                _activeRuns[projectPath] = run;
+            }
+
+            if (previous != null)
+            {
+                _logger.LogWarning(
+                    "[IndexingPipeline] A run is already active for '{ProjectPath}' — cancelling it and waiting for DB release",
+                    projectPath);
+                previous.Cts.Cancel();
+                await previous.Done.Task;
+            }
+
+            try
+            {
+                await RunCoreAsync(connectionId, projectPath, linkIndexingEnabled, run.Cts.Token);
+            }
+            finally
+            {
+                lock (_runsLock)
+                {
+                    if (_activeRuns.TryGetValue(projectPath, out var current) && ReferenceEquals(current, run))
+                    {
+                        _activeRuns.Remove(projectPath);
+                    }
+                }
+                run.Done.TrySetResult(true);
+                run.Cts.Dispose();
+            }
+        }
+
+        private async Task RunCoreAsync(string connectionId, string projectPath, bool linkIndexingEnabled, CancellationToken ct)
+        {
             _logger.LogInformation(
                 "[IndexingPipeline] STARTED projectPath='{ProjectPath}' connectionId='{ConnectionId}' linkIndexingEnabled={LinkIndexingEnabled}",
                 projectPath, connectionId, linkIndexingEnabled);

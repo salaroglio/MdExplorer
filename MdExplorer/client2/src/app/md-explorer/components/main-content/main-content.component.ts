@@ -106,7 +106,12 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       takeUntil(this.destroy$)
     );
 
-    this.monitorMDService.addMarkdownFileListener(this.markdownFileIsChanged, this);
+    // takeUntil(destroy$): this component is destroyed/recreated when leaving and
+    // re-entering a project; the legacy addMarkdownFileListener accumulated one
+    // handler per instantiation and the document got reloaded N times per event.
+    this.monitorMDService.markdownFileChanged$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(data => this.markdownFileIsChanged(data, this));
   }
 
   ngOnInit(): void {
@@ -188,6 +193,18 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     ).subscribe(event => {
       this.handleFileDeleted(event.fullPath, event.name);
     });
+
+    // After a git pull / branch switch, reload the open document if the operation
+    // touched it. The watcher is OFF during git operations, so no
+    // markdownfileischanged will ever arrive for these files: this is the only
+    // channel that keeps the open document in sync with the pulled content.
+    this.monitorMDService.gitPullRefreshed$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(data => this.reloadOpenDocumentIfChanged(data?.changedFiles, 'git pull'));
+
+    this.monitorMDService.gitBranchSwitched$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(data => this.reloadOpenDocumentIfChanged(data?.changedFiles, 'branch switch'));
     
     // Subscribe to layout changes - RIMOSSO per usare solo CSS
     // this.layoutService.sidenavWidth$.pipe(
@@ -299,6 +316,33 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
           this.setupIframeEventListeners();
         }, 200);
       }
+    }
+  }
+
+  /**
+   * Reloads the currently open document when a git operation (pull / branch switch)
+   * changed it. `changedFiles` are repo-relative paths with '/' separators.
+   * Honors the user's autoload preference. A document deleted by the operation
+   * surfaces through the iframe error path (visible, not silent).
+   */
+  private reloadOpenDocumentIfChanged(changedFiles: string[] | undefined, source: string): void {
+    if (!changedFiles?.length) {
+      return;
+    }
+    const currentPath = this.contentState$.value.currentPath;
+    if (!currentPath) {
+      return;
+    }
+    if (localStorage.getItem('mdexplorer_autoload_disabled') === 'true') {
+      console.log(`[MainContent] ⏸️ Autoload disabled by user, not reloading open document after ${source}`);
+      return;
+    }
+
+    const normalize = (p: string) => p.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+    const current = normalize(currentPath);
+    if (changedFiles.some(p => normalize(p) === current)) {
+      console.log(`[MainContent] 🔄 Open document was changed by ${source} — reloading`);
+      this.loadMarkdownFile({ relativePath: currentPath } as MdFile);
     }
   }
 

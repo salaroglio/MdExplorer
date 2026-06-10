@@ -181,7 +181,8 @@ namespace MdExplorer.Services.Git
                 {
                     Success = true,
                     Message = message,
-                    Changes = hasChanges ? GetChangedFiles(repo) : new string[0],
+                    HasChanges = hasChanges,
+                    Changes = hasChanges ? GetCommitDiffPaths(repo, headCommitBefore, headCommitAfter) : new string[0],
                     Duration = stopwatch.Elapsed,
                     AuthenticationMethodUsed = _lastUsedAuthMethod
                 };
@@ -1501,6 +1502,8 @@ namespace MdExplorer.Services.Git
 
                 using var repo = new Repository(repositoryPath);
 
+                var headCommitBefore = repo.Head.Tip?.Sha;
+
                 // STEP 1: Try to find local branch first
                 var branch = repo.Branches[branchName];
 
@@ -1593,20 +1596,28 @@ namespace MdExplorer.Services.Git
 
                 // Verify the current branch with a fresh repository instance to avoid caching issues
                 string currentBranchName;
+                string headCommitAfter;
+                IEnumerable<string> changedPaths;
                 using (var freshRepo = new Repository(repositoryPath))
                 {
                     currentBranchName = freshRepo.Head.FriendlyName;
+                    headCommitAfter = freshRepo.Head.Tip?.Sha;
+                    changedPaths = GetCommitDiffPaths(freshRepo, headCommitBefore, headCommitAfter);
                     _logger.LogInformation("✅ Verified current branch from fresh repository: {CurrentBranch}", currentBranchName);
                 }
 
-                _logger.LogInformation("✅ Checkout operation completed successfully: {BranchName}, Duration: {Duration}ms",
-                    branchName, stopwatch.ElapsedMilliseconds);
+                var headMoved = headCommitBefore != headCommitAfter;
+
+                _logger.LogInformation("✅ Checkout operation completed successfully: {BranchName}, HeadMoved: {HeadMoved}, Duration: {Duration}ms",
+                    branchName, headMoved, stopwatch.ElapsedMilliseconds);
 
                 return new GitOperationResult
                 {
                     Success = true,
                     Message = $"Successfully checked out branch '{branchName}'",
                     BranchName = currentBranchName,  // Return verified branch name
+                    HasChanges = headMoved,
+                    Changes = headMoved ? changedPaths : new string[0],
                     Duration = stopwatch.Elapsed,
                     AuthenticationMethodUsed = _lastUsedAuthMethod
                 };
@@ -1951,6 +1962,49 @@ namespace MdExplorer.Services.Git
             }
             catch
             {
+                return new string[0];
+            }
+        }
+
+        /// <summary>
+        /// Files changed between two commits (e.g. HEAD before/after a pull or checkout).
+        /// This is the ONLY correct source for "what did the operation bring in":
+        /// the working-directory status (RetrieveStatus) is unrelated to it and on a
+        /// clean tree is empty even after a pull that changed hundreds of files.
+        /// Includes old paths of renamed/deleted entries so consumers can react to
+        /// files that disappeared.
+        /// </summary>
+        private IEnumerable<string> GetCommitDiffPaths(Repository repo, string shaBefore, string shaAfter)
+        {
+            try
+            {
+                if (shaBefore == shaAfter)
+                {
+                    return new string[0];
+                }
+
+                var treeBefore = shaBefore != null ? repo.Lookup<Commit>(shaBefore)?.Tree : null;
+                var treeAfter = shaAfter != null ? repo.Lookup<Commit>(shaAfter)?.Tree : null;
+
+                using var diff = repo.Diff.Compare<TreeChanges>(treeBefore, treeAfter);
+
+                var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var change in diff)
+                {
+                    if (!string.IsNullOrEmpty(change.Path))
+                    {
+                        paths.Add(change.Path);
+                    }
+                    if (!string.IsNullOrEmpty(change.OldPath) && change.OldPath != change.Path)
+                    {
+                        paths.Add(change.OldPath);
+                    }
+                }
+                return paths.ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetCommitDiffPaths failed comparing {Before} → {After}", shaBefore, shaAfter);
                 return new string[0];
             }
         }

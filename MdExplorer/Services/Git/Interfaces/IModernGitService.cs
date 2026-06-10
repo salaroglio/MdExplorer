@@ -14,6 +14,12 @@ namespace MdExplorer.Services.Git.Interfaces
         public string Message { get; set; }
         public string ErrorMessage { get; set; }
         public string CommitHash { get; set; }
+        /// <summary>
+        /// True when the operation moved HEAD (new content arrived), regardless
+        /// of whether the per-file diff could be computed. Drives the tree-refresh
+        /// notification: the working-directory status MUST NOT be used for this.
+        /// </summary>
+        public bool HasChanges { get; set; }
         public IEnumerable<string> Changes { get; set; }
         public AuthenticationMethod AuthenticationMethodUsed { get; set; }
         public TimeSpan Duration { get; set; }

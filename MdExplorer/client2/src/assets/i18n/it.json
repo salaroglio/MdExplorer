@@ -718,6 +718,7 @@
     "TOC_GENERATED_SUCCESS": "TOC generato con successo!",
     "DIR_INDEXED": "Directory indicizzate: {{count}} | Ultima: {{folder}}",
     "NEW_FILE_CREATED": "Nuovo file creato: {{name}}",
+    "WATCHER_OVERFLOW_RELOAD": "Eventi del file system persi: albero ricaricato automaticamente",
     "TREE_NOT_LOADED": "Albero non ancora caricato",
     "FILE_NOT_FOUND": "File non trovato nell'albero",
     "CANNOT_DETERMINE_ROOT": "Errore: impossibile determinare la radice del progetto",
