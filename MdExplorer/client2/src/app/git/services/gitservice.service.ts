@@ -774,6 +774,39 @@ export class GITService implements OnDestroy {
   }
 
   /**
+   * Add a git submodule to the project.
+   * Authentication is handled entirely by git's own credential chain (Git Credential Manager);
+   * MdExplorer never handles credentials for this operation.
+   * Sends connectionId so the backend can push the tree refresh via SignalR.
+   */
+  addSubmodule(projectPath: string, url: string, destinationPath: string,
+               branchName?: string, connectionId?: string)
+      : Observable<{ success: boolean; message?: string; error?: string; fileCount?: number }> {
+    const endpoint = '../api/ModernGit/add-submodule';
+    const request = {
+      repositoryPath: projectPath,
+      url: url,
+      destinationPath: destinationPath,
+      branchName: branchName || null,
+      connectionId: connectionId || null
+    };
+
+    return this.http.post<{ success: boolean; message?: string; error?: string; fileCount?: number }>(endpoint, request).pipe(
+      catchError(error => {
+        console.error('Error adding submodule:', error);
+        // ASP.NET ValidationProblemDetails has { title, errors: { field: [messages] } }
+        const validationErrors = error.error?.errors
+          ? Object.values(error.error.errors as Record<string, string[]>).reduce((acc, msgs) => acc.concat(msgs), [] as string[]).join(' ')
+          : null;
+        return of({
+          success: false,
+          error: error.error?.error || error.error?.message || validationErrors || error.error?.title || error.message || 'Failed to add submodule'
+        });
+      })
+    );
+  }
+
+  /**
    * Get repository status (for checking uncommitted changes)
    */
   getRepositoryStatus(projectPath: string): Observable<any> {

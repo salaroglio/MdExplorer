@@ -22,6 +22,7 @@ import { GitHistoryDialogComponent } from '../../../git/dialogs/git-history-dial
 import { GitBranchDialogComponent } from '../../../git/dialogs/git-branch-dialog/git-branch-dialog.component';
 import { GitSetupRemoteGenericDialogComponent } from '../../../git/dialogs/git-setup-remote-generic-dialog/git-setup-remote-generic-dialog.component';
 import { GitAccountManagementDialogComponent } from '../../../git/dialogs/git-account-management-dialog/git-account-management-dialog.component';
+import { GitAddSubmoduleDialogComponent } from '../../../git/dialogs/git-add-submodule-dialog/git-add-submodule-dialog.component';
 import { BookmarksService } from '../../services/bookmarks.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { Bookmark } from '../../services/Types/Bookmark';
@@ -769,6 +770,28 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     dialogRef.afterClosed().subscribe(result => {
       // Handle any result if needed
       console.log('Branch dialog closed');
+    });
+
+    this.matMenuTrigger?.closeMenu();
+  }
+
+  openAddSubmoduleDialog(): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+
+    const dialogRef = this.dialog.open(GitAddSubmoduleDialogComponent, {
+      width: '600px',
+      data: {
+        projectPath: projectPath,
+        connectionId: this.connectionId
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result === true) {
+        // Tree refresh arrives via SignalR 'gitBranchSwitched'; refresh git status here
+        this.checkConnection();
+      }
     });
 
     this.matMenuTrigger?.closeMenu();

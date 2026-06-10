@@ -551,8 +551,17 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                         root["mcpServers"] = servers;
                     }
 
-                    // Only write if "mdexplorer" entry doesn't exist yet (don't overwrite user customizations)
-                    if (!servers.ContainsKey(serverKey))
+                    // Write if the entry is missing, OR self-heal a stale/broken entry whose
+                    // launch target no longer resolves (old install path that changed between
+                    // installs, or a "dotnet run --project ..." fallback written on a client
+                    // that has neither the .NET SDK nor the sources). A working user
+                    // customization (an existing, resolvable command) is left untouched.
+                    // Only heal when we actually have a real MdExplorer.Mcp.exe to point at,
+                    // so we never replace an entry with another broken fallback.
+                    bool entryMissing = !servers.ContainsKey(serverKey);
+                    bool entryBroken = servers[serverKey] is System.Text.Json.Nodes.JsonObject existingEntry
+                                       && McpEntryLaunchTargetMissing(existingEntry);
+                    if (entryMissing || (File.Exists(mcpExePath) && entryBroken))
                     {
                         servers[serverKey] = serverEntry;
                     }
@@ -576,6 +585,48 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             {
                 Console.WriteLine($"Error creating Copilot CLI MCP configuration: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Returns true when an existing "mdexplorer" MCP entry cannot actually launch because
+        /// its configured command does not resolve on this machine: a direct exe path that no
+        /// longer exists (e.g. the install moved), or a "dotnet run --project &lt;path&gt;" fallback
+        /// pointing at sources that are not present (a client without the SDK/repo). Such entries
+        /// are safe to overwrite; a working command path is treated as a deliberate customization.
+        /// </summary>
+        private static bool McpEntryLaunchTargetMissing(System.Text.Json.Nodes.JsonObject entry)
+        {
+            var command = entry?["command"]?.GetValue<string>();
+            if (string.IsNullOrWhiteSpace(command))
+                return true;
+
+            // Fallback form: { "command": "dotnet", "args": ["run", "--project", "<path>"] }.
+            // This only works where the project source exists (a dev machine).
+            if (string.Equals(command, "dotnet", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(command, "dotnet.exe", StringComparison.OrdinalIgnoreCase))
+            {
+                if (entry["args"] is System.Text.Json.Nodes.JsonArray args)
+                {
+                    for (int i = 0; i < args.Count - 1; i++)
+                    {
+                        if (string.Equals(args[i]?.GetValue<string>(), "--project", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var projArg = args[i + 1]?.GetValue<string>();
+                            if (string.IsNullOrWhiteSpace(projArg))
+                                return true;
+                            var csproj = projArg.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
+                                ? projArg
+                                : Path.Combine(projArg, "MdExplorer.Mcp.csproj");
+                            return !File.Exists(csproj) && !Directory.Exists(projArg);
+                        }
+                    }
+                }
+                // "dotnet" with no resolvable --project target -> unusable.
+                return true;
+            }
+
+            // Direct form: the command is a path to MdExplorer.Mcp.exe.
+            return !File.Exists(command);
         }
 
         private static string FindMcpProjectPath(string baseDir)

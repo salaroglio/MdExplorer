@@ -1,0 +1,82 @@
+.dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  mat-icon {
+    color: #1976d2;
+  }
+}
+
+.dialog-content {
+  min-width: 480px;
+}
+
+.dialog-description {
+  margin: 0 0 16px 0;
+  opacity: 0.7;
+  font-size: 13px;
+}
+
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.validation-message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  margin: -12px 0 12px 0;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  &.validation-ok {
+    color: #2e7d32;
+  }
+
+  &.validation-fail {
+    color: #ef6c00;
+  }
+}
+
+.error-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(244, 67, 54, 0.08);
+  border: 1px solid rgba(244, 67, 54, 0.4);
+  border-radius: 4px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  color: #c62828;
+  font-size: 13px;
+  word-break: break-word;
+
+  mat-icon {
+    flex-shrink: 0;
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.progress-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 13px;
+  opacity: 0.8;
+}

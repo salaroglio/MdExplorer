@@ -1,0 +1,67 @@
+<h2 mat-dialog-title class="dialog-title">
+  <mat-icon>library_add</mat-icon>
+  {{ 'GIT_SUBMODULE.TITLE' | translate }}
+</h2>
+
+<mat-dialog-content class="dialog-content">
+  <p class="dialog-description">{{ 'GIT_SUBMODULE.DESCRIPTION' | translate }}</p>
+
+  <label class="field-label" for="submodule-url">{{ 'GIT_SUBMODULE.URL_LABEL' | translate }}</label>
+  <mat-form-field appearance="outline" class="full-width">
+    <input id="submodule-url" matInput
+           [(ngModel)]="repoUrl"
+           (ngModelChange)="onUrlChange()"
+           [disabled]="isAdding"
+           placeholder="https://github.com/org/repo.git"
+           required>
+    <mat-error *ngIf="repoUrl && !isUrlValid()">{{ 'GIT_SUBMODULE.URL_INVALID' | translate }}</mat-error>
+  </mat-form-field>
+  <div class="validation-message" *ngIf="validationMessage"
+       [class.validation-ok]="validationOk" [class.validation-fail]="!validationOk">
+    <mat-icon>{{ validationOk ? 'check_circle' : 'warning' }}</mat-icon>
+    <span>{{ validationMessage }}</span>
+  </div>
+
+  <label class="field-label" for="submodule-dest">{{ 'GIT_SUBMODULE.DEST_LABEL' | translate }}</label>
+  <mat-form-field appearance="outline" class="full-width">
+    <input id="submodule-dest" matInput
+           [(ngModel)]="destinationPath"
+           (input)="onDestinationInput()"
+           [disabled]="isAdding"
+           required>
+    <mat-hint>{{ 'GIT_SUBMODULE.DEST_HINT' | translate }}</mat-hint>
+    <mat-error *ngIf="destinationPath && !isDestinationValid()">{{ 'GIT_SUBMODULE.DEST_INVALID' | translate }}</mat-error>
+  </mat-form-field>
+
+  <label class="field-label" for="submodule-branch">{{ 'GIT_SUBMODULE.BRANCH_LABEL' | translate }}</label>
+  <mat-form-field appearance="outline" class="full-width">
+    <input id="submodule-branch" matInput
+           [(ngModel)]="branch"
+           [disabled]="isAdding"
+           [placeholder]="'GIT_SUBMODULE.BRANCH_PLACEHOLDER' | translate">
+  </mat-form-field>
+
+  <div class="error-box" *ngIf="error">
+    <mat-icon>error</mat-icon>
+    <span>{{ error }}</span>
+  </div>
+
+  <div class="progress-box" *ngIf="isAdding">
+    <mat-spinner diameter="28"></mat-spinner>
+    <span>{{ 'GIT_SUBMODULE.ADDING' | translate }}</span>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()" [disabled]="isAdding">
+    {{ 'COMMON.CANCEL' | translate }}
+  </button>
+  <button mat-stroked-button (click)="validateUrl()" [disabled]="!repoUrl || isValidating || isAdding">
+    <mat-icon *ngIf="!isValidating">travel_explore</mat-icon>
+    {{ 'GIT_SUBMODULE.VALIDATE_BTN' | translate }}
+  </button>
+  <button mat-raised-button color="primary" (click)="onAdd()" [disabled]="!isFormValid() || isAdding">
+    <mat-icon>library_add</mat-icon>
+    {{ 'GIT_SUBMODULE.ADD_BTN' | translate }}
+  </button>
+</mat-dialog-actions>
