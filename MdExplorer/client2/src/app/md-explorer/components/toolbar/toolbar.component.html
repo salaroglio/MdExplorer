@@ -162,6 +162,14 @@
         <mat-icon style="text-align:right" class="branch-icon">account_tree</mat-icon>
       </button>
     </div>
+    <div (click)="openAddSubmoduleDialog()"
+         class="container"
+         mat-menu-item (click)="$event.stopPropagation()">
+      <span>{{ 'TOOLBAR.ADD_SUBMODULE' | translate }}</span><span class="flexExpand"></span>
+      <button mat-icon-button>
+        <mat-icon style="text-align:right" class="submodule-icon">library_add</mat-icon>
+      </button>
+    </div>
   </div>
 </mat-menu>
 

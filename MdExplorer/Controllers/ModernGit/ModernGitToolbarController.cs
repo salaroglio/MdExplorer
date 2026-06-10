@@ -18,6 +18,7 @@ using Ad.Tools.Dal.Extensions;
 using MdExplorer.Service.Controllers;
 using MdExplorer.Service.Models;
 using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Services.FileSystemWatcherManager;
 using Microsoft.Extensions.Options;
 
 namespace MdExplorer.Controllers.ModernGit
@@ -40,9 +41,11 @@ namespace MdExplorer.Controllers.ModernGit
             IUserSettingsDB userSettingsDB,
             IEngineDB engineDB,
             IMdIgnoreService mdIgnoreService,
-            IDatabaseManager databaseManager = null)
+            IDatabaseManager databaseManager = null,
+            IFileSystemWatcherManager fileSystemWatcherManager = null)
             : base(logger, options, hubContext, userSettingsDB, engineDB,
-                  databaseManager: databaseManager)
+                  databaseManager: databaseManager,
+                  fileSystemWatcherManager: fileSystemWatcherManager)
         {
             _modernGitService = modernGitService;
             _mdIgnoreService = mdIgnoreService;

@@ -9,6 +9,7 @@ import { GitSetupRemoteGenericDialogComponent } from './dialogs/git-setup-remote
 import { GitTokenDialogComponent } from './dialogs/git-token-dialog/git-token-dialog.component';
 import { GitAccountManagementDialogComponent } from './dialogs/git-account-management-dialog/git-account-management-dialog.component';
 import { GitInitWizardDialogComponent } from './dialogs/git-init-wizard/git-init-wizard-dialog.component';
+import { GitAddSubmoduleDialogComponent } from './dialogs/git-add-submodule-dialog/git-add-submodule-dialog.component';
 import { MaterialModule } from '../shared/material.module';
 import { FormsModule } from '@angular/forms';
 import { TranslateModule } from '@ngx-translate/core';
@@ -25,7 +26,8 @@ import { TranslateModule } from '@ngx-translate/core';
     GitSetupRemoteGenericDialogComponent,
     GitTokenDialogComponent,
     GitAccountManagementDialogComponent,
-    GitInitWizardDialogComponent
+    GitInitWizardDialogComponent,
+    GitAddSubmoduleDialogComponent
   ],
   imports: [
     CommonModule,
@@ -41,7 +43,8 @@ import { TranslateModule } from '@ngx-translate/core';
     GitSetupRemoteGenericDialogComponent,
     GitTokenDialogComponent,
     GitAccountManagementDialogComponent,
-    GitInitWizardDialogComponent
+    GitInitWizardDialogComponent,
+    GitAddSubmoduleDialogComponent
   ]
 })
 export class GitModule { }

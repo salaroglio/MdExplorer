@@ -482,6 +482,23 @@
     "INIT_SUCCESS": "Git repository initialized successfully!",
     "INIT_FAILED": "Initialization failed: {{error}}"
   },
+  "GIT_SUBMODULE": {
+    "TITLE": "Add Git Submodule",
+    "DESCRIPTION": "Add another Git repository as a submodule of this project. Authentication is handled by Git itself (Git Credential Manager).",
+    "URL_LABEL": "Repository URL",
+    "URL_INVALID": "Enter a valid https://, ssh:// or git@ URL",
+    "URL_REACHABLE": "Repository reachable ({{count}} references found)",
+    "URL_UNREACHABLE": "Repository not reachable",
+    "DEST_LABEL": "Destination folder",
+    "DEST_HINT": "Relative path inside the project (e.g. shared-docs)",
+    "DEST_INVALID": "Must be a relative path inside the project (no absolute paths, no ..)",
+    "BRANCH_LABEL": "Branch (optional)",
+    "BRANCH_PLACEHOLDER": "Default branch if empty",
+    "VALIDATE_BTN": "Validate URL",
+    "ADD_BTN": "Add submodule",
+    "ADDING": "Adding submodule... Git Credential Manager may ask for credentials.",
+    "SUCCESS": "Submodule added successfully!"
+  },
   "GIT_REMOTE": {
     "GITHUB_TITLE": "Setup GitHub Remote",
     "GENERIC_TITLE": "Setup Remote Repository",
@@ -613,6 +630,7 @@
     "MANAGE_REMOTE": "Manage Remote",
     "HISTORY": "History",
     "BRANCH": "Branch",
+    "ADD_SUBMODULE": "Add submodule",
     "INITIALIZE_GIT": "Initialize Git",
     "AUTH_FAILED": "Authentication failed",
     "RECONFIGURE_CREDENTIALS": "Reconfigure Credentials",

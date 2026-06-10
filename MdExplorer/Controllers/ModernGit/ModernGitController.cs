@@ -20,6 +20,7 @@ using MdExplorer.Abstractions.Models;
 using Microsoft.Extensions.Options;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Services.FileSystemWatcherManager;
 
 namespace MdExplorer.Controllers.ModernGit
 {
@@ -51,8 +52,9 @@ namespace MdExplorer.Controllers.ModernGit
             IGenericRemoteService genericRemoteService,
             IGitAccountService gitAccountService,
             GitCredentialHelperResolver gitCredentialHelper,
-            IDatabaseManager databaseManager = null)
-            : base(logger, options, hubContext, userSettingsDb, engineDB, null, null, null, databaseManager)
+            IDatabaseManager databaseManager = null,
+            IFileSystemWatcherManager fileSystemWatcherManager = null)
+            : base(logger, options, hubContext, userSettingsDb, engineDB, null, null, null, databaseManager, fileSystemWatcherManager)
         {
             _gitService = gitService;
             _gitHubService = gitHubService;
@@ -528,6 +530,75 @@ namespace MdExplorer.Controllers.ModernGit
                     success = false,
                     error = "Internal server error during checkout operation"
                 });
+            }
+        }
+
+        /// <summary>
+        /// Adds a git submodule via native git CLI and triggers full tree refresh.
+        /// Authentication relies entirely on git's own credential chain (Git Credential Manager).
+        /// </summary>
+        /// <param name="request">Submodule add request (includes connectionId for SignalR)</param>
+        /// <returns>Result of the submodule add operation</returns>
+        [HttpPost("add-submodule")]
+        public async Task<IActionResult> AddSubmodule([FromBody] AddSubmoduleRequest request)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            _logger.LogInformation("🔗 Adding submodule '{Url}' at '{Path}' (branch: {Branch}, connectionId: {ConnectionId})",
+                request.Url, request.DestinationPath, request.BranchName ?? "default", request.ConnectionId ?? "none");
+
+            // Suspend the watcher: a whole folder tree appears at once during submodule clone
+            SetFileSystemWatcherEnabled(false);
+            try
+            {
+                var result = await _gitService.AddSubmoduleAsync(
+                    request.RepositoryPath, request.Url, request.DestinationPath, request.BranchName);
+
+                if (!result.Success)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        error = result.ErrorMessage,
+                        durationMs = result.Duration.TotalMilliseconds
+                    });
+                }
+
+                // Full tree refresh so the new submodule content shows up without manual reload
+                int fileCount = 0;
+                try
+                {
+                    fileCount = await PerformFullTreeRefreshAsync(request.RepositoryPath, request.ConnectionId);
+                    _logger.LogInformation("✅ Tree refresh completed after submodule add: {FileCount} files indexed", fileCount);
+                }
+                catch (Exception refreshEx)
+                {
+                    _logger.LogError(refreshEx, "❌ Tree refresh failed after submodule add (the add itself succeeded)");
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    message = result.Message,
+                    fileCount = fileCount,
+                    durationMs = result.Duration.TotalMilliseconds
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error during submodule add");
+                return StatusCode(500, new
+                {
+                    success = false,
+                    error = "Internal server error during submodule add"
+                });
+            }
+            finally
+            {
+                SetFileSystemWatcherEnabled(true);
             }
         }
 

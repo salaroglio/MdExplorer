@@ -31,6 +31,27 @@
              Condition="Exists('$(P2PDllSource)')" />
     <Message Text="P2P Premium DLL not found - skipping copy" Importance="high"
              Condition="!Exists('$(P2PDllSource)')" />
+
+    <!-- Publish the MdExplorer.Mcp stdio server into service_payload (app_service).
+         It is a SEPARATE project with no ProjectReference here, so the normal publish
+         does not include it. Without MdExplorer.Mcp.exe next to MdExplorer.Service.exe,
+         ProjectsManager.CreateCopilotCliMcpConfig falls back to a "dotnet run" entry
+         which fails on a client machine (no SDK / no sources) so Copilot/Mark cannot
+         start the MCP server and cannot read Jira/Confluence.
+         Self-contained is REQUIRED: the client has no .NET runtime installed. -->
+    <PropertyGroup>
+      <McpProjectPath>$(MSBuildThisFileDirectory)..\MdExplorer.Mcp\MdExplorer.Mcp.csproj</McpProjectPath>
+      <McpPublishDest>$(MSBuildThisFileDirectory)..\ElectronMdExplorer\service_payload</McpPublishDest>
+      <McpExeDest>$(McpPublishDest)\MdExplorer.Mcp.exe</McpExeDest>
+    </PropertyGroup>
+
+    <Message Text="Publishing MdExplorer.Mcp (self-contained $(RuntimeIdentifier)) into service_payload..." Importance="high" />
+    <Exec Command="dotnet publish &quot;$(McpProjectPath)&quot; -c $(Configuration) -r $(RuntimeIdentifier) --self-contained true -p:PublishSingleFile=false -o &quot;$(McpPublishDest)&quot;" />
+
+    <!-- Fail-loud: the installer must never ship without the MCP server. -->
+    <Error Condition="!Exists('$(McpExeDest)')"
+           Text="MdExplorer.Mcp.exe was NOT produced in service_payload ('$(McpExeDest)'). The MCP server would be missing from the installer and Mark could not read Jira/Confluence. Check the dotnet publish output above." />
+    <Message Text="MdExplorer.Mcp.exe published into service_payload" Importance="high" />
   </Target>
   
   <PropertyGroup>
