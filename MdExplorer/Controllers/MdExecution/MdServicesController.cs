@@ -43,6 +43,7 @@ namespace MdExplorer.Service.Controllers.MdExecution
             public string Language { get; set; }
             public string Code { get; set; }
             public string ProjectPath { get; set; }
+            public string DocumentPath { get; set; }
             public Dictionary<string, string> Parameters { get; set; }
         }
 
@@ -93,7 +94,8 @@ namespace MdExplorer.Service.Controllers.MdExecution
                     workingDirectory: request.ProjectPath,
                     environment: userValues,
                     blockId: request.BlockId,
-                    projectPath: request.ProjectPath);
+                    projectPath: request.ProjectPath,
+                    documentPath: request.DocumentPath);
 
                 return Ok(new { serviceId = service.Id, pid = service.Pid, blockId = service.BlockId });
             }

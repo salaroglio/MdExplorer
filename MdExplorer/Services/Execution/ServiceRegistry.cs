@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 
 namespace MdExplorer.Services.Execution
@@ -18,6 +19,7 @@ namespace MdExplorer.Services.Execution
         public string Id { get; init; }
         public string BlockId { get; init; }
         public string ProjectPath { get; init; }
+        public string DocumentPath { get; init; }   // full path of the .md that owns the block
         public string Language { get; init; }
         public string CodePreview { get; init; }
         public int Pid { get; set; }
@@ -26,6 +28,17 @@ namespace MdExplorer.Services.Execution
         public int? ExitCode { get; set; }
         public int? DetectedPort { get; set; }
         public string TempScriptPath { get; init; }
+
+        /// <summary>
+        /// True when this entry was rediscovered on startup from the marker store rather than
+        /// started in the current backend run. Such an entry has NO <see cref="Process"/> handle
+        /// (we can't recapture stdout of an already-running process) — it is stopped via the OS
+        /// marker / discovered PIDs instead.
+        /// </summary>
+        public bool IsReattached { get; init; }
+
+        /// <summary>Marker-bearing root PIDs found at discovery (reattached entries only).</summary>
+        public List<int> DiscoveredPids { get; init; }
 
         // Kept alive intentionally — NOT disposed until the process exits or is killed.
         internal Process Process { get; set; }
@@ -68,7 +81,25 @@ namespace MdExplorer.Services.Execution
             exitCode = ExitCode,
             detectedPort = DetectedPort,
             uptimeMs = (long)(DateTimeOffset.UtcNow - StartedAt).TotalMilliseconds,
+            reattached = IsReattached,
+            documentPath = DocumentPath,                       // full path — used to re-link a block on reload
+            documentRelativePath = ComputeDocumentRelativePath(),
         };
+
+        /// <summary>The owning document's path relative to the project root, for display.
+        /// Null when unknown (e.g. an old rediscovered service persisted before this was tracked).</summary>
+        private string ComputeDocumentRelativePath()
+        {
+            if (string.IsNullOrEmpty(DocumentPath)) return null;
+            if (string.IsNullOrEmpty(ProjectPath)) return DocumentPath;
+            try
+            {
+                var rel = Path.GetRelativePath(ProjectPath, DocumentPath);
+                // GetRelativePath returns the input unchanged if it can't relativize (different root).
+                return rel.Replace('\\', '/');
+            }
+            catch { return DocumentPath; }
+        }
     }
 
     /// <summary>

@@ -491,8 +491,15 @@
               <div class="service-command">
                 <span class="service-lang">{{ svc.language }}</span>
                 <code>{{ svc.codePreview }}</code>
+                <span *ngIf="svc.reattached" class="status-chip"
+                      [title]="'UNIFIED_SETTINGS.SERVICE_REATTACHED_HINT' | translate">
+                  {{ 'UNIFIED_SETTINGS.SERVICE_REATTACHED' | translate }}
+                </span>
               </div>
               <div class="service-meta">
+                <span *ngIf="svc.documentRelativePath">
+                  {{ 'UNIFIED_SETTINGS.SERVICES_DOCUMENT' | translate }}: {{ svc.documentRelativePath }}
+                </span>
                 <span>{{ 'UNIFIED_SETTINGS.SERVICES_PROJECT' | translate }}: {{ svc.projectPath }}</span>
                 <span>{{ 'UNIFIED_SETTINGS.SERVICES_PID' | translate }}: {{ svc.pid }}</span>
                 <span>{{ 'UNIFIED_SETTINGS.SERVICES_UPTIME' | translate }}: {{ formatUptime(svc.uptimeMs) }}</span>

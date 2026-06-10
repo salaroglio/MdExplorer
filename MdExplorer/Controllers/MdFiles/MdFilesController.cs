@@ -434,8 +434,29 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var fullPathNormalized = fullPathFileName.Replace("\\", "/");
             // Use case-insensitive replace for Windows compatibility
             var relativePathMDE = ReplaceCaseInsensitive(fullPathNormalized, projectPathNormalized, string.Empty);
-            var newLineTextToAdd = @$"[{Path.GetFileName(request.FullPath)}]({relativePathMDE})";
-            allText = string.Concat(allText, Environment.NewLine, newLineTextToAdd);
+            var linkText = @$"[{Path.GetFileName(request.FullPath)}]({relativePathMDE})";
+            // When adding several files at once we render them as a bullet list
+            if (request.AsBulletList)
+            {
+                linkText = "- " + linkText;
+            }
+
+            if (request.IsFirst)
+            {
+                // Ensure a blank line separates the new link(s) from the previous content,
+                // so the first link is never glued to the existing text/paragraph.
+                allText = allText.TrimEnd('\r', '\n');
+                if (allText.Length > 0)
+                {
+                    allText += Environment.NewLine + Environment.NewLine;
+                }
+                allText += linkText;
+            }
+            else
+            {
+                // Subsequent bullet items: one per line, right under the first one.
+                allText += Environment.NewLine + linkText;
+            }
             System.IO.File.WriteAllText(request.MdFile.FullPath, allText);
             return  Ok(new { message = "done" });
 

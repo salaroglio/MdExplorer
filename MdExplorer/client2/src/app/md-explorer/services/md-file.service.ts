@@ -1012,9 +1012,14 @@ export class MdFileService {
     }>(url, formData);
   }
 
-  addExistingFileToMDEProject(node: MdFile,path:String) {
+  addExistingFileToMDEProject(node: MdFile, path: String, options?: { asBulletList?: boolean; isFirst?: boolean }) {
     const url = '../api/mdfiles/addExistingFileToMDEProject';
-    return this.http.post<string>(url, { mdFile: node, fullPath:path });
+    return this.http.post<string>(url, {
+      mdFile: node,
+      fullPath: path,
+      asBulletList: options?.asBulletList ?? false,
+      isFirst: options?.isFirst ?? true
+    });
   }
 
   getTextFromClipboard() {

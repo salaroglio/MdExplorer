@@ -804,6 +804,9 @@
     "SELECT_TITLE": "Select file to add",
     "ADD_TO_PROJECT": "Add to project",
     "FILE_ADDED": "File added",
+    "FILES_ADDED": "{{count}} files added",
+    "NO_FILE": "Select at least one file",
+    "SELECTED_FILES_HEADER": "Selected files ({{count}})",
     "ADD_ERROR": "Error: {{error}}"
   },
   "CLIPBOARD": {
@@ -1308,6 +1311,9 @@
     "SELECT_TITLE": "Select file to add",
     "ADD_TO_PROJECT": "Add to project",
     "FILE_ADDED": "File added",
+    "FILES_ADDED": "{{count}} files added",
+    "NO_FILE": "Select at least one file",
+    "SELECTED_FILES_HEADER": "Selected files ({{count}})",
     "ADD_ERROR": "Error: {{error}}"
   },
   "CLIPBOARD": {
@@ -1693,7 +1699,8 @@
     "NEW_FOLDER_HERE": "New folder here",
     "CREATE_AS_CHILD": "Create as child of \"{{name}}\"",
     "OPEN_IN_EXPLORER": "Open in File Explorer",
-    "COPY_PATH": "Copy path"
+    "COPY_PATH": "Copy path",
+    "FILES_SELECTED": "{{count}} files selected"
   },
   "NEW_DIR": {
     "TITLE": "Create New Folder",
@@ -1856,6 +1863,7 @@
     "SERVICES_EMPTY": "No services are currently running. Use the ▾ next to a Run button and choose \"Run as service\" to start one.",
     "SERVICES_COMMAND": "Command",
     "SERVICES_PROJECT": "Project",
+    "SERVICES_DOCUMENT": "Document",
     "SERVICES_UPTIME": "Uptime",
     "SERVICES_PID": "PID",
     "SERVICES_PORT": "Port",
@@ -1864,6 +1872,8 @@
     "SERVICES_STOP_CONFIRM": "Stop this service?",
     "SERVICE_RESTART_CONFIRM": "A service is already running for this block. Stop it and restart?",
     "SERVICE_NO_PORT": "No listening port detected",
+    "SERVICE_REATTACHED": "Reattached",
+    "SERVICE_REATTACHED_HINT": "Rediscovered from a previous session — live output is not available, but it can be stopped.",
     "APP_SAVED": "Application settings saved",
     "DELETE_MODEL_CONFIRM": "Delete model {{name}}?",
     "SYSTEM_PROMPT_SAVED": "System prompt saved",

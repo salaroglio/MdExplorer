@@ -1,0 +1,37 @@
+.selected-files {
+  margin-top: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.selected-files-header {
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0.7;
+  margin-bottom: 4px;
+}
+
+.selected-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selected-file-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  opacity: 0.7;
+}
+
+.selected-file-path {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}

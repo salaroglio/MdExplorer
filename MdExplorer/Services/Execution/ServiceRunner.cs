@@ -19,19 +19,31 @@ namespace MdExplorer.Services.Execution
     /// </summary>
     public sealed class ServiceRunner
     {
+        /// <summary>Env var stamped on every spawned service, inherited by the whole process
+        /// tree. On Linux it is the rediscovery marker (read back from /proc/&lt;pid&gt;/environ).</summary>
+        public const string MarkerEnvIdKey = "MDE_SERVICE_ID";
+        public const string MarkerEnvGeneratedKey = "MDE_GENERATED";
+
+        /// <summary>Temp-script filename prefix. The service Id is embedded as the guid, so the
+        /// shell's command line carries <c>mde-svc-&lt;id&gt;</c> — the Windows WMI rediscovery marker.</summary>
+        public const string TempScriptPrefix = "mde-svc-";
+
         private readonly ShellRegistry _registry;
         private readonly ServiceRegistry _services;
+        private readonly ServiceMarkerStore _markerStore;
         private readonly IHubContext<MonitorMDHub> _hub;
         private readonly ILogger<ServiceRunner> _logger;
 
         public ServiceRunner(
             ShellRegistry registry,
             ServiceRegistry services,
+            ServiceMarkerStore markerStore,
             IHubContext<MonitorMDHub> hub,
             ILogger<ServiceRunner> logger)
         {
             _registry = registry;
             _services = services;
+            _markerStore = markerStore;
             _hub = hub;
             _logger = logger;
         }
@@ -42,7 +54,8 @@ namespace MdExplorer.Services.Execution
             string workingDirectory,
             IReadOnlyDictionary<string, string> environment,
             string blockId,
-            string projectPath)
+            string projectPath,
+            string documentPath = null)
         {
             if (!_registry.TryGet(language, out var descriptor))
             {
@@ -54,9 +67,12 @@ namespace MdExplorer.Services.Execution
                 ? (code ?? string.Empty).Replace("\r\n", "\n").Replace("\r", "\n")
                 : (code ?? string.Empty);
 
+            // The service Id IS the temp-script guid: the shell's command line then carries
+            // "mde-svc-<id>", which a fresh MdExplorer can rediscover via WMI on Windows.
+            var serviceId = Guid.NewGuid().ToString("N");
             var tempFile = Path.Combine(
                 Path.GetTempPath(),
-                $"mde-svc-{Guid.NewGuid():N}{descriptor.ScriptExtension}");
+                $"{TempScriptPrefix}{serviceId}{descriptor.ScriptExtension}");
             File.WriteAllText(tempFile, scriptBody, new UTF8Encoding(false));
 
             var psi = new ProcessStartInfo
@@ -83,11 +99,18 @@ namespace MdExplorer.Services.Execution
                 }
             }
 
+            // OS marker (set AFTER the user overlay so it can't be clobbered). Inherited by the
+            // whole descendant tree → on Linux the orphaned grandchild server still carries it,
+            // which is how rediscovery finds it even after the shell has died.
+            psi.Environment[MarkerEnvIdKey] = serviceId;
+            psi.Environment[MarkerEnvGeneratedKey] = "1";
+
             var service = new RunningService
             {
-                Id = Guid.NewGuid().ToString("N"),
+                Id = serviceId,
                 BlockId = blockId,
                 ProjectPath = projectPath,
+                DocumentPath = documentPath,
                 Language = language,
                 CodePreview = BuildCodePreview(code),
                 StartedAt = DateTimeOffset.UtcNow,
@@ -121,6 +144,7 @@ namespace MdExplorer.Services.Execution
                 _ = SafeSend("service.stopped", service.ToDto());
 
                 TryDeleteTemp(service.TempScriptPath);
+                _markerStore.Remove(service.Id);
                 _services.TryRemove(service.Id, out _);
                 try { process.Dispose(); } catch { /* already gone */ }
             };
@@ -133,6 +157,22 @@ namespace MdExplorer.Services.Execution
             service.Pid = process.Id;
 
             _services.TryAdd(service);
+
+            // Persist the marker record so a future MdExplorer run can rediscover this
+            // process (and stop it) even though the in-memory Process handle won't survive.
+            _markerStore.Upsert(new ServiceMarkerRecord
+            {
+                Id = service.Id,
+                BlockId = service.BlockId,
+                ProjectPath = service.ProjectPath,
+                DocumentPath = service.DocumentPath,
+                Language = service.Language,
+                CodePreview = service.CodePreview,
+                Pid = service.Pid,
+                StartedAt = service.StartedAt.ToString("o"),
+                LastPort = null,
+            });
+
             _ = SafeSend("service.started", service.ToDto());
 
             // Detect the listening port a moment after start (it appears asynchronously).
@@ -147,15 +187,26 @@ namespace MdExplorer.Services.Execution
             try
             {
                 service.Status = "killed"; // set BEFORE Kill so the Exited handler reports the right status
-                if (service.Process != null && !service.Process.HasExited)
+                if (service.IsReattached)
                 {
-                    service.Process.Kill(entireProcessTree: true);
+                    // No Process handle (rediscovered from a previous run) → kill via the
+                    // discovered PIDs and their subtrees. No Exited event will fire, so we
+                    // do the registry/marker cleanup here.
+                    KillReattached(service);
+                    _ = SafeSend("service.stopped", service.ToDto());
+                    _markerStore.Remove(service.Id);
+                    _services.TryRemove(service.Id, out _);
+                }
+                else if (service.Process != null && !service.Process.HasExited)
+                {
+                    service.Process.Kill(entireProcessTree: true); // Exited handler does the cleanup
                 }
                 else
                 {
                     // Already exited but Exited handler may not have run — clean up defensively.
                     _ = SafeSend("service.stopped", service.ToDto());
                     TryDeleteTemp(service.TempScriptPath);
+                    _markerStore.Remove(service.Id);
                     _services.TryRemove(service.Id, out _);
                 }
                 return true;
@@ -176,6 +227,90 @@ namespace MdExplorer.Services.Execution
             }
         }
 
+        /// <summary>
+        /// Re-adopt a service rediscovered on startup (see <see cref="ServiceDiscovery"/>): build a
+        /// reattached <see cref="RunningService"/>, register it, announce it via SignalR so it shows
+        /// up in Settings → Services, and (best-effort) re-detect its listening port.
+        /// </summary>
+        public RunningService RegisterReattached(ServiceMarkerRecord rec, List<int> livePids, int? detectedPort)
+        {
+            if (rec == null || livePids == null || livePids.Count == 0) return null;
+
+            var startedAt = DateTimeOffset.UtcNow;
+            if (!string.IsNullOrEmpty(rec.StartedAt) &&
+                DateTimeOffset.TryParse(rec.StartedAt, null,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var parsed))
+            {
+                startedAt = parsed;
+            }
+
+            var service = new RunningService
+            {
+                Id = rec.Id,
+                BlockId = rec.BlockId,
+                ProjectPath = rec.ProjectPath,
+                DocumentPath = rec.DocumentPath,
+                Language = rec.Language,
+                CodePreview = rec.CodePreview,
+                Pid = livePids[0],
+                StartedAt = startedAt,
+                Status = "running",
+                DetectedPort = detectedPort ?? rec.LastPort,
+                IsReattached = true,
+                DiscoveredPids = livePids,
+            };
+            service.AppendOutput(
+                "(reattached to a process from a previous MdExplorer session — live output is not available)\n");
+
+            if (!_services.TryAdd(service)) return null;
+            _ = SafeSend("service.started", service.ToDto());
+
+            // If we still don't have a port, scan each discovered PID subtree for one.
+            if (service.DetectedPort == null)
+                _ = Task.Run(() => ReDetectPortForReattached(service));
+
+            return service;
+        }
+
+        private async Task ReDetectPortForReattached(RunningService service)
+        {
+            for (var attempt = 0; attempt < 4; attempt++)
+            {
+                await Task.Delay(500);
+                if (service.Status != "running") return;
+                int? found = null;
+                foreach (var pid in service.DiscoveredPids ?? new List<int>())
+                {
+                    try { found = ListeningPortDetector.DetectListeningPort(pid, _logger); }
+                    catch { /* ignore */ }
+                    if (found != null) break;
+                }
+                if (found != null)
+                {
+                    service.DetectedPort = found;
+                    _markerStore.UpdatePort(service.Id, found);
+                    _ = SafeSend("service.started", service.ToDto());
+                    return;
+                }
+            }
+        }
+
+        private void KillReattached(RunningService service)
+        {
+            foreach (var pid in service.DiscoveredPids ?? new List<int>())
+            {
+                try
+                {
+                    using var p = Process.GetProcessById(pid);
+                    p.Kill(entireProcessTree: true);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "[ServiceRunner] reattached kill of pid {Pid} failed (already gone?)", pid);
+                }
+            }
+        }
+
         private async Task DetectPortWithRetryAsync(RunningService service)
         {
             // ~4s window: the server typically binds its port shortly after launch.
@@ -189,6 +324,7 @@ namespace MdExplorer.Services.Execution
                 if (port != null)
                 {
                     service.DetectedPort = port;
+                    _markerStore.UpdatePort(service.Id, port);
                     _ = SafeSend("service.started", service.ToDto()); // refresh dto with the port
                     return;
                 }

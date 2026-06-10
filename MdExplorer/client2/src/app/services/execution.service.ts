@@ -21,6 +21,7 @@ interface RunRequestPayload {
   params: Array<{ name: string; defaultValue: string; isSecret: boolean; description?: string; kind?: string }>;
   paramsInline?: boolean;
   projectPath: string;
+  documentPath?: string;
   mode?: 'batch' | 'service';
 }
 
@@ -79,6 +80,11 @@ export class ExecutionService {
             message: err?.message || 'Failed to stop service',
           });
         });
+      } else if (data.type === 'mde-exec.queryServices') {
+        // An iframe (re)loaded and wants to know which of its blocks have a service running,
+        // so they can re-render in the Stop state instead of resetting to Run.
+        this.handleQueryServices(src, data).catch(err =>
+          console.error('[ExecutionService] queryServices error:', err));
       } else if (data.type === 'mde-exec.requestPathPicker') {
         this.handlePathPickerRequest(src, data).catch(err => {
           console.error('[ExecutionService] Path picker error:', err);
@@ -319,6 +325,7 @@ export class ExecutionService {
         language: req.lang,
         code: req.code,
         projectPath,
+        documentPath: req.documentPath || '',
         parameters,
       }));
       // The service.started SignalR event flips the block into its running state.
@@ -327,6 +334,49 @@ export class ExecutionService {
       this.postToIframe(source, 'mde-exec.error', { blockId: req.blockId, message });
       this.runningBlocks.delete(req.blockId);
     }
+  }
+
+  /**
+   * Replies to an iframe's `mde-exec.queryServices` on (re)load: looks up the backend's live
+   * service list and, for every running service whose owning document matches this iframe,
+   * sends a `mde-exec.serviceStarted` so the matching block re-renders in its Stop state.
+   *
+   * Matching is keyed on (documentPath + blockId), NOT blockId alone: blockId is a hash of the
+   * code + position, so an identical block in a different document shares it — without the
+   * documentPath scope we would wrongly flip (and let you Stop) another document's service.
+   */
+  private async handleQueryServices(
+    source: Window | null,
+    req: { documentPath?: string },
+  ): Promise<void> {
+    if (!source) return;
+    const docPath = this.normalizePath(req.documentPath || '');
+    if (!docPath) return;
+
+    let services: any[] = [];
+    try {
+      services = await firstValueFrom(this.http.get<any[]>(`${this.serviceBaseUrl}/Services`));
+    } catch {
+      return; // backend unreachable — nothing to re-link, leave blocks idle
+    }
+
+    (services || []).forEach(svc => {
+      if (!svc || svc.status !== 'running' || !svc.blockId) return;
+      if (this.normalizePath(svc.documentPath || '') !== docPath) return;
+      this.runningServicesByBlock.set(svc.blockId, svc.id);
+      this.postToIframe(source, 'mde-exec.serviceStarted', {
+        blockId: svc.blockId,
+        serviceId: svc.id,
+        pid: svc.pid,
+      });
+    });
+  }
+
+  // Normalizes a filesystem path for cross-boundary comparison (unify separators, drop a
+  // trailing slash, case-fold). Both sides originate from the same DocumentPath attribute,
+  // so this is belt-and-suspenders against incidental separator/case differences.
+  private normalizePath(p: string): string {
+    return (p || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
   }
 
   private async fetchTrust(projectPath: string): Promise<boolean> {

@@ -91,7 +91,10 @@ namespace MdExplorer
             services.AddTransient<Services.Execution.ShellRunner>();
             // Long-running "services" started from code blocks (detached, no timeout)
             services.AddSingleton<Services.Execution.ServiceRegistry>();
+            services.AddSingleton<Services.Execution.ServiceMarkerStore>();
             services.AddTransient<Services.Execution.ServiceRunner>();
+            // Rediscovers services spawned by a previous run (crash/forced-kill/web restart)
+            services.AddSingleton<Services.Execution.ServiceDiscovery>();
 
             // Add modern Git services with native credential management
             services.AddModernGitServices(_Configuration);
@@ -388,6 +391,26 @@ namespace MdExplorer
               DiscoverAddresses(app.ServerFeatures, logger);
           });
             //#endif
+
+            // Re-adopt long-running services this machine spawned in a previous run that
+            // survived a crash / forced kill / web restart, so they reappear in Settings →
+            // Services and can be stopped. Off the startup thread (WMI / /proc scan).
+            lifetime.ApplicationStarted.Register(() =>
+            {
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try
+                    {
+                        var discovery = (Services.Execution.ServiceDiscovery)app.ApplicationServices
+                            .GetService(typeof(Services.Execution.ServiceDiscovery));
+                        discovery?.DiscoverAndReattach();
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "[Startup] Service rediscovery failed");
+                    }
+                });
+            });
 
             // Best-effort graceful cleanup of long-running services on shutdown (dev: Ctrl+C / dotnet run stop).
             // In the packaged app Electron hard-kills the backend, so the robust guarantee is the

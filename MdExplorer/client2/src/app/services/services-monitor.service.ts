@@ -14,6 +14,9 @@ export interface ServiceDto {
   exitCode: number | null;
   detectedPort: number | null;
   uptimeMs: number;
+  reattached?: boolean;    // true = rediscovered from a previous session (no live output)
+  documentPath?: string | null;          // owning .md full path (used to re-link a block on reload)
+  documentRelativePath?: string | null;  // owning .md path relative to the project root
 }
 
 /**

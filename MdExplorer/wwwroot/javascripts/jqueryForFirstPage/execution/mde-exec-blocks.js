@@ -127,6 +127,26 @@
                 });
             }
         });
+
+        // On (re)load, ask the parent which services are running for THIS document so blocks
+        // whose service survived a document switch / backend restart re-render in their Stop state.
+        queryRunningServices();
+    }
+
+    // Ask Angular which services are currently running for this document. The reply comes back
+    // as one `mde-exec.serviceStarted` per running block (reusing the existing handler), scoped
+    // by documentPath so an identical block in another document is never wrongly flipped.
+    function queryRunningServices() {
+        try {
+            if (blocksById.size === 0) return;
+            var documentPath = document.body ? (document.body.getAttribute('DocumentPath') || '') : '';
+            window.parent.postMessage({
+                type: 'mde-exec.queryServices',
+                documentPath: documentPath,
+            }, '*');
+        } catch (e) {
+            console.error('[mde-exec] queryServices postMessage failed:', e);
+        }
     }
 
     // Close any open run-menu when clicking elsewhere in the document.
@@ -211,9 +231,10 @@
         mode = mode || 'batch';
         markRunning(parsed, mode);
         try {
-            // Project path is written on <body ProjectPath="..."> by the server when the iframe
-            // is rendered. The Angular parent still validates it.
+            // Project/document paths are written on <body ProjectPath="..." DocumentPath="...">
+            // by the server when the iframe is rendered. The Angular parent still validates them.
             var projectPath = document.body ? (document.body.getAttribute('ProjectPath') || '') : '';
+            var documentPath = document.body ? (document.body.getAttribute('DocumentPath') || '') : '';
             var harvested = harvestInlineValues(parsed.element, parsed.params);
             window.parent.postMessage({
                 type: 'mde-exec.requestRun',
@@ -223,6 +244,7 @@
                 params: harvested.params,
                 paramsInline: harvested.inline,
                 projectPath: projectPath,
+                documentPath: documentPath,
                 mode: mode,
             }, '*');
         } catch (e) {

@@ -804,6 +804,9 @@
     "SELECT_TITLE": "Seleziona file da aggiungere",
     "ADD_TO_PROJECT": "Aggiungi al progetto",
     "FILE_ADDED": "File aggiunto",
+    "FILES_ADDED": "{{count}} file aggiunti",
+    "NO_FILE": "Seleziona almeno un file",
+    "SELECTED_FILES_HEADER": "File selezionati ({{count}})",
     "ADD_ERROR": "Errore: {{error}}"
   },
   "CLIPBOARD": {
@@ -1308,6 +1311,9 @@
     "SELECT_TITLE": "Seleziona file da aggiungere",
     "ADD_TO_PROJECT": "Aggiungi al progetto",
     "FILE_ADDED": "File aggiunto",
+    "FILES_ADDED": "{{count}} file aggiunti",
+    "NO_FILE": "Seleziona almeno un file",
+    "SELECTED_FILES_HEADER": "File selezionati ({{count}})",
     "ADD_ERROR": "Errore: {{error}}"
   },
   "CLIPBOARD": {
@@ -1693,7 +1699,8 @@
     "NEW_FOLDER_HERE": "Nuova cartella qui",
     "CREATE_AS_CHILD": "Crea come figlio di \"{{name}}\"",
     "OPEN_IN_EXPLORER": "Apri in Esplora File",
-    "COPY_PATH": "Copia percorso"
+    "COPY_PATH": "Copia percorso",
+    "FILES_SELECTED": "{{count}} file selezionati"
   },
   "NEW_DIR": {
     "TITLE": "Crea Nuova Cartella",
@@ -1856,6 +1863,7 @@
     "SERVICES_EMPTY": "Nessun servizio attivo. Usa la ▾ accanto al pulsante Run e scegli \"Run as service\" per avviarne uno.",
     "SERVICES_COMMAND": "Comando",
     "SERVICES_PROJECT": "Progetto",
+    "SERVICES_DOCUMENT": "Documento",
     "SERVICES_UPTIME": "Attivo da",
     "SERVICES_PID": "PID",
     "SERVICES_PORT": "Porta",
@@ -1864,6 +1872,8 @@
     "SERVICES_STOP_CONFIRM": "Fermare questo servizio?",
     "SERVICE_RESTART_CONFIRM": "C'è già un servizio attivo per questo blocco. Lo fermo e lo riavvio?",
     "SERVICE_NO_PORT": "Nessuna porta in ascolto rilevata",
+    "SERVICE_REATTACHED": "Riagganciato",
+    "SERVICE_REATTACHED_HINT": "Riscoperto da una sessione precedente — l'output live non è disponibile, ma può essere fermato.",
     "APP_SAVED": "Impostazioni applicazione salvate",
     "DELETE_MODEL_CONFIRM": "Eliminare il modello {{name}}?",
     "SYSTEM_PROMPT_SAVED": "System prompt salvato",

@@ -3,7 +3,7 @@ name: mde-readme
 description: Write README sections that include runnable script examples MdExplorer can execute interactively. Use whenever you document a CLI tool, build/deploy script, dev task, or any command-line invocation in a README, sprint note, or how-to doc. Each example must declare its parameters in a way MdExplorer's runner can detect, so the user can fill them in a dialog and click ▶ Run.
 mde:
   origin: mdexplorer
-  version: 3
+  version: 5
   updatePolicy: replace
 ---
 
@@ -76,6 +76,56 @@ The same `<NAME>` is then referenced inside the script body as `<name>` (lower-c
 underscores allowed) — case-insensitive match. Placeholders **never quoted by you**; the runner
 quotes them safely per shell.
 
+This bites hardest in **variable assignments**, where the quoting habit is strongest. Leave the
+placeholder bare:
+
+| Correct (bare)       | Wrong (quoted)          |
+| -------------------- | ----------------------- |
+| `$fuseki = <FUSEKI>` | `$fuseki = "<FUSEKI>"`  |
+| `DEST=<target_dir>`  | `DEST="<target_dir>"`   |
+
+The runner substitutes `<FUSEKI>` with an **already shell-quoted** value (e.g.
+`'http://localhost:3030'`). If you also quote it, the two stack up — `"<FUSEKI>"` →
+`"'http://localhost:3030'"` — and the variable ends up holding **literal quote characters**,
+producing failures like *"Invalid URI: hostname could not be parsed"*. The only exception is the
+legacy `export VAR="<x>"` form (Example 3), where the runner rewrites the entire right-hand side,
+quotes included.
+
+## Working directory — every command runs from the PROJECT ROOT
+
+**Critical:** when the user clicks ▶ Run, MdExplorer executes the script with the working
+directory set to the **project root** — the folder the user opened in MdExplorer — **not** the
+folder that contains the README. This is true even when the README lives several levels deep in a
+subfolder.
+
+Therefore **every relative path in the command must be written relative to the project root**, not
+relative to the README's own location. This applies to:
+- the **script/program being invoked** (`python main.py`, `./build.sh`, `node cli.js`),
+- any **helper files, config files, or relative output paths** the command references.
+
+The trap: a README documenting a tool naturally describes commands as if you were standing *inside*
+the tool's folder. That instinct produces a broken block. Example — a README at
+`ai-tools-pli/analyze-pli-programs/README.md` whose `main.py` sits **next to it**:
+
+| Wrong (relative to the README)        | Correct (relative to the project root)                          |
+| ------------------------------------- | --------------------------------------------------------------- |
+| `python main.py <pli_file>`           | `python ai-tools-pli/analyze-pli-programs/main.py <pli_file>`   |
+| `./run.sh`                            | `./tools/run.sh`                                                 |
+
+The wrong form fails with `can't open file '...\main.py': [Errno 2] No such file or directory`
+because Python looks for `main.py` in the project root, where it does not exist.
+
+Rules:
+- **Prefix the invoked script with its path from the project root.** This is the simplest robust
+  form and is unaffected by how parameter values are resolved.
+- **Do not assume the README's folder is the cwd.** Don't write `python main.py` hoping the runner
+  will `cd` next to the README — it won't.
+- If you genuinely need a different working directory, `cd` **explicitly using a root-relative
+  path** as the first line of the block (e.g. `cd ai-tools-pli/analyze-pli-programs`), then call
+  the script. Prefer the path-prefix form above unless the tool truly requires its own cwd.
+- `type: file` / `type: dir` pickers are also **rooted at the project root**, so picked paths share
+  the same anchor as your root-relative command — they stay consistent, no conflict.
+
 ## Examples to copy when authoring a README
 
 ### 1. Bash — deploy script
@@ -96,6 +146,10 @@ dotnet publish .\src\MyApp.csproj -c <Configuration> -r <Runtime> --self-contain
 ```
 
 ### 3. Bash with env-export style (also detected, legacy)
+
+**Special case:** the quotes around `"<greeting>"` are correct *only* here — the `export VAR=...`
+form makes the runner rewrite the whole right-hand side. Everywhere else (plain `$var = <x>`
+assignments, command arguments) keep placeholders **bare**.
 
 ```bash
 # @param GREETING — message to print (default: Hello)
@@ -136,6 +190,17 @@ the destination folder and types the filename.
 python -m tools.excel_to_markdown.main <input> -o <output_file>
 ```
 
+### 7. Tool living in a subfolder (path is relative to the project root)
+
+The README sits in `ai-tools-pli/analyze-pli-programs/`, and so does `main.py`. Because the block
+runs from the **project root**, the call must spell out the path to `main.py` from the root — not
+just `python main.py`.
+
+```bash
+# @param PLI_FILE — PL/I source to analyse (type: file)
+python ai-tools-pli/analyze-pli-programs/main.py <pli_file>
+```
+
 ## When the AI generates a README
 
 When you are asked to write or update a README that documents a runnable script:
@@ -159,12 +224,21 @@ When you are asked to write or update a README that documents a runnable script:
   exist.
 - ❌ Don't use angle brackets for anything other than parameter placeholders inside runnable
   blocks; the parser treats `<word>` as a parameter.
+- ❌ Don't quote a placeholder in an assignment or argument — `$x = "<param>"`, `--key "<key>"`.
+  The runner already shell-quotes substituted values, so your quotes stack and inject literal
+  quote characters. Keep them bare: `$x = <param>`, `--key <key>`. (Sole exception: the legacy
+  `export VAR="<x>"` form.)
 - ❌ Don't mix shells in a single fence (e.g. `bash` fence with PowerShell syntax inside).
+- ❌ Don't write a script path relative to the README's folder (`python main.py` when `main.py`
+  lives beside the README in a subfolder). The block runs from the **project root**, so it fails
+  with `can't open file`. Write the path from the root: `python tools/foo/main.py`.
 
 ## Quick checklist before committing a README
 
 - [ ] Every runnable fence starts with a `@param` header (or has no parameters at all).
 - [ ] Every placeholder `<name>` in the call has a matching `@param NAME` line above.
+- [ ] Every relative path (the invoked script, helper/config/output files) is written **relative to the project root**, not to the README's folder — the block runs from the project root.
+- [ ] Placeholders are **bare** (`$x = <name>`, `--key <name>`), never self-quoted — the runner quotes them.
 - [ ] Sensitive parameters are marked `secret` (or named with a secret-like suffix).
 - [ ] Defaults are provided for non-secret parameters where a sensible default exists.
 - [ ] Prose above the block explains the side effects.

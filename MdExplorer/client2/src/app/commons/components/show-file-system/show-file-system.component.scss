@@ -242,10 +242,18 @@
   margin-right: 12px;
   font-size: 20px;
   color: #666;
-  
+
   .content-item:hover & {
     color: #2196f3;
   }
+}
+
+// Checkbox indicator shown only in multi-select mode (FoldersAndFiles)
+.item-check {
+  margin-right: 8px;
+  font-size: 20px;
+  color: #2196f3;
+  flex: 0 0 auto;
 }
 
 .item-name {
