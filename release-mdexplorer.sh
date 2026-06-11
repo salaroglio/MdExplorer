@@ -6,8 +6,9 @@
 
 cd "$(dirname "$0")"
 
-# Lanciato con doppio click senza terminale? Riapriti in un terminale visibile.
-if [ ! -t 1 ]; then
+# Lanciato con doppio click senza terminale? Riapriti in un terminale visibile
+# (solo se c'è una sessione grafica: senza display si prosegue inline).
+if [ ! -t 1 ] && [ -n "$DISPLAY$WAYLAND_DISPLAY" ]; then
     for term in gnome-terminal konsole x-terminal-emulator xterm; do
         if command -v "$term" >/dev/null 2>&1; then
             case "$term" in
