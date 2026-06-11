@@ -11,7 +11,10 @@ import { EmbeddingConfigService, EmbeddingConfig, EmbeddingConfigResponse, Embed
 import { IMdSetting } from '../../models/IMdSetting';
 import { TocGenerationService } from '../../md-explorer/services/toc-generation.service';
 import { LanguageService } from '../../services/language.service';
+import { ThemeService, ThemeMode } from '../../services/theme.service';
 import { TranslateService } from '@ngx-translate/core';
+import { ServicesMonitorService, ServiceDto } from '../../services/services-monitor.service';
+import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 
 @Component({
   selector: 'app-unified-settings-dialog',
@@ -27,17 +30,23 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
   vscodePath: string = '';
   intellijPath: string = '';
   jiraServer: string = '';
+  jiraEnabled: boolean = false;
   plantumlLocalPath: string = '';
 
   javaPath: string = '';
   localGraphvizDotPath: string = '';
   fileChangeNotificationEnabled: boolean = true;
+  teamsChatEnabled: boolean = true;
   isElectronEnvironment: boolean = false;
   appSaving: boolean = false;
 
   // === Language ===
   currentLanguage: string = 'en';
   supportedLanguages: { code: string; label: string }[] = [];
+
+  // === Theme ===
+  currentThemeMode: ThemeMode = 'light';
+  supportedThemes: { code: ThemeMode; label: string; icon: string }[] = [];
 
   // === AI Models tab ===
   availableModels: ModelInfo[] = [];
@@ -93,6 +102,11 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
   editMaxEmbeddingChars: number = 12000;
   editSelectedModel: string = '';
 
+  // === Services tab ===
+  services: ServiceDto[] = [];
+  servicesLoading: boolean = false;
+  private servicesPollTimer: any = null;
+
   constructor(
     private dialogRef: MatDialogRef<UnifiedSettingsDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: any,
@@ -103,7 +117,10 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     private tocService: TocGenerationService,
     private snackBar: MatSnackBar,
     private languageService: LanguageService,
-    private translate: TranslateService
+    private themeService: ThemeService,
+    private translate: TranslateService,
+    private servicesMonitor: ServicesMonitorService,
+    private serverMessages: MdServerMessagesService
   ) {
     this.isElectronEnvironment = !!(window as any).electronAPI?.flashTaskbarIcon;
     if (data?.initialTab) {
@@ -114,6 +131,8 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.currentLanguage = this.languageService.getCurrentLanguage();
     this.supportedLanguages = this.languageService.getSupportedLanguages();
+    this.currentThemeMode = this.themeService.getCurrentMode();
+    this.supportedThemes = this.themeService.getSupportedThemes();
     this.loadApplicationSettings();
     this.loadAiModels();
     this.loadEmbeddingConfig();
@@ -139,10 +158,27 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
           this.loadGpuInfo();
         }
       });
+
+    // Keep the Services list fresh whenever a service starts/stops anywhere.
+    this.serverMessages.serviceStarted$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => { if (this.selectedCategory === 'services') this.loadServices(); });
+    this.serverMessages.serviceStopped$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => { if (this.selectedCategory === 'services') this.loadServices(); });
+
+    if (this.selectedCategory === 'services') {
+      this.startServicesPolling();
+    }
   }
 
   selectCategory(category: string): void {
     this.selectedCategory = category;
+    if (category === 'services') {
+      this.startServicesPolling();
+    } else {
+      this.stopServicesPolling();
+    }
   }
 
   // ============================
@@ -157,9 +193,18 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
         this.vscodePath = settings.find(_ => _.name === 'EditorPath')?.valueString || '';
         this.intellijPath = settings.find(_ => _.name === 'IntelliJPath')?.valueString || '';
         this.jiraServer = settings.find(_ => _.name === 'JiraServer')?.valueString || '';
+        this.jiraEnabled = (settings.find(_ => _.name === 'JiraEnabled')?.valueInt ?? 0) === 1;
         this.plantumlLocalPath = settings.find(_ => _.name === 'PlantumlLocalPath')?.valueString || '';
         this.javaPath = settings.find(_ => _.name === 'JavaPath')?.valueString || '';
         this.localGraphvizDotPath = settings.find(_ => _.name === 'LocalGraphvizDotPath')?.valueString || '';
+        // Teams chat defaults to enabled when the setting is missing.
+        this.teamsChatEnabled = (settings.find(_ => _.name === 'TeamsChatEnabled')?.valueInt ?? 1) === 1;
+
+        const savedTheme = settings.find(_ => _.name === 'ThemeMode')?.valueString;
+        if (savedTheme && ['light', 'dark', 'system'].includes(savedTheme)) {
+          this.currentThemeMode = savedTheme as ThemeMode;
+          this.themeService.setTheme(this.currentThemeMode);
+        }
       }
     });
     this.fileChangeNotificationEnabled = this.fileChangeNotificationService.isEnabled();
@@ -173,12 +218,16 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     this.updateSetting('EditorPath', this.vscodePath);
     this.updateSetting('IntelliJPath', this.intellijPath);
     this.updateSetting('JiraServer', this.jiraServer);
+    this.updateSettingInt('JiraEnabled', this.jiraEnabled ? 1 : 0);
     this.updateSetting('PlantumlLocalPath', this.plantumlLocalPath);
     this.updateSetting('JavaPath', this.javaPath);
     this.updateSetting('LocalGraphvizDotPath', this.localGraphvizDotPath);
+    this.updateSettingInt('TeamsChatEnabled', this.teamsChatEnabled ? 1 : 0);
+    this.updateSetting('ThemeMode', this.currentThemeMode);
 
     this.appMetadataService.saveSettings(this._settings).subscribe(() => {
       this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.APP_SAVED'), '', { duration: 2000 });
+      this.dialogRef.close();
     });
   }
 
@@ -191,8 +240,23 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     }
   }
 
+  private updateSettingInt(name: string, value: number): void {
+    const setting = this._settings.find(_ => _.name === name);
+    if (setting) {
+      setting.valueInt = value;
+    } else {
+      this._settings.push({ name: name, valueInt: value } as IMdSetting);
+    }
+  }
+
   onLanguageChange(): void {
     this.languageService.setLanguage(this.currentLanguage);
+  }
+
+  onThemeChange(): void {
+    this.themeService.setTheme(this.currentThemeMode);
+    this.updateSetting('ThemeMode', this.currentThemeMode);
+    this.appMetadataService.saveSettings(this._settings).subscribe();
   }
 
   // ============================
@@ -247,7 +311,6 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
           this.gpuEnabled = response.gpuEnabled;
           this.gpuLayerCount = response.gpuLayerCount || 0;
         }
-        this.tocService.setAiMode(false).subscribe();
         this.aiService.saveDefaultAiPreferences('local', model.id).subscribe();
         this.loadAiModels();
       },
@@ -336,7 +399,6 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     this.selectedProvider = 'gemini';
     this.aiService.setProvider('gemini', modelId);
     this.aiService.notifyGeminiConnected(modelId);
-    this.tocService.setAiMode(true, modelId).subscribe();
     this.aiService.saveDefaultAiPreferences('gemini', modelId).subscribe();
     this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.CONNECTED_GEMINI', { model: modelId }), '', { duration: 2000 });
   }
@@ -344,7 +406,6 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
   disconnectGemini(): void {
     this.useGemini = false;
     this.aiService.setUseGemini(false, null);
-    this.tocService.setAiMode(false).subscribe();
     this.aiService.notifyGeminiDisconnected();
   }
 
@@ -498,7 +559,68 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     this.dialogRef.close();
   }
 
+  // ============================
+  //  SERVICES TAB
+  // ============================
+
+  private startServicesPolling(): void {
+    this.loadServices();
+    if (this.servicesPollTimer) return;
+    // Refresh periodically so the uptime column stays current while the panel is open.
+    this.servicesPollTimer = setInterval(() => this.loadServices(), 3000);
+  }
+
+  private stopServicesPolling(): void {
+    if (this.servicesPollTimer) {
+      clearInterval(this.servicesPollTimer);
+      this.servicesPollTimer = null;
+    }
+  }
+
+  loadServices(): void {
+    this.servicesLoading = true;
+    this.servicesMonitor.list().subscribe({
+      next: (list) => {
+        this.services = list || [];
+        this.servicesLoading = false;
+      },
+      error: () => { this.servicesLoading = false; }
+    });
+  }
+
+  stopService(svc: ServiceDto): void {
+    const msg = this.translate.instant('UNIFIED_SETTINGS.SERVICES_STOP_CONFIRM');
+    if (!window.confirm(msg)) return;
+    this.servicesMonitor.stop(svc.id).subscribe({
+      next: () => this.loadServices(),
+      error: () => this.loadServices(),
+    });
+  }
+
+  openInBrowser(svc: ServiceDto): void {
+    if (!svc.detectedPort) return;
+    const url = `http://localhost:${svc.detectedPort}`;
+    const api = (window as any).electronAPI;
+    if (api?.openExternal) {
+      api.openExternal(url);
+    } else {
+      window.open(url, '_blank');
+    }
+  }
+
+  formatUptime(ms: number): string {
+    if (!ms || ms < 0) return '0s';
+    const totalSec = Math.floor(ms / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    const s = totalSec % 60;
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${s}s`;
+    return `${s}s`;
+  }
+
   ngOnDestroy(): void {
+    this.stopServicesPolling();
     this.destroy$.next();
     this.destroy$.complete();
   }

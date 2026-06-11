@@ -63,7 +63,9 @@ namespace MdExplorer.Controllers.AI
                 }
 
                 var settingsDal = _session.GetDal<Setting>();
-                var settings = settingsDal.GetList();
+                // Materialize the list up-front: IQueryable re-executes on each FirstOrDefault,
+                // triggering NHibernate auto-flush on a dirty session → StaleObjectStateException.
+                var settings = settingsDal.GetList().ToList();
 
                 _session.BeginTransaction(System.Data.IsolationLevel.Unspecified);
 
@@ -121,7 +123,8 @@ namespace MdExplorer.Controllers.AI
             try
             {
                 var settingsDal = _session.GetDal<Setting>();
-                var settings = settingsDal.GetList();
+                // Same materialization fix as SaveDefaultPreferences (avoid IQueryable auto-flush).
+                var settings = settingsDal.GetList().ToList();
 
                 _session.BeginTransaction(System.Data.IsolationLevel.Unspecified);
 

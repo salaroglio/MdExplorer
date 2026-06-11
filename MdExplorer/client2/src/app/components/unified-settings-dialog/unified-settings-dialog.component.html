@@ -22,6 +22,11 @@
         <mat-icon matListItemIcon>hub</mat-icon>
         <span>{{ 'SETTINGS.EMBEDDING' | translate }}</span>
       </mat-list-item>
+      <mat-list-item (click)="selectCategory('services')"
+                     [class.active]="selectedCategory === 'services'">
+        <mat-icon matListItemIcon>dns</mat-icon>
+        <span>{{ 'SETTINGS.SERVICES' | translate }}</span>
+      </mat-list-item>
     </mat-list>
   </div>
 
@@ -72,11 +77,29 @@
               <mat-hint>{{ 'UNIFIED_SETTINGS.GRAPHVIZ_HINT' | translate }}</mat-hint>
             </mat-form-field>
 
+            <div class="jira-settings-row">
+              <mat-slide-toggle
+                [(ngModel)]="jiraEnabled"
+                color="primary">
+                {{ 'UNIFIED_SETTINGS.JIRA_ENABLED' | translate }}
+              </mat-slide-toggle>
+              <p class="hint-text">{{ 'UNIFIED_SETTINGS.JIRA_ENABLED_HINT' | translate }}</p>
+            </div>
+
             <mat-form-field appearance="outline">
               <mat-label>{{ 'UNIFIED_SETTINGS.JIRA_PATH' | translate }}</mat-label>
-              <input matInput [(ngModel)]="jiraServer" [placeholder]="'UNIFIED_SETTINGS.JIRA_PLACEHOLDER' | translate">
+              <input matInput [(ngModel)]="jiraServer" [disabled]="!jiraEnabled" [placeholder]="'UNIFIED_SETTINGS.JIRA_PLACEHOLDER' | translate">
               <mat-hint>{{ 'UNIFIED_SETTINGS.JIRA_HINT' | translate }}</mat-hint>
             </mat-form-field>
+
+            <div class="jira-settings-row">
+              <mat-slide-toggle
+                [(ngModel)]="teamsChatEnabled"
+                color="primary">
+                {{ 'UNIFIED_SETTINGS.TEAMS_CHAT_ENABLED' | translate }}
+              </mat-slide-toggle>
+              <p class="hint-text">{{ 'UNIFIED_SETTINGS.TEAMS_CHAT_ENABLED_HINT' | translate }}</p>
+            </div>
 
           </div>
         </mat-card-content>
@@ -96,6 +119,24 @@
               </mat-option>
             </mat-select>
             <mat-hint>{{ 'SETTINGS.LANGUAGE_HINT' | translate }}</mat-hint>
+          </mat-form-field>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Theme -->
+      <mat-card style="margin-top: 16px;">
+        <mat-card-header>
+          <mat-card-title>{{ 'SETTINGS.THEME' | translate }}</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <mat-form-field appearance="outline" style="width: 300px;">
+            <mat-label>{{ 'SETTINGS.THEME' | translate }}</mat-label>
+            <mat-select [(ngModel)]="currentThemeMode" (selectionChange)="onThemeChange()">
+              <mat-option *ngFor="let theme of supportedThemes" [value]="theme.code">
+                <mat-icon>{{ theme.icon }}</mat-icon> {{ 'SETTINGS.THEME_' + theme.code.toUpperCase() | translate }}
+              </mat-option>
+            </mat-select>
+            <mat-hint>{{ 'SETTINGS.THEME_HINT' | translate }}</mat-hint>
           </mat-form-field>
         </mat-card-content>
       </mat-card>
@@ -433,9 +474,62 @@
       </mat-card>
     </div>
 
+    <!-- ================================ -->
+    <!-- SERVICES TAB                     -->
+    <!-- ================================ -->
+    <div *ngIf="selectedCategory === 'services'" class="tab-panel">
+      <h3>{{ 'UNIFIED_SETTINGS.SERVICES_TITLE' | translate }}</h3>
+
+      <p *ngIf="services.length === 0 && !servicesLoading" class="hint-text">
+        {{ 'UNIFIED_SETTINGS.SERVICES_EMPTY' | translate }}
+      </p>
+
+      <mat-card *ngFor="let svc of services" class="service-card" style="margin-bottom: 12px;">
+        <mat-card-content>
+          <div class="service-row">
+            <div class="service-info">
+              <div class="service-command">
+                <span class="service-lang">{{ svc.language }}</span>
+                <code>{{ svc.codePreview }}</code>
+                <span *ngIf="svc.reattached" class="status-chip"
+                      [title]="'UNIFIED_SETTINGS.SERVICE_REATTACHED_HINT' | translate">
+                  {{ 'UNIFIED_SETTINGS.SERVICE_REATTACHED' | translate }}
+                </span>
+              </div>
+              <div class="service-meta">
+                <span *ngIf="svc.documentRelativePath">
+                  {{ 'UNIFIED_SETTINGS.SERVICES_DOCUMENT' | translate }}: {{ svc.documentRelativePath }}
+                </span>
+                <span>{{ 'UNIFIED_SETTINGS.SERVICES_PROJECT' | translate }}: {{ svc.projectPath }}</span>
+                <span>{{ 'UNIFIED_SETTINGS.SERVICES_PID' | translate }}: {{ svc.pid }}</span>
+                <span>{{ 'UNIFIED_SETTINGS.SERVICES_UPTIME' | translate }}: {{ formatUptime(svc.uptimeMs) }}</span>
+                <span *ngIf="svc.detectedPort">
+                  {{ 'UNIFIED_SETTINGS.SERVICES_PORT' | translate }}: {{ svc.detectedPort }}
+                </span>
+                <span *ngIf="!svc.detectedPort" class="hint-text">
+                  {{ 'UNIFIED_SETTINGS.SERVICE_NO_PORT' | translate }}
+                </span>
+              </div>
+            </div>
+            <div class="service-actions">
+              <button mat-stroked-button color="primary"
+                      [disabled]="!svc.detectedPort"
+                      (click)="openInBrowser(svc)">
+                <mat-icon>open_in_browser</mat-icon>
+                {{ 'UNIFIED_SETTINGS.SERVICES_OPEN_BROWSER' | translate }}
+              </button>
+              <button mat-stroked-button color="warn" (click)="stopService(svc)">
+                <mat-icon>stop</mat-icon>
+                {{ 'UNIFIED_SETTINGS.SERVICES_STOP' | translate }}
+              </button>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
   </div>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
 </mat-dialog-actions>

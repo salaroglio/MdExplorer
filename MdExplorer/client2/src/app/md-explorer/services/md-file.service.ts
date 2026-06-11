@@ -63,6 +63,14 @@ export class MdFileService {
       this.loadAll(null, null);
     });
 
+    // FSW buffer overflow / error: the backend LOST filesystem events, so the
+    // incremental tree state can't be trusted anymore. Explicit recovery: full
+    // reload. (md-tree shows the user-visible warning.)
+    this.mdServerMessages.fileSystemWatcherError$.subscribe((data) => {
+      console.error('🌳 FileSystemWatcher error (' + data.reason + ') - events lost, full tree reload');
+      this.loadAll(null, null);
+    });
+
     // Subscribe to project changing events - clear data to show skeleton loader
     // Use setTimeout to avoid circular dependency issues
     setTimeout(() => {
@@ -346,12 +354,25 @@ export class MdFileService {
     return this.http.get<MdFile[]>('../api/mdfiles/GetShallowStructure');
   }
 
+  // Epoch counter for loadAll: every call invalidates the previous one. Without
+  // it, two overlapping reloads (e.g. git pull + branch switch in quick
+  // succession) raced and whichever HTTP response landed LAST won — possibly
+  // the older one, leaving a stale tree. The last REQUEST must win.
+  private _loadAllEpoch = 0;
+
   loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {
-    console.warn('🔴 [DIAG] loadAll() CALLED at:', new Date().toISOString(), '- stack trace:', new Error().stack);
+    const epoch = ++this._loadAllEpoch;
+    console.warn(`🔄 [loadAll] epoch ${epoch} started at:`, new Date().toISOString());
     // Pre-fetch catalog + installed apps for update checks
     this.appStoreService.prefetchCatalogAndInstalled();
     return this.http.get<MdFile[]>('../api/mdfiles/GetShallowStructure')
       .subscribe(data => {
+        if (epoch !== this._loadAllEpoch) {
+          // A newer loadAll was issued while this response was in flight:
+          // applying it would overwrite fresher data. Discard, with a trace.
+          console.warn(`🔄 [loadAll] epoch ${epoch} response DISCARDED (current epoch: ${this._loadAllEpoch})`);
+          return;
+        }
         // Assicuriamo che tutte le proprietà siano definite fin dall'inizio
         this.initializeIndexingProperties(data);
         // Compatta le cartelle annidate (VS Code-style)
@@ -363,7 +384,7 @@ export class MdFileService {
         }
       },
         error => {
-          console.log("failed to fetch mdfile list");
+          console.error(`❌ [loadAll] epoch ${epoch} failed to fetch mdfile list:`, error);
         });
   }
 
@@ -414,6 +435,10 @@ export class MdFileService {
       node.compactedSegments = segments;
       // I figli diventano quelli dell'ultimo nodo compresso
       node.childrens = current.childrens as MdFile[];
+      // La riga compattata rappresenta il segmento FINALE della catena: l'icona
+      // TOC e openTocFile() operano sull'ultimo segmento, quindi hasToc deve
+      // riflettere quello, non il primo segmento (dove resta congelato).
+      node.hasToc = current.hasToc;
       // Il fullPath del nodo diventa quello dell'ultimo segmento per le operazioni di default
       // Ma manteniamo il path originale per la visualizzazione
     }
@@ -432,6 +457,20 @@ export class MdFileService {
    * @returns true se il file è stato aggiunto, false se la cartella parent non è stata trovata
    */
   addFileToParent(file: MdFile, parentFullPath: string): boolean {
+    // IDEMPOTENZA: se il nodo esiste già (evento duplicato, replay post-storm,
+    // race tra handler) si aggiorna in place — MAI un secondo insert. I doppioni
+    // nel tree erano una delle cause della corruzione su raffiche di eventi.
+    const existing = this.findNodeInDataStore(this.dataStore.mdFiles, file.fullPath);
+    if (existing) {
+      if (file.type === 'mdFile' || file.type === 'mdFileTimer') {
+        existing.isIndexed = file.isIndexed ?? existing.isIndexed;
+        existing.indexingStatus = file.indexingStatus ?? existing.indexingStatus;
+      }
+      console.log(`[addFileToParent] '${file.fullPath}' già nel tree — update in place, nessun insert duplicato`);
+      this._mdFiles.next([...this.dataStore.mdFiles]);
+      return true;
+    }
+
     // Cerca la cartella parent nel dataStore (incluse compact folders)
     const parentFolder = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
 
@@ -489,6 +528,31 @@ export class MdFileService {
     }
 
     return false;
+  }
+
+  /**
+   * Cerca ricorsivamente un nodo (di QUALSIASI tipo) per fullPath, case-insensitive.
+   * Usato per i check di idempotenza prima degli insert.
+   */
+  private findNodeInDataStore(nodes: MdFile[], targetFullPath: string): MdFile | null {
+    if (!nodes || !targetFullPath) return null;
+    const target = targetFullPath.toLowerCase();
+    for (const node of nodes) {
+      if (node.fullPath && node.fullPath.toLowerCase() === target) {
+        return node;
+      }
+      if (node.isCompacted && node.compactedSegments) {
+        const lastSegment = node.compactedSegments[node.compactedSegments.length - 1];
+        if (lastSegment && lastSegment.fullPath.toLowerCase() === target) {
+          return node;
+        }
+      }
+      if (node.childrens && node.childrens.length > 0) {
+        const found = this.findNodeInDataStore(node.childrens as MdFile[], targetFullPath);
+        if (found) return found;
+      }
+    }
+    return null;
   }
 
   /**
@@ -688,6 +752,16 @@ export class MdFileService {
     let lastCreated: MdFile | null = null;
 
     for (const folderPath of missingPaths) {
+      // IDEMPOTENZA: ricontrolla prima di OGNI insert — un evento concorrente
+      // (es. folderCreated arrivato tra il walk-up e questo punto) può aver già
+      // creato la cartella. Inserire senza ricontrollo produceva nodi duplicati.
+      const alreadyThere = this.findFolderInDataStore(this.dataStore.mdFiles, folderPath);
+      if (alreadyThere) {
+        anchorParent = alreadyThere;
+        lastCreated = alreadyThere;
+        continue;
+      }
+
       const folderName = folderPath.substring(Math.max(folderPath.lastIndexOf('\\'), folderPath.lastIndexOf('/')) + 1);
       // Calculate level relative to project root
       const relativeParts = folderPath.substring(projectRoot.length + 1).split(/[\\\/]/);
@@ -1008,9 +1082,14 @@ export class MdFileService {
     }>(url, formData);
   }
 
-  addExistingFileToMDEProject(node: MdFile,path:String) {
+  addExistingFileToMDEProject(node: MdFile, path: String, options?: { asBulletList?: boolean; isFirst?: boolean }) {
     const url = '../api/mdfiles/addExistingFileToMDEProject';
-    return this.http.post<string>(url, { mdFile: node, fullPath:path });
+    return this.http.post<string>(url, {
+      mdFile: node,
+      fullPath: path,
+      asBulletList: options?.asBulletList ?? false,
+      isFirst: options?.isFirst ?? true
+    });
   }
 
   getTextFromClipboard() {

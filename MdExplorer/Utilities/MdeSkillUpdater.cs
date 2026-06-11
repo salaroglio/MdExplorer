@@ -1,0 +1,316 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Reflection;
+using System.Text.RegularExpressions;
+
+namespace MdExplorer.Utilities
+{
+    /// <summary>
+    /// Installs and upgrades the Copilot agent skills that MdExplorer distributes with itself
+    /// (<c>.github/skills/&lt;name&gt;/SKILL.md</c>).
+    /// <para>
+    /// Each MdE skill is marked in its frontmatter with:
+    /// </para>
+    /// <code>
+    /// mde:
+    ///   origin: mdexplorer
+    ///   version: N
+    ///   updatePolicy: replace
+    /// </code>
+    /// <para>
+    /// On every <see cref="EnsureAllSkillsInstalled"/> call:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>If the target file does not exist → write embedded content.</description></item>
+    /// <item><description>If it exists and is marked <c>origin: mdexplorer</c> with a lower
+    /// <c>version</c> than what we ship → overwrite (user has not customised).</description></item>
+    /// <item><description>If it exists but the marker is missing or origin differs → leave alone
+    /// (user has taken ownership) and log a warning.</description></item>
+    /// <item><description>If it exists at the same or higher version → leave alone.</description></item>
+    /// </list>
+    /// </summary>
+    public static class MdeSkillUpdater
+    {
+        /// <summary>
+        /// Built-in skill catalog: tuples of (folder name under <c>.github/skills/</c>,
+        /// embedded resource name, requiresFuseki). Skills with
+        /// <c>RequiresFuseki = true</c> are the semantic-web / Apache Jena Fuseki
+        /// skills (TBox/ABox/SHACL); they are installed ONLY for projects that have
+        /// the Fuseki integration enabled and configured. Add an entry here when you
+        /// add a new MdE-managed skill.
+        /// </summary>
+        private static readonly (string Name, string ResourceName, bool RequiresFuseki)[] BuiltInSkills = new[]
+        {
+            (
+                "mde-readme",
+                "MdExplorer.Service.skills.mde_readme.SKILL.md",
+                false
+            ),
+            (
+                "mde-doc",
+                "MdExplorer.Service.skills.mde_doc.SKILL.md",
+                false
+            ),
+            (
+                "mde-features",
+                "MdExplorer.Service.skills.mde_features.SKILL.md",
+                false
+            ),
+            (
+                "mde-tbox",
+                "MdExplorer.Service.skills.mde_tbox.SKILL.md",
+                true
+            ),
+            (
+                "mde-abox",
+                "MdExplorer.Service.skills.mde_abox.SKILL.md",
+                true
+            ),
+            (
+                "mde-shacl",
+                "MdExplorer.Service.skills.mde_shacl.SKILL.md",
+                true
+            ),
+        };
+
+        /// <summary>
+        /// Built-in agent catalog: tuples of (agent name, embedded resource name).
+        /// Each agent is installed as <c>.github/agents/&lt;name&gt;.agent.md</c>.
+        /// Add an entry here when you add a new MdE-managed agent.
+        /// </summary>
+        private static readonly (string Name, string ResourceName)[] BuiltInAgents = new[]
+        {
+            (
+                "mde-skillcreator",
+                "MdExplorer.Service.skills.mde_skillcreator.agent.md"
+            ),
+        };
+
+        /// <summary>
+        /// Built-in prompt catalog: tuples of (prompt name, embedded resource name).
+        /// Each prompt is installed as <c>.github/prompts/&lt;name&gt;.prompt.md</c>.
+        /// Add an entry here when you add a new MdE-managed prompt.
+        /// </summary>
+        private static readonly (string Name, string ResourceName)[] BuiltInPrompts = new[]
+        {
+            (
+                "mde-codegen-graph",
+                "MdExplorer.Service.skills.mde_codegen_graph.prompt.md"
+            ),
+            (
+                "mde-mark-summarize",
+                "MdExplorer.Service.skills.mde_mark_summarize.prompt.md"
+            ),
+            (
+                "mde-mark-folder-synthesis",
+                "MdExplorer.Service.skills.mde_mark_folder_synthesis.prompt.md"
+            ),
+        };
+
+        private const string OriginMarker = "mdexplorer";
+
+        // Captures the YAML frontmatter (between the two `---` fences) at the top of the file.
+        private static readonly Regex FrontmatterRegex = new(
+            @"^\s*---\s*\r?\n(.*?)\r?\n---\s*(?:\r?\n|$)",
+            RegexOptions.Compiled | RegexOptions.Singleline);
+
+        // Captures the `mde:` block inside the frontmatter: the line `mde:` followed by indented sub-keys.
+        private static readonly Regex MdeBlockRegex = new(
+            @"^mde:\s*\r?\n((?:[ \t]+\S[^\r\n]*\r?\n?)+)",
+            RegexOptions.Compiled | RegexOptions.Multiline);
+
+        // Captures indented `key: value` pairs (one per line) inside the mde: block.
+        private static readonly Regex MdeKeyValueRegex = new(
+            @"^[ \t]+(?<key>[A-Za-z][A-Za-z0-9]*):\s*(?<value>[^\r\n]*)",
+            RegexOptions.Compiled | RegexOptions.Multiline);
+
+        /// <param name="projectPath">Project root.</param>
+        /// <param name="fusekiEnabled">
+        /// Whether the project has the Apache Jena Fuseki integration enabled and
+        /// configured. When false, the Fuseki/Jena skills (TBox/ABox/SHACL) are NOT
+        /// installed. This only gates installation — it never removes skills already
+        /// on disk (a project that later disables Fuseki keeps any already-deployed
+        /// copies).
+        /// </param>
+        public static void EnsureAllSkillsInstalled(string projectPath, bool fusekiEnabled = false)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath) || !Directory.Exists(projectPath))
+                return;
+
+            // Skills → .github/skills/<name>/SKILL.md
+            var skillsRoot = Path.Combine(projectPath, ".github", "skills");
+            Directory.CreateDirectory(skillsRoot);
+            foreach (var (name, resource, requiresFuseki) in BuiltInSkills)
+            {
+                // Fuseki/Jena skills are deployed only when the project is configured
+                // for Fuseki. Don't even create the folder for a skipped skill.
+                if (requiresFuseki && !fusekiEnabled)
+                {
+                    Console.WriteLine($"[MdeSkillUpdater] Skipped Fuseki skill '{name}' (Fuseki not configured for this project).");
+                    continue;
+                }
+                try
+                {
+                    var targetPath = Path.Combine(skillsRoot, name, "SKILL.md");
+                    Directory.CreateDirectory(Path.GetDirectoryName(targetPath));
+                    EnsureFileInstalled(targetPath, name, resource, kind: "skill");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MdeSkillUpdater] Failed to install/update skill '{name}': {ex.Message}");
+                }
+            }
+
+            // Agents → .github/agents/<name>.agent.md (flat file, matching the existing
+            // convention of user-authored agents like ondata.agent.md in BCCS_Ofelia)
+            var agentsRoot = Path.Combine(projectPath, ".github", "agents");
+            Directory.CreateDirectory(agentsRoot);
+            foreach (var (name, resource) in BuiltInAgents)
+            {
+                try
+                {
+                    var targetPath = Path.Combine(agentsRoot, name + ".agent.md");
+                    EnsureFileInstalled(targetPath, name, resource, kind: "agent");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MdeSkillUpdater] Failed to install/update agent '{name}': {ex.Message}");
+                }
+            }
+
+            // Prompts → .github/prompts/<name>.prompt.md (reusable Copilot prompt files)
+            var promptsRoot = Path.Combine(projectPath, ".github", "prompts");
+            Directory.CreateDirectory(promptsRoot);
+            foreach (var (name, resource) in BuiltInPrompts)
+            {
+                try
+                {
+                    var targetPath = Path.Combine(promptsRoot, name + ".prompt.md");
+                    EnsureFileInstalled(targetPath, name, resource, kind: "prompt");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[MdeSkillUpdater] Failed to install/update prompt '{name}': {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Installs or updates an MdE-managed file (skill SKILL.md or agent .agent.md) at the given
+        /// absolute path. Uses the <c>mde:</c> frontmatter marker to detect user ownership and version.
+        /// </summary>
+        private static void EnsureFileInstalled(string targetPath, string name, string resourceName, string kind)
+        {
+            var embeddedContent = ReadEmbeddedText(resourceName);
+            if (embeddedContent == null)
+            {
+                Console.WriteLine($"[MdeSkillUpdater] Embedded resource not found: {resourceName}");
+                return;
+            }
+            var embeddedMarker = ExtractMdeMarker(embeddedContent);
+            var embeddedVersion = embeddedMarker.Version ?? 0;
+
+            if (!File.Exists(targetPath))
+            {
+                File.WriteAllText(targetPath, embeddedContent);
+                Console.WriteLine($"[MdeSkillUpdater] Installed {kind} '{name}' v{embeddedVersion}: {targetPath}");
+                return;
+            }
+
+            string existingContent;
+            try { existingContent = File.ReadAllText(targetPath); }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MdeSkillUpdater] Cannot read existing {kind} '{name}': {ex.Message}");
+                return;
+            }
+
+            var existingMarker = ExtractMdeMarker(existingContent);
+
+            // User has taken ownership (no origin or different origin) — leave it alone.
+            if (!string.Equals(existingMarker.Origin, OriginMarker, StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine(
+                    $"[MdeSkillUpdater] {kind} '{name}' is user-owned (origin='{existingMarker.Origin ?? "<missing>"}') — skipped.");
+                return;
+            }
+
+            var existingVersion = existingMarker.Version ?? 0;
+            if (existingVersion >= embeddedVersion)
+            {
+                // Up to date or newer than what we ship — nothing to do.
+                return;
+            }
+
+            File.WriteAllText(targetPath, embeddedContent);
+            Console.WriteLine(
+                $"[MdeSkillUpdater] Updated {kind} '{name}' v{existingVersion} → v{embeddedVersion}: {targetPath}");
+        }
+
+        private static string ReadEmbeddedText(string resourceName)
+        {
+            var asm = Assembly.GetExecutingAssembly();
+            using var stream = asm.GetManifestResourceStream(resourceName);
+            if (stream == null) return null;
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
+
+        public readonly struct MdeMarker
+        {
+            public string Origin { get; }
+            public int? Version { get; }
+            public string UpdatePolicy { get; }
+            public MdeMarker(string origin, int? version, string updatePolicy)
+            {
+                Origin = origin;
+                Version = version;
+                UpdatePolicy = updatePolicy;
+            }
+        }
+
+        /// <summary>
+        /// Extracts the <c>mde:</c> marker from a SKILL.md frontmatter. Returns a marker with
+        /// null fields if the file has no frontmatter or no <c>mde:</c> block.
+        /// </summary>
+        public static MdeMarker ExtractMdeMarker(string content)
+        {
+            if (string.IsNullOrEmpty(content)) return default;
+            var fm = FrontmatterRegex.Match(content);
+            if (!fm.Success) return default;
+
+            var fmBody = fm.Groups[1].Value;
+            var blockMatch = MdeBlockRegex.Match(fmBody);
+            if (!blockMatch.Success) return default;
+
+            var block = blockMatch.Groups[1].Value;
+            string origin = null;
+            int? version = null;
+            string updatePolicy = null;
+
+            foreach (Match kv in MdeKeyValueRegex.Matches(block))
+            {
+                var key = kv.Groups["key"].Value;
+                var value = StripQuotes(kv.Groups["value"].Value.Trim());
+                switch (key)
+                {
+                    case "origin": origin = value; break;
+                    case "version":
+                        if (int.TryParse(value, out var v)) version = v;
+                        break;
+                    case "updatePolicy": updatePolicy = value; break;
+                }
+            }
+            return new MdeMarker(origin, version, updatePolicy);
+        }
+
+        private static string StripQuotes(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            if (s.Length >= 2 && (s[0] == '"' || s[0] == '\'') && s[^1] == s[0])
+                return s.Substring(1, s.Length - 2);
+            return s;
+        }
+    }
+}

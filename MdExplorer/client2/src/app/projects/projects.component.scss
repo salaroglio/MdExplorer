@@ -1,7 +1,7 @@
 // Modern container layout
 .modern-container {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--mde-bg-secondary);
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -12,7 +12,7 @@
 // Content wrapper
 .content-wrapper {
   flex: 1;
-  background: #f5f7fa;
+  background: var(--mde-bg-secondary);
   padding: 40px;
   max-width: 1600px;
   margin: 0 auto;
@@ -57,9 +57,9 @@
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 16px;
   border: none;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px var(--mde-shadow-color);
   overflow: hidden;
-  background: white;
+  background: var(--mde-bg-primary);
 
   &:hover {
     transform: translateY(-4px);
@@ -111,13 +111,13 @@
       margin: 0 0 4px 0;
       font-size: 1rem;
       font-weight: 500;
-      color: #2d3748;
+      color: var(--mde-text-primary);
     }
 
     .card-description {
       margin: 0;
       font-size: 0.75rem;
-      color: #718096;
+      color: var(--mde-text-secondary);
       line-height: 1.4;
     }
   }
@@ -159,7 +159,7 @@
   gap: 12px;
   font-size: 1.5rem;
   font-weight: 500;
-  color: #2d3748;
+  color: var(--mde-text-primary);
   margin: 0 0 24px 0;
 
   .section-icon {
@@ -173,7 +173,7 @@
 // Section divider
 .section-divider {
   height: 1px;
-  background: linear-gradient(to right, transparent, #e2e8f0, transparent);
+  background: linear-gradient(to right, transparent, var(--mde-border-color), transparent);
   margin: 32px 0;
 }
 
@@ -269,10 +269,12 @@
 .projects-grid {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   flex: 1;
   overflow-y: auto;
-  padding-right: 8px;
+  // Extra right/bottom padding so team gems sitting on the bottom border of
+  // each card don't get clipped by the scroll container.
+  padding: 0 8px 16px 0;
   min-height: 0;
 
   // Custom scrollbar
@@ -281,16 +283,16 @@
   }
 
   &::-webkit-scrollbar-track {
-    background: #e2e8f0;
+    background: var(--mde-scrollbar-track);
     border-radius: 4px;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #cbd5e0;
+    background: var(--mde-scrollbar-thumb);
     border-radius: 4px;
 
     &:hover {
-      background: #a0aec0;
+      background: var(--mde-scrollbar-hover);
     }
   }
 }
@@ -299,11 +301,27 @@
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  background: white;
+  border: 1px solid var(--mde-border-color);
+  box-shadow: 0 1px 3px var(--mde-shadow-color);
+  background: var(--mde-bg-primary);
   position: relative;
   overflow: visible;
+
+  // Team gems are absolute-positioned so they sit half-embedded on the bottom
+  // border of the card without changing its height. overflow: visible above
+  // already lets them render outside the card bounds.
+  .card-gems {
+    position: absolute;
+    bottom: -11px;
+    left: 20px;
+    z-index: 3;
+    pointer-events: auto;
+  }
+
+  &.has-gems {
+    // Small extra margin on the grid row so gems from adjacent cards never overlap.
+    margin-bottom: 4px;
+  }
 
   &:hover {
     transform: translateY(-2px);
@@ -332,19 +350,75 @@
 
   .project-card-content {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px;
-    gap: 12px;
+    align-items: stretch;
+    padding: 12px 16px;
+    gap: 14px;
   }
 
   .project-info {
     display: flex;
     align-items: center;
     gap: 12px;
-    flex: 1;
+    flex: 0 0 auto;
+    width: clamp(220px, 34%, 340px);
     min-width: 0;
     cursor: pointer;
+  }
+
+  .project-description-box {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border: 1px solid var(--mde-border-color);
+    border-radius: 8px;
+    background: var(--mde-bg-secondary);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+
+    &:hover {
+      border-color: rgba(102, 126, 234, 0.5);
+    }
+
+    .project-description {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--mde-text-primary);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      word-break: break-word;
+      width: 100%;
+    }
+
+    &.empty {
+      border-style: dashed;
+      background: transparent;
+
+      &:hover {
+        background: rgba(102, 126, 234, 0.04);
+      }
+
+      .empty-placeholder {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--mde-text-secondary);
+        opacity: 0.6;
+        font-size: 0.78rem;
+        font-style: italic;
+
+        mat-icon {
+          font-size: 16px;
+          width: 16px;
+          height: 16px;
+        }
+      }
+    }
   }
 
   .project-icon-wrapper {
@@ -356,6 +430,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
 
     .project-icon {
       font-size: 20px;
@@ -369,6 +444,19 @@
       height: 20px;
       filter: brightness(0) invert(1); // Makes SVG white
     }
+
+    // When a custom icon is set the user-provided PNG fills the squircle.
+    // No gradient background, no white filter — show the logo verbatim.
+    &.has-custom {
+      background: var(--mde-bg-secondary);
+
+      .project-icon-custom {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+    }
   }
 
   .project-details {
@@ -376,32 +464,34 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
+
+    .project-name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
 
     .project-name {
       margin: 0;
       font-size: 1.1rem;
       font-weight: 500;
-      color: #2d3748;
+      color: var(--mde-text-primary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      min-width: 0;
+      flex-shrink: 1;
     }
 
     .project-path {
       margin: 0;
       font-size: 0.8rem;
-      color: #718096;
+      color: var(--mde-text-secondary);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-    }
-
-    .project-meta {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-top: 4px;
     }
 
     .last-opened-badge {
@@ -410,40 +500,52 @@
       gap: 4px;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 0.65rem;
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-size: 0.6rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
       white-space: nowrap;
       box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
       animation: fadeInScale 0.5s ease-out;
       flex-shrink: 0;
 
       .badge-icon {
-        font-size: 12px;
-        width: 12px;
-        height: 12px;
+        font-size: 11px;
+        width: 11px;
+        height: 11px;
       }
-    }
-
-    .project-date {
-      margin: 0;
-      font-size: 0.7rem;
-      color: #a0aec0;
-      font-style: italic;
-      flex: 1;
     }
   }
 
   .project-actions {
-    display: flex;
-    gap: 4px;
+    display: grid;
+    grid-template-columns: repeat(2, 32px);
+    grid-auto-rows: 32px;
+    gap: 2px;
     flex-shrink: 0;
+    align-self: center;
 
     .action-btn {
       transition: all 0.2s ease;
+      width: 32px;
+      height: 32px;
+      line-height: 32px;
+      padding: 0;
+
+      // Shrink the Material ripple container so hover/focus stays inside the 32x32 box
+      ::ng-deep .mat-mdc-button-touch-target {
+        width: 32px !important;
+        height: 32px !important;
+      }
+
+      &.edit-btn:hover {
+        background-color: rgba(255, 152, 0, 0.12);
+        mat-icon {
+          color: #ff9800;
+        }
+      }
 
       &.share-btn:hover {
         background-color: rgba(76, 175, 80, 0.1);
@@ -467,9 +569,10 @@
       }
 
       mat-icon {
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        line-height: 18px;
         color: #a0aec0;
         transition: color 0.2s ease;
       }
@@ -565,7 +668,7 @@
 .diagnostics-section {
   margin-top: 24px;
   padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--mde-border-color);
   display: flex;
   gap: 12px;
   flex-wrap: wrap;

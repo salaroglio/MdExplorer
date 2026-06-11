@@ -53,31 +53,37 @@ async function presentationSVG(relativePathFile, hashFile) {
 
 /**
  * Copy PlantUML diagram to clipboard as PNG
- * Fetches PNG from backend, converts to blob, writes to clipboard
+ * Delegates to backend which generates the PNG and copies it to the system clipboard
  *
- * @param {string} objectThis - URL of the PNG image
+ * @param {string} objectThis - (unused, kept for backward compatibility with onclick signatures)
  * @param {string} relativePathFile - Relative path to markdown file
  * @param {string} hashFile - Unique hash identifier for the diagram
  * @param {number} step - Current step in presentation
  */
-async function copyToClipboard(objectThis, relativePathFile, hashFile, step) {
-    const test = await $.get("/api/plantumlextensions/GetPng?pathFile=" + relativePathFile +
-        "&hashFile=" + hashFile +
-        "&step=" + step, function (data) {
-            console.log(data);
-        });
-    const response = await fetch(objectThis);  //'/assets/ConnectionLost.png'
-    const blob = await response.blob();
-    setToClipboard(blob);
+/**
+ * Copy a generic image to clipboard as PNG
+ * Delegates to backend which reads the image file and copies it to the system clipboard
+ *
+ * @param {string} imagePath - Relative path of the image within the project
+ */
+async function copyImageToClipboard(imagePath) {
+    try {
+        var connectionId = document.body.getAttribute('ConnectionId') || '';
+        await $.get("/api/plantumlextensions/CopyImageToClipboard?imagePath=" + encodeURIComponent(imagePath) +
+            "&ConnectionId=" + connectionId);
+    } catch (err) {
+        console.error("CopyImageToClipboard failed:", err);
+    }
 }
 
-/**
- * Write blob to system clipboard
- * Uses Clipboard API with ClipboardItem
- *
- * @param {Blob} blob - Image blob to copy
- */
-const setToClipboard = async blob => {
-    const data = [new ClipboardItem({ [blob.type]: blob })];
-    await navigator.clipboard.write(data);
+async function copyToClipboard(objectThis, relativePathFile, hashFile, step) {
+    try {
+        var connectionId = document.body.getAttribute('ConnectionId') || '';
+        await $.get("/api/plantumlextensions/CopyPngToClipboard?pathFile=" + relativePathFile +
+            "&hashFile=" + hashFile +
+            "&step=" + step +
+            "&ConnectionId=" + connectionId);
+    } catch (err) {
+        console.error("CopyPngToClipboard failed:", err);
+    }
 }

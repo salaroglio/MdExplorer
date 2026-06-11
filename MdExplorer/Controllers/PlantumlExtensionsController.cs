@@ -16,6 +16,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using MdExplorer.Utilities;
 using System.Web;
 
 namespace MdExplorer.Service.Controllers
@@ -52,6 +53,113 @@ namespace MdExplorer.Service.Controllers
             var generatedFileName = render.GetPng(markdown, hashFile, step, requestInfo);
 
             return Ok(new { GeneratedFileName = generatedFileName });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> CopyPngToClipboard(string pathFile, string hashFile, int step)
+        {
+            try
+            {
+                (var requestInfo, var markdown) = GetMarkDown(pathFile);
+                var render = (IPresentationPlantuml)_commandFactory.GetCommands().Where(_ => _.Name == "FromPlantumlToPng").FirstOrDefault();
+                var generatedFileName = render.GetPng(markdown, hashFile, step, requestInfo);
+
+                var pngPath = Path.Combine(requestInfo.CurrentRoot, ".md", generatedFileName);
+                if (!System.IO.File.Exists(pngPath))
+                    return NotFound(new { error = "PNG file not found" });
+
+                var pngData = await System.IO.File.ReadAllBytesAsync(pngPath);
+                var result = await CrossPlatformClipboard.SetImageAsync(pngData);
+
+                if (result.Success)
+                    return Ok(new { message = "Image copied to clipboard" });
+
+                return StatusCode(500, new { error = result.ErrorMessage });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[CopyPngToClipboard] Error");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> CopyImageToClipboard(string imagePath)
+        {
+            try
+            {
+                var projectPath = GetProjectPath();
+
+                // Strip /api/mdexplorer/ prefix if present (image URLs go through the API)
+                var cleanPath = imagePath;
+                var apiPrefix = "/api/mdexplorer/";
+                if (cleanPath.StartsWith(apiPrefix, StringComparison.OrdinalIgnoreCase))
+                    cleanPath = cleanPath.Substring(apiPrefix.Length);
+                // Strip query string if present
+                var qsIndex = cleanPath.IndexOf('?');
+                if (qsIndex >= 0)
+                    cleanPath = cleanPath.Substring(0, qsIndex);
+
+                var fullPath = Path.Combine(projectPath, cleanPath.Replace('/', Path.DirectorySeparatorChar));
+
+                if (!System.IO.File.Exists(fullPath))
+                    return NotFound(new { error = "Image file not found" });
+
+                var ext = Path.GetExtension(fullPath).ToLowerInvariant();
+                byte[] pngData;
+
+                if (ext == ".svg")
+                {
+                    // SVG → PNG via Svg.Skia + SkiaSharp (cross-platform)
+                    using (var svg = new Svg.Skia.SKSvg())
+                    {
+                        svg.Load(fullPath);
+                        if (svg.Picture == null)
+                            return StatusCode(500, new { error = "Failed to parse SVG" });
+
+                        var bounds = svg.Picture.CullRect;
+                        var info = new SkiaSharp.SKImageInfo((int)bounds.Width, (int)bounds.Height);
+                        using (var surface = SkiaSharp.SKSurface.Create(info))
+                        {
+                            surface.Canvas.Clear(SkiaSharp.SKColors.White);
+                            surface.Canvas.DrawPicture(svg.Picture);
+                            surface.Canvas.Flush();
+                            using (var image = surface.Snapshot())
+                            using (var data = image.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100))
+                            {
+                                pngData = data.ToArray();
+                            }
+                        }
+                    }
+                }
+                else if (ext == ".png")
+                {
+                    pngData = await System.IO.File.ReadAllBytesAsync(fullPath);
+                }
+                else
+                {
+                    // JPG, BMP, etc. → PNG via System.Drawing (Windows) or SkiaSharp
+                    var imageData = await System.IO.File.ReadAllBytesAsync(fullPath);
+                    using (var inputBitmap = SkiaSharp.SKBitmap.Decode(imageData))
+                    using (var outputMs = new MemoryStream())
+                    {
+                        inputBitmap.Encode(outputMs, SkiaSharp.SKEncodedImageFormat.Png, 100);
+                        pngData = outputMs.ToArray();
+                    }
+                }
+
+                var result = await CrossPlatformClipboard.SetImageAsync(pngData);
+
+                if (result.Success)
+                    return Ok(new { message = "Image copied to clipboard" });
+
+                return StatusCode(500, new { error = result.ErrorMessage });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[CopyImageToClipboard] Error");
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
 
         private (RequestInfo, string) GetMarkDown(string pathFile)

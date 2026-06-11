@@ -206,13 +206,18 @@
              (keydown.enter)="onItemDoubleClick(item)"
              (keydown.space)="onItemClick(item)"
              (contextmenu)="onRightClickImproved($event, item)"
-             [class.selected]="activeNode === item"
+             [class.selected]="isItemSelected(item)"
              [class.context-menu-active]="contextMenuNode === item"
              [class.hovered]="hoveredNode === item"
              [class.not-selectable]="!isItemSelectable(item)"
              tabindex="0"
              role="gridcell"
              [attr.aria-label]="getItemAriaLabel(item)">
+          <mat-icon *ngIf="isMultiSelect && isItemSelectable(item)"
+                    class="item-check"
+                    aria-hidden="true">
+            {{ isItemSelected(item) ? 'check_box' : 'check_box_outline_blank' }}
+          </mat-icon>
           <mat-icon class="item-icon" aria-hidden="true">
             {{item.type === 'folder' ? 'folder' : (item.type === 'file' ? 'insert_drive_file' : 'text_snippet')}}
           </mat-icon>
@@ -234,8 +239,14 @@
       <mat-card-title *ngIf="baseStart.typeOfSelection === 'Folders' && !baseStart.saveAs">
         {{folder.name || (currentPath ? ('FILE_SYSTEM.CURRENT_FOLDER' | translate) : ('FILE_SYSTEM.NO_FOLDER_SELECTED' | translate))}}
       </mat-card-title>
-      <mat-card-title *ngIf="baseStart.typeOfSelection !== 'Folders' && !baseStart.saveAs">
+      <mat-card-title *ngIf="baseStart.typeOfSelection !== 'Folders' && !baseStart.saveAs && !isMultiSelect">
         {{folder.name || ('FILE_SYSTEM.NO_FILE_SELECTED' | translate)}}
+      </mat-card-title>
+      <!-- Multi-select: riepilogo del numero di file selezionati -->
+      <mat-card-title *ngIf="isMultiSelect && !baseStart.saveAs">
+        {{ selectedItems.length
+            ? ('FILE_SYSTEM.FILES_SELECTED' | translate:{ count: selectedItems.length })
+            : ('FILE_SYSTEM.NO_FILE_SELECTED' | translate) }}
       </mat-card-title>
       <!-- Save As mode: folder path + filename input -->
       <div class="save-as-row" *ngIf="baseStart.saveAs">
@@ -246,7 +257,7 @@
                (keydown.enter)="closeDialog()"
                spellcheck="false" />
       </div>
-      <mat-card-subtitle *ngIf="!baseStart.saveAs">{{folder.path || currentPath}}</mat-card-subtitle>
+      <mat-card-subtitle *ngIf="!baseStart.saveAs && !isMultiSelect">{{folder.path || currentPath}}</mat-card-subtitle>
     </div>
     <div class="action-buttons">
       <button mat-stroked-button color="primary"

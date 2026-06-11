@@ -5,6 +5,7 @@
 # Directories to ignore
 ignoredDirectories:
   - ".md"  # Ignore files in .md directory
+  - ".mde-doc"  # Knowledge-graph payloads (managed by the mde-doc skill)
 
 # File extensions to ignore
 ignoredExtensions:

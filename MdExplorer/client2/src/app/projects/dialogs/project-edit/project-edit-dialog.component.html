@@ -1,0 +1,166 @@
+<h2 mat-dialog-title>
+  <mat-icon class="title-icon">edit</mat-icon>
+  {{ 'PROJECTS.EDIT_PROJECT_TITLE' | translate }}
+</h2>
+
+<form [formGroup]="form" (ngSubmit)="onSave()" class="project-edit-form">
+  <mat-dialog-content>
+    <p class="path-readonly" [matTooltip]="data.path">
+      <mat-icon>folder</mat-icon>
+      <span class="path-text">{{ data.path }}</span>
+    </p>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>{{ 'PROJECTS.NAME' | translate }}</mat-label>
+      <input matInput
+             formControlName="name"
+             [maxlength]="nameMaxLength"
+             required>
+      <mat-error *ngIf="form.get('name').hasError('required')">
+        {{ 'PROJECTS.NAME_REQUIRED' | translate }}
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-label>{{ 'PROJECTS.DESCRIPTION' | translate }}</mat-label>
+      <textarea matInput
+                formControlName="description"
+                [maxlength]="descriptionMaxLength"
+                [placeholder]="'PROJECTS.DESCRIPTION_PLACEHOLDER' | translate"
+                rows="4"></textarea>
+      <mat-hint align="end">{{ descriptionLength }}/{{ descriptionMaxLength }}</mat-hint>
+    </mat-form-field>
+
+    <div class="icon-section">
+      <div class="icon-section-header">
+        <div class="icon-preview-wrapper">
+          <img *ngIf="iconPreviewUrl" [src]="iconPreviewUrl" class="icon-preview" alt="icon preview">
+          <mat-icon *ngIf="!iconPreviewUrl" class="icon-preview-fallback">image</mat-icon>
+        </div>
+        <div class="icon-section-text">
+          <h3 class="section-title">
+            <mat-icon>image</mat-icon>
+            {{ 'PROJECTS.PROJECT_ICON' | translate }}
+          </h3>
+          <p class="section-hint">{{ 'PROJECTS.PROJECT_ICON_HINT' | translate }}</p>
+        </div>
+        <button mat-stroked-button type="button" class="customize-btn" (click)="toggleIconEditor()">
+          <mat-icon>{{ iconEditorOpen ? 'expand_less' : 'edit' }}</mat-icon>
+          {{ (iconEditorOpen ? 'PROJECTS.PROJECT_ICON_CLOSE' : 'PROJECTS.PROJECT_ICON_CUSTOMIZE') | translate }}
+        </button>
+      </div>
+
+      <div class="icon-editor-host" *ngIf="iconEditorOpen">
+        <app-icon-editor
+          [initialIconUrl]="iconPreviewUrl"
+          [hasCustomIcon]="effectiveHasCustomIcon"
+          (iconChanged)="onIconChanged($event)">
+        </app-icon-editor>
+      </div>
+
+      <div class="pending-banner" *ngIf="pendingIconAction !== 'none'">
+        <mat-icon>info</mat-icon>
+        <span *ngIf="pendingIconAction === 'set'">{{ 'PROJECTS.PROJECT_ICON_PENDING_SET' | translate }}</span>
+        <span *ngIf="pendingIconAction === 'remove'">{{ 'PROJECTS.PROJECT_ICON_PENDING_REMOVE' | translate }}</span>
+      </div>
+    </div>
+
+    <div class="participants-section">
+      <div class="participants-header">
+        <h3 class="section-title">
+          <mat-icon>group</mat-icon>
+          {{ 'PROJECTS.PARTICIPANTS' | translate }}
+        </h3>
+        <button mat-stroked-button type="button" class="refresh-btn" (click)="refreshFromGit()">
+          <mat-icon>refresh</mat-icon>
+          {{ 'PROJECTS.REFRESH_FROM_GIT' | translate }}
+        </button>
+      </div>
+
+      <p class="section-hint">{{ 'PROJECTS.PARTICIPANTS_HINT' | translate }}</p>
+
+      <div class="participants-loading" *ngIf="loadingParticipants">
+        <mat-icon class="spinner">sync</mat-icon>
+        {{ 'PROJECTS.PARTICIPANTS_LOADING' | translate }}
+      </div>
+
+      <div class="participants-error" *ngIf="participantsError === 'load'">
+        <mat-icon>error_outline</mat-icon>
+        {{ 'PROJECTS.PARTICIPANTS_LOAD_ERROR' | translate }}
+      </div>
+
+      <div class="participants-empty"
+           *ngIf="!loadingParticipants && participants.length === 0 && !participantsError">
+        <mat-icon>people_outline</mat-icon>
+        {{ 'PROJECTS.PARTICIPANTS_EMPTY' | translate }}
+      </div>
+
+      <div class="participants-list" *ngIf="!loadingParticipants && participants.length > 0">
+        <div *ngFor="let p of participants; trackBy: trackByEmail"
+             class="participant-row"
+             [class.manual]="p.manual"
+             [class.invalid]="isManualInvalid(p) || isChatEmailInvalid(p)">
+          <div class="participant-main">
+            <span class="source-chip" [class.manual-chip]="p.manual">
+              <mat-icon *ngIf="!p.manual">code</mat-icon>
+              <mat-icon *ngIf="p.manual">person_add</mat-icon>
+              {{ (p.manual ? 'PROJECTS.PARTICIPANT_MANUAL' : 'PROJECTS.PARTICIPANT_GIT') | translate }}
+            </span>
+            <input class="inline-input display-name"
+                   type="text"
+                   [(ngModel)]="p.displayName"
+                   [ngModelOptions]="{standalone: true}"
+                   [placeholder]="p.gitName || ('PROJECTS.PARTICIPANT_DISPLAY_NAME_PLACEHOLDER' | translate)">
+            <button *ngIf="p.manual"
+                    mat-icon-button
+                    type="button"
+                    class="remove-btn"
+                    [matTooltip]="'PROJECTS.PARTICIPANT_REMOVE' | translate"
+                    (click)="removeManual(p)">
+              <mat-icon>close</mat-icon>
+            </button>
+          </div>
+
+          <div class="participant-emails">
+            <div class="git-email" *ngIf="!p.manual">
+              <span class="email-label">{{ 'PROJECTS.PARTICIPANT_GIT_EMAIL' | translate }}</span>
+              <span class="email-value readonly" [matTooltip]="p.gitEmail">{{ p.gitEmail }}</span>
+            </div>
+            <div class="chat-email">
+              <span class="email-label">{{ 'PROJECTS.PARTICIPANT_CHAT_EMAIL' | translate }}</span>
+              <input class="inline-input chat-input"
+                     type="email"
+                     [(ngModel)]="p.chatEmail"
+                     [ngModelOptions]="{standalone: true}"
+                     [placeholder]="p.gitEmail || ('PROJECTS.PARTICIPANT_CHAT_EMAIL_PLACEHOLDER' | translate)">
+            </div>
+          </div>
+          <div class="row-error" *ngIf="isManualInvalid(p)">
+            {{ 'PROJECTS.PARTICIPANT_MANUAL_EMAIL_REQUIRED' | translate }}
+          </div>
+          <div class="row-error" *ngIf="!isManualInvalid(p) && isChatEmailInvalid(p)">
+            {{ 'PROJECTS.PARTICIPANT_CHAT_EMAIL_INVALID' | translate }}
+          </div>
+        </div>
+      </div>
+
+      <button mat-stroked-button
+              type="button"
+              class="add-manual-btn"
+              (click)="addManual()">
+        <mat-icon>person_add</mat-icon>
+        {{ 'PROJECTS.ADD_PARTICIPANT' | translate }}
+      </button>
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" (click)="onCancel()">
+      {{ 'PROJECTS.CANCEL' | translate }}
+    </button>
+    <button mat-flat-button color="primary" type="submit"
+            [disabled]="form.invalid || hasInvalidParticipants">
+      {{ 'PROJECTS.SAVE' | translate }}
+    </button>
+  </mat-dialog-actions>
+</form>

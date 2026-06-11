@@ -21,41 +21,46 @@
  */
 
 /**
- * Toggle TOC panel visibility
- * Handles 4 states based on current visibility of TOC and Refs panels:
- * 1. Both hidden → Show TOC
- * 2. TOC visible, Refs hidden → Hide TOC
- * 3. TOC hidden, Refs visible → Show TOC, hide Refs
- * 4. Both visible → Show TOC, hide Refs (shouldn't happen normally)
- *
- * @param {string} documentPath - Path of current document (unused but kept for compatibility)
+ * Open TOC panel (triggered on hover).
+ * Closes Refs if open (panels are mutually exclusive).
+ */
+function openTOC() {
+    var $toc = $('#TOC');
+    if (!$toc.is(":hidden")) return; // already open
+
+    $toc.fadeIn();
+    $('#Refs').fadeOut();
+    window.currentDocumentSetting.showTOC = true;
+    window.currentDocumentSetting.showRefs = false;
+    _savePanelState();
+}
+
+/**
+ * Close TOC panel (triggered on click).
+ */
+function closeTOC() {
+    var $toc = $('#TOC');
+    if ($toc.is(":hidden")) return; // already closed
+
+    $toc.fadeOut();
+    window.currentDocumentSetting.showTOC = false;
+    _savePanelState();
+}
+
+/**
+ * Toggle TOC panel visibility (kept for backward compatibility).
+ * @param {string} documentPath
  */
 function toggleTOC(documentPath) {
-
-    let $refs = $('#Refs');
-    let $toc = $('#TOC');
-
-    if ($('#Refs').is(":hidden") && $('#TOC').is(":hidden")) {
-        $toc.fadeIn();
-        window.currentDocumentSetting.showTOC = true;
-        window.currentDocumentSetting.showRefs = false;
-
-    } else if ($('#Refs').is(":hidden") && !$('#TOC').is(":hidden")) {
-        $toc.fadeOut();
-        window.currentDocumentSetting.showTOC = false;
-        window.currentDocumentSetting.showRefs = false;
-    } else if (!$('#Refs').is(":hidden") && $('#TOC').is(":hidden")) {
-        $toc.fadeIn();
-        $refs.fadeOut();
-        window.currentDocumentSetting.showTOC = true;
-        window.currentDocumentSetting.showRefs = false;
-    } else if (!$('#Refs').is(":hidden") && !$('#TOC').is(":hidden")) {
-        $toc.fadeIn();
-        $refs.fadeOut();
-        window.currentDocumentSetting.showTOC = true;
-        window.currentDocumentSetting.showRefs = false;
+    if ($('#TOC').is(":hidden")) {
+        openTOC();
+    } else {
+        closeTOC();
     }
+}
 
+/** Persist panel state to backend */
+function _savePanelState() {
     $.ajax({
         url: "/api/tabcontroller/SaveTOCData",
         type: "POST",
@@ -63,9 +68,7 @@ function toggleTOC(documentPath) {
         contentType: "application/json; charset=utf-8",
         dataType: "json",
         success: function (data) {
-
             console.log(data);
         }
     });
-
 }

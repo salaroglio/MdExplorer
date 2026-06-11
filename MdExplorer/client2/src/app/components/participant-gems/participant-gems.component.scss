@@ -1,0 +1,74 @@
+:host {
+  display: inline-flex;
+  align-items: center;
+  pointer-events: auto;
+}
+
+:host.is-empty {
+  display: none;
+}
+
+.gems-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gem {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--mde-bg-primary, #ffffff);
+  color: #ffffff;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  padding: 0;
+  outline: none;
+  user-select: none;
+  line-height: 1;
+
+  .initials {
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.25);
+    pointer-events: none;
+  }
+
+  &:hover {
+    transform: translateY(-2px) scale(1.1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    z-index: 2;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+  }
+
+  &.overflow {
+    background: var(--mde-bg-secondary, #f1f5f9) !important;
+    color: var(--mde-text-primary, #2d3748);
+    border: 2px solid var(--mde-border-color, #cbd5e0);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    text-shadow: none;
+    padding: 0 2px;
+    box-sizing: border-box;
+  }
+}
+
+// Size variant used on the title bar where we have a bit more room.
+:host.size-medium {
+  .gem {
+    width: 26px;
+    height: 26px;
+    font-size: 11px;
+    border-width: 2px;
+  }
+}

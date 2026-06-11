@@ -128,26 +128,25 @@ mat-sidenav-content {
     transform: translate(-50%, -50%);
     width: 2px;
     height: 30px;
-    background: #ddd;
+    background: var(--mde-border-color);
     border-radius: 1px;
     transition: all 0.2s ease;
   }
-  
+
   &:hover:before {
-    background: #007acc;
+    background: var(--mde-accent-primary);
     height: 50px;
-    box-shadow: 0 0 4px rgba(0, 122, 204, 0.3);
+    box-shadow: 0 0 4px var(--mde-shadow-color);
   }
-  
+
   &.dragging {
-    // Mantieni la larghezza fissa durante il trascinamento
     z-index: 1000;
-    
+
     &:before {
-      background: #005a9e;
+      background: var(--mde-accent-hover);
       height: 100%;
       width: 3px;
-      box-shadow: 0 0 8px rgba(0, 122, 204, 0.5);
+      box-shadow: 0 0 8px var(--mde-shadow-color);
     }
   }
 }
@@ -230,10 +229,11 @@ mat-sidenav-content {
 
 // bookmark management
 div.mdbookmark {
-  cursor: pointer;  
+  cursor: pointer;
   white-space: nowrap;
-  text-align: right;   
+  text-align: right;
   background: yellow;
+  color: black;
   transition: all 0.5s ease;
 }
 

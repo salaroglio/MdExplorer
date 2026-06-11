@@ -5338,6 +5338,43 @@ const config = {
 
 /***/ }),
 
+/***/ 4363:
+/*!***************************************************************!*\
+  !*** ./node_modules/rxjs/dist/esm/internal/firstValueFrom.js ***!
+  \***************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "firstValueFrom": () => (/* binding */ firstValueFrom)
+/* harmony export */ });
+/* harmony import */ var _util_EmptyError__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./util/EmptyError */ 4423);
+/* harmony import */ var _Subscriber__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./Subscriber */ 9904);
+
+
+function firstValueFrom(source, config) {
+  const hasConfig = typeof config === 'object';
+  return new Promise((resolve, reject) => {
+    const subscriber = new _Subscriber__WEBPACK_IMPORTED_MODULE_0__.SafeSubscriber({
+      next: value => {
+        resolve(value);
+        subscriber.unsubscribe();
+      },
+      error: reject,
+      complete: () => {
+        if (hasConfig) {
+          resolve(config.defaultValue);
+        } else {
+          reject(new _util_EmptyError__WEBPACK_IMPORTED_MODULE_1__.EmptyError());
+        }
+      }
+    });
+    source.subscribe(subscriber);
+  });
+}
+
+/***/ }),
+
 /***/ 3932:
 /*!*********************************************************************************!*\
   !*** ./node_modules/rxjs/dist/esm/internal/observable/ConnectableObservable.js ***!

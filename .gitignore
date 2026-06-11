@@ -428,6 +428,9 @@ MdExplorer.AI.Premium/
 experiments/
 nul
 
+# Docker (experimental, scratch space — not committed)
+/docker/
+
 # Temporary scripts
 SurfLinkFix.ps1
 temp_audio*.ps1

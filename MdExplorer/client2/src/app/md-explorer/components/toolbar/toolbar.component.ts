@@ -22,6 +22,7 @@ import { GitHistoryDialogComponent } from '../../../git/dialogs/git-history-dial
 import { GitBranchDialogComponent } from '../../../git/dialogs/git-branch-dialog/git-branch-dialog.component';
 import { GitSetupRemoteGenericDialogComponent } from '../../../git/dialogs/git-setup-remote-generic-dialog/git-setup-remote-generic-dialog.component';
 import { GitAccountManagementDialogComponent } from '../../../git/dialogs/git-account-management-dialog/git-account-management-dialog.component';
+import { GitAddSubmoduleDialogComponent } from '../../../git/dialogs/git-add-submodule-dialog/git-add-submodule-dialog.component';
 import { BookmarksService } from '../../services/bookmarks.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { Bookmark } from '../../services/Types/Bookmark';
@@ -450,7 +451,17 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   OpenEditor() {
     const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
-    this.http.get(url).subscribe(data => { console.log(data) });
+    this.http.get<any>(url).subscribe(data => {
+      // Docker mode: backend can't spawn the host's editor process, so it
+      // returns a "vscode://file/..." (or jetbrains://) URL. Hand it to the
+      // browser, which forwards it to the OS, which launches the editor on
+      // the host. On native Windows/Linux this branch is never taken.
+      if (data && data.openUrl) {
+        window.location.href = data.openUrl;
+        return;
+      }
+      console.log(data);
+    });
   }
 
   Export() {
@@ -764,6 +775,28 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     this.matMenuTrigger?.closeMenu();
   }
 
+  openAddSubmoduleDialog(): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+
+    const dialogRef = this.dialog.open(GitAddSubmoduleDialogComponent, {
+      width: '600px',
+      data: {
+        projectPath: projectPath,
+        connectionId: this.connectionId
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result === true) {
+        // Tree refresh arrives via SignalR 'gitBranchSwitched'; refresh git status here
+        this.checkConnection();
+      }
+    });
+
+    this.matMenuTrigger?.closeMenu();
+  }
+
   openSetupRemote(): void {
     const projectPath = this.getProjectPath();
     if (!projectPath) return;
@@ -1054,19 +1087,24 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Get the relative path of the TOC file
-    let tocPath = this.currentMdFile.relativePath || '';
-    
-    // Remove leading backslash if present
-    if (tocPath.startsWith('\\')) {
-      tocPath = tocPath.substring(1);
+    // The .md.directory file is not a folder, so fullPath is a regular absolute
+    // file path; its parent directory is the folder we need to regenerate.
+    const fileFullPath = this.currentMdFile.fullPath || '';
+    const lastSep = Math.max(fileFullPath.lastIndexOf('\\'), fileFullPath.lastIndexOf('/'));
+    const folderFullPath = lastSep > 0 ? fileFullPath.substring(0, lastSep) : fileFullPath;
+
+    // Display path for the progress dialog: relative form when available.
+    let displayPath = this.currentMdFile.relativePath || '';
+    if (displayPath.startsWith('\\')) {
+      displayPath = displayPath.substring(1);
     }
+    const lastSepRel = Math.max(displayPath.lastIndexOf('/'), displayPath.lastIndexOf('\\'));
+    if (lastSepRel > 0) {
+      displayPath = displayPath.substring(0, lastSepRel);
+    }
+    this.tocProgressService.showProgress(displayPath);
 
-    // Show progress dialog
-    const directoryPath = tocPath.substring(0, tocPath.lastIndexOf('/')) || tocPath.substring(0, tocPath.lastIndexOf('\\'));
-    this.tocProgressService.showProgress(directoryPath);
-
-    this.tocService.refreshToc(tocPath).subscribe({
+    this.tocService.generateToc(folderFullPath).subscribe({
       next: (result) => {
         // Progress dialog will be closed by SignalR event
         if (result.success) {

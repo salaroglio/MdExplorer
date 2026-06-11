@@ -14,6 +14,24 @@
   height: auto;
 }
 
+// Dark-based themes (dark + milan): override backgrounds and text colors
+:host-context(body.dark-theme),
+:host-context(body.milan-theme) {
+  .tree-scroll-container {
+    background-color: var(--mde-bg-primary);
+    color: var(--mde-text-primary);
+  }
+
+  .mat-tree {
+    background-color: var(--mde-bg-primary);
+    color: var(--mde-text-primary);
+  }
+
+  .github-icon {
+    filter: invert(1);
+  }
+}
+
 // ==================== Sticky Scroll Panel ====================
 // Overlay assoluto: fuori dal flusso scroll, nessun feedback loop
 .sticky-ancestors-panel {
@@ -22,9 +40,9 @@
   left: 0;
   right: 0;
   z-index: 10;
-  background: #fafafa;
-  border-bottom: 1px solid #e0e0e0;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  background: var(--mde-bg-secondary);
+  border-bottom: 1px solid var(--mde-border-color);
+  box-shadow: 0 2px 4px var(--mde-shadow-color);
 
   .sticky-ancestor-row {
     display: flex;
@@ -34,13 +52,13 @@
     cursor: pointer;
     padding-right: 8px;
     gap: 4px;
-    background: rgba(255, 248, 220, 0.95);
-    border-bottom: 1px solid rgba(0,0,0,0.06);
+    background: var(--mde-bg-secondary);
+    border-bottom: 1px solid var(--mde-border-color);
 
     &:last-child { border-bottom: none; }
 
     &:hover {
-      background: rgba(255, 243, 176, 0.95);
+      background: var(--mde-bg-hover);
     }
 
     .folder-name {
@@ -61,6 +79,29 @@
 .mat-tree-node {
   min-height: 40px !important;
 }
+
+:host-context(body.dark-theme) .mat-tree-node,
+:host-context(body.milan-theme) .mat-tree-node {
+  color: var(--mde-text-primary);
+
+  .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon) {
+    color: var(--mde-icon-color) !important;
+  }
+
+  // Preserve Material color="primary" on buttons and their icons
+  button.mat-primary .mat-icon,
+  button.mat-mdc-icon-button.mat-primary .mat-icon {
+    color: var(--mde-accent-primary) !important;
+  }
+
+  .node-text, .folder-name, span {
+    color: var(--mde-text-primary);
+  }
+
+  button:not(.mat-primary) {
+    color: var(--mde-text-primary) !important;
+  }
+}
 .blue-link {
   color: blue;
   border-bottom-width: 1px;
@@ -73,14 +114,28 @@
   color: white;
 }
 
-// Stili per file non indicizzati
-.md-file {
-  &:not(.indexed) {
-    opacity: 0.5;
-    cursor: not-allowed;
-    pointer-events: none;
-  }
-}
+// Stili per file non indicizzati — RIMOSSI il 2026-05-23 (gating UI).
+//
+// Prima questa regola disabilitava i click (pointer-events: none) sui file
+// markdown finché la pipeline async non aveva indicizzato il file. Risultato:
+// MDE appariva "inibito" per l'intera durata dell'indicizzazione, in
+// contraddizione con il design async della pipeline (vedi
+// IndexingPipelineService.RunAsync + Task.Yield).
+//
+// L'indicizzazione popola i link cross-file (LinkInsideMarkdown) e
+// l'embedding RAG — l'apertura del file in sé non dipende da questi dati.
+//
+// Lasciato vuoto come marker storico; rimosso del tutto se nessun listener
+// dipendesse dalla classe .md-file (controllato: solo questo blocco SCSS la
+// targetava per dimming/gating).
+//
+// .md-file {
+//   &:not(.indexed) {
+//     opacity: 0.5;
+//     cursor: not-allowed;
+//     pointer-events: none;
+//   }
+// }
 
 // Animazione per cartelle con indicizzazione in corso
 .folder-node {
@@ -169,17 +224,17 @@
 // Stili per il nodo selezionato
 .mat-tree-node {
   &.selected {
-    background-color: #e3f2fd;
-    border-left: 3px solid #2196F3;
-    
+    background-color: var(--mde-accent-light);
+    border-left: 3px solid var(--mde-accent-primary);
+
     .node-text {
-      color: #1976d2;
+      color: var(--mde-accent-primary);
       font-weight: 500;
     }
   }
-  
+
   &:hover:not(.selected) {
-    background-color: #f5f5f5;
+    background-color: var(--mde-bg-tertiary);
   }
 }
 
@@ -220,11 +275,11 @@
   width: 100%;
 
   &:hover {
-    background-color: rgba(0, 0, 0, 0.04);
+    background-color: var(--mde-hover-overlay);
   }
 
   &:active {
-    background-color: rgba(0, 0, 0, 0.08);
+    background-color: var(--mde-bg-hover);
   }
 }
 
@@ -258,7 +313,7 @@
   }
 
   .compact-separator {
-    color: #888;
+    color: var(--mde-text-hint);
     margin: 0 1px;
     user-select: none;
   }
@@ -278,7 +333,7 @@
       width: 24px;
       height: 24px;
       border-radius: 4px;
-      background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+      background: linear-gradient(90deg, var(--mde-border-color) 25%, var(--mde-bg-tertiary) 50%, var(--mde-border-color) 75%);
       background-size: 200% 100%;
       animation: skeleton-pulse 1.5s ease-in-out infinite;
       margin-right: 8px;
@@ -288,7 +343,7 @@
     .skeleton-text {
       height: 14px;
       border-radius: 4px;
-      background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+      background: linear-gradient(90deg, var(--mde-border-color) 25%, var(--mde-bg-tertiary) 50%, var(--mde-border-color) 75%);
       background-size: 200% 100%;
       animation: skeleton-pulse 1.5s ease-in-out infinite;
     }
@@ -323,4 +378,27 @@
 @keyframes reveal-flash {
   0% { background-color: rgba(255, 193, 7, 0.4); }
   100% { background-color: transparent; }
+}
+
+// Document icon on a folder node when it owns a generated TOC file.
+// Clickable, opens <dirname>.md.directory directly.
+.toc-indicator {
+  cursor: pointer;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  margin-left: 6px;
+  color: #1565c0;
+  vertical-align: middle;
+  opacity: 0.7;
+  transition: opacity 0.15s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+:host-context(body.dark-theme) .toc-indicator {
+  color: #64b5f6;
 }

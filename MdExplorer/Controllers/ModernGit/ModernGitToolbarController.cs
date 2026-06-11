@@ -18,6 +18,7 @@ using Ad.Tools.Dal.Extensions;
 using MdExplorer.Service.Controllers;
 using MdExplorer.Service.Models;
 using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Services.FileSystemWatcherManager;
 using Microsoft.Extensions.Options;
 
 namespace MdExplorer.Controllers.ModernGit
@@ -40,9 +41,11 @@ namespace MdExplorer.Controllers.ModernGit
             IUserSettingsDB userSettingsDB,
             IEngineDB engineDB,
             IMdIgnoreService mdIgnoreService,
-            IDatabaseManager databaseManager = null)
+            IDatabaseManager databaseManager = null,
+            IFileSystemWatcherManager fileSystemWatcherManager = null)
             : base(logger, options, hubContext, userSettingsDB, engineDB,
-                  databaseManager: databaseManager)
+                  databaseManager: databaseManager,
+                  fileSystemWatcherManager: fileSystemWatcherManager)
         {
             _modernGitService = modernGitService;
             _mdIgnoreService = mdIgnoreService;
@@ -85,15 +88,32 @@ namespace MdExplorer.Controllers.ModernGit
 
                     if (result.Success)
                     {
-                        // Notify frontend via SignalR to trigger tree refresh (GetShallowStructure does the actual rebuild)
-                        if (response.ChangedFiles?.Any() == true)
+                        // Notify frontend via SignalR to trigger tree refresh (GetShallowStructure does the actual rebuild).
+                        // The trigger is HEAD having moved (HasChanges), NOT the changed-file list:
+                        // the list is best-effort payload for consumers (e.g. reload of the open document),
+                        // while the refresh decision must never depend on it.
+                        if (result.HasChanges)
                         {
-                            _logger.LogInformation("Pull successful with {FileCount} changed files, notifying frontend", response.ChangedFiles.Count);
-                            await _hubContext.Clients.All.SendAsync("gitPullRefreshed", new
+                            var connectionId = Request.Query["ConnectionId"].ToString();
+                            var changedRelativePaths = (result.Changes ?? Enumerable.Empty<string>())
+                                .Select(p => p.Replace('\\', '/'))
+                                .ToList();
+
+                            if (!string.IsNullOrEmpty(connectionId))
                             {
-                                fileCount = response.ChangedFiles.Count,
-                                message = "Pull completed with changes"
-                            });
+                                _logger.LogInformation("Pull moved HEAD ({FileCount} files in diff), notifying client {ConnectionId}",
+                                    changedRelativePaths.Count, connectionId);
+                                await _hubContext.Clients.Client(connectionId).SendAsync("gitPullRefreshed", new
+                                {
+                                    fileCount = changedRelativePaths.Count,
+                                    changedFiles = changedRelativePaths,
+                                    message = "Pull completed with changes"
+                                });
+                            }
+                            else
+                            {
+                                _logger.LogError("Pull moved HEAD but the request carries no ConnectionId — tree refresh event NOT sent, the client tree will be stale");
+                            }
                         }
                         return Ok(response);
                     }

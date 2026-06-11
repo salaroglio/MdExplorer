@@ -1,0 +1,519 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+// =====================================================
+// Mark Assistant — Neo-Geo radio panel (β KOF palette)
+// Ported from docs-internal/mark-assistant/prototype-v0.html
+// =====================================================
+
+:host {
+  // Component is a positioned overlay; nothing here renders inline
+  display: contents;
+}
+
+// ── Dim overlay ─────────────────────────────────────────
+.mark-dim {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 12, 24, 0.78);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+  pointer-events: none;
+  z-index: 9000;
+  &.on { opacity: 1; }
+}
+
+// ── Spotlight (border around target) ─────────────────────
+// Outer dim is drawn here via a huge box-shadow spread so the inside
+// of the box stays fully transparent — the highlighted card shows at
+// its real colors (light or dark mode), no yellow halo, no double dim.
+.mark-spotlight {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9001;
+  border-radius: 14px;
+  background: transparent;
+  border: 3px solid #FFD700;
+  box-shadow: 0 0 0 9999px rgba(8, 12, 24, 0.78);
+  transition:
+    top .55s ease, left .55s ease, width .55s ease, height .55s ease;
+  animation: mark-blink-border 0.6s steps(2) infinite;
+}
+@keyframes mark-blink-border {
+  0%   { border-color: #FFD700; }
+  50%  { border-color: #fff8b0; }
+  100% { border-color: #FFD700; }
+}
+
+.mark-pointer {
+  position: fixed;
+  z-index: 9002;
+  color: #FFD700;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 28px;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.8), 2px 2px 0 #000;
+  transition: top .55s ease, left .55s ease;
+  animation: mark-arrow-bounce 0.5s steps(2) infinite;
+  pointer-events: none;
+}
+@keyframes mark-arrow-bounce {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(-6px); }
+}
+
+// ── Dialog wrapper (slide-in container) ─────────────────
+// z-index above the dim (9000) so Mark stays visible during dimmed
+// lessons. Above MatDialog default (1000) so the panel never gets
+// covered. Trade-off: Mark CAN mask other MatDialog popups opened by
+// MDE (connection-lost, parsing-project, ...). If that becomes a real
+// problem we'll subscribe to MatDialog.openDialogs and tweak z-index
+// dynamically — for now it's a known limitation.
+.mark-dialog-wrap {
+  position: fixed;
+  bottom: 32px;
+  right: 32px;
+  z-index: 9100;
+  width: 540px;
+  // Off state: completely invisible. transform alone is not enough — if the
+  // user dragged Mark to a custom top/left, translateY(140%) only shifts by
+  // ~140% of the box height, which can still leave it inside the viewport.
+  // opacity + visibility close the gap unconditionally.
+  transform: translateY(140%);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    transform .55s cubic-bezier(.25, 1.5, .5, 1),
+    opacity .35s ease,
+    visibility 0s linear .35s,    // delay hide until opacity finishes fading
+    bottom .6s ease,
+    right .6s ease,
+    width .6s ease;
+  pointer-events: none;
+
+  &.on {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    // When showing, snap visibility immediately so the slide-in is visible
+    transition:
+      transform .55s cubic-bezier(.25, 1.5, .5, 1),
+      opacity .35s ease,
+      visibility 0s linear 0s,
+      bottom .6s ease,
+      right .6s ease,
+      width .6s ease;
+  }
+
+  // When the user has dragged the dialog to a custom position, top/left
+  // (set inline as [style.top.px]/[style.left.px]) take over and we
+  // neutralize the default bottom/right anchors.
+  &.has-custom-position {
+    bottom: auto;
+    right: auto;
+    // also smooth position transitions disabled for snappy follow during drag
+    transition:
+      transform .55s cubic-bezier(.25, 1.5, .5, 1),
+      width .6s ease;
+  }
+
+  &.dragging {
+    cursor: grabbing;
+    user-select: none;
+    transition: none;     // snap to mouse, no easing during active drag
+  }
+
+  &.minimized {
+    width: 96px;
+    bottom: 24px;
+    right: 24px;
+    cursor: grab;
+
+    .close-mini {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #1a1a1a;
+      color: #FFD700;
+      border: 2px solid #FFD700;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 9px;
+      line-height: 1;
+      padding: 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 2px 2px 0 #000;
+      z-index: 5;
+
+      &:hover {
+        background: #c0392b;
+        color: #fff;
+        border-color: #fff;
+      }
+      &:active {
+        transform: translate(1px, 1px);
+        box-shadow: 1px 1px 0 #000;
+      }
+    }
+
+    .dialog-text-area,
+    .led-area,
+    .antenna,
+    .continue-arrow,
+    .user-input-area {
+      display: none;
+    }
+    .mark-dialog-box {
+      padding: 8px;
+    }
+    .face-portrait {
+      width: 80px;
+      height: 80px;
+    }
+  }
+
+  // Hide the close-mini button when NOT minimized (it lives inside the wrap)
+  &:not(.minimized) > .close-mini {
+    display: none;
+  }
+}
+
+// Default cursor on the box itself: grab — signals draggability.
+// Interactive children (input, buttons) restore their own cursor below.
+.mark-dialog-box {
+  cursor: grab;
+
+  input, button {
+    cursor: auto;
+  }
+  input { cursor: text; }
+  button:not(:disabled) { cursor: pointer; }
+}
+.mark-dialog-wrap.dragging .mark-dialog-box {
+  cursor: grabbing;
+}
+
+// ── Antenna ─────────────────────────────────────────────
+.antenna {
+  position: absolute;
+  top: -28px;
+  right: 24px;
+  width: 4px;
+  height: 28px;
+  background: #c0c0c0;
+  box-shadow: 2px 0 0 #888, -2px 0 0 #f0f0f0;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -4px;
+    width: 12px;
+    height: 8px;
+    background: #FF3B3B;
+    border: 2px solid #1a1a1a;
+    box-shadow: 0 0 12px rgba(255, 59, 59, .9);
+    animation: mark-antenna-blink 1s steps(2) infinite;
+  }
+}
+@keyframes mark-antenna-blink {
+  0%, 100% { background: #FF3B3B; box-shadow: 0 0 14px rgba(255, 59, 59, .9); }
+  50%      { background: #5a0000; box-shadow: 0 0 4px rgba(255, 59, 59, .3); }
+}
+
+// ── Dialog box itself ───────────────────────────────────
+.mark-dialog-box {
+  position: relative;
+  background: linear-gradient(180deg, #0d2755 0%, #08183b 100%);
+  border: 4px solid #1a1a1a;
+  box-shadow:
+    inset 0 0 0 2px #FFD700,
+    inset 0 0 0 5px #08183b,
+    inset 0 0 0 7px #c0c0c0,
+    inset 0 0 0 9px #1a1a1a,
+    0 8px 0 0 #000,
+    0 12px 30px rgba(0,0,0,0.4);
+  padding: 18px 22px 22px 22px;
+  color: white;
+  image-rendering: pixelated;
+}
+
+.rivet {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle at 30% 30%, #fff 10%, #888 60%, #2a2a2a 100%);
+  border-radius: 50%;
+  z-index: 2;
+  &.rivet-tl { top: 6px; left: 6px; }
+  &.rivet-tr { top: 6px; right: 6px; }
+  &.rivet-bl { bottom: 6px; left: 6px; }
+  &.rivet-br { bottom: 6px; right: 6px; }
+}
+
+// ── Status LED + frequency ──────────────────────────────
+.led-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-left: 4px;
+}
+
+.led {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #00ff66;
+  box-shadow: 0 0 10px rgba(0, 255, 102, 0.9), inset 0 0 3px rgba(255, 255, 255, 0.6);
+  animation: mark-led-pulse 1.2s ease-in-out infinite;
+}
+@keyframes mark-led-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+.led-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  color: #00ff66;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.freq-display {
+  margin-left: auto;
+  font-family: 'VT323', monospace;
+  font-size: 16px;
+  color: #FFD700;
+  letter-spacing: 1px;
+}
+
+.skip-btn {
+  background: transparent;
+  border: 2px solid #FFD700;
+  color: #FFD700;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  padding: 4px 6px;
+  cursor: pointer;
+  margin-left: 8px;
+  &:hover { background: #FFD700; color: #1a1a1a; }
+}
+
+// ── Content row: portrait + text ────────────────────────
+.dialog-content {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.face-portrait {
+  width: 128px;
+  height: 128px;
+  background: #000;
+  border: 3px solid #FFD700;
+  box-shadow: inset 0 0 0 1px #000, 0 0 12px rgba(255, 215, 0, 0.3);
+  flex-shrink: 0;
+  display: block;
+  // pixel-art crispness preserved when scaling down the 1254×1254 source
+  image-rendering: pixelated;
+  -ms-interpolation-mode: nearest-neighbor;
+  object-fit: cover;
+  user-select: none;
+}
+
+.dialog-text-area {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.dialog-name {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: #FFD700;
+  margin-bottom: 8px;
+  text-shadow: 2px 2px 0 #000;
+  letter-spacing: 1px;
+}
+
+.dialog-text {
+  font-family: 'VT323', monospace;
+  font-size: 22px;
+  line-height: 1.25;
+  color: #fff;
+  text-shadow: 1px 1px 0 #000;
+  min-height: 56px;
+
+  &.static {
+    color: #888;
+    font-style: italic;
+  }
+}
+
+.cursor {
+  display: inline-block;
+  width: 10px;
+  height: 18px;
+  background: #FFD700;
+  margin-left: 2px;
+  vertical-align: -2px;
+  animation: mark-cursor-blink 0.4s steps(2) infinite;
+}
+@keyframes mark-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+.continue-arrow {
+  position: absolute;
+  bottom: 14px;
+  right: 24px;
+  color: #FFD700;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  text-shadow: 2px 2px 0 #000;
+  opacity: 0;
+  animation: mark-arrow-blink 0.6s steps(2) infinite;
+
+  &.on { opacity: 1; }
+}
+@keyframes mark-arrow-blink {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(3px); }
+}
+
+// ── Action buttons (step.actions) ───────────────────────
+// Rendered when the current step asks the user to pick a path —
+// e.g. the idle-menu offers "Create demo project" / "Next tip".
+.user-actions-area {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 4px;
+
+  .action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(180deg, #FFD700 0%, #e6b800 100%);
+    color: #1a1a1a;
+    border: 3px solid #1a1a1a;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    line-height: 1;
+    padding: 10px 14px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    box-shadow: 3px 3px 0 #000;
+    transition: transform .06s, box-shadow .06s;
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(180deg, #fff8b0 0%, #FFD700 100%);
+      transform: translate(-1px, -1px);
+      box-shadow: 4px 4px 0 #000;
+    }
+
+    &:active:not(:disabled) {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0 #000;
+    }
+
+    &:disabled {
+      background: #555;
+      color: #888;
+      border-color: #2a2a2a;
+      cursor: not-allowed;
+      box-shadow: 3px 3px 0 #000;
+    }
+
+    .action-icon {
+      font-size: 14px;
+      line-height: 1;
+    }
+    .action-label { line-height: 1; }
+  }
+}
+
+// ── User input area ─────────────────────────────────────
+// Sits below dialog-content. KOF-styled: navy + gold border, VT323 font,
+// gold prompt prefix, gold send button. The architecture is ready for V3
+// (AI conversation) — V0 just routes through EchoHandler.
+.user-input-area {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 6px 8px;
+  background: #050d22;
+  border: 2px solid #FFD700;
+  box-shadow: inset 0 0 0 1px #000;
+
+  .prompt-prefix {
+    color: #FFD700;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    margin-left: 2px;
+    text-shadow: 1px 1px 0 #000;
+  }
+
+  .user-input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #fff8b0;
+    font-family: 'VT323', monospace;
+    font-size: 18px;
+    letter-spacing: 0.5px;
+    padding: 4px 6px;
+    caret-color: #FFD700;
+
+    &::placeholder {
+      color: #6a7a99;
+      font-style: italic;
+    }
+
+    &:disabled {
+      color: #555;
+      cursor: not-allowed;
+    }
+  }
+
+  .send-btn {
+    background: #FFD700;
+    color: #1a1a1a;
+    border: 2px solid #1a1a1a;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    padding: 4px 8px;
+    cursor: pointer;
+    min-width: 32px;
+    box-shadow: 2px 2px 0 #000;
+
+    &:hover:not(:disabled) {
+      background: #fff8b0;
+      transform: translate(-1px, -1px);
+      box-shadow: 3px 3px 0 #000;
+    }
+
+    &:active:not(:disabled) {
+      transform: translate(1px, 1px);
+      box-shadow: 1px 1px 0 #000;
+    }
+
+    &:disabled {
+      background: #555;
+      color: #888;
+      cursor: not-allowed;
+      box-shadow: 2px 2px 0 #000;
+    }
+  }
+}

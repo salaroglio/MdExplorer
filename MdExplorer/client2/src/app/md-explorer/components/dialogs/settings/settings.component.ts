@@ -19,6 +19,7 @@ export class SettingsComponent implements OnInit {
   vscodePath: string;
   intellijPath: string;
   jiraServer: string;
+  jiraEnabled: boolean = false;
   plantumlLocalPath: string;
   javaPath: string;
   localGraphvizDotPath: string;
@@ -44,6 +45,7 @@ export class SettingsComponent implements OnInit {
         this.vscodePath = settings.find(_ => _.name === "EditorPath")?.valueString || null;
         this.intellijPath = settings.find(_ => _.name === "IntelliJPath")?.valueString || null;
         this.jiraServer = settings.find(_ => _.name === "JiraServer")?.valueString || null;
+        this.jiraEnabled = (settings.find(_ => _.name === "JiraEnabled")?.valueInt ?? 0) === 1;
         this.plantumlLocalPath = settings.find(_ => _.name === "PlantumlLocalPath")?.valueString || null;
         this.javaPath = settings.find(_ => _.name === "JavaPath")?.valueString || null;
         this.localGraphvizDotPath = settings.find(_ => _.name === "LocalGraphvizDotPath")?.valueString || null;
@@ -62,6 +64,7 @@ export class SettingsComponent implements OnInit {
     this.updateSetting("EditorPath", this.vscodePath);
     this.updateSetting("IntelliJPath", this.intellijPath);
     this.updateSetting("JiraServer", this.jiraServer);
+    this.updateSettingInt("JiraEnabled", this.jiraEnabled ? 1 : 0);
     this.updateSetting("PlantumlLocalPath", this.plantumlLocalPath);
     this.updateSetting("JavaPath", this.javaPath);
     this.updateSetting("LocalGraphvizDotPath", this.localGraphvizDotPath);
@@ -80,6 +83,15 @@ export class SettingsComponent implements OnInit {
     } else {
       // Create new setting if it doesn't exist
       this._settings.push({ name: name, valueString: value } as IMdSetting);
+    }
+  }
+
+  private updateSettingInt(name: string, value: number): void {
+    const setting = this._settings.find(_ => _.name === name);
+    if (setting) {
+      setting.valueInt = value;
+    } else {
+      this._settings.push({ name: name, valueInt: value } as IMdSetting);
     }
   }
 

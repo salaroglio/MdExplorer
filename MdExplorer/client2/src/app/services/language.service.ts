@@ -16,6 +16,13 @@ export class LanguageService {
       : (navigator.language?.startsWith('it') ? 'it' : 'en');
 
     this.translate.use(lang);
+    localStorage.setItem(this.STORAGE_KEY, lang);
+
+    // Always sync language to Electron main process at startup
+    // (fixes tray menu staying in English when frontend auto-detected Italian)
+    if ((window as any).electronAPI?.setLanguage) {
+      (window as any).electronAPI.setLanguage(lang);
+    }
   }
 
   setLanguage(lang: string): void {

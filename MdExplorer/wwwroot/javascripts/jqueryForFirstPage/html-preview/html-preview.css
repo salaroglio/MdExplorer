@@ -1,0 +1,135 @@
+/* HTML Preview Tabs - Live preview + source for ```html code blocks */
+
+.mde-html-preview-container {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    margin: 1em 0;
+    background: #fff;
+}
+
+.mde-html-preview-tabs {
+    border-bottom: 1px solid #dee2e6;
+    padding-left: 0.5em;
+    background: #f8f9fa;
+    border-radius: 4px 4px 0 0;
+}
+
+.mde-html-preview-tabs .nav-link {
+    font-size: 0.85em;
+    padding: 0.4em 1em;
+    color: #6c757d;
+    border: none;
+    cursor: pointer;
+}
+
+.mde-html-preview-tabs .nav-link.active {
+    color: #212529;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-bottom-color: #fff;
+    margin-bottom: -1px;
+    border-radius: 4px 4px 0 0;
+}
+
+.mde-html-preview-tabs .nav-link:hover:not(.active) {
+    color: #212529;
+    background: #e9ecef;
+}
+
+.mde-html-preview-content {
+    padding: 0;
+}
+
+.mde-html-preview-content .tab-pane {
+    padding: 0;
+}
+
+.mde-html-preview-iframe {
+    width: 100%;
+    border: none;
+    min-height: 60px;
+    display: block;
+    background: #fff;
+    /* Height is set dynamically via postMessage from srcdoc content */
+    transition: height 0.15s ease-out;
+}
+
+.mde-html-preview-content pre {
+    margin: 0;
+    border-radius: 0 0 4px 4px;
+    border: none;
+}
+
+.mde-html-preview-content pre code {
+    font-size: 0.85em;
+}
+
+/* Toolbar (copy path + fullscreen) */
+.mde-html-preview-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.mde-html-preview-toolbar .nav-link {
+    padding: 0.4em 0.5em !important;
+    color: #495057 !important;
+    transition: color 0.15s;
+}
+
+.mde-html-preview-toolbar .nav-link:hover {
+    color: #212529 !important;
+    background: transparent !important;
+}
+
+.mde-copy-path-btn.copied,
+.mde-zip-copy-btn.copied {
+    color: #28a745 !important;
+}
+
+.mde-zip-copy-btn.errored {
+    color: #dc3545 !important;
+}
+
+@keyframes mde-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.mde-spin {
+    animation: mde-spin 1s linear infinite;
+}
+
+/* Fullscreen mode (Fullscreen API — covers entire screen including title bar) */
+.mde-html-preview-container.mde-fullscreen {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+}
+
+.mde-html-preview-container.mde-fullscreen .mde-html-preview-content {
+    flex: 1;
+    overflow: hidden;
+}
+
+.mde-html-preview-container.mde-fullscreen .tab-pane {
+    height: 100%;
+}
+
+.mde-html-preview-container.mde-fullscreen .mde-html-preview-iframe {
+    height: 100% !important;
+    min-height: 100%;
+}
+
+.mde-html-preview-container.mde-fullscreen .tab-content {
+    height: 100%;
+}
+
+.mde-html-preview-container.mde-fullscreen pre {
+    height: 100%;
+    overflow: auto;
+}

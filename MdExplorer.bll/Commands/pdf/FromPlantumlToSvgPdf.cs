@@ -33,54 +33,66 @@ namespace MdExplorer.Features.Commands.pdf
             Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.AbsolutePathFile));
 
             var matches = GetMatches(markdown);
+            var blockIndex = 0;
             foreach (Match item in matches.Cast<Match>())
             {
-                var text = item.Groups[1].Value;
-                // search for docxCaption:
-                var docxMatch = GetDocxCaption(markdown);
-                var docxCaption = docxMatch.Count() != 0 ? docxMatch[0].Groups[1].Value : string.Empty;
-
-                var textHash = _helper.GetHashString(text, Encoding.UTF8);
-                var filePath = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHash}.png"; //text.GetHashCode()
-                if (!File.Exists(filePath))
+                blockIndex++;
+                try
                 {
-                    var taskSvg = _plantumlServer.GetPngFromJar(text);
-                    taskSvg.Wait();
-                    var res = taskSvg.Result;
-                    File.WriteAllBytes(filePath, res);
-                    _logger.LogInformation($"write file: {filePath}");
-                }
+                    var text = item.Groups[1].Value;
+                    // search for docxCaption:
+                    var docxMatch = GetDocxCaption(markdown);
+                    var docxCaption = docxMatch.Count() != 0 ? docxMatch[0].Groups[1].Value : string.Empty;
+
+                    var textHash = _helper.GetHashString(text, Encoding.UTF8);
+                    var filePath = $"{directoryInfo.FullName}{Path.DirectorySeparatorChar}{textHash}.png"; //text.GetHashCode()
+                    if (!File.Exists(filePath))
+                    {
+                        var taskSvg = _plantumlServer.GetPngFromJar(text);
+                        taskSvg.Wait();
+                        var res = taskSvg.Result;
+                        File.WriteAllBytes(filePath, res);
+                        _logger.LogInformation($"write file: {filePath}");
+                    }
 
 
-                (var cssInchHeight, var cssInchWidth) = GetDimensionsFromCSSInline(markdown, item);
-                
-                // Try to normalize image dimensions, but if SkiaSharp fails, use default values
-                double normalizedInchHeight = 6.0; // Default height in inches
-                double normalizedInchWidth = 4.5;  // Default width in inches
-                
-                try 
-                {
-                    (normalizedInchHeight, normalizedInchWidth) = NormalizeImagesDimension(filePath);
+                    (var cssInchHeight, var cssInchWidth) = GetDimensionsFromCSSInline(markdown, item);
+
+                    // Try to normalize image dimensions, but if SkiaSharp fails, use default values
+                    double normalizedInchHeight = 6.0; // Default height in inches
+                    double normalizedInchWidth = 4.5;  // Default width in inches
+
+                    try
+                    {
+                        (normalizedInchHeight, normalizedInchWidth) = NormalizeImagesDimension(filePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning($"Failed to normalize image dimensions for {filePath}, using defaults: {ex.Message}");
+                        // Use default dimensions if normalization fails
+                    }
+
+                    var inchWidth = cssInchWidth ?? normalizedInchWidth;
+                    var inchHeight = cssInchHeight ?? normalizedInchHeight;
+
+                    var inchWidthString = inchWidth.ToString(CultureInfo.InvariantCulture);
+                    var inchHeightString = inchHeight.ToString(CultureInfo.InvariantCulture);
+
+                    // Costruisci il percorso relativo in modo cross-platform
+                    // Usa sempre forward slash per il markdown/pandoc (funziona su tutti i sistemi)
+                    var markdownFilePath = $".md/{textHash}.png";
+                    var referenceUrl = $@"![{docxCaption.Trim()}]({markdownFilePath}){{width=""{inchWidthString}in"" height=""{inchHeightString}in"" }}";
+                    _logger.LogInformation(referenceUrl);
+                    markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning($"Failed to normalize image dimensions for {filePath}, using defaults: {ex.Message}");
-                    // Use default dimensions if normalization fails
+                    // Per-block isolation: a failure on one PlantUML block must not abort the
+                    // whole transform (otherwise CommandRunner discards changes for prior blocks).
+                    // Leave the failing block as-is in the markdown so it shows up as a fenced
+                    // code block in the rendered docx — surfacing the problem to the user.
+                    _logger.LogError(ex, $"[FromPlantumlToSvgPdf] PlantUML render failed for block #{blockIndex}; leaving fenced block unchanged");
                 }
-
-                var inchWidth = cssInchWidth ?? normalizedInchWidth;
-                var inchHeight = cssInchHeight ?? normalizedInchHeight;
-
-                var inchWidthString = inchWidth.ToString(CultureInfo.InvariantCulture);
-                var inchHeightString = inchHeight.ToString(CultureInfo.InvariantCulture);
-
-                // Costruisci il percorso relativo in modo cross-platform
-                // Usa sempre forward slash per il markdown/pandoc (funziona su tutti i sistemi)
-                var markdownFilePath = $".md/{textHash}.png";
-                var referenceUrl = $@"![{docxCaption.Trim()}]({markdownFilePath}){{width=""{inchWidthString}in"" height=""{inchHeightString}in"" }}";
-                _logger.LogInformation(referenceUrl);
-                markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
-                //File.WriteAllText(filePath + "test.md", markdown);
             }
             Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.CurrentRoot));
             return markdown;

@@ -163,5 +163,252 @@ namespace MdExplorer.Service.Controllers.TabBar
             return Ok(linkDtoList);
         }
 
+        [HttpGet]
+        public IActionResult GetKnowledgeGraph([FromQuery] string fullPathFile, [FromQuery] int depth = 1)
+        {
+            try
+            {
+                var projectPath = GetProjectPath();
+                _userSettingsDB.Clear();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList().FirstOrDefault(p => p.Path == projectPath);
+                if (project == null)
+                {
+                    project = projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, projectPath, StringComparison.OrdinalIgnoreCase));
+                }
+                if (project?.LinkIndexingEnabled == false)
+                {
+                    return Ok(new KnowledgeGraphDto { CenterId = fullPathFile });
+                }
+            }
+            catch { /* fallthrough */ }
+
+            if (depth < 1) depth = 1;
+            if (depth > 3) depth = 3;
+
+            string NormPath(string p) => string.IsNullOrEmpty(p) ? p : p.Replace("\\\\", "\\");
+
+            static bool IsExternalUrl(string p)
+            {
+                if (string.IsNullOrWhiteSpace(p)) return false;
+                var t = p.TrimStart();
+                return System.Text.RegularExpressions.Regex.IsMatch(t, @"^[a-z][a-z0-9+\-.]*:(//|[^\\/])", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+                    && !System.Text.RegularExpressions.Regex.IsMatch(t, @"^[a-zA-Z]:[\\/]");
+            }
+
+            static string ExternalCluster(string url)
+            {
+                if (string.IsNullOrWhiteSpace(url)) return "external";
+                var t = url.TrimStart();
+                try
+                {
+                    var u = new Uri(t);
+                    if (!string.IsNullOrEmpty(u.Host)) return u.Host.ToLowerInvariant();
+                    if (u.Scheme == "mailto")
+                    {
+                        var at = t.IndexOf('@');
+                        if (at > 0 && at < t.Length - 1)
+                        {
+                            var after = t.Substring(at + 1);
+                            var qx = after.IndexOfAny(new[] { '?', '#' });
+                            return (qx >= 0 ? after.Substring(0, qx) : after).ToLowerInvariant();
+                        }
+                    }
+                    return u.Scheme;
+                }
+                catch { return "external"; }
+            }
+
+            static string ExternalLabel(string url)
+            {
+                if (string.IsNullOrWhiteSpace(url)) return url;
+                var t = url.TrimStart();
+                try
+                {
+                    var u = new Uri(t);
+                    var path = u.AbsolutePath?.TrimEnd('/') ?? string.Empty;
+                    if (!string.IsNullOrEmpty(path) && path != "/")
+                    {
+                        var segs = path.Split('/');
+                        var last = segs[segs.Length - 1];
+                        if (!string.IsNullOrEmpty(last)) return Uri.UnescapeDataString(last);
+                    }
+                    return u.Host;
+                }
+                catch { return url; }
+            }
+
+            var normalizedCenter = NormPath(fullPathFile ?? string.Empty);
+            var rawProjectRoot = GetProjectPath() ?? string.Empty;
+            var projectRoot = NormPath(rawProjectRoot).TrimEnd('\\', '/');
+            _logger.LogInformation($"[GetKnowledgeGraph] center='{normalizedCenter}' root='{projectRoot}' depth={depth}");
+
+            var dal = GetEngineDB().GetDal<LinkInsideMarkdown>();
+            var allLinks = dal.GetList().ToList();
+
+            // Build a path -> TLDR lookup so we can attach TLDR text to every local node.
+            // Uses normalized paths (deduped backslashes) as keys; falls back to case-insensitive comparison.
+            var mdFiles = GetEngineDB().GetDal<MarkdownFile>().GetList().ToList();
+            var tldrByPath = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var mf in mdFiles)
+            {
+                if (string.IsNullOrWhiteSpace(mf.Path) || string.IsNullOrWhiteSpace(mf.Tldr)) continue;
+                var k = NormPath(mf.Path);
+                tldrByPath[k] = mf.Tldr;
+            }
+
+            string ToRelative(string full)
+            {
+                if (string.IsNullOrEmpty(full)) return full;
+                var fullN = NormPath(full);
+                if (!string.IsNullOrEmpty(projectRoot)
+                    && fullN.StartsWith(projectRoot, StringComparison.OrdinalIgnoreCase))
+                {
+                    var rel = fullN.Substring(projectRoot.Length).TrimStart('\\', '/');
+                    return rel.Replace('\\', '/');
+                }
+                return fullN.Replace('\\', '/');
+            }
+
+            var graph = new KnowledgeGraphDto { CenterId = normalizedCenter };
+            var nodeMap = new Dictionary<string, KnowledgeGraphNodeDto>(StringComparer.OrdinalIgnoreCase);
+            var edgeKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            KnowledgeGraphNodeDto Upsert(string fullPath, string label, string mdContext, bool isCenter)
+            {
+                if (string.IsNullOrWhiteSpace(fullPath)) return null;
+                var key = fullPath;
+                if (!nodeMap.TryGetValue(key, out var node))
+                {
+                    tldrByPath.TryGetValue(fullPath, out var tldr);
+                    node = new KnowledgeGraphNodeDto
+                    {
+                        Id = key,
+                        FullPath = fullPath,
+                        Label = string.IsNullOrWhiteSpace(label) ? System.IO.Path.GetFileName(fullPath) : label,
+                        MdContext = mdContext,
+                        IsCenter = isCenter,
+                        RelativePath = ToRelative(fullPath),
+                        Tldr = tldr,
+                    };
+                    nodeMap[key] = node;
+                }
+                else if (isCenter)
+                {
+                    node.IsCenter = true;
+                }
+                return node;
+            }
+
+            KnowledgeGraphNodeDto UpsertExternal(string url, string mdContext)
+            {
+                if (string.IsNullOrWhiteSpace(url)) return null;
+                var key = url.TrimStart();
+                if (!nodeMap.TryGetValue(key, out var node))
+                {
+                    node = new KnowledgeGraphNodeDto
+                    {
+                        Id = key,
+                        FullPath = key,
+                        Label = ExternalLabel(key),
+                        MdContext = mdContext,
+                        IsCenter = false,
+                        IsExternal = true,
+                        ExternalUrl = key,
+                        Cluster = ExternalCluster(key),
+                        RelativePath = null,
+                    };
+                    nodeMap[key] = node;
+                }
+                return node;
+            }
+
+            void AddEdge(string sourceId, string targetId, string linkSource)
+            {
+                if (string.IsNullOrEmpty(sourceId) || string.IsNullOrEmpty(targetId)) return;
+                if (string.Equals(sourceId, targetId, StringComparison.OrdinalIgnoreCase)) return;
+                var key = sourceId + "→" + targetId + "|" + linkSource;
+                if (!edgeKeys.Add(key)) return;
+                var linkType = LinkTypeFromSource(linkSource);
+                graph.Links.Add(new KnowledgeGraphLinkDto
+                {
+                    Source = sourceId,
+                    Target = targetId,
+                    LinkType = linkType,
+                    Source_LinkSource = linkSource,
+                });
+                if (nodeMap.TryGetValue(sourceId, out var sn)) sn.OutDegree++;
+                if (nodeMap.TryGetValue(targetId, out var tn)) tn.InDegree++;
+            }
+
+            Upsert(normalizedCenter, System.IO.Path.GetFileName(normalizedCenter), null, isCenter: true);
+
+            var frontier = new List<string> { normalizedCenter };
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { normalizedCenter };
+
+            for (int hop = 0; hop < depth; hop++)
+            {
+                var nextFrontier = new List<string>();
+                foreach (var current in frontier)
+                {
+                    // NOTE: link.Path is the ORIGINAL href as written in the markdown
+                    //       (e.g. "https://github.com/..." or "../docs/file.md")
+                    //       link.FullPath is a path built by concatenating the source dir + href,
+                    //       so for external URLs it becomes a franken-path like
+                    //       "C:\proj\https:\github.com\salaroglio\MdExplorer". The reliable
+                    //       way to recognize external links is therefore link.Path.
+                    var inbound = allLinks.Where(l => l.FullPath != null
+                        && !IsExternalUrl(l.Path)
+                        && NormPath(l.FullPath).IndexOf(current, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+                    foreach (var link in inbound)
+                    {
+                        var srcFile = NormPath(link.MarkdownFile?.Path);
+                        if (string.IsNullOrWhiteSpace(srcFile)) continue;
+                        Upsert(srcFile, System.IO.Path.GetFileName(srcFile), link.MdContext, isCenter: false);
+                        AddEdge(srcFile, current, link.Source);
+                        if (!visited.Contains(srcFile)) { visited.Add(srcFile); nextFrontier.Add(srcFile); }
+                    }
+
+                    var outbound = allLinks.Where(l => l.MarkdownFile != null && l.MarkdownFile.Path != null
+                        && NormPath(l.MarkdownFile.Path).IndexOf(current, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+                    foreach (var link in outbound)
+                    {
+                        if (IsExternalUrl(link.Path))
+                        {
+                            var extUrl = link.Path.TrimStart();
+                            UpsertExternal(extUrl, link.MdContext);
+                            AddEdge(current, extUrl, link.Source);
+                            // external URLs are leaves: we don't expand from them
+                            continue;
+                        }
+                        var tgt = NormPath(link.FullPath);
+                        if (string.IsNullOrWhiteSpace(tgt)) continue;
+                        Upsert(tgt, System.IO.Path.GetFileName(tgt), link.MdContext, isCenter: false);
+                        AddEdge(current, tgt, link.Source);
+                        if (!visited.Contains(tgt)) { visited.Add(tgt); nextFrontier.Add(tgt); }
+                    }
+                }
+                frontier = nextFrontier;
+                if (frontier.Count == 0) break;
+            }
+
+            graph.Nodes.AddRange(nodeMap.Values);
+            _logger.LogInformation($"[GetKnowledgeGraph] nodes={graph.Nodes.Count} links={graph.Links.Count}");
+            return Ok(graph);
+        }
+
+        private static string LinkTypeFromSource(string source)
+        {
+            switch (source)
+            {
+                case "WorkLinkFromMarkdown": return "link";
+                case "WorkLinkMdShowMd": return "publication";
+                case "WorkLinkMdShowH2": return "excerpt";
+                case "WorkLinkFromPlantuml": return "plantuml";
+                default: return "other";
+            }
+        }
+
     }
 }

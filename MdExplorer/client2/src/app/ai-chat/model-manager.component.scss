@@ -267,6 +267,7 @@
     background: linear-gradient(135deg, #4285f4 0%, #ea4335 100%);
     color: white;
     border: 2px solid #4285f4;
+
     
     mat-card-header {
       mat-card-title {
@@ -342,6 +343,87 @@
         text-decoration: none;
         &:hover {
           text-decoration: underline;
+        }
+      }
+    }
+  }
+}
+
+// === DARK-BASED THEME OVERRIDES (dark + milan) ===
+:host-context(body.dark-theme),
+:host-context(body.milan-theme) {
+  &::-webkit-scrollbar-track {
+    background: var(--mde-scrollbar-track);
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--mde-scrollbar-thumb);
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--mde-scrollbar-hover);
+  }
+
+  .model-manager {
+    .model-card {
+      .model-description {
+        color: var(--mde-text-secondary);
+      }
+
+      .model-info .file-size {
+        color: var(--mde-text-secondary);
+      }
+
+      .download-progress {
+        background: var(--mde-bg-tertiary);
+
+        .progress-bytes {
+          color: var(--mde-text-secondary);
+        }
+      }
+    }
+
+    .no-models {
+      color: var(--mde-text-secondary);
+    }
+
+    .system-prompt-editor {
+      background: var(--mde-bg-secondary);
+
+      mat-card-actions {
+        background: var(--mde-bg-primary);
+        border-top: 1px solid var(--mde-border-color);
+      }
+    }
+
+    // Provider config cards: keep coloured gradient header, but make inner content readable in dark.
+    .copilotcli-config-card,
+    .gemini-config-card {
+      mat-card-content {
+        background: var(--mde-bg-primary);
+        color: var(--mde-text-primary);
+
+        h4 {
+          color: var(--mde-text-primary);
+        }
+
+        .models-grid .model-card {
+          mat-card-header {
+            mat-card-title {
+              color: var(--mde-text-primary);
+            }
+            mat-card-subtitle {
+              color: var(--mde-text-secondary);
+            }
+          }
+
+          mat-card-content {
+            .model-description {
+              color: var(--mde-text-secondary);
+            }
+          }
+        }
+
+        a {
+          color: var(--mde-accent-primary);
         }
       }
     }

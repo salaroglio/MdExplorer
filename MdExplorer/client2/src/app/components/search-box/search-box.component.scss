@@ -77,9 +77,9 @@
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: white;
+  background: var(--mde-bg-primary);
   border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 12px var(--mde-shadow-color);
   max-height: 500px;
   overflow: hidden;
   z-index: 1000;
@@ -109,7 +109,7 @@
 
   .count {
     font-size: 12px;
-    color: #666;
+    color: var(--mde-text-secondary);
   }
 }
 
@@ -122,11 +122,11 @@
   display: flex;
   padding: 12px;
   cursor: pointer;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--mde-border-color);
   transition: background-color 0.2s;
 
   &:hover {
-    background-color: #f5f5f5;
+    background-color: var(--mde-bg-tertiary);
   }
 
   &:last-child {
@@ -136,7 +136,7 @@
 
 .result-icon {
   margin-right: 12px;
-  color: #666;
+  color: var(--mde-icon-color);
   font-size: 20px;
 }
 
@@ -147,7 +147,7 @@
 
 .result-title {
   font-weight: 500;
-  color: #333;
+  color: var(--mde-text-primary);
   margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -162,7 +162,7 @@
 
 .result-path {
   font-size: 12px;
-  color: #666;
+  color: var(--mde-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -178,7 +178,7 @@
 
 .result-context {
   font-size: 12px;
-  color: #666;
+  color: var(--mde-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -193,21 +193,21 @@
 }
 
 .matched-field {
-  background: #e3f2fd;
-  color: #1976d2;
+  background: var(--mde-accent-light);
+  color: var(--mde-accent-primary);
   padding: 2px 6px;
   border-radius: 2px;
 }
 
 .file-type,
 .source-file {
-  color: #999;
+  color: var(--mde-text-hint);
 }
 
 .no-results {
   padding: 24px;
   text-align: center;
-  color: #666;
+  color: var(--mde-text-secondary);
   font-style: italic;
 }
 
@@ -217,14 +217,14 @@
   justify-content: center;
   padding: 24px;
   gap: 12px;
-  color: #666;
+  color: var(--mde-text-secondary);
 }
 
 .search-footer {
   padding: 8px 12px;
-  border-top: 1px solid #f0f0f0;
-  background: #fafafa;
+  border-top: 1px solid var(--mde-border-color);
+  background: var(--mde-bg-secondary);
   text-align: right;
   font-size: 11px;
-  color: #999;
+  color: var(--mde-text-hint);
 }

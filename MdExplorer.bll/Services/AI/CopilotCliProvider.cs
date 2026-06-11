@@ -14,6 +14,7 @@ using MdExplorer.Abstractions.Models.AI;
 using MdExplorer.Abstractions.Services;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.bll.Models.AI;
+using MdExplorer.Features.Services.AI.CopilotAcp;
 
 namespace MdExplorer.Features.Services.AI
 {
@@ -28,12 +29,11 @@ namespace MdExplorer.Features.Services.AI
         private readonly IServiceProvider _serviceProvider;
         private string _systemPrompt;
 
-        private const string COPILOT_EXECUTABLE = "copilot";
         private const string USAGE_SEPARATOR = "Total usage est:";
         private const int PROCESS_TIMEOUT_MS = 300000; // 5 minutes
         private const int AVAILABILITY_CHECK_TIMEOUT_MS = 5000;
         private const string SYSTEM_PROMPT_SETTING = "CopilotCli_SystemPrompt";
-        private const string DEFAULT_MODEL = "claude-sonnet-4";
+        private const string DEFAULT_MODEL = "claude-sonnet-4.6";
         private const int MAX_COMMAND_LINE_CHARS = 30000;
 
         /// <summary>
@@ -59,6 +59,37 @@ namespace MdExplorer.Features.Services.AI
 
         public ProviderType GetProviderType() => ProviderType.CopilotCli;
 
+        /// <summary>
+        /// Returns the cached availability if fresh, null if cache is cold/expired.
+        /// Non-blocking: never spawns a subprocess. Callers on hot paths should use
+        /// this and fire-and-forget <see cref="IsAvailable"/> in the background to
+        /// warm the cache for next time.
+        /// </summary>
+        public bool? TryGetCachedAvailability()
+        {
+            if (_cachedAvailability.HasValue && DateTime.UtcNow < _availabilityCacheExpiry)
+            {
+                return _cachedAvailability.Value;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Deterministic installation check: PATH scan for copilot.exe/.cmd/.ps1.
+        /// Single-digit ms, no process spawn, no timeout.
+        /// <para>
+        /// Old behaviour was a <c>copilot --version</c> probe with 5-second timeout. That
+        /// conflated "installed" (file exists in PATH) with "starts within 5s" (runtime
+        /// performance). Symptom: Copilot CLI 1.0.51 cold-starts in ~8.5s while it runs
+        /// its own update check; MDE killed the process at 5s and concluded "not installed"
+        /// on a perfectly installed system. Verified 2026-05-24.
+        /// </para>
+        /// <para>
+        /// We don't probe the version. If the file is there, it's installed. If a real
+        /// launch later fails (corrupt binary, permission denied, ...) that's a separate
+        /// concern surfaced at use time with the real error, not as a silent "not available".
+        /// </para>
+        /// </summary>
         public bool IsAvailable()
         {
             if (_cachedAvailability.HasValue && DateTime.UtcNow < _availabilityCacheExpiry)
@@ -66,46 +97,15 @@ namespace MdExplorer.Features.Services.AI
                 return _cachedAvailability.Value;
             }
 
-            try
+            var resolvable = CopilotProcessLauncher.IsResolvable();
+            _cachedAvailability = resolvable;
+            _availabilityCacheExpiry = DateTime.UtcNow + AvailabilityCacheDuration;
+            if (!resolvable)
             {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = COPILOT_EXECUTABLE,
-                    Arguments = "--version",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
-                using var process = Process.Start(psi);
-                if (process == null)
-                {
-                    _cachedAvailability = false;
-                    _availabilityCacheExpiry = DateTime.UtcNow + AvailabilityCacheDuration;
-                    return false;
-                }
-
-                var completed = process.WaitForExit(AVAILABILITY_CHECK_TIMEOUT_MS);
-                if (!completed)
-                {
-                    try { process.Kill(); } catch { }
-                    _cachedAvailability = false;
-                    _availabilityCacheExpiry = DateTime.UtcNow + AvailabilityCacheDuration;
-                    return false;
-                }
-
-                _cachedAvailability = process.ExitCode == 0;
-                _availabilityCacheExpiry = DateTime.UtcNow + AvailabilityCacheDuration;
-                return _cachedAvailability.Value;
+                _logger.LogInformation(
+                    "[CopilotCliProvider.IsAvailable] copilot.exe/.cmd/.ps1 not found in PATH — Copilot CLI not installed");
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Copilot CLI not available");
-                _cachedAvailability = false;
-                _availabilityCacheExpiry = DateTime.UtcNow + AvailabilityCacheDuration;
-                return false;
-            }
+            return resolvable;
         }
 
         public ProviderCapabilities GetCapabilities()
@@ -380,15 +380,11 @@ Always provide clear, concise, and well-formatted responses using proper markdow
         {
             try
             {
-                var psi = new ProcessStartInfo
-                {
-                    FileName = COPILOT_EXECUTABLE,
-                    Arguments = "--version",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
+                var psi = CopilotProcessLauncher.BuildStartInfo("--version");
+                psi.RedirectStandardOutput = true;
+                psi.RedirectStandardError = true;
+                psi.UseShellExecute = false;
+                psi.CreateNoWindow = true;
 
                 using var process = Process.Start(psi);
                 if (process == null) return null;
@@ -449,55 +445,45 @@ Always provide clear, concise, and well-formatted responses using proper markdow
 
         private ProcessStartInfo CreateProcessStartInfo(string prompt, string model, bool streaming)
         {
-            var psi = new ProcessStartInfo
-            {
-                FileName = COPILOT_EXECUTABLE,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8,
-                StandardErrorEncoding = Encoding.UTF8
-            };
+            var useStdin = ShouldUseStdin(prompt);
 
-            // Set working directory to the current project path if available
+            // Build the argument string first; CopilotProcessLauncher.BuildStartInfo will splice it
+            // into the right wrapper (direct copilot.exe, cmd.exe /c copilot.cmd, or powershell -File copilot.ps1).
+            var args = new StringBuilder();
+            if (useStdin)
+            {
+                args.Append("-p - "); // Read prompt from stdin
+            }
+            else
+            {
+                var escapedPrompt = prompt.Replace("\"", "\\\"");
+                args.Append($"-p \"{escapedPrompt}\" ");
+            }
+            args.Append("--no-color ");
+            args.Append("--screen-reader ");
+            args.Append("--allow-all-tools ");
+            args.Append($"--model {model}");
+            if (!streaming)
+            {
+                args.Append(" --stream off");
+            }
+
+            var psi = CopilotProcessLauncher.BuildStartInfo(args.ToString());
+            psi.RedirectStandardOutput = true;
+            psi.RedirectStandardError = true;
+            psi.UseShellExecute = false;
+            psi.CreateNoWindow = true;
+            psi.StandardOutputEncoding = Encoding.UTF8;
+            psi.StandardErrorEncoding = Encoding.UTF8;
+            if (useStdin)
+            {
+                psi.RedirectStandardInput = true;
+            }
+
             if (!string.IsNullOrEmpty(WorkingDirectory) && System.IO.Directory.Exists(WorkingDirectory))
             {
                 psi.WorkingDirectory = WorkingDirectory;
                 _logger.LogInformation("[CopilotCliProvider] Working directory set to: {WorkingDir}", WorkingDirectory);
-            }
-
-            if (ShouldUseStdin(prompt))
-            {
-                // Use stdin for long prompts (Windows has 32767 char command-line limit)
-                psi.RedirectStandardInput = true;
-                var args = new StringBuilder();
-                args.Append("-p - "); // Read prompt from stdin
-                args.Append("--no-color ");
-                args.Append("--screen-reader ");
-                args.Append("--allow-all-tools ");
-                args.Append($"--model {model}");
-                if (!streaming)
-                {
-                    args.Append(" --stream off");
-                }
-                psi.Arguments = args.ToString();
-            }
-            else
-            {
-                var args = new StringBuilder();
-                // Escape the prompt for command line
-                var escapedPrompt = prompt.Replace("\"", "\\\"");
-                args.Append($"-p \"{escapedPrompt}\" ");
-                args.Append("--no-color ");
-                args.Append("--screen-reader ");
-                args.Append("--allow-all-tools ");
-                args.Append($"--model {model}");
-                if (!streaming)
-                {
-                    args.Append(" --stream off");
-                }
-                psi.Arguments = args.ToString();
             }
 
             return psi;

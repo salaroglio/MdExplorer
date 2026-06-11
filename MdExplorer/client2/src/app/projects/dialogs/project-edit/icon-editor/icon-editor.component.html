@@ -1,0 +1,63 @@
+<div class="icon-editor">
+  <div class="canvas-wrapper"
+       [class.empty]="!hasImage"
+       (mousedown)="onMouseDown($event)"
+       (wheel)="onWheel($event)">
+    <canvas #canvas
+            [width]="canvasSize"
+            [height]="canvasSize"
+            class="editor-canvas"></canvas>
+
+    <div class="placeholder-overlay" *ngIf="!hasImage">
+      <mat-icon>content_paste</mat-icon>
+      <p class="placeholder-title">{{ 'PROJECTS.ICON_EDITOR_PASTE_HINT' | translate }}</p>
+      <p class="placeholder-sub">{{ 'PROJECTS.ICON_EDITOR_PASTE_SUB' | translate }}</p>
+    </div>
+  </div>
+
+  <div class="hints" *ngIf="hasImage">
+    <span class="hint-item">
+      <mat-icon>open_with</mat-icon>
+      {{ 'PROJECTS.ICON_EDITOR_HINT_DRAG' | translate }}
+    </span>
+    <span class="hint-item">
+      <mat-icon>zoom_in</mat-icon>
+      {{ 'PROJECTS.ICON_EDITOR_HINT_ZOOM' | translate }}
+    </span>
+  </div>
+
+  <div class="error-line" *ngIf="pasteError">
+    <mat-icon>error_outline</mat-icon>
+    <span [ngSwitch]="pasteError">
+      <span *ngSwitchCase="'NO_IMAGE'">{{ 'PROJECTS.ICON_EDITOR_ERROR_NO_IMAGE' | translate }}</span>
+      <span *ngSwitchCase="'CLIPBOARD_DENIED'">{{ 'PROJECTS.ICON_EDITOR_ERROR_CLIPBOARD_DENIED' | translate }}</span>
+      <span *ngSwitchCase="'CLIPBOARD_UNAVAILABLE'">{{ 'PROJECTS.ICON_EDITOR_ERROR_CLIPBOARD_UNAVAILABLE' | translate }}</span>
+      <span *ngSwitchCase="'LOAD_ERROR'">{{ 'PROJECTS.ICON_EDITOR_ERROR_LOAD' | translate }}</span>
+    </span>
+  </div>
+
+  <div class="actions">
+    <button mat-stroked-button type="button" (click)="pasteFromClipboard()" [disabled]="pasting">
+      <mat-icon>content_paste</mat-icon>
+      {{ 'PROJECTS.ICON_EDITOR_PASTE' | translate }}
+    </button>
+    <button mat-stroked-button type="button" (click)="resetView()" [disabled]="!hasImage">
+      <mat-icon>center_focus_strong</mat-icon>
+      {{ 'PROJECTS.ICON_EDITOR_RESET' | translate }}
+    </button>
+    <span class="spacer"></span>
+    <button mat-stroked-button type="button"
+            color="warn"
+            *ngIf="hasCustomIcon"
+            (click)="removeAndEmit()">
+      <mat-icon>delete</mat-icon>
+      {{ 'PROJECTS.ICON_EDITOR_REMOVE' | translate }}
+    </button>
+    <button mat-flat-button color="primary" type="button"
+            (click)="applyAndEmit()"
+            [disabled]="!hasImage">
+      <mat-icon>check</mat-icon>
+      {{ 'PROJECTS.ICON_EDITOR_APPLY' | translate }}
+    </button>
+  </div>
+</div>

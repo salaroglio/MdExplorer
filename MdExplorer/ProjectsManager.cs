@@ -1,9 +1,11 @@
 ﻿using Ad.Tools.Dal;
 using Ad.Tools.Dal.Concrete;
+using Ad.Tools.Dal.Extensions;
 using Ad.Tools.FluentMigrator.Interfaces;
 using FluentMigrator.Runner;
 using LibGit2Sharp;
 using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.DataAccess.Engine;
@@ -32,7 +34,9 @@ namespace MdExplorer.Service
     {
         public static bool SetNewProject(IServiceProvider serviceProvider, string pathFromParameter, bool initializeGit = true, bool addCopilotInstructions = true)
         {
-            ConfigTemplates(pathFromParameter, null, addCopilotInstructions);
+            // Fuseki/Jena skills are deployed only for projects configured for Fuseki.
+            var fusekiEnabled = IsFusekiEnabled(serviceProvider, pathFromParameter);
+            ConfigTemplates(pathFromParameter, null, addCopilotInstructions, fusekiEnabled);
 
             // Initialize Git repository only if requested
             bool gitInitialized = false;
@@ -68,6 +72,46 @@ namespace MdExplorer.Service
 
             // Migration complete
             return gitInitialized;
+        }
+
+        /// <summary>
+        /// Reads the global UserDB to tell whether the project at <paramref name="projectPath"/>
+        /// has the Apache Jena Fuseki integration enabled. Used to gate the deployment
+        /// of the Fuseki/Jena skills. Safe: returns false on any error or when the
+        /// project / settings row does not exist yet.
+        /// </summary>
+        private static bool IsFusekiEnabled(IServiceProvider serviceProvider, string projectPath)
+        {
+            if (serviceProvider == null || string.IsNullOrWhiteSpace(projectPath))
+                return false;
+            try
+            {
+                var db = serviceProvider.GetService<IUserSettingsDB>();
+                if (db == null) return false;
+
+                var normalized = projectPath.TrimEnd('/', '\\');
+                db.BeginTransaction();
+                try
+                {
+                    var project = db.GetDal<Project>().GetList()
+                        .FirstOrDefault(p => p.Path != null &&
+                            string.Equals(p.Path.TrimEnd('/', '\\'), normalized, StringComparison.OrdinalIgnoreCase));
+                    if (project == null) return false;
+
+                    var settings = db.GetDal<ProjectFusekiSettings>().GetList()
+                        .FirstOrDefault(s => s.Project.Id == project.Id);
+                    return settings?.Enabled ?? false;
+                }
+                finally
+                {
+                    db.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ProjectsManager] IsFusekiEnabled check failed: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>
@@ -197,7 +241,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
     return effectivePath; // Return the path that was actually used.
 }
 
-        public static void ConfigTemplates(string mdPath, IServiceCollection services = null, bool addCopilotInstructions = true)
+        public static void ConfigTemplates(string mdPath, IServiceCollection services = null, bool addCopilotInstructions = true, bool fusekiEnabled = false)
         {
             //var directory = $"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md";
             var directory = $"{mdPath}{Path.DirectorySeparatorChar}.md";
@@ -207,7 +251,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             Directory.CreateDirectory(directoryEmoji);
 
             // Copy configuration files to project root if they don't exist
-            CopyConfigurationFilesToProject(mdPath, addCopilotInstructions);
+            CopyConfigurationFilesToProject(mdPath, addCopilotInstructions, fusekiEnabled);
 
             var assembly = Assembly.GetExecutingAssembly();
             var embeddedSubfolder = "MdExplorer.Service.EmojiForPandoc.";
@@ -303,7 +347,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             }
         }
         
-        private static void CopyConfigurationFilesToProject(string projectPath, bool addCopilotInstructions = true)
+        private static void CopyConfigurationFilesToProject(string projectPath, bool addCopilotInstructions = true, bool fusekiEnabled = false)
         {
             try
             {
@@ -353,6 +397,12 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                         FileUtil.ExtractResFile("MdExplorer.Service.copilot-instructions.md", copilotInstructionsPath);
                         Console.WriteLine($"Created GitHub Copilot instructions file: {copilotInstructionsPath}");
                     }
+
+                    // Copilot agent skills — version-aware install/update.
+                    // Each MdE-managed skill has an `mde:` block in its frontmatter; the updater
+                    // upgrades it on every project open if the embedded version is newer, but
+                    // leaves user-customized skills alone (when `origin` differs or is missing).
+                    MdeSkillUpdater.EnsureAllSkillsInstalled(projectPath, fusekiEnabled);
                 }
 
                 // Create .vscode folder with MCP server configuration
@@ -376,9 +426,10 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 Directory.CreateDirectory(vscodePath);
 
                 var mcpJsonPath = Path.Combine(vscodePath, "mcp.json");
-                var projectName = new DirectoryInfo(projectPath).Name;
 
-                // Build the MdExplorer server entry
+                // Build the MdExplorer server entry.
+                // NOTE: the MCP server does NOT take a launch-time project argument — tools
+                // receive the project name per call (the LLM discovers it via GetProjects).
                 var baseDir = AppDomain.CurrentDomain.BaseDirectory;
                 var mcpExePath = Path.Combine(baseDir, "MdExplorer.Mcp.exe");
 
@@ -388,8 +439,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     serverEntry = new System.Text.Json.Nodes.JsonObject
                     {
                         ["type"] = "stdio",
-                        ["command"] = mcpExePath,
-                        ["args"] = new System.Text.Json.Nodes.JsonArray("--project", projectName)
+                        ["command"] = mcpExePath
                     };
                 }
                 else
@@ -399,7 +449,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     {
                         ["type"] = "stdio",
                         ["command"] = "dotnet",
-                        ["args"] = new System.Text.Json.Nodes.JsonArray("run", "--project", mcpProjectPath, "--", "--project", projectName)
+                        ["args"] = new System.Text.Json.Nodes.JsonArray("run", "--project", mcpProjectPath)
                     };
                 }
 
@@ -501,8 +551,17 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                         root["mcpServers"] = servers;
                     }
 
-                    // Only write if "mdexplorer" entry doesn't exist yet (don't overwrite user customizations)
-                    if (!servers.ContainsKey(serverKey))
+                    // Write if the entry is missing, OR self-heal a stale/broken entry whose
+                    // launch target no longer resolves (old install path that changed between
+                    // installs, or a "dotnet run --project ..." fallback written on a client
+                    // that has neither the .NET SDK nor the sources). A working user
+                    // customization (an existing, resolvable command) is left untouched.
+                    // Only heal when we actually have a real MdExplorer.Mcp.exe to point at,
+                    // so we never replace an entry with another broken fallback.
+                    bool entryMissing = !servers.ContainsKey(serverKey);
+                    bool entryBroken = servers[serverKey] is System.Text.Json.Nodes.JsonObject existingEntry
+                                       && McpEntryLaunchTargetMissing(existingEntry);
+                    if (entryMissing || (File.Exists(mcpExePath) && entryBroken))
                     {
                         servers[serverKey] = serverEntry;
                     }
@@ -526,6 +585,48 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             {
                 Console.WriteLine($"Error creating Copilot CLI MCP configuration: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// Returns true when an existing "mdexplorer" MCP entry cannot actually launch because
+        /// its configured command does not resolve on this machine: a direct exe path that no
+        /// longer exists (e.g. the install moved), or a "dotnet run --project &lt;path&gt;" fallback
+        /// pointing at sources that are not present (a client without the SDK/repo). Such entries
+        /// are safe to overwrite; a working command path is treated as a deliberate customization.
+        /// </summary>
+        private static bool McpEntryLaunchTargetMissing(System.Text.Json.Nodes.JsonObject entry)
+        {
+            var command = entry?["command"]?.GetValue<string>();
+            if (string.IsNullOrWhiteSpace(command))
+                return true;
+
+            // Fallback form: { "command": "dotnet", "args": ["run", "--project", "<path>"] }.
+            // This only works where the project source exists (a dev machine).
+            if (string.Equals(command, "dotnet", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(command, "dotnet.exe", StringComparison.OrdinalIgnoreCase))
+            {
+                if (entry["args"] is System.Text.Json.Nodes.JsonArray args)
+                {
+                    for (int i = 0; i < args.Count - 1; i++)
+                    {
+                        if (string.Equals(args[i]?.GetValue<string>(), "--project", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var projArg = args[i + 1]?.GetValue<string>();
+                            if (string.IsNullOrWhiteSpace(projArg))
+                                return true;
+                            var csproj = projArg.EndsWith(".csproj", StringComparison.OrdinalIgnoreCase)
+                                ? projArg
+                                : Path.Combine(projArg, "MdExplorer.Mcp.csproj");
+                            return !File.Exists(csproj) && !Directory.Exists(projArg);
+                        }
+                    }
+                }
+                // "dotnet" with no resolvable --project target -> unusable.
+                return true;
+            }
+
+            // Direct form: the command is a path to MdExplorer.Mcp.exe.
+            return !File.Exists(command);
         }
 
         private static string FindMcpProjectPath(string baseDir)

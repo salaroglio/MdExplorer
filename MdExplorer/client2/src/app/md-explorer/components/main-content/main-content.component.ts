@@ -14,6 +14,7 @@ import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack
 import { ProjectsService } from '../../services/projects.service';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
+import { ThemeService } from '../../../services/theme.service';
 
 // Content state interface for managing loading, error, and success states
 interface ContentState {
@@ -75,7 +76,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     private snackBar: MatSnackBar,
     private projectsService: ProjectsService,
     private http: HttpClient,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private themeService: ThemeService
   ) {
     
     // Initialize observables from state
@@ -104,12 +106,30 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       takeUntil(this.destroy$)
     );
 
-    this.monitorMDService.addMarkdownFileListener(this.markdownFileIsChanged, this);
+    // takeUntil(destroy$): this component is destroyed/recreated when leaving and
+    // re-entering a project; the legacy addMarkdownFileListener accumulated one
+    // handler per instantiation and the document got reloaded N times per event.
+    this.monitorMDService.markdownFileChanged$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(data => this.markdownFileIsChanged(data, this));
   }
 
   ngOnInit(): void {
     // Initialize P2P message listener for iframe communication
     this.setupP2PMessageListener();
+
+    // Reload iframe when theme changes
+    this.themeService.currentTheme$.pipe(
+      takeUntil(this.destroy$),
+      distinctUntilChanged()
+    ).subscribe(() => {
+      const currentState = this.contentState$.value;
+      if (currentState.currentPath && currentState.status === 'loaded') {
+        const dateTime = new Date().getTime() / 1000;
+        const cleanPath = this.cleanRelativePath(currentState.currentPath);
+        this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
+      }
+    });
 
     // Enhanced subscription with loading state management
     this.service.selectedMdFileFromSideNav.pipe(
@@ -173,6 +193,18 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     ).subscribe(event => {
       this.handleFileDeleted(event.fullPath, event.name);
     });
+
+    // After a git pull / branch switch, reload the open document if the operation
+    // touched it. The watcher is OFF during git operations, so no
+    // markdownfileischanged will ever arrive for these files: this is the only
+    // channel that keeps the open document in sync with the pulled content.
+    this.monitorMDService.gitPullRefreshed$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(data => this.reloadOpenDocumentIfChanged(data?.changedFiles, 'git pull'));
+
+    this.monitorMDService.gitBranchSwitched$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(data => this.reloadOpenDocumentIfChanged(data?.changedFiles, 'branch switch'));
     
     // Subscribe to layout changes - RIMOSSO per usare solo CSS
     // this.layoutService.sidenavWidth$.pipe(
@@ -270,7 +302,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     if (node?.relativePath) {
       const dateTime = new Date().getTime() / 1000;
       const cleanPath = this.cleanRelativePath(node.relativePath);
-      const newHtmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular`;
+      const newHtmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
 
       // Only update if URL actually changed to prevent unnecessary reloads
       if (this.htmlSource !== newHtmlSource) {
@@ -284,6 +316,33 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
           this.setupIframeEventListeners();
         }, 200);
       }
+    }
+  }
+
+  /**
+   * Reloads the currently open document when a git operation (pull / branch switch)
+   * changed it. `changedFiles` are repo-relative paths with '/' separators.
+   * Honors the user's autoload preference. A document deleted by the operation
+   * surfaces through the iframe error path (visible, not silent).
+   */
+  private reloadOpenDocumentIfChanged(changedFiles: string[] | undefined, source: string): void {
+    if (!changedFiles?.length) {
+      return;
+    }
+    const currentPath = this.contentState$.value.currentPath;
+    if (!currentPath) {
+      return;
+    }
+    if (localStorage.getItem('mdexplorer_autoload_disabled') === 'true') {
+      console.log(`[MainContent] ⏸️ Autoload disabled by user, not reloading open document after ${source}`);
+      return;
+    }
+
+    const normalize = (p: string) => p.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+    const current = normalize(currentPath);
+    if (changedFiles.some(p => normalize(p) === current)) {
+      console.log(`[MainContent] 🔄 Open document was changed by ${source} — reloading`);
+      this.loadMarkdownFile({ relativePath: currentPath } as MdFile);
     }
   }
 
@@ -428,7 +487,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       if (currentState.currentPath) {
         const dateTime = new Date().getTime() / 1000;
         const cleanPath = this.cleanRelativePath(currentState.currentPath);
-        this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&retry=${currentState.retryCount + 1}`;
+        this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}&retry=${currentState.retryCount + 1}`;
       }
     });
   }
@@ -480,7 +539,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     // Update the URL to point to the new path
     const dateTime = new Date().getTime() / 1000;
     const cleanPath = this.cleanRelativePath(newPath);
-    this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular`;
+    this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
   }
 
   /**
@@ -518,7 +577,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       // Force reload with new timestamp
       const dateTime = new Date().getTime() / 1000;
       const cleanPath = this.cleanRelativePath(currentPath);
-      this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&refreshed=true`;
+      this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}&refreshed=true`;
     }
   }
 

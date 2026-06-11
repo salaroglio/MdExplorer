@@ -11,6 +11,7 @@
       <button *ngIf="item.type==='folder' || item.name==='root'" mat-icon-button [matTooltip]="'MD_TREE.CREATE_FOLDER' | translate" color="primary" (click)="createDirectoryOn(item)"><mat-icon>create_new_folder</mat-icon></button>
       <button *ngIf="item.type==='folder' || item.name==='root'" mat-icon-button [matTooltip]="'MD_TREE.CREATE_DOCUMENT' | translate" color="primary" (click)="createMdOn(item)"><mat-icon>note_add</mat-icon></button>
       <button *ngIf="item.type==='folder'" mat-icon-button color="primary" (click)="getLinkFromNode(item)" [matTooltip]="'MD_TREE.COPY_PATH' | translate"><mat-icon>link</mat-icon></button>
+      <button *ngIf="item.type==='folder'" mat-icon-button [matTooltip]="'MD_TREE.MARK_ASSIST' | translate" (click)="openMarkForFolder(item)"><img src="/assets/mark.png" alt="Mark" style="width:22px;height:22px;border-radius:4px;" /></button>
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="warn" (click)="deleteFile(item)" [matTooltip]="'MD_TREE.DELETE_DOCUMENT' | translate"><mat-icon>delete</mat-icon></button>
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="warn" (click)="pasteFromClipboard(item)" [matTooltip]="'MD_TREE.PASTE_CLIPBOARD' | translate"><mat-icon>archive</mat-icon></button>
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="primary" (click)="getLinkFromNode(item)" [matTooltip]="'MD_TREE.COPY_LINK' | translate"><mat-icon>link</mat-icon></button>
@@ -18,19 +19,61 @@
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="primary" (click)="openDocumentSettings(item)" [matTooltip]="'MD_TREE.DOC_SETTINGS' | translate"><mat-icon>settings</mat-icon></button>
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="primary" (click)="moveDocument(item)" [matTooltip]="'MD_TREE.MOVE' | translate"><mat-icon>open_with</mat-icon></button>
     </div>
-    <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="openFolderOn(item)">{{ 'MD_TREE.OPEN_EXPLORER' | translate }}</button>
-    <button *ngIf="item.type==='folder'" mat-menu-item (click)="openTocDirectory(item)">{{ 'MD_TREE.TOC_DIRECTORY' | translate }}</button>
-    <button *ngIf="item.type==='folder' && tocFileExists(item)" mat-menu-item (click)="refreshTocDirectory(item)">
-      <mat-icon>refresh</mat-icon>
-      <span>{{ 'MD_TREE.REFRESH_TOC_AI' | translate }}</span>
+
+    <!-- Voci verticali replicate dalla toolbar compatta per accessibilità e leggibilità delle azioni -->
+    <button *ngIf="item.type==='folder'" mat-menu-item (click)="renameDirectoryOn(item)">
+      <mat-icon>drive_file_rename_outline</mat-icon>
+      <span>{{ 'MD_TREE.RENAME_FOLDER' | translate }}</span>
     </button>
-    <button *ngIf="item.type==='folder' && tocFileExists(item)" mat-menu-item (click)="forceRegenerateTocDirectory(item)">
-      <mat-icon>autorenew</mat-icon>
-      <span>{{ 'MD_TREE.REGENERATE_TOC' | translate }}</span>
+    <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="createDirectoryOn(item)">
+      <mat-icon>create_new_folder</mat-icon>
+      <span>{{ 'MD_TREE.CREATE_FOLDER' | translate }}</span>
     </button>
-    <button *ngIf="item.type==='folder'" mat-menu-item (click)="quickTocDirectory(item)">
-      <mat-icon>list</mat-icon>
-      <span>{{ 'MD_TREE.QUICK_TOC' | translate }}</span>
+    <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="createMdOn(item)">
+      <mat-icon>note_add</mat-icon>
+      <span>{{ 'MD_TREE.CREATE_DOCUMENT' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='folder'" mat-menu-item (click)="getLinkFromNode(item)">
+      <mat-icon>link</mat-icon>
+      <span>{{ 'MD_TREE.COPY_PATH' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='folder'" mat-menu-item (click)="openMarkForFolder(item)">
+      <mat-icon>auto_awesome</mat-icon>
+      <span>{{ 'MD_TREE.MARK_ASSIST' | translate }}</span>
+    </button>
+
+    <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="deleteFile(item)">
+      <mat-icon style="color: #ef5350;">delete</mat-icon>
+      <span>{{ 'MD_TREE.DELETE_DOCUMENT' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="pasteFromClipboard(item)">
+      <mat-icon style="color: #ef5350;">archive</mat-icon>
+      <span>{{ 'MD_TREE.PASTE_CLIPBOARD' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="getLinkFromNode(item)">
+      <mat-icon>link</mat-icon>
+      <span>{{ 'MD_TREE.COPY_LINK' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="copyMdExplorerLink(item)">
+      <mat-icon>share</mat-icon>
+      <span>{{ 'MD_TREE.COPY_MDE_LINK' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="openDocumentSettings(item)">
+      <mat-icon>settings</mat-icon>
+      <span>{{ 'MD_TREE.DOC_SETTINGS' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="moveDocument(item)">
+      <mat-icon>open_with</mat-icon>
+      <span>{{ 'MD_TREE.MOVE' | translate }}</span>
+    </button>
+
+    <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="openFolderOn(item)">
+      <mat-icon>folder_open</mat-icon>
+      <span>{{ 'MD_TREE.OPEN_EXPLORER' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='folder'" mat-menu-item (click)="openTocDirectory(item)">
+      <mat-icon>toc</mat-icon>
+      <span>{{ 'MD_TREE.TOC_DIRECTORY' | translate }}</span>
     </button>
 
     <!-- Mark as Development Environment -->
@@ -63,7 +106,10 @@
       <span>{{ 'MD_TREE.INDEX_RAG' | translate }}</span>
     </button>
 
-    <button *ngIf="item.type==='mdFile' || item.name==='mdFileTimer'" mat-menu-item (click)="AddExistingFileOnMDEProject(item)">{{ 'MD_TREE.ADD_AS_LINK' | translate }}</button>
+    <button *ngIf="item.type==='mdFile' || item.name==='mdFileTimer'" mat-menu-item (click)="AddExistingFileOnMDEProject(item)">
+      <mat-icon>add_link</mat-icon>
+      <span>{{ 'MD_TREE.ADD_AS_LINK' | translate }}</span>
+    </button>
     <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="setMdAsLandingPage(item)"><mat-icon>home</mat-icon><b>{{ 'MD_TREE.SET_LANDING_PAGE' | translate }}</b></button>
     <button *ngIf="item.type==='mdFileTimer'" mat-menu-item (click)="cloneTimerDocument(item)"><mat-icon>file_copy</mat-icon><b>{{ 'MD_TREE.CLONE_TIMED_DOC' | translate }}</b></button>
     <!-- Add file to share via P2P - only on markdown files -->
@@ -115,14 +161,21 @@
 <!-- Albero reale quando non in caricamento -->
 <mat-tree *ngIf="!isLoading" [dataSource]="dataSource"
           [treeControl]="treeControl"
+          [trackBy]="trackByPath"
           (contextmenu)="onRightClick($event, null)">
-  <!-- This is the tree node template for leaf nodes -->
+  <!-- This is the tree node template for leaf nodes
+       NOTA gating: dopo il fix del 2026-05-23 (pipeline davvero async via Task.Yield),
+       i file non sono più "bloccati" finché non sono indicizzati. Rimossi:
+         - [style.pointer-events]="isFileWaiting(node) ? 'none' : 'auto'"
+         - [style.opacity]="isFileWaiting(node) ? '0.5' : 'inherit'"
+         - [style.background-color] (sfondo giallo)
+         - icona ⏳ accanto al nome
+       Le ngClass 'indexed'/'not-indexed' restano per consentire eventuali hint
+       futuri puramente visivi senza inibire l'interazione. -->
   <mat-tree-node *matTreeNodeDef="let node"
                  matTreeNodePadding
                  style="cursor:pointer"
                  (contextmenu)="onRightClick($event, node)"
-                 [style.opacity]="isFileWaiting(node) ? '0.5' : 'inherit'"
-                 [style.pointer-events]="isFileWaiting(node) ? 'none' : 'auto'"
                  draggable="true"
                  (dragstart)="onDragStart($event, node)"
                  (dragend)="onDragEnd($event)"
@@ -135,18 +188,13 @@
                    'selected': isNodeSelected(node)
                  }">
     <!-- use a disabled button to provide padding for tree leaf -->
-    <button mat-icon-button color="primary" style="cursor:pointer"
-            [ngClass]="{
-              'not-indexed': isFileWaiting(node)
-            }">
+    <button mat-icon-button color="primary" style="cursor:pointer">
       <mat-icon class="mat-icon-rtl-mirror">text_snippet</mat-icon>
     </button>
     <div (click)="getNode(node)"
          style="cursor: pointer; padding: 2px;"
-         class="node-text"
-         [style.background-color]="isFileWaiting(node) ? '#fff3cd' : 'transparent'">
+         class="node-text">
        {{node.name}}
-       <span *ngIf="isFileWaiting(node)" style="color: orange;">⏳</span>
     </div>
   </mat-tree-node>
 
@@ -175,7 +223,7 @@
       <img *ngIf="node.name=='.github' && node.indexingStatus !== 'indexing'"
            src="/assets/github-copilot.svg"
            alt="GitHub Copilot"
-           class="custom-folder-icon"
+           class="custom-folder-icon github-icon"
            style="width: 24px; height: 24px; margin: 12px;" />
       <!-- Icona per cartella promptlab -->
       <img *ngIf="node.name==='promptlab' && node.indexingStatus !== 'indexing'"
@@ -224,6 +272,12 @@
               (drop)="onSegmentDrop($event, segment, node)">{{segment.name}}</span><span *ngIf="!last" class="compact-separator"> / </span>
       </ng-container>
     </span>
+    <!-- Icona TOC: visibile solo se la cartella ha il suo file <dirname>.md.directory.
+         Click → apre direttamente il file TOC (stopPropagation per non collassare la cartella). -->
+    <mat-icon *ngIf="node.hasToc"
+              class="toc-indicator"
+              [matTooltip]="'MD_TREE.OPEN_TOC' | translate"
+              (click)="openTocFile(node, $event)">description</mat-icon>
   </mat-tree-node>
   <!-- External Apps root node (rocket icon) -->
   <mat-tree-node *matTreeNodeDef="let node;when: isExternalAppRoot"
@@ -231,7 +285,7 @@
                  style="cursor:pointer"
                  (click)="treeControl.toggle(node)">
     <button mat-icon-button matTreeNodeToggle>
-      <mat-icon style="color: #ff6d00;">rocket_launch</mat-icon>
+      <img src="/assets/apps-rocket.svg" class="app-icon-img" style="width: 24px; height: 24px;" />
     </button>
     <span class="node-text" style="font-weight: 500;">{{ node.name }}</span>
   </mat-tree-node>
@@ -254,9 +308,9 @@
                  [ngClass]="{ 'selected': isNodeSelected(node) }"
                  (click)="getNode(node)"
                  [matTooltip]="node.appDescription || node.name">
-    <button mat-icon-button color="primary" style="cursor:pointer">
+    <button mat-icon-button style="cursor:pointer">
       <img *ngIf="isImageIcon(node.appIcon)" [src]="node.appIcon" class="app-icon-img" />
-      <mat-icon *ngIf="!isImageIcon(node.appIcon)">{{ node.appIcon || 'launch' }}</mat-icon>
+      <img *ngIf="!isImageIcon(node.appIcon)" src="/assets/apps-rocket.svg" class="app-icon-img" />
     </button>
     <div class="node-text" style="cursor:pointer; padding: 2px;">{{ node.name }}</div>
   </mat-tree-node>

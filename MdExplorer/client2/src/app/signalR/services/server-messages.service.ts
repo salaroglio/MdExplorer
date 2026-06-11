@@ -6,7 +6,7 @@ import { ParsingProjectProvider } from '../../signalR/dialogs/parsing-project/pa
 import { PlantumlWorkingProvider } from '../../signalR/dialogs/plantuml-working/plantuml-working.provider';
 import { connect } from 'net';
 import { OpeningApplicationProvider } from '../dialogs/opening-application/opening-application.provider';
-import { Subject } from 'rxjs';
+import { Subject, ReplaySubject } from 'rxjs';
 
 interface linkSignalREvent_Component {
   key: string
@@ -22,17 +22,35 @@ export class MdServerMessagesService {
   linkEventCompArray: linkSignalREvent_Component[];
   public connectionId: string;
 
-  // Observable for Git branch switch events
-  public gitBranchSwitched$ = new Subject<{ fileCount: number, message: string }>();
+  /** Emits the connectionId once available (and on every reconnection). ReplaySubject(1) so late subscribers get the last value immediately. */
+  public connectionId$ = new ReplaySubject<string>(1);
 
-  // Observable for Git pull refresh events
-  public gitPullRefreshed$ = new Subject<{ fileCount: number, message: string }>();
+  // Observable for Git branch switch events.
+  // changedFiles: repo-relative paths ('/' separators) of the operation's commit diff —
+  // used to reload the open document, NOT to decide whether to refresh the tree.
+  public gitBranchSwitched$ = new Subject<{ fileCount: number, changedFiles?: string[], message: string }>();
+
+  // Observable for Git pull refresh events (same payload contract as gitBranchSwitched$)
+  public gitPullRefreshed$ = new Subject<{ fileCount: number, changedFiles?: string[], message: string }>();
 
   // Observable for RAG indexing progress events
   public ragIndexingProgress$ = new Subject<{ status: string, processed: number, total: number, message: string }>();
 
   // Observable for App Store publish progress (backend → Nexus upload)
   public publishProgress$ = new Subject<{ appId: string, percent: number, phase: string }>();
+
+  // Observable for the Mark folder-summarizer job progress (MarkActionsController)
+  public markFolderProgress$ = new Subject<any>();
+
+  // Observable for KG drift events (emitted by FileSystemWatcherManager when a .md
+  // diverges from the // sourceDocHash header of its adjacent .kg.cypher).
+  public kgStale$ = new Subject<{
+    sourceMdPath: string,
+    kgFilePath: string,
+    storedSourceDocHash: string,
+    currentSourceDocHash: string,
+    reason: 'header-missing' | 'hash-mismatch'
+  }>();
 
   // Observable for Screenshot Annotation Wizard (from iframe Ctrl+V)
   public screenshotAnnotationRequest$ = new Subject<{
@@ -43,6 +61,40 @@ export class MdServerMessagesService {
     errorMessage?: string,
     platformHint?: string
   }>();
+
+  // Observable streams for runnable fenced code blocks (MdExecutionController)
+  public executionOutput$ = new Subject<{ blockId: string, stream: string, chunk: string }>();
+  public executionCompleted$ = new Subject<{ blockId: string, exitCode: number, durationMs: number, timedOut: boolean }>();
+  public executionError$ = new Subject<{ blockId: string, message: string }>();
+
+  // Observable streams for long-running "services" (MdServicesController)
+  public serviceStarted$ = new Subject<any>();
+  public serviceOutput$ = new Subject<{ serviceId: string, blockId: string, stream: string, chunk: string }>();
+  public serviceStopped$ = new Subject<any>();
+
+  // ── File/folder/indexing events (md-tree & co.) ──
+  // Each SignalR event below is registered EXACTLY ONCE on the hub connection
+  // (in startConnection) and fanned out through these Subjects. Components must
+  // subscribe with takeUntil(destroy$). The legacy add*Listener wrappers used to
+  // call hubConnection.on() on every invocation: SignalR ACCUMULATES handlers,
+  // so every component re-creation (e.g. leaving/re-entering a project) added a
+  // duplicate handler bound to a dead component — events got processed N times.
+  public markdownFileChanged$ = new Subject<any>();          // 'markdownfileischanged'
+  public markdownFileCreated$ = new Subject<any>();          // 'markdownFileCreated'
+  public markdownFileDeleted$ = new Subject<any>();          // 'markdownFileDeleted'
+  public folderCreated$ = new Subject<any>();                // 'folderCreated'
+  public folderDeleted$ = new Subject<any>();                // 'folderDeleted'
+  public folderRenamed$ = new Subject<any>();                // 'folderRenamed'
+  public fileSystemStorm$ = new Subject<any[]>();            // 'fileSystemStorm'
+  public fileIndexed$ = new Subject<any>();                  // 'fileIndexed'
+  public folderIndexingStart$ = new Subject<any>();          // 'folderIndexingStart'
+  public folderIndexingComplete$ = new Subject<any>();       // 'folderIndexingComplete'
+  public parsingProjectStart$ = new Subject<any>();          // 'parsingProjectStart'
+  public parsingProjectStop$ = new Subject<any>();           // 'parsingProjectStop'
+  public knowledgeProgress$ = new Subject<any>();            // 'knowledgeProgress'
+  // FSW buffer overflow / internal error: events were LOST server-side.
+  // Consumers must do a full reload — incremental state can no longer be trusted.
+  public fileSystemWatcherError$ = new Subject<{ reason: string, message?: string }>();
 
   constructor(
     private parsingProjectProvider: ParsingProjectProvider,
@@ -77,14 +129,14 @@ export class MdServerMessagesService {
       this.hubConnection.on('documentNavigated', (data) => {
         this.processCallBack(data, 'documentNavigated');
       });
-      this.hubConnection.on('parsingProjectStart', (data) => {
-        this.parsingProjectProvider.show(data);
-      });
+      // parsingProjectStart/Stop NON aprono più la MatDialog modale "Building knowledge"
+      // (era il blocker UX: backdrop modale → utente inibito per tutta l'indicizzazione).
+      // Dopo il refactor del 2026-05-23 la pipeline è davvero async (Task.Yield in
+      // IndexingPipelineService.RunAsync) e mostriamo il progresso con una snackbar
+      // custom (IndexingProgressSnackComponent) montata da md-tree.component.ts via
+      // addParsingProjectStartListener (sotto).
       this.hubConnection.on('openingApplication', (data) => {
         this.openingApplicationProvider.show(data);
-      });
-      this.hubConnection.on('parsingProjectStop', (data) => {
-        this.parsingProjectProvider.hide(data);
       });
       this.hubConnection.on('plantumlWorkStart', (data) => {
         this.plantumlWorkingProvider.show(data);
@@ -122,6 +174,91 @@ export class MdServerMessagesService {
       // App Store publish progress (backend → Nexus upload)
       this.hubConnection.on('publishProgress', (data) => {
         this.publishProgress$.next(data);
+      });
+
+      // Mark folder-summarizer job progress
+      this.hubConnection.on('markFolderProgress', (data) => {
+        this.markFolderProgress$.next(data);
+      });
+
+      // KG drift detection — .md edited but .kg.cypher is out of sync
+      this.hubConnection.on('kgStale', (data) => {
+        console.warn('⚠️ SignalR event received: kgStale', data);
+        this.kgStale$.next(data);
+      });
+
+      // Runnable fenced code blocks — streaming output from MdExecutionController
+      this.hubConnection.on('execution.output', (data) => {
+        this.executionOutput$.next(data);
+      });
+      this.hubConnection.on('execution.completed', (data) => {
+        this.executionCompleted$.next(data);
+      });
+      this.hubConnection.on('execution.error', (data) => {
+        this.executionError$.next(data);
+      });
+
+      // Long-running services — lifecycle + streaming output from MdServicesController
+      this.hubConnection.on('service.started', (data) => {
+        this.serviceStarted$.next(data);
+      });
+      this.hubConnection.on('service.output', (data) => {
+        this.serviceOutput$.next(data);
+      });
+      this.hubConnection.on('service.stopped', (data) => {
+        this.serviceStopped$.next(data);
+      });
+
+      // File/folder/indexing events — registered ONCE here, fanned out via Subjects.
+      // NEVER register these again elsewhere: SignalR accumulates handlers.
+      this.hubConnection.on('markdownfileischanged', (data) => {
+        this.markdownFileChanged$.next(data);
+      });
+      this.hubConnection.on('markdownFileCreated', (data) => {
+        console.log('📄 [SignalR] markdownFileCreated:', data?.fullPath || data?.FullPath);
+        this.markdownFileCreated$.next(data);
+      });
+      this.hubConnection.on('markdownFileDeleted', (data) => {
+        console.log('🗑️ [SignalR] markdownFileDeleted:', data?.fullPath || data?.FullPath);
+        this.markdownFileDeleted$.next(data);
+      });
+      this.hubConnection.on('folderCreated', (data) => {
+        console.log('📁 [SignalR] folderCreated:', data?.fullPath || data?.FullPath);
+        this.folderCreated$.next(data);
+      });
+      this.hubConnection.on('folderDeleted', (data) => {
+        console.log('🗑️ [SignalR] folderDeleted:', data?.fullPath || data?.FullPath);
+        this.folderDeleted$.next(data);
+      });
+      this.hubConnection.on('folderRenamed', (data) => {
+        console.log('✏️ [SignalR] folderRenamed:', data?.oldFullPath || data?.OldFullPath, '→', data?.fullPath || data?.FullPath);
+        this.folderRenamed$.next(data);
+      });
+      this.hubConnection.on('fileSystemStorm', (data: any[]) => {
+        console.log(`⚡ [SignalR] fileSystemStorm: ${data?.length || 0} changes after storm`);
+        this.fileSystemStorm$.next(data);
+      });
+      this.hubConnection.on('fileIndexed', (data) => {
+        this.fileIndexed$.next(data);
+      });
+      this.hubConnection.on('folderIndexingStart', (data) => {
+        this.folderIndexingStart$.next(data);
+      });
+      this.hubConnection.on('folderIndexingComplete', (data) => {
+        this.folderIndexingComplete$.next(data);
+      });
+      this.hubConnection.on('parsingProjectStart', (data) => {
+        this.parsingProjectStart$.next(data);
+      });
+      this.hubConnection.on('parsingProjectStop', (data) => {
+        this.parsingProjectStop$.next(data);
+      });
+      this.hubConnection.on('knowledgeProgress', (data) => {
+        this.knowledgeProgress$.next(data);
+      });
+      this.hubConnection.on('fileSystemWatcherError', (data) => {
+        console.error('⚠️ [SignalR] fileSystemWatcherError — events were lost server-side:', data);
+        this.fileSystemWatcherError$.next(data);
       });
 
       this.hubConnection.on('consoleClosed', (data) => {
@@ -171,11 +308,15 @@ export class MdServerMessagesService {
   }
 
 
+  /**
+   * @deprecated Subscribe to markdownFileChanged$ with takeUntil(destroy$) instead.
+   * This wrapper delegates to the Subject (hub handler registered once in
+   * startConnection), but the callback itself is never unsubscribed: do NOT call
+   * it from components that get destroyed/recreated.
+   */
   public addMarkdownFileListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.on('markdownfileischanged', (data) => {
-      // Modern Git service will automatically update via polling - no manual refresh needed
+    this.markdownFileChanged$.subscribe((data) => {
       callback(data, objectThis);
-      console.log('markdownfileischanged');
     });
   }
 
@@ -247,52 +388,63 @@ export class MdServerMessagesService {
     }
   }
 
+  /** @deprecated Subscribe to fileIndexed$ with takeUntil(destroy$) instead. */
   public addFileIndexedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.on('fileIndexed', (data) => {
+    this.fileIndexed$.subscribe((data) => {
       callback(data, objectThis);
     });
   }
 
+  /** @deprecated Subscribe to folderIndexingStart$ with takeUntil(destroy$) instead. */
   public addFolderIndexingStartListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.on('folderIndexingStart', (data) => {
+    this.folderIndexingStart$.subscribe((data) => {
       callback(data, objectThis);
     });
   }
 
+  /** @deprecated Subscribe to folderIndexingComplete$ with takeUntil(destroy$) instead. */
   public addFolderIndexingCompleteListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.on('folderIndexingComplete', (data) => {
+    this.folderIndexingComplete$.subscribe((data) => {
       callback(data, objectThis);
     });
   }
 
+  /** @deprecated Subscribe to parsingProjectStart$ with takeUntil(destroy$) instead. */
   public addParsingProjectStartListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.on('parsingProjectStart', (data) => {
+    this.parsingProjectStart$.subscribe((data) => {
       callback(data, objectThis);
     });
   }
 
+  /** @deprecated Subscribe to markdownFileCreated$ with takeUntil(destroy$) instead. */
   public addMarkdownFileCreatedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.on('markdownFileCreated', (data) => {
-      console.log('📄 [SignalR] Evento markdownFileCreated ricevuto:');
-      console.log('📄 [SignalR] Data ricevuta:', JSON.stringify(data, null, 2));
-      console.log('📄 [SignalR] Nome file:', data.name);
-      console.log('📄 [SignalR] Path completo:', data.fullPath);
+    this.markdownFileCreated$.subscribe((data) => {
       callback(data, objectThis);
     });
   }
 
+  /** @deprecated Subscribe to markdownFileDeleted$ with takeUntil(destroy$) instead. */
   public addMarkdownFileDeletedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.on('markdownFileDeleted', (data) => {
-      console.log('🗑️ [SignalR] Evento markdownFileDeleted ricevuto:');
-      console.log('🗑️ [SignalR] Data ricevuta:', JSON.stringify(data, null, 2));
-      console.log('🗑️ [SignalR] Nome file:', data.name);
-      console.log('🗑️ [SignalR] Path completo:', data.fullPath);
+    this.markdownFileDeleted$.subscribe((data) => {
       callback(data, objectThis);
     });
   }
 
+  /** @deprecated Subscribe to parsingProjectStop$ with takeUntil(destroy$) instead. */
   public addParsingProjectStopListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.on('parsingProjectStop', (data) => {
+    this.parsingProjectStop$.subscribe((data) => {
+      callback(data, objectThis);
+    });
+  }
+
+  /**
+   * "Building knowledge" progress event — emesso da IndexingPipelineService
+   * dopo ogni cartella nella fase ParseLinks. Payload:
+   *   { processed: number, total: number, percent: 0..100 }
+   * @deprecated Subscribe to knowledgeProgress$ with takeUntil(destroy$) instead.
+   */
+  public addKnowledgeProgressListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
+    this.knowledgeProgress$.subscribe((data) => {
       callback(data, objectThis);
     });
   }
@@ -315,6 +467,7 @@ export class MdServerMessagesService {
     this.hubConnection.invoke('GetConnectionId')
       .then(function (connectionId) {
         objectThis.connectionId = connectionId;
+        objectThis.connectionId$.next(connectionId);
 
         // Notify Electron that connectionId is ready (for URL handler feature)
         if ((window as any).electronAPI?.notifyConnectionIdReady) {
@@ -406,30 +559,30 @@ export class MdServerMessagesService {
     });
   }
 
+  /** @deprecated Subscribe to folderCreated$ with takeUntil(destroy$) instead. */
   public addFolderCreatedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.on('folderCreated', (data) => {
-      console.log('📁 [SignalR] Evento folderCreated ricevuto:', data?.fullPath || data?.FullPath);
+    this.folderCreated$.subscribe((data) => {
       callback(data, objectThis);
     });
   }
 
+  /** @deprecated Subscribe to folderDeleted$ with takeUntil(destroy$) instead. */
   public addFolderDeletedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.on('folderDeleted', (data) => {
-      console.log('🗑️ [SignalR] Evento folderDeleted ricevuto:', data?.fullPath || data?.FullPath);
+    this.folderDeleted$.subscribe((data) => {
       callback(data, objectThis);
     });
   }
 
+  /** @deprecated Subscribe to folderRenamed$ with takeUntil(destroy$) instead. */
   public addFolderRenamedListener(callback: (data: any, objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.on('folderRenamed', (data) => {
-      console.log('✏️ [SignalR] Evento folderRenamed ricevuto:', data?.oldFullPath || data?.OldFullPath, '→', data?.fullPath || data?.FullPath);
+    this.folderRenamed$.subscribe((data) => {
       callback(data, objectThis);
     });
   }
 
+  /** @deprecated Subscribe to fileSystemStorm$ with takeUntil(destroy$) instead. */
   public addFileSystemStormListener(callback: (data: any[], objectThis: any) => any, objectThis: any): void {
-    this.hubConnection.on('fileSystemStorm', (data: any[]) => {
-      console.log(`⚡ [SignalR] fileSystemStorm: ${data?.length || 0} changes after storm`);
+    this.fileSystemStorm$.subscribe((data) => {
       callback(data, objectThis);
     });
   }

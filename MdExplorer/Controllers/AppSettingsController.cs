@@ -17,6 +17,7 @@ using System.Web;
 using MdExplorer.Utilities;
 using MdExplorer.Service.Models;
 using MdExplorer.Features.Configuration.Models;
+using MdExplorer.Features.Services.AI.CopilotAcp;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using MdExplorer.Hubs;
@@ -51,15 +52,23 @@ namespace MdExplorer.Service.Controllers
         [HttpGet]
         public IActionResult GetCurrentFolder()
         {
-            var currentFolder = GetProjectPath();
-            // Use Path.GetFileName to get the last part of the path, cross-platform compatible
-            string lastFolder = Path.GetFileName(currentFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            // If Path.GetFileName returns empty (e.g. for root paths), use the full path
-            if (string.IsNullOrEmpty(lastFolder))
+            try
             {
-                lastFolder = currentFolder;
+                var currentFolder = GetProjectPath();
+                // Use Path.GetFileName to get the last part of the path, cross-platform compatible
+                string lastFolder = Path.GetFileName(currentFolder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                // If Path.GetFileName returns empty (e.g. for root paths), use the full path
+                if (string.IsNullOrEmpty(lastFolder))
+                {
+                    lastFolder = currentFolder;
+                }
+                return Ok(new { currentFolder = lastFolder });
             }
-            return Ok(new { currentFolder = lastFolder });
+            catch (InvalidOperationException)
+            {
+                // No project is open yet (e.g. on the Projects page at startup)
+                return Ok(new { currentFolder = "" });
+            }
         }
 
         [HttpGet]
@@ -154,8 +163,46 @@ namespace MdExplorer.Service.Controllers
                 selectedIde = project.SelectedIde;
             }
 
+            // --- Docker headless mode -------------------------------------------------
+            // The backend runs inside a container; there is no host-side editor
+            // process to spawn. Instead we translate the container path back to the
+            // host path and return a "vscode://file/..." URL that the user's browser
+            // will hand off to the OS, which launches VS Code natively on the host.
+            // Gated by MDE_DOCKER=1 so non-container deployments are unaffected.
+            if (Environment.GetEnvironmentVariable("MDE_DOCKER") == "1")
+            {
+                if (selectedIde?.ToLowerInvariant() == "copilot")
+                {
+                    // Copilot CLI needs a host-side terminal; there is no URL scheme to
+                    // hand off to the browser the way vscode:// / jetbrains:// allow.
+                    return BadRequest(new { error = "Copilot CLI cannot be launched in Docker mode: it requires a host terminal session." });
+                }
+
+                var hostUrl = TryBuildHostEditorUrl(path, selectedIde);
+                if (hostUrl != null)
+                {
+                    _logger.LogInformation("[OpenFile] Docker mode → returning host URL: {Url}", hostUrl);
+                    return Ok(new { openUrl = hostUrl });
+                }
+                // Fall through with a clear error rather than silently spawning a
+                // process in the container that no one would ever see.
+                return BadRequest(new { error = "Docker mode: could not translate container path to host path. Check MDE_HOST_WORKSPACE / MDE_CONTAINER_WORKSPACE env vars." });
+            }
+
             // Open with selected IDE
-            if (selectedIde?.ToLowerInvariant() == "intellij")
+            if (selectedIde?.ToLowerInvariant() == "copilot")
+            {
+                if (!CopilotProcessLauncher.IsResolvable())
+                {
+                    return BadRequest(new { error = "Copilot CLI not found in PATH. Install it via 'winget install GitHub.Copilot' or 'npm install -g @github/copilot'." });
+                }
+
+                // Copilot CLI is interactive: open a terminal on the project root,
+                // ignoring the specific file path (the folder is what matters here).
+                _processUtil.OpenFolderWithCopilotCli(projectPath);
+                return Ok(new { message = "opened Copilot CLI on project root" });
+            }
+            else if (selectedIde?.ToLowerInvariant() == "intellij")
             {
                 var intellijPath = settingDal.GetList().Where(_ => _.Name == "IntelliJPath").FirstOrDefault()?.ValueString;
 
@@ -179,6 +226,47 @@ namespace MdExplorer.Service.Controllers
                 _processUtil.OpenFileWithVisualStudioCode(path, editorPath, projectPath);
                 return Ok(new { message = "opened with VS Code" });
             }
+        }
+
+        /// <summary>
+        /// Docker-only: translate a container-side file path (e.g. "/workspace/test/foo.md")
+        /// into a vscode:// or jetbrains:// URL pointing at the host-side equivalent
+        /// (e.g. "C:/sviluppo/.../docker/workspace/test/foo.md"). Returns null if the
+        /// env vars aren't set or the path doesn't start with the container prefix.
+        /// </summary>
+        private static string TryBuildHostEditorUrl(string containerPath, string selectedIde)
+        {
+            if (string.IsNullOrWhiteSpace(containerPath)) return null;
+
+            var containerPrefix = Environment.GetEnvironmentVariable("MDE_CONTAINER_WORKSPACE") ?? "/workspace";
+            var hostPrefix = Environment.GetEnvironmentVariable("MDE_HOST_WORKSPACE");
+            if (string.IsNullOrWhiteSpace(hostPrefix)) return null;
+
+            // Normalize separators on the container side (it's always forward slashes
+            // inside the container, but be defensive).
+            var normalized = containerPath.Replace('\\', '/');
+            if (!normalized.StartsWith(containerPrefix.TrimEnd('/') + "/", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(normalized, containerPrefix.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            var suffix = normalized.Substring(containerPrefix.TrimEnd('/').Length); // includes leading '/'
+            var hostFs = hostPrefix.Replace('\\', '/').TrimEnd('/') + suffix;       // e.g. "C:/sviluppo/.../foo.md"
+
+            // VS Code expects "vscode://file/<absolute-path>" with forward slashes.
+            // We percent-encode each segment but leave the slashes intact.
+            var encodedSegments = hostFs.Split('/')
+                .Select(seg => Uri.EscapeDataString(seg))
+                .ToArray();
+            var encoded = string.Join('/', encodedSegments);
+
+            var ide = (selectedIde ?? "vscode").ToLowerInvariant();
+            return ide switch
+            {
+                "intellij" => $"jetbrains://idea/navigate/reference?project=&path={Uri.EscapeDataString(hostFs)}",
+                _ => $"vscode://file/{encoded}",
+            };
         }
 
         

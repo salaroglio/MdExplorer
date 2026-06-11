@@ -22,8 +22,47 @@
 // Scroll listeners keyed by referenceId, to clean up on hide
 var _toolbarScrollListeners = {};
 
+/**
+ * Toggle SVG light mode: removes/restores the CSS invert filter on the SVG
+ * sibling of the toolbar, so the user can see original colors in dark mode.
+ */
+function toggleSvgLightMode(btnElement) {
+    var $toolbar = $(btnElement).closest('[id]');
+    var $container = $toolbar.next();
+    var $svg = $container.find('svg').first();
+    if (!$svg.length) $svg = $container.filter('svg');
+    if (!$svg.length) return;
+
+    var $icon = $(btnElement).find('.svg-light-toggle-icon');
+    var current = $svg.css('filter');
+    if (current && current !== 'none') {
+        // Turn ON the light: remove filter, light mode (yellow bulb)
+        $svg.data('original-filter', current);
+        $svg.css('filter', 'none');
+        $icon.css({
+            'filter': 'none',
+            'opacity': '1'
+        });
+        $(btnElement).attr('title', 'Turn off the light (back to dark mode)');
+    } else {
+        // Turn OFF the light: restore filter, dark mode (faded/grayscale bulb)
+        var original = $svg.data('original-filter') || 'invert(0.88) hue-rotate(180deg)';
+        $svg.css('filter', original);
+        $icon.css({
+            'filter': 'grayscale(1) brightness(0.6)',
+            'opacity': '0.5'
+        });
+        $(btnElement).attr('title', 'Turn on the light (view in light mode)');
+    }
+}
+
 // Pending hide timers keyed by referenceId (allows mouseenter on search box to cancel)
 var _hideToolbarTimers = {};
+
+// Idle auto-hide: timers, mousemove listeners, and hidden-state flags keyed by referenceId
+var _idleHideTimers = {};
+var _idleMouseMoveListeners = {};
+var _toolbarIdleHidden = {};
 
 /**
  * Recalculate and apply position:fixed coordinates for the toolbar,
@@ -43,6 +82,58 @@ function _updateToolbarPosition(referenceId) {
 }
 
 /**
+ * Start (or restart) the idle auto-hide timer.
+ * After 2 seconds with no mouse movement the toolbar hides automatically.
+ * Skipped when the SVG search box is open.
+ *
+ * @param {string} referenceId - ID of toolbar element
+ */
+function _startIdleHideTimer(referenceId) {
+    if (_idleHideTimers[referenceId]) {
+        clearTimeout(_idleHideTimers[referenceId]);
+    }
+
+    _idleHideTimers[referenceId] = setTimeout(function () {
+        // Don't idle-hide if search box is open for this toolbar's image
+        if (typeof _toolbarToHashMap !== 'undefined' && _toolbarToHashMap[referenceId]) {
+            var hash = _toolbarToHashMap[referenceId];
+            if (window.svgSearchActive && window.svgSearchActive[hash]) {
+                return;
+            }
+        }
+
+        var $toolbar = $('#' + referenceId);
+        $toolbar.attr("style", "display:none;");
+        _toolbarIdleHidden[referenceId] = true;
+    }, 2000);
+}
+
+/**
+ * Attach a mousemove listener to the toolbar's parent container.
+ * On movement: re-show the toolbar if idle-hidden, or reset the idle timer.
+ *
+ * @param {string} referenceId - ID of toolbar element
+ */
+function _attachIdleMouseMoveListener(referenceId) {
+    if (_idleMouseMoveListeners[referenceId]) return;
+
+    var container = $('#' + referenceId).parent()[0];
+    if (!container) return;
+
+    var handler = function () {
+        if (_toolbarIdleHidden[referenceId]) {
+            _toolbarIdleHidden[referenceId] = false;
+            showImageToolbar(referenceId);
+        } else {
+            _startIdleHideTimer(referenceId);
+        }
+    };
+
+    _idleMouseMoveListeners[referenceId] = { container: container, handler: handler };
+    container.addEventListener('mousemove', handler, false);
+}
+
+/**
  * Show image toolbar on hover.
  * Uses position:fixed so the buttons stay visible at the top-left of the
  * container's visible area even when the image is larger than the viewport
@@ -57,6 +148,9 @@ function showImageToolbar(referenceId) {
         delete _hideToolbarTimers[referenceId];
     }
 
+    // Clear idle-hidden state if re-showing
+    _toolbarIdleHidden[referenceId] = false;
+
     var $element = $('#' + referenceId);
     var rect = $element.parent()[0].getBoundingClientRect();
     var top = Math.max(0, rect.top) + 20;
@@ -64,6 +158,34 @@ function showImageToolbar(referenceId) {
 
     $element.attr("style",
         "display:block; position:fixed; top:" + top + "px; left:" + left + "px; z-index:100;");
+
+    // Dark mode: inject light-mode toggle button for SVG diagrams
+    if (document.body.classList.contains('dark-theme') && !$element.data('light-toggle-added')) {
+        var $sibling = $element.next();
+        var hasSvg = $sibling.find('svg').length > 0 || $sibling.find('.svg-zoom-viewport').length > 0;
+        if (hasSvg) {
+            // Reflect current filter state so the button starts consistent with the
+            // project setting PlantUmlKeepOriginalColorsInDarkMode (body.plantuml-keep-original).
+            var $svg = $sibling.find('svg').first();
+            if (!$svg.length) $svg = $sibling.filter('svg');
+            var filterActive = false;
+            if ($svg.length) {
+                var computed = window.getComputedStyle($svg[0]).filter;
+                filterActive = !!computed && computed !== 'none';
+            }
+            var initialTitle = filterActive
+                ? 'Turn on the light (view in light mode)'
+                : 'Turn off the light (back to dark mode)';
+            var iconStyle = filterActive
+                ? 'font-size:18px;line-height:1;display:inline-block;filter:grayscale(1) brightness(0.6);opacity:0.5;'
+                : 'font-size:18px;line-height:1;display:inline-block;';
+            var $btn = $('<button alt="light mode" title="' + initialTitle + '" onclick="toggleSvgLightMode(this)">' +
+                '<span class="svg-light-toggle-icon" style="' + iconStyle + '">💡</span>' +
+                '</button>');
+            $element.append($btn);
+            $element.data('light-toggle-added', true);
+        }
+    }
 
     // Guard against double-adding the scroll listener
     if (!_toolbarScrollListeners[referenceId]) {
@@ -81,6 +203,10 @@ function showImageToolbar(referenceId) {
             _showSearchBox(hash);
         }
     }
+
+    // Start idle auto-hide timer and attach mousemove listener
+    _startIdleHideTimer(referenceId);
+    _attachIdleMouseMoveListener(referenceId);
 }
 
 /**
@@ -90,6 +216,12 @@ function showImageToolbar(referenceId) {
  * @param {string} referenceId - ID of toolbar element
  */
 function hideImageToolbar(referenceId) {
+    // Immediately cancel idle timer to prevent it firing during the 150ms delay
+    if (_idleHideTimers[referenceId]) {
+        clearTimeout(_idleHideTimers[referenceId]);
+        delete _idleHideTimers[referenceId];
+    }
+
     _hideToolbarTimers[referenceId] = setTimeout(function () {
         delete _hideToolbarTimers[referenceId];
 
@@ -108,6 +240,14 @@ function hideImageToolbar(referenceId) {
             if (typeof _hideSearchBox === 'function') {
                 _hideSearchBox(hash);
             }
+        }
+
+        // Clean up idle auto-hide state
+        delete _toolbarIdleHidden[referenceId];
+        var idleListener = _idleMouseMoveListeners[referenceId];
+        if (idleListener) {
+            idleListener.container.removeEventListener('mousemove', idleListener.handler, false);
+            delete _idleMouseMoveListeners[referenceId];
         }
     }, 150);
 }

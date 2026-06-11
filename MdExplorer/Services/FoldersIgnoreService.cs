@@ -58,12 +58,12 @@ namespace MdExplorer.Service.Services
                     }
 
                     _logger.LogDebug($"Loaded FoldersIgnore configuration from {configFilePath}");
-                    return config;
+                    return EnsureMdeManagedFolders(config);
                 }
                 else
                 {
                     _logger.LogDebug($".mdFoldersIgnore file not found at {configFilePath}");
-                    return new FoldersIgnoreConfiguration();
+                    return EnsureMdeManagedFolders(new FoldersIgnoreConfiguration());
                 }
             }
             catch (Exception ex)
@@ -152,6 +152,22 @@ namespace MdExplorer.Service.Services
             }
 
             return false;
+        }
+
+        // Defensive: MdExplorer-managed folders must always be hidden from the tree, even if the
+        // user's .mdFoldersIgnore predates them (legacy projects opened with a build that introduced
+        // new managed folders like .mde-doc).
+        private static FoldersIgnoreConfiguration EnsureMdeManagedFolders(FoldersIgnoreConfiguration config)
+        {
+            config.IgnoredFolders ??= new List<string>();
+            foreach (var managed in new[] { ".md", ".mde-doc" })
+            {
+                if (!config.IgnoredFolders.Any(f => string.Equals(f, managed, StringComparison.OrdinalIgnoreCase)))
+                {
+                    config.IgnoredFolders.Add(managed);
+                }
+            }
+            return config;
         }
 
         private bool MatchesPattern(string folderName, string pattern)

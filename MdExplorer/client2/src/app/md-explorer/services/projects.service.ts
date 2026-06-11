@@ -1,6 +1,7 @@
 import { Injectable, Injector } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { MdProject } from '../models/md-project';
+import { Participant, GitAuthor, CurrentGitUser } from '../models/participant';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { ProjectCreateConfigOptions } from '../../projects/dialogs/project-create-config/project-create-config.model';
 import { CompatibilityMode } from '../../models/compatibility-mode.model';
@@ -24,6 +25,12 @@ export class ProjectsService {
   // RAG enabled status for current project
   ragEnabled$ = new BehaviorSubject<boolean>(false);
 
+  // Copilot CLI auto-select state for the freshly opened project.
+  // Emits the tuple from SetFolderProject response: { autoSelect, available, defaultModel }.
+  // Consumers (ai-chat.component) decide whether to silently connect to Copilot CLI
+  // or to disable the chat with a "not installed" banner.
+  copilotCliAutoConfig$ = new BehaviorSubject<{ autoSelect: boolean; available: boolean; defaultModel: string | null } | null>(null);
+
   // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
   private projectChangingSubject = new Subject<void>();
   projectChanging$ = this.projectChangingSubject.asObservable();
@@ -31,6 +38,9 @@ export class ProjectsService {
   // Track current project's chat room info for cleanup
   private currentRoomId: string | null = null;
   private currentOderId: string | null = null;
+
+  // Retry handle for the Copilot CLI availability re-check (see emitCopilotCliAutoConfig).
+  private copilotCliRetryTimer: any = null;
 
   get mdProjects() {
     return this._mdProjects.asObservable();
@@ -83,6 +93,12 @@ export class ProjectsService {
       // Refresh RAG enabled status
       this.refreshRagStatus();
 
+      // Apply PlantUML dark-mode preference for this project
+      this.applyPlantUmlKeepOriginalClass(path);
+
+      // Emit Copilot CLI auto-select hint for ai-chat to consume
+      this.emitCopilotCliAutoConfig(response);
+
       // Update compatibility mode from response
       if (response.compatibilityMode) {
         const mode = response.compatibilityMode === 'github' ? CompatibilityMode.GitHub :
@@ -123,6 +139,12 @@ export class ProjectsService {
       // Refresh RAG enabled status
       this.refreshRagStatus();
 
+      // Apply PlantUML dark-mode preference for this project
+      this.applyPlantUmlKeepOriginalClass(config.projectPath);
+
+      // Emit Copilot CLI auto-select hint for ai-chat to consume
+      this.emitCopilotCliAutoConfig(response);
+
       // Update compatibility mode from response
       if (response.compatibilityMode) {
         const mode = response.compatibilityMode === 'github' ? CompatibilityMode.GitHub :
@@ -154,6 +176,53 @@ export class ProjectsService {
     });
   }
 
+  updateProject(payload: { id: string; name: string; description?: string }): Observable<MdProject> {
+    const url = '../api/MdProjects/UpdateProject';
+    return this.http.post<MdProject>(url, payload);
+  }
+
+  setProjectIcon(id: string, pngBase64: string): Observable<{ hasCustomIcon: boolean; iconUpdatedAt: string | null }> {
+    const url = '../api/MdProjects/SetProjectIcon';
+    return this.http.post<{ hasCustomIcon: boolean; iconUpdatedAt: string | null }>(url, { id, pngBase64 });
+  }
+
+  removeProjectIcon(id: string): Observable<{ hasCustomIcon: boolean; iconUpdatedAt: string | null }> {
+    const url = '../api/MdProjects/RemoveProjectIcon';
+    return this.http.post<{ hasCustomIcon: boolean; iconUpdatedAt: string | null }>(url, { id });
+  }
+
+  /**
+   * Builds the URL for the project icon PNG. The updatedAt timestamp is appended
+   * as a query string to bust the browser cache after the user re-saves the icon.
+   */
+  getProjectIconUrl(id: string, updatedAt?: string | null): string {
+    const v = updatedAt ? encodeURIComponent(updatedAt) : Date.now().toString();
+    return `../api/MdProjects/ProjectIcon?id=${encodeURIComponent(id)}&v=${v}`;
+  }
+
+  getParticipants(projectPath: string): Observable<Participant[]> {
+    const params = new HttpParams().set('path', projectPath);
+    return this.http.get<Participant[]>('../api/MdProjects/GetParticipants', { params });
+  }
+
+  saveParticipants(projectPath: string, participants: Participant[]): Observable<Participant[]> {
+    const params = new HttpParams().set('path', projectPath);
+    return this.http.put<Participant[]>('../api/MdProjects/Participants', participants, { params });
+  }
+
+  getGitAuthors(projectPath: string): Observable<GitAuthor[]> {
+    const params = new HttpParams().set('path', projectPath);
+    return this.http.get<GitAuthor[]>('../api/MdProjects/GitAuthors', { params });
+  }
+
+  getCurrentGitUser(projectPath: string | null): Observable<CurrentGitUser> {
+    let params = new HttpParams();
+    if (projectPath) {
+      params = params.set('path', projectPath);
+    }
+    return this.http.get<CurrentGitUser>('../api/MdProjects/CurrentGitUser', { params });
+  }
+
   /**
    * Closes the current project and deallocates backend resources (FileSystemWatcher, database contexts).
    * Should be called when navigating back to the projects list.
@@ -163,6 +232,8 @@ export class ProjectsService {
     this.notifyProjectClosed();
     // Reset window title
     this.updateWindowTitle(null);
+    // Reset PlantUML dark-mode override (scoped to the closing project)
+    document.body.classList.remove('plantuml-keep-original');
     return this.http.post<any>('../api/MdProjects/CloseProject', {});
   }
 
@@ -184,6 +255,8 @@ export class ProjectsService {
           this.currentProjects$.next(response);
           // Update window title
           this.updateWindowTitle(response.name);
+          // Re-apply PlantUML dark-mode preference
+          this.applyPlantUmlKeepOriginalClass(currentProject.path);
         },
         error => {
           console.error('[ProjectsService] Failed to re-register project:', error);
@@ -191,6 +264,53 @@ export class ProjectsService {
       );
     } else {
       console.log('[ProjectsService] No current project to re-register');
+    }
+  }
+
+  /**
+   * Emits Copilot CLI auto-select configuration from the SetFolderProject response
+   * so that ai-chat can decide whether to silently connect or disable the chat.
+   *
+   * When the backend's availability cache is cold, SetFolderProject returns
+   * available=false provisionally and warms the probe in background (~1s).
+   * To recover from that race we schedule a short re-check against the
+   * dedicated availability endpoint and re-emit the updated value if Copilot
+   * turns out to be installed.
+   */
+  private emitCopilotCliAutoConfig(response: any): void {
+    // Cancel any pending re-check from a previous project switch.
+    if (this.copilotCliRetryTimer) {
+      clearTimeout(this.copilotCliRetryTimer);
+      this.copilotCliRetryTimer = null;
+    }
+
+    if (response == null) return;
+    if (typeof response.copilotCliAutoSelect !== 'boolean') {
+      this.copilotCliAutoConfig$.next(null);
+      return;
+    }
+
+    const autoSelect = response.copilotCliAutoSelect === true;
+    const available = response.copilotCliAvailable === true;
+    const defaultModel = response.copilotCliDefaultModel ?? null;
+
+    this.copilotCliAutoConfig$.next({ autoSelect, available, defaultModel });
+
+    // If auto-select is on but the backend reported unavailable, it might just
+    // be that the probe cache was cold. Re-check once after the background
+    // warm-up has had time to finish.
+    if (autoSelect && !available) {
+      this.copilotCliRetryTimer = setTimeout(() => {
+        this.copilotCliRetryTimer = null;
+        this.http.get<{ configured: boolean }>('../api/CopilotCli/configured').subscribe({
+          next: r => {
+            if (r?.configured === true) {
+              this.copilotCliAutoConfig$.next({ autoSelect: true, available: true, defaultModel });
+            }
+          },
+          error: () => { /* silent — leave provisional unavailable state */ }
+        });
+      }, 2000);
     }
   }
 
@@ -205,6 +325,25 @@ export class ProjectsService {
       error => {
         console.warn('[ProjectsService] Failed to fetch RAG status:', error);
         this.ragEnabled$.next(false);
+      }
+    );
+  }
+
+  /**
+   * Fetches the PlantUmlKeepOriginalColorsInDarkMode project setting and toggles
+   * the body class used by dark-theme.css to suppress the dark-mode invert filter.
+   */
+  private applyPlantUmlKeepOriginalClass(projectPath: string): void {
+    this.http.get<{enabled: boolean}>(
+      '../api/ProjectSettings/GetPlantUmlKeepOriginalColorsSetting',
+      { params: { projectPath } }
+    ).subscribe(
+      response => {
+        document.body.classList.toggle('plantuml-keep-original', !!response?.enabled);
+      },
+      error => {
+        console.warn('[ProjectsService] Failed to fetch PlantUML keep-original setting:', error);
+        document.body.classList.remove('plantuml-keep-original');
       }
     );
   }

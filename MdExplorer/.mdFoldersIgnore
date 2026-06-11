@@ -11,6 +11,7 @@ ignoredFolders:
   - "bin"               # Binary output
   - "obj"               # Object files
   - ".md"               # MdExplorer internal folder
+  - ".mde-doc"          # MdExplorer knowledge-graph payloads (managed by the mde-doc skill)
   - "__pycache__"       # Python cache
   - ".vscode"           # VS Code settings
   - "dist"              # Distribution/build output

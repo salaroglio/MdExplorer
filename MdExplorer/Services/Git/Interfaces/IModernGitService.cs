@@ -14,6 +14,12 @@ namespace MdExplorer.Services.Git.Interfaces
         public string Message { get; set; }
         public string ErrorMessage { get; set; }
         public string CommitHash { get; set; }
+        /// <summary>
+        /// True when the operation moved HEAD (new content arrived), regardless
+        /// of whether the per-file diff could be computed. Drives the tree-refresh
+        /// notification: the working-directory status MUST NOT be used for this.
+        /// </summary>
+        public bool HasChanges { get; set; }
         public IEnumerable<string> Changes { get; set; }
         public AuthenticationMethod AuthenticationMethodUsed { get; set; }
         public TimeSpan Duration { get; set; }
@@ -228,6 +234,27 @@ namespace MdExplorer.Services.Git.Interfaces
         /// <param name="url">Git repository URL to validate</param>
         /// <returns>Validation result with reachability status</returns>
         Task<RemoteUrlValidationResult> ValidateRemoteUrlAsync(string url);
+
+        /// <summary>
+        /// Adds a git submodule via native git CLI and commits .gitmodules plus the gitlink.
+        /// Authentication relies entirely on git's own credential chain (Git Credential Manager);
+        /// MdExplorer never handles credentials for this operation.
+        /// </summary>
+        /// <param name="repositoryPath">Path to the local repository (project root)</param>
+        /// <param name="url">URL of the repository to add as submodule</param>
+        /// <param name="destinationRelativePath">Destination path relative to the repository root</param>
+        /// <param name="branchName">Optional branch to track (-b)</param>
+        /// <returns>Result of the submodule add operation</returns>
+        Task<GitOperationResult> AddSubmoduleAsync(string repositoryPath, string url,
+            string destinationRelativePath, string branchName = null);
+
+        /// <summary>
+        /// Runs 'git submodule update --init --recursive' via native git CLI.
+        /// Returns Success=true without spawning a process when .gitmodules does not exist.
+        /// </summary>
+        /// <param name="repositoryPath">Path to the local repository</param>
+        /// <returns>Result of the submodule update operation</returns>
+        Task<GitOperationResult> UpdateSubmodulesAsync(string repositoryPath);
     }
 
     /// <summary>

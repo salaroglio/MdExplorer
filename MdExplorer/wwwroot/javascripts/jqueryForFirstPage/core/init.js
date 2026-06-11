@@ -51,6 +51,30 @@ $(function() {
             window.addEventListener('wheel', function(e) { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
         }
 
+        var _wrapperStyleInjected = false;
+        function injectWrapperStyle() {
+            if (_wrapperStyleInjected) return;
+            _wrapperStyleInjected = true;
+            var s = document.createElement('style');
+            s.textContent = '.svg-zoom-viewport::-webkit-scrollbar{display:none}';
+            document.head.appendChild(s);
+        }
+
+        function ensureWrapper(svg) {
+            if (svg._zoomWrapper) return svg._zoomWrapper;
+            injectWrapperStyle();
+            var parent = svg.parentNode;
+            var wrapper = document.createElement('div');
+            wrapper.className = 'svg-zoom-viewport';
+            wrapper.style.maxWidth = '100%';
+            wrapper.style.overflow = 'auto';
+            wrapper.style.scrollbarWidth = 'none';
+            parent.insertBefore(wrapper, svg);
+            wrapper.appendChild(svg);
+            svg._zoomWrapper = wrapper;
+            return wrapper;
+        }
+
         function applyZoomPan(svg) {
             // Skip SVGs already handled by a specific module
             if (svg.classList.contains('interactive-svg') ||
@@ -62,6 +86,7 @@ $(function() {
             var data = svg._genericZoomPan;
 
             installGlobalPrevention();
+            ensureWrapper(svg);
             svg.classList.add('interactive-svg-generic');
             svg.style.cursor = 'grab';
 
@@ -88,11 +113,15 @@ $(function() {
                 svg.style.height = Math.round(data.zoomBaseH * data.zoomLevel) + 'px';
 
                 var nr = svg.getBoundingClientRect();
-                window.scrollBy({
-                    left: (nr.left + fx * nr.width)  - e.clientX,
-                    top:  (nr.top  + fy * nr.height) - e.clientY,
-                    behavior: 'instant'
-                });
+                var dxComp = (nr.left + fx * nr.width)  - e.clientX;
+                var dyComp = (nr.top  + fy * nr.height) - e.clientY;
+                var wrapper = svg._zoomWrapper;
+                if (wrapper && wrapper.scrollWidth > wrapper.clientWidth) {
+                    wrapper.scrollLeft += dxComp;
+                } else {
+                    window.scrollBy({ left: dxComp, behavior: 'instant' });
+                }
+                window.scrollBy({ top: dyComp, behavior: 'instant' });
             }, { passive: false });
 
             // --- DRAG PAN ---
@@ -113,7 +142,13 @@ $(function() {
                     document.documentElement.style.setProperty('cursor', 'grabbing', 'important');
                 }
                 if (hasDragged) {
-                    window.scrollBy({ left: -dx, top: -dy, behavior: 'instant' });
+                    var wrapper = svg._zoomWrapper;
+                    if (wrapper && wrapper.scrollWidth > wrapper.clientWidth) {
+                        wrapper.scrollLeft -= dx;
+                    } else {
+                        window.scrollBy({ left: -dx, behavior: 'instant' });
+                    }
+                    window.scrollBy({ top: -dy, behavior: 'instant' });
                     lastX = e.clientX; lastY = e.clientY;
                 }
             });

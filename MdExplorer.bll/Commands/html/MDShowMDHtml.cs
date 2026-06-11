@@ -35,7 +35,6 @@ namespace MdExplorer.Features.Commands.html
             // ed in più devo prendere xxx
 
             var matches = GetMatches(markdown);
-            _logger.LogInformation($"[MDShowMDHtml] TransformAfterConversion called - Found {matches.Count} mdShowMd matches");
 
             var matchCounter = 0;
             var currentIncrement = 0;
@@ -45,7 +44,18 @@ namespace MdExplorer.Features.Commands.html
                 {
                     matchCounter++;
                     var fileName = item.Groups[1].Value;
-                    _logger.LogInformation($"[MDShowMDHtml] Processing match #{matchCounter}: {fileName}");
+
+                    // Skip matches inside <code> or <pre> tags (descriptive text, not actual commands)
+                    var textBefore = markdown.Substring(0, item.Index);
+                    var lastCodeOpen = textBefore.LastIndexOf("<code", StringComparison.OrdinalIgnoreCase);
+                    var lastCodeClose = textBefore.LastIndexOf("</code>", StringComparison.OrdinalIgnoreCase);
+                    var lastPreOpen = textBefore.LastIndexOf("<pre", StringComparison.OrdinalIgnoreCase);
+                    var lastPreClose = textBefore.LastIndexOf("</pre>", StringComparison.OrdinalIgnoreCase);
+                    if ((lastCodeOpen > lastCodeClose) || (lastPreOpen > lastPreClose))
+                    {
+                        continue;
+                    }
+
                     if (item.Groups[1].Value.StartsWith("../") || item.Groups[1].Value.StartsWith("./"))
                     {
 
@@ -101,13 +111,11 @@ namespace MdExplorer.Features.Commands.html
 
 
                         var uriUrlRoot = new Uri(stringURI);
-                        _logger.LogInformation($"looking for: {uriUrlRoot.AbsoluteUri}");
                         //var response = httpClient.GetAsync(uriUrlRoot);
                         var payload = Newtonsoft.Json.JsonConvert.SerializeObject(requestInfo);
                         HttpContent c = new StringContent(payload, Encoding.UTF8, "application/json");
                         var response = httpClient.PostAsync(uriUrlRoot, c);
                         response.Wait();
-                        _logger.LogInformation($"[MDShowMDHtml] HTTP POST completed - IsCompletedSuccessfully: {response.IsCompletedSuccessfully}, Status: {response.Result?.StatusCode}");
 
                         if (response.IsCompletedSuccessfully)
                         {
@@ -190,7 +198,6 @@ namespace MdExplorer.Features.Commands.html
                         }
                         else
                         {
-                            _logger.LogWarning($"[MDShowMDHtml] HTTP request failed for {uriUrlRoot.AbsoluteUri} - Response not successful");
                         }
                     }
                 }

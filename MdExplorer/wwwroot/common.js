@@ -43,6 +43,10 @@ if (window.commonJsLoaded) {
     loadScriptOnce('/prismjs/prism-javascript.min.js');
     loadScriptOnce('/prismjs/prism-python.min.js');
     loadScriptOnce('/prismjs/prism-sql.min.js');
+    loadScriptOnce('/prismjs/prism-markup.min.js');
+    loadScriptOnce('/prismjs/prism-turtle.min.js');
+    loadScriptOnce('/prismjs/prism-json.min.js');
+    loadScriptOnce('/prismjs/prism-yaml.min.js');
 
     // Always load mermaid but configure it differently based on environment
     const isElectron = navigator.userAgent.includes('Electron');
@@ -124,9 +128,14 @@ if (window.commonJsLoaded) {
         // CLIPBOARD: Ctrl+V interception for Screenshot Annotation Wizard
         loadScriptOnce('/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.js');
 
-        // PANELS: TOC, references, and resize functionality
+        // PANELS: TOC, knowledge graph, and resize functionality
+        document.write("<link href='/javascripts/jqueryForFirstPage/panels/kg-manager.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/lib/three.min.js');
+        loadScriptOnce('/javascripts/lib/3d-force-graph.min.js');
+        loadScriptOnce('/javascripts/lib/force-graph.min.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/panels/toc-manager.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/panels/references-manager.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/panels/kg-manager.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/panels/panel-resize.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/panels/panels-initialization.js');
 
@@ -140,6 +149,19 @@ if (window.commonJsLoaded) {
         loadScriptOnce('/javascripts/jqueryForFirstPage/diagrams/plantuml-integration.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/highlighting/syntax-highlighting.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/diagrams/mermaid-rendering.js');
+
+        // HTML-PREVIEW: Live HTML preview with tabs for ```html code blocks
+        document.write("<link href='/javascripts/jqueryForFirstPage/html-preview/html-preview.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/html-preview/html-preview.js');
+
+        // TEXT-INCLUDE: Single-pane source view for ```text(path) blocks
+        document.write("<link href='/javascripts/jqueryForFirstPage/text-include/text-include.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/text-include/text-include.js');
+
+        // EXECUTION: Runnable fenced code blocks (bash/sh/powershell/pwsh/cmd)
+        document.write("<link href='/javascripts/jqueryForFirstPage/execution/mde-exec-blocks.css' rel='stylesheet' />");
+        loadScriptOnce('/ansi_up/ansi_up.js');
+        loadScriptOnce('/javascripts/jqueryForFirstPage/execution/mde-exec-blocks.js');
 
         // INTERACTIVE-SVG: Click-to-highlight for PlantUML diagrams
         document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg.css' rel='stylesheet' />");

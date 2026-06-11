@@ -74,7 +74,7 @@ namespace MdExplorer.Features.Services
             _logger = logger;
             _gpuService = gpuService;
 
-            _version = configuration.GetValue<string>("LlamaCpp:Version") ?? "b8255";
+            _version = configuration.GetValue<string>("LlamaCpp:Version") ?? "b8781";
 
             var userHome = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             _backendsBaseDir = Path.Combine(userHome, "MdExplorer-Models", "llama-backends");

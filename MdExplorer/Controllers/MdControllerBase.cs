@@ -194,21 +194,26 @@ namespace MdExplorer.Service.Controllers
 
         /// <summary>
         /// Enables or disables file system monitoring for the current client.
-        /// Uses per-client FileSystemWatcherManager.
+        /// Uses per-client FileSystemWatcherManager. Disable calls nest (see
+        /// IFileSystemWatcherManager.SetWatcherEnabled).
         /// </summary>
         /// <param name="enabled">True to enable monitoring, false to disable</param>
-        protected void SetFileSystemWatcherEnabled(bool enabled)
+        /// <returns>
+        /// True if the request was applied; false when no watcher exists for this
+        /// connection (the filesystem is NOT guarded in that case — callers that
+        /// rely on suppression must not assume it took effect).
+        /// </returns>
+        protected bool SetFileSystemWatcherEnabled(bool enabled)
         {
             var connectionId = Request.Query["ConnectionId"].ToString();
 
             if (!string.IsNullOrEmpty(connectionId) && _fileSystemWatcherManager != null)
             {
-                _fileSystemWatcherManager.SetWatcherEnabled(connectionId, enabled);
+                return _fileSystemWatcherManager.SetWatcherEnabled(connectionId, enabled);
             }
-            else
-            {
-                _logger?.LogWarning("⚠️ Unable to set FileSystemWatcher - connectionId or manager unavailable");
-            }
+
+            _logger?.LogWarning("⚠️ Unable to set FileSystemWatcher - connectionId or manager unavailable — request NOT applied");
+            return false;
         }
 
         /// <summary>

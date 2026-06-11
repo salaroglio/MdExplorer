@@ -21,9 +21,12 @@ import { TranslateService } from '@ngx-translate/core';
 export class ProjectSettingsComponent implements OnInit, OnDestroy {
   rule1Enabled: boolean = false;
   linkIndexingEnabled: boolean = true;
+  plantUmlKeepOriginalColorsEnabled: boolean = false;
+  copilotCliAutoSelectEnabled: boolean = true;
   githubModeEnabled: boolean = false;
   stickyScrollEnabled: boolean = true;
   selectedIde: string = 'vscode';
+  private lastSavedIde: string = 'vscode';
   vscodePath: string = '';
   intellijPath: string = '';
   projectId: string;
@@ -40,6 +43,64 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   editingCategoryId: string | null = null;
   editingCategoryName = '';
   appsSavedMessage = '';
+
+  // Knowledge Graph (Neo4j) settings
+  kgLoading: boolean = false;
+  kgSaving: boolean = false;
+  kgEnabled: boolean = false;
+  kgUri: string = 'bolt://localhost:7687';
+  kgDatabase: string = 'neo4j';
+  kgUsername: string = 'neo4j';
+  kgPassword: string = '';
+  kgHasPassword: boolean = false;
+  kgSyncOnTocGeneration: boolean = true;
+  kgSyncOnKgFileSave: boolean = true;
+  kgTesting: boolean = false;
+  kgTestMessage: string = '';
+  kgTestSuccess: boolean = false;
+  kgSyncing: boolean = false;
+  kgResetting: boolean = false;
+  kgSyncMessage: string = '';
+  kgSyncErrors: any[] = [];
+  kgStateLoaded: boolean = false;
+  kgStateTotals: any = null;
+  kgPerNamespace: any[] = [];
+
+  // Apache Jena Fuseki settings (specchio del blocco Neo4j)
+  fsLoading: boolean = false;
+  fsSaving: boolean = false;
+  fsEnabled: boolean = false;
+  fsUri: string = 'http://localhost:3030';
+  fsDataset: string = '';           // default dal nome progetto sanitizzato, popolato dal GET
+  fsDefaultDataset: string = '';    // suggerimento del server
+  fsUsername: string = '';
+  fsPassword: string = '';
+  fsHasPassword: boolean = false;
+  fsSyncOnTocGeneration: boolean = true;
+  fsSyncOnKgFileSave: boolean = true;
+  fsTesting: boolean = false;
+  fsTestMessage: string = '';
+  fsTestSuccess: boolean = false;
+
+  // Atlassian (Jira/Confluence) settings
+  // Shared (jiraBaseUrl/projectKeys/confluence) -> .development.yml.
+  // Token -> UserDB encrypted. Email lives in UserDB (personal).
+  atlLoading: boolean = false;
+  atlSaving: boolean = false;
+  atlEnabled: boolean = false;
+  atlBaseUrl: string = '';
+  atlProjectKeys: string = '';     // comma-separated in the UI, split on save
+  // Confluence shares the Atlassian site & token. Base URL is derived as
+  // {jiraBaseUrl}/wiki; the override is only for the rare different-site case.
+  atlConfluenceBaseUrl: string = '';          // optional override (empty = derived)
+  atlConfluenceBaseUrlEffective: string = '';  // read-only, what will actually be used
+  atlConfluenceSpaceKeys: string = '';         // comma-separated in the UI
+  atlEmail: string = '';
+  atlToken: string = '';
+  atlHasToken: boolean = false;
+  atlTesting: boolean = false;
+  atlTestMessage: string = '';
+  atlTestSuccess: boolean = false;
 
   // RAG settings
   ragEnabled: boolean = false;
@@ -75,6 +136,9 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.loadSettings();
     this.loadAppsConfig();
+    this.loadKgSettings();
+    this.loadFusekiSettings();
+    this.loadAtlassianSettings();
 
     this.ragProgressSub = this.serverMessages.ragIndexingProgress$.subscribe(data => {
       this.ragProcessed = data.processed;
@@ -101,9 +165,11 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     let ideConfigLoaded = false;
     let ragLoaded = false;
     let stickyScrollLoaded = false;
+    let plantUmlKeepOriginalColorsLoaded = false;
+    let copilotCliAutoSelectLoaded = false;
 
     const checkIfDone = () => {
-      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded && stickyScrollLoaded) {
+      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded && stickyScrollLoaded && plantUmlKeepOriginalColorsLoaded && copilotCliAutoSelectLoaded) {
         this.loading = false;
       }
     };
@@ -136,6 +202,34 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       }
     });
 
+    // Load PlantUML Keep Original Colors setting
+    this.projectSettingsService.getPlantUmlKeepOriginalColorsSetting(this.projectPath).subscribe({
+      next: (response) => {
+        this.plantUmlKeepOriginalColorsEnabled = response.enabled;
+        plantUmlKeepOriginalColorsLoaded = true;
+        checkIfDone();
+      },
+      error: (error) => {
+        console.error('Error loading PlantUML Keep Original Colors setting:', error);
+        plantUmlKeepOriginalColorsLoaded = true;
+        checkIfDone();
+      }
+    });
+
+    // Load Copilot CLI Auto-Select setting
+    this.projectSettingsService.getCopilotCliAutoSelectSetting(this.projectPath).subscribe({
+      next: (response) => {
+        this.copilotCliAutoSelectEnabled = response.enabled;
+        copilotCliAutoSelectLoaded = true;
+        checkIfDone();
+      },
+      error: (error) => {
+        console.error('Error loading Copilot CLI Auto-Select setting:', error);
+        copilotCliAutoSelectLoaded = true;
+        checkIfDone();
+      }
+    });
+
     // Load compatibility mode for this specific project
     this.compatibilityService.getCurrentMode(this.projectPath).subscribe({
       next: (response) => {
@@ -156,6 +250,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       next: (response) => {
         console.log('IDE configuration loaded for project:', this.projectPath, response);
         this.selectedIde = response.selectedIde || 'vscode';
+        this.lastSavedIde = this.selectedIde;
         this.vscodePath = response.vscodePath || '';
         this.intellijPath = response.intellijPath || '';
         ideConfigLoaded = true;
@@ -257,6 +352,35 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     });
   }
 
+  onPlantUmlKeepOriginalColorsChange(): void {
+    this.saving = true;
+    this.projectSettingsService.setPlantUmlKeepOriginalColorsSetting(this.plantUmlKeepOriginalColorsEnabled, this.projectPath).subscribe({
+      next: () => {
+        document.body.classList.toggle('plantuml-keep-original', this.plantUmlKeepOriginalColorsEnabled);
+        this.saving = false;
+      },
+      error: (error) => {
+        console.error('Error saving PlantUML Keep Original Colors setting:', error);
+        this.saving = false;
+        this.plantUmlKeepOriginalColorsEnabled = !this.plantUmlKeepOriginalColorsEnabled;
+      }
+    });
+  }
+
+  onCopilotCliAutoSelectChange(): void {
+    this.saving = true;
+    this.projectSettingsService.setCopilotCliAutoSelectSetting(this.copilotCliAutoSelectEnabled, this.projectPath).subscribe({
+      next: () => {
+        this.saving = false;
+      },
+      error: (error) => {
+        console.error('Error saving Copilot CLI Auto-Select setting:', error);
+        this.saving = false;
+        this.copilotCliAutoSelectEnabled = !this.copilotCliAutoSelectEnabled;
+      }
+    });
+  }
+
   onGitHubModeChange(): void {
     console.log('onGitHubModeChange called, githubModeEnabled:', this.githubModeEnabled);
     this.saving = true;
@@ -295,13 +419,14 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     }).subscribe({
       next: (response) => {
         console.log('IDE configuration saved successfully:', this.selectedIde, response);
+        this.lastSavedIde = this.selectedIde;
         this.saving = false;
       },
       error: (error) => {
         console.error('Error saving IDE configuration:', error);
         this.saving = false;
-        // Revert the change on error
-        this.selectedIde = this.selectedIde === 'vscode' ? 'intellij' : 'vscode';
+        // Revert to the last successfully-saved value (works for any number of options)
+        this.selectedIde = this.lastSavedIde;
       }
     });
   }
@@ -559,5 +684,393 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
 
   close(): void {
     this.dialogRef.close();
+  }
+
+  // ============================================================
+  //   Knowledge Graph (Neo4j) — tab logic
+  // ============================================================
+  loadKgSettings(): void {
+    if (!this.projectId) return;
+    this.kgLoading = true;
+    this.projectSettingsService.getKgSettings(this.projectId).subscribe({
+      next: (r) => {
+        this.kgEnabled = !!r.enabled;
+        this.kgUri = r.uri || 'bolt://localhost:7687';
+        this.kgDatabase = r.database || 'neo4j';
+        this.kgUsername = r.username || 'neo4j';
+        this.kgHasPassword = !!r.hasPassword;
+        this.kgPassword = '';
+        this.kgSyncOnTocGeneration = r.syncOnTocGeneration !== false;
+        this.kgSyncOnKgFileSave = r.syncOnKgFileSave !== false;
+        if (r.lastTestSuccess === true) {
+          this.kgTestMessage = this.translate.instant('PROJECT_SETTINGS.KG_TEST_OK_PREVIOUS');
+          this.kgTestSuccess = true;
+        } else if (r.lastTestSuccess === false) {
+          this.kgTestMessage = this.translate.instant('PROJECT_SETTINGS.KG_TEST_FAIL_PREVIOUS');
+          this.kgTestSuccess = false;
+        }
+        this.kgLoading = false;
+        if (this.kgEnabled && this.kgHasPassword) {
+          this.loadKgState();
+        }
+      },
+      error: (err) => {
+        console.error('Error loading KG settings:', err);
+        this.kgLoading = false;
+      }
+    });
+  }
+
+  onKgEnabledChange(): void {
+    // No immediate save — user must click Save to apply (so password and other fields go together).
+    // If user just turned it off, persist immediately (no other state to gather).
+    if (!this.kgEnabled) {
+      this.onSaveKgSettings();
+    }
+  }
+
+  onTestKgConnection(): void {
+    this.kgTesting = true;
+    this.kgTestMessage = '';
+    this.projectSettingsService.testKgConnection({
+      projectId: this.projectId,
+      uri: this.kgUri,
+      database: this.kgDatabase,
+      username: this.kgUsername,
+      password: this.kgPassword || (this.kgHasPassword ? '********' : '')
+    }).subscribe({
+      next: (r) => {
+        this.kgTesting = false;
+        this.kgTestSuccess = !!r.success;
+        if (r.success) {
+          this.kgTestMessage = this.translate.instant('PROJECT_SETTINGS.KG_TEST_OK', { ms: r.latencyMs });
+        } else {
+          this.kgTestMessage = this.translate.instant('PROJECT_SETTINGS.KG_TEST_FAIL', { error: r.error || 'unknown' });
+        }
+      },
+      error: (err) => {
+        this.kgTesting = false;
+        this.kgTestSuccess = false;
+        this.kgTestMessage = this.translate.instant('PROJECT_SETTINGS.KG_TEST_FAIL', { error: err?.message || 'http error' });
+      }
+    });
+  }
+
+  onSaveKgSettings(): void {
+    this.kgSaving = true;
+    this.projectSettingsService.saveKgSettings(this.projectId, {
+      enabled: this.kgEnabled,
+      uri: this.kgUri,
+      database: this.kgDatabase,
+      username: this.kgUsername,
+      password: this.kgPassword || '',
+      syncOnTocGeneration: this.kgSyncOnTocGeneration,
+      syncOnKgFileSave: this.kgSyncOnKgFileSave
+    }).subscribe({
+      next: () => {
+        this.kgSaving = false;
+        if (this.kgPassword) {
+          this.kgHasPassword = true;
+          this.kgPassword = '';
+        }
+        if (this.kgEnabled && this.kgHasPassword) {
+          this.loadKgState();
+        }
+      },
+      error: (err) => {
+        this.kgSaving = false;
+        console.error('Error saving KG settings:', err);
+      }
+    });
+  }
+
+  loadKgState(): void {
+    this.projectSettingsService.getKgState(this.projectId).subscribe({
+      next: (r) => {
+        this.kgStateTotals = r.totals;
+        this.kgPerNamespace = r.perNamespace || [];
+        this.kgStateLoaded = true;
+      },
+      error: (err) => {
+        console.error('Error loading KG state:', err);
+        this.kgStateLoaded = false;
+      }
+    });
+  }
+
+  onSyncKgProject(): void {
+    this.kgSyncing = true;
+    this.kgSyncMessage = '';
+    this.kgSyncErrors = [];
+    this.projectSettingsService.syncKgProject(this.projectId).subscribe({
+      next: (r) => {
+        this.kgSyncing = false;
+        const results = r.results || [];
+        const ok = results.filter((x: any) => !x.error && !x.skipped).length;
+        const skipped = results.filter((x: any) => x.skipped).length;
+        const failed = results.filter((x: any) => x.error).length;
+        this.kgSyncMessage = this.translate.instant('PROJECT_SETTINGS.KG_SYNC_DONE', {
+          ok, skipped, failed, total: results.length
+        });
+        this.kgSyncErrors = results.filter((x: any) => x.error);
+        this.loadKgState();
+      },
+      error: (err) => {
+        this.kgSyncing = false;
+        this.kgSyncMessage = this.translate.instant('PROJECT_SETTINGS.KG_SYNC_FAILED', {
+          error: err?.error?.error || err?.message || 'http error'
+        });
+      }
+    });
+  }
+
+  onResetKg(): void {
+    if (!confirm(this.translate.instant('PROJECT_SETTINGS.KG_RESET_CONFIRM'))) return;
+    this.kgResetting = true;
+    this.kgSyncMessage = '';
+    this.projectSettingsService.resetKg(this.projectId).subscribe({
+      next: () => {
+        this.kgResetting = false;
+        this.kgSyncMessage = this.translate.instant('PROJECT_SETTINGS.KG_RESET_DONE');
+        this.kgSyncErrors = [];
+        this.loadKgState();
+      },
+      error: (err) => {
+        this.kgResetting = false;
+        this.kgSyncMessage = this.translate.instant('PROJECT_SETTINGS.KG_RESET_FAILED', {
+          error: err?.error?.error || err?.message || 'http error'
+        });
+      }
+    });
+  }
+
+  // ============================================================
+  //   Apache Jena Fuseki — tab logic (specchio del blocco KG/Neo4j)
+  // ============================================================
+  loadFusekiSettings(): void {
+    if (!this.projectId) return;
+    this.fsLoading = true;
+    this.projectSettingsService.getFusekiSettings(this.projectId).subscribe({
+      next: (r) => {
+        this.fsEnabled = !!r.enabled;
+        this.fsUri = r.uri || 'http://localhost:3030';
+        this.fsDataset = r.dataset || '';
+        this.fsDefaultDataset = r.defaultDataset || '';
+        this.fsUsername = r.username || '';
+        this.fsHasPassword = !!r.hasPassword;
+        this.fsPassword = '';
+        this.fsSyncOnTocGeneration = r.syncOnTocGeneration !== false;
+        this.fsSyncOnKgFileSave = r.syncOnKgFileSave !== false;
+        if (r.lastTestSuccess === true) {
+          this.fsTestMessage = this.translate.instant('PROJECT_SETTINGS.FUSEKI_TEST_OK_PREVIOUS');
+          this.fsTestSuccess = true;
+        } else if (r.lastTestSuccess === false) {
+          this.fsTestMessage = this.translate.instant('PROJECT_SETTINGS.FUSEKI_TEST_FAIL_PREVIOUS');
+          this.fsTestSuccess = false;
+        }
+        this.fsLoading = false;
+      },
+      error: (err) => {
+        console.error('Error loading Fuseki settings:', err);
+        this.fsLoading = false;
+      }
+    });
+  }
+
+  onFusekiEnabledChange(): void {
+    if (!this.fsEnabled) {
+      this.onSaveFusekiSettings();
+    }
+  }
+
+  onTestFusekiConnection(autoCreate: boolean = false): void {
+    this.fsTesting = true;
+    this.fsTestMessage = '';
+    this.projectSettingsService.testFusekiConnection({
+      projectId: this.projectId,
+      uri: this.fsUri,
+      dataset: this.fsDataset,
+      username: this.fsUsername,
+      password: this.fsPassword || (this.fsHasPassword ? '********' : ''),
+      autoCreateDataset: autoCreate
+    }).subscribe({
+      next: (r) => {
+        this.fsTesting = false;
+        this.fsTestSuccess = !!r.success;
+        if (r.success) {
+          if (r.datasetCreated) {
+            this.fsTestMessage = this.translate.instant('PROJECT_SETTINGS.FUSEKI_TEST_OK_DATASET_CREATED', {
+              dataset: r.dataset, ms: r.latencyMs
+            });
+          } else {
+            this.fsTestMessage = this.translate.instant('PROJECT_SETTINGS.FUSEKI_TEST_OK', {
+              dataset: r.dataset, ms: r.latencyMs
+            });
+          }
+        } else if (r.serverReachable && !r.datasetExists) {
+          this.fsTestMessage = this.translate.instant('PROJECT_SETTINGS.FUSEKI_TEST_DATASET_MISSING', {
+            dataset: r.dataset
+          });
+        } else {
+          this.fsTestMessage = this.translate.instant('PROJECT_SETTINGS.FUSEKI_TEST_FAIL', {
+            error: r.error || 'unknown'
+          });
+        }
+      },
+      error: (err) => {
+        this.fsTesting = false;
+        this.fsTestSuccess = false;
+        this.fsTestMessage = this.translate.instant('PROJECT_SETTINGS.FUSEKI_TEST_FAIL', {
+          error: err?.message || 'http error'
+        });
+      }
+    });
+  }
+
+  onCreateFusekiDataset(): void {
+    // Test + auto-create in un colpo solo
+    this.onTestFusekiConnection(true);
+  }
+
+  onSaveFusekiSettings(): void {
+    this.fsSaving = true;
+    this.projectSettingsService.saveFusekiSettings(this.projectId, {
+      enabled: this.fsEnabled,
+      uri: this.fsUri,
+      dataset: this.fsDataset,
+      username: this.fsUsername,
+      password: this.fsPassword || '',
+      syncOnTocGeneration: this.fsSyncOnTocGeneration,
+      syncOnKgFileSave: this.fsSyncOnKgFileSave
+    }).subscribe({
+      next: (r) => {
+        this.fsSaving = false;
+        if (r.dataset) {
+          this.fsDataset = r.dataset; // server può aver sanitizzato
+        }
+        if (this.fsPassword) {
+          this.fsHasPassword = true;
+          this.fsPassword = '';
+        }
+      },
+      error: (err) => {
+        this.fsSaving = false;
+        console.error('Error saving Fuseki settings:', err);
+      }
+    });
+  }
+
+  // ============================================================
+  //   Atlassian (Jira/Confluence) — tab logic
+  // ============================================================
+  loadAtlassianSettings(): void {
+    if (!this.projectId) return;
+    this.atlLoading = true;
+    this.projectSettingsService.getAtlassianSettings(this.projectId).subscribe({
+      next: (r) => {
+        this.atlEnabled = !!r.enabled;
+        this.atlBaseUrl = r.jiraBaseUrl || '';
+        this.atlProjectKeys = (r.jiraProjectKeys || []).join(', ');
+        this.atlConfluenceBaseUrl = r.confluenceBaseUrl || '';
+        this.atlConfluenceBaseUrlEffective = r.confluenceBaseUrlEffective || '';
+        this.atlConfluenceSpaceKeys = (r.confluenceSpaceKeys || []).join(', ');
+        this.atlEmail = r.email || '';
+        this.atlHasToken = !!r.hasToken;
+        this.atlToken = '';
+        if (r.lastTestSuccess === true) {
+          this.atlTestMessage = this.translate.instant('PROJECT_SETTINGS.ATLASSIAN_TEST_OK_PREVIOUS');
+          this.atlTestSuccess = true;
+        } else if (r.lastTestSuccess === false) {
+          this.atlTestMessage = this.translate.instant('PROJECT_SETTINGS.ATLASSIAN_TEST_FAIL_PREVIOUS');
+          this.atlTestSuccess = false;
+        }
+        this.atlLoading = false;
+      },
+      error: (err) => {
+        console.error('Error loading Atlassian settings:', err);
+        this.atlLoading = false;
+      }
+    });
+  }
+
+  onAtlassianEnabledChange(): void {
+    // Persist immediately when turning off; otherwise wait for explicit Save
+    // so the token and shared config travel together.
+    if (!this.atlEnabled) {
+      this.onSaveAtlassianSettings();
+    }
+  }
+
+  private parseProjectKeys(): string[] {
+    return (this.atlProjectKeys || '')
+      .split(',')
+      .map(k => k.trim())
+      .filter(k => k.length > 0);
+  }
+
+  private parseConfluenceSpaceKeys(): string[] {
+    return (this.atlConfluenceSpaceKeys || '')
+      .split(',')
+      .map(k => k.trim())
+      .filter(k => k.length > 0);
+  }
+
+  onTestAtlassianConnection(): void {
+    this.atlTesting = true;
+    this.atlTestMessage = '';
+    this.projectSettingsService.testAtlassianConnection({
+      projectId: this.projectId,
+      jiraBaseUrl: this.atlBaseUrl,
+      email: this.atlEmail,
+      apiToken: this.atlToken || (this.atlHasToken ? '********' : '')
+    }).subscribe({
+      next: (r) => {
+        this.atlTesting = false;
+        this.atlTestSuccess = !!r.success;
+        if (r.success) {
+          this.atlTestMessage = this.translate.instant('PROJECT_SETTINGS.ATLASSIAN_TEST_OK', {
+            name: r.displayName || '', ms: r.latencyMs
+          });
+        } else {
+          this.atlTestMessage = this.translate.instant('PROJECT_SETTINGS.ATLASSIAN_TEST_FAIL', {
+            error: r.error || 'unknown'
+          });
+        }
+      },
+      error: (err) => {
+        this.atlTesting = false;
+        this.atlTestSuccess = false;
+        this.atlTestMessage = this.translate.instant('PROJECT_SETTINGS.ATLASSIAN_TEST_FAIL', {
+          error: err?.error?.error || err?.message || 'http error'
+        });
+      }
+    });
+  }
+
+  onSaveAtlassianSettings(): void {
+    this.atlSaving = true;
+    this.projectSettingsService.saveAtlassianSettings(this.projectId, {
+      enabled: this.atlEnabled,
+      jiraBaseUrl: this.atlBaseUrl,
+      jiraProjectKeys: this.parseProjectKeys(),
+      confluenceBaseUrl: this.atlConfluenceBaseUrl,
+      confluenceSpaceKeys: this.parseConfluenceSpaceKeys(),
+      email: this.atlEmail,
+      apiToken: this.atlToken || ''
+    }).subscribe({
+      next: () => {
+        this.atlSaving = false;
+        if (this.atlToken) {
+          this.atlHasToken = true;
+          this.atlToken = '';
+        }
+        // Refresh the derived/effective Confluence base URL after save.
+        this.loadAtlassianSettings();
+      },
+      error: (err) => {
+        this.atlSaving = false;
+        console.error('Error saving Atlassian settings:', err);
+      }
+    });
   }
 }

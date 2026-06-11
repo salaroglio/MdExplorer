@@ -2,16 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using Ad.Tools.Dal.Extensions;
-using MdExplorer.Abstractions.DB;
-using MdExplorer.Abstractions.Entities.UserDB;
-using MdExplorer.Features.Services;
 using MdExplorer.Features.Yaml.Interfaces;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Features.Services
@@ -27,625 +24,614 @@ namespace MdExplorer.Features.Services
 
     public interface ITocGenerationService
     {
-        Task<bool> GenerateTocWithAIAsync(string directoryPath, string tocFilePath, CancellationToken ct = default);
-        Task<bool> ForceRegenerateTocAsync(string directoryPath, string tocFilePath, CancellationToken ct = default);
-        Task<bool> RefreshTocAsync(string tocFilePath, CancellationToken ct = default);
-        Task<string> GenerateQuickTocAsync(string directoryPath, string tocFilePath);
+        Task<bool> GenerateTocAsync(string directoryPath, string tocFilePath, CancellationToken ct = default);
         event EventHandler<TocGenerationProgress> ProgressChanged;
         event EventHandler<string> GenerationCompleted;
     }
 
+    /// <summary>
+    /// Builds the per-folder TOC file (<c>&lt;dirname&gt;.md.directory</c>) deterministically.
+    /// No AI, no cache: every call rebuilds the file from scratch using
+    /// <list type="bullet">
+    /// <item><description>the file system (list of *.md);</description></item>
+    /// <item><description>each document's <c>## TL;DR</c> block (parsed in-process);</description></item>
+    /// <item><description>each document's MD5 hash.</description></item>
+    /// </list>
+    /// The only content carried over between runs is the user "safe zone" — a marked
+    /// region at the top of the file whose notes are read back and re-emitted verbatim
+    /// on every regeneration (see <see cref="ExtractSafeZoneContent"/>).
+    /// After writing the TOC, fires <c>IKgSyncOrchestrator.SyncFolderAsync</c> so any
+    /// <c>.mde-doc/*.kg.cypher</c> scripts in the folder get pushed to Neo4j.
+    /// </summary>
     public class TocGenerationService : ITocGenerationService
     {
         private readonly ILogger<TocGenerationService> _logger;
-        private readonly IUserSettingsDB _userSettingsDB;
-        private readonly IAiChatService _aiChatService;
-        private readonly IGeminiApiService _geminiService;
-        private readonly IConfiguration _configuration;
         private readonly IYamlDefaultGenerator _yamlDefaultGenerator;
-        private const int DEFAULT_BATCH_SIZE = 10;
-        private const int DEFAULT_CACHE_DAYS = 30;
-        private bool _useGemini = false;
-        private string _geminiModel = "gemini-1.5-flash";
+        private readonly KnowledgeGraph.IKgSyncOrchestrator _kgSyncOrchestrator;
 
         public event EventHandler<TocGenerationProgress> ProgressChanged;
         public event EventHandler<string> GenerationCompleted;
 
         public TocGenerationService(
             ILogger<TocGenerationService> logger,
-            IUserSettingsDB userSettingsDB,
-            IAiChatService aiChatService,
-            IGeminiApiService geminiService,
-            IConfiguration configuration,
-            IYamlDefaultGenerator yamlDefaultGenerator)
+            IYamlDefaultGenerator yamlDefaultGenerator,
+            KnowledgeGraph.IKgSyncOrchestrator kgSyncOrchestrator)
         {
             _logger = logger;
-            _userSettingsDB = userSettingsDB;
-            _aiChatService = aiChatService;
-            _geminiService = geminiService;
-            _configuration = configuration;
             _yamlDefaultGenerator = yamlDefaultGenerator;
+            _kgSyncOrchestrator = kgSyncOrchestrator;
         }
 
-        public async Task<bool> GenerateTocWithAIAsync(string directoryPath, string tocFilePath, CancellationToken ct = default)
+        public async Task<bool> GenerateTocAsync(string directoryPath, string tocFilePath, CancellationToken ct = default)
         {
             try
             {
-                _logger.LogInformation($"[TocGeneration] Starting AI TOC generation for: {directoryPath}");
+                _logger.LogInformation($"[TocGeneration] Generating TOC for: {directoryPath}");
 
-                // Check if TOC file already exists
-                if (File.Exists(tocFilePath))
-                {
-                    _logger.LogInformation($"[TocGeneration] TOC file already exists at: {tocFilePath}, skipping generation");
-                    
-                    // Notify completion even when skipping generation
-                    NotifyCompletion(directoryPath);
-                    
-                    return true; // Return true since the file exists
-                }
-
-                // Check if AI is available (either local model or Gemini)
-                var isAiAvailable = await IsAiAvailableAsync();
-                if (!isAiAvailable)
-                {
-                    _logger.LogWarning("[TocGeneration] No AI model available (neither local nor Gemini), falling back to simple TOC");
-                    await GenerateSimpleTocWithWarning(directoryPath, tocFilePath);
-                    return false;
-                }
-
-                // Get configuration - now with fresh session
-                var batchSize = GetBatchSize();
-                var enableCache = IsCacheEnabled();
-                var prompt = GetTocPrompt();
-
-                // Get all .md files (excluding .md.directory files)
                 var mdFiles = Directory.GetFiles(directoryPath, "*.md", SearchOption.TopDirectoryOnly)
-                    .Where(f => !f.EndsWith(".md.directory"))
+                    .Where(f => !f.EndsWith(".md.directory", StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
                     .ToList();
 
-                _logger.LogInformation($"[TocGeneration] Found {mdFiles.Count} markdown files to process");
+                // Subfolders are listed in the table too. Hidden/system folders (.md,
+                // .git, .github, .mde-doc, …) are skipped — they aren't part of the
+                // documentation a reader navigates.
+                var subFolders = Directory.GetDirectories(directoryPath)
+                    .Where(d => !Path.GetFileName(d).StartsWith(".", StringComparison.Ordinal))
+                    .OrderBy(d => d, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
 
-                // Initialize TOC file with header
-                await InitializeTocFile(tocFilePath, directoryPath, mdFiles.Count);
+                _logger.LogInformation($"[TocGeneration] Found {subFolders.Count} subfolder(s) and {mdFiles.Count} markdown file(s) to process");
 
-                // Process files in batches
+                // The index is emitted as a raw HTML <table> block — NOT a markdown pipe
+                // table — so Markdig passes the whole thing through untouched. Cell text
+                // is HTML-encoded (a total, standard function): markdown-active characters
+                // like *, _, |, backtick, newline are then literal inside cells, with no
+                // escape rules to maintain. The deliberate HTML (<details>, <ul>, <li>)
+                // is just regular HTML nested in a regular <td>.
                 var tableContent = new StringBuilder();
-                tableContent.AppendLine("| Documento | Descrizione |");
-                tableContent.AppendLine("|-----------|-------------|");
+                tableContent.AppendLine("<table class=\"table\">");
+                tableContent.AppendLine("<thead><tr><th>Titolo</th><th>TL;DR</th><th>Hash</th><th>Link</th></tr></thead>");
+                tableContent.AppendLine("<tbody>");
 
-                var cardsContent = new StringBuilder();
-                cardsContent.AppendLine("\n## 📚 Dettagli Documenti\n");
+                int total = subFolders.Count + mdFiles.Count;
+                int processed = 0;
 
-                for (int i = 0; i < mdFiles.Count; i += batchSize)
+                // ---- Subfolders first (file-explorer convention) ----
+                // A folder's description comes from the "Area appunti utente" safe zone
+                // of its own TOC file (<subfolder>/<subfolder>.md.directory).
+                foreach (var folder in subFolders)
                 {
                     if (ct.IsCancellationRequested)
                     {
-                        _logger.LogInformation("[TocGeneration] Generation cancelled by user");
-                        return false;
-                    }
-
-                    var batch = mdFiles.Skip(i).Take(batchSize).ToList();
-                    var batchNumber = (i / batchSize) + 1;
-                    var totalBatches = (mdFiles.Count + batchSize - 1) / batchSize;
-
-                    // Send progress notification
-                    NotifyProgress(directoryPath, i, mdFiles.Count, $"Analizzando batch {batchNumber}/{totalBatches}");
-
-                    // Process batch
-                    foreach (var filePath in batch)
-                    {
-                        var fileName = Path.GetFileName(filePath);
-                        var relativePath = GetRelativePath(directoryPath, filePath);
-                        
-                        _logger.LogInformation($"[TocGeneration] Processing file: {fileName}");
-                        
-                        // Get description (from cache or AI)
-                        var description = await GetFileDescriptionAsync(filePath, prompt, enableCache);
-                        
-                        _logger.LogInformation($"[TocGeneration] Got description for {fileName}: {description?.Substring(0, Math.Min(description?.Length ?? 0, 100))}...");
-                        
-                        // Add to table (ensure description is single-line for table format)
-                        var tableDescription = description?.Replace("\n", " ")?.Replace("\r", " ")?.Replace("|", "\\|");
-                        tableContent.AppendLine($"| [{fileName}]({relativePath}) | {tableDescription} |");
-                        
-                        // Add to cards
-                        cardsContent.AppendLine(GenerateFileCard(filePath, relativePath, description));
-                    }
-                }
-
-                // Write complete TOC file
-                await FinalizeTocFile(tocFilePath, tableContent.ToString(), cardsContent.ToString());
-
-                // Send completion notification
-                NotifyCompletion(directoryPath);
-
-                _logger.LogInformation($"[TocGeneration] TOC generation completed successfully for: {directoryPath}");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[TocGeneration] Error generating TOC: {ex.Message}", ex);
-                
-                // Send completion notification even on error to close the progress dialog
-                NotifyCompletion(directoryPath);
-                
-                await GenerateErrorToc(tocFilePath, ex.Message);
-                return false;
-            }
-        }
-
-        public async Task<bool> ForceRegenerateTocAsync(string directoryPath, string tocFilePath, CancellationToken ct = default)
-        {
-            try
-            {
-                _logger.LogInformation($"[TocGeneration] Force regenerating TOC for: {directoryPath}");
-
-                // Delete existing file if present
-                if (File.Exists(tocFilePath))
-                {
-                    _logger.LogInformation($"[TocGeneration] Deleting existing TOC file: {tocFilePath}");
-                    File.Delete(tocFilePath);
-                }
-
-                // Now regenerate from scratch
-                return await GenerateTocWithAIInternalAsync(directoryPath, tocFilePath, ct, forceNoCache: false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[TocGeneration] Error force regenerating TOC: {ex.Message}", ex);
-                await GenerateErrorToc(tocFilePath, ex.Message);
-                return false;
-            }
-        }
-
-        public async Task<bool> RefreshTocAsync(string tocFilePath, CancellationToken ct = default)
-        {
-            if (!File.Exists(tocFilePath))
-            {
-                _logger.LogWarning($"[TocGeneration] TOC file not found: {tocFilePath}");
-                return false;
-            }
-
-            var directoryPath = Path.GetDirectoryName(tocFilePath);
-            
-            // For now, still regenerate completely but preserve custom content in future
-            // TODO: Implement logic to preserve user modifications
-            _logger.LogInformation($"[TocGeneration] Refreshing TOC with AI (bypassing cache): {tocFilePath}");
-            
-            // Delete and regenerate, but force bypass cache for refresh
-            File.Delete(tocFilePath);
-            
-            // Temporarily disable cache for refresh operation
-            var originalCacheState = IsCacheEnabled();
-            if (originalCacheState)
-            {
-                _logger.LogInformation("[TocGeneration] Temporarily disabling cache for refresh operation");
-                // We need a way to disable cache temporarily
-                // For now, we'll modify the internal method to accept a cache override
-            }
-            
-            return await GenerateTocWithAIInternalAsync(directoryPath, tocFilePath, ct, forceNoCache: true);
-        }
-
-        private async Task<bool> GenerateTocWithAIInternalAsync(string directoryPath, string tocFilePath, CancellationToken ct = default, bool forceNoCache = false)
-        {
-            try
-            {
-                // Check if AI is available (either local model or Gemini)
-                var isAiAvailable = await IsAiAvailableAsync();
-                if (!isAiAvailable)
-                {
-                    _logger.LogWarning("[TocGeneration] No AI model available (neither local nor Gemini), falling back to simple TOC");
-                    await GenerateSimpleTocWithWarning(directoryPath, tocFilePath);
-                    return false;
-                }
-
-                // Get configuration - now with fresh session
-                var batchSize = GetBatchSize();
-                var enableCache = IsCacheEnabled() && !forceNoCache; // Respect forceNoCache flag
-                var prompt = GetTocPrompt();
-                
-                if (forceNoCache)
-                {
-                    _logger.LogInformation("[TocGeneration] Cache disabled for this operation (forced refresh)");
-                }
-
-                // Get all .md files (excluding .md.directory files)
-                var mdFiles = Directory.GetFiles(directoryPath, "*.md", SearchOption.TopDirectoryOnly)
-                    .Where(f => !f.EndsWith(".md.directory"))
-                    .ToList();
-
-                _logger.LogInformation($"[TocGeneration] Found {mdFiles.Count} markdown files to process");
-
-                // Initialize TOC file with header
-                await InitializeTocFile(tocFilePath, directoryPath, mdFiles.Count);
-
-                // Process files in batches
-                var tableContent = new StringBuilder();
-                tableContent.AppendLine("| Titolo | Descrizione | Link |");
-                tableContent.AppendLine("|--------|-------------|------|");
-
-                var cardsContent = new StringBuilder();
-                cardsContent.AppendLine();
-                cardsContent.AppendLine("## 📚 Dettagli Documenti");
-                cardsContent.AppendLine();
-
-                int processedCount = 0;
-                for (int i = 0; i < mdFiles.Count; i += batchSize)
-                {
-                    if (ct.IsCancellationRequested)
-                    {
-                        _logger.LogWarning("[TocGeneration] Cancellation requested, stopping TOC generation");
+                        _logger.LogWarning("[TocGeneration] Cancellation requested");
                         break;
                     }
 
-                    var batch = mdFiles.Skip(i).Take(batchSize).ToList();
-                    _logger.LogDebug($"[TocGeneration] Processing batch {i / batchSize + 1}: {batch.Count} files");
-
-                    foreach (var file in batch)
+                    try
                     {
-                        try
+                        var folderName = Path.GetFileName(folder);
+                        var folderTocPath = Path.Combine(folder, folderName + ".md.directory");
+                        var notes = ExtractSafeZoneContent(folderTocPath);
+
+                        // Only a note the user actually wrote counts as a description;
+                        // a missing TOC or the untouched default placeholder does not.
+                        var descCell = (string.IsNullOrWhiteSpace(notes) || notes == DefaultSafeZoneNote)
+                            ? "<em>(nessuna descrizione — apri la cartella e compila «Area appunti utente»)</em>"
+                            : MakeTableCellSafe(notes);
+
+                        // Link to the subfolder's own TOC so the index stays navigable;
+                        // when it has no TOC yet, show the bare folder name (no link).
+                        string linkCell;
+                        if (File.Exists(folderTocPath))
                         {
-                            var fileName = Path.GetFileName(file);
-                            var title = GetFileTitle(file);
-                            var relativePath = GetRelativePath(directoryPath, file);
-
-                            // Get AI description
-                            var fileContent = await GetFileContentForAI(file);
-                            var filePrompt = string.Format(prompt, title, fileContent);
-                            
-                            _logger.LogInformation($"[TocGeneration] Processing file: {fileName}, cache enabled: {enableCache}, forceNoCache: {forceNoCache}");
-                            var description = await GetCachedOrGenerateDescription(file, filePrompt, enableCache);
-
-                            // Add to table
-                            tableContent.AppendLine($"| {title} | {description} | [{fileName}]({relativePath}) |");
-
-                            // Add card
-                            cardsContent.Append(GenerateFileCard(file, relativePath, description));
-
-                            processedCount++;
-
-                            // Update progress
-                            var progress = new TocGenerationProgress
-                            {
-                                Directory = directoryPath,
-                                Processed = processedCount,
-                                Total = mdFiles.Count,
-                                Status = $"Processing: {fileName}",
-                                PercentComplete = (processedCount * 100) / mdFiles.Count
-                            };
-
-                            NotifyProgress(progress);
+                            var folderTocRel = GetRelativePath(directoryPath, folderTocPath);
+                            linkCell = $"<a href=\"{WebUtility.HtmlEncode(EncodePathForMarkdownUrl(folderTocRel))}\">{WebUtility.HtmlEncode(folderName)}/</a>";
                         }
-                        catch (Exception fileEx)
+                        else
                         {
-                            _logger.LogError($"[TocGeneration] Error processing file {file}: {fileEx.Message}");
+                            linkCell = $"{WebUtility.HtmlEncode(folderName)}/";
                         }
+
+                        tableContent.AppendLine($"<tr><td>📁 {WebUtility.HtmlEncode(folderName)}</td><td>{descCell}</td><td>—</td><td>{linkCell}</td></tr>");
+
+                        processed++;
+                        NotifyProgress(directoryPath, processed, total, $"Processing folder: {folderName}");
                     }
-
-                    // Small delay between batches to avoid overwhelming the AI
-                    if (i + batchSize < mdFiles.Count)
+                    catch (Exception folderEx)
                     {
-                        await Task.Delay(500, ct);
+                        _logger.LogError($"[TocGeneration] Error processing folder {folder}: {folderEx.Message}");
                     }
                 }
 
-                // Write complete TOC file
-                await FinalizeTocFile(tocFilePath, tableContent.ToString(), cardsContent.ToString());
+                // ---- Markdown files ----
+                foreach (var file in mdFiles)
+                {
+                    if (ct.IsCancellationRequested)
+                    {
+                        _logger.LogWarning("[TocGeneration] Cancellation requested");
+                        break;
+                    }
 
-                // Send completion notification
+                    try
+                    {
+                        var fileName = Path.GetFileName(file);
+                        var title = GetFileTitle(file);
+                        var relativePath = GetRelativePath(directoryPath, file);
+                        var urlPath = EncodePathForMarkdownUrl(relativePath);
+                        var hashShort = ComputeShortHash(file);
+                        var tldr = ExtractTldrFromFile(file);
+
+                        var summaryCell = string.IsNullOrEmpty(tldr)
+                            ? "<em>(TL;DR mancante — aggiungi <code>## TL;DR</code> al documento secondo la skill mde-doc)</em>"
+                            : tldr;
+
+                        tableContent.AppendLine($"<tr><td>{WebUtility.HtmlEncode(title)}</td><td>{summaryCell}</td><td><code>{hashShort}</code></td><td><a href=\"{WebUtility.HtmlEncode(urlPath)}\">{WebUtility.HtmlEncode(fileName)}</a></td></tr>");
+
+                        processed++;
+                        NotifyProgress(directoryPath, processed, total, $"Processing: {fileName}");
+                    }
+                    catch (Exception fileEx)
+                    {
+                        _logger.LogError($"[TocGeneration] Error processing file {file}: {fileEx.Message}");
+                    }
+                }
+
+                tableContent.AppendLine("</tbody>");
+                tableContent.AppendLine("</table>");
+
+                await WriteTocFileAsync(tocFilePath, directoryPath, tableContent.ToString(), ct);
+
+                // Auto-sync hook into Neo4j (best-effort; orchestrator swallows errors and
+                // honors ProjectNeo4jSettings.Enabled + SyncOnTocGeneration).
+                try
+                {
+                    var outcome = await _kgSyncOrchestrator.SyncFolderAsync(directoryPath, KnowledgeGraph.KgSyncTrigger.TocGeneration, ct);
+                    if (outcome.Triggered)
+                    {
+                        _logger.LogInformation("[TocGeneration] KG auto-sync: {Ok} ok, {Sk} skipped, {Fail} failed",
+                            outcome.SucceededFiles, outcome.SkippedFiles, outcome.FailedFiles);
+                    }
+                }
+                catch (Exception kgEx)
+                {
+                    _logger.LogWarning(kgEx, "[TocGeneration] KG auto-sync threw — TOC generation considered successful");
+                }
+
                 NotifyCompletion(directoryPath);
-
-                _logger.LogInformation($"[TocGeneration] TOC generation completed successfully for: {directoryPath}");
+                _logger.LogInformation($"[TocGeneration] TOC generation completed for: {directoryPath}");
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError($"[TocGeneration] Error generating TOC: {ex.Message}", ex);
-                
-                // Send completion notification even on error to close the progress dialog
+                _logger.LogError(ex, $"[TocGeneration] Error generating TOC: {ex.Message}");
                 NotifyCompletion(directoryPath);
-                
-                await GenerateErrorToc(tocFilePath, ex.Message);
                 return false;
             }
         }
 
-        public async Task<string> GenerateQuickTocAsync(string directoryPath, string tocFilePath)
-        {
-            try
-            {
-                _logger.LogInformation($"[TocGeneration] Generating quick TOC for: {directoryPath}");
+        // ============================ Safe zone (user notes) ============================
+        //
+        // The TOC file is regenerated from scratch on every call, so anything the user
+        // adds would normally be lost. To keep their notes, a single "safe zone" delimited
+        // by HTML-comment markers is carved out at the top of the document. Its content is
+        // read back before each regeneration and re-emitted verbatim. Everything outside
+        // the markers is overwritten.
 
-                var mdFiles = Directory.GetFiles(directoryPath, "*.md", SearchOption.TopDirectoryOnly)
-                    .Where(f => !f.EndsWith(".md.directory"))
-                    .OrderBy(f => f)
-                    .ToList();
+        // Stable prefixes used to LOCATE the markers when reading an existing file.
+        // Kept short so extra descriptive text inside the comment doesn't break matching.
+        private const string SafeZoneStartTag = "<!-- MDE:SAFE-ZONE:START";
+        private const string SafeZoneEndTag = "<!-- MDE:SAFE-ZONE:END";
 
-                var content = new StringBuilder();
-                var directoryName = Path.GetFileName(directoryPath);
-                var yamlHeader = _yamlDefaultGenerator.GenerateDefaultYaml(directoryPath);
-                
-                content.AppendLine(yamlHeader);
-                content.AppendLine($"# {directoryName}");
-                content.AppendLine();
-                content.AppendLine($"> 📊 **Stato**: Lista semplice (senza AI)");
-                content.AppendLine($"> 📁 **File trovati**: {mdFiles.Count}");
-                content.AppendLine($"> 📅 **Generato**: {DateTime.Now:yyyy-MM-dd HH:mm}");
-                content.AppendLine();
-                content.AppendLine("## 📑 Elenco Documenti");
-                content.AppendLine();
+        // Full marker lines emitted into the generated file.
+        private const string SafeZoneStartLine =
+            "<!-- MDE:SAFE-ZONE:START · area appunti utente — il testo fino a "
+            + "MDE:SAFE-ZONE:END viene preservato a ogni rigenerazione · NON rimuovere questo marcatore -->";
 
-                foreach (var file in mdFiles)
-                {
-                    var fileName = Path.GetFileName(file);
-                    var relativePath = GetRelativePath(directoryPath, file);
-                    var fileInfo = new FileInfo(file);
-                    
-                    content.AppendLine($"- [{fileName}]({relativePath}) - {FormatFileSize(fileInfo.Length)} - {fileInfo.LastWriteTime:yyyy-MM-dd}");
-                }
+        private const string SafeZoneEndLine =
+            "<!-- MDE:SAFE-ZONE:END · NON rimuovere questo marcatore -->";
 
-                await File.WriteAllTextAsync(tocFilePath, content.ToString(), Encoding.UTF8);
-                
-                _logger.LogInformation($"[TocGeneration] Quick TOC generated successfully");
-                return content.ToString();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[TocGeneration] Error generating quick TOC: {ex.Message}", ex);
-                throw;
-            }
-        }
+        // Visible heading rendered above the safe zone (regenerated every run, so it
+        // can't be accidentally deleted by the user).
+        private const string SafeZoneCallout = "> ✏️ **Area appunti utente**";
 
-        private async Task<string> GetFileDescriptionAsync(string filePath, string prompt, bool useCache)
-        {
-            try
-            {
-                string fileHash = null;
-                
-                if (useCache)
-                {
-                    fileHash = ComputeFileHash(filePath);
-                    var cached = GetCachedDescription(filePath, fileHash);
-                    if (!string.IsNullOrEmpty(cached))
-                    {
-                        _logger.LogDebug($"[TocGeneration] Using cached description for: {Path.GetFileName(filePath)}");
-                        return cached;
-                    }
-                }
+        // Seeded into the safe zone only on the very first generation (or for a TOC
+        // produced before this feature existed, which has no markers at all).
+        private const string DefaultSafeZoneNote =
+            "_Scrivi qui le tue annotazioni su questa cartella: è l'unica parte del "
+            + "documento che non viene sovrascritta._";
 
-                // Read file content
-                var content = await File.ReadAllTextAsync(filePath, Encoding.UTF8);
-                
-                // Use a reasonable limit for AI context (10000 chars should be enough for most docs)
-                const int maxContentLength = 10000;
-                if (content.Length > maxContentLength)
-                {
-                    // Take first part of document for context
-                    content = content.Substring(0, maxContentLength) + "\n\n[... documento troncato per lunghezza ...]";
-                }
-
-                // Prepare prompt
-                var fileName = Path.GetFileName(filePath);
-                var aiPrompt = prompt.Replace("{filename}", fileName).Replace("{content}", content);
-                
-                // If prompt doesn't have placeholders, append content
-                if (!prompt.Contains("{content}"))
-                {
-                    aiPrompt = $"{prompt}\n\nFile: {fileName}\nContenuto:\n{content}";
-                }
-
-                _logger.LogDebug($"[TocGeneration] Sending to AI - prompt length: {aiPrompt.Length} chars");
-                
-                // Get AI description
-                var description = await GetAiDescriptionAsync(aiPrompt);
-                
-                _logger.LogDebug($"[TocGeneration] Received from AI - description length: {description?.Length ?? 0} chars");
-                
-                // No truncation - return full description from AI
-
-                // Save to cache if enabled
-                if (useCache && !string.IsNullOrEmpty(fileHash))
-                {
-                    SaveToCache(filePath, fileHash, description);
-                }
-
-                return description;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[TocGeneration] Error getting description for {filePath}: {ex.Message}");
-                return $"*Errore nell'analisi del file: {ex.Message}*";
-            }
-        }
-
-        private string GetCachedDescription(string filePath, string fileHash)
-        {
-            try
-            {
-                var cacheDal = _userSettingsDB.GetDal<TocDescriptionCache>();
-                var cached = cacheDal.GetList()
-                    .Where(c => c.FilePath == filePath && c.FileHash == fileHash)
-                    .OrderByDescending(c => c.GeneratedAt)
-                    .FirstOrDefault();
-                
-                if (cached != null)
-                {
-                    // Check if cache is still valid (within cache days)
-                    var cacheValidDays = GetCacheDays();
-                    if ((DateTime.Now - cached.GeneratedAt).TotalDays <= cacheValidDays)
-                    {
-                        return cached.Description;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[TocGeneration] Error reading cache: {ex.Message}");
-            }
-            
-            return null;
-        }
-
-        private void SaveToCache(string filePath, string fileHash, string description)
-        {
-            try
-            {
-                var cacheDal = _userSettingsDB.GetDal<TocDescriptionCache>();
-                
-                // Check if entry already exists
-                var existing = cacheDal.GetList()
-                    .Where(c => c.FilePath == filePath)
-                    .FirstOrDefault();
-                
-                _userSettingsDB.BeginTransaction(System.Data.IsolationLevel.Unspecified);
-                
-                if (existing != null)
-                {
-                    // Update existing entry
-                    existing.FileHash = fileHash;
-                    existing.Description = description;
-                    existing.GeneratedAt = DateTime.Now;
-                    existing.ModelUsed = GetCurrentAiModelName();
-                    cacheDal.Save(existing);
-                }
-                else
-                {
-                    // Create new entry
-                    var newCache = new TocDescriptionCache
-                    {
-                        FilePath = filePath,
-                        FileHash = fileHash,
-                        Description = description,
-                        GeneratedAt = DateTime.Now,
-                        ModelUsed = GetCurrentAiModelName()
-                    };
-                    cacheDal.Save(newCache);
-                }
-                
-                _userSettingsDB.Commit();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[TocGeneration] Error saving to cache: {ex.Message}");
-                _userSettingsDB.Rollback();
-            }
-        }
-
-        private string ComputeFileHash(string filePath)
-        {
-            using (var md5 = MD5.Create())
-            using (var stream = File.OpenRead(filePath))
-            {
-                var hash = md5.ComputeHash(stream);
-                return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
-            }
-        }
-
-        private async Task InitializeTocFile(string tocFilePath, string directoryPath, int fileCount)
+        private async Task WriteTocFileAsync(string tocFilePath, string directoryPath, string tableContent, CancellationToken ct)
         {
             var directoryName = Path.GetFileName(directoryPath);
             var yamlHeader = _yamlDefaultGenerator.GenerateDefaultYaml(directoryPath);
-            
+
+            // Carry over the user's notes. ExtractSafeZoneContent returns null only when
+            // the existing file has no markers at all — then we seed the default note.
+            var userNotes = ExtractSafeZoneContent(tocFilePath) ?? DefaultSafeZoneNote;
+
             var content = new StringBuilder();
             content.AppendLine(yamlHeader);
             content.AppendLine($"# {directoryName}");
             content.AppendLine();
-            content.AppendLine($"> 📊 **Stato**: ✅ Generato con AI");
-            content.AppendLine($"> 📁 **File analizzati**: 0/{fileCount}");
-            content.AppendLine($"> 📅 **Ultimo aggiornamento**: {DateTime.Now:yyyy-MM-dd HH:mm}");
-            content.AppendLine($"> 🤖 **Modello AI**: {GetCurrentAiModelName()}");
-            content.AppendLine();
-            content.AppendLine("## 📑 Indice Rapido");
-            content.AppendLine();
-            content.AppendLine("*Generazione in corso...*");
 
-            await File.WriteAllTextAsync(tocFilePath, content.ToString(), Encoding.UTF8);
-        }
+            // ---- Safe zone: the only user-editable part of this generated file ----
+            content.AppendLine(SafeZoneCallout);
+            content.AppendLine();
+            content.AppendLine(SafeZoneStartLine);
+            content.AppendLine();
+            content.AppendLine(userNotes);
+            content.AppendLine();
+            content.AppendLine(SafeZoneEndLine);
+            content.AppendLine();
+            // ---- everything below is regenerated on every run ----
 
-        private async Task FinalizeTocFile(string tocFilePath, string tableContent, string cardsContent)
-        {
-            var directoryPath = Path.GetDirectoryName(tocFilePath);
-            var directoryName = Path.GetFileName(directoryPath);
-            var yamlHeader = _yamlDefaultGenerator.GenerateDefaultYaml(directoryPath);
-            
-            var fileCount = tableContent.Split('\n').Length - 3; // Subtract header lines
-            
-            var content = new StringBuilder();
-            content.AppendLine(yamlHeader);
-            content.AppendLine($"# {directoryName}");
-            content.AppendLine();
-            content.AppendLine($"> 📊 **Stato**: ✅ Generato con AI");
-            content.AppendLine($"> 📁 **File analizzati**: {fileCount}/{fileCount}");
-            content.AppendLine($"> 📅 **Ultimo aggiornamento**: {DateTime.Now:yyyy-MM-dd HH:mm}");
-            content.AppendLine($"> 🤖 **Modello AI**: {GetCurrentAiModelName()}");
-            content.AppendLine();
             content.AppendLine("## 📑 Indice Rapido");
             content.AppendLine();
             content.Append(tableContent);
-            content.Append(cardsContent);
 
-            await File.WriteAllTextAsync(tocFilePath, content.ToString(), Encoding.UTF8);
+            await File.WriteAllTextAsync(tocFilePath, content.ToString(), Encoding.UTF8, ct);
         }
 
-        private string GenerateFileCard(string filePath, string relativePath, string description)
+        /// <summary>
+        /// Instance wrapper around <see cref="ReadSafeZone"/> used during TOC regeneration.
+        /// Logs (rather than throws) on an IO failure: a read error here would otherwise
+        /// silently drop the user's notes on the next write.
+        /// </summary>
+        private string ExtractSafeZoneContent(string tocFilePath)
         {
-            var fileInfo = new FileInfo(filePath);
-            var fileName = Path.GetFileName(filePath);
-            
-            var card = new StringBuilder();
-            card.AppendLine($"### 📄 {fileName}");
-            card.AppendLine($"**Percorso**: `{relativePath}`  ");
-            card.AppendLine($"**Ultima modifica**: {fileInfo.LastWriteTime:yyyy-MM-dd}  ");
-            card.AppendLine($"**Dimensione**: {FormatFileSize(fileInfo.Length)}");
-            card.AppendLine();
-            card.AppendLine($"> {description}");
-            card.AppendLine();
-            card.AppendLine("---");
-            card.AppendLine();
-
-            return card.ToString();
+            try
+            {
+                return ReadSafeZone(tocFilePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[TocGeneration] Could not read safe-zone notes from '{Path}'", tocFilePath);
+                return null;
+            }
         }
 
-        private async Task GenerateSimpleTocWithWarning(string directoryPath, string tocFilePath)
+        /// <summary>
+        /// Reads back the user "safe zone" from an existing TOC file: the text between the
+        /// <c>MDE:SAFE-ZONE:START</c> and <c>MDE:SAFE-ZONE:END</c> comment markers, trimmed.
+        /// Returns <c>null</c> when the file does not exist or has no markers (first
+        /// generation, or a TOC produced before this feature). An empty-but-marked zone is
+        /// returned as an empty string. IO errors propagate to the caller.
+        /// </summary>
+        public static string ReadSafeZone(string tocFilePath)
         {
-            var content = await GenerateQuickTocAsync(directoryPath, tocFilePath);
-            
-            // Add warning at the beginning
-            var lines = content.Split('\n').ToList();
-            var yamlEndIndex = lines.FindIndex(l => l.StartsWith("---") && lines.IndexOf(l) > 0) + 1;
-            
-            lines.Insert(yamlEndIndex + 2, "");
-            lines.Insert(yamlEndIndex + 3, "> ⚠️ **ATTENZIONE**: AI non disponibile - Generata lista semplice senza descrizioni");
-            lines.Insert(yamlEndIndex + 4, "> Per abilitare le descrizioni AI, caricare un modello dalla gestione modelli");
-            
-            await File.WriteAllTextAsync(tocFilePath, string.Join('\n', lines), Encoding.UTF8);
+            if (!File.Exists(tocFilePath)) return null;
+
+            var content = File.ReadAllText(tocFilePath, Encoding.UTF8);
+
+            var startTag = content.IndexOf(SafeZoneStartTag, StringComparison.Ordinal);
+            if (startTag < 0) return null;
+
+            // Skip past the end of the START comment ("-->") to the actual notes.
+            var afterStart = content.IndexOf("-->", startTag, StringComparison.Ordinal);
+            if (afterStart < 0) return null;
+            afterStart += "-->".Length;
+
+            var endTag = content.IndexOf(SafeZoneEndTag, afterStart, StringComparison.Ordinal);
+            if (endTag < 0) return null;
+
+            return content.Substring(afterStart, endTag - afterStart)
+                          .Trim('\r', '\n', ' ', '\t');
         }
 
-        private async Task GenerateErrorToc(string tocFilePath, string errorMessage)
+        /// <summary>
+        /// True when the safe zone is "untouched by a human": no markers / no content, or
+        /// exactly the seeded <see cref="DefaultSafeZoneNote"/> placeholder. Used to decide
+        /// whether an automated synthesis may fill it (a user-written note is never overwritten).
+        /// </summary>
+        public static bool IsSafeZoneEmptyOrDefault(string tocFilePath)
         {
-            var directoryPath = Path.GetDirectoryName(tocFilePath);
-            var directoryName = Path.GetFileName(directoryPath);
-            var yamlHeader = _yamlDefaultGenerator.GenerateDefaultYaml(directoryPath);
-            
-            var content = new StringBuilder();
-            content.AppendLine(yamlHeader);
-            content.AppendLine($"# {directoryName}");
-            content.AppendLine();
-            content.AppendLine($"> ❌ **ERRORE**: Generazione TOC fallita");
-            content.AppendLine($"> 📅 **Timestamp**: {DateTime.Now:yyyy-MM-dd HH:mm}");
-            content.AppendLine($"> 🔍 **Dettaglio errore**: {errorMessage}");
-            content.AppendLine();
-            content.AppendLine("## Risoluzione");
-            content.AppendLine();
-            content.AppendLine("Provare a:");
-            content.AppendLine("1. Verificare che il modello AI sia caricato");
-            content.AppendLine("2. Controllare i permessi sulla directory");
-            content.AppendLine("3. Riprovare con 'Refresh Toc' dal menu contestuale");
-            content.AppendLine("4. Utilizzare 'Toc Rapida' per una lista semplice senza AI");
-
-            await File.WriteAllTextAsync(tocFilePath, content.ToString(), Encoding.UTF8);
+            var notes = ReadSafeZone(tocFilePath);
+            return string.IsNullOrWhiteSpace(notes) || notes == DefaultSafeZoneNote;
         }
+
+        /// <summary>
+        /// Replaces the safe-zone notes of an existing TOC file in place, between the
+        /// <c>MDE:SAFE-ZONE:START</c> and <c>MDE:SAFE-ZONE:END</c> markers. Everything
+        /// outside the markers (heading, table, YAML) is preserved verbatim. Throws if the
+        /// markers are missing — the caller must only invoke this on a TOC it just generated.
+        /// </summary>
+        public static void WriteSafeZone(string tocFilePath, string newContent)
+        {
+            var content = File.ReadAllText(tocFilePath, Encoding.UTF8);
+
+            var startTag = content.IndexOf(SafeZoneStartTag, StringComparison.Ordinal);
+            if (startTag < 0)
+                throw new InvalidOperationException($"Safe-zone start marker not found in '{tocFilePath}'.");
+
+            var afterStart = content.IndexOf("-->", startTag, StringComparison.Ordinal);
+            if (afterStart < 0)
+                throw new InvalidOperationException($"Malformed safe-zone start marker in '{tocFilePath}'.");
+            afterStart += "-->".Length;
+
+            var endTag = content.IndexOf(SafeZoneEndTag, afterStart, StringComparison.Ordinal);
+            if (endTag < 0)
+                throw new InvalidOperationException($"Safe-zone end marker not found in '{tocFilePath}'.");
+
+            var nl = Environment.NewLine;
+            var rebuilt = content.Substring(0, afterStart)
+                          + nl + nl + (newContent ?? string.Empty).Trim() + nl + nl
+                          + content.Substring(endTag);
+
+            File.WriteAllText(tocFilePath, rebuilt, Encoding.UTF8);
+        }
+
+        // ============================ TL;DR extraction ============================
+
+        /// <summary>
+        /// Deterministically extracts the TL;DR block from a markdown document produced under the
+        /// mde-doc skill. Looks for a heading matching <c>## TL;DR</c> (case-insensitive, also
+        /// accepts <c>TLDR</c> and trailing semicolons) and gathers prose + bullet lines until the
+        /// next <c>##</c> heading or EOF. The prose becomes the visible cell preview; the whole
+        /// bullet list (with its nesting) is always moved into a collapsible <c>&lt;details&gt;</c>
+        /// block. Returns a single-line, table-cell-safe string, or null if no TL;DR is found.
+        /// </summary>
+        private static string ExtractTldrFromFile(string filePath)
+        {
+            try
+            {
+                var content = File.ReadAllText(filePath, Encoding.UTF8);
+                var lines = content.Split('\n');
+
+                int startIdx = -1;
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    var line = lines[i].TrimEnd('\r').Trim();
+                    if (!line.StartsWith("##", StringComparison.Ordinal)) continue;
+                    if (line.StartsWith("###", StringComparison.Ordinal)) continue;
+
+                    var heading = line.TrimStart('#').Trim().Replace(";", string.Empty).Trim();
+                    if (heading.Equals("TLDR", StringComparison.OrdinalIgnoreCase))
+                    {
+                        startIdx = i + 1;
+                        break;
+                    }
+                }
+
+                if (startIdx < 0) return null;
+
+                var prose = new List<string>();
+                var rawBullets = new List<(int Indent, string Text)>();
+                bool sawBullet = false;
+                // A blank line seen after a bullet does NOT decide on its own — the next
+                // non-blank line does. This lets the loop tell apart a hard-wrapped bullet,
+                // a "loose" list (blank lines between items) and trailing prose.
+                bool pendingBlank = false;
+
+                for (int i = startIdx; i < lines.Length; i++)
+                {
+                    var raw = lines[i].TrimEnd('\r');
+                    var trimmed = raw.Trim();
+
+                    // Next ## heading → the TL;DR section ends here.
+                    if (trimmed.StartsWith("##", StringComparison.Ordinal) &&
+                        !trimmed.StartsWith("###", StringComparison.Ordinal))
+                    {
+                        break;
+                    }
+
+                    // Blank line: defer the decision to the next non-blank line.
+                    if (string.IsNullOrEmpty(trimmed))
+                    {
+                        if (sawBullet) pendingBlank = true;
+                        continue;
+                    }
+
+                    // A real markdown bullet is "- "/"* " (marker + space) or a bare "-"/"*".
+                    // Anything else following a bullet is continuation text, not a new item.
+                    bool isBullet =
+                        trimmed.StartsWith("- ", StringComparison.Ordinal) ||
+                        trimmed.StartsWith("* ", StringComparison.Ordinal) ||
+                        trimmed == "-" || trimmed == "*";
+
+                    // Resolve a deferred blank line now:
+                    //   blank + bullet     → a "loose" list gap → keep collecting;
+                    //   blank + non-bullet → trailing prose → the TL;DR list is over.
+                    if (pendingBlank)
+                    {
+                        if (!isBullet) break;
+                        pendingBlank = false;
+                    }
+
+                    if (isBullet)
+                    {
+                        // Leading whitespace width drives the nesting level (mapped below).
+                        int indent = raw.Length - raw.TrimStart(' ', '\t').Length;
+                        rawBullets.Add((indent, trimmed.TrimStart('-', '*').Trim()));
+                        sawBullet = true;
+                    }
+                    else if (!sawBullet)
+                    {
+                        prose.Add(trimmed);
+                    }
+                    else if (rawBullets.Count > 0)
+                    {
+                        // Non-bullet line right after a bullet, with no blank line between:
+                        // a hard-wrapped continuation → fold it back into the last bullet.
+                        var last = rawBullets[rawBullets.Count - 1];
+                        rawBullets[rawBullets.Count - 1] = (last.Indent, (last.Text + " " + trimmed).Trim());
+                    }
+                }
+
+                if (prose.Count == 0 && rawBullets.Count == 0) return null;
+
+                // The TL;DR prose stays visible in the cell; the whole bullet list is
+                // always tucked into a collapsible <details> block — collapsed even when
+                // it would still fit — so the table stays scannable while the expanded
+                // view keeps the original list structure (incl. nested points).
+                var bullets = MapBulletLevels(rawBullets);
+                var proseText = WebUtility.HtmlEncode(string.Join(" ", prose));
+                var bulletHtml = bullets.Count > 0 ? BuildBulletListHtml(bullets) : null;
+
+                return ComposeTldrCell(proseText, bulletHtml, bullets.Count);
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Maps each bullet's raw leading-whitespace width to a 0-based nesting level.
+        /// Distinct indent widths are sorted ascending and their position becomes the
+        /// level, so 2-space, 4-space or tab indentation all collapse cleanly to 0,1,2,…
+        /// </summary>
+        private static List<(int Level, string Text)> MapBulletLevels(
+            List<(int Indent, string Text)> raw)
+        {
+            var result = new List<(int Level, string Text)>();
+            if (raw.Count == 0) return result;
+
+            var distinctIndents = raw.Select(b => b.Indent).Distinct().OrderBy(x => x).ToList();
+            foreach (var b in raw)
+            {
+                result.Add((distinctIndents.IndexOf(b.Indent), b.Text));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Renders a leveled bullet list as a properly nested HTML <c>&lt;ul&gt;/&lt;li&gt;</c>
+        /// tree on a single physical line (no newlines), so it survives inside a markdown
+        /// table cell while still rendering as a real, indented list when expanded.
+        /// </summary>
+        private static string BuildBulletListHtml(List<(int Level, string Text)> bullets)
+        {
+            var sb = new StringBuilder();
+            int prevLevel = -1;
+
+            foreach (var (level, text) in bullets)
+            {
+                if (level > prevLevel)
+                {
+                    for (int l = prevLevel; l < level; l++) sb.Append("<ul>");
+                }
+                else if (level < prevLevel)
+                {
+                    for (int l = prevLevel; l > level; l--) sb.Append("</li></ul>");
+                    sb.Append("</li>");
+                }
+                else
+                {
+                    sb.Append("</li>");
+                }
+
+                sb.Append("<li>").Append(WebUtility.HtmlEncode(text));
+                prevLevel = level;
+            }
+
+            for (int l = prevLevel; l >= 0; l--) sb.Append("</li></ul>");
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// Assembles the final table-cell string: the full TL;DR prose stays inline and
+        /// the bullet list goes into an inline collapsible <c>&lt;details&gt;</c>. The cell
+        /// never contains a newline.
+        /// </summary>
+        private static string ComposeTldrCell(string proseText, string bulletHtml, int bulletCount)
+        {
+            // Nothing to collapse: no bullets → just the prose.
+            if (bulletHtml == null)
+                return proseText;
+
+            var summary = bulletCount == 1 ? "📋 1 punto" : $"📋 {bulletCount} punti";
+
+            var details = new StringBuilder();
+            details.Append("<details style=\"display:inline\">")
+                   .Append("<summary style=\"display:inline;color:#0d6efd;cursor:pointer;font-weight:bold\" title=\"Mostra tutto\">")
+                   .Append(summary)
+                   .Append("</summary>")
+                   .Append(bulletHtml)
+                   .Append("</details>");
+
+            return string.IsNullOrEmpty(proseText)
+                ? details.ToString()
+                : proseText + " " + details.ToString();
+        }
+
+        // ============================ Hash ============================
+
+        private static string ComputeFileHash(string filePath)
+        {
+            using var md5 = MD5.Create();
+            using var stream = File.OpenRead(filePath);
+            var hash = md5.ComputeHash(stream);
+            return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+        }
+
+        /// <summary>
+        /// Short content hash of a file: the first 8 chars of the MD5 hex digest.
+        /// This is the exact value rendered in the TOC "Hash" column. It is exposed so
+        /// other services (e.g. the Mark folder summarizer) can compare a document
+        /// against its recorded TOC hash without re-implementing the algorithm — keeping
+        /// a single source of truth and avoiding hash drift.
+        /// </summary>
+        public static string ComputeShortHash(string filePath)
+        {
+            var hash = ComputeFileHash(filePath);
+            return hash.Substring(0, Math.Min(8, hash.Length));
+        }
+
+        // ============================ File utilities ============================
+
+        private static string GetFileTitle(string filePath)
+        {
+            try
+            {
+                var lines = File.ReadAllLines(filePath, Encoding.UTF8);
+                foreach (var raw in lines)
+                {
+                    var line = raw.Trim();
+                    if (line.StartsWith("# ", StringComparison.Ordinal))
+                    {
+                        return line.Substring(2).Trim();
+                    }
+                }
+                return Path.GetFileNameWithoutExtension(filePath);
+            }
+            catch
+            {
+                return Path.GetFileNameWithoutExtension(filePath);
+            }
+        }
+
+        private static string GetRelativePath(string basePath, string fullPath)
+        {
+            var rel = Path.GetRelativePath(basePath, fullPath);
+            return rel.Replace('\\', '/');
+        }
+
+        /// <summary>
+        /// Percent-encodes a POSIX-style relative path for use as the URL part of a markdown
+        /// link ([text](url)). Each segment is encoded individually so that '/' is preserved
+        /// as separator while spaces, parentheses, brackets, etc. become %20/%28/...
+        /// </summary>
+        private static string EncodePathForMarkdownUrl(string path)
+        {
+            if (string.IsNullOrEmpty(path)) return path;
+            return string.Join('/', path.Split('/').Select(Uri.EscapeDataString));
+        }
+
+        /// <summary>
+        /// Makes an arbitrary (possibly multi-line) string safe to drop into a single
+        /// HTML <c>&lt;td&gt;</c>: HTML-encodes the text (so any <c>&lt;</c> / <c>&gt;</c>
+        /// / <c>&amp;</c> in the user's notes is literal, not interpreted as a tag) and
+        /// converts line breaks into <c>&lt;br&gt;</c>.
+        /// </summary>
+        private static string MakeTableCellSafe(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            var unified = text.Replace("\r\n", "\n").Replace("\r", "\n");
+            return WebUtility.HtmlEncode(unified).Replace("\n", "<br>");
+        }
+
+        // ============================ Notification helpers ============================
 
         private void NotifyProgress(string directoryPath, int processed, int total, string status)
         {
@@ -655,7 +641,7 @@ namespace MdExplorer.Features.Services
                 Processed = processed,
                 Total = total,
                 Status = status,
-                PercentComplete = (processed * 100) / total
+                PercentComplete = total > 0 ? (processed * 100) / total : 100
             });
         }
 
@@ -664,377 +650,5 @@ namespace MdExplorer.Features.Services
             GenerationCompleted?.Invoke(this, directoryPath);
         }
 
-        private string GetTocPrompt()
-        {
-            try
-            {
-                var settingDal = _userSettingsDB.GetDal<Setting>();
-                var promptSetting = settingDal.GetList()
-                    .Where(s => s.Name == "TOC_Generation_Prompt")
-                    .FirstOrDefault();
-                
-                if (promptSetting != null && !string.IsNullOrEmpty(promptSetting.ValueString))
-                {
-                    return promptSetting.ValueString;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[TocGeneration] Error reading prompt from database: {ex.Message}");
-            }
-            
-            // Fallback to configuration
-            return _configuration["TocGeneration:DefaultPrompt"] ?? 
-                "Analizza questo documento markdown e genera una descrizione dettagliata (100-200 parole). Focus su: scopo principale, contenuti chiave, target audience, informazioni rilevanti.";
-        }
-
-        private int GetBatchSize()
-        {
-            try
-            {
-                var settingDal = _userSettingsDB.GetDal<Setting>();
-                var batchSizeSetting = settingDal.GetList()
-                    .Where(s => s.Name == "TOC_Generation_BatchSize")
-                    .FirstOrDefault();
-                
-                if (batchSizeSetting != null && batchSizeSetting.ValueInt.HasValue && batchSizeSetting.ValueInt.Value > 0)
-                {
-                    return batchSizeSetting.ValueInt.Value;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[TocGeneration] Error reading batch size from database: {ex.Message}");
-            }
-            
-            // Fallback to configuration or default
-            var configValue = _configuration.GetValue<int>("TocGeneration:BatchSize");
-            return configValue > 0 ? configValue : DEFAULT_BATCH_SIZE;
-        }
-
-        private bool IsCacheEnabled()
-        {
-            try
-            {
-                var settingDal = _userSettingsDB.GetDal<Setting>();
-                var cacheSetting = settingDal.GetList()
-                    .Where(s => s.Name == "TOC_Generation_EnableCache")
-                    .FirstOrDefault();
-                
-                if (cacheSetting != null && cacheSetting.ValueInt.HasValue)
-                {
-                    // ValueInt is used as boolean (0 = false, 1 = true)
-                    return cacheSetting.ValueInt.Value == 1;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[TocGeneration] Error reading cache enabled from database: {ex.Message}");
-            }
-            
-            // Fallback to configuration
-            return _configuration.GetValue<bool>("TocGeneration:EnableAI", true);
-        }
-        
-        private int GetCacheDays()
-        {
-            try
-            {
-                var settingDal = _userSettingsDB.GetDal<Setting>();
-                var cacheDaysSetting = settingDal.GetList()
-                    .Where(s => s.Name == "TOC_Generation_CacheDays")
-                    .FirstOrDefault();
-                
-                if (cacheDaysSetting != null && cacheDaysSetting.ValueInt.HasValue && cacheDaysSetting.ValueInt.Value > 0)
-                {
-                    return cacheDaysSetting.ValueInt.Value;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[TocGeneration] Error reading cache days from database: {ex.Message}");
-            }
-            
-            // Fallback to configuration or default
-            var configValue = _configuration.GetValue<int>("TocGeneration:CacheDays");
-            return configValue > 0 ? configValue : DEFAULT_CACHE_DAYS;
-        }
-
-        private string GetRelativePath(string basePath, string fullPath)
-        {
-            var fileName = Path.GetFileName(fullPath);
-            return $"./{fileName}";
-        }
-
-        private string GetFileTitle(string filePath)
-        {
-            try
-            {
-                var lines = File.ReadAllLines(filePath);
-                // Look for the first H1 heading
-                foreach (var line in lines.Take(20)) // Check first 20 lines
-                {
-                    if (line.TrimStart().StartsWith("# "))
-                    {
-                        return line.TrimStart().Substring(2).Trim();
-                    }
-                }
-                // Fallback to filename without extension
-                return Path.GetFileNameWithoutExtension(filePath);
-            }
-            catch
-            {
-                return Path.GetFileNameWithoutExtension(filePath);
-            }
-        }
-
-        private async Task<string> GetFileContentForAI(string filePath)
-        {
-            try
-            {
-                var content = await File.ReadAllTextAsync(filePath, Encoding.UTF8);
-                
-                // Use a reasonable limit for AI context (10000 chars should be enough for most docs)
-                const int maxContentLength = 10000;
-                if (content.Length > maxContentLength)
-                {
-                    // Take first part of document for context
-                    content = content.Substring(0, maxContentLength) + "\n\n[... documento troncato per lunghezza ...]";
-                }
-                
-                return content;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[TocGeneration] Error reading file {filePath}: {ex.Message}");
-                return string.Empty;
-            }
-        }
-
-        private async Task<string> GetCachedOrGenerateDescription(string filePath, string prompt, bool useCache)
-        {
-            try
-            {
-                string fileHash = null;
-                var fileName = Path.GetFileName(filePath);
-                
-                if (useCache)
-                {
-                    fileHash = ComputeFileHash(filePath);
-                    var cached = GetCachedDescription(filePath, fileHash);
-                    if (!string.IsNullOrEmpty(cached))
-                    {
-                        _logger.LogInformation($"[TocGeneration] Using cached description for: {fileName}");
-                        return cached;
-                    }
-                    else
-                    {
-                        _logger.LogInformation($"[TocGeneration] No valid cache found for: {fileName}, will generate new description");
-                    }
-                }
-                else
-                {
-                    _logger.LogInformation($"[TocGeneration] Cache disabled, generating fresh description for: {fileName}");
-                }
-
-                _logger.LogInformation($"[TocGeneration] Calling AI for: {fileName}, prompt length: {prompt.Length} chars");
-                
-                // Get AI description
-                var description = await GetAiDescriptionAsync(prompt);
-                
-                _logger.LogInformation($"[TocGeneration] Received AI description for {fileName} - length: {description?.Length ?? 0} chars");
-
-                // Save to cache if enabled and description is not empty
-                if (useCache && !string.IsNullOrEmpty(fileHash) && !string.IsNullOrEmpty(description))
-                {
-                    _logger.LogInformation($"[TocGeneration] Saving description to cache for: {fileName}");
-                    SaveToCache(filePath, fileHash, description);
-                }
-                else if (string.IsNullOrEmpty(description))
-                {
-                    _logger.LogWarning($"[TocGeneration] Empty description received for {fileName}, not caching");
-                }
-
-                return description;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"[TocGeneration] Error getting description for {filePath}: {ex.Message}");
-                return $"*Errore nell'analisi del file: {ex.Message}*";
-            }
-        }
-
-        private void NotifyProgress(TocGenerationProgress progress)
-        {
-            ProgressChanged?.Invoke(this, progress);
-        }
-
-        private string FormatFileSize(long bytes)
-        {
-            string[] sizes = { "B", "KB", "MB", "GB" };
-            double len = bytes;
-            int order = 0;
-            
-            while (len >= 1024 && order < sizes.Length - 1)
-            {
-                order++;
-                len = len / 1024;
-            }
-
-            return $"{len:0.##} {sizes[order]}";
-        }
-        
-        private Task<bool> IsAiAvailableAsync()
-        {
-            // Check which AI system is currently active
-            var settings = GetAiModeSettings();
-
-            if (settings.useGemini)
-            {
-                _useGemini = true;
-                _geminiModel = settings.geminiModel;
-                var isConfigured = _geminiService.IsConfigured();
-                _logger.LogInformation($"[TocGeneration] Using Gemini API: {isConfigured}, Model: {_geminiModel}");
-                return Task.FromResult(isConfigured);
-            }
-            else
-            {
-                _useGemini = false;
-                var isLoaded = _aiChatService.IsModelLoaded();
-                _logger.LogInformation($"[TocGeneration] Using local AI model: {isLoaded}");
-                return Task.FromResult(isLoaded);
-            }
-        }
-        
-        private async Task<string> GetAiDescriptionAsync(string prompt)
-        {
-            if (_useGemini)
-            {
-                _logger.LogInformation($"[TocGeneration] Getting description from Gemini model: {_geminiModel}");
-                try
-                {
-                    var result = await _geminiService.ChatAsync(prompt, _geminiModel);
-                    _logger.LogInformation($"[TocGeneration] Gemini response received, length: {result?.Length ?? 0}");
-                    return result;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"[TocGeneration] Error calling Gemini API: {ex.Message}", ex);
-                    throw;
-                }
-            }
-            else
-            {
-                _logger.LogInformation("[TocGeneration] Getting description from local AI model");
-                try
-                {
-                    var result = await _aiChatService.ChatAsync(prompt);
-                    _logger.LogInformation($"[TocGeneration] Local AI response received, length: {result?.Length ?? 0}");
-                    return result;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError($"[TocGeneration] Error calling local AI: {ex.Message}", ex);
-                    throw;
-                }
-            }
-        }
-        
-        private string GetCurrentAiModelName()
-        {
-            if (_useGemini)
-            {
-                return $"Gemini: {_geminiModel}";
-            }
-            else
-            {
-                return _aiChatService.GetCurrentModelName();
-            }
-        }
-        
-        private (bool useGemini, string geminiModel) GetAiModeSettings()
-        {
-            // Check for settings in the database
-            try
-            {
-                _logger.LogInformation("[TocGeneration] Reading AI mode settings from database");
-                var settingsDal = _userSettingsDB.GetDal<Setting>();
-                var useGeminiSetting = settingsDal.GetList()
-                    .FirstOrDefault(s => s.Name == "TocGeneration_UseGemini");
-                var geminiModelSetting = settingsDal.GetList()
-                    .FirstOrDefault(s => s.Name == "TocGeneration_GeminiModel");
-                
-                _logger.LogInformation($"[TocGeneration] Found settings - UseGemini: {useGeminiSetting?.ValueInt}, Model: {geminiModelSetting?.ValueString}");
-                
-                var useGemini = (useGeminiSetting?.ValueInt ?? 0) == 1;
-                var geminiModel = geminiModelSetting?.ValueString ?? "gemini-1.5-flash";
-                
-                _logger.LogInformation($"[TocGeneration] AI Mode - UseGemini: {useGemini}, Model: {geminiModel}");
-                return (useGemini, geminiModel);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[TocGeneration] Error reading AI mode settings, defaulting to local");
-                return (false, "gemini-1.5-flash");
-            }
-        }
-        
-        public void SetAiMode(bool useGemini, string geminiModel = null)
-        {
-            _logger.LogInformation($"[TocGeneration] SetAiMode called - UseGemini: {useGemini}, Model: {geminiModel}");
-            
-            _useGemini = useGemini;
-            if (!string.IsNullOrEmpty(geminiModel))
-            {
-                _geminiModel = geminiModel;
-            }
-            
-            // Save to database for persistence
-            try
-            {
-                _logger.LogInformation("[TocGeneration] Saving AI mode to database");
-                var settingsDal = _userSettingsDB.GetDal<Setting>();
-                _userSettingsDB.BeginTransaction();
-                
-                // Save UseGemini setting
-                var useGeminiSetting = settingsDal.GetList()
-                    .FirstOrDefault(s => s.Name == "TocGeneration_UseGemini");
-                if (useGeminiSetting == null)
-                {
-                    useGeminiSetting = new Setting
-                    {
-                        Name = "TocGeneration_UseGemini",
-                        Description = "Use Gemini API for TOC generation"
-                    };
-                }
-                useGeminiSetting.ValueInt = useGemini ? 1 : 0;
-                settingsDal.Save(useGeminiSetting);
-                
-                // Save GeminiModel setting
-                if (!string.IsNullOrEmpty(geminiModel))
-                {
-                    var geminiModelSetting = settingsDal.GetList()
-                        .FirstOrDefault(s => s.Name == "TocGeneration_GeminiModel");
-                    if (geminiModelSetting == null)
-                    {
-                        geminiModelSetting = new Setting
-                        {
-                            Name = "TocGeneration_GeminiModel",
-                            Description = "Gemini model for TOC generation"
-                        };
-                    }
-                    geminiModelSetting.ValueString = geminiModel;
-                    settingsDal.Save(geminiModelSetting);
-                }
-                
-                _userSettingsDB.Commit();
-                _logger.LogInformation($"[TocGeneration] AI mode set to: {(useGemini ? $"Gemini ({geminiModel})" : "Local")}");
-            }
-            catch (Exception ex)
-            {
-                _userSettingsDB.Rollback();
-                _logger.LogError(ex, "[TocGeneration] Error saving AI mode settings");
-            }
-        }
     }
 }

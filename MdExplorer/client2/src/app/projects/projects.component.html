@@ -7,7 +7,12 @@
 
       <!-- Left Column: Recent Projects -->
       <div class="left-column">
-        <div class="recent-projects-section" *ngIf="(recentProjects | async)?.length > 0">
+        <!-- Section visible whenever there is at least one registered project,
+             regardless of the current search filter result. This keeps the
+             search-field reachable even when the user types a query that
+             matches nothing — otherwise they'd be stuck with no input to
+             clear the filter. -->
+        <div class="recent-projects-section" *ngIf="hasAnyProject$ | async">
           <div class="section-header">
             <h2 class="section-title">
               <mat-icon class="section-icon">history</mat-icon>
@@ -25,42 +30,79 @@
             </mat-form-field>
           </div>
 
-          <div class="projects-grid">
+          <!-- "no match" message — shown only when the filter is active and
+               yields zero results. The cleared search restores the grid. -->
+          <div class="no-match-message"
+               *ngIf="searchQuery && (recentProjects | async)?.length === 0">
+            <mat-icon class="empty-icon">search_off</mat-icon>
+            <h3>{{ 'PROJECTS.NO_MATCH_TITLE' | translate }}</h3>
+            <p>{{ 'PROJECTS.NO_MATCH_HINT' | translate }}</p>
+            <button mat-stroked-button color="primary"
+                    (click)="searchQuery=''; onSearchChange()">
+              <mat-icon>clear</mat-icon>
+              {{ 'PROJECTS.CLEAR_SEARCH' | translate }}
+            </button>
+          </div>
+
+          <div class="projects-grid"
+               *ngIf="(recentProjects | async)?.length > 0">
         <mat-card class="project-card"
                   [class.last-opened]="isLastOpened(project)"
+                  [class.has-gems]="(getParticipantsFor(project.path)?.length || 0) > 0"
+                  [matTooltip]="project.lastUpdate ? (('PROJECTS.LAST_ACCESSED' | translate) + ' ' + (project.lastUpdate | date:'short')) : null"
+                  matTooltipPosition="below"
                   *ngFor="let project of recentProjects | async">
           <mat-card-content class="project-card-content">
             <div class="project-info" (click)="openProject(project.path)">
-              <div class="project-icon-wrapper">
-                <img src="assets/icons/files-stack.svg" class="project-icon-svg" alt="Project">
+              <div class="project-icon-wrapper" [class.has-custom]="project.hasCustomIcon">
+                <img *ngIf="project.hasCustomIcon"
+                     [src]="getIconUrl(project)"
+                     class="project-icon-custom"
+                     alt="Project icon">
+                <img *ngIf="!project.hasCustomIcon"
+                     src="assets/icons/files-stack.svg"
+                     class="project-icon-svg"
+                     alt="Project">
               </div>
               <div class="project-details">
-                <h3 class="project-name">{{project.name}}</h3>
-                <p class="project-path">{{project.path}}</p>
-                <div class="project-meta">
+                <div class="project-name-row">
+                  <h3 class="project-name">{{project.name}}</h3>
                   <span class="last-opened-badge" *ngIf="isLastOpened(project)">
                     <mat-icon class="badge-icon">schedule</mat-icon>
                     {{ 'PROJECTS.LAST_OPENED' | translate }}
                   </span>
-                  <p class="project-date" *ngIf="project.lastUpdate">
-                    {{ 'PROJECTS.LAST_ACCESSED' | translate }} {{project.lastUpdate | date:'short'}}
-                  </p>
                 </div>
+                <p class="project-path">{{project.path}}</p>
               </div>
+            </div>
+            <div class="project-description-box"
+                 [class.empty]="!project.description"
+                 (click)="openProject(project.path)">
+              <p class="project-description" *ngIf="project.description">{{project.description}}</p>
+              <span class="empty-placeholder" *ngIf="!project.description">
+                <mat-icon>edit_note</mat-icon>
+                {{ 'PROJECTS.ADD_DESCRIPTION' | translate }}
+              </span>
             </div>
             <div class="project-actions">
               <button mat-icon-button
-                      [matTooltip]="'PROJECTS.SHARE_URL' | translate"
-                      *ngIf="projectHasRemote(project)"
-                      (click)="shareProject(project, $event)"
-                      class="action-btn share-btn">
-                <mat-icon>share</mat-icon>
+                      [matTooltip]="'PROJECTS.EDIT_PROJECT' | translate"
+                      (click)="openProjectEdit(project)"
+                      class="action-btn edit-btn">
+                <mat-icon>edit</mat-icon>
               </button>
               <button mat-icon-button
                       [matTooltip]="'PROJECTS.PROJECT_SETTINGS' | translate"
                       (click)="openProjectSettings(project)"
                       class="action-btn settings-btn">
                 <mat-icon>settings</mat-icon>
+              </button>
+              <button mat-icon-button
+                      [matTooltip]="'PROJECTS.SHARE_URL' | translate"
+                      *ngIf="projectHasRemote(project)"
+                      (click)="shareProject(project, $event)"
+                      class="action-btn share-btn">
+                <mat-icon>share</mat-icon>
               </button>
               <button mat-icon-button
                       [matTooltip]="'PROJECTS.DELETE_PROJECT' | translate"
@@ -70,12 +112,20 @@
               </button>
             </div>
           </mat-card-content>
+          <app-participant-gems class="card-gems"
+                                *ngIf="(getParticipantsFor(project.path)?.length || 0) > 0"
+                                [participants]="getParticipantsFor(project.path)"
+                                [currentUserEmail]="currentUserEmail"
+                                [maxVisible]="4">
+          </app-participant-gems>
         </mat-card>
       </div>
         </div>
 
         <!-- Message when no projects -->
-        <div class="no-projects-message" *ngIf="!(recentProjects | async)?.length">
+        <!-- Empty-state for "no projects ever registered" — distinct from
+             "search filter has no match" (handled inside the section above). -->
+        <div class="no-projects-message" *ngIf="!(hasAnyProject$ | async)">
           <mat-icon class="empty-icon">folder_open</mat-icon>
           <h3>{{ 'PROJECTS.NO_RECENT' | translate }}</h3>
           <p>{{ 'PROJECTS.NO_RECENT_HINT' | translate }}</p>

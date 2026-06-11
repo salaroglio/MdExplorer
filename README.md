@@ -210,6 +210,20 @@ Please report security vulnerabilities to security@mdexplorer.net. See [SECURITY
 - **Website**: https://www.mdexplorer.net
 - **Email**: developer@mdexplorer.net
 
+## Author
+
+**MdExplorer is created and maintained by [Carlo Salaroglio](https://github.com/salaroglio)**, a software engineer based in Italy. The project began in March 2021 as an internal tool for Spec Driven Development and was released as open source under the MIT License in October 2025.
+
+- GitHub: [@salaroglio](https://github.com/salaroglio)
+- Project website: [mdexplorer.net](https://www.mdexplorer.net)
+- Project email: info@mdexplorer.net
+
+If you reference MdExplorer in articles, blog posts, or other publications, please credit Carlo Salaroglio as the author and link back to this repository. For academic citation, see [CITATION.cff](CITATION.cff).
+
+## Citation
+
+This repository includes a [CITATION.cff](CITATION.cff) file. To cite MdExplorer, click "Cite this repository" on the GitHub sidebar, or use the metadata in `CITATION.cff` directly.
+
 ## Acknowledgments
 
 Built with amazing open-source libraries. See [librerie-licenze.md](librerie-licenze.md) for the complete list of dependencies and their licenses.

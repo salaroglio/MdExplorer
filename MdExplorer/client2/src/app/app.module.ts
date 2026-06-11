@@ -23,6 +23,7 @@ import { PlantumlWorkingProvider } from './signalR/dialogs/plantuml-working/plan
 import { ShowFileSystemComponent } from './commons/components/show-file-system/show-file-system.component';
 import { WaitingDialogComponent } from './commons/waitingdialog/waiting-dialog/waiting-dialog.component';
 import { NewDirectoryComponent } from './commons/components/new-directory/new-directory.component';
+import { RunCommandDialogComponent } from './commons/components/run-command-dialog/run-command-dialog.component';
 import { OpeningApplicationComponent } from './signalR/dialogs/opening-application/opening-application.component';
 import { OpeningApplicationProvider } from './signalR/dialogs/opening-application/opening-application.provider';
 import { TitleBarComponent } from './components/title-bar/title-bar.component';
@@ -30,6 +31,8 @@ import { SearchBoxComponent } from './components/search-box/search-box.component
 import { CompatibilityModeBadgeComponent } from './md-explorer/components/compatibility-mode-badge/compatibility-mode-badge.component';
 import { UnifiedSettingsDialogComponent } from './components/unified-settings-dialog/unified-settings-dialog.component';
 import { AppStoreSettingsDialogComponent } from './components/app-store-settings-dialog/app-store-settings-dialog.component';
+import { ParticipantGemsModule } from './components/participant-gems/participant-gems.module';
+import { MarkAssistantModule } from './mark-assistant/mark-assistant.module';
 
 
 const routes: Routes = [
@@ -57,7 +60,8 @@ const routes: Routes = [
     SearchBoxComponent,
     CompatibilityModeBadgeComponent,
     UnifiedSettingsDialogComponent,
-    AppStoreSettingsDialogComponent
+    AppStoreSettingsDialogComponent,
+    RunCommandDialogComponent
   ],
   imports: [
     BrowserModule,
@@ -75,6 +79,8 @@ const routes: Routes = [
         deps: [HttpClient]
       }
     }),
+    ParticipantGemsModule,
+    MarkAssistantModule,
   ],
   providers: [
     ParsingProjectProvider,

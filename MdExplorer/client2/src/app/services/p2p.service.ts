@@ -167,7 +167,9 @@ export class P2PService implements OnDestroy {
   public isAvailable$ = this._isAvailable$.asObservable();
 
   constructor(private http: HttpClient) {
-    this.checkAvailability();
+    // Don't call checkAvailability() here — it fires before SignalR is ready
+    // and causes 404 noise if the P2P Premium module is not loaded.
+    // It's called explicitly by ProjectsComponent.ngOnInit() instead.
   }
 
   /**

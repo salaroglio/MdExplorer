@@ -67,6 +67,9 @@ export class AiChatService {
   
   private _isModelLoaded$ = new BehaviorSubject<boolean>(false);
   public isModelLoaded$ = this._isModelLoaded$.asObservable();
+
+  private _isConfiguringProvider$ = new BehaviorSubject<boolean>(false);
+  public isConfiguringProvider$ = this._isConfiguringProvider$.asObservable();
   
   private _streamingMessage$ = new Subject<string>();
   public streamingMessage$ = this._streamingMessage$.asObservable();
@@ -93,6 +96,11 @@ export class AiChatService {
   // Current document context for AI
   private _currentDocument$ = new BehaviorSubject<string | null>(null);
   public currentDocument$ = this._currentDocument$.asObservable();
+
+  // Captures a SetChatMode attempted before the SignalR hub was connected.
+  // Replayed in startConnection() BEFORE getModelStatus() so the backend
+  // answers with the correct provider instead of "None".
+  private _pendingChatMode: { provider: string; modelId: string | null } | null = null;
 
   constructor(
     private http: HttpClient,
@@ -190,6 +198,21 @@ export class AiChatService {
 
       // Send the MonitorMDHub connectionId so AiChatHub can resolve the project path
       this.sendProjectConnectionId();
+
+      // Flush any SetChatMode queued while the hub was still connecting.
+      // Must run BEFORE getModelStatus() — otherwise the backend answers with
+      // ProviderType=null and the client overrides the locally-set state back to
+      // isModelLoaded=false, currentModel="None".
+      if (this._pendingChatMode) {
+        const pending = this._pendingChatMode;
+        this._pendingChatMode = null;
+        try {
+          await this.hubConnection.invoke('SetChatMode', pending.provider, pending.modelId);
+          console.log('[AiChatService] Flushed pending SetChatMode on connect:', pending.provider, pending.modelId);
+        } catch (err) {
+          console.error('[AiChatService] Error flushing pending SetChatMode:', err);
+        }
+      }
 
       await this.getModelStatus();
     } catch (err) {
@@ -295,7 +318,7 @@ export class AiChatService {
 
     // Send to server
     if (this.hubConnection.state === 'Connected') {
-      this.hubConnection.invoke('SendMessage', message)
+      this.hubConnection.invoke('SendMessage', message, 'default')
         .catch(err => {
           console.error('Error sending message:', err);
           this.addMessage('system', `Failed to send message: ${err}`);
@@ -403,7 +426,7 @@ export class AiChatService {
     this._messages$.next([]);
     // Clear backend conversation history too
     if (this.hubConnection.state === 'Connected') {
-      this.hubConnection.invoke('ClearHistory').catch(err => {
+      this.hubConnection.invoke('ClearHistory', null).catch(err => {
         console.error('[AiChatService] Error clearing history:', err);
       });
     }
@@ -563,11 +586,19 @@ export class AiChatService {
         .catch(err => {
           console.error('[AiChatService] Error calling SetChatMode:', err);
         });
+    } else {
+      // Hub not connected yet (boot-time race): queue so startConnection() replays it
+      // before getModelStatus() — otherwise the backend reports no provider and wipes
+      // the locally-updated state back to not-loaded.
+      this._pendingChatMode = { provider, modelId };
+      console.log('[AiChatService] Hub not connected — queued SetChatMode:', provider, modelId);
     }
   }
 
   /**
    * Async version of setProvider — awaits the hub invoke before returning.
+   * Sets `isConfiguringProvider$` to true while the hub invoke is in flight
+   * so the UI can show a spinner until the backend has registered the provider.
    */
   async setProviderAsync(provider: string, modelId: string | null): Promise<void> {
     console.log('[AiChatService] setProviderAsync called with:', provider, modelId);
@@ -581,9 +612,16 @@ export class AiChatService {
       this._useGemini$.next(false);
     }
 
-    if (this.hubConnection.state === 'Connected') {
+    if (this.hubConnection.state !== 'Connected') {
+      return;
+    }
+
+    this._isConfiguringProvider$.next(true);
+    try {
       await this.hubConnection.invoke('SetChatMode', provider, modelId);
       console.log('[AiChatService] SetChatMode completed for:', provider, modelId);
+    } finally {
+      this._isConfiguringProvider$.next(false);
     }
   }
   

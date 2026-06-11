@@ -7,6 +7,7 @@ import { map } from 'rxjs/operators';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { HttpClient } from '@angular/common/http';
 import { MdProject } from '../md-explorer/models/md-project';
+import { Participant } from '../md-explorer/models/participant';
 import { MdFileService } from '../md-explorer/services/md-file.service';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 import { ProjectsService } from '../md-explorer/services/projects.service';
@@ -16,6 +17,7 @@ import { NewProjectComponent } from './new-project/new-project.component';
 import { ShowFileSystemComponent } from '../commons/components/show-file-system/show-file-system.component';
 import { ModernCloneProjectComponent } from './dialogs/modern-clone-project/modern-clone-project.component';
 import { ProjectCreateConfigDialogComponent } from './dialogs/project-create-config/project-create-config-dialog.component';
+import { ProjectEditDialogComponent, ProjectEditDialogResult } from './dialogs/project-edit/project-edit-dialog.component';
 import { ProjectSettingsComponent } from './project-settings/project-settings.component';
 import { P2PManagerComponent } from './dialogs/p2p-manager/p2p-manager.component';
 import { NgDialogAnimationService } from '../shared/NgDialogAnimationService';
@@ -34,15 +36,23 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   public appVersion = versionInfo.version; // Rendi la versione disponibile nel template
   public buildTime = versionInfo.buildTime; // Rendi il timestamp di build disponibile nel template
   public recentProjects: Observable<MdProject[]>;
+  /** True iff there is at least one registered project, BEFORE the search filter. */
+  public hasAnyProject$: Observable<boolean>;
   public searchQuery: string = '';
   public lastOpenedProjectId: string = null;
   public isP2PAvailable: boolean = false;
+  // Current git user email (lowercase) — used to hide "me" from the gem strip
+  public currentUserEmail: string | null = null;
 
   // Flag to prevent multiple clicks when opening a project
   private isOpeningProject = false;
 
   // Cache for remote URL status per project path
   private remoteUrlCache: Map<string, { hasRemote: boolean; remoteUrl?: string; loading?: boolean }> = new Map();
+
+  // Participants are fetched asynchronously per-project after the grid renders,
+  // so a slow repo does not block the others. Key = project.path.
+  private participantsByPath: Map<string, Participant[]> = new Map();
 
   constructor(private projectService: ProjectsService,
     public dialog: MatDialog,
@@ -71,8 +81,25 @@ export class ProjectsComponent implements OnInit, OnDestroy {
     });
     this.p2pService.checkAvailability();
 
+    // Fetch the current git user's email so the team gems can hide "me".
+    // Fallback: no path → backend returns the global git config.
+    this.projectService.getCurrentGitUser(null).subscribe({
+      next: user => {
+        this.currentUserEmail = user?.email ? user.email.toLowerCase() : null;
+      },
+      error: () => {
+        this.currentUserEmail = null;
+      }
+    });
+
     // Load recent projects and sort by lastUpdate descending (most recent first)
     this.projectService.fetchProjects();
+    // Pre-filter signal: are there ANY projects registered? Drives the
+    // visibility of the "Recent Projects" section header + search field,
+    // independently of the search filter result.
+    this.hasAnyProject$ = this.projectService.mdProjects.pipe(
+      map(projects => !!projects && projects.length > 0)
+    );
     this.recentProjects = this.projectService.mdProjects.pipe(
       map(projects => {
         if (!projects || projects.length === 0) return [];
@@ -87,6 +114,10 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         if (sorted.length > 0 && !this.lastOpenedProjectId) {
           this.lastOpenedProjectId = sorted[0].id;
         }
+
+        // Kick off parallel participant fetches — cards render immediately,
+        // each card's gem strip fills in as its own response arrives.
+        this.loadParticipantsFor(sorted);
 
         // Apply search filter
         if (this.searchQuery && this.searchQuery.trim() !== '') {
@@ -115,6 +146,26 @@ export class ProjectsComponent implements OnInit, OnDestroy {
 
   isLastOpened(project: MdProject): boolean {
     return project.id === this.lastOpenedProjectId;
+  }
+
+  getIconUrl(project: MdProject): string {
+    return this.projectService.getProjectIconUrl(project.id, project.iconUpdatedAt);
+  }
+
+  getParticipantsFor(path: string): Participant[] {
+    return this.participantsByPath.get(path) || [];
+  }
+
+  private loadParticipantsFor(projects: MdProject[]): void {
+    for (const p of projects) {
+      if (!p?.path) continue;
+      if (this.participantsByPath.has(p.path)) continue; // already loaded or in-flight
+      this.participantsByPath.set(p.path, []); // placeholder prevents duplicate requests
+      this.projectService.getParticipants(p.path).subscribe({
+        next: list => this.participantsByPath.set(p.path, list || []),
+        error: () => this.participantsByPath.set(p.path, [])
+      });
+    }
   }
 
   openProject(path: string): void {
@@ -150,6 +201,87 @@ export class ProjectsComponent implements OnInit, OnDestroy {
         projectPath: project.path
       }
     });
+  }
+
+  openProjectEdit(project: MdProject): void {
+    const dialogRef = this.dialog.open<ProjectEditDialogComponent, any, ProjectEditDialogResult>(ProjectEditDialogComponent, {
+      width: '620px',
+      maxHeight: '90vh',
+      data: {
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        path: project.path,
+        hasCustomIcon: !!project.hasCustomIcon,
+        iconUpdatedAt: project.iconUpdatedAt
+      }
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (!result) {
+        return;
+      }
+      // Sequential saves: first name/description (UserDB + .development.yml),
+      // then participants (.development.yml), then the optional icon change.
+      // Icon is last because it's the heaviest payload and the only one that
+      // can be skipped (iconAction === 'none').
+      this.projectService.updateProject({
+        id: result.id,
+        name: result.name,
+        description: result.description
+      }).subscribe({
+        next: () => {
+          this.projectService.saveParticipants(result.path, result.participants || []).subscribe({
+            next: () => {
+              this.applyIconChange(result, () => {
+                this.projectService.fetchProjects();
+                this.snackBar.open(this.translate.instant('PROJECTS.PROJECT_UPDATED'), 'OK', { duration: 2500 });
+              });
+            },
+            error: (err) => {
+              console.error('[Projects] Error saving participants:', err);
+              this.projectService.fetchProjects();
+              this.snackBar.open(this.translate.instant('PROJECTS.ERROR_SAVING_PARTICIPANTS'), 'OK', { duration: 4000 });
+            }
+          });
+        },
+        error: (err) => {
+          console.error('[Projects] Error updating project:', err);
+          this.snackBar.open(this.translate.instant('PROJECTS.ERROR_UPDATING_PROJECT'), 'OK', { duration: 4000 });
+        }
+      });
+    });
+  }
+
+  /**
+   * Persists a pending icon change (set / remove). No-op when iconAction is 'none'.
+   * Errors are surfaced via the snackbar but do not block the rest of the save flow,
+   * because at this point name/description/participants are already persisted.
+   */
+  private applyIconChange(result: ProjectEditDialogResult, done: () => void): void {
+    console.debug('[Projects] applyIconChange', { iconAction: result.iconAction,
+      pngLen: result.iconPngBase64?.length ?? 0, projectId: result.id });
+    if (result.iconAction === 'set' && result.iconPngBase64) {
+      this.projectService.setProjectIcon(result.id, result.iconPngBase64).subscribe({
+        next: () => done(),
+        error: (err) => {
+          console.error('[Projects] Error saving project icon:', err);
+          this.snackBar.open(this.translate.instant('PROJECTS.ERROR_SAVING_ICON'), 'OK', { duration: 4000 });
+          done();
+        }
+      });
+    } else if (result.iconAction === 'remove') {
+      this.projectService.removeProjectIcon(result.id).subscribe({
+        next: () => done(),
+        error: (err) => {
+          console.error('[Projects] Error removing project icon:', err);
+          this.snackBar.open(this.translate.instant('PROJECTS.ERROR_SAVING_ICON'), 'OK', { duration: 4000 });
+          done();
+        }
+      });
+    } else {
+      done();
+    }
   }
 
 

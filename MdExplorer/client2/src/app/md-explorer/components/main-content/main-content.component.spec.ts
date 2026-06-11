@@ -44,7 +44,10 @@ describe('MainContentComponent - Enhanced UX', () => {
     mockMonitorMDService = jasmine.createSpyObj('MdServerMessagesService', [
       'addMarkdownFileListener'
     ], {
-      connectionId: 'test-connection-id'
+      connectionId: 'test-connection-id',
+      markdownFileChanged$: new Subject<any>(),
+      gitPullRefreshed$: new Subject<any>(),
+      gitBranchSwitched$: new Subject<any>()
     });
 
     mockIndexingStateService = jasmine.createSpyObj('IndexingStateService', [

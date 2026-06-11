@@ -41,10 +41,20 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         /// Enables or disables file system monitoring for a specific connection.
         /// Use this to temporarily disable monitoring during file write operations
         /// to prevent the watcher from triggering on our own changes.
+        /// Disable calls NEST: each disable increments a counter, each enable
+        /// decrements it, and events flow again only when the counter reaches 0
+        /// (and the user has not disabled the watcher). This lets independent
+        /// owners (git pull, GetShallowStructure, indexing pipeline) compose
+        /// without re-enabling the watcher under each other.
         /// </summary>
         /// <param name="connectionId">SignalR ConnectionId</param>
         /// <param name="enabled">True to enable monitoring, false to disable</param>
-        void SetWatcherEnabled(string connectionId, bool enabled);
+        /// <returns>
+        /// True if the request was applied to a registered watcher; false if no
+        /// watcher exists for the connection (the caller must NOT assume the
+        /// filesystem is unmonitored in that case).
+        /// </returns>
+        bool SetWatcherEnabled(string connectionId, bool enabled);
 
         /// <summary>
         /// Gets the current enabled state of the FileSystemWatcher for a connection.
@@ -138,6 +148,19 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         /// that fire even after EnableRaisingEvents = false.
         /// </summary>
         public bool IsTemporarilyDisabled { get; set; }
+
+        /// <summary>
+        /// Nesting counter for temporary disables. SetWatcherEnabled(false)
+        /// increments, SetWatcherEnabled(true) decrements (floored at 0); the
+        /// watcher raises events only while the counter is 0. A flat boolean had
+        /// two owners (e.g. the pull endpoint's finally and the indexing
+        /// pipeline's finally) re-enabling the watcher under each other.
+        /// Guarded by DisableCountLock.
+        /// </summary>
+        public int DisableCount { get; set; }
+
+        /// <summary>Lock object guarding DisableCount transitions.</summary>
+        public readonly object DisableCountLock = new object();
 
         /// <summary>
         /// Semaphore to serialize all database operations (ParseNewFileIntoDB, RemoveFileFromDB, ReEmbed).

@@ -57,6 +57,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.IO.Compression;
 using System.Web;
 #if WINDOWS_FORMS_AVAILABLE
 using System.Windows.Forms;
@@ -70,6 +71,7 @@ using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Services.FileSystemWatcherManager;
+using MdExplorer.Services.IndexingPipeline;
 using MdExplorer.Features.Services;
 using MdExplorer.Features.Services.AI;
 
@@ -98,6 +100,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private readonly IEmbeddingService _embeddingService;
         private readonly IMarkdownChunkingService _chunkingService;
         private readonly IVectorSearchService _vectorSearchService;
+        private readonly IIndexingPipelineService _indexingPipelineService;
 
 
         public MdFilesController(
@@ -126,7 +129,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         IModelDownloadService downloadService = null,
         IEmbeddingService embeddingService = null,
         IMarkdownChunkingService chunkingService = null,
-        IVectorSearchService vectorSearchService = null
+        IVectorSearchService vectorSearchService = null,
+        IIndexingPipelineService indexingPipelineService = null
             ) : base(logger, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper, databaseManager, fileSystemWatcherManager)
         {
 
@@ -145,6 +149,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _embeddingService = embeddingService;
             _chunkingService = chunkingService;
             _vectorSearchService = vectorSearchService;
+            _indexingPipelineService = indexingPipelineService;
         }
 
         [HttpGet]
@@ -243,14 +248,20 @@ namespace MdExplorer.Service.Controllers.MdFiles
             try
             {
                 var projectBasePath = GetProjectPath();
-                var fromRelativePathFileName = requestMoveMdFile.SourceRelativePath.Substring(1);
+                // SourceRelativePath may or may not start with a path separator: files at
+                // the project root arrive as "file.md" (no leading slash), nested files as
+                // "\folder\file.md". TrimStart handles both — a blind Substring(1) would
+                // eat the first character of a root-level filename.
+                var fromRelativePathFileName = requestMoveMdFile.SourceRelativePath.TrimStart('/', '\\');
                 var fromFullPathFileName = Path.Combine(projectBasePath, fromRelativePathFileName);
 
                 _logger.LogInformation($"[MoveMdFile] From: {fromFullPathFileName}");
 
                 var fileName = requestMoveMdFile.SourceFileName;
+                // Same separator caveat as the source path above; TrimStart also avoids a
+                // crash when the destination is the project root (Replace yields "").
                 var relativeDestinationPath = requestMoveMdFile.DestinationPath
-                                        .Replace(GetProjectPath(), "").Substring(1);
+                                        .Replace(GetProjectPath(), "").TrimStart('/', '\\');
                 var toRelativePathFileName = Path.Combine(relativeDestinationPath, fileName);
                 var toFullPathFileName = Path.Combine(GetProjectPath(), toRelativePathFileName);
 
@@ -347,6 +358,52 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
         [HttpPost]
+        public async Task<IActionResult> ZipAndCopyToClipboard([FromBody] ZipAndCopyRequest request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request?.FilePath))
+                    return BadRequest(new { error = "FilePath is required" });
+
+                if (!System.IO.File.Exists(request.FilePath))
+                    return NotFound(new { error = $"File not found: {request.FilePath}" });
+
+                // Create zip in the same folder as the source file
+                var folder = Path.GetDirectoryName(request.FilePath);
+                var fileNameWithoutExt = Path.GetFileNameWithoutExtension(request.FilePath);
+                var zipPath = Path.Combine(folder, fileNameWithoutExt + ".zip");
+
+                // Delete existing zip if present, then create new one
+                if (System.IO.File.Exists(zipPath))
+                    System.IO.File.Delete(zipPath);
+
+                using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+                {
+                    archive.CreateEntryFromFile(request.FilePath, Path.GetFileName(request.FilePath), CompressionLevel.Optimal);
+                }
+
+                _logger.LogInformation("[ZipAndCopyToClipboard] Zip created: {ZipPath}", zipPath);
+
+                // Copy zip file to clipboard as file drop list
+                var result = await CrossPlatformClipboard.SetFileDropListAsync(zipPath);
+
+                if (result.Success)
+                {
+                    _logger.LogInformation("[ZipAndCopyToClipboard] File copied to clipboard successfully");
+                    return Ok(new { message = "Zip created and copied to clipboard", zipPath });
+                }
+
+                _logger.LogWarning("[ZipAndCopyToClipboard] Clipboard failed: {Error}", result.ErrorMessage);
+                return StatusCode(500, new { error = result.ErrorMessage });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[ZipAndCopyToClipboard] Error");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpPost]
         public IActionResult AddExistingFileToMDEProject([FromBody] RequestAddExistingFileToMdeproject request)
         {
             // Generate a function that copy the file from request.FullPath into request.MdFIle.FullPath adding the "\assets" folder,
@@ -377,8 +434,29 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var fullPathNormalized = fullPathFileName.Replace("\\", "/");
             // Use case-insensitive replace for Windows compatibility
             var relativePathMDE = ReplaceCaseInsensitive(fullPathNormalized, projectPathNormalized, string.Empty);
-            var newLineTextToAdd = @$"[{Path.GetFileName(request.FullPath)}]({relativePathMDE})";
-            allText = string.Concat(allText, Environment.NewLine, newLineTextToAdd);
+            var linkText = @$"[{Path.GetFileName(request.FullPath)}]({relativePathMDE})";
+            // When adding several files at once we render them as a bullet list
+            if (request.AsBulletList)
+            {
+                linkText = "- " + linkText;
+            }
+
+            if (request.IsFirst)
+            {
+                // Ensure a blank line separates the new link(s) from the previous content,
+                // so the first link is never glued to the existing text/paragraph.
+                allText = allText.TrimEnd('\r', '\n');
+                if (allText.Length > 0)
+                {
+                    allText += Environment.NewLine + Environment.NewLine;
+                }
+                allText += linkText;
+            }
+            else
+            {
+                // Subsequent bullet items: one per line, right under the first one.
+                allText += Environment.NewLine + linkText;
+            }
             System.IO.File.WriteAllText(request.MdFile.FullPath, allText);
             return  Ok(new { message = "done" });
 
@@ -1307,6 +1385,16 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             try
             {
+                // Docker headless mode: DriveInfo on Linux enumerates every mount
+                // point (/, /proc, /workspace, /data, ...), which is meaningless
+                // to the user and pollutes the project picker. Expose only the
+                // bind-mounted workspace folder. Gated by MDE_DOCKER so native
+                // Windows/Linux installs are unaffected.
+                if (Environment.GetEnvironmentVariable("MDE_DOCKER") == "1")
+                {
+                    return Ok(GetDockerWorkspaceDriveEntry());
+                }
+
                 var drives = DriveInfo.GetDrives()
                     .Where(d => d.IsReady && (d.DriveType == DriveType.Fixed || d.DriveType == DriveType.Network))
                     .Select(d => new {
@@ -1327,13 +1415,47 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
         }
 
+        /// <summary>
+        /// Docker-only: returns a single synthetic "drive" entry pointing at
+        /// the container workspace bind mount, so the project picker doesn't
+        /// list /proc, /sys, /, etc. Returns empty if the workspace folder
+        /// doesn't exist.
+        /// </summary>
+        private static object[] GetDockerWorkspaceDriveEntry()
+        {
+            var ws = Environment.GetEnvironmentVariable("MDE_CONTAINER_WORKSPACE") ?? "/workspace";
+            if (!Directory.Exists(ws)) return Array.Empty<object>();
+            return new object[]
+            {
+                new
+                {
+                    name = ws,
+                    path = ws,
+                    icon = "folder_open",
+                    label = "workspace",
+                    totalSize = 0L,
+                    freeSpace = 0L,
+                    driveType = "Fixed"
+                }
+            };
+        }
+
         [HttpGet]
         public IActionResult GetNetworkShares()
         {
             try
             {
+                // Docker headless mode: there's no concept of "network share" inside
+                // a container; the bind-mounted folders are already surfaced by
+                // GetDrives. Return empty so the "RETE" section in the picker
+                // disappears entirely instead of mirroring the local mounts.
+                if (Environment.GetEnvironmentVariable("MDE_DOCKER") == "1")
+                {
+                    return Ok(new object[0]);
+                }
+
                 var networkShares = new List<object>();
-                
+
                 // Get all network drives (mapped drives on Windows)
                 var networkDrives = DriveInfo.GetDrives()
                     .Where(d => d.DriveType == DriveType.Network && d.IsReady);
@@ -1621,32 +1743,37 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             var list = new List<IFileInfoNode>();
             var currentPath = GetProjectPath();
-            
+
             if (currentPath == AppDomain.CurrentDomain.BaseDirectory)
             {
                 return Ok(list);
             }
-            
-            // PULIZIA E REINDICIZZAZIONE DEL DATABASE
-            // Disabilita il FileSystemWatcher durante cleanup+reindex per evitare race condition:
-            // gli handler FSW cercherebbero record appena cancellati o creerebbero duplicati
+
+            // ASYNC INDEXING (vedi docs-internal/md-tree-evolution2/passo-async-indexing.md)
+            //
+            // Cleanup database + IndexAllMarkdownFiles + ParseAllLinks + Embed sono stati
+            // spostati in IIndexingPipelineService.RunAsync, eseguito fire-and-forget dopo
+            // che questa response è tornata al client. Risultato:
+            //   - response: solo costruzione della struttura tree (filesystem walk)
+            //   - background: tutto il lavoro DB e link parsing
+            //
+            // FSW lock: disabilitato qui, riabilitato dalla pipeline al termine.
+            // Se la pipeline non si avvia (servizio non disponibile, link indexing
+            // disabilitato, errore precoce), il finally riabilita FSW come safety net.
             SetFileSystemWatcherEnabled(false);
             var linkIndexingEnabled = IsLinkIndexingEnabled();
+            var pipelineStarted = false;
+
             try
             {
-                // Fase 1: file discovery — sempre, indipendente dal flag LinkIndexingEnabled
-                CleanupDatabaseDuplicates();
-                IndexAllMarkdownFiles();
-                if (!linkIndexingEnabled)
-                {
-                    _logger.LogInformation("[GetShallowStructure] Link indexing disabled - file records indexed, skipping link parsing");
-                }
-            }
-            finally
-            {
-                SetFileSystemWatcherEnabled(true);
-            }
-            
+
+            // Per-root scan statistics — emitted as a single summary log at the end of the scan
+            // so we can see which top-level folder is dragging the project open time and whether
+            // any folder is traversed that should have been ignored.
+            var perRootStats = new List<(string Name, ScanStats Stats, long ElapsedMs)>();
+            var ignoredRootFolders = new List<string>();
+            var scanOverallTimer = System.Diagnostics.Stopwatch.StartNew();
+
             // Carica solo primo livello di cartelle che contengono file markdown
             // Ordina: .github primo, poi folder "program", poi alfabetico
             var sortedFolders = SortFoldersWithPriority(
@@ -1659,11 +1786,17 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 if (_foldersIgnoreService.ShouldIgnoreFolderForProject(itemFolder, currentPath))
                 {
                     _logger.LogDebug($"[GetShallowStructure] Ignoring folder: '{itemFolder}'");
+                    ignoredRootFolders.Add(Path.GetFileName(itemFolder));
                     continue;
                 }
-                
+
                 // Usa la logica esistente per determinare se la cartella contiene file markdown
-                var result = await CreateNodeFolder(itemFolder);
+                var rootStats = new ScanStats { Folders = 1 }; // count the root folder itself
+                var rootTimer = System.Diagnostics.Stopwatch.StartNew();
+                var result = await CreateNodeFolder(itemFolder, rootStats);
+                rootTimer.Stop();
+                perRootStats.Add((Path.GetFileName(itemFolder), rootStats, rootTimer.ElapsedMilliseconds));
+
                 var node = result.Item1;
                 var isEmpty = result.Item2;
                 if (!isEmpty)
@@ -1883,27 +2016,58 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 }
             }
 
-            // Avvia indicizzazione link in background solo se abilitata nel setting di progetto
-            if (linkIndexingEnabled)
+            // Avvia pipeline asincrona: cleanup + IndexAllMarkdownFiles + (link parse + embed se enabled).
+            // Fire-and-forget — la pipeline gira sotto IsolatedEngineDB e re-abilita FSW alla fine.
+            if (_indexingPipelineService != null)
             {
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await IndexLinksInBackground(connectionId);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error during background indexing");
-                    }
-                });
+                _ = _indexingPipelineService.RunAsync(connectionId, currentPath, linkIndexingEnabled);
+                pipelineStarted = true;
             }
             else
             {
-                _logger.LogInformation("[GetShallowStructure] Link indexing is disabled for this project");
+                _logger.LogWarning("[GetShallowStructure] IIndexingPipelineService not available, indexing skipped");
             }
-            
+
+            // ============================ Scan statistics ============================
+            // Emit a single summary block so the time-cost per top-level folder is obvious.
+            // Sorted by elapsed desc so the worst offenders come first.
+            scanOverallTimer.Stop();
+            var totalDirs = perRootStats.Sum(p => p.Stats.Folders);
+            var totalIgnored = perRootStats.Sum(p => p.Stats.IgnoredFolders);
+            var totalFiles = perRootStats.Sum(p => p.Stats.Files);
+            var totalIgnoredFiles = perRootStats.Sum(p => p.Stats.IgnoredFiles);
+            _logger.LogWarning(
+                "📊 [ProjectScan] Total: {Dirs} dirs scanned, {IgnoredDirs} dirs ignored, {Files} .md files, {IgnoredFiles} .md ignored — wall: {Ms} ms",
+                totalDirs, totalIgnored, totalFiles, totalIgnoredFiles, scanOverallTimer.ElapsedMilliseconds);
+            if (perRootStats.Count > 0)
+            {
+                _logger.LogWarning("📊 [ProjectScan] Per root folder (sorted by time):");
+                foreach (var (name, s, ms) in perRootStats.OrderByDescending(p => p.ElapsedMs))
+                {
+                    _logger.LogWarning(
+                        "    {Root,-40} | {Dirs,6} dirs | {Ignored,5} ignored | {Files,7} files | {Ms,7} ms",
+                        TruncatePath(name, 40), s.Folders, s.IgnoredFolders, s.Files, ms);
+                }
+            }
+            if (ignoredRootFolders.Count > 0)
+            {
+                _logger.LogWarning(
+                    "📊 [ProjectScan] Ignored top-level folders (by .mdFoldersIgnore): {List}",
+                    string.Join(", ", ignoredRootFolders));
+            }
+
             return Ok(list);
+
+            } // end try
+            finally
+            {
+                // Safety net: se la pipeline non è partita, FSW resterebbe disabilitato per sempre.
+                // Se è partita, sarà la pipeline a riabilitarlo (vedi IndexingPipelineService.RunAsync finally).
+                if (!pipelineStarted)
+                {
+                    SetFileSystemWatcherEnabled(true);
+                }
+            }
         }
 
         /// <summary>
@@ -2494,7 +2658,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         //    return node;
         //}
 
-        private async Task<(FileInfoNode, bool)> CreateNodeFolder(string itemFolder)
+        private async Task<(FileInfoNode, bool)> CreateNodeFolder(string itemFolder, ScanStats stats = null)
         {
             var projectPath = GetProjectPath();
             var patchedItemFolfer = itemFolder.Substring(projectPath.Length);
@@ -2506,10 +2670,47 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     patchedItemFolfer,
                 Path = patchedItemFolfer,
                 Type = "folder",
-                DevelopmentTags = LoadDevelopmentTags(itemFolder, projectPath)
+                DevelopmentTags = LoadDevelopmentTags(itemFolder, projectPath),
+                HasToc = FolderHasToc(itemFolder)
             };
-            var isEmpty = await ExploreNodes(node, itemFolder);
+            var isEmpty = await ExploreNodes(node, itemFolder, stats);
             return (node, isEmpty);
+        }
+
+        /// <summary>
+        /// True when the folder owns its generated TOC file (<c>&lt;dirname&gt;.md.directory</c>).
+        /// Drives the clickable document icon shown on the folder node in the md-tree.
+        /// </summary>
+        private static bool FolderHasToc(string itemFolder)
+        {
+            try
+            {
+                var tocFileName = Path.GetFileName(itemFolder) + ".md.directory";
+                return System.IO.File.Exists(Path.Combine(itemFolder, tocFileName));
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Cumulative scan counters used by <see cref="GetShallowStructure"/> to emit a per-root-folder
+        /// statistics log. Helps spot folders that drag the scan down or get traversed when they
+        /// should be ignored.
+        /// </summary>
+        private sealed class ScanStats
+        {
+            public int Folders;
+            public int IgnoredFolders;
+            public int Files;
+            public int IgnoredFiles;
+        }
+
+        private static string TruncatePath(string s, int max)
+        {
+            if (string.IsNullOrEmpty(s) || s.Length <= max) return s;
+            return s.Substring(0, max - 1) + "…";
         }
 
         private async Task<(FileInfoNode, bool)> CreateNodeFolder(string itemFolder, string connectionId)
@@ -2524,7 +2725,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     patchedItemFolfer,
                 Path = patchedItemFolfer,
                 Type = "folder",
-                DevelopmentTags = LoadDevelopmentTags(itemFolder, projectPath)
+                DevelopmentTags = LoadDevelopmentTags(itemFolder, projectPath),
+                HasToc = FolderHasToc(itemFolder)
             };
             var isEmpty = await ExploreNodes(node, itemFolder, connectionId);
             return (node, isEmpty);
@@ -2540,7 +2742,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 FullPath = itemFolder,
                 Path = patchedItemFolfer,
                 Type = "folder",
-                DevelopmentTags = LoadDevelopmentTags(itemFolder, projectRoot)
+                DevelopmentTags = LoadDevelopmentTags(itemFolder, projectRoot),
+                HasToc = FolderHasToc(itemFolder)
             };
             ExploreNodesFolderOnly(node, itemFolder, projectRoot);
             return node;
@@ -2549,6 +2752,13 @@ namespace MdExplorer.Service.Controllers.MdFiles
         /// <summary>
         /// Checks if a markdown file has promptlab: true in its YAML front matter
         /// and is located inside a folder named "promptlab".
+        /// <para>
+        /// Performance: the precondition is "the file lives inside a folder named promptlab".
+        /// We check the path segments first — almost no project file is inside such a folder,
+        /// so the StreamReader.Open is skipped for ~99% of files on a large project (e.g.
+        /// 7000 .md files → only a handful of opens instead of 7000). Without this fast-skip
+        /// the per-file cost is dominated by disk I/O.
+        /// </para>
         /// </summary>
         private bool IsPromptLabFile(string filePath)
         {
@@ -2556,6 +2766,15 @@ namespace MdExplorer.Service.Controllers.MdFiles
             {
                 if (!filePath.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
                     return false;
+
+                // Fast skip: only proceed if any folder segment in the path is literally "promptlab".
+                var marker1 = Path.DirectorySeparatorChar + "promptlab" + Path.DirectorySeparatorChar;
+                var marker2 = Path.AltDirectorySeparatorChar + "promptlab" + Path.AltDirectorySeparatorChar;
+                if (filePath.IndexOf(marker1, StringComparison.OrdinalIgnoreCase) < 0 &&
+                    filePath.IndexOf(marker2, StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    return false;
+                }
 
                 // Read only the first ~10 lines looking for YAML front matter with promptlab: true
                 using var reader = new StreamReader(filePath);
@@ -2582,8 +2801,19 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
         }
 
+        // Per-request memoization: reads and YAML-parses ".development.yml" once per project root
+        // and reuses the parsed Folders list for all subsequent folder lookups. Without this we
+        // would re-read+re-parse the file once per folder (and twice when SortFoldersWithPriority
+        // is in play), which on a project with ~800 folders meant ~1500 disk reads + YAML parses
+        // in a single GetShallowStructure scan.
+        // The controller is registered scoped → this dictionary lives only for one HTTP request,
+        // so there is no stale-cache risk across edits to .development.yml.
+        private Dictionary<string, List<DevelopmentFolder>> _devTagsByProjectRoot;
+
         /// <summary>
-        /// Loads development tags from .development.yml file in the specified folder
+        /// Loads development tags from .development.yml file in the specified folder.
+        /// The underlying YAML file is read once per project root and cached for the lifetime
+        /// of this controller instance (one HTTP request).
         /// </summary>
         /// <param name="folderPath">Path to the folder to check for .development.yml</param>
         /// <param name="projectRoot">Optional project root path. If not provided, will be searched using FindProjectRoot (which may fail for nested git repos)</param>
@@ -2592,7 +2822,6 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             try
             {
-                // Use provided project root, or find it (FindProjectRoot may fail for nested git repos)
                 if (string.IsNullOrEmpty(projectRoot))
                 {
                     projectRoot = FindProjectRoot(folderPath);
@@ -2602,32 +2831,16 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     return new List<string>();
                 }
 
-                var devConfigPath = Path.Combine(projectRoot, ".development.yml");
-                if (!System.IO.File.Exists(devConfigPath))
+                var folders = GetOrLoadDevelopmentFolders(projectRoot);
+                if (folders == null || folders.Count == 0)
                 {
                     return new List<string>();
                 }
 
-                var yamlContent = System.IO.File.ReadAllText(devConfigPath);
-
-                // Use YamlDotNet for parsing
-                var deserializer = new DeserializerBuilder()
-                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                    .Build();
-
-                var config = deserializer.Deserialize<DevelopmentConfig>(yamlContent);
-                if (config == null || config.Folders == null)
-                {
-                    return new List<string>();
-                }
-
-                // Calculate relative path and find matching folder (case-insensitive for Windows)
                 var relativePath = NormalizePath(folderPath.Replace(projectRoot, "").TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-
-                var folderEntry = config.Folders.FirstOrDefault(f =>
+                var folderEntry = folders.FirstOrDefault(f =>
                     string.Equals(NormalizePath(f.Path), relativePath, StringComparison.OrdinalIgnoreCase));
 
-                // Debug log only when we find a match (to reduce noise)
                 if (folderEntry != null)
                 {
                     Console.WriteLine($"[LoadDevelopmentTags] MATCH: '{relativePath}' -> Tags: {string.Join(",", folderEntry.Tags)}");
@@ -2637,11 +2850,43 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[LoadDevelopmentTags] ERROR: {ex.Message}");
-                Console.WriteLine($"[LoadDevelopmentTags] Stack trace: {ex.StackTrace}");
                 _logger.LogWarning(ex, $"Error reading development tags for {folderPath}");
                 return new List<string>();
             }
+        }
+
+        private List<DevelopmentFolder> GetOrLoadDevelopmentFolders(string projectRoot)
+        {
+            _devTagsByProjectRoot ??= new Dictionary<string, List<DevelopmentFolder>>(StringComparer.OrdinalIgnoreCase);
+            if (_devTagsByProjectRoot.TryGetValue(projectRoot, out var cached))
+            {
+                return cached;
+            }
+
+            var folders = new List<DevelopmentFolder>();
+            try
+            {
+                var devConfigPath = Path.Combine(projectRoot, ".development.yml");
+                if (System.IO.File.Exists(devConfigPath))
+                {
+                    var yamlContent = System.IO.File.ReadAllText(devConfigPath);
+                    var deserializer = new DeserializerBuilder()
+                        .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                        .Build();
+                    var config = deserializer.Deserialize<DevelopmentConfig>(yamlContent);
+                    if (config?.Folders != null)
+                    {
+                        folders = config.Folders;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[LoadDevelopmentTags] Failed to load .development.yml at '{ProjectRoot}'", projectRoot);
+            }
+
+            _devTagsByProjectRoot[projectRoot] = folders;
+            return folders;
         }
 
         /// <summary>
@@ -2790,7 +3035,13 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
         }
 
-        private async Task<bool> ExploreNodes(FileInfoNode fileInfoNode, string pathFile)
+        // Variante "silent" usata da GetShallowStructure: preserva la ricorsione full-depth
+        // (per la UX del tree frontend invariato) MA rimuove gli emit SignalR
+        // folderIndexingStart/Complete e il Task.Delay(50ms) per cartella.
+        // Quei segnali ora arrivano dal IIndexingPipelineService che gira in background,
+        // dopo che la response del controller è già tornata al client.
+        // Vedi docs-internal/md-tree-evolution2/passo-async-indexing.md
+        private async Task<bool> ExploreNodes(FileInfoNode fileInfoNode, string pathFile, ScanStats stats = null)
         {
             var isEmpty = true;
             var projectPath = GetProjectPath();
@@ -2806,27 +3057,18 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 if (_foldersIgnoreService.ShouldIgnoreFolderForProject(itemFolder, projectPath))
                 {
                     _logger.LogDebug($"[ExploreNodes] Ignoring subfolder: '{itemFolder}'");
+                    if (stats != null) stats.IgnoredFolders++;
                     continue;
                 }
 
-                // Send folderIndexingStart event for subfolder
-                await _hubContext.Clients.Client(signalRConnectionId)
-                    .SendAsync("folderIndexingStart", new { path = itemFolder, status = "indexing" });
-
-                var result = await CreateNodeFolder(itemFolder);
+                if (stats != null) stats.Folders++;
+                var result = await CreateNodeFolder(itemFolder, stats);
                 var node = result.Item1;
                 var isempty = result.Item2;
                 if (!isempty)
                 {
                     fileInfoNode.Childrens.Add(node);
-
-                    // Small delay to make progress visible
-                    await Task.Delay(50);
                 }
-
-                // Send folderIndexingComplete event (sempre, anche se vuota)
-                await _hubContext.Clients.Client(signalRConnectionId)
-                    .SendAsync("folderIndexingComplete", new { path = itemFolder, status = "completed" });
 
                 isEmpty = isEmpty && isempty;
             }
@@ -2836,9 +3078,11 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 // Check if file should be ignored
                 if (_mdIgnoreService.ShouldIgnorePath(itemFile, projectPath))
                 {
+                    if (stats != null) stats.IgnoredFiles++;
                     continue;
                 }
 
+                if (stats != null) stats.Files++;
                 var patchedItemFile = itemFile.Substring(projectPath.Length);
                 var node = _projectBodyEngine.CreateNodeMdFile(itemFile, patchedItemFile);
                 if (IsPromptLabFile(itemFile))

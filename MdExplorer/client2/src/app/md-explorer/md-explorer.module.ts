@@ -48,6 +48,7 @@ import { AppStoreComponent } from './components/app-store/app-store.component';
 import { InstallWizardDialogComponent } from './components/dialogs/install-wizard/install-wizard.component';
 import { BulkExportProgressDialogComponent } from './components/dialogs/bulk-export-progress/bulk-export-progress-dialog.component';
 import { AppShowComponent } from './components/app-show/app-show.component';
+import { IndexingProgressSnackComponent } from './components/indexing-progress-snack/indexing-progress-snack.component';
 
 
 const routes: Routes = [
@@ -114,7 +115,8 @@ const routes: Routes = [
     AppStoreComponent,
     InstallWizardDialogComponent,
     BulkExportProgressDialogComponent,
-    AppShowComponent
+    AppShowComponent,
+    IndexingProgressSnackComponent
   ],
   imports: [
     CommonModule,

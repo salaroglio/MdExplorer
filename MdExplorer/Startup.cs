@@ -65,6 +65,12 @@ namespace MdExplorer
             // Add FoldersIgnoreService
             services.AddSingleton<FoldersIgnoreService>();
 
+            // Project-level metadata stored in .development.yml (shared across users)
+            services.AddSingleton<Services.IProjectMetadataService, Services.ProjectMetadataService>();
+
+            // Git authors discovery for MdE Team participants
+            services.AddSingleton<Services.Git.IGitAuthorsService, Services.Git.GitAuthorsService>();
+
             // Add ServerCache for command factories
             services.AddSingleton<IServerCache, ServerCache>();
 
@@ -73,6 +79,22 @@ namespace MdExplorer
 
             // Add FileSystemWatcherManager for multi-client support
             services.AddSingleton<Services.FileSystemWatcherManager.IFileSystemWatcherManager, Services.FileSystemWatcherManager.FileSystemWatcherManager>();
+
+            // Pipeline asincrona di indicizzazione (vedi docs-internal/md-tree-evolution2/passo-async-indexing.md)
+            services.AddSingleton<Services.IndexingPipeline.IIndexingPipelineService, Services.IndexingPipeline.IndexingPipelineService>();
+
+            // Mark folder-summarizer job (azione ibrida algoritmo + LLM evocata da Mark)
+            services.AddSingleton<Services.MarkActions.IMarkFolderJobService, Services.MarkActions.MarkFolderJobService>();
+
+            // Shell execution for fenced code blocks (bash/sh/powershell/pwsh/cmd)
+            services.AddSingleton<Services.Execution.ShellRegistry>();
+            services.AddTransient<Services.Execution.ShellRunner>();
+            // Long-running "services" started from code blocks (detached, no timeout)
+            services.AddSingleton<Services.Execution.ServiceRegistry>();
+            services.AddSingleton<Services.Execution.ServiceMarkerStore>();
+            services.AddTransient<Services.Execution.ServiceRunner>();
+            // Rediscovers services spawned by a previous run (crash/forced-kill/web restart)
+            services.AddSingleton<Services.Execution.ServiceDiscovery>();
 
             // Add modern Git services with native credential management
             services.AddModernGitServices(_Configuration);
@@ -118,6 +140,9 @@ namespace MdExplorer
             services.AddSingleton<IAiProvider, GeminiProvider>();
             services.AddSingleton<IAiProvider, CopilotCliProvider>();
 
+            // Long-lived Copilot CLI ACP sessions (one persistent process per SignalR connection)
+            services.AddSingleton<MdExplorer.Features.Services.AI.CopilotAcp.CopilotAcpSessionPool>();
+
             // Model discovery per ogni provider
             services.AddSingleton<IModelDiscoveryProvider, OpenAiModelDiscovery>();
             services.AddSingleton<IModelDiscoveryProvider, GeminiModelDiscovery>();
@@ -138,6 +163,22 @@ namespace MdExplorer
             // Register both TocGenerationService and TocGenerationHubService
             services.AddScoped<Features.Services.TocGenerationService>();
             services.AddScoped<Features.Services.ITocGenerationService, Services.TocGenerationHubService>();
+
+            // Knowledge Graph (Neo4j) ingest pipeline
+            services.AddSingleton<Features.Services.KnowledgeGraph.IPasswordProtector, Features.Services.KnowledgeGraph.DpapiPasswordProtector>();
+            services.AddSingleton<Features.Services.KnowledgeGraph.INeo4jConnectionPool, Features.Services.KnowledgeGraph.Neo4jConnectionPool>();
+            services.AddSingleton<Features.Services.KnowledgeGraph.IKgIngestService, Features.Services.KnowledgeGraph.KgIngestService>();
+            services.AddScoped<Features.Services.KnowledgeGraph.IFolderKgConfigResolver, Features.Services.KnowledgeGraph.FolderKgConfigResolver>();
+            services.AddScoped<Features.Services.KnowledgeGraph.IFolderKgConfigWriter, Services.FolderKgConfigWriter>();
+            services.AddScoped<Features.Services.KnowledgeGraph.IKgSyncOrchestrator, Features.Services.KnowledgeGraph.KgSyncOrchestrator>();
+
+            // Apache Jena Fuseki integration (parallelo a Neo4j, su un triplestore RDF)
+            services.AddSingleton<Features.Services.KnowledgeGraph.IFusekiClient, Features.Services.KnowledgeGraph.FusekiClient>();
+
+            // Atlassian (Jira/Confluence) integration — read-only triage MVP.
+            services.AddSingleton<Features.Services.Atlassian.IJiraClient, Features.Services.Atlassian.JiraClient>();
+            services.AddSingleton<Features.Services.Atlassian.IConfluenceClient, Features.Services.Atlassian.ConfluenceClient>();
+            services.AddSingleton<Services.IAtlassianConfigService, Services.AtlassianConfigService>();
 
             // Register Team Chat services
             services.AddHttpClient("MdChat");
@@ -350,6 +391,43 @@ namespace MdExplorer
               DiscoverAddresses(app.ServerFeatures, logger);
           });
             //#endif
+
+            // Re-adopt long-running services this machine spawned in a previous run that
+            // survived a crash / forced kill / web restart, so they reappear in Settings →
+            // Services and can be stopped. Off the startup thread (WMI / /proc scan).
+            lifetime.ApplicationStarted.Register(() =>
+            {
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try
+                    {
+                        var discovery = (Services.Execution.ServiceDiscovery)app.ApplicationServices
+                            .GetService(typeof(Services.Execution.ServiceDiscovery));
+                        discovery?.DiscoverAndReattach();
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "[Startup] Service rediscovery failed");
+                    }
+                });
+            });
+
+            // Best-effort graceful cleanup of long-running services on shutdown (dev: Ctrl+C / dotnet run stop).
+            // In the packaged app Electron hard-kills the backend, so the robust guarantee is the
+            // Electron tree-kill of the backend pid (index.js will-quit); this hook covers graceful exits.
+            lifetime.ApplicationStopping.Register(() =>
+            {
+                try
+                {
+                    var runner = (Services.Execution.ServiceRunner)app.ApplicationServices
+                        .GetService(typeof(Services.Execution.ServiceRunner));
+                    runner?.StopAll();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "[Startup] Failed to stop services on shutdown");
+                }
+            });
         }
 
         void DiscoverAddresses(IFeatureCollection features, ILogger<Startup> logger)

@@ -24,6 +24,14 @@
 
   <app-compatibility-mode-badge *ngIf="isProjectOpened"></app-compatibility-mode-badge>
 
+  <app-participant-gems *ngIf="isProjectOpened && teamParticipants?.length > 0"
+                        class="title-bar-gems"
+                        size="medium"
+                        [participants]="teamParticipants"
+                        [currentUserEmail]="teamCurrentUserEmail"
+                        [maxVisible]="5">
+  </app-participant-gems>
+
   <div class="drag-region">
     <div class="welcome-message" *ngIf="isProjectsPage && !ragIndexing">
       <span class="welcome-text">{{ 'TITLE_BAR.WELCOME' | translate }}</span>
@@ -39,6 +47,13 @@
       <span class="rag-message" *ngIf="ragMessage">{{ ragMessage }}</span>
     </div>
   </div>
+
+  <button mat-icon-button
+          (click)="launchMarkAssistant()"
+          [matTooltip]="'TITLE_BAR.MARK_ASSISTANT_TOOLTIP' | translate"
+          class="mark-help-trigger">
+    <mat-icon>help_outline</mat-icon>
+  </button>
 
   <button mat-icon-button [matMenuTriggerFor]="settingsMenu" class="settings-trigger">
     <mat-icon>settings</mat-icon>
@@ -56,6 +71,10 @@
     <button mat-menu-item (click)="openSettings('embedding')">
       <mat-icon>hub</mat-icon>
       <span>{{ 'TITLE_BAR.EMBEDDING' | translate }}</span>
+    </button>
+    <button mat-menu-item (click)="openSettings('services')">
+      <mat-icon>dns</mat-icon>
+      <span>{{ 'TITLE_BAR.SERVICES' | translate }}</span>
     </button>
     <button mat-menu-item (click)="openAppStoreSettings()">
       <mat-icon>storefront</mat-icon>

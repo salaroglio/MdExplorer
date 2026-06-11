@@ -98,6 +98,7 @@ namespace MdExplorer.Controllers
             // Leggere connectionId e source PRIMA per tutti i tipi di file
             var connectionId = Request.Query["ConnectionId"];
             var source = Request.Query["source"]; // "angular" or null
+            var theme = Request.Query["theme"].FirstOrDefault() ?? "light";
             bool isIframeLinkClick = string.IsNullOrEmpty(source);
 
             _logger.LogInformation($"🔍 [MdExplorer] Navigation source: {(isIframeLinkClick ? "iframe link click" : "Angular navigation")}");
@@ -213,7 +214,8 @@ namespace MdExplorer.Controllers
                     relativePathFile,
                     fullPathFile,
                     connectionId,
-                    monitoredMd);
+                    monitoredMd,
+                    theme);
             }
 
 
@@ -413,7 +415,8 @@ namespace MdExplorer.Controllers
                 string relativePathFileSystem,
                 string fullPathFile,
                 string connectionId,
-                MonitoredMDModel monitoredMd)
+                MonitoredMDModel monitoredMd,
+                string theme = "light")
         {
             var requestInfo = new RequestInfo()
             {
@@ -498,17 +501,23 @@ namespace MdExplorer.Controllers
 
             var settingDal = _userSettingsDB.GetDal<Setting>();
             var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
+            var jiraEnabled = settingDal.GetList().Where(_ => _.Name == "JiraEnabled").FirstOrDefault()?.ValueInt == 1;
 
-            var pipeline = new MarkdownPipelineBuilder()
+            var pipelineBuilder = new MarkdownPipelineBuilder()
                 .UseAdvancedExtensions()
                 .UseDiagrams()
                 .UsePipeTables()
-                .UseBootstrap()
-                .UseJiraLinks(new JiraLinkOptions(jiraUrl)) //@"https://jira.swarco.com"                
+                .UseBootstrap();
+
+            if (jiraEnabled && !string.IsNullOrWhiteSpace(jiraUrl))
+            {
+                pipelineBuilder.UseJiraLinks(new JiraLinkOptions(jiraUrl));
+            }
+
+            var pipeline = pipelineBuilder
                 .UseEmojiAndSmiley()
                 .UseYamlFrontMatter()
                 .UseGenericAttributes()
-                
                 .Build();
 
             string result;
@@ -533,8 +542,8 @@ namespace MdExplorer.Controllers
             var btnNavBack = AddButtonOnLowerBar("navigateBack()", "/assets/nav-back.svg", "navBack", "mdeLowerBarButton mdeNavButton");
             var btnNavForward = AddButtonOnLowerBar("navigateForward()", "/assets/nav-forward.svg", "navForward", "mdeLowerBarButton mdeNavButton");
             var btnSearch = AddButtonOnLowerBar("toggleSearch()", "/assets/magnifier.svg", "searchButton", "mdeLowerBarButton mdeSearchButton");
-            var btnTOC = AddButtonTextOnVerticalBar($"toggleTOC('{HttpUtility.UrlEncode(fullPathFile)}')", "TOC", "toc");
-            var btnRefs = AddButtonTextOnVerticalBar($"toggleReferences('{HttpUtility.UrlEncode(fullPathFile)}')", "Refs", "toc");
+            var btnTOC = AddButtonTextOnVerticalBar("toggleTOC()", "TOC", "btnToc");
+            var btnRefs = AddButtonTextOnVerticalBar("openKnowledgeGraph()", "K.G.", "btnRefs");
             var resultToParse = $@"    
                    
                     <div  class=""mdeTocSticky-top"">                        
@@ -547,15 +556,7 @@ namespace MdExplorer.Controllers
                                 </nav>
                             </div>
                         </div>
-                        <div id=""Refs"" class=""refsNavigation"" mdeFullPathDocument=""{fullPathFile}"">
-                            <div class=""mdeRefsTitle"">References</div>
-                            <div class=""mdeNavigationMain"">
-                                <div class=""tocSeparator"" onmousedown=""resizeRefs()""></div>
-                                <nav class=""refsNavNavigation"">
-                                    <div id=""references"" class=""refsMain""></div>                                    
-                                </nav>
-                            </div>
-                        </div>
+                        <div id=""KGAnchor"" mdeFullPathDocument=""{fullPathFile}"" style=""display:none;""></div>
                         <div class=""mdeVerticalTab"">
                             <div class=""buttonTabToc"">
                                 {btnTOC}                             
@@ -591,7 +592,7 @@ namespace MdExplorer.Controllers
                     ";
             XmlDocument doc1 = new XmlDocument();
             var projectPath = GetProjectPath();
-            CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId, projectPath);
+            CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId, projectPath, theme);
 
             try
             {
@@ -636,10 +637,10 @@ namespace MdExplorer.Controllers
             }
         }
 
-        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId, string projectPath = "")
+        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId, string projectPath = "", string theme = "light")
         {
+            var isDark = theme == "dark" || theme == "milan";
             var html = doc1.CreateElement("html");
-            // IFRAME SCROLLING FIX: Permetti scrolling naturale nell'iframe
             var htmlStyle = doc1.CreateAttribute("style");
             htmlStyle.Value = "overflow: auto; height: auto; min-height: 100%;";
             html.Attributes.Append(htmlStyle);
@@ -665,7 +666,6 @@ namespace MdExplorer.Controllers
             var DocumentPath = doc1.CreateAttribute("DocumentPath");
             var ProjectPath = doc1.CreateAttribute("ProjectPath");
             var bodyStyle = doc1.CreateAttribute("style");
-            // IFRAME SCROLLING FIX: Permetti scrolling naturale nel body
             bodyStyle.Value = "overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;";
             BodyId.Value = "MdBody";
             ConnectionId.Value = connectionId;
@@ -676,11 +676,18 @@ namespace MdExplorer.Controllers
             body.Attributes.Append(DocumentPath);
             body.Attributes.Append(ProjectPath);
             body.Attributes.Append(bodyStyle);
+            if (isDark)
+            {
+                var bodyClass = doc1.CreateAttribute("class");
+                bodyClass.Value = "dark-theme";
+                body.Attributes.Append(bodyClass);
+            }
             html.AppendChild(body);
 
-
+            var darkThemeLink = isDark ? @"<link rel=""stylesheet"" href=""/dark-theme.css"" />" : "";
             head.InnerXml = $@"
             <link rel=""stylesheet"" href=""/common.css"" />
+            {darkThemeLink}
             <script src=""/common.js""></script>";
 
             try
@@ -695,13 +702,16 @@ namespace MdExplorer.Controllers
                 System.Diagnostics.Debug.WriteLine("Using string-based HTML construction as fallback");
 
                 // Build complete HTML document as string
+                var darkClass = isDark ? @" class=""dark-theme""" : "";
+                var darkLink = isDark ? @"<link rel=""stylesheet"" href=""/dark-theme.css"" />" : "";
                 var htmlString = $@"<html style=""overflow: auto; height: auto; min-height: 100%;"">
 <head>
     <link href=""/MdCustomCSS.css"" rel=""stylesheet"" />
     <link rel=""stylesheet"" href=""/common.css"" />
+    {darkLink}
     <script src=""/common.js""></script>
 </head>
-<body Id=""MdBody"" ConnectionId=""{connectionId}"" DocumentPath=""{filePathSystem1}"" ProjectPath=""{projectPath}"" style=""overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;"">
+<body Id=""MdBody"" ConnectionId=""{connectionId}"" DocumentPath=""{filePathSystem1}"" ProjectPath=""{projectPath}""{darkClass} style=""overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;"">
 {resultToParse}
 </body>
 </html>";
@@ -752,7 +762,7 @@ namespace MdExplorer.Controllers
             }
         }
 
-        private string AddButtonTextOnVerticalBar(string functionJs, string text, string Id)
+        private string AddButtonTextOnVerticalBar(string onClickJs, string text, string Id)
         {
             try
             {
@@ -760,22 +770,22 @@ namespace MdExplorer.Controllers
                 var body = doc1.CreateElement("div");
                 var a = doc1.CreateElement("div");
                 a.InnerText = text;
-                var aAtt = doc1.CreateAttribute("onClick");
-                var att2 = doc1.CreateAttribute("style");
-                att2.Value = "cursor: pointer";
-                a.Attributes.Append(aAtt);
-                a.Attributes.Append(att2);
-                aAtt.Value = functionJs;
-                var id = doc1.CreateAttribute("id");
-                id.Value = Id;
+                var attClick = doc1.CreateAttribute("onClick");
+                attClick.Value = onClickJs;
+                var attStyle = doc1.CreateAttribute("style");
+                attStyle.Value = "cursor: pointer";
+                var attId = doc1.CreateAttribute("id");
+                attId.Value = Id;
+                a.Attributes.Append(attClick);
+                a.Attributes.Append(attStyle);
+                a.Attributes.Append(attId);
                 body.AppendChild(a);
                 return body.OuterXml;
             }
             catch (Exception ex)
             {
                 _logger.LogWarning($"⚠️ [MdExplorer] Could not create text button {Id}: {ex.Message}");
-                // Return a simple HTML fallback
-                return $"<div><div onclick=\"{functionJs}\" style=\"cursor: pointer\" id=\"{Id}\">{text}</div></div>";
+                return $"<div><div onclick=\"{onClickJs}\" style=\"cursor: pointer\" id=\"{Id}\">{text}</div></div>";
             }
         }
 

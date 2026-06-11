@@ -106,6 +106,38 @@ namespace MdExplorer.Controllers.ModernGit
     }
 
     /// <summary>
+    /// Request model for adding a git submodule.
+    /// No [Url] attribute on Url: scp-style URLs (git@host:org/repo.git) must be accepted.
+    /// </summary>
+    public class AddSubmoduleRequest : GitOperationRequest
+    {
+        [Required]
+        [StringLength(500, MinimumLength = 5, ErrorMessage = "URL must be between 5 and 500 characters")]
+        public string Url { get; set; }
+
+        /// <summary>
+        /// Destination path relative to the project root
+        /// </summary>
+        [Required]
+        [StringLength(260, MinimumLength = 1, ErrorMessage = "Destination path must be between 1 and 260 characters")]
+        public string DestinationPath { get; set; }
+
+        /// <summary>
+        /// Optional branch to track (-b).
+        /// Nullable: with the project's Nullable=annotations context, a non-nullable string
+        /// would be treated as implicitly [Required] by model validation.
+        /// </summary>
+        [StringLength(100, ErrorMessage = "Branch name cannot exceed 100 characters")]
+        public string? BranchName { get; set; }
+
+        /// <summary>
+        /// SignalR connection ID for client-specific notifications
+        /// </summary>
+        [StringLength(100, ErrorMessage = "Connection ID cannot exceed 100 characters")]
+        public string? ConnectionId { get; set; }
+    }
+
+    /// <summary>
     /// Request model for fetch operations
     /// </summary>
     public class FetchRequest : GitOperationRequest

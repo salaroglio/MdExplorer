@@ -170,11 +170,19 @@ namespace MdExplorer.Services.Git
                 // Clear credential call history after successful operation
                 ClearCredentialCallHistory();
 
+                // Populate/refresh submodules after pull (native git; no-op when .gitmodules absent)
+                var submoduleResult = await UpdateSubmodulesAsync(repositoryPath);
+                if (!submoduleResult.Success)
+                {
+                    message += $" (warning: submodule update failed: {submoduleResult.ErrorMessage})";
+                }
+
                 return new GitOperationResult
                 {
                     Success = true,
                     Message = message,
-                    Changes = hasChanges ? GetChangedFiles(repo) : new string[0],
+                    HasChanges = hasChanges,
+                    Changes = hasChanges ? GetCommitDiffPaths(repo, headCommitBefore, headCommitAfter) : new string[0],
                     Duration = stopwatch.Elapsed,
                     AuthenticationMethodUsed = _lastUsedAuthMethod
                 };
@@ -479,7 +487,17 @@ namespace MdExplorer.Services.Git
                 if (IsBasicAuthProvider(url))
                 {
                     _logger.LogInformation("Detected Basic Auth provider, using native git clone");
-                    return await CloneWithNativeGitAsync(url, localPath, branchName, username, password, stopwatch);
+                    var nativeResult = await CloneWithNativeGitAsync(url, localPath, branchName, username, password, stopwatch);
+                    if (nativeResult.Success)
+                    {
+                        // Populate submodules after clone (native git; no-op when .gitmodules absent)
+                        var nativeSubmoduleResult = await UpdateSubmodulesAsync(localPath);
+                        if (!nativeSubmoduleResult.Success)
+                        {
+                            nativeResult.Message += $" (warning: submodule update failed: {nativeSubmoduleResult.ErrorMessage})";
+                        }
+                    }
+                    return nativeResult;
                 }
 
                 // For OAuth providers (GitHub, GitLab, etc.), continue with LibGit2Sharp
@@ -806,6 +824,14 @@ namespace MdExplorer.Services.Git
                     _logger.LogError(diagEx, "Error during clone diagnostics (non-fatal)");
                 }
 
+                // Populate submodules after clone (native git; no-op when .gitmodules absent)
+                var cloneMessage = $"Successfully cloned repository to {clonedRepoPath}";
+                var submoduleUpdateResult = await UpdateSubmodulesAsync(localPath);
+                if (!submoduleUpdateResult.Success)
+                {
+                    cloneMessage += $" (warning: submodule update failed: {submoduleUpdateResult.ErrorMessage})";
+                }
+
                 stopwatch.Stop();
 
                 _logger.LogInformation("Clone operation completed successfully, Duration: {Duration}ms", stopwatch.ElapsedMilliseconds);
@@ -813,7 +839,7 @@ namespace MdExplorer.Services.Git
                 return new GitOperationResult
                 {
                     Success = true,
-                    Message = $"Successfully cloned repository to {clonedRepoPath}",
+                    Message = cloneMessage,
                     Duration = stopwatch.Elapsed,
                     AuthenticationMethodUsed = _lastUsedAuthMethod
                 };
@@ -1031,6 +1057,293 @@ namespace MdExplorer.Services.Git
                    lowerStderr.Contains("logon failed");
         }
 
+        #region Submodules (native git CLI only — auth via git's own credential chain)
+
+        private const int NativeGitNotFoundExitCode = -9999;
+        private const int NativeGitTimeoutExitCode = -9998;
+
+        /// <summary>
+        /// Runs a native git command. Authentication is handled entirely by git's own
+        /// credential chain (Git Credential Manager may show its own UI); MdExplorer never
+        /// supplies credentials. GIT_TERMINAL_PROMPT=0 makes git fail fast with a clear
+        /// error instead of hanging when no credential helper is configured.
+        /// </summary>
+        private async Task<(int ExitCode, string Stdout, string Stderr)> RunNativeGitAsync(
+            string workingDirectory, string arguments, int timeoutMs = 300000)
+        {
+            _logger.LogInformation("Executing native git in {WorkingDirectory}: git {Arguments}", workingDirectory, arguments);
+
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "git",
+                    Arguments = arguments,
+                    WorkingDirectory = workingDirectory,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    // CreateNoWindow = false (same as ValidateWithGitCommandAsync): lets Git Credential Manager open its UI
+                    CreateNoWindow = false
+                }
+            };
+            process.StartInfo.EnvironmentVariables["GIT_TERMINAL_PROMPT"] = "0";
+
+            try
+            {
+                process.Start();
+            }
+            catch (System.ComponentModel.Win32Exception ex)
+            {
+                _logger.LogError(ex, "git executable not found on PATH");
+                return (NativeGitNotFoundExitCode, string.Empty, ex.Message);
+            }
+
+            // Start reading BEFORE waiting: reading after WaitForExit can deadlock when output fills the pipe buffer
+            var stdoutTask = process.StandardOutput.ReadToEndAsync();
+            var stderrTask = process.StandardError.ReadToEndAsync();
+
+            var completed = await Task.Run(() => process.WaitForExit(timeoutMs));
+            if (!completed)
+            {
+                try { process.Kill(); } catch { }
+                _logger.LogError("git {Arguments} timed out after {TimeoutMs}ms", arguments, timeoutMs);
+                return (NativeGitTimeoutExitCode, string.Empty, $"timeout after {timeoutMs / 1000}s");
+            }
+
+            var stdout = await stdoutTask;
+            var stderr = await stderrTask;
+
+            _logger.LogInformation("git exited with code {ExitCode}", process.ExitCode);
+            if (!string.IsNullOrEmpty(stdout))
+                _logger.LogInformation("git stdout: {Stdout}", stdout);
+            if (!string.IsNullOrEmpty(stderr))
+                _logger.LogInformation("git stderr: {Stderr}", stderr);
+
+            return (process.ExitCode, stdout, stderr);
+        }
+
+        public async Task<GitOperationResult> AddSubmoduleAsync(string repositoryPath, string url,
+            string destinationRelativePath, string branchName = null)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            // Preconditions: explicit, actionable errors — no fallbacks
+            if (string.IsNullOrWhiteSpace(repositoryPath) ||
+                (!Directory.Exists(Path.Combine(repositoryPath, ".git")) &&
+                 !File.Exists(Path.Combine(repositoryPath, ".git"))))
+            {
+                return SubmoduleFailure("The project folder is not a Git repository.", stopwatch);
+            }
+
+            url = url?.Trim();
+            var hasValidScheme = !string.IsNullOrEmpty(url) &&
+                                 (url.StartsWith("https://") || url.StartsWith("http://") ||
+                                  url.StartsWith("ssh://") || url.StartsWith("git@"));
+            if (!hasValidScheme || url.Contains("\""))
+            {
+                return SubmoduleFailure("Invalid repository URL. Use an https://, ssh:// or git@ URL.", stopwatch);
+            }
+
+            if (string.IsNullOrWhiteSpace(destinationRelativePath) ||
+                Path.IsPathRooted(destinationRelativePath) ||
+                destinationRelativePath.Contains("\""))
+            {
+                return SubmoduleFailure("Destination must be a relative path inside the project.", stopwatch);
+            }
+
+            var normalizedPath = destinationRelativePath.Replace('\\', '/').Trim().Trim('/');
+            var projectRoot = Path.GetFullPath(repositoryPath);
+            var destinationFull = Path.GetFullPath(Path.Combine(projectRoot, normalizedPath));
+            var rootPrefix = projectRoot.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (!destinationFull.StartsWith(rootPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return SubmoduleFailure("Destination path escapes the project root.", stopwatch);
+            }
+
+            if (Directory.Exists(destinationFull) && Directory.GetFileSystemEntries(destinationFull).Length > 0)
+            {
+                return SubmoduleFailure($"Destination folder '{normalizedPath}' already exists and is not empty.", stopwatch);
+            }
+
+            branchName = string.IsNullOrWhiteSpace(branchName) ? null : branchName.Trim();
+            if (branchName != null &&
+                (branchName.StartsWith("-") || branchName.Contains("\"") || branchName.Contains(" ")))
+            {
+                return SubmoduleFailure($"Invalid branch name: {branchName}", stopwatch);
+            }
+
+            var submoduleName = normalizedPath.Contains('/')
+                ? normalizedPath.Substring(normalizedPath.LastIndexOf('/') + 1)
+                : normalizedPath;
+
+            try
+            {
+                var branchArg = branchName == null ? string.Empty : $"-b \"{branchName}\" ";
+                var addArgs = $"submodule add {branchArg}-- \"{url}\" \"{normalizedPath}\"";
+                var addResult = await RunNativeGitAsync(repositoryPath, addArgs);
+                if (addResult.ExitCode != 0)
+                {
+                    return SubmoduleFailure(
+                        MapSubmoduleError(addResult.ExitCode, addResult.Stderr, url, normalizedPath, branchName), stopwatch);
+                }
+
+                // Commit with pathspec: only .gitmodules + the gitlink, never unrelated staged changes
+                var commitArgs = $"commit -m \"Add submodule {submoduleName}\" -- .gitmodules \"{normalizedPath}\"";
+                var commitResult = await RunNativeGitAsync(repositoryPath, commitArgs);
+                if (commitResult.ExitCode != 0)
+                {
+                    var commitOutput = (commitResult.Stderr + commitResult.Stdout).ToLowerInvariant();
+                    if (commitOutput.Contains("please tell me who you are") ||
+                        commitOutput.Contains("unable to auto-detect email"))
+                    {
+                        return SubmoduleFailure(
+                            "Submodule was added and staged, but the commit failed: git user identity is not configured. " +
+                            "Run: git config --global user.name \"Your Name\" and git config --global user.email \"you@example.com\", " +
+                            "then commit manually.", stopwatch);
+                    }
+                    return SubmoduleFailure(
+                        "Submodule was added and staged, but the commit failed: " +
+                        MapSubmoduleError(commitResult.ExitCode, commitResult.Stderr, url, normalizedPath, branchName), stopwatch);
+                }
+
+                // Populate nested submodules; a failure here is a visible warning — the add itself succeeded
+                var message = $"Submodule '{submoduleName}' added and committed.";
+                var nestedResult = await UpdateSubmodulesAsync(repositoryPath);
+                if (!nestedResult.Success)
+                {
+                    message += $" Warning: nested submodule init failed: {nestedResult.ErrorMessage}";
+                }
+
+                stopwatch.Stop();
+                _logger.LogInformation("Submodule '{Name}' added at '{Path}' in {Duration}ms",
+                    submoduleName, normalizedPath, stopwatch.ElapsedMilliseconds);
+
+                return new GitOperationResult
+                {
+                    Success = true,
+                    Message = message,
+                    Duration = stopwatch.Elapsed
+                };
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "Error during submodule add: {Url} -> {Path}", url, normalizedPath);
+                return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Submodule add failed: {ex.Message}",
+                    Duration = stopwatch.Elapsed
+                };
+            }
+        }
+
+        public async Task<GitOperationResult> UpdateSubmodulesAsync(string repositoryPath)
+        {
+            var stopwatch = Stopwatch.StartNew();
+
+            // No .gitmodules → nothing to do, don't spawn a process on every pull
+            if (string.IsNullOrWhiteSpace(repositoryPath) ||
+                !File.Exists(Path.Combine(repositoryPath, ".gitmodules")))
+            {
+                stopwatch.Stop();
+                return new GitOperationResult
+                {
+                    Success = true,
+                    Message = "No submodules",
+                    Duration = stopwatch.Elapsed
+                };
+            }
+
+            try
+            {
+                var result = await RunNativeGitAsync(repositoryPath, "submodule update --init --recursive");
+                stopwatch.Stop();
+
+                if (result.ExitCode != 0)
+                {
+                    return new GitOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = MapSubmoduleError(result.ExitCode, result.Stderr, null, null, null),
+                        Duration = stopwatch.Elapsed
+                    };
+                }
+
+                return new GitOperationResult
+                {
+                    Success = true,
+                    Message = "Submodules updated",
+                    Duration = stopwatch.Elapsed
+                };
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(ex, "Error during submodule update for {RepositoryPath}", repositoryPath);
+                return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Submodule update failed: {ex.Message}",
+                    Duration = stopwatch.Elapsed
+                };
+            }
+        }
+
+        /// <summary>
+        /// Maps native git stderr to an actionable user-facing message. Unknown errors are
+        /// surfaced verbatim — never swallowed.
+        /// </summary>
+        private string MapSubmoduleError(int exitCode, string stderr, string url, string destinationPath, string branchName)
+        {
+            if (exitCode == NativeGitNotFoundExitCode)
+                return "Git executable not found. Install Git for Windows and ensure 'git' is on PATH.";
+            if (exitCode == NativeGitTimeoutExitCode)
+                return "Git operation timed out after 5 minutes.";
+
+            var lower = (stderr ?? string.Empty).ToLowerInvariant();
+
+            if (lower.Contains("could not read username") || lower.Contains("terminal prompts disabled"))
+                return $"Authentication required for {url}, but no Git credential helper answered. " +
+                       "Configure Git Credential Manager (git config --global credential.helper manager) " +
+                       "or authenticate once from a terminal, then retry.";
+
+            if (IsAuthenticationError(stderr))
+                return $"Authentication failed for {url}. Update your credentials in Git Credential Manager and retry.";
+
+            if (lower.Contains("already exists in the index"))
+                return $"Destination path '{destinationPath}' already contains tracked content or an existing submodule.";
+
+            if (lower.Contains("already exists and is not an empty directory"))
+                return $"Destination folder '{destinationPath}' already exists and is not empty.";
+
+            if ((lower.Contains("repository") && lower.Contains("not found")) || lower.Contains("404"))
+                return "Remote repository not found (or you do not have access to it).";
+
+            if (lower.Contains("remote branch") && lower.Contains("not found"))
+                return $"Branch '{branchName}' does not exist in the remote repository.";
+
+            if (lower.Contains("not a git repository"))
+                return "The project folder is not a Git repository.";
+
+            return string.IsNullOrWhiteSpace(stderr) ? $"git exited with code {exitCode}" : stderr.Trim();
+        }
+
+        private GitOperationResult SubmoduleFailure(string error, Stopwatch stopwatch)
+        {
+            stopwatch.Stop();
+            _logger.LogWarning("Submodule operation failed: {Error}", error);
+            return new GitOperationResult
+            {
+                Success = false,
+                ErrorMessage = error,
+                Duration = stopwatch.Elapsed
+            };
+        }
+
+        #endregion
+
         /// <summary>
         /// Saves credentials to the git credential store using 'git credential approve'
         /// </summary>
@@ -1189,6 +1502,8 @@ namespace MdExplorer.Services.Git
 
                 using var repo = new Repository(repositoryPath);
 
+                var headCommitBefore = repo.Head.Tip?.Sha;
+
                 // STEP 1: Try to find local branch first
                 var branch = repo.Branches[branchName];
 
@@ -1281,20 +1596,28 @@ namespace MdExplorer.Services.Git
 
                 // Verify the current branch with a fresh repository instance to avoid caching issues
                 string currentBranchName;
+                string headCommitAfter;
+                IEnumerable<string> changedPaths;
                 using (var freshRepo = new Repository(repositoryPath))
                 {
                     currentBranchName = freshRepo.Head.FriendlyName;
+                    headCommitAfter = freshRepo.Head.Tip?.Sha;
+                    changedPaths = GetCommitDiffPaths(freshRepo, headCommitBefore, headCommitAfter);
                     _logger.LogInformation("✅ Verified current branch from fresh repository: {CurrentBranch}", currentBranchName);
                 }
 
-                _logger.LogInformation("✅ Checkout operation completed successfully: {BranchName}, Duration: {Duration}ms",
-                    branchName, stopwatch.ElapsedMilliseconds);
+                var headMoved = headCommitBefore != headCommitAfter;
+
+                _logger.LogInformation("✅ Checkout operation completed successfully: {BranchName}, HeadMoved: {HeadMoved}, Duration: {Duration}ms",
+                    branchName, headMoved, stopwatch.ElapsedMilliseconds);
 
                 return new GitOperationResult
                 {
                     Success = true,
                     Message = $"Successfully checked out branch '{branchName}'",
                     BranchName = currentBranchName,  // Return verified branch name
+                    HasChanges = headMoved,
+                    Changes = headMoved ? changedPaths : new string[0],
                     Duration = stopwatch.Elapsed,
                     AuthenticationMethodUsed = _lastUsedAuthMethod
                 };
@@ -1639,6 +1962,49 @@ namespace MdExplorer.Services.Git
             }
             catch
             {
+                return new string[0];
+            }
+        }
+
+        /// <summary>
+        /// Files changed between two commits (e.g. HEAD before/after a pull or checkout).
+        /// This is the ONLY correct source for "what did the operation bring in":
+        /// the working-directory status (RetrieveStatus) is unrelated to it and on a
+        /// clean tree is empty even after a pull that changed hundreds of files.
+        /// Includes old paths of renamed/deleted entries so consumers can react to
+        /// files that disappeared.
+        /// </summary>
+        private IEnumerable<string> GetCommitDiffPaths(Repository repo, string shaBefore, string shaAfter)
+        {
+            try
+            {
+                if (shaBefore == shaAfter)
+                {
+                    return new string[0];
+                }
+
+                var treeBefore = shaBefore != null ? repo.Lookup<Commit>(shaBefore)?.Tree : null;
+                var treeAfter = shaAfter != null ? repo.Lookup<Commit>(shaAfter)?.Tree : null;
+
+                using var diff = repo.Diff.Compare<TreeChanges>(treeBefore, treeAfter);
+
+                var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var change in diff)
+                {
+                    if (!string.IsNullOrEmpty(change.Path))
+                    {
+                        paths.Add(change.Path);
+                    }
+                    if (!string.IsNullOrEmpty(change.OldPath) && change.OldPath != change.Path)
+                    {
+                        paths.Add(change.OldPath);
+                    }
+                }
+                return paths.ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetCommitDiffPaths failed comparing {Before} → {After}", shaBefore, shaAfter);
                 return new string[0];
             }
         }

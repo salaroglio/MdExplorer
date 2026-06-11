@@ -13,6 +13,7 @@ import { MdFileService } from '../../../md-explorer/services/md-file.service';
 import { ShowFileMetadata, BreadcrumbSegment, NewDirectoryDialogData } from './show-file-metadata';
 import { SpecialFolder, Drive, FileExplorerState } from './file-explorer.models';
 import { TranslateService } from '@ngx-translate/core';
+import { ProjectsService } from '../../../md-explorer/services/projects.service';
 
 
 
@@ -208,6 +209,10 @@ export class ShowFileSystemComponent implements OnInit {
   // Save As mode: filename typed by the user
   public saveAsFileName: string = '';
 
+  // Multi-select mode: when allowMultipleSelection is enabled (FoldersAndFiles only),
+  // clicking files toggles them into this list instead of single-selecting a single one.
+  public selectedItems: MdFile[] = [];
+
   // NEW: ViewChild for filter input
   @ViewChild('filterInput', { static: false }) filterInput: ElementRef;
 
@@ -225,7 +230,8 @@ export class ShowFileSystemComponent implements OnInit {
     private mdFileService: MdFileService,
     private dialogRef: MatDialogRef<ShowFileSystemComponent>,
     private snackBar: MatSnackBar,
-    private translate: TranslateService) {
+    private translate: TranslateService,
+    private projectsService: ProjectsService) {
 
     // Inizializza legacy tree control per compatibilità
     this.treeControl = new FlatTreeControl<MdFile>(this.getLevel, this.isExpandable);
@@ -289,7 +295,7 @@ export class ShowFileSystemComponent implements OnInit {
       networkShares: this.mdFileService.getNetworkShares()
     }).subscribe({
       next: ({folders, drives, networkShares}) => {
-        this.specialFolders = folders;
+        this.specialFolders = this.prependCurrentProjectShortcut(folders);
         this.drives = drives;
         this.networkShares = networkShares;
 
@@ -404,6 +410,27 @@ export class ShowFileSystemComponent implements OnInit {
     }
   }
 
+  /**
+   * Prepends the current MdExplorer project as the first Quick Access shortcut so the
+   * user can jump straight to the doc-project root from any file picker invocation.
+   * No-op if no project is open.
+   */
+  private prependCurrentProjectShortcut(folders: SpecialFolder[]): SpecialFolder[] {
+    const project = this.projectsService.currentProjects$.value;
+    if (!project || !project.path) return folders;
+
+    const label = this.translate.instant('FILE_SYSTEM.CURRENT_PROJECT');
+    const projectShortcut: SpecialFolder = {
+      name: `${label}: ${project.name}`,
+      path: project.path,
+      icon: 'folder_special',
+    };
+    // De-duplicate: if the platform already exposes a folder pointing at the project
+    // path (unlikely but defensive), drop it so we keep a single, distinctive entry.
+    const filtered = (folders || []).filter(f => f.path !== project.path);
+    return [projectShortcut, ...filtered];
+  }
+
   private formatDisplayPath(path: string): string {
     // Accorcia il path per la visualizzazione
     if (path.length > 50) {
@@ -418,9 +445,15 @@ export class ShowFileSystemComponent implements OnInit {
       // Non selezionare la cartella
       return;
     }
-    
+
+    // Multi-select: ogni click su un file lo aggiunge/rimuove dalla lista
+    if (this.isMultiSelect) {
+      this.toggleItemSelection(item);
+      return;
+    }
+
     this.activeNode = item;
-    
+
     if (item.type === 'folder') {
       // Per le cartelle, seleziona ma non naviga (single click)
       this.getFolder(item);
@@ -428,6 +461,35 @@ export class ShowFileSystemComponent implements OnInit {
       // Per i file, seleziona direttamente
       this.getFolder(item);
     }
+  }
+
+  /**
+   * Multi-select è opt-in (ShowFileMetadata.allowMultipleSelection) e ha senso solo
+   * quando si selezionano file: le cartelle restano comunque solo navigabili.
+   */
+  public get isMultiSelect(): boolean {
+    return !!this.baseStart.allowMultipleSelection
+      && this.baseStart.typeOfSelection === 'FoldersAndFiles';
+  }
+
+  /** Aggiunge o rimuove un file dalla selezione multipla. */
+  public toggleItemSelection(item: MdFile): void {
+    const index = this.selectedItems.indexOf(item);
+    if (index >= 0) {
+      this.selectedItems.splice(index, 1);
+    } else {
+      this.selectedItems.push(item);
+    }
+    // Tiene activeNode allineato all'ultimo file toccato (usato da alcuni stati UI)
+    this.activeNode = item;
+  }
+
+  /** True se l'item è "selezionato" nel contesto corrente (single o multi). */
+  public isItemSelected(item: MdFile): boolean {
+    if (this.isMultiSelect) {
+      return this.selectedItems.indexOf(item) >= 0;
+    }
+    return this.activeNode === item;
   }
 
   public onItemDoubleClick(item: MdFile): void {
@@ -459,6 +521,13 @@ export class ShowFileSystemComponent implements OnInit {
       const separator = folderPath.includes('/') ? '/' : '\\';
       const fullPath = folderPath + separator + this.saveAsFileName.trim();
       this.dialogRef.close({ event: 'open', data: fullPath });
+      return;
+    }
+
+    // Multi-select: ritorna la lista dei path dei file selezionati
+    if (this.isMultiSelect) {
+      const paths = this.selectedItems.map(i => i.fullPath || i.path);
+      this.dialogRef.close({ event: 'open', data: paths });
       return;
     }
 
@@ -525,20 +594,27 @@ export class ShowFileSystemComponent implements OnInit {
 
   // Selection button text
   public getSelectionButtonText(): string {
-    // Prima controlla se c'è un testo personalizzato
-    if (this.baseStart.buttonText) {
-      return this.baseStart.buttonText;
+    // Testo base: personalizzato oppure default in base al tipo
+    const base = this.baseStart.buttonText
+      ? this.baseStart.buttonText
+      : (this.baseStart.typeOfSelection === 'FoldersAndFiles'
+        ? this.translate.instant('FILE_SYSTEM.SELECT_FILE')
+        : this.translate.instant('FILE_SYSTEM.SELECT_FOLDER'));
+
+    // In multi-select mostra il numero di file selezionati
+    if (this.isMultiSelect && this.selectedItems.length > 0) {
+      return `${base} (${this.selectedItems.length})`;
     }
-    
-    // Altrimenti usa il default basato sul tipo
-    return this.baseStart.typeOfSelection === 'FoldersAndFiles'
-      ? this.translate.instant('FILE_SYSTEM.SELECT_FILE')
-      : this.translate.instant('FILE_SYSTEM.SELECT_FOLDER');
+    return base;
   }
 
   // Validation for selection
   public canSelectItem(): boolean {
     if (this.baseStart.typeOfSelection === 'FoldersAndFiles') {
+      // Multi-select: serve almeno un file selezionato
+      if (this.isMultiSelect) {
+        return this.selectedItems.length > 0;
+      }
       // Solo file possono essere selezionati
       return this.activeNode && this.activeNode.type !== 'folder' && !!this.folder.path;
     }
