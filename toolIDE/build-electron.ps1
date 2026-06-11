@@ -54,8 +54,8 @@ try {
     & $nodeExe scripts/check-go-binaries.js
     if ($LASTEXITCODE -ne 0) { throw "check-go-binaries.js failed" }
 
-    & $nodeExe scripts/bump-version.js
-    if ($LASTEXITCODE -ne 0) { throw "bump-version.js failed" }
+    & $nodeExe scripts/check-release-state.js
+    if ($LASTEXITCODE -ne 0) { throw "check-release-state.js failed" }
 
     # Run electron-builder
     Write-Host "`nRunning: electron-builder" -ForegroundColor Yellow
