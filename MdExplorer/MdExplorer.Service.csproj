@@ -11,26 +11,16 @@
     </PropertyGroup>
 
     <!-- Build P2P Premium in Release mode if the project file exists -->
-    <Message Text="Building MdExplorer.P2P.Premium..." Importance="high"
-             Condition="Exists('$(P2PProjectPath)')" />
-    <Exec Command="dotnet build &quot;$(P2PProjectPath)&quot; -c Release"
-          Condition="Exists('$(P2PProjectPath)')"
-          ContinueOnError="true"
-          ConsoleToMSBuild="true">
-      <Output TaskParameter="ExitCode" PropertyName="P2PBuildExitCode"/>
+    <Message Text="Building MdExplorer.P2P.Premium..." Importance="high" Condition="Exists('$(P2PProjectPath)')" />
+    <Exec Command="dotnet build &quot;$(P2PProjectPath)&quot; -c Release" Condition="Exists('$(P2PProjectPath)')" ContinueOnError="true" ConsoleToMSBuild="true">
+      <Output TaskParameter="ExitCode" PropertyName="P2PBuildExitCode" />
     </Exec>
-    <Message Text="P2P Premium build completed (exit code: $(P2PBuildExitCode))" Importance="high"
-             Condition="Exists('$(P2PProjectPath)')" />
+    <Message Text="P2P Premium build completed (exit code: $(P2PBuildExitCode))" Importance="high" Condition="Exists('$(P2PProjectPath)')" />
 
     <!-- Copy P2P Premium DLL to service_payload -->
-    <Copy SourceFiles="$(P2PDllSource)"
-          DestinationFiles="$(P2PDllDest)"
-          Condition="Exists('$(P2PDllSource)')"
-          ContinueOnError="true" />
-    <Message Text="Copied MdExplorer.P2P.Premium.dll to service_payload" Importance="high"
-             Condition="Exists('$(P2PDllSource)')" />
-    <Message Text="P2P Premium DLL not found - skipping copy" Importance="high"
-             Condition="!Exists('$(P2PDllSource)')" />
+    <Copy SourceFiles="$(P2PDllSource)" DestinationFiles="$(P2PDllDest)" Condition="Exists('$(P2PDllSource)')" ContinueOnError="true" />
+    <Message Text="Copied MdExplorer.P2P.Premium.dll to service_payload" Importance="high" Condition="Exists('$(P2PDllSource)')" />
+    <Message Text="P2P Premium DLL not found - skipping copy" Importance="high" Condition="!Exists('$(P2PDllSource)')" />
   </Target>
   
   <PropertyGroup>
@@ -190,6 +180,7 @@
     <PackageReference Include="Microsoft.Alm.Authentication" Version="4.3.0" />
     <PackageReference Include="Octokit" Version="9.1.2" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
+    <PackageReference Include="System.Drawing.Common" Version="10.0.5" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
     <PackageReference Include="YamlDotNet" Version="11.2.1" />
     <PackageReference Include="SocketIOClient" Version="3.1.1" />
