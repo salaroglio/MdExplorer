@@ -9,6 +9,7 @@ using MdExplorer.Models;
 using MdExplorer.Service.Models;
 using MdExplorer.Service.Services;
 using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Features.Services;
 using MdExplorer.Features.Services.AI;
 using MdExplorer.Features.Services.KnowledgeGraph;
 using Microsoft.AspNetCore.SignalR;
@@ -38,6 +39,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         private readonly IHelper _helper;
         private readonly IMdIgnoreService _mdIgnoreService;
         private readonly IServiceProvider _serviceProvider;
+        private readonly IMarkdownFtsService _markdownFtsService;
         private FoldersIgnoreService _foldersIgnoreService; // lazy - circular dependency on IFileSystemWatcherManager
 
         public FileSystemWatcherManager(
@@ -48,7 +50,8 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             IWorkLink[] linkManagers,
             IHelper helper,
             IMdIgnoreService mdIgnoreService,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            IMarkdownFtsService markdownFtsService)
         {
             _hubContext = hubContext;
             _logger = logger;
@@ -58,6 +61,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             _helper = helper;
             _mdIgnoreService = mdIgnoreService;
             _serviceProvider = serviceProvider;
+            _markdownFtsService = markdownFtsService;
         }
 
         private FoldersIgnoreService GetFoldersIgnoreService()
@@ -1157,6 +1161,16 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 if (oldIsMarkdown && !newIsMarkdown)
                 {
                     _logger.LogInformation($"⚠️ [{context.ConnectionId}] Markdown renamed to non-markdown: {e.OldFullPath} → {e.FullPath}");
+                    // The file is no longer a markdown: drop its DB + FTS rows.
+                    await context.DbSemaphore.WaitAsync();
+                    try
+                    {
+                        RemoveFileFromDB(context, e.OldFullPath);
+                    }
+                    finally
+                    {
+                        context.DbSemaphore.Release();
+                    }
                     return;
                 }
 
@@ -1190,6 +1204,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 await context.DbSemaphore.WaitAsync();
                 try
                 {
+                    // Drop the old-path rows (MarkdownFile + links + FTS) before
+                    // re-parsing under the new path — mirrors the storm path,
+                    // which already does Remove(old) + Parse(new).
+                    if (oldIsMarkdown)
+                    {
+                        RemoveFileFromDB(context, e.OldFullPath);
+                    }
                     ParseNewFileIntoDB(context, fileEvent);
                 }
                 finally
@@ -1533,6 +1554,20 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 }
 
                 engineDB.Commit();
+
+                // Full-text content index (side-car FTS DB), refreshed after the
+                // engine DB commit and independently from link indexing. An
+                // unreadable file keeps its MarkdownFile record without FTS row.
+                try
+                {
+                    var ftsContent = File.ReadAllText(e.FullPath);
+                    _markdownFtsService.UpsertFile(dbContext.ProjectPath, mdf.Id, e.FullPath, mdf.FileName, ftsContent);
+                }
+                catch (Exception ftsEx)
+                {
+                    _logger.LogWarning(ftsEx, $"[{context.ConnectionId}] FTS index update failed for: {e.FullPath}");
+                }
+
                 _logger.LogDebug($"[{context.ConnectionId}] ParseNewFileIntoDB COMPLETED for: {Path.GetFileName(e.FullPath)}");
             }
             catch (Exception ex)
@@ -1580,6 +1615,10 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 }
 
                 engineDB.Commit();
+
+                // Side-car FTS row: delete by path is safe even when mdf was null.
+                _markdownFtsService.DeleteFileByPath(dbContext.ProjectPath, fullPath);
+
                 _logger.LogDebug($"[{context.ConnectionId}] RemoveFileFromDB COMPLETED for: {Path.GetFileName(fullPath)}");
             }
             catch (Exception ex)

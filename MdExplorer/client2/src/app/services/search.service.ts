@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { SearchResult, SearchRequest, FileSearchResult, LinkSearchResult } from '../models/search.models';
+import { SearchResult, SearchRequest, FileSearchResult, LinkSearchResult, ContentSearchResult } from '../models/search.models';
 
 @Injectable({
   providedIn: 'root'
@@ -41,11 +41,21 @@ export class SearchService {
 
   searchLinks(term: string, maxResults: number = 50): Observable<{ links: LinkSearchResult[], totalLinks: number }> {
     console.log(`[SearchService] Search links for: ${term}`);
-    
+
     const params = new HttpParams()
       .set('term', term)
       .set('maxResults', maxResults.toString());
-    
+
     return this.http.get<{ links: LinkSearchResult[], totalLinks: number }>(`${this.baseUrl}/links`, { params });
+  }
+
+  searchContent(term: string, maxResults: number = 50): Observable<{ contents: ContentSearchResult[], totalContents: number }> {
+    console.log(`[SearchService] Search content for: ${term}`);
+
+    const params = new HttpParams()
+      .set('term', term)
+      .set('maxResults', maxResults.toString());
+
+    return this.http.get<{ contents: ContentSearchResult[], totalContents: number }>(`${this.baseUrl}/content`, { params });
   }
 }

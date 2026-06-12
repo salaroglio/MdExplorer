@@ -3,6 +3,7 @@ using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Abstractions.Services;
 using Ad.Tools.Dal.Extensions;
 using Microsoft.Extensions.Logging;
+using NHibernate;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -15,14 +16,16 @@ namespace MdExplorer.Features.Services
     {
         private readonly IEngineDB _engineDB;
         private readonly ILogger<SearchService> _logger;
+        private readonly IMarkdownFtsService _markdownFtsService;
 
-        public SearchService(IEngineDB engineDB, ILogger<SearchService> logger)
+        public SearchService(IEngineDB engineDB, ILogger<SearchService> logger, IMarkdownFtsService markdownFtsService)
         {
             _engineDB = engineDB;
             _logger = logger;
+            _markdownFtsService = markdownFtsService;
         }
 
-        public async Task<SearchResult> SearchAsync(string searchTerm, SearchType searchType = SearchType.All, int maxResults = 50)
+        public async Task<SearchResult> SearchAsync(string searchTerm, SearchType searchType = SearchType.All, int maxResults = 50, string projectPath = null)
         {
             var stopwatch = Stopwatch.StartNew();
             var result = new SearchResult
@@ -48,6 +51,14 @@ namespace MdExplorer.Features.Services
             {
                 result.Links = await SearchLinksAsync(searchLower, maxResults);
                 result.TotalLinks = result.Links.Count;
+            }
+
+            if ((searchType == SearchType.All || searchType == SearchType.Content)
+                && !string.IsNullOrWhiteSpace(projectPath))
+            {
+                // Original term, not lowercased: FTS5 trigram is already case-insensitive.
+                result.Contents = await SearchContentAsync(searchTerm, projectPath, maxResults);
+                result.TotalContents = result.Contents.Count;
             }
 
             stopwatch.Stop();
@@ -175,6 +186,13 @@ namespace MdExplorer.Features.Services
                     throw;
                 }
             });
+        }
+
+        public Task<List<ContentSearchResult>> SearchContentAsync(string searchTerm, string projectPath, int maxResults = 50)
+        {
+            // Synchronous body on purpose: no Task.Run with scoped sessions, and the
+            // FTS service uses its own short-lived pooled connections (side-car DB).
+            return Task.FromResult(_markdownFtsService.SearchContent(projectPath, searchTerm, maxResults));
         }
 
         private string DetermineMatchedField(MarkdownFile file, string searchTerm)

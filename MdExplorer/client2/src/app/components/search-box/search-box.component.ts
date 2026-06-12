@@ -3,7 +3,7 @@ import { UntypedFormControl } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
 import { SearchService } from '../../services/search.service';
-import { SearchResult, FileSearchResult, LinkSearchResult } from '../../models/search.models';
+import { SearchResult, FileSearchResult, LinkSearchResult, ContentSearchResult } from '../../models/search.models';
 import { Router } from '@angular/router';
 import { MdFileService } from '../../md-explorer/services/md-file.service';
 import { ProjectsService } from '../../md-explorer/services/projects.service';
@@ -20,7 +20,7 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
   searchResults: SearchResult | null = null;
   isSearching = false;
   showResults = false;
-  selectedTab: 'files' | 'links' = 'files';
+  selectedTab: 'files' | 'links' | 'content' = 'files';
   selectedTabIndex = 0;
   currentProjectPath: string = '';
   
@@ -95,12 +95,16 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
         this.isSearching = false;
         
         // Auto-select tab with results
+        const contents = (results && results.contents) || [];
         if (results && results.files.length > 0 && results.links.length === 0) {
           this.selectedTab = 'files';
           this.selectedTabIndex = 0;
         } else if (results && results.links.length > 0 && results.files.length === 0) {
           this.selectedTab = 'links';
           this.selectedTabIndex = 1;
+        } else if (results && contents.length > 0 && results.files.length === 0 && results.links.length === 0) {
+          this.selectedTab = 'content';
+          this.selectedTabIndex = 2;
         }
       },
       error => {
@@ -264,6 +268,24 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
     this.showResults = false;
   }
   
+  selectContent(content: ContentSearchResult): void {
+    // Reuse the file navigation: path→relativePath mapping and routing live in selectFile
+    this.selectFile({
+      id: content.markdownFileId,
+      fileName: content.fileName,
+      path: content.path,
+      fileType: 'mdFile',
+      matchedField: 'Content',
+      highlightedText: null
+    } as FileSearchResult);
+  }
+
+  // The FTS5 trigram tokenizer cannot match terms shorter than 3 characters
+  get termTooShortForContent(): boolean {
+    const value = (this.searchControl.value || '').trim();
+    return value.length > 0 && value.length < 3;
+  }
+
   clearSearch(): void {
     this.searchControl.setValue('');
     this.searchResults = null;
@@ -274,11 +296,11 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
     console.log('Tab changed:', {
       newIndex: index,
       previousIndex: this.selectedTabIndex,
-      newTab: index === 0 ? 'files' : 'links',
+      newTab: index === 0 ? 'files' : index === 1 ? 'links' : 'content',
       showResults: this.showResults
     });
     this.selectedTabIndex = index;
-    this.selectedTab = index === 0 ? 'files' : 'links';
+    this.selectedTab = index === 0 ? 'files' : index === 1 ? 'links' : 'content';
   }
   
   // Keyboard navigation

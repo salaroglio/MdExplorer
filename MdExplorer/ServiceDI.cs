@@ -18,6 +18,9 @@ namespace MdExplorer.Service
             services.AddSingleton<ProcessUtil>();
             services.AddSingleton<IMdIgnoreService, MdIgnoreService>();
             services.AddScoped<ISearchService, SearchService>();
+            services.AddSingleton<IMarkdownFtsService>(sp => new MarkdownFtsService(
+                MdExplorer.Utilities.CrossPlatformPath.GetAppDataPath(),
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<MarkdownFtsService>>()));
             return services;
         }
     }

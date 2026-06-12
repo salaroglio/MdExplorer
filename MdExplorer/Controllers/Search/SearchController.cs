@@ -36,8 +36,9 @@ namespace MdExplorer.Service.Controllers.Search
             IWorkLink[] modifiers,
             IHelper helper,
             ISearchService searchService,
-            IMapper mapper)
-            : base(logger, options, hubContext, userSettingsDB, engineDB, commandRunner, modifiers, helper)
+            IMapper mapper,
+            MdExplorer.Services.DatabaseManager.IDatabaseManager databaseManager)
+            : base(logger, options, hubContext, userSettingsDB, engineDB, commandRunner, modifiers, helper, databaseManager)
         {
             _logger = logger;
             _searchService = searchService;
@@ -60,7 +61,7 @@ namespace MdExplorer.Service.Controllers.Search
 
             try
             {
-                var result = await _searchService.SearchAsync(term, Abstractions.Services.SearchType.All, maxResults);
+                var result = await _searchService.SearchAsync(term, Abstractions.Services.SearchType.All, maxResults, GetProjectPath());
                 
                 // Map to DTOs
                 var dto = new SearchResultDto
@@ -68,7 +69,16 @@ namespace MdExplorer.Service.Controllers.Search
                     SearchTerm = result.SearchTerm,
                     TotalFiles = result.TotalFiles,
                     TotalLinks = result.TotalLinks,
+                    TotalContents = result.TotalContents,
                     SearchDurationMs = result.SearchDurationMs,
+                    Contents = result.Contents.Select(c => new ContentSearchResultDto
+                    {
+                        MarkdownFileId = c.MarkdownFileId,
+                        FileName = c.FileName,
+                        Path = c.Path,
+                        Snippet = c.Snippet,
+                        Score = c.Score
+                    }).ToList(),
                     Files = result.Files.Select(f => new FileSearchResultDto
                     {
                         Id = f.Id,
@@ -125,10 +135,11 @@ namespace MdExplorer.Service.Controllers.Search
                 {
                     Dto.SearchType.Files => Abstractions.Services.SearchType.Files,
                     Dto.SearchType.Links => Abstractions.Services.SearchType.Links,
+                    Dto.SearchType.Content => Abstractions.Services.SearchType.Content,
                     _ => Abstractions.Services.SearchType.All
                 };
 
-                var result = await _searchService.SearchAsync(request.SearchTerm, searchType, request.MaxResults);
+                var result = await _searchService.SearchAsync(request.SearchTerm, searchType, request.MaxResults, GetProjectPath());
                 
                 // Map to DTOs
                 var dto = new SearchResultDto
@@ -136,7 +147,16 @@ namespace MdExplorer.Service.Controllers.Search
                     SearchTerm = result.SearchTerm,
                     TotalFiles = result.TotalFiles,
                     TotalLinks = result.TotalLinks,
+                    TotalContents = result.TotalContents,
                     SearchDurationMs = result.SearchDurationMs,
+                    Contents = result.Contents.Select(c => new ContentSearchResultDto
+                    {
+                        MarkdownFileId = c.MarkdownFileId,
+                        FileName = c.FileName,
+                        Path = c.Path,
+                        Snippet = c.Snippet,
+                        Score = c.Score
+                    }).ToList(),
                     Files = result.Files.Select(f => new FileSearchResultDto
                     {
                         Id = f.Id,
@@ -203,6 +223,44 @@ namespace MdExplorer.Service.Controllers.Search
             {
                 _logger.LogError(ex, $"[SearchController] Error during file search for term: '{term}'");
                 return StatusCode(500, new { error = "Errore durante la ricerca dei file", details = ex.Message });
+            }
+        }
+
+        [HttpGet("content")]
+        public async Task<IActionResult> SearchContent([FromQuery] string term, [FromQuery] int maxResults = 50)
+        {
+            _logger.LogInformation($"[SearchController] SearchContent called with term: '{term}'");
+
+            if (string.IsNullOrWhiteSpace(term))
+            {
+                return Ok(new { contents = new ContentSearchResultDto[0], totalContents = 0 });
+            }
+
+            var projectPath = GetProjectPath();
+            if (string.IsNullOrWhiteSpace(projectPath))
+            {
+                return BadRequest(new { error = "Nessun progetto aperto per questa connessione: la ricerca nel contenuto richiede un progetto aperto (ConnectionId valido)." });
+            }
+
+            try
+            {
+                var results = await _searchService.SearchContentAsync(term, projectPath, maxResults);
+                var dtos = results.Select(c => new ContentSearchResultDto
+                {
+                    MarkdownFileId = c.MarkdownFileId,
+                    FileName = c.FileName,
+                    Path = c.Path,
+                    Snippet = c.Snippet,
+                    Score = c.Score
+                }).ToList();
+
+                _logger.LogInformation($"[SearchController] Content search completed. Found {dtos.Count} matches");
+                return Ok(new { contents = dtos, totalContents = dtos.Count });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"[SearchController] Error during content search for term: '{term}'");
+                return StatusCode(500, new { error = "Errore durante la ricerca nel contenuto", details = ex.Message });
             }
         }
 

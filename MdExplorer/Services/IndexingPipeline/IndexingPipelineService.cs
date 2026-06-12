@@ -54,6 +54,7 @@ namespace MdExplorer.Services.IndexingPipeline
         private readonly IEmbeddingService _embeddingService;
         private readonly IMarkdownChunkingService _chunkingService;
         private readonly IModelDownloadService _downloadService;
+        private readonly IMarkdownFtsService _markdownFtsService;
         // IVectorSearchService NON iniettato qui: è registrato come Scoped in Startup.cs:145.
         // Singleton non può consumare Scoped. Si ottiene via _serviceScopeFactory.CreateScope()
         // alla fine della fase Embed per InvalidateCache. Stesso pattern di ReEmbedFileAsync (FSW).
@@ -87,7 +88,8 @@ namespace MdExplorer.Services.IndexingPipeline
             IServiceScopeFactory serviceScopeFactory,
             IEmbeddingService embeddingService,
             IMarkdownChunkingService chunkingService,
-            IModelDownloadService downloadService)
+            IModelDownloadService downloadService,
+            IMarkdownFtsService markdownFtsService)
         {
             _logger = logger;
             _databaseManager = databaseManager;
@@ -101,6 +103,7 @@ namespace MdExplorer.Services.IndexingPipeline
             _embeddingService = embeddingService;
             _chunkingService = chunkingService;
             _downloadService = downloadService;
+            _markdownFtsService = markdownFtsService;
         }
 
         public async Task RunAsync(string connectionId, string projectPath, bool linkIndexingEnabled, CancellationToken ct = default)
@@ -281,6 +284,7 @@ namespace MdExplorer.Services.IndexingPipeline
 
                 _logger.LogInformation("[IndexingPipeline] IndexFiles: found {Count} markdown files", allMdFiles.Count);
 
+                var ftsEntries = new List<MarkdownFtsEntry>();
                 foreach (var filePath in allMdFiles)
                 {
                     try
@@ -293,6 +297,24 @@ namespace MdExplorer.Services.IndexingPipeline
                         };
                         markdownFileDal.Save(mdf);
                         indexed.Add(mdf);
+
+                        // Full-text content index (side-car FTS DB): an unreadable
+                        // file keeps its MarkdownFile record but gets no FTS row.
+                        try
+                        {
+                            ftsEntries.Add(new MarkdownFtsEntry
+                            {
+                                MarkdownFileId = mdf.Id,
+                                Path = mdf.Path,
+                                FileName = mdf.FileName,
+                                Content = File.ReadAllText(filePath)
+                            });
+                        }
+                        catch (Exception readEx)
+                        {
+                            _logger.LogWarning(readEx,
+                                "[IndexingPipeline] IndexFiles: cannot read content of '{Path}', file indexed without content", filePath);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -301,6 +323,11 @@ namespace MdExplorer.Services.IndexingPipeline
                 }
 
                 engineDB.Commit();
+
+                // After the engine DB commit: atomically rebuild the side-car FTS
+                // index. A failure here must be loud (it aborts the pipeline run),
+                // never a silently empty content search.
+                _markdownFtsService.RebuildIndex(projectPath, ftsEntries);
             }
             catch (Exception ex)
             {

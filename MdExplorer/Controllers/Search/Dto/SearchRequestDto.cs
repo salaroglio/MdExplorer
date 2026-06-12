@@ -11,6 +11,7 @@ namespace MdExplorer.Service.Controllers.Search.Dto
     {
         All,
         Files,
-        Links
+        Links,
+        Content
     }
 }

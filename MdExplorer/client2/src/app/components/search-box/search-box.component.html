@@ -92,6 +92,43 @@
             </div>
           </div>
         </mat-tab>
+
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <span class="tab-label">
+              Content
+              <span class="count">({{ searchResults.totalContents || 0 }})</span>
+            </span>
+          </ng-template>
+
+          <div class="results-list content-list">
+            <div *ngIf="termTooShortForContent" class="no-results">
+              Inserisci almeno 3 caratteri per la ricerca nel contenuto
+            </div>
+
+            <div *ngIf="!termTooShortForContent && (!searchResults.contents || searchResults.contents.length === 0)" class="no-results">
+              Nessun contenuto trovato
+            </div>
+
+            <div
+              *ngFor="let content of searchResults.contents"
+              class="result-item content-item"
+              (click)="selectContent(content)">
+              <mat-icon class="result-icon">subject</mat-icon>
+              <div class="result-content">
+                <div class="result-title">{{ content.fileName }}</div>
+                <div class="result-context" [innerHTML]="content.snippet"></div>
+                <div class="result-path"
+                     [title]="getPathTooltip(content.path)"
+                     [matTooltip]="getRelativePath(content.path)"
+                     matTooltipPosition="above"
+                     [matTooltipShowDelay]="500">
+                  {{ getRelativePath(content.path) }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
       </mat-tab-group>
     </div>
     
