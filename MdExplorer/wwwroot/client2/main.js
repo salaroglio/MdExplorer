@@ -3885,6 +3885,12 @@ class SearchBoxComponent {
     this.showResults = false;
   }
   selectContent(content) {
+    // Capture the term BEFORE selectFile (which clears the input), so the
+    // document opens with the in-iframe search already positioned on it.
+    const term = (this.searchControl.value || '').trim();
+    if (term.length >= 3) {
+      this.mdFileService.setPendingDocumentSearch(term);
+    }
     // Reuse the file navigation: path→relativePath mapping and routing live in selectFile
     this.selectFile({
       id: content.markdownFileId,
@@ -10847,6 +10853,10 @@ class MdFileService {
     // succession) raced and whichever HTTP response landed LAST won — possibly
     // the older one, leaving a stale tree. The last REQUEST must win.
     this._loadAllEpoch = 0;
+    // Termine da cercare dentro il documento appena l'iframe lo carica.
+    // Settato dalla search-box (click su un risultato "Content"), consumato
+    // da main-content nel load handler dell'iframe (one-shot).
+    this.pendingDocumentSearchTerm = null;
     var defaultSelectedMdFile = [];
     this.dataStore = {
       mdFiles: [],
@@ -11792,6 +11802,14 @@ class MdFileService {
     this._serverSelectedMdFile.next([...returnFound]);
     // Notifica il tree component per aggiornare il Set di tracking
     this.mdServerMessages.triggerRule1ForceUpdate(leaf.fullPath);
+  }
+  setPendingDocumentSearch(term) {
+    this.pendingDocumentSearchTerm = term;
+  }
+  consumePendingDocumentSearch() {
+    const term = this.pendingDocumentSearchTerm;
+    this.pendingDocumentSearchTerm = null;
+    return term;
   }
   setSelectedMdFileFromSideNav(selectedFile) {
     console.log('[MdFileService] setSelectedMdFileFromSideNav called with:', selectedFile);
@@ -17102,8 +17120,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.06.12.2',
-  buildTime: '2026.06.12 14:51:42'
+  version: '2026.06.12.3',
+  buildTime: '2026.06.12 15:51:15'
 };
 
 /***/ }),

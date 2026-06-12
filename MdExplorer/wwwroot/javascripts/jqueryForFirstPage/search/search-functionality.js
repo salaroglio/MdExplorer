@@ -320,6 +320,30 @@ function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/**
+ * Open the search bar (if closed) with a pre-filled term and run the search.
+ * Used by the Angular parent when the user clicks a full-text ("Content")
+ * search result: the document opens already positioned on the first match.
+ *
+ * @param {string} term - Term to search and highlight in the document
+ */
+function searchInDocument(term) {
+    const searchContainer = document.getElementById('searchContainer');
+    const searchInput = document.getElementById('searchInput');
+
+    if (!searchContainer || !searchInput || !term) {
+        return;
+    }
+
+    // Apri la barra se chiusa (toggleSearch registra anche i listener e dà il focus)
+    if (searchContainer.style.display === 'none' || searchContainer.style.display === '') {
+        toggleSearch();
+    }
+
+    searchInput.value = term;
+    performSearch();
+}
+
 // ============================================================================
 // GLOBAL CTRL+F INTEGRATION
 // ============================================================================
@@ -333,6 +357,10 @@ window.addEventListener('message', function(event) {
     if (event.data && event.data.action === 'toggleSearch') {
         console.log('[iframe] Triggering search from parent message');
         toggleSearch();
+    }
+    if (event.data && event.data.action === 'searchInDocument' && event.data.term) {
+        console.log('[iframe] Searching in document from parent message:', event.data.term);
+        searchInDocument(event.data.term);
     }
 });
 

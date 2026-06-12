@@ -269,6 +269,13 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
   }
   
   selectContent(content: ContentSearchResult): void {
+    // Capture the term BEFORE selectFile (which clears the input), so the
+    // document opens with the in-iframe search already positioned on it.
+    const term = (this.searchControl.value || '').trim();
+    if (term.length >= 3) {
+      this.mdFileService.setPendingDocumentSearch(term);
+    }
+
     // Reuse the file navigation: path→relativePath mapping and routing live in selectFile
     this.selectFile({
       id: content.markdownFileId,

@@ -1153,6 +1153,21 @@ export class MdFileService {
     this.mdServerMessages.triggerRule1ForceUpdate(leaf.fullPath);
   }
 
+  // Termine da cercare dentro il documento appena l'iframe lo carica.
+  // Settato dalla search-box (click su un risultato "Content"), consumato
+  // da main-content nel load handler dell'iframe (one-shot).
+  private pendingDocumentSearchTerm: string | null = null;
+
+  setPendingDocumentSearch(term: string): void {
+    this.pendingDocumentSearchTerm = term;
+  }
+
+  consumePendingDocumentSearch(): string | null {
+    const term = this.pendingDocumentSearchTerm;
+    this.pendingDocumentSearchTerm = null;
+    return term;
+  }
+
   setSelectedMdFileFromSideNav(selectedFile: MdFile) {
     console.log('[MdFileService] setSelectedMdFileFromSideNav called with:', selectedFile);
     console.log('[MdFileService] _selectedMdFileFromSideNav value before:', this._selectedMdFileFromSideNav.value);

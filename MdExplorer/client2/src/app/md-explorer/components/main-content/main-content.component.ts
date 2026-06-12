@@ -409,14 +409,28 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     // Create bound functions to allow removal later
     const loadHandler = () => {
       const loadTime = this.loadingStartTime ? new Date().getTime() - this.loadingStartTime.getTime() : 0;
-      
+
       this.updateState({
         status: 'loaded',
         errorMessage: undefined,
         retryCount: 0,
         isIndexing: false
       });
-      
+
+      // Se il documento è stato aperto da un risultato della ricerca full-text,
+      // inietta la ricerca in-documento (barra Ctrl+F dell'iframe) col termine.
+      const pendingSearchTerm = this.service.consumePendingDocumentSearch();
+      if (pendingSearchTerm) {
+        setTimeout(() => {
+          try {
+            this.iframe?.nativeElement?.contentWindow?.postMessage(
+              { action: 'searchInDocument', term: pendingSearchTerm }, '*');
+          } catch (error) {
+            console.error('[MainContent] Error sending searchInDocument to iframe:', error);
+          }
+        }, 150);
+      }
+
       // Rimosso adjustIframeWidth - usiamo CSS flexbox invece
     };
 
