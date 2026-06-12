@@ -109,15 +109,28 @@ export async function waitForRoute(
 }
 
 /**
- * Build a default destination path for the demo clone. Uses Electron's
- * userData/temp dirs when available, otherwise a Windows-friendly fallback.
- * The path includes a timestamp so multiple runs don't collide.
+ * Build a default destination path for the demo clone. The backend resolves
+ * the user's Documents folder for the current OS (Windows/Linux/macOS), so
+ * the path is always writable and uses the right separators. The path
+ * includes a timestamp so multiple runs don't collide.
  */
-export function buildDemoClonePath(repoName = 'mdexplorer-demo'): string {
+export async function buildDemoClonePath(repoName = 'mdexplorer-demo'): Promise<string> {
+  try {
+    const res = await fetch(`/api/ModernGit/default-clone-path?repoName=${encodeURIComponent(repoName)}`);
+    if (res.ok) {
+      const body = await res.json();
+      if (body?.path) {
+        return body.path;
+      }
+    }
+  } catch {
+    // backend unreachable — fall through to the client-side guess
+  }
+
+  // Fallback: best-effort guess from the browser environment
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  // Electron exposes via process.env.USERPROFILE on Windows
-  const home =
-    (typeof process !== 'undefined' && (process as any)?.env?.USERPROFILE) ||
-    'C:\\Users\\Public';
-  return `${home}\\Documents\\${repoName}-${stamp}`;
+  const isWindows = /Win/i.test(navigator.platform || navigator.userAgent);
+  return isWindows
+    ? `C:\\Users\\Public\\Documents\\${repoName}-${stamp}`
+    : `/tmp/${repoName}-${stamp}`;
 }

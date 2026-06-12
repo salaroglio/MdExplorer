@@ -19,7 +19,8 @@ namespace MdExplorer.Features.Tests
             var sourceFolderPath = $"{currentPath}WordTests{Path.DirectorySeparatorChar}FilesDocx";
             string firstPageFile = Path.Combine($"{sourceFolderPath}{Path.DirectorySeparatorChar}PrimaPaginaTitolo.docx");
             string mainFile = Path.Combine($"{sourceFolderPath}{Path.DirectorySeparatorChar}testobase.docx");
-            string destinationFile = Path.Combine($"{sourceFolderPath}{Path.DirectorySeparatorChar}test1.docx");
+            // NB: il nome file deve combaciare esattamente con l'asset (FS Linux case-sensitive)
+            string destinationFile = Path.Combine($"{sourceFolderPath}{Path.DirectorySeparatorChar}Test1.docx");
 
             var wordFeatures = new WordFeatures();
             wordFeatures.MergeDocuments(new string[]{ firstPageFile, mainFile}, destinationFile);

@@ -6,10 +6,14 @@
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Set dotnet path explicitly
-export DOTNET_ROOT="/home/carlo/.dotnet"
-export PATH="$DOTNET_ROOT:$PATH"
-DOTNET="/home/carlo/.dotnet/dotnet"
+# Locate dotnet: PATH first, then DOTNET_ROOT, then the per-user install
+if command -v dotnet >/dev/null 2>&1; then
+    DOTNET="$(command -v dotnet)"
+else
+    export DOTNET_ROOT="${DOTNET_ROOT:-$HOME/.dotnet}"
+    export PATH="$DOTNET_ROOT:$PATH"
+    DOTNET="$DOTNET_ROOT/dotnet"
+fi
 
 # Change to MdExplorer directory
 cd "$SCRIPT_DIR/MdExplorer" || {

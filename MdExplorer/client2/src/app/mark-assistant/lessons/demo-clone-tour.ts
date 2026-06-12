@@ -102,7 +102,7 @@ export const DEMO_CLONE_TOUR: MarkLesson = {
       durationMs: 0,
       autoExecute: async () => {
         await sleep(600);
-        const target = buildDemoClonePath('mdexplorer-demo');
+        const target = await buildDemoClonePath('mdexplorer-demo');
         await setInputValue(PATH_INPUT, target, { bypassReadonly: true });
         await sleep(800);
       },

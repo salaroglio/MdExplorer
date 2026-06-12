@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "powershell -ExecutionPolicy Bypass -File ../toolIDE/build-react-editor.ps1",
+    "build": "node ../toolIDE/run-build.cjs build-react-editor",
     "build:vite": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",

@@ -353,7 +353,7 @@ namespace MdExplorer.Features.Exports
 
                 // If image is wider than threshold, adjust DPI so it fits in target width
                 // This preserves all pixels but tells Word to render it smaller
-                if (resultWidth > MaxWidthBeforeScaling)
+                if (resultWidth > MaxWidthBeforeScaling && OperatingSystem.IsWindows())
                 {
                     AdjustImageDpiForTargetWidth(outputPath, resultWidth);
                 }

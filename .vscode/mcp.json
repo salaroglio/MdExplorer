@@ -1,0 +1,13 @@
+{
+  "servers": {
+    "mdexplorer": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "/home/carlo/Documents/sviluppo/MdExplorer/MdExplorer.Mcp"
+      ]
+    }
+  }
+}

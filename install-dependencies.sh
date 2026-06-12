@@ -129,7 +129,8 @@ echo
 echo "=== Configurazione percorso librerie native ==="
 
 # Verifica se LD_LIBRARY_PATH è configurato per LLamaSharp
-LLAMA_LIB_PATH="/home/carlo/Documents/sviluppo/MdExplorer/MdExplorer/bin/Debug/net8.0/linux-x64"
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+LLAMA_LIB_PATH="$SCRIPT_DIR/MdExplorer/bin/Debug/net8.0/linux-x64"
 
 if [ -d "$LLAMA_LIB_PATH" ]; then
     echo "Directory librerie native trovata: $LLAMA_LIB_PATH"

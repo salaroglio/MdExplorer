@@ -58,65 +58,34 @@ fi
 echo "Installing dependencies..."
 echo ""
 
-# 1. Install libssl 1.1 for .NET Core 3.1
-echo "1. Installing libssl 1.1 (required for .NET Core 3.1)..."
-if [[ "$OS" == *"Ubuntu"* ]] || [[ "$OS" == *"Debian"* ]]; then
-    
-    # Check if libssl1.1 is already installed
-    if dpkg -l | grep -q libssl1.1; then
-        print_status "libssl1.1 is already installed"
-    else
-        print_warning "libssl1.1 not found, downloading..."
-        
-        # Download appropriate version based on architecture
-        if [ "$ARCH" = "x86_64" ]; then
-            LIBSSL_URL="http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_amd64.deb"
-            LIBSSL_FILE="libssl1.1_amd64.deb"
-        elif [ "$ARCH" = "aarch64" ]; then
-            LIBSSL_URL="http://ports.ubuntu.com/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2_arm64.deb"
-            LIBSSL_FILE="libssl1.1_arm64.deb"
-        else
-            print_error "Unsupported architecture: $ARCH"
-            exit 1
-        fi
-        
-        # Download and install
-        wget -O "/tmp/$LIBSSL_FILE" "$LIBSSL_URL"
-        sudo dpkg -i "/tmp/$LIBSSL_FILE"
-        rm "/tmp/$LIBSSL_FILE"
-        print_status "libssl1.1 installed successfully"
-    fi
-    
-elif [[ "$OS" == *"Fedora"* ]] || [[ "$OS" == *"Red Hat"* ]] || [[ "$OS" == *"CentOS"* ]]; then
-    sudo dnf install -y compat-openssl10
-    print_status "OpenSSL compatibility package installed"
-    
-elif [[ "$OS" == *"Arch"* ]]; then
-    print_warning "For Arch Linux, you may need to install openssl-1.1 from AUR"
-    echo "yay -S openssl-1.1"
-    
+# 1. OpenSSL: .NET 8 works with the system OpenSSL 3 — no legacy libssl1.1 needed
+echo "1. Checking OpenSSL..."
+if command -v openssl &> /dev/null; then
+    print_status "OpenSSL found: $(openssl version)"
 else
-    print_warning "Unknown distribution. Please install libssl 1.1 manually"
+    print_warning "OpenSSL not found. Install it with your package manager (e.g. sudo apt install openssl)"
 fi
 
 echo ""
 
-# 2. Install .NET Core 3.1 Runtime (if not present)
-echo "2. Checking .NET Core 3.1..."
+# 2. Install .NET 8 SDK/Runtime (if not present)
+echo "2. Checking .NET 8..."
 if command -v dotnet &> /dev/null; then
     DOTNET_VERSION=$(dotnet --version)
     print_status ".NET SDK found: $DOTNET_VERSION"
-    
-    # Check for 3.1 runtime
-    if dotnet --list-runtimes | grep -q "Microsoft.NETCore.App 3.1"; then
-        print_status ".NET Core 3.1 runtime is installed"
+
+    # Check for 8.0 runtime
+    if dotnet --list-runtimes | grep -q "Microsoft.NETCore.App 8\."; then
+        print_status ".NET 8 runtime is installed"
     else
-        print_warning ".NET Core 3.1 runtime not found"
-        echo "Install from: https://dotnet.microsoft.com/download/dotnet/3.1"
+        print_warning ".NET 8 runtime not found"
+        echo "Install from: https://dotnet.microsoft.com/download/dotnet/8.0"
+        echo "Or use the bundled script: ./dotnet-install.sh --channel 8.0"
     fi
 else
-    print_error ".NET Core not found"
-    echo "Please install from: https://dotnet.microsoft.com/download/dotnet/3.1"
+    print_error ".NET not found"
+    echo "Please install from: https://dotnet.microsoft.com/download/dotnet/8.0"
+    echo "Or use the bundled script: ./dotnet-install.sh --channel 8.0"
 fi
 
 echo ""

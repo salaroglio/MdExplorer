@@ -69,7 +69,7 @@ namespace MdExplorer.Features.Tests.Commands
             var log = new Log();
             var serverCache = new ServerCache();
             var extensionConfiguration = new MockApplicationExtensionConfiguration();
-            var text = System.IO.File.ReadAllText(@"Commands\TestStore\ChangeLinkIntoCallAJavscriptFunction.html");
+            var text = System.IO.File.ReadAllText(System.IO.Path.Combine("Commands", "TestStore", "ChangeLinkIntoCallAJavscriptFunction.html"));
             var fromLinkToApplication = new FromLinkToApplicationHtml(log, serverCache, extensionConfiguration);
 
             var matches = fromLinkToApplication.GetMatches(text);

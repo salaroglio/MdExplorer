@@ -107,7 +107,7 @@ export class ModernCloneProjectComponent implements OnInit {
         // Auto-compute the full path: basePath + repoName
         const repoName = this.extractRepoName(this.data.prefilledUrl);
         if (repoName) {
-          this.cloneRequest.localPath = `${this.data.prefilledBasePath}\\${repoName}`;
+          this.cloneRequest.localPath = this.joinPath(this.data.prefilledBasePath, repoName);
         } else {
           this.cloneRequest.localPath = this.data.prefilledBasePath;
         }
@@ -359,12 +359,19 @@ export class ModernCloneProjectComponent implements OnInit {
         // Add repository name to the path
         const repoName = this.extractRepoName(this.cloneRequest.url);
         if (repoName) {
-          this.cloneRequest.localPath = `${result.data}\\${repoName}`;
+          this.cloneRequest.localPath = this.joinPath(result.data, repoName);
         } else {
           this.cloneRequest.localPath = result.data;
         }
       }
     });
+  }
+
+  /** Join a base directory and a name using the separator the base already uses. */
+  private joinPath(base: string, name: string): string {
+    const sep = base.includes('/') ? '/' : '\\';
+    const trimmed = base.endsWith('/') || base.endsWith('\\') ? base.slice(0, -1) : base;
+    return `${trimmed}${sep}${name}`;
   }
 
   extractRepoName(url: string): string {

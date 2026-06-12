@@ -4,7 +4,8 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <UserSecretsId>aa0ba68a-9723-47a7-b3e8-fecd91dd5988</UserSecretsId>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageOutputPath>C:\sviluppo\AdToolsPackages</PackageOutputPath>
+    <PackageOutputPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">C:\sviluppo\AdToolsPackages</PackageOutputPath>
+    <PackageOutputPath Condition="!$([MSBuild]::IsOSPlatform('Windows'))">bin/Packages</PackageOutputPath>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     <Version>3.1.4</Version>

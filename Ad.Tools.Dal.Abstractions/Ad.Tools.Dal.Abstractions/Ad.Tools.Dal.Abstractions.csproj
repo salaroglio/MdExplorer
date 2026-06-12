@@ -3,7 +3,8 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageOutputPath>C:\sviluppo\AdToolsPackages</PackageOutputPath>
+    <PackageOutputPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">C:\sviluppo\AdToolsPackages</PackageOutputPath>
+    <PackageOutputPath Condition="!$([MSBuild]::IsOSPlatform('Windows'))">bin/Packages</PackageOutputPath>
     <Version>3.0.0</Version>
   </PropertyGroup>
 

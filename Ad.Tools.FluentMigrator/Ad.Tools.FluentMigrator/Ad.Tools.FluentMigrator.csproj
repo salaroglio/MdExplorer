@@ -5,7 +5,8 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild> <!-- Modificato da true a false -->
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <PackageOutputPath>C:\sviluppo\AdToolsPackages</PackageOutputPath>
+    <PackageOutputPath Condition="$([MSBuild]::IsOSPlatform('Windows'))">C:\sviluppo\AdToolsPackages</PackageOutputPath>
+    <PackageOutputPath Condition="!$([MSBuild]::IsOSPlatform('Windows'))">bin/Packages</PackageOutputPath>
     <Version>1.1.1</Version>
   </PropertyGroup>
 

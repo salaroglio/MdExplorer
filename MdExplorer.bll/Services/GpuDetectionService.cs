@@ -368,8 +368,40 @@ namespace MdExplorer.Features.Services
                 {
                     // nvcc not available
                 }
+
+                // nvcc not on PATH: check CUDA_PATH and the standard Linux install locations
+                var linuxCudaPaths = new List<string>();
+                var envCudaPath = Environment.GetEnvironmentVariable("CUDA_PATH");
+                if (!string.IsNullOrEmpty(envCudaPath))
+                {
+                    linuxCudaPaths.Add(envCudaPath);
+                }
+                linuxCudaPaths.Add("/usr/local/cuda");
+                linuxCudaPaths.Add("/opt/cuda");
+
+                foreach (var path in linuxCudaPaths)
+                {
+                    if (System.IO.Directory.Exists(path))
+                    {
+                        _logger.LogInformation($"Found CUDA installation at {path}");
+                        // /usr/local/cuda is usually a symlink to a versioned dir (e.g. cuda-12.4)
+                        var resolved = System.IO.Directory.ResolveLinkTarget(path, returnFinalTarget: true)?.FullName ?? path;
+                        var dirName = System.IO.Path.GetFileName(resolved.TrimEnd('/'));
+                        var dashIdx = dirName.LastIndexOf('-');
+                        if (dashIdx >= 0 && dashIdx < dirName.Length - 1)
+                        {
+                            var versionStr = dirName.Substring(dashIdx + 1);
+                            if (int.TryParse(versionStr.Split('.')[0], out var major))
+                            {
+                                gpuInfo.CudaVersion = major;
+                            }
+                        }
+                        gpuInfo.Status = $"CUDA detected at {path}";
+                        return true;
+                    }
+                }
             }
-            
+
             return false;
         }
 

@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <Target Name="PostPublish" AfterTargets="AfterPublish">
-    <Exec Command="echo BEGIN After-publish&#xD;PublishDir=$(PublishDir)&#xD;PublishUrl=$(PublishUrl)&#xD;copy $(OutDir)\Binaries\Plantuml.jar $(PublishUrl)\Plantuml.jar&#xD;echo END After-publish" />
+    <Message Text="BEGIN After-publish PublishDir=$(PublishDir) PublishUrl=$(PublishUrl)" Importance="high" />
+    <Copy SourceFiles="$(OutDir)Binaries\Plantuml.jar"
+          DestinationFiles="$(PublishUrl)\Plantuml.jar"
+          Condition="'$(PublishUrl)' != '' And Exists('$(OutDir)Binaries\Plantuml.jar')" />
+    <Message Text="END After-publish" Importance="high" />
 
     <!-- Build P2P Premium module if project exists -->
     <PropertyGroup>
@@ -37,7 +41,10 @@
     <PropertyGroup>
       <McpProjectPath>$(MSBuildThisFileDirectory)..\MdExplorer.Mcp\MdExplorer.Mcp.csproj</McpProjectPath>
       <McpPublishDest>$(MSBuildThisFileDirectory)..\ElectronMdExplorer\service_payload</McpPublishDest>
-      <McpExeDest>$(McpPublishDest)\MdExplorer.Mcp.exe</McpExeDest>
+      <!-- The apphost has no .exe extension on non-Windows RIDs -->
+      <McpExeName Condition="$(RuntimeIdentifier.StartsWith('win'))">MdExplorer.Mcp.exe</McpExeName>
+      <McpExeName Condition="!$(RuntimeIdentifier.StartsWith('win'))">MdExplorer.Mcp</McpExeName>
+      <McpExeDest>$(McpPublishDest)\$(McpExeName)</McpExeDest>
     </PropertyGroup>
 
     <Message Text="Publishing MdExplorer.Mcp (self-contained $(RuntimeIdentifier)) into service_payload..." Importance="high" />
@@ -45,8 +52,8 @@
 
     <!-- Fail-loud: the installer must never ship without the MCP server. -->
     <Error Condition="!Exists('$(McpExeDest)')"
-           Text="MdExplorer.Mcp.exe was NOT produced in service_payload ('$(McpExeDest)'). The MCP server would be missing from the installer and Mark could not read Jira/Confluence. Check the dotnet publish output above." />
-    <Message Text="MdExplorer.Mcp.exe published into service_payload" Importance="high" />
+           Text="$(McpExeName) was NOT produced in service_payload ('$(McpExeDest)'). The MCP server would be missing from the installer and Mark could not read Jira/Confluence. Check the dotnet publish output above." />
+    <Message Text="$(McpExeName) published into service_payload" Importance="high" />
   </Target>
   
   <PropertyGroup>

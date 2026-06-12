@@ -416,6 +416,45 @@ namespace MdExplorer.Controllers.ModernGit
         /// </summary>
         /// <param name="repositoryPath">Path to the repository</param>
         /// <returns>Current branch information</returns>
+        /// <summary>
+        /// Suggests a default, writable destination path for a clone (e.g. the demo
+        /// project started by Mark). Cross-platform: resolves the user's Documents
+        /// folder via the OS (falls back to the home directory, then to the temp dir).
+        /// </summary>
+        /// <param name="repoName">Repository name used as folder prefix</param>
+        /// <returns>{ path: "&lt;suggested absolute path&gt;" }</returns>
+        [HttpGet("default-clone-path")]
+        public IActionResult GetDefaultClonePath([FromQuery] string repoName = "repository")
+        {
+            try
+            {
+                // Sanitize: the repo name becomes a folder name
+                foreach (var invalid in Path.GetInvalidFileNameChars())
+                {
+                    repoName = repoName.Replace(invalid, '-');
+                }
+
+                var baseDir = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                if (string.IsNullOrWhiteSpace(baseDir) || !Directory.Exists(baseDir))
+                {
+                    baseDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                }
+                if (string.IsNullOrWhiteSpace(baseDir) || !Directory.Exists(baseDir))
+                {
+                    baseDir = Path.GetTempPath();
+                }
+
+                var stamp = DateTime.Now.ToString("yyyy-MM-ddTHH-mm-ss");
+                var suggested = Path.Combine(baseDir, $"{repoName}-{stamp}");
+                return Ok(new { path = suggested });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error building default clone path for {RepoName}", repoName);
+                return StatusCode(500, new { error = "Internal server error building default clone path" });
+            }
+        }
+
         [HttpGet("current-branch")]
         public async Task<IActionResult> GetCurrentBranch([FromQuery] [Required] string repositoryPath)
         {

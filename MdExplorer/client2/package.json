@@ -1,10 +1,10 @@
 {
   "name": "client2",
-  "version": "2026.06.10.5",
+  "version": "2026.06.11.3",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "powershell -ExecutionPolicy Bypass -File ../../toolIDE/build-client2.ps1",
+    "build": "node ../../toolIDE/run-build.cjs build-client2",
     "build:legacy": "node update-version.js && ng build --base-href /client2/",
     "test": "ng test"
   },
