@@ -16526,7 +16526,7 @@ class MdTreeComponent {
       return;
     }
     // Skip if file is already in the target folder
-    const fileDirPath = this.draggedNode.fullPath.substring(0, this.draggedNode.fullPath.lastIndexOf('\\'));
+    const fileDirPath = this.getParentDirPath(this.draggedNode.fullPath);
     console.log('[DnD] performDrop paths', {
       fileDirPath,
       targetPath,
@@ -17156,15 +17156,12 @@ class MdTreeComponent {
     this.changeDetectorRef.markForCheck();
   }
   findNodeByPath(path) {
-    // Prima cerca per fullPath esatto
-    let found = this.searchInNodes(this.dataSource.data, path);
-    if (found) return found;
-    // Se non trovato, cerca per nome file (caso rinominazione)
-    const fileName = path.split('\\').pop() || path.split('/').pop();
-    if (fileName) {
-      found = this.searchNodesByName(this.dataSource.data, fileName);
-    }
-    return found;
+    // SOLO match per fullPath esatto (case-insensitive, compact-aware).
+    // Il vecchio fallback "cerca per nome file" restituiva il primo omonimo
+    // ovunque nell'albero: sotto raffiche di eventi (path nuovi non ancora nel
+    // tree) faceva agganciare/cancellare il nodo SBAGLIATO. I rename veri
+    // arrivano con oldFullPath esplicito — non serve indovinare per nome.
+    return this.searchInNodes(this.dataSource.data, path);
   }
   searchInNodes(nodes, targetPath) {
     const normalizedTarget = targetPath?.toLowerCase();
@@ -17185,17 +17182,14 @@ class MdTreeComponent {
     }
     return null;
   }
-  searchNodesByName(nodes, targetName) {
-    for (const node of nodes) {
-      if (node.name === targetName) {
-        return node;
-      }
-      if (node.childrens && node.childrens.length > 0) {
-        const found = this.searchNodesByName(node.childrens, targetName);
-        if (found) return found;
-      }
-    }
-    return null;
+  /**
+   * Dirname cross-separator: gestisce sia '\\' (Windows) sia '/' (Linux).
+   * Sostituisce i vari `fullPath.substring(0, fullPath.lastIndexOf('\\'))`
+   * sparsi che su Linux restituivano '' rompendo l'aggancio al parent.
+   */
+  getParentDirPath(fullPath) {
+    const sep = Math.max(fullPath.lastIndexOf('\\'), fullPath.lastIndexOf('/'));
+    return sep > 0 ? fullPath.substring(0, sep) : '';
   }
   // Metodi helper per il template
   isFileIndexed(node) {
@@ -17236,7 +17230,9 @@ class MdTreeComponent {
         const folderToExpand = pathHierarchy[i];
         console.log('🔍 Cercando nodo per espansione:', folderToExpand.name, 'Path:', folderToExpand.path);
         // Trova il nodo corrispondente nel treeControl
-        const treeNode = this.treeControl.dataNodes.find(node => node.path === folderToExpand.path || node.fullPath === folderToExpand.fullPath || node.relativePath === folderToExpand.relativePath || node.name === folderToExpand.name && node.type === 'folder');
+        // Match SOLO per path: il vecchio criterio `node.name === ...` espandeva
+        // la prima cartella omonima ovunque fosse nell'albero.
+        const treeNode = this.treeControl.dataNodes.find(node => node.path === folderToExpand.path || node.fullPath === folderToExpand.fullPath || node.relativePath === folderToExpand.relativePath);
         if (treeNode) {
           console.log('✅ Espandendo nodo:', treeNode.name);
           this.treeControl.expand(treeNode);
@@ -17430,7 +17426,7 @@ class MdTreeComponent {
       childrens: []
     };
     // STEP 3: Inserimento diretto nel parent folder (gestisce compact folders)
-    const parentDirPath = fileData.fullPath.substring(0, fileData.fullPath.lastIndexOf('\\'));
+    const parentDirPath = this.getParentDirPath(fileData.fullPath);
     const added = this.mdFileService.addFileToParent(newMdFile, parentDirPath);
     console.log('📂 [STEP 3] addFileToParent result:', added, 'parentDirPath:', parentDirPath);
     if (!added) {
@@ -17452,7 +17448,7 @@ class MdTreeComponent {
       path: newMdFile.path,
       relativePath: newMdFile.relativePath,
       fullPath: newMdFile.fullPath,
-      fullDirectoryPath: newMdFile.fullPath.substring(0, newMdFile.fullPath.lastIndexOf('\\')),
+      fullDirectoryPath: this.getParentDirPath(newMdFile.fullPath),
       type: 'mdFile',
       level: newMdFile.level,
       expandable: false,
@@ -17577,7 +17573,7 @@ class MdTreeComponent {
       isIndexed: true,
       indexingStatus: 'completed'
     };
-    const parentPath = fullPath.substring(0, Math.max(fullPath.lastIndexOf('\\'), fullPath.lastIndexOf('/')));
+    const parentPath = this.getParentDirPath(fullPath);
     const added = this.mdFileService.addFileToParent(newFolder, parentPath);
     if (!added) {
       // Parent non è nel tree (cartella mai espansa). Il nodo apparirà quando l'utente espande.
