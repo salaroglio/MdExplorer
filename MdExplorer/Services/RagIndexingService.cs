@@ -9,6 +9,7 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Services;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Features.Services;
+using MdExplorer.Features.Utilities;
 using MdExplorer.Features.Services.AI;
 using MdExplorer.Service.Services;
 
@@ -138,7 +139,7 @@ namespace MdExplorer.Services
 
             // Build lookup: path -> MarkdownFile from DB
             var existingMdFiles = markdownFileDal.GetList().ToList();
-            var mdFileLookup = new Dictionary<string, MarkdownFile>(StringComparer.OrdinalIgnoreCase);
+            var mdFileLookup = new Dictionary<string, MarkdownFile>(ContentFingerprint.PathComparer);
             foreach (var mdf in existingMdFiles)
             {
                 if (!string.IsNullOrEmpty(mdf.Path))
@@ -191,7 +192,7 @@ namespace MdExplorer.Services
 
                             // Tier 2: read file, compute hash, compare
                             var content = File.ReadAllText(filePath);
-                            var fileHash = ComputeHash(content);
+                            var fileHash = ContentFingerprint.ComputeHash(content);
 
                             if (sampleChunk.FileHash == fileHash)
                             {
@@ -210,7 +211,7 @@ namespace MdExplorer.Services
                         {
                             // No existing chunks - first time indexing this file
                             var content = File.ReadAllText(filePath);
-                            var fileHash = ComputeHash(content);
+                            var fileHash = ContentFingerprint.ComputeHash(content);
                             totalChunksEmbedded += await ChunkAndEmbedFile(chunkDal, mdf, filePath, content, fileHash, fileLastWrite);
                         }
                     }
@@ -218,7 +219,7 @@ namespace MdExplorer.Services
                     {
                         // Force reindex: read, chunk, embed directly
                         var content = File.ReadAllText(filePath);
-                        var fileHash = ComputeHash(content);
+                        var fileHash = ContentFingerprint.ComputeHash(content);
                         var fileLastWrite = File.GetLastWriteTimeUtc(filePath).ToString("o");
                         totalChunksEmbedded += await ChunkAndEmbedFile(chunkDal, mdf, filePath, content, fileHash, fileLastWrite);
                     }
@@ -315,7 +316,7 @@ namespace MdExplorer.Services
 
                     // Tier 2: hash check
                     var content = File.ReadAllText(filePath);
-                    var fileHash = ComputeHash(content);
+                    var fileHash = ContentFingerprint.ComputeHash(content);
 
                     if (sampleChunk.FileHash == fileHash)
                     {
@@ -341,7 +342,7 @@ namespace MdExplorer.Services
             // First time or force reindex
             {
                 var content = File.ReadAllText(filePath);
-                var fileHash = ComputeHash(content);
+                var fileHash = ContentFingerprint.ComputeHash(content);
                 var chunks = await ChunkAndEmbedFile(chunkDal, mdf, filePath, content, fileHash, fileLastWrite);
                 _vectorSearchService?.InvalidateCache();
                 _logger.LogInformation("[RagIndexing] File indexed: {Path} ({Chunks} chunks)", filePath, chunks);
@@ -368,7 +369,7 @@ namespace MdExplorer.Services
 
             // Build lookup for existing MarkdownFile records
             var existingMdFiles = markdownFileDal.GetList().ToList();
-            var mdFileLookup = new Dictionary<string, MarkdownFile>(StringComparer.OrdinalIgnoreCase);
+            var mdFileLookup = new Dictionary<string, MarkdownFile>(ContentFingerprint.PathComparer);
             foreach (var mdf in existingMdFiles)
             {
                 if (!string.IsNullOrEmpty(mdf.Path))
@@ -418,7 +419,7 @@ namespace MdExplorer.Services
                             }
 
                             var content = File.ReadAllText(filePath);
-                            var fileHash = ComputeHash(content);
+                            var fileHash = ContentFingerprint.ComputeHash(content);
 
                             if (sampleChunk.FileHash == fileHash)
                             {
@@ -434,7 +435,7 @@ namespace MdExplorer.Services
                         else
                         {
                             var content = File.ReadAllText(filePath);
-                            var fileHash = ComputeHash(content);
+                            var fileHash = ContentFingerprint.ComputeHash(content);
                             totalChunksEmbedded += await ChunkAndEmbedFile(chunkDal, mdf, filePath, content, fileHash, fileLastWrite);
                         }
                     }
@@ -442,7 +443,7 @@ namespace MdExplorer.Services
                     {
                         DeleteChunksForFile(chunkDal, mdf.Id);
                         var content = File.ReadAllText(filePath);
-                        var fileHash = ComputeHash(content);
+                        var fileHash = ContentFingerprint.ComputeHash(content);
                         var fileLastWrite = File.GetLastWriteTimeUtc(filePath).ToString("o");
                         totalChunksEmbedded += await ChunkAndEmbedFile(chunkDal, mdf, filePath, content, fileHash, fileLastWrite);
                     }
@@ -575,7 +576,7 @@ namespace MdExplorer.Services
         /// </summary>
         private void CleanupOrphans(dynamic chunkDal, List<MarkdownFile> existingMdFiles, List<string> currentPaths)
         {
-            var currentPathSet = new HashSet<string>(currentPaths, StringComparer.OrdinalIgnoreCase);
+            var currentPathSet = new HashSet<string>(currentPaths, ContentFingerprint.PathComparer);
 
             foreach (var mdf in existingMdFiles)
             {
@@ -601,7 +602,7 @@ namespace MdExplorer.Services
         {
             _engineDB.BeginTransaction();
             _engineDB.CreateSQLQuery("DELETE FROM DocumentChunk WHERE MarkdownFileId = :id")
-                .SetParameter("id", markdownFileId.ToString())
+                .SetParameter("id", markdownFileId, NHibernate.NHibernateUtil.Guid)
                 .ExecuteUpdate();
             _engineDB.Commit();
         }
@@ -614,7 +615,7 @@ namespace MdExplorer.Services
             _engineDB.BeginTransaction();
             _engineDB.CreateSQLQuery("UPDATE DocumentChunk SET FileLastWriteUtc = :ts WHERE MarkdownFileId = :id")
                 .SetParameter("ts", newTimestamp)
-                .SetParameter("id", markdownFileId.ToString())
+                .SetParameter("id", markdownFileId, NHibernate.NHibernateUtil.Guid)
                 .ExecuteUpdate();
             _engineDB.Commit();
         }
@@ -655,13 +656,6 @@ namespace MdExplorer.Services
             return chunks.Count;
         }
 
-        private static string ComputeHash(string content)
-        {
-            using var sha256 = System.Security.Cryptography.SHA256.Create();
-            var bytes = System.Text.Encoding.UTF8.GetBytes(content);
-            var hash = sha256.ComputeHash(bytes);
-            return Convert.ToBase64String(hash).Substring(0, 16);
-        }
 
         #endregion
     }

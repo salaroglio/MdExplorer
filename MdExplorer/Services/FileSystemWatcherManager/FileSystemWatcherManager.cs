@@ -872,7 +872,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 var engineDB = dbContext.EngineDB;
                 var content = File.ReadAllText(fullPath);
-                var fileHash = ComputeSimpleHash(content);
+                var fileHash = ContentFingerprint.ComputeHash(content);
 
                 // Fine-grained locking: acquire semaphore only for DB operations,
                 // release before slow embedding work
@@ -889,11 +889,14 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     if (mdf == null)
                     {
                         engineDB.BeginTransaction();
+                        var newFileInfo = new FileInfo(fullPath);
                         mdf = new MarkdownFile
                         {
                             FileName = Path.GetFileName(fullPath),
                             Path = fullPath,
-                            FileType = ".md"
+                            FileType = "file",
+                            FileLastWriteUtc = newFileInfo.Exists ? newFileInfo.LastWriteTimeUtc.ToString("o") : null,
+                            FileSize = newFileInfo.Exists ? newFileInfo.Length : null
                         };
                         mdFileDal.Save(mdf);
                         engineDB.Commit();
@@ -962,13 +965,6 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             }
         }
 
-        private static string ComputeSimpleHash(string content)
-        {
-            using var sha256 = System.Security.Cryptography.SHA256.Create();
-            var bytes = System.Text.Encoding.UTF8.GetBytes(content);
-            var hash = sha256.ComputeHash(bytes);
-            return Convert.ToBase64String(hash).Substring(0, 16);
-        }
 
         private async void OnFileCreated(WatcherContext context, FileSystemEventArgs e)
         {
@@ -1491,11 +1487,32 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             _logger.LogDebug($"[{context.ConnectionId}] ParseNewFileIntoDB START for: {Path.GetFileName(e.FullPath)}");
 
+            MdExplorer.Abstractions.DB.IEngineDB engineDB = null;
             try
             {
                 // Get database context for this connection
                 var dbContext = _databaseManager.GetContext(context.ConnectionId);
-                var engineDB = dbContext.EngineDB;
+                engineDB = dbContext.EngineDB;
+
+                // Content + fingerprint PRIMA della transazione: servono a link parse,
+                // TLDR, hash e FTS. Lettura fallita → riga upsertata senza fingerprint
+                // (la prossima run della pipeline la riprocessa).
+                string content = null;
+                string contentHash = null;
+                string statMtime = null;
+                long? statSize = null;
+                try
+                {
+                    var fi = new FileInfo(e.FullPath);
+                    statMtime = fi.LastWriteTimeUtc.ToString("o");
+                    statSize = fi.Length;
+                    content = File.ReadAllText(e.FullPath);
+                    contentHash = ContentFingerprint.ComputeHash(content);
+                }
+                catch (Exception readEx)
+                {
+                    _logger.LogWarning(readEx, $"[{context.ConnectionId}] Cannot read '{e.FullPath}' — record upserted without fingerprint");
+                }
 
                 engineDB.BeginTransaction();
                 var fileDal = engineDB.GetDal<MarkdownFile>();
@@ -1510,8 +1527,14 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                         FileType = "file",
                         Path = e.FullPath
                     };
-                    fileDal.Save(mdf);
                 }
+
+                // Fingerprint del contenuto come osservato adesso
+                mdf.FileName = Path.GetFileName(e.FullPath);
+                mdf.FileLastWriteUtc = statMtime;
+                mdf.FileSize = statSize;
+                mdf.FileHash = contentHash;
+                fileDal.Save(mdf);
 
                 engineDB.Flush();
 
@@ -1529,6 +1552,11 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                     engineDB.Flush();
 
+                    // MdContext: directory relativa al progetto, stesso calcolo della pipeline.
+                    var mdContext = (Path.GetDirectoryName(e.FullPath) ?? string.Empty)
+                        .Replace(dbContext.ProjectPath ?? string.Empty, string.Empty)
+                        .Replace(Path.DirectorySeparatorChar, '/');
+
                     foreach (var getModifier in _linkManagers)
                     {
                         var linksToStore = getModifier.GetLinksFromFile(e.FullPath);
@@ -1542,10 +1570,20 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                                 Source = getModifier.GetType().Name,
                                 LinkedCommand = singleLink.LinkedCommand,
                                 SectionIndex = singleLink.SectionIndex,
-                                MarkdownFile = mdf
+                                MarkdownFile = mdf,
+                                MdContext = mdContext
                             };
                             linkDal.Save(linkToStore);
                         }
+                    }
+
+                    // TLDR + marca il sottosistema link come aggiornato per questo contenuto
+                    // (con l'indicizzazione incrementale nessuno lo "ripara" più all'apertura).
+                    if (content != null)
+                    {
+                        mdf.Tldr = TldrExtractor.ExtractTldr(content);
+                        mdf.LinksHash = contentHash;
+                        fileDal.Save(mdf);
                     }
                 }
                 else
@@ -1556,22 +1594,35 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 engineDB.Commit();
 
                 // Full-text content index (side-car FTS DB), refreshed after the
-                // engine DB commit and independently from link indexing. An
-                // unreadable file keeps its MarkdownFile record without FTS row.
-                try
+                // engine DB commit and independently from link indexing.
+                if (content != null)
                 {
-                    var ftsContent = File.ReadAllText(e.FullPath);
-                    _markdownFtsService.UpsertFile(dbContext.ProjectPath, mdf.Id, e.FullPath, mdf.FileName, ftsContent);
-                }
-                catch (Exception ftsEx)
-                {
-                    _logger.LogWarning(ftsEx, $"[{context.ConnectionId}] FTS index update failed for: {e.FullPath}");
+                    try
+                    {
+                        _markdownFtsService.UpsertFile(dbContext.ProjectPath, mdf.Id, e.FullPath, mdf.FileName, content);
+                        engineDB.BeginTransaction();
+                        engineDB.CreateSQLQuery("UPDATE MarkdownFile SET FtsHash = :hash WHERE Id = :id")
+                            .SetParameter("hash", contentHash)
+                            .SetParameter("id", mdf.Id, NHibernate.NHibernateUtil.Guid)
+                            .ExecuteUpdate();
+                        engineDB.Commit();
+                    }
+                    catch (Exception ftsEx)
+                    {
+                        try { engineDB.Rollback(); } catch { }
+                        _logger.LogWarning(ftsEx, $"[{context.ConnectionId}] FTS index update failed for: {e.FullPath}");
+                    }
                 }
 
                 _logger.LogDebug($"[{context.ConnectionId}] ParseNewFileIntoDB COMPLETED for: {Path.GetFileName(e.FullPath)}");
             }
             catch (Exception ex)
             {
+                // Rollback esplicito: senza, una tx rimasta aperta (es. evento FSW
+                // bufferizzato che muore mentre la pipeline disabilita il watcher)
+                // resterebbe pendente sulla sessione per-connection e farebbe
+                // fallire i Commit successivi di altri controller.
+                try { engineDB?.Rollback(); } catch { }
                 _logger.LogError(ex, $"❌ [{context.ConnectionId}] Error in ParseNewFileIntoDB");
                 throw;
             }
@@ -1604,6 +1655,12 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     }
 
                     engineDB.Flush();
+
+                    // Delete the document chunks (no FK cascade in SQLite: without this
+                    // raw delete the chunks would become permanent orphans)
+                    engineDB.CreateSQLQuery("DELETE FROM DocumentChunk WHERE MarkdownFileId = :id")
+                        .SetParameter("id", mdf.Id, NHibernate.NHibernateUtil.Guid)
+                        .ExecuteUpdate();
 
                     // Delete the file record
                     fileDal.Delete(mdf);

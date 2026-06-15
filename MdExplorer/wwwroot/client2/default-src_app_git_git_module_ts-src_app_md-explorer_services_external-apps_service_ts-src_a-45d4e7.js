@@ -5873,6 +5873,11 @@ class ProjectSettingsService {
       projectPath
     });
   }
+  /** Full project reindex: ignores the incremental fingerprints (links, FTS, embeddings). */
+  reindexProject(connectionId) {
+    const url = `../api/mdfiles/ReindexProject?ConnectionId=${connectionId}`;
+    return this.http.post(url, {});
+  }
   clearRagIndex(projectPath) {
     const url = '../api/Rag/clear';
     return this.http.post(url, {

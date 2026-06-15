@@ -115,6 +115,10 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   ragProcessed: number = 0;
   private ragProgressSub: Subscription;
 
+  // Full project reindex (incremental indexing escape hatch)
+  projectReindexing: boolean = false;
+  private projectReindexSub: Subscription;
+
   constructor(
     public dialogRef: MatDialogRef<ProjectSettingsComponent>,
     @Inject(MAT_DIALOG_DATA) public data: any,
@@ -151,10 +155,30 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.refreshRagStatus();
       }
     });
+
+    // Full project reindex: progress shows in the global indexing snackbar
+    // (parsingProjectStart/knowledgeProgress); here we only track the button state.
+    this.projectReindexSub = this.serverMessages.parsingProjectStop$.subscribe(() => {
+      this.projectReindexing = false;
+    });
   }
 
   ngOnDestroy(): void {
     this.ragProgressSub?.unsubscribe();
+    this.projectReindexSub?.unsubscribe();
+  }
+
+  onProjectReindex(): void {
+    this.projectReindexing = true;
+    this.projectSettingsService.reindexProject(this.serverMessages.connectionId ?? '').subscribe({
+      next: () => {
+        console.log('[ProjectSettings] Full project reindex started');
+      },
+      error: (error) => {
+        console.error('[ProjectSettings] Error starting project reindex:', error);
+        this.projectReindexing = false;
+      }
+    });
   }
 
   loadSettings(): void {

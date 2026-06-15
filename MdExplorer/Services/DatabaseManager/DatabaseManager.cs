@@ -212,7 +212,10 @@ namespace MdExplorer.Services.DatabaseManager
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, $"Failed to run Engine DB migrations for: {connectionString}");
+                // Error, not Warning: a failed migration leaves the schema behind the
+                // code's expectations (e.g. missing UNIQUE index / fingerprint columns)
+                // and must be visible in the logs.
+                _logger.LogError(ex, $"Failed to run Engine DB migrations for: {connectionString}");
             }
         }
 

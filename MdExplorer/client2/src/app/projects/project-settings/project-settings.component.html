@@ -78,6 +78,19 @@
                 <strong>{{ 'PROJECT_SETTINGS.LINK_INDEXING_NOTE' | translate }}</strong>
               </p>
             </div>
+
+            <div class="setting-item" *ngIf="!loading">
+              <button mat-stroked-button
+                (click)="onProjectReindex()"
+                [disabled]="projectReindexing || saving">
+                <mat-icon *ngIf="!projectReindexing">refresh</mat-icon>
+                <mat-spinner *ngIf="projectReindexing" diameter="18" class="inline-spinner"></mat-spinner>
+                {{ projectReindexing ? ('PROJECT_SETTINGS.REINDEXING_PROJECT' | translate) : ('PROJECT_SETTINGS.REINDEX_PROJECT' | translate) }}
+              </button>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.REINDEX_PROJECT_DESC' | translate }}
+              </p>
+            </div>
           </mat-card-content>
         </mat-card>
 

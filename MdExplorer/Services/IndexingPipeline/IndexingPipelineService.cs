@@ -18,24 +18,27 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace MdExplorer.Services.IndexingPipeline
 {
     /// <summary>
-    /// Implementazione singleton della pipeline di indicizzazione.
+    /// Pipeline di indicizzazione INCREMENTALE (singleton).
     /// Vedi <see cref="IIndexingPipelineService"/> per il contratto.
     ///
-    /// Funzioni che assorbe (precedentemente in MdFilesController):
-    /// - CleanupDatabaseDuplicates  (era 1631-1661)
-    /// - IndexAllMarkdownFiles      (era 1507-1562)
-    /// - IndexLinksInBackground     (era 2958-3012, doppio scan eliminato)
-    /// - ParseAllLinks(connectionId) (era 3098-3191, no Task.Run)
-    /// - EmbedDocumentsInBackground  (era 3193-3371, mantiene check RAG via scope)
-    /// - NotifyFilesIndexed          (era 3383-3402)
+    /// Diff su fingerprint persistiti su MarkdownFile (mtime+size → hash, stesso
+    /// modello two-tier di RagIndexingService):
+    ///   - FileHash  = identità del contenuto come ultimo osservato
+    ///   - LinksHash = FileHash all'ultimo parse link+TLDR riuscito
+    ///   - FtsHash   = FileHash all'ultimo upsert FTS riuscito
+    /// Un sottosistema è aggiornato per un file sse il suo hash == FileHash:
+    /// ogni fase è incrementale E riprendibile dopo una run cancellata, senza
+    /// marker globali (le transazioni per-file aggiornano gli hash man mano).
+    ///
+    /// Gli Id dei MarkdownFile sono STABILI tra aperture (upsert per Path,
+    /// UNIQUE index UX_MarkdownFile_Path): questo rende finalmente efficace lo
+    /// skip per FileHash dei DocumentChunk (Phase 4) anche tra una run e l'altra.
     ///
     /// Pattern preso da ReEmbedFileAsync (FileSystemWatcherManager): IsolatedEngineDB
     /// per il long-lived, scope solo per i singleton (Embedding/Chunking/VectorSearch).
@@ -60,8 +63,8 @@ namespace MdExplorer.Services.IndexingPipeline
         // alla fine della fase Embed per InvalidateCache. Stesso pattern di ReEmbedFileAsync (FSW).
 
         // ── Serializzazione per projectPath ──
-        // Due pipeline concorrenti sullo stesso progetto interleavano
-        // CleanupDatabase + IndexFiles sullo stesso SQLite (duplicati/record persi).
+        // Due pipeline concorrenti sullo stesso progetto interleavano le scritture
+        // sullo stesso SQLite (duplicati/record persi).
         // Una nuova RunAsync per lo stesso path CANCELLA la run precedente e
         // ATTENDE che abbia rilasciato il DB prima di partire. Mai due attive.
         private sealed class PipelineRun
@@ -75,6 +78,39 @@ namespace MdExplorer.Services.IndexingPipeline
         private readonly object _runsLock = new object();
         private readonly Dictionary<string, PipelineRun> _activeRuns =
             new Dictionary<string, PipelineRun>(StringComparer.OrdinalIgnoreCase);
+
+        // Fingerprint di un MarkdownFile come letto dal DB (proiezione, mai entità:
+        // la sessione non deve idratare l'intero progetto nella first-level cache).
+        private sealed class StoredFingerprint
+        {
+            public Guid Id { get; set; }
+            public string Path { get; set; }
+            public string FileLastWriteUtc { get; set; }
+            public long? FileSize { get; set; }
+            public string FileHash { get; set; }
+            public string LinksHash { get; set; }
+            public string FtsHash { get; set; }
+        }
+
+        // Stato di un file sul filesystem dopo la fase di diff.
+        private sealed class PipelineFile
+        {
+            public Guid Id { get; set; }
+            public string Path { get; set; }
+            public string FileName { get; set; }
+            public string StatMtime { get; set; }   // "o" format
+            public long StatSize { get; set; }
+            public string FileHash { get; set; }    // hash effettivo corrente (null se file illeggibile)
+            public string LinksHash { get; set; }   // come memorizzato prima di questa run
+            public bool IsNew { get; set; }
+            public bool ContentChanged { get; set; }
+            public bool NeedsLinks => FileHash != null && (LinksHash == null || LinksHash != FileHash);
+        }
+
+        private sealed class DiffStats
+        {
+            public int New, Changed, StatOnly, Unchanged, Unreadable, FtsUpserts;
+        }
 
         public IndexingPipelineService(
             ILogger<IndexingPipelineService> logger,
@@ -106,7 +142,7 @@ namespace MdExplorer.Services.IndexingPipeline
             _markdownFtsService = markdownFtsService;
         }
 
-        public async Task RunAsync(string connectionId, string projectPath, bool linkIndexingEnabled, CancellationToken ct = default)
+        public async Task RunAsync(string connectionId, string projectPath, bool linkIndexingEnabled, bool forceFullReindex = false, CancellationToken ct = default)
         {
             // FIRE-AND-FORGET CORRECTNESS — vedi diagnosi 2026-05-23 sui log di anagrafica_reale.
             //
@@ -123,8 +159,6 @@ namespace MdExplorer.Services.IndexingPipeline
             // ── Serializzazione per projectPath ──
             // Una sola run attiva per progetto: la nuova CANCELLA la precedente e
             // ATTENDE che abbia rilasciato l'IsolatedEngineDB prima di partire.
-            // Senza questo, due run (es. doppio loadAll ravvicinato) interleavavano
-            // CleanupDatabase + IndexFiles sullo stesso SQLite.
             var run = new PipelineRun { Cts = CancellationTokenSource.CreateLinkedTokenSource(ct) };
             PipelineRun previous;
             lock (_runsLock)
@@ -144,7 +178,7 @@ namespace MdExplorer.Services.IndexingPipeline
 
             try
             {
-                await RunCoreAsync(connectionId, projectPath, linkIndexingEnabled, run.Cts.Token);
+                await RunCoreAsync(connectionId, projectPath, linkIndexingEnabled, forceFullReindex, run.Cts.Token);
             }
             finally
             {
@@ -160,47 +194,63 @@ namespace MdExplorer.Services.IndexingPipeline
             }
         }
 
-        private async Task RunCoreAsync(string connectionId, string projectPath, bool linkIndexingEnabled, CancellationToken ct)
+        private async Task RunCoreAsync(string connectionId, string projectPath, bool linkIndexingEnabled, bool force, CancellationToken ct)
         {
             _logger.LogInformation(
-                "[IndexingPipeline] STARTED projectPath='{ProjectPath}' connectionId='{ConnectionId}' linkIndexingEnabled={LinkIndexingEnabled}",
-                projectPath, connectionId, linkIndexingEnabled);
+                "[IndexingPipeline] STARTED projectPath='{ProjectPath}' connectionId='{ConnectionId}' linkIndexingEnabled={LinkIndexingEnabled} force={Force}",
+                projectPath, connectionId, linkIndexingEnabled, force);
 
             IEngineDB isolatedDB = null;
             try
             {
-                isolatedDB = _databaseManager.CreateIsolatedEngineDBForProjectPath(projectPath);
-
-                // Phase 0: notify start
-                await SafeSendAsync(connectionId, "parsingProjectStart", "process started");
-
-                // Phase 1: cleanup
-                ct.ThrowIfCancellationRequested();
-                CleanupDatabase(isolatedDB);
-
-                // Phase 2: file scan + INSERT MarkdownFile
-                ct.ThrowIfCancellationRequested();
-                var indexedFiles = IndexFiles(isolatedDB, projectPath);
-
-                if (linkIndexingEnabled && indexedFiles.Count > 0)
+                if (string.IsNullOrEmpty(projectPath) || projectPath == AppDomain.CurrentDomain.BaseDirectory)
                 {
-                    // Phase 3: parse links (per-folder feedback, no double filesystem scan)
-                    ct.ThrowIfCancellationRequested();
-                    await ParseLinksWithFolderEvents(isolatedDB, indexedFiles, projectPath, connectionId, ct);
-
-                    // Phase 4: embed (if RAG enabled and model available)
-                    ct.ThrowIfCancellationRequested();
-                    await EmbedDocumentsIfEnabled(isolatedDB, indexedFiles, projectPath, connectionId, ct);
+                    _logger.LogWarning("[IndexingPipeline] Invalid project path, skipping");
+                    return;
                 }
 
-                // Phase 5: notify each file indexed
-                await NotifyFilesIndexed(indexedFiles, connectionId, ct);
+                isolatedDB = _databaseManager.CreateIsolatedEngineDBForProjectPath(projectPath);
 
-                await SafeSendAsync(connectionId, "parsingProjectStop", "process completed");
+                // Scan filesystem (unica visita ricorsiva)
+                ct.ThrowIfCancellationRequested();
+                var fsFiles = ScanFileSystem(projectPath);
 
+                // Fingerprint memorizzati (proiezione, niente entità in sessione)
+                var (stored, duplicates) = LoadFingerprints(isolatedDB);
+
+                // Phase 1: RECONCILE — file nel DB ma non più su disco + duplicati difensivi
+                ct.ThrowIfCancellationRequested();
+                var deletedCount = Reconcile(isolatedDB, projectPath, stored, duplicates, fsFiles);
+
+                // Phase 2: DIFF + UPSERT (+ FTS catch-up)
+                ct.ThrowIfCancellationRequested();
+                var stats = new DiffStats();
+                var files = DiffUpsertAndFts(isolatedDB, projectPath, stored, fsFiles, force, stats, ct);
+
+                // Phase 3: parse link + TLDR, solo sul work set
+                var work = force ? files.Where(f => f.FileHash != null).ToList()
+                                 : files.Where(f => f.NeedsLinks).ToList();
+                var linksParsed = 0;
+                if (linkIndexingEnabled && work.Count > 0)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    await SafeSendAsync(connectionId, "parsingProjectStart", "process started");
+                    linksParsed = await ParseLinksWithFolderEvents(isolatedDB, work, projectPath, connectionId, ct);
+                    await SafeSendAsync(connectionId, "parsingProjectStop", "process completed");
+                }
+
+                // Phase 4: embedding two-tier su TUTTI i file (skip economici per gli invariati)
+                var embedded = 0;
+                if (linkIndexingEnabled && files.Count > 0)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    embedded = await EmbedDocumentsIfEnabled(isolatedDB, files, projectPath, connectionId, force, ct);
+                }
+
+                // Riga di contratto per diagnostica e verifica automatica.
                 _logger.LogInformation(
-                    "[IndexingPipeline] COMPLETED projectPath='{ProjectPath}' filesIndexed={FilesIndexed}",
-                    projectPath, indexedFiles.Count);
+                    "[IndexingPipeline] SUMMARY new={New} changed={Changed} statOnly={StatOnly} unchanged={Unchanged} deleted={Deleted} unreadable={Unreadable} ftsUpserts={FtsUpserts} linksParsed={LinksParsed} embedded={Embedded} forced={Forced}",
+                    stats.New, stats.Changed, stats.StatOnly, stats.Unchanged, deletedCount, stats.Unreadable, stats.FtsUpserts, linksParsed, embedded, force);
             }
             catch (OperationCanceledException)
             {
@@ -235,107 +285,18 @@ namespace MdExplorer.Services.IndexingPipeline
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Phase 1: Cleanup
+        // Filesystem scan (stessi filtri della vecchia IndexFiles)
         // ─────────────────────────────────────────────────────────────────────
-        private void CleanupDatabase(IEngineDB engineDB)
+        private List<string> ScanFileSystem(string projectPath)
         {
-            try
-            {
-                _logger.LogInformation("[IndexingPipeline] Cleanup: deleting all LinkInsideMarkdown + MarkdownFile records");
-                engineDB.BeginTransaction();
-                engineDB.Delete("from LinkInsideMarkdown");
-                engineDB.Flush();
-                engineDB.Delete("from MarkdownFile");
-                engineDB.Flush();
-                engineDB.Commit();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[IndexingPipeline] Cleanup failed - rolling back");
-                try { engineDB.Rollback(); } catch { }
-                throw;
-            }
-        }
+            var allMdFiles = Directory.GetFiles(projectPath, "*.md", SearchOption.AllDirectories)
+                .Where(f => !f.Contains(Path.DirectorySeparatorChar + ".md" + Path.DirectorySeparatorChar))
+                .Where(f => !_mdIgnoreService.ShouldIgnorePath(f, projectPath))
+                .Where(f => !IsInIgnoredFolder(f, projectPath))
+                .ToList();
 
-        // ─────────────────────────────────────────────────────────────────────
-        // Phase 2: Index files (filesystem scan + INSERT MarkdownFile)
-        // ─────────────────────────────────────────────────────────────────────
-        private List<MarkdownFile> IndexFiles(IEngineDB engineDB, string projectPath)
-        {
-            var indexed = new List<MarkdownFile>();
-            try
-            {
-                _logger.LogInformation("[IndexingPipeline] IndexFiles: scanning '{ProjectPath}'", projectPath);
-
-                if (string.IsNullOrEmpty(projectPath) || projectPath == AppDomain.CurrentDomain.BaseDirectory)
-                {
-                    _logger.LogWarning("[IndexingPipeline] IndexFiles: invalid path, skipping");
-                    return indexed;
-                }
-
-                engineDB.BeginTransaction();
-                var markdownFileDal = engineDB.GetDal<MarkdownFile>();
-
-                var allMdFiles = Directory.GetFiles(projectPath, "*.md", SearchOption.AllDirectories)
-                    .Where(f => !f.Contains(Path.DirectorySeparatorChar + ".md" + Path.DirectorySeparatorChar))
-                    .Where(f => !_mdIgnoreService.ShouldIgnorePath(f, projectPath))
-                    .Where(f => !IsInIgnoredFolder(f, projectPath))
-                    .ToList();
-
-                _logger.LogInformation("[IndexingPipeline] IndexFiles: found {Count} markdown files", allMdFiles.Count);
-
-                var ftsEntries = new List<MarkdownFtsEntry>();
-                foreach (var filePath in allMdFiles)
-                {
-                    try
-                    {
-                        var mdf = new MarkdownFile
-                        {
-                            FileName = Path.GetFileName(filePath),
-                            Path = filePath,
-                            FileType = "file"
-                        };
-                        markdownFileDal.Save(mdf);
-                        indexed.Add(mdf);
-
-                        // Full-text content index (side-car FTS DB): an unreadable
-                        // file keeps its MarkdownFile record but gets no FTS row.
-                        try
-                        {
-                            ftsEntries.Add(new MarkdownFtsEntry
-                            {
-                                MarkdownFileId = mdf.Id,
-                                Path = mdf.Path,
-                                FileName = mdf.FileName,
-                                Content = File.ReadAllText(filePath)
-                            });
-                        }
-                        catch (Exception readEx)
-                        {
-                            _logger.LogWarning(readEx,
-                                "[IndexingPipeline] IndexFiles: cannot read content of '{Path}', file indexed without content", filePath);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "[IndexingPipeline] IndexFiles: error indexing '{Path}'", filePath);
-                    }
-                }
-
-                engineDB.Commit();
-
-                // After the engine DB commit: atomically rebuild the side-car FTS
-                // index. A failure here must be loud (it aborts the pipeline run),
-                // never a silently empty content search.
-                _markdownFtsService.RebuildIndex(projectPath, ftsEntries);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[IndexingPipeline] IndexFiles failed - rolling back");
-                try { engineDB.Rollback(); } catch { }
-                throw;
-            }
-            return indexed;
+            _logger.LogInformation("[IndexingPipeline] Scan: found {Count} markdown files", allMdFiles.Count);
+            return allMdFiles;
         }
 
         private bool IsInIgnoredFolder(string filePath, string projectPath)
@@ -351,26 +312,399 @@ namespace MdExplorer.Services.IndexingPipeline
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Phase 3: Parse links per folder (no double scan)
-        //
-        // Raggruppiamo i MarkdownFile records per directory. Per ogni gruppo:
-        //   - emit folderIndexingStart
-        //   - parse links di tutti i file in quel folder (short transaction per file)
-        //   - emit folderIndexingComplete
-        //
-        // Niente Directory.GetDirectories ricorsivo: il filesystem non viene più
-        // visitato una seconda volta.
+        // Fingerprint load: proiezione a 7 colonne, mai entità.
+        // Duplicati per Path (non dovrebbero esistere post-migration UNIQUE):
+        // teniamo il primo e mettiamo gli altri in coda di cancellazione.
         // ─────────────────────────────────────────────────────────────────────
-        private async Task ParseLinksWithFolderEvents(
+        private (Dictionary<string, StoredFingerprint> stored, List<StoredFingerprint> duplicates)
+            LoadFingerprints(IEngineDB engineDB)
+        {
+            var rows = engineDB.GetDal<MarkdownFile>().GetList()
+                .Select(m => new StoredFingerprint
+                {
+                    Id = m.Id,
+                    Path = m.Path,
+                    FileLastWriteUtc = m.FileLastWriteUtc,
+                    FileSize = m.FileSize,
+                    FileHash = m.FileHash,
+                    LinksHash = m.LinksHash,
+                    FtsHash = m.FtsHash
+                })
+                .ToList();
+
+            var stored = new Dictionary<string, StoredFingerprint>(ContentFingerprint.PathComparer);
+            var duplicates = new List<StoredFingerprint>();
+            foreach (var row in rows)
+            {
+                if (!stored.TryAdd(row.Path, row))
+                {
+                    duplicates.Add(row);
+                }
+            }
+            if (duplicates.Count > 0)
+            {
+                _logger.LogWarning("[IndexingPipeline] Found {Count} duplicate MarkdownFile paths (will be removed)", duplicates.Count);
+            }
+            return (stored, duplicates);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Phase 1: RECONCILE — cancella righe di file spariti dal disco (+ duplicati).
+        // Raw SQL: le righe morte non devono entrare nella session cache.
+        // ─────────────────────────────────────────────────────────────────────
+        private int Reconcile(
             IEngineDB engineDB,
-            List<MarkdownFile> indexedFiles,
+            string projectPath,
+            Dictionary<string, StoredFingerprint> stored,
+            List<StoredFingerprint> duplicates,
+            List<string> fsFiles)
+        {
+            var fsSet = new HashSet<string>(fsFiles, ContentFingerprint.PathComparer);
+            var toDelete = stored.Values.Where(f => !fsSet.Contains(f.Path)).ToList();
+            toDelete.AddRange(duplicates);
+
+            if (toDelete.Count == 0)
+            {
+                return 0;
+            }
+
+            _logger.LogInformation("[IndexingPipeline] Reconcile: removing {Count} stale/duplicate records", toDelete.Count);
+            try
+            {
+                engineDB.BeginTransaction();
+                foreach (var dead in toDelete)
+                {
+                    engineDB.CreateSQLQuery("DELETE FROM LinkInsideMarkdown WHERE MarkdownFileId = :id")
+                        .SetParameter("id", dead.Id, NHibernate.NHibernateUtil.Guid).ExecuteUpdate();
+                    engineDB.CreateSQLQuery("DELETE FROM DocumentChunk WHERE MarkdownFileId = :id")
+                        .SetParameter("id", dead.Id, NHibernate.NHibernateUtil.Guid).ExecuteUpdate();
+                    engineDB.CreateSQLQuery("DELETE FROM MarkdownFile WHERE Id = :id")
+                        .SetParameter("id", dead.Id, NHibernate.NHibernateUtil.Guid).ExecuteUpdate();
+                }
+                engineDB.Commit();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[IndexingPipeline] Reconcile failed - rolling back");
+                try { engineDB.Rollback(); } catch { }
+                throw;
+            }
+
+            // Post-commit: FTS side-car (DB separato, idempotente)
+            foreach (var dead in toDelete)
+            {
+                _markdownFtsService.DeleteFileByPath(projectPath, dead.Path);
+                stored.Remove(dead.Path);
+            }
+
+            return toDelete.Count;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Phase 2: DIFF + UPSERT (+ FTS catch-up).
+        //
+        // Per ogni file su disco:
+        //   stat match (mtime+size) e FileHash noto  → UNCHANGED, zero letture
+        //   contenuto letto, hash == stored.FileHash → STAT-ONLY (update stat batch)
+        //   altrimenti                               → CHANGED/NEW (upsert riga)
+        // FTS catch-up indipendente: FtsHash != FileHash → UpsertFile + set FtsHash
+        // (copre anche le run precedenti cancellate a metà).
+        // Il contenuto vive UNA iterazione: mai liste di contenuti in memoria
+        // (eccetto force, che usa RebuildIndex atomico come la vecchia pipeline).
+        // ─────────────────────────────────────────────────────────────────────
+        private List<PipelineFile> DiffUpsertAndFts(
+            IEngineDB engineDB,
+            string projectPath,
+            Dictionary<string, StoredFingerprint> stored,
+            List<string> fsFiles,
+            bool force,
+            DiffStats stats,
+            CancellationToken ct)
+        {
+            var files = new List<PipelineFile>(fsFiles.Count);
+            var statOnlyQueue = new List<PipelineFile>();
+            var ftsRebuildEntries = force ? new List<MarkdownFtsEntry>() : null;
+
+            foreach (var filePath in fsFiles)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                string statMtime;
+                long statSize;
+                try
+                {
+                    var fi = new FileInfo(filePath);
+                    statMtime = fi.LastWriteTimeUtc.ToString("o");
+                    statSize = fi.Length;
+                }
+                catch (Exception statEx)
+                {
+                    _logger.LogWarning(statEx, "[IndexingPipeline] Diff: cannot stat '{Path}', skipping", filePath);
+                    stats.Unreadable++;
+                    continue;
+                }
+
+                stored.TryGetValue(filePath, out var prev);
+                var pf = new PipelineFile
+                {
+                    Id = prev?.Id ?? Guid.Empty,
+                    Path = filePath,
+                    FileName = Path.GetFileName(filePath),
+                    StatMtime = statMtime,
+                    StatSize = statSize,
+                    LinksHash = prev?.LinksHash,
+                    IsNew = prev == null
+                };
+
+                string content = null;
+
+                if (!force && prev != null && prev.FileHash != null
+                    && prev.FileLastWriteUtc == statMtime && prev.FileSize == statSize)
+                {
+                    // UNCHANGED: nessuna lettura (trust model stat, come git index)
+                    pf.FileHash = prev.FileHash;
+                    stats.Unchanged++;
+                }
+                else
+                {
+                    try
+                    {
+                        content = File.ReadAllText(filePath);
+                    }
+                    catch (Exception readEx)
+                    {
+                        _logger.LogWarning(readEx,
+                            "[IndexingPipeline] Diff: cannot read '{Path}', record kept without content fingerprint", filePath);
+                    }
+
+                    if (content == null)
+                    {
+                        // File illeggibile: per i nuovi creiamo comunque la riga (hash null,
+                        // la prossima run riprova); per gli esistenti non tocchiamo nulla.
+                        stats.Unreadable++;
+                        if (prev == null)
+                        {
+                            var newId = InsertMarkdownFile(engineDB, pf, fileHash: null);
+                            if (newId == Guid.Empty) { continue; }
+                            pf.Id = newId;
+                        }
+                        files.Add(pf);
+                        continue;
+                    }
+
+                    pf.FileHash = ContentFingerprint.ComputeHash(content);
+
+                    if (!force && prev != null && pf.FileHash == prev.FileHash)
+                    {
+                        // STAT-ONLY: contenuto identico, solo il timestamp è cambiato (touch).
+                        statOnlyQueue.Add(pf);
+                        stats.StatOnly++;
+                    }
+                    else
+                    {
+                        pf.ContentChanged = true;
+                        if (prev == null)
+                        {
+                            var newId = InsertMarkdownFile(engineDB, pf, pf.FileHash);
+                            if (newId == Guid.Empty) { continue; }
+                            pf.Id = newId;
+                            stats.New++;
+                        }
+                        else
+                        {
+                            UpdateMarkdownFileFingerprint(engineDB, pf);
+                            stats.Changed++;
+                        }
+                    }
+                }
+
+                // ── FTS catch-up (DB side-car, indipendente dalle tx engine) ──
+                if (force)
+                {
+                    ftsRebuildEntries.Add(new MarkdownFtsEntry
+                    {
+                        MarkdownFileId = pf.Id,
+                        Path = pf.Path,
+                        FileName = pf.FileName,
+                        Content = content ?? SafeReadAllText(pf.Path)
+                    });
+                }
+                else if (pf.FileHash != null && prev?.FtsHash != pf.FileHash)
+                {
+                    content ??= SafeReadAllText(pf.Path);
+                    if (content != null)
+                    {
+                        _markdownFtsService.UpsertFile(projectPath, pf.Id, pf.Path, pf.FileName, content);
+                        ExecuteSmallUpdate(engineDB,
+                            "UPDATE MarkdownFile SET FtsHash = :hash WHERE Id = :id",
+                            q => q.SetParameter("hash", pf.FileHash).SetParameter("id", pf.Id, NHibernate.NHibernateUtil.Guid));
+                        stats.FtsUpserts++;
+                    }
+                }
+
+                files.Add(pf);
+            }
+
+            // Batch degli update stat-only (un'unica transazione: sono UPDATE puntuali)
+            if (statOnlyQueue.Count > 0)
+            {
+                try
+                {
+                    engineDB.BeginTransaction();
+                    foreach (var pf in statOnlyQueue)
+                    {
+                        engineDB.CreateSQLQuery(
+                            "UPDATE MarkdownFile SET FileLastWriteUtc = :m, FileSize = :s WHERE Id = :id")
+                            .SetParameter("m", pf.StatMtime)
+                            .SetParameter("s", pf.StatSize)
+                            .SetParameter("id", pf.Id, NHibernate.NHibernateUtil.Guid)
+                            .ExecuteUpdate();
+                    }
+                    engineDB.Commit();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[IndexingPipeline] Diff: stat-only batch update failed - rolling back");
+                    try { engineDB.Rollback(); } catch { }
+                    throw;
+                }
+            }
+
+            // Force: ricostruzione FTS atomica + allineamento FtsHash in un colpo solo
+            if (force)
+            {
+                _markdownFtsService.RebuildIndex(projectPath, ftsRebuildEntries.Where(e => e.Content != null).ToList());
+                ExecuteSmallUpdate(engineDB, "UPDATE MarkdownFile SET FtsHash = FileHash", q => q);
+                stats.FtsUpserts = ftsRebuildEntries.Count;
+            }
+
+            return files;
+        }
+
+        /// <summary>
+        /// Insert di un nuovo MarkdownFile in una piccola transazione dedicata.
+        /// Una violazione UNIQUE(Path) (FSW di una seconda connessione in corsa)
+        /// viene convertita in update deterministico. Ritorna l'Id della riga
+        /// (nuova o esistente), Guid.Empty se l'upsert è fallito del tutto.
+        /// </summary>
+        private Guid InsertMarkdownFile(IEngineDB engineDB, PipelineFile pf, string fileHash)
+        {
+            try
+            {
+                engineDB.BeginTransaction();
+                var mdf = new MarkdownFile
+                {
+                    FileName = pf.FileName,
+                    Path = pf.Path,
+                    FileType = "file",
+                    FileLastWriteUtc = pf.StatMtime,
+                    FileSize = pf.StatSize,
+                    FileHash = fileHash
+                };
+                engineDB.GetDal<MarkdownFile>().Save(mdf);
+                engineDB.Commit();
+
+                // Evict: l'entità NON deve restare nella first-level cache, altrimenti
+                // i raw UPDATE successivi (FtsHash, stat) verrebbero sovrascritti dal
+                // prossimo Save dell'istanza cached (Phase 3 ricarica fresca dal DB).
+                engineDB.Evict(mdf);
+                return mdf.Id;
+            }
+            catch (Exception ex)
+            {
+                try { engineDB.Rollback(); } catch { }
+                _logger.LogWarning(ex,
+                    "[IndexingPipeline] Insert failed for '{Path}' (likely UNIQUE race) — converting to update", pf.Path);
+                try
+                {
+                    // AddScalar tipizzato: la colonna Id è un Guid binario (BinaryGuid
+                    // di System.Data.SQLite), una lettura come stringa non funzionerebbe.
+                    var existingId = engineDB.CreateSQLQuery("SELECT Id FROM MarkdownFile WHERE Path = :path")
+                        .AddScalar("Id", NHibernate.NHibernateUtil.Guid)
+                        .SetParameter("path", pf.Path)
+                        .List<Guid>()
+                        .FirstOrDefault();
+                    if (existingId != Guid.Empty)
+                    {
+                        pf.Id = existingId;
+                        UpdateMarkdownFileFingerprint(engineDB, pf);
+                        return existingId;
+                    }
+                }
+                catch (Exception requeryEx)
+                {
+                    _logger.LogError(requeryEx, "[IndexingPipeline] Requery-by-path failed for '{Path}'", pf.Path);
+                }
+                return Guid.Empty;
+            }
+        }
+
+        private void UpdateMarkdownFileFingerprint(IEngineDB engineDB, PipelineFile pf)
+        {
+            ExecuteSmallUpdate(engineDB,
+                "UPDATE MarkdownFile SET FileName = :name, FileLastWriteUtc = :m, FileSize = :s, FileHash = :hash WHERE Id = :id",
+                q => q.SetParameter("name", pf.FileName)
+                      .SetParameter("m", pf.StatMtime)
+                      .SetParameter("s", pf.StatSize)
+                      .SetParameter("hash", pf.FileHash)
+                      .SetParameter("id", pf.Id, NHibernate.NHibernateUtil.Guid));
+        }
+
+        private void ExecuteSmallUpdate(IEngineDB engineDB, string sql, Func<NHibernate.ISQLQuery, NHibernate.IQuery> bind)
+        {
+            try
+            {
+                engineDB.BeginTransaction();
+                bind(engineDB.CreateSQLQuery(sql)).ExecuteUpdate();
+                engineDB.Commit();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[IndexingPipeline] Update failed: {Sql}", sql);
+                try { engineDB.Rollback(); } catch { }
+                throw;
+            }
+        }
+
+        private string SafeReadAllText(string path)
+        {
+            try { return File.ReadAllText(path); }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[IndexingPipeline] Cannot read '{Path}'", path);
+                return null;
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Phase 3: Parse links + TLDR per folder, SOLO sul work set.
+        //
+        // Dentro la transazione per-file viene aggiornato anche LinksHash:
+        // una run cancellata riprende esattamente dai file mancanti.
+        // Dopo ogni commit viene emesso fileIndexed per quel file (delta-only,
+        // sostituisce il vecchio sweep finale NotifyFilesIndexed).
+        // ─────────────────────────────────────────────────────────────────────
+        private async Task<int> ParseLinksWithFolderEvents(
+            IEngineDB engineDB,
+            List<PipelineFile> work,
             string projectPath,
             string connectionId,
             CancellationToken ct)
         {
-            _logger.LogInformation("[IndexingPipeline] ParseLinks: starting for {Count} files", indexedFiles.Count);
+            _logger.LogInformation("[IndexingPipeline] ParseLinks: starting for {Count} changed files", work.Count);
 
-            var byFolder = indexedFiles
+            // Carica le entità SOLO per il work set (chunk ≤500: limite parametri SQLite)
+            var entitiesById = new Dictionary<Guid, MarkdownFile>();
+            var dal = engineDB.GetDal<MarkdownFile>();
+            foreach (var idChunk in work.Select(w => w.Id).Distinct().Chunk(500))
+            {
+                foreach (var entity in dal.GetList().Where(m => idChunk.Contains(m.Id)).ToList())
+                {
+                    entitiesById[entity.Id] = entity;
+                }
+            }
+
+            var byFolder = work
                 .GroupBy(f => Path.GetDirectoryName(f.Path) ?? string.Empty)
                 .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -381,7 +715,6 @@ namespace MdExplorer.Services.IndexingPipeline
             var foldersDone = 0;
 
             // Emit kickoff progress so the frontend bar shows 0% from the start
-            // (otherwise it would only appear after the first folder completes).
             await SafeSendAsync(connectionId, "knowledgeProgress", new
             {
                 processed = 0,
@@ -396,14 +729,19 @@ namespace MdExplorer.Services.IndexingPipeline
 
                 await SafeSendAsync(connectionId, "folderIndexingStart", new { path = folderPath, status = "indexing" });
 
-                foreach (var mdf in folderGroup)
+                foreach (var pf in folderGroup)
                 {
+                    if (!entitiesById.TryGetValue(pf.Id, out var mdf))
+                    {
+                        _logger.LogWarning("[IndexingPipeline] ParseLinks: entity not found for '{Path}', skipping", pf.Path);
+                        continue;
+                    }
+
                     try
                     {
                         engineDB.BeginTransaction();
 
-                        // Cancellazione preventiva (sicurezza: cleanup ha già svuotato la tabella,
-                        // ma proteggiamo se qualcuno re-invoca la pipeline)
+                        // Cancellazione preventiva dei link esistenti del file
                         var existingLinks = linkDal.GetList().Where(_ => _.MarkdownFile == mdf).ToList();
                         foreach (var link in existingLinks)
                         {
@@ -437,21 +775,26 @@ namespace MdExplorer.Services.IndexingPipeline
                         }
 
                         // Extract TLDR; block from the markdown and persist it on MarkdownFile.
-                        // Used by the Knowledge Graph hover tooltip. Silently ignore IO errors:
-                        // a missing or unreadable file just leaves Tldr null.
+                        // Silently ignore IO errors: a missing or unreadable file leaves Tldr as-is.
                         try
                         {
                             var rawMd = File.ReadAllText(mdf.Path);
-                            mdf.Tldr = ExtractTldr(rawMd);
-                            engineDB.GetDal<MarkdownFile>().Save(mdf);
+                            mdf.Tldr = TldrExtractor.ExtractTldr(rawMd);
                         }
                         catch (Exception tldrEx)
                         {
                             _logger.LogDebug(tldrEx, "[IndexingPipeline] TLDR extraction skipped for '{Path}'", mdf.Path);
                         }
 
+                        // Link + TLDR riusciti per questo contenuto: marca il sottosistema
+                        // come aggiornato. Stessa transazione → atomico col parse.
+                        mdf.LinksHash = pf.FileHash;
+                        engineDB.GetDal<MarkdownFile>().Save(mdf);
+
                         engineDB.Commit();
                         processedCount++;
+
+                        await SafeSendAsync(connectionId, "fileIndexed", new { path = mdf.Path, isIndexed = true });
                     }
                     catch (Exception ex)
                     {
@@ -462,10 +805,6 @@ namespace MdExplorer.Services.IndexingPipeline
 
                 await SafeSendAsync(connectionId, "folderIndexingComplete", new { path = folderPath, status = "completed" });
 
-                // Unified knowledge-build progress for the bottom-right bar.
-                // Single 0→100% sweep across all folders (link parsing dominates the runtime,
-                // ~23s su 908 file). Embedding fase, se attiva, viaggia sul proprio
-                // embeddingProgress event esistente — non viene incluso nel calcolo qui.
                 foldersDone++;
                 var percent = totalFolders > 0
                     ? (int)Math.Round(foldersDone * 100.0 / totalFolders)
@@ -480,28 +819,32 @@ namespace MdExplorer.Services.IndexingPipeline
 
             _logger.LogInformation(
                 "[IndexingPipeline] ParseLinks: completed {Processed}/{Total} files across {Folders} folders",
-                processedCount, indexedFiles.Count, byFolder.Count);
+                processedCount, work.Count, byFolder.Count);
+            return processedCount;
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Phase 4: RAG embedding (if enabled). Uses scope only for ProjectDB
-        // RAG-flag check (singleton-like binding) and singleton AI services.
+        // Phase 4: RAG embedding two-tier (se abilitato).
+        //   Tier 1: chunk.FileLastWriteUtc == stat corrente  → skip, zero IO
+        //   Tier 2: chunk.FileHash == FileHash corrente      → update timestamp, skip
+        //   altrimenti: delete chunk + re-chunk + re-embed
+        // Con gli Id stabili lo skip funziona finalmente TRA un'apertura e l'altra.
         // ─────────────────────────────────────────────────────────────────────
-        private async Task EmbedDocumentsIfEnabled(
+        private async Task<int> EmbedDocumentsIfEnabled(
             IEngineDB engineDB,
-            List<MarkdownFile> indexedFiles,
+            List<PipelineFile> files,
             string projectPath,
             string connectionId,
+            bool force,
             CancellationToken ct)
         {
             if (_embeddingService == null || _chunkingService == null)
             {
                 _logger.LogDebug("[IndexingPipeline] Embed: services unavailable, skipping");
-                return;
+                return 0;
             }
 
             // Check ProjectDB.RagEnabled — uses a fresh scope to access singleton-like ProjectDB
-            // (same pattern as the previous EmbedDocumentsInBackground)
             try
             {
                 using var checkScope = _serviceScopeFactory.CreateScope();
@@ -510,20 +853,20 @@ namespace MdExplorer.Services.IndexingPipeline
                 if (ctx?.ProjectDB == null)
                 {
                     _logger.LogDebug("[IndexingPipeline] Embed: no ProjectDB context, skipping");
-                    return;
+                    return 0;
                 }
                 var settingsDal = ctx.ProjectDB.GetDal<ProjectSetting>();
                 var ragSetting = settingsDal.GetList().FirstOrDefault(s => s.Name == "RagEnabled");
                 if (ragSetting?.ValueBool != true)
                 {
                     _logger.LogDebug("[IndexingPipeline] Embed: RAG not enabled for project, skipping");
-                    return;
+                    return 0;
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "[IndexingPipeline] Embed: could not check RAG setting, skipping");
-                return;
+                return 0;
             }
 
             // Ensure embedding model is loaded
@@ -533,58 +876,84 @@ namespace MdExplorer.Services.IndexingPipeline
                 if (modelPath == null)
                 {
                     _logger.LogInformation("[IndexingPipeline] Embed: no model installed, skipping");
-                    return;
+                    return 0;
                 }
                 var loaded = await _embeddingService.LoadModelAsync(modelPath);
                 if (!loaded)
                 {
                     _logger.LogWarning("[IndexingPipeline] Embed: failed to load model, skipping");
-                    return;
+                    return 0;
                 }
             }
 
             var chunkDal = engineDB.GetDal<DocumentChunk>();
 
-            await SafeSendAsync(connectionId, "embeddingProgress",
-                new { status = "started", total = indexedFiles.Count, processed = 0 });
-
             int processedCount = 0;
             int skippedCount = 0;
+            int embeddedCount = 0;
+            bool progressStarted = false;
 
-            foreach (var mdf in indexedFiles)
+            foreach (var pf in files)
             {
                 ct.ThrowIfCancellationRequested();
                 try
                 {
-                    if (!File.Exists(mdf.Path))
+                    if (pf.FileHash == null || !File.Exists(pf.Path))
                     {
                         skippedCount++;
                         processedCount++;
                         continue;
                     }
 
-                    var content = File.ReadAllText(mdf.Path);
-                    var fileHash = ComputeSimpleHash(content);
+                    var fileId = pf.Id;
+                    var sampleChunk = chunkDal.GetList()
+                        .Where(c => c.MarkdownFile.Id == fileId)
+                        .FirstOrDefault();
 
-                    var existingChunks = chunkDal.GetList()
-                        .Where(c => c.MarkdownFile.Id == mdf.Id)
-                        .ToList();
+                    if (!force && sampleChunk != null)
+                    {
+                        // Tier 1: timestamp identico → skip senza IO
+                        if (sampleChunk.FileLastWriteUtc == pf.StatMtime)
+                        {
+                            skippedCount++;
+                            processedCount++;
+                            continue;
+                        }
+                        // Tier 2: contenuto identico (hash già calcolato in Phase 2) →
+                        // aggiorna solo il timestamp memorizzato, niente re-embed.
+                        if (sampleChunk.FileHash == pf.FileHash)
+                        {
+                            ExecuteSmallUpdate(engineDB,
+                                "UPDATE DocumentChunk SET FileLastWriteUtc = :ts WHERE MarkdownFileId = :id",
+                                q => q.SetParameter("ts", pf.StatMtime).SetParameter("id", pf.Id, NHibernate.NHibernateUtil.Guid));
+                            skippedCount++;
+                            processedCount++;
+                            continue;
+                        }
+                    }
 
-                    if (existingChunks.Count > 0 && existingChunks[0].FileHash == fileHash)
+                    var content = SafeReadAllText(pf.Path);
+                    if (content == null)
                     {
                         skippedCount++;
                         processedCount++;
                         continue;
                     }
 
-                    engineDB.BeginTransaction();
-                    foreach (var oldChunk in existingChunks)
+                    if (!progressStarted)
                     {
-                        chunkDal.Delete(oldChunk);
+                        progressStarted = true;
+                        await SafeSendAsync(connectionId, "embeddingProgress",
+                            new { status = "started", total = files.Count, processed = processedCount });
                     }
-                    engineDB.Commit();
 
-                    var relativePath = mdf.Path.Replace(projectPath, "").TrimStart(Path.DirectorySeparatorChar);
+                    // Delete dei chunk esistenti (raw SQL: niente entità in sessione)
+                    ExecuteSmallUpdate(engineDB,
+                        "DELETE FROM DocumentChunk WHERE MarkdownFileId = :id",
+                        q => q.SetParameter("id", pf.Id, NHibernate.NHibernateUtil.Guid));
+
+                    var mdfRef = engineDB.GetDal<MarkdownFile>().GetList().First(m => m.Id == fileId);
+                    var relativePath = pf.Path.Replace(projectPath, "").TrimStart(Path.DirectorySeparatorChar);
                     var chunks = _chunkingService.ChunkFile(relativePath, content);
 
                     foreach (var chunk in chunks)
@@ -596,7 +965,7 @@ namespace MdExplorer.Services.IndexingPipeline
                         engineDB.BeginTransaction();
                         chunkDal.Save(new DocumentChunk
                         {
-                            MarkdownFile = mdf,
+                            MarkdownFile = mdfRef,
                             FilePath = chunk.FilePath,
                             SectionTitle = chunk.SectionTitle,
                             Content = chunk.Content,
@@ -605,58 +974,57 @@ namespace MdExplorer.Services.IndexingPipeline
                             Embedding = embeddingBytes,
                             EmbeddingDimension = _embeddingService.GetEmbeddingDimension(),
                             LastUpdated = DateTime.UtcNow.ToString("o"),
-                            FileHash = fileHash
+                            FileHash = pf.FileHash,
+                            FileLastWriteUtc = pf.StatMtime,
+                            ChunkType = chunk.ChunkType ?? "document",
+                            GroupId = chunk.GroupId
                         });
                         engineDB.Commit();
                     }
 
+                    embeddedCount++;
                     processedCount++;
 
-                    if (processedCount % 5 == 0)
+                    if (embeddedCount % 5 == 0)
                     {
                         await SafeSendAsync(connectionId, "embeddingProgress",
-                            new { status = "processing", total = indexedFiles.Count, processed = processedCount });
+                            new { status = "processing", total = files.Count, processed = processedCount });
                     }
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "[IndexingPipeline] Embed error for '{Path}'", mdf.Path);
+                    _logger.LogWarning(ex, "[IndexingPipeline] Embed error for '{Path}'", pf.Path);
                     processedCount++;
                     try { engineDB.Rollback(); } catch { }
                 }
             }
 
-            // Invalidate vector search cache via fresh scope (IVectorSearchService is Scoped)
-            try
+            if (embeddedCount > 0)
             {
-                using var cacheScope = _serviceScopeFactory.CreateScope();
-                var vectorSearchService = cacheScope.ServiceProvider.GetService<IVectorSearchService>();
-                vectorSearchService?.InvalidateCache();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[IndexingPipeline] Embed: could not invalidate vector search cache");
+                // Invalidate vector search cache via fresh scope (IVectorSearchService is Scoped)
+                try
+                {
+                    using var cacheScope = _serviceScopeFactory.CreateScope();
+                    var vectorSearchService = cacheScope.ServiceProvider.GetService<IVectorSearchService>();
+                    vectorSearchService?.InvalidateCache();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[IndexingPipeline] Embed: could not invalidate vector search cache");
+                }
             }
 
-            await SafeSendAsync(connectionId, "embeddingProgress",
-                new { status = "completed", total = indexedFiles.Count, processed = processedCount });
+            if (progressStarted)
+            {
+                await SafeSendAsync(connectionId, "embeddingProgress",
+                    new { status = "completed", total = files.Count, processed = processedCount });
+            }
 
             _logger.LogInformation(
-                "[IndexingPipeline] Embed: completed {Processed} processed, {Skipped} skipped",
-                processedCount, skippedCount);
-        }
-
-        // ─────────────────────────────────────────────────────────────────────
-        // Phase 5: notify each indexed file via SignalR
-        // ─────────────────────────────────────────────────────────────────────
-        private async Task NotifyFilesIndexed(List<MarkdownFile> indexedFiles, string connectionId, CancellationToken ct)
-        {
-            foreach (var mdf in indexedFiles)
-            {
-                ct.ThrowIfCancellationRequested();
-                await SafeSendAsync(connectionId, "fileIndexed", new { path = mdf.Path, isIndexed = true });
-            }
+                "[IndexingPipeline] Embed: {Embedded} embedded, {Skipped} skipped of {Total}",
+                embeddedCount, skippedCount, files.Count);
+            return embeddedCount;
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -674,126 +1042,5 @@ namespace MdExplorer.Services.IndexingPipeline
             }
         }
 
-        private static string ComputeSimpleHash(string content)
-        {
-            using var sha256 = System.Security.Cryptography.SHA256.Create();
-            var bytes = System.Text.Encoding.UTF8.GetBytes(content);
-            var hash = sha256.ComputeHash(bytes);
-            return Convert.ToBase64String(hash).Substring(0, 16);
-        }
-
-        // Heading form: "### TLDR;", "## TL;DR", "#### tldr:", etc.
-        private static readonly Regex _tldrHeadingRegex = new Regex(
-            @"^(?<level>#{1,6})\s*TL\s*;?\s*DR\s*[;:]?\s*$",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
-
-        // Blockquote form: "> **TL;DR** — ...", "> TL;DR: ...", "> **TLDR;** ..."
-        // The marker may sit inside or outside the bold wrappers; trailing punctuation
-        // (colon, em-dash, en-dash, hyphen) is optional.
-        private static readonly Regex _tldrBlockquoteRegex = new Regex(
-            @"^>\s*(?:\*\*|__)?\s*TL\s*;?\s*DR\s*[;:]?\s*(?:\*\*|__)?\s*[:\-–—]?\s*",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
-
-        // Bold inline (no blockquote) form: "**TL;DR** — ...", "**TL;DR:** ...", "__TLDR;__: ..."
-        private static readonly Regex _tldrBoldInlineRegex = new Regex(
-            @"^\s*(?:\*\*|__)\s*TL\s*;?\s*DR\s*[;:]?\s*(?:\*\*|__)\s*[:\-–—]?\s*",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
-
-        // Used to find the next heading when extracting content after a TLDR heading
-        private static readonly Regex _anyHeadingRegex = new Regex(
-            @"^#{1,6}\s",
-            RegexOptions.Compiled | RegexOptions.Multiline);
-
-        private const int TldrMaxChars = 800;
-
-        /// <summary>
-        /// Extracts the TLDR; section content from a markdown document.
-        /// Returns null when no TLDR; marker is found.
-        /// Recognized forms:
-        ///   - heading:        "### TLDR;" + content until the next heading
-        ///   - blockquote:     "> **TL;DR** — ..." + content of consecutive blockquote lines
-        ///   - bold inline:    "**TL;DR** — ..." + rest of the same line
-        /// </summary>
-        internal static string ExtractTldr(string markdown)
-        {
-            if (string.IsNullOrWhiteSpace(markdown)) return null;
-
-            // --- 1) Heading form ---
-            var headingMatch = _tldrHeadingRegex.Match(markdown);
-            if (headingMatch.Success)
-            {
-                var startIdx = headingMatch.Index + headingMatch.Length;
-                if (startIdx < markdown.Length)
-                {
-                    var rest = markdown.Substring(startIdx);
-                    var nextHeading = _anyHeadingRegex.Match(rest);
-                    var content = nextHeading.Success ? rest.Substring(0, nextHeading.Index) : rest;
-                    var normalized = NormalizeTldrContent(content);
-                    if (!string.IsNullOrEmpty(normalized)) return CapTldr(normalized);
-                }
-            }
-
-            // --- 2) Blockquote form ---
-            var bqMatch = _tldrBlockquoteRegex.Match(markdown);
-            if (bqMatch.Success)
-            {
-                // Collect the rest of the first blockquote line + any consecutive "> ..." lines.
-                var firstLineEnd = markdown.IndexOf('\n', bqMatch.Index + bqMatch.Length);
-                var afterMarker = firstLineEnd < 0
-                    ? markdown.Substring(bqMatch.Index + bqMatch.Length)
-                    : markdown.Substring(bqMatch.Index + bqMatch.Length, firstLineEnd - (bqMatch.Index + bqMatch.Length));
-
-                var sb = new StringBuilder();
-                sb.AppendLine(afterMarker.TrimEnd('\r'));
-                if (firstLineEnd >= 0)
-                {
-                    var remaining = markdown.Substring(firstLineEnd + 1).Split('\n');
-                    foreach (var raw in remaining)
-                    {
-                        var line = raw.TrimEnd('\r');
-                        if (string.IsNullOrWhiteSpace(line)) break;
-                        if (!line.TrimStart().StartsWith(">")) break;
-                        var stripped = Regex.Replace(line.TrimStart(), @"^>\s?", "");
-                        sb.AppendLine(stripped);
-                    }
-                }
-                var normalized = NormalizeTldrContent(sb.ToString());
-                if (!string.IsNullOrEmpty(normalized)) return CapTldr(normalized);
-            }
-
-            // --- 3) Bold inline form ---
-            var boldMatch = _tldrBoldInlineRegex.Match(markdown);
-            if (boldMatch.Success)
-            {
-                var startIdx = boldMatch.Index + boldMatch.Length;
-                if (startIdx < markdown.Length)
-                {
-                    var endOfLine = markdown.IndexOf('\n', startIdx);
-                    var line = endOfLine < 0
-                        ? markdown.Substring(startIdx)
-                        : markdown.Substring(startIdx, endOfLine - startIdx);
-                    var normalized = NormalizeTldrContent(line);
-                    if (!string.IsNullOrEmpty(normalized)) return CapTldr(normalized);
-                }
-            }
-
-            return null;
-        }
-
-        private static string NormalizeTldrContent(string content)
-        {
-            if (string.IsNullOrWhiteSpace(content)) return null;
-            content = content.Trim();
-            if (content.Length == 0) return null;
-            content = Regex.Replace(content, @"\r\n?", "\n");
-            content = Regex.Replace(content, @"\n{3,}", "\n\n");
-            return content;
-        }
-
-        private static string CapTldr(string content)
-        {
-            if (content.Length <= TldrMaxChars) return content;
-            return content.Substring(0, TldrMaxChars).TrimEnd() + "…";
-        }
     }
 }
