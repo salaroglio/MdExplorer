@@ -9,8 +9,15 @@
 
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol" Version="0.8.0-preview.1" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
+    <!-- Pinned to 8.0.0 to match the net8.0 TFM and the Microsoft.Extensions.Hosting
+         version shipped by MdExplorer.Service into the shared service_payload/app_service
+         folder. MdExplorer.Mcp.exe runs from that folder, so referencing a higher Hosting
+         version (e.g. 9.0.0) made the compiled binding ask for an assembly version that is
+         not present there -> "Could not load file or assembly 'Microsoft.Extensions.Hosting,
+         Version=9.0.0.0'". ModelContextProtocol only needs Hosting.Abstractions (10.0.x),
+         not the full Hosting package, so nothing forces this above 8.0.0. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
   </ItemGroup>
 
 </Project>
