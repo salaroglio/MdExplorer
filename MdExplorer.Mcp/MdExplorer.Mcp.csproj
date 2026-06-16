@@ -9,15 +9,20 @@
 
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol" Version="0.8.0-preview.1" />
-    <!-- Pinned to 8.0.0 to match the net8.0 TFM and the Microsoft.Extensions.Hosting
-         version shipped by MdExplorer.Service into the shared service_payload/app_service
-         folder. MdExplorer.Mcp.exe runs from that folder, so referencing a higher Hosting
-         version (e.g. 9.0.0) made the compiled binding ask for an assembly version that is
-         not present there -> "Could not load file or assembly 'Microsoft.Extensions.Hosting,
-         Version=9.0.0.0'". ModelContextProtocol only needs Hosting.Abstractions (10.0.x),
-         not the full Hosting package, so nothing forces this above 8.0.0. -->
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+    <!-- MdExplorer.Mcp is published SELF-CONTAINED into its OWN isolated subfolder
+         (service_payload/mcp -> app_service/mcp), NOT into the shared folder with
+         MdExplorer.Service. That isolation means its dependency closure ships complete
+         and self-consistent next to the exe, so there is no clash with the Service's
+         older (8.x) assemblies.
+         These two must be aligned with the 10.x closure that ModelContextProtocol 0.8
+         pulls in (it requires Microsoft.Extensions.Hosting.Abstractions 10.0.2 and,
+         transitively via Microsoft.Extensions.AI.Abstractions 10.2.0, System.Text.Json
+         10.x). Host.CreateApplicationBuilder needs the full Hosting package and
+         AddHttpClient needs Http; pinning them BELOW 10.x would unify Hosting.Abstractions
+         up to 10.0.2 while the full Hosting binding still expected 8.0.0.0 -> the same
+         "Could not load assembly" mismatch, now inside the isolated folder. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.2" />
   </ItemGroup>
 
 </Project>

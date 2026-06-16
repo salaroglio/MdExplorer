@@ -431,7 +431,10 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 // NOTE: the MCP server does NOT take a launch-time project argument — tools
                 // receive the project name per call (the LLM discovers it via GetProjects).
                 var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                var mcpExePath = Path.Combine(baseDir,
+                // The MCP server is published self-contained into an isolated "mcp"
+                // subfolder next to the Service (app_service/mcp), because its 10.x
+                // dependency closure is incompatible with the Service's 8.x assemblies.
+                var mcpExePath = Path.Combine(baseDir, "mcp",
                     OperatingSystem.IsWindows() ? "MdExplorer.Mcp.exe" : "MdExplorer.Mcp");
 
                 System.Text.Json.Nodes.JsonObject serverEntry;
@@ -516,7 +519,10 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
                 // Copilot CLI requires "tools" array (empty = allow all tools discovered at runtime)
                 var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                var mcpExePath = Path.Combine(baseDir,
+                // The MCP server is published self-contained into an isolated "mcp"
+                // subfolder next to the Service (app_service/mcp), because its 10.x
+                // dependency closure is incompatible with the Service's 8.x assemblies.
+                var mcpExePath = Path.Combine(baseDir, "mcp",
                     OperatingSystem.IsWindows() ? "MdExplorer.Mcp.exe" : "MdExplorer.Mcp");
 
                 System.Text.Json.Nodes.JsonObject serverEntry;
