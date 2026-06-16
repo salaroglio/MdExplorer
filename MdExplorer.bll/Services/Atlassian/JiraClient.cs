@@ -276,6 +276,49 @@ namespace MdExplorer.Features.Services.Atlassian
             return result;
         }
 
+        public async Task<IReadOnlyList<JiraUser>> SearchUsersAsync(
+            JiraConnection conn, string query, int maxResults, CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (string.IsNullOrWhiteSpace(query))
+                throw new AtlassianApiException("A name or email is required to search users.");
+            if (maxResults <= 0 || maxResults > 50) maxResults = 20;
+
+            // /user/search matches on display name and email (partial, case-insensitive).
+            var url = $"{BaseUrl(conn)}/rest/api/3/user/search" +
+                      $"?query={Uri.EscapeDataString(query.Trim())}&maxResults={maxResults}";
+            using var doc = await GetJsonAsync(conn, url, ct);
+            var list = new List<JiraUser>();
+            if (doc != null && doc.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var u in doc.RootElement.EnumerateArray())
+                {
+                    list.Add(new JiraUser
+                    {
+                        AccountId = GetString(u, "accountId"),
+                        DisplayName = GetString(u, "displayName"),
+                        EmailAddress = GetString(u, "emailAddress"),
+                        AccountType = GetString(u, "accountType"),
+                        Active = u.TryGetProperty("active", out var a) && a.ValueKind == JsonValueKind.True
+                    });
+                }
+            }
+            return list;
+        }
+
+        public async Task AssignIssueAsync(JiraConnection conn, string issueKey, string accountId, CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (string.IsNullOrWhiteSpace(issueKey)) throw new AtlassianApiException("issueKey is required.");
+
+            // A non-null string sets the assignee; a null value serializes as JSON null,
+            // which is how Jira Cloud clears the assignee (unassign). Same endpoint used
+            // by CreateIssueAsync to assign-to-self.
+            var body = new JsonObject { ["accountId"] = string.IsNullOrWhiteSpace(accountId) ? null : accountId.Trim() };
+            using var _ = await SendJsonAsync(conn, HttpMethod.Put,
+                $"{BaseUrl(conn)}/rest/api/3/issue/{Uri.EscapeDataString(issueKey.Trim())}/assignee", body, ct);
+        }
+
         public async Task<IReadOnlyList<JiraProject>> ListProjectsAsync(JiraConnection conn, CancellationToken ct = default)
         {
             Validate(conn);
