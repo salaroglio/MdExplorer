@@ -24,6 +24,15 @@
 
     var blocksById = new Map();
 
+    // Detached standalone window: there is no Angular parent to honor run
+    // requests (the page is top-level, so postMessage to "parent" goes nowhere).
+    // We therefore disable the Run/picker controls instead of leaving buttons
+    // that spin forever waiting for a reply that will never come.
+    var IS_DETACHED = (function () {
+        try { return new URLSearchParams(window.location.search).get('detached') === 'true'; }
+        catch (e) { return false; }
+    })();
+
     function decodeBase64Utf8(b64) {
         if (!b64) return '';
         try {
@@ -58,6 +67,23 @@
 
     function initBlocks() {
         var blocks = document.querySelectorAll('.mde-exec-block');
+
+        if (IS_DETACHED) {
+            blocks.forEach(function (element) {
+                if (element.dataset.detachedDisabled) return;
+                element.dataset.detachedDisabled = '1';
+                element.classList.add('mde-detached-disabled');
+                element.querySelectorAll('.mde-run-btn, .mde-run-caret, .mde-run-service, .mde-param-picker')
+                    .forEach(function (btn) {
+                        btn.disabled = true;
+                        btn.style.opacity = '0.5';
+                        btn.style.cursor = 'not-allowed';
+                        btn.title = 'Not available in a detached window';
+                    });
+            });
+            return;
+        }
+
         blocks.forEach(function (element) {
             if (element.dataset.execBound) return;
             element.dataset.execBound = '1';

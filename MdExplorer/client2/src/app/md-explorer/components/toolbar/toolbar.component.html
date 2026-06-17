@@ -15,6 +15,9 @@
     <button mat-icon-button [matTooltip]="'TOOLBAR.OPEN_REACT_EDITOR' | translate" (click)="openReactEditor()" class="toolbar-btn btn-editor">
       <mat-icon>article</mat-icon>
     </button>
+    <button mat-icon-button [matTooltip]="'TOOLBAR.DETACH_DOCUMENT' | translate" [disabled]="!relativePath" (click)="detachDocument()" class="toolbar-btn btn-detach">
+      <mat-icon>open_in_new</mat-icon>
+    </button>
     <button *ngIf="isTocDirectoryFile()" mat-icon-button [matTooltip]="'TOOLBAR.REFRESH_TOC_AI' | translate" (click)="refreshTocDirectory()" class="toolbar-btn btn-ai">
       <mat-icon>refresh</mat-icon>
     </button>

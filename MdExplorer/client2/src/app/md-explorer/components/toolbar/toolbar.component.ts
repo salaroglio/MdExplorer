@@ -31,6 +31,7 @@ import { Subscription, forkJoin } from 'rxjs';
 import { FileNameAndAuthor } from '../../../git/models/DataToPull';
 import { TocGenerationService } from '../../services/toc-generation.service';
 import { TocProgressService } from '../../services/toc-progress.service';
+import { ThemeService } from '../../../services/theme.service';
 import { GitChangedFile } from '../../../git/models/modern-git-models';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../../commons/components/confirm-dialog/confirm-dialog.component';
 import { TranslateService } from '@ngx-translate/core';
@@ -97,7 +98,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private navService: MdNavigationService,
     private tocService: TocGenerationService,
     private tocProgressService: TocProgressService,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private themeService: ThemeService
 
   ) {
     this.TitleToShow = "MdExplorer";
@@ -471,6 +473,42 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     }
     this._snackBar.open(this.translate.instant('TOOLBAR.EXPORT_QUEUED'), null, { duration: 2000, verticalPosition: 'top' });
     this.sendExportRequest(this);
+  }
+
+  /**
+   * Open the current document in its own standalone window ("detach").
+   *
+   * The backend already serves each document as a complete, self-contained HTML
+   * page at /api/mdexplorer/{path}; the detached window just points a bare
+   * Electron BrowserWindow (or a browser tab on web) at that URL — no Angular
+   * shell, no second backend, only one extra renderer process.
+   *
+   * The URL is ABSOLUTE (window.location.origin) because the bare window has no
+   * Angular base-href to resolve the relative '../api/...' against.
+   *
+   * No connectionId is passed on purpose: the detached view is a static snapshot
+   * and must NOT feed navigation/processed SignalR events back into this window.
+   * `detached=true` tells common.js / mde-exec-blocks.js to visibly disable the
+   * features that depend on the (now-absent) Angular parent (Run, path picker).
+   */
+  detachDocument(): void {
+    if (!this.relativePath) {
+      this._snackBar.open(this.translate.instant('TOOLBAR.SELECT_DOC_FIRST'), 'OK', { duration: 3000, verticalPosition: 'top' });
+      return;
+    }
+    const cleanPath = this.relativePath.replace(/^[\/\\]+/, '');
+    const time = new Date().getTime() / 1000;
+    const theme = this.themeService.getResolvedTheme();
+    const url = `${window.location.origin}/api/mdexplorer/${cleanPath}?time=${time}&source=detached&theme=${theme}&detached=true`;
+
+    const electronAPI = (window as any).electronAPI;
+    if (electronAPI?.detachDocument) {
+      // Desktop: spawn a bare Electron window reusing the running backend.
+      electronAPI.detachDocument(url);
+    } else {
+      // Web fallback: a new browser window/tab.
+      window.open(url, '_blank');
+    }
   }
 
 

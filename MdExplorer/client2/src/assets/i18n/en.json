@@ -619,6 +619,7 @@
     "EXPORT_WORD": "export in word",
     "BOOKMARKS": "Bookmarks",
     "OPEN_REACT_EDITOR": "Open React Editor",
+    "DETACH_DOCUMENT": "Open document in a separate window",
     "REFRESH_TOC_AI": "Refresh TOC with AI",
     "GIT_NOT_CONFIGURED": "Git account not configured - click to set up credentials",
     "MISSING_REMOTE": "Missing connection to remote",
