@@ -323,8 +323,9 @@ export class SidenavComponent implements OnInit, OnDestroy {
    * Load FileSystemWatcher status from backend
    */
   private loadFileSystemWatcherStatus(): void {
-    // Check if user had explicitly disabled autoload (survives SignalR reconnection)
-    const wasDisabledByUser = localStorage.getItem('mdexplorer_autoload_disabled') === 'true';
+    // Check if user had explicitly disabled autoload. Per-window preference (sessionStorage):
+    // survives SignalR reconnection within this window, but does NOT leak to other windows.
+    const wasDisabledByUser = sessionStorage.getItem('mdexplorer_autoload_disabled') === 'true';
 
     if (wasDisabledByUser) {
       // Re-apply the user's preference to the new watcher (created after reconnection)
@@ -379,8 +380,9 @@ export class SidenavComponent implements OnInit, OnDestroy {
    * When disabled, file changes won't trigger auto-reload
    */
   onFileSystemWatcherToggle(): void {
-    // Persist preference in localStorage for client-side guard and reconnection recovery
-    localStorage.setItem('mdexplorer_autoload_disabled', (!this.fileSystemWatcherEnabled).toString());
+    // Persist preference per-window (sessionStorage) for client-side guard and reconnection recovery.
+    // Using sessionStorage (not localStorage) keeps the toggle scoped to this window only.
+    sessionStorage.setItem('mdexplorer_autoload_disabled', (!this.fileSystemWatcherEnabled).toString());
 
     this.http.post<{ enabled: boolean }>(
       `/api/mdfiles/ToggleFileSystemWatcher?enabled=${this.fileSystemWatcherEnabled}`,
@@ -391,9 +393,9 @@ export class SidenavComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         console.error('[Sidenav] Error toggling FileSystemWatcher:', err);
-        // Revert state and localStorage on error
+        // Revert state and persisted preference on error
         this.fileSystemWatcherEnabled = !this.fileSystemWatcherEnabled;
-        localStorage.setItem('mdexplorer_autoload_disabled', (!this.fileSystemWatcherEnabled).toString());
+        sessionStorage.setItem('mdexplorer_autoload_disabled', (!this.fileSystemWatcherEnabled).toString());
       }
     });
   }
