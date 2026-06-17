@@ -97,9 +97,12 @@ namespace MdExplorer.Controllers
 
             // Leggere connectionId e source PRIMA per tutti i tipi di file
             var connectionId = Request.Query["ConnectionId"];
-            var source = Request.Query["source"]; // "angular" or null
+            var source = Request.Query["source"]; // "angular", "detached", or null
             var theme = Request.Query["theme"].FirstOrDefault() ?? "light";
             bool isIframeLinkClick = string.IsNullOrEmpty(source);
+            // Detached standalone window: render only, no SignalR side effects so the
+            // main window's navigation/state is not disturbed by a detach.
+            bool isDetached = source == "detached";
 
             _logger.LogInformation($"🔍 [MdExplorer] Navigation source: {(isIframeLinkClick ? "iframe link click" : "Angular navigation")}");
 
@@ -221,7 +224,12 @@ namespace MdExplorer.Controllers
 
 
             //.Replace(@"\",@"\\");
-            await _hubContext.Clients.Client(connectionId:connectionId).SendAsync("markdownfileisprocessed", monitoredMd);
+            // Skip for detached windows: they render via the main window's connectionId
+            // only to resolve the project, and must not push state into that window.
+            if (!isDetached)
+            {
+                await _hubContext.Clients.Client(connectionId:connectionId).SendAsync("markdownfileisprocessed", monitoredMd);
+            }
 
             // If navigation comes from iframe link click, notify Angular to update navigation history
             if (isIframeLinkClick)

@@ -486,8 +486,11 @@ export class ToolbarComponent implements OnInit, OnDestroy {
    * The URL is ABSOLUTE (window.location.origin) because the bare window has no
    * Angular base-href to resolve the relative '../api/...' against.
    *
-   * No connectionId is passed on purpose: the detached view is a static snapshot
-   * and must NOT feed navigation/processed SignalR events back into this window.
+   * connectionId IS required: the backend resolves the project root (and thus
+   * the file) from the DatabaseManager context keyed by connectionId — without
+   * it GetProjectPath() returns empty and the page renders blank. We reuse this
+   * window's connectionId; `source=detached` tells the backend to skip the
+   * SignalR notifications so the main window's state is not disturbed.
    * `detached=true` tells common.js / mde-exec-blocks.js to visibly disable the
    * features that depend on the (now-absent) Angular parent (Run, path picker).
    */
@@ -499,7 +502,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     const cleanPath = this.relativePath.replace(/^[\/\\]+/, '');
     const time = new Date().getTime() / 1000;
     const theme = this.themeService.getResolvedTheme();
-    const url = `${window.location.origin}/api/mdexplorer/${cleanPath}?time=${time}&source=detached&theme=${theme}&detached=true`;
+    const connectionId = this.connectionId ?? this.monitorMDService.connectionId ?? '';
+    const url = `${window.location.origin}/api/mdexplorer/${cleanPath}?time=${time}&ConnectionId=${connectionId}&source=detached&theme=${theme}&detached=true`;
 
     const electronAPI = (window as any).electronAPI;
     if (electronAPI?.detachDocument) {
