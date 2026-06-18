@@ -469,7 +469,7 @@ namespace MdExplorer.Services.IndexingPipeline
                 {
                     try
                     {
-                        content = File.ReadAllText(filePath);
+                        content = SharedFileReader.ReadAllText(filePath);
                     }
                     catch (Exception readEx)
                     {
@@ -668,7 +668,7 @@ namespace MdExplorer.Services.IndexingPipeline
 
         private string SafeReadAllText(string path)
         {
-            try { return File.ReadAllText(path); }
+            try { return SharedFileReader.ReadAllText(path); }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "[IndexingPipeline] Cannot read '{Path}'", path);
@@ -778,7 +778,7 @@ namespace MdExplorer.Services.IndexingPipeline
                         // Silently ignore IO errors: a missing or unreadable file leaves Tldr as-is.
                         try
                         {
-                            var rawMd = File.ReadAllText(mdf.Path);
+                            var rawMd = SharedFileReader.ReadAllText(mdf.Path);
                             mdf.Tldr = TldrExtractor.ExtractTldr(rawMd);
                         }
                         catch (Exception tldrEx)

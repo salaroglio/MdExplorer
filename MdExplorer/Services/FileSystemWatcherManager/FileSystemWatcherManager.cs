@@ -871,7 +871,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 if (ragSetting?.ValueBool != true) return;
 
                 var engineDB = dbContext.EngineDB;
-                var content = File.ReadAllText(fullPath);
+                // Apertura con FileShare.ReadWrite|Delete: non blocca un'AI esterna
+                // che sta scrivendo/rinominando lo stesso .md (vedi SharedFileReader).
+                var content = SharedFileReader.ReadAllText(fullPath);
                 var fileHash = ContentFingerprint.ComputeHash(content);
 
                 // Fine-grained locking: acquire semaphore only for DB operations,
@@ -1506,7 +1508,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     var fi = new FileInfo(e.FullPath);
                     statMtime = fi.LastWriteTimeUtc.ToString("o");
                     statSize = fi.Length;
-                    content = File.ReadAllText(e.FullPath);
+                    content = SharedFileReader.ReadAllText(e.FullPath);
                     contentHash = ContentFingerprint.ComputeHash(content);
                 }
                 catch (Exception readEx)
