@@ -45,6 +45,17 @@ namespace MdExplorer.Service
                 gitInitialized = InitializeGitRepository(pathFromParameter);
             }
 
+            // Ensure the per-install MDE artifacts are git-ignored. Runs for BOTH freshly
+            // initialized and pre-existing repositories (e.g. a documentation repo shared
+            // across clients), unlike InitializeGitRepository which bails out when .git exists.
+            EnsureGitignoreEntries(pathFromParameter);
+
+            // For repositories where those artifacts were already committed (the typical
+            // shared-docs case), .gitignore alone is not enough — stop tracking them so they
+            // stop being versioned. Files are kept on disk; the staged removal is committed
+            // with the client's next commit.
+            UntrackPerInstallArtifacts(pathFromParameter);
+
             var appdata = CrossPlatformPath.GetAppDataPath();
             var databasePath = $"Data Source = {Path.Combine(appdata, "MdExplorer.db")}";
             var currentDirectory = pathFromParameter;
@@ -733,6 +744,139 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 // Non-critical error, project can continue without Git
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Ensures the project's .gitignore excludes the per-install artifacts that MdExplorer
+        /// generates under .github (skills/prompts/agents named mde-*) and the instance-specific
+        /// .vscode/mcp.json. These depend on the installed MDE version — different per client —
+        /// so they must never be committed to a documentation repository shared across clients.
+        /// Idempotent: appends the block at most once, and only when the folder is a Git repo.
+        /// </summary>
+        /// <param name="projectPath">Path to the project folder</param>
+        public static void EnsureGitignoreEntries(string projectPath)
+        {
+            try
+            {
+                // A .gitignore is only meaningful inside a Git working tree; a plain folder
+                // has nothing to track, so there's nothing to exclude.
+                if (!Directory.Exists(Path.Combine(projectPath, ".git")))
+                {
+                    return;
+                }
+
+                var gitignorePath = Path.Combine(projectPath, ".gitignore");
+                var existing = File.Exists(gitignorePath) ? File.ReadAllText(gitignorePath) : string.Empty;
+
+                // Idempotency marker: the wildcard pattern is unique enough to detect a previous run.
+                if (existing.Contains(".github/**/mde-*"))
+                {
+                    return;
+                }
+
+                var block = new StringBuilder();
+                // Separate from any pre-existing content if it doesn't already end with a newline.
+                if (existing.Length > 0 && !existing.EndsWith("\n") && !existing.EndsWith("\r\n"))
+                {
+                    block.AppendLine();
+                }
+                block.AppendLine("# MDE per-install artifacts — managed by MdExplorer, do not commit");
+                block.AppendLine("# (skill/prompt/agent files generated under .github vary by the installed");
+                block.AppendLine("#  MDE version, and the MCP config is instance-specific)");
+                block.AppendLine(".github/**/mde-*");
+                block.AppendLine(".vscode/mcp.json");
+
+                File.AppendAllText(gitignorePath, block.ToString());
+                Console.WriteLine($"Ensured MDE per-install .gitignore entries at: {gitignorePath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error ensuring .gitignore entries: {ex.Message}");
+                // Non-critical: the project can continue without the .gitignore update.
+            }
+        }
+
+        /// <summary>
+        /// Stops tracking the per-install MDE artifacts (the same set covered by
+        /// <see cref="EnsureGitignoreEntries"/>) that were already committed to the repository,
+        /// equivalent to <c>git rm --cached</c>: the index entries are removed but the files
+        /// are left on disk. This is what actually frees a shared documentation repo from the
+        /// instance-specific artifacts; .gitignore alone never untracks already-committed files.
+        /// Idempotent: once untracked there is nothing left to remove on subsequent opens.
+        /// </summary>
+        /// <param name="projectPath">Path to the project folder</param>
+        public static void UntrackPerInstallArtifacts(string projectPath)
+        {
+            try
+            {
+                if (!Directory.Exists(Path.Combine(projectPath, ".git")))
+                {
+                    return;
+                }
+
+                using var repo = new Repository(projectPath);
+
+                // Collect tracked paths first, then remove — never mutate the index while
+                // enumerating it. IndexEntry.Path is repo-relative with '/' separators.
+                var toRemove = repo.Index
+                    .Select(e => e.Path)
+                    .Where(IsPerInstallArtifact)
+                    .ToList();
+
+                if (toRemove.Count == 0)
+                {
+                    return;
+                }
+
+                foreach (var path in toRemove)
+                {
+                    // removeFromWorkingDirectory: false => keep the file on disk (git rm --cached).
+                    Commands.Remove(repo, path, false);
+                }
+
+                Console.WriteLine($"Untracked {toRemove.Count} per-install MDE artifact(s) in: {projectPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error untracking per-install artifacts: {ex.Message}");
+                // Non-critical: the project can continue.
+            }
+        }
+
+        /// <summary>
+        /// True when a repo-relative path is a per-install MDE artifact: the instance-specific
+        /// <c>.vscode/mcp.json</c>, or anything under <c>.github/</c> with a path segment named
+        /// <c>mde-*</c> (covers both <c>mde-*</c> files and files inside <c>mde-*</c> directories).
+        /// Mirrors the <c>.github/**/mde-*</c> + <c>.vscode/mcp.json</c> .gitignore patterns.
+        /// </summary>
+        private static bool IsPerInstallArtifact(string relativePath)
+        {
+            if (string.IsNullOrEmpty(relativePath))
+            {
+                return false;
+            }
+
+            var p = relativePath.Replace('\\', '/');
+
+            if (string.Equals(p, ".vscode/mcp.json", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            if (p.StartsWith(".github/", StringComparison.OrdinalIgnoreCase))
+            {
+                // Skip segment [0] (".github"); any later segment starting with "mde-" matches.
+                var segments = p.Split('/');
+                for (int i = 1; i < segments.Length; i++)
+                {
+                    if (segments[i].StartsWith("mde-", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
     }
 }
