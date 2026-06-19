@@ -1180,7 +1180,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var list = new List<IFileInfoNode>();
 
             var projectPath = GetProjectPath();
-            foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_=>!Path.GetFileName(_).StartsWith(".")))
+            // Ordered most-recent → oldest by last write time.
+            foreach (var itemFolder in Directory.GetDirectories(currentPath)
+                .Where(_=>!Path.GetFileName(_).StartsWith("."))
+                .OrderByDescending(_ => Directory.GetLastWriteTimeUtc(_)))
             {
                 // Check if folder should be ignored based on .mdFoldersIgnore configuration
                 if (_foldersIgnoreService.ShouldIgnoreFolderForProject(itemFolder, projectPath))
@@ -1230,7 +1233,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var currentLevel = Convert.ToInt32(level);
             var list = new List<IFileInfoNode>();
 
-            foreach (var itemFolder in Directory.GetDirectories(currentPath).Where(_ => !Path.GetFileName(_).StartsWith(".")))
+            // Folders group first, each ordered most-recent → oldest by last write time.
+            foreach (var itemFolder in Directory.GetDirectories(currentPath)
+                .Where(_ => !Path.GetFileName(_).StartsWith("."))
+                .OrderByDescending(_ => Directory.GetLastWriteTimeUtc(_)))
             {
                 // Check if folder should be ignored based on .mdFoldersIgnore configuration
                 if (_foldersIgnoreService.ShouldIgnoreFolderForProject(itemFolder, projectPath))
@@ -1265,11 +1271,13 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             }// End foreach for folders
 
+            // Files group after the folders, each ordered most-recent → oldest by last write time.
             foreach (var itemFile in Directory.GetFiles(currentPath).Where(
                 _ => Path.GetExtension(_) != ".dll" &&
                     Path.GetExtension(_) != ".exe" &&
                     Path.GetExtension(_) != ".sys" &&
-                    Path.GetExtension(_) != ".tmp" ))
+                    Path.GetExtension(_) != ".tmp" )
+                .OrderByDescending(_ => System.IO.File.GetLastWriteTimeUtc(_)))
             {
                 var node = new FileInfoNode
                 {
