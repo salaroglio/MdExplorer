@@ -625,6 +625,7 @@
     "MISSING_REMOTE": "Connessione al remote mancante",
     "FILES_TO_COMMIT": "File da committare",
     "NO_MODIFIED_FILES": "Nessun file modificato",
+    "UNVERSIONED_TOOLTIP": "Rimosso dal versionamento; il file resta sul disco",
     "REMOVE_FROM_STAGING": "Rimuovi da staging",
     "DISCARD_CHANGES": "Scarta modifiche",
     "TO_COMMIT": "da committare",

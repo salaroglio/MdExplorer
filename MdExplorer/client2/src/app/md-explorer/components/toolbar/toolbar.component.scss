@@ -246,6 +246,7 @@ mat-toolbar {
   &.modified { color: #ff9800; }
   &.added, &.untracked { color: #4caf50; }
   &.deleted { color: #f44336; }
+  &.unversioned { color: #9e9e9e; cursor: help; }
 }
 
 .file-name {

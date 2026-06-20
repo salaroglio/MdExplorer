@@ -3213,15 +3213,20 @@ namespace MdExplorer.Services.Git
                     });
                 }
 
-                // Process Removed files
+                // Process Removed files (removed from the git index).
+                // A file staged for removal but still present on disk (e.g. `git rm --cached`,
+                // as done for the per-install artifacts) is NOT actually deleted: label it
+                // "Unversioned" so the UI doesn't claim the file is gone. Only a file that is
+                // also missing from disk is a genuine "Deleted".
                 foreach (var item in status.Removed)
                 {
+                    var fullPath = Path.Combine(repositoryPath, item.FilePath);
                     files.Add(new GitChangedFileInfo
                     {
                         FileName = Path.GetFileName(item.FilePath),
                         RelativePath = item.FilePath,
-                        FullPath = Path.Combine(repositoryPath, item.FilePath),
-                        Status = "Deleted",
+                        FullPath = fullPath,
+                        Status = File.Exists(fullPath) ? "Unversioned" : "Deleted",
                         IsNew = false
                     });
                 }

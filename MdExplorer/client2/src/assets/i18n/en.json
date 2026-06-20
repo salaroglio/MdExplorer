@@ -625,6 +625,7 @@
     "MISSING_REMOTE": "Missing connection to remote",
     "FILES_TO_COMMIT": "Files to commit",
     "NO_MODIFIED_FILES": "No modified files",
+    "UNVERSIONED_TOOLTIP": "Removed from version control; the file stays on disk",
     "REMOVE_FROM_STAGING": "Remove from staging",
     "DISCARD_CHANGES": "Discard changes",
     "TO_COMMIT": "to commit",

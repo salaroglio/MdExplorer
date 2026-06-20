@@ -78,7 +78,8 @@
             </div>
             <div *ngIf="!isLoadingChangedFiles && changedFiles.length > 0" class="commit-files-list">
               <div *ngFor="let file of changedFiles" class="commit-file-row">
-                <span class="file-status" [ngClass]="file.status.toLowerCase()">
+                <span class="file-status" [ngClass]="file.status.toLowerCase()"
+                      [matTooltip]="file.status === 'Unversioned' ? ('TOOLBAR.UNVERSIONED_TOOLTIP' | translate) : ''">
                   {{file.status}}
                 </span>
                 <span class="file-name" [title]="file.relativePath">
