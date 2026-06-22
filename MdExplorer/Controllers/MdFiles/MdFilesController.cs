@@ -2336,8 +2336,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var bookmarkDal = _userSettingsDB.GetDal<Bookmark>();
             var guidProjectId = new Guid(projectId);
             var bookmarkList = bookmarkDal.GetList()
-                .Where(_ => _.Project.Id == guidProjectId).Select(_ =>
-                     new { _.Id, _.Name, _.FullPath, ProjectId = _.Project.Id }
+                .Where(_ => _.Project.Id == guidProjectId)
+                .OrderBy(_ => _.SortOrder).ThenBy(_ => _.Name)
+                .Select(_ =>
+                     new { _.Id, _.Name, _.FullPath, _.SortOrder, ProjectId = _.Project.Id }
                 ).ToList();
             _userSettingsDB.Commit();
 
@@ -2360,10 +2362,40 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 var projectDal = _userSettingsDB.GetDal<Project>();
                 var currentProject = projectDal.GetList().Where(_ => _.Id == request.ProjectId).FirstOrDefault();
                 // Ok, pay attention, here we are managing TOGGLE
-                var bookmark = new Bookmark { FullPath = request.FullPath, Name = request.Name, Project = currentProject };
+                // New bookmarks are appended at the end of the ordered list.
+                var nextSortOrder = currentProject.Bookmarks.Count == 0
+                    ? 0
+                    : currentProject.Bookmarks.Max(_ => _.SortOrder) + 1;
+                var bookmark = new Bookmark { FullPath = request.FullPath, Name = request.Name, SortOrder = nextSortOrder, Project = currentProject };
                 currentProject.Bookmarks.Add(bookmark);
                 projectDal.Save(currentProject);
-                
+
+            }
+            _userSettingsDB.Commit();
+
+            return Ok(request);
+        }
+
+        [HttpPost]
+        public IActionResult ReorderBookmarks([FromBody] ReorderBookmarksRequest request)
+        {
+            _userSettingsDB.BeginTransaction();
+            var bookmarkDal = _userSettingsDB.GetDal<Bookmark>();
+            var bookmarks = bookmarkDal.GetList()
+                .Where(_ => _.Project.Id == request.ProjectId)
+                .ToList();
+
+            // The client sends the FullPaths in the desired order; each bookmark's
+            // SortOrder becomes its index in that list. Paths not present are left untouched.
+            for (var index = 0; index < request.OrderedFullPaths.Length; index++)
+            {
+                var fullPath = request.OrderedFullPaths[index];
+                var bookmark = bookmarks.FirstOrDefault(_ => _.FullPath == fullPath);
+                if (bookmark != null)
+                {
+                    bookmark.SortOrder = index;
+                    bookmarkDal.Save(bookmark);
+                }
             }
             _userSettingsDB.Commit();
 

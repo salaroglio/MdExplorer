@@ -61,6 +61,19 @@ export class BookmarksService {
       this.bookmarks$.next(currentBookmarks);
     }
   }
+
+  // Persist the new order: the array passed in is already in the desired order.
+  reorderBookmarks(projectId: string, orderedBookmarks: Bookmark[]): void {
+    // Optimistic UI update (the numbered index in the overlay follows the array order)
+    this.bookmarks$.next(orderedBookmarks);
+
+    const url = '../api/mdFiles/ReorderBookmarks';
+    const payload = {
+      projectId: projectId,
+      orderedFullPaths: orderedBookmarks.map(_ => _.fullPath)
+    };
+    this.http.post<any>(url, payload).subscribe();
+  }
 }
 
 

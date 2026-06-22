@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { Subject } from 'rxjs';
 import { takeUntil, filter } from 'rxjs/operators';
 import { MdFileService } from '../../services/md-file.service';
@@ -121,6 +122,19 @@ export class DocumentShowComponent implements OnInit, OnDestroy {
       bookmark.projectId = currentProject.id;
       this.bookmarksService.toggleBookmark(bookmark);
     }
+  }
+
+  // Drag-and-drop: riordina le linguette; l'indice numerico segue il nuovo ordine.
+  dropBookmark(event: CdkDragDrop<Bookmark[]>): void {
+    if (event.previousIndex === event.currentIndex) {
+      return;
+    }
+    const currentProject = this.projectService.currentProjects$.value;
+    if (!currentProject || !currentProject.id) {
+      return;
+    }
+    moveItemInArray(this.bookmarks, event.previousIndex, event.currentIndex);
+    this.bookmarksService.reorderBookmarks(currentProject.id, this.bookmarks);
   }
 
   onGetTopOffsetContent(topOffset: number): void {

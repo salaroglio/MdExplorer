@@ -10,10 +10,14 @@
   </iframe>
 
   <!-- Bookmark overlay -->
-  <div class="bookmark-overlay-container">
+  <div class="bookmark-overlay-container"
+       cdkDropList
+       (cdkDropListDropped)="dropBookmark($event)">
     <div (mouseenter)="bookmark.show=true"
          (mouseleave)="bookmark.show=false"
          class="mdbookmark"
+         cdkDrag
+         cdkDragLockAxis="y"
          *ngFor="let bookmark of bookmarks; let indexOfElement=index;"
          style="padding:2px;">
       <div style="border-color:black" [attr.alt]="bookmark.fullPath">

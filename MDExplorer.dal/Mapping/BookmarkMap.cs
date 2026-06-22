@@ -11,6 +11,7 @@ namespace MDExplorer.DataAccess.Mapping
             Id(_ => _.Id).GeneratedBy.GuidComb();
             Map(_ => _.FullPath).Not.Nullable();
             Map(_ => _.Name).Not.Nullable();
+            Map(_ => _.SortOrder).Not.Nullable();
             References(_ => _.Project).Column("ProjectId").Not.Nullable();
         }
     }
