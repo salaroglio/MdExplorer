@@ -1183,7 +1183,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // Ordered most-recent → oldest by last write time.
             foreach (var itemFolder in Directory.GetDirectories(currentPath)
                 .Where(_=>!Path.GetFileName(_).StartsWith("."))
-                .OrderByDescending(_ => Directory.GetLastWriteTimeUtc(_)))
+                .OrderByDescending(_ => SafeLastWriteTimeUtc(_)))
             {
                 // Check if folder should be ignored based on .mdFoldersIgnore configuration
                 if (_foldersIgnoreService.ShouldIgnoreFolderForProject(itemFolder, projectPath))
@@ -1236,7 +1236,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // Folders group first, each ordered most-recent → oldest by last write time.
             foreach (var itemFolder in Directory.GetDirectories(currentPath)
                 .Where(_ => !Path.GetFileName(_).StartsWith("."))
-                .OrderByDescending(_ => Directory.GetLastWriteTimeUtc(_)))
+                .OrderByDescending(_ => SafeLastWriteTimeUtc(_)))
             {
                 // Check if folder should be ignored based on .mdFoldersIgnore configuration
                 if (_foldersIgnoreService.ShouldIgnoreFolderForProject(itemFolder, projectPath))
@@ -1277,7 +1277,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     Path.GetExtension(_) != ".exe" &&
                     Path.GetExtension(_) != ".sys" &&
                     Path.GetExtension(_) != ".tmp" )
-                .OrderByDescending(_ => System.IO.File.GetLastWriteTimeUtc(_)))
+                .OrderByDescending(_ => SafeLastWriteTimeUtc(_)))
             {
                 var node = new FileInfoNode
                 {
@@ -1295,6 +1295,23 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             _logger.LogWarning($"[MdFilesController.GetDynFoldersAndFilesDocument] 🏁 END - Returning {list.Count} items");
             return Ok(list);
+        }
+
+        // Reads the last-write timestamp without ever throwing: a single unreadable
+        // entry (long path, OneDrive placeholder, access denied — common in the Windows
+        // Downloads folder) must NOT abort the whole listing. Unreadable items sort last
+        // (treated as oldest) but stay in the list.
+        private DateTime SafeLastWriteTimeUtc(string path)
+        {
+            try
+            {
+                return System.IO.File.GetLastWriteTimeUtc(path);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "[MdFilesController] Could not read last write time for '{Path}'", path);
+                return DateTime.MinValue;
+            }
         }
 
         private bool IsSymbolic(string path)
