@@ -449,3 +449,6 @@ llama-cpp-b8255/
 
 # Development settings with secrets
 **/appsettings.Development.json
+
+# Script locale di publish sul sito (non versionato per scelta)
+/publish-linux-website.sh
