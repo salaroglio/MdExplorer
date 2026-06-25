@@ -284,8 +284,14 @@ namespace MdExplorer.Services.Git
                     await SaveAccountCredentialsAsync(request, urlInfo, effectiveUsername, effectiveToken, effectivePassword, existingCredentialId);
                 }
 
-                // Step 3: Add remote to local repository
-                var remoteUrl = urlInfo.CloneUrl;
+                // Step 3: Add remote to local repository.
+                // IMPORTANT: do NOT use urlInfo.CloneUrl here. The parser *reconstructs* the URL as
+                // https://{host}/{owner}/{repo}.git — forcing https, a ".git" suffix and a flattened
+                // host/owner/repo shape. On strict on-prem servers (SCM-Manager, Bitbucket Server, ...)
+                // whose real remote has no ".git" suffix (or uses http / a different path layout), that
+                // reconstructed URL does not exist and every fetch/push returns HTTP 404. Use the real
+                // URL the caller provided (prefilled from the repository's actual origin) instead.
+                var remoteUrl = request.RemoteUrl;
                 result.RemoteUrl = remoteUrl;
 
                 // Variables to track push status (declared outside using block)
@@ -299,13 +305,16 @@ namespace MdExplorer.Services.Git
                     var existingRemote = repo.Network.Remotes[request.RemoteName];
                     if (existingRemote != null)
                     {
-                        // Update existing remote URL
-                        repo.Network.Remotes.Update(request.RemoteName, r => r.Url = remoteUrl);
-                        _logger.LogInformation("Updated existing remote '{RemoteName}' to: {RemoteUrl}", request.RemoteName, remoteUrl);
+                        // Credential-recovery scenario: the repository was already cloned and its
+                        // 'origin' URL is already correct. Re-pointing it (especially to a reconstructed
+                        // URL) is exactly what broke on-prem repositories, so preserve the existing URL.
+                        remoteUrl = existingRemote.Url;
+                        result.RemoteUrl = remoteUrl;
+                        _logger.LogInformation("Remote '{RemoteName}' already exists ({RemoteUrl}); preserving its URL.", request.RemoteName, remoteUrl);
                     }
                     else
                     {
-                        // Add new remote
+                        // Add new remote using the real URL (not the reconstructed one)
                         repo.Network.Remotes.Add(request.RemoteName, remoteUrl);
                         _logger.LogInformation("Added new remote '{RemoteName}': {RemoteUrl}", request.RemoteName, remoteUrl);
                     }

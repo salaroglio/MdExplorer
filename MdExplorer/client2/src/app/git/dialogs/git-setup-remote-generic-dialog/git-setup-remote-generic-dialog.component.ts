@@ -65,6 +65,13 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    // In credential-recovery mode the repository is already cloned and its 'origin' is
+    // correct; we only need to (re)store credentials. Pushing here is out of context and
+    // can fail for unrelated reasons (branch protection, nothing to push, ...), so disable it.
+    if (this.data?.isCredentialRecovery) {
+      this.pushAfterAdd = false;
+    }
+
     // Use pre-filled URL if available (from toolbar when reconfiguring credentials)
     if (this.data?.prefilledRemoteUrl) {
       this.remoteUrl = this.data.prefilledRemoteUrl;
