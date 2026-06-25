@@ -346,10 +346,16 @@ export class ToolbarComponent implements OnInit, OnDestroy {
           console.warn('⚠️ No credentials configured for remote. Show "Configure Git Account" button.');
           this.isCheckingConnection = false;
           this.connectionIsActive = false;
+          // Branch list and history are LOCAL git operations: keep them available even
+          // though remote credentials are missing (the alarm icon stays visible too).
+          this.loadLocalBranchStatus(projectPath, remoteStatus.isGitRepository);
         } else if (remoteStatus.hasRemote && this.authenticationFailed) {
           console.warn('❌ Authentication failed (VPN/network issue). Show connection warning.');
           this.isCheckingConnection = false;
           this.connectionIsActive = false;
+          // Remote unreachable/unauthenticated, but branches and history are local:
+          // keep them available (the alarm icon stays visible too).
+          this.loadLocalBranchStatus(projectPath, remoteStatus.isGitRepository);
         } else if (remoteStatus.hasRemote && remoteStatus.canAuthenticate) {
           console.log('✅ Remote configured and authentication successful using:', remoteStatus.authenticationMethod);
 
@@ -397,6 +403,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
           this.isGitRepository = true;
           this.isCheckingConnection = false;
           this.connectionIsActive = true;
+          // No remote configured: still load the local branch status so branch/history show.
+          this.loadLocalBranchStatus(projectPath, true);
         } else {
           // Not a Git repository - reset all Git state
           console.log('📁 Not a Git repository - resetting Git state');
@@ -415,6 +423,23 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         // On error, assume remote is configured to hide the menu
         this.hasRemoteConfigured = true;
       }
+    );
+  }
+
+  /**
+   * Loads the LOCAL branch status (current branch + local change counts) and pushes it to
+   * currentBranch$. Branch list and commit history are purely local git operations, so they
+   * must stay available in the toolbar even when the remote is unreachable or unauthenticated.
+   * Only the remote-dependent data (pull/push) is skipped in those cases.
+   */
+  private loadLocalBranchStatus(projectPath: string, isGitRepository: boolean): void {
+    if (!isGitRepository) {
+      return;
+    }
+    this.isGitRepository = true;
+    this.gitservice.modernGetBranchStatus(projectPath).subscribe(
+      branch => this.gitservice.currentBranch$.next(branch),
+      error => console.error('Error fetching local branch status:', error)
     );
   }
 
