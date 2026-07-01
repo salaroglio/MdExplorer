@@ -368,6 +368,72 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 return StatusCode(500, new { error = "Failed to save CopilotCliAutoSelect setting" });
             }
         }
+
+        [HttpGet]
+        public IActionResult GetExcludeSubmodulesSetting([FromQuery] string projectPath)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList()
+                    .FirstOrDefault(p => p.Path == projectPath);
+
+                if (project == null)
+                {
+                    project = projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, projectPath, StringComparison.OrdinalIgnoreCase));
+                }
+
+                return Ok(new
+                {
+                    enabled = project?.ExcludeSubmodulesFromGitStatus ?? true
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting ExcludeSubmodules setting");
+                return StatusCode(500, new { error = "Failed to get ExcludeSubmodules setting" });
+            }
+        }
+
+        [HttpPost]
+        public IActionResult SetExcludeSubmodulesSetting([FromBody] SetExcludeSubmodulesRequest request)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                _userSettingsDB.BeginTransaction();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList()
+                    .FirstOrDefault(p => p.Path == request.ProjectPath);
+
+                if (project == null)
+                {
+                    project = projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, request.ProjectPath, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (project == null)
+                {
+                    _userSettingsDB.Rollback();
+                    _logger.LogWarning($"[SetExcludeSubmodulesSetting] Project not found for path: '{request.ProjectPath}'");
+                    return NotFound(new { error = "Project not found" });
+                }
+
+                project.ExcludeSubmodulesFromGitStatus = request.Enabled;
+                projectDal.Save(project);
+                _userSettingsDB.Commit();
+
+                return Ok(new { message = "ExcludeSubmodules setting saved successfully" });
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                _logger.LogError(ex, "Error saving ExcludeSubmodules setting");
+                return StatusCode(500, new { error = "Failed to save ExcludeSubmodules setting" });
+            }
+        }
     }
 
     public class SaveProjectSettingRequest
@@ -399,6 +465,12 @@ namespace MdExplorer.Service.Controllers.MdProjects
     }
 
     public class SetCopilotCliAutoSelectRequest
+    {
+        public bool Enabled { get; set; }
+        public string ProjectPath { get; set; }
+    }
+
+    public class SetExcludeSubmodulesRequest
     {
         public bool Enabled { get; set; }
         public string ProjectPath { get; set; }

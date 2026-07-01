@@ -333,7 +333,9 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!currentPath) {
       return;
     }
-    if (localStorage.getItem('mdexplorer_autoload_disabled') === 'true') {
+    // Per-window preference (sessionStorage): one window can pause auto-reload
+    // without affecting the other window(s) sharing the same backend.
+    if (sessionStorage.getItem('mdexplorer_autoload_disabled') === 'true') {
       console.log(`[MainContent] ⏸️ Autoload disabled by user, not reloading open document after ${source}`);
       return;
     }
@@ -349,8 +351,9 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   private markdownFileIsChanged(data: any, objectThis: MainContentComponent): void {
     // Client-side guard: skip automatic refresh (from FileSystemWatcher) if user disabled autoload.
     // User-initiated events (editor save, paste, screenshot) have no source field and are always allowed.
+    // Preference is per-window (sessionStorage) so pausing in one window does not affect the others.
     const isWatcherEvent = data?.source === 'watcher' || data?.Source === 'watcher';
-    if (isWatcherEvent && localStorage.getItem('mdexplorer_autoload_disabled') === 'true') {
+    if (isWatcherEvent && sessionStorage.getItem('mdexplorer_autoload_disabled') === 'true') {
       console.log('[MainContent] ⏸️ Autoload disabled by user, ignoring watcher file change event');
       return;
     }

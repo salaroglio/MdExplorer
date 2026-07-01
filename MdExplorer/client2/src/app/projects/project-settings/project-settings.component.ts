@@ -23,6 +23,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   linkIndexingEnabled: boolean = true;
   plantUmlKeepOriginalColorsEnabled: boolean = false;
   copilotCliAutoSelectEnabled: boolean = true;
+  excludeSubmodulesEnabled: boolean = true;
   githubModeEnabled: boolean = false;
   stickyScrollEnabled: boolean = true;
   selectedIde: string = 'vscode';
@@ -115,6 +116,10 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   ragProcessed: number = 0;
   private ragProgressSub: Subscription;
 
+  // Full project reindex (incremental indexing escape hatch)
+  projectReindexing: boolean = false;
+  private projectReindexSub: Subscription;
+
   constructor(
     public dialogRef: MatDialogRef<ProjectSettingsComponent>,
     @Inject(MAT_DIALOG_DATA) public data: any,
@@ -151,10 +156,30 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.refreshRagStatus();
       }
     });
+
+    // Full project reindex: progress shows in the global indexing snackbar
+    // (parsingProjectStart/knowledgeProgress); here we only track the button state.
+    this.projectReindexSub = this.serverMessages.parsingProjectStop$.subscribe(() => {
+      this.projectReindexing = false;
+    });
   }
 
   ngOnDestroy(): void {
     this.ragProgressSub?.unsubscribe();
+    this.projectReindexSub?.unsubscribe();
+  }
+
+  onProjectReindex(): void {
+    this.projectReindexing = true;
+    this.projectSettingsService.reindexProject(this.serverMessages.connectionId ?? '').subscribe({
+      next: () => {
+        console.log('[ProjectSettings] Full project reindex started');
+      },
+      error: (error) => {
+        console.error('[ProjectSettings] Error starting project reindex:', error);
+        this.projectReindexing = false;
+      }
+    });
   }
 
   loadSettings(): void {
@@ -167,9 +192,10 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     let stickyScrollLoaded = false;
     let plantUmlKeepOriginalColorsLoaded = false;
     let copilotCliAutoSelectLoaded = false;
+    let excludeSubmodulesLoaded = false;
 
     const checkIfDone = () => {
-      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded && stickyScrollLoaded && plantUmlKeepOriginalColorsLoaded && copilotCliAutoSelectLoaded) {
+      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded && stickyScrollLoaded && plantUmlKeepOriginalColorsLoaded && copilotCliAutoSelectLoaded && excludeSubmodulesLoaded) {
         this.loading = false;
       }
     };
@@ -226,6 +252,20 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('Error loading Copilot CLI Auto-Select setting:', error);
         copilotCliAutoSelectLoaded = true;
+        checkIfDone();
+      }
+    });
+
+    // Load Exclude Git Submodules setting
+    this.projectSettingsService.getExcludeSubmodulesSetting(this.projectPath).subscribe({
+      next: (response) => {
+        this.excludeSubmodulesEnabled = response.enabled;
+        excludeSubmodulesLoaded = true;
+        checkIfDone();
+      },
+      error: (error) => {
+        console.error('Error loading Exclude Submodules setting:', error);
+        excludeSubmodulesLoaded = true;
         checkIfDone();
       }
     });
@@ -377,6 +417,20 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         console.error('Error saving Copilot CLI Auto-Select setting:', error);
         this.saving = false;
         this.copilotCliAutoSelectEnabled = !this.copilotCliAutoSelectEnabled;
+      }
+    });
+  }
+
+  onExcludeSubmodulesChange(): void {
+    this.saving = true;
+    this.projectSettingsService.setExcludeSubmodulesSetting(this.excludeSubmodulesEnabled, this.projectPath).subscribe({
+      next: () => {
+        this.saving = false;
+      },
+      error: (error) => {
+        console.error('Error saving Exclude Submodules setting:', error);
+        this.saving = false;
+        this.excludeSubmodulesEnabled = !this.excludeSubmodulesEnabled;
       }
     });
   }

@@ -31,6 +31,7 @@ import { Subscription, forkJoin } from 'rxjs';
 import { FileNameAndAuthor } from '../../../git/models/DataToPull';
 import { TocGenerationService } from '../../services/toc-generation.service';
 import { TocProgressService } from '../../services/toc-progress.service';
+import { ThemeService } from '../../../services/theme.service';
 import { GitChangedFile } from '../../../git/models/modern-git-models';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../../commons/components/confirm-dialog/confirm-dialog.component';
 import { TranslateService } from '@ngx-translate/core';
@@ -97,7 +98,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private navService: MdNavigationService,
     private tocService: TocGenerationService,
     private tocProgressService: TocProgressService,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private themeService: ThemeService
 
   ) {
     this.TitleToShow = "MdExplorer";
@@ -344,10 +346,16 @@ export class ToolbarComponent implements OnInit, OnDestroy {
           console.warn('⚠️ No credentials configured for remote. Show "Configure Git Account" button.');
           this.isCheckingConnection = false;
           this.connectionIsActive = false;
+          // Branch list and history are LOCAL git operations: keep them available even
+          // though remote credentials are missing (the alarm icon stays visible too).
+          this.loadLocalBranchStatus(projectPath, remoteStatus.isGitRepository);
         } else if (remoteStatus.hasRemote && this.authenticationFailed) {
           console.warn('❌ Authentication failed (VPN/network issue). Show connection warning.');
           this.isCheckingConnection = false;
           this.connectionIsActive = false;
+          // Remote unreachable/unauthenticated, but branches and history are local:
+          // keep them available (the alarm icon stays visible too).
+          this.loadLocalBranchStatus(projectPath, remoteStatus.isGitRepository);
         } else if (remoteStatus.hasRemote && remoteStatus.canAuthenticate) {
           console.log('✅ Remote configured and authentication successful using:', remoteStatus.authenticationMethod);
 
@@ -395,6 +403,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
           this.isGitRepository = true;
           this.isCheckingConnection = false;
           this.connectionIsActive = true;
+          // No remote configured: still load the local branch status so branch/history show.
+          this.loadLocalBranchStatus(projectPath, true);
         } else {
           // Not a Git repository - reset all Git state
           console.log('📁 Not a Git repository - resetting Git state');
@@ -413,6 +423,23 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         // On error, assume remote is configured to hide the menu
         this.hasRemoteConfigured = true;
       }
+    );
+  }
+
+  /**
+   * Loads the LOCAL branch status (current branch + local change counts) and pushes it to
+   * currentBranch$. Branch list and commit history are purely local git operations, so they
+   * must stay available in the toolbar even when the remote is unreachable or unauthenticated.
+   * Only the remote-dependent data (pull/push) is skipped in those cases.
+   */
+  private loadLocalBranchStatus(projectPath: string, isGitRepository: boolean): void {
+    if (!isGitRepository) {
+      return;
+    }
+    this.isGitRepository = true;
+    this.gitservice.modernGetBranchStatus(projectPath).subscribe(
+      branch => this.gitservice.currentBranch$.next(branch),
+      error => console.error('Error fetching local branch status:', error)
     );
   }
 
@@ -471,6 +498,46 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     }
     this._snackBar.open(this.translate.instant('TOOLBAR.EXPORT_QUEUED'), null, { duration: 2000, verticalPosition: 'top' });
     this.sendExportRequest(this);
+  }
+
+  /**
+   * Open the current document in its own standalone window ("detach").
+   *
+   * The backend already serves each document as a complete, self-contained HTML
+   * page at /api/mdexplorer/{path}; the detached window just points a bare
+   * Electron BrowserWindow (or a browser tab on web) at that URL — no Angular
+   * shell, no second backend, only one extra renderer process.
+   *
+   * The URL is ABSOLUTE (window.location.origin) because the bare window has no
+   * Angular base-href to resolve the relative '../api/...' against.
+   *
+   * connectionId IS required: the backend resolves the project root (and thus
+   * the file) from the DatabaseManager context keyed by connectionId — without
+   * it GetProjectPath() returns empty and the page renders blank. We reuse this
+   * window's connectionId; `source=detached` tells the backend to skip the
+   * SignalR notifications so the main window's state is not disturbed.
+   * `detached=true` tells common.js / mde-exec-blocks.js to visibly disable the
+   * features that depend on the (now-absent) Angular parent (Run, path picker).
+   */
+  detachDocument(): void {
+    if (!this.relativePath) {
+      this._snackBar.open(this.translate.instant('TOOLBAR.SELECT_DOC_FIRST'), 'OK', { duration: 3000, verticalPosition: 'top' });
+      return;
+    }
+    const cleanPath = this.relativePath.replace(/^[\/\\]+/, '');
+    const time = new Date().getTime() / 1000;
+    const theme = this.themeService.getResolvedTheme();
+    const connectionId = this.connectionId ?? this.monitorMDService.connectionId ?? '';
+    const url = `${window.location.origin}/api/mdexplorer/${cleanPath}?time=${time}&ConnectionId=${connectionId}&source=detached&theme=${theme}&detached=true`;
+
+    const electronAPI = (window as any).electronAPI;
+    if (electronAPI?.detachDocument) {
+      // Desktop: spawn a bare Electron window reusing the running backend.
+      electronAPI.detachDocument(url);
+    } else {
+      // Web fallback: a new browser window/tab.
+      window.open(url, '_blank');
+    }
   }
 
 

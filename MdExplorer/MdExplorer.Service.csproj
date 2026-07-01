@@ -31,29 +31,52 @@
     <Message Text="P2P Premium DLL not found - skipping copy" Importance="high"
              Condition="!Exists('$(P2PDllSource)')" />
 
-    <!-- Publish the MdExplorer.Mcp stdio server into service_payload (app_service).
-         It is a SEPARATE project with no ProjectReference here, so the normal publish
-         does not include it. Without MdExplorer.Mcp.exe next to MdExplorer.Service.exe,
-         ProjectsManager.CreateCopilotCliMcpConfig falls back to a "dotnet run" entry
-         which fails on a client machine (no SDK / no sources) so Copilot/Mark cannot
-         start the MCP server and cannot read Jira/Confluence.
+    <!-- Publish the MdExplorer.Mcp stdio server into its OWN isolated subfolder
+         service_payload/mcp (-> app_service/mcp), NOT next to MdExplorer.Service.
+         It is a SEPARATE project with no ProjectReference here, and its dependency
+         closure (System.Text.Json/Microsoft.Extensions.AI/Hosting.Abstractions 10.x,
+         pulled by ModelContextProtocol) is INCOMPATIBLE with the 8.x assemblies the
+         Service ships. Co-locating them in one folder makes one of the two deps.json
+         unsatisfiable -> "Could not load file or assembly 'System.Text.Json,
+         Version=10.0.0.0'" and the MCP server crashes on launch. A dedicated
+         self-contained subfolder ships the MCP's complete, self-consistent closure
+         next to its exe. ProjectsManager.CreateCopilotCliMcpConfig points Copilot at
+         app_service/mcp/MdExplorer.Mcp.exe.
+         extraResources in package.json copies service_payload/**/* recursively, so the
+         mcp/ subfolder reaches app_service/mcp automatically.
          Self-contained is REQUIRED: the client has no .NET runtime installed. -->
     <PropertyGroup>
       <McpProjectPath>$(MSBuildThisFileDirectory)..\MdExplorer.Mcp\MdExplorer.Mcp.csproj</McpProjectPath>
-      <McpPublishDest>$(MSBuildThisFileDirectory)..\ElectronMdExplorer\service_payload</McpPublishDest>
+      <McpPublishDest>$(MSBuildThisFileDirectory)..\ElectronMdExplorer\service_payload\mcp</McpPublishDest>
       <!-- The apphost has no .exe extension on non-Windows RIDs -->
       <McpExeName Condition="$(RuntimeIdentifier.StartsWith('win'))">MdExplorer.Mcp.exe</McpExeName>
       <McpExeName Condition="!$(RuntimeIdentifier.StartsWith('win'))">MdExplorer.Mcp</McpExeName>
       <McpExeDest>$(McpPublishDest)\$(McpExeName)</McpExeDest>
     </PropertyGroup>
 
-    <Message Text="Publishing MdExplorer.Mcp (self-contained $(RuntimeIdentifier)) into service_payload..." Importance="high" />
+    <!-- Remove any stale top-level MCP files left by the PRIOR layout (when the MCP
+         was published directly into service_payload, before the mcp/ subfolder split).
+         publish runs with DeleteExistingFiles=false, so without this they would persist,
+         ship into app_service/ alongside the Service, and make the runtime self-heal in
+         ProjectsManager.McpEntryLaunchTargetMissing see the old exe as still-present ->
+         it would keep Copilot pointed at the broken top-level exe instead of mcp/. -->
+    <ItemGroup>
+      <StaleTopLevelMcp Include="$(MSBuildThisFileDirectory)..\ElectronMdExplorer\service_payload\MdExplorer.Mcp" />
+      <StaleTopLevelMcp Include="$(MSBuildThisFileDirectory)..\ElectronMdExplorer\service_payload\MdExplorer.Mcp.exe" />
+      <StaleTopLevelMcp Include="$(MSBuildThisFileDirectory)..\ElectronMdExplorer\service_payload\MdExplorer.Mcp.dll" />
+      <StaleTopLevelMcp Include="$(MSBuildThisFileDirectory)..\ElectronMdExplorer\service_payload\MdExplorer.Mcp.deps.json" />
+      <StaleTopLevelMcp Include="$(MSBuildThisFileDirectory)..\ElectronMdExplorer\service_payload\MdExplorer.Mcp.pdb" />
+      <StaleTopLevelMcp Include="$(MSBuildThisFileDirectory)..\ElectronMdExplorer\service_payload\MdExplorer.Mcp.runtimeconfig.json" />
+    </ItemGroup>
+    <Delete Files="@(StaleTopLevelMcp)" />
+
+    <Message Text="Publishing MdExplorer.Mcp (self-contained $(RuntimeIdentifier)) into service_payload/mcp..." Importance="high" />
     <Exec Command="dotnet publish &quot;$(McpProjectPath)&quot; -c $(Configuration) -r $(RuntimeIdentifier) --self-contained true -p:PublishSingleFile=false -o &quot;$(McpPublishDest)&quot;" />
 
     <!-- Fail-loud: the installer must never ship without the MCP server. -->
     <Error Condition="!Exists('$(McpExeDest)')"
-           Text="$(McpExeName) was NOT produced in service_payload ('$(McpExeDest)'). The MCP server would be missing from the installer and Mark could not read Jira/Confluence. Check the dotnet publish output above." />
-    <Message Text="$(McpExeName) published into service_payload" Importance="high" />
+           Text="$(McpExeName) was NOT produced in service_payload/mcp ('$(McpExeDest)'). The MCP server would be missing from the installer and Mark could not read Jira/Confluence. Check the dotnet publish output above." />
+    <Message Text="$(McpExeName) published into service_payload/mcp" Importance="high" />
   </Target>
   
   <PropertyGroup>

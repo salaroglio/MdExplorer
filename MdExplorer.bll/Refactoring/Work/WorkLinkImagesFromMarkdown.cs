@@ -36,7 +36,7 @@ namespace MdExplorer.Features.LinkModifiers
             var markdown = string.Empty;
             try
             {
-                using (var stream = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (var stream = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
                 {
                     using (var reader = new StreamReader(stream))
                     {

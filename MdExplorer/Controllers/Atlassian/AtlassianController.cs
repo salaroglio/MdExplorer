@@ -537,6 +537,116 @@ namespace MdExplorer.Service.Controllers.Atlassian
             catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] Transition failed"); return StatusCode(500, new { error = ex.Message }); }
         }
 
+        public class AssignRequest
+        {
+            public Guid ProjectId { get; set; }
+            public string? AccountId { get; set; }   // when already known (after disambiguation) -> assign directly
+            public string? Query { get; set; }       // human name/email to resolve when AccountId is not given
+            public bool Unassign { get; set; }        // explicit clear of the current assignee
+        }
+
+        // ============================================================
+        //   PUT /api/atlassian/jira/issue/{key}/assignee   (WRITE)
+        //   Reassign to another person. Resolves a name -> accountId
+        //   (Jira Cloud only accepts accountId); if 0 or >1 users match,
+        //   it does NOT assign and returns the candidates for the caller
+        //   (the chat) to disambiguate, then re-call with that accountId.
+        // ============================================================
+        [HttpPut("jira/issue/{key}/assignee")]
+        public async Task<IActionResult> AssignIssue(string key, [FromBody] AssignRequest req)
+        {
+            if (req == null) return BadRequest(new { error = "body required" });
+            if (string.IsNullOrWhiteSpace(key)) return BadRequest(new { error = "issue key required" });
+            var ctx = BuildContext(req.ProjectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            try
+            {
+                // Explicit unassign.
+                if (req.Unassign)
+                {
+                    await _jiraClient.AssignIssueAsync(ctx.Connection, key, null);
+                    return Ok(new { ok = true, unassigned = true, assignee = (object)null });
+                }
+
+                // Direct path: caller already resolved the accountId.
+                if (!string.IsNullOrWhiteSpace(req.AccountId))
+                {
+                    await _jiraClient.AssignIssueAsync(ctx.Connection, key, req.AccountId.Trim());
+                    return Ok(new { ok = true, assignee = new { accountId = req.AccountId.Trim() } });
+                }
+
+                if (string.IsNullOrWhiteSpace(req.Query))
+                    return BadRequest(new { error = "Provide accountId, query (the assignee's name/email), or unassign=true." });
+
+                var candidates = await ResolveAssignableUsersAsync(ctx.Connection, req.Query);
+                if (candidates.Count == 0)
+                    return Ok(new
+                    {
+                        ok = false,
+                        notFound = true,
+                        query = req.Query,
+                        message = $"No Jira user matches '{req.Query}'. Try a different spelling, just the surname, or an email — or pass accountId directly."
+                    });
+
+                if (candidates.Count > 1)
+                    return Ok(new
+                    {
+                        ok = false,
+                        ambiguous = true,
+                        query = req.Query,
+                        candidates = candidates.Select(u => new { u.AccountId, u.DisplayName, u.EmailAddress }).ToList(),
+                        message = $"{candidates.Count} users match '{req.Query}'. Ask the user which one, then call JiraAssignIssue again passing the chosen accountId."
+                    });
+
+                var only = candidates[0];
+                await _jiraClient.AssignIssueAsync(ctx.Connection, key, only.AccountId);
+                return Ok(new { ok = true, assignee = new { only.AccountId, only.DisplayName, only.EmailAddress } });
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] AssignIssue failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        /// <summary>
+        /// Resolves a free-text name/email to assignable Jira users. Tries the literal
+        /// query first; only if that finds nothing does it fall back to the individual
+        /// name tokens and the reversed order (handles "Mario Rossi" vs "Rossi Mario",
+        /// partials, comma forms). Keeps only active, real ("atlassian") accounts and
+        /// de-duplicates by accountId.
+        /// </summary>
+        private async Task<List<JiraUser>> ResolveAssignableUsersAsync(JiraConnection conn, string query)
+        {
+            var seen = new Dictionary<string, JiraUser>(StringComparer.OrdinalIgnoreCase);
+
+            async Task AddMatches(string q)
+            {
+                if (string.IsNullOrWhiteSpace(q)) return;
+                var found = await _jiraClient.SearchUsersAsync(conn, q.Trim(), 20);
+                foreach (var u in found)
+                {
+                    if (string.IsNullOrEmpty(u.AccountId) || !u.Active) continue;
+                    if (!string.IsNullOrEmpty(u.AccountType) &&
+                        !string.Equals(u.AccountType, "atlassian", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!seen.ContainsKey(u.AccountId)) seen[u.AccountId] = u;
+                }
+            }
+
+            var norm = System.Text.RegularExpressions.Regex.Replace(query.Trim(), @"\s+", " ");
+            await AddMatches(norm);
+
+            if (seen.Count == 0)
+            {
+                var tokens = norm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (tokens.Length > 1)
+                {
+                    await AddMatches(tokens[tokens.Length - 1]);          // surname
+                    await AddMatches(tokens[0]);                          // first name
+                    await AddMatches(string.Join(" ", tokens.Reverse())); // reversed order
+                }
+            }
+
+            return seen.Values.ToList();
+        }
+
         // ============================================================
         //   Confluence (read-only) endpoints
         // ============================================================

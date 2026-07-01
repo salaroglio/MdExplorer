@@ -145,6 +145,18 @@ export class GITService implements OnDestroy {
                 console.error('Error in modern branch status:', error);
               }
             );
+          } else if (remoteStatus.isGitRepository) {
+            // Remote present but not authenticated (auth missing/failed): branch list and
+            // history are LOCAL operations, so keep the branch status populated and only
+            // skip the remote-dependent pull/push data.
+            this.modernGetBranchStatus(this.currentProjectPath).subscribe(
+              branch => {
+                this.currentBranch$.next(branch);
+              },
+              error => {
+                console.error('Error in modern branch status:', error);
+              }
+            );
           } else if (!remoteStatus.isGitRepository) {
             // Not a Git repository - emit empty state to clear UI
             console.log('📁 Not a Git repository - clearing Git state');

@@ -37,7 +37,7 @@ namespace MdExplorer.Features.Refactoring.Work
             var markdown = string.Empty;
             try
             {
-                using (var stream = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var stream = File.Open(filepath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
                 {
                     using (var reader = new StreamReader(stream))
                     {

@@ -67,6 +67,16 @@ export class ProjectSettingsService {
     return this.http.post<any>(url, { enabled, projectPath });
   }
 
+  getExcludeSubmodulesSetting(projectPath: string): Observable<{enabled: boolean}> {
+    const url = '../api/ProjectSettings/GetExcludeSubmodulesSetting';
+    return this.http.get<{enabled: boolean}>(url, { params: { projectPath } });
+  }
+
+  setExcludeSubmodulesSetting(enabled: boolean, projectPath: string): Observable<any> {
+    const url = '../api/ProjectSettings/SetExcludeSubmodulesSetting';
+    return this.http.post<any>(url, { enabled, projectPath });
+  }
+
   // RAG Settings
   getRagStatus(): Observable<any> {
     const url = '../api/Rag/status';
@@ -86,6 +96,12 @@ export class ProjectSettingsService {
   reindexRag(projectPath: string): Observable<any> {
     const url = '../api/Rag/reindex';
     return this.http.post<any>(url, { projectPath });
+  }
+
+  /** Full project reindex: ignores the incremental fingerprints (links, FTS, embeddings). */
+  reindexProject(connectionId: string): Observable<any> {
+    const url = `../api/mdfiles/ReindexProject?ConnectionId=${connectionId}`;
+    return this.http.post<any>(url, {});
   }
 
   clearRagIndex(projectPath: string): Observable<any> {

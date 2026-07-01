@@ -56,6 +56,20 @@ namespace MdExplorer.Features.Services.Atlassian
         public string EmailAddress { get; set; }
     }
 
+    /// <summary>
+    /// A user candidate returned by /rest/api/3/user/search. Jira Cloud requires the
+    /// opaque <see cref="AccountId"/> to assign an issue (name/email are not accepted),
+    /// so this is the bridge between a human name and an assignment.
+    /// </summary>
+    public class JiraUser
+    {
+        public string AccountId { get; set; }
+        public string DisplayName { get; set; }
+        public string EmailAddress { get; set; }   // often hidden by the user's privacy settings
+        public bool Active { get; set; }
+        public string AccountType { get; set; }     // "atlassian" = a real, assignable person
+    }
+
     /// <summary>Input for creating an issue. Plain-text Description is wrapped into ADF.</summary>
     public class JiraCreateIssueRequest
     {

@@ -32,7 +32,8 @@ namespace MdExplorer.Service.Controllers.GIT
     [Route("/api/gitfeatures/")]
     public class GitFeatureController:MdControllerBase<GitFeatureController>
     {
-        private readonly IGitService _gitService;                                                   
+        private readonly IGitService _gitService;
+        private readonly MdExplorer.Abstractions.Services.IMarkdownFtsService _markdownFtsService;
         public GitFeatureController(IGitService gitService,
         IOptions<MdExplorerAppSettings> options,
         ILogger<GitFeatureController> logger,
@@ -42,11 +43,13 @@ namespace MdExplorer.Service.Controllers.GIT
          IHelper helper,
          IWorkLink[] modifiers,
         IEngineDB engineDB,
+        MdExplorer.Abstractions.Services.IMarkdownFtsService markdownFtsService,
         IDatabaseManager databaseManager = null) : base(logger, options,
             hubContext, session, engineDB, commandRunner,
             modifiers, helper, databaseManager)
         {
-            _gitService = gitService;            
+            _gitService = gitService;
+            _markdownFtsService = markdownFtsService;
         }
 
         [HttpPost("cloneRepository")]
@@ -141,25 +144,115 @@ namespace MdExplorer.Service.Controllers.GIT
 
         private void RefreshDatabase(IEnumerable<FileNameAndAuthor> filesToBeChanged)
         {
-            var relDal = GetEngineDB().GetDal<MarkdownFile>();
+            var engineDB = GetEngineDB();
+            var relDal = engineDB.GetDal<MarkdownFile>();
+            var projectPath = GetProjectPath();
+
             foreach (var item in filesToBeChanged)
             {
                 var mdFile = relDal.GetList().FirstOrDefault(_ => _.Path == item.FullPath);
-                GetEngineDB().BeginTransaction();
-                if (mdFile == null)
+
+                // File rimosso dal pull: cancellazione completa (riga + link + chunk + FTS)
+                if (!System.IO.File.Exists(item.FullPath))
                 {
-                    relDal.Save(new MarkdownFile
+                    if (mdFile != null)
                     {
-                        FileName = Path.GetFileName(item.FullPath),
-                        Path = item.FullPath,
-                        FileType = "File"
-                    });
+                        try
+                        {
+                            engineDB.BeginTransaction();
+                            engineDB.CreateSQLQuery("DELETE FROM LinkInsideMarkdown WHERE MarkdownFileId = :id")
+                                .SetParameter("id", mdFile.Id, NHibernate.NHibernateUtil.Guid).ExecuteUpdate();
+                            engineDB.CreateSQLQuery("DELETE FROM DocumentChunk WHERE MarkdownFileId = :id")
+                                .SetParameter("id", mdFile.Id, NHibernate.NHibernateUtil.Guid).ExecuteUpdate();
+                            engineDB.CreateSQLQuery("DELETE FROM MarkdownFile WHERE Id = :id")
+                                .SetParameter("id", mdFile.Id, NHibernate.NHibernateUtil.Guid).ExecuteUpdate();
+                            engineDB.Commit();
+                            _markdownFtsService.DeleteFileByPath(projectPath, item.FullPath);
+                        }
+                        catch (Exception ex)
+                        {
+                            try { engineDB.Rollback(); } catch { }
+                            _logger.LogError(ex, "[RefreshDatabase] Delete failed for '{Path}'", item.FullPath);
+                        }
+                    }
+                    continue;
                 }
-                else
+
+                // Contenuto + fingerprint (una sola lettura per file)
+                string content = null, contentHash = null, statMtime = null;
+                long? statSize = null;
+                try
                 {
-                    SaveLinksFromMarkdown(mdFile);
+                    var fi = new FileInfo(item.FullPath);
+                    statMtime = fi.LastWriteTimeUtc.ToString("o");
+                    statSize = fi.Length;
+                    content = System.IO.File.ReadAllText(item.FullPath);
+                    contentHash = ContentFingerprint.ComputeHash(content);
                 }
-                GetEngineDB().Commit();
+                catch (Exception readEx)
+                {
+                    _logger.LogWarning(readEx, "[RefreshDatabase] Cannot read '{Path}'", item.FullPath);
+                }
+
+                try
+                {
+                    engineDB.BeginTransaction();
+                    if (mdFile == null)
+                    {
+                        mdFile = new MarkdownFile
+                        {
+                            FileName = Path.GetFileName(item.FullPath),
+                            Path = item.FullPath,
+                            // "File" (maiuscolo): SaveLinksFromMarkdown parsa i link solo
+                            // con questo valore (incoerenza storica dei FileType).
+                            FileType = "File"
+                        };
+                    }
+                    mdFile.FileName = Path.GetFileName(item.FullPath);
+                    mdFile.FileLastWriteUtc = statMtime;
+                    mdFile.FileSize = statSize;
+                    mdFile.FileHash = contentHash;
+                    relDal.Save(mdFile);
+                    engineDB.Flush();
+
+                    // Link per file NUOVI ed esistenti (prima i nuovi venivano inseriti
+                    // senza alcun parse dei link).
+                    SaveLinksFromMarkdown(mdFile);
+
+                    if (content != null)
+                    {
+                        mdFile.Tldr = TldrExtractor.ExtractTldr(content);
+                        mdFile.LinksHash = contentHash;
+                        relDal.Save(mdFile);
+                    }
+                    engineDB.Commit();
+                }
+                catch (Exception ex)
+                {
+                    try { engineDB.Rollback(); } catch { }
+                    _logger.LogError(ex, "[RefreshDatabase] Upsert failed for '{Path}'", item.FullPath);
+                    continue;
+                }
+
+                // FTS side-car post-commit + marker FtsHash
+                if (content != null)
+                {
+                    try
+                    {
+                        _markdownFtsService.UpsertFile(projectPath, mdFile.Id, item.FullPath, mdFile.FileName, content);
+                        engineDB.BeginTransaction();
+                        engineDB.CreateSQLQuery("UPDATE MarkdownFile SET FtsHash = :hash WHERE Id = :id")
+                            .SetParameter("hash", contentHash)
+                            .SetParameter("id", mdFile.Id, NHibernate.NHibernateUtil.Guid)
+                            .ExecuteUpdate();
+                        engineDB.Commit();
+                    }
+                    catch (Exception ftsEx)
+                    {
+                        try { engineDB.Rollback(); } catch { }
+                        _logger.LogWarning(ftsEx, "[RefreshDatabase] FTS update failed for '{Path}'", item.FullPath);
+                    }
+                }
             }
         }
 

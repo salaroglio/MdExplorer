@@ -3,7 +3,7 @@ name: mde-readme
 description: Write README sections that include runnable script examples MdExplorer can execute interactively. Use whenever you document a CLI tool, build/deploy script, dev task, or any command-line invocation in a README, sprint note, or how-to doc. Each example must declare its parameters in a way MdExplorer's runner can detect, so the user can fill them in a dialog and click ▶ Run.
 mde:
   origin: mdexplorer
-  version: 5
+  version: 6
   updatePolicy: replace
 ---
 
@@ -126,6 +126,41 @@ Rules:
 - `type: file` / `type: dir` pickers are also **rooted at the project root**, so picked paths share
   the same anchor as your root-relative command — they stay consistent, no conflict.
 
+## Path separator — always `/`, never `\`
+
+**Critical for cross-platform documents.** The same README is run on both Windows and Linux/macOS,
+so every path you write inside a runnable block must use the **forward slash `/`** as separator —
+**never** the Windows backslash `\`.
+
+- Forward slash works on **all** platforms: .NET / Win32 accept `/` for filesystem paths on Windows
+  too, and it is the native separator on Linux/macOS.
+- Backslash works **only on Windows**. On Linux/macOS `\` is a literal filename character, not a
+  separator, so a path like `Ontology\ABoxPL1\file.ttl` is read as one big filename and the script
+  fails with *"No such file or directory"*.
+
+MdExplorer cannot fix this for you at run time: since `\` is a legal character in a Linux filename,
+the runner must pass your path through verbatim — rewriting it would corrupt paths that legitimately
+contain a backslash. **Portability is your responsibility as the author: type `/`.**
+
+| Wrong (Windows-only `\`)                  | Correct (portable `/`)                    |
+| ----------------------------------------- | ----------------------------------------- |
+| `$file = "Ontology\ABoxPL1\BS507.ttl"`    | `$file = "Ontology/ABoxPL1/BS507.ttl"`    |
+| `dotnet publish .\src\MyApp.csproj`       | `dotnet publish src/MyApp.csproj`         |
+| `python tools\foo\main.py`                | `python tools/foo/main.py`                |
+
+This holds for **every** shell — `bash`, `powershell`, `cmd` alike. (PowerShell accepts `/` on
+Windows for file paths, so a single `/`-form works in `pwsh` on every OS.) If a PowerShell script
+genuinely needs the OS-native separator (e.g. to hand a path to a Windows-only external tool), build
+it with `Join-Path` instead of hardcoding `\`:
+
+```powershell
+$file = Join-Path "Ontology" "ABoxPL1" "BS507.ttl"   # -> '\' on Windows, '/' on Linux
+```
+
+Also never hardcode an **absolute root** (`C:\sviluppo\...`, `/home/user/...`) or a drive letter:
+those are machine-specific and break the moment the document moves. Keep paths **relative to the
+project root** (see the previous section) and use `/`.
+
 ## Examples to copy when authoring a README
 
 ### 1. Bash — deploy script
@@ -142,7 +177,7 @@ Rules:
 ```powershell
 # @param Configuration — Debug or Release (default: Release)
 # @param Runtime       — RID like win-x64, linux-x64 (default: win-x64)
-dotnet publish .\src\MyApp.csproj -c <Configuration> -r <Runtime> --self-contained
+dotnet publish src/MyApp.csproj -c <Configuration> -r <Runtime> --self-contained
 ```
 
 ### 3. Bash with env-export style (also detected, legacy)
@@ -232,12 +267,18 @@ When you are asked to write or update a README that documents a runnable script:
 - ❌ Don't write a script path relative to the README's folder (`python main.py` when `main.py`
   lives beside the README in a subfolder). The block runs from the **project root**, so it fails
   with `can't open file`. Write the path from the root: `python tools/foo/main.py`.
+- ❌ Don't use backslashes `\` in paths (`$file = "Ontology\ABoxPL1\file.ttl"`). They work only on
+  Windows; on Linux/macOS `\` is a literal filename character and the script fails with `No such
+  file or directory`. Always use forward slashes: `"Ontology/ABoxPL1/file.ttl"`.
+- ❌ Don't hardcode an absolute root or drive letter (`C:\sviluppo\...`, `/home/user/...`); it is
+  machine-specific. Keep paths relative to the project root.
 
 ## Quick checklist before committing a README
 
 - [ ] Every runnable fence starts with a `@param` header (or has no parameters at all).
 - [ ] Every placeholder `<name>` in the call has a matching `@param NAME` line above.
 - [ ] Every relative path (the invoked script, helper/config/output files) is written **relative to the project root**, not to the README's folder — the block runs from the project root.
+- [ ] Every path uses **forward slashes `/`**, never backslashes `\`, and no absolute root / drive letter — so the same document runs on both Windows and Linux/macOS.
 - [ ] Placeholders are **bare** (`$x = <name>`, `--key <name>`), never self-quoted — the runner quotes them.
 - [ ] Sensitive parameters are marked `secret` (or named with a secret-like suffix).
 - [ ] Defaults are provided for non-secret parameters where a sensible default exists.

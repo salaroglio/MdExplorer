@@ -58,5 +58,18 @@ namespace MdExplorer.Features.Services.Atlassian
         /// with the available options if none matches. Returns the resulting status.
         /// </summary>
         Task<string> TransitionIssueAsync(JiraConnection conn, string issueKey, string transition, CancellationToken ct = default);
+
+        /// <summary>
+        /// Searches users by name or email (/rest/api/3/user/search). Used to resolve a
+        /// human name to the accountId Jira Cloud needs to assign an issue. Requires the
+        /// "Browse users" global permission on the token's account.
+        /// </summary>
+        Task<IReadOnlyList<JiraUser>> SearchUsersAsync(JiraConnection conn, string query, int maxResults, CancellationToken ct = default);
+
+        /// <summary>
+        /// Sets the assignee of an issue (PUT /rest/api/3/issue/{key}/assignee). Pass a
+        /// null/empty accountId to unassign.
+        /// </summary>
+        Task AssignIssueAsync(JiraConnection conn, string issueKey, string accountId, CancellationToken ct = default);
     }
 }

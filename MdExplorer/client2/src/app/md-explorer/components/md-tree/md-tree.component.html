@@ -11,7 +11,10 @@
       <button *ngIf="item.type==='folder' || item.name==='root'" mat-icon-button [matTooltip]="'MD_TREE.CREATE_FOLDER' | translate" color="primary" (click)="createDirectoryOn(item)"><mat-icon>create_new_folder</mat-icon></button>
       <button *ngIf="item.type==='folder' || item.name==='root'" mat-icon-button [matTooltip]="'MD_TREE.CREATE_DOCUMENT' | translate" color="primary" (click)="createMdOn(item)"><mat-icon>note_add</mat-icon></button>
       <button *ngIf="item.type==='folder'" mat-icon-button color="primary" (click)="getLinkFromNode(item)" [matTooltip]="'MD_TREE.COPY_PATH' | translate"><mat-icon>link</mat-icon></button>
+      <button *ngIf="item.type==='folder' && item.hasExtraContent && !item.extraLoaded" mat-icon-button color="primary" (click)="revealFolderExtras(item)" [matTooltip]="'MD_TREE.SHOW_FOLDER_CONTENT' | translate"><mat-icon>visibility</mat-icon></button>
+      <button *ngIf="item.type==='folder' && item.hasExtraContent && item.extraLoaded" mat-icon-button color="primary" (click)="hideFolderExtras(item)" [matTooltip]="'MD_TREE.HIDE_FOLDER_CONTENT' | translate"><mat-icon>visibility_off</mat-icon></button>
       <button *ngIf="item.type==='folder'" mat-icon-button [matTooltip]="'MD_TREE.MARK_ASSIST' | translate" (click)="openMarkForFolder(item)"><img src="/assets/mark.png" alt="Mark" style="width:22px;height:22px;border-radius:4px;" /></button>
+      <button *ngIf="item.type==='genericFile'" mat-icon-button color="primary" (click)="getLinkFromNode(item)" [matTooltip]="'MD_TREE.COPY_PATH' | translate"><mat-icon>link</mat-icon></button>
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="warn" (click)="deleteFile(item)" [matTooltip]="'MD_TREE.DELETE_DOCUMENT' | translate"><mat-icon>delete</mat-icon></button>
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="warn" (click)="pasteFromClipboard(item)" [matTooltip]="'MD_TREE.PASTE_CLIPBOARD' | translate"><mat-icon>archive</mat-icon></button>
       <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-icon-button color="primary" (click)="getLinkFromNode(item)" [matTooltip]="'MD_TREE.COPY_LINK' | translate"><mat-icon>link</mat-icon></button>
@@ -36,6 +39,14 @@
     <button *ngIf="item.type==='folder'" mat-menu-item (click)="getLinkFromNode(item)">
       <mat-icon>link</mat-icon>
       <span>{{ 'MD_TREE.COPY_PATH' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='folder' && item.hasExtraContent && !item.extraLoaded" mat-menu-item (click)="revealFolderExtras(item)">
+      <mat-icon>visibility</mat-icon>
+      <span>{{ 'MD_TREE.SHOW_FOLDER_CONTENT' | translate }}</span>
+    </button>
+    <button *ngIf="item.type==='folder' && item.hasExtraContent && item.extraLoaded" mat-menu-item (click)="hideFolderExtras(item)">
+      <mat-icon>visibility_off</mat-icon>
+      <span>{{ 'MD_TREE.HIDE_FOLDER_CONTENT' | translate }}</span>
     </button>
     <button *ngIf="item.type==='folder'" mat-menu-item (click)="openMarkForFolder(item)">
       <mat-icon>auto_awesome</mat-icon>
@@ -65,6 +76,12 @@
     <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="moveDocument(item)">
       <mat-icon>open_with</mat-icon>
       <span>{{ 'MD_TREE.MOVE' | translate }}</span>
+    </button>
+
+    <!-- File non-markdown rivelato: per ora solo copia del path relativo alla root -->
+    <button *ngIf="item.type==='genericFile'" mat-menu-item (click)="getLinkFromNode(item)">
+      <mat-icon>link</mat-icon>
+      <span>{{ 'MD_TREE.COPY_PATH' | translate }}</span>
     </button>
 
     <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="openFolderOn(item)">
@@ -198,11 +215,26 @@
     </div>
   </mat-tree-node>
 
+  <!-- Non-markdown file revealed via a folder's "eye" (reveal content).
+       Click does nothing for now (it is not a markdown document); right-click opens the
+       context menu whose only action is "Copy path" (relative to the project root).
+       Muted styling to set it apart from real .md documents. -->
+  <mat-tree-node *matTreeNodeDef="let node;when: isGenericFile"
+                 matTreeNodePadding
+                 (contextmenu)="onRightClick($event, node)"
+                 [attr.data-fullpath]="node.fullPath"
+                 [ngClass]="{ 'generic-file': true, 'selected': isNodeSelected(node) }">
+    <button mat-icon-button color="basic" style="cursor:default">
+      <mat-icon class="mat-icon-rtl-mirror generic-file-icon">insert_drive_file</mat-icon>
+    </button>
+    <div class="node-text generic-file-name" style="padding: 2px;">{{node.name}}</div>
+  </mat-tree-node>
+
   <!-- This is the tree node template for expandable nodes -->
   <mat-tree-node [@fadeInOnEnter] *matTreeNodeDef="let node;when: isFolder"
                  style="cursor:pointer" matTreeNodePadding
                  (contextmenu)="onRightClick($event, node)"
-                 (click)="treeControl.toggle(node)"
+                 (click)="onFolderClick(node)"
                  (dragover)="onDragOver($event, node)"
                  (dragleave)="onDragLeave($event)"
                  (drop)="onDrop($event, node)"
@@ -237,9 +269,10 @@
                 class="mat-icon-rtl-mirror terminal-icon">
         terminal
       </mat-icon>
-      <!-- Icona per cartelle normali -->
+      <!-- Icona per cartelle normali (verde se cartella rivelata via "occhio") -->
       <mat-icon *ngIf="!isProgramFolder(node) && node.name!='mdPublish' && node.name!='.github' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
-                class="gold-icon mat-icon-rtl-mirror folder-icon">
+                class="gold-icon mat-icon-rtl-mirror folder-icon"
+                [class.extra-revealed]="node.isExtra">
         {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
       </mat-icon>
       <mat-spinner *ngIf="node.name!='mdPublish' && node.indexingStatus === 'indexing'"
@@ -255,8 +288,8 @@
         {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
       </mat-icon>
     </button>
-    <!-- Nome cartella normale o path compattato -->
-    <span class="folder-name node-text" *ngIf="!node.isCompacted">{{node.name}}</span>
+    <!-- Nome cartella normale o path compattato (verde se cartella rivelata via "occhio") -->
+    <span class="folder-name node-text" [class.extra-revealed]="node.isExtra" *ngIf="!node.isCompacted">{{node.name}}</span>
     <!-- Path compattato con segmenti cliccabili -->
     <span class="folder-name node-text compacted-folder" *ngIf="node.isCompacted">
       <ng-container *ngFor="let segment of node.compactedSegments; let last = last">

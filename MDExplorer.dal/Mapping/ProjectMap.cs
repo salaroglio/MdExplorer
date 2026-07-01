@@ -23,6 +23,7 @@ namespace MDExplorer.DataAccess.Mapping
             Map(_ => _.PlantUmlKeepOriginalColorsInDarkMode).Not.Nullable().Default("0");
             Map(_ => _.UseCopilotCliAsDefault).Not.Nullable().Default("1");
             Map(_ => _.ExecutionTrusted).Not.Nullable().Default("0");
+            Map(_ => _.ExcludeSubmodulesFromGitStatus).Not.Nullable().Default("1");
             HasMany(x => x.Bookmarks).LazyLoad().Cascade.SaveUpdate();
         }
     }

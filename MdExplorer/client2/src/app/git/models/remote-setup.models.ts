@@ -89,6 +89,7 @@ export interface GitSetupRemoteGenericDialogData {
   projectPath: string;
   projectName: string;
   prefilledRemoteUrl?: string;  // Pre-filled URL when reconfiguring existing remote
+  isCredentialRecovery?: boolean;  // True when opened to recover credentials of an already-cloned repo
 }
 
 /**

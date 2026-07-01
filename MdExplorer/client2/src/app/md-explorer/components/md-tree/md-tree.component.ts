@@ -124,6 +124,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       developmentTags: node.developmentTags,
       // True when the folder owns a generated TOC file (drives the TOC icon)
       hasToc: node.hasToc,
+      // Folder "reveal extra content" (eye) state
+      hasExtraContent: node.hasExtraContent,
+      extraLoaded: node.extraLoaded,
+      isExtra: node.isExtra,
       // Compact folder properties
       isCompacted: node.isCompacted,
       compactedPath: node.compactedPath,
@@ -159,6 +163,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   hasChild = (_: number, node: IFileInfoNode) => node.expandable;
 
   isFolder = (_: number, node: IFileInfoNode) => node.type == "folder";
+  isGenericFile = (_: number, node: IFileInfoNode) => node.type == "genericFile";
   isMdPublish = (_: number, node: IFileInfoNode) => node.type == "folder" && node.name == "mdPublish";
   isEmptyRoot = (_: number, node: IFileInfoNode) => node.type == "emptyroot";
   isExternalAppRoot = (_: number, node: IFileInfoNode) => node.type == "externalAppRoot";
@@ -513,6 +518,14 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // we record the mouse position in our object
     this.menuTopLeftPosition.x = event.clientX;
     this.menuTopLeftPosition.y = event.clientY;
+
+    // Recompute the "extra content revealed?" state from the ACTUAL tree contents at open time.
+    // The reveal/hide menu entries key off item.extraLoaded; deriving it here (instead of relying
+    // on a mutated-and-propagated flag) makes the toggle deterministic — the eye_off appears iff
+    // the folder currently shows revealed isExtra children.
+    if (item && item.type === 'folder') {
+      item.extraLoaded = this.folderHasRevealedExtras(item);
+    }
 
     // we open the menu
     // we pass to the menu the information about our object
@@ -948,6 +961,61 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Stop the click from bubbling to the folder row (which would toggle it).
     event.stopPropagation();
     this.navigateToTocFile(node);
+  }
+
+  /**
+   * Left-click on a folder row. A GREEN (revealed-but-not-yet-drilled-in) folder — one that
+   * appeared only because it was revealed (isExtra) and has no content loaded yet — reveals its
+   * content on click, exactly like the eye. Any other folder, or a green one already drilled in,
+   * just expands/collapses.
+   */
+  onFolderClick(node: MdFile) {
+    if (node.isExtra && !this.folderHasRevealedExtras(node)) {
+      // Expand SYNCHRONOUSLY now (idempotent) so the revealed files appear the instant they
+      // load — not after the async HTTP round-trip. Using expand (not toggle) also makes repeated
+      // clicks while the reveal is in flight harmless (no collapse), fixing the "click 2-3 times".
+      this.treeControl.expand(node);
+      this.revealFolderExtras(node);
+      return;
+    }
+    this.treeControl.toggle(node);
+  }
+
+  /**
+   * "Eye" reveal (context menu): pulls the folder's hidden content — non-.md files and
+   * markdown-empty subfolders — into the tree, ONE level deep. Subfolders come back unexplored
+   * (their own eye lets the user drill in). For compact folders the deepest segment is the real
+   * target (its children are what the row shows). Expands the folder so the new nodes are visible.
+   */
+  revealFolderExtras(node: MdFile) {
+    const parentFullPath = this.getFolderRevealPath(node);
+    this.mdFileService.revealFolderExtras(parentFullPath).subscribe({
+      next: () => { this.treeControl.expand(node); },
+      error: (err) => {
+        console.error('[MdTreeComponent] revealFolderExtras failed:', err);
+        this.snackBar.open(this.translate.instant('MD_TREE.REVEAL_ERROR'), 'OK', { duration: 3000 });
+      }
+    });
+  }
+
+  /** "Eye" hide (context menu): removes the previously revealed extra nodes again. */
+  hideFolderExtras(node: MdFile) {
+    this.mdFileService.hideFolderExtras(this.getFolderRevealPath(node));
+  }
+
+  /**
+   * Absolute path of the folder whose extras the eye acts on. For compact folders that is the
+   * LAST segment (the one whose children the row displays), matching findFolderInDataStore.
+   */
+  private getFolderRevealPath(node: MdFile): string {
+    return node.isCompacted && node.compactedSegments?.length
+      ? node.compactedSegments[node.compactedSegments.length - 1].fullPath
+      : node.fullPath;
+  }
+
+  /** True when the folder currently shows revealed extra content (isExtra children). */
+  private folderHasRevealedExtras(node: MdFile): boolean {
+    return this.mdFileService.hasRevealedExtras(this.getFolderRevealPath(node));
   }
   
   exportFolderToWord(node: MdFile) {

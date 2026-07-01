@@ -531,6 +531,46 @@ public class MdExplorerTools
     }
 
     [McpServerTool, Description(
+        "Reassigns a Jira issue to another person (WRITE). Pass the assignee's name (or " +
+        "email) in 'assignee': the tool looks the person up in Jira and resolves the " +
+        "internal accountId itself before reassigning. Outcomes (read the JSON 'ok' " +
+        "field): ok=true -> reassigned (the resolved user is echoed back). notFound=true " +
+        "-> no user matched 'assignee'; tell the user and try a different spelling/surname/" +
+        "email. ambiguous=true -> SEVERAL users matched and NOTHING was changed; the JSON " +
+        "'candidates' lists each accountId + name + email — show them to the user, get the " +
+        "choice, then call this tool again passing that exact 'accountId'. To clear the " +
+        "assignee pass unassign=true. To assign to yourself, pass your own name in 'assignee'.")]
+    public async Task<string> JiraAssignIssue(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("Issue key, e.g. 'SCRUM-5'.")] string issueKey,
+        [Description("The assignee's name or email to look up. Omit when passing accountId, or when unassign=true.")] string assignee = null,
+        [Description("The exact Jira accountId, when already known (e.g. after disambiguating an 'ambiguous' result). Skips the name lookup.")] string accountId = null,
+        [Description("Set true to remove the current assignee (leave assignee/accountId empty).")] bool unassign = false)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        if (string.IsNullOrWhiteSpace(issueKey)) return "issueKey is required.";
+        if (!unassign && string.IsNullOrWhiteSpace(assignee) && string.IsNullOrWhiteSpace(accountId))
+            return "Provide 'assignee' (a name/email to look up), 'accountId', or set unassign=true.";
+        try
+        {
+            var payload = new { projectId = pid, query = assignee, accountId, unassign };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Put,
+                $"/api/atlassian/jira/issue/{Uri.EscapeDataString(issueKey.Trim())}/assignee") { Content = content };
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraAssignIssue", project, $"issueKey={issueKey}, assignee={assignee}, accountId={accountId}, unassign={unassign}", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
         "Lists the workflow transitions currently available for a Jira issue " +
         "(e.g. 'In Progress', 'Done'). Call this before JiraTransitionIssue to know " +
         "the valid target states.")]

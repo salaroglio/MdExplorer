@@ -59,6 +59,12 @@ namespace MdExplorer.Abstractions.Models
         [JsonPropertyName("hasToc")]
         public bool HasToc { get; set; }
 
+        // True when the folder contains content the md-tree does not show:
+        // a direct non-.md file, or a direct subfolder dropped for lacking .md descendants.
+        // Drives the "eye" reveal toggle on the folder node.
+        [JsonPropertyName("hasExtraContent")]
+        public bool HasExtraContent { get; set; }
+
         // External app embedding
         [JsonPropertyName("appId")]
         public string AppId { get; set; }

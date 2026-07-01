@@ -4500,6 +4500,12 @@ class GitSetupRemoteGenericDialogComponent {
     this.providerInfo = _models_remote_setup_models__WEBPACK_IMPORTED_MODULE_0__.PROVIDER_INFO;
   }
   ngOnInit() {
+    // In credential-recovery mode the repository is already cloned and its 'origin' is
+    // correct; we only need to (re)store credentials. Pushing here is out of context and
+    // can fail for unrelated reasons (branch protection, nothing to push, ...), so disable it.
+    if (this.data?.isCredentialRecovery) {
+      this.pushAfterAdd = false;
+    }
     // Use pre-filled URL if available (from toolbar when reconfiguring credentials)
     if (this.data?.prefilledRemoteUrl) {
       this.remoteUrl = this.data.prefilledRemoteUrl;
@@ -5854,6 +5860,21 @@ class ProjectSettingsService {
       projectPath
     });
   }
+  getExcludeSubmodulesSetting(projectPath) {
+    const url = '../api/ProjectSettings/GetExcludeSubmodulesSetting';
+    return this.http.get(url, {
+      params: {
+        projectPath
+      }
+    });
+  }
+  setExcludeSubmodulesSetting(enabled, projectPath) {
+    const url = '../api/ProjectSettings/SetExcludeSubmodulesSetting';
+    return this.http.post(url, {
+      enabled,
+      projectPath
+    });
+  }
   // RAG Settings
   getRagStatus() {
     const url = '../api/Rag/status';
@@ -5872,6 +5893,11 @@ class ProjectSettingsService {
     return this.http.post(url, {
       projectPath
     });
+  }
+  /** Full project reindex: ignores the incremental fingerprints (links, FTS, embeddings). */
+  reindexProject(connectionId) {
+    const url = `../api/mdfiles/ReindexProject?ConnectionId=${connectionId}`;
+    return this.http.post(url, {});
   }
   clearRagIndex(projectPath) {
     const url = '../api/Rag/clear';

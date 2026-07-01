@@ -28,6 +28,11 @@ export class MdFile implements IFileInfoNode {
   // True when the folder owns a generated TOC file (<dirname>.md.directory)
   hasToc?: boolean;
 
+  // Folder "reveal extra content" (eye) state — see IFileInfoNode for semantics.
+  hasExtraContent?: boolean;
+  extraLoaded?: boolean;
+  isExtra?: boolean;
+
   // Compact folder properties (VS Code-style)
   isCompacted?: boolean;
   compactedPath?: string;

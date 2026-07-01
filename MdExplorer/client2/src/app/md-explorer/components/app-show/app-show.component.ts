@@ -5,6 +5,7 @@ import {
   ChangeDetectorRef,
   NgZone
 } from '@angular/core';
+import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { Subscription } from 'rxjs';
 import { Router } from '@angular/router';
 import { EmbeddedAppStateService, EmbeddedAppEntry } from '../../services/embedded-app-state.service';
@@ -101,5 +102,18 @@ export class AppShowComponent implements OnInit, OnDestroy {
       bookmark.projectId = currentProject.id;
       this.bookmarksService.toggleBookmark(bookmark);
     }
+  }
+
+  // Drag-and-drop: riordina le linguette; l'indice numerico segue il nuovo ordine.
+  dropBookmark(event: CdkDragDrop<Bookmark[]>): void {
+    if (event.previousIndex === event.currentIndex) {
+      return;
+    }
+    const currentProject = this.projectService.currentProjects$.value;
+    if (!currentProject || !currentProject.id) {
+      return;
+    }
+    moveItemInArray(this.bookmarks, event.previousIndex, event.currentIndex);
+    this.bookmarksService.reorderBookmarks(currentProject.id, this.bookmarks);
   }
 }

@@ -13,6 +13,11 @@ namespace MdExplorer.DataAccess.Engine
             Map(_ => _.Path).Not.Nullable();            
             Map(_ => _.FileType).Not.Nullable();
             Map(_ => _.Tldr).Nullable().Length(int.MaxValue);
+            Map(_ => _.FileLastWriteUtc).Nullable().Length(64);
+            Map(_ => _.FileSize).Nullable();
+            Map(_ => _.FileHash).Nullable().Length(64);
+            Map(_ => _.LinksHash).Nullable().Length(64);
+            Map(_ => _.FtsHash).Nullable().Length(64);
             HasMany(x => x.Links).Cascade.All();
         }
     }

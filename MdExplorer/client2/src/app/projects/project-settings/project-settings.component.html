@@ -78,6 +78,19 @@
                 <strong>{{ 'PROJECT_SETTINGS.LINK_INDEXING_NOTE' | translate }}</strong>
               </p>
             </div>
+
+            <div class="setting-item" *ngIf="!loading">
+              <button mat-stroked-button
+                (click)="onProjectReindex()"
+                [disabled]="projectReindexing || saving">
+                <mat-icon *ngIf="!projectReindexing">refresh</mat-icon>
+                <mat-spinner *ngIf="projectReindexing" diameter="18" class="inline-spinner"></mat-spinner>
+                {{ projectReindexing ? ('PROJECT_SETTINGS.REINDEXING_PROJECT' | translate) : ('PROJECT_SETTINGS.REINDEX_PROJECT' | translate) }}
+              </button>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.REINDEX_PROJECT_DESC' | translate }}
+              </p>
+            </div>
           </mat-card-content>
         </mat-card>
 
@@ -108,6 +121,26 @@
               </mat-checkbox>
               <p class="setting-description">
                 {{ 'PROJECT_SETTINGS.PLANTUML_KEEP_ORIGINAL_DESC' | translate }}
+              </p>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="settings-section">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.GIT_TITLE' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="setting-item" *ngIf="!loading">
+              <mat-checkbox
+                [(ngModel)]="excludeSubmodulesEnabled"
+                (change)="onExcludeSubmodulesChange()"
+                [disabled]="saving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.EXCLUDE_SUBMODULES' | translate }}</span>
+              </mat-checkbox>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.EXCLUDE_SUBMODULES_DESC' | translate }}
               </p>
             </div>
           </mat-card-content>

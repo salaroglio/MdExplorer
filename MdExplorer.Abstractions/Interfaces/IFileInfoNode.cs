@@ -28,6 +28,11 @@ namespace MdExplorer.Abstractions.Interfaces
         // True when the folder owns a generated TOC file (<dirname>.md.directory)
         bool HasToc { get; set; }
 
+        // True when the folder contains content the md-tree does not show:
+        // a direct non-.md file, or a direct subfolder dropped for lacking .md descendants.
+        // Drives the "eye" reveal toggle on the folder node.
+        bool HasExtraContent { get; set; }
+
         // External app embedding
         string AppId { get; set; }
         string AppExecutable { get; set; }
