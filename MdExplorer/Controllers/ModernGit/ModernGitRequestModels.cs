@@ -354,31 +354,31 @@ namespace MdExplorer.Controllers.ModernGit
         /// Remote name (default: origin)
         /// </summary>
         [StringLength(50)]
-        public string RemoteName { get; set; } = "origin";
+        public string? RemoteName { get; set; } = "origin";
 
         /// <summary>
         /// Authentication method: username_password, pat, ssh
         /// </summary>
         [StringLength(50)]
-        public string AuthMethod { get; set; } = "username_password";
+        public string? AuthMethod { get; set; } = "username_password";
 
         /// <summary>
         /// Username for authentication
         /// </summary>
         [StringLength(100)]
-        public string Username { get; set; }
+        public string? Username { get; set; }
 
         /// <summary>
         /// Password for authentication (for username/password method)
         /// </summary>
         [StringLength(500)]
-        public string Password { get; set; }
+        public string? Password { get; set; }
 
         /// <summary>
         /// Personal Access Token (for PAT method)
         /// </summary>
         [StringLength(500)]
-        public string Token { get; set; }
+        public string? Token { get; set; }
 
         /// <summary>
         /// Whether to save credentials for future use
@@ -399,7 +399,7 @@ namespace MdExplorer.Controllers.ModernGit
         /// Repository description (for auto-creation)
         /// </summary>
         [StringLength(500)]
-        public string RepoDescription { get; set; }
+        public string? RepoDescription { get; set; }
 
         /// <summary>
         /// Whether repository should be private (for auto-creation)
@@ -414,8 +414,10 @@ namespace MdExplorer.Controllers.ModernGit
         /// <summary>
         /// ID of an existing GitCredential to use for authentication.
         /// When set, credentials will be loaded from the specified credential.
+        /// Optional: nullable so the implicit [Required] (from &lt;Nullable&gt; enabled)
+        /// does not reject requests that omit it (e.g. credential-recovery flow).
         /// </summary>
-        public string CopyFromCredentialId { get; set; }
+        public string? CopyFromCredentialId { get; set; }
     }
 
     /// <summary>
