@@ -442,14 +442,13 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 // NOTE: the MCP server does NOT take a launch-time project argument — tools
                 // receive the project name per call (the LLM discovers it via GetProjects).
                 var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                // The MCP server is published self-contained into an isolated "mcp"
-                // subfolder next to the Service (app_service/mcp), because its 10.x
-                // dependency closure is incompatible with the Service's 8.x assemblies.
-                var mcpExePath = Path.Combine(baseDir, "mcp",
-                    OperatingSystem.IsWindows() ? "MdExplorer.Mcp.exe" : "MdExplorer.Mcp");
+                // ResolveMcpExecutable already prefers the isolated "mcp/" subfolder next to the
+                // Service (where the self-contained publish lands, its 10.x closure kept apart from
+                // the Service's 8.x), then falls back to a pre-built exe on a dev box.
+                var mcpExePath = ResolveMcpExecutable(baseDir);
 
                 System.Text.Json.Nodes.JsonObject serverEntry;
-                if (File.Exists(mcpExePath))
+                if (mcpExePath != null)
                 {
                     serverEntry = new System.Text.Json.Nodes.JsonObject
                     {
@@ -459,6 +458,8 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 }
                 else
                 {
+                    // No pre-built exe found (dev box with sources but nothing built yet).
+                    // Last resort only — see ResolveMcpExecutable for why "dotnet run" is unreliable.
                     var mcpProjectPath = FindMcpProjectPath(baseDir);
                     serverEntry = new System.Text.Json.Nodes.JsonObject
                     {
@@ -530,14 +531,13 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
                 // Copilot CLI requires "tools" array (empty = allow all tools discovered at runtime)
                 var baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                // The MCP server is published self-contained into an isolated "mcp"
-                // subfolder next to the Service (app_service/mcp), because its 10.x
-                // dependency closure is incompatible with the Service's 8.x assemblies.
-                var mcpExePath = Path.Combine(baseDir, "mcp",
-                    OperatingSystem.IsWindows() ? "MdExplorer.Mcp.exe" : "MdExplorer.Mcp");
+                // ResolveMcpExecutable already prefers the isolated "mcp/" subfolder next to the
+                // Service (where the self-contained publish lands, its 10.x closure kept apart from
+                // the Service's 8.x), then falls back to a pre-built exe on a dev box.
+                var mcpExePath = ResolveMcpExecutable(baseDir);
 
                 System.Text.Json.Nodes.JsonObject serverEntry;
-                if (File.Exists(mcpExePath))
+                if (mcpExePath != null)
                 {
                     serverEntry = new System.Text.Json.Nodes.JsonObject
                     {
@@ -547,6 +547,8 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 }
                 else
                 {
+                    // No pre-built exe found (dev box with sources but nothing built yet).
+                    // Last resort only — see ResolveMcpExecutable for why "dotnet run" is unreliable.
                     var mcpProjectPath = FindMcpProjectPath(baseDir);
                     serverEntry = new System.Text.Json.Nodes.JsonObject
                     {
@@ -577,10 +579,17 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     // customization (an existing, resolvable command) is left untouched.
                     // Only heal when we actually have a real MdExplorer.Mcp.exe to point at,
                     // so we never replace an entry with another broken fallback.
+                    // Heal when the entry is missing, when a real exe is available and the current
+                    // entry is broken (stale/unresolvable path), OR when a real exe is available and
+                    // the current entry still uses the fragile "dotnet run" form (self-locks its bin
+                    // and fails to launch — the root cause of the "Failed to connect" symptom).
                     bool entryMissing = !servers.ContainsKey(serverKey);
+                    bool haveRealExe = mcpExePath != null;
                     bool entryBroken = servers[serverKey] is System.Text.Json.Nodes.JsonObject existingEntry
                                        && McpEntryLaunchTargetMissing(existingEntry);
-                    if (entryMissing || (File.Exists(mcpExePath) && entryBroken))
+                    bool entryIsDotnetRun = servers[serverKey] is System.Text.Json.Nodes.JsonObject dotnetRunEntry
+                                       && IsDotnetRunEntry(dotnetRunEntry);
+                    if (entryMissing || (haveRealExe && (entryBroken || entryIsDotnetRun)))
                     {
                         servers[serverKey] = serverEntry;
                     }
@@ -646,6 +655,57 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
             // Direct form: the command is a path to MdExplorer.Mcp.exe.
             return !File.Exists(command);
+        }
+
+        /// <summary>
+        /// Resolves a ready-to-launch MdExplorer.Mcp executable to point the MCP client config at.
+        /// Returns the full path of a pre-built exe, or null if none can be found.
+        ///
+        /// A DIRECT exe is required. The old fallback launched the stdio server via
+        /// "dotnet run --project ...", which rebuilds the project into bin/ on every start and then
+        /// runs from there; a still-running (or orphaned) server instance keeps those bin DLLs
+        /// locked, so the rebuild of the next launch fails and the server never comes up — Copilot
+        /// CLI then reports "taking longer than expected / Failed to connect". "dotnet run" also
+        /// pollutes stdout with build output, corrupting the JSON-RPC stdio channel.
+        /// </summary>
+        private static string? ResolveMcpExecutable(string baseDir)
+        {
+            var exeName = OperatingSystem.IsWindows() ? "MdExplorer.Mcp.exe" : "MdExplorer.Mcp";
+
+            // 1) Next to the running service (installed client, publish at payload root).
+            var atRoot = Path.Combine(baseDir, exeName);
+            if (File.Exists(atRoot))
+                return atRoot;
+
+            // 2) Isolated "mcp/" subfolder next to the running service (isolated publish layout).
+            var atMcpSub = Path.Combine(baseDir, "mcp", exeName);
+            if (File.Exists(atMcpSub))
+                return atMcpSub;
+
+            // 3) Dev machine: the MCP project's own build output. Its bin folder carries an isolated
+            //    dependency closure, so the exe launches cleanly on its own. Prefer the most recently
+            //    built exe (Release or Debug, any target-framework subfolder).
+            var mcpProjectDir = FindMcpProjectPath(baseDir);
+            var built = new[] { "Release", "Debug" }
+                .Select(cfg => Path.Combine(mcpProjectDir, "bin", cfg))
+                .Where(Directory.Exists)
+                .SelectMany(dir => Directory.EnumerateFiles(dir, exeName, SearchOption.AllDirectories))
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .FirstOrDefault();
+
+            return built;
+        }
+
+        /// <summary>
+        /// True when an MCP entry uses the fragile "dotnet run" launch form (command == dotnet).
+        /// Such an entry rebuilds and self-locks the server's bin output on every launch, so it is
+        /// always replaced with a direct exe path whenever one is available.
+        /// </summary>
+        private static bool IsDotnetRunEntry(System.Text.Json.Nodes.JsonObject entry)
+        {
+            var command = entry?["command"]?.GetValue<string>();
+            return string.Equals(command, "dotnet", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(command, "dotnet.exe", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string FindMcpProjectPath(string baseDir)
