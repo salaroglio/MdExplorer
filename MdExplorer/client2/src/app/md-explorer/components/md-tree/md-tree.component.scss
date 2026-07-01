@@ -402,3 +402,22 @@
 :host-context(body.dark-theme) .toc-indicator {
   color: #64b5f6;
 }
+
+// Non-markdown files revealed via a folder's "eye" (reveal content). Muted, so they read as
+// secondary next to real .md documents; they are informational + copy-path only for now.
+.generic-file-icon {
+  color: #9e9e9e;
+}
+
+.generic-file-name {
+  color: #757575;
+  font-style: italic;
+}
+
+:host-context(body.dark-theme) .generic-file-icon {
+  color: #8a8a8a;
+}
+
+:host-context(body.dark-theme) .generic-file-name {
+  color: #9e9e9e;
+}

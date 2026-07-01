@@ -25,6 +25,15 @@ export interface IFileInfoNode {
   // True when the folder owns a generated TOC file (<dirname>.md.directory)
   hasToc?: boolean;
 
+  // True when the folder contains content the md-tree does not show (non-.md files or
+  // markdown-empty subfolders). Drives the "reveal content" (eye) entry in the context menu.
+  hasExtraContent?: boolean;
+  // True once the extra content of this folder has been pulled into the tree (eye toggled on).
+  extraLoaded?: boolean;
+  // True on nodes that were injected by a folder "reveal" call (so a "hide" can remove them
+  // again without touching the folder's real .md children).
+  isExtra?: boolean;
+
   // Compact folder properties (VS Code-style)
   isCompacted?: boolean;                // True if this node is the result of compacting multiple folders
   compactedPath?: string;               // Compacted display path: "src / main / java"

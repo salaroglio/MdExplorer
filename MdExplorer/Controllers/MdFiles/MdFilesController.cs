@@ -2050,6 +2050,153 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
 
+        /// <summary>
+        /// Returns the DIRECT children of a folder — every file (markdown and non-markdown) plus
+        /// every direct subfolder — WITHOUT recursing into subfolders. Backs the folder "eye"
+        /// reveal action in the md-tree: the default shallow load hides non-markdown files and
+        /// markdown-empty subfolders, this surfaces them on demand, one level at a time.
+        /// <para>Each returned subfolder carries its own <see cref="IFileInfoNode.HasExtraContent"/>
+        /// (computed shallow, "does a reveal here return anything?") so the caller can drill in
+        /// incrementally without the eye ever promising content this call would not return.</para>
+        /// </summary>
+        [HttpGet]
+        public IActionResult GetFolderExtraContent(string path, string connectionId)
+        {
+            var projectPath = GetProjectPath();
+            if (string.IsNullOrEmpty(projectPath))
+                return BadRequest("Project path unavailable.");
+
+            var fullFolderPath = ResolveInsideProject(projectPath, path);
+            if (fullFolderPath == null)
+                return BadRequest("Path is outside the project root.");
+            if (!Directory.Exists(fullFolderPath))
+                return NotFound($"Folder not found: {path}");
+
+            var list = new List<IFileInfoNode>();
+
+            // Direct subfolders — surfaced but NOT explored (incremental reveal).
+            foreach (var itemFolder in SortFoldersWithPriority(
+                         Directory.GetDirectories(fullFolderPath).Where(_ => !_.Contains(".md")),
+                         isRootLevel: false, projectRoot: projectPath))
+            {
+                if (_foldersIgnoreService.ShouldIgnoreFolderForProject(itemFolder, projectPath))
+                    continue;
+
+                var relative = itemFolder.Substring(projectPath.Length);
+                list.Add(new FileInfoNode
+                {
+                    Name = Path.GetFileName(itemFolder),
+                    FullPath = itemFolder,
+                    Path = relative,
+                    RelativePath = relative,
+                    Type = "folder",
+                    DevelopmentTags = LoadDevelopmentTags(itemFolder, projectPath),
+                    HasToc = FolderHasToc(itemFolder),
+                    HasExtraContent = FolderHasRevealableContent(itemFolder, projectPath),
+                    Expandable = true
+                });
+            }
+
+            // Every direct file. Markdown files get a normal md node (so a revealed subfolder's
+            // markdown behaves like the rest of the tree); non-markdown files become genericFile
+            // leaves. The folder's own TOC sidecar is excluded (already surfaced via HasToc).
+            foreach (var itemFile in Directory.GetFiles(fullFolderPath))
+            {
+                if (itemFile.EndsWith(".md.directory", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var relative = itemFile.Substring(projectPath.Length);
+                if (Path.GetExtension(itemFile) == ".md")
+                {
+                    if (_mdIgnoreService.ShouldIgnorePath(itemFile, projectPath))
+                        continue;
+                    var mdNode = _projectBodyEngine.CreateNodeMdFile(itemFile, relative);
+                    if (IsPromptLabFile(itemFile))
+                        mdNode.Type = "promptlab";
+                    list.Add(mdNode);
+                }
+                else
+                {
+                    list.Add(new FileInfoNode
+                    {
+                        Name = Path.GetFileName(itemFile),
+                        FullPath = itemFile,
+                        Path = relative,
+                        RelativePath = relative,
+                        Type = "genericFile",
+                        Expandable = false
+                    });
+                }
+            }
+
+            return Ok(list);
+        }
+
+        /// <summary>
+        /// True when a reveal of <paramref name="folder"/> would return at least one node — any
+        /// non-ignored markdown file, any non-markdown file (excluding the TOC sidecar), or any
+        /// non-ignored direct subfolder. Keeps a revealed subfolder's eye truthful.
+        /// </summary>
+        private bool FolderHasRevealableContent(string folder, string projectPath)
+        {
+            try
+            {
+                foreach (var f in Directory.GetFiles(folder))
+                {
+                    if (f.EndsWith(".md.directory", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (Path.GetExtension(f) == ".md")
+                    {
+                        if (!_mdIgnoreService.ShouldIgnorePath(f, projectPath))
+                            return true;
+                    }
+                    else
+                    {
+                        return true;
+                    }
+                }
+                foreach (var d in Directory.GetDirectories(folder).Where(_ => !_.Contains(".md")))
+                {
+                    if (!_foldersIgnoreService.ShouldIgnoreFolderForProject(d, projectPath))
+                        return true;
+                }
+            }
+            catch
+            {
+                // Unreadable folder → no eye rather than a lie.
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Resolves a client-supplied path (relative to the project root, or an absolute path
+        /// already inside it) to a canonical absolute path, refusing anything that escapes the
+        /// project root. Accepts both '/' and '\' separators. Returns null when the path is empty
+        /// or would resolve outside the root.
+        /// </summary>
+        private static string ResolveInsideProject(string projectPath, string requested)
+        {
+            if (string.IsNullOrWhiteSpace(requested))
+                return null;
+
+            var sep = Path.DirectorySeparatorChar;
+            var normalized = requested.Replace('/', sep).Replace('\\', sep);
+
+            var candidate = Path.IsPathRooted(normalized)
+                ? normalized
+                : Path.Combine(projectPath, normalized.TrimStart(sep));
+
+            var full = Path.GetFullPath(candidate);
+            var rootFull = Path.GetFullPath(projectPath);
+
+            if (full.Equals(rootFull, StringComparison.OrdinalIgnoreCase))
+                return full;
+            if (full.StartsWith(rootFull.TrimEnd(sep) + sep, StringComparison.OrdinalIgnoreCase))
+                return full;
+
+            return null;
+        }
+
         [HttpPost]
         public IActionResult CloneTimerMd([FromBody] FileInfoNode fileData)
         {
@@ -2576,6 +2723,22 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
         /// <summary>
+        /// True when <paramref name="filePath"/> is a file the md-tree does not already show and
+        /// that is worth surfacing via the folder "reveal extra content" action. Excludes markdown
+        /// files (shown natively) and the folder's generated TOC sidecar (<c>&lt;dirname&gt;.md.directory</c>,
+        /// already surfaced via <see cref="IFileInfoNode.HasToc"/>).
+        /// <para>Both the <see cref="IFileInfoNode.HasExtraContent"/> flag and
+        /// <c>GetFolderExtraContent</c> use this predicate so the eye never promises content the
+        /// reveal call would not return.</para>
+        /// </summary>
+        private static bool IsRevealableExtraFile(string filePath)
+        {
+            if (Path.GetExtension(filePath) == ".md") return false;
+            if (filePath.EndsWith(".md.directory", StringComparison.OrdinalIgnoreCase)) return false;
+            return true;
+        }
+
+        /// <summary>
         /// True when the folder owns its generated TOC file (<c>&lt;dirname&gt;.md.directory</c>).
         /// Drives the clickable document icon shown on the folder node in the md-tree.
         /// </summary>
@@ -2942,6 +3105,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private async Task<bool> ExploreNodes(FileInfoNode fileInfoNode, string pathFile, ScanStats stats = null)
         {
             var isEmpty = true;
+            var hasExtra = false;
             var projectPath = GetProjectPath();
 
             // Ordina: folder "program" primi, poi alfabetico
@@ -2967,11 +3131,18 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 {
                     fileInfoNode.Childrens.Add(node);
                 }
+                else
+                {
+                    // A non-ignored subfolder with no .md descendant is dropped from the tree,
+                    // but it still exists on disk: mark the parent so the eye can reveal it.
+                    hasExtra = true;
+                }
 
                 isEmpty = isEmpty && isempty;
             }
 
-            foreach (var itemFile in Directory.GetFiles(pathFile).Where(_ => Path.GetExtension(_) == ".md"))
+            var allFiles = Directory.GetFiles(pathFile);
+            foreach (var itemFile in allFiles.Where(_ => Path.GetExtension(_) == ".md"))
             {
                 // Check if file should be ignored
                 if (_mdIgnoreService.ShouldIgnorePath(itemFile, projectPath))
@@ -2988,12 +3159,19 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 fileInfoNode.Childrens.Add(node);
                 isEmpty = false;
             }
+
+            // Non-markdown files present in this folder are extra content the tree hides.
+            if (!hasExtra && allFiles.Any(IsRevealableExtraFile))
+                hasExtra = true;
+            fileInfoNode.HasExtraContent = hasExtra;
+
             return isEmpty;
         }
 
         private async Task<bool> ExploreNodes(FileInfoNode fileInfoNode, string pathFile, string connectionId)
         {
             var isEmpty = true;
+            var hasExtra = false;
             var projectPath = GetProjectPath(connectionId);
 
             // Ordina: folder "program" primi, poi alfabetico
@@ -3024,6 +3202,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     // Small delay to make progress visible
                     await Task.Delay(50);
                 }
+                else
+                {
+                    // A non-ignored subfolder with no .md descendant is dropped from the tree,
+                    // but it still exists on disk: mark the parent so the eye can reveal it.
+                    hasExtra = true;
+                }
 
                 // Send folderIndexingComplete event (sempre, anche se vuota)
                 await _hubContext.Clients.Client(connectionId)
@@ -3032,7 +3216,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 isEmpty = isEmpty && isempty;
             }
 
-            foreach (var itemFile in Directory.GetFiles(pathFile).Where(_ => Path.GetExtension(_) == ".md"))
+            var allFiles = Directory.GetFiles(pathFile);
+            foreach (var itemFile in allFiles.Where(_ => Path.GetExtension(_) == ".md"))
             {
                 // Check if file should be ignored
                 if (_mdIgnoreService.ShouldIgnorePath(itemFile, projectPath))
@@ -3047,6 +3232,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 fileInfoNode.Childrens.Add(node);
                 isEmpty = false;
             }
+
+            // Non-markdown files present in this folder are extra content the tree hides.
+            if (!hasExtra && allFiles.Any(IsRevealableExtraFile))
+                hasExtra = true;
+            fileInfoNode.HasExtraContent = hasExtra;
+
             return isEmpty;
         }
 

@@ -7598,6 +7598,15 @@ class GITService {
           }, error => {
             console.error('Error in modern branch status:', error);
           });
+        } else if (remoteStatus.isGitRepository) {
+          // Remote present but not authenticated (auth missing/failed): branch list and
+          // history are LOCAL operations, so keep the branch status populated and only
+          // skip the remote-dependent pull/push data.
+          this.modernGetBranchStatus(this.currentProjectPath).subscribe(branch => {
+            this.currentBranch$.next(branch);
+          }, error => {
+            console.error('Error in modern branch status:', error);
+          });
         } else if (!remoteStatus.isGitRepository) {
           // Not a Git repository - emit empty state to clear UI
           console.log('📁 Not a Git repository - clearing Git state');
@@ -11121,6 +11130,18 @@ class MdFileService {
   getShallowStructure() {
     return this.http.get('../api/mdfiles/GetShallowStructure');
   }
+  /**
+   * Loads the DIRECT children (files of any extension + direct subfolders) of a folder that the
+   * default shallow structure hides. Non-recursive: subfolders come back unexplored, each with
+   * its own hasExtraContent so they can be revealed incrementally. Backs the folder "eye" action.
+   */
+  loadFolderExtraContent(folderRelativePath) {
+    return this.http.get('../api/mdfiles/GetFolderExtraContent', {
+      params: {
+        path: folderRelativePath
+      }
+    });
+  }
   loadAll(callback, objectThis) {
     const epoch = ++this._loadAllEpoch;
     console.warn(`🔄 [loadAll] epoch ${epoch} started at:`, new Date().toISOString());
@@ -11198,6 +11219,13 @@ class MdFileService {
       // TOC e openTocFile() operano sull'ultimo segmento, quindi hasToc deve
       // riflettere quello, non il primo segmento (dove resta congelato).
       node.hasToc = current.hasToc;
+      // Idem per l'occhio "reveal contenuto extra": la riga compattata mostra i figli
+      // dell'ultimo segmento, e revealFolderExtras() punta a quel segmento. Riflettiamo
+      // quindi l'ultimo segmento. NOTA: eventuale contenuto extra nei segmenti INTERMEDI
+      // (es. un file non-.md dentro un anello compattato) non viene segnalato qui — è una
+      // mancata scoperta, non una promessa falsa (il reveal restituisce sempre e solo ciò
+      // che l'occhio annuncia per il segmento profondo).
+      node.hasExtraContent = current.hasExtraContent;
       // Il fullPath del nodo diventa quello dell'ultimo segmento per le operazioni di default
       // Ma manteniamo il path originale per la visualizzazione
     }
@@ -11279,6 +11307,41 @@ class MdFileService {
       return true;
     }
     return false;
+  }
+  /**
+   * Rivela il contenuto "extra" di una cartella (vedi loadFolderExtraContent) dentro l'albero.
+   * Ogni nodo iniettato viene marcato isExtra così hideFolderExtras potrà rimuovere ESATTAMENTE
+   * quelli, lasciando intatti i figli .md reali della cartella. Marca il parent extraLoaded=true.
+   * Idempotente tramite addFileToParent (i .md già presenti non vengono duplicati né marcati extra).
+   * @param parentFullPath fullPath ASSOLUTO della cartella (per le compact folder: l'ultimo segmento).
+   */
+  revealFolderExtras(parentFullPath) {
+    return this.loadFolderExtraContent(parentFullPath).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.tap)(children => {
+      const kids = children || [];
+      kids.forEach(child => {
+        child.isExtra = true;
+        this.addFileToParent(child, parentFullPath);
+      });
+      const parent = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
+      if (parent) {
+        parent.extraLoaded = true;
+      }
+      this._mdFiles.next([...this.dataStore.mdFiles]);
+    }));
+  }
+  /**
+   * Nasconde di nuovo il contenuto extra rivelato: rimuove i soli figli diretti marcati isExtra
+   * (portandosi via l'eventuale sottoalbero rivelato sotto di essi) e rimette extraLoaded=false.
+   * I figli .md reali non sono mai isExtra → restano.
+   */
+  hideFolderExtras(parentFullPath) {
+    const parent = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
+    if (!parent || !parent.childrens) {
+      return;
+    }
+    parent.childrens = parent.childrens.filter(c => !c.isExtra);
+    parent.extraLoaded = false;
+    this._mdFiles.next([...this.dataStore.mdFiles]);
   }
   /**
    * Cerca ricorsivamente un nodo (di QUALSIASI tipo) per fullPath, case-insensitive.
