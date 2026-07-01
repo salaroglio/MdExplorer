@@ -234,7 +234,7 @@
   <mat-tree-node [@fadeInOnEnter] *matTreeNodeDef="let node;when: isFolder"
                  style="cursor:pointer" matTreeNodePadding
                  (contextmenu)="onRightClick($event, node)"
-                 (click)="treeControl.toggle(node)"
+                 (click)="onFolderClick(node)"
                  (dragover)="onDragOver($event, node)"
                  (dragleave)="onDragLeave($event)"
                  (drop)="onDrop($event, node)"

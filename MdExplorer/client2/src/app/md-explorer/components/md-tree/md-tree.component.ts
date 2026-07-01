@@ -964,6 +964,20 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
+   * Left-click on a folder row. A GREEN (revealed-but-not-yet-drilled-in) folder — one that
+   * appeared only because it was revealed (isExtra) and has no content loaded yet — reveals its
+   * content on click, exactly like the eye. Any other folder, or a green one already drilled in,
+   * just expands/collapses.
+   */
+  onFolderClick(node: MdFile) {
+    if (node.isExtra && !this.folderHasRevealedExtras(node)) {
+      this.revealFolderExtras(node);
+      return;
+    }
+    this.treeControl.toggle(node);
+  }
+
+  /**
    * "Eye" reveal (context menu): pulls the folder's hidden content — non-.md files and
    * markdown-empty subfolders — into the tree, ONE level deep. Subfolders come back unexplored
    * (their own eye lets the user drill in). For compact folders the deepest segment is the real

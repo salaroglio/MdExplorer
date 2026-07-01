@@ -15862,7 +15862,7 @@ function MdTreeComponent_mat_tree_8_mat_tree_node_3_Template(rf, ctx) {
       const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵrestoreView"](_r226);
       const node_r194 = restoredCtx.$implicit;
       const ctx_r227 = _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵresetView"](ctx_r227.treeControl.toggle(node_r194));
+      return _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵresetView"](ctx_r227.onFolderClick(node_r194));
     })("dragover", function MdTreeComponent_mat_tree_8_mat_tree_node_3_Template_mat_tree_node_dragover_0_listener($event) {
       const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_27__["ɵɵrestoreView"](_r226);
       const node_r194 = restoredCtx.$implicit;
@@ -16972,6 +16972,19 @@ class MdTreeComponent {
     // Stop the click from bubbling to the folder row (which would toggle it).
     event.stopPropagation();
     this.navigateToTocFile(node);
+  }
+  /**
+   * Left-click on a folder row. A GREEN (revealed-but-not-yet-drilled-in) folder — one that
+   * appeared only because it was revealed (isExtra) and has no content loaded yet — reveals its
+   * content on click, exactly like the eye. Any other folder, or a green one already drilled in,
+   * just expands/collapses.
+   */
+  onFolderClick(node) {
+    if (node.isExtra && !this.folderHasRevealedExtras(node)) {
+      this.revealFolderExtras(node);
+      return;
+    }
+    this.treeControl.toggle(node);
   }
   /**
    * "Eye" reveal (context menu): pulls the folder's hidden content — non-.md files and
