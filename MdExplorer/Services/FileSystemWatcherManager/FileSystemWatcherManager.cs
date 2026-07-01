@@ -1199,6 +1199,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 var fileEvent = new FileSystemEventArgs(WatcherChangeTypes.Created, Path.GetDirectoryName(e.FullPath), Path.GetFileName(e.FullPath));
 
                 // Serialize DB access: NHibernate session is NOT thread-safe
+                bool targetWasTracked;
                 await context.DbSemaphore.WaitAsync();
                 try
                 {
@@ -1209,7 +1210,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     {
                         RemoveFileFromDB(context, e.OldFullPath);
                     }
-                    ParseNewFileIntoDB(context, fileEvent);
+                    targetWasTracked = ParseNewFileIntoDB(context, fileEvent);
                 }
                 finally
                 {
@@ -1217,6 +1218,40 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 }
 
                 var relativePath = GetRelativePath(context, e.FullPath);
+
+                // Atomic-save detection (very common on Linux): editors and AI tools
+                // save by writing a temp file and rename()-ing it over the existing
+                // target. inotify surfaces this as a RENAME (temp → file.md), NOT a
+                // Changed event, so it lands here instead of OnFileChanged. When the
+                // source was NOT a tracked markdown (a throwaway temp) and the target
+                // was ALREADY tracked, this is semantically an in-place CONTENT CHANGE,
+                // not a new file. Emit "markdownfileischanged" so an open document
+                // reloads, and re-run the RAG/KG hooks — exactly like OnFileChanged —
+                // instead of "markdownFileCreated", which the client treats as a brand
+                // new tree node and which never refreshes the open editor.
+                if (!oldIsMarkdown && targetWasTracked)
+                {
+                    var monitoredMd = new MonitoredMDModel
+                    {
+                        Path = relativePath,
+                        Name = Path.GetFileName(e.FullPath),
+                        FullPath = e.FullPath,
+                        RelativePath = relativePath,
+                        Source = "watcher"
+                    };
+
+                    // Notify ONLY this specific client
+                    await _hubContext.Clients.Client(context.ConnectionId).SendAsync("markdownfileischanged", monitoredMd);
+
+                    // RAG: re-embed changed file in background (fire-and-forget)
+                    _ = ReEmbedFileAsync(context, e.FullPath);
+                    // KG drift check, mirroring OnFileChanged
+                    _ = CheckKgDriftBestEffortAsync(e.FullPath, context.ConnectionId);
+
+                    _logger.LogInformation($"🔁 [{context.ConnectionId}] Atomic-save detected (rename over existing tracked file): notified markdownfileischanged for {Path.GetFileName(e.FullPath)}");
+                    return;
+                }
+
                 var newFileNode = new
                 {
                     Name = Path.GetFileName(e.FullPath),
@@ -1485,7 +1520,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             return false;
         }
 
-        private void ParseNewFileIntoDB(WatcherContext context, FileSystemEventArgs e)
+        /// <summary>
+        /// Upserts the markdown file into the engine DB (+ links + FTS).
+        /// Returns true when a MarkdownFile row for this path ALREADY existed
+        /// (i.e. the event was a content update, not a brand-new file). Callers
+        /// use this to distinguish an in-place change from a genuine creation.
+        /// </summary>
+        private bool ParseNewFileIntoDB(WatcherContext context, FileSystemEventArgs e)
         {
             _logger.LogDebug($"[{context.ConnectionId}] ParseNewFileIntoDB START for: {Path.GetFileName(e.FullPath)}");
 
@@ -1519,6 +1560,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 engineDB.BeginTransaction();
                 var fileDal = engineDB.GetDal<MarkdownFile>();
                 var mdf = fileDal.GetList().Where(_ => _.Path == e.FullPath).FirstOrDefault();
+                bool wasExisting = mdf != null;
 
                 if (mdf == null)
                 {
@@ -1617,6 +1659,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 }
 
                 _logger.LogDebug($"[{context.ConnectionId}] ParseNewFileIntoDB COMPLETED for: {Path.GetFileName(e.FullPath)}");
+                return wasExisting;
             }
             catch (Exception ex)
             {
