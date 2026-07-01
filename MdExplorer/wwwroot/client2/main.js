@@ -11322,16 +11322,12 @@ class MdFileService {
         child.isExtra = true;
         this.addFileToParent(child, parentFullPath);
       });
-      const parent = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
-      if (parent) {
-        parent.extraLoaded = true;
-      }
       this._mdFiles.next([...this.dataStore.mdFiles]);
     }));
   }
   /**
    * Nasconde di nuovo il contenuto extra rivelato: rimuove i soli figli diretti marcati isExtra
-   * (portandosi via l'eventuale sottoalbero rivelato sotto di essi) e rimette extraLoaded=false.
+   * (portandosi via l'eventuale sottoalbero rivelato sotto di essi).
    * I figli .md reali non sono mai isExtra → restano.
    */
   hideFolderExtras(parentFullPath) {
@@ -11340,8 +11336,16 @@ class MdFileService {
       return;
     }
     parent.childrens = parent.childrens.filter(c => !c.isExtra);
-    parent.extraLoaded = false;
     this._mdFiles.next([...this.dataStore.mdFiles]);
+  }
+  /**
+   * True quando la cartella ha attualmente dei figli "extra" rivelati (marcati isExtra).
+   * Stato DERIVATO dal contenuto reale dell'albero: il menù contestuale lo usa per decidere
+   * fra "mostra" e "nascondi" senza dipendere da un flag mutato/propagato (che si disallineava).
+   */
+  hasRevealedExtras(folderFullPath) {
+    const parent = this.findFolderInDataStore(this.dataStore.mdFiles, folderFullPath);
+    return !!parent?.childrens?.some(c => c.isExtra);
   }
   /**
    * Cerca ricorsivamente un nodo (di QUALSIASI tipo) per fullPath, case-insensitive.

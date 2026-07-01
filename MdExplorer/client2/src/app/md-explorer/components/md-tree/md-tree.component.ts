@@ -519,6 +519,14 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.menuTopLeftPosition.x = event.clientX;
     this.menuTopLeftPosition.y = event.clientY;
 
+    // Recompute the "extra content revealed?" state from the ACTUAL tree contents at open time.
+    // The reveal/hide menu entries key off item.extraLoaded; deriving it here (instead of relying
+    // on a mutated-and-propagated flag) makes the toggle deterministic — the eye_off appears iff
+    // the folder currently shows revealed isExtra children.
+    if (item && item.type === 'folder') {
+      item.extraLoaded = this.folderHasRevealedExtras(item);
+    }
+
     // we open the menu
     // we pass to the menu the information about our object
     this.matMenuTrigger.menuData = { item: item }
@@ -985,6 +993,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     return node.isCompacted && node.compactedSegments?.length
       ? node.compactedSegments[node.compactedSegments.length - 1].fullPath
       : node.fullPath;
+  }
+
+  /** True when the folder currently shows revealed extra content (isExtra children). */
+  private folderHasRevealedExtras(node: MdFile): boolean {
+    return this.mdFileService.hasRevealedExtras(this.getFolderRevealPath(node));
   }
   
   exportFolderToWord(node: MdFile) {

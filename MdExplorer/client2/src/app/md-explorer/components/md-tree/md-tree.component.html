@@ -269,9 +269,10 @@
                 class="mat-icon-rtl-mirror terminal-icon">
         terminal
       </mat-icon>
-      <!-- Icona per cartelle normali -->
+      <!-- Icona per cartelle normali (verde se cartella rivelata via "occhio") -->
       <mat-icon *ngIf="!isProgramFolder(node) && node.name!='mdPublish' && node.name!='.github' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
-                class="gold-icon mat-icon-rtl-mirror folder-icon">
+                class="gold-icon mat-icon-rtl-mirror folder-icon"
+                [class.extra-revealed]="node.isExtra">
         {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
       </mat-icon>
       <mat-spinner *ngIf="node.name!='mdPublish' && node.indexingStatus === 'indexing'"
@@ -287,8 +288,8 @@
         {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
       </mat-icon>
     </button>
-    <!-- Nome cartella normale o path compattato -->
-    <span class="folder-name node-text" *ngIf="!node.isCompacted">{{node.name}}</span>
+    <!-- Nome cartella normale o path compattato (verde se cartella rivelata via "occhio") -->
+    <span class="folder-name node-text" [class.extra-revealed]="node.isExtra" *ngIf="!node.isCompacted">{{node.name}}</span>
     <!-- Path compattato con segmenti cliccabili -->
     <span class="folder-name node-text compacted-folder" *ngIf="node.isCompacted">
       <ng-container *ngFor="let segment of node.compactedSegments; let last = last">
