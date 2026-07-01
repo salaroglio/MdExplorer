@@ -97,6 +97,48 @@ namespace MdExplorer.Services.Git
             }
         }
 
+        /// <summary>
+        /// Builds the <see cref="StatusOptions"/> used for every working-directory status query,
+        /// honoring the per-project "ExcludeSubmodulesFromGitStatus" flag (default ON, applied
+        /// globally when no project row is found). When enabled, LibGit2Sharp omits submodule
+        /// entries from the status, so a dirty submodule — or one whose recorded commit moved —
+        /// no longer marks the parent repository as changed (which would otherwise keep the
+        /// toolbar commit button perpetually lit).
+        /// </summary>
+        private StatusOptions BuildStatusOptions(string repositoryPath)
+        {
+            bool excludeSubmodules = true; // global default: keep submodules out of the change indicator
+            try
+            {
+                var normalizedPath = NormalizeRepositoryPath(repositoryPath);
+                // Match the read pattern used by ProjectSettingsController: clear the session
+                // cache first so a freshly toggled per-project value is picked up immediately.
+                _userSettingsDB.Clear();
+                var project = _userSettingsDB.GetDal<Project>().GetList().ToList()
+                    .FirstOrDefault(p => !string.IsNullOrEmpty(p.Path) &&
+                        NormalizeRepositoryPath(p.Path).Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
+                if (project != null)
+                {
+                    excludeSubmodules = project.ExcludeSubmodulesFromGitStatus;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "[GitStatus] Could not read ExcludeSubmodulesFromGitStatus for {RepoPath}; defaulting to exclude submodules",
+                    repositoryPath);
+            }
+            return new StatusOptions { ExcludeSubmodules = excludeSubmodules };
+        }
+
+        /// <summary>
+        /// Full-path normalization tolerant of a trailing directory separator, so that a
+        /// project path and a <see cref="RepositoryInformation.WorkingDirectory"/> (which carries
+        /// a trailing slash) compare equal.
+        /// </summary>
+        private static string NormalizeRepositoryPath(string path)
+            => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
         public async Task<GitOperationResult> PullAsync(string repositoryPath)
         {
             var stopwatch = Stopwatch.StartNew();
@@ -343,7 +385,7 @@ namespace MdExplorer.Services.Git
                 Commands.Stage(repo, "*");
 
                 // Check if there are any changes to commit
-                var status = repo.RetrieveStatus();
+                var status = repo.RetrieveStatus(BuildStatusOptions(repositoryPath));
                 if (!status.IsDirty)
                 {
                     stopwatch.Stop();
@@ -1642,7 +1684,7 @@ namespace MdExplorer.Services.Git
             try
             {
                 using var repo = new Repository(repositoryPath);
-                var status = repo.RetrieveStatus();
+                var status = repo.RetrieveStatus(BuildStatusOptions(repositoryPath));
                 var currentBranch = repo.Head;
 
                 return new GitRepositoryStatus
@@ -1956,7 +1998,7 @@ namespace MdExplorer.Services.Git
         {
             try
             {
-                var status = repo.RetrieveStatus();
+                var status = repo.RetrieveStatus(BuildStatusOptions(repo.Info.WorkingDirectory));
                 return status.Modified.Concat(status.Added).Concat(status.Removed)
                     .Select(s => s.FilePath).ToList();
             }
@@ -2013,7 +2055,7 @@ namespace MdExplorer.Services.Git
         {
             try
             {
-                var status = repo.RetrieveStatus();
+                var status = repo.RetrieveStatus(BuildStatusOptions(repo.Info.WorkingDirectory));
                 return status.Staged.Select(s => s.FilePath).ToList();
             }
             catch
@@ -3183,7 +3225,7 @@ namespace MdExplorer.Services.Git
                 }
 
                 using var repo = new Repository(repositoryPath);
-                var status = repo.RetrieveStatus();
+                var status = repo.RetrieveStatus(BuildStatusOptions(repositoryPath));
 
                 var files = new List<GitChangedFileInfo>();
 

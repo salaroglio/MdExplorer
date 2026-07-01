@@ -67,6 +67,16 @@ export class ProjectSettingsService {
     return this.http.post<any>(url, { enabled, projectPath });
   }
 
+  getExcludeSubmodulesSetting(projectPath: string): Observable<{enabled: boolean}> {
+    const url = '../api/ProjectSettings/GetExcludeSubmodulesSetting';
+    return this.http.get<{enabled: boolean}>(url, { params: { projectPath } });
+  }
+
+  setExcludeSubmodulesSetting(enabled: boolean, projectPath: string): Observable<any> {
+    const url = '../api/ProjectSettings/SetExcludeSubmodulesSetting';
+    return this.http.post<any>(url, { enabled, projectPath });
+  }
+
   // RAG Settings
   getRagStatus(): Observable<any> {
     const url = '../api/Rag/status';
