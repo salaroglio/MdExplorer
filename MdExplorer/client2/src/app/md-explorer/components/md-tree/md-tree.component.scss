@@ -407,7 +407,9 @@
 // apart from real markdown at a glance: non-markdown files (genericFile) and folders that appeared
 // only because they were revealed (isExtra → .extra-revealed). Light green in dark mode.
 .generic-file-icon {
-  color: #43a047; // green 600
+  // !important to beat Angular Material's `.mat-mdc-icon-button .mat-icon` color in light theme
+  // (dark theme already forces it below).
+  color: #43a047 !important; // green 600
 }
 
 .generic-file-name {

@@ -971,6 +971,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
    */
   onFolderClick(node: MdFile) {
     if (node.isExtra && !this.folderHasRevealedExtras(node)) {
+      // Expand SYNCHRONOUSLY now (idempotent) so the revealed files appear the instant they
+      // load — not after the async HTTP round-trip. Using expand (not toggle) also makes repeated
+      // clicks while the reveal is in flight harmless (no collapse), fixing the "click 2-3 times".
+      this.treeControl.expand(node);
       this.revealFolderExtras(node);
       return;
     }
