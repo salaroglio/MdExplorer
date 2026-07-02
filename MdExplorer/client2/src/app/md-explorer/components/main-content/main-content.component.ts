@@ -9,6 +9,7 @@ import { MdServerMessagesService } from '../../../signalR/services/server-messag
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { IndexingStateService } from '../../services/indexing-state.service';
 import { FileEventsService } from '../../services/file-events.service';
+import { DocumentRefreshService } from '../../services/document-refresh.service';
 import { P2PService, PeerStatus, P2PFileInfo } from '../../../services/p2p.service';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { ProjectsService } from '../../services/projects.service';
@@ -72,6 +73,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     private ref: ChangeDetectorRef,
     private indexingStateService: IndexingStateService,
     private fileEventsService: FileEventsService,
+    private documentRefreshService: DocumentRefreshService,
     private p2pService: P2PService,
     private snackBar: MatSnackBar,
     private projectsService: ProjectsService,
@@ -205,6 +207,11 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     this.monitorMDService.gitBranchSwitched$.pipe(
       takeUntil(this.destroy$)
     ).subscribe(data => this.reloadOpenDocumentIfChanged(data?.changedFiles, 'branch switch'));
+
+    // Manual refresh requested from the toolbar (app-bar) refresh button.
+    this.documentRefreshService.refresh$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(() => this.refreshCurrentFile());
     
     // Subscribe to layout changes - RIMOSSO per usare solo CSS
     // this.layoutService.sidenavWidth$.pipe(

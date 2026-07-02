@@ -24,6 +24,7 @@ import { GitSetupRemoteGenericDialogComponent } from '../../../git/dialogs/git-s
 import { GitAccountManagementDialogComponent } from '../../../git/dialogs/git-account-management-dialog/git-account-management-dialog.component';
 import { GitAddSubmoduleDialogComponent } from '../../../git/dialogs/git-add-submodule-dialog/git-add-submodule-dialog.component';
 import { BookmarksService } from '../../services/bookmarks.service';
+import { DocumentRefreshService } from '../../services/document-refresh.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { Bookmark } from '../../services/Types/Bookmark';
 import { MdNavigationService } from '../../services/md-navigation.service';
@@ -99,7 +100,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private tocService: TocGenerationService,
     private tocProgressService: TocProgressService,
     private translate: TranslateService,
-    private themeService: ThemeService
+    private themeService: ThemeService,
+    private documentRefreshService: DocumentRefreshService
 
   ) {
     this.TitleToShow = "MdExplorer";
@@ -538,6 +540,19 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       // Web fallback: a new browser window/tab.
       window.open(url, '_blank');
     }
+  }
+
+  /**
+   * Reload the currently open document in the main viewer. The actual iframe
+   * reload lives in MainContentComponent.refreshCurrentFile(); we only signal it
+   * through DocumentRefreshService so the app-bar stays decoupled from the viewer.
+   */
+  refreshDocument(): void {
+    if (!this.relativePath) {
+      this._snackBar.open(this.translate.instant('TOOLBAR.SELECT_DOC_FIRST'), 'OK', { duration: 3000, verticalPosition: 'top' });
+      return;
+    }
+    this.documentRefreshService.requestRefresh();
   }
 
 

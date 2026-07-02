@@ -623,6 +623,7 @@
     "BOOKMARKS": "Segnalibri",
     "OPEN_REACT_EDITOR": "Apri Editor React",
     "DETACH_DOCUMENT": "Apri il documento in una finestra separata",
+    "REFRESH_DOCUMENT": "Ricarica il documento aperto",
     "REFRESH_TOC_AI": "Aggiorna TOC con AI",
     "GIT_NOT_CONFIGURED": "Account Git non configurato - clicca per configurare le credenziali",
     "MISSING_REMOTE": "Connessione al remote mancante",
