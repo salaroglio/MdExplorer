@@ -573,6 +573,15 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         const extra = node.compactedSegments.slice(1, idx + 1).map(s => s.name).join('/');
         segmentItem.relativePath = `${baseRel}/${extra}`;
       }
+
+      // Occhio "reveal contenuto extra" sul segmento FOGLIA: compactSingleNode copia su
+      // node.hasExtraContent proprio il flag dell'ultimo segmento, e reveal/hide/lookup
+      // nel dataStore risolvono solo il path del segmento profondo. I segmenti intermedi
+      // sono assorbiti dalla compattazione (nessun flag, reveal non supportato) → niente occhio.
+      if (idx === node.compactedSegments.length - 1) {
+        segmentItem.hasExtraContent = node.hasExtraContent;
+        segmentItem.extraLoaded = this.folderHasRevealedExtras(segmentItem);
+      }
     }
 
     this.menuTopLeftPosition.x = event.clientX;
@@ -990,7 +999,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   revealFolderExtras(node: MdFile) {
     const parentFullPath = this.getFolderRevealPath(node);
     this.mdFileService.revealFolderExtras(parentFullPath).subscribe({
-      next: () => { this.treeControl.expand(node); },
+      // Espande il flat node REALE del tree, non `node` com'era prima: quando il reveal parte
+      // dal menù di un segmento compattato, `node` è un MdFile sintetico il cui fullPath è
+      // quello del segmento foglia, mentre l'expansionModel (trackBy fullPath) conosce la riga
+      // compatta con il fullPath del PRIMO segmento → expand(node) non apriva la riga.
+      next: () => { this.treeControl.expand(this.findFlatFolder(parentFullPath) ?? node); },
       error: (err) => {
         console.error('[MdTreeComponent] revealFolderExtras failed:', err);
         this.snackBar.open(this.translate.instant('MD_TREE.REVEAL_ERROR'), 'OK', { duration: 3000 });
@@ -1016,6 +1029,19 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   /** True when the folder currently shows revealed extra content (isExtra children). */
   private folderHasRevealedExtras(node: MdFile): boolean {
     return this.mdFileService.hasRevealedExtras(this.getFolderRevealPath(node));
+  }
+
+  /**
+   * Flat node of the rendered tree representing the folder at `path` — direct fullPath match
+   * or, for compact rows, a match on any compacted segment. Needed because the expansion
+   * model is keyed by the row's own fullPath (first segment for compact rows).
+   */
+  private findFlatFolder(path: string): IFileInfoNode | null {
+    const target = path.toLowerCase();
+    return this.treeControl.dataNodes?.find(n => n.type === 'folder' && (
+      n.fullPath?.toLowerCase() === target ||
+      (n.isCompacted && n.compactedSegments?.some(s => s.fullPath.toLowerCase() === target))
+    )) ?? null;
   }
   
   exportFolderToWord(node: MdFile) {
