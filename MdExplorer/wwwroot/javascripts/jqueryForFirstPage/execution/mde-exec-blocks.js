@@ -425,11 +425,79 @@
         }
     });
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initBlocks);
-    } else {
+    // Detached standalone window: the native Electron frame is hidden (frame:false), so we
+    // inject a lightweight app-bar with a draggable region + Refresh and Close controls.
+    // Pure DOM, no Angular. Idempotent. In a plain web tab (window.open) the drag region is
+    // ignored by the browser but Refresh/Close still work.
+    function injectDetachedAppBar() {
+        if (!IS_DETACHED || !document.body) return;
+        if (document.getElementById('mde-detached-appbar')) return;
+
+        var isDark = false;
+        try { isDark = (new URLSearchParams(window.location.search).get('theme') || '').toLowerCase().indexOf('dark') !== -1; }
+        catch (e) { }
+        var bg = isDark ? '#1e1e1e' : '#f3f3f3';
+        var fg = isDark ? '#e0e0e0' : '#333333';
+        var border = isDark ? '#333333' : '#dddddd';
+        var hover = isDark ? '#333333' : '#e0e0e0';
+        var BAR_H = 38;
+
+        var bar = document.createElement('div');
+        bar.id = 'mde-detached-appbar';
+        bar.style.cssText = [
+            'position:fixed', 'top:0', 'left:0', 'right:0', 'height:' + BAR_H + 'px',
+            'display:flex', 'align-items:center', 'gap:2px', 'padding:0 6px',
+            'box-sizing:border-box', 'background:' + bg, 'color:' + fg,
+            'border-bottom:1px solid ' + border,
+            'font-family:system-ui,Segoe UI,sans-serif', 'font-size:13px',
+            'z-index:2147483647', 'user-select:none', '-webkit-app-region:drag'
+        ].join(';');
+
+        var title = document.createElement('div');
+        title.style.cssText = 'flex:1;padding-left:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:0.8;';
+        try { title.textContent = decodeURIComponent((window.location.pathname.split('/').pop() || 'MdExplorer')); }
+        catch (e) { title.textContent = 'MdExplorer'; }
+        bar.appendChild(title);
+
+        function mkBtn(glyph, tip, onClick, danger) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.title = tip;
+            b.innerHTML = glyph;
+            b.style.cssText = [
+                '-webkit-app-region:no-drag', 'border:none', 'background:transparent',
+                'color:' + fg, 'cursor:pointer', 'width:34px', 'height:30px',
+                'border-radius:4px', 'font-size:16px', 'line-height:1',
+                'display:flex', 'align-items:center', 'justify-content:center'
+            ].join(';');
+            b.addEventListener('mouseenter', function () { b.style.background = danger ? '#e81123' : hover; if (danger) b.style.color = '#ffffff'; });
+            b.addEventListener('mouseleave', function () { b.style.background = 'transparent'; b.style.color = fg; });
+            b.addEventListener('click', onClick);
+            return b;
+        }
+
+        bar.appendChild(mkBtn('&#x21bb;', 'Refresh', function () { location.reload(); }, false));
+        bar.appendChild(mkBtn('&#x2715;', 'Close', function () { window.close(); }, true));
+
+        document.body.appendChild(bar);
+        // Push page content below the fixed bar (once).
+        if (!document.body.dataset.mdeDetachedPadded) {
+            document.body.dataset.mdeDetachedPadded = '1';
+            var cur = parseFloat(getComputedStyle(document.body).paddingTop) || 0;
+            document.body.style.paddingTop = (cur + BAR_H) + 'px';
+        }
+    }
+
+    function bootstrap() {
         initBlocks();
+        injectDetachedAppBar();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootstrap);
+    } else {
+        bootstrap();
     }
     // Safety re-scan (aligns with the pattern used by syntax-highlighting.js, etc.)
-    setTimeout(initBlocks, 500);
+    setTimeout(bootstrap, 500);
 })();
