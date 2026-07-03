@@ -84,7 +84,8 @@
 :host-context(body.milan-theme) .mat-tree-node {
   color: var(--mde-text-primary);
 
-  .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon) {
+  // .generic-file-icon excluded like .folder-icon: revealed non-md files keep their green tint.
+  .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon):not(.generic-file-icon) {
     color: var(--mde-icon-color) !important;
   }
 
@@ -94,7 +95,10 @@
     color: var(--mde-accent-primary) !important;
   }
 
-  .node-text, .folder-name, span {
+  // Revealed-extra names (green) excluded, same reason as the icons above.
+  .node-text:not(.generic-file-name):not(.extra-revealed),
+  .folder-name:not(.extra-revealed),
+  span:not(.generic-file-name):not(.extra-revealed) {
     color: var(--mde-text-primary);
   }
 
@@ -426,11 +430,15 @@
 }
 
 :host-context(body.dark-theme) .generic-file-icon,
-:host-context(body.dark-theme) .folder-icon.extra-revealed {
-  color: #81c784 !important; // green 300 — light green for dark mode
+:host-context(body.dark-theme) .folder-icon.extra-revealed,
+:host-context(body.milan-theme) .generic-file-icon,
+:host-context(body.milan-theme) .folder-icon.extra-revealed {
+  color: #81c784 !important; // green 300 — light green for dark backgrounds (dark + milan)
 }
 
 :host-context(body.dark-theme) .generic-file-name,
-:host-context(body.dark-theme) .folder-name.extra-revealed {
+:host-context(body.dark-theme) .folder-name.extra-revealed,
+:host-context(body.milan-theme) .generic-file-name,
+:host-context(body.milan-theme) .folder-name.extra-revealed {
   color: #a5d6a7; // green 200
 }

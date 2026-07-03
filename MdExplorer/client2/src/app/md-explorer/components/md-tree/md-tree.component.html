@@ -246,7 +246,10 @@
                    'selected': isNodeSelected(node),
                    'drag-over': dragOverNode === node
                  }">
-    <button mat-icon-button matTreeNodeToggle
+    <!-- NO matTreeNodeToggle here: the directive stops propagation and only toggles, so the
+         click would never reach the row's onFolderClick (which also drills into green revealed
+         folders). Letting it bubble makes icon-click and name-click behave identically. -->
+    <button mat-icon-button
             [attr.aria-label]="'Toggle ' + node.name"
             [ngClass]="{
               'indexing': node.indexingStatus === 'indexing'
