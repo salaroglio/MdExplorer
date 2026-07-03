@@ -1213,7 +1213,9 @@ body.milan-theme {
   .mat-nested-tree-node {
     color: var(--mde-text-primary) !important;
 
-    .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon) {
+    // .generic-file-icon esclusa: i file non-md rivelati via "occhio" restano verdi
+    // (la loro tinta vive in md-tree.component.scss, specificità più bassa di questa).
+    .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon):not(.generic-file-icon) {
       color: var(--mde-icon-color) !important;
     }
 

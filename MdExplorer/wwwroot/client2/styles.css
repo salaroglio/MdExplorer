@@ -1211,10 +1211,10 @@ body.milan-theme .mat-tree-node,
 body.milan-theme .mat-nested-tree-node {
   color: var(--mde-text-primary) !important;
 }
-body.dark-theme .mat-tree-node .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon),
-body.dark-theme .mat-nested-tree-node .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon),
-body.milan-theme .mat-tree-node .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon),
-body.milan-theme .mat-nested-tree-node .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon) {
+body.dark-theme .mat-tree-node .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon):not(.generic-file-icon),
+body.dark-theme .mat-nested-tree-node .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon):not(.generic-file-icon),
+body.milan-theme .mat-tree-node .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon):not(.generic-file-icon),
+body.milan-theme .mat-nested-tree-node .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon):not(.generic-file-icon) {
   color: var(--mde-icon-color) !important;
 }
 body.dark-theme .mat-tree-node button.mat-primary .mat-icon,
