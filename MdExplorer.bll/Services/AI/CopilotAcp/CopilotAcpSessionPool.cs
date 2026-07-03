@@ -33,6 +33,10 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
         // In-flight Release tasks tracked so DisposeAsync awaits them on shutdown.
         private readonly ConcurrentDictionary<Guid, Task> _pendingReleases =
             new ConcurrentDictionary<Guid, Task>();
+        // Cancellation source for the currently streaming prompt of each connection, so a
+        // user "Stop" action can abort the in-flight prompt. One prompt per session.
+        private readonly ConcurrentDictionary<string, CancellationTokenSource> _activePrompts =
+            new ConcurrentDictionary<string, CancellationTokenSource>(StringComparer.Ordinal);
         private readonly Timer _sweepTimer;
         private readonly TimeSpan _idleTimeout;
         private readonly int _maxSessions;
@@ -123,6 +127,50 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
             {
                 gate.Release();
             }
+        }
+
+        /// <summary>
+        /// Registers the cancellation source of the prompt now streaming for
+        /// <paramref name="connectionId"/> so a later Stop can abort it. Any stale source
+        /// (should not happen — one prompt per session) is cancelled and replaced.
+        /// </summary>
+        public void RegisterActivePrompt(string connectionId, CancellationTokenSource cts)
+        {
+            if (string.IsNullOrEmpty(connectionId) || cts == null) return;
+            if (_activePrompts.TryRemove(connectionId, out var old) && !ReferenceEquals(old, cts))
+            {
+                try { old.Cancel(); } catch { }
+            }
+            _activePrompts[connectionId] = cts;
+        }
+
+        /// <summary>
+        /// Removes the active-prompt registration for <paramref name="connectionId"/>, but only
+        /// if it is still <paramref name="cts"/> (so we never clear a newer prompt's source).
+        /// </summary>
+        public void UnregisterActivePrompt(string connectionId, CancellationTokenSource cts)
+        {
+            if (string.IsNullOrEmpty(connectionId) || cts == null) return;
+            if (_activePrompts.TryGetValue(connectionId, out var cur) && ReferenceEquals(cur, cts))
+            {
+                _activePrompts.TryRemove(connectionId, out _);
+            }
+        }
+
+        /// <summary>
+        /// Cancels the in-flight prompt for <paramref name="connectionId"/> (user pressed Stop).
+        /// The streaming PromptAsync unwinds and tells the agent to stop (session/cancel).
+        /// Returns true when a prompt was actually in flight.
+        /// </summary>
+        public bool CancelActivePrompt(string connectionId)
+        {
+            if (string.IsNullOrEmpty(connectionId)) return false;
+            if (_activePrompts.TryGetValue(connectionId, out var cts))
+            {
+                try { cts.Cancel(); } catch { }
+                return true;
+            }
+            return false;
         }
 
         public async Task ReleaseAsync(string connectionId)

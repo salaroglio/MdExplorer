@@ -118,6 +118,18 @@ namespace MdExplorer.Hubs
             return string.Empty;
         }
 
+        /// <summary>
+        /// Aborts the prompt currently streaming for this connection (user pressed Stop in the
+        /// chat). No-op when nothing is in flight. The active PromptAsync unwinds and tells the
+        /// Copilot agent to stop (session/cancel); the caller's SendMessage then completes the
+        /// turn normally, so whatever was already streamed stays visible.
+        /// </summary>
+        public Task CancelPrompt()
+        {
+            _copilotAcpPool?.CancelActivePrompt(Context.ConnectionId);
+            return Task.CompletedTask;
+        }
+
         public async Task SendMessage(string message, string channelId = "default")
         {
             try
@@ -564,9 +576,13 @@ namespace MdExplorer.Hubs
 
             var responseText = new StringBuilder();
             int chunksSent = 0;
+            // Link the connection lifetime with a user-cancellable source so the Stop button
+            // (CancelPrompt hub method) can abort this in-flight prompt.
+            var promptCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
+            _copilotAcpPool.RegisterActivePrompt(Context.ConnectionId, promptCts);
             try
             {
-                await foreach (var chunk in session.PromptAsync(promptText, Context.ConnectionAborted))
+                await foreach (var chunk in session.PromptAsync(promptText, promptCts.Token))
                 {
                     if (chunk.Kind == CopilotAcpChunk.KindMessage)
                     {
@@ -580,11 +596,22 @@ namespace MdExplorer.Hubs
                     }
                 }
             }
+            catch (OperationCanceledException) when (promptCts.IsCancellationRequested)
+            {
+                // User pressed Stop (or the connection dropped). Keep whatever was already
+                // streamed and end the turn cleanly instead of surfacing an error.
+                _logger.LogInformation("[AiChatHub] Prompt cancelled by user (chunksSent={ChunksSent})", chunksSent);
+            }
             catch (Exception ex) when (chunksSent > 0)
             {
                 // Already streamed text to the client; do NOT let the caller retry via
                 // the legacy path (would double-stream).
                 throw new CopilotAcpMidStreamException(ex);
+            }
+            finally
+            {
+                _copilotAcpPool.UnregisterActivePrompt(Context.ConnectionId, promptCts);
+                promptCts.Dispose();
             }
 
             var finalResponse = responseText.ToString().TrimEnd();

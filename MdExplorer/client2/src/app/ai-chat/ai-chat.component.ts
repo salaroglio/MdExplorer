@@ -29,6 +29,7 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   showModelManager = false;
   isChatFullScreen = false;
   copilotCliUnavailable = false;
+  isStreaming = false;
 
   // Copilot CLI auto-select: when active, expose a Sonnet 4.6 / Opus 4.7 picker
   // next to the injected-file chip. Hidden for every other provider.
@@ -70,6 +71,11 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.messages = messages;
         this.shouldScrollToBottom = true;
       });
+
+    // Track streaming state to toggle the Send/Stop button.
+    this.aiService.isStreaming$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(streaming => this.isStreaming = streaming);
     
     // Subscribe to model status
     this.aiService.isModelLoaded$
@@ -174,6 +180,11 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.aiService.sendMessage(this.inputMessage);
     this.inputMessage = '';
     this.focusInput();
+  }
+
+  /** Abort the prompt currently streaming (Stop button). */
+  stopStreaming(): void {
+    this.aiService.cancelPrompt();
   }
 
   handleKeyDown(event: KeyboardEvent): void {

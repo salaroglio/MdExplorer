@@ -73,7 +73,11 @@ export class AiChatService {
   
   private _streamingMessage$ = new Subject<string>();
   public streamingMessage$ = this._streamingMessage$.asObservable();
-  
+
+  // True while a prompt is streaming a response on the default channel — drives the Stop button.
+  private _isStreaming$ = new BehaviorSubject<boolean>(false);
+  public isStreaming$ = this._isStreaming$.asObservable();
+
   private _gpuInfo$ = new BehaviorSubject<GpuInfo | null>(null);
   public gpuInfo$ = this._gpuInfo$.asObservable();
   
@@ -175,6 +179,7 @@ export class AiChatService {
       this._channelEvent$.next({ type: 'complete', data: null, channelId: ch });
       if (ch === 'default') {
         this.finalizeStreamingMessage();
+        this._isStreaming$.next(false);
       }
     });
 
@@ -184,6 +189,7 @@ export class AiChatService {
       if (ch === 'default') {
         console.error('Chat error:', error);
         this.addMessage('system', `Error: ${error}`);
+        this._isStreaming$.next(false);
       }
     });
 
@@ -318,12 +324,27 @@ export class AiChatService {
 
     // Send to server
     if (this.hubConnection.state === 'Connected') {
+      this._isStreaming$.next(true);
       this.hubConnection.invoke('SendMessage', message, 'default')
         .catch(err => {
           console.error('Error sending message:', err);
           this.addMessage('system', `Failed to send message: ${err}`);
+          this._isStreaming$.next(false);
         });
     }
+  }
+
+  /**
+   * Ask the backend to abort the prompt currently streaming on the default channel
+   * (user pressed Stop). The backend ends the turn cleanly and sends StreamComplete,
+   * which clears the streaming state; we optimistically clear it here too.
+   */
+  cancelPrompt(): void {
+    if (this.hubConnection.state === 'Connected') {
+      this.hubConnection.invoke('CancelPrompt')
+        .catch(err => console.error('Error cancelling prompt:', err));
+    }
+    this._isStreaming$.next(false);
   }
 
   /**

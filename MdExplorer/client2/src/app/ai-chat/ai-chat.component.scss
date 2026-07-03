@@ -514,6 +514,10 @@
       ::ng-deep textarea {
         background: #ffffff;
         border-radius: 4px;
+        // Let the user drag the prompt box taller for long inputs.
+        resize: vertical;
+        min-height: 48px;
+        max-height: 40vh;
       }
     }
 

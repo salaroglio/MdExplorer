@@ -1065,6 +1065,7 @@
     "PLACEHOLDER_FULL": "Type your message... (Shift+Enter for new line)",
     "LOAD_MODEL_TO_CHAT": "Load a model to start chatting",
     "CONFIGURING_PROVIDER": "Configuring provider...",
+    "STOP": "Stop generation",
     "COPILOT_CLI_UNAVAILABLE": "Copilot CLI is not installed",
     "COPILOT_CLI_UNAVAILABLE_HINT": "This project prefers Copilot CLI but the \"copilot\" command was not found on this machine. Install it (npm install -g @github/copilot) or open the model settings to pick a different model."
   },

@@ -171,8 +171,9 @@
       <mat-hint *ngIf="!isModelLoaded && !isConfiguringProvider && !compactMode">{{ 'AI_CHAT.LOAD_MODEL_TO_CHAT' | translate }}</mat-hint>
     </mat-form-field>
 
+    <!-- Send (hidden while a response is streaming) -->
     <button
-      *ngIf="!compactMode"
+      *ngIf="!compactMode && !isStreaming"
       mat-fab
       color="primary"
       (click)="sendMessage()"
@@ -181,13 +182,32 @@
       <mat-icon>send</mat-icon>
     </button>
     <button
-      *ngIf="compactMode"
+      *ngIf="compactMode && !isStreaming"
       mat-mini-fab
       color="primary"
       (click)="sendMessage()"
       [disabled]="!inputMessage.trim() || !isModelLoaded || isConfiguringProvider"
       class="send-button">
       <mat-icon>send</mat-icon>
+    </button>
+    <!-- Stop (shown while a response is streaming) -->
+    <button
+      *ngIf="!compactMode && isStreaming"
+      mat-fab
+      color="warn"
+      (click)="stopStreaming()"
+      [title]="'AI_CHAT.STOP' | translate"
+      class="send-button stop-button">
+      <mat-icon>stop</mat-icon>
+    </button>
+    <button
+      *ngIf="compactMode && isStreaming"
+      mat-mini-fab
+      color="warn"
+      (click)="stopStreaming()"
+      [title]="'AI_CHAT.STOP' | translate"
+      class="send-button stop-button">
+      <mat-icon>stop</mat-icon>
     </button>
   </div>
 </div>

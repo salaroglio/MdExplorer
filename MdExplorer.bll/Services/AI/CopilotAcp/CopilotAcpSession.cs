@@ -300,6 +300,15 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                 // .Result rethrows and becomes an unobserved task exception.
                 if (t.Status == TaskStatus.RanToCompletion)
                 {
+                    // [ACP-PROBE] TEMPORARY: dump the raw session/prompt result to discover
+                    // whether Copilot CLI ACP exposes any usage / credits / token / stopReason
+                    // data we could surface as a consumption indicator. Remove after the probe.
+                    try
+                    {
+                        _logger.LogWarning("[ACP-PROBE] session/prompt result: {Json}",
+                            t.Result?.RootElement.GetRawText());
+                    }
+                    catch { }
                     t.Result?.Dispose();
                 }
             }, TaskScheduler.Default);
@@ -519,7 +528,14 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                 "agent_thought_chunk" => CopilotAcpChunk.KindThinking,
                 _ => null
             };
-            if (chunkKind == null) return;
+            if (chunkKind == null)
+            {
+                // [ACP-PROBE] TEMPORARY: dump non-text update payloads (tool_call, plan, and any
+                // hypothetical usage/token/credits update) to see if consumption data arrives
+                // out-of-band from Copilot CLI ACP. Remove after the probe.
+                try { _logger.LogWarning("[ACP-PROBE] session/update kind={Kind}: {Json}", kind, updateEl.GetRawText()); } catch { }
+                return;
+            }
 
             if (!updateEl.TryGetProperty("content", out var contentEl)) return;
             if (!contentEl.TryGetProperty("type", out var typeEl) || typeEl.GetString() != "text") return;
