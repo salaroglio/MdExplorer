@@ -236,14 +236,14 @@ app-promptlab {
   }
 }
 
-// New Markdown dialog — pannello custom volutamente scuro in ogni tema.
+// New Markdown dialog — pannello custom senza chrome Material, segue il tema.
 .new-markdown-dialog {
   .mat-dialog-container {
     padding: 0 !important;
-    background-color: #2d2d2d !important;
-    background: #2d2d2d !important;
+    background-color: var(--mde-bg-tertiary) !important;
+    background: var(--mde-bg-tertiary) !important;
     border-radius: 6px !important;
-    border: 1px solid #555 !important;
+    border: 1px solid var(--mde-border-strong) !important;
     overflow: hidden !important;
   }
 }
@@ -289,42 +289,45 @@ app-promptlab {
   }
 }
 
-// Minimal snackbar styles - base
-.subtle-snackbar, .success-snackbar {
-  .mat-snack-bar-container {
-    border-radius: 6px !important;
-    font-size: 14px !important;
-    font-weight: 400 !important;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15) !important;
-    min-width: auto !important;
-    padding: 12px 16px !important;
-    margin: 16px !important;
+// Minimal snackbar styles - base.
+// NB: panelClass viene applicata ALL'ELEMENTO CONTAINER stesso (verificato in
+// snack-bar-container.mjs), quindi i selettori devono essere COMPOUND
+// (.mat-snack-bar-container.success-snackbar), mai discendenti.
+.mat-snack-bar-container.subtle-snackbar,
+.mat-snack-bar-container.success-snackbar,
+.mat-mdc-snack-bar-container.subtle-snackbar,
+.mat-mdc-snack-bar-container.success-snackbar {
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15) !important;
+  min-width: auto !important;
+  padding: 12px 16px !important;
+  margin: 16px !important;
 
-    .mat-button-wrapper {
-      line-height: 1.2 !important;
-    }
+  .mat-button-wrapper {
+    line-height: 1.2 !important;
   }
 
   // Remove action button since we don't need it
-  .mat-snack-bar-action {
+  .mat-snack-bar-action,
+  .mat-mdc-snack-bar-action {
     display: none !important;
   }
 }
 
 // Neutral snackbar (for "kept unchanged")
-.subtle-snackbar {
-  .mat-snack-bar-container {
-    background: #333 !important;
-    color: #fff !important;
-  }
+.mat-snack-bar-container.subtle-snackbar,
+.mat-mdc-snack-bar-container.subtle-snackbar {
+  background: #333 !important;
+  color: #fff !important;
 }
 
 // Success snackbar (for "renamed successfully")
-.success-snackbar {
-  .mat-snack-bar-container {
-    background: #2e7d32 !important;
-    color: #fff !important;
-  }
+.mat-snack-bar-container.success-snackbar,
+.mat-mdc-snack-bar-container.success-snackbar {
+  background: #2e7d32 !important;
+  color: #fff !important;
 }
 
 // Building knowledge snackbar — UNA sola istanza in basso a destra durante
@@ -332,26 +335,23 @@ app-promptlab {
 // con IndexingProgressSnackComponent (vedi md-tree.component.ts).
 // Lo stile interno del componente è in indexing-progress-snack.component.scss;
 // qui modelliamo SOLO il contenitore esterno Material (dimensioni, padding).
-.indexing-progress-snackbar {
-  .mat-snack-bar-container,
-  .mat-mdc-snack-bar-container {
-    background: var(--mde-bg-primary, #fff) !important;
-    color: var(--mde-text-primary, #212121) !important;
-    border-radius: 8px !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
-    padding: 14px 18px !important;
-    min-width: 320px !important;
-    border-left: 4px solid var(--mde-icon-accent-blue);
-  }
+.mat-snack-bar-container.indexing-progress-snackbar,
+.mat-mdc-snack-bar-container.indexing-progress-snackbar {
+  background: var(--mde-bg-primary, #fff) !important;
+  color: var(--mde-text-primary, #212121) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+  padding: 14px 18px !important;
+  min-width: 320px !important;
+  border-left: 4px solid var(--mde-icon-accent-blue);
 }
 
 // Warning snackbar (for YAML auto-generated)
-.warning-snackbar {
-  .mat-snack-bar-container {
-    background: #fff3cd !important;
-    color: #856404 !important;
-    border: 1px solid #ffeaa7 !important;
-  }
+.mat-snack-bar-container.warning-snackbar,
+.mat-mdc-snack-bar-container.warning-snackbar {
+  background: #fff3cd !important;
+  color: #856404 !important;
+  border: 1px solid #ffeaa7 !important;
 
   .mat-simple-snackbar-action {
     color: #856404 !important;
@@ -360,12 +360,11 @@ app-promptlab {
 }
 
 // Error snackbar (for AI operation failures)
-.error-snackbar {
-  .mat-snack-bar-container {
-    background: #c62828 !important;
-    color: #fff !important;
-    border: 1px solid #b71c1c !important;
-  }
+.mat-snack-bar-container.error-snackbar,
+.mat-mdc-snack-bar-container.error-snackbar {
+  background: #c62828 !important;
+  color: #fff !important;
+  border: 1px solid #b71c1c !important;
 
   .mat-simple-snackbar-action {
     color: #ffcdd2 !important;
@@ -374,13 +373,12 @@ app-promptlab {
 }
 
 // P2P snackbar (for peer connections)
-.p2p-snackbar {
-  .mat-snack-bar-container {
-    background: #1565c0 !important;
-    color: #fff !important;
-    border-radius: 6px !important;
-    font-size: 13px !important;
-  }
+.mat-snack-bar-container.p2p-snackbar,
+.mat-mdc-snack-bar-container.p2p-snackbar {
+  background: #1565c0 !important;
+  color: #fff !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
 
   .mat-simple-snackbar-action {
     color: #90caf9 !important;

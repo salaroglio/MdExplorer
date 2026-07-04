@@ -5,7 +5,7 @@ h2.mat-dialog-title {
   gap: 12px;
   margin: 0;
   padding: 16px 24px;
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--mde-border-color);
 
   .dialog-icon {
     font-size: 28px;
@@ -105,7 +105,7 @@ h2.mat-dialog-title {
   gap: 16px;
 
   p {
-    color: #666;
+    color: var(--mde-text-secondary);
     font-size: 1.1em;
   }
 }
@@ -113,7 +113,7 @@ h2.mat-dialog-title {
 // Error Card
 .error-card {
   margin: 16px 24px;
-  border: 2px solid #f44336;
+  border: 2px solid var(--mde-error-fg);
 
   .mat-card-content {
     display: flex;
@@ -130,7 +130,7 @@ h2.mat-dialog-title {
     }
 
     p {
-      color: #f44336;
+      color: var(--mde-error-fg);
       font-size: 1.1em;
       margin: 0;
     }
@@ -145,22 +145,22 @@ h2.mat-dialog-title {
 
   .branch-count {
     padding: 8px 16px;
-    background-color: #f5f5f5;
+    background-color: var(--mde-bg-tertiary);
     border-radius: 4px 4px 0 0;
     font-size: 0.9em;
-    color: #666;
+    color: var(--mde-text-secondary);
     font-weight: 500;
   }
 
   .branch-tabs {
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--mde-border-color);
     border-top: none;
     border-radius: 0 0 4px 4px;
 
     ::ng-deep {
       .mat-tab-header {
-        background-color: #fafafa;
-        border-bottom: 1px solid #e0e0e0;
+        background-color: var(--mde-bg-tertiary);
+        border-bottom: 1px solid var(--mde-border-color);
       }
 
       .mat-tab-label {
@@ -193,7 +193,7 @@ h2.mat-dialog-title {
     .tab-count {
       margin-left: 4px;
       font-size: 0.85em;
-      color: #666;
+      color: var(--mde-text-secondary);
     }
   }
 
@@ -206,21 +206,21 @@ h2.mat-dialog-title {
 .branch-item {
   cursor: pointer;
   transition: all 0.2s ease;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--mde-border-color);
   padding: 12px 16px !important;
   height: auto !important;
   min-height: 60px;
 
   &:hover:not(.disabled) {
-    background-color: #f5f5f5;
+    background-color: var(--mde-bg-hover);
   }
 
   &.current {
-    background-color: #e3f2fd;
-    border-left: 4px solid #2196f3;
+    background-color: var(--mde-bg-selected);
+    border-left: 4px solid var(--mde-accent-primary);
 
     &:hover {
-      background-color: #bbdefb;
+      background-color: var(--mde-bg-selected);
     }
   }
 
@@ -265,13 +265,13 @@ h2.mat-dialog-title {
       letter-spacing: 0.5px;
 
       &.current-badge {
-        background-color: #2196f3;
-        color: white;
+        background-color: var(--mde-accent-primary);
+        color: var(--mde-text-on-primary);
       }
 
       &.remote-badge {
-        background-color: #9e9e9e;
-        color: white;
+        background-color: var(--mde-chip-bg);
+        color: var(--mde-text-primary);
       }
     }
   }
@@ -281,7 +281,7 @@ h2.mat-dialog-title {
     align-items: center;
     gap: 12px;
     font-size: 0.85em;
-    color: #666;
+    color: var(--mde-text-secondary);
     padding: 2px 0;
 
     .upstream-info,
@@ -300,10 +300,10 @@ h2.mat-dialog-title {
 
   .switch-button {
     margin-left: auto;
-    color: #2196f3;
+    color: var(--mde-accent-primary);
 
     &:hover {
-      background-color: rgba(33, 150, 243, 0.1);
+      background-color: var(--mde-hover-overlay);
     }
   }
 }
@@ -316,7 +316,7 @@ h2.mat-dialog-title {
   justify-content: center;
   padding: 60px 40px;
   text-align: center;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--mde-border-color);
   border-top: none;
   border-radius: 0 0 4px 4px;
 
@@ -324,13 +324,13 @@ h2.mat-dialog-title {
     font-size: 64px;
     height: 64px;
     width: 64px;
-    color: #bdbdbd;
+    color: var(--mde-text-hint);
     margin-bottom: 16px;
   }
 
   p {
     font-size: 1.1em;
-    color: #666;
+    color: var(--mde-text-secondary);
     margin-bottom: 16px;
   }
 }
@@ -342,7 +342,7 @@ h2.mat-dialog-title {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(255, 255, 255, 0.9);
+  background-color: var(--mde-bg-primary);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -352,7 +352,7 @@ h2.mat-dialog-title {
 
   p {
     font-size: 1.1em;
-    color: #666;
+    color: var(--mde-text-secondary);
     font-weight: 500;
   }
 }
@@ -360,7 +360,7 @@ h2.mat-dialog-title {
 // Dialog Actions
 mat-dialog-actions {
   padding: 16px 24px;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--mde-border-color);
 
   button {
     display: flex;

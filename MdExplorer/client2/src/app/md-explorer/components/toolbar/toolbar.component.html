@@ -37,7 +37,7 @@
             mat-icon-button
             [matTooltip]="'TOOLBAR.GIT_NOT_CONFIGURED' | translate"
             (click)="openManageRemote()">
-      <mat-icon style="color: orange">person_add</mat-icon>
+      <mat-icon class="git-missing-icon">person_add</mat-icon>
     </button>
     <!-- Auth Failed (VPN/network): show warning with menu -->
     <button *ngIf="isGitRepository && authenticationFailed && !authenticationMissing && !isCheckingConnection"
@@ -57,7 +57,7 @@
 
     <!-- Git button for NON-Git projects -->
     <span *ngIf="!isGitRepository" style="display:flex; flex-direction:row">
-      <button mat-button [matMenuTriggerFor]="gitInitMenu" style="color: white;">
+      <button mat-button [matMenuTriggerFor]="gitInitMenu" class="git-menu-btn">
         <mat-icon>settings</mat-icon>
         Git <img src="/assets/gitlogo.png" style="height: 16px; margin-left: 4px;" />
       </button>
@@ -196,7 +196,7 @@
 
 <!-- Auth Failed Menu -->
 <mat-menu #authFailedMenu="matMenu">
-  <div class="auth-failed-header" style="padding: 8px 16px; color: #f57c00; font-size: 12px;">
+  <div class="auth-failed-header" style="padding: 8px 16px; font-size: 12px;">
     <mat-icon style="vertical-align: middle; font-size: 16px; margin-right: 4px;">warning</mat-icon>
     {{ authenticationFailureReason || ('TOOLBAR.AUTH_FAILED' | translate) }}
   </div>

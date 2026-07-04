@@ -218,14 +218,9 @@ mat-sidenav-content {
   user-select: text !important;
 }
 
-#projectcss {
-  ::ng-deep.mat-tooltip {
-    /* your own custom styles here */
-    /* e.g. */
-    color: white;
-    background-color: blue;
-  }
-}
+// (rimosso: #projectcss ::ng-deep .mat-tooltip — il tooltip è renderizzato
+// nell'overlay cdk, mai discendente del bottone, quindi la regola era morta;
+// i tooltip sono comunque colorati dal tema nativo)
 
 // bookmark management
 div.mdbookmark {
@@ -258,7 +253,7 @@ div.outer:hover .inner {
   flex: 1 1 auto;
 }
 
-// Fix per Angular Material 15 Legacy - altezza toolbar e pulsante projects arancione
+// Altezza toolbar (solo geometria: i colori del chrome arrivano dal tema nativo)
 :host ::ng-deep mat-toolbar,
 :host ::ng-deep .mat-toolbar,
 :host ::ng-deep .mat-mdc-toolbar {
@@ -274,38 +269,28 @@ mat-toolbar {
   max-height: 54px !important;
   padding: 0 8px !important;
 
+  // Sfondo trasparente e no-ripple dei bottoni-icona: gestiti globalmente
+  // in styles.scss. Qui restano solo le tinte semantiche "on-toolbar".
   button.btn-projects {
-    background-color: transparent !important;
-
     mat-icon, .mat-icon {
-      color: #ffcc80 !important; // Arancio
-    }
-
-    .mat-mdc-button-persistent-ripple {
-      background-color: transparent !important;
+      color: #ffcc80; // Arancio
     }
   }
 
   button.btn-reveal-in-tree {
-    background-color: transparent !important;
-
     mat-icon, .mat-icon {
-      color: #b0bec5 !important;
+      color: #b0bec5;
       transition: color 0.2s ease;
     }
 
     &:hover:not([disabled]) {
       mat-icon, .mat-icon {
-        color: #42a5f5 !important;
+        color: #42a5f5;
       }
     }
 
     &[disabled] {
       opacity: 0.3;
-    }
-
-    .mat-mdc-button-persistent-ripple {
-      background-color: transparent !important;
     }
   }
 
@@ -343,10 +328,7 @@ mat-toolbar {
       background-color: #69f0ae; // Verde Material
     }
 
-    // Rimuovi il ripple gigante
-    ::ng-deep .mat-slide-toggle-ripple {
-      display: none;
-    }
+    // (ripple gigante del toggle: già nascosto globalmente in styles.scss)
 
     // Hover effect
     &:hover ::ng-deep .mat-slide-toggle-bar {

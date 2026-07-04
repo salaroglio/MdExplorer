@@ -23,7 +23,7 @@
         <img src="/assets/gitlab.png" />
       </button>
     </div>
-    <button *ngIf="item.type==='publishFolder' || item.type==='root'" mat-menu-item (click)="openFolderOn(item)"><b style="color:violet">Open</b> directory on <b style="color:blue">File Explorer</b></button>
+    <button *ngIf="item.type==='publishFolder' || item.type==='root'" mat-menu-item (click)="openFolderOn(item)"><b class="menu-verb-accent">Open</b> directory on <b class="menu-target-accent">File Explorer</b></button>
   </ng-template>
 </mat-menu>
 

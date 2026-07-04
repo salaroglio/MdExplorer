@@ -191,7 +191,7 @@
     .error-title {
       font-size: 1.3rem;
       font-weight: 600;
-      color: #d32f2f;
+      color: var(--mde-error-fg);
       margin: 0 0 1rem 0;
     }
 
@@ -369,7 +369,7 @@
   
   // Focus styles for accessibility
   &:focus {
-    outline: 2px solid #2196f3;
+    outline: 2px solid var(--mde-accent-primary);
     outline-offset: -2px;
   }
 }

@@ -9,18 +9,18 @@
   align-items: flex-start;
   gap: 12px;
   padding: 16px;
-  background-color: #e3f2fd;
+  background-color: var(--mde-accent-light);
   border-radius: 4px;
   margin-bottom: 24px;
 
   mat-icon {
-    color: #1976d2;
+    color: var(--mde-icon-accent-blue);
     margin-top: 2px;
   }
 
   p {
     margin: 0;
-    color: #424242;
+    color: var(--mde-text-primary);
     line-height: 1.5;
   }
 }
@@ -35,19 +35,19 @@
   align-items: flex-start;
   gap: 8px;
   padding: 12px;
-  background-color: #fff3e0;
+  background-color: var(--mde-warning-bg);
   border-radius: 4px;
   margin-bottom: 16px;
-  border-left: 4px solid #ff9800;
+  border-left: 4px solid var(--mde-warning-fg);
 
   mat-icon {
-    color: #ff9800;
+    color: var(--mde-icon-accent-orange);
     flex-shrink: 0;
     margin-top: 2px;
   }
 
   span {
-    color: #5d4037;
+    color: var(--mde-warning-fg);
     font-size: 0.9em;
     line-height: 1.5;
 
@@ -62,7 +62,7 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background-color: #f5f5f5;
+  background-color: var(--mde-bg-tertiary);
   border-radius: 4px;
   margin-bottom: 16px;
   font-size: 0.9em;
@@ -76,8 +76,8 @@
   .auto-create-badge {
     margin-left: auto;
     padding: 2px 8px;
-    background-color: #e8f5e9;
-    color: #2e7d32;
+    background-color: var(--mde-success-bg);
+    color: var(--mde-success-fg);
     border-radius: 12px;
     font-size: 0.85em;
   }
@@ -93,14 +93,14 @@
   gap: 8px;
   font-size: 1em;
   font-weight: 500;
-  color: #424242;
+  color: var(--mde-text-primary);
   margin: 16px 0;
 
   mat-icon {
     font-size: 20px;
     height: 20px;
     width: 20px;
-    color: #666;
+    color: var(--mde-icon-color);
   }
 }
 
@@ -109,14 +109,14 @@
 
   .saved-token-card {
     padding: 16px;
-    background-color: #f5f5f5;
+    background-color: var(--mde-bg-secondary);
     border-radius: 8px;
     border: 2px solid transparent;
     transition: border-color 0.2s, background-color 0.2s;
 
     &.selected {
-      border-color: #1976d2;
-      background-color: #e3f2fd;
+      border-color: var(--mde-accent-primary);
+      background-color: var(--mde-bg-selected);
     }
 
     .saved-token-header {
@@ -132,7 +132,7 @@
       align-items: center;
       gap: 12px;
       padding: 12px;
-      background-color: rgba(255, 255, 255, 0.7);
+      background-color: var(--mde-bg-primary);
       border-radius: 4px;
       margin-top: 8px;
 
@@ -142,11 +142,11 @@
         width: 24px;
 
         &.valid {
-          color: #4caf50;
+          color: var(--mde-success-fg);
         }
 
         &.invalid {
-          color: #f44336;
+          color: var(--mde-error-fg);
         }
       }
 
@@ -165,7 +165,7 @@
             font-size: 18px;
             height: 18px;
             width: 18px;
-            color: #666;
+            color: var(--mde-icon-color);
           }
         }
 
@@ -173,11 +173,11 @@
           font-size: 0.85em;
 
           &.valid {
-            color: #4caf50;
+            color: var(--mde-success-fg);
           }
 
           &.invalid {
-            color: #f44336;
+            color: var(--mde-error-fg);
           }
         }
       }
@@ -188,7 +188,7 @@
       align-items: flex-start;
       gap: 8px;
       padding: 8px 12px;
-      background-color: #fff3e0;
+      background-color: var(--mde-warning-bg);
       border-radius: 4px;
       margin-top: 12px;
 
@@ -201,7 +201,7 @@
 
       span {
         font-size: 0.85em;
-        color: #5d4037;
+        color: var(--mde-warning-fg);
         line-height: 1.4;
       }
     }
@@ -210,11 +210,11 @@
   .or-divider {
     text-align: center;
     margin: 16px 0;
-    color: #666;
+    color: var(--mde-text-secondary);
     font-size: 0.9em;
 
     span {
-      background-color: white;
+      background-color: var(--mde-bg-primary);
       padding: 0 12px;
     }
   }
@@ -225,7 +225,7 @@
 
   .account-repo-hint {
     font-size: 0.8em;
-    color: #666;
+    color: var(--mde-text-secondary);
     margin-left: 4px;
   }
 
@@ -255,29 +255,29 @@
   margin-bottom: 16px;
 
   &.success {
-    background-color: #e8f5e9;
-    color: #2e7d32;
+    background-color: var(--mde-success-bg);
+    color: var(--mde-success-fg);
 
     mat-icon {
-      color: #4caf50;
+      color: var(--mde-success-fg);
     }
   }
 
   &.warning {
-    background-color: #fff3e0;
-    color: #e65100;
+    background-color: var(--mde-warning-bg);
+    color: var(--mde-warning-fg);
 
     mat-icon {
-      color: #ff9800;
+      color: var(--mde-icon-accent-orange);
     }
   }
 
   &.error {
-    background-color: #ffebee;
-    color: #c62828;
+    background-color: var(--mde-error-bg);
+    color: var(--mde-error-fg);
 
     mat-icon {
-      color: #f44336;
+      color: var(--mde-error-fg);
     }
   }
 }
@@ -294,7 +294,7 @@
 .advanced-panel {
   margin: 16px 0;
   box-shadow: none !important;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--mde-border-color);
 
   mat-panel-title {
     display: flex;
@@ -321,7 +321,7 @@
     display: block;
     margin-bottom: 12px;
     font-size: 0.9em;
-    color: #666;
+    color: var(--mde-text-secondary);
   }
 
   mat-radio-group {
@@ -351,7 +351,7 @@
   h4 {
     font-size: 0.95em;
     font-weight: 500;
-    color: #424242;
+    color: var(--mde-text-primary);
     margin: 0 0 12px 0;
   }
 }
@@ -385,20 +385,20 @@
   align-items: center;
   gap: 8px;
   padding: 12px;
-  background-color: #ffebee;
+  background-color: var(--mde-error-bg);
   border-radius: 4px;
   margin-top: 16px;
-  color: #c62828;
+  color: var(--mde-error-fg);
 
   mat-icon {
-    color: #c62828;
+    color: var(--mde-error-fg);
   }
 }
 
 .help-panel {
   margin-top: 16px;
   box-shadow: none !important;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--mde-border-color);
 
   mat-panel-title {
     display: flex;
@@ -420,7 +420,7 @@
   h4 {
     font-size: 0.95em;
     font-weight: 500;
-    color: #424242;
+    color: var(--mde-text-primary);
     margin: 16px 0 8px 0;
 
     &:first-child {
@@ -430,7 +430,7 @@
 
   p {
     margin: 0;
-    color: #666;
+    color: var(--mde-text-secondary);
     font-size: 0.9em;
     line-height: 1.5;
   }
@@ -447,4 +447,17 @@ mat-dialog-actions {
   mat-spinner {
     vertical-align: middle;
   }
+}
+
+// Classi per i colori spostati dagli stili inline del template
+.suffix-icon-valid {
+  color: var(--mde-success-fg);
+}
+
+.suffix-icon-invalid {
+  color: var(--mde-error-fg);
+}
+
+.link-accent {
+  color: var(--mde-accent-primary);
 }

@@ -8,7 +8,7 @@ h1[mat-dialog-title] {
   gap: 8px;
 
   mat-icon {
-    color: #1976d2;
+    color: var(--mde-icon-accent-blue);
   }
 }
 
@@ -26,7 +26,7 @@ h1[mat-dialog-title] {
   gap: 16px;
 
   p {
-    color: rgba(0, 0, 0, 0.6);
+    color: var(--mde-text-secondary);
   }
 }
 
@@ -41,7 +41,7 @@ h1[mat-dialog-title] {
     font-size: 48px;
     width: 48px;
     height: 48px;
-    color: #f57c00;
+    color: var(--mde-icon-accent-orange);
     margin-bottom: 16px;
   }
 
@@ -50,7 +50,7 @@ h1[mat-dialog-title] {
   }
 
   p {
-    color: rgba(0, 0, 0, 0.6);
+    color: var(--mde-text-secondary);
     margin-bottom: 16px;
   }
 
@@ -59,7 +59,7 @@ h1[mat-dialog-title] {
     margin-bottom: 24px;
 
     li {
-      color: rgba(0, 0, 0, 0.7);
+      color: var(--mde-text-secondary);
       margin-bottom: 4px;
     }
   }
@@ -69,7 +69,7 @@ h1[mat-dialog-title] {
   display: flex;
   gap: 24px;
   padding: 12px 16px;
-  background: #f5f5f5;
+  background: var(--mde-bg-tertiary);
   border-radius: 8px;
   margin-bottom: 16px;
   flex-wrap: wrap;
@@ -79,13 +79,13 @@ h1[mat-dialog-title] {
     align-items: center;
     gap: 6px;
     font-size: 13px;
-    color: rgba(0, 0, 0, 0.7);
+    color: var(--mde-text-secondary);
 
     mat-icon {
       font-size: 18px;
       width: 18px;
       height: 18px;
-      color: #1976d2;
+      color: var(--mde-icon-accent-blue);
     }
 
     &.tracker-status {
@@ -96,15 +96,15 @@ h1[mat-dialog-title] {
       transition: background-color 0.2s;
 
       &:hover {
-        background: rgba(0, 0, 0, 0.05);
+        background: var(--mde-hover-overlay);
       }
 
       &.tracker-connected mat-icon {
-        color: #28a745;
+        color: var(--mde-icon-accent-green);
       }
 
       &.tracker-error mat-icon {
-        color: #dc3545;
+        color: var(--mde-error-fg);
       }
     }
   }
@@ -115,8 +115,8 @@ h1[mat-dialog-title] {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  background: #fff3cd;
-  border: 1px solid #ffc107;
+  background: var(--mde-warning-bg);
+  border: 1px solid var(--mde-warning-fg);
   border-radius: 8px;
   margin-bottom: 16px;
   font-size: 13px;
@@ -127,7 +127,7 @@ h1[mat-dialog-title] {
 
   span {
     flex: 1;
-    color: #856404;
+    color: var(--mde-warning-fg);
   }
 
   button {
@@ -152,7 +152,7 @@ h1[mat-dialog-title] {
   align-items: center;
   justify-content: center;
   padding: 48px;
-  color: rgba(0, 0, 0, 0.5);
+  color: var(--mde-text-hint);
 
   mat-icon {
     font-size: 64px;
@@ -184,12 +184,12 @@ h1[mat-dialog-title] {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background: #fafafa;
+  background: var(--mde-bg-secondary);
   border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--mde-border-color);
 
   &:hover {
-    background: #f5f5f5;
+    background: var(--mde-bg-hover);
   }
 
   .transfer-icon {
@@ -216,7 +216,7 @@ h1[mat-dialog-title] {
 
     .transfer-details {
       font-size: 12px;
-      color: rgba(0, 0, 0, 0.6);
+      color: var(--mde-text-secondary);
       margin-bottom: 8px;
 
       span {
@@ -245,7 +245,7 @@ h1[mat-dialog-title] {
   }
 
   .hint {
-    color: rgba(0, 0, 0, 0.6);
+    color: var(--mde-text-secondary);
     font-size: 13px;
     margin-bottom: 24px;
   }
@@ -266,10 +266,10 @@ h1[mat-dialog-title] {
     gap: 8px;
     margin-top: 16px;
     padding: 12px;
-    background: #e8f5e9;
+    background: var(--mde-success-bg);
     border-radius: 4px;
     font-size: 13px;
-    color: #2e7d32;
+    color: var(--mde-success-fg);
 
     mat-icon {
       font-size: 18px;
@@ -278,7 +278,7 @@ h1[mat-dialog-title] {
     }
 
     code {
-      background: rgba(0, 0, 0, 0.05);
+      background: var(--mde-hover-overlay);
       padding: 2px 6px;
       border-radius: 3px;
       font-family: monospace;
@@ -297,12 +297,12 @@ h1[mat-dialog-title] {
   }
 
   p {
-    color: rgba(0, 0, 0, 0.7);
+    color: var(--mde-text-secondary);
     line-height: 1.6;
   }
 
   ul, ol {
-    color: rgba(0, 0, 0, 0.7);
+    color: var(--mde-text-secondary);
     padding-left: 24px;
 
     li {
@@ -312,7 +312,7 @@ h1[mat-dialog-title] {
 
   .hint {
     font-size: 13px;
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--mde-text-hint);
   }
 }
 
@@ -334,7 +334,7 @@ h1[mat-dialog-title] {
     justify-content: center;
     gap: 12px;
     padding: 32px;
-    color: rgba(0, 0, 0, 0.6);
+    color: var(--mde-text-secondary);
   }
 
   .project-list {
@@ -344,7 +344,7 @@ h1[mat-dialog-title] {
   }
 
   .project-card {
-    border: 1px solid #e0e0e0;
+    border: 1px solid var(--mde-border-color);
     border-radius: 8px;
     overflow: hidden;
 
@@ -353,12 +353,12 @@ h1[mat-dialog-title] {
       align-items: center;
       gap: 8px;
       padding: 12px 16px;
-      background: #f5f5f5;
+      background: var(--mde-bg-tertiary);
       cursor: pointer;
       transition: background-color 0.2s;
 
       &:hover {
-        background: #eeeeee;
+        background: var(--mde-bg-hover);
       }
 
       .project-name {
@@ -367,7 +367,7 @@ h1[mat-dialog-title] {
       }
 
       .file-count {
-        color: rgba(0, 0, 0, 0.5);
+        color: var(--mde-text-hint);
         font-size: 13px;
       }
 
@@ -378,8 +378,8 @@ h1[mat-dialog-title] {
 
     .project-files {
       padding: 8px;
-      background: #fafafa;
-      border-top: 1px solid #e0e0e0;
+      background: var(--mde-bg-secondary);
+      border-top: 1px solid var(--mde-border-color);
 
       .file-item {
         display: flex;
@@ -389,11 +389,11 @@ h1[mat-dialog-title] {
         border-radius: 4px;
 
         &:hover {
-          background: #f0f0f0;
+          background: var(--mde-bg-hover);
         }
 
         mat-icon {
-          color: rgba(0, 0, 0, 0.5);
+          color: var(--mde-icon-color);
           flex-shrink: 0;
         }
 
@@ -411,7 +411,7 @@ h1[mat-dialog-title] {
 
           .file-size {
             font-size: 12px;
-            color: rgba(0, 0, 0, 0.5);
+            color: var(--mde-text-hint);
           }
         }
 
@@ -424,7 +424,7 @@ h1[mat-dialog-title] {
             align-items: center;
             gap: 4px;
             font-size: 12px;
-            color: rgba(0, 0, 0, 0.6);
+            color: var(--mde-text-secondary);
 
             mat-icon {
               font-size: 16px;
@@ -432,25 +432,25 @@ h1[mat-dialog-title] {
               height: 16px;
 
               &.status-local {
-                color: #28a745;
+                color: var(--mde-icon-accent-green);
               }
               &.status-seeding {
-                color: #007bff;
+                color: var(--mde-icon-accent-blue);
               }
               &.status-downloading {
                 color: #17a2b8;
               }
               &.status-completed {
-                color: #28a745;
+                color: var(--mde-icon-accent-green);
               }
               &.status-available {
-                color: #fd7e14;
+                color: var(--mde-icon-accent-orange);
               }
               &.status-unavailable {
-                color: #6c757d;
+                color: var(--mde-icon-color);
               }
               &.status-unknown {
-                color: #6c757d;
+                color: var(--mde-icon-color);
               }
             }
 
@@ -469,8 +469,8 @@ h1[mat-dialog-title] {
 }
 
 .badge {
-  background: #1976d2;
-  color: white;
+  background: var(--mde-accent-primary);
+  color: var(--mde-text-on-primary);
   font-size: 11px;
   padding: 2px 6px;
   border-radius: 10px;

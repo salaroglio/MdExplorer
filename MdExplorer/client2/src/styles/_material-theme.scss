@@ -166,9 +166,23 @@ $milan-theme: mde-override-color-maps(
 body.dark-theme {
   @include mat.all-component-colors($dark-theme);
   @include mat.all-legacy-component-colors($dark-theme);
+
+  // I template usano <mat-toolbar color="primary">: nei temi scuri il chrome
+  // dell'app NON segue la palette primary (diventerebbe azzurro acceso) ma
+  // il grigio-chrome stabilito. Stessa specificità del mixin, vince l'ordine.
+  .mat-toolbar.mat-primary {
+    background: #2d2d2d;
+    color: #cccccc;
+  }
 }
 
 body.milan-theme {
   @include mat.all-component-colors($milan-theme);
   @include mat.all-legacy-component-colors($milan-theme);
+
+  // Chrome borgogna Milan anche sulle toolbar color="primary".
+  .mat-toolbar.mat-primary {
+    background: #c8102e;
+    color: #ffffff;
+  }
 }

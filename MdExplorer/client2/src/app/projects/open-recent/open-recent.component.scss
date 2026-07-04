@@ -31,18 +31,18 @@ h1 {
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.2);
+    background: var(--mde-border-strong);
     border-radius: 4px;
     transition: background 0.3s ease;
 
     &:hover {
-      background: rgba(0, 0, 0, 0.3);
+      background: var(--mde-text-hint);
     }
   }
 
   // Firefox scrollbar
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  scrollbar-color: var(--mde-border-strong) transparent;
 }
 
 // Smooth card hover effect
@@ -52,6 +52,6 @@ mat-card {
 
   &:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px var(--mde-shadow-color);
   }
 }

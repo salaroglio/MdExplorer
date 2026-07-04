@@ -8,6 +8,34 @@
 :host {
   // Component is a positioned overlay; nothing here renders inline
   display: contents;
+
+  // ── Palette semantica del pannello — valori LIGHT ──
+  // (pergamena chiara + oro scuro leggibile; il dark resta la KOF navy+gold)
+  --mrk-accent-fg: #b8860b;        // oro su fondo chiaro
+  --mrk-on-accent: #ffffff;        // testo su superficie accento (hover)
+  --mrk-panel-bg-top: #fdf6e3;
+  --mrk-panel-bg-bottom: #f0e6c8;
+  --mrk-panel-fg: #2b2517;
+  --mrk-hard-shadow: transparent;  // niente ombre "pixel" nere in light
+  --mrk-led-fg: #1e7d3f;
+  --mrk-input-bg: #fffdf5;
+  --mrk-input-fg: #3a3010;
+  --mrk-placeholder: #a89a70;
+}
+
+:host-context(body.dark-theme),
+:host-context(body.milan-theme) {
+  // ── Valori DARK originali, invariati ──
+  --mrk-accent-fg: #FFD700;
+  --mrk-on-accent: #1a1a1a;
+  --mrk-panel-bg-top: #0d2755;
+  --mrk-panel-bg-bottom: #08183b;
+  --mrk-panel-fg: #ffffff;
+  --mrk-hard-shadow: #000000;
+  --mrk-led-fg: #00ff66;
+  --mrk-input-bg: #050d22;
+  --mrk-input-fg: #fff8b0;
+  --mrk-placeholder: #6a7a99;
 }
 
 // ── Dim overlay ─────────────────────────────────────────
@@ -228,17 +256,17 @@
 // ── Dialog box itself ───────────────────────────────────
 .mark-dialog-box {
   position: relative;
-  background: linear-gradient(180deg, #0d2755 0%, #08183b 100%);
+  background: linear-gradient(180deg, var(--mrk-panel-bg-top) 0%, var(--mrk-panel-bg-bottom) 100%);
   border: 4px solid #1a1a1a;
   box-shadow:
-    inset 0 0 0 2px #FFD700,
-    inset 0 0 0 5px #08183b,
+    inset 0 0 0 2px var(--mrk-accent-fg),
+    inset 0 0 0 5px var(--mrk-panel-bg-bottom),
     inset 0 0 0 7px #c0c0c0,
     inset 0 0 0 9px #1a1a1a,
     0 8px 0 0 #000,
     0 12px 30px rgba(0,0,0,0.4);
   padding: 18px 22px 22px 22px;
-  color: white;
+  color: var(--mrk-panel-fg);
   image-rendering: pixelated;
 }
 
@@ -280,7 +308,7 @@
 .led-label {
   font-family: 'Press Start 2P', monospace;
   font-size: 8px;
-  color: #00ff66;
+  color: var(--mrk-led-fg);
   letter-spacing: 1px;
   white-space: nowrap;
 }
@@ -289,20 +317,20 @@
   margin-left: auto;
   font-family: 'VT323', monospace;
   font-size: 16px;
-  color: #FFD700;
+  color: var(--mrk-accent-fg);
   letter-spacing: 1px;
 }
 
 .skip-btn {
   background: transparent;
-  border: 2px solid #FFD700;
-  color: #FFD700;
+  border: 2px solid var(--mrk-accent-fg);
+  color: var(--mrk-accent-fg);
   font-family: 'Press Start 2P', monospace;
   font-size: 8px;
   padding: 4px 6px;
   cursor: pointer;
   margin-left: 8px;
-  &:hover { background: #FFD700; color: #1a1a1a; }
+  &:hover { background: var(--mrk-accent-fg); color: var(--mrk-on-accent); }
 }
 
 // ── Content row: portrait + text ────────────────────────
@@ -316,7 +344,7 @@
   width: 128px;
   height: 128px;
   background: #000;
-  border: 3px solid #FFD700;
+  border: 3px solid var(--mrk-accent-fg);
   box-shadow: inset 0 0 0 1px #000, 0 0 12px rgba(255, 215, 0, 0.3);
   flex-shrink: 0;
   display: block;
@@ -336,9 +364,9 @@
 .dialog-name {
   font-family: 'Press Start 2P', monospace;
   font-size: 12px;
-  color: #FFD700;
+  color: var(--mrk-accent-fg);
   margin-bottom: 8px;
-  text-shadow: 2px 2px 0 #000;
+  text-shadow: 2px 2px 0 var(--mrk-hard-shadow);
   letter-spacing: 1px;
 }
 
@@ -346,8 +374,8 @@
   font-family: 'VT323', monospace;
   font-size: 22px;
   line-height: 1.25;
-  color: #fff;
-  text-shadow: 1px 1px 0 #000;
+  color: var(--mrk-panel-fg);
+  text-shadow: 1px 1px 0 var(--mrk-hard-shadow);
   min-height: 56px;
 
   &.static {
@@ -360,7 +388,7 @@
   display: inline-block;
   width: 10px;
   height: 18px;
-  background: #FFD700;
+  background: var(--mrk-accent-fg);
   margin-left: 2px;
   vertical-align: -2px;
   animation: mark-cursor-blink 0.4s steps(2) infinite;
@@ -374,10 +402,10 @@
   position: absolute;
   bottom: 14px;
   right: 24px;
-  color: #FFD700;
+  color: var(--mrk-accent-fg);
   font-family: 'Press Start 2P', monospace;
   font-size: 14px;
-  text-shadow: 2px 2px 0 #000;
+  text-shadow: 2px 2px 0 var(--mrk-hard-shadow);
   opacity: 0;
   animation: mark-arrow-blink 0.6s steps(2) infinite;
 
@@ -451,16 +479,16 @@
   gap: 6px;
   margin-top: 12px;
   padding: 6px 8px;
-  background: #050d22;
-  border: 2px solid #FFD700;
-  box-shadow: inset 0 0 0 1px #000;
+  background: var(--mrk-input-bg);
+  border: 2px solid var(--mrk-accent-fg);
+  box-shadow: inset 0 0 0 1px var(--mrk-hard-shadow);
 
   .prompt-prefix {
-    color: #FFD700;
+    color: var(--mrk-accent-fg);
     font-family: 'Press Start 2P', monospace;
     font-size: 12px;
     margin-left: 2px;
-    text-shadow: 1px 1px 0 #000;
+    text-shadow: 1px 1px 0 var(--mrk-hard-shadow);
   }
 
   .user-input {
@@ -469,15 +497,15 @@
     background: transparent;
     border: none;
     outline: none;
-    color: #fff8b0;
+    color: var(--mrk-input-fg);
     font-family: 'VT323', monospace;
     font-size: 18px;
     letter-spacing: 0.5px;
     padding: 4px 6px;
-    caret-color: #FFD700;
+    caret-color: var(--mrk-accent-fg);
 
     &::placeholder {
-      color: #6a7a99;
+      color: var(--mrk-placeholder);
       font-style: italic;
     }
 

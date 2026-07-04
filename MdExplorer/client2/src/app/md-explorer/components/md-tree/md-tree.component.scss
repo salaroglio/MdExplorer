@@ -14,22 +14,12 @@
   height: auto;
 }
 
-// Dark-based themes (dark + milan): override backgrounds and text colors
-:host-context(body.dark-theme),
-:host-context(body.milan-theme) {
-  .tree-scroll-container {
-    background-color: var(--mde-bg-primary);
-    color: var(--mde-text-primary);
-  }
-
-  .mat-tree {
-    background-color: var(--mde-bg-primary);
-    color: var(--mde-text-primary);
-  }
-
-  .github-icon {
-    filter: invert(1);
-  }
+// Dark-based themes (dark + milan): fondi e testi di mat-tree/sidenav arrivano
+// dal tema Material nativo. Resta solo l'inversione dell'icona GitHub
+// (svg nera → bianca sui fondi scuri).
+:host-context(body.dark-theme) .github-icon,
+:host-context(body.milan-theme) .github-icon {
+  filter: invert(1);
 }
 
 // ==================== Sticky Scroll Panel ====================
@@ -80,32 +70,10 @@
   min-height: 40px !important;
 }
 
-:host-context(body.dark-theme) .mat-tree-node,
-:host-context(body.milan-theme) .mat-tree-node {
-  color: var(--mde-text-primary);
-
-  // .generic-file-icon excluded like .folder-icon: revealed non-md files keep their green tint.
-  .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon):not(.generic-file-icon) {
-    color: var(--mde-icon-color) !important;
-  }
-
-  // Preserve Material color="primary" on buttons and their icons
-  button.mat-primary .mat-icon,
-  button.mat-mdc-icon-button.mat-primary .mat-icon {
-    color: var(--mde-accent-primary) !important;
-  }
-
-  // Revealed-extra names (green) excluded, same reason as the icons above.
-  .node-text:not(.generic-file-name):not(.extra-revealed),
-  .folder-name:not(.extra-revealed),
-  span:not(.generic-file-name):not(.extra-revealed) {
-    color: var(--mde-text-primary);
-  }
-
-  button:not(.mat-primary) {
-    color: var(--mde-text-primary) !important;
-  }
-}
+// NOTA: qui c'era un blocco :host-context(dark/milan) che ri-colorava testo,
+// icone e bottoni dei .mat-tree-node: ora è il tema Material nativo a farlo
+// (body.dark-theme .mat-tree-node → testo; .mat-icon-button.mat-primary → accento).
+// Le tinte verdi dei contenuti "rivelati" restano nelle regole dedicate in fondo.
 .blue-link {
   color: blue;
   border-bottom-width: 1px;
@@ -154,7 +122,7 @@
         right: -2px;
         width: 8px;
         height: 8px;
-        background-color: #2196F3;
+        background-color: var(--mde-icon-accent-blue);
         border-radius: 50%;
         animation: indexing-pulse 1.5s ease-in-out infinite;
       }
@@ -164,7 +132,7 @@
       &::after {
         content: " (indicizzazione...)";
         font-size: 0.8em;
-        color: #666;
+        color: var(--mde-text-secondary);
         font-style: italic;
         animation: fade-in-out 2s ease-in-out infinite;
       }
@@ -393,7 +361,9 @@
   height: 18px;
   line-height: 18px;
   margin-left: 6px;
-  color: #1565c0;
+  // Token per-tema: tinta piena in light, pastello su dark/milan
+  // (prima: #1565c0 fisso + override solo dark, milan scoperto).
+  color: var(--mde-icon-accent-blue);
   vertical-align: middle;
   opacity: 0.7;
   transition: opacity 0.15s ease;
@@ -403,8 +373,36 @@
   }
 }
 
-:host-context(body.dark-theme) .toc-indicator {
-  color: #64b5f6;
+// ==================== Menu contestuale: tinte semantiche ====================
+// Colori spostati dagli style inline del template — tinte IDENTICHE in tutti
+// i temi. La specificità (button.mat-menu-item.…) serve a battere le regole
+// colore del tema nativo (body.dark-theme .mat-menu-item, …) senza !important.
+button.mat-menu-item.menu-item-rag,
+button.mat-mdc-menu-item.menu-item-rag {
+  color: #7c4dff; // viola RAG
+}
+
+button.mat-menu-item.menu-item-p2p,
+button.mat-mdc-menu-item.menu-item-p2p {
+  color: #11998e; // teal P2P
+}
+
+button.mat-menu-item.menu-item-force-open,
+button.mat-mdc-menu-item.menu-item-force-open {
+  color: orange; // file in attesa di indicizzazione
+}
+
+// Icone rosse delle azioni "distruttive" (delete / paste da clipboard).
+button.mat-menu-item .mat-icon.menu-icon-danger,
+button.mat-mdc-menu-item .mat-icon.menu-icon-danger {
+  color: #ef5350;
+}
+
+// App esterna non installata: testo/icona attenuati (era #9e9e9e inline).
+.not-installed-muted,
+button.mat-icon-button.not-installed-muted,
+button.mat-mdc-icon-button.not-installed-muted {
+  color: var(--mde-disabled-text);
 }
 
 // "Extra" content surfaced via a folder's "eye" (reveal content) is tinted GREEN so it stands

@@ -5,7 +5,7 @@
       <mat-card-subtitle>
         <span *ngIf="isModelLoaded && currentModel">
           <span *ngIf="currentModel.startsWith('OpenAI')">
-            <mat-icon inline="true" style="vertical-align: middle; color: #10a37f;">psychology</mat-icon>
+            <mat-icon inline="true" class="brand-openai-fg" style="vertical-align: middle;">psychology</mat-icon>
             {{ 'MODEL_MANAGER.CONNECTED_TO' | translate }} {{ currentModel }}
           </span>
           <span *ngIf="currentModel.startsWith('Gemini')">
@@ -13,7 +13,7 @@
             {{ 'MODEL_MANAGER.CONNECTED_TO' | translate }} {{ currentModel }}
           </span>
           <span *ngIf="currentModel.startsWith('CopilotCli')">
-            <mat-icon inline="true" style="vertical-align: middle; color: #24292e;">terminal</mat-icon>
+            <mat-icon inline="true" class="brand-github-fg" style="vertical-align: middle;">terminal</mat-icon>
             {{ 'MODEL_MANAGER.CONNECTED_TO' | translate }} {{ currentModel }}
           </span>
           <span *ngIf="!currentModel.startsWith('Gemini') && !currentModel.startsWith('OpenAI') && !currentModel.startsWith('CopilotCli')">
@@ -32,8 +32,8 @@
     
     <mat-card-content style="overflow: visible !important;">
       <!-- AI Engine (llama.cpp Backend) -->
-      <mat-card *ngIf="backendStatus && !backendStatus.isInstalled" class="backend-card"
-                style="margin-bottom: 20px; border: 2px solid #ff9800; background: #fff8e1;">
+      <mat-card *ngIf="backendStatus && !backendStatus.isInstalled" class="backend-card engine-warning-card"
+                style="margin-bottom: 20px;">
         <mat-card-header>
           <mat-card-title>
             <mat-icon color="warn">warning</mat-icon>
@@ -89,11 +89,11 @@
       </mat-card>
 
       <!-- Installed Backend Info -->
-      <mat-card *ngIf="backendStatus && backendStatus.isInstalled" class="backend-card"
-                style="margin-bottom: 20px; border-left: 4px solid #4caf50;">
+      <mat-card *ngIf="backendStatus && backendStatus.isInstalled" class="backend-card engine-installed-card"
+                style="margin-bottom: 20px;">
         <mat-card-header>
           <mat-card-title>
-            <mat-icon style="color: #4caf50;">check_circle</mat-icon>
+            <mat-icon class="success-icon">check_circle</mat-icon>
             {{ 'MODEL_MANAGER.AI_ENGINE' | translate:{ name: getBackendVariantName(backendStatus.installedVariant) } }}
           </mat-card-title>
           <mat-card-subtitle>
@@ -161,11 +161,11 @@
         </button>
         <button mat-raised-button (click)="editApplicationPrompt()"
                 [disabled]="editingApplicationPrompt"
-                style="background-color: #5c6bc0; color: white;">
+                class="app-prompt-button">
           <mat-icon>tune</mat-icon>
           {{ 'MODEL_MANAGER.APP_PROMPT' | translate }}
         </button>
-        <button mat-raised-button style="background-color: #10a37f; color: white;" (click)="toggleOpenAiConfig()">
+        <button mat-raised-button class="brand-openai-bg" (click)="toggleOpenAiConfig()">
           <mat-icon>psychology</mat-icon>
           {{ (showOpenAiConfig ? 'MODEL_MANAGER.HIDE_OPENAI' : 'MODEL_MANAGER.CONFIGURE_OPENAI') | translate }}
         </button>
@@ -173,7 +173,7 @@
           <mat-icon>cloud</mat-icon>
           {{ (showGeminiConfig ? 'MODEL_MANAGER.HIDE_GEMINI' : 'MODEL_MANAGER.CONFIGURE_GEMINI') | translate }}
         </button>
-        <button mat-raised-button style="background-color: #24292e; color: white;" (click)="toggleCopilotCliConfig()">
+        <button mat-raised-button class="brand-github-bg" (click)="toggleCopilotCliConfig()">
           <mat-icon>terminal</mat-icon>
           {{ (showCopilotCliConfig ? 'MODEL_MANAGER.HIDE_COPILOT' : 'MODEL_MANAGER.CONFIGURE_COPILOT') | translate }}
         </button>
@@ -256,7 +256,7 @@
               <mat-hint [innerHTML]="'MODEL_MANAGER.OPENAI_API_KEY_HINT' | translate"></mat-hint>
             </mat-form-field>
             <div style="margin-top: 16px;">
-              <button mat-raised-button style="background-color: #10a37f; color: white;" (click)="saveOpenAiApiKey()"
+              <button mat-raised-button class="brand-openai-bg" (click)="saveOpenAiApiKey()"
                       [disabled]="loading || !openAiApiKey.trim()">
                 <mat-icon>save</mat-icon>
                 {{ 'MODEL_MANAGER.SAVE_API_KEY' | translate }}
@@ -272,7 +272,7 @@
 
           <div *ngIf="openAiConfigured">
             <mat-chip-list style="margin-bottom: 16px;">
-              <mat-chip style="background-color: #10a37f; color: white;" selected>
+              <mat-chip class="brand-openai-bg" selected>
                 <mat-icon>check_circle</mat-icon>
                 {{ 'MODEL_MANAGER.API_KEY_CONFIGURED' | translate }}
               </mat-chip>
@@ -300,7 +300,7 @@
                 </mat-card-content>
 
                 <mat-card-actions>
-                  <button mat-raised-button style="background-color: #10a37f; color: white;"
+                  <button mat-raised-button class="brand-openai-bg"
                           *ngIf="!useOpenAi || selectedOpenAiModel !== model.id"
                           (click)="connectOpenAiModel(model.id)">
                     <mat-icon>psychology</mat-icon>
@@ -473,7 +473,7 @@
 
           <div *ngIf="copilotCliAvailable">
             <mat-chip-list style="margin-bottom: 16px;">
-              <mat-chip style="background-color: #2ea44f; color: white;" selected>
+              <mat-chip class="brand-github-green-bg" selected>
                 <mat-icon>check_circle</mat-icon>
                 {{ 'MODEL_MANAGER.COPILOT_AVAILABLE' | translate }}
               </mat-chip>
@@ -508,7 +508,7 @@
                 </mat-card-content>
 
                 <mat-card-actions>
-                  <button mat-raised-button style="background-color: #24292e; color: white;"
+                  <button mat-raised-button class="brand-github-bg"
                           *ngIf="!useCopilotCli || selectedCopilotCliModel !== model.id"
                           (click)="connectCopilotCliModel(model.id)">
                     <mat-icon>terminal</mat-icon>
