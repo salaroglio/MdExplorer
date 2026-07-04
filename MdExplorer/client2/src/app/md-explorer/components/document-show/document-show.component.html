@@ -25,8 +25,8 @@
          cdkDragLockAxis="y"
          *ngFor="let bookmark of bookmarks; let indexOfElement=index;"
          style="padding:2px;">
-      <div style="border-color:black" [attr.alt]="bookmark.fullPath">
-        <span (click)="openDocument(bookmark)" *ngIf="bookmark.show">{{bookmark.name}}</span>
+      <div style="border-color:black" [attr.title]="bookmark.fullPath">
+        <span class="bookmark-label" (click)="openDocument(bookmark)" *ngIf="bookmark.show">{{bookmark.displayName || bookmark.name}}</span>
         <span *ngIf="!bookmark.show">{{indexOfElement}}</span>
         <mat-icon (click)="toggleBookmark(bookmark)"
                   *ngIf="bookmark.show"

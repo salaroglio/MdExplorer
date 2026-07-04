@@ -2507,7 +2507,69 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 ).ToList();
             _userSettingsDB.Commit();
 
-            return Ok(bookmarkList);
+            // Labels are resolved live (title → file name) so they never go stale;
+            // duplicates get the parent folder appended, VS Code tab style.
+            var resolved = bookmarkList
+                .Select(_ => new
+                {
+                    _.Id,
+                    _.Name,
+                    _.FullPath,
+                    _.SortOrder,
+                    _.ProjectId,
+                    DisplayName = ResolveBookmarkTitle(_.FullPath) ?? _.Name
+                }).ToList();
+
+            var duplicatedLabels = resolved
+                .GroupBy(_ => _.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var response = resolved.Select(_ => new
+            {
+                _.Id,
+                _.Name,
+                _.FullPath,
+                _.SortOrder,
+                _.ProjectId,
+                DisplayName = duplicatedLabels.Contains(_.DisplayName)
+                    ? $"{_.DisplayName} — {GetBookmarkParentFolderName(_.FullPath)}"
+                    : _.DisplayName
+            }).ToList();
+
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Reads the head of the bookmarked file and extracts its document title
+        /// (front matter "title:" or first H1). Null when the file is missing,
+        /// unreadable or has no title — the caller falls back to the stored name.
+        /// </summary>
+        private static string ResolveBookmarkTitle(string fullPath)
+        {
+            const int headChars = 8 * 1024;
+            try
+            {
+                if (string.IsNullOrEmpty(fullPath) || !System.IO.File.Exists(fullPath)) return null;
+                using var reader = new StreamReader(fullPath);
+                var buffer = new char[headChars];
+                var read = reader.Read(buffer, 0, headChars);
+                return MarkdownTitleExtractor.ExtractTitle(new string(buffer, 0, read));
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+        }
+
+        // Last directory segment of the path, tolerant of both separators
+        // (bookmarks created on Windows may carry '\' even when read elsewhere).
+        private static string GetBookmarkParentFolderName(string fullPath)
+        {
+            if (string.IsNullOrEmpty(fullPath)) return string.Empty;
+            var segments = fullPath.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+            return segments.Length >= 2 ? segments[segments.Length - 2] : string.Empty;
         }
 
         [HttpPost]
