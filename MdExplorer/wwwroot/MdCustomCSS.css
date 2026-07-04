@@ -628,11 +628,15 @@ s
 
 .mdeSearchResultCount {
     font-size: 12px;
-    color: #666;
+    color: #333;
     margin: 0 8px;
     white-space: nowrap;
     min-width: 80px;
     text-align: center;
+}
+
+.mdeSearchResultCount.mdeNoResults {
+    color: #999;
 }
 
 .mdeSearchNavButton {
