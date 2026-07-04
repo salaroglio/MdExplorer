@@ -730,6 +730,7 @@
     "TOC_GENERATED_SUCCESS": "TOC generated successfully!",
     "DIR_INDEXED": "Directories indexed: {{count}} | Last: {{folder}}",
     "NEW_FILE_CREATED": "New file created: {{name}}",
+    "STORM_FILES_CREATED": "{{count}} new files added to the tree",
     "WATCHER_OVERFLOW_RELOAD": "File system events were lost: tree reloaded automatically",
     "TREE_NOT_LOADED": "Tree not loaded yet",
     "FILE_NOT_FOUND": "File not found in tree",

@@ -573,10 +573,15 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 context.DbSemaphore.Release();
             }
 
-            // Filter out ignored folders before sending to frontend
+            // Filter out ignored folders/files before sending to frontend
             var filteredEvents = deduplicated.Where(evt =>
             {
-                if (!evt.IsDirectory) return true;
+                if (!evt.IsDirectory)
+                {
+                    // Parity with the non-storm path (OnFileCreated/OnFileChanged):
+                    // markdown files under ignored folders must not reach the tree.
+                    return !evt.IsMarkdown || !ShouldIgnoreMarkdownFile(context, evt.FullPath);
+                }
 
                 if (evt.Action == StormEvent.ActionType.Deleted)
                 {
@@ -588,15 +593,30 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 return !ShouldIgnoreFolder(context, evt.FullPath);
             }).ToList();
 
-            // Build the payload for the frontend: list of changes
-            var bulkPayload = filteredEvents.Select(evt => new
+            // Build the payload for the frontend: list of changes.
+            // Each change carries the SAME node shape as the single-event payloads
+            // (markdownFileCreated/folderCreated): the tree handlers build nodes from
+            // path/type/level, and the flat-tree transformer reads relativePath from
+            // node.path — without these fields the inserted node has no relativePath
+            // and the document can never be loaded by clicking it.
+            var bulkPayload = filteredEvents.Select(evt =>
             {
-                action = evt.Action.ToString().ToLowerInvariant(),
-                fullPath = evt.FullPath,
-                oldFullPath = evt.OldFullPath,
-                isDirectory = evt.IsDirectory,
-                name = Path.GetFileName(evt.FullPath),
-                relativePath = GetRelativePath(context, evt.FullPath)
+                var relativePath = GetRelativePath(context, evt.FullPath);
+                return new
+                {
+                    action = evt.Action.ToString().ToLowerInvariant(),
+                    fullPath = evt.FullPath,
+                    oldFullPath = evt.OldFullPath,
+                    isDirectory = evt.IsDirectory,
+                    name = Path.GetFileName(evt.FullPath),
+                    relativePath,
+                    path = relativePath,
+                    type = evt.IsDirectory ? "folder" : "mdFile",
+                    level = CalculateFileLevel(relativePath),
+                    expandable = evt.IsDirectory,
+                    isIndexed = true,
+                    indexingStatus = "completed"
+                };
             }).ToList();
 
             try

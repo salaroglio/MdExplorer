@@ -17711,6 +17711,7 @@ class MdTreeComponent {
   }
   // ── Storm batch processing ──
   processStormChanges(changes) {
+    let createdFilesCount = 0;
     for (const change of changes) {
       try {
         const action = change.action; // 'created', 'deleted', 'changed', 'renamed'
@@ -17720,7 +17721,10 @@ class MdTreeComponent {
             if (isDir) {
               this.handleFolderCreated(change);
             } else {
-              this.handleNewMarkdownFileCreated(change);
+              // suppressNavigation: durante una raffica non si naviga a ogni
+              // file creato (N navigazioni + N snackbar), si aggiunge solo al tree.
+              this.handleNewMarkdownFileCreated(change, true);
+              createdFilesCount++;
             }
             break;
           case 'deleted':
@@ -17749,7 +17753,7 @@ class MdTreeComponent {
                   name: ''
                 });
               }
-              this.handleNewMarkdownFileCreated(change);
+              this.handleNewMarkdownFileCreated(change, true);
             }
             break;
         }
@@ -17758,10 +17762,22 @@ class MdTreeComponent {
       }
     }
     this.changeDetectorRef.markForCheck();
+    if (createdFilesCount > 0) {
+      this.snackBar.open(this.translate.instant('MD_TREE.STORM_FILES_CREATED', {
+        count: createdFilesCount
+      }), this.translate.instant('COMMON.CLOSE'), {
+        duration: 4000,
+        horizontalPosition: 'right',
+        verticalPosition: 'bottom',
+        panelClass: ['success-snackbar']
+      });
+    }
   }
   // ── SignalR event handlers ──
-  // Gestisce la creazione di un nuovo file markdown
-  handleNewMarkdownFileCreated(fileData) {
+  // Gestisce la creazione di un nuovo file markdown.
+  // suppressNavigation=true (batch storm): il file viene solo aggiunto al tree,
+  // senza navigare al documento né mostrare la snackbar per-file.
+  handleNewMarkdownFileCreated(fileData, suppressNavigation = false) {
     // Skip if this event is from our own DnD move (FSW buffered event leak)
     if (this.dndMovingPaths && fileData.fullPath?.toLowerCase() === this.dndMovingPaths.newPath?.toLowerCase()) {
       console.log('[DnD] Suppressing FSW-leaked markdownFileCreated for:', fileData.fullPath);
@@ -17816,6 +17832,9 @@ class MdTreeComponent {
     this.indexedFilesSubject.next(newSet);
     // STEP 6: Forza change detection per aggiornare il tree
     this.changeDetectorRef.detectChanges();
+    if (suppressNavigation) {
+      return;
+    }
     // STEP 7: Crea un MdFile valido per la navigazione
     const mdFileForNavigation = {
       name: newMdFile.name,

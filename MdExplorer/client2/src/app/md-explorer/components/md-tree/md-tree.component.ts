@@ -1704,6 +1704,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── Storm batch processing ──
 
   private processStormChanges(changes: any[]): void {
+    let createdFilesCount = 0;
     for (const change of changes) {
       try {
         const action = change.action; // 'created', 'deleted', 'changed', 'renamed'
@@ -1714,7 +1715,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
             if (isDir) {
               this.handleFolderCreated(change);
             } else {
-              this.handleNewMarkdownFileCreated(change);
+              // suppressNavigation: durante una raffica non si naviga a ogni
+              // file creato (N navigazioni + N snackbar), si aggiunge solo al tree.
+              this.handleNewMarkdownFileCreated(change, true);
+              createdFilesCount++;
             }
             break;
 
@@ -1743,7 +1747,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
               if (change.oldFullPath) {
                 this.handleMarkdownFileDeleted({ fullPath: change.oldFullPath, name: '' });
               }
-              this.handleNewMarkdownFileCreated(change);
+              this.handleNewMarkdownFileCreated(change, true);
             }
             break;
         }
@@ -1752,12 +1756,27 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
     this.changeDetectorRef.markForCheck();
+
+    if (createdFilesCount > 0) {
+      this.snackBar.open(
+        this.translate.instant('MD_TREE.STORM_FILES_CREATED', { count: createdFilesCount }),
+        this.translate.instant('COMMON.CLOSE'),
+        {
+          duration: 4000,
+          horizontalPosition: 'right',
+          verticalPosition: 'bottom',
+          panelClass: ['success-snackbar']
+        }
+      );
+    }
   }
 
   // ── SignalR event handlers ──
 
-  // Gestisce la creazione di un nuovo file markdown
-  private handleNewMarkdownFileCreated(fileData: any): void {
+  // Gestisce la creazione di un nuovo file markdown.
+  // suppressNavigation=true (batch storm): il file viene solo aggiunto al tree,
+  // senza navigare al documento né mostrare la snackbar per-file.
+  private handleNewMarkdownFileCreated(fileData: any, suppressNavigation: boolean = false): void {
     // Skip if this event is from our own DnD move (FSW buffered event leak)
     if (this.dndMovingPaths && fileData.fullPath?.toLowerCase() === this.dndMovingPaths.newPath?.toLowerCase()) {
       console.log('[DnD] Suppressing FSW-leaked markdownFileCreated for:', fileData.fullPath);
@@ -1824,6 +1843,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // STEP 6: Forza change detection per aggiornare il tree
     this.changeDetectorRef.detectChanges();
+
+    if (suppressNavigation) {
+      return;
+    }
 
     // STEP 7: Crea un MdFile valido per la navigazione
     const mdFileForNavigation: MdFile = {
