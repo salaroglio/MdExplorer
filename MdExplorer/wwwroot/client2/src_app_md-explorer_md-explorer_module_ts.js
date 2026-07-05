@@ -17712,6 +17712,7 @@ class MdTreeComponent {
   // ── Storm batch processing ──
   processStormChanges(changes) {
     let createdFilesCount = 0;
+    let lastCreatedFile = null;
     for (const change of changes) {
       try {
         const action = change.action; // 'created', 'deleted', 'changed', 'renamed'
@@ -17725,6 +17726,7 @@ class MdTreeComponent {
               // file creato (N navigazioni + N snackbar), si aggiunge solo al tree.
               this.handleNewMarkdownFileCreated(change, true);
               createdFilesCount++;
+              lastCreatedFile = change;
             }
             break;
           case 'deleted':
@@ -17763,15 +17765,51 @@ class MdTreeComponent {
     }
     this.changeDetectorRef.markForCheck();
     if (createdFilesCount > 0) {
-      this.snackBar.open(this.translate.instant('MD_TREE.STORM_FILES_CREATED', {
+      // Il pulsante d'azione apre l'ultimo file inserito dalla raffica
+      // (i change sono ordinati per timestamp dal backend).
+      const snackRef = this.snackBar.open(this.translate.instant('MD_TREE.STORM_FILES_CREATED', {
         count: createdFilesCount
-      }), this.translate.instant('COMMON.CLOSE'), {
-        duration: 4000,
+      }), this.translate.instant('MD_TREE.OPEN_LAST_CREATED', {
+        name: lastCreatedFile.name
+      }), {
+        duration: 8000,
         horizontalPosition: 'right',
         verticalPosition: 'bottom',
         panelClass: ['success-snackbar']
       });
+      snackRef.onAction().pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_32__.takeUntil)(this.destroy$)).subscribe(() => {
+        this.openStormCreatedFile(lastCreatedFile);
+      });
     }
+  }
+  /**
+   * Apre un file creato durante una raffica (azione della snackbar riassuntiva):
+   * espande il tree fino al file, lo seleziona e naviga al documento —
+   * gli stessi STEP 7-10 di handleNewMarkdownFileCreated nel caso singolo.
+   */
+  openStormCreatedFile(change) {
+    const mdFileForNavigation = {
+      name: change.name,
+      path: change.path,
+      relativePath: change.relativePath,
+      fullPath: change.fullPath,
+      fullDirectoryPath: this.getParentDirPath(change.fullPath),
+      type: 'mdFile',
+      level: change.level ?? 0,
+      expandable: false,
+      isLoading: false,
+      childrens: [],
+      index: 0,
+      isIndexed: true,
+      indexingStatus: 'completed'
+    };
+    this.mdFileService.setSelectedMdFileFromServer(mdFileForNavigation);
+    this.activeNode = mdFileForNavigation;
+    this.selectedNode = mdFileForNavigation;
+    this.changeDetectorRef.markForCheck();
+    this.mdFileService.setSelectedMdFileFromSideNav(mdFileForNavigation);
+    this.navService.setNewNavigation(mdFileForNavigation);
+    this.router.navigate(['/main/navigation/document']);
   }
   // ── SignalR event handlers ──
   // Gestisce la creazione di un nuovo file markdown.

@@ -731,6 +731,7 @@
     "DIR_INDEXED": "Directory indicizzate: {{count}} | Ultima: {{folder}}",
     "NEW_FILE_CREATED": "Nuovo file creato: {{name}}",
     "STORM_FILES_CREATED": "{{count}} nuovi file aggiunti all'albero",
+    "OPEN_LAST_CREATED": "Apri {{name}}",
     "WATCHER_OVERFLOW_RELOAD": "Eventi del file system persi: albero ricaricato automaticamente",
     "TREE_NOT_LOADED": "Albero non ancora caricato",
     "FILE_NOT_FOUND": "File non trovato nell'albero",
