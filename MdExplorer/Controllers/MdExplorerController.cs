@@ -35,6 +35,7 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using Microsoft.Extensions.DependencyInjection;
 using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Features.Services.SourceMapping;
 
 namespace MdExplorer.Controllers
 {
@@ -42,9 +43,10 @@ namespace MdExplorer.Controllers
     [Route("/api/MdExplorer/{*url}")]
     public class MdExplorerController : MdControllerBase<MdExplorerController>//ControllerBase
     {
-        private readonly IGoodMdRule<FileInfoNode>[] _goodRules;        
+        private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
         private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentDescriptor;
         private readonly IYamlDefaultGenerator _yamlDefaultGenerator;
+        private readonly MarkdownSourceMapService _sourceMapService;
 
         public MdExplorerController(ILogger<MdExplorerController> logger,
             IOptions<MdExplorerAppSettings> options,
@@ -57,13 +59,15 @@ namespace MdExplorer.Controllers
             IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentDescriptor,
             IYamlDefaultGenerator yamlDefaultGenerator,
             IWorkLink[] modifiers,
+            MarkdownSourceMapService sourceMapService,
             IDatabaseManager databaseManager = null
             ) : base(logger, options, hubContext, session, engineDB, commandRunner,modifiers, helper, databaseManager)
         {
             _goodRules = GoodRules;
-            
+
             _yamlDocumentDescriptor = yamlDocumentDescriptor;
             _yamlDefaultGenerator = yamlDefaultGenerator;
+            _sourceMapService = sourceMapService;
         }
 
         /// <summary>
@@ -444,6 +448,9 @@ namespace MdExplorer.Controllers
 
             try
             {
+            // Kept for the AI-selection source map: Markdig spans refer to the transformed
+            // text, the data-mde-line-* attributes must point at the file on disk.
+            var originalText = readText;
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
 
             // Check if Rule #1 is enabled for current project
@@ -515,6 +522,7 @@ namespace MdExplorer.Controllers
                 .UseAdvancedExtensions()
                 .UseDiagrams()
                 .UsePipeTables()
+                .UsePreciseSourceLocation()
                 .UseBootstrap();
 
             if (jiraEnabled && !string.IsNullOrWhiteSpace(jiraUrl))
@@ -531,7 +539,17 @@ namespace MdExplorer.Controllers
             string result;
             try
             {
-                result = Markdown.ToHtml(readText, pipeline);
+                try
+                {
+                    result = _sourceMapService.RenderHtmlWithSourceMap(originalText, readText, pipeline);
+                }
+                catch (Exception sourceMapEx)
+                {
+                    // The document must always render; the AI-selection feature degrades
+                    // detectably (no data-mde-line-* attributes → no button).
+                    _logger.LogError(sourceMapEx, "❌ [SourceMap] Source mapping failed for: {File} — rendering without source map, AI selection disabled on this document", fullPathFile);
+                    result = Markdown.ToHtml(readText, pipeline);
+                }
                 Directory.SetCurrentDirectory(GetProjectPath());
                 result = _commandRunner.TransformAfterConversion(result, requestInfo);
             }

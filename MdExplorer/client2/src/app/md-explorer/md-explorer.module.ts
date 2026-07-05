@@ -50,6 +50,7 @@ import { InstallWizardDialogComponent } from './components/dialogs/install-wizar
 import { BulkExportProgressDialogComponent } from './components/dialogs/bulk-export-progress/bulk-export-progress-dialog.component';
 import { AppShowComponent } from './components/app-show/app-show.component';
 import { IndexingProgressSnackComponent } from './components/indexing-progress-snack/indexing-progress-snack.component';
+import { AiSelectionDialogComponent } from './components/dialogs/ai-selection-dialog/ai-selection-dialog.component';
 
 
 const routes: Routes = [
@@ -117,7 +118,8 @@ const routes: Routes = [
     InstallWizardDialogComponent,
     BulkExportProgressDialogComponent,
     AppShowComponent,
-    IndexingProgressSnackComponent
+    IndexingProgressSnackComponent,
+    AiSelectionDialogComponent
   ],
   imports: [
     CommonModule,

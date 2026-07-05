@@ -1560,5 +1560,20 @@
   "CONFIRM_DIALOG": {
     "DEFAULT_CANCEL": "Annulla",
     "DEFAULT_CONFIRM": "Conferma"
+  },
+  "AI_SELECTION": {
+    "TITLE": "Usa AI sulla selezione",
+    "LINES": "righe {{start}}-{{end}}",
+    "ORIGINAL": "Originale",
+    "PROPOSAL": "Proposta",
+    "NOT_DELIMITED": "La risposta AI non era delimitata da code fence: verifica con attenzione prima di approvare",
+    "THINKING": "Ragionamento del modello",
+    "CONFLICT": "Il file è cambiato su disco da quando il frammento è stato letto. Ricarica il frammento e ripeti la richiesta.",
+    "RELOAD_FRAGMENT": "Ricarica frammento",
+    "INSTRUCTION_PLACEHOLDER": "Che modifica vuoi fare a questa parte?",
+    "SEND": "Invia",
+    "STOP": "Stop",
+    "APPROVE": "Approva e salva",
+    "INCOMPLETE_SELECTION": "Selezione non mappabile al sorgente markdown"
   }
 }

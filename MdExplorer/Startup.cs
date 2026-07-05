@@ -143,6 +143,9 @@ namespace MdExplorer
             // Long-lived Copilot CLI ACP sessions (one persistent process per SignalR connection)
             services.AddSingleton<MdExplorer.Features.Services.AI.CopilotAcp.CopilotAcpSessionPool>();
 
+            // Source map md→HTML per la feature "Usa AI" su selezione
+            services.AddSingleton<MdExplorer.Features.Services.SourceMapping.MarkdownSourceMapService>();
+
             // Model discovery per ogni provider
             services.AddSingleton<IModelDiscoveryProvider, OpenAiModelDiscovery>();
             services.AddSingleton<IModelDiscoveryProvider, GeminiModelDiscovery>();

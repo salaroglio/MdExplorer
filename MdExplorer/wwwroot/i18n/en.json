@@ -1560,5 +1560,20 @@
   "CONFIRM_DIALOG": {
     "DEFAULT_CANCEL": "Cancel",
     "DEFAULT_CONFIRM": "Confirm"
+  },
+  "AI_SELECTION": {
+    "TITLE": "Use AI on selection",
+    "LINES": "lines {{start}}-{{end}}",
+    "ORIGINAL": "Original",
+    "PROPOSAL": "Proposal",
+    "NOT_DELIMITED": "The AI reply was not fenced: review carefully before approving",
+    "THINKING": "Model reasoning",
+    "CONFLICT": "The file changed on disk since the fragment was read. Reload the fragment and retry.",
+    "RELOAD_FRAGMENT": "Reload fragment",
+    "INSTRUCTION_PLACEHOLDER": "What change do you want to make to this part?",
+    "SEND": "Send",
+    "STOP": "Stop",
+    "APPROVE": "Approve and save",
+    "INCOMPLETE_SELECTION": "Selection cannot be mapped to the markdown source"
   }
 }

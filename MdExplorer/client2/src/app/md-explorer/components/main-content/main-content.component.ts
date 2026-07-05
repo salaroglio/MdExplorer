@@ -16,6 +16,7 @@ import { ProjectsService } from '../../services/projects.service';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
 import { ThemeService } from '../../../services/theme.service';
+import { AiSelectionDialogComponent } from '../dialogs/ai-selection-dialog/ai-selection-dialog.component';
 
 // Content state interface for managing loading, error, and success states
 interface ContentState {
@@ -691,6 +692,33 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
         case 'md-navigate':
           this.handleMdNavigate(event.data);
           break;
+        case 'mde-ai-selection':
+          this.handleAiSelection(event.data);
+          break;
+      }
+    });
+  }
+
+  /**
+   * Opens the "Usa AI" dialog for a text selection made inside the iframe.
+   * The line range refers to the source .md file on disk (1-based), resolved
+   * server-side via the data-mde-line-* attributes.
+   */
+  private handleAiSelection(data: { startLine: number; endLine: number; selectedText: string; documentPath: string; connectionId: string }): void {
+    if (!data.documentPath || !data.startLine || !data.endLine) {
+      console.error('[AiSelection] Incomplete selection payload from iframe:', data);
+      this.snackBar.open(this.translate.instant('AI_SELECTION.INCOMPLETE_SELECTION'), 'OK', { duration: 4000 });
+      return;
+    }
+    this.dialog.open(AiSelectionDialogComponent, {
+      width: '860px',
+      maxWidth: '95vw',
+      data: {
+        documentPath: data.documentPath,
+        startLine: data.startLine,
+        endLine: data.endLine,
+        selectedText: data.selectedText || '',
+        connectionId: data.connectionId || this.monitorMDService.connectionId
       }
     });
   }

@@ -125,6 +125,10 @@ if (window.commonJsLoaded) {
         // SEARCH: Full-text search with highlighting
         loadScriptOnce('/javascripts/jqueryForFirstPage/search/search-functionality.js');
 
+        // AI SELECTION: floating "Usa AI" button on text selection
+        document.write("<link href='/javascripts/jqueryForFirstPage/ai-selection/ai-selection.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/ai-selection/ai-selection.js');
+
         // CLIPBOARD: Ctrl+V interception for Screenshot Annotation Wizard
         loadScriptOnce('/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.js');
 
