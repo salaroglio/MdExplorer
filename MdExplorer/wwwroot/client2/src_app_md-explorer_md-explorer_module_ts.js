@@ -635,13 +635,13 @@ class AiChatComponent {
     this.isChatFullScreen = false;
     this.copilotCliUnavailable = false;
     this.isStreaming = false;
-    // Copilot CLI auto-select: when active, expose a Sonnet 4.6 / Opus 4.7 picker
+    // Copilot CLI auto-select: when active, expose a Sonnet 5 / Opus 4.7 picker
     // next to the injected-file chip. Hidden for every other provider.
     this.copilotCliAutoSelected = false;
     this.selectedCopilotModel = null;
     this.copilotModelOptions = [{
-      id: 'claude-sonnet-4.6',
-      label: 'Sonnet 4.6'
+      id: 'claude-sonnet-5',
+      label: 'Sonnet 5'
     }, {
       id: 'claude-opus-4.7',
       label: 'Opus 4.7'
@@ -710,7 +710,7 @@ class AiChatComponent {
         return;
       }
       if (config.autoSelect && config.available) {
-        const model = config.defaultModel || 'claude-sonnet-4.6';
+        const model = config.defaultModel || 'claude-sonnet-5';
         console.log('[AiChatComponent] Auto-selecting Copilot CLI with model:', model);
         this.copilotCliUnavailable = false;
         this.copilotCliAutoSelected = true;
