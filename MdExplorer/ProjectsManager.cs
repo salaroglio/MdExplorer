@@ -56,6 +56,10 @@ namespace MdExplorer.Service
             // with the client's next commit.
             UntrackPerInstallArtifacts(pathFromParameter);
 
+            // Mark Search answer documents are session artifacts: previous sessions'
+            // files are meaningless (their chat context is gone), so start clean.
+            CleanMarkSearchArtifacts(pathFromParameter);
+
             var appdata = CrossPlatformPath.GetAppDataPath();
             var databasePath = $"Data Source = {Path.Combine(appdata, "MdExplorer.db")}";
             var currentDirectory = pathFromParameter;
@@ -828,23 +832,36 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 var gitignorePath = Path.Combine(projectPath, ".gitignore");
                 var existing = File.Exists(gitignorePath) ? File.ReadAllText(gitignorePath) : string.Empty;
 
+                var block = new StringBuilder();
+
                 // Idempotency marker: the wildcard pattern is unique enough to detect a previous run.
-                if (existing.Contains(".github/**/mde-*"))
+                if (!existing.Contains(".github/**/mde-*"))
+                {
+                    block.AppendLine("# MDE per-install artifacts — managed by MdExplorer, do not commit");
+                    block.AppendLine("# (skill/prompt/agent files generated under .github vary by the installed");
+                    block.AppendLine("#  MDE version, and the MCP config is instance-specific)");
+                    block.AppendLine(".github/**/mde-*");
+                    block.AppendLine(".vscode/mcp.json");
+                }
+
+                // Separate marker: repos that got the per-install block from an older MDE
+                // version must still receive this entry.
+                if (!existing.Contains(".md/mark-search/"))
+                {
+                    block.AppendLine("# MDE Mark Search temporary answer documents — wiped on every project open");
+                    block.AppendLine(".md/mark-search/");
+                }
+
+                if (block.Length == 0)
                 {
                     return;
                 }
 
-                var block = new StringBuilder();
                 // Separate from any pre-existing content if it doesn't already end with a newline.
                 if (existing.Length > 0 && !existing.EndsWith("\n") && !existing.EndsWith("\r\n"))
                 {
-                    block.AppendLine();
+                    block.Insert(0, Environment.NewLine);
                 }
-                block.AppendLine("# MDE per-install artifacts — managed by MdExplorer, do not commit");
-                block.AppendLine("# (skill/prompt/agent files generated under .github vary by the installed");
-                block.AppendLine("#  MDE version, and the MCP config is instance-specific)");
-                block.AppendLine(".github/**/mde-*");
-                block.AppendLine(".vscode/mcp.json");
 
                 File.AppendAllText(gitignorePath, block.ToString());
                 Console.WriteLine($"Ensured MDE per-install .gitignore entries at: {gitignorePath}");
@@ -853,6 +870,35 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             {
                 Console.WriteLine($"Error ensuring .gitignore entries: {ex.Message}");
                 // Non-critical: the project can continue without the .gitignore update.
+            }
+        }
+
+        /// <summary>
+        /// Deletes the temporary Mark Search answer documents ({project}/.md/mark-search/*).
+        /// They are per-session artifacts: the AI conversation that produced them does not
+        /// survive a project re-open, so stale answers would only be confusing. Non-critical:
+        /// failures are logged and ignored.
+        /// </summary>
+        /// <param name="projectPath">Path to the project folder</param>
+        public static void CleanMarkSearchArtifacts(string projectPath)
+        {
+            try
+            {
+                var folder = Path.Combine(projectPath, ".md", "mark-search");
+                if (!Directory.Exists(folder))
+                {
+                    return;
+                }
+
+                foreach (var file in Directory.GetFiles(folder))
+                {
+                    File.Delete(file);
+                }
+                Console.WriteLine($"Cleaned Mark Search temporary answers at: {folder}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error cleaning Mark Search artifacts: {ex.Message}");
             }
         }
 

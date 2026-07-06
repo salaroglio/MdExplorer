@@ -36,6 +36,8 @@ export class SidenavComponent implements OnInit, OnDestroy {
   public titleProject: string;
   public currentBranch: string = null;
   public hasRemote: boolean = false;
+  // Team Chat archiviata: mai stabilizzata (vedi PLAN-CHAT-FIX.md). Codice intatto, riabilitare qui.
+  public readonly teamChatEnabled: boolean = false;
   public fileSystemWatcherEnabled: boolean = true;
   public selectedTabIndex: number = 0;
   @ViewChild('sidenav', { static: false }) sidenav: MatSidenav;

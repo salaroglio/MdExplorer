@@ -770,7 +770,25 @@
     "AUTO_RELOAD": "Auto-reload on file changes",
     "PROJECT_DOCS": "Project docs",
     "MARK_AGENT": "Mark Agent",
+    "MARK_SEARCH": "Mark Search",
     "TEAM_CHAT": "Team Chat"
+  },
+  "MARK_SEARCH": {
+    "TITLE": "Mark Search",
+    "NEW": "New search (clears the conversation)",
+    "EMPTY": "Ask Mark to search the project documents, or to produce a summary or a diagram from what it finds.",
+    "PLACEHOLDER": "What are we looking for? (Enter to send, Shift+Enter for a new line)",
+    "SEND": "Send",
+    "STOP": "Stop",
+    "PHASE_KEYWORDS": "Mark is choosing the keywords…",
+    "PHASE_SEARCHING": "Running the instant search…",
+    "PHASE_ANSWERING": "Mark is evaluating the results…",
+    "NO_RESULTS": "No documents selected for this request.",
+    "OPEN_DOCUMENT": "Generated document — open it in the viewer",
+    "RAW_RESPONSE": "Raw AI response",
+    "INTERRUPTED": "Interrupted by the user.",
+    "ERROR_KEYWORDS_FORMAT": "The AI did not answer with the expected keywords JSON block. Retry or rephrase the request.",
+    "ERROR_ANSWER_FORMAT": "The AI did not follow the expected answer format (===MDE-RESULTS===/===MDE-END===). Retry or rephrase the request."
   },
   "NEW_MARKDOWN": {
     "TITLE": "New document",

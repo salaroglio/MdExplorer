@@ -770,7 +770,25 @@
     "AUTO_RELOAD": "Ricarica automatica al cambio file",
     "PROJECT_DOCS": "Documenti progetto",
     "MARK_AGENT": "Mark Agent",
+    "MARK_SEARCH": "Mark Search",
     "TEAM_CHAT": "Chat di Team"
+  },
+  "MARK_SEARCH": {
+    "TITLE": "Mark Search",
+    "NEW": "Nuova ricerca (pulisce la conversazione)",
+    "EMPTY": "Chiedi a Mark di cercare nei documenti del progetto, oppure di produrre un riassunto o un grafico da ciò che trova.",
+    "PLACEHOLDER": "Cosa cerchiamo? (Invio per inviare, Shift+Invio per andare a capo)",
+    "SEND": "Invia",
+    "STOP": "Interrompi",
+    "PHASE_KEYWORDS": "Mark sta scegliendo le parole chiave…",
+    "PHASE_SEARCHING": "Ricerca istantanea nel progetto…",
+    "PHASE_ANSWERING": "Mark sta valutando i risultati…",
+    "NO_RESULTS": "Nessun documento selezionato per questa richiesta.",
+    "OPEN_DOCUMENT": "Documento generato — aprilo nel viewer",
+    "RAW_RESPONSE": "Risposta grezza dell'AI",
+    "INTERRUPTED": "Interrotto dall'utente.",
+    "ERROR_KEYWORDS_FORMAT": "L'AI non ha risposto con il blocco JSON delle keyword atteso. Riprova o riformula la richiesta.",
+    "ERROR_ANSWER_FORMAT": "L'AI non ha rispettato il formato di risposta atteso (===MDE-RESULTS===/===MDE-END===). Riprova o riformula la richiesta."
   },
   "NEW_MARKDOWN": {
     "TITLE": "Nuovo documento",

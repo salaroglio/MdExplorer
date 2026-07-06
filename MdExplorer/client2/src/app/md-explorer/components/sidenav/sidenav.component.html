@@ -42,7 +42,14 @@
         </ng-template>
         <app-ai-chat [compactMode]="true"></app-ai-chat>
       </mat-tab>
-      <mat-tab *ngIf="hasRemote">
+      <mat-tab *ngIf="titleProject">
+        <ng-template mat-tab-label>
+          <mat-icon>manage_search</mat-icon>
+          {{ 'SIDENAV.MARK_SEARCH' | translate }}
+        </ng-template>
+        <app-mark-search></app-mark-search>
+      </mat-tab>
+      <mat-tab *ngIf="teamChatEnabled && hasRemote">
         <ng-template mat-tab-label>
           <mat-icon>chat</mat-icon>
           {{ 'SIDENAV.TEAM_CHAT' | translate }}

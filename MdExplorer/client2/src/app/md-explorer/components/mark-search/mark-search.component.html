@@ -1,0 +1,93 @@
+<div class="mark-search-container">
+
+  <div class="ms-header">
+    <mat-icon>manage_search</mat-icon>
+    <span class="ms-title">{{ 'MARK_SEARCH.TITLE' | translate }}</span>
+    <span class="ms-spacer"></span>
+    <button mat-icon-button
+            (click)="newSearch()"
+            [matTooltip]="'MARK_SEARCH.NEW' | translate"
+            [disabled]="turns.length === 0 && !isBusy">
+      <mat-icon>restart_alt</mat-icon>
+    </button>
+  </div>
+
+  <div class="ms-transcript" #transcript>
+
+    <div class="ms-empty" *ngIf="turns.length === 0">
+      <mat-icon>travel_explore</mat-icon>
+      <p>{{ 'MARK_SEARCH.EMPTY' | translate }}</p>
+    </div>
+
+    <ng-container *ngFor="let t of turns">
+
+      <div class="ms-turn ms-user" *ngIf="t.role === 'user'">{{ t.text }}</div>
+
+      <div class="ms-turn ms-assistant" *ngIf="t.role === 'assistant'">
+
+        <div class="ms-keywords" *ngIf="t.keywords && t.keywords.length > 0">
+          <mat-icon>search</mat-icon>
+          <span class="ms-chip" *ngFor="let k of t.keywords">{{ k }}</span>
+        </div>
+
+        <div class="ms-commentary" *ngIf="t.text" [innerHTML]="renderMarkdown(t.text)"></div>
+
+        <div class="ms-results" *ngIf="t.results && t.results.length > 0">
+          <div class="ms-result-box" *ngFor="let r of t.results" (click)="openResult(r)">
+            <mat-icon>description</mat-icon>
+            <div class="ms-result-info">
+              <div class="ms-result-title">{{ r.title }}</div>
+              <div class="ms-result-path">{{ r.path }}</div>
+              <div class="ms-result-reason" *ngIf="r.reason">{{ r.reason }}</div>
+            </div>
+            <mat-icon class="ms-result-open">chevron_right</mat-icon>
+          </div>
+        </div>
+
+        <div class="ms-no-results" *ngIf="t.results && t.results.length === 0 && !t.document">
+          {{ 'MARK_SEARCH.NO_RESULTS' | translate }}
+        </div>
+
+        <div class="ms-document" *ngIf="t.document" (click)="openDocument(t.document)">
+          <mat-icon>article</mat-icon>
+          <span>{{ 'MARK_SEARCH.OPEN_DOCUMENT' | translate }}</span>
+          <mat-icon class="ms-result-open">chevron_right</mat-icon>
+        </div>
+
+        <div class="ms-error" *ngIf="t.error">
+          <mat-icon>error_outline</mat-icon>
+          <span>{{ t.error | translate }}</span>
+          <details *ngIf="t.raw">
+            <summary>{{ 'MARK_SEARCH.RAW_RESPONSE' | translate }}</summary>
+            <pre>{{ t.raw }}</pre>
+          </details>
+        </div>
+
+      </div>
+    </ng-container>
+
+    <div class="ms-status" *ngIf="isBusy">
+      <mat-spinner diameter="16"></mat-spinner>
+      <span>{{ statusLabel | translate }}</span>
+    </div>
+
+  </div>
+
+  <div class="ms-input">
+    <textarea #promptInput
+              [(ngModel)]="prompt"
+              (keydown)="onKeydown($event)"
+              [placeholder]="'MARK_SEARCH.PLACEHOLDER' | translate"
+              [disabled]="isBusy"
+              rows="2"></textarea>
+    <button mat-icon-button color="primary" *ngIf="!isBusy" (click)="send()" [disabled]="!prompt.trim()"
+            [matTooltip]="'MARK_SEARCH.SEND' | translate">
+      <mat-icon>send</mat-icon>
+    </button>
+    <button mat-icon-button color="warn" *ngIf="isBusy" (click)="stop()"
+            [matTooltip]="'MARK_SEARCH.STOP' | translate">
+      <mat-icon>stop</mat-icon>
+    </button>
+  </div>
+
+</div>

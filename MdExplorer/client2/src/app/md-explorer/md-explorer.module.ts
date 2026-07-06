@@ -51,6 +51,7 @@ import { BulkExportProgressDialogComponent } from './components/dialogs/bulk-exp
 import { AppShowComponent } from './components/app-show/app-show.component';
 import { IndexingProgressSnackComponent } from './components/indexing-progress-snack/indexing-progress-snack.component';
 import { AiSelectionDialogComponent } from './components/dialogs/ai-selection-dialog/ai-selection-dialog.component';
+import { MarkSearchComponent } from './components/mark-search/mark-search.component';
 
 
 const routes: Routes = [
@@ -119,7 +120,8 @@ const routes: Routes = [
     BulkExportProgressDialogComponent,
     AppShowComponent,
     IndexingProgressSnackComponent,
-    AiSelectionDialogComponent
+    AiSelectionDialogComponent,
+    MarkSearchComponent
   ],
   imports: [
     CommonModule,

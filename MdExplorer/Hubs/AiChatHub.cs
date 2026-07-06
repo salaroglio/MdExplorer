@@ -130,6 +130,21 @@ namespace MdExplorer.Hubs
             return Task.CompletedTask;
         }
 
+        /// <summary>
+        /// Provider/model-unavailable warnings must reach the caller on the SAME path it
+        /// listens on. The main chat panel shows system messages (ReceiveMessage), but
+        /// private-channel consumers (mark-search, promptlab, ai-selection) only listen to
+        /// channel events: without a ReceiveError they would wait forever.
+        /// </summary>
+        private Task NotifyUnavailableAsync(string channelId, string warning)
+        {
+            if (channelId == "default")
+            {
+                return Clients.Caller.SendAsync("ReceiveMessage", "system", warning);
+            }
+            return Clients.Caller.SendAsync("ReceiveError", warning, channelId);
+        }
+
         public async Task SendMessage(string message, string channelId = "default")
         {
             try
@@ -151,18 +166,14 @@ namespace MdExplorer.Hubs
                     if (provider == null)
                     {
                         _logger.LogWarning($"[SendMessage] Provider {chatMode.ProviderType} not found!");
-                        await Clients.Caller.SendAsync("ReceiveMessage",
-                            "system",
-                            $"⚠️ {chatMode.ProviderType} provider is not available.");
+                        await NotifyUnavailableAsync(channelId, $"⚠️ {chatMode.ProviderType} provider is not available.");
                         return;
                     }
 
                     if (!provider.IsAvailable())
                     {
                         _logger.LogWarning($"[SendMessage] Provider {chatMode.ProviderType} is not configured!");
-                        await Clients.Caller.SendAsync("ReceiveMessage",
-                            "system",
-                            $"⚠️ {chatMode.ProviderType} is not configured. Please configure it in Settings.");
+                        await NotifyUnavailableAsync(channelId, $"⚠️ {chatMode.ProviderType} is not configured. Please configure it in Settings.");
                         return;
                     }
 
@@ -247,9 +258,7 @@ namespace MdExplorer.Hubs
                     // Use local model
                     if (!_aiChatService.IsModelLoaded())
                     {
-                        await Clients.Caller.SendAsync("ReceiveMessage",
-                            "system",
-                            "⚠️ No AI model loaded. Please download and select a model from Settings.");
+                        await NotifyUnavailableAsync(channelId, "⚠️ No AI model loaded. Please download and select a model from Settings.");
                         return;
                     }
 
