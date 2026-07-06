@@ -65,7 +65,25 @@
   max-width: 90%;
   background: var(--mde-accent-light);
   padding: 8px 10px;
-  white-space: pre-wrap;
+
+  .ms-user-text {
+    white-space: pre-wrap;
+  }
+
+  .ms-user-context {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+    color: var(--mde-text-secondary);
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+    }
+  }
 }
 
 .ms-assistant {
@@ -125,6 +143,68 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.ms-ctx-check {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+  accent-color: var(--mde-accent-primary);
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.ms-ctx-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--mde-accent-primary);
+
+  mat-icon {
+    font-size: 13px;
+    width: 13px;
+    height: 13px;
+  }
+}
+
+.ms-context-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--mde-text-secondary);
+  border-top: 1px solid var(--mde-border-color);
+  background: var(--mde-bg-secondary);
+
+  mat-icon {
+    font-size: 15px;
+    width: 15px;
+    height: 15px;
+  }
+
+  .ms-ctx-injected-count {
+    color: var(--mde-accent-primary);
+  }
+}
+
+.ms-send-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: #d32f2f;
+
+  mat-icon {
+    font-size: 15px;
+    width: 15px;
+    height: 15px;
+  }
 }
 
 .ms-result-box {

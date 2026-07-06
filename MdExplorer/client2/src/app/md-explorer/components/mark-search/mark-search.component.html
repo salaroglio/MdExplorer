@@ -21,7 +21,13 @@
 
     <ng-container *ngFor="let t of turns">
 
-      <div class="ms-turn ms-user" *ngIf="t.role === 'user'">{{ t.text }}</div>
+      <div class="ms-turn ms-user" *ngIf="t.role === 'user'">
+        <div class="ms-user-text">{{ t.text }}</div>
+        <div class="ms-user-context" *ngIf="t.contextFiles?.length">
+          <mat-icon>attach_file</mat-icon>
+          <span class="ms-chip" *ngFor="let f of t.contextFiles">{{ f }}</span>
+        </div>
+      </div>
 
       <div class="ms-turn ms-assistant" *ngIf="t.role === 'assistant'">
 
@@ -34,11 +40,20 @@
 
         <div class="ms-results" *ngIf="t.results && t.results.length > 0">
           <div class="ms-result-box" *ngFor="let r of t.results" (click)="openResult(r)">
+            <input type="checkbox"
+                   class="ms-ctx-check"
+                   [checked]="isContextChecked(r.path)"
+                   [disabled]="isContextInjected(r.path)"
+                   [matTooltip]="'MARK_SEARCH.CONTEXT_CHECK_TIP' | translate"
+                   (click)="toggleContext(r, $event)" />
             <mat-icon>description</mat-icon>
             <div class="ms-result-info">
               <div class="ms-result-title">{{ r.title }}</div>
               <div class="ms-result-path">{{ r.path }}</div>
               <div class="ms-result-reason" *ngIf="r.reason">{{ r.reason }}</div>
+              <div class="ms-ctx-badge" *ngIf="isContextInjected(r.path)">
+                <mat-icon>check_circle</mat-icon> {{ 'MARK_SEARCH.IN_CONTEXT' | translate }}
+              </div>
             </div>
             <mat-icon class="ms-result-open">chevron_right</mat-icon>
           </div>
@@ -71,6 +86,21 @@
       <span>{{ statusLabel | translate }}</span>
     </div>
 
+  </div>
+
+  <div class="ms-context-bar" *ngIf="contextChecked.size > 0 || contextInjected.size > 0">
+    <mat-icon>attach_file</mat-icon>
+    <span *ngIf="contextChecked.size > 0">
+      {{ 'MARK_SEARCH.CONTEXT_PENDING' | translate:{ count: contextChecked.size } }}
+    </span>
+    <span *ngIf="contextInjected.size > 0" class="ms-ctx-injected-count">
+      {{ 'MARK_SEARCH.CONTEXT_INJECTED' | translate:{ count: contextInjected.size } }}
+    </span>
+  </div>
+
+  <div class="ms-send-error" *ngIf="sendError">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ sendError }}</span>
   </div>
 
   <div class="ms-input">

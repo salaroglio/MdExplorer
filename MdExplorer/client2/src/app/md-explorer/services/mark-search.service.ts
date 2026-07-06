@@ -8,6 +8,12 @@ export interface MarkSearchAnswerDocument {
   fileName: string;
 }
 
+export interface MarkSearchFileContent {
+  path: string;
+  content: string;
+  totalChars: number;
+}
+
 /**
  * Persists the AI-generated Mark Search answer as a temporary markdown file
  * under {project}/.md/mark-search/ so the standard viewer pipeline can render it.
@@ -20,5 +26,9 @@ export class MarkSearchService {
 
   saveAnswer(content: string): Observable<MarkSearchAnswerDocument> {
     return this.http.post<MarkSearchAnswerDocument>('../api/marksearch/answer', { content });
+  }
+
+  getFileContent(path: string): Observable<MarkSearchFileContent> {
+    return this.http.get<MarkSearchFileContent>('../api/marksearch/filecontent', { params: { path } });
   }
 }

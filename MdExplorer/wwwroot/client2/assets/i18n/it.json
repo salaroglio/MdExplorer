@@ -787,6 +787,10 @@
     "OPEN_DOCUMENT": "Documento generato — aprilo nel viewer",
     "RAW_RESPONSE": "Risposta grezza dell'AI",
     "INTERRUPTED": "Interrotto dall'utente.",
+    "CONTEXT_CHECK_TIP": "Aggiungi al contesto della prossima richiesta",
+    "IN_CONTEXT": "nel contesto",
+    "CONTEXT_PENDING": "{{count}} file da iniettare con la prossima richiesta",
+    "CONTEXT_INJECTED": "{{count}} file nel contesto della conversazione",
     "ERROR_KEYWORDS_FORMAT": "L'AI non ha risposto con il blocco JSON delle keyword atteso. Riprova o riformula la richiesta.",
     "ERROR_ANSWER_FORMAT": "L'AI non ha rispettato il formato di risposta atteso (===MDE-RESULTS===/===MDE-END===). Riprova o riformula la richiesta."
   },

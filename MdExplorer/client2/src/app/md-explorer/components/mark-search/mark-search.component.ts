@@ -7,7 +7,7 @@ import { marked } from 'marked';
 import { AiChatService } from '../../../services/ai-chat.service';
 import { SearchService } from '../../../services/search.service';
 import { SearchResult } from '../../../models/search.models';
-import { MarkSearchService, MarkSearchAnswerDocument } from '../../services/mark-search.service';
+import { MarkSearchService, MarkSearchAnswerDocument, MarkSearchFileContent } from '../../services/mark-search.service';
 import { MdFileService } from '../../services/md-file.service';
 import { ProjectsService } from '../../services/projects.service';
 
@@ -24,9 +24,14 @@ interface MarkTurn {
   keywords?: string[];
   results?: MarkResultBox[];
   document?: MarkSearchAnswerDocument;
+  contextFiles?: string[];
   error?: string;
   raw?: string;
 }
+
+// Each injected file is capped so a huge document can't blow up the prompt;
+// the cut is explicit in the injected text, never silent.
+const CONTEXT_FILE_CHAR_LIMIT = 30000;
 
 const RESULTS_MARKER = '===MDE-RESULTS===';
 const DOCUMENT_MARKER = '===MDE-DOCUMENT===';
@@ -55,6 +60,13 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
   prompt = '';
   isBusy = false;
   phase: 'idle' | 'keywords' | 'searching' | 'answering' = 'idle';
+  sendError: string | null = null;
+
+  // Result files ticked by the user, to be injected as context with the NEXT prompt.
+  // Once injected they live in the channel history for the whole conversation, so the
+  // checkbox freezes (no double injection); "new search" resets everything.
+  contextChecked = new Set<string>();
+  contextInjected = new Set<string>();
 
   private round: 1 | 2 = 1;
   private streamBuffer = '';
@@ -131,12 +143,57 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
     }
   }
 
+  toggleContext(result: MarkResultBox, event: Event): void {
+    event.stopPropagation();
+    const path = result.path;
+    if (this.contextInjected.has(path)) {
+      return;
+    }
+    if (this.contextChecked.has(path)) {
+      this.contextChecked.delete(path);
+    } else {
+      this.contextChecked.add(path);
+    }
+  }
+
+  isContextChecked(path: string): boolean {
+    return this.contextChecked.has(path) || this.contextInjected.has(path);
+  }
+
+  isContextInjected(path: string): boolean {
+    return this.contextInjected.has(path);
+  }
+
   send(): void {
     const request = this.prompt.trim();
     if (!request || this.isBusy) {
       return;
     }
-    this.turns.push({ role: 'user', text: request });
+    this.sendError = null;
+
+    const pendingPaths = Array.from(this.contextChecked);
+    if (pendingPaths.length === 0) {
+      this.dispatchPrompt(request, null, []);
+      return;
+    }
+
+    // Read the checked files fresh from disk; any failure blocks the send.
+    this.isBusy = true;
+    forkJoin(pendingPaths.map(p => this.markSearchService.getFileContent(p)))
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: files => {
+          this.dispatchPrompt(request, this.buildContextBlock(files), pendingPaths);
+        },
+        error: err => {
+          this.isBusy = false;
+          this.sendError = `Lettura dei file di contesto fallita: ${err?.error?.error || err?.message || err}`;
+        }
+      });
+  }
+
+  private dispatchPrompt(request: string, contextBlock: string | null, injectedNow: string[]): void {
+    this.turns.push({ role: 'user', text: request, contextFiles: injectedNow.length ? injectedNow : undefined });
     this.currentTurn = { role: 'assistant', text: '' };
     this.turns.push(this.currentTurn);
 
@@ -147,11 +204,32 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.shouldScroll = true;
 
     const message = this.firstMessageSent
-      ? this.buildFollowUpKeywordsPrompt(request)
-      : this.buildFirstPrompt(request);
+      ? this.buildFollowUpKeywordsPrompt(request, contextBlock)
+      : this.buildFirstPrompt(request, contextBlock);
     this.firstMessageSent = true;
+    injectedNow.forEach(p => {
+      this.contextChecked.delete(p);
+      this.contextInjected.add(p);
+    });
     this.aiChatService.sendMessageToChannel(message, this.channelId);
     this.prompt = '';
+  }
+
+  private buildContextBlock(files: MarkSearchFileContent[]): string {
+    const parts = files.map(f => {
+      let content = f.content;
+      if (content.length > CONTEXT_FILE_CHAR_LIMIT) {
+        content = content.slice(0, CONTEXT_FILE_CHAR_LIMIT)
+          + `\n[...TRONCATO: il file è di ${f.totalChars} caratteri, sono mostrati i primi ${CONTEXT_FILE_CHAR_LIMIT}]`;
+      }
+      return `<<<FILE ${f.path}>>>\n${content}\n<<<END FILE>>>`;
+    });
+    return [
+      'Contesto fornito dall\'utente: contenuto INTEGRALE dei file selezionati (path relativi alla radice del progetto).',
+      'Usa questi file come fonte primaria per rispondere alla richiesta.',
+      '',
+      ...parts
+    ].join('\n');
   }
 
   stop(): void {
@@ -175,6 +253,9 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.turns = [];
     this.currentTurn = null;
     this.firstMessageSent = false;
+    this.contextChecked.clear();
+    this.contextInjected.clear();
+    this.sendError = null;
     this.finish();
   }
 
@@ -436,7 +517,7 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   // ------------------------------------------------------------------ prompts
 
-  private buildFirstPrompt(request: string): string {
+  private buildFirstPrompt(request: string, contextBlock: string | null): string {
     return [
       'Sei "Mark Search", l\'assistente di ricerca del progetto di documenti markdown aperto in MdExplorer.',
       'Lavori in due fasi. In questa FASE 1 devi SOLO scegliere le parole chiave per la ricerca istantanea',
@@ -449,19 +530,23 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
       '- da 1 a 5 keyword, brevi (1-2 parole), termini che plausibilmente compaiono nei documenti',
       '- niente operatori o virgolette: solo parole semplici',
       '- array vuoto [] SOLO se la richiesta non necessita di alcuna ricerca nei documenti',
+      '  (ad esempio perché i file già forniti come contesto bastano a rispondere)',
       '- nessun testo fuori dal blocco JSON',
       '- non usare i tuoi tool: la ricerca la eseguo io per te',
+      ...(contextBlock ? ['', contextBlock] : []),
       '',
       `Richiesta dell'utente: «${request}»`
     ].join('\n');
   }
 
-  private buildFollowUpKeywordsPrompt(request: string): string {
+  private buildFollowUpKeywordsPrompt(request: string, contextBlock: string | null): string {
     return [
+      ...(contextBlock ? [contextBlock, ''] : []),
       `Nuova richiesta dell'utente: «${request}»`,
       '',
       'FASE 1 come in precedenza: rispondi ESCLUSIVAMENTE con il blocco ```json {"keywords": [...]};',
-      'array vuoto [] se questa richiesta non necessita di una nuova ricerca.'
+      'array vuoto [] se questa richiesta non necessita di una nuova ricerca (ad esempio perché',
+      'i file forniti come contesto bastano a rispondere).'
     ].join('\n');
   }
 
@@ -480,8 +565,8 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
       '   I link ai file del progetto vanno scritti con path relativi alla radice del progetto, es. [Titolo](cartella/file.md).',
       `5. Una riga finale contenente esattamente: ${END_MARKER}`,
       '',
-      'Regole: usa SOLO path presenti nei risultati forniti in questa conversazione (mai inventare file);',
-      `se nulla è pertinente, spiegalo nel commento e restituisci []. Non aggiungere testo dopo ${END_MARKER}.`
+      'Regole: usa SOLO path presenti nei risultati o nei file di contesto forniti in questa conversazione',
+      `(mai inventare file); se nulla è pertinente, spiegalo nel commento e restituisci []. Non aggiungere testo dopo ${END_MARKER}.`
     ].join('\n');
   }
 }

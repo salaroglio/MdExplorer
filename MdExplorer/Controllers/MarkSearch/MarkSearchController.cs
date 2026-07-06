@@ -78,6 +78,54 @@ namespace MdExplorer.Service.Controllers.MarkSearch
         }
 
         /// <summary>
+        /// Returns the full content of a project markdown file, read fresh from disk.
+        /// Used by the Mark Search tab to inject user-checked result files as context
+        /// into the next AI prompt. Same traversal guard as AiSelectionController.
+        /// </summary>
+        [HttpGet("filecontent")]
+        public IActionResult GetFileContent([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return BadRequest(new { error = "path is required" });
+            }
+            var projectPath = GetProjectPath();
+            if (string.IsNullOrWhiteSpace(projectPath))
+            {
+                return BadRequest(new { error = "Nessun progetto aperto per questa connessione (ConnectionId valido richiesto)." });
+            }
+
+            var candidate = path.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+            if (!Path.IsPathRooted(candidate))
+            {
+                candidate = Path.Combine(projectPath, candidate.TrimStart(Path.DirectorySeparatorChar));
+            }
+            candidate = Path.GetFullPath(candidate);
+
+            var normalizedProject = Path.GetFullPath(projectPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (!candidate.StartsWith(normalizedProject, StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { error = "path must be inside the current project" });
+            }
+            if (!candidate.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new { error = "path must be a markdown (.md) file" });
+            }
+            if (!System.IO.File.Exists(candidate))
+            {
+                return BadRequest(new { error = $"file not found: {candidate}" });
+            }
+
+            var content = System.IO.File.ReadAllText(candidate);
+            return Ok(new
+            {
+                path = candidate.Substring(normalizedProject.Length).Replace(Path.DirectorySeparatorChar, '/'),
+                content,
+                totalChars = content.Length
+            });
+        }
+
+        /// <summary>
         /// The AI writes links as project-root-relative paths, but the answer document
         /// lives two levels below the root (.md/mark-search/): a bare relative href would
         /// be resolved by the browser against the document URL and 404. With a leading "/"

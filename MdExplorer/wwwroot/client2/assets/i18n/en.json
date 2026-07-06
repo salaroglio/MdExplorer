@@ -787,6 +787,10 @@
     "OPEN_DOCUMENT": "Generated document — open it in the viewer",
     "RAW_RESPONSE": "Raw AI response",
     "INTERRUPTED": "Interrupted by the user.",
+    "CONTEXT_CHECK_TIP": "Add to the context of the next request",
+    "IN_CONTEXT": "in context",
+    "CONTEXT_PENDING": "{{count}} file(s) to inject with the next request",
+    "CONTEXT_INJECTED": "{{count}} file(s) in the conversation context",
     "ERROR_KEYWORDS_FORMAT": "The AI did not answer with the expected keywords JSON block. Retry or rephrase the request.",
     "ERROR_ANSWER_FORMAT": "The AI did not follow the expected answer format (===MDE-RESULTS===/===MDE-END===). Retry or rephrase the request."
   },
