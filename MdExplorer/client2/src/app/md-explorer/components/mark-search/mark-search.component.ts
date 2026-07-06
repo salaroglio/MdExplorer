@@ -7,7 +7,7 @@ import { marked } from 'marked';
 import { AiChatService } from '../../../services/ai-chat.service';
 import { SearchService } from '../../../services/search.service';
 import { SearchResult } from '../../../models/search.models';
-import { MarkSearchService, MarkSearchAnswerDocument, MarkSearchFileContent } from '../../services/mark-search.service';
+import { MarkSearchService, MarkSearchAnswerDocument } from '../../services/mark-search.service';
 import { MdFileService } from '../../services/md-file.service';
 import { ProjectsService } from '../../services/projects.service';
 
@@ -28,10 +28,6 @@ interface MarkTurn {
   error?: string;
   raw?: string;
 }
-
-// Each injected file is capped so a huge document can't blow up the prompt;
-// the cut is explicit in the injected text, never silent.
-const CONTEXT_FILE_CHAR_LIMIT = 30000;
 
 const RESULTS_MARKER = '===MDE-RESULTS===';
 const DOCUMENT_MARKER = '===MDE-DOCUMENT===';
@@ -172,27 +168,13 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.sendError = null;
 
     const pendingPaths = Array.from(this.contextChecked);
-    if (pendingPaths.length === 0) {
-      this.dispatchPrompt(request, null, []);
-      return;
-    }
-
-    // Read the checked files fresh from disk; any failure blocks the send.
-    this.isBusy = true;
-    forkJoin(pendingPaths.map(p => this.markSearchService.getFileContent(p)))
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: files => {
-          this.dispatchPrompt(request, this.buildContextBlock(files), pendingPaths);
-        },
-        error: err => {
-          this.isBusy = false;
-          this.sendError = `Lettura dei file di contesto fallita: ${err?.error?.error || err?.message || err}`;
-        }
-      });
+    // The checked files are injected as context by the SERVER (it reads them fresh from
+    // disk): the client ships only the paths, never the content — no oversized SignalR
+    // payload. Empty list → plain send.
+    this.dispatchPrompt(request, pendingPaths);
   }
 
-  private dispatchPrompt(request: string, contextBlock: string | null, injectedNow: string[]): void {
+  private dispatchPrompt(request: string, injectedNow: string[]): void {
     this.turns.push({ role: 'user', text: request, contextFiles: injectedNow.length ? injectedNow : undefined });
     this.currentTurn = { role: 'assistant', text: '' };
     this.turns.push(this.currentTurn);
@@ -203,33 +185,17 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.streamBuffer = '';
     this.shouldScroll = true;
 
+    const hasContext = injectedNow.length > 0;
     const message = this.firstMessageSent
-      ? this.buildFollowUpKeywordsPrompt(request, contextBlock)
-      : this.buildFirstPrompt(request, contextBlock);
+      ? this.buildFollowUpKeywordsPrompt(request, hasContext)
+      : this.buildFirstPrompt(request, hasContext);
     this.firstMessageSent = true;
     injectedNow.forEach(p => {
       this.contextChecked.delete(p);
       this.contextInjected.add(p);
     });
-    this.aiChatService.sendMessageToChannel(message, this.channelId);
+    this.aiChatService.sendMessageWithContextToChannel(message, this.channelId, injectedNow);
     this.prompt = '';
-  }
-
-  private buildContextBlock(files: MarkSearchFileContent[]): string {
-    const parts = files.map(f => {
-      let content = f.content;
-      if (content.length > CONTEXT_FILE_CHAR_LIMIT) {
-        content = content.slice(0, CONTEXT_FILE_CHAR_LIMIT)
-          + `\n[...TRONCATO: il file è di ${f.totalChars} caratteri, sono mostrati i primi ${CONTEXT_FILE_CHAR_LIMIT}]`;
-      }
-      return `<<<FILE ${f.path}>>>\n${content}\n<<<END FILE>>>`;
-    });
-    return [
-      'Contesto fornito dall\'utente: contenuto INTEGRALE dei file selezionati (path relativi alla radice del progetto).',
-      'Usa questi file come fonte primaria per rispondere alla richiesta.',
-      '',
-      ...parts
-    ].join('\n');
   }
 
   stop(): void {
@@ -517,7 +483,7 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
 
   // ------------------------------------------------------------------ prompts
 
-  private buildFirstPrompt(request: string, contextBlock: string | null): string {
+  private buildFirstPrompt(request: string, hasContext: boolean): string {
     return [
       'Sei "Mark Search", l\'assistente di ricerca del progetto di documenti markdown aperto in MdExplorer.',
       'Lavori in due fasi. In questa FASE 1 devi SOLO scegliere le parole chiave per la ricerca istantanea',
@@ -530,23 +496,22 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
       '- da 1 a 5 keyword, brevi (1-2 parole), termini che plausibilmente compaiono nei documenti',
       '- niente operatori o virgolette: solo parole semplici',
       '- array vuoto [] SOLO se la richiesta non necessita di alcuna ricerca nei documenti',
-      '  (ad esempio perché i file già forniti come contesto bastano a rispondere)',
+      ...(hasContext ? ['  (ad esempio perché i file forniti sopra come contesto bastano a rispondere)'] : []),
       '- nessun testo fuori dal blocco JSON',
       '- non usare i tuoi tool: la ricerca la eseguo io per te',
-      ...(contextBlock ? ['', contextBlock] : []),
       '',
       `Richiesta dell'utente: «${request}»`
     ].join('\n');
   }
 
-  private buildFollowUpKeywordsPrompt(request: string, contextBlock: string | null): string {
+  private buildFollowUpKeywordsPrompt(request: string, hasContext: boolean): string {
     return [
-      ...(contextBlock ? [contextBlock, ''] : []),
       `Nuova richiesta dell'utente: «${request}»`,
       '',
       'FASE 1 come in precedenza: rispondi ESCLUSIVAMENTE con il blocco ```json {"keywords": [...]};',
-      'array vuoto [] se questa richiesta non necessita di una nuova ricerca (ad esempio perché',
-      'i file forniti come contesto bastano a rispondere).'
+      ...(hasContext
+        ? ['array vuoto [] se questa richiesta non necessita di una nuova ricerca (ad esempio perché', 'i file forniti sopra come contesto bastano a rispondere).']
+        : ['array vuoto [] se questa richiesta non necessita di una nuova ricerca.'])
     ].join('\n');
   }
 

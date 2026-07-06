@@ -15428,9 +15428,6 @@ function MarkSearchComponent_button_24_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](1, 1, "MARK_SEARCH.STOP"));
   }
 }
-// Each injected file is capped so a huge document can't blow up the prompt;
-// the cut is explicit in the injected text, never silent.
-const CONTEXT_FILE_CHAR_LIMIT = 30000;
 const RESULTS_MARKER = '===MDE-RESULTS===';
 const DOCUMENT_MARKER = '===MDE-DOCUMENT===';
 const END_MARKER = '===MDE-END===';
@@ -15551,23 +15548,12 @@ class MarkSearchComponent {
     }
     this.sendError = null;
     const pendingPaths = Array.from(this.contextChecked);
-    if (pendingPaths.length === 0) {
-      this.dispatchPrompt(request, null, []);
-      return;
-    }
-    // Read the checked files fresh from disk; any failure blocks the send.
-    this.isBusy = true;
-    (0,rxjs__WEBPACK_IMPORTED_MODULE_9__.forkJoin)(pendingPaths.map(p => this.markSearchService.getFileContent(p))).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.takeUntil)(this.destroy$)).subscribe({
-      next: files => {
-        this.dispatchPrompt(request, this.buildContextBlock(files), pendingPaths);
-      },
-      error: err => {
-        this.isBusy = false;
-        this.sendError = `Lettura dei file di contesto fallita: ${err?.error?.error || err?.message || err}`;
-      }
-    });
+    // The checked files are injected as context by the SERVER (it reads them fresh from
+    // disk): the client ships only the paths, never the content — no oversized SignalR
+    // payload. Empty list → plain send.
+    this.dispatchPrompt(request, pendingPaths);
   }
-  dispatchPrompt(request, contextBlock, injectedNow) {
+  dispatchPrompt(request, injectedNow) {
     this.turns.push({
       role: 'user',
       text: request,
@@ -15583,24 +15569,15 @@ class MarkSearchComponent {
     this.round = 1;
     this.streamBuffer = '';
     this.shouldScroll = true;
-    const message = this.firstMessageSent ? this.buildFollowUpKeywordsPrompt(request, contextBlock) : this.buildFirstPrompt(request, contextBlock);
+    const hasContext = injectedNow.length > 0;
+    const message = this.firstMessageSent ? this.buildFollowUpKeywordsPrompt(request, hasContext) : this.buildFirstPrompt(request, hasContext);
     this.firstMessageSent = true;
     injectedNow.forEach(p => {
       this.contextChecked.delete(p);
       this.contextInjected.add(p);
     });
-    this.aiChatService.sendMessageToChannel(message, this.channelId);
+    this.aiChatService.sendMessageWithContextToChannel(message, this.channelId, injectedNow);
     this.prompt = '';
-  }
-  buildContextBlock(files) {
-    const parts = files.map(f => {
-      let content = f.content;
-      if (content.length > CONTEXT_FILE_CHAR_LIMIT) {
-        content = content.slice(0, CONTEXT_FILE_CHAR_LIMIT) + `\n[...TRONCATO: il file è di ${f.totalChars} caratteri, sono mostrati i primi ${CONTEXT_FILE_CHAR_LIMIT}]`;
-      }
-      return `<<<FILE ${f.path}>>>\n${content}\n<<<END FILE>>>`;
-    });
-    return ['Contesto fornito dall\'utente: contenuto INTEGRALE dei file selezionati (path relativi alla radice del progetto).', 'Usa questi file come fonte primaria per rispondere alla richiesta.', '', ...parts].join('\n');
   }
   stop() {
     if (!this.isBusy) {
@@ -15855,11 +15832,11 @@ class MarkSearchComponent {
     };
   }
   // ------------------------------------------------------------------ prompts
-  buildFirstPrompt(request, contextBlock) {
-    return ['Sei "Mark Search", l\'assistente di ricerca del progetto di documenti markdown aperto in MdExplorer.', 'Lavori in due fasi. In questa FASE 1 devi SOLO scegliere le parole chiave per la ricerca istantanea', 'del progetto (cerca per nome file, titoli dei link e contenuto full-text).', '', 'Rispondi ESCLUSIVAMENTE con un blocco ```json contenente:', '{"keywords": ["parola1", "parola2"]}', '', 'Regole:', '- da 1 a 5 keyword, brevi (1-2 parole), termini che plausibilmente compaiono nei documenti', '- niente operatori o virgolette: solo parole semplici', '- array vuoto [] SOLO se la richiesta non necessita di alcuna ricerca nei documenti', '  (ad esempio perché i file già forniti come contesto bastano a rispondere)', '- nessun testo fuori dal blocco JSON', '- non usare i tuoi tool: la ricerca la eseguo io per te', ...(contextBlock ? ['', contextBlock] : []), '', `Richiesta dell'utente: «${request}»`].join('\n');
+  buildFirstPrompt(request, hasContext) {
+    return ['Sei "Mark Search", l\'assistente di ricerca del progetto di documenti markdown aperto in MdExplorer.', 'Lavori in due fasi. In questa FASE 1 devi SOLO scegliere le parole chiave per la ricerca istantanea', 'del progetto (cerca per nome file, titoli dei link e contenuto full-text).', '', 'Rispondi ESCLUSIVAMENTE con un blocco ```json contenente:', '{"keywords": ["parola1", "parola2"]}', '', 'Regole:', '- da 1 a 5 keyword, brevi (1-2 parole), termini che plausibilmente compaiono nei documenti', '- niente operatori o virgolette: solo parole semplici', '- array vuoto [] SOLO se la richiesta non necessita di alcuna ricerca nei documenti', ...(hasContext ? ['  (ad esempio perché i file forniti sopra come contesto bastano a rispondere)'] : []), '- nessun testo fuori dal blocco JSON', '- non usare i tuoi tool: la ricerca la eseguo io per te', '', `Richiesta dell'utente: «${request}»`].join('\n');
   }
-  buildFollowUpKeywordsPrompt(request, contextBlock) {
-    return [...(contextBlock ? [contextBlock, ''] : []), `Nuova richiesta dell'utente: «${request}»`, '', 'FASE 1 come in precedenza: rispondi ESCLUSIVAMENTE con il blocco ```json {"keywords": [...]};', 'array vuoto [] se questa richiesta non necessita di una nuova ricerca (ad esempio perché', 'i file forniti come contesto bastano a rispondere).'].join('\n');
+  buildFollowUpKeywordsPrompt(request, hasContext) {
+    return [`Nuova richiesta dell'utente: «${request}»`, '', 'FASE 1 come in precedenza: rispondi ESCLUSIVAMENTE con il blocco ```json {"keywords": [...]};', ...(hasContext ? ['array vuoto [] se questa richiesta non necessita di una nuova ricerca (ad esempio perché', 'i file forniti sopra come contesto bastano a rispondere).'] : ['array vuoto [] se questa richiesta non necessita di una nuova ricerca.'])].join('\n');
   }
   buildAnswerPrompt(resultsText) {
     return [resultsText, '', 'FASE 2 — Componi ORA la risposta finale in questo formato ESATTO:', '', '1. Un breve commento in markdown per l\'utente: cosa hai cercato, cosa hai trovato, con quale criterio hai selezionato.', `2. Una riga contenente esattamente: ${RESULTS_MARKER}`, '3. Un array JSON (anche vuoto []) dei soli risultati UTILI alla richiesta, ciascuno:', '   {"path": "path/relativo/file.md", "title": "Titolo leggibile", "reason": "perché è utile", "searchHint": "termine da evidenziare aprendo il documento (facoltativo)"}', `4. SOLO se la richiesta comporta un elaborato (riassunto, grafico, confronto, tabella): una riga esattamente ${DOCUMENT_MARKER}`, '   seguita dal documento markdown completo (inizia con un titolo #). Per i grafici usa blocchi ```plantuml.', '   I link ai file del progetto vanno scritti con path relativi alla radice del progetto, es. [Titolo](cartella/file.md).', `5. Una riga finale contenente esattamente: ${END_MARKER}`, '', 'Regole: usa SOLO path presenti nei risultati o nei file di contesto forniti in questa conversazione', `(mai inventare file); se nulla è pertinente, spiegalo nel commento e restituisci []. Non aggiungere testo dopo ${END_MARKER}.`].join('\n');
@@ -24403,13 +24380,6 @@ class MarkSearchService {
   saveAnswer(content) {
     return this.http.post('../api/marksearch/answer', {
       content
-    });
-  }
-  getFileContent(path) {
-    return this.http.get('../api/marksearch/filecontent', {
-      params: {
-        path
-      }
     });
   }
   static {

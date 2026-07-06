@@ -4,6 +4,7 @@ using MdExplorer.Features.Services;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -143,6 +144,100 @@ namespace MdExplorer.Hubs
                 return Clients.Caller.SendAsync("ReceiveMessage", "system", warning);
             }
             return Clients.Caller.SendAsync("ReceiveError", warning, channelId);
+        }
+
+        // Per-file cap so a huge document can't blow up the model context; the cut is
+        // explicit in the injected text, never silent. Mirrors the old client-side limit.
+        private const int ContextFileCharLimit = 30000;
+
+        /// <summary>
+        /// Like <see cref="SendMessage"/> but the caller passes the PATHS of project files to
+        /// inject as context instead of their content. The hub reads each file fresh from disk
+        /// (the server already has them — no client round-trip, no oversized SignalR payload)
+        /// and prepends a context block to the prompt. Used by the Mark Search tab's checkbox
+        /// feature. Paths are project-root-relative; the same traversal guard as
+        /// MarkSearchController applies. A file that cannot be read fails the whole send with an
+        /// actionable channel error (no silent partial context).
+        /// </summary>
+        public async Task SendMessageWithContext(string message, string channelId, string[] contextFiles)
+        {
+            channelId = string.IsNullOrEmpty(channelId) ? "default" : channelId;
+            if (contextFiles == null || contextFiles.Length == 0)
+            {
+                await SendMessage(message, channelId);
+                return;
+            }
+
+            string contextBlock;
+            try
+            {
+                contextBlock = BuildContextBlock(contextFiles);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[SendMessageWithContext] Failed to read context files");
+                await Clients.Caller.SendAsync("ReceiveError",
+                    "Lettura dei file di contesto fallita: " + ex.Message, channelId);
+                return;
+            }
+
+            await SendMessage(contextBlock + "\n\n" + message, channelId);
+        }
+
+        /// <summary>
+        /// Reads the given project files fresh from disk and formats them as a context block.
+        /// Traversal guard identical to MarkSearchController.GetFileContent: must be inside the
+        /// current project and a .md file. Throws on any unreadable/invalid path.
+        /// </summary>
+        private string BuildContextBlock(string[] contextFiles)
+        {
+            var projectPath = GetProjectPath();
+            if (string.IsNullOrWhiteSpace(projectPath))
+            {
+                throw new InvalidOperationException("Nessun progetto aperto per questa connessione.");
+            }
+            var normalizedProject = Path.GetFullPath(projectPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+            var parts = new List<string>();
+            foreach (var rawPath in contextFiles)
+            {
+                if (string.IsNullOrWhiteSpace(rawPath))
+                {
+                    continue;
+                }
+                var candidate = rawPath.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+                if (!Path.IsPathRooted(candidate))
+                {
+                    candidate = Path.Combine(projectPath, candidate.TrimStart(Path.DirectorySeparatorChar));
+                }
+                candidate = Path.GetFullPath(candidate);
+
+                if (!candidate.StartsWith(normalizedProject, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException($"path fuori dal progetto: {rawPath}");
+                }
+                if (!candidate.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException($"path non è un file markdown: {rawPath}");
+                }
+                if (!System.IO.File.Exists(candidate))
+                {
+                    throw new FileNotFoundException($"file non trovato: {rawPath}");
+                }
+
+                var relative = candidate.Substring(normalizedProject.Length).Replace(Path.DirectorySeparatorChar, '/');
+                var content = System.IO.File.ReadAllText(candidate);
+                if (content.Length > ContextFileCharLimit)
+                {
+                    content = content.Substring(0, ContextFileCharLimit)
+                        + $"\n[...TRONCATO: il file è di {content.Length} caratteri, sono mostrati i primi {ContextFileCharLimit}]";
+                }
+                parts.Add($"<<<FILE {relative}>>>\n{content}\n<<<END FILE>>>");
+            }
+
+            var header = "Contesto fornito dall'utente: contenuto INTEGRALE dei file selezionati "
+                + "(path relativi alla radice del progetto). Usa questi file come fonte primaria per rispondere alla richiesta.";
+            return header + "\n\n" + string.Join("\n", parts);
         }
 
         public async Task SendMessage(string message, string channelId = "default")

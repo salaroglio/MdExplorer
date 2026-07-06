@@ -106,6 +106,12 @@ export class AiChatService {
   // answers with the correct provider instead of "None".
   private _pendingChatMode: { provider: string; modelId: string | null } | null = null;
 
+  // Last chat mode successfully applied. Unlike _pendingChatMode (cleared on flush),
+  // this persists so onreconnected() can re-register the provider on the NEW connectionId
+  // that automatic reconnect assigns — otherwise the reconnected hub has no provider and
+  // every prompt fails with "Copilot not available".
+  private _lastChatMode: { provider: string; modelId: string | null } | null = null;
+
   constructor(
     private http: HttpClient,
     @Inject(forwardRef(() => MdServerMessagesService)) private serverMessages: MdServerMessagesService
@@ -190,6 +196,20 @@ export class AiChatService {
         console.error('Chat error:', error);
         this.addMessage('system', `Error: ${error}`);
         this._isStreaming$.next(false);
+      }
+    });
+
+    // Automatic reconnect assigns a NEW connectionId, and the backend wiped all state
+    // (chat mode, project mapping, ACP session) for the old one in OnDisconnectedAsync.
+    // Re-register everything the hub needs, or every subsequent prompt would fail with
+    // "provider not available".
+    this.hubConnection.onreconnected(() => {
+      console.log('[AiChatService] Reconnected — replaying project connection and chat mode');
+      this.sendProjectConnectionId();
+      if (this._lastChatMode) {
+        this.hubConnection.invoke('SetChatMode', this._lastChatMode.provider, this._lastChatMode.modelId)
+          .then(() => console.log('[AiChatService] Chat mode replayed after reconnect:', this._lastChatMode))
+          .catch(err => console.error('[AiChatService] Error replaying chat mode after reconnect:', err));
       }
     });
 
@@ -361,6 +381,30 @@ export class AiChatService {
         .then(() => console.log(`[AiChatService] SendMessage invoked successfully for channel: ${channelId}`))
         .catch(err => {
           console.error(`[AiChatService] Error sending message to channel ${channelId}:`, err);
+          this._channelEvent$.next({ type: 'error', data: `Failed to send message: ${err}`, channelId });
+        });
+    } else {
+      console.error(`[AiChatService] Hub NOT connected! State: ${this.hubConnection.state}. Message dropped.`);
+    }
+  }
+
+  /**
+   * Like sendMessageToChannel but the server reads the given project files fresh from
+   * disk and injects their content as context (SendMessageWithContext). The client only
+   * ships the paths — no large content round-trip over SignalR. Empty paths → plain send.
+   */
+  sendMessageWithContextToChannel(message: string, channelId: string, contextFiles: string[]): void {
+    if (!message.trim()) return;
+
+    if (!contextFiles || contextFiles.length === 0) {
+      this.sendMessageToChannel(message, channelId);
+      return;
+    }
+
+    if (this.hubConnection.state === 'Connected') {
+      this.hubConnection.invoke('SendMessageWithContext', message, channelId, contextFiles)
+        .catch(err => {
+          console.error(`[AiChatService] Error sending message+context to channel ${channelId}:`, err);
           this._channelEvent$.next({ type: 'error', data: `Failed to send message: ${err}`, channelId });
         });
     } else {
@@ -587,6 +631,7 @@ export class AiChatService {
    */
   setProvider(provider: string, modelId: string | null): void {
     console.log('[AiChatService] setProvider called with:', provider, modelId);
+    this._lastChatMode = { provider, modelId };
 
     // Update internal state based on provider
     if (provider === 'gemini') {
@@ -623,6 +668,7 @@ export class AiChatService {
    */
   async setProviderAsync(provider: string, modelId: string | null): Promise<void> {
     console.log('[AiChatService] setProviderAsync called with:', provider, modelId);
+    this._lastChatMode = { provider, modelId };
 
     if (provider === 'gemini') {
       this._useGemini$.next(true);

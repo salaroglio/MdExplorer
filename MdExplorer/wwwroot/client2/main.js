@@ -13666,6 +13666,11 @@ class AiChatService {
     // Replayed in startConnection() BEFORE getModelStatus() so the backend
     // answers with the correct provider instead of "None".
     this._pendingChatMode = null;
+    // Last chat mode successfully applied. Unlike _pendingChatMode (cleared on flush),
+    // this persists so onreconnected() can re-register the provider on the NEW connectionId
+    // that automatic reconnect assigns — otherwise the reconnected hub has no provider and
+    // every prompt fails with "Copilot not available".
+    this._lastChatMode = null;
     /** Cached models from DB — populated by getCachedModels() */
     this._cachedModels = null;
     this._refreshInFlight = null;
@@ -13748,6 +13753,17 @@ class AiChatService {
         console.error('Chat error:', error);
         this.addMessage('system', `Error: ${error}`);
         this._isStreaming$.next(false);
+      }
+    });
+    // Automatic reconnect assigns a NEW connectionId, and the backend wiped all state
+    // (chat mode, project mapping, ACP session) for the old one in OnDisconnectedAsync.
+    // Re-register everything the hub needs, or every subsequent prompt would fail with
+    // "provider not available".
+    this.hubConnection.onreconnected(() => {
+      console.log('[AiChatService] Reconnected — replaying project connection and chat mode');
+      this.sendProjectConnectionId();
+      if (this._lastChatMode) {
+        this.hubConnection.invoke('SetChatMode', this._lastChatMode.provider, this._lastChatMode.modelId).then(() => console.log('[AiChatService] Chat mode replayed after reconnect:', this._lastChatMode)).catch(err => console.error('[AiChatService] Error replaying chat mode after reconnect:', err));
       }
     });
     // Start connection
@@ -13892,6 +13908,30 @@ class AiChatService {
     if (this.hubConnection.state === 'Connected') {
       this.hubConnection.invoke('SendMessage', message, channelId).then(() => console.log(`[AiChatService] SendMessage invoked successfully for channel: ${channelId}`)).catch(err => {
         console.error(`[AiChatService] Error sending message to channel ${channelId}:`, err);
+        this._channelEvent$.next({
+          type: 'error',
+          data: `Failed to send message: ${err}`,
+          channelId
+        });
+      });
+    } else {
+      console.error(`[AiChatService] Hub NOT connected! State: ${this.hubConnection.state}. Message dropped.`);
+    }
+  }
+  /**
+   * Like sendMessageToChannel but the server reads the given project files fresh from
+   * disk and injects their content as context (SendMessageWithContext). The client only
+   * ships the paths — no large content round-trip over SignalR. Empty paths → plain send.
+   */
+  sendMessageWithContextToChannel(message, channelId, contextFiles) {
+    if (!message.trim()) return;
+    if (!contextFiles || contextFiles.length === 0) {
+      this.sendMessageToChannel(message, channelId);
+      return;
+    }
+    if (this.hubConnection.state === 'Connected') {
+      this.hubConnection.invoke('SendMessageWithContext', message, channelId, contextFiles).catch(err => {
+        console.error(`[AiChatService] Error sending message+context to channel ${channelId}:`, err);
         this._channelEvent$.next({
           type: 'error',
           data: `Failed to send message: ${err}`,
@@ -14096,6 +14136,10 @@ class AiChatService {
    */
   setProvider(provider, modelId) {
     console.log('[AiChatService] setProvider called with:', provider, modelId);
+    this._lastChatMode = {
+      provider,
+      modelId
+    };
     // Update internal state based on provider
     if (provider === 'gemini') {
       this._useGemini$.next(true);
@@ -14132,6 +14176,10 @@ class AiChatService {
     var _this3 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
       console.log('[AiChatService] setProviderAsync called with:', provider, modelId);
+      _this3._lastChatMode = {
+        provider,
+        modelId
+      };
       if (provider === 'gemini') {
         _this3._useGemini$.next(true);
         if (modelId) {
@@ -17205,8 +17253,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.07.06.1',
-  buildTime: '2026.07.06 07:29:37'
+  version: '2026.07.06.2',
+  buildTime: '2026.07.06 09:53:14'
 };
 
 /***/ }),
