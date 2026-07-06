@@ -38,8 +38,10 @@ namespace MdExplorer.Features.Commands
 
         // Matches <pre><code class="language-X">...</code></pre> where X is one of the supported shells.
         // Non-greedy body; single-line class attribute. Supports both <pre> and <pre class="..."> prefixes.
+        // The <code> tag may carry extra attributes after the class: MarkdownSourceMapService
+        // (ai-selection feature) decorates code blocks with data-mde-line-start/end.
         private static readonly Regex FenceRegex = new(
-            @"<pre(?:\s+[^>]*)?><code\s+class=""language-(bash|sh|shell|powershell|pwsh|ps1|cmd|bat|batch)"">([\s\S]*?)</code></pre>",
+            @"<pre(?:\s+[^>]*)?><code\s+class=""language-(bash|sh|shell|powershell|pwsh|ps1|cmd|bat|batch)""(?:\s+[^>]*)?>([\s\S]*?)</code></pre>",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         // Serialize the parameter list with camelCase property names so the iframe JS
