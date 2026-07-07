@@ -423,6 +423,8 @@ public class MdExplorerTools
         [Description("Priority name, e.g. 'Highest'/'High'/'Medium'/'Low' (optional).")] string priority = null,
         [Description("Due date 'yyyy-MM-dd' (optional).")] string dueDate = null,
         [Description("Jira project key, e.g. 'BCO' (optional — defaults to the configured key).")] string projectKey = null,
+        [Description("Parent issue key to link this issue to — typically the EPIC a story belongs to " +
+                     "(the 'Parent'/'Principale' field), e.g. 'BCE-1694' (optional).")] string parentKey = null,
         [Description("Custom fields as a JSON object keyed by field name or customfield_ id (optional), " +
                      "e.g. {\"Story Points\": 5, \"Severity\": \"High\"}. Scalars are shaped from the field's " +
                      "schema; pass a structured JSON value for types that need one.")] string customFields = null)
@@ -444,6 +446,7 @@ public class MdExplorerTools
                 dueDate,
                 projectKey,
                 assignToSelf = true,
+                parentKey,
                 customFields = customFieldsNode
             };
             var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
@@ -548,6 +551,8 @@ public class MdExplorerTools
         [Description("New description, plain text (optional).")] string description = null,
         [Description("New priority, e.g. 'High' (optional).")] string priority = null,
         [Description("New due date 'yyyy-MM-dd' (optional).")] string dueDate = null,
+        [Description("Parent issue key — link this issue to an EPIC or parent (the 'Parent'/'Principale' " +
+                     "field), e.g. 'BCE-1694' (optional).")] string parentKey = null,
         [Description("Custom fields to change, as a JSON object keyed by field name or customfield_ id " +
                      "(optional), e.g. {\"Story Points\": 8}. A JSON null clears a field.")] string customFields = null)
     {
@@ -558,7 +563,7 @@ public class MdExplorerTools
         if (!TryParseCustomFields(customFields, out var customFieldsNode, out var cfError)) return cfError;
         try
         {
-            var payload = new { projectId = pid, summary, description, priority, dueDate, customFields = customFieldsNode };
+            var payload = new { projectId = pid, summary, description, priority, dueDate, parentKey, customFields = customFieldsNode };
             var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
             var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Put,
                 $"/api/atlassian/jira/issue/{Uri.EscapeDataString(issueKey.Trim())}") { Content = content };

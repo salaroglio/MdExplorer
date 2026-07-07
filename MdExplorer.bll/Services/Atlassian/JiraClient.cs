@@ -22,7 +22,7 @@ namespace MdExplorer.Features.Services.Atlassian
         // Fields requested for triage lists and for the planning detail view.
         private const string SummaryFields = "summary,status,priority,issuetype,duedate,assignee,description";
         private const int SummaryDescriptionMax = 200;
-        private const string DetailFields = "summary,status,priority,issuetype,duedate,assignee,reporter,description,labels,comment,issuelinks";
+        private const string DetailFields = "summary,status,priority,issuetype,duedate,assignee,reporter,description,labels,comment,issuelinks,parent";
 
         // Field-metadata cache, keyed by site base URL. The custom-field catalog changes
         // rarely, so caching it for a few minutes avoids a /field round-trip on every
@@ -123,6 +123,7 @@ namespace MdExplorer.Features.Services.Atlassian
                 detail.DueDate = GetString(f, "duedate");
                 detail.Assignee = GetNestedString(f, "assignee", "displayName");
                 detail.Reporter = GetNestedString(f, "reporter", "displayName");
+                detail.Parent = GetNestedString(f, "parent", "key");
 
                 if (f.TryGetProperty("description", out var desc) && desc.ValueKind == JsonValueKind.Object)
                     detail.Description = AdfRenderer.ToText(desc);
@@ -199,6 +200,8 @@ namespace MdExplorer.Features.Services.Atlassian
                 fields["priority"] = new JsonObject { ["name"] = req.Priority.Trim() };
             if (!string.IsNullOrWhiteSpace(req.DueDate))
                 fields["duedate"] = req.DueDate.Trim();
+            if (!string.IsNullOrWhiteSpace(req.ParentKey))
+                fields["parent"] = new JsonObject { ["key"] = req.ParentKey.Trim() };
 
             await ApplyCustomFieldsAsync(conn, fields, req.CustomFields, ct);
 
@@ -244,11 +247,12 @@ namespace MdExplorer.Features.Services.Atlassian
             if (req.Description != null) fields["description"] = JsonNode.Parse(AdfBuilder.FromPlainText(req.Description));
             if (!string.IsNullOrWhiteSpace(req.Priority)) fields["priority"] = new JsonObject { ["name"] = req.Priority.Trim() };
             if (!string.IsNullOrWhiteSpace(req.DueDate)) fields["duedate"] = req.DueDate.Trim();
+            if (!string.IsNullOrWhiteSpace(req.ParentKey)) fields["parent"] = new JsonObject { ["key"] = req.ParentKey.Trim() };
 
             await ApplyCustomFieldsAsync(conn, fields, req.CustomFields, ct);
 
             if (fields.Count == 0)
-                throw new AtlassianApiException("Nothing to update: provide at least one of summary/description/priority/dueDate/customFields.");
+                throw new AtlassianApiException("Nothing to update: provide at least one of summary/description/priority/dueDate/parentKey/customFields.");
 
             var payload = new JsonObject { ["fields"] = fields };
             using var _ = await SendJsonAsync(conn, HttpMethod.Put,

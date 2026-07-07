@@ -395,6 +395,7 @@ namespace MdExplorer.Service.Controllers.Atlassian
             public string? DueDate { get; set; }
             public string? ProjectKey { get; set; }   // optional; default = first configured key
             public bool AssignToSelf { get; set; } = true;
+            public string? ParentKey { get; set; }         // optional; epic/parent link
             public JsonObject? CustomFields { get; set; }  // optional; name/id -> value
         }
 
@@ -425,6 +426,7 @@ namespace MdExplorer.Service.Controllers.Atlassian
                     Priority = req.Priority,
                     DueDate = req.DueDate,
                     AssignToSelf = req.AssignToSelf,
+                    ParentKey = req.ParentKey,
                     CustomFields = req.CustomFields
                 });
                 return Ok(new { projectId = req.ProjectId, created });
@@ -490,6 +492,7 @@ namespace MdExplorer.Service.Controllers.Atlassian
             public string? Description { get; set; }
             public string? Priority { get; set; }
             public string? DueDate { get; set; }
+            public string? ParentKey { get; set; }         // optional; epic/parent link
             public JsonObject? CustomFields { get; set; }  // optional; name/id -> value
         }
 
@@ -508,6 +511,7 @@ namespace MdExplorer.Service.Controllers.Atlassian
                     Description = req.Description,
                     Priority = req.Priority,
                     DueDate = req.DueDate,
+                    ParentKey = req.ParentKey,
                     CustomFields = req.CustomFields
                 });
                 return Ok(new { ok = true });

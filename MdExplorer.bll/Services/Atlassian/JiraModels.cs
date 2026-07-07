@@ -44,6 +44,8 @@ namespace MdExplorer.Features.Services.Atlassian
     public class JiraIssueDetail : JiraIssueSummary
     {
         public string Reporter { get; set; }
+        /// <summary>Parent issue key (the epic/"Principale"), when the issue has one.</summary>
+        public string Parent { get; set; }
         public List<string> Labels { get; set; } = new List<string>();
         public List<JiraComment> Comments { get; set; } = new List<JiraComment>();
         public List<string> Links { get; set; } = new List<string>();
@@ -105,6 +107,12 @@ namespace MdExplorer.Features.Services.Atlassian
         public bool AssignToSelf { get; set; } = true;
 
         /// <summary>
+        /// Optional parent issue key — the epic a story belongs to (the "Parent"/"Principale"
+        /// field), or the parent of a subtask. Sent as the system field parent: {"key": ...}.
+        /// </summary>
+        public string ParentKey { get; set; }
+
+        /// <summary>
         /// Optional custom fields, keyed by human name ("Story Points") or by the raw
         /// customfield_ id. Scalar values are shaped to Jira's expected JSON from the
         /// field's schema; a structured JSON value (object/array) is sent as-is.
@@ -132,6 +140,12 @@ namespace MdExplorer.Features.Services.Atlassian
         public string Description { get; set; }   // plain text -> ADF
         public string Priority { get; set; }
         public string DueDate { get; set; }
+
+        /// <summary>
+        /// Optional parent issue key — the epic a story belongs to (the "Parent"/"Principale"
+        /// field). Sent as the system field parent: {"key": ...}.
+        /// </summary>
+        public string ParentKey { get; set; }
 
         /// <summary>
         /// Optional custom fields to change, keyed by human name ("Story Points") or by
