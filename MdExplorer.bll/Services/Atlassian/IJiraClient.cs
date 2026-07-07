@@ -12,9 +12,14 @@ namespace MdExplorer.Features.Services.Atlassian
     /// </summary>
     public interface IJiraClient
     {
-        /// <summary>Runs a JQL search via /rest/api/3/search/jql (the GET form).</summary>
+        /// <summary>
+        /// Runs a JQL search via /rest/api/3/search/jql (the GET form). Each row can carry
+        /// custom fields: pass <paramref name="customFieldSelect"/> (names or customfield_ ids)
+        /// to request specific ones, or null to include all of the site's populated custom fields.
+        /// </summary>
         Task<IReadOnlyList<JiraIssueSummary>> SearchAsync(
-            JiraConnection conn, string jql, int maxResults, CancellationToken ct = default);
+            JiraConnection conn, string jql, int maxResults,
+            IReadOnlyList<string> customFieldSelect = null, CancellationToken ct = default);
 
         /// <summary>Fetches one issue with the fields needed for planning.</summary>
         Task<JiraIssueDetail> GetIssueAsync(

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -6,6 +7,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -22,6 +24,18 @@ namespace MdExplorer.Features.Services.Atlassian
         private const int SummaryDescriptionMax = 200;
         private const string DetailFields = "summary,status,priority,issuetype,duedate,assignee,reporter,description,labels,comment,issuelinks";
 
+        // Field-metadata cache, keyed by site base URL. The custom-field catalog changes
+        // rarely, so caching it for a few minutes avoids a /field round-trip on every
+        // create/update/get. JiraClient is a singleton (see Startup), so this survives
+        // across requests.
+        private static readonly ConcurrentDictionary<string, CachedFields> _fieldCache = new();
+        private static readonly TimeSpan FieldCacheTtl = TimeSpan.FromMinutes(10);
+        private sealed class CachedFields
+        {
+            public DateTime FetchedUtc;
+            public IReadOnlyList<JiraFieldMeta> Fields;
+        }
+
         public JiraClient(IHttpClientFactory httpClientFactory, ILogger<JiraClient> logger)
         {
             _httpClientFactory = httpClientFactory;
@@ -29,10 +43,26 @@ namespace MdExplorer.Features.Services.Atlassian
         }
 
         public async Task<IReadOnlyList<JiraIssueSummary>> SearchAsync(
-            JiraConnection conn, string jql, int maxResults, CancellationToken ct = default)
+            JiraConnection conn, string jql, int maxResults,
+            IReadOnlyList<string> customFieldSelect = null, CancellationToken ct = default)
         {
             Validate(conn);
             if (maxResults <= 0 || maxResults > 100) maxResults = 50;
+
+            // Custom fields to surface on each row: an explicit selection (resolved to ids),
+            // or — when the caller passes none — all of the site's custom fields (only the
+            // populated ones come back and get mapped). meta is also used to label ids.
+            var meta = await GetFieldMetaAsync(conn, ct);
+            List<string> customIds;
+            if (customFieldSelect != null && customFieldSelect.Count > 0)
+                customIds = customFieldSelect.Select(s => s?.Trim())
+                                             .Where(s => !string.IsNullOrEmpty(s))
+                                             .Select(s => ResolveFieldByKey(meta, s).Id)
+                                             .Distinct().ToList();
+            else
+                customIds = meta.Where(m => m.IsCustom && !string.IsNullOrEmpty(m.Id)).Select(m => m.Id).ToList();
+
+            var requestedFields = customIds.Count == 0 ? SummaryFields : SummaryFields + "," + string.Join(",", customIds);
 
             // /rest/api/3/search (legacy) was removed; /search/jql is the current
             // endpoint. Pagination is token-based (nextPageToken) — for triage we
@@ -40,7 +70,7 @@ namespace MdExplorer.Features.Services.Atlassian
             var url = $"{BaseUrl(conn)}/rest/api/3/search/jql" +
                       $"?jql={Uri.EscapeDataString(jql)}" +
                       $"&maxResults={maxResults}" +
-                      $"&fields={SummaryFields}";
+                      $"&fields={requestedFields}";
 
             using var doc = await GetJsonAsync(conn, url, ct);
             var result = new List<JiraIssueSummary>();
@@ -48,7 +78,12 @@ namespace MdExplorer.Features.Services.Atlassian
                 issues.ValueKind == JsonValueKind.Array)
             {
                 foreach (var issue in issues.EnumerateArray())
-                    result.Add(MapSummary(conn, issue));
+                {
+                    var s = MapSummary(conn, issue);
+                    if (issue.TryGetProperty("fields", out var f) && f.ValueKind == JsonValueKind.Object)
+                        MapCustomFields(meta, f, s);
+                    result.Add(s);
+                }
             }
             return result;
         }
@@ -60,8 +95,14 @@ namespace MdExplorer.Features.Services.Atlassian
             if (string.IsNullOrWhiteSpace(issueKey))
                 throw new ArgumentException("issueKey is required", nameof(issueKey));
 
+            // Fetch the field catalog up-front so we can (a) also request the custom
+            // fields by id and (b) label them by name when mapping the response.
+            var meta = await GetFieldMetaAsync(conn, ct);
+            var customIds = meta.Where(m => m.IsCustom && !string.IsNullOrEmpty(m.Id)).Select(m => m.Id).ToList();
+            var requestedFields = customIds.Count == 0 ? DetailFields : DetailFields + "," + string.Join(",", customIds);
+
             var url = $"{BaseUrl(conn)}/rest/api/3/issue/{Uri.EscapeDataString(issueKey.Trim())}" +
-                      $"?fields={DetailFields}";
+                      $"?fields={requestedFields}";
 
             using var doc = await GetJsonAsync(conn, url, ct);
             var root = doc.RootElement;
@@ -110,6 +151,8 @@ namespace MdExplorer.Features.Services.Atlassian
                 if (f.TryGetProperty("issuelinks", out var links) && links.ValueKind == JsonValueKind.Array)
                     foreach (var link in links.EnumerateArray())
                         AddLink(detail, link);
+
+                MapCustomFields(meta, f, detail);
             }
 
             return detail;
@@ -157,6 +200,8 @@ namespace MdExplorer.Features.Services.Atlassian
             if (!string.IsNullOrWhiteSpace(req.DueDate))
                 fields["duedate"] = req.DueDate.Trim();
 
+            await ApplyCustomFieldsAsync(conn, fields, req.CustomFields, ct);
+
             var body = new JsonObject { ["fields"] = fields };
             using var doc = await SendJsonAsync(conn, HttpMethod.Post, $"{BaseUrl(conn)}/rest/api/3/issue", body, ct);
 
@@ -199,8 +244,11 @@ namespace MdExplorer.Features.Services.Atlassian
             if (req.Description != null) fields["description"] = JsonNode.Parse(AdfBuilder.FromPlainText(req.Description));
             if (!string.IsNullOrWhiteSpace(req.Priority)) fields["priority"] = new JsonObject { ["name"] = req.Priority.Trim() };
             if (!string.IsNullOrWhiteSpace(req.DueDate)) fields["duedate"] = req.DueDate.Trim();
+
+            await ApplyCustomFieldsAsync(conn, fields, req.CustomFields, ct);
+
             if (fields.Count == 0)
-                throw new AtlassianApiException("Nothing to update: provide at least one of summary/description/priority/dueDate.");
+                throw new AtlassianApiException("Nothing to update: provide at least one of summary/description/priority/dueDate/customFields.");
 
             var payload = new JsonObject { ["fields"] = fields };
             using var _ = await SendJsonAsync(conn, HttpMethod.Put,
@@ -328,6 +376,198 @@ namespace MdExplorer.Features.Services.Atlassian
                 foreach (var p in vals.EnumerateArray())
                     list.Add(new JiraProject { Key = GetString(p, "key"), Name = GetString(p, "name") });
             return list;
+        }
+
+        // ── Custom fields ───────────────────────────────────────────
+
+        /// <summary>
+        /// Fetches the site's field catalog (/rest/api/3/field), cached per site for a
+        /// few minutes. Custom fields expose the id ("customfield_10016"), the human
+        /// name and the schema we need to shape a value on write.
+        /// </summary>
+        private async Task<IReadOnlyList<JiraFieldMeta>> GetFieldMetaAsync(JiraConnection conn, CancellationToken ct)
+        {
+            var siteKey = BaseUrl(conn);
+            if (_fieldCache.TryGetValue(siteKey, out var cached) &&
+                (DateTime.UtcNow - cached.FetchedUtc) < FieldCacheTtl)
+                return cached.Fields;
+
+            using var doc = await GetJsonAsync(conn, $"{siteKey}/rest/api/3/field", ct);
+            var list = new List<JiraFieldMeta>();
+            if (doc != null && doc.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var el in doc.RootElement.EnumerateArray())
+                {
+                    var meta = new JiraFieldMeta
+                    {
+                        Id = GetString(el, "id"),
+                        Name = GetString(el, "name"),
+                        IsCustom = el.TryGetProperty("custom", out var c) && c.ValueKind == JsonValueKind.True
+                    };
+                    if (el.TryGetProperty("schema", out var sc) && sc.ValueKind == JsonValueKind.Object)
+                    {
+                        meta.SchemaType = GetString(sc, "type");
+                        meta.ItemsType = GetString(sc, "items");
+                    }
+                    if (!string.IsNullOrEmpty(meta.Id)) list.Add(meta);
+                }
+            }
+            _fieldCache[siteKey] = new CachedFields { FetchedUtc = DateTime.UtcNow, Fields = list };
+            return list;
+        }
+
+        /// <summary>
+        /// Resolves each caller-supplied custom field (by human name or raw customfield_
+        /// id), shapes its value from the field schema, and writes it into <paramref name="fields"/>.
+        /// Throws (never guesses) when a name is unknown or ambiguous — a scoped write
+        /// must be deterministic.
+        /// </summary>
+        private async Task ApplyCustomFieldsAsync(
+            JiraConnection conn, JsonObject fields, JsonObject customFields, CancellationToken ct)
+        {
+            if (customFields == null || customFields.Count == 0) return;
+
+            var meta = await GetFieldMetaAsync(conn, ct);
+
+            foreach (var kvp in customFields)
+            {
+                var key = kvp.Key?.Trim();
+                if (string.IsNullOrEmpty(key)) continue;
+                var target = ResolveFieldByKey(meta, key);
+                fields[target.Id] = CoerceCustomValue(key, kvp.Value, target);
+            }
+        }
+
+        /// <summary>
+        /// Maps a caller-supplied key — a human field name or a raw customfield_ id — to its
+        /// field definition. An explicit id resolves to the known schema, or to an id-only stub
+        /// when the field is unknown (that path then requires a structured value). A name that
+        /// matches nothing, or matches more than one field, throws (never guesses).
+        /// </summary>
+        private static JiraFieldMeta ResolveFieldByKey(IReadOnlyList<JiraFieldMeta> meta, string key)
+        {
+            if (Regex.IsMatch(key, @"^customfield_\d+$", RegexOptions.IgnoreCase))
+                return meta.FirstOrDefault(m => string.Equals(m.Id, key, StringComparison.OrdinalIgnoreCase))
+                       ?? new JiraFieldMeta { Id = key, IsCustom = true };
+
+            var matches = meta.Where(m => string.Equals(m.Name, key, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (matches.Count == 0)
+            {
+                var available = string.Join(", ", meta.Where(m => m.IsCustom && !string.IsNullOrEmpty(m.Name))
+                                                        .Select(m => m.Name).Distinct().OrderBy(n => n));
+                throw new AtlassianApiException(
+                    $"Custom field '{key}' not found on this Jira site. Available custom fields: {available}.");
+            }
+            if (matches.Count > 1)
+            {
+                var ids = string.Join(", ", matches.Select(m => $"{m.Name} ({m.Id})"));
+                throw new AtlassianApiException(
+                    $"Custom field name '{key}' is ambiguous — it matches: {ids}. Pass the exact customfield_ id instead.");
+            }
+            return matches[0];
+        }
+
+        /// <summary>
+        /// Shapes a caller value into the JSON Jira expects for the field's schema type.
+        /// A structured value (object/array) is trusted as-is — the explicit escape hatch
+        /// for field types we don't coerce. A JSON null clears the field. A scalar for an
+        /// unknown/unsupported schema type throws (rather than sending a shape Jira will reject).
+        /// </summary>
+        private static JsonNode CoerceCustomValue(string keyForError, JsonNode value, JiraFieldMeta meta)
+        {
+            if (value == null) return null;                       // JSON null → clear the field
+            if (value is JsonObject || value is JsonArray)
+                return value.DeepClone();                         // caller took control of the shape
+
+            switch (meta.SchemaType)
+            {
+                case "string":
+                case "number":
+                case "date":
+                case "datetime":
+                case "any":
+                    return value.DeepClone();
+                case "option":
+                    return new JsonObject { ["value"] = value.DeepClone() };
+                case "user":
+                    return new JsonObject { ["accountId"] = value.DeepClone() };
+                case "array":
+                    switch (meta.ItemsType)
+                    {
+                        case "string": return new JsonArray(value.DeepClone());
+                        case "option": return new JsonArray(new JsonObject { ["value"] = value.DeepClone() });
+                        case "user":   return new JsonArray(new JsonObject { ["accountId"] = value.DeepClone() });
+                        default:
+                            throw new AtlassianApiException(
+                                $"Custom field '{meta.Name}' is an array of '{meta.ItemsType}' — pass a JSON array in Jira's shape.");
+                    }
+                default:
+                    throw new AtlassianApiException(
+                        $"Custom field '{meta.Name ?? meta.Id}' has schema type '{meta.SchemaType ?? "(unknown)"}', which " +
+                        "needs a structured value. Pass it already in Jira's JSON shape (object/array).");
+            }
+        }
+
+        /// <summary>
+        /// Reads back the custom fields that carry a value, keyed by their human name and
+        /// flattened to a readable scalar/list. Uses the field catalog already fetched by
+        /// the caller to label ids.
+        /// </summary>
+        private static void MapCustomFields(
+            IReadOnlyList<JiraFieldMeta> meta, JsonElement fields, JiraIssueSummary detail)
+        {
+            var nameById = meta.Where(m => m.IsCustom && !string.IsNullOrEmpty(m.Id))
+                               .GroupBy(m => m.Id, StringComparer.OrdinalIgnoreCase)
+                               .ToDictionary(g => g.Key,
+                                             g => string.IsNullOrEmpty(g.First().Name) ? g.Key : g.First().Name,
+                                             StringComparer.OrdinalIgnoreCase);
+
+            foreach (var prop in fields.EnumerateObject())
+            {
+                if (!prop.Name.StartsWith("customfield_", StringComparison.OrdinalIgnoreCase)) continue;
+                if (prop.Value.ValueKind == JsonValueKind.Null) continue;
+
+                var flat = FlattenCustomValue(prop.Value);
+                if (flat == null) continue;
+
+                var label = nameById.TryGetValue(prop.Name, out var n) ? n : prop.Name;
+                detail.CustomFields[label] = flat;
+            }
+        }
+
+        /// <summary>Flattens a raw custom-field JSON value to a readable scalar/list for display.</summary>
+        private static object FlattenCustomValue(JsonElement v)
+        {
+            switch (v.ValueKind)
+            {
+                case JsonValueKind.String: return v.GetString();
+                case JsonValueKind.Number: return v.TryGetInt64(out var l) ? (object)l : v.GetDouble();
+                case JsonValueKind.True: return true;
+                case JsonValueKind.False: return false;
+                case JsonValueKind.Array:
+                    var items = new List<object>();
+                    foreach (var el in v.EnumerateArray())
+                    {
+                        var fx = FlattenCustomValue(el);
+                        if (fx != null) items.Add(fx);
+                    }
+                    return items.Count == 0 ? null : items;
+                case JsonValueKind.Object:
+                    // ADF rich text
+                    if (v.TryGetProperty("type", out var t) && t.ValueKind == JsonValueKind.String && t.GetString() == "doc")
+                        return AdfRenderer.ToText(v);
+                    // select / option
+                    if (v.TryGetProperty("value", out var val) && val.ValueKind == JsonValueKind.String)
+                        return val.GetString();
+                    // user
+                    if (v.TryGetProperty("displayName", out var dn) && dn.ValueKind == JsonValueKind.String)
+                        return dn.GetString();
+                    // priority / version / component / …
+                    if (v.TryGetProperty("name", out var nm) && nm.ValueKind == JsonValueKind.String)
+                        return nm.GetString();
+                    return v.GetRawText();
+                default: return null;
+            }
         }
 
         // ── HTTP plumbing ───────────────────────────────────────────

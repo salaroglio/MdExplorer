@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.Json.Nodes;
 
 namespace MdExplorer.Features.Services.Atlassian
 {
@@ -30,6 +31,13 @@ namespace MdExplorer.Features.Services.Atlassian
         public string StatusCategory { get; set; }
         /// <summary>Short description snippet (truncated) in lists; full text in <see cref="JiraIssueDetail"/>.</summary>
         public string Description { get; set; }
+
+        /// <summary>
+        /// Custom fields that have a value, keyed by their human name (e.g. "Story Points")
+        /// with the value flattened to a readable scalar/list. Empty unless the issue has
+        /// custom fields set (and, for search, unless they were requested). See <see cref="JiraFieldMeta"/>.
+        /// </summary>
+        public Dictionary<string, object> CustomFields { get; set; } = new Dictionary<string, object>();
     }
 
     /// <summary>Full (but still trimmed) view of one issue for planning.</summary>
@@ -39,6 +47,21 @@ namespace MdExplorer.Features.Services.Atlassian
         public List<string> Labels { get; set; } = new List<string>();
         public List<JiraComment> Comments { get; set; } = new List<JiraComment>();
         public List<string> Links { get; set; } = new List<string>();
+        // CustomFields is inherited from JiraIssueSummary.
+    }
+
+    /// <summary>
+    /// One field definition from /rest/api/3/field. The bridge between a human field
+    /// name ("Story Points") and Jira's opaque id ("customfield_10016"), plus the
+    /// schema needed to shape a value on write (option → {value}, user → {accountId}, …).
+    /// </summary>
+    public class JiraFieldMeta
+    {
+        public string Id { get; set; }         // "customfield_10016" (custom) or a system id
+        public string Name { get; set; }       // human name, e.g. "Story Points"
+        public bool IsCustom { get; set; }
+        public string SchemaType { get; set; } // string / number / option / user / array / date / datetime / …
+        public string ItemsType { get; set; }  // for arrays: option / string / user / …
     }
 
     public class JiraComment
@@ -80,6 +103,13 @@ namespace MdExplorer.Features.Services.Atlassian
         public string Priority { get; set; }    // optional, e.g. "High"
         public string DueDate { get; set; }     // optional, "yyyy-MM-dd"
         public bool AssignToSelf { get; set; } = true;
+
+        /// <summary>
+        /// Optional custom fields, keyed by human name ("Story Points") or by the raw
+        /// customfield_ id. Scalar values are shaped to Jira's expected JSON from the
+        /// field's schema; a structured JSON value (object/array) is sent as-is.
+        /// </summary>
+        public JsonObject CustomFields { get; set; }
     }
 
     public class JiraCreatedIssue
@@ -102,6 +132,12 @@ namespace MdExplorer.Features.Services.Atlassian
         public string Description { get; set; }   // plain text -> ADF
         public string Priority { get; set; }
         public string DueDate { get; set; }
+
+        /// <summary>
+        /// Optional custom fields to change, keyed by human name ("Story Points") or by
+        /// the raw customfield_ id. Same shaping rules as <see cref="JiraCreateIssueRequest.CustomFields"/>.
+        /// </summary>
+        public JsonObject CustomFields { get; set; }
     }
 
     /// <summary>An available workflow transition for an issue.</summary>

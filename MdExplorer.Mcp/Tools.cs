@@ -142,6 +142,33 @@ public class MdExplorerTools
         return null;
     }
 
+    /// <summary>
+    /// Parses the optional customFields JSON-object argument. Empty → success with a null
+    /// node (nothing sent). A non-object or invalid JSON → failure with an actionable message.
+    /// </summary>
+    private static bool TryParseCustomFields(string json, out JsonElement? node, out string error)
+    {
+        node = null;
+        error = null;
+        if (string.IsNullOrWhiteSpace(json)) return true;
+        try
+        {
+            var el = JsonSerializer.Deserialize<JsonElement>(json);
+            if (el.ValueKind != JsonValueKind.Object)
+            {
+                error = "customFields must be a JSON object, e.g. {\"Story Points\": 5}.";
+                return false;
+            }
+            node = el;
+            return true;
+        }
+        catch (JsonException)
+        {
+            error = "customFields is not valid JSON. Pass a JSON object, e.g. {\"Story Points\": 5}.";
+            return false;
+        }
+    }
+
     [McpServerTool, Description(
         "Lists the knowledge-graph namespaces configured for an MdExplorer project (each namespace " +
         "is a logical graph, e.g. 'cobol-domain' or 'impl-plan'). Each entry includes the concept " +
@@ -294,7 +321,9 @@ public class MdExplorerTools
         "configured in MdExplorer (Project Settings → Atlassian).")]
     public async Task<string> JiraFindMyIssues(
         [Description("Project name. Use GetProjects first to discover available project names.")] string project,
-        [Description("Max issues to return (default 10, cap 50).")] int? maxResults = null)
+        [Description("Max issues to return (default 10, cap 50).")] int? maxResults = null,
+        [Description("Custom fields to include per issue, comma-separated field names or customfield_ ids " +
+                     "(optional), e.g. 'Story Points,Severity'. Omit to include all populated custom fields.")] string customFields = null)
     {
         var client = _httpClientFactory.CreateClient("MdExplorer");
         var pid = await ResolveProjectIdAsync(client, project);
@@ -302,7 +331,9 @@ public class MdExplorerTools
         var k = maxResults ?? 10;
         try
         {
-            var resp = await client.GetAsync($"/api/atlassian/jira/my-issues?projectId={pid}&maxResults={k}");
+            var url = $"/api/atlassian/jira/my-issues?projectId={pid}&maxResults={k}";
+            if (!string.IsNullOrWhiteSpace(customFields)) url += $"&customFields={Uri.EscapeDataString(customFields.Trim())}";
+            var resp = await client.GetAsync(url);
             var body = await resp.Content.ReadAsStringAsync();
             await LogToolCall("JiraFindMyIssues", project, $"maxResults={k}", body);
             return body;
@@ -328,7 +359,9 @@ public class MdExplorerTools
     public async Task<string> JiraSearch(
         [Description("Project name. Use GetProjects first to discover available project names.")] string project,
         [Description("The JQL query, e.g. 'assignee = currentUser() AND duedate <= endOfDay()'.")] string jql,
-        [Description("Max results (default 20, cap 50).")] int? maxResults = null)
+        [Description("Max results (default 20, cap 50).")] int? maxResults = null,
+        [Description("Custom fields to include per issue, comma-separated field names or customfield_ ids " +
+                     "(optional), e.g. 'Story Points,Severity'. Omit to include all populated custom fields.")] string customFields = null)
     {
         var client = _httpClientFactory.CreateClient("MdExplorer");
         var pid = await ResolveProjectIdAsync(client, project);
@@ -337,7 +370,9 @@ public class MdExplorerTools
         var k = maxResults ?? 20;
         try
         {
-            var resp = await client.GetAsync($"/api/atlassian/jira/search?projectId={pid}&jql={Uri.EscapeDataString(jql)}&maxResults={k}");
+            var url = $"/api/atlassian/jira/search?projectId={pid}&jql={Uri.EscapeDataString(jql)}&maxResults={k}";
+            if (!string.IsNullOrWhiteSpace(customFields)) url += $"&customFields={Uri.EscapeDataString(customFields.Trim())}";
+            var resp = await client.GetAsync(url);
             var body = await resp.Content.ReadAsStringAsync();
             await LogToolCall("JiraSearch", project, $"jql={jql}", body);
             return body;
@@ -387,12 +422,16 @@ public class MdExplorerTools
         [Description("Issue type, default 'Task'.")] string issueType = null,
         [Description("Priority name, e.g. 'Highest'/'High'/'Medium'/'Low' (optional).")] string priority = null,
         [Description("Due date 'yyyy-MM-dd' (optional).")] string dueDate = null,
-        [Description("Jira project key, e.g. 'BCO' (optional — defaults to the configured key).")] string projectKey = null)
+        [Description("Jira project key, e.g. 'BCO' (optional — defaults to the configured key).")] string projectKey = null,
+        [Description("Custom fields as a JSON object keyed by field name or customfield_ id (optional), " +
+                     "e.g. {\"Story Points\": 5, \"Severity\": \"High\"}. Scalars are shaped from the field's " +
+                     "schema; pass a structured JSON value for types that need one.")] string customFields = null)
     {
         var client = _httpClientFactory.CreateClient("MdExplorer");
         var pid = await ResolveProjectIdAsync(client, project);
         if (pid == null) return $"Project '{project}' not found.";
         if (string.IsNullOrWhiteSpace(summary)) return "summary is required.";
+        if (!TryParseCustomFields(customFields, out var customFieldsNode, out var cfError)) return cfError;
         try
         {
             var payload = new
@@ -404,7 +443,8 @@ public class MdExplorerTools
                 priority,
                 dueDate,
                 projectKey,
-                assignToSelf = true
+                assignToSelf = true,
+                customFields = customFieldsNode
             };
             var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
             var resp = await client.PostAsync("/api/atlassian/jira/issue", content);
@@ -507,15 +547,18 @@ public class MdExplorerTools
         [Description("New summary (optional).")] string summary = null,
         [Description("New description, plain text (optional).")] string description = null,
         [Description("New priority, e.g. 'High' (optional).")] string priority = null,
-        [Description("New due date 'yyyy-MM-dd' (optional).")] string dueDate = null)
+        [Description("New due date 'yyyy-MM-dd' (optional).")] string dueDate = null,
+        [Description("Custom fields to change, as a JSON object keyed by field name or customfield_ id " +
+                     "(optional), e.g. {\"Story Points\": 8}. A JSON null clears a field.")] string customFields = null)
     {
         var client = _httpClientFactory.CreateClient("MdExplorer");
         var pid = await ResolveProjectIdAsync(client, project);
         if (pid == null) return $"Project '{project}' not found.";
         if (string.IsNullOrWhiteSpace(issueKey)) return "issueKey is required.";
+        if (!TryParseCustomFields(customFields, out var customFieldsNode, out var cfError)) return cfError;
         try
         {
-            var payload = new { projectId = pid, summary, description, priority, dueDate };
+            var payload = new { projectId = pid, summary, description, priority, dueDate, customFields = customFieldsNode };
             var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
             var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Put,
                 $"/api/atlassian/jira/issue/{Uri.EscapeDataString(issueKey.Trim())}") { Content = content };

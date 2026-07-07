@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Ad.Tools.Dal.Abstractions.Interfaces;
 using Ad.Tools.Dal.Extensions;
@@ -266,7 +267,8 @@ namespace MdExplorer.Service.Controllers.Atlassian
         //   GET /api/atlassian/jira/my-issues?projectId=&maxResults=
         // ============================================================
         [HttpGet("jira/my-issues")]
-        public async Task<IActionResult> MyIssues([FromQuery] Guid projectId, [FromQuery] int maxResults = 10)
+        public async Task<IActionResult> MyIssues([FromQuery] Guid projectId, [FromQuery] int maxResults = 10,
+            [FromQuery] string customFields = null)
         {
             var ctx = BuildContext(projectId);
             if (ctx.ErrorResult != null) return ctx.ErrorResult;
@@ -274,7 +276,7 @@ namespace MdExplorer.Service.Controllers.Atlassian
             var jql = JqlBuilder.MyOpenIssuesByUrgency(ctx.ProjectKeys);
             try
             {
-                var issues = await _jiraClient.SearchAsync(ctx.Connection, jql, maxResults);
+                var issues = await _jiraClient.SearchAsync(ctx.Connection, jql, maxResults, ParseCustomFieldSelect(customFields));
                 return Ok(new
                 {
                     projectId,
@@ -299,14 +301,15 @@ namespace MdExplorer.Service.Controllers.Atlassian
         //   Free-form JQL search (read-only) for arbitrary filters.
         // ============================================================
         [HttpGet("jira/search")]
-        public async Task<IActionResult> Search([FromQuery] Guid projectId, [FromQuery] string jql, [FromQuery] int maxResults = 20)
+        public async Task<IActionResult> Search([FromQuery] Guid projectId, [FromQuery] string jql, [FromQuery] int maxResults = 20,
+            [FromQuery] string customFields = null)
         {
             if (string.IsNullOrWhiteSpace(jql)) return BadRequest(new { error = "jql query param required" });
             var ctx = BuildContext(projectId);
             if (ctx.ErrorResult != null) return ctx.ErrorResult;
             try
             {
-                var issues = await _jiraClient.SearchAsync(ctx.Connection, jql, maxResults);
+                var issues = await _jiraClient.SearchAsync(ctx.Connection, jql, maxResults, ParseCustomFieldSelect(customFields));
                 return Ok(new { projectId, jql, count = issues.Count, issues });
             }
             catch (AtlassianApiException ex)
@@ -318,6 +321,15 @@ namespace MdExplorer.Service.Controllers.Atlassian
                 _logger.LogError(ex, "[AtlassianController] Search failed for {ProjectId}", projectId);
                 return StatusCode(500, new { error = ex.Message });
             }
+        }
+
+        // Comma-separated custom-field selector ("Story Points,Severity") → list, or null
+        // when unset (which makes the search return all populated custom fields).
+        private static IReadOnlyList<string> ParseCustomFieldSelect(string customFields)
+        {
+            if (string.IsNullOrWhiteSpace(customFields)) return null;
+            var list = customFields.Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+            return list.Count == 0 ? null : list;
         }
 
         // ============================================================
@@ -383,6 +395,7 @@ namespace MdExplorer.Service.Controllers.Atlassian
             public string? DueDate { get; set; }
             public string? ProjectKey { get; set; }   // optional; default = first configured key
             public bool AssignToSelf { get; set; } = true;
+            public JsonObject? CustomFields { get; set; }  // optional; name/id -> value
         }
 
         // ============================================================
@@ -411,7 +424,8 @@ namespace MdExplorer.Service.Controllers.Atlassian
                     IssueType = req.IssueType,
                     Priority = req.Priority,
                     DueDate = req.DueDate,
-                    AssignToSelf = req.AssignToSelf
+                    AssignToSelf = req.AssignToSelf,
+                    CustomFields = req.CustomFields
                 });
                 return Ok(new { projectId = req.ProjectId, created });
             }
@@ -476,6 +490,7 @@ namespace MdExplorer.Service.Controllers.Atlassian
             public string? Description { get; set; }
             public string? Priority { get; set; }
             public string? DueDate { get; set; }
+            public JsonObject? CustomFields { get; set; }  // optional; name/id -> value
         }
 
         // PUT /api/atlassian/jira/issue/{key}   (edit fields)
@@ -492,7 +507,8 @@ namespace MdExplorer.Service.Controllers.Atlassian
                     Summary = req.Summary,
                     Description = req.Description,
                     Priority = req.Priority,
-                    DueDate = req.DueDate
+                    DueDate = req.DueDate,
+                    CustomFields = req.CustomFields
                 });
                 return Ok(new { ok = true });
             }
