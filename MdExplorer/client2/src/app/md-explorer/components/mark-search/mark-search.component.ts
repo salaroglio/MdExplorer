@@ -1,12 +1,12 @@
 import { AfterViewChecked, Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
-import { Subject, forkJoin } from 'rxjs';
+import { Subject, forkJoin, of } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { marked } from 'marked';
 import { AiChatService } from '../../../services/ai-chat.service';
 import { SearchService } from '../../../services/search.service';
-import { SearchResult } from '../../../models/search.models';
+import { SearchResult, TextContentSearchResponse } from '../../../models/search.models';
 import { MarkSearchService, MarkSearchAnswerDocument } from '../../services/mark-search.service';
 import { MdFileService } from '../../services/md-file.service';
 import { ProjectsService } from '../../services/projects.service';
@@ -64,6 +64,11 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
   contextChecked = new Set<string>();
   contextInjected = new Set<string>();
 
+  // Separate non-markdown text index: the toggle appears only when the project
+  // opted in; when on, text-file matches are also handed to the AI (marked non-md).
+  textIndexEnabled = false;
+  includeTextFiles = false;
+
   private round: 1 | 2 = 1;
   private streamBuffer = '';
   private currentTurn: MarkTurn | null = null;
@@ -83,6 +88,11 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
   ) {}
 
   ngOnInit(): void {
+    this.searchService.textStatus().subscribe(
+      s => { this.textIndexEnabled = !!(s && s.enabled); },
+      () => { this.textIndexEnabled = false; }
+    );
+
     this.aiChatService.getChannelStream$(this.channelId)
       .pipe(takeUntil(this.destroy$))
       .subscribe(event => {
@@ -310,11 +320,17 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
     }
 
     this.phase = 'searching';
-    forkJoin(keywords.map(k => this.searchService.quickSearch(k, 24)))
+    const md$ = forkJoin(keywords.map(k => this.searchService.quickSearch(k, 24)));
+    const wantText = this.includeTextFiles && this.textIndexEnabled;
+    const text$ = wantText
+      ? forkJoin(keywords.map(k => this.searchService.searchTextContent(k, 24)))
+      : of(null);
+
+    forkJoin([md$, text$])
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: results => {
-          const compact = this.compactResults(keywords, results);
+        next: ([results, textResults]) => {
+          const compact = this.compactResults(keywords, results, textResults as TextContentSearchResponse[] | null);
           this.sendAnswerRound(
             'Risultati della ricerca istantanea (path relativi alla radice del progetto):\n' +
             JSON.stringify(compact));
@@ -456,11 +472,12 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
     return (html || '').replace(/<[^>]+>/g, '');
   }
 
-  private compactResults(keywords: string[], results: SearchResult[]): any {
+  private compactResults(keywords: string[], results: SearchResult[], textResults?: TextContentSearchResponse[] | null): any {
     return {
       searches: keywords.map((keyword, i) => {
         const r = results[i];
-        return {
+        const t = textResults ? textResults[i] : null;
+        const entry: any = {
           keyword,
           files: (r?.files || []).slice(0, 8).map(f => ({
             path: this.toRootRelative(f.path),
@@ -477,6 +494,17 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
             snippet: this.stripHtml(c.snippet).slice(0, 200)
           }))
         };
+        // Non-markdown text files: SOURCE material only (not openable in the viewer).
+        const textFiles = (t?.textContents || []).slice(0, 8).map(c => ({
+          path: this.toRootRelative(c.path),
+          name: c.fileName,
+          ext: c.extension,
+          snippet: this.stripHtml(c.snippet).slice(0, 200)
+        }));
+        if (textFiles.length > 0) {
+          entry.textFiles = textFiles;
+        }
+        return entry;
       })
     };
   }
@@ -531,7 +559,9 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
       `5. Una riga finale contenente esattamente: ${END_MARKER}`,
       '',
       'Regole: usa SOLO path presenti nei risultati o nei file di contesto forniti in questa conversazione',
-      `(mai inventare file); se nulla è pertinente, spiegalo nel commento e restituisci []. Non aggiungere testo dopo ${END_MARKER}.`
+      `(mai inventare file); se nulla è pertinente, spiegalo nel commento e restituisci []. Non aggiungere testo dopo ${END_MARKER}.`,
+      'Il campo "textFiles" (se presente) elenca file di testo NON-markdown (codice, config, log): usali come FONTE',
+      'per il commento e per l\'eventuale documento, ma NON inserirli nell\'array dei risultati (non sono apribili nel viewer).'
     ].join('\n');
   }
 }

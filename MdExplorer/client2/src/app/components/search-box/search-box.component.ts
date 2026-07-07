@@ -2,8 +2,9 @@ import { Component, OnInit, OnDestroy, ViewChild, ElementRef, HostListener } fro
 import { UntypedFormControl } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil } from 'rxjs/operators';
+import { HttpClient } from '@angular/common/http';
 import { SearchService } from '../../services/search.service';
-import { SearchResult, FileSearchResult, LinkSearchResult, ContentSearchResult } from '../../models/search.models';
+import { SearchResult, FileSearchResult, LinkSearchResult, ContentSearchResult, TextContentSearchResult } from '../../models/search.models';
 import { Router } from '@angular/router';
 import { MdFileService } from '../../md-explorer/services/md-file.service';
 import { ProjectsService } from '../../md-explorer/services/projects.service';
@@ -20,17 +21,23 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
   searchResults: SearchResult | null = null;
   isSearching = false;
   showResults = false;
-  selectedTab: 'files' | 'links' | 'content' = 'files';
+  selectedTab: 'files' | 'links' | 'content' | 'text' = 'files';
   selectedTabIndex = 0;
   currentProjectPath: string = '';
-  
+
+  // ── Separate text-file index (additive; only shown when the project opted in) ──
+  textIndexEnabled = false;
+  textResults: TextContentSearchResult[] = [];
+  totalTextContents = 0;
+
   private destroy$ = new Subject<void>();
-  
+
   constructor(
     private searchService: SearchService,
     private router: Router,
     private mdFileService: MdFileService,
-    private projectsService: ProjectsService
+    private projectsService: ProjectsService,
+    private http: HttpClient
   ) {}
   
   ngOnInit(): void {
@@ -41,6 +48,7 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
     ).subscribe(project => {
       if (project) {
         this.currentProjectPath = project.path;
+        this.refreshTextIndexStatus();
       }
     });
     
@@ -112,8 +120,41 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
         this.searchResults = null;
       }
     );
+
+    // Separate, decoupled pipeline for the non-markdown text index. Runs only when
+    // the project opted in; never interferes with the markdown search above.
+    this.searchControl.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      switchMap(term => {
+        const t = (term || '').trim();
+        if (!this.textIndexEnabled || t.length < 3) {
+          this.textResults = [];
+          this.totalTextContents = 0;
+          return [];
+        }
+        return this.searchService.searchTextContent(t);
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe(
+      (res: any) => {
+        this.textResults = (res && res.textContents) || [];
+        this.totalTextContents = (res && res.totalTextContents) || 0;
+      },
+      () => {
+        this.textResults = [];
+        this.totalTextContents = 0;
+      }
+    );
   }
-  
+
+  private refreshTextIndexStatus(): void {
+    this.searchService.textStatus().subscribe(
+      s => { this.textIndexEnabled = !!(s && s.enabled); },
+      () => { this.textIndexEnabled = false; }
+    );
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
@@ -287,6 +328,24 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
     } as FileSearchResult);
   }
 
+  selectTextContent(result: TextContentSearchResult): void {
+    // Non-markdown text files cannot render in the markdown viewer, so open them
+    // in the configured IDE/editor (reuses AppSettings/OpenFile, same as the toolbar).
+    const url = '../api/AppSettings/OpenFile?path=' + encodeURIComponent(result.path);
+    this.http.get<any>(url).subscribe(
+      data => {
+        // Docker mode: backend returns a "vscode://file/..." URL for the browser to hand to the OS.
+        if (data && data.openUrl) {
+          window.location.href = data.openUrl;
+        }
+      },
+      err => console.error('[SearchBox] Could not open text file', err)
+    );
+
+    this.searchControl.setValue('');
+    this.showResults = false;
+  }
+
   // The FTS5 trigram tokenizer cannot match terms shorter than 3 characters
   get termTooShortForContent(): boolean {
     const value = (this.searchControl.value || '').trim();
@@ -299,15 +358,13 @@ export class SearchBoxComponent implements OnInit, OnDestroy {
     this.showResults = false;
   }
   
+  private tabForIndex(index: number): 'files' | 'links' | 'content' | 'text' {
+    return index === 0 ? 'files' : index === 1 ? 'links' : index === 2 ? 'content' : 'text';
+  }
+
   onTabChange(index: number): void {
-    console.log('Tab changed:', {
-      newIndex: index,
-      previousIndex: this.selectedTabIndex,
-      newTab: index === 0 ? 'files' : index === 1 ? 'links' : 'content',
-      showResults: this.showResults
-    });
     this.selectedTabIndex = index;
-    this.selectedTab = index === 0 ? 'files' : index === 1 ? 'links' : 'content';
+    this.selectedTab = this.tabForIndex(index);
   }
   
   // Keyboard navigation

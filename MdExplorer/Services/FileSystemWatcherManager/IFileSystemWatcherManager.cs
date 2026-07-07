@@ -143,6 +143,19 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         public bool LinkIndexingEnabled { get; set; } = true;
 
         /// <summary>
+        /// When true, the project opted into the SEPARATE non-markdown text index:
+        /// eligible text files get live FTS upsert/delete on FS events, independently
+        /// from the markdown path. Cached at registration. Defaults to false (opt-in).
+        /// </summary>
+        public bool IndexAllTextFiles { get; set; } = false;
+
+        /// <summary>
+        /// Effective text-extension allow-list for this project (lower-case, incl. dot).
+        /// Populated at registration only when <see cref="IndexAllTextFiles"/> is true.
+        /// </summary>
+        public System.Collections.Generic.HashSet<string> TextFileExtensions { get; set; }
+
+        /// <summary>
         /// Defense-in-depth flag: when true, event handlers skip processing.
         /// Set by SetWatcherEnabled(false) to catch .NET FileSystemWatcher buffered events
         /// that fire even after EnableRaisingEvents = false.

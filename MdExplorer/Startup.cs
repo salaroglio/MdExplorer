@@ -83,6 +83,10 @@ namespace MdExplorer
             // Pipeline asincrona di indicizzazione (vedi docs-internal/md-tree-evolution2/passo-async-indexing.md)
             services.AddSingleton<Services.IndexingPipeline.IIndexingPipelineService, Services.IndexingPipeline.IndexingPipelineService>();
 
+            // Pipeline SEPARATA per i file di testo non-markdown (additiva, spegnibile per progetto).
+            // Gira dopo la pipeline markdown per non rubarle I/O; scrive solo su TextFile + FTS text side-car.
+            services.AddSingleton<Services.IndexingPipeline.ITextIndexingService, Services.IndexingPipeline.TextIndexingService>();
+
             // Mark folder-summarizer job (azione ibrida algoritmo + LLM evocata da Mark)
             services.AddSingleton<Services.MarkActions.IMarkFolderJobService, Services.MarkActions.MarkFolderJobService>();
 

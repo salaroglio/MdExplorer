@@ -150,6 +150,11 @@ namespace MdExplorer.Hubs
         // explicit in the injected text, never silent. Mirrors the old client-side limit.
         private const int ContextFileCharLimit = 30000;
 
+        // Central default text allow-list, used to gate non-markdown context files
+        // injected into the AI prompt (see BuildContextBlock). Computed once.
+        private static readonly System.Collections.Generic.HashSet<string> _defaultTextExtensions =
+            MdExplorer.Abstractions.Services.TextFileClassifier.GetEffectiveExtensions(null);
+
         /// <summary>
         /// Like <see cref="SendMessage"/> but the caller passes the PATHS of project files to
         /// inject as context instead of their content. The hub reads each file fresh from disk
@@ -216,9 +221,14 @@ namespace MdExplorer.Hubs
                 {
                     throw new InvalidOperationException($"path fuori dal progetto: {rawPath}");
                 }
-                if (!candidate.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+                // Allow markdown OR any eligible non-markdown text file (separate text
+                // index). Uses the central default allow-list so the hub stays decoupled
+                // from the user DB; anything else still fails loud (no silent fallback).
+                var isMarkdown = candidate.EndsWith(".md", StringComparison.OrdinalIgnoreCase);
+                if (!isMarkdown && !MdExplorer.Abstractions.Services.TextFileClassifier
+                        .IsEligibleTextFile(candidate, _defaultTextExtensions))
                 {
-                    throw new InvalidOperationException($"path non è un file markdown: {rawPath}");
+                    throw new InvalidOperationException($"path non è un file markdown né un file di testo indicizzabile: {rawPath}");
                 }
                 if (!System.IO.File.Exists(candidate))
                 {

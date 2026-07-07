@@ -5875,6 +5875,27 @@ class ProjectSettingsService {
       projectPath
     });
   }
+  getTextIndexingSetting(projectPath) {
+    const url = '../api/ProjectSettings/GetTextIndexingSetting';
+    return this.http.get(url, {
+      params: {
+        projectPath
+      }
+    });
+  }
+  setTextIndexingSetting(enabled, extensions, projectPath) {
+    const url = '../api/ProjectSettings/SetTextIndexingSetting';
+    return this.http.post(url, {
+      enabled,
+      extensions,
+      projectPath
+    });
+  }
+  /** Forces a full rebuild of the separate text index only (POST api/mdfiles/ReindexTextFiles). */
+  reindexTextFiles(connectionId) {
+    const url = '../api/mdfiles/ReindexTextFiles?connectionId=' + encodeURIComponent(connectionId || '');
+    return this.http.post(url, {});
+  }
   // RAG Settings
   getRagStatus() {
     const url = '../api/Rag/status';

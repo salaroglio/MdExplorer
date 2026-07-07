@@ -85,6 +85,15 @@
   z-index: 1000;
   display: flex;
   flex-direction: column;
+
+  // When the non-markdown text tab is active the window carries 4 tabs and wider
+  // snippets: widen the results panel (input stays at its container width).
+  &--wide {
+    width: 860px;
+    max-width: 92vw;
+    right: auto;
+    max-height: 620px;
+  }
 }
 
 .search-header {
@@ -184,7 +193,8 @@
   white-space: nowrap;
 }
 
-.content-item .result-context {
+.content-item .result-context,
+.text-item .result-context {
   // Snippets need room: wrap up to 2 lines instead of truncating to one
   white-space: normal;
   display: -webkit-box;
@@ -242,4 +252,15 @@
   text-align: right;
   font-size: 11px;
   color: var(--mde-text-hint);
+}
+.text-ext {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-family: monospace;
+  background: var(--mde-bg-secondary);
+  color: var(--mde-text-secondary);
+  vertical-align: middle;
 }

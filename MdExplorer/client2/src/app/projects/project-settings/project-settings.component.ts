@@ -24,6 +24,10 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   plantUmlKeepOriginalColorsEnabled: boolean = false;
   copilotCliAutoSelectEnabled: boolean = true;
   excludeSubmodulesEnabled: boolean = true;
+  indexAllTextFilesEnabled: boolean = false;
+  textFileExtensions: string = '';
+  textFileExtensionsDefault: string = '';
+  reindexingText: boolean = false;
   githubModeEnabled: boolean = false;
   stickyScrollEnabled: boolean = true;
   selectedIde: string = 'vscode';
@@ -193,9 +197,10 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     let plantUmlKeepOriginalColorsLoaded = false;
     let copilotCliAutoSelectLoaded = false;
     let excludeSubmodulesLoaded = false;
+    let textIndexingLoaded = false;
 
     const checkIfDone = () => {
-      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded && stickyScrollLoaded && plantUmlKeepOriginalColorsLoaded && copilotCliAutoSelectLoaded && excludeSubmodulesLoaded) {
+      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded && stickyScrollLoaded && plantUmlKeepOriginalColorsLoaded && copilotCliAutoSelectLoaded && excludeSubmodulesLoaded && textIndexingLoaded) {
         this.loading = false;
       }
     };
@@ -266,6 +271,22 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('Error loading Exclude Submodules setting:', error);
         excludeSubmodulesLoaded = true;
+        checkIfDone();
+      }
+    });
+
+    // Load Text Indexing (non-markdown text files) setting
+    this.projectSettingsService.getTextIndexingSetting(this.projectPath).subscribe({
+      next: (response) => {
+        this.indexAllTextFilesEnabled = response.enabled;
+        this.textFileExtensions = response.extensions || '';
+        this.textFileExtensionsDefault = response.defaultExtensions || '';
+        textIndexingLoaded = true;
+        checkIfDone();
+      },
+      error: (error) => {
+        console.error('Error loading Text Indexing setting:', error);
+        textIndexingLoaded = true;
         checkIfDone();
       }
     });
@@ -431,6 +452,38 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         console.error('Error saving Exclude Submodules setting:', error);
         this.saving = false;
         this.excludeSubmodulesEnabled = !this.excludeSubmodulesEnabled;
+      }
+    });
+  }
+
+  onTextIndexingChange(): void {
+    this.saving = true;
+    this.projectSettingsService.setTextIndexingSetting(
+      this.indexAllTextFilesEnabled,
+      this.textFileExtensions,
+      this.projectPath
+    ).subscribe({
+      next: () => {
+        this.saving = false;
+      },
+      error: (error) => {
+        console.error('Error saving Text Indexing setting:', error);
+        this.saving = false;
+        this.indexAllTextFilesEnabled = !this.indexAllTextFilesEnabled;
+      }
+    });
+  }
+
+  onReindexTextFiles(): void {
+    this.reindexingText = true;
+    this.projectSettingsService.reindexTextFiles(this.serverMessages.connectionId ?? '').subscribe({
+      next: () => {
+        // Fire-and-forget on the backend; the index rebuilds in the background.
+        setTimeout(() => { this.reindexingText = false; }, 1500);
+      },
+      error: (error) => {
+        console.error('Error triggering text reindex:', error);
+        this.reindexingText = false;
       }
     });
   }

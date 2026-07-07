@@ -101,6 +101,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private readonly IMarkdownChunkingService _chunkingService;
         private readonly IVectorSearchService _vectorSearchService;
         private readonly IIndexingPipelineService _indexingPipelineService;
+        private readonly ITextIndexingService _textIndexingService;
 
 
         public MdFilesController(
@@ -130,7 +131,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         IEmbeddingService embeddingService = null,
         IMarkdownChunkingService chunkingService = null,
         IVectorSearchService vectorSearchService = null,
-        IIndexingPipelineService indexingPipelineService = null
+        IIndexingPipelineService indexingPipelineService = null,
+        ITextIndexingService textIndexingService = null
             ) : base(logger, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper, databaseManager, fileSystemWatcherManager)
         {
 
@@ -150,6 +152,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _chunkingService = chunkingService;
             _vectorSearchService = vectorSearchService;
             _indexingPipelineService = indexingPipelineService;
+            _textIndexingService = textIndexingService;
         }
 
         [HttpGet]
@@ -1672,6 +1675,74 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
         }
 
+        /// <summary>
+        /// Reads the per-project text-indexing settings (IndexAllTextFiles flag +
+        /// effective extension allow-list) for the current project. Defaults to OFF
+        /// when the project cannot be resolved: the separate text index is strictly opt-in.
+        /// </summary>
+        private (bool enabled, System.Collections.Generic.HashSet<string> extensions) GetTextIndexingSettings()
+        {
+            try
+            {
+                var currentPath = GetProjectPath();
+                if (string.IsNullOrEmpty(currentPath))
+                {
+                    return (false, null);
+                }
+
+                _userSettingsDB.Clear();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList().FirstOrDefault(p => p.Path == currentPath)
+                    ?? projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, currentPath, StringComparison.OrdinalIgnoreCase));
+
+                if (project == null || !project.IndexAllTextFiles)
+                {
+                    return (false, null);
+                }
+
+                var extensions = MdExplorer.Abstractions.Services.TextFileClassifier
+                    .GetEffectiveExtensions(project.TextFileExtensions);
+                return (true, extensions);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[GetTextIndexingSettings] Could not read text-indexing settings, defaulting to OFF");
+                return (false, null);
+            }
+        }
+
+        /// <summary>
+        /// Chains the SEPARATE text-file indexing after the markdown pipeline finishes,
+        /// only when the project opted in. Runs after markdown so it never steals I/O
+        /// from the (fast) markdown indexing. Never throws into the caller.
+        /// </summary>
+        private void ChainTextIndexingAfter(System.Threading.Tasks.Task markdownRun, string connectionId, string currentPath, bool force)
+        {
+            if (_textIndexingService == null || markdownRun == null)
+            {
+                return;
+            }
+            var (enabled, extensions) = GetTextIndexingSettings();
+            if (!enabled || extensions == null || extensions.Count == 0)
+            {
+                return;
+            }
+
+            _ = markdownRun.ContinueWith(_ =>
+            {
+                try
+                {
+                    return _textIndexingService.RunAsync(connectionId, currentPath, extensions, forceFullReindex: force);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[ChainTextIndexingAfter] Text indexing failed to start for '{Path}'", currentPath);
+                    return System.Threading.Tasks.Task.CompletedTask;
+                }
+            }, System.Threading.Tasks.TaskScheduler.Default);
+        }
+
 
         /// <summary>
         /// Forza una reindicizzazione COMPLETA del progetto (ignora i fingerprint
@@ -1693,7 +1764,37 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             _logger.LogInformation("[ReindexProject] Forced full reindex requested for '{Path}'", currentPath);
             SetFileSystemWatcherEnabled(false); // la pipeline lo riabilita nel suo finally
-            _ = _indexingPipelineService.RunAsync(connectionId, currentPath, IsLinkIndexingEnabled(), forceFullReindex: true);
+            var reindexRun = _indexingPipelineService.RunAsync(connectionId, currentPath, IsLinkIndexingEnabled(), forceFullReindex: true);
+            ChainTextIndexingAfter(reindexRun, connectionId, currentPath, force: true);
+            return Ok(new { started = true });
+        }
+
+        /// <summary>
+        /// Forces a full rebuild of the SEPARATE text-file index only (leaves the
+        /// markdown index untouched). Useful after changing the allow-list. No-op
+        /// with 409 when the project has IndexAllTextFiles OFF.
+        /// </summary>
+        [HttpPost]
+        public IActionResult ReindexTextFiles(string connectionId)
+        {
+            var currentPath = GetProjectPath();
+            if (string.IsNullOrEmpty(currentPath) || currentPath == AppDomain.CurrentDomain.BaseDirectory)
+            {
+                return BadRequest(new { error = "Nessun progetto aperto per questa connessione" });
+            }
+            if (_textIndexingService == null)
+            {
+                return StatusCode(503, new { error = "Text indexing non disponibile" });
+            }
+
+            var (enabled, extensions) = GetTextIndexingSettings();
+            if (!enabled || extensions == null || extensions.Count == 0)
+            {
+                return Conflict(new { error = "L'indicizzazione dei file di testo è disattivata per questo progetto (IndexAllTextFiles OFF)." });
+            }
+
+            _logger.LogInformation("[ReindexTextFiles] Forced text reindex requested for '{Path}'", currentPath);
+            _ = _textIndexingService.RunAsync(connectionId, currentPath, extensions, forceFullReindex: true);
             return Ok(new { started = true });
         }
 
@@ -1999,7 +2100,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // Fire-and-forget — la pipeline gira sotto IsolatedEngineDB e re-abilita FSW alla fine.
             if (_indexingPipelineService != null)
             {
-                _ = _indexingPipelineService.RunAsync(connectionId, currentPath, linkIndexingEnabled);
+                var markdownRun = _indexingPipelineService.RunAsync(connectionId, currentPath, linkIndexingEnabled);
+                ChainTextIndexingAfter(markdownRun, connectionId, currentPath, force: false);
                 pipelineStarted = true;
             }
             else

@@ -103,6 +103,12 @@
     <span>{{ sendError }}</span>
   </div>
 
+  <div class="ms-text-toggle" *ngIf="textIndexEnabled">
+    <mat-checkbox [(ngModel)]="includeTextFiles" [disabled]="isBusy">
+      {{ 'MARK_SEARCH.INCLUDE_TEXT_FILES' | translate }}
+    </mat-checkbox>
+  </div>
+
   <div class="ms-input">
     <textarea #promptInput
               [(ngModel)]="prompt"

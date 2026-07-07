@@ -96,6 +96,51 @@
 
         <mat-card class="settings-section">
           <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.TEXT_INDEXING' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="setting-item" *ngIf="!loading">
+              <mat-checkbox
+                [(ngModel)]="indexAllTextFilesEnabled"
+                (change)="onTextIndexingChange()"
+                [disabled]="saving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.ENABLE_TEXT_INDEXING' | translate }}</span>
+              </mat-checkbox>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.TEXT_INDEXING_DESC' | translate }}
+              </p>
+            </div>
+
+            <div class="setting-item" *ngIf="!loading && indexAllTextFilesEnabled">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>{{ 'PROJECT_SETTINGS.TEXT_EXTENSIONS' | translate }}</mat-label>
+                <textarea matInput rows="2"
+                  [(ngModel)]="textFileExtensions"
+                  (blur)="onTextIndexingChange()"
+                  [placeholder]="textFileExtensionsDefault"
+                  [disabled]="saving"></textarea>
+                <mat-hint>{{ 'PROJECT_SETTINGS.TEXT_EXTENSIONS_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="setting-item" *ngIf="!loading && indexAllTextFilesEnabled">
+              <button mat-stroked-button
+                (click)="onReindexTextFiles()"
+                [disabled]="reindexingText || saving">
+                <mat-icon *ngIf="!reindexingText">refresh</mat-icon>
+                <mat-spinner *ngIf="reindexingText" diameter="18" class="inline-spinner"></mat-spinner>
+                {{ reindexingText ? ('PROJECT_SETTINGS.REINDEXING_TEXT' | translate) : ('PROJECT_SETTINGS.REINDEX_TEXT' | translate) }}
+              </button>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.REINDEX_TEXT_DESC' | translate }}
+              </p>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="settings-section">
+          <mat-card-header>
             <mat-card-title>{{ 'PROJECT_SETTINGS.VIEW_OPTIONS' | translate }}</mat-card-title>
           </mat-card-header>
 

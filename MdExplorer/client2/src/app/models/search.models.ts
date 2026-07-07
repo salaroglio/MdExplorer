@@ -32,6 +32,25 @@ export interface ContentSearchResult {
   score: number;
 }
 
+/** One full-text match inside a NON-markdown text file (separate text index). */
+export interface TextContentSearchResult {
+  textFileId: string;
+  fileName: string;
+  path: string;
+  extension: string;
+  /** HTML-escaped excerpt with <mark>…</mark> around matches */
+  snippet: string;
+  /** bm25 score: lower is more relevant */
+  score: number;
+}
+
+export interface TextContentSearchResponse {
+  textContents: TextContentSearchResult[];
+  totalTextContents: number;
+  /** false when the project has text indexing OFF */
+  enabled: boolean;
+}
+
 export interface FileSearchResult {
   id: string;
   fileName: string;

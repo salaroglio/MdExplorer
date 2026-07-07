@@ -350,7 +350,15 @@
     "ATLASSIAN_TEST_FAIL_PREVIOUS": "Last test: failed",
     "REINDEX_PROJECT": "Reindex project",
     "REINDEXING_PROJECT": "Reindexing…",
-    "REINDEX_PROJECT_DESC": "Forces a full reindex of links, full-text search and embeddings, ignoring the incremental index. Use it if the index looks inconsistent."
+    "REINDEX_PROJECT_DESC": "Forces a full reindex of links, full-text search and embeddings, ignoring the incremental index. Use it if the index looks inconsistent.",
+    "TEXT_INDEXING": "Text file indexing",
+    "ENABLE_TEXT_INDEXING": "Also index non-markdown text files",
+    "TEXT_INDEXING_DESC": "Builds a SEPARATE full-text index for text files (.txt, .json, .cs, .sql, .log…) on top of markdown. It is additive and never affects markdown indexing: it runs in the background after it. Enables the “Text files” tab in search and lets Mark Search consider these files.",
+    "TEXT_EXTENSIONS": "Extensions to index",
+    "TEXT_EXTENSIONS_HINT": "Comma-separated list (e.g. .txt,.csv,.cs). Leave empty to use the default.",
+    "REINDEX_TEXT": "Reindex text files",
+    "REINDEXING_TEXT": "Reindexing…",
+    "REINDEX_TEXT_DESC": "Rebuilds only the text-file index (leaves markdown untouched). Use it after changing the extension list."
   },
   "GIT_COMMIT": {
     "TITLE": "Commit Message",
@@ -780,6 +788,7 @@
     "PLACEHOLDER": "What are we looking for? (Enter to send, Shift+Enter for a new line)",
     "SEND": "Send",
     "STOP": "Stop",
+    "INCLUDE_TEXT_FILES": "Also search non-markdown text files",
     "PHASE_KEYWORDS": "Mark is choosing the keywords…",
     "PHASE_SEARCHING": "Running the instant search…",
     "PHASE_ANSWERING": "Mark is evaluating the results…",

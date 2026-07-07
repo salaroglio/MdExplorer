@@ -77,6 +77,22 @@ export class ProjectSettingsService {
     return this.http.post<any>(url, { enabled, projectPath });
   }
 
+  getTextIndexingSetting(projectPath: string): Observable<{enabled: boolean, extensions: string, defaultExtensions: string}> {
+    const url = '../api/ProjectSettings/GetTextIndexingSetting';
+    return this.http.get<{enabled: boolean, extensions: string, defaultExtensions: string}>(url, { params: { projectPath } });
+  }
+
+  setTextIndexingSetting(enabled: boolean, extensions: string, projectPath: string): Observable<any> {
+    const url = '../api/ProjectSettings/SetTextIndexingSetting';
+    return this.http.post<any>(url, { enabled, extensions, projectPath });
+  }
+
+  /** Forces a full rebuild of the separate text index only (POST api/mdfiles/ReindexTextFiles). */
+  reindexTextFiles(connectionId: string): Observable<any> {
+    const url = '../api/mdfiles/ReindexTextFiles?connectionId=' + encodeURIComponent(connectionId || '');
+    return this.http.post<any>(url, {});
+  }
+
   // RAG Settings
   getRagStatus(): Observable<any> {
     const url = '../api/Rag/status';

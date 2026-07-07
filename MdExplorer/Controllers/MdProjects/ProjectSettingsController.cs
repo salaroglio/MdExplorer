@@ -434,6 +434,74 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 return StatusCode(500, new { error = "Failed to save ExcludeSubmodules setting" });
             }
         }
+
+        /// <summary>
+        /// Reads the per-project text-index settings: IndexAllTextFiles flag + the
+        /// stored allow-list (null when the project uses the central default). Also
+        /// returns the central default so the UI can show it as placeholder.
+        /// </summary>
+        [HttpGet]
+        public IActionResult GetTextIndexingSetting([FromQuery] string projectPath)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList().FirstOrDefault(p => p.Path == projectPath)
+                    ?? projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, projectPath, StringComparison.OrdinalIgnoreCase));
+
+                return Ok(new
+                {
+                    enabled = project?.IndexAllTextFiles ?? false,
+                    extensions = project?.TextFileExtensions,
+                    defaultExtensions = MdExplorer.Abstractions.Services.TextFileClassifier.DefaultExtensionsCsv
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting TextIndexing setting");
+                return StatusCode(500, new { error = "Failed to get TextIndexing setting" });
+            }
+        }
+
+        /// <summary>
+        /// Persists the text-index flag + allow-list. Blank extensions are stored as
+        /// null (project falls back to the central default).
+        /// </summary>
+        [HttpPost]
+        public IActionResult SetTextIndexingSetting([FromBody] SetTextIndexingRequest request)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                _userSettingsDB.BeginTransaction();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList().FirstOrDefault(p => p.Path == request.ProjectPath)
+                    ?? projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, request.ProjectPath, StringComparison.OrdinalIgnoreCase));
+
+                if (project == null)
+                {
+                    _userSettingsDB.Rollback();
+                    _logger.LogWarning($"[SetTextIndexingSetting] Project not found for path: '{request.ProjectPath}'");
+                    return NotFound(new { error = "Project not found" });
+                }
+
+                project.IndexAllTextFiles = request.Enabled;
+                project.TextFileExtensions = string.IsNullOrWhiteSpace(request.Extensions) ? null : request.Extensions.Trim();
+                projectDal.Save(project);
+                _userSettingsDB.Commit();
+
+                return Ok(new { message = "TextIndexing setting saved successfully" });
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                _logger.LogError(ex, "Error saving TextIndexing setting");
+                return StatusCode(500, new { error = "Failed to save TextIndexing setting" });
+            }
+        }
     }
 
     public class SaveProjectSettingRequest
@@ -473,6 +541,14 @@ namespace MdExplorer.Service.Controllers.MdProjects
     public class SetExcludeSubmodulesRequest
     {
         public bool Enabled { get; set; }
+        public string ProjectPath { get; set; }
+    }
+
+    public class SetTextIndexingRequest
+    {
+        public bool Enabled { get; set; }
+        /// <summary>Comma-separated allow-list; null/blank → central default.</summary>
+        public string Extensions { get; set; }
         public string ProjectPath { get; set; }
     }
 }

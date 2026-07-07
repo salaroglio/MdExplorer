@@ -41,6 +41,10 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         private readonly IServiceProvider _serviceProvider;
         private readonly IMarkdownFtsService _markdownFtsService;
         private FoldersIgnoreService _foldersIgnoreService; // lazy - circular dependency on IFileSystemWatcherManager
+        private IndexingPipeline.ITextIndexingService _textIndexingService; // lazy - avoids DI cycle via FoldersIgnoreService
+        // Per-connection debounce timers coalescing text-file FS bursts into a single
+        // incremental text reindex (isolated session → never contends with the md path).
+        private readonly ConcurrentDictionary<string, System.Threading.Timer> _textReindexTimers = new();
 
         public FileSystemWatcherManager(
             IHubContext<MonitorMDHub> hubContext,
@@ -68,6 +72,70 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             _foldersIgnoreService ??= _serviceProvider.GetRequiredService<FoldersIgnoreService>();
             return _foldersIgnoreService;
+        }
+
+        // Resolved lazily (not constructor-injected) because TextIndexingService pulls in
+        // FoldersIgnoreService, which itself depends on IFileSystemWatcherManager → DI cycle.
+        private IndexingPipeline.ITextIndexingService GetTextIndexingService()
+        {
+            _textIndexingService ??= _serviceProvider.GetService<IndexingPipeline.ITextIndexingService>();
+            return _textIndexingService;
+        }
+
+        /// <summary>
+        /// True when a filesystem event on <paramref name="fullPath"/> should refresh the
+        /// SEPARATE text index for this project (opt-in flag ON + extension in the allow-list
+        /// + not in an ignored folder). Markdown files are excluded by the classifier.
+        /// </summary>
+        private bool IsEligibleTextForLiveUpdate(WatcherContext context, string fullPath)
+        {
+            return context.IndexAllTextFiles
+                && context.TextFileExtensions != null
+                && MdExplorer.Abstractions.Services.TextFileClassifier.IsEligibleTextFile(fullPath, context.TextFileExtensions)
+                && !IsInIgnoredFolderChain(fullPath, context.ProjectPath)
+                && !_mdIgnoreService.ShouldIgnorePath(fullPath, context.ProjectPath);
+        }
+
+        /// <summary>
+        /// Coalesces text-file FS events into a single debounced incremental text reindex.
+        /// The reindex runs on TextIndexingService's OWN isolated session, so a burst of
+        /// text changes never contends with the markdown per-connection session/semaphore.
+        /// </summary>
+        private void ScheduleTextReindex(WatcherContext context)
+        {
+            if (!context.IndexAllTextFiles || GetTextIndexingService() == null)
+            {
+                return;
+            }
+            var connId = context.ConnectionId;
+            var timer = _textReindexTimers.GetOrAdd(connId,
+                _ => new System.Threading.Timer(OnTextReindexTimer, connId,
+                    System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite));
+            // Reset the debounce window (1.5s): rapid successive events collapse into one run.
+            timer.Change(1500, System.Threading.Timeout.Infinite);
+        }
+
+        private void OnTextReindexTimer(object state)
+        {
+            var connId = (string)state;
+            try
+            {
+                if (!_watchers.TryGetValue(connId, out var ctx) || !ctx.IndexAllTextFiles || ctx.TextFileExtensions == null)
+                {
+                    return;
+                }
+                var textIndexer = GetTextIndexingService();
+                if (textIndexer == null)
+                {
+                    return;
+                }
+                _logger.LogInformation($"[{connId}] Text index: debounced live reindex triggered");
+                _ = textIndexer.RunAsync(connId, ctx.ProjectPath, ctx.TextFileExtensions);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"[{connId}] Text index: debounced reindex failed to start");
+            }
         }
 
         public void RegisterWatcher(string connectionId, string projectPath)
@@ -161,11 +229,20 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                     context.LinkIndexingEnabled = project?.LinkIndexingEnabled ?? true;
                     _logger.LogInformation($"[{connectionId}] LinkIndexingEnabled = {context.LinkIndexingEnabled}");
+
+                    // Cache the separate text-index opt-in + effective allow-list (only when ON).
+                    context.IndexAllTextFiles = project?.IndexAllTextFiles ?? false;
+                    context.TextFileExtensions = context.IndexAllTextFiles
+                        ? MdExplorer.Abstractions.Services.TextFileClassifier.GetEffectiveExtensions(project?.TextFileExtensions)
+                        : null;
+                    _logger.LogInformation($"[{connectionId}] IndexAllTextFiles = {context.IndexAllTextFiles}");
                 }
                 catch (Exception settingEx)
                 {
                     _logger.LogWarning(settingEx, $"[{connectionId}] Could not read LinkIndexingEnabled, defaulting to true");
                     context.LinkIndexingEnabled = true;
+                    context.IndexAllTextFiles = false;
+                    context.TextFileExtensions = null;
                 }
 
                 _watchers[connectionId] = context;
@@ -216,6 +293,12 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                     // Dispose storm cooldown timer
                     context.StormCooldownTimer?.Dispose();
+
+                    // Dispose the debounced text-reindex timer for this connection
+                    if (_textReindexTimers.TryRemove(connectionId, out var textTimer))
+                    {
+                        textTimer.Dispose();
+                    }
 
                     // Dispose DB semaphore
                     context.DbSemaphore?.Dispose();
@@ -780,6 +863,11 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 // so that .git/FETCH_HEAD, .lock files, etc. don't trigger false storms
                 if (!isMarkdown)
                 {
+                    // Separate text index (opt-in): coalesced live reindex, isolated from md.
+                    if (IsEligibleTextForLiveUpdate(context, e.FullPath))
+                    {
+                        ScheduleTextReindex(context);
+                    }
                     _logger.LogDebug($"[{context.ConnectionId}] File {e.FullPath} is not markdown");
                     return;
                 }
@@ -1022,6 +1110,11 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 // (prevents .git/FETCH_HEAD, .lock files etc. from triggering false storms)
                 if (!isMarkdown && !isDirectory)
                 {
+                    // Separate text index (opt-in): coalesced live reindex, isolated from md.
+                    if (IsEligibleTextForLiveUpdate(context, e.FullPath))
+                    {
+                        ScheduleTextReindex(context);
+                    }
                     _logger.LogDebug($"[{context.ConnectionId}] File {e.FullPath} is not markdown and not a directory, skipping");
                     return;
                 }
@@ -1131,6 +1224,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 bool oldHasNoExt = string.IsNullOrEmpty(Path.GetExtension(e.OldFullPath));
                 bool newHasNoExt = string.IsNullOrEmpty(Path.GetExtension(e.FullPath));
                 bool isRelevant = oldIsMarkdown || newIsMarkdown || (oldHasNoExt && newHasNoExt);
+
+                // Separate text index (opt-in): any rename touching an eligible text file
+                // (old or new side). Reconcile+diff on reindex handles remove-old/add-new.
+                if (IsEligibleTextForLiveUpdate(context, e.OldFullPath) || IsEligibleTextForLiveUpdate(context, e.FullPath))
+                {
+                    ScheduleTextReindex(context);
+                }
 
                 // Skip irrelevant renames BEFORE storm detection
                 if (!isRelevant)
@@ -1318,6 +1418,11 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 // Skip non-markdown, non-directory files (e.g., .git/FETCH_HEAD) BEFORE storm detection
                 if (!isMarkdown && !isDirectory)
                 {
+                    // Separate text index (opt-in): a deleted text file is reconciled out on reindex.
+                    if (IsEligibleTextForLiveUpdate(context, e.FullPath))
+                    {
+                        ScheduleTextReindex(context);
+                    }
                     _logger.LogDebug($"[{context.ConnectionId}] Deleted file {e.FullPath} is not markdown");
                     return;
                 }

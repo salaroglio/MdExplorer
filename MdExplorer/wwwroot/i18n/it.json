@@ -350,7 +350,15 @@
     "ATLASSIAN_TEST_FAIL_PREVIOUS": "Ultimo test: fallito",
     "REINDEX_PROJECT": "Reindicizza progetto",
     "REINDEXING_PROJECT": "Reindicizzazione…",
-    "REINDEX_PROJECT_DESC": "Forza la reindicizzazione completa di link, ricerca full-text ed embedding ignorando l'indice incrementale. Usalo se l'indice sembra incoerente."
+    "REINDEX_PROJECT_DESC": "Forza la reindicizzazione completa di link, ricerca full-text ed embedding ignorando l'indice incrementale. Usalo se l'indice sembra incoerente.",
+    "TEXT_INDEXING": "Indicizzazione file di testo",
+    "ENABLE_TEXT_INDEXING": "Indicizza anche i file di testo non-markdown",
+    "TEXT_INDEXING_DESC": "Crea un indice full-text SEPARATO per i file di testo (.txt, .json, .cs, .sql, .log…) oltre ai markdown. È additivo e non influisce sull'indicizzazione markdown: gira in background dopo di essa. Abilita il tab «Text files» nella ricerca e permette a Mark Search di considerare questi file.",
+    "TEXT_EXTENSIONS": "Estensioni da indicizzare",
+    "TEXT_EXTENSIONS_HINT": "Elenco separato da virgole (es. .txt,.csv,.cs). Lascia vuoto per usare il default.",
+    "REINDEX_TEXT": "Reindicizza file di testo",
+    "REINDEXING_TEXT": "Reindicizzazione…",
+    "REINDEX_TEXT_DESC": "Ricostruisce solo l'indice dei file di testo (non tocca i markdown). Usalo dopo aver cambiato l'elenco delle estensioni."
   },
   "GIT_COMMIT": {
     "TITLE": "Messaggio di Commit",
@@ -780,6 +788,7 @@
     "PLACEHOLDER": "Cosa cerchiamo? (Invio per inviare, Shift+Invio per andare a capo)",
     "SEND": "Invia",
     "STOP": "Interrompi",
+    "INCLUDE_TEXT_FILES": "Cerca anche nei file di testo (non-markdown)",
     "PHASE_KEYWORDS": "Mark sta scegliendo le parole chiave…",
     "PHASE_SEARCHING": "Ricerca istantanea nel progetto…",
     "PHASE_ANSWERING": "Mark sta valutando i risultati…",
