@@ -13633,6 +13633,14 @@ class AiChatService {
     this.baseUrl = '/api/AiModels';
     this._messages$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject([]);
     this.messages$ = this._messages$.asObservable();
+    // Last scroll position of the chat message list. Persisted here (in the
+    // singleton service) rather than in AiChatComponent because mat-tab-group
+    // uses preserveContent=false: switching away from the Mark Agent tab detaches
+    // the tab body portal and destroys the component, so any component-local
+    // scroll state would be lost. savedAtBottom lets the freshly recreated
+    // component decide between "restore the exact position" and "snap to bottom".
+    this.savedScrollTop = 0;
+    this.savedAtBottom = true;
     this._downloadProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
     this.downloadProgress$ = this._downloadProgress$.asObservable();
     this._currentModel$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
@@ -17253,8 +17261,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.07.06.3',
-  buildTime: '2026.07.06 12:23:53'
+  version: '2026.07.06.4',
+  buildTime: '2026.07.06 22:22:19'
 };
 
 /***/ }),

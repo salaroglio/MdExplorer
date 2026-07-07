@@ -58,6 +58,15 @@ export class AiChatService {
   
   private _messages$ = new BehaviorSubject<ChatMessage[]>([]);
   public messages$ = this._messages$.asObservable();
+
+  // Last scroll position of the chat message list. Persisted here (in the
+  // singleton service) rather than in AiChatComponent because mat-tab-group
+  // uses preserveContent=false: switching away from the Mark Agent tab detaches
+  // the tab body portal and destroys the component, so any component-local
+  // scroll state would be lost. savedAtBottom lets the freshly recreated
+  // component decide between "restore the exact position" and "snap to bottom".
+  public savedScrollTop = 0;
+  public savedAtBottom = true;
   
   private _downloadProgress$ = new Subject<DownloadProgress>();
   public downloadProgress$ = this._downloadProgress$.asObservable();
@@ -326,6 +335,14 @@ export class AiChatService {
   // Chat functionality
   sendMessage(message: string): void {
     if (!message.trim()) return;
+    // Defense in depth: never start a second default-channel turn while one is streaming.
+    // The component already guards on isStreaming, but a programmatic caller must not be
+    // able to reassign currentStreamingMessageId and race a live prompt (would kill any
+    // running sub-agent). Interrupt via cancelPrompt() (Stop) instead.
+    if (this._isStreaming$.value) {
+      console.warn('[AiChatService] sendMessage ignored: a prompt is already streaming. Use Stop to interrupt.');
+      return;
+    }
 
     // Add user message
     this.addMessage('user', message);

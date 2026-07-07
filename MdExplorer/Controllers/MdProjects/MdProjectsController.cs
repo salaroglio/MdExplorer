@@ -681,7 +681,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                             "Check Startup.cs IAiProvider registrations.");
                     }
                     copilotProvider.WorkingDirectory = request.Path;
-                    copilotCliDefaultModel = "claude-sonnet-4.6";
+                    copilotCliDefaultModel = "claude-sonnet-5";
                     copilotCliAvailable = copilotProvider.IsAvailable();
                     logger?.LogInformation(
                         "🤖 CopilotCli auto-select: available={Available}, model={Model}, cwd={Cwd}",

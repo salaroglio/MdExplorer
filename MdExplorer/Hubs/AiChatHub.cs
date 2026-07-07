@@ -562,7 +562,7 @@ namespace MdExplorer.Hubs
                     break;
                 case "copilotcli":
                     chatMode.ProviderType = Abstractions.Models.AI.ProviderType.CopilotCli;
-                    chatMode.ModelId = modelId ?? "claude-sonnet-4.6";
+                    chatMode.ModelId = modelId ?? "claude-sonnet-5";
                     break;
                 default:
                     chatMode.ProviderType = null; // Local model
@@ -667,7 +667,7 @@ namespace MdExplorer.Hubs
                 throw new InvalidOperationException("Project path is unknown; cannot start Copilot ACP session");
             }
 
-            var effectiveModel = string.IsNullOrEmpty(modelId) ? "claude-sonnet-4.6" : modelId;
+            var effectiveModel = string.IsNullOrEmpty(modelId) ? "claude-sonnet-5" : modelId;
             var session = await _copilotAcpPool.GetOrCreateAsync(
                 Context.ConnectionId, projectPath, effectiveModel);
 

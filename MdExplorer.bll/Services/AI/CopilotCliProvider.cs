@@ -33,7 +33,7 @@ namespace MdExplorer.Features.Services.AI
         private const int PROCESS_TIMEOUT_MS = 300000; // 5 minutes
         private const int AVAILABILITY_CHECK_TIMEOUT_MS = 5000;
         private const string SYSTEM_PROMPT_SETTING = "CopilotCli_SystemPrompt";
-        private const string DEFAULT_MODEL = "claude-sonnet-4.6";
+        private const string DEFAULT_MODEL = "claude-sonnet-5";
         private const int MAX_COMMAND_LINE_CHARS = 30000;
 
         /// <summary>

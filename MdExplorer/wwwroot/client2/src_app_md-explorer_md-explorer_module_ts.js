@@ -617,6 +617,10 @@ const _c3 = function (a0) {
   };
 };
 class AiChatComponent {
+  // Pixels from the bottom under which the list counts as "at the bottom".
+  static {
+    this.SCROLL_BOTTOM_THRESHOLD = 40;
+  }
   constructor(aiService, router, sanitizer, layoutService, translate, projectsService) {
     this.aiService = aiService;
     this.router = router;
@@ -655,12 +659,25 @@ class AiChatComponent {
     this.collapsedThinking = new Set();
     this.destroy$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     this.shouldScrollToBottom = false;
+    // Set on the first messages$ emission after (re)creation: the tab was just
+    // (re)opened, so restore the last scroll position instead of snapping down.
+    this.shouldRestoreScroll = false;
+    this.isFirstMessagesEmission = true;
   }
   ngOnInit() {
     // Subscribe to messages
     this.aiService.messages$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.takeUntil)(this.destroy$)).subscribe(messages => {
       this.messages = messages;
-      this.shouldScrollToBottom = true;
+      if (this.isFirstMessagesEmission) {
+        // Component just (re)created for this tab: restore where the user
+        // left off. If they were parked at the bottom, restoring lands there
+        // anyway, so the last-message-visible behavior is preserved.
+        this.isFirstMessagesEmission = false;
+        this.shouldRestoreScroll = true;
+      } else {
+        // A genuine new/updated message during this session: keep following it.
+        this.shouldScrollToBottom = true;
+      }
     });
     // Track streaming state to toggle the Send/Stop button.
     this.aiService.isStreaming$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.takeUntil)(this.destroy$)).subscribe(streaming => this.isStreaming = streaming);
@@ -731,10 +748,39 @@ class AiChatComponent {
     });
   }
   ngAfterViewChecked() {
+    if (this.shouldRestoreScroll && this.scrollContainer) {
+      // Restore the position captured before the tab was left. Restore wins
+      // over the initial shouldScrollToBottom so reopening the tab no longer
+      // jumps the conversation to the top.
+      this.shouldRestoreScroll = false;
+      this.shouldScrollToBottom = false;
+      this.restoreScrollPosition();
+      return;
+    }
     if (this.shouldScrollToBottom) {
       this.scrollToBottom();
       this.shouldScrollToBottom = false;
     }
+  }
+  /** Persist the current scroll position so it survives a tab switch. */
+  onChatScroll() {
+    const el = this.scrollContainer?.nativeElement;
+    // offsetParent is null while the tab body is detached/hidden; ignore those
+    // spurious scroll(0) events so we don't overwrite the saved position.
+    if (!el || el.offsetParent === null) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    this.aiService.savedScrollTop = el.scrollTop;
+    this.aiService.savedAtBottom = distanceFromBottom <= AiChatComponent.SCROLL_BOTTOM_THRESHOLD;
+  }
+  restoreScrollPosition() {
+    try {
+      const el = this.scrollContainer.nativeElement;
+      if (this.aiService.savedAtBottom) {
+        el.scrollTop = el.scrollHeight;
+      } else {
+        el.scrollTop = this.aiService.savedScrollTop;
+      }
+    } catch (err) {}
   }
   ngOnDestroy() {
     this.destroy$.next();
@@ -923,7 +969,7 @@ class AiChatComponent {
       },
       decls: 34,
       vars: 33,
-      consts: [[1, "ai-chat-container", 3, "ngClass"], [1, "chat-header", 3, "color"], [4, "ngIf"], ["class", "header-title", 4, "ngIf"], [1, "spacer"], ["class", "model-status", 4, "ngIf"], ["mat-icon-button", "", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", 3, "matTooltip", "click"], ["class", "model-manager-panel", 4, "ngIf"], [1, "chat-messages"], ["scrollContainer", ""], ["class", "no-messages", 4, "ngIf"], [3, "ngClass", 4, "ngFor", "ngForOf"], ["class", "copilot-cli-unavailable-banner", 4, "ngIf"], [1, "chat-input-container"], ["class", "configuring-provider-banner", 4, "ngIf"], [1, "chat-input", 3, "appearance"], ["matInput", "", 3, "ngModel", "placeholder", "rows", "disabled", "ngModelChange", "keydown"], ["messageInput", ""], ["mat-fab", "", "color", "primary", "class", "send-button", 3, "disabled", "click", 4, "ngIf"], ["mat-mini-fab", "", "color", "primary", "class", "send-button", 3, "disabled", "click", 4, "ngIf"], ["mat-fab", "", "color", "warn", "class", "send-button stop-button", 3, "title", "click", 4, "ngIf"], ["mat-mini-fab", "", "color", "warn", "class", "send-button stop-button", 3, "title", "click", 4, "ngIf"], [1, "header-title"], [1, "model-status"], ["selected", "", 3, "color", 4, "ngIf"], ["color", "warn", 4, "ngIf"], ["color", "primary", 4, "ngIf"], ["class", "copilot-model-picker", "aria-label", "Copilot model", 4, "ngIf"], ["selected", "", 3, "color"], ["color", "warn"], ["color", "primary"], ["aria-label", "Copilot model", 1, "copilot-model-picker"], [3, "selected", "disabled", "color", "matTooltip", "click", 4, "ngFor", "ngForOf"], [3, "selected", "disabled", "color", "matTooltip", "click"], [1, "model-manager-panel"], ["modelManagerPanel", ""], [3, "contentChanged"], [1, "no-messages"], ["class", "hint", 4, "ngIf"], [1, "hint"], [3, "ngClass"], [1, "message-content"], [1, "message-header"], [1, "message-role"], ["class", "message-actions", 4, "ngIf"], [1, "message-time"], ["class", "thinking-section", 4, "ngIf"], ["class", "message-text", 3, "innerHTML", 4, "ngIf"], ["class", "message-edit", 4, "ngIf"], ["mode", "indeterminate", 3, "diameter", 4, "ngIf"], [1, "message-actions"], ["mat-icon-button", "", "class", "action-button", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", 1, "action-button", 3, "matTooltip", "click"], [1, "thinking-section"], [1, "thinking-header", 3, "click"], [1, "thinking-icon"], [1, "thinking-label"], [1, "thinking-toggle"], ["mode", "indeterminate", "class", "thinking-spinner", 3, "diameter", 4, "ngIf"], ["class", "thinking-body", 3, "innerHTML", 4, "ngIf"], ["mode", "indeterminate", 1, "thinking-spinner", 3, "diameter"], [1, "thinking-body", 3, "innerHTML"], [1, "message-text", 3, "innerHTML"], [1, "message-edit"], ["appearance", "outline", 1, "edit-textarea"], ["matInput", "", "autosize", "", "cdkTextareaAutosize", "", "cdkAutosizeMinRows", "2", "cdkAutosizeMaxRows", "10", 3, "ngModel", "rows", "ngModelChange"], ["autosize", "cdkTextareaAutosize"], [1, "edit-actions"], ["mat-button", "", 3, "click"], ["mat-raised-button", "", "color", "primary", 3, "click"], ["mode", "indeterminate", 3, "diameter"], [1, "copilot-cli-unavailable-banner"], [1, "banner-text"], [1, "banner-hint"], ["mat-stroked-button", "", 3, "click"], [1, "configuring-provider-banner"], ["diameter", "16", "mode", "indeterminate"], ["mat-fab", "", "color", "primary", 1, "send-button", 3, "disabled", "click"], ["mat-mini-fab", "", "color", "primary", 1, "send-button", 3, "disabled", "click"], ["mat-fab", "", "color", "warn", 1, "send-button", "stop-button", 3, "title", "click"], ["mat-mini-fab", "", "color", "warn", 1, "send-button", "stop-button", 3, "title", "click"]],
+      consts: [[1, "ai-chat-container", 3, "ngClass"], [1, "chat-header", 3, "color"], [4, "ngIf"], ["class", "header-title", 4, "ngIf"], [1, "spacer"], ["class", "model-status", 4, "ngIf"], ["mat-icon-button", "", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", 3, "matTooltip", "click"], ["class", "model-manager-panel", 4, "ngIf"], [1, "chat-messages", 3, "scroll"], ["scrollContainer", ""], ["class", "no-messages", 4, "ngIf"], [3, "ngClass", 4, "ngFor", "ngForOf"], ["class", "copilot-cli-unavailable-banner", 4, "ngIf"], [1, "chat-input-container"], ["class", "configuring-provider-banner", 4, "ngIf"], [1, "chat-input", 3, "appearance"], ["matInput", "", 3, "ngModel", "placeholder", "rows", "disabled", "ngModelChange", "keydown"], ["messageInput", ""], ["mat-fab", "", "color", "primary", "class", "send-button", 3, "disabled", "click", 4, "ngIf"], ["mat-mini-fab", "", "color", "primary", "class", "send-button", 3, "disabled", "click", 4, "ngIf"], ["mat-fab", "", "color", "warn", "class", "send-button stop-button", 3, "title", "click", 4, "ngIf"], ["mat-mini-fab", "", "color", "warn", "class", "send-button stop-button", 3, "title", "click", 4, "ngIf"], [1, "header-title"], [1, "model-status"], ["selected", "", 3, "color", 4, "ngIf"], ["color", "warn", 4, "ngIf"], ["color", "primary", 4, "ngIf"], ["class", "copilot-model-picker", "aria-label", "Copilot model", 4, "ngIf"], ["selected", "", 3, "color"], ["color", "warn"], ["color", "primary"], ["aria-label", "Copilot model", 1, "copilot-model-picker"], [3, "selected", "disabled", "color", "matTooltip", "click", 4, "ngFor", "ngForOf"], [3, "selected", "disabled", "color", "matTooltip", "click"], [1, "model-manager-panel"], ["modelManagerPanel", ""], [3, "contentChanged"], [1, "no-messages"], ["class", "hint", 4, "ngIf"], [1, "hint"], [3, "ngClass"], [1, "message-content"], [1, "message-header"], [1, "message-role"], ["class", "message-actions", 4, "ngIf"], [1, "message-time"], ["class", "thinking-section", 4, "ngIf"], ["class", "message-text", 3, "innerHTML", 4, "ngIf"], ["class", "message-edit", 4, "ngIf"], ["mode", "indeterminate", 3, "diameter", 4, "ngIf"], [1, "message-actions"], ["mat-icon-button", "", "class", "action-button", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", 1, "action-button", 3, "matTooltip", "click"], [1, "thinking-section"], [1, "thinking-header", 3, "click"], [1, "thinking-icon"], [1, "thinking-label"], [1, "thinking-toggle"], ["mode", "indeterminate", "class", "thinking-spinner", 3, "diameter", 4, "ngIf"], ["class", "thinking-body", 3, "innerHTML", 4, "ngIf"], ["mode", "indeterminate", 1, "thinking-spinner", 3, "diameter"], [1, "thinking-body", 3, "innerHTML"], [1, "message-text", 3, "innerHTML"], [1, "message-edit"], ["appearance", "outline", 1, "edit-textarea"], ["matInput", "", "autosize", "", "cdkTextareaAutosize", "", "cdkAutosizeMinRows", "2", "cdkAutosizeMaxRows", "10", 3, "ngModel", "rows", "ngModelChange"], ["autosize", "cdkTextareaAutosize"], [1, "edit-actions"], ["mat-button", "", 3, "click"], ["mat-raised-button", "", "color", "primary", 3, "click"], ["mode", "indeterminate", 3, "diameter"], [1, "copilot-cli-unavailable-banner"], [1, "banner-text"], [1, "banner-hint"], ["mat-stroked-button", "", 3, "click"], [1, "configuring-provider-banner"], ["diameter", "16", "mode", "indeterminate"], ["mat-fab", "", "color", "primary", 1, "send-button", 3, "disabled", "click"], ["mat-mini-fab", "", "color", "primary", 1, "send-button", 3, "disabled", "click"], ["mat-fab", "", "color", "warn", 1, "send-button", "stop-button", 3, "title", "click"], ["mat-mini-fab", "", "color", "warn", 1, "send-button", "stop-button", 3, "title", "click"]],
       template: function AiChatComponent_Template(rf, ctx) {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](0, "div", 0)(1, "mat-toolbar", 1);
@@ -950,6 +996,9 @@ class AiChatComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]()()();
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](15, AiChatComponent_div_15_Template, 3, 0, "div", 8);
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](16, "div", 9, 10);
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("scroll", function AiChatComponent_Template_div_scroll_16_listener() {
+            return ctx.onChatScroll();
+          });
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](18, AiChatComponent_div_18_Template, 7, 4, "div", 11);
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtemplate"](19, AiChatComponent_div_19_Template, 16, 17, "div", 12);
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();

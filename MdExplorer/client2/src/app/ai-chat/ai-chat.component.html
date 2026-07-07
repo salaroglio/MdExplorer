@@ -54,7 +54,7 @@
   </div>
 
   <!-- Chat Messages -->
-  <div class="chat-messages" #scrollContainer>
+  <div class="chat-messages" #scrollContainer (scroll)="onChatScroll()">
     <div *ngIf="messages.length === 0" class="no-messages">
       <mat-icon>chat_bubble_outline</mat-icon>
       <p>{{ 'AI_CHAT.START_CONVERSATION' | translate }}</p>

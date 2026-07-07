@@ -52,6 +52,12 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   private destroy$ = new Subject<void>();
   private shouldScrollToBottom = false;
+  // Pixels from the bottom under which the list counts as "at the bottom".
+  private static readonly SCROLL_BOTTOM_THRESHOLD = 40;
+  // Set on the first messages$ emission after (re)creation: the tab was just
+  // (re)opened, so restore the last scroll position instead of snapping down.
+  private shouldRestoreScroll = false;
+  private isFirstMessagesEmission = true;
 
   constructor(
     private aiService: AiChatService,
@@ -69,7 +75,16 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       .pipe(takeUntil(this.destroy$))
       .subscribe(messages => {
         this.messages = messages;
-        this.shouldScrollToBottom = true;
+        if (this.isFirstMessagesEmission) {
+          // Component just (re)created for this tab: restore where the user
+          // left off. If they were parked at the bottom, restoring lands there
+          // anyway, so the last-message-visible behavior is preserved.
+          this.isFirstMessagesEmission = false;
+          this.shouldRestoreScroll = true;
+        } else {
+          // A genuine new/updated message during this session: keep following it.
+          this.shouldScrollToBottom = true;
+        }
       });
 
     // Track streaming state to toggle the Send/Stop button.
@@ -163,10 +178,41 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   ngAfterViewChecked(): void {
+    if (this.shouldRestoreScroll && this.scrollContainer) {
+      // Restore the position captured before the tab was left. Restore wins
+      // over the initial shouldScrollToBottom so reopening the tab no longer
+      // jumps the conversation to the top.
+      this.shouldRestoreScroll = false;
+      this.shouldScrollToBottom = false;
+      this.restoreScrollPosition();
+      return;
+    }
     if (this.shouldScrollToBottom) {
       this.scrollToBottom();
       this.shouldScrollToBottom = false;
     }
+  }
+
+  /** Persist the current scroll position so it survives a tab switch. */
+  onChatScroll(): void {
+    const el = this.scrollContainer?.nativeElement;
+    // offsetParent is null while the tab body is detached/hidden; ignore those
+    // spurious scroll(0) events so we don't overwrite the saved position.
+    if (!el || el.offsetParent === null) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    this.aiService.savedScrollTop = el.scrollTop;
+    this.aiService.savedAtBottom = distanceFromBottom <= AiChatComponent.SCROLL_BOTTOM_THRESHOLD;
+  }
+
+  private restoreScrollPosition(): void {
+    try {
+      const el = this.scrollContainer.nativeElement;
+      if (this.aiService.savedAtBottom) {
+        el.scrollTop = el.scrollHeight;
+      } else {
+        el.scrollTop = this.aiService.savedScrollTop;
+      }
+    } catch (err) {}
   }
 
   ngOnDestroy(): void {
@@ -176,6 +222,11 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   sendMessage(): void {
     if (!this.inputMessage.trim() || !this.isModelLoaded || this.isConfiguringProvider) return;
+    // A prompt is already streaming: refuse to fire a second turn. Sending now would
+    // reassign currentStreamingMessageId (corrupting the in-flight bubble) and start a
+    // second session/prompt on top of the live one — killing any running sub-agent.
+    // To interrupt, the user must press Stop, which cancels gracefully.
+    if (this.isStreaming) return;
 
     this.aiService.sendMessage(this.inputMessage);
     this.inputMessage = '';

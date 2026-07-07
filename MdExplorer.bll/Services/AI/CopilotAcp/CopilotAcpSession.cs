@@ -457,10 +457,13 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
             {
                 if (root.TryGetProperty("method", out _))
                 {
-                    // Server-initiated request. Not handled; we should reply with method-not-found
-                    // but ignoring is safer than misbehaving. Log for visibility.
-                    _logger.LogDebug("[CopilotAcpSession] Ignoring server-initiated request: {Method}",
-                        root.GetProperty("method").GetString());
+                    // Server-initiated request (has BOTH id and method). We do not yet reply.
+                    // If Copilot ever sends session/request_permission here and we stay silent,
+                    // the agent blocks forever waiting for our response — a real deadlock.
+                    // DIAGNOSTIC: log the full raw request so we can see exactly what Copilot
+                    // asks when it spawns a tool/sub-agent, then implement the proper reply.
+                    _logger.LogWarning("[CopilotAcpSession][ACP-DIAG] Server-initiated request (method={Method}) — currently IGNORED (potential deadlock). Raw: {Raw}",
+                        root.GetProperty("method").GetString(), Truncate(root.GetRawText(), 2000));
                     doc.Dispose();
                     return;
                 }
@@ -519,7 +522,16 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                 "agent_thought_chunk" => CopilotAcpChunk.KindThinking,
                 _ => null
             };
-            if (chunkKind == null) return;
+            if (chunkKind == null)
+            {
+                // DIAGNOSTIC: every other session/update kind (tool_call, tool_call_update,
+                // plan, sub-agent activity, …) is currently dropped here — this is why the
+                // chat looks frozen while a sub-agent runs. Log the kind + raw update so we
+                // can implement the live status line on the real wire shape.
+                _logger.LogWarning("[CopilotAcpSession][ACP-DIAG] Unhandled session/update kind={Kind} — DROPPED. Raw: {Raw}",
+                    kind, Truncate(updateEl.GetRawText(), 2000));
+                return;
+            }
 
             if (!updateEl.TryGetProperty("content", out var contentEl)) return;
             if (!contentEl.TryGetProperty("type", out var typeEl) || typeEl.GetString() != "text") return;
