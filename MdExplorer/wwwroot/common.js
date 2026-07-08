@@ -181,10 +181,14 @@ if (window.commonJsLoaded) {
         document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-yaml.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-yaml.js');
 
+        // TABLES: floating horizontal scrollbar for wide markdown tables
+        document.write("<link href='/javascripts/jqueryForFirstPage/tables/table-hscroll.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/tables/table-hscroll.js');
+
         // CORE: Initialization coordinator (MUST BE LAST)
         loadScriptOnce('/javascripts/jqueryForFirstPage/core/init.js');
 
-        console.log('=== MODULAR FILES LOADED (24 files) ===');
+        console.log('=== MODULAR FILES LOADED (25 files) ===');
     } else {
         console.log('=== LOADING MONOLITHIC jqueryForFirstPage.js ===');
         loadScriptOnce('/javascripts/jqueryForFirstPage.js');

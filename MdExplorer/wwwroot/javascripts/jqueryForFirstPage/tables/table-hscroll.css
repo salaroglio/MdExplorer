@@ -1,0 +1,56 @@
+/* ============================================================================
+ * MdExplorer - Floating horizontal scrollbar for wide markdown tables
+ * ----------------------------------------------------------------------------
+ * A single custom scrollbar pinned to the iframe viewport bottom drives the
+ * horizontal scroll of the wide table currently in view. This replaces the
+ * native scrollbar which sits at the far BOTTOM of a (possibly very tall)
+ * table and is therefore unreachable while reading the top rows.
+ *
+ * The native bar is hidden ONLY on tables the JS actually manages
+ * (.mde-hscroll-managed, added by table-hscroll.js). Without JS the native bar
+ * stays visible, so a wide table is never left without a way to scroll.
+ * ========================================================================== */
+
+/* Hide the native far-bottom horizontal scrollbar on JS-managed tables only. */
+.mde-hscroll-managed::-webkit-scrollbar { height: 0 !important; width: 0 !important; }
+.mde-hscroll-managed { scrollbar-width: none; } /* Firefox */
+
+/* The floating bar itself (one instance, reused for the active table). */
+.mde-hscroll {
+    position: fixed;
+    bottom: 0;
+    height: 14px;
+    z-index: 1015; /* below .mdeLowerBar (1020), above content */
+    display: none; /* shown by JS when a wide table is in view */
+    background: #f0f0f0;
+    border-top: 1px solid rgba(0, 0, 0, 0.10);
+    box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.10);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    overflow: hidden;
+}
+
+.mde-hscroll__thumb {
+    position: absolute;
+    top: 2px;
+    height: 10px;
+    min-width: 24px;
+    border-radius: 5px;
+    background: #b8b8b8;
+    cursor: grab;
+    transition: background 0.15s ease;
+}
+
+.mde-hscroll__thumb:hover { background: #9a9a9a; }
+.mde-hscroll__thumb.dragging { background: #808080; cursor: grabbing; transition: none; }
+
+/* Dark / Milan theme (body.dark-theme) — mirror dark-theme.css scrollbar tones. */
+body.dark-theme .mde-hscroll {
+    background: #2d2d2d;
+    border-top-color: #444;
+    box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.4);
+}
+body.dark-theme .mde-hscroll__thumb { background: #555; }
+body.dark-theme .mde-hscroll__thumb:hover { background: #777; }
+body.dark-theme .mde-hscroll__thumb.dragging { background: #888; }
