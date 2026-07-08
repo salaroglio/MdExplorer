@@ -25,6 +25,30 @@ details {
 .mdeItemMainPageCenter table.table th {
     white-space: normal;
     overflow-wrap: anywhere;
+    /* Larghezza minima di colonna: le celle vanno a capo (leggibili) ma la
+       tabella resta abbastanza larga da sforare il riquadro → torna la scrollbar
+       orizzontale. Compromesso: le colonne con valori corti restano larghe.
+       Valore tarabile (36ch = scroll più corto, 44ch = più largo). */
+    min-width: 40ch;
+}
+/* Scrollbar del riquadro tabella: più visibili e afferrabili (la orizzontale è
+   in fondo al riquadro, sempre in vista perché il riquadro è ≤75vh). */
+.mdeItemMainPageCenter table.table::-webkit-scrollbar {
+    height: 12px;
+    width: 12px;
+}
+.mdeItemMainPageCenter table.table::-webkit-scrollbar-thumb {
+    background: #b8b8b8;
+    border-radius: 6px;
+}
+.mdeItemMainPageCenter table.table::-webkit-scrollbar-thumb:hover {
+    background: #9a9a9a;
+}
+body.dark-theme .mdeItemMainPageCenter table.table::-webkit-scrollbar-thumb {
+    background: #555555;
+}
+body.dark-theme .mdeItemMainPageCenter table.table::-webkit-scrollbar-thumb:hover {
+    background: #777777;
 }
 /* Header sticky. box-shadow al posto dei bordi: con position:sticky +
    border-collapse i bordi della riga header spariscono durante lo scroll. */
