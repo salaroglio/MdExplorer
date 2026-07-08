@@ -559,6 +559,23 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 logger?.LogInformation($"📝 Project saved. LinkIndexingEnabled={project.LinkIndexingEnabled}");
                 logPhase("UserSettingsDB Project upsert");
 
+                // Hook "project opened" (es. schedule di agenti .agent.md con trigger
+                // projectOpen). Ogni handler è isolato: un hook rotto non deve mai
+                // impedire l'apertura del progetto.
+                foreach (var projectOpenedHandler in HttpContext.RequestServices
+                             .GetServices<MdExplorer.Abstractions.Services.IProjectOpenedEventHandler>())
+                {
+                    try
+                    {
+                        projectOpenedHandler.OnProjectOpened(request.Path);
+                    }
+                    catch (Exception hookEx)
+                    {
+                        logger?.LogError(hookEx, "Project-opened hook {Handler} failed",
+                            projectOpenedHandler.GetType().Name);
+                    }
+                }
+
                 // Log Git initialization status
                 if (gitInitialized)
                 {

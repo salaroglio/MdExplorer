@@ -245,6 +245,12 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     context.TextFileExtensions = null;
                 }
 
+                // Commit hook for *.agent.md schedules: a dedicated watcher on
+                // .git/logs/HEAD (the reflog is appended on EVERY commit, whether it
+                // comes from MdExplorer or from an external terminal). Kept separate
+                // from the main watcher so the storm/debounce pipeline stays untouched.
+                TryRegisterCommitWatcher(context);
+
                 _watchers[connectionId] = context;
 
                 _logger.LogInformation($"✅ FileSystemWatcher registered for connection {connectionId}");
@@ -253,6 +259,54 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             {
                 _logger.LogError(ex, $"❌ Failed to register FileSystemWatcher for connection {connectionId}");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Watches <c>.git/logs/HEAD</c> and fires the agent-schedule "commit" hook with a
+        /// 500ms debounce (git touches the reflog more than once per commit). No-op when
+        /// the project is not a git repository. The event service is resolved lazily from
+        /// the provider to keep this manager free of new constructor dependencies.
+        /// </summary>
+        private void TryRegisterCommitWatcher(WatcherContext context)
+        {
+            try
+            {
+                var gitLogsPath = Path.Combine(context.ProjectPath, ".git", "logs");
+                if (!File.Exists(Path.Combine(gitLogsPath, "HEAD")))
+                {
+                    return; // not a git repo (or no commit yet) — nothing to watch
+                }
+
+                context.CommitDebounceTimer = new System.Threading.Timer(_ =>
+                {
+                    try
+                    {
+                        var eventService = _serviceProvider.GetService<AgentRun.IAgentScheduleEventService>();
+                        eventService?.OnCommitDetected(context.ProjectPath);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, $"[{context.ConnectionId}] Commit hook dispatch failed");
+                    }
+                }, null, System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+
+                var commitWatcher = new System.IO.FileSystemWatcher(gitLogsPath)
+                {
+                    Filter = "HEAD",
+                    NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.Size,
+                    EnableRaisingEvents = true
+                };
+                commitWatcher.Changed += (sender, e) =>
+                    context.CommitDebounceTimer?.Change(500, System.Threading.Timeout.Infinite);
+                context.CommitWatcher = commitWatcher;
+
+                _logger.LogInformation($"[{context.ConnectionId}] Commit watcher active on {gitLogsPath}/HEAD");
+            }
+            catch (Exception ex)
+            {
+                // The commit hook is an extra: its failure must never break watcher registration.
+                _logger.LogWarning(ex, $"[{context.ConnectionId}] Could not register commit watcher");
             }
         }
 
@@ -293,6 +347,14 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                     // Dispose storm cooldown timer
                     context.StormCooldownTimer?.Dispose();
+
+                    // Dispose the commit hook watcher + its debounce timer
+                    if (context.CommitWatcher != null)
+                    {
+                        context.CommitWatcher.EnableRaisingEvents = false;
+                        context.CommitWatcher.Dispose();
+                    }
+                    context.CommitDebounceTimer?.Dispose();
 
                     // Dispose the debounced text-reindex timer for this connection
                     if (_textReindexTimers.TryRemove(connectionId, out var textTimer))

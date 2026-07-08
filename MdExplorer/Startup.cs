@@ -92,6 +92,11 @@ namespace MdExplorer
 
             // Esecuzione headless degli agenti *.agent.md (lancio manuale, schedule, hook)
             services.AddSingleton<Services.AgentRun.IAgentRunJobService, Services.AgentRun.AgentRunJobService>();
+            // Hook a eventi delle schedule agenti (commit via FSW su .git/logs/HEAD,
+            // apertura progetto). I trigger cron appartengono SOLO al satellite scheduler.
+            services.AddSingleton<Services.AgentRun.IAgentScheduleEventService, Services.AgentRun.AgentScheduleEventService>();
+            services.AddSingleton<MdExplorer.Abstractions.Services.IProjectOpenedEventHandler>(
+                sp => (Services.AgentRun.AgentScheduleEventService)sp.GetRequiredService<Services.AgentRun.IAgentScheduleEventService>());
 
             // Shell execution for fenced code blocks (bash/sh/powershell/pwsh/cmd)
             services.AddSingleton<Services.Execution.ShellRegistry>();

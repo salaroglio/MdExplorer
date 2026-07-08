@@ -91,7 +91,7 @@ namespace MdExplorer.Services.AgentRun
         private async Task RunInternalAsync(AgentRunRequestModel request, CancellationTokenSource cts)
         {
             var agentName = Path.GetFileName(request.AgentFilePath);
-            InsertLogRow(request);
+            var logId = InsertLogRow(request);
             try
             {
                 _logger.LogInformation(
@@ -133,7 +133,7 @@ namespace MdExplorer.Services.AgentRun
                     "[AgentRun] COMPLETED agent='{Agent}' runId={RunId} outputChars={Chars}",
                     agentName, request.RunId, output?.Length ?? 0);
 
-                CompleteLogRow(request, "success", Tail(output), null);
+                CompleteLogRow(logId, request, "success", Tail(output), null);
                 await SendAsync(request, new
                 {
                     runId = request.RunId,
@@ -148,7 +148,7 @@ namespace MdExplorer.Services.AgentRun
             catch (OperationCanceledException)
             {
                 _logger.LogInformation("[AgentRun] CANCELLED agent='{Agent}' runId={RunId}", agentName, request.RunId);
-                CompleteLogRow(request, "cancelled", null, null);
+                CompleteLogRow(logId, request, "cancelled", null, null);
                 await SendAsync(request, new
                 {
                     runId = request.RunId,
@@ -162,7 +162,7 @@ namespace MdExplorer.Services.AgentRun
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[AgentRun] FAILED agent='{Agent}' runId={RunId}", agentName, request.RunId);
-                CompleteLogRow(request, ex is TimeoutException ? "timeout" : "error", null, ex.Message);
+                CompleteLogRow(logId, request, ex is TimeoutException ? "timeout" : "error", null, ex.Message);
                 await SendAsync(request, new
                 {
                     runId = request.RunId,
@@ -182,22 +182,24 @@ namespace MdExplorer.Services.AgentRun
         }
 
         /// <summary>
-        /// Inserts the "running" row for this run. IUserSettingsDB is a shared NHibernate
-        /// session — even in background work it must be resolved from a short-lived scope
-        /// and used inside an explicit transaction (see MarkFolderJobService pattern).
+        /// Inserts the "running" row for this run and returns its generated Id.
+        /// The Id is NOT set to RunId: the mapping uses GuidComb, and a pre-assigned Id
+        /// makes NHibernate treat the entity as detached → UPDATE on a missing row →
+        /// StaleObjectStateException. IUserSettingsDB is a shared NHibernate session —
+        /// even in background work it must be resolved from a short-lived scope and used
+        /// inside an explicit transaction (see MarkFolderJobService pattern).
         /// Log failures are non-fatal: the run itself matters more than its bookkeeping.
         /// </summary>
-        private void InsertLogRow(AgentRunRequestModel request)
+        private Guid? InsertLogRow(AgentRunRequestModel request)
         {
             try
             {
                 using var scope = _scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetService<IUserSettingsDB>();
-                if (db == null) return;
+                if (db == null) return null;
                 db.BeginTransaction();
-                db.GetDal<AgentExecutionLog>().Save(new AgentExecutionLog
+                var row = new AgentExecutionLog
                 {
-                    Id = request.RunId,
                     ScheduleId = request.ScheduleId,
                     ProjectPath = request.ProjectPath,
                     AgentFilePath = request.AgentFilePath,
@@ -205,16 +207,19 @@ namespace MdExplorer.Services.AgentRun
                     ExecutedBy = "service",
                     StartedAt = DateTime.UtcNow,
                     Status = "running"
-                });
+                };
+                db.GetDal<AgentExecutionLog>().Save(row);
                 db.Commit();
+                return row.Id;
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "[AgentRun] Could not insert execution log row (non-fatal)");
+                return null;
             }
         }
 
-        private void CompleteLogRow(AgentRunRequestModel request, string status, string outputSummary, string error)
+        private void CompleteLogRow(Guid? logId, AgentRunRequestModel request, string status, string outputSummary, string error)
         {
             try
             {
@@ -224,7 +229,7 @@ namespace MdExplorer.Services.AgentRun
 
                 db.BeginTransaction();
                 var logDal = db.GetDal<AgentExecutionLog>();
-                var row = logDal.GetList().FirstOrDefault(l => l.Id == request.RunId);
+                var row = logId.HasValue ? logDal.GetList().FirstOrDefault(l => l.Id == logId.Value) : null;
                 if (row != null)
                 {
                     row.FinishedAt = DateTime.UtcNow;
