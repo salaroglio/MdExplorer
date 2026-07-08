@@ -45,6 +45,17 @@ export class AgentLaunchService {
     });
   }
 
+  /** Substitutes parameter values server-side and returns the ready-to-run prompt. */
+  prepare(
+    prompt: string,
+    parameterValues: { [name: string]: string },
+  ): Observable<{ success: boolean; preparedPrompt?: string; error?: string }> {
+    return this.http.post<{ success: boolean; preparedPrompt?: string; error?: string }>(
+      '/api/AgentPrompts/prepare',
+      { prompt, parameterValues },
+    );
+  }
+
   launch(
     projectPath: string,
     agentFilePath: string,

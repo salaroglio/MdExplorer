@@ -746,7 +746,8 @@
     "FILE_NOT_FOUND": "File not found in tree",
     "CANNOT_DETERMINE_ROOT": "Error: Could not determine project root",
     "TAG_TOGGLED": "Tag '{{tag}}' {{action}}",
-    "LAUNCH_AGENT": "Prepare and launch this agent"
+    "LAUNCH_AGENT": "Prepare and launch this agent",
+    "AGENT_SCHEDULING": "Agent scheduling..."
   },
   "MAIN_CONTENT": {
     "LOADING_DOC": "Loading document...",
@@ -1625,6 +1626,42 @@
     "LAUNCH_NOW": "Launch now",
     "LAUNCHING": "Launching...",
     "LAUNCH_ERROR": "Agent launch failed",
-    "STARTED": "Agent \"{{agent}}\" started in background"
+    "STARTED": "Agent \"{{agent}}\" started in background",
+    "SAVE_SCHEDULE": "Save as scheduled job",
+    "SAVE_SCHEDULE_TOOLTIP": "Substitute the chosen values and open the scheduling dialog"
+  },
+  "AGENT_SCHEDULE": {
+    "TITLE": "Agent scheduling",
+    "EXISTING": "Existing schedules",
+    "NEW_HEADER": "New schedule",
+    "EDIT_HEADER": "Edit schedule",
+    "NAME_LABEL": "Name",
+    "PROMPT_LABEL": "Prepared prompt",
+    "PROMPT_PLACEHOLDER": "The ready-to-run prompt (parameters already substituted)...",
+    "PROMPT_HINT": "This exact text will be fed to the agent at every firing",
+    "PROMPT_EDIT_TOGGLE": "Unlock/lock prompt editing",
+    "TRIGGER_LABEL": "Trigger",
+    "TRIGGER_CRON": "Time schedule (cron)",
+    "TRIGGER_COMMIT": "On git commit",
+    "TRIGGER_PROJECTOPEN": "On project open",
+    "CRON_LABEL": "Cron expression",
+    "CRON_HINT": "e.g. \"0 7 * * 1-5\" = weekdays at 07:00, \"*/30 * * * *\" = every 30 minutes",
+    "ENABLED_LABEL": "Enabled",
+    "LAST_RUN": "Last run",
+    "TOGGLE_TOOLTIP": "Enable/disable this schedule",
+    "EDIT": "Edit",
+    "DELETE": "Delete",
+    "DELETE_TITLE": "Delete schedule",
+    "DELETE_MESSAGE": "Delete the schedule \"{{name}}\"?",
+    "TRUST_TITLE": "Trust this agent?",
+    "TRUST_MESSAGE": "The agent \"{{agent}}\" will run AUTOMATICALLY and unattended, with full tool access (--allow-all-tools), inside {{project}}. Enable it only if you trust its instructions.",
+    "TRUST_CONFIRM": "I trust it, enable",
+    "SAVED": "Schedule saved",
+    "SAVE_ERROR": "Saving the schedule failed",
+    "SAVE_BUTTON": "Save schedule",
+    "UPDATE_BUTTON": "Update schedule",
+    "NEW_BUTTON": "New",
+    "EXECUTIONS": "Executions",
+    "NO_EXECUTIONS": "No executions yet"
   }
 }

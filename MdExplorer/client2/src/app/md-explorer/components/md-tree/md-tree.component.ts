@@ -31,6 +31,7 @@ import { ShowFileSystemComponent } from '../../../commons/components/show-file-s
 import { ShowFileMetadata } from '../../../commons/components/show-file-system/show-file-metadata';
 import { InstallWizardDialogComponent, InstallWizardData } from '../dialogs/install-wizard/install-wizard.component';
 import { AgentLaunchDialogComponent } from '../agent-launch-dialog/agent-launch-dialog.component';
+import { AgentScheduleDialogComponent } from '../agent-schedule-dialog/agent-schedule-dialog.component';
 import { AppStoreService } from '../../services/app-store.service';
 import { BulkExportProgressService } from '../../services/bulk-export-progress.service';
 import { FileEventsService } from '../../services/file-events.service';
@@ -986,6 +987,19 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const projectPath = this.projectsService.currentProjects$.value?.path || '';
     this.dialog.open(AgentLaunchDialogComponent, {
       width: '700px',
+      data: {
+        projectPath,
+        agentFilePath: node.fullPath,
+        agentName: node.name,
+      },
+    });
+  }
+
+  /** Per-user scheduling of a *.agent.md agent (context-menu entry). */
+  openAgentScheduling(node: MdFile) {
+    const projectPath = this.projectsService.currentProjects$.value?.path || '';
+    this.dialog.open(AgentScheduleDialogComponent, {
+      width: '760px',
       data: {
         projectPath,
         agentFilePath: node.fullPath,

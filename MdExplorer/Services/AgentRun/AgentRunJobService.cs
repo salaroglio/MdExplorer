@@ -5,12 +5,16 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Ad.Tools.Dal.Extensions;
+using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Models.AI;
 using MdExplorer.Abstractions.Services;
 using MdExplorer.Features.Execution;
 using MdExplorer.Features.Services.AI;
 using MdExplorer.Hubs;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Services.AgentRun
@@ -28,17 +32,20 @@ namespace MdExplorer.Services.AgentRun
         private readonly ILogger<AgentRunJobService> _logger;
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly IEnumerable<IAiProvider> _aiProviders;
+        private readonly IServiceScopeFactory _scopeFactory;
 
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
 
         public AgentRunJobService(
             ILogger<AgentRunJobService> logger,
             IHubContext<MonitorMDHub> hubContext,
-            IEnumerable<IAiProvider> aiProviders)
+            IEnumerable<IAiProvider> aiProviders,
+            IServiceScopeFactory scopeFactory)
         {
             _logger = logger;
             _hubContext = hubContext;
             _aiProviders = aiProviders;
+            _scopeFactory = scopeFactory;
         }
 
         // NOTE: deliberately NOT async — the registry check must run synchronously so the
@@ -84,6 +91,7 @@ namespace MdExplorer.Services.AgentRun
         private async Task RunInternalAsync(AgentRunRequestModel request, CancellationTokenSource cts)
         {
             var agentName = Path.GetFileName(request.AgentFilePath);
+            InsertLogRow(request);
             try
             {
                 _logger.LogInformation(
@@ -125,6 +133,7 @@ namespace MdExplorer.Services.AgentRun
                     "[AgentRun] COMPLETED agent='{Agent}' runId={RunId} outputChars={Chars}",
                     agentName, request.RunId, output?.Length ?? 0);
 
+                CompleteLogRow(request, "success", Tail(output), null);
                 await SendAsync(request, new
                 {
                     runId = request.RunId,
@@ -139,6 +148,7 @@ namespace MdExplorer.Services.AgentRun
             catch (OperationCanceledException)
             {
                 _logger.LogInformation("[AgentRun] CANCELLED agent='{Agent}' runId={RunId}", agentName, request.RunId);
+                CompleteLogRow(request, "cancelled", null, null);
                 await SendAsync(request, new
                 {
                     runId = request.RunId,
@@ -152,6 +162,7 @@ namespace MdExplorer.Services.AgentRun
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[AgentRun] FAILED agent='{Agent}' runId={RunId}", agentName, request.RunId);
+                CompleteLogRow(request, ex is TimeoutException ? "timeout" : "error", null, ex.Message);
                 await SendAsync(request, new
                 {
                     runId = request.RunId,
@@ -167,6 +178,80 @@ namespace MdExplorer.Services.AgentRun
             {
                 _running.TryRemove(RunKey(request.AgentFilePath), out _);
                 cts.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Inserts the "running" row for this run. IUserSettingsDB is a shared NHibernate
+        /// session — even in background work it must be resolved from a short-lived scope
+        /// and used inside an explicit transaction (see MarkFolderJobService pattern).
+        /// Log failures are non-fatal: the run itself matters more than its bookkeeping.
+        /// </summary>
+        private void InsertLogRow(AgentRunRequestModel request)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetService<IUserSettingsDB>();
+                if (db == null) return;
+                db.BeginTransaction();
+                db.GetDal<AgentExecutionLog>().Save(new AgentExecutionLog
+                {
+                    Id = request.RunId,
+                    ScheduleId = request.ScheduleId,
+                    ProjectPath = request.ProjectPath,
+                    AgentFilePath = request.AgentFilePath,
+                    TriggerSource = request.TriggerSource,
+                    ExecutedBy = "service",
+                    StartedAt = DateTime.UtcNow,
+                    Status = "running"
+                });
+                db.Commit();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[AgentRun] Could not insert execution log row (non-fatal)");
+            }
+        }
+
+        private void CompleteLogRow(AgentRunRequestModel request, string status, string outputSummary, string error)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetService<IUserSettingsDB>();
+                if (db == null) return;
+
+                db.BeginTransaction();
+                var logDal = db.GetDal<AgentExecutionLog>();
+                var row = logDal.GetList().FirstOrDefault(l => l.Id == request.RunId);
+                if (row != null)
+                {
+                    row.FinishedAt = DateTime.UtcNow;
+                    row.Status = status;
+                    row.OutputSummary = outputSummary;
+                    row.Error = error;
+                    logDal.Save(row);
+                }
+
+                if (request.ScheduleId.HasValue)
+                {
+                    var scheduleDal = db.GetDal<AgentSchedule>();
+                    var schedule = scheduleDal.GetList().FirstOrDefault(s => s.Id == request.ScheduleId.Value);
+                    if (schedule != null)
+                    {
+                        schedule.LastRunAt = DateTime.UtcNow;
+                        schedule.LastRunStatus = status;
+                        schedule.LastRunError = error;
+                        schedule.UpdatedAt = DateTime.UtcNow;
+                        scheduleDal.Save(schedule);
+                    }
+                }
+                db.Commit();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[AgentRun] Could not update execution log row (non-fatal)");
             }
         }
 

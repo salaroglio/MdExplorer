@@ -74,6 +74,14 @@
     {{ 'COMMON.CANCEL' | translate }}
   </button>
   <button
+    mat-stroked-button
+    (click)="saveAsSchedule()"
+    [disabled]="!canLaunch()"
+    [matTooltip]="'AGENT_LAUNCH.SAVE_SCHEDULE_TOOLTIP' | translate">
+    <mat-icon>schedule</mat-icon>
+    {{ 'AGENT_LAUNCH.SAVE_SCHEDULE' | translate }}
+  </button>
+  <button
     mat-raised-button
     color="primary"
     (click)="launchNow()"

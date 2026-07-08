@@ -73,6 +73,11 @@
       <mat-icon>settings</mat-icon>
       <span>{{ 'MD_TREE.DOC_SETTINGS' | translate }}</span>
     </button>
+    <!-- Schedulazione agente: solo per i file *.agent.md -->
+    <button *ngIf="item.isAgentFile" mat-menu-item (click)="openAgentScheduling(item)">
+      <mat-icon>schedule</mat-icon>
+      <span>{{ 'MD_TREE.AGENT_SCHEDULING' | translate }}</span>
+    </button>
     <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="moveDocument(item)">
       <mat-icon>open_with</mat-icon>
       <span>{{ 'MD_TREE.MOVE' | translate }}</span>

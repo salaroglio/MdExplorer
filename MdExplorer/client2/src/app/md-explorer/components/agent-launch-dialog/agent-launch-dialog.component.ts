@@ -9,6 +9,8 @@ import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 
 import { AgentLaunchService, AgentParam } from '../../services/agent-launch.service';
+import { AgentScheduleService } from '../../services/agent-schedule.service';
+import { AgentScheduleDialogComponent } from '../agent-schedule-dialog/agent-schedule-dialog.component';
 import { ShowFileSystemComponent } from '../../../commons/components/show-file-system/show-file-system.component';
 import { ShowFileMetadata } from '../../../commons/components/show-file-system/show-file-metadata';
 
@@ -41,10 +43,62 @@ export class AgentLaunchDialogComponent {
     public dialogRef: MatDialogRef<AgentLaunchDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: AgentLaunchDialogData,
     private agentLaunchService: AgentLaunchService,
+    private agentScheduleService: AgentScheduleService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private translate: TranslateService,
-  ) {}
+  ) {
+    // Restore the last working prompt for this agent file (per-user draft, UserDB).
+    this.agentScheduleService.getDraft(data.projectPath, data.agentFilePath).subscribe({
+      next: (r) => {
+        if (r.draft?.prompt && !this.prompt) {
+          this.prompt = r.draft.prompt;
+          try {
+            this.paramValues = JSON.parse(r.draft.parameterValuesJson || '{}') || {};
+          } catch {
+            this.paramValues = {};
+          }
+          this.detectParams();
+        }
+      },
+      error: () => { /* draft is a nicety, not a requirement */ },
+    });
+  }
+
+  private saveDraft(): void {
+    if (!this.prompt || !this.prompt.trim()) return;
+    this.agentScheduleService
+      .saveDraft(this.data.projectPath, this.data.agentFilePath, this.prompt, this.paramValues)
+      .subscribe({ error: (err) => console.warn('Draft save failed:', err) });
+  }
+
+  /** Substitutes the chosen values and opens the scheduling dialog with the ready prompt. */
+  saveAsSchedule(): void {
+    if (!this.canLaunch()) return;
+    this.aiError = null;
+    this.saveDraft();
+    this.agentLaunchService.prepare(this.prompt, this.paramValues).subscribe({
+      next: (r) => {
+        if (!r.success || !r.preparedPrompt) {
+          this.aiError = r.error || this.translate.instant('AGENT_LAUNCH.LAUNCH_ERROR');
+          return;
+        }
+        this.dialogRef.close(null);
+        this.dialog.open(AgentScheduleDialogComponent, {
+          width: '760px',
+          data: {
+            projectPath: this.data.projectPath,
+            agentFilePath: this.data.agentFilePath,
+            agentName: this.data.agentName,
+            preparedPrompt: r.preparedPrompt,
+          },
+        });
+      },
+      error: (err) => {
+        this.aiError = err?.error?.error || this.translate.instant('AGENT_LAUNCH.LAUNCH_ERROR');
+      },
+    });
+  }
 
   normalizeWithCopilot(): void {
     if (!this.prompt || !this.prompt.trim()) {
@@ -59,6 +113,7 @@ export class AgentLaunchDialogComponent {
         if (response.success && response.normalizedPrompt) {
           this.prompt = response.normalizedPrompt;
           this.setParameters(response.parameters || []);
+          this.saveDraft();
         } else {
           this.aiError = response.error || this.translate.instant('AGENT_LAUNCH.NORMALIZE_ERROR');
         }
@@ -131,6 +186,7 @@ export class AgentLaunchDialogComponent {
         next: (response) => {
           this.isLaunching = false;
           if (response.success) {
+            this.saveDraft();
             this.snackBar.open(
               this.translate.instant('AGENT_LAUNCH.STARTED', { agent: this.data.agentName }),
               undefined,

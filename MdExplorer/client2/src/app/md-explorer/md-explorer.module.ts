@@ -53,6 +53,7 @@ import { IndexingProgressSnackComponent } from './components/indexing-progress-s
 import { AiSelectionDialogComponent } from './components/dialogs/ai-selection-dialog/ai-selection-dialog.component';
 import { MarkSearchComponent } from './components/mark-search/mark-search.component';
 import { AgentLaunchDialogComponent } from './components/agent-launch-dialog/agent-launch-dialog.component';
+import { AgentScheduleDialogComponent } from './components/agent-schedule-dialog/agent-schedule-dialog.component';
 
 
 const routes: Routes = [
@@ -123,7 +124,8 @@ const routes: Routes = [
     IndexingProgressSnackComponent,
     AiSelectionDialogComponent,
     MarkSearchComponent,
-    AgentLaunchDialogComponent
+    AgentLaunchDialogComponent,
+    AgentScheduleDialogComponent
   ],
   imports: [
     CommonModule,

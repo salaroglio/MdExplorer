@@ -1,3 +1,6 @@
+using Ad.Tools.Dal.Extensions;
+using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Models.AI;
 using MdExplorer.Abstractions.Services;
 using MdExplorer.Features.Execution;
@@ -25,15 +28,18 @@ namespace MdExplorer.Controllers.AI
 
         private readonly IEnumerable<IAiProvider> _aiProviders;
         private readonly MdExplorer.Services.AgentRun.IAgentRunJobService _agentRunJobService;
+        private readonly IUserSettingsDB _session;
         private readonly ILogger<AgentPromptsController> _logger;
 
         public AgentPromptsController(
             IEnumerable<IAiProvider> aiProviders,
             MdExplorer.Services.AgentRun.IAgentRunJobService agentRunJobService,
+            IUserSettingsDB session,
             ILogger<AgentPromptsController> logger)
         {
             _aiProviders = aiProviders;
             _agentRunJobService = agentRunJobService;
+            _session = session;
             _logger = logger;
         }
 
@@ -172,6 +178,104 @@ namespace MdExplorer.Controllers.AI
             return Ok(new { success = true, runId = runRequest.RunId });
         }
 
+        /// <summary>
+        /// Last working prompt of the launch dialog for one agent file (per user, UserDB).
+        /// Returns { draft: null } when the dialog has never been used on that file.
+        /// </summary>
+        [HttpGet("draft")]
+        public IActionResult GetDraft([FromQuery] string? projectPath, [FromQuery] string? agentFilePath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath) || string.IsNullOrWhiteSpace(agentFilePath))
+                return BadRequest(new { error = "projectPath and agentFilePath are required" });
+
+            try
+            {
+                var draft = _session.GetDal<AgentPromptDraft>().GetList().ToList()
+                    .FirstOrDefault(d => d.ProjectPath == projectPath && d.AgentFilePath == agentFilePath);
+                if (draft == null)
+                    return Ok(new { draft = (object)null });
+
+                return Ok(new
+                {
+                    draft = new
+                    {
+                        prompt = draft.Prompt,
+                        parameterValuesJson = draft.ParameterValuesJson,
+                        updatedAt = draft.UpdatedAt
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AgentPrompts] GetDraft failed");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpPut("draft")]
+        public IActionResult SaveDraft([FromBody] SaveAgentDraftRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.ProjectPath) || string.IsNullOrWhiteSpace(request.AgentFilePath))
+                return BadRequest(new { error = "projectPath and agentFilePath are required" });
+            if (string.IsNullOrWhiteSpace(request.Prompt))
+                return BadRequest(new { error = "prompt is required" });
+
+            try
+            {
+                var dal = _session.GetDal<AgentPromptDraft>();
+                var existing = dal.GetList().ToList()
+                    .FirstOrDefault(d => d.ProjectPath == request.ProjectPath && d.AgentFilePath == request.AgentFilePath);
+
+                _session.BeginTransaction();
+                var draft = existing ?? new AgentPromptDraft
+                {
+                    ProjectPath = request.ProjectPath,
+                    AgentFilePath = request.AgentFilePath
+                };
+                draft.Prompt = request.Prompt;
+                draft.ParameterValuesJson = request.ParameterValuesJson;
+                draft.UpdatedAt = DateTime.UtcNow;
+                dal.Save(draft);
+                _session.Commit();
+                return Ok(new { saved = true });
+            }
+            catch (Exception ex)
+            {
+                _session.Rollback();
+                _logger.LogError(ex, "[AgentPrompts] SaveDraft failed");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Substitutes parameter values into a normalized prompt and strips the params
+        /// declaration block — same semantics the launch path uses. The launch dialog
+        /// calls this to hand a ready-to-run prompt to the scheduling dialog, so the
+        /// stored schedule needs no parameter machinery at fire time.
+        /// </summary>
+        [HttpPost("prepare")]
+        public IActionResult Prepare([FromBody] LaunchAgentRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.Prompt))
+                return BadRequest(new { success = false, error = "Prompt is required" });
+
+            var prepared = AgentPromptComposer.Substitute(
+                request.Prompt,
+                request.ParameterValues ?? new Dictionary<string, string>());
+
+            var unresolved = AgentPromptComposer.FindUnresolvedPlaceholders(prepared);
+            if (unresolved.Count > 0)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    error = $"Missing values for parameters: {string.Join(", ", unresolved)}"
+                });
+            }
+
+            return Ok(new { success = true, preparedPrompt = prepared });
+        }
+
         [HttpPost("extract-params")]
         public IActionResult ExtractParameters([FromBody] ExtractAgentParamsRequest request)
         {
@@ -232,6 +336,14 @@ namespace MdExplorer.Controllers.AI
     public class ExtractAgentParamsRequest
     {
         public string? Prompt { get; set; }
+    }
+
+    public class SaveAgentDraftRequest
+    {
+        public string? ProjectPath { get; set; }
+        public string? AgentFilePath { get; set; }
+        public string? Prompt { get; set; }
+        public string? ParameterValuesJson { get; set; }
     }
 
     public class LaunchAgentRequest
