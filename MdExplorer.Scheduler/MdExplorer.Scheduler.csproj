@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Deliberately tiny closure: GenericHost worker, raw SQLite, cron parsing.
+         NO ASP.NET, NO NHibernate, NO reference to MdExplorer.bll — this satellite
+         must idle at ~20-40MB RAM and start at machine login even when the full
+         MdExplorer Service is not running. It is published SELF-CONTAINED into its
+         own isolated subfolder (service_payload/scheduler -> app_service/scheduler),
+         same pattern as MdExplorer.Mcp. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+    <!-- Cronos over NCrontab: correct DST/timezone handling via
+         GetNextOccurrence(DateTime, TimeZoneInfo), zero transitive deps. -->
+    <PackageReference Include="Cronos" Version="0.8.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Shared, dependency-free copilot binary resolution (PATH scan + Windows
+         .cmd/.ps1 shim wrapping) — LINKED, not referenced: pulling MdExplorer.bll
+         would drag NHibernate and the whole service closure into the satellite. -->
+    <Compile Include="..\MdExplorer.bll\Services\AI\CopilotAcp\CopilotProcessLauncher.cs" Link="CopilotProcessLauncher.cs" />
+  </ItemGroup>
+
+</Project>
