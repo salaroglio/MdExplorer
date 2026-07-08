@@ -7,7 +7,9 @@
  *
  * Solution: a single CUSTOM scrollbar (our own track+thumb, not the browser's,
  * so it never auto-hides and is theme-aware) fixed to the iframe viewport
- * bottom. It drives table.scrollLeft of the wide table currently most in view.
+ * bottom. It drives table.scrollLeft of the tall+wide table currently most in
+ * view. Only tables TALLER than the viewport are managed by the floating bar;
+ * short wide tables keep their native (reachable) bottom scrollbar.
  *
  * Anti-blinking: the thumb is a pure display element and table.scrollLeft is
  * the single source of truth, so there is no scroll<->scroll feedback loop.
@@ -29,6 +31,14 @@
     var rafPending = false;
 
     function isWide(t) { return (t.scrollWidth - t.clientWidth) > 1; }
+    function viewportH() { return window.innerHeight || document.documentElement.clientHeight; }
+    function isTall(t) { return t.getBoundingClientRect().height > viewportH(); }
+    // The floating bar only manages tables TALLER than the viewport, whose native
+    // bottom scrollbar is unreachable while reading the top rows. Short wide tables
+    // keep their native bar (reachable at their own bottom), so when several wide
+    // tables share the screen each stays scrollable and the floating bar — which
+    // can drive only one at a time — never leaves a visible table without control.
+    function isManaged(t) { return isWide(t) && isTall(t); }
     function scrollRange(t) { return t.scrollWidth - t.clientWidth; }
 
     // ---- bar / thumb DOM ------------------------------------------------
@@ -79,7 +89,7 @@
         var best = null, bestVis = 0;
         for (var i = 0; i < tables.length; i++) {
             var t = tables[i];
-            if (!isWide(t)) continue;
+            if (!isManaged(t)) continue;
             var r = t.getBoundingClientRect();
             var vis = Math.min(r.bottom, vh) - Math.max(r.top, 0);
             if (vis > bestVis) { bestVis = vis; best = t; }
@@ -170,8 +180,11 @@
                 }, { passive: true });
                 if (ro) ro.observe(t);
             }
-            // Hide the native far-bottom bar once (never toggled -> no flicker).
-            if (isWide(t)) t.classList.add('mde-hscroll-managed');
+            // Hide the native far-bottom bar only on tall wide tables (the ones the
+            // floating bar drives). Toggled here in scan (load/resize), never per
+            // scroll, so no flicker.
+            if (isManaged(t)) t.classList.add('mde-hscroll-managed');
+            else t.classList.remove('mde-hscroll-managed');
         });
         tables = found;
         scheduleRefresh();
@@ -182,7 +195,8 @@
         buildBar();
         scan();
         window.addEventListener('scroll', scheduleRefresh, { passive: true });
-        window.addEventListener('resize', scheduleRefresh);
+        // Resize changes the viewport height -> re-evaluate which tables are "tall".
+        window.addEventListener('resize', scan);
         // Re-scan after late layout (images/fonts inside tables changing width).
         window.addEventListener('load', scan);
     }
