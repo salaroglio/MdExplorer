@@ -33,7 +33,10 @@ namespace MdExplorer.Features.Services.AI
         private const int PROCESS_TIMEOUT_MS = 300000; // 5 minutes
         private const int AVAILABILITY_CHECK_TIMEOUT_MS = 5000;
         private const string SYSTEM_PROMPT_SETTING = "CopilotCli_SystemPrompt";
-        private const string DEFAULT_MODEL = "claude-sonnet-5";
+        // No default model constant: when the caller does not specify a model we omit
+        // the --model flag entirely and let the CLI pick its own default. Hardcoding a
+        // model id here breaks on CLI versions where that id does not exist (the CLI
+        // exits 1 with "Model ... is not available").
         private const int MAX_COMMAND_LINE_CHARS = 30000;
 
         /// <summary>
@@ -131,8 +134,7 @@ namespace MdExplorer.Features.Services.AI
                 throw new InvalidOperationException("Copilot CLI is not available. Make sure it is installed and authenticated.");
             }
 
-            var model = modelId ?? DEFAULT_MODEL;
-            var output = await RunCopilotProcessAsync(prompt, model, streaming: false, ct: ct);
+            var output = await RunCopilotProcessAsync(prompt, modelId, streaming: false, ct: ct);
 
             return StripUsageMetrics(output);
         }
@@ -149,9 +151,7 @@ namespace MdExplorer.Features.Services.AI
                 throw new InvalidOperationException("Copilot CLI is not available. Make sure it is installed and authenticated.");
             }
 
-            var model = modelId ?? DEFAULT_MODEL;
-
-            var psi = CreateProcessStartInfo(prompt, model, streaming: true);
+            var psi = CreateProcessStartInfo(prompt, modelId, streaming: true);
             using var process = new Process { StartInfo = psi };
 
             process.Start();
@@ -401,11 +401,66 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             }
         }
 
+        /// <summary>
+        /// Like <see cref="ChatAsync"/> but returns the assistant's message text with
+        /// byte-for-byte fidelity. The default text output mode renders markdown for the
+        /// terminal (headings lose their <c>#</c>, fenced blocks lose their fences, and
+        /// tool-activity traces pollute stdout), which destroys any answer that must be
+        /// parsed afterwards. This method runs the CLI with <c>--output-format json</c>
+        /// (JSONL) and extracts the raw <c>content</c> of the last <c>assistant.message</c>
+        /// event instead.
+        /// </summary>
+        public async Task<string> ChatRawAsync(string prompt, string modelId = null, CancellationToken ct = default)
+        {
+            _logger.LogInformation("[CopilotCliProvider.ChatRawAsync] Starting with prompt length: {Length}", prompt?.Length ?? 0);
+
+            if (!IsAvailable())
+            {
+                throw new InvalidOperationException("Copilot CLI is not available. Make sure it is installed and authenticated.");
+            }
+
+            var jsonl = await RunCopilotProcessAsync(prompt, modelId, streaming: false, ct: ct, outputFormatJson: true);
+
+            string lastMessage = null;
+            foreach (var line in jsonl.Split('\n'))
+            {
+                var trimmed = line.Trim();
+                if (!trimmed.StartsWith("{")) continue;
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
+                    if (doc.RootElement.TryGetProperty("type", out var type)
+                        && type.GetString() == "assistant.message"
+                        && doc.RootElement.TryGetProperty("data", out var data)
+                        && data.TryGetProperty("content", out var content))
+                    {
+                        var text = content.GetString();
+                        if (!string.IsNullOrWhiteSpace(text))
+                        {
+                            lastMessage = text;
+                        }
+                    }
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    // Not a JSON line (stray CLI noise) — skip it.
+                }
+            }
+
+            if (lastMessage == null)
+            {
+                throw new InvalidOperationException(
+                    "Copilot CLI produced no assistant.message event in JSON output — cannot extract the response.");
+            }
+
+            return lastMessage;
+        }
+
         #region Private helpers
 
-        private async Task<string> RunCopilotProcessAsync(string prompt, string model, bool streaming, CancellationToken ct)
+        private async Task<string> RunCopilotProcessAsync(string prompt, string model, bool streaming, CancellationToken ct, bool outputFormatJson = false)
         {
-            var psi = CreateProcessStartInfo(prompt, model, streaming);
+            var psi = CreateProcessStartInfo(prompt, model, streaming, outputFormatJson);
             using var process = new Process { StartInfo = psi };
 
             process.Start();
@@ -443,7 +498,7 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             return output;
         }
 
-        private ProcessStartInfo CreateProcessStartInfo(string prompt, string model, bool streaming)
+        private ProcessStartInfo CreateProcessStartInfo(string prompt, string model, bool streaming, bool outputFormatJson = false)
         {
             var useStdin = ShouldUseStdin(prompt);
 
@@ -460,10 +515,22 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                 args.Append($"-p \"{escapedPrompt}\" ");
             }
             args.Append("--no-color ");
-            args.Append("--screen-reader ");
-            args.Append("--allow-all-tools ");
-            args.Append($"--model {model}");
-            if (!streaming)
+            if (outputFormatJson)
+            {
+                // JSONL events on stdout; no --screen-reader (it renders markdown to
+                // plain text) and no --stream off (irrelevant for the event stream).
+                args.Append("--output-format json ");
+            }
+            else
+            {
+                args.Append("--screen-reader ");
+            }
+            args.Append("--allow-all-tools");
+            if (!string.IsNullOrWhiteSpace(model))
+            {
+                args.Append($" --model {model}");
+            }
+            if (!streaming && !outputFormatJson)
             {
                 args.Append(" --stream off");
             }

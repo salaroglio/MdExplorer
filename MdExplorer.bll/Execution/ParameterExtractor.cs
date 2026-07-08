@@ -253,7 +253,7 @@ namespace MdExplorer.Features.Execution
             };
         }
 
-        private static string NormalizeKey(string raw)
+        internal static string NormalizeKey(string raw)
         {
             var buffer = new System.Text.StringBuilder(raw.Length);
             foreach (var ch in raw)

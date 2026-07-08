@@ -72,6 +72,11 @@ namespace MdExplorer.Utilities
                 "MdExplorer.Service.skills.mde_shacl.SKILL.md",
                 true
             ),
+            (
+                "mde-prompt-for-agents",
+                "MdExplorer.Service.skills.mde_prompt_for_agents.SKILL.md",
+                false
+            ),
         };
 
         /// <summary>

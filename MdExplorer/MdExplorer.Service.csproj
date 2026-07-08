@@ -231,6 +231,7 @@
     <EmbeddedResource Include="skills\mde-tbox\SKILL.md" />
     <EmbeddedResource Include="skills\mde-abox\SKILL.md" />
     <EmbeddedResource Include="skills\mde-shacl\SKILL.md" />
+    <EmbeddedResource Include="skills\mde-prompt-for-agents\SKILL.md" />
     <EmbeddedResource Include="skills\mde-skillcreator\agent.md" />
     <EmbeddedResource Include="skills\mde-codegen-graph\prompt.md" />
     <EmbeddedResource Include="skills\mde-mark-summarize\prompt.md" />
