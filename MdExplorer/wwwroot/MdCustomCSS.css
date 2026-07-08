@@ -7,24 +7,37 @@ details {
     overflow-x: auto;
 }
 
-/* Tabelle markdown larghe: scrollbar orizzontale sulla singola tabella invece
-   di essere tagliate da .mdeItemMainPageCenter { overflow-x: hidden }.
-   Scoped a .table (tabelle Markdig/UseBootstrap): jspreadsheet usa .jexcel,
-   quindi resta intatto. Ricetta GitHub: tabella stretta = larga quanto il
-   contenuto, tabella larga = scrollbar propria. Non tocca alcun container
-   strutturale, quindi scroll verticale/tocbot/sticky/canvas restano invariati. */
+/* Tabelle markdown: le tabelle più alte del viewport diventano un riquadro con
+   scroll interno (max-height + overflow:auto) e header di colonna "sticky" che
+   resta in cima al riquadro mentre si scorre. Le celle vanno a capo (leggibili);
+   se una tabella è comunque più larga del riquadro, scrolla anche in orizzontale.
+   Le tabelle basse (< 75vh) NON diventano riquadro: max-height non scatta.
+   Scoped a .table (Markdig/UseBootstrap): jspreadsheet usa .jexcel → intatto.
+   Nota: lo sticky è relativo al riquadro (la tabella stessa è lo scroll
+   container), quindi .mdeItemMainPageCenter resta invariato. */
 .mdeItemMainPageCenter table.table {
     display: block;
-    width: max-content;
     max-width: 100%;
-    overflow-x: auto;
+    max-height: 75vh;
+    overflow: auto;
 }
-/* No-wrap sulle celle: la tabella resta alla larghezza naturale piena (non si
-   comprime andando a capo), così la scrollbar orizzontale copre l'INTERA
-   estensione e non solo il residuo dei token non spezzabili. */
 .mdeItemMainPageCenter table.table td,
 .mdeItemMainPageCenter table.table th {
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+/* Header sticky. box-shadow al posto dei bordi: con position:sticky +
+   border-collapse i bordi della riga header spariscono durante lo scroll. */
+.mdeItemMainPageCenter table.table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f2f2f2;
+    box-shadow: inset 0 -1px 0 #cfcfcf, inset 0 1px 0 #cfcfcf;
+}
+body.dark-theme .mdeItemMainPageCenter table.table thead th {
+    background: #333333;
+    box-shadow: inset 0 -1px 0 #555555, inset 0 1px 0 #555555;
 }
 
 :root{
