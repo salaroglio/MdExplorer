@@ -7,6 +7,19 @@ details {
     overflow-x: auto;
 }
 
+/* Tabelle markdown larghe: scrollbar orizzontale sulla singola tabella invece
+   di essere tagliate da .mdeItemMainPageCenter { overflow-x: hidden }.
+   Scoped a .table (tabelle Markdig/UseBootstrap): jspreadsheet usa .jexcel,
+   quindi resta intatto. Ricetta GitHub: tabella stretta = larga quanto il
+   contenuto, tabella larga = scrollbar propria. Non tocca alcun container
+   strutturale, quindi scroll verticale/tocbot/sticky/canvas restano invariati. */
+.mdeItemMainPageCenter table.table {
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
 :root{
     --toc-width:300px;
     --toc-scroll:0px;
