@@ -49,16 +49,35 @@
     outline: none;
     min-width: 160px;
 }
-.mde-tfind-box select {
-    border: 1px solid #aaa;
-    border-radius: 3px;
-    padding: 3px 4px;
-    font-size: 12px;
-    outline: none;
-    max-width: 150px;
+/* dropdown panel with per-column checkboxes */
+.mde-tfind-cols-panel {
+    position: fixed;
+    z-index: 1018;
+    display: none;
+    max-height: 260px;
+    overflow: auto;
+    padding: 6px 10px;
     background: #fff;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-shadow: 0 3px 14px rgba(0, 0, 0, 0.25);
+    font-family: Arial, sans-serif;
+    font-size: 13px;
     color: #333;
+}
+.mde-tfind-cols-panel label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 0;
+    white-space: nowrap;
     cursor: pointer;
+}
+.mde-tfind-cols-panel .mde-tfind-col-all {
+    font-weight: bold;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
 }
 .mde-tfind-count {
     color: #666;
@@ -101,7 +120,8 @@ body.dark-theme .mde-tfind-btn { background: rgba(45, 45, 45, 0.96); border-colo
 body.dark-theme .mde-tfind-btn:hover { background: #3a3a3a; }
 body.dark-theme .mde-tfind-box { background: #2d2d2d; border-color: #555; color: #ccc; }
 body.dark-theme .mde-tfind-box input { background: #1e1e1e; color: #ccc; border-color: #555; }
-body.dark-theme .mde-tfind-box select { background: #1e1e1e; color: #ccc; border-color: #555; }
+body.dark-theme .mde-tfind-cols-panel { background: #2d2d2d; border-color: #555; color: #ccc; }
+body.dark-theme .mde-tfind-cols-panel .mde-tfind-col-all { border-bottom-color: #555; }
 body.dark-theme .mde-tfind-count { color: #aaa; }
 body.dark-theme .mde-tfind-box button { background: #3a3a3a; color: #ccc; border-color: #555; }
 body.dark-theme .mde-tfind-box button:hover { background: #484848; }

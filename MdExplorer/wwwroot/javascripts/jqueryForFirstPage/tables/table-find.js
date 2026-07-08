@@ -6,6 +6,10 @@
  * that highlights matching cells (yellow, current = orange) and lets you jump
  * between them (↑ ↓ / Enter / Shift+Enter, circular). Esc or × closes.
  *
+ * A "Colonne (n/tot) ▾" button opens a dropdown panel with one checkbox per
+ * column (all ticked by default) plus a master "Tutte" checkbox to select /
+ * deselect them all. The search only matches cells of the ticked columns.
+ *
  * Same UX as the "search inside SVG diagram" feature, but entirely front-end
  * (no backend button generation): one shared button + one shared box, both
  * position:fixed and re-anchored to the table currently in play.
@@ -16,7 +20,8 @@
     if (window.__mdeTableFindLoaded) return;
     window.__mdeTableFindLoaded = true;
 
-    var btn, box, input, counter, colSelect;
+    var btn, box, input, counter, colBtn, colPanel, colMaster;
+    var colCheckboxes = [];   // index = column index
     var activeTable = null;   // table the widget currently targets
     var searchOpen = false;
     var matches = [];         // matching cells
@@ -39,9 +44,10 @@
         input = document.createElement('input');
         input.type = 'text';
         input.placeholder = 'Cerca nella tabella…';
-        colSelect = document.createElement('select');
-        colSelect.className = 'mde-tfind-col';
-        colSelect.title = 'Colonna in cui cercare';
+        colBtn = document.createElement('button');
+        colBtn.className = 'mde-tfind-colbtn';
+        colBtn.title = 'Colonne in cui cercare';
+        colBtn.textContent = 'Colonne ▾';
         counter = document.createElement('span');
         counter.className = 'mde-tfind-count';
         var prev = mkBtn('↑', 'Precedente (Shift+Invio)');
@@ -49,23 +55,35 @@
         var close = mkBtn('×', 'Chiudi (Esc)');
         close.className = 'mde-tfind-close';
         box.appendChild(input);
-        box.appendChild(colSelect);
+        box.appendChild(colBtn);
         box.appendChild(counter);
         box.appendChild(prev);
         box.appendChild(next);
         box.appendChild(close);
         document.body.appendChild(box);
 
+        colPanel = document.createElement('div');
+        colPanel.className = 'mde-tfind-cols-panel';
+        document.body.appendChild(colPanel);
+
         btn.addEventListener('click', toggleSearch);
         btn.addEventListener('mouseenter', cancelHide);
         btn.addEventListener('mouseleave', scheduleHide);
         box.addEventListener('mouseenter', cancelHide);
-        colSelect.addEventListener('change', rerun);
+        colPanel.addEventListener('mouseenter', cancelHide);
+        colBtn.addEventListener('click', toggleColPanel);
         input.addEventListener('input', onInput);
         input.addEventListener('keydown', onKey);
         prev.addEventListener('click', function () { navigate(-1); });
         next.addEventListener('click', function () { navigate(1); });
         close.addEventListener('click', closeSearch);
+        // click outside the panel closes it
+        document.addEventListener('click', function (e) {
+            if (colPanel.style.display === 'block' &&
+                !colPanel.contains(e.target) && e.target !== colBtn) {
+                colPanel.style.display = 'none';
+            }
+        });
     }
 
     function mkBtn(html, title) {
@@ -84,6 +102,13 @@
         btn.style.left = left + 'px';
         box.style.top = top + 'px';
         box.style.left = (left + 32) + 'px';
+        if (colPanel.style.display === 'block') positionColPanel();
+    }
+
+    function positionColPanel() {
+        var r = colBtn.getBoundingClientRect();
+        colPanel.style.top = Math.round(r.bottom + 2) + 'px';
+        colPanel.style.left = Math.round(r.left) + 'px';
     }
 
     function showBtn() { btn.style.display = 'flex'; }
@@ -114,42 +139,84 @@
         input.value = '';
         counter.textContent = '';
         populateColumns();
+        colPanel.style.display = 'none';
         clearHighlights();
         matches = []; current = -1;
         input.focus();
     }
 
-    // Fill the column combo from the active table's header cells.
-    function populateColumns() {
-        colSelect.innerHTML = '';
-        var all = document.createElement('option');
-        all.value = '';
-        all.textContent = 'Tutte le colonne';
-        colSelect.appendChild(all);
-        var headRow = activeTable && activeTable.tHead && activeTable.tHead.rows[0];
-        if (!headRow) return;
-        for (var i = 0; i < headRow.cells.length; i++) {
-            var o = document.createElement('option');
-            o.value = String(i);
-            o.textContent = (headRow.cells[i].textContent || '').trim() || ('Colonna ' + (i + 1));
-            colSelect.appendChild(o);
-        }
-        colSelect.value = '';
-    }
-
-    // Re-run the current search (e.g. when the column filter changes).
-    function rerun() {
-        var term = input.value.trim();
-        if (term.length < 2) { clearHighlights(); matches = []; current = -1; counter.textContent = ''; return; }
-        execute(term);
-    }
-
     function closeSearch() {
         searchOpen = false;
         box.style.display = 'none';
+        colPanel.style.display = 'none';
         clearHighlights();
         matches = []; current = -1;
         scheduleHide();
+    }
+
+    // ---- column checkboxes ----------------------------------------------
+    function toggleColPanel(e) {
+        e.stopPropagation();
+        if (colPanel.style.display === 'block') {
+            colPanel.style.display = 'none';
+        } else {
+            positionColPanel();
+            colPanel.style.display = 'block';
+        }
+    }
+
+    function populateColumns() {
+        colPanel.innerHTML = '';
+        colCheckboxes = [];
+
+        var masterLabel = document.createElement('label');
+        masterLabel.className = 'mde-tfind-col-all';
+        colMaster = document.createElement('input');
+        colMaster.type = 'checkbox';
+        colMaster.checked = true;
+        masterLabel.appendChild(colMaster);
+        masterLabel.appendChild(document.createTextNode(' Tutte'));
+        colPanel.appendChild(masterLabel);
+        colMaster.addEventListener('change', function () {
+            colCheckboxes.forEach(function (cb) { cb.checked = colMaster.checked; });
+            colMaster.indeterminate = false;
+            updateColBtnLabel();
+            rerun();
+        });
+
+        var headRow = activeTable && activeTable.tHead && activeTable.tHead.rows[0];
+        if (headRow) {
+            for (var i = 0; i < headRow.cells.length; i++) {
+                var lbl = document.createElement('label');
+                var cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.checked = true;
+                cb.value = String(i);
+                lbl.appendChild(cb);
+                var name = (headRow.cells[i].textContent || '').trim() || ('Colonna ' + (i + 1));
+                lbl.appendChild(document.createTextNode(' ' + name));
+                colPanel.appendChild(lbl);
+                colCheckboxes.push(cb);
+                cb.addEventListener('change', function () {
+                    syncMaster();
+                    updateColBtnLabel();
+                    rerun();
+                });
+            }
+        }
+        updateColBtnLabel();
+    }
+
+    function syncMaster() {
+        var all = colCheckboxes.every(function (cb) { return cb.checked; });
+        var none = colCheckboxes.every(function (cb) { return !cb.checked; });
+        colMaster.checked = all;
+        colMaster.indeterminate = !all && !none;
+    }
+
+    function updateColBtnLabel() {
+        var n = colCheckboxes.filter(function (cb) { return cb.checked; }).length;
+        colBtn.textContent = 'Colonne (' + n + '/' + colCheckboxes.length + ') ▾';
     }
 
     // ---- search ---------------------------------------------------------
@@ -171,14 +238,21 @@
         debounceTimer = setTimeout(function () { execute(term); }, 200);
     }
 
+    // Re-run the current search (e.g. when the column selection changes).
+    function rerun() {
+        var term = input.value.trim();
+        if (term.length < 2) { clearHighlights(); matches = []; current = -1; counter.textContent = ''; return; }
+        execute(term);
+    }
+
     function execute(term) {
         clearHighlights();
         matches = []; current = -1;
         var tl = term.toLowerCase();
-        var col = colSelect.value === '' ? -1 : parseInt(colSelect.value, 10); // -1 = all columns
         var cells = activeTable.querySelectorAll('thead th, tbody th, tbody td');
         cells.forEach(function (cell) {
-            if (col >= 0 && cell.cellIndex !== col) return; // restrict to the chosen column
+            var cb = colCheckboxes[cell.cellIndex];
+            if (cb && !cb.checked) return; // column not selected
             if ((cell.textContent || '').toLowerCase().indexOf(tl) !== -1) {
                 cell.classList.add('mde-tfind-hit');
                 matches.push(cell);
