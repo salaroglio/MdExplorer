@@ -50,6 +50,22 @@ body.dark-theme .mdeItemMainPageCenter table.table::-webkit-scrollbar-thumb {
 body.dark-theme .mdeItemMainPageCenter table.table::-webkit-scrollbar-thumb:hover {
     background: #777777;
 }
+/* Colonne di soli numeri: non serve la min-width larga (resterebbero vuote).
+   table-numeric-cols.js marca le celle con .mde-numcol; qui stringiamo la
+   colonna (min-width:0) e la testata, di solito lunga, va a capo sugli spazi.
+   Specificità: una classe in più della regola base -> vince senza !important. */
+.mdeItemMainPageCenter table.table td.mde-numcol,
+.mdeItemMainPageCenter table.table th.mde-numcol {
+    min-width: 0;
+}
+.mdeItemMainPageCenter table.table td.mde-numcol {
+    white-space: nowrap;
+    text-align: center;
+}
+.mdeItemMainPageCenter table.table th.mde-numcol {
+    overflow-wrap: normal; /* testata a capo sugli spazi, non a metà parola */
+}
+
 /* Header sticky. box-shadow al posto dei bordi: con position:sticky +
    border-collapse i bordi della riga header spariscono durante lo scroll. */
 .mdeItemMainPageCenter table.table thead th {
