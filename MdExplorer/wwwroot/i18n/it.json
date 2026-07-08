@@ -22,7 +22,8 @@
     "OPEN": "Apri",
     "CONNECT": "Connetti",
     "DISCONNECT": "Disconnetti",
-    "DOWNLOAD": "Scarica"
+    "DOWNLOAD": "Scarica",
+    "SELECT": "Seleziona"
   },
   "SETTINGS": {
     "TITLE": "Impostazioni",
@@ -744,7 +745,8 @@
     "TREE_NOT_LOADED": "Albero non ancora caricato",
     "FILE_NOT_FOUND": "File non trovato nell'albero",
     "CANNOT_DETERMINE_ROOT": "Errore: impossibile determinare la radice del progetto",
-    "TAG_TOGGLED": "Tag '{{tag}}' {{action}}"
+    "TAG_TOGGLED": "Tag '{{tag}}' {{action}}",
+    "LAUNCH_AGENT": "Prepara e lancia questo agente"
   },
   "MAIN_CONTENT": {
     "LOADING_DOC": "Caricamento documento...",
@@ -1606,5 +1608,23 @@
     "STOP": "Stop",
     "APPROVE": "Approva e salva",
     "INCOMPLETE_SELECTION": "Selezione non mappabile al sorgente markdown"
+  },
+  "AGENT_LAUNCH": {
+    "TITLE": "Lancia agente",
+    "PROMPT_LABEL": "Prompt di lancio",
+    "PROMPT_PLACEHOLDER": "Descrivi cosa deve fare l'agente, citando i markdown che gli servono...",
+    "PROMPT_HINT": "Scrivi liberamente, poi lascia che Copilot lo riscriva nella convenzione MdExplorer",
+    "NORMALIZE": "Normalizza con Copilot",
+    "NORMALIZING": "Normalizzazione...",
+    "NORMALIZE_ERROR": "Normalizzazione del prompt fallita",
+    "PARAMS_HEADER": "Parametri",
+    "PICK_FILE": "Seleziona un file",
+    "PICK_FOLDER": "Seleziona una cartella",
+    "PICK_OUT_FILE": "Salva file di output",
+    "PICK_TOOLTIP": "Sfoglia il progetto",
+    "LAUNCH_NOW": "Lancia ora",
+    "LAUNCHING": "Lancio...",
+    "LAUNCH_ERROR": "Lancio agente fallito",
+    "STARTED": "Agente \"{{agent}}\" avviato in background"
   }
 }

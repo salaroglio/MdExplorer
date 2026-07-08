@@ -22,7 +22,8 @@
     "OPEN": "Open",
     "CONNECT": "Connect",
     "DISCONNECT": "Disconnect",
-    "DOWNLOAD": "Download"
+    "DOWNLOAD": "Download",
+    "SELECT": "Select"
   },
   "SETTINGS": {
     "TITLE": "Settings",
@@ -744,7 +745,8 @@
     "TREE_NOT_LOADED": "Tree not loaded yet",
     "FILE_NOT_FOUND": "File not found in tree",
     "CANNOT_DETERMINE_ROOT": "Error: Could not determine project root",
-    "TAG_TOGGLED": "Tag '{{tag}}' {{action}}"
+    "TAG_TOGGLED": "Tag '{{tag}}' {{action}}",
+    "LAUNCH_AGENT": "Prepare and launch this agent"
   },
   "MAIN_CONTENT": {
     "LOADING_DOC": "Loading document...",
@@ -1606,5 +1608,23 @@
     "STOP": "Stop",
     "APPROVE": "Approve and save",
     "INCOMPLETE_SELECTION": "Selection cannot be mapped to the markdown source"
+  },
+  "AGENT_LAUNCH": {
+    "TITLE": "Launch agent",
+    "PROMPT_LABEL": "Launch prompt",
+    "PROMPT_PLACEHOLDER": "Describe what the agent must do, mentioning the markdown files it needs...",
+    "PROMPT_HINT": "Write freely, then let Copilot rewrite it in the MdExplorer convention",
+    "NORMALIZE": "Normalize with Copilot",
+    "NORMALIZING": "Normalizing...",
+    "NORMALIZE_ERROR": "Prompt normalization failed",
+    "PARAMS_HEADER": "Parameters",
+    "PICK_FILE": "Select a file",
+    "PICK_FOLDER": "Select a folder",
+    "PICK_OUT_FILE": "Save output file",
+    "PICK_TOOLTIP": "Browse the project",
+    "LAUNCH_NOW": "Launch now",
+    "LAUNCHING": "Launching...",
+    "LAUNCH_ERROR": "Agent launch failed",
+    "STARTED": "Agent \"{{agent}}\" started in background"
   }
 }

@@ -213,6 +213,13 @@
          class="node-text">
        {{node.name}}
     </div>
+    <!-- Icona agente: visibile solo sui file *.agent.md.
+         Click → apre la maschera di preparazione/lancio del prompt (stopPropagation
+         per non aprire il documento). -->
+    <mat-icon *ngIf="node.isAgentFile"
+              class="agent-indicator"
+              [matTooltip]="'MD_TREE.LAUNCH_AGENT' | translate"
+              (click)="openAgentLaunchDialog(node, $event)">smart_toy</mat-icon>
   </mat-tree-node>
 
   <!-- Non-markdown file revealed via a folder's "eye" (reveal content).

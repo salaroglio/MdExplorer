@@ -83,6 +83,20 @@ class AppComponent {
         panelClass: ['kg-stale-snack']
       });
     });
+    // Esito dei run degli agenti *.agent.md (lancio manuale, schedule, hook):
+    // toast globale così l'esito arriva anche se il dialog di lancio è chiuso.
+    this.serverMessages.agentJobProgress$.subscribe(evt => {
+      if (evt.phase === 'completed') {
+        this.snackBar.open(`🤖 Agente "${evt.agentName}" completato.`, 'OK', {
+          duration: 5000
+        });
+      } else if (evt.phase === 'failed') {
+        this.snackBar.open(`🤖 Agente "${evt.agentName}" fallito: ${evt.error || 'errore sconosciuto'}`, 'OK', {
+          duration: 10000,
+          panelClass: ['kg-stale-snack']
+        });
+      }
+    });
   }
   static {
     this.ɵfac = function AppComponent_Factory(t) {
@@ -16916,6 +16930,8 @@ class MdServerMessagesService {
     this.publishProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for the Mark folder-summarizer job progress (MarkActionsController)
     this.markFolderProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    // Observable for *.agent.md headless runs (AgentRunJobService): started/completed/failed
+    this.agentJobProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for KG drift events (emitted by FileSystemWatcherManager when a .md
     // diverges from the // sourceDocHash header of its adjacent .kg.cypher).
     this.kgStale$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
@@ -17010,6 +17026,10 @@ class MdServerMessagesService {
         // Mark folder-summarizer job progress
         this.hubConnection.on('markFolderProgress', data => {
           this.markFolderProgress$.next(data);
+        });
+        // *.agent.md headless run progress (manual launch, schedule, hook)
+        this.hubConnection.on('agentJobProgress', data => {
+          this.agentJobProgress$.next(data);
         });
         // KG drift detection — .md edited but .kg.cypher is out of sync
         this.hubConnection.on('kgStale', data => {
@@ -17424,8 +17444,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.07.07.2',
-  buildTime: '2026.07.07 11:39:18'
+  version: '2026.07.08.1',
+  buildTime: '2026.07.08 23:33:16'
 };
 
 /***/ }),

@@ -42,6 +42,18 @@ export class MdServerMessagesService {
   // Observable for the Mark folder-summarizer job progress (MarkActionsController)
   public markFolderProgress$ = new Subject<any>();
 
+  // Observable for *.agent.md headless runs (AgentRunJobService): started/completed/failed
+  public agentJobProgress$ = new Subject<{
+    runId: string,
+    scheduleId?: string,
+    agentName: string,
+    agentFilePath: string,
+    triggerSource: string,
+    phase: 'started' | 'completed' | 'failed' | 'cancelled',
+    error?: string,
+    outputTail?: string
+  }>();
+
   // Observable for KG drift events (emitted by FileSystemWatcherManager when a .md
   // diverges from the // sourceDocHash header of its adjacent .kg.cypher).
   public kgStale$ = new Subject<{
@@ -179,6 +191,11 @@ export class MdServerMessagesService {
       // Mark folder-summarizer job progress
       this.hubConnection.on('markFolderProgress', (data) => {
         this.markFolderProgress$.next(data);
+      });
+
+      // *.agent.md headless run progress (manual launch, schedule, hook)
+      this.hubConnection.on('agentJobProgress', (data) => {
+        this.agentJobProgress$.next(data);
       });
 
       // KG drift detection — .md edited but .kg.cypher is out of sync

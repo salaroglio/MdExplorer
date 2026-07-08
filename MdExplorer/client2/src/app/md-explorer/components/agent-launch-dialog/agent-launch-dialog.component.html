@@ -1,0 +1,84 @@
+<h2 mat-dialog-title>
+  <mat-icon class="title-icon">smart_toy</mat-icon>
+  {{ 'AGENT_LAUNCH.TITLE' | translate }} — {{ data.agentName }}
+</h2>
+
+<mat-dialog-content>
+  <!-- Prompt -->
+  <label class="field-label" for="agent-prompt">{{ 'AGENT_LAUNCH.PROMPT_LABEL' | translate }}</label>
+  <mat-form-field appearance="outline" class="full-width">
+    <textarea
+      id="agent-prompt"
+      matInput
+      [(ngModel)]="prompt"
+      rows="10"
+      [placeholder]="'AGENT_LAUNCH.PROMPT_PLACEHOLDER' | translate"
+      cdkFocusInitial
+      [disabled]="isNormalizing || isLaunching"
+      (blur)="detectParams()">
+    </textarea>
+    <mat-hint>{{ 'AGENT_LAUNCH.PROMPT_HINT' | translate }}</mat-hint>
+  </mat-form-field>
+
+  <!-- Normalize with Copilot -->
+  <div class="normalize-row">
+    <button
+      mat-stroked-button
+      color="accent"
+      (click)="normalizeWithCopilot()"
+      [disabled]="isNormalizing || isLaunching || !prompt || !prompt.trim()">
+      <mat-icon>auto_fix_high</mat-icon>
+      {{ (isNormalizing ? 'AGENT_LAUNCH.NORMALIZING' : 'AGENT_LAUNCH.NORMALIZE') | translate }}
+    </button>
+    <mat-spinner *ngIf="isNormalizing" diameter="20" strokeWidth="2"></mat-spinner>
+  </div>
+
+  <!-- Parameters -->
+  <div *ngIf="parameters.length > 0" class="params-section">
+    <label class="field-label params-header">{{ 'AGENT_LAUNCH.PARAMS_HEADER' | translate }}</label>
+    <div class="param-row" *ngFor="let param of parameters">
+      <label class="field-label" [for]="'agent-param-' + param.name">
+        {{ param.name }}
+        <span class="param-description" *ngIf="param.description"> — {{ param.description }}</span>
+      </label>
+      <div class="param-input-row">
+        <mat-form-field appearance="outline" class="param-field">
+          <input
+            [id]="'agent-param-' + param.name"
+            matInput
+            [(ngModel)]="paramValues[param.name]"
+            [disabled]="isLaunching" />
+        </mat-form-field>
+        <button
+          *ngIf="param.picker"
+          mat-stroked-button
+          class="picker-button"
+          (click)="openPicker(param)"
+          [disabled]="isLaunching"
+          [matTooltip]="'AGENT_LAUNCH.PICK_TOOLTIP' | translate">
+          <mat-icon>{{ param.picker === 'dir' ? 'folder_open' : (param.picker === 'out-file' ? 'save' : 'attach_file') }}</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="aiError" class="ai-error-message">
+    <mat-icon>warning</mat-icon>
+    {{ aiError }}
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()" [disabled]="isLaunching">
+    {{ 'COMMON.CANCEL' | translate }}
+  </button>
+  <button
+    mat-raised-button
+    color="primary"
+    (click)="launchNow()"
+    [disabled]="!canLaunch()">
+    <mat-icon>play_arrow</mat-icon>
+    {{ (isLaunching ? 'AGENT_LAUNCH.LAUNCHING' : 'AGENT_LAUNCH.LAUNCH_NOW') | translate }}
+  </button>
+</mat-dialog-actions>

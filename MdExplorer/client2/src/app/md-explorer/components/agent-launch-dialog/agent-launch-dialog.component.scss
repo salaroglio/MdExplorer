@@ -1,0 +1,88 @@
+:host {
+  display: block;
+  min-width: 560px;
+  max-width: 760px;
+}
+
+h2[mat-dialog-title] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .title-icon {
+    color: var(--mde-icon-accent-blue);
+  }
+}
+
+.full-width {
+  width: 100%;
+}
+
+// Explicit label above every field (MDC floating labels are unreadable in dark mode)
+.field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  opacity: 0.85;
+
+  .param-description {
+    font-weight: 400;
+    opacity: 0.75;
+  }
+}
+
+.normalize-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 16px 0;
+
+  button mat-icon {
+    margin-right: 4px;
+  }
+}
+
+.params-section {
+  margin-top: 8px;
+
+  .params-header {
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+}
+
+.param-row {
+  margin-bottom: 4px;
+}
+
+.param-input-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+
+  .param-field {
+    flex: 1;
+  }
+
+  .picker-button {
+    margin-top: 4px;
+    min-width: 44px;
+    padding: 0 8px;
+  }
+}
+
+.ai-error-message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--mde-warn, #e53935);
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}

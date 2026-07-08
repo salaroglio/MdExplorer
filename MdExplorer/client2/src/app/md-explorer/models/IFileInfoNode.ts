@@ -25,6 +25,9 @@ export interface IFileInfoNode {
   // True when the folder owns a generated TOC file (<dirname>.md.directory)
   hasToc?: boolean;
 
+  // True for *.agent.md files (agentic markdown: launchable/schedulable agents)
+  isAgentFile?: boolean;
+
   // True when the folder contains content the md-tree does not show (non-.md files or
   // markdown-empty subfolders). Drives the "reveal content" (eye) entry in the context menu.
   hasExtraContent?: boolean;

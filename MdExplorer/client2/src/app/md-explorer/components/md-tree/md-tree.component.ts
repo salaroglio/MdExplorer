@@ -30,6 +30,7 @@ import { ProjectSettingsService } from '../../../projects/services/project-setti
 import { ShowFileSystemComponent } from '../../../commons/components/show-file-system/show-file-system.component';
 import { ShowFileMetadata } from '../../../commons/components/show-file-system/show-file-metadata';
 import { InstallWizardDialogComponent, InstallWizardData } from '../dialogs/install-wizard/install-wizard.component';
+import { AgentLaunchDialogComponent } from '../agent-launch-dialog/agent-launch-dialog.component';
 import { AppStoreService } from '../../services/app-store.service';
 import { BulkExportProgressService } from '../../services/bulk-export-progress.service';
 import { FileEventsService } from '../../services/file-events.service';
@@ -124,6 +125,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       developmentTags: node.developmentTags,
       // True when the folder owns a generated TOC file (drives the TOC icon)
       hasToc: node.hasToc,
+      // *.agent.md detection is purely name-based: no backend round-trip needed
+      isAgentFile: (node.type === 'mdFile' || node.type === 'mdFileTimer')
+        && !!node.name && node.name.toLowerCase().endsWith('.agent.md'),
       // Folder "reveal extra content" (eye) state
       hasExtraContent: node.hasExtraContent,
       extraLoaded: node.extraLoaded,
@@ -970,6 +974,24 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Stop the click from bubbling to the folder row (which would toggle it).
     event.stopPropagation();
     this.navigateToTocFile(node);
+  }
+
+  /**
+   * Opens the Agent Launch dialog for a *.agent.md file. Wired to the robot icon
+   * shown on nodes whose node.isAgentFile === true.
+   */
+  openAgentLaunchDialog(node: MdFile, event: MouseEvent) {
+    // Stop the click from bubbling to the row (which would open the document).
+    event.stopPropagation();
+    const projectPath = this.projectsService.currentProjects$.value?.path || '';
+    this.dialog.open(AgentLaunchDialogComponent, {
+      width: '700px',
+      data: {
+        projectPath,
+        agentFilePath: node.fullPath,
+        agentName: node.name,
+      },
+    });
   }
 
   /**

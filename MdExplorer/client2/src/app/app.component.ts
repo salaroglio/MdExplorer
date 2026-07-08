@@ -68,5 +68,19 @@ export class AppComponent {
         { duration: 6000, panelClass: ['kg-stale-snack'] }
       );
     });
+
+    // Esito dei run degli agenti *.agent.md (lancio manuale, schedule, hook):
+    // toast globale così l'esito arriva anche se il dialog di lancio è chiuso.
+    this.serverMessages.agentJobProgress$.subscribe(evt => {
+      if (evt.phase === 'completed') {
+        this.snackBar.open(`🤖 Agente "${evt.agentName}" completato.`, 'OK', { duration: 5000 });
+      } else if (evt.phase === 'failed') {
+        this.snackBar.open(
+          `🤖 Agente "${evt.agentName}" fallito: ${evt.error || 'errore sconosciuto'}`,
+          'OK',
+          { duration: 10000, panelClass: ['kg-stale-snack'] }
+        );
+      }
+    });
   }
 }

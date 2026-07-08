@@ -90,6 +90,9 @@ namespace MdExplorer
             // Mark folder-summarizer job (azione ibrida algoritmo + LLM evocata da Mark)
             services.AddSingleton<Services.MarkActions.IMarkFolderJobService, Services.MarkActions.MarkFolderJobService>();
 
+            // Esecuzione headless degli agenti *.agent.md (lancio manuale, schedule, hook)
+            services.AddSingleton<Services.AgentRun.IAgentRunJobService, Services.AgentRun.AgentRunJobService>();
+
             // Shell execution for fenced code blocks (bash/sh/powershell/pwsh/cmd)
             services.AddSingleton<Services.Execution.ShellRegistry>();
             services.AddTransient<Services.Execution.ShellRunner>();

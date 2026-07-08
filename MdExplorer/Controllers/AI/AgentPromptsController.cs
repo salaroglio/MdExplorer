@@ -24,13 +24,16 @@ namespace MdExplorer.Controllers.AI
         private const string SkillRelativePath = ".github/skills/mde-prompt-for-agents/SKILL.md";
 
         private readonly IEnumerable<IAiProvider> _aiProviders;
+        private readonly MdExplorer.Services.AgentRun.IAgentRunJobService _agentRunJobService;
         private readonly ILogger<AgentPromptsController> _logger;
 
         public AgentPromptsController(
             IEnumerable<IAiProvider> aiProviders,
+            MdExplorer.Services.AgentRun.IAgentRunJobService agentRunJobService,
             ILogger<AgentPromptsController> logger)
         {
             _aiProviders = aiProviders;
+            _agentRunJobService = agentRunJobService;
             _logger = logger;
         }
 
@@ -119,6 +122,56 @@ namespace MdExplorer.Controllers.AI
             }
         }
 
+        [HttpPost("launch")]
+        public IActionResult Launch([FromBody] LaunchAgentRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.ProjectPath) || !Directory.Exists(request.ProjectPath))
+                return BadRequest(new { success = false, error = $"Project path is required and must exist. Got: '{request?.ProjectPath}'" });
+            if (string.IsNullOrWhiteSpace(request.AgentFilePath) || !System.IO.File.Exists(request.AgentFilePath))
+                return BadRequest(new { success = false, error = $"Agent file not found: '{request?.AgentFilePath}'" });
+            if (string.IsNullOrWhiteSpace(request.Prompt))
+                return BadRequest(new { success = false, error = "Prompt is required" });
+
+            var prepared = AgentPromptComposer.Substitute(
+                request.Prompt,
+                request.ParameterValues ?? new Dictionary<string, string>());
+
+            var unresolved = AgentPromptComposer.FindUnresolvedPlaceholders(prepared);
+            if (unresolved.Count > 0)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    error = $"Missing values for parameters: {string.Join(", ", unresolved)}"
+                });
+            }
+
+            var runRequest = new MdExplorer.Services.AgentRun.AgentRunRequestModel
+            {
+                ProjectPath = request.ProjectPath,
+                AgentFilePath = request.AgentFilePath,
+                PreparedPrompt = prepared,
+                TriggerSource = "manual",
+                ConnectionId = request.ConnectionId
+            };
+
+            try
+            {
+                // Fire-and-forget: outcome is streamed via the agentJobProgress SignalR event.
+                _ = _agentRunJobService.RunAsync(runRequest);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { success = false, error = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, error = ex.Message });
+            }
+
+            return Ok(new { success = true, runId = runRequest.RunId });
+        }
+
         [HttpPost("extract-params")]
         public IActionResult ExtractParameters([FromBody] ExtractAgentParamsRequest request)
         {
@@ -179,6 +232,16 @@ namespace MdExplorer.Controllers.AI
     public class ExtractAgentParamsRequest
     {
         public string? Prompt { get; set; }
+    }
+
+    public class LaunchAgentRequest
+    {
+        public string? ProjectPath { get; set; }
+        public string? AgentFilePath { get; set; }
+        /// <summary>Normalized prompt, placeholders not yet substituted.</summary>
+        public string? Prompt { get; set; }
+        public Dictionary<string, string>? ParameterValues { get; set; }
+        public string? ConnectionId { get; set; }
     }
 
     public class AgentParamDto
