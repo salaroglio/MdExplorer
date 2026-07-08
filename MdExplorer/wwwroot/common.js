@@ -183,11 +183,14 @@ if (window.commonJsLoaded) {
 
         // TABLES: narrow columns (numbers + short sigle) — wrap their long header, keep column small
         loadScriptOnce('/javascripts/jqueryForFirstPage/tables/table-narrow-cols.js');
+        // TABLES: floating "find in table" button on hover (like the SVG diagram search)
+        document.write("<link href='/javascripts/jqueryForFirstPage/tables/table-find.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/tables/table-find.js');
 
         // CORE: Initialization coordinator (MUST BE LAST)
         loadScriptOnce('/javascripts/jqueryForFirstPage/core/init.js');
 
-        console.log('=== MODULAR FILES LOADED (25 files) ===');
+        console.log('=== MODULAR FILES LOADED (26 files) ===');
     } else {
         console.log('=== LOADING MONOLITHIC jqueryForFirstPage.js ===');
         loadScriptOnce('/javascripts/jqueryForFirstPage.js');

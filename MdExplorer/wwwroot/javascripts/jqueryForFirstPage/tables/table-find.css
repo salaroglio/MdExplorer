@@ -1,0 +1,105 @@
+/* ============================================================================
+ * MdExplorer - "Find in table" floating widget
+ * ----------------------------------------------------------------------------
+ * A small magnifier button appears on hover at the top-left of a markdown
+ * table (floating with its sticky header). Clicking it opens a floating search
+ * box that highlights matching cells and lets you jump between them — the same
+ * pattern used for searching inside SVG diagrams.
+ * ========================================================================== */
+
+/* magnifier button (shown on hover, tracks the table's top-left corner) */
+.mde-tfind-btn {
+    position: fixed;
+    z-index: 1016;
+    display: none; /* -> flex when shown by JS */
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+}
+.mde-tfind-btn img { width: 15px; height: 15px; display: block; }
+.mde-tfind-btn:hover { background: #ffffff; }
+
+/* floating search box */
+.mde-tfind-box {
+    position: fixed;
+    z-index: 1017;
+    display: none; /* -> flex when opened */
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: #f5f5f5;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.22);
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+}
+.mde-tfind-box input {
+    border: 1px solid #aaa;
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-size: 13px;
+    outline: none;
+    min-width: 160px;
+}
+.mde-tfind-count {
+    color: #666;
+    white-space: nowrap;
+    min-width: 54px;
+    text-align: center;
+}
+.mde-tfind-box button {
+    border: 1px solid #ccc;
+    background: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+    padding: 3px 7px;
+    color: #333;
+}
+.mde-tfind-box button:hover { background: #e9e9e9; }
+.mde-tfind-box .mde-tfind-close {
+    border: none;
+    background: transparent;
+    font-size: 17px;
+    color: #999;
+    padding: 2px 6px;
+}
+
+/* cell highlights (yellow = match, orange = current) */
+.mdeItemMainPageCenter table.table td.mde-tfind-hit,
+.mdeItemMainPageCenter table.table th.mde-tfind-hit {
+    background: #fff3a0 !important;
+}
+.mdeItemMainPageCenter table.table td.mde-tfind-current,
+.mdeItemMainPageCenter table.table th.mde-tfind-current {
+    background: #ff9800 !important;
+    color: #000 !important;
+}
+
+/* dark mode */
+body.dark-theme .mde-tfind-btn { background: rgba(45, 45, 45, 0.96); border-color: #555; }
+body.dark-theme .mde-tfind-btn:hover { background: #3a3a3a; }
+body.dark-theme .mde-tfind-box { background: #2d2d2d; border-color: #555; color: #ccc; }
+body.dark-theme .mde-tfind-box input { background: #1e1e1e; color: #ccc; border-color: #555; }
+body.dark-theme .mde-tfind-count { color: #aaa; }
+body.dark-theme .mde-tfind-box button { background: #3a3a3a; color: #ccc; border-color: #555; }
+body.dark-theme .mde-tfind-box button:hover { background: #484848; }
+body.dark-theme .mdeItemMainPageCenter table.table td.mde-tfind-hit,
+body.dark-theme .mdeItemMainPageCenter table.table th.mde-tfind-hit {
+    background: #6b5d00 !important;
+    color: #fff !important;
+}
+body.dark-theme .mdeItemMainPageCenter table.table td.mde-tfind-current,
+body.dark-theme .mdeItemMainPageCenter table.table th.mde-tfind-current {
+    background: #ff9800 !important;
+    color: #000 !important;
+}
