@@ -19,6 +19,13 @@ details {
     max-width: 100%;
     overflow-x: auto;
 }
+/* No-wrap sulle celle: la tabella resta alla larghezza naturale piena (non si
+   comprime andando a capo), così la scrollbar orizzontale copre l'INTERA
+   estensione e non solo il residuo dei token non spezzabili. */
+.mdeItemMainPageCenter table.table td,
+.mdeItemMainPageCenter table.table th {
+    white-space: nowrap;
+}
 
 :root{
     --toc-width:300px;
