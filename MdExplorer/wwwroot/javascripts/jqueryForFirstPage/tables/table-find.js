@@ -16,7 +16,7 @@
     if (window.__mdeTableFindLoaded) return;
     window.__mdeTableFindLoaded = true;
 
-    var btn, box, input, counter;
+    var btn, box, input, counter, colSelect;
     var activeTable = null;   // table the widget currently targets
     var searchOpen = false;
     var matches = [];         // matching cells
@@ -39,6 +39,9 @@
         input = document.createElement('input');
         input.type = 'text';
         input.placeholder = 'Cerca nella tabella…';
+        colSelect = document.createElement('select');
+        colSelect.className = 'mde-tfind-col';
+        colSelect.title = 'Colonna in cui cercare';
         counter = document.createElement('span');
         counter.className = 'mde-tfind-count';
         var prev = mkBtn('↑', 'Precedente (Shift+Invio)');
@@ -46,6 +49,7 @@
         var close = mkBtn('×', 'Chiudi (Esc)');
         close.className = 'mde-tfind-close';
         box.appendChild(input);
+        box.appendChild(colSelect);
         box.appendChild(counter);
         box.appendChild(prev);
         box.appendChild(next);
@@ -56,6 +60,7 @@
         btn.addEventListener('mouseenter', cancelHide);
         btn.addEventListener('mouseleave', scheduleHide);
         box.addEventListener('mouseenter', cancelHide);
+        colSelect.addEventListener('change', rerun);
         input.addEventListener('input', onInput);
         input.addEventListener('keydown', onKey);
         prev.addEventListener('click', function () { navigate(-1); });
@@ -108,9 +113,35 @@
         box.style.display = 'flex';
         input.value = '';
         counter.textContent = '';
+        populateColumns();
         clearHighlights();
         matches = []; current = -1;
         input.focus();
+    }
+
+    // Fill the column combo from the active table's header cells.
+    function populateColumns() {
+        colSelect.innerHTML = '';
+        var all = document.createElement('option');
+        all.value = '';
+        all.textContent = 'Tutte le colonne';
+        colSelect.appendChild(all);
+        var headRow = activeTable && activeTable.tHead && activeTable.tHead.rows[0];
+        if (!headRow) return;
+        for (var i = 0; i < headRow.cells.length; i++) {
+            var o = document.createElement('option');
+            o.value = String(i);
+            o.textContent = (headRow.cells[i].textContent || '').trim() || ('Colonna ' + (i + 1));
+            colSelect.appendChild(o);
+        }
+        colSelect.value = '';
+    }
+
+    // Re-run the current search (e.g. when the column filter changes).
+    function rerun() {
+        var term = input.value.trim();
+        if (term.length < 2) { clearHighlights(); matches = []; current = -1; counter.textContent = ''; return; }
+        execute(term);
     }
 
     function closeSearch() {
@@ -144,8 +175,10 @@
         clearHighlights();
         matches = []; current = -1;
         var tl = term.toLowerCase();
+        var col = colSelect.value === '' ? -1 : parseInt(colSelect.value, 10); // -1 = all columns
         var cells = activeTable.querySelectorAll('thead th, tbody th, tbody td');
         cells.forEach(function (cell) {
+            if (col >= 0 && cell.cellIndex !== col) return; // restrict to the chosen column
             if ((cell.textContent || '').toLowerCase().indexOf(tl) !== -1) {
                 cell.classList.add('mde-tfind-hit');
                 matches.push(cell);

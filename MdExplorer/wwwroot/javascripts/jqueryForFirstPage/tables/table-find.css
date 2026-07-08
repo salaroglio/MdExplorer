@@ -49,6 +49,17 @@
     outline: none;
     min-width: 160px;
 }
+.mde-tfind-box select {
+    border: 1px solid #aaa;
+    border-radius: 3px;
+    padding: 3px 4px;
+    font-size: 12px;
+    outline: none;
+    max-width: 150px;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+}
 .mde-tfind-count {
     color: #666;
     white-space: nowrap;
@@ -90,6 +101,7 @@ body.dark-theme .mde-tfind-btn { background: rgba(45, 45, 45, 0.96); border-colo
 body.dark-theme .mde-tfind-btn:hover { background: #3a3a3a; }
 body.dark-theme .mde-tfind-box { background: #2d2d2d; border-color: #555; color: #ccc; }
 body.dark-theme .mde-tfind-box input { background: #1e1e1e; color: #ccc; border-color: #555; }
+body.dark-theme .mde-tfind-box select { background: #1e1e1e; color: #ccc; border-color: #555; }
 body.dark-theme .mde-tfind-count { color: #aaa; }
 body.dark-theme .mde-tfind-box button { background: #3a3a3a; color: #ccc; border-color: #555; }
 body.dark-theme .mde-tfind-box button:hover { background: #484848; }
