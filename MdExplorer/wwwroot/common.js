@@ -181,8 +181,8 @@ if (window.commonJsLoaded) {
         document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-yaml.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-yaml.js');
 
-        // TABLES: narrow numeric columns (wrap their long header, keep column small)
-        loadScriptOnce('/javascripts/jqueryForFirstPage/tables/table-numeric-cols.js');
+        // TABLES: narrow columns (numbers + short sigle) — wrap their long header, keep column small
+        loadScriptOnce('/javascripts/jqueryForFirstPage/tables/table-narrow-cols.js');
 
         // CORE: Initialization coordinator (MUST BE LAST)
         loadScriptOnce('/javascripts/jqueryForFirstPage/core/init.js');

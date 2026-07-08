@@ -50,20 +50,24 @@ body.dark-theme .mdeItemMainPageCenter table.table::-webkit-scrollbar-thumb {
 body.dark-theme .mdeItemMainPageCenter table.table::-webkit-scrollbar-thumb:hover {
     background: #777777;
 }
-/* Colonne di soli numeri: non serve la min-width larga (resterebbero vuote).
-   table-numeric-cols.js marca le celle con .mde-numcol; qui stringiamo la
-   colonna (min-width:0) e la testata, di solito lunga, va a capo sugli spazi.
+/* Colonne "strette": contenuto numerico oppure sigle corte (≤10 caratteri) —
+   non serve la min-width larga (resterebbero vuote). table-narrow-cols.js marca
+   .mde-narrowcol (numeri + sigle) e .mde-numcol (solo numeri). min-width:0
+   toglie il floor da 40ch; la testata, di solito lunga, va a capo sugli spazi.
    Specificità: una classe in più della regola base -> vince senza !important. */
-.mdeItemMainPageCenter table.table td.mde-numcol,
-.mdeItemMainPageCenter table.table th.mde-numcol {
+.mdeItemMainPageCenter table.table td.mde-narrowcol,
+.mdeItemMainPageCenter table.table th.mde-narrowcol {
     min-width: 0;
 }
-.mdeItemMainPageCenter table.table td.mde-numcol {
+.mdeItemMainPageCenter table.table td.mde-narrowcol {
     white-space: nowrap;
-    text-align: center;
 }
-.mdeItemMainPageCenter table.table th.mde-numcol {
+.mdeItemMainPageCenter table.table th.mde-narrowcol {
     overflow-wrap: normal; /* testata a capo sugli spazi, non a metà parola */
+}
+/* Colonne numeriche: valori centrati (sottoinsieme di .mde-narrowcol). */
+.mdeItemMainPageCenter table.table td.mde-numcol {
+    text-align: center;
 }
 
 /* Header sticky. box-shadow al posto dei bordi: con position:sticky +
