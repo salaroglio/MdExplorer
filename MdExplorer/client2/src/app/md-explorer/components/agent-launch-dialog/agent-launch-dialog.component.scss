@@ -86,3 +86,26 @@ h2[mat-dialog-title] {
     height: 18px;
   }
 }
+
+// Split "Save" button: primary action (shared template) + dropdown for "only for me".
+.save-combo {
+  display: inline-flex;
+  align-items: stretch;
+
+  .save-combo__main {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .save-combo__toggle {
+    min-width: 0;
+    padding: 0 4px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: none;
+
+    mat-icon {
+      margin: 0;
+    }
+  }
+}

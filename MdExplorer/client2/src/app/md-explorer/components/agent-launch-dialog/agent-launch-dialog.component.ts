@@ -48,7 +48,8 @@ export class AgentLaunchDialogComponent {
     private snackBar: MatSnackBar,
     private translate: TranslateService,
   ) {
-    // Restore the last working prompt for this agent file (per-user draft, UserDB).
+    // Precedence: the per-user local draft (UserDB) wins; if there is none, seed from
+    // the shared template stored inside the .agent.md (travels with git).
     this.agentScheduleService.getDraft(data.projectPath, data.agentFilePath).subscribe({
       next: (r) => {
         if (r.draft?.prompt && !this.prompt) {
@@ -59,9 +60,24 @@ export class AgentLaunchDialogComponent {
             this.paramValues = {};
           }
           this.detectParams();
+        } else if (!this.prompt) {
+          this.seedFromTemplate();
         }
       },
-      error: () => { /* draft is a nicety, not a requirement */ },
+      error: () => { this.seedFromTemplate(); },
+    });
+  }
+
+  /** Seeds the dialog from the shared template in the .agent.md when no local draft exists. */
+  private seedFromTemplate(): void {
+    this.agentScheduleService.getTemplate(this.data.agentFilePath).subscribe({
+      next: (r) => {
+        if (r.template && !this.prompt) {
+          this.prompt = r.template;
+          this.detectParams();
+        }
+      },
+      error: () => { /* template is optional */ },
     });
   }
 
@@ -73,17 +89,16 @@ export class AgentLaunchDialogComponent {
   }
 
   /**
-   * Saves the current prompt + parameter values as a draft and closes.
-   * Next time this same *.agent.md is opened, the dialog restores them (getDraft
-   * in the constructor). No scheduling — this is purely "remember what I typed".
+   * "Save only for me": persists prompt + parameter values as a per-user local draft
+   * (UserDB, AppData) and closes. Nothing is written to the shared .agent.md.
    */
-  saveOnly(): void {
+  saveLocal(): void {
     if (!this.prompt || !this.prompt.trim()) return;
     this.agentScheduleService
       .saveDraft(this.data.projectPath, this.data.agentFilePath, this.prompt, this.paramValues)
       .subscribe({
         next: () => {
-          this.snackBar.open(this.translate.instant('AGENT_LAUNCH.SAVED'), undefined, { duration: 3000 });
+          this.snackBar.open(this.translate.instant('AGENT_LAUNCH.SAVED_LOCAL'), undefined, { duration: 3000 });
           this.dialogRef.close(null);
         },
         error: (err) => {
@@ -91,6 +106,30 @@ export class AgentLaunchDialogComponent {
           console.warn('Draft save failed:', err);
         },
       });
+  }
+
+  /**
+   * "Save as template (shared)": writes the prompt into the managed section at the end
+   * of the .agent.md (goes to git, seen by everyone). Parameter values stay local — they
+   * are machine-specific — so they are also saved as a local draft here for convenience.
+   */
+  saveAsTemplate(): void {
+    if (!this.prompt || !this.prompt.trim()) return;
+    this.aiError = null;
+    this.agentScheduleService.saveTemplate(this.data.agentFilePath, this.prompt).subscribe({
+      next: () => {
+        // Keep the machine-specific parameter values as a local draft.
+        this.agentScheduleService
+          .saveDraft(this.data.projectPath, this.data.agentFilePath, this.prompt, this.paramValues)
+          .subscribe({ error: (err) => console.warn('Draft save failed:', err) });
+        this.snackBar.open(this.translate.instant('AGENT_LAUNCH.SAVED_TEMPLATE'), undefined, { duration: 3000 });
+        this.dialogRef.close(null);
+      },
+      error: (err) => {
+        this.aiError = err?.error?.error || this.translate.instant('AGENT_LAUNCH.LAUNCH_ERROR');
+        console.warn('Template save failed:', err);
+      },
+    });
   }
 
   /** Substitutes the chosen values and opens the scheduling dialog with the ready prompt. */
@@ -225,6 +264,11 @@ export class AgentLaunchDialogComponent {
           console.error('Error launching agent:', err);
         },
       });
+  }
+
+  /** Saving (local or template) only needs a prompt — parameter values are optional. */
+  canSave(): boolean {
+    return !!this.prompt && !!this.prompt.trim() && !this.isNormalizing && !this.isLaunching;
   }
 
   canLaunch(): boolean {

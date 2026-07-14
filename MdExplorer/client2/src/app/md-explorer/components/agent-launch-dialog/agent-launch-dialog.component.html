@@ -73,16 +73,38 @@
   <button mat-button (click)="onCancel()" [disabled]="isLaunching">
     {{ 'COMMON.CANCEL' | translate }}
   </button>
-  <!-- Salva: persiste prompt+parametri come draft (li ritrovi alla prossima
-       apertura di questo agente). Nessuna schedulazione. -->
-  <button
-    mat-stroked-button
-    (click)="saveOnly()"
-    [disabled]="!canLaunch()"
-    [matTooltip]="'AGENT_LAUNCH.SAVE_TOOLTIP' | translate">
-    <mat-icon>save</mat-icon>
-    {{ 'AGENT_LAUNCH.SAVE' | translate }}
-  </button>
+  <!-- Combo "Salva": azione principale = template condiviso (scritto nel .agent.md,
+       va in git); dal menu = solo per me (draft locale in AppData). I valori dei
+       parametri restano sempre locali. -->
+  <div class="save-combo">
+    <button
+      mat-stroked-button
+      class="save-combo__main"
+      (click)="saveAsTemplate()"
+      [disabled]="!canSave()"
+      [matTooltip]="'AGENT_LAUNCH.SAVE_TEMPLATE_TOOLTIP' | translate">
+      <mat-icon>groups</mat-icon>
+      {{ 'AGENT_LAUNCH.SAVE_TEMPLATE' | translate }}
+    </button>
+    <button
+      mat-stroked-button
+      class="save-combo__toggle"
+      [matMenuTriggerFor]="saveMenu"
+      [disabled]="!canSave()"
+      [attr.aria-label]="'AGENT_LAUNCH.SAVE_MENU_ARIA' | translate">
+      <mat-icon>arrow_drop_down</mat-icon>
+    </button>
+    <mat-menu #saveMenu="matMenu">
+      <button mat-menu-item (click)="saveAsTemplate()">
+        <mat-icon>groups</mat-icon>
+        <span>{{ 'AGENT_LAUNCH.SAVE_TEMPLATE' | translate }}</span>
+      </button>
+      <button mat-menu-item (click)="saveLocal()">
+        <mat-icon>person</mat-icon>
+        <span>{{ 'AGENT_LAUNCH.SAVE_LOCAL' | translate }}</span>
+      </button>
+    </mat-menu>
+  </div>
   <button
     mat-stroked-button
     (click)="saveAsSchedule()"

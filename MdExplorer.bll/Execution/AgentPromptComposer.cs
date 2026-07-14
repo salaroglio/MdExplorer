@@ -37,6 +37,23 @@ namespace MdExplorer.Features.Execution
             @"^[\t ]*##[\t ]*Parameters[\t ]*\r?\n(?:[\t ]*\r?\n)*(?=^[\t ]*#|\z)",
             RegexOptions.Compiled | RegexOptions.Multiline);
 
+        // Machine-managed shared-prompt-template section, kept at the END of a .agent.md.
+        // The dialog's "Save as template (shared)" upserts it; it is NOT part of the
+        // agent's runtime instructions and is stripped before ComposeRunPrompt.
+        public const string TemplateStartMarker = "<!-- mde:prompt-template:start -->";
+        public const string TemplateEndMarker = "<!-- mde:prompt-template:end -->";
+
+        // The whole managed block, with any leading blank lines, so upsert/strip are idempotent.
+        private static readonly Regex TemplateBlockRegex = new(
+            @"\r?\n*[\t ]*<!-- mde:prompt-template:start -->.*?<!-- mde:prompt-template:end -->[\t ]*(?:\r?\n|$)",
+            RegexOptions.Compiled | RegexOptions.Singleline);
+
+        // The prompt text inside the block: skip the start marker and an optional
+        // "## Prompt template" heading line, capture up to the end marker.
+        private static readonly Regex TemplateInnerRegex = new(
+            @"<!-- mde:prompt-template:start -->[\t ]*\r?\n(?:[\t ]*##[^\r\n]*\r?\n)?(.*?)\r?\n?[\t ]*<!-- mde:prompt-template:end -->",
+            RegexOptions.Compiled | RegexOptions.Singleline);
+
         /// <summary>
         /// Replaces every <c>&lt;placeholder&gt;</c> whose normalized name has an entry in
         /// <paramref name="values"/>, then strips the <c>```params</c> declaration block
@@ -79,7 +96,47 @@ namespace MdExplorer.Features.Execution
             if (string.IsNullOrWhiteSpace(preparedPrompt))
                 throw new ArgumentException("Prepared prompt is empty — nothing to ask the agent.", nameof(preparedPrompt));
 
-            return agentFileContent.TrimEnd() + "\n\n---\n\n# Task\n\n" + preparedPrompt.Trim() + "\n";
+            // The shared-template section is dialog metadata, not a runtime instruction:
+            // strip it so it never gets appended alongside the actual task.
+            var body = StripPromptTemplate(agentFileContent);
+            if (string.IsNullOrWhiteSpace(body))
+                throw new ArgumentException("Agent file has no content outside the prompt-template section — refusing to run a bodyless agent.", nameof(agentFileContent));
+
+            return body.TrimEnd() + "\n\n---\n\n# Task\n\n" + preparedPrompt.Trim() + "\n";
+        }
+
+        /// <summary>
+        /// Extracts the shared prompt template stored in the managed section at the end
+        /// of a <c>.agent.md</c>, or <c>null</c> when the file has none.
+        /// </summary>
+        public static string ExtractPromptTemplate(string agentFileContent)
+        {
+            if (string.IsNullOrEmpty(agentFileContent)) return null;
+            var m = TemplateInnerRegex.Match(agentFileContent);
+            if (!m.Success) return null;
+            var inner = m.Groups[1].Value.Trim();
+            return inner.Length == 0 ? null : inner;
+        }
+
+        /// <summary>
+        /// Inserts (first time) or replaces the shared prompt-template section at the end
+        /// of a <c>.agent.md</c>. Idempotent: re-saving never appends a duplicate.
+        /// </summary>
+        public static string UpsertPromptTemplate(string agentFileContent, string prompt)
+        {
+            if (string.IsNullOrWhiteSpace(prompt))
+                throw new ArgumentException("Prompt is empty — nothing to save as template.", nameof(prompt));
+
+            var block = TemplateStartMarker + "\n## Prompt template\n\n" + prompt.Trim() + "\n" + TemplateEndMarker + "\n";
+            var body = StripPromptTemplate(agentFileContent ?? string.Empty).TrimEnd();
+            return body.Length == 0 ? block : body + "\n\n" + block;
+        }
+
+        /// <summary>Removes the managed prompt-template section (if present).</summary>
+        public static string StripPromptTemplate(string agentFileContent)
+        {
+            if (string.IsNullOrEmpty(agentFileContent)) return agentFileContent;
+            return TemplateBlockRegex.Replace(agentFileContent, string.Empty);
         }
 
         /// <summary>

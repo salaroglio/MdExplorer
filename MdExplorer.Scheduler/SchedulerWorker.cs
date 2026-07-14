@@ -19,6 +19,12 @@ public class SchedulerWorker : BackgroundService
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
 
+    // Mirror of AgentPromptComposer.TemplateBlockRegex (MdExplorer.bll): the
+    // machine-managed shared-prompt-template section, stripped before a scheduled run.
+    private static readonly System.Text.RegularExpressions.Regex PromptTemplateBlockRegex = new(
+        @"\r?\n*[\t ]*<!-- mde:prompt-template:start -->.*?<!-- mde:prompt-template:end -->[\t ]*(?:\r?\n|$)",
+        System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.Singleline);
+
     private readonly ILogger<SchedulerWorker> _logger;
     private readonly SchedulerDb _db;
     private readonly CopilotRunner _runner;
@@ -189,8 +195,11 @@ public class SchedulerWorker : BackgroundService
                 }
                 else
                 {
-                    // Mirror of AgentPromptComposer.ComposeRunPrompt (MdExplorer.bll).
-                    var composed = agentContent.TrimEnd() + "\n\n---\n\n# Task\n\n" + schedule.PreparedPrompt.Trim() + "\n";
+                    // Mirror of AgentPromptComposer.ComposeRunPrompt (MdExplorer.bll):
+                    // strip the machine-managed prompt-template section (dialog metadata,
+                    // not a runtime instruction) before composing the run prompt.
+                    var body = PromptTemplateBlockRegex.Replace(agentContent, string.Empty);
+                    var composed = body.TrimEnd() + "\n\n---\n\n# Task\n\n" + schedule.PreparedPrompt.Trim() + "\n";
                     var result = await _runner.RunAsync(composed, schedule.ProjectPath, ct);
                     status = result.Status;
                     outputTail = result.OutputTail;

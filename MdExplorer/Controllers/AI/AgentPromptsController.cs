@@ -248,6 +248,57 @@ namespace MdExplorer.Controllers.AI
         }
 
         /// <summary>
+        /// Shared prompt template stored INSIDE the .agent.md (managed section at the end
+        /// of the file, so it travels with git). Returns { template: null } when absent.
+        /// </summary>
+        [HttpGet("template")]
+        public IActionResult GetTemplate([FromQuery] string? agentFilePath)
+        {
+            if (string.IsNullOrWhiteSpace(agentFilePath) || !System.IO.File.Exists(agentFilePath))
+                return BadRequest(new { error = $"Agent file not found: '{agentFilePath}'" });
+
+            try
+            {
+                var content = System.IO.File.ReadAllText(agentFilePath);
+                var template = AgentPromptComposer.ExtractPromptTemplate(content);
+                return Ok(new { template });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AgentPrompts] GetTemplate failed");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// "Save as template (shared)": upserts the prompt into the managed section at the
+        /// end of the .agent.md. First save creates the section; later saves replace it in
+        /// place (never duplicated). Parameter values are intentionally NOT written here —
+        /// they are machine-specific and stay in the local draft.
+        /// </summary>
+        [HttpPut("template")]
+        public IActionResult SaveTemplate([FromBody] SaveAgentTemplateRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.AgentFilePath) || !System.IO.File.Exists(request.AgentFilePath))
+                return BadRequest(new { error = $"Agent file not found: '{request?.AgentFilePath}'" });
+            if (string.IsNullOrWhiteSpace(request.Prompt))
+                return BadRequest(new { error = "prompt is required" });
+
+            try
+            {
+                var content = System.IO.File.ReadAllText(request.AgentFilePath);
+                var updated = AgentPromptComposer.UpsertPromptTemplate(content, request.Prompt);
+                System.IO.File.WriteAllText(request.AgentFilePath, updated);
+                return Ok(new { saved = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AgentPrompts] SaveTemplate failed");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// Substitutes parameter values into a normalized prompt and strips the params
         /// declaration block — same semantics the launch path uses. The launch dialog
         /// calls this to hand a ready-to-run prompt to the scheduling dialog, so the
@@ -344,6 +395,12 @@ namespace MdExplorer.Controllers.AI
         public string? AgentFilePath { get; set; }
         public string? Prompt { get; set; }
         public string? ParameterValuesJson { get; set; }
+    }
+
+    public class SaveAgentTemplateRequest
+    {
+        public string? AgentFilePath { get; set; }
+        public string? Prompt { get; set; }
     }
 
     public class LaunchAgentRequest

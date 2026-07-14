@@ -98,4 +98,14 @@ export class AgentScheduleService {
       parameterValuesJson: JSON.stringify(parameterValues || {}),
     });
   }
+
+  /** Shared prompt template stored inside the .agent.md file (travels with git). */
+  getTemplate(agentFilePath: string): Observable<{ template: string | null }> {
+    const params = new HttpParams().set('agentFilePath', agentFilePath);
+    return this.http.get<{ template: string | null }>('/api/AgentPrompts/template', { params });
+  }
+
+  saveTemplate(agentFilePath: string, prompt: string): Observable<{ saved: boolean }> {
+    return this.http.put<{ saved: boolean }>('/api/AgentPrompts/template', { agentFilePath, prompt });
+  }
 }
