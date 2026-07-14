@@ -452,3 +452,10 @@ llama-cpp-b8255/
 
 # Script locale di publish sul sito (non versionato per scelta)
 /publish-linux-website.sh
+# MDE per-install artifacts — managed by MdExplorer, do not commit
+# (skill/prompt/agent files generated under .github vary by the installed
+#  MDE version, and the MCP config is instance-specific)
+.github/**/mde-*
+.vscode/mcp.json
+# MDE Mark Search temporary answer documents — wiped on every project open
+.md/mark-search/
