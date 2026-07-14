@@ -5269,6 +5269,36 @@ function AgentLaunchDialogComponent_div_24_Template(rf, ctx) {
  * pickers (ParameterExtractor grammar) → launch headless.
  */
 class AgentLaunchDialogComponent {
+  // Splits a normalized prompt at its `## Task` heading. Header = everything before it
+  // (title + params block); task = the body the user actually edits. When there is no
+  // `## Task` (e.g. still free text), the whole thing is the editable body.
+  splitNormalized(full) {
+    const m = (full || '').match(/^([\s\S]*?)\r?\n#{1,6}[ \t]*Task[ \t]*\r?\n+([\s\S]*)$/i);
+    if (m) return {
+      header: m[1].replace(/\s+$/, ''),
+      task: m[2].trim()
+    };
+    return {
+      header: '',
+      task: (full || '').trim()
+    };
+  }
+  // Re-attaches the hidden header to the edited task body → the full normalized prompt
+  // used for launching, saving the draft, and writing the shared template.
+  composeFull() {
+    const task = (this.prompt || '').trim();
+    if (!this.headerPart) return task;
+    return this.headerPart.replace(/\s+$/, '') + '\n\n## Task\n\n' + task + '\n';
+  }
+  // Stores a full normalized prompt as (hidden header, visible task body).
+  applyNormalized(full) {
+    const {
+      header,
+      task
+    } = this.splitNormalized(full);
+    this.headerPart = header;
+    this.prompt = task;
+  }
   constructor(dialogRef, data, agentLaunchService, agentScheduleService, dialog, snackBar, translate) {
     this.dialogRef = dialogRef;
     this.data = data;
@@ -5277,7 +5307,12 @@ class AgentLaunchDialogComponent {
     this.dialog = dialog;
     this.snackBar = snackBar;
     this.translate = translate;
+    // What the user reads/edits in the textarea: the free text before normalization,
+    // and ONLY the `## Task` body afterwards. The machine scaffolding (title + the
+    // ```params declaration block) is kept out of sight in `headerPart` — it still
+    // drives the pickers and is re-attached on launch/save/template.
     this.prompt = '';
+    this.headerPart = '';
     this.parameters = [];
     this.paramValues = {};
     this.isNormalizing = false;
@@ -5288,7 +5323,7 @@ class AgentLaunchDialogComponent {
     this.agentScheduleService.getDraft(data.projectPath, data.agentFilePath).subscribe({
       next: r => {
         if (r.draft?.prompt && !this.prompt) {
-          this.prompt = r.draft.prompt;
+          this.applyNormalized(r.draft.prompt);
           try {
             this.paramValues = JSON.parse(r.draft.parameterValuesJson || '{}') || {};
           } catch {
@@ -5309,7 +5344,7 @@ class AgentLaunchDialogComponent {
     this.agentScheduleService.getTemplate(this.data.agentFilePath).subscribe({
       next: r => {
         if (r.template && !this.prompt) {
-          this.prompt = r.template;
+          this.applyNormalized(r.template);
           this.detectParams();
         }
       },
@@ -5318,7 +5353,7 @@ class AgentLaunchDialogComponent {
   }
   saveDraft() {
     if (!this.prompt || !this.prompt.trim()) return;
-    this.agentScheduleService.saveDraft(this.data.projectPath, this.data.agentFilePath, this.prompt, this.paramValues).subscribe({
+    this.agentScheduleService.saveDraft(this.data.projectPath, this.data.agentFilePath, this.composeFull(), this.paramValues).subscribe({
       error: err => console.warn('Draft save failed:', err)
     });
   }
@@ -5328,7 +5363,7 @@ class AgentLaunchDialogComponent {
    */
   saveLocal() {
     if (!this.prompt || !this.prompt.trim()) return;
-    this.agentScheduleService.saveDraft(this.data.projectPath, this.data.agentFilePath, this.prompt, this.paramValues).subscribe({
+    this.agentScheduleService.saveDraft(this.data.projectPath, this.data.agentFilePath, this.composeFull(), this.paramValues).subscribe({
       next: () => {
         this.snackBar.open(this.translate.instant('AGENT_LAUNCH.SAVED_LOCAL'), undefined, {
           duration: 3000
@@ -5349,10 +5384,10 @@ class AgentLaunchDialogComponent {
   saveAsTemplate() {
     if (!this.prompt || !this.prompt.trim()) return;
     this.aiError = null;
-    this.agentScheduleService.saveTemplate(this.data.agentFilePath, this.prompt).subscribe({
+    this.agentScheduleService.saveTemplate(this.data.agentFilePath, this.composeFull()).subscribe({
       next: () => {
         // Keep the machine-specific parameter values as a local draft.
-        this.agentScheduleService.saveDraft(this.data.projectPath, this.data.agentFilePath, this.prompt, this.paramValues).subscribe({
+        this.agentScheduleService.saveDraft(this.data.projectPath, this.data.agentFilePath, this.composeFull(), this.paramValues).subscribe({
           error: err => console.warn('Draft save failed:', err)
         });
         this.snackBar.open(this.translate.instant('AGENT_LAUNCH.SAVED_TEMPLATE'), undefined, {
@@ -5371,7 +5406,7 @@ class AgentLaunchDialogComponent {
     if (!this.canLaunch()) return;
     this.aiError = null;
     this.saveDraft();
-    this.agentLaunchService.prepare(this.prompt, this.paramValues).subscribe({
+    this.agentLaunchService.prepare(this.composeFull(), this.paramValues).subscribe({
       next: r => {
         if (!r.success || !r.preparedPrompt) {
           this.aiError = r.error || this.translate.instant('AGENT_LAUNCH.LAUNCH_ERROR');
@@ -5399,11 +5434,11 @@ class AgentLaunchDialogComponent {
     }
     this.isNormalizing = true;
     this.aiError = null;
-    this.agentLaunchService.normalize(this.data.projectPath, this.prompt).subscribe({
+    this.agentLaunchService.normalize(this.data.projectPath, this.composeFull()).subscribe({
       next: response => {
         this.isNormalizing = false;
         if (response.success && response.normalizedPrompt) {
-          this.prompt = response.normalizedPrompt;
+          this.applyNormalized(response.normalizedPrompt);
           this.setParameters(response.parameters || []);
           this.saveDraft();
         } else {
@@ -5423,7 +5458,7 @@ class AgentLaunchDialogComponent {
       this.setParameters([]);
       return;
     }
-    this.agentLaunchService.extractParams(this.prompt).subscribe({
+    this.agentLaunchService.extractParams(this.composeFull()).subscribe({
       next: response => this.setParameters(response.parameters || []),
       error: err => console.error('Error extracting agent params:', err)
     });
@@ -5469,7 +5504,7 @@ class AgentLaunchDialogComponent {
     }
     this.isLaunching = true;
     this.aiError = null;
-    this.agentLaunchService.launch(this.data.projectPath, this.data.agentFilePath, this.prompt, this.paramValues).subscribe({
+    this.agentLaunchService.launch(this.data.projectPath, this.data.agentFilePath, this.composeFull(), this.paramValues).subscribe({
       next: response => {
         this.isLaunching = false;
         if (response.success) {
