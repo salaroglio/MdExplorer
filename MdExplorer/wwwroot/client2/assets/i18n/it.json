@@ -1627,8 +1627,11 @@
     "LAUNCHING": "Lancio...",
     "LAUNCH_ERROR": "Lancio agente fallito",
     "STARTED": "Agente \"{{agent}}\" avviato in background",
-    "SAVE_SCHEDULE": "Salva come job schedulato",
-    "SAVE_SCHEDULE_TOOLTIP": "Sostituisce i valori scelti e apre la maschera di schedulazione"
+    "SAVE": "Salva",
+    "SAVE_TOOLTIP": "Salva prompt e parametri: li ritrovi già compilati alla prossima apertura di questo agente",
+    "SAVED": "Prompt salvato",
+    "SAVE_SCHEDULE": "Schedula",
+    "SAVE_SCHEDULE_TOOLTIP": "Salva e apre la maschera di schedulazione (esecuzione a tempo)"
   },
   "AGENT_SCHEDULE": {
     "TITLE": "Schedulazione agente",

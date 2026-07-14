@@ -5303,6 +5303,26 @@ class AgentLaunchDialogComponent {
       error: err => console.warn('Draft save failed:', err)
     });
   }
+  /**
+   * Saves the current prompt + parameter values as a draft and closes.
+   * Next time this same *.agent.md is opened, the dialog restores them (getDraft
+   * in the constructor). No scheduling — this is purely "remember what I typed".
+   */
+  saveOnly() {
+    if (!this.prompt || !this.prompt.trim()) return;
+    this.agentScheduleService.saveDraft(this.data.projectPath, this.data.agentFilePath, this.prompt, this.paramValues).subscribe({
+      next: () => {
+        this.snackBar.open(this.translate.instant('AGENT_LAUNCH.SAVED'), undefined, {
+          duration: 3000
+        });
+        this.dialogRef.close(null);
+      },
+      error: err => {
+        this.aiError = err?.error?.error || this.translate.instant('AGENT_LAUNCH.LAUNCH_ERROR');
+        console.warn('Draft save failed:', err);
+      }
+    });
+  }
   /** Substitutes the chosen values and opens the scheduling dialog with the ready prompt. */
   saveAsSchedule() {
     if (!this.canLaunch()) return;
@@ -5458,8 +5478,8 @@ class AgentLaunchDialogComponent {
     this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵdefineComponent"]({
       type: AgentLaunchDialogComponent,
       selectors: [["app-agent-launch-dialog"]],
-      decls: 40,
-      vars: 37,
+      decls: 46,
+      vars: 44,
       consts: [["mat-dialog-title", ""], [1, "title-icon"], ["for", "agent-prompt", 1, "field-label"], ["appearance", "outline", 1, "full-width"], ["id", "agent-prompt", "matInput", "", "rows", "10", "cdkFocusInitial", "", 3, "ngModel", "placeholder", "disabled", "ngModelChange", "blur"], [1, "normalize-row"], ["mat-stroked-button", "", "color", "accent", 3, "disabled", "click"], ["diameter", "20", "strokeWidth", "2", 4, "ngIf"], ["class", "params-section", 4, "ngIf"], ["class", "ai-error-message", 4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "disabled", "click"], ["mat-stroked-button", "", 3, "disabled", "matTooltip", "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], ["diameter", "20", "strokeWidth", "2"], [1, "params-section"], [1, "field-label", "params-header"], ["class", "param-row", 4, "ngFor", "ngForOf"], [1, "param-row"], [1, "field-label", 3, "for"], ["class", "param-description", 4, "ngIf"], [1, "param-input-row"], ["appearance", "outline", 1, "param-field"], ["matInput", "", 3, "id", "ngModel", "disabled", "ngModelChange"], ["mat-stroked-button", "", "class", "picker-button", 3, "disabled", "matTooltip", "click", 4, "ngIf"], [1, "param-description"], ["mat-stroked-button", "", 1, "picker-button", 3, "disabled", "matTooltip", "click"], [1, "ai-error-message"]],
       template: function AgentLaunchDialogComponent_Template(rf, ctx) {
         if (rf & 1) {
@@ -5510,39 +5530,50 @@ class AgentLaunchDialogComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](29, "button", 12);
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function AgentLaunchDialogComponent_Template_button_click_29_listener() {
-            return ctx.saveAsSchedule();
+            return ctx.saveOnly();
           });
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipe"](30, "translate");
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](31, "mat-icon");
-          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](32, "schedule");
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](32, "save");
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](33);
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipe"](34, "translate");
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](35, "button", 13);
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](35, "button", 12);
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function AgentLaunchDialogComponent_Template_button_click_35_listener() {
+            return ctx.saveAsSchedule();
+          });
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipe"](36, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](37, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](38, "schedule");
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](39);
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipe"](40, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](41, "button", 13);
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵlistener"]("click", function AgentLaunchDialogComponent_Template_button_click_41_listener() {
             return ctx.launchNow();
           });
-          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](36, "mat-icon");
-          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](37, "play_arrow");
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementStart"](42, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](43, "play_arrow");
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](38);
-          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipe"](39, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtext"](44);
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipe"](45, "translate");
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵelementEnd"]()();
         }
         if (rf & 2) {
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate2"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](4, 19, "AGENT_LAUNCH.TITLE"), " \u2014 ", ctx.data.agentName, "\n");
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate2"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](4, 22, "AGENT_LAUNCH.TITLE"), " \u2014 ", ctx.data.agentName, "\n");
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](8, 21, "AGENT_LAUNCH.PROMPT_LABEL"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](8, 24, "AGENT_LAUNCH.PROMPT_LABEL"));
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngModel", ctx.prompt)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](11, 23, "AGENT_LAUNCH.PROMPT_PLACEHOLDER"))("disabled", ctx.isNormalizing || ctx.isLaunching);
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngModel", ctx.prompt)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](11, 26, "AGENT_LAUNCH.PROMPT_PLACEHOLDER"))("disabled", ctx.isNormalizing || ctx.isLaunching);
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](15, 25, "AGENT_LAUNCH.PROMPT_HINT"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](15, 28, "AGENT_LAUNCH.PROMPT_HINT"));
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](3);
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("disabled", ctx.isNormalizing || ctx.isLaunching || !ctx.prompt || !ctx.prompt.trim());
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](21, 27, ctx.isNormalizing ? "AGENT_LAUNCH.NORMALIZING" : "AGENT_LAUNCH.NORMALIZE"), " ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](21, 30, ctx.isNormalizing ? "AGENT_LAUNCH.NORMALIZING" : "AGENT_LAUNCH.NORMALIZE"), " ");
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](2);
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("ngIf", ctx.isNormalizing);
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
@@ -5552,15 +5583,19 @@ class AgentLaunchDialogComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](2);
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("disabled", ctx.isLaunching);
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](28, 29, "COMMON.CANCEL"), " ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](28, 32, "COMMON.CANCEL"), " ");
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("disabled", !ctx.canLaunch())("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](30, 31, "AGENT_LAUNCH.SAVE_SCHEDULE_TOOLTIP"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("disabled", !ctx.canLaunch())("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](30, 34, "AGENT_LAUNCH.SAVE_TOOLTIP"));
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](34, 33, "AGENT_LAUNCH.SAVE_SCHEDULE"), " ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](34, 36, "AGENT_LAUNCH.SAVE"), " ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("disabled", !ctx.canLaunch())("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](36, 38, "AGENT_LAUNCH.SAVE_SCHEDULE_TOOLTIP"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](40, 40, "AGENT_LAUNCH.SAVE_SCHEDULE"), " ");
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](2);
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵproperty"]("disabled", !ctx.canLaunch());
           _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](39, 35, ctx.isLaunching ? "AGENT_LAUNCH.LAUNCHING" : "AGENT_LAUNCH.LAUNCH_NOW"), " ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_6__["ɵɵpipeBind1"](45, 42, ctx.isLaunching ? "AGENT_LAUNCH.LAUNCHING" : "AGENT_LAUNCH.LAUNCH_NOW"), " ");
         }
       },
       dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_11__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_11__.NgIf, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_12__.MatLegacyFormField, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_12__.MatLegacyHint, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_13__.MatLegacyInput, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_14__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_15__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_16__.MatLegacyProgressSpinner, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_8__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_8__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_8__.MatLegacyDialogActions, _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_17__.MatLegacyTooltip, _angular_forms__WEBPACK_IMPORTED_MODULE_18__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_18__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_18__.NgModel, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_10__.TranslatePipe],

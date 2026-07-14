@@ -1627,8 +1627,11 @@
     "LAUNCHING": "Launching...",
     "LAUNCH_ERROR": "Agent launch failed",
     "STARTED": "Agent \"{{agent}}\" started in background",
-    "SAVE_SCHEDULE": "Save as scheduled job",
-    "SAVE_SCHEDULE_TOOLTIP": "Substitute the chosen values and open the scheduling dialog"
+    "SAVE": "Save",
+    "SAVE_TOOLTIP": "Save prompt and parameters: they'll be pre-filled next time you open this agent",
+    "SAVED": "Prompt saved",
+    "SAVE_SCHEDULE": "Schedule",
+    "SAVE_SCHEDULE_TOOLTIP": "Save and open the scheduling dialog (time-based run)"
   },
   "AGENT_SCHEDULE": {
     "TITLE": "Agent scheduling",

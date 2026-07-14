@@ -72,6 +72,27 @@ export class AgentLaunchDialogComponent {
       .subscribe({ error: (err) => console.warn('Draft save failed:', err) });
   }
 
+  /**
+   * Saves the current prompt + parameter values as a draft and closes.
+   * Next time this same *.agent.md is opened, the dialog restores them (getDraft
+   * in the constructor). No scheduling — this is purely "remember what I typed".
+   */
+  saveOnly(): void {
+    if (!this.prompt || !this.prompt.trim()) return;
+    this.agentScheduleService
+      .saveDraft(this.data.projectPath, this.data.agentFilePath, this.prompt, this.paramValues)
+      .subscribe({
+        next: () => {
+          this.snackBar.open(this.translate.instant('AGENT_LAUNCH.SAVED'), undefined, { duration: 3000 });
+          this.dialogRef.close(null);
+        },
+        error: (err) => {
+          this.aiError = err?.error?.error || this.translate.instant('AGENT_LAUNCH.LAUNCH_ERROR');
+          console.warn('Draft save failed:', err);
+        },
+      });
+  }
+
   /** Substitutes the chosen values and opens the scheduling dialog with the ready prompt. */
   saveAsSchedule(): void {
     if (!this.canLaunch()) return;

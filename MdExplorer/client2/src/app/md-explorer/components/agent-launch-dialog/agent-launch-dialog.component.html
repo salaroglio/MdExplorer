@@ -73,6 +73,16 @@
   <button mat-button (click)="onCancel()" [disabled]="isLaunching">
     {{ 'COMMON.CANCEL' | translate }}
   </button>
+  <!-- Salva: persiste prompt+parametri come draft (li ritrovi alla prossima
+       apertura di questo agente). Nessuna schedulazione. -->
+  <button
+    mat-stroked-button
+    (click)="saveOnly()"
+    [disabled]="!canLaunch()"
+    [matTooltip]="'AGENT_LAUNCH.SAVE_TOOLTIP' | translate">
+    <mat-icon>save</mat-icon>
+    {{ 'AGENT_LAUNCH.SAVE' | translate }}
+  </button>
   <button
     mat-stroked-button
     (click)="saveAsSchedule()"
