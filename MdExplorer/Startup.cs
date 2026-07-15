@@ -366,6 +366,9 @@ namespace MdExplorer
 
             // app.UseHttpsRedirection(); // Commented out to prevent warning when HTTPS is not configured for Kestrel
 
+            // Guardia degli endpoint A2A (R12): Host/Origin loopback contro CSRF / DNS-rebinding.
+            app.UseMiddleware<MdExplorer.Middleware.A2AGuardMiddleware>();
+
             app.UseRouting();
             
             app.UseStaticFiles();
