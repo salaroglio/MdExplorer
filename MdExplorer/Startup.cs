@@ -110,6 +110,10 @@ namespace MdExplorer
             services.AddSingleton<Services.AgentRun.IAgentMailbox, Services.AgentRun.AgentMailbox>();
             services.AddHostedService<Services.AgentRun.AgentMessageDispatcher>();
 
+            // RunToken store (R2, §10): identità del mittente per i messaggi in uscita.
+            // Il token è generato al risveglio e passato nell'ambiente del processo agente.
+            services.AddSingleton<MdExplorer.Features.Agents.IRunTokenStore, MdExplorer.Features.Agents.RunTokenStore>();
+
             // Shell execution for fenced code blocks (bash/sh/powershell/pwsh/cmd)
             services.AddSingleton<Services.Execution.ShellRegistry>();
             services.AddTransient<Services.Execution.ShellRunner>();
