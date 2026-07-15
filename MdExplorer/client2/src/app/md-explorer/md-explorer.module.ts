@@ -54,6 +54,7 @@ import { AiSelectionDialogComponent } from './components/dialogs/ai-selection-di
 import { MarkSearchComponent } from './components/mark-search/mark-search.component';
 import { AgentLaunchDialogComponent } from './components/agent-launch-dialog/agent-launch-dialog.component';
 import { AgentScheduleDialogComponent } from './components/agent-schedule-dialog/agent-schedule-dialog.component';
+import { AgentRegistryDialogComponent } from './components/agent-registry-dialog/agent-registry-dialog.component';
 
 
 const routes: Routes = [
@@ -125,7 +126,8 @@ const routes: Routes = [
     AiSelectionDialogComponent,
     MarkSearchComponent,
     AgentLaunchDialogComponent,
-    AgentScheduleDialogComponent
+    AgentScheduleDialogComponent,
+    AgentRegistryDialogComponent
   ],
   imports: [
     CommonModule,

@@ -629,6 +629,7 @@
     "HIDE_SHOW_MENU": "mostra/nascondi menu",
     "EDIT_DOCUMENT": "modifica documento",
     "EXPORT_WORD": "esporta in word",
+    "AGENT_REGISTRY": "Città degli agenti",
     "BOOKMARKS": "Segnalibri",
     "OPEN_REACT_EDITOR": "Apri Editor React",
     "DETACH_DOCUMENT": "Apri il documento in una finestra separata",
@@ -1669,5 +1670,37 @@
     "NEW_BUTTON": "Nuova",
     "EXECUTIONS": "Esecuzioni",
     "NO_EXECUTIONS": "Nessuna esecuzione"
+  },
+  "AGENT_REGISTRY": {
+    "TITLE": "Città degli agenti",
+    "SUBTITLE": "Agenti scoperti in questo progetto. Partecipare alle conversazioni richiede un trust esplicito.",
+    "LOADING": "Caricamento agenti…",
+    "EMPTY": "Nessun agente dichiarato in questo progetto (nessun .agent.md con blocco a2a:).",
+    "LOAD_ERROR": "Impossibile caricare gli agenti del progetto.",
+    "NO_PROJECT": "Nessun progetto aperto.",
+    "KIND_LLM": "LLM",
+    "KIND_ALGORITHMIC": "Algoritmico",
+    "TRUSTED": "Fidato",
+    "NOT_TRUSTED": "Non fidato",
+    "TRUST_DECAYED": "Trust decaduto",
+    "SKILLS": "Skill",
+    "TOOLS": "Tool",
+    "NO_TOOLS": "nessuno",
+    "DECAY_HINT": "Il blocco a2a:/tools: è cambiato dall'ultima conferma: riconferma il trust.",
+    "TRUST_BUTTON": "Concedi trust",
+    "UNTRUST_BUTTON": "Revoca trust",
+    "EXCLUDED_TITLE": "Esclusi (non registrabili)",
+    "REFRESH": "Aggiorna",
+    "CLOSE": "Chiudi"
+  },
+  "AGENT_TRUST": {
+    "TITLE": "Concedi il trust a questo agente?",
+    "MESSAGE": "L'agente \"{{agent}}\" potrà partecipare alle conversazioni dentro {{project}}.\n\nTool richiesti: {{tools}}",
+    "DANGER_WARNING": "⚠ Questo agente richiede tool che possono scrivere o eseguire. Concedi il trust solo se sai cosa fa.",
+    "CONFIRM": "Mi fido",
+    "TRUST_ERROR": "Impossibile aggiornare il trust dell'agente.",
+    "UNTRUST_TITLE": "Revocare il trust?",
+    "UNTRUST_MESSAGE": "L'agente \"{{agent}}\" smetterà di partecipare finché non gli viene riconcesso il trust.",
+    "UNTRUST_CONFIRM": "Revoca"
   }
 }

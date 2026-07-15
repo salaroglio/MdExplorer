@@ -46,6 +46,7 @@ namespace MdExplorer.Features.Agents
                     AgentFilePath = d.AgentFilePath,
                     Role = d.Role,
                     Skills = d.Skills ?? new List<AgentRegistrySkill>(),
+                    Tools = d.Tools ?? new List<string>(),
                     CurrentA2ABlockHash = d.CurrentA2ABlockHash,
                 };
 

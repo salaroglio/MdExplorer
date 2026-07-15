@@ -24,6 +24,23 @@ namespace MdExplorer.Controllers.A2A
         }
 
         /// <summary>
+        /// Catalogo delle Agent Card del progetto — le "Pagine Gialle" (§6). Include i
+        /// cittadini validi (con stato di trust) e le voci escluse con il loro
+        /// <c>RegistrationError</c> (fail-loud, visibile in UI).
+        /// </summary>
+        [HttpGet("agents")]
+        public IActionResult GetAgents([FromQuery] string projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath))
+                return BadRequest("projectPath è obbligatorio.");
+            // Ri-validazione dalle fonti (§6): la cache in-memory non è mai l'autorità —
+            // gli aggiornamenti FSW sono per-connection e nei percorsi headless sarebbe
+            // stale. La UI deve vedere lo stato attuale del filesystem + DB.
+            var catalog = _registry.RefreshCatalog(projectPath);
+            return Ok(catalog);
+        }
+
+        /// <summary>
         /// Conferma il trust: l'agente potrà partecipare alle conversazioni. La conferma
         /// è ancorata al contenuto attuale del blocco a2a:/tools: (R3): se cambia, decade.
         /// </summary>

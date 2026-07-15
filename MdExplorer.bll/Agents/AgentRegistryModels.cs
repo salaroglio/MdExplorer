@@ -42,6 +42,9 @@ namespace MdExplorer.Features.Agents
         /// quello memorizzato al trust: se differisce, il trust decade.
         /// </summary>
         public string CurrentA2ABlockHash { get; set; }
+
+        /// <summary>Campo <c>tools:</c> dichiarato (per il dialog di trust: cosa CHIEDE l'agente).</summary>
+        public IList<string> Tools { get; set; } = new List<string>();
     }
 
     /// <summary>
@@ -70,6 +73,9 @@ namespace MdExplorer.Features.Agents
         public string AgentFilePath { get; set; }
         public string Role { get; set; }
         public IList<AgentRegistrySkill> Skills { get; set; } = new List<AgentRegistrySkill>();
+
+        /// <summary>Tool dichiarati (<c>tools:</c>): il dialog di trust li mostra, evidenziando i pericolosi.</summary>
+        public IList<string> Tools { get; set; } = new List<string>();
 
         /// <summary>Trust confermato dall'umano (dal record <c>AgentIdentity</c>).</summary>
         public bool Trusted { get; set; }

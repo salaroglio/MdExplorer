@@ -18,6 +18,7 @@ import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dia
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
 import { GitMessagesComponent } from '../../../git/components/git-messages/git-messages.component';
 import { CommitMessageDialogComponent } from '../../../git/dialogs/commit-message-dialog/commit-message-dialog.component';
+import { AgentRegistryDialogComponent } from '../agent-registry-dialog/agent-registry-dialog.component';
 import { GitHistoryDialogComponent } from '../../../git/dialogs/git-history-dialog/git-history-dialog.component';
 import { GitBranchDialogComponent } from '../../../git/dialogs/git-branch-dialog/git-branch-dialog.component';
 import { GitSetupRemoteGenericDialogComponent } from '../../../git/dialogs/git-setup-remote-generic-dialog/git-setup-remote-generic-dialog.component';
@@ -106,6 +107,16 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   ) {
     this.TitleToShow = "MdExplorer";
     this.connectionIsActive = true;
+  }
+
+  /** Apre la "città degli agenti" del progetto corrente (registry + trust, §6). */
+  openAgentRegistry(): void {
+    const projectPath = this.projectService.currentProjects$.value?.path || '';
+    this.dialog.open(AgentRegistryDialogComponent, {
+      width: '720px',
+      maxHeight: '80vh',
+      data: { projectPath },
+    });
   }
 
   ngOnInit(): void {

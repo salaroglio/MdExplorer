@@ -260,6 +260,7 @@ namespace MdExplorer.Services.AgentRegistry
                         Skills = parsed.Card.Skills?
                             .Select(s => new AgentRegistrySkill { Id = s.Id, Description = s.Description })
                             .ToList() ?? new List<AgentRegistrySkill>(),
+                        Tools = parsed.Tools ?? new List<string>(),
                         // R3: impronta del blocco a2a: + tools: per la decadenza del trust.
                         CurrentA2ABlockHash = AgentTrustHasher.ComputeHash(parsed.Card, parsed.Tools),
                     });

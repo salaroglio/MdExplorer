@@ -629,6 +629,7 @@
     "HIDE_SHOW_MENU": "hide/show menu",
     "EDIT_DOCUMENT": "edit document",
     "EXPORT_WORD": "export in word",
+    "AGENT_REGISTRY": "City of agents",
     "BOOKMARKS": "Bookmarks",
     "OPEN_REACT_EDITOR": "Open React Editor",
     "DETACH_DOCUMENT": "Open document in a separate window",
@@ -1669,5 +1670,37 @@
     "NEW_BUTTON": "New",
     "EXECUTIONS": "Executions",
     "NO_EXECUTIONS": "No executions yet"
+  },
+  "AGENT_REGISTRY": {
+    "TITLE": "City of agents",
+    "SUBTITLE": "Agents discovered in this project. Participating in conversations requires explicit trust.",
+    "LOADING": "Loading agents…",
+    "EMPTY": "No agents declared in this project (no .agent.md with an a2a: block).",
+    "LOAD_ERROR": "Could not load the agents of this project.",
+    "NO_PROJECT": "No project is currently open.",
+    "KIND_LLM": "LLM",
+    "KIND_ALGORITHMIC": "Algorithmic",
+    "TRUSTED": "Trusted",
+    "NOT_TRUSTED": "Not trusted",
+    "TRUST_DECAYED": "Trust expired",
+    "SKILLS": "Skills",
+    "TOOLS": "Tools",
+    "NO_TOOLS": "none",
+    "DECAY_HINT": "The a2a:/tools: block changed since the last confirmation: re-confirm trust.",
+    "TRUST_BUTTON": "Trust",
+    "UNTRUST_BUTTON": "Revoke trust",
+    "EXCLUDED_TITLE": "Excluded (not registrable)",
+    "REFRESH": "Refresh",
+    "CLOSE": "Close"
+  },
+  "AGENT_TRUST": {
+    "TITLE": "Trust this agent?",
+    "MESSAGE": "The agent \"{{agent}}\" will be allowed to participate in conversations inside {{project}}.\n\nRequested tools: {{tools}}",
+    "DANGER_WARNING": "⚠ This agent requests tools that can write or execute. Grant trust only if you know what it does.",
+    "CONFIRM": "I trust it",
+    "TRUST_ERROR": "Could not update the agent's trust.",
+    "UNTRUST_TITLE": "Revoke trust?",
+    "UNTRUST_MESSAGE": "The agent \"{{agent}}\" will stop participating in conversations until trusted again.",
+    "UNTRUST_CONFIRM": "Revoke"
   }
 }
