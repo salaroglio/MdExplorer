@@ -63,6 +63,21 @@ namespace MdExplorer.Features.Tests.Migrations
                     Assert.AreEqual(1L, (long)cmd.ExecuteScalar(),
                         "La migrazione M2026_07_15_001 (AgentIdentity) deve risultare applicata.");
                 }
+
+                // Fase 3: le tabelle della mailbox devono esistere dopo la catena completa.
+                foreach (var table in new[] { "AgentConversation", "AgentMessage" })
+                {
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = $"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='{table}'";
+                    Assert.AreEqual(1L, (long)cmd.ExecuteScalar(), $"La tabella {table} deve esistere.");
+                }
+
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT COUNT(*) FROM VersionInfo WHERE Version = 20260715002";
+                    Assert.AreEqual(1L, (long)cmd.ExecuteScalar(),
+                        "La migrazione M2026_07_15_002 (mailbox) deve risultare applicata.");
+                }
             }
             finally
             {
