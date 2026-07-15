@@ -152,6 +152,13 @@ namespace MdExplorer
             services.AddSingleton<IAiProvider, GeminiProvider>();
             services.AddSingleton<IAiProvider, CopilotCliProvider>();
 
+            // Agenti algoritmici (città degli agenti, §6 Agent-Harness-A2A): cittadini
+            // C# deterministici, stessa cittadinanza degli agenti .agent.md. Ogni
+            // IAlgorithmicAgent registrato qui viene arruolato automaticamente dal
+            // registry (iniettato come IEnumerable<IAlgorithmicAgent>, come i provider AI).
+            // Candidati futuri: reindicizzazione, sync KG/Fuseki, pipeline COBOL/PL1.
+            // Fase 1: nessuna implementazione concreta ancora → l'enumerable è vuoto.
+
             // Long-lived Copilot CLI ACP sessions (one persistent process per SignalR connection)
             services.AddSingleton<MdExplorer.Features.Services.AI.CopilotAcp.CopilotAcpSessionPool>();
 
