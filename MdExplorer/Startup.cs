@@ -98,6 +98,13 @@ namespace MdExplorer
             services.AddSingleton<MdExplorer.Abstractions.Services.IProjectOpenedEventHandler>(
                 sp => (Services.AgentRun.AgentScheduleEventService)sp.GetRequiredService<Services.AgentRun.IAgentScheduleEventService>());
 
+            // Registry dei cittadini della città degli agenti (§6 Agent-Harness-A2A):
+            // le "Pagine Gialle" del progetto. Singleton + fan-out project-open per
+            // (ri)scansionare i .agent.md e riconciliare AgentIdentity.
+            services.AddSingleton<Services.AgentRegistry.IAgentRegistryService, Services.AgentRegistry.AgentRegistryService>();
+            services.AddSingleton<MdExplorer.Abstractions.Services.IProjectOpenedEventHandler>(
+                sp => (Services.AgentRegistry.AgentRegistryService)sp.GetRequiredService<Services.AgentRegistry.IAgentRegistryService>());
+
             // Shell execution for fenced code blocks (bash/sh/powershell/pwsh/cmd)
             services.AddSingleton<Services.Execution.ShellRegistry>();
             services.AddTransient<Services.Execution.ShellRunner>();

@@ -882,10 +882,33 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
         #region Event Handlers
 
+        /// <summary>
+        /// Città degli agenti (§6): se il path è un <c>.agent.md</c>, notifica il
+        /// registry perché rilegga le "Pagine Gialle" del progetto (cache event-driven).
+        /// Risoluzione lazy via provider — come il CommitWatcher — per non aggiungere
+        /// dipendenze al costruttore. Best-effort: non deve mai rompere l'evento FSW.
+        /// </summary>
+        private void NotifyAgentRegistryIfAgentFile(WatcherContext context, string path)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(path) ||
+                    !path.EndsWith(".agent.md", StringComparison.OrdinalIgnoreCase))
+                    return;
+                var registry = _serviceProvider.GetService<AgentRegistry.IAgentRegistryService>();
+                registry?.OnAgentFileChanged(context.ProjectPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Notifica al registry agenti fallita per {Path}", path);
+            }
+        }
+
         private async void OnFileChanged(WatcherContext context, FileSystemEventArgs e)
         {
             try
             {
+                NotifyAgentRegistryIfAgentFile(context, e.FullPath);
                 // Double-check: skip if user explicitly disabled the watcher
                 // (catches .NET FileSystemWatcher buffered events that fire after EnableRaisingEvents=false)
                 if (context.UserDisabledWatcher)
@@ -1142,6 +1165,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             try
             {
+                NotifyAgentRegistryIfAgentFile(context, e.FullPath);
                 if (context.UserDisabledWatcher)
                 {
                     _logger.LogDebug($"[{context.ConnectionId}] OnFileCreated skipped - user disabled watcher");
@@ -1268,6 +1292,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             try
             {
+                // Il rename può aggiungere O togliere un .agent.md: controlla entrambi i lati.
+                NotifyAgentRegistryIfAgentFile(context, e.OldFullPath);
+                NotifyAgentRegistryIfAgentFile(context, e.FullPath);
                 if (context.UserDisabledWatcher)
                 {
                     _logger.LogDebug($"[{context.ConnectionId}] OnFileRenamed skipped - user disabled watcher");
@@ -1460,6 +1487,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             try
             {
+                NotifyAgentRegistryIfAgentFile(context, e.FullPath);
                 if (context.UserDisabledWatcher)
                 {
                     _logger.LogDebug($"[{context.ConnectionId}] OnFileDeleted skipped - user disabled watcher");

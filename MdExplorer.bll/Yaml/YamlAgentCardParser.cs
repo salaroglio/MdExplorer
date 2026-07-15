@@ -80,24 +80,38 @@ namespace MdExplorer.Features.Yaml
 
         private static AgentCardParseResult Validate(AgentCardDescriptor card)
         {
-            var name = card.Name?.Trim();
-            if (string.IsNullOrEmpty(name))
-                return Invalid("Il blocco 'a2a:' non dichiara 'name' (identità obbligatoria).");
+            var error = ValidateAgentName(card.Name);
+            if (error != null)
+                return Invalid(error);
 
-            // '@' è riservato ai nomi federati (agente@gitEmail, §12.6): vietato esplicitamente.
-            if (name.Contains('@'))
-                return Invalid($"Nome agente '{name}' non valido: il carattere '@' è riservato ai nomi federati.");
-
-            if (ReservedNames.Contains(name, StringComparer.OrdinalIgnoreCase))
-                return Invalid($"Nome agente '{name}' riservato: 'user' e 'shared' non sono registrabili.");
-
-            if (!KebabCaseRx.IsMatch(name))
-                return Invalid($"Nome agente '{name}' non valido: usare kebab-case (minuscole, cifre e trattini).");
-
-            card.Name = name;
+            card.Name = card.Name.Trim();
             card.Skills ??= new List<AgentCardSkill>();
             card.AcceptsMessagesFrom ??= new List<string>();
             return new AgentCardParseResult { Card = card, HasA2aBlock = true, IsValid = true };
+        }
+
+        /// <summary>
+        /// Regole di identità del nome agente (§5, §6, §12.6), unica fonte di verità
+        /// riusata anche per gli agenti algoritmici (<c>IAlgorithmicAgent.GetCard</c>).
+        /// Restituisce null se il nome è valido, altrimenti il motivo fail-loud.
+        /// </summary>
+        public static string ValidateAgentName(string rawName)
+        {
+            var name = rawName?.Trim();
+            if (string.IsNullOrEmpty(name))
+                return "Manca il nome dell'agente ('name'): identità obbligatoria.";
+
+            // '@' è riservato ai nomi federati (agente@gitEmail, §12.6): vietato esplicitamente.
+            if (name.Contains('@'))
+                return $"Nome agente '{name}' non valido: il carattere '@' è riservato ai nomi federati.";
+
+            if (ReservedNames.Contains(name, StringComparer.OrdinalIgnoreCase))
+                return $"Nome agente '{name}' riservato: 'user' e 'shared' non sono registrabili.";
+
+            if (!KebabCaseRx.IsMatch(name))
+                return $"Nome agente '{name}' non valido: usare kebab-case (minuscole, cifre e trattini).";
+
+            return null;
         }
 
         /// <summary>
