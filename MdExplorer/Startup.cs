@@ -164,7 +164,7 @@ namespace MdExplorer
             // IAlgorithmicAgent registrato qui viene arruolato automaticamente dal
             // registry (iniettato come IEnumerable<IAlgorithmicAgent>, come i provider AI).
             // Candidati futuri: reindicizzazione, sync KG/Fuseki, pipeline COBOL/PL1.
-            // Fase 1: nessuna implementazione concreta ancora → l'enumerable è vuoto.
+            services.AddSingleton<IAlgorithmicAgent, Services.AgentRegistry.PingAlgorithmicAgent>();
 
             // Long-lived Copilot CLI ACP sessions (one persistent process per SignalR connection)
             services.AddSingleton<MdExplorer.Features.Services.AI.CopilotAcp.CopilotAcpSessionPool>();
