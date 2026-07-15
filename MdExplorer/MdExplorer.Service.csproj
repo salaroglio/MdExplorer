@@ -270,7 +270,11 @@
     <PackageReference Include="Markdig" Version="1.1.2" />
     <PackageReference Include="Microsoft.Alm.Authentication" Version="4.3.0" />
     <PackageReference Include="Octokit" Version="9.1.2" />
-    <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
+    <!-- 1.0.114.4 regredisce la lettura di PRAGMA table_info (dflt_value come Byte[]):
+         ColumnExists di FluentMigrator 3.2.17 crasha sulle tabelle con default-funzione
+         (Project.LastUpdate = datetime('now','localtime')), rompendo la catena di
+         migrazioni su install pulito. 1.0.113.1 non ha la regressione. -->
+    <PackageReference Include="System.Data.SQLite" Version="1.0.113.1" />
     <PackageReference Include="System.Drawing.Common" Version="10.0.5" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
     <PackageReference Include="YamlDotNet" Version="11.2.1" />
