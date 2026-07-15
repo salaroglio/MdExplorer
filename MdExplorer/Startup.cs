@@ -105,6 +105,11 @@ namespace MdExplorer
             services.AddSingleton<MdExplorer.Abstractions.Services.IProjectOpenedEventHandler>(
                 sp => (Services.AgentRegistry.AgentRegistryService)sp.GetRequiredService<Services.AgentRegistry.IAgentRegistryService>());
 
+            // Mailbox + dispatcher della città degli agenti (§8): unico punto di accodamento
+            // (guardrail hop/dedup) e consegna at-least-once dei messaggi (hosted service).
+            services.AddSingleton<Services.AgentRun.IAgentMailbox, Services.AgentRun.AgentMailbox>();
+            services.AddHostedService<Services.AgentRun.AgentMessageDispatcher>();
+
             // Shell execution for fenced code blocks (bash/sh/powershell/pwsh/cmd)
             services.AddSingleton<Services.Execution.ShellRegistry>();
             services.AddTransient<Services.Execution.ShellRunner>();
