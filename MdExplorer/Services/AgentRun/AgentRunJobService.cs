@@ -10,6 +10,7 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Models.AI;
 using MdExplorer.Abstractions.Services;
+using MdExplorer.Features.Agents;
 using MdExplorer.Features.Execution;
 using MdExplorer.Features.Services.AI;
 using MdExplorer.Hubs;
@@ -33,6 +34,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly IEnumerable<IAiProvider> _aiProviders;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly AgentRegistry.IAgentRegistryService _agentRegistry;
 
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
 
@@ -40,12 +42,62 @@ namespace MdExplorer.Services.AgentRun
             ILogger<AgentRunJobService> logger,
             IHubContext<MonitorMDHub> hubContext,
             IEnumerable<IAiProvider> aiProviders,
-            IServiceScopeFactory scopeFactory)
+            IServiceScopeFactory scopeFactory,
+            AgentRegistry.IAgentRegistryService agentRegistry)
         {
             _logger = logger;
             _hubContext = hubContext;
             _aiProviders = aiProviders;
             _scopeFactory = scopeFactory;
+            _agentRegistry = agentRegistry;
+        }
+
+        /// <summary>
+        /// Costruisce la rubrica dei colleghi (§6): i cittadini <b>trusted</b> del
+        /// progetto, escluso l'agente stesso. Fail-soft con warning: la rubrica è
+        /// contesto opzionale, un intoppo del registry non deve impedire il run.
+        /// </summary>
+        private IReadOnlyList<AgentRosterEntry> BuildRoster(string projectPath, string currentAgentFilePath)
+        {
+            try
+            {
+                var catalog = _agentRegistry.GetCatalog(projectPath);
+                return catalog
+                    .Where(e => e.IsCitizen && e.Trusted)
+                    .Where(e => !PathEquals(e.AgentFilePath, currentAgentFilePath))
+                    .Select(e => new AgentRosterEntry
+                    {
+                        Name = e.Name,
+                        Role = e.Role,
+                        Skills = e.Skills?
+                            .Select(s => s.Id)
+                            .Where(id => !string.IsNullOrWhiteSpace(id))
+                            .ToList() ?? new List<string>(),
+                    })
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[AgentRun] Rubrica non disponibile per {Project}: proseguo senza.", projectPath);
+                return null;
+            }
+        }
+
+        private static bool PathEquals(string a, string b)
+        {
+            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b))
+                return false;
+            try
+            {
+                return string.Equals(
+                    Path.GetFullPath(a).TrimEnd('/', '\\'),
+                    Path.GetFullPath(b).TrimEnd('/', '\\'),
+                    StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
+            }
         }
 
         // NOTE: deliberately NOT async — the registry check must run synchronously so the
@@ -124,7 +176,10 @@ namespace MdExplorer.Services.AgentRun
                 }
 
                 var agentContent = await File.ReadAllTextAsync(request.AgentFilePath, cts.Token);
-                var composedPrompt = AgentPromptComposer.ComposeRunPrompt(agentContent, request.PreparedPrompt);
+                // Rubrica (§6): i colleghi fidati del progetto, escluso sé stesso. Contesto
+                // opzionale — il satellite Scheduler NON la inietta (non ha il registry).
+                var roster = BuildRoster(request.ProjectPath, request.AgentFilePath);
+                var composedPrompt = AgentPromptComposer.ComposeRunPrompt(agentContent, request.PreparedPrompt, roster);
 
                 copilot.WorkingDirectory = request.ProjectPath;
                 var output = await copilot.ChatAsync(composedPrompt, ct: cts.Token);

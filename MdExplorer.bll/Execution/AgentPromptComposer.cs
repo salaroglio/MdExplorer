@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
+using MdExplorer.Features.Agents;
 
 namespace MdExplorer.Features.Execution
 {
@@ -87,9 +90,21 @@ namespace MdExplorer.Features.Execution
 
         /// <summary>
         /// Final prompt for the run: the full <c>.agent.md</c> content (the agent's
-        /// standing instructions) followed by the prepared task prompt.
+        /// standing instructions), the optional <b>colleagues roster</b> (§6), then the
+        /// prepared task prompt.
+        /// <para>
+        /// <paramref name="roster"/> is the address book of the project's trusted agents
+        /// (name/role/skills — not the whole card). When non-empty it is injected as a
+        /// context section so the agent knows who else lives in the project. Optional by
+        /// design: the satellite scheduler (<c>MdExplorer.Scheduler</c>) has no registry
+        /// and passes nothing — a consapevole divergence from the mirror, documented in
+        /// its <c>SchedulerWorker</c>.
+        /// </para>
         /// </summary>
-        public static string ComposeRunPrompt(string agentFileContent, string preparedPrompt)
+        public static string ComposeRunPrompt(
+            string agentFileContent,
+            string preparedPrompt,
+            IReadOnlyList<AgentRosterEntry> roster = null)
         {
             if (string.IsNullOrWhiteSpace(agentFileContent))
                 throw new ArgumentException("Agent file content is empty — refusing to run a bodyless agent.", nameof(agentFileContent));
@@ -102,7 +117,37 @@ namespace MdExplorer.Features.Execution
             if (string.IsNullOrWhiteSpace(body))
                 throw new ArgumentException("Agent file has no content outside the prompt-template section — refusing to run a bodyless agent.", nameof(agentFileContent));
 
-            return body.TrimEnd() + "\n\n---\n\n# Task\n\n" + preparedPrompt.Trim() + "\n";
+            return body.TrimEnd()
+                + FormatRoster(roster)
+                + "\n\n---\n\n# Task\n\n" + preparedPrompt.Trim() + "\n";
+        }
+
+        /// <summary>
+        /// Formats the colleagues roster (§6) as a markdown section, or an empty string
+        /// when there is no colleague to list. Only name/role/skills — never the card.
+        /// </summary>
+        internal static string FormatRoster(IReadOnlyList<AgentRosterEntry> roster)
+        {
+            var entries = roster?
+                .Where(r => r != null && !string.IsNullOrWhiteSpace(r.Name))
+                .ToList();
+            if (entries == null || entries.Count == 0)
+                return string.Empty;
+
+            var sb = new StringBuilder();
+            sb.Append("\n\n---\n\n# Colleghi nel progetto\n\n");
+            sb.Append("Altri agenti fidati che vivono in questo progetto (contesto — non è un ordine di contattarli):\n\n");
+            foreach (var r in entries)
+            {
+                sb.Append("- **").Append(r.Name.Trim()).Append("**");
+                if (!string.IsNullOrWhiteSpace(r.Role))
+                    sb.Append(" — ").Append(r.Role.Trim());
+                var skills = r.Skills?.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+                if (skills != null && skills.Count > 0)
+                    sb.Append(" (skill: ").Append(string.Join(", ", skills)).Append(')');
+                sb.Append('\n');
+            }
+            return sb.ToString().TrimEnd();
         }
 
         /// <summary>

@@ -198,6 +198,13 @@ public class SchedulerWorker : BackgroundService
                     // Mirror of AgentPromptComposer.ComposeRunPrompt (MdExplorer.bll):
                     // strip the machine-managed prompt-template section (dialog metadata,
                     // not a runtime instruction) before composing the run prompt.
+                    //
+                    // DIVERGENZA CONSAPEVOLE (§6 città degli agenti): il Service inietta qui
+                    // anche la "rubrica" dei colleghi trusted (parametro roster di
+                    // ComposeRunPrompt). Il satellite NON la inietta di proposito: vive in
+                    // un processo separato senza AgentRegistryService, e il trigger cron non
+                    // è una conversazione tra agenti (la rubrica serve al risveglio da
+                    // messaggio, Fase 3). Un run schedulato resta agente + task, senza rubrica.
                     var body = PromptTemplateBlockRegex.Replace(agentContent, string.Empty);
                     var composed = body.TrimEnd() + "\n\n---\n\n# Task\n\n" + schedule.PreparedPrompt.Trim() + "\n";
                     var result = await _runner.RunAsync(composed, schedule.ProjectPath, ct);
