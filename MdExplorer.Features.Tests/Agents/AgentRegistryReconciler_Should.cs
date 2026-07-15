@@ -12,7 +12,7 @@ namespace MdExplorer.Features.Tests.Agents
     {
         private readonly AgentRegistryReconciler _reconciler = new AgentRegistryReconciler();
 
-        private static DiscoveredAgentCard Llm(string name, string file, string parseError = null)
+        private static DiscoveredAgentCard Llm(string name, string file, string parseError = null, string hash = null)
             => new DiscoveredAgentCard
             {
                 Name = name,
@@ -20,6 +20,7 @@ namespace MdExplorer.Features.Tests.Agents
                 AgentFilePath = file,
                 Role = "role of " + name,
                 ParseError = parseError,
+                CurrentA2ABlockHash = hash,
             };
 
         private static DiscoveredAgentCard Algo(string name)
@@ -167,6 +168,86 @@ namespace MdExplorer.Features.Tests.Agents
                 Enumerable.Empty<ExistingIdentity>());
 
             Assert.AreEqual(0, catalog.Count);
+        }
+
+        // ---- decadenza automatica del trust al cambio del blocco a2a:/tools: (R3) ----
+
+        [TestMethod]
+        public void Decay_trust_when_the_a2a_block_hash_changed()
+        {
+            var catalog = _reconciler.Reconcile(
+                new[] { Llm("stem-curator", "/p/a.agent.md", hash: "NEW-hash") },
+                new[]
+                {
+                    new ExistingIdentity
+                    {
+                        Id = Guid.NewGuid(), Name = "stem-curator",
+                        Trusted = true, Enabled = true, A2ABlockHash = "OLD-hash",
+                    }
+                });
+
+            var e = catalog.Single();
+            Assert.IsTrue(e.TrustDecayed, "il blocco è cambiato → decadenza");
+            Assert.IsFalse(e.Trusted);
+            Assert.IsFalse(e.Enabled);
+            Assert.AreEqual("NEW-hash", e.CurrentA2ABlockHash);
+        }
+
+        [TestMethod]
+        public void Keep_trust_when_the_hash_is_unchanged()
+        {
+            var catalog = _reconciler.Reconcile(
+                new[] { Llm("stem-curator", "/p/a.agent.md", hash: "same-hash") },
+                new[]
+                {
+                    new ExistingIdentity
+                    {
+                        Id = Guid.NewGuid(), Name = "stem-curator",
+                        Trusted = true, Enabled = true, A2ABlockHash = "same-hash",
+                    }
+                });
+
+            var e = catalog.Single();
+            Assert.IsFalse(e.TrustDecayed);
+            Assert.IsTrue(e.Trusted);
+            Assert.IsTrue(e.Enabled);
+        }
+
+        [TestMethod]
+        public void Not_decay_an_agent_that_was_never_trusted()
+        {
+            var catalog = _reconciler.Reconcile(
+                new[] { Llm("stem-curator", "/p/a.agent.md", hash: "new") },
+                new[]
+                {
+                    new ExistingIdentity
+                    {
+                        Id = Guid.NewGuid(), Name = "stem-curator",
+                        Trusted = false, Enabled = false, A2ABlockHash = "old",
+                    }
+                });
+
+            Assert.IsFalse(catalog.Single().TrustDecayed);
+        }
+
+        [TestMethod]
+        public void Not_decay_when_there_is_no_stored_hash_yet()
+        {
+            // Trust confermato prima che l'hash fosse in uso, oppure agente appena arruolato.
+            var catalog = _reconciler.Reconcile(
+                new[] { Llm("stem-curator", "/p/a.agent.md", hash: "current") },
+                new[]
+                {
+                    new ExistingIdentity
+                    {
+                        Id = Guid.NewGuid(), Name = "stem-curator",
+                        Trusted = true, Enabled = true, A2ABlockHash = null,
+                    }
+                });
+
+            var e = catalog.Single();
+            Assert.IsFalse(e.TrustDecayed);
+            Assert.IsTrue(e.Trusted);
         }
     }
 }

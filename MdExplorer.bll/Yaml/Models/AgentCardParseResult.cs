@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace MdExplorer.Features.Yaml.Models
 {
     /// <summary>
@@ -29,6 +31,13 @@ namespace MdExplorer.Features.Yaml.Models
         /// è malformato o invalido. Null quando <see cref="IsValid"/> è true.
         /// </summary>
         public string RegistrationError { get; set; }
+
+        /// <summary>
+        /// Campo <c>tools:</c> del frontmatter (sibling di <c>a2a:</c>). Concorre
+        /// all'<c>A2ABlockHash</c> (R3): un agente non deve potersi allargare i
+        /// permessi editando la propria dichiarazione dopo il trust.
+        /// </summary>
+        public IList<string> Tools { get; set; }
 
         /// <summary>Card valida, presente e cittadina: pronta ad entrare nel registry.</summary>
         public bool IsCitizen => IsValid && HasA2aBlock && Card != null;

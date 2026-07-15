@@ -36,6 +36,12 @@ namespace MdExplorer.Features.Agents
 
         /// <summary>Motivo di invalidità già noto a monte; null se la scoperta è pulita.</summary>
         public string ParseError { get; set; }
+
+        /// <summary>
+        /// Hash CORRENTE del blocco <c>a2a:</c> + <c>tools:</c> (R3). Confrontato con
+        /// quello memorizzato al trust: se differisce, il trust decade.
+        /// </summary>
+        public string CurrentA2ABlockHash { get; set; }
     }
 
     /// <summary>
@@ -71,8 +77,18 @@ namespace MdExplorer.Features.Agents
         /// <summary>Abilitato (vincolo Enabled ⇒ Trusted).</summary>
         public bool Enabled { get; set; }
 
-        /// <summary>Hash del blocco a2a:+tools: al momento del trust (R3); usato in step 5.</summary>
+        /// <summary>Hash del blocco a2a:+tools: MEMORIZZATO al momento del trust (R3).</summary>
         public string A2ABlockHash { get; set; }
+
+        /// <summary>Hash CORRENTE del blocco a2a:+tools: (dalla sorgente, ora).</summary>
+        public string CurrentA2ABlockHash { get; set; }
+
+        /// <summary>
+        /// True se il trust è DECADUTO in questa riconciliazione perché il blocco
+        /// <c>a2a:</c>/<c>tools:</c> è cambiato dall'ultima conferma (R3): l'umano deve
+        /// riconfermare. <see cref="Trusted"/> è già stato riportato a false.
+        /// </summary>
+        public bool TrustDecayed { get; set; }
 
         /// <summary>Motivo fail-loud dell'esclusione; null = cittadino valido.</summary>
         public string RegistrationError { get; set; }

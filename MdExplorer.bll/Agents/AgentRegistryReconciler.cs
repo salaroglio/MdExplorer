@@ -46,6 +46,7 @@ namespace MdExplorer.Features.Agents
                     AgentFilePath = d.AgentFilePath,
                     Role = d.Role,
                     Skills = d.Skills ?? new List<AgentRegistrySkill>(),
+                    CurrentA2ABlockHash = d.CurrentA2ABlockHash,
                 };
 
                 if (string.IsNullOrWhiteSpace(entry.Name))
@@ -72,6 +73,18 @@ namespace MdExplorer.Features.Agents
                     entry.Trusted = identity.Trusted;
                     entry.Enabled = identity.Enabled;
                     entry.A2ABlockHash = identity.A2ABlockHash;
+
+                    // Decadenza automatica (R3): se il blocco a2a:/tools: è cambiato
+                    // dall'ultima conferma, il trust decade e va riconfermato dall'umano.
+                    if (identity.Trusted
+                        && !string.IsNullOrEmpty(identity.A2ABlockHash)
+                        && !string.IsNullOrEmpty(entry.CurrentA2ABlockHash)
+                        && !string.Equals(identity.A2ABlockHash, entry.CurrentA2ABlockHash, StringComparison.Ordinal))
+                    {
+                        entry.Trusted = false;
+                        entry.Enabled = false;
+                        entry.TrustDecayed = true;
+                    }
                 }
 
                 catalog.Add(entry);

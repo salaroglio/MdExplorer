@@ -23,6 +23,15 @@ namespace MdExplorer.Services.AgentRegistry
         /// <summary>Ri-legge dalle fonti, riconcilia <c>AgentIdentity</c>, aggiorna la cache.</summary>
         IReadOnlyList<AgentRegistryEntry> RefreshCatalog(string projectPath);
 
+        /// <summary>
+        /// Conferma il trust di un agente ancorandolo al contenuto attuale del blocco
+        /// <c>a2a:</c>/<c>tools:</c> (R3). Fail-loud se l'agente non esiste o è escluso.
+        /// </summary>
+        AgentRegistryEntry TrustAgent(string projectPath, string agentName);
+
+        /// <summary>Revoca il trust (Trusted/Enabled → false).</summary>
+        AgentRegistryEntry UntrustAgent(string projectPath, string agentName);
+
         /// <summary>Hook FSW: un <c>.agent.md</c> è cambiato → refresh (async) del progetto.</summary>
         void OnAgentFileChanged(string projectPath);
     }

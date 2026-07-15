@@ -112,11 +112,77 @@ namespace MdExplorer.Services.AgentRegistry
             }
         }
 
+        public AgentRegistryEntry TrustAgent(string projectPath, string agentName)
+            => SetTrustByName(projectPath, agentName, trusted: true);
+
+        public AgentRegistryEntry UntrustAgent(string projectPath, string agentName)
+            => SetTrustByName(projectPath, agentName, trusted: false);
+
         public void OnProjectOpened(string projectPath) => QueueRefresh(projectPath, "projectOpen");
 
         public void OnAgentFileChanged(string projectPath) => QueueRefresh(projectPath, "fsw");
 
         // -------------------------------------------------------------------------
+
+        /// <summary>
+        /// Conferma/revoca il trust di un cittadino (§9, R3). Sul trust, memorizza
+        /// l'<c>A2ABlockHash</c> CORRENTE (la conferma è ancorata al contenuto ora
+        /// approvato); su revoca, azzera Trusted/Enabled. Fail-loud se l'agente non
+        /// esiste o è escluso dal registry.
+        /// </summary>
+        private AgentRegistryEntry SetTrustByName(string projectPath, string agentName, bool trusted)
+        {
+            var normalized = Normalize(projectPath);
+            if (string.IsNullOrWhiteSpace(normalized))
+                throw new ArgumentException("projectPath mancante.", nameof(projectPath));
+            var name = agentName?.Trim();
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("agentName mancante.", nameof(agentName));
+
+            var sync = _locks.GetOrAdd(normalized, _ => new object());
+            lock (sync) // Monitor rientrante: RefreshCatalog riprende lo stesso lock senza deadlock.
+            {
+                var catalog = RefreshCatalog(projectPath);
+                var entry = catalog.FirstOrDefault(e =>
+                    string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+
+                if (entry == null)
+                    throw new InvalidOperationException($"Agente '{name}' non trovato nel progetto.");
+                if (entry.IsExcluded)
+                    throw new InvalidOperationException(
+                        $"Agente '{name}' escluso dal registry e non affidabile: {entry.RegistrationError}");
+                if (entry.IdentityId == null)
+                    throw new InvalidOperationException($"Agente '{name}' senza identità persistita.");
+
+                using (var scope = _scopeFactory.CreateScope())
+                {
+                    var db = scope.ServiceProvider.GetService<IUserSettingsDB>();
+                    if (db == null)
+                        throw new InvalidOperationException("IUserSettingsDB non risolvibile.");
+
+                    db.BeginTransaction();
+                    var dal = db.GetDal<AgentIdentity>();
+                    var row = dal.GetList().ToList().FirstOrDefault(r => r.Id == entry.IdentityId.Value);
+                    if (row == null)
+                    {
+                        db.Commit();
+                        throw new InvalidOperationException($"Identità dell'agente '{name}' non più presente.");
+                    }
+
+                    row.Trusted = trusted;
+                    row.Enabled = trusted; // Enabled ⇒ Trusted: trust abilita, revoca disabilita.
+                    if (trusted)
+                        row.A2ABlockHash = entry.CurrentA2ABlockHash; // àncora la conferma al contenuto attuale
+                    row.UpdatedAt = DateTime.UtcNow;
+                    dal.Save(row);
+                    db.Commit();
+                }
+
+                // Ricostruisci dalle fonti: ora l'hash memorizzato combacia → niente decadenza.
+                var refreshed = RefreshCatalog(projectPath);
+                return refreshed.First(e => e.IdentityId == entry.IdentityId);
+            }
+        }
 
         private void QueueRefresh(string projectPath, string reason)
         {
@@ -194,6 +260,8 @@ namespace MdExplorer.Services.AgentRegistry
                         Skills = parsed.Card.Skills?
                             .Select(s => new AgentRegistrySkill { Id = s.Id, Description = s.Description })
                             .ToList() ?? new List<AgentRegistrySkill>(),
+                        // R3: impronta del blocco a2a: + tools: per la decadenza del trust.
+                        CurrentA2ABlockHash = AgentTrustHasher.ComputeHash(parsed.Card, parsed.Tools),
                     });
                 }
             }
@@ -242,6 +310,8 @@ namespace MdExplorer.Services.AgentRegistry
                         .Select(s => new AgentRegistrySkill { Id = s.Id, Description = s.Description })
                         .ToList() ?? new List<AgentRegistrySkill>(),
                     ParseError = nameError,
+                    // Gli algoritmici non hanno tools: dichiarati; l'hash copre la sola card.
+                    CurrentA2ABlockHash = nameError == null ? AgentTrustHasher.ComputeHash(card, null) : null,
                 });
             }
             return result;
@@ -289,6 +359,15 @@ namespace MdExplorer.Services.AgentRegistry
                     if (row.Kind != entry.Kind) { row.Kind = entry.Kind; changed = true; }
                     if (row.AgentFilePath != entry.AgentFilePath) { row.AgentFilePath = entry.AgentFilePath; changed = true; }
                     if (row.RegistrationError != entry.RegistrationError) { row.RegistrationError = entry.RegistrationError; changed = true; }
+
+                    // Decadenza del trust (R3): il reconciler l'ha già rilevata sull'entry;
+                    // qui la rendiamo persistente (Trusted/Enabled → false, riconferma umana).
+                    if (entry.TrustDecayed && (row.Trusted || row.Enabled))
+                    {
+                        row.Trusted = false;
+                        row.Enabled = false;
+                        changed = true;
+                    }
 
                     if (changed)
                     {
