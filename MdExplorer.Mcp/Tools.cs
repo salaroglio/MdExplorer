@@ -134,6 +134,53 @@ public class MdExplorerTools
     }
 
     [McpServerTool, Description(
+        "Request the intervention of an agent that belongs to ANOTHER member's city (federation). " +
+        "You give a SCOPE (an area from the project's ownership document) and a message; the harness " +
+        "deterministically resolves who owns that scope and which agent should act, then routes the " +
+        "request to that member's machine — where THEIR human must explicitly authorize it before any " +
+        "agent runs. Only available to an agent woken by a message (identity from the run token). This " +
+        "does NOT return an answer: it returns a routing receipt. Use only when the work belongs to a " +
+        "different owner (see the '# Ownership del progetto' section of your prompt).")]
+    public async Task<string> RequestIntervention(
+        [Description("The ownership scope the work belongs to (exact name from the ownership table).")] string scope,
+        [Description("The request body for the remote agent. Plain text; state clearly what you need.")] string message,
+        [Description("Optional preferred agent name (must be one listed for that scope).")] string preferredAgent = null,
+        [Description("Optional topics/tags, comma-separated (context only).")] string topics = null)
+    {
+        var token = RunToken();
+        if (token == null)
+            return "Error: RequestIntervention is only available to an agent woken by a message (no run token in the environment).";
+        if (string.IsNullOrWhiteSpace(scope)) return "Error: scope is required.";
+        if (string.IsNullOrWhiteSpace(message)) return "Error: message is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new
+            {
+                scope = scope.Trim(),
+                message,
+                preferredAgent = string.IsNullOrWhiteSpace(preferredAgent) ? null : preferredAgent.Trim(),
+                topics = string.IsNullOrWhiteSpace(topics)
+                    ? new List<string>()
+                    : topics.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0).ToList(),
+            };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/api/A2A/messages/request-intervention") { Content = content };
+            req.Headers.Add(RunTokenHeader, token);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Request refused ({(int)resp.StatusCode}): {body}";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
         "Send a message to ANOTHER agent that lives in the same MdExplorer project (the " +
         "'city of agents'). Only available to an agent that was itself woken by a message: " +
         "your identity as the sender is taken from the run environment and cannot be forged. " +

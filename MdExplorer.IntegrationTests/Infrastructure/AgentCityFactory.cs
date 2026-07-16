@@ -31,6 +31,7 @@ namespace MdExplorer.IntegrationTests.Infrastructure
         public string DataDir { get; }
         public FakeAgentTurnRunner Runner { get; } = new FakeAgentTurnRunner();
         public FakeAgentRunGate Gate { get; } = new FakeAgentRunGate();
+        public FakeFederationSender FederationSender { get; } = new FakeFederationSender();
 
         public AgentCityFactory()
         {
@@ -54,6 +55,10 @@ namespace MdExplorer.IntegrationTests.Infrastructure
                 // forzare concorrenza reale sul tetto istanze Copilot.
                 services.RemoveAll<MdExplorer.Services.AgentRun.IAgentRunGate>();
                 services.AddSingleton<MdExplorer.Services.AgentRun.IAgentRunGate>(Gate);
+
+                // Sender federato sostituibile: RequestIntervention testabile senza relay vivo.
+                services.RemoveAll<MdExplorer.Services.Federation.IFederationSender>();
+                services.AddSingleton<MdExplorer.Services.Federation.IFederationSender>(FederationSender);
             });
         }
 

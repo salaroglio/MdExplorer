@@ -205,6 +205,39 @@ namespace MdExplorer.Features.Agents
     }
 
     /// <summary>
+    /// Risolve un <b>ambito</b> di ownership nella riga responsabile (§12.6): dato lo scope di
+    /// una richiesta di intervento, trova chi ne è responsabile e con quali agenti. Puro e
+    /// deterministico — il routing federato NON lo decide l'LLM. Match esatto case-insensitive.
+    /// </summary>
+    public static class OwnershipResolver
+    {
+        /// <summary>La riga di ownership per l'ambito, o <c>null</c> se nessuna combacia.</summary>
+        public static OwnershipEntry Resolve(IEnumerable<OwnershipEntry> entries, string scope)
+        {
+            if (entries == null || string.IsNullOrWhiteSpace(scope)) return null;
+            var target = scope.Trim();
+            return entries.FirstOrDefault(e =>
+                e != null && string.Equals(e.Scope?.Trim(), target, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// L'agente proposto per l'ambito: <paramref name="preferredAgent"/> se citato nella riga,
+        /// altrimenti il primo agente della riga. <c>null</c> se la riga non ha agenti.
+        /// </summary>
+        public static string PickAgent(OwnershipEntry entry, string preferredAgent = null)
+        {
+            if (entry?.Agents == null || entry.Agents.Count == 0) return null;
+            if (!string.IsNullOrWhiteSpace(preferredAgent))
+            {
+                var match = entry.Agents.FirstOrDefault(a =>
+                    string.Equals(a?.Trim(), preferredAgent.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (match != null) return match;
+            }
+            return entry.Agents[0];
+        }
+    }
+
+    /// <summary>
     /// Convalide del doc di ownership che dipendono dalle FONTI (§12.3): il responsabile
     /// deve essere un participant del progetto; ogni agente citato deve esistere nel
     /// registry. Separata dal parser (che è puro) per restare testabile con input espliciti.

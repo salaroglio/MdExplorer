@@ -125,6 +125,7 @@ namespace MdExplorer
             services.AddSingleton<Services.Federation.IFederatedRequestReceiver, Services.Federation.FederatedRequestReceiver>();
             services.AddSingleton<Services.Federation.FederationRelayService>();
             services.AddSingleton<Services.Federation.IFederationState>(sp => sp.GetRequiredService<Services.Federation.FederationRelayService>());
+            services.AddSingleton<Services.Federation.IFederationSender>(sp => sp.GetRequiredService<Services.Federation.FederationRelayService>());
             services.AddHostedService(sp => sp.GetRequiredService<Services.Federation.FederationRelayService>());
 
             // RunToken store (R2, §10): identità del mittente per i messaggi in uscita.

@@ -30,6 +30,7 @@ namespace MdExplorer.IntegrationTests.Infrastructure
         public HttpClient Client { get; }
         public FakeAgentTurnRunner Runner => Factory.Runner;
         public FakeAgentRunGate Gate => Factory.Gate;
+        public FakeFederationSender FederationSender => Factory.FederationSender;
 
         public AgentCityContext()
         {
@@ -229,6 +230,27 @@ Sei l'agente {name}.";
         }
 
         // ---- governance dei thread (Fase 4b) ----
+
+        /// <summary>White-box: crea una conversazione (per esercitare gli hop d'origine) e ne ritorna l'Id.</summary>
+        public Guid SeedConversation(string projectPath, string startedBy = "external", int hopLimit = 8)
+        {
+            using var scope = Factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var conv = new AgentConversation
+            {
+                ProjectPath = projectPath,
+                StartedBy = startedBy,
+                Status = AgentConversation.StatusEnum.Active,
+                HopCount = 0,
+                HopLimit = hopLimit,
+                StartedAt = DateTime.UtcNow,
+                LastActivityAt = DateTime.UtcNow,
+            };
+            db.GetDal<AgentConversation>().Save(conv);
+            db.Commit();
+            return conv.Id;
+        }
 
         /// <summary>White-box: forza lo stato (ed eventualmente l'hopCount) di una conversazione.</summary>
         public void SetConversationStatus(Guid id, string status, int? hopCount = null)

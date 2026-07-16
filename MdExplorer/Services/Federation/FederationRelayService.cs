@@ -33,6 +33,16 @@ namespace MdExplorer.Services.Federation
     }
 
     /// <summary>
+    /// Spedisce una richiesta di intervento federata a un'altra città sulla stessa stanza-repo
+    /// (§12.6): cifra il payload col room secret e lo emette al relay (<c>send</c> mirato per
+    /// ownerId). Ritorna false se il progetto non ha una connessione federata attiva.
+    /// </summary>
+    public interface IFederationSender
+    {
+        Task<bool> SendFederatedRequestAsync(string projectPath, string targetOwnerId, FederatedRequestPayload payload);
+    }
+
+    /// <summary>
     /// Il presidio della federazione lato Service (§12.7 regola 2: la città vive col Service,
     /// non con la UI). Hosted <see cref="BackgroundService"/> — a differenza della vecchia
     /// <c>VpsChatStreamingService</c> (singleton client-triggered) non dipende da un client
@@ -47,7 +57,7 @@ namespace MdExplorer.Services.Federation
     /// cifrato. Reconnect-forever. La chiave/segreto non lasciano mai la macchina (R15).
     /// </para>
     /// </summary>
-    public class FederationRelayService : BackgroundService, IFederationState
+    public class FederationRelayService : BackgroundService, IFederationState, IFederationSender
     {
         private static readonly TimeSpan ScanInterval = TimeSpan.FromSeconds(60);
         // Path dell'engine Socket.IO sul relay (dietro nginx), condiviso col canale chat.
@@ -60,8 +70,9 @@ namespace MdExplorer.Services.Federation
         private readonly string _apiKey;    // gate di base del relay (stesso del canale chat)
 
         private volatile IReadOnlyList<LocalCity> _snapshot = Array.Empty<LocalCity>();
-        // Una connessione per stanza (roomId). Toccato solo dal loop di scansione (single-thread).
-        private readonly Dictionary<string, RoomConnection> _rooms = new();
+        // Una connessione per stanza (roomId). ConcurrentDictionary: scritto dal loop di
+        // scansione, letto anche dal thread dell'endpoint RequestIntervention (send).
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, RoomConnection> _rooms = new();
         private bool _warnedNoApiKey;
 
         public FederationRelayService(
@@ -177,9 +188,11 @@ namespace MdExplorer.Services.Federation
             // Chiudi le connessioni delle stanze non più attive.
             foreach (var roomId in _rooms.Keys.Where(k => !desired.ContainsKey(k)).ToList())
             {
-                try { _rooms[roomId].Dispose(); } catch { /* best effort */ }
-                _rooms.Remove(roomId);
-                _logger.LogInformation("[Federation] stanza {Room} chiusa (città non più attiva)", roomId);
+                if (_rooms.TryRemove(roomId, out var closing))
+                {
+                    try { closing.Dispose(); } catch { /* best effort */ }
+                    _logger.LogInformation("[Federation] stanza {Room} chiusa (città non più attiva)", roomId);
+                }
             }
 
             if (desired.Count == 0)
@@ -253,6 +266,37 @@ namespace MdExplorer.Services.Federation
             {
                 _logger.LogWarning(ex, "[Federation] gestione 'deliver' fallita per stanza {Room}.", announce.RoomId);
             }
+        }
+
+        /// <summary>
+        /// Spedisce una richiesta federata (§12.6): cifra il payload col room secret del progetto
+        /// e lo emette al relay (<c>send</c> mirato per <paramref name="targetOwnerId"/>) sulla
+        /// connessione della stanza. false se il progetto non ha una connessione federata attiva.
+        /// </summary>
+        public async Task<bool> SendFederatedRequestAsync(string projectPath, string targetOwnerId, FederatedRequestPayload payload)
+        {
+            var city = _snapshot.FirstOrDefault(c => AgentPathComparer.Equals(c.ProjectPath, projectPath));
+            if (city == null || !_rooms.TryGetValue(city.RoomId, out var conn))
+            {
+                _logger.LogWarning("[Federation] send federato: nessuna connessione attiva per '{Project}'.", projectPath);
+                return false;
+            }
+
+            string secret;
+            using (var scope = _scopeFactory.CreateScope())
+            {
+                var meta = scope.ServiceProvider.GetRequiredService<MdExplorer.Services.IProjectMetadataService>();
+                secret = meta.GetAgentCity(projectPath)?.RoomSecret;
+            }
+            if (string.IsNullOrWhiteSpace(secret))
+            {
+                _logger.LogWarning("[Federation] send federato: room secret assente per '{Project}'.", projectPath);
+                return false;
+            }
+
+            var envelope = FederationCrypto.Encrypt(secret, city.RoomId, System.Text.Json.JsonSerializer.Serialize(payload));
+            await conn.SendAsync(targetOwnerId, envelope);
+            return true;
         }
 
         public override async Task StopAsync(CancellationToken cancellationToken)
@@ -405,6 +449,15 @@ namespace MdExplorer.Services.Federation
             {
                 try { await socket.EmitAsync("announce", new { presence = a.EncryptedPresence }); }
                 catch (Exception ex) { _logger.LogWarning(ex, "[Federation] announce stanza {Room} fallito", a.RoomId); }
+            }
+
+            /// <summary>Emette un <c>send</c> mirato (richiesta federata cifrata) verso un'altra città.</summary>
+            public async Task SendAsync(string toOwnerId, string envelope)
+            {
+                var socket = _socket;
+                if (socket == null || !socket.Connected)
+                    throw new InvalidOperationException("connessione alla stanza non attiva: impossibile spedire.");
+                await socket.EmitAsync("send", new { toOwnerId, envelope });
             }
 
             public void Dispose()

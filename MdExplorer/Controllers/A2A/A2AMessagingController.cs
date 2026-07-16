@@ -1,10 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Ad.Tools.Dal.Extensions;
+using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Features.Agents;
+using MdExplorer.Features.Federation;
+using MdExplorer.Services;
 using MdExplorer.Services.AgentRegistry;
 using MdExplorer.Services.AgentRun;
+using MdExplorer.Services.Federation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -28,17 +33,26 @@ namespace MdExplorer.Controllers.A2A
         private readonly IRunTokenStore _tokens;
         private readonly IAgentRegistryService _registry;
         private readonly IAgentMailbox _mailbox;
+        private readonly IProjectOwnershipService _ownership;
+        private readonly IFederationSender _federationSender;
+        private readonly IUserSettingsDB _session;
         private readonly ILogger<A2AMessagingController> _logger;
 
         public A2AMessagingController(
             IRunTokenStore tokens,
             IAgentRegistryService registry,
             IAgentMailbox mailbox,
+            IProjectOwnershipService ownership,
+            IFederationSender federationSender,
+            IUserSettingsDB session,
             ILogger<A2AMessagingController> logger)
         {
             _tokens = tokens;
             _registry = registry;
             _mailbox = mailbox;
+            _ownership = ownership;
+            _federationSender = federationSender;
+            _session = session;
             _logger = logger;
         }
 
@@ -156,11 +170,126 @@ namespace MdExplorer.Controllers.A2A
             return Ok(colleagues);
         }
 
+        /// <summary>
+        /// Chiede l'intervento di un agente di un'ALTRA città su un ambito (§12.6, federazione).
+        /// L'harness risolve il destinatario dalla tabella di ownership (deterministico, non
+        /// l'LLM): ambito → responsabile (gitEmail) + agente. Consuma 1 hop nella conversazione
+        /// d'origine, correla i due lati con un <c>FederationId</c>, e spedisce la richiesta
+        /// cifrata al relay. A destinazione parte il <b>gate umano</b> (nessun run senza ok).
+        /// </summary>
+        [HttpPost("request-intervention")]
+        public async System.Threading.Tasks.Task<IActionResult> RequestIntervention([FromBody] RequestInterventionRequest request)
+        {
+            var claims = ResolveClaims();
+            if (claims == null)
+                return Unauthorized(new { error = "RunToken assente o non valido." });
+            if (request == null || string.IsNullOrWhiteSpace(request.Scope))
+                return BadRequest(new { error = "scope è obbligatorio." });
+            if (string.IsNullOrWhiteSpace(request.Message))
+                return BadRequest(new { error = "message è obbligatorio." });
+
+            // Ownership del progetto (richiede federazione attiva + doc valido).
+            var entries = _ownership.GetActiveOwnership(claims.ProjectPath);
+            if (entries == null)
+                return StatusCode(409, new { error = "Città non attiva o senza documento di ownership valido." });
+
+            var entry = OwnershipResolver.Resolve(entries, request.Scope);
+            if (entry == null)
+                return NotFound(new { error = $"Ambito '{request.Scope}' non presente nell'ownership del progetto." });
+
+            var targetAgent = OwnershipResolver.PickAgent(entry, request.PreferredAgent);
+            if (string.IsNullOrWhiteSpace(targetAgent))
+                return UnprocessableEntity(new { error = $"L'ambito '{entry.Scope}' non elenca alcun agente." });
+
+            var targetOwnerId = FederationRoom.ComputeUserId(entry.GitEmail);
+
+            // Hop + correlazione FederationId sulla conversazione d'origine (§12.6).
+            var fedId = Guid.NewGuid();
+            if (Guid.TryParse(claims.ConversationId, out var convId))
+            {
+                _session.BeginTransaction();
+                var dal = _session.GetDal<AgentConversation>();
+                var conv = dal.GetList().ToList().FirstOrDefault(c => c.Id == convId);
+                if (conv != null)
+                {
+                    if (conv.Status == AgentConversation.StatusEnum.Killed)
+                    {
+                        _session.Commit();
+                        return StatusCode(409, new { error = "La conversazione è terminata (killed)." });
+                    }
+                    // La richiesta federata è un fan-out: conta 1 hop (non esente).
+                    var decision = ConversationHopGuard.Evaluate(claims.AgentName, targetAgent, conv.HopCount, conv.HopLimit);
+                    if (!decision.Allowed)
+                    {
+                        conv.Status = AgentConversation.StatusEnum.Exhausted;
+                        dal.Save(conv);
+                        _session.Commit();
+                        return StatusCode(409, new { error = $"Limite hop raggiunto ({conv.HopLimit}): conversazione esaurita." });
+                    }
+                    conv.HopCount = decision.NewHopCount;
+                    fedId = conv.FederationId ?? fedId;
+                    conv.FederationId = fedId;
+                    conv.RemoteOwner = entry.GitEmail;
+                    conv.RemoteAgent = targetAgent;
+                    conv.LastActivityAt = DateTime.UtcNow;
+                    dal.Save(conv);
+                }
+                _session.Commit();
+            }
+
+            var payload = new FederatedRequestPayload
+            {
+                FederationId = fedId.ToString(),
+                FromOwner = ResolveLocalGitEmail(claims.ProjectPath),
+                FromAgent = claims.AgentName,               // R2: identità certificata dal token
+                Scope = entry.Scope,
+                TargetAgent = targetAgent,
+                Message = request.Message,
+                Topics = request.Topics,
+            };
+
+            var sent = await _federationSender.SendFederatedRequestAsync(claims.ProjectPath, targetOwnerId, payload);
+            if (!sent)
+                return StatusCode(503, new { error = "Nessuna connessione federata attiva per il progetto (città accesa e relay raggiungibile?)." });
+
+            _logger.LogInformation("[A2A/request-intervention] {From} → ambito '{Scope}' ({Agent}@{Owner}), fed {Fed}",
+                claims.AgentName, entry.Scope, targetAgent, entry.GitEmail, fedId);
+            return Ok(new
+            {
+                requested = true,
+                federationId = fedId.ToString(),
+                targetAgent,
+                targetOwner = entry.GitEmail,
+            });
+        }
+
+        private static string ResolveLocalGitEmail(string projectPath)
+        {
+            try
+            {
+                using var repo = new LibGit2Sharp.Repository(projectPath);
+                return repo.Config.Get<string>("user.email")?.Value;
+            }
+            catch { return null; }
+        }
+
         private RunTokenClaims ResolveClaims()
         {
             var token = Request.Headers[RunTokenHeader].ToString();
             return string.IsNullOrWhiteSpace(token) ? null : _tokens.Validate(token);
         }
+    }
+
+    /// <summary>
+    /// Body del RequestIntervention. Campi nullable (memoria dto_nullable_implicit_required):
+    /// la validazione automatica risponderebbe 400 prima del check del token.
+    /// </summary>
+    public class RequestInterventionRequest
+    {
+        public string? Scope { get; set; }
+        public string? Message { get; set; }
+        public string? PreferredAgent { get; set; }
+        public List<string>? Topics { get; set; }
     }
 
     /// <summary>
