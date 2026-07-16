@@ -36,6 +36,12 @@ namespace MdExplorer.Services.AgentRun
         private const int BatchSize = 20;
         private const int OutputSummaryMax = 2000;
 
+        // Retention: i messaggi conclusi (processed/failed) vengono purgati dopo questa finestra,
+        // altrimenti la tabella cresce all'infinito. La purga gira all'avvio e poi a intervalli.
+        private static readonly TimeSpan RetentionWindow = TimeSpan.FromDays(14);
+        private static readonly TimeSpan PurgeInterval = TimeSpan.FromHours(1);
+        private DateTime _nextPurgeUtc = DateTime.MinValue;
+
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IAgentRegistryService _registry;
         private readonly IEnumerable<IAlgorithmicAgent> _algorithmicAgents;
@@ -63,6 +69,7 @@ namespace MdExplorer.Services.AgentRun
             {
                 try
                 {
+                    PurgeOldMessagesIfDue();
                     await DeliverPendingAsync(stoppingToken);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
@@ -84,7 +91,7 @@ namespace MdExplorer.Services.AgentRun
                 var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
                 db.BeginTransaction();
                 var dal = db.GetDal<AgentMessage>();
-                var stuck = dal.GetList().ToList()
+                var stuck = dal.GetList()
                     .Where(m => m.State == AgentMessage.StateEnum.Delivered)
                     .ToList();
                 foreach (var m in stuck)
@@ -99,6 +106,40 @@ namespace MdExplorer.Services.AgentRun
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[Dispatcher] Recovery all'avvio fallito");
+            }
+        }
+
+        /// <summary>
+        /// Purga periodica dei messaggi conclusi (processed/failed) più vecchi della finestra
+        /// di retention: senza, la tabella cresce all'infinito. Gira all'avvio e poi ogni ora.
+        /// I messaggi pending/delivered non si toccano mai (sono lavoro in corso).
+        /// </summary>
+        private void PurgeOldMessagesIfDue()
+        {
+            var now = DateTime.UtcNow;
+            if (now < _nextPurgeUtc) return;
+            _nextPurgeUtc = now + PurgeInterval;
+
+            var cutoff = now - RetentionWindow;
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+                db.BeginTransaction();
+                var dal = db.GetDal<AgentMessage>();
+                var old = dal.GetList()
+                    .Where(m => (m.State == AgentMessage.StateEnum.Processed || m.State == AgentMessage.StateEnum.Failed)
+                                && m.ProcessedAt != null && m.ProcessedAt < cutoff)
+                    .ToList();
+                foreach (var m in old)
+                    dal.Delete(m);
+                db.Commit();
+                if (old.Count > 0)
+                    _logger.LogInformation("[Dispatcher] Retention: purgati {N} messaggi conclusi più vecchi di {Days}gg", old.Count, RetentionWindow.TotalDays);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Dispatcher] Purga retention fallita");
             }
         }
 
@@ -138,7 +179,7 @@ namespace MdExplorer.Services.AgentRun
                 var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
                 db.BeginTransaction();
                 var dal = db.GetDal<AgentMessage>();
-                var msg = dal.GetList().ToList().FirstOrDefault(m => m.Id == messageId);
+                var msg = dal.GetList().FirstOrDefault(m => m.Id == messageId);
                 if (msg == null || msg.State != AgentMessage.StateEnum.Pending) { db.Commit(); return; }
                 msg.State = AgentMessage.StateEnum.Delivered;
                 dal.Save(msg);
@@ -377,7 +418,7 @@ namespace MdExplorer.Services.AgentRun
                 var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
                 db.BeginTransaction();
                 var dal = db.GetDal<AgentMessage>();
-                var msg = dal.GetList().ToList().FirstOrDefault(m => m.Id == messageId);
+                var msg = dal.GetList().FirstOrDefault(m => m.Id == messageId);
                 if (msg == null) { db.Commit(); return; }
                 mutate(msg);
                 dal.Save(msg);

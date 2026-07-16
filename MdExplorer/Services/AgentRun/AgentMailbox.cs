@@ -168,7 +168,7 @@ namespace MdExplorer.Services.AgentRun
         {
             if (Guid.TryParse(request.ContextId, out var ctxId))
             {
-                var existing = db.GetDal<AgentConversation>().GetList().ToList()
+                var existing = db.GetDal<AgentConversation>().GetList()
                     .FirstOrDefault(c => c.Id == ctxId);
                 if (existing != null)
                 {
