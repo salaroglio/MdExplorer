@@ -107,6 +107,23 @@ namespace MdExplorer.Features.Tests.Agents
         }
 
         [TestMethod]
+        public async Task Sign_the_run_environment_with_the_agent_git_identity()
+        {
+            var store = new RunTokenStore();
+            var runner = new CapturingRunner(store);
+            var waker = new LlmAgentWaker(store, runner);
+
+            await waker.WakeAsync(Request());
+
+            var env = runner.LastRequest.Environment;
+            // Firma git per-agente: i commit dell'agente sono attribuiti a lui, non all'umano.
+            Assert.AreEqual("stem-curator", env[AgentGitIdentity.EnvAuthorName]);
+            Assert.AreEqual("stem-curator@agents.mde", env[AgentGitIdentity.EnvAuthorEmail]);
+            Assert.AreEqual("stem-curator", env[AgentGitIdentity.EnvCommitterName]);
+            Assert.AreEqual("stem-curator@agents.mde", env[AgentGitIdentity.EnvCommitterEmail]);
+        }
+
+        [TestMethod]
         public async Task Keep_the_token_valid_during_the_run_then_revoke_it_after()
         {
             var store = new RunTokenStore();

@@ -99,6 +99,11 @@ namespace MdExplorer.Features.Agents
                     [EnvFromAgent] = request.FromAgent ?? string.Empty,
                 };
 
+                // Firma git per-agente (§10): ogni commit che l'agente fa nel workspace è
+                // attribuito a lui (`<name>@agents.mde`), non all'umano. git blame resta giusto.
+                foreach (var kv in AgentGitIdentity.EnvFor(request.AgentName))
+                    env[kv.Key] = kv.Value;
+
                 var output = await _runner.RunTurnAsync(new AgentTurnRequest
                 {
                     ComposedPrompt = prompt,
