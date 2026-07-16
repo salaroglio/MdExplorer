@@ -158,7 +158,22 @@ namespace MdExplorer.Services.AgentRun
                 var existing = db.GetDal<AgentConversation>().GetList().ToList()
                     .FirstOrDefault(c => c.Id == ctxId);
                 if (existing != null)
-                    return existing;
+                {
+                    // Un contextId è valido SOLO dentro il suo progetto: un id di un altro
+                    // progetto (gateway con contextId forgiato/estraneo) non deve poter
+                    // agganciare quella conversazione né consumarne il budget hop. Mismatch →
+                    // nuovo thread, con warning (mai aggancio cross-project silenzioso).
+                    if (AgentPathComparer.Equals(existing.ProjectPath, request.ProjectPath))
+                        return existing;
+
+                    _logger.LogWarning(
+                        "[Mailbox] contextId {Ctx} appartiene al progetto '{Other}', non a '{This}': apro un nuovo thread invece di agganciarlo.",
+                        ctxId, existing.ProjectPath, request.ProjectPath);
+                }
+                else if (!string.IsNullOrWhiteSpace(request.ContextId))
+                {
+                    _logger.LogWarning("[Mailbox] contextId {Ctx} non trovato: apro un nuovo thread.", ctxId);
+                }
             }
 
             var conv = new AgentConversation
