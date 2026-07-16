@@ -53,6 +53,11 @@ namespace MdExplorer.Services.AgentRun
     {
         private static readonly TimeSpan DedupWindow = TimeSpan.FromSeconds(2);
 
+        // Tetto al corpo del messaggio: un messaggio tra agenti è testo, non un payload. Senza
+        // cap, un chiamante del gateway può accodare megabyte che finiscono in DB e nel prompt
+        // di risveglio (costo LLM + memoria). 32 KB sono abbondanti per un messaggio.
+        private const int MaxBodyLength = 32 * 1024;
+
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<AgentMailbox> _logger;
 
@@ -70,6 +75,14 @@ namespace MdExplorer.Services.AgentRun
             var from = (request.FromAgent ?? string.Empty).Trim();
             var to = (request.ToAgent ?? string.Empty).Trim();
             var now = DateTime.UtcNow;
+
+            // Fail-loud sul corpo sovradimensionato: guardia condivisa da gateway e canale
+            // autenticato (unico punto d'accodamento), prima di toccare il DB.
+            if ((request.Body?.Length ?? 0) > MaxBodyLength)
+            {
+                _logger.LogWarning("[Mailbox] {From}->{To} rifiutato: corpo {Len} > {Max} byte", from, to, request.Body.Length, MaxBodyLength);
+                return new EnqueueResult { Accepted = false, RejectionReason = $"Messaggio troppo lungo ({request.Body.Length} caratteri): il limite è {MaxBodyLength}." };
+            }
 
             // Dedup anti-storm (§9 punto 2): stessa coppia+contesto entro 2s → scartato.
             var dedupKey = $"{request.ProjectPath}|{from}|{to}|{request.ContextId ?? "new"}";
