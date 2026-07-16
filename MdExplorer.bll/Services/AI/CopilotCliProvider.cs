@@ -45,6 +45,16 @@ namespace MdExplorer.Features.Services.AI
         /// </summary>
         public string WorkingDirectory { get; set; }
 
+        /// <summary>
+        /// Extra environment variables to inject into the copilot child process (it inherits
+        /// the Service's environment and these override/add on top). This is the channel for
+        /// the agent <c>RunToken</c> (R2): the token travels in the environment — never in the
+        /// prompt — so the child MCP can authenticate outgoing messages back to the Service.
+        /// Null = no override. Set it before a call and clear it after (the provider is a
+        /// singleton shared across callers).
+        /// </summary>
+        public IReadOnlyDictionary<string, string> EnvironmentOverrides { get; set; }
+
         // Availability cache
         private bool? _cachedAvailability;
         private DateTime _availabilityCacheExpiry = DateTime.MinValue;
@@ -551,6 +561,19 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             {
                 psi.WorkingDirectory = WorkingDirectory;
                 _logger.LogInformation("[CopilotCliProvider] Working directory set to: {WorkingDir}", WorkingDirectory);
+            }
+
+            // Inject the RunToken (and its identity claims) into the child's environment.
+            // psi.Environment is pre-seeded from the parent (UseShellExecute=false), so the
+            // child inherits everything and we only override these keys. Never logged.
+            var envOverrides = EnvironmentOverrides;
+            if (envOverrides != null)
+            {
+                foreach (var kv in envOverrides)
+                {
+                    if (string.IsNullOrEmpty(kv.Key)) continue;
+                    psi.Environment[kv.Key] = kv.Value ?? string.Empty;
+                }
             }
 
             return psi;

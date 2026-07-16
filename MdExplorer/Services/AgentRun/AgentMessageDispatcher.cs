@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,17 +39,20 @@ namespace MdExplorer.Services.AgentRun
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IAgentRegistryService _registry;
         private readonly IEnumerable<IAlgorithmicAgent> _algorithmicAgents;
+        private readonly ILlmAgentWaker _llmWaker;
         private readonly ILogger<AgentMessageDispatcher> _logger;
 
         public AgentMessageDispatcher(
             IServiceScopeFactory scopeFactory,
             IAgentRegistryService registry,
             IEnumerable<IAlgorithmicAgent> algorithmicAgents,
+            ILlmAgentWaker llmWaker,
             ILogger<AgentMessageDispatcher> logger)
         {
             _scopeFactory = scopeFactory;
             _registry = registry;
             _algorithmicAgents = algorithmicAgents;
+            _llmWaker = llmWaker;
             _logger = logger;
         }
 
@@ -146,7 +150,8 @@ namespace MdExplorer.Services.AgentRun
             }
 
             // 3) ri-valida il destinatario dalle fonti (§6/§7): cittadino + trusted
-            var entry = _registry.RefreshCatalog(snapshot.ProjectPath)
+            var catalog = _registry.RefreshCatalog(snapshot.ProjectPath);
+            var entry = catalog
                 .FirstOrDefault(e => e.IsCitizen && string.Equals(e.Name, snapshot.ToAgent, StringComparison.OrdinalIgnoreCase));
             if (entry == null || !entry.Trusted)
             {
@@ -154,10 +159,10 @@ namespace MdExplorer.Services.AgentRun
                 return;
             }
 
-            // 4) risveglio LLM: arriva nello step successivo (RunToken + delimitatori)
-            if (!string.Equals(entry.Kind, AgentIdentity.KindEnum.Algorithmic, StringComparison.OrdinalIgnoreCase))
+            // 4) risveglio LLM (§7 passo 5): RunToken nell'ambiente + messaggio come DATO fra delimitatori.
+            if (string.Equals(entry.Kind, AgentIdentity.KindEnum.Llm, StringComparison.OrdinalIgnoreCase))
             {
-                MarkFailed(messageId, "Risveglio degli agenti LLM non ancora attivo (Fase 3 step 4).");
+                await WakeLlmAgentAsync(messageId, snapshot, entry, catalog, ct);
                 return;
             }
 
@@ -200,6 +205,114 @@ namespace MdExplorer.Services.AgentRun
             {
                 // backoff: Attempts+1, torna pending fino a MaxAttempts, poi failed.
                 RetryOrFail(messageId, result.Error);
+            }
+        }
+
+        /// <summary>
+        /// Sveglia un agente LLM su un messaggio (§7 passo 5). Legge il corpo dell'agente,
+        /// costruisce la rubrica dei colleghi fidati, delega a <see cref="ILlmAgentWaker"/>
+        /// (RunToken + prompt di risveglio con delimitatori) e mappa l'esito su processed /
+        /// retry-or-fail. Fail-loud se il file dell'agente non è più leggibile.
+        /// </summary>
+        private async Task WakeLlmAgentAsync(
+            Guid messageId, AgentMessage snapshot, AgentRegistryEntry entry,
+            IReadOnlyList<AgentRegistryEntry> catalog, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(entry.AgentFilePath) || !File.Exists(entry.AgentFilePath))
+            {
+                MarkFailed(messageId, $"File dell'agente LLM '{entry.Name}' non trovato: '{entry.AgentFilePath}'.");
+                return;
+            }
+
+            string agentContent;
+            try
+            {
+                agentContent = await File.ReadAllTextAsync(entry.AgentFilePath, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                RetryOrFail(messageId, $"Lettura del file agente '{entry.Name}' fallita: {ex.Message}");
+                return;
+            }
+
+            var roster = BuildRoster(catalog, entry.Name);
+            var startedAt = DateTime.UtcNow;
+            LlmWakeOutcome outcome;
+            try
+            {
+                outcome = await _llmWaker.WakeAsync(new LlmWakeRequest
+                {
+                    RunId = Guid.NewGuid(),
+                    AgentName = entry.Name,
+                    AgentFileContent = agentContent,
+                    ProjectPath = snapshot.ProjectPath,
+                    ConversationId = snapshot.ConversationId.ToString(),
+                    FromAgent = snapshot.FromAgent,
+                    MessageBody = snapshot.Body,
+                    Roster = roster,
+                }, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Shutdown: lascia il messaggio 'delivered', la recovery lo rimette 'pending'.
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Dispatcher] Risveglio LLM di '{Agent}' fallito", entry.Name);
+                outcome = LlmWakeOutcome.Fail(ex.Message);
+            }
+
+            LogLlmExecution(snapshot, entry, startedAt, outcome);
+
+            if (outcome.Success) MarkProcessed(messageId);
+            else RetryOrFail(messageId, outcome.Error);
+        }
+
+        /// <summary>Rubrica (§6): cittadini fidati del progetto, escluso il destinatario stesso.</summary>
+        private static IReadOnlyList<AgentRosterEntry> BuildRoster(
+            IReadOnlyList<AgentRegistryEntry> catalog, string selfName)
+        {
+            return catalog
+                .Where(e => e.IsCitizen && e.Trusted)
+                .Where(e => !string.Equals(e.Name, selfName, StringComparison.OrdinalIgnoreCase))
+                .Select(e => new AgentRosterEntry
+                {
+                    Name = e.Name,
+                    Role = e.Role,
+                    Skills = e.Skills?
+                        .Select(s => s.Id)
+                        .Where(id => !string.IsNullOrWhiteSpace(id))
+                        .ToList() ?? new List<string>(),
+                })
+                .ToList();
+        }
+
+        private void LogLlmExecution(AgentMessage snapshot, AgentRegistryEntry entry, DateTime startedAt, LlmWakeOutcome outcome)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+                db.BeginTransaction();
+                db.GetDal<AgentExecutionLog>().Save(new AgentExecutionLog
+                {
+                    ProjectPath = snapshot.ProjectPath,
+                    AgentFilePath = entry.AgentFilePath,
+                    TriggerSource = "message",
+                    ExecutedBy = "dispatcher",
+                    StartedAt = startedAt,
+                    FinishedAt = DateTime.UtcNow,
+                    Status = outcome.Success ? "success" : "error",
+                    OutputSummary = outcome.Success ? Truncate(outcome.Output) : null,
+                    Error = outcome.Success ? null : outcome.Error,
+                });
+                db.Commit();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Dispatcher] Scrittura AgentExecutionLog (LLM) fallita");
             }
         }
 

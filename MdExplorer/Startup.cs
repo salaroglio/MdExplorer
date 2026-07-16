@@ -114,6 +114,12 @@ namespace MdExplorer
             // Il token è generato al risveglio e passato nell'ambiente del processo agente.
             services.AddSingleton<MdExplorer.Features.Agents.IRunTokenStore, MdExplorer.Features.Agents.RunTokenStore>();
 
+            // Seam provider-agnostico del run LLM headless (§7) + risveglio da messaggio (R1+R2):
+            // il runner reale lancia Copilot; il waker conia il RunToken, compone il prompt di
+            // risveglio (messaggio come DATO fra delimitatori) e revoca il token a fine run.
+            services.AddSingleton<MdExplorer.Features.Agents.IAgentTurnRunner, Services.AgentRun.CopilotTurnRunner>();
+            services.AddSingleton<MdExplorer.Features.Agents.ILlmAgentWaker, MdExplorer.Features.Agents.LlmAgentWaker>();
+
             // Shell execution for fenced code blocks (bash/sh/powershell/pwsh/cmd)
             services.AddSingleton<Services.Execution.ShellRegistry>();
             services.AddTransient<Services.Execution.ShellRunner>();

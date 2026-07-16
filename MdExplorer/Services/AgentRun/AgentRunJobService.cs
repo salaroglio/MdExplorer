@@ -32,7 +32,7 @@ namespace MdExplorer.Services.AgentRun
 
         private readonly ILogger<AgentRunJobService> _logger;
         private readonly IHubContext<MonitorMDHub> _hubContext;
-        private readonly IEnumerable<IAiProvider> _aiProviders;
+        private readonly IAgentTurnRunner _turnRunner;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly AgentRegistry.IAgentRegistryService _agentRegistry;
 
@@ -41,13 +41,13 @@ namespace MdExplorer.Services.AgentRun
         public AgentRunJobService(
             ILogger<AgentRunJobService> logger,
             IHubContext<MonitorMDHub> hubContext,
-            IEnumerable<IAiProvider> aiProviders,
+            IAgentTurnRunner turnRunner,
             IServiceScopeFactory scopeFactory,
             AgentRegistry.IAgentRegistryService agentRegistry)
         {
             _logger = logger;
             _hubContext = hubContext;
-            _aiProviders = aiProviders;
+            _turnRunner = turnRunner;
             _scopeFactory = scopeFactory;
             _agentRegistry = agentRegistry;
         }
@@ -167,22 +167,20 @@ namespace MdExplorer.Services.AgentRun
                         $"Prompt still contains unresolved placeholders: {string.Join(", ", unresolved)}");
                 }
 
-                var copilot = _aiProviders?
-                    .FirstOrDefault(p => p.GetProviderType() == ProviderType.CopilotCli) as CopilotCliProvider;
-                if (copilot == null || !copilot.IsAvailable())
-                {
-                    throw new InvalidOperationException(
-                        "Copilot CLI is not installed or not authenticated. Install it and run 'copilot' once to log in.");
-                }
-
                 var agentContent = await File.ReadAllTextAsync(request.AgentFilePath, cts.Token);
                 // Rubrica (§6): i colleghi fidati del progetto, escluso sé stesso. Contesto
                 // opzionale — il satellite Scheduler NON la inietta (non ha il registry).
                 var roster = BuildRoster(request.ProjectPath, request.AgentFilePath);
                 var composedPrompt = AgentPromptComposer.ComposeRunPrompt(agentContent, request.PreparedPrompt, roster);
 
-                copilot.WorkingDirectory = request.ProjectPath;
-                var output = await copilot.ChatAsync(composedPrompt, ct: cts.Token);
+                // Attraverso il seam provider-agnostico (IAgentTurnRunner): il runner reale
+                // (CopilotTurnRunner) verifica la disponibilità e lancia Copilot; una fake lo
+                // sostituisce nei test. I run schedulati/manuali non passano un RunToken.
+                var output = await _turnRunner.RunTurnAsync(new AgentTurnRequest
+                {
+                    ComposedPrompt = composedPrompt,
+                    WorkingDirectory = request.ProjectPath,
+                }, cts.Token);
 
                 _logger.LogInformation(
                     "[AgentRun] COMPLETED agent='{Agent}' runId={RunId} outputChars={Chars}",
