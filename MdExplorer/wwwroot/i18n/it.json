@@ -1731,7 +1731,8 @@
     "VIEW_MESSAGES": "Vedi messaggi",
     "HIDE_MESSAGES": "Nascondi messaggi",
     "REOPEN": "Riapri",
-    "KILL": "Termina thread"
+    "KILL": "Termina thread",
+    "FEDERATED": "federata"
   },
   "AGENT_TRUST": {
     "TITLE": "Concedi il trust a questo agente?",

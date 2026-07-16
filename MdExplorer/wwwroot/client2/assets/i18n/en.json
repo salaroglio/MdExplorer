@@ -1731,7 +1731,8 @@
     "VIEW_MESSAGES": "View messages",
     "HIDE_MESSAGES": "Hide messages",
     "REOPEN": "Reopen",
-    "KILL": "End thread"
+    "KILL": "End thread",
+    "FEDERATED": "federated"
   },
   "AGENT_TRUST": {
     "TITLE": "Trust this agent?",

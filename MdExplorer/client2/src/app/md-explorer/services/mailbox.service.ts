@@ -33,6 +33,10 @@ export interface ConversationSummary {
   participants: string[];
   startedAt: string;
   lastActivityAt: string;
+  federationId?: string | null;
+  remoteOwner?: string | null;
+  remoteAgent?: string | null;
+  federated?: boolean;
 }
 
 /** Un messaggio dentro un thread (vista dettaglio). */

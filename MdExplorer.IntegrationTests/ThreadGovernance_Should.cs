@@ -109,5 +109,26 @@ namespace MdExplorer.IntegrationTests
             var (status, _) = await ctx.Reopen(convId);
             Assert.AreEqual(System.Net.HttpStatusCode.UnprocessableEntity, status);
         }
+
+        [TestMethod]
+        public async Task Surface_a_federated_conversation_with_its_remote_counterpart()
+        {
+            var (ctx, path, convId) = await EscalatedThread("federated");
+            using var _ctx = ctx;
+
+            // La correlazione federata (§12.6): id condiviso + controparte remota.
+            var fedId = System.Guid.NewGuid();
+            ctx.MarkConversationFederated(convId, fedId, "marco@acme.it", "java-dev@marco@acme.it");
+
+            var (status, json) = await ctx.GetConversations(path);
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status);
+
+            var conv = json.RootElement.GetProperty("conversations").EnumerateArray()
+                .Single(c => c.GetProperty("id").GetGuid() == convId);
+            Assert.IsTrue(conv.GetProperty("federated").GetBoolean(), "la conversazione è federata");
+            Assert.AreEqual(fedId, conv.GetProperty("federationId").GetGuid());
+            Assert.AreEqual("marco@acme.it", conv.GetProperty("remoteOwner").GetString());
+            Assert.AreEqual("java-dev@marco@acme.it", conv.GetProperty("remoteAgent").GetString());
+        }
     }
 }

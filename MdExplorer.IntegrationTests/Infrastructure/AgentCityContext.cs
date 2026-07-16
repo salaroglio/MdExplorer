@@ -227,6 +227,21 @@ Sei l'agente {name}.";
             db.Commit();
         }
 
+        /// <summary>White-box: marca una conversazione come federata (correlazione §12.6).</summary>
+        public void MarkConversationFederated(Guid id, Guid federationId, string remoteOwner, string remoteAgent)
+        {
+            using var scope = Factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var dal = db.GetDal<AgentConversation>();
+            var conv = dal.GetList().First(c => c.Id == id);
+            conv.FederationId = federationId;
+            conv.RemoteOwner = remoteOwner;
+            conv.RemoteAgent = remoteAgent;
+            dal.Save(conv);
+            db.Commit();
+        }
+
         public async Task<(System.Net.HttpStatusCode Status, System.Text.Json.JsonDocument Json)> GetConversations(string projectPath)
         {
             var url = $"/api/A2A/mailbox/conversations?projectPath={Uri.EscapeDataString(projectPath)}";

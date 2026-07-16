@@ -93,6 +93,10 @@
             <span class="conv-status" [ngClass]="statusClass(conv.status)">
               {{ ('MAILBOX.STATUS_' + (conv.status | uppercase)) | translate }}
             </span>
+            <span *ngIf="conv.federated" class="conv-federated"
+                  [matTooltip]="(conv.remoteAgent || conv.remoteOwner || '') + ''">
+              <mat-icon>hub</mat-icon> {{ 'MAILBOX.FEDERATED' | translate }}
+            </span>
             <span class="conv-hops" [matTooltip]="'MAILBOX.HOPS_TOOLTIP' | translate">
               <mat-icon>route</mat-icon> {{ conv.hopCount }}/{{ conv.hopLimit }}
             </span>

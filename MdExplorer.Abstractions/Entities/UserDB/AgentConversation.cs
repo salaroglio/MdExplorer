@@ -33,6 +33,20 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual DateTime StartedAt { get; set; }
         public virtual DateTime LastActivityAt { get; set; }
 
+        /// <summary>
+        /// Correlazione federata (§12.6 / Fase 6c): identificativo condiviso tra i due lati di
+        /// una conversazione tra città diverse (lo conia la città d'origine e viaggia con la
+        /// richiesta). <c>null</c> = conversazione puramente locale. A destinazione si apre
+        /// una conversazione locale con budget hop proprio, ma legata all'origine da qui.
+        /// </summary>
+        public virtual Guid? FederationId { get; set; }
+
+        /// <summary>La città remota controparte: <c>gitEmail</c>/ownerId del padrone (federate only).</summary>
+        public virtual string RemoteOwner { get; set; }
+
+        /// <summary>L'agente remoto coinvolto (nome qualificato <c>agente@gitEmail</c>), federate only.</summary>
+        public virtual string RemoteAgent { get; set; }
+
         /// <summary>Valori ammessi per <see cref="Status"/>.</summary>
         public static class StatusEnum
         {

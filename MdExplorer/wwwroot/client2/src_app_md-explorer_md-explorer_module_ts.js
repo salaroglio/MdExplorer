@@ -16004,19 +16004,35 @@ function MailboxDialogComponent_div_31_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind1"](4, 1, "MAILBOX.CONV_EMPTY"), " ");
   }
 }
-function MailboxDialogComponent_mat_card_32_span_19_Template(rf, ctx) {
+function MailboxDialogComponent_mat_card_32_span_7_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "span", 49);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "span", 50)(1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "hub");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipe"](4, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const conv_r22 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]().$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("matTooltip", (conv_r22.remoteAgent || conv_r22.remoteOwner || "") + "");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind1"](4, 2, "MAILBOX.FEDERATED"), " ");
+  }
+}
+function MailboxDialogComponent_mat_card_32_span_20_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "span", 51);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const p_r27 = ctx.$implicit;
+    const p_r29 = ctx.$implicit;
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](p_r27);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](p_r29);
   }
 }
-function MailboxDialogComponent_mat_card_32_div_23_div_1_Template(rf, ctx) {
+function MailboxDialogComponent_mat_card_32_div_24_div_1_Template(rf, ctx) {
   if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 17);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1);
@@ -16028,70 +16044,70 @@ function MailboxDialogComponent_mat_card_32_div_23_div_1_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind1"](2, 1, "MAILBOX.LOADING"));
   }
 }
-function MailboxDialogComponent_mat_card_32_div_23_div_2_div_7_Template(rf, ctx) {
+function MailboxDialogComponent_mat_card_32_div_24_div_2_div_7_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 57);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 59);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const m_r30 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]().$implicit;
+    const m_r32 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]().$implicit;
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](m_r30.error);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](m_r32.error);
   }
 }
-function MailboxDialogComponent_mat_card_32_div_23_div_2_Template(rf, ctx) {
+function MailboxDialogComponent_mat_card_32_div_24_div_2_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 52)(1, "span", 53);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 54)(1, "span", 55);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "span", 54);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](3, "span", 56);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "div", 55);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](5, "div", 57);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](6);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](7, MailboxDialogComponent_mat_card_32_div_23_div_2_div_7_Template, 2, 1, "div", 56);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](7, MailboxDialogComponent_mat_card_32_div_24_div_2_div_7_Template, 2, 1, "div", 58);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const m_r30 = ctx.$implicit;
+    const m_r32 = ctx.$implicit;
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate2"]("", m_r30.fromAgent, " \u2192 ", m_r30.toAgent, "");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate2"]("", m_r32.fromAgent, " \u2192 ", m_r32.toAgent, "");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngClass", "state-" + m_r30.state);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngClass", "state-" + m_r32.state);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](m_r30.state);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](m_r32.state);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](m_r30.body);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](m_r32.body);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", m_r30.error);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", m_r32.error);
   }
 }
-function MailboxDialogComponent_mat_card_32_div_23_Template(rf, ctx) {
+function MailboxDialogComponent_mat_card_32_div_24_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 50);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](1, MailboxDialogComponent_mat_card_32_div_23_div_1_Template, 3, 3, "div", 7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](2, MailboxDialogComponent_mat_card_32_div_23_div_2_Template, 8, 6, "div", 51);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "div", 52);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](1, MailboxDialogComponent_mat_card_32_div_24_div_1_Template, 3, 3, "div", 7);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](2, MailboxDialogComponent_mat_card_32_div_24_div_2_Template, 8, 6, "div", 53);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r24 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
+    const ctx_r25 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx_r24.threadLoading);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx_r25.threadLoading);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngForOf", ctx_r24.threadMessages);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngForOf", ctx_r25.threadMessages);
   }
 }
-function MailboxDialogComponent_mat_card_32_button_30_Template(rf, ctx) {
+function MailboxDialogComponent_mat_card_32_button_31_Template(rf, ctx) {
   if (rf & 1) {
-    const _r35 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "button", 58);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function MailboxDialogComponent_mat_card_32_button_30_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r35);
+    const _r37 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "button", 60);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function MailboxDialogComponent_mat_card_32_button_31_Template_button_click_0_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r37);
       const conv_r22 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]().$implicit;
-      const ctx_r33 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r33.reopen(conv_r22));
+      const ctx_r35 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r35.reopen(conv_r22));
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "lock_open");
@@ -16105,15 +16121,15 @@ function MailboxDialogComponent_mat_card_32_button_30_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind1"](4, 1, "MAILBOX.REOPEN"), " ");
   }
 }
-function MailboxDialogComponent_mat_card_32_button_31_Template(rf, ctx) {
+function MailboxDialogComponent_mat_card_32_button_32_Template(rf, ctx) {
   if (rf & 1) {
-    const _r38 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "button", 59);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function MailboxDialogComponent_mat_card_32_button_31_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r38);
+    const _r40 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "button", 61);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function MailboxDialogComponent_mat_card_32_button_32_Template_button_click_0_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r40);
       const conv_r22 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]().$implicit;
-      const ctx_r36 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r36.kill(conv_r22));
+      const ctx_r38 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r38.kill(conv_r22));
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](1, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](2, "block");
@@ -16134,50 +16150,51 @@ const _c0 = function (a0) {
 };
 function MailboxDialogComponent_mat_card_32_Template(rf, ctx) {
   if (rf & 1) {
-    const _r40 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
+    const _r42 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "mat-card", 37)(1, "mat-card-content")(2, "div", 38)(3, "span", 39);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipe"](5, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipe"](6, "uppercase");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](7, "span", 40);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipe"](8, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](9, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](10, "route");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](7, MailboxDialogComponent_mat_card_32_span_7_Template, 5, 4, "span", 40);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](8, "span", 41);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipe"](9, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](10, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](11, "route");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](11);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](12);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](12, "span", 41);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](13, "span", 42);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](14);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipe"](15, "date");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelement"](13, "span", 42);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](14, "span", 43);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](15);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipe"](16, "date");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](16, "div", 43)(17, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](18, "group");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](17, "div", 44)(18, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](19, "group");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](19, MailboxDialogComponent_mat_card_32_span_19_Template, 2, 1, "span", 44);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](20, MailboxDialogComponent_mat_card_32_span_20_Template, 2, 1, "span", 45);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](20, "div", 45);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](21);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipe"](22, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](21, "div", 46);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](22);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipe"](23, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](23, MailboxDialogComponent_mat_card_32_div_23_Template, 3, 2, "div", 46);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](24, MailboxDialogComponent_mat_card_32_div_24_Template, 3, 2, "div", 47);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](24, "mat-card-actions", 14)(25, "button", 11);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function MailboxDialogComponent_mat_card_32_Template_button_click_25_listener() {
-      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r40);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](25, "mat-card-actions", 14)(26, "button", 11);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function MailboxDialogComponent_mat_card_32_Template_button_click_26_listener() {
+      const restoredCtx = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵrestoreView"](_r42);
       const conv_r22 = restoredCtx.$implicit;
-      const ctx_r39 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r39.toggleThread(conv_r22));
+      const ctx_r41 = _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵresetView"](ctx_r41.toggleThread(conv_r22));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](26, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](27);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](27, "mat-icon");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](28);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipe"](29, "translate");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](30, MailboxDialogComponent_mat_card_32_button_30_Template, 5, 3, "button", 47);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtext"](29);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipe"](30, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](31, MailboxDialogComponent_mat_card_32_button_31_Template, 5, 3, "button", 48);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](32, MailboxDialogComponent_mat_card_32_button_32_Template, 5, 3, "button", 49);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
@@ -16186,25 +16203,27 @@ function MailboxDialogComponent_mat_card_32_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngClass", ctx_r8.statusClass(conv_r22.status));
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind1"](5, 14, "MAILBOX.STATUS_" + _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind1"](6, 16, conv_r22.status)), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind1"](5, 15, "MAILBOX.STATUS_" + _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind1"](6, 17, conv_r22.status)), " ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind1"](8, 18, "MAILBOX.HOPS_TOOLTIP"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", conv_r22.federated);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind1"](9, 19, "MAILBOX.HOPS_TOOLTIP"));
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate2"](" ", conv_r22.hopCount, "/", conv_r22.hopLimit, " ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("title", conv_r22.lastActivityAt);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind2"](15, 20, conv_r22.lastActivityAt, "short"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind2"](16, 21, conv_r22.lastActivityAt, "short"));
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](5);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngForOf", conv_r22.participants);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind2"](22, 23, "MAILBOX.MESSAGE_COUNT", _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpureFunction1"](28, _c0, conv_r22.messageCount)), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind2"](23, 24, "MAILBOX.MESSAGE_COUNT", _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpureFunction1"](29, _c0, conv_r22.messageCount)), " ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", ctx_r8.expandedId === conv_r22.id);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate"](ctx_r8.expandedId === conv_r22.id ? "expand_less" : "expand_more");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind1"](29, 26, ctx_r8.expandedId === conv_r22.id ? "MAILBOX.HIDE_MESSAGES" : "MAILBOX.VIEW_MESSAGES"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵpipeBind1"](30, 27, ctx_r8.expandedId === conv_r22.id ? "MAILBOX.HIDE_MESSAGES" : "MAILBOX.VIEW_MESSAGES"), " ");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵproperty"]("ngIf", conv_r22.status === "exhausted");
     _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵadvance"](1);
@@ -16380,7 +16399,7 @@ class MailboxDialogComponent {
       selectors: [["app-mailbox-dialog"]],
       decls: 41,
       vars: 38,
-      consts: [["mat-dialog-title", ""], [1, "title-icon"], ["class", "unread-pill", 4, "ngIf"], [3, "selectedIndexChange"], [3, "label"], [1, "subtitle"], ["class", "mailbox-error", 4, "ngIf"], ["class", "mailbox-loading", 4, "ngIf"], ["class", "mailbox-empty", 4, "ngIf"], ["class", "msg-card", 3, "msg-unread", 4, "ngFor", "ngForOf"], [1, "tab-actions"], ["mat-button", "", 3, "click"], ["mat-button", "", 3, "disabled", "click"], ["class", "conv-card", 4, "ngFor", "ngForOf"], ["align", "end"], [1, "unread-pill"], [1, "mailbox-error"], [1, "mailbox-loading"], [1, "mailbox-empty"], [1, "msg-card"], [1, "msg-header"], [1, "msg-from"], [1, "from-icon"], [1, "from-name"], ["class", "new-chip", 4, "ngIf"], [1, "msg-time", 3, "title"], [1, "msg-project", 3, "title"], ["class", "msg-topics", 4, "ngIf"], [1, "msg-body"], [1, "reply-box"], ["appearance", "outline", 1, "reply-field"], ["matInput", "", "rows", "2", 3, "ngModel", "placeholder", "ngModelChange"], ["mat-button", "", 3, "click", 4, "ngIf"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], [1, "new-chip"], [1, "msg-topics"], [4, "ngFor", "ngForOf"], [1, "conv-card"], [1, "conv-header"], [1, "conv-status", 3, "ngClass"], [1, "conv-hops", 3, "matTooltip"], [1, "flexExpand"], [1, "conv-time", 3, "title"], [1, "conv-participants"], ["class", "participant", 4, "ngFor", "ngForOf"], [1, "conv-meta"], ["class", "thread-detail", 4, "ngIf"], ["mat-stroked-button", "", "color", "primary", 3, "click", 4, "ngIf"], ["mat-stroked-button", "", "color", "warn", 3, "click", 4, "ngIf"], [1, "participant"], [1, "thread-detail"], ["class", "thread-msg", 4, "ngFor", "ngForOf"], [1, "thread-msg"], [1, "thread-route"], [1, "thread-state", 3, "ngClass"], [1, "thread-body"], ["class", "thread-error", 4, "ngIf"], [1, "thread-error"], ["mat-stroked-button", "", "color", "primary", 3, "click"], ["mat-stroked-button", "", "color", "warn", 3, "click"]],
+      consts: [["mat-dialog-title", ""], [1, "title-icon"], ["class", "unread-pill", 4, "ngIf"], [3, "selectedIndexChange"], [3, "label"], [1, "subtitle"], ["class", "mailbox-error", 4, "ngIf"], ["class", "mailbox-loading", 4, "ngIf"], ["class", "mailbox-empty", 4, "ngIf"], ["class", "msg-card", 3, "msg-unread", 4, "ngFor", "ngForOf"], [1, "tab-actions"], ["mat-button", "", 3, "click"], ["mat-button", "", 3, "disabled", "click"], ["class", "conv-card", 4, "ngFor", "ngForOf"], ["align", "end"], [1, "unread-pill"], [1, "mailbox-error"], [1, "mailbox-loading"], [1, "mailbox-empty"], [1, "msg-card"], [1, "msg-header"], [1, "msg-from"], [1, "from-icon"], [1, "from-name"], ["class", "new-chip", 4, "ngIf"], [1, "msg-time", 3, "title"], [1, "msg-project", 3, "title"], ["class", "msg-topics", 4, "ngIf"], [1, "msg-body"], [1, "reply-box"], ["appearance", "outline", 1, "reply-field"], ["matInput", "", "rows", "2", 3, "ngModel", "placeholder", "ngModelChange"], ["mat-button", "", 3, "click", 4, "ngIf"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], [1, "new-chip"], [1, "msg-topics"], [4, "ngFor", "ngForOf"], [1, "conv-card"], [1, "conv-header"], [1, "conv-status", 3, "ngClass"], ["class", "conv-federated", 3, "matTooltip", 4, "ngIf"], [1, "conv-hops", 3, "matTooltip"], [1, "flexExpand"], [1, "conv-time", 3, "title"], [1, "conv-participants"], ["class", "participant", 4, "ngFor", "ngForOf"], [1, "conv-meta"], ["class", "thread-detail", 4, "ngIf"], ["mat-stroked-button", "", "color", "primary", 3, "click", 4, "ngIf"], ["mat-stroked-button", "", "color", "warn", 3, "click", 4, "ngIf"], [1, "conv-federated", 3, "matTooltip"], [1, "participant"], [1, "thread-detail"], ["class", "thread-msg", 4, "ngFor", "ngForOf"], [1, "thread-msg"], [1, "thread-route"], [1, "thread-state", 3, "ngClass"], [1, "thread-body"], ["class", "thread-error", 4, "ngIf"], [1, "thread-error"], ["mat-stroked-button", "", "color", "primary", 3, "click"], ["mat-stroked-button", "", "color", "warn", 3, "click"]],
       template: function MailboxDialogComponent_Template(rf, ctx) {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](0, "h2", 0)(1, "mat-icon", 1);
@@ -16427,7 +16446,7 @@ class MailboxDialogComponent {
           _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](29, MailboxDialogComponent_div_29_Template, 4, 1, "div", 6);
           _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](30, MailboxDialogComponent_div_30_Template, 3, 3, "div", 7);
           _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](31, MailboxDialogComponent_div_31_Template, 5, 3, "div", 8);
-          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](32, MailboxDialogComponent_mat_card_32_Template, 32, 30, "mat-card", 13);
+          _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵtemplate"](32, MailboxDialogComponent_mat_card_32_Template, 33, 31, "mat-card", 13);
           _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵelementStart"](33, "div", 10)(34, "button", 12);
           _angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵlistener"]("click", function MailboxDialogComponent_Template_button_click_34_listener() {
             return ctx.loadConversations();
@@ -16487,7 +16506,7 @@ class MailboxDialogComponent {
         }
       },
       dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_5__.NgClass, _angular_common__WEBPACK_IMPORTED_MODULE_5__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_5__.NgIf, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_6__.MatLegacyFormField, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_6__.MatLegacyLabel, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_7__.MatLegacyInput, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_8__.MatLegacyCard, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_8__.MatLegacyCardContent, _angular_material_legacy_card__WEBPACK_IMPORTED_MODULE_8__.MatLegacyCardActions, _angular_material_legacy_tabs__WEBPACK_IMPORTED_MODULE_9__.MatLegacyTabGroup, _angular_material_legacy_tabs__WEBPACK_IMPORTED_MODULE_9__.MatLegacyTab, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_10__.MatLegacyButton, _angular_material_legacy_chips__WEBPACK_IMPORTED_MODULE_11__.MatLegacyChipList, _angular_material_legacy_chips__WEBPACK_IMPORTED_MODULE_11__.MatLegacyChip, _angular_material_icon__WEBPACK_IMPORTED_MODULE_12__.MatIcon, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_2__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_2__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_2__.MatLegacyDialogActions, _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_13__.MatLegacyTooltip, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.NgModel, _angular_common__WEBPACK_IMPORTED_MODULE_5__.UpperCasePipe, _angular_common__WEBPACK_IMPORTED_MODULE_5__.DatePipe, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_4__.TranslatePipe],
-      styles: [".title-icon[_ngcontent-%COMP%] {\n  vertical-align: middle;\n  margin-right: 6px;\n}\n\n.unread-pill[_ngcontent-%COMP%] {\n  display: inline-block;\n  margin-left: 8px;\n  min-width: 20px;\n  padding: 0 6px;\n  border-radius: 10px;\n  background: #d32f2f;\n  color: #fff;\n  font-size: 12px;\n  line-height: 20px;\n  text-align: center;\n  vertical-align: middle;\n}\n\n.subtitle[_ngcontent-%COMP%] {\n  margin: 0 0 12px;\n  opacity: 0.75;\n  font-size: 13px;\n}\n\n.mailbox-error[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 8px 12px;\n  margin-bottom: 10px;\n  border-radius: 6px;\n  background: rgba(211, 47, 47, 0.12);\n  color: #d32f2f;\n}\n\n.mailbox-loading[_ngcontent-%COMP%], .mailbox-empty[_ngcontent-%COMP%] {\n  padding: 24px;\n  text-align: center;\n  opacity: 0.7;\n}\n\n.mailbox-empty[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  vertical-align: middle;\n  margin-right: 6px;\n}\n\n.msg-card[_ngcontent-%COMP%] {\n  margin-bottom: 12px;\n  border-left: 3px solid transparent;\n}\n.msg-card.msg-unread[_ngcontent-%COMP%] {\n  border-left-color: #1976d2;\n  background: rgba(25, 118, 210, 0.05);\n}\n\n.msg-header[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n}\n\n.msg-from[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  font-weight: 600;\n}\n\n.from-icon[_ngcontent-%COMP%] {\n  font-size: 20px;\n  height: 20px;\n  width: 20px;\n}\n\n.new-chip[_ngcontent-%COMP%] {\n  padding: 1px 8px;\n  border-radius: 10px;\n  background: #1976d2;\n  color: #fff;\n  font-size: 11px;\n  font-weight: 500;\n}\n\n.msg-time[_ngcontent-%COMP%] {\n  font-size: 12px;\n  opacity: 0.6;\n}\n\n.msg-project[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  margin: 6px 0;\n  font-size: 12px;\n  opacity: 0.75;\n}\n.msg-project[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 16px;\n  height: 16px;\n  width: 16px;\n}\n\n.msg-topics[_ngcontent-%COMP%] {\n  margin: 6px 0;\n}\n\n.msg-body[_ngcontent-%COMP%] {\n  margin: 8px 0;\n  white-space: pre-wrap;\n  word-break: break-word;\n}\n\n.reply-box[_ngcontent-%COMP%] {\n  margin-top: 8px;\n}\n\n.reply-field[_ngcontent-%COMP%] {\n  width: 100%;\n}\n\n.tab-actions[_ngcontent-%COMP%] {\n  display: flex;\n  justify-content: flex-end;\n  gap: 6px;\n  padding: 8px 0 4px;\n}\n\n.flexExpand[_ngcontent-%COMP%] {\n  flex: 1 1 auto;\n}\n\n\n.conv-card[_ngcontent-%COMP%] {\n  margin: 12px 0;\n}\n\n.conv-header[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 10px;\n}\n\n.conv-status[_ngcontent-%COMP%] {\n  padding: 2px 10px;\n  border-radius: 10px;\n  font-size: 11px;\n  font-weight: 600;\n  text-transform: uppercase;\n  letter-spacing: 0.3px;\n  color: #fff;\n}\n.conv-status.status-active[_ngcontent-%COMP%] {\n  background: #2e7d32;\n}\n.conv-status.status-exhausted[_ngcontent-%COMP%] {\n  background: #ef6c00;\n}\n.conv-status.status-killed[_ngcontent-%COMP%] {\n  background: #c62828;\n}\n.conv-status.status-completed[_ngcontent-%COMP%] {\n  background: #546e7a;\n}\n.conv-status.status-unknown[_ngcontent-%COMP%] {\n  background: #9e9e9e;\n}\n\n.conv-hops[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n  font-size: 12px;\n  opacity: 0.8;\n}\n.conv-hops[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 16px;\n  height: 16px;\n  width: 16px;\n}\n\n.conv-time[_ngcontent-%COMP%] {\n  font-size: 12px;\n  opacity: 0.6;\n}\n\n.conv-participants[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  flex-wrap: wrap;\n  gap: 6px;\n  margin: 8px 0 4px;\n}\n.conv-participants[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 18px;\n  height: 18px;\n  width: 18px;\n  opacity: 0.7;\n}\n.conv-participants[_ngcontent-%COMP%]   .participant[_ngcontent-%COMP%] {\n  padding: 1px 8px;\n  border-radius: 10px;\n  background: rgba(0, 0, 0, 0.08);\n  font-size: 12px;\n}\n\n.conv-meta[_ngcontent-%COMP%] {\n  font-size: 12px;\n  opacity: 0.6;\n}\n\n.thread-detail[_ngcontent-%COMP%] {\n  margin-top: 10px;\n  padding-top: 8px;\n  border-top: 1px solid rgba(0, 0, 0, 0.12);\n}\n\n.thread-msg[_ngcontent-%COMP%] {\n  padding: 6px 0;\n  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);\n}\n\n.thread-route[_ngcontent-%COMP%] {\n  font-weight: 600;\n  font-size: 12px;\n  margin-right: 8px;\n}\n\n.thread-state[_ngcontent-%COMP%] {\n  font-size: 11px;\n  padding: 1px 6px;\n  border-radius: 8px;\n  background: rgba(0, 0, 0, 0.08);\n}\n.thread-state.state-failed[_ngcontent-%COMP%] {\n  background: rgba(198, 40, 40, 0.15);\n  color: #c62828;\n}\n.thread-state.state-processed[_ngcontent-%COMP%] {\n  background: rgba(46, 125, 50, 0.15);\n  color: #2e7d32;\n}\n\n.thread-body[_ngcontent-%COMP%] {\n  margin-top: 4px;\n  white-space: pre-wrap;\n  word-break: break-word;\n  font-size: 13px;\n}\n\n.thread-error[_ngcontent-%COMP%] {\n  margin-top: 4px;\n  font-size: 12px;\n  color: #c62828;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvbWQtZXhwbG9yZXIvY29tcG9uZW50cy9tYWlsYm94LWRpYWxvZy9tYWlsYm94LWRpYWxvZy5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLHNCQUFBO0VBQ0EsaUJBQUE7QUFDRjs7QUFFQTtFQUNFLHFCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxlQUFBO0VBQ0EsY0FBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSxXQUFBO0VBQ0EsZUFBQTtFQUNBLGlCQUFBO0VBQ0Esa0JBQUE7RUFDQSxzQkFBQTtBQUNGOztBQUVBO0VBQ0UsZ0JBQUE7RUFDQSxhQUFBO0VBQ0EsZUFBQTtBQUNGOztBQUVBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGlCQUFBO0VBQ0EsbUJBQUE7RUFDQSxrQkFBQTtFQUNBLG1DQUFBO0VBQ0EsY0FBQTtBQUNGOztBQUVBOztFQUVFLGFBQUE7RUFDQSxrQkFBQTtFQUNBLFlBQUE7QUFDRjs7QUFFQTtFQUNFLHNCQUFBO0VBQ0EsaUJBQUE7QUFDRjs7QUFFQTtFQUNFLG1CQUFBO0VBQ0Esa0NBQUE7QUFDRjtBQUNFO0VBQ0UsMEJBQUE7RUFDQSxvQ0FBQTtBQUNKOztBQUdBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsOEJBQUE7QUFBRjs7QUFHQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxnQkFBQTtBQUFGOztBQUdBO0VBQ0UsZUFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0FBQUY7O0FBR0E7RUFDRSxnQkFBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSxXQUFBO0VBQ0EsZUFBQTtFQUNBLGdCQUFBO0FBQUY7O0FBR0E7RUFDRSxlQUFBO0VBQ0EsWUFBQTtBQUFGOztBQUdBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGFBQUE7RUFDQSxlQUFBO0VBQ0EsYUFBQTtBQUFGO0FBRUU7RUFDRSxlQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7QUFBSjs7QUFJQTtFQUNFLGFBQUE7QUFERjs7QUFJQTtFQUNFLGFBQUE7RUFDQSxxQkFBQTtFQUNBLHNCQUFBO0FBREY7O0FBSUE7RUFDRSxlQUFBO0FBREY7O0FBSUE7RUFDRSxXQUFBO0FBREY7O0FBSUE7RUFDRSxhQUFBO0VBQ0EseUJBQUE7RUFDQSxRQUFBO0VBQ0Esa0JBQUE7QUFERjs7QUFJQTtFQUNFLGNBQUE7QUFERjs7QUFJQSxnQ0FBQTtBQUNBO0VBQ0UsY0FBQTtBQURGOztBQUlBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsU0FBQTtBQURGOztBQUlBO0VBQ0UsaUJBQUE7RUFDQSxtQkFBQTtFQUNBLGVBQUE7RUFDQSxnQkFBQTtFQUNBLHlCQUFBO0VBQ0EscUJBQUE7RUFDQSxXQUFBO0FBREY7QUFHRTtFQUFrQixtQkFBQTtBQUFwQjtBQUNFO0VBQXFCLG1CQUFBO0FBRXZCO0FBREU7RUFBa0IsbUJBQUE7QUFJcEI7QUFIRTtFQUFxQixtQkFBQTtBQU12QjtBQUxFO0VBQW1CLG1CQUFBO0FBUXJCOztBQUxBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGVBQUE7RUFDQSxZQUFBO0FBUUY7QUFORTtFQUFXLGVBQUE7RUFBaUIsWUFBQTtFQUFjLFdBQUE7QUFXNUM7O0FBUkE7RUFDRSxlQUFBO0VBQ0EsWUFBQTtBQVdGOztBQVJBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsZUFBQTtFQUNBLFFBQUE7RUFDQSxpQkFBQTtBQVdGO0FBVEU7RUFBVyxlQUFBO0VBQWlCLFlBQUE7RUFBYyxXQUFBO0VBQWEsWUFBQTtBQWV6RDtBQWJFO0VBQ0UsZ0JBQUE7RUFDQSxtQkFBQTtFQUNBLCtCQUFBO0VBQ0EsZUFBQTtBQWVKOztBQVhBO0VBQ0UsZUFBQTtFQUNBLFlBQUE7QUFjRjs7QUFYQTtFQUNFLGdCQUFBO0VBQ0EsZ0JBQUE7RUFDQSx5Q0FBQTtBQWNGOztBQVhBO0VBQ0UsY0FBQTtFQUNBLDZDQUFBO0FBY0Y7O0FBWEE7RUFDRSxnQkFBQTtFQUNBLGVBQUE7RUFDQSxpQkFBQTtBQWNGOztBQVhBO0VBQ0UsZUFBQTtFQUNBLGdCQUFBO0VBQ0Esa0JBQUE7RUFDQSwrQkFBQTtBQWNGO0FBWkU7RUFBaUIsbUNBQUE7RUFBcUMsY0FBQTtBQWdCeEQ7QUFmRTtFQUFvQixtQ0FBQTtFQUFxQyxjQUFBO0FBbUIzRDs7QUFoQkE7RUFDRSxlQUFBO0VBQ0EscUJBQUE7RUFDQSxzQkFBQTtFQUNBLGVBQUE7QUFtQkY7O0FBaEJBO0VBQ0UsZUFBQTtFQUNBLGVBQUE7RUFDQSxjQUFBO0FBbUJGIiwic291cmNlc0NvbnRlbnQiOlsiLnRpdGxlLWljb24ge1xuICB2ZXJ0aWNhbC1hbGlnbjogbWlkZGxlO1xuICBtYXJnaW4tcmlnaHQ6IDZweDtcbn1cblxuLnVucmVhZC1waWxsIHtcbiAgZGlzcGxheTogaW5saW5lLWJsb2NrO1xuICBtYXJnaW4tbGVmdDogOHB4O1xuICBtaW4td2lkdGg6IDIwcHg7XG4gIHBhZGRpbmc6IDAgNnB4O1xuICBib3JkZXItcmFkaXVzOiAxMHB4O1xuICBiYWNrZ3JvdW5kOiAjZDMyZjJmO1xuICBjb2xvcjogI2ZmZjtcbiAgZm9udC1zaXplOiAxMnB4O1xuICBsaW5lLWhlaWdodDogMjBweDtcbiAgdGV4dC1hbGlnbjogY2VudGVyO1xuICB2ZXJ0aWNhbC1hbGlnbjogbWlkZGxlO1xufVxuXG4uc3VidGl0bGUge1xuICBtYXJnaW46IDAgMCAxMnB4O1xuICBvcGFjaXR5OiAwLjc1O1xuICBmb250LXNpemU6IDEzcHg7XG59XG5cbi5tYWlsYm94LWVycm9yIHtcbiAgZGlzcGxheTogZmxleDtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgZ2FwOiA2cHg7XG4gIHBhZGRpbmc6IDhweCAxMnB4O1xuICBtYXJnaW4tYm90dG9tOiAxMHB4O1xuICBib3JkZXItcmFkaXVzOiA2cHg7XG4gIGJhY2tncm91bmQ6IHJnYmEoMjExLCA0NywgNDcsIDAuMTIpO1xuICBjb2xvcjogI2QzMmYyZjtcbn1cblxuLm1haWxib3gtbG9hZGluZyxcbi5tYWlsYm94LWVtcHR5IHtcbiAgcGFkZGluZzogMjRweDtcbiAgdGV4dC1hbGlnbjogY2VudGVyO1xuICBvcGFjaXR5OiAwLjc7XG59XG5cbi5tYWlsYm94LWVtcHR5IG1hdC1pY29uIHtcbiAgdmVydGljYWwtYWxpZ246IG1pZGRsZTtcbiAgbWFyZ2luLXJpZ2h0OiA2cHg7XG59XG5cbi5tc2ctY2FyZCB7XG4gIG1hcmdpbi1ib3R0b206IDEycHg7XG4gIGJvcmRlci1sZWZ0OiAzcHggc29saWQgdHJhbnNwYXJlbnQ7XG5cbiAgJi5tc2ctdW5yZWFkIHtcbiAgICBib3JkZXItbGVmdC1jb2xvcjogIzE5NzZkMjtcbiAgICBiYWNrZ3JvdW5kOiByZ2JhKDI1LCAxMTgsIDIxMCwgMC4wNSk7XG4gIH1cbn1cblxuLm1zZy1oZWFkZXIge1xuICBkaXNwbGF5OiBmbGV4O1xuICBhbGlnbi1pdGVtczogY2VudGVyO1xuICBqdXN0aWZ5LWNvbnRlbnQ6IHNwYWNlLWJldHdlZW47XG59XG5cbi5tc2ctZnJvbSB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gIGdhcDogNnB4O1xuICBmb250LXdlaWdodDogNjAwO1xufVxuXG4uZnJvbS1pY29uIHtcbiAgZm9udC1zaXplOiAyMHB4O1xuICBoZWlnaHQ6IDIwcHg7XG4gIHdpZHRoOiAyMHB4O1xufVxuXG4ubmV3LWNoaXAge1xuICBwYWRkaW5nOiAxcHggOHB4O1xuICBib3JkZXItcmFkaXVzOiAxMHB4O1xuICBiYWNrZ3JvdW5kOiAjMTk3NmQyO1xuICBjb2xvcjogI2ZmZjtcbiAgZm9udC1zaXplOiAxMXB4O1xuICBmb250LXdlaWdodDogNTAwO1xufVxuXG4ubXNnLXRpbWUge1xuICBmb250LXNpemU6IDEycHg7XG4gIG9wYWNpdHk6IDAuNjtcbn1cblxuLm1zZy1wcm9qZWN0IHtcbiAgZGlzcGxheTogZmxleDtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgZ2FwOiA0cHg7XG4gIG1hcmdpbjogNnB4IDA7XG4gIGZvbnQtc2l6ZTogMTJweDtcbiAgb3BhY2l0eTogMC43NTtcblxuICBtYXQtaWNvbiB7XG4gICAgZm9udC1zaXplOiAxNnB4O1xuICAgIGhlaWdodDogMTZweDtcbiAgICB3aWR0aDogMTZweDtcbiAgfVxufVxuXG4ubXNnLXRvcGljcyB7XG4gIG1hcmdpbjogNnB4IDA7XG59XG5cbi5tc2ctYm9keSB7XG4gIG1hcmdpbjogOHB4IDA7XG4gIHdoaXRlLXNwYWNlOiBwcmUtd3JhcDtcbiAgd29yZC1icmVhazogYnJlYWstd29yZDtcbn1cblxuLnJlcGx5LWJveCB7XG4gIG1hcmdpbi10b3A6IDhweDtcbn1cblxuLnJlcGx5LWZpZWxkIHtcbiAgd2lkdGg6IDEwMCU7XG59XG5cbi50YWItYWN0aW9ucyB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGp1c3RpZnktY29udGVudDogZmxleC1lbmQ7XG4gIGdhcDogNnB4O1xuICBwYWRkaW5nOiA4cHggMCA0cHg7XG59XG5cbi5mbGV4RXhwYW5kIHtcbiAgZmxleDogMSAxIGF1dG87XG59XG5cbi8qIC0tLS0gVGFiIGNvbnZlcnNhemlvbmkgLS0tLSAqL1xuLmNvbnYtY2FyZCB7XG4gIG1hcmdpbjogMTJweCAwO1xufVxuXG4uY29udi1oZWFkZXIge1xuICBkaXNwbGF5OiBmbGV4O1xuICBhbGlnbi1pdGVtczogY2VudGVyO1xuICBnYXA6IDEwcHg7XG59XG5cbi5jb252LXN0YXR1cyB7XG4gIHBhZGRpbmc6IDJweCAxMHB4O1xuICBib3JkZXItcmFkaXVzOiAxMHB4O1xuICBmb250LXNpemU6IDExcHg7XG4gIGZvbnQtd2VpZ2h0OiA2MDA7XG4gIHRleHQtdHJhbnNmb3JtOiB1cHBlcmNhc2U7XG4gIGxldHRlci1zcGFjaW5nOiAwLjNweDtcbiAgY29sb3I6ICNmZmY7XG5cbiAgJi5zdGF0dXMtYWN0aXZlIHsgYmFja2dyb3VuZDogIzJlN2QzMjsgfVxuICAmLnN0YXR1cy1leGhhdXN0ZWQgeyBiYWNrZ3JvdW5kOiAjZWY2YzAwOyB9XG4gICYuc3RhdHVzLWtpbGxlZCB7IGJhY2tncm91bmQ6ICNjNjI4Mjg7IH1cbiAgJi5zdGF0dXMtY29tcGxldGVkIHsgYmFja2dyb3VuZDogIzU0NmU3YTsgfVxuICAmLnN0YXR1cy11bmtub3duIHsgYmFja2dyb3VuZDogIzllOWU5ZTsgfVxufVxuXG4uY29udi1ob3BzIHtcbiAgZGlzcGxheTogZmxleDtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgZ2FwOiAzcHg7XG4gIGZvbnQtc2l6ZTogMTJweDtcbiAgb3BhY2l0eTogMC44O1xuXG4gIG1hdC1pY29uIHsgZm9udC1zaXplOiAxNnB4OyBoZWlnaHQ6IDE2cHg7IHdpZHRoOiAxNnB4OyB9XG59XG5cbi5jb252LXRpbWUge1xuICBmb250LXNpemU6IDEycHg7XG4gIG9wYWNpdHk6IDAuNjtcbn1cblxuLmNvbnYtcGFydGljaXBhbnRzIHtcbiAgZGlzcGxheTogZmxleDtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgZmxleC13cmFwOiB3cmFwO1xuICBnYXA6IDZweDtcbiAgbWFyZ2luOiA4cHggMCA0cHg7XG5cbiAgbWF0LWljb24geyBmb250LXNpemU6IDE4cHg7IGhlaWdodDogMThweDsgd2lkdGg6IDE4cHg7IG9wYWNpdHk6IDAuNzsgfVxuXG4gIC5wYXJ0aWNpcGFudCB7XG4gICAgcGFkZGluZzogMXB4IDhweDtcbiAgICBib3JkZXItcmFkaXVzOiAxMHB4O1xuICAgIGJhY2tncm91bmQ6IHJnYmEoMCwgMCwgMCwgMC4wOCk7XG4gICAgZm9udC1zaXplOiAxMnB4O1xuICB9XG59XG5cbi5jb252LW1ldGEge1xuICBmb250LXNpemU6IDEycHg7XG4gIG9wYWNpdHk6IDAuNjtcbn1cblxuLnRocmVhZC1kZXRhaWwge1xuICBtYXJnaW4tdG9wOiAxMHB4O1xuICBwYWRkaW5nLXRvcDogOHB4O1xuICBib3JkZXItdG9wOiAxcHggc29saWQgcmdiYSgwLCAwLCAwLCAwLjEyKTtcbn1cblxuLnRocmVhZC1tc2cge1xuICBwYWRkaW5nOiA2cHggMDtcbiAgYm9yZGVyLWJvdHRvbTogMXB4IGRhc2hlZCByZ2JhKDAsIDAsIDAsIDAuMDgpO1xufVxuXG4udGhyZWFkLXJvdXRlIHtcbiAgZm9udC13ZWlnaHQ6IDYwMDtcbiAgZm9udC1zaXplOiAxMnB4O1xuICBtYXJnaW4tcmlnaHQ6IDhweDtcbn1cblxuLnRocmVhZC1zdGF0ZSB7XG4gIGZvbnQtc2l6ZTogMTFweDtcbiAgcGFkZGluZzogMXB4IDZweDtcbiAgYm9yZGVyLXJhZGl1czogOHB4O1xuICBiYWNrZ3JvdW5kOiByZ2JhKDAsIDAsIDAsIDAuMDgpO1xuXG4gICYuc3RhdGUtZmFpbGVkIHsgYmFja2dyb3VuZDogcmdiYSgxOTgsIDQwLCA0MCwgMC4xNSk7IGNvbG9yOiAjYzYyODI4OyB9XG4gICYuc3RhdGUtcHJvY2Vzc2VkIHsgYmFja2dyb3VuZDogcmdiYSg0NiwgMTI1LCA1MCwgMC4xNSk7IGNvbG9yOiAjMmU3ZDMyOyB9XG59XG5cbi50aHJlYWQtYm9keSB7XG4gIG1hcmdpbi10b3A6IDRweDtcbiAgd2hpdGUtc3BhY2U6IHByZS13cmFwO1xuICB3b3JkLWJyZWFrOiBicmVhay13b3JkO1xuICBmb250LXNpemU6IDEzcHg7XG59XG5cbi50aHJlYWQtZXJyb3Ige1xuICBtYXJnaW4tdG9wOiA0cHg7XG4gIGZvbnQtc2l6ZTogMTJweDtcbiAgY29sb3I6ICNjNjI4Mjg7XG59XG4iXSwic291cmNlUm9vdCI6IiJ9 */"]
+      styles: [".title-icon[_ngcontent-%COMP%] {\n  vertical-align: middle;\n  margin-right: 6px;\n}\n\n.unread-pill[_ngcontent-%COMP%] {\n  display: inline-block;\n  margin-left: 8px;\n  min-width: 20px;\n  padding: 0 6px;\n  border-radius: 10px;\n  background: #d32f2f;\n  color: #fff;\n  font-size: 12px;\n  line-height: 20px;\n  text-align: center;\n  vertical-align: middle;\n}\n\n.subtitle[_ngcontent-%COMP%] {\n  margin: 0 0 12px;\n  opacity: 0.75;\n  font-size: 13px;\n}\n\n.mailbox-error[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 8px 12px;\n  margin-bottom: 10px;\n  border-radius: 6px;\n  background: rgba(211, 47, 47, 0.12);\n  color: #d32f2f;\n}\n\n.mailbox-loading[_ngcontent-%COMP%], .mailbox-empty[_ngcontent-%COMP%] {\n  padding: 24px;\n  text-align: center;\n  opacity: 0.7;\n}\n\n.mailbox-empty[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  vertical-align: middle;\n  margin-right: 6px;\n}\n\n.msg-card[_ngcontent-%COMP%] {\n  margin-bottom: 12px;\n  border-left: 3px solid transparent;\n}\n.msg-card.msg-unread[_ngcontent-%COMP%] {\n  border-left-color: #1976d2;\n  background: rgba(25, 118, 210, 0.05);\n}\n\n.msg-header[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n}\n\n.msg-from[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  font-weight: 600;\n}\n\n.from-icon[_ngcontent-%COMP%] {\n  font-size: 20px;\n  height: 20px;\n  width: 20px;\n}\n\n.new-chip[_ngcontent-%COMP%] {\n  padding: 1px 8px;\n  border-radius: 10px;\n  background: #1976d2;\n  color: #fff;\n  font-size: 11px;\n  font-weight: 500;\n}\n\n.msg-time[_ngcontent-%COMP%] {\n  font-size: 12px;\n  opacity: 0.6;\n}\n\n.msg-project[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 4px;\n  margin: 6px 0;\n  font-size: 12px;\n  opacity: 0.75;\n}\n.msg-project[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 16px;\n  height: 16px;\n  width: 16px;\n}\n\n.msg-topics[_ngcontent-%COMP%] {\n  margin: 6px 0;\n}\n\n.msg-body[_ngcontent-%COMP%] {\n  margin: 8px 0;\n  white-space: pre-wrap;\n  word-break: break-word;\n}\n\n.reply-box[_ngcontent-%COMP%] {\n  margin-top: 8px;\n}\n\n.reply-field[_ngcontent-%COMP%] {\n  width: 100%;\n}\n\n.tab-actions[_ngcontent-%COMP%] {\n  display: flex;\n  justify-content: flex-end;\n  gap: 6px;\n  padding: 8px 0 4px;\n}\n\n.flexExpand[_ngcontent-%COMP%] {\n  flex: 1 1 auto;\n}\n\n\n.conv-card[_ngcontent-%COMP%] {\n  margin: 12px 0;\n}\n\n.conv-header[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 10px;\n}\n\n.conv-status[_ngcontent-%COMP%] {\n  padding: 2px 10px;\n  border-radius: 10px;\n  font-size: 11px;\n  font-weight: 600;\n  text-transform: uppercase;\n  letter-spacing: 0.3px;\n  color: #fff;\n}\n.conv-status.status-active[_ngcontent-%COMP%] {\n  background: #2e7d32;\n}\n.conv-status.status-exhausted[_ngcontent-%COMP%] {\n  background: #ef6c00;\n}\n.conv-status.status-killed[_ngcontent-%COMP%] {\n  background: #c62828;\n}\n.conv-status.status-completed[_ngcontent-%COMP%] {\n  background: #546e7a;\n}\n.conv-status.status-unknown[_ngcontent-%COMP%] {\n  background: #9e9e9e;\n}\n\n.conv-hops[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n  font-size: 12px;\n  opacity: 0.8;\n}\n.conv-hops[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 16px;\n  height: 16px;\n  width: 16px;\n}\n\n.conv-federated[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 3px;\n  padding: 1px 8px;\n  border-radius: 10px;\n  background: #5e35b1;\n  color: #fff;\n  font-size: 11px;\n  font-weight: 600;\n}\n.conv-federated[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 14px;\n  height: 14px;\n  width: 14px;\n}\n\n.conv-time[_ngcontent-%COMP%] {\n  font-size: 12px;\n  opacity: 0.6;\n}\n\n.conv-participants[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  flex-wrap: wrap;\n  gap: 6px;\n  margin: 8px 0 4px;\n}\n.conv-participants[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 18px;\n  height: 18px;\n  width: 18px;\n  opacity: 0.7;\n}\n.conv-participants[_ngcontent-%COMP%]   .participant[_ngcontent-%COMP%] {\n  padding: 1px 8px;\n  border-radius: 10px;\n  background: rgba(0, 0, 0, 0.08);\n  font-size: 12px;\n}\n\n.conv-meta[_ngcontent-%COMP%] {\n  font-size: 12px;\n  opacity: 0.6;\n}\n\n.thread-detail[_ngcontent-%COMP%] {\n  margin-top: 10px;\n  padding-top: 8px;\n  border-top: 1px solid rgba(0, 0, 0, 0.12);\n}\n\n.thread-msg[_ngcontent-%COMP%] {\n  padding: 6px 0;\n  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);\n}\n\n.thread-route[_ngcontent-%COMP%] {\n  font-weight: 600;\n  font-size: 12px;\n  margin-right: 8px;\n}\n\n.thread-state[_ngcontent-%COMP%] {\n  font-size: 11px;\n  padding: 1px 6px;\n  border-radius: 8px;\n  background: rgba(0, 0, 0, 0.08);\n}\n.thread-state.state-failed[_ngcontent-%COMP%] {\n  background: rgba(198, 40, 40, 0.15);\n  color: #c62828;\n}\n.thread-state.state-processed[_ngcontent-%COMP%] {\n  background: rgba(46, 125, 50, 0.15);\n  color: #2e7d32;\n}\n\n.thread-body[_ngcontent-%COMP%] {\n  margin-top: 4px;\n  white-space: pre-wrap;\n  word-break: break-word;\n  font-size: 13px;\n}\n\n.thread-error[_ngcontent-%COMP%] {\n  margin-top: 4px;\n  font-size: 12px;\n  color: #c62828;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvbWQtZXhwbG9yZXIvY29tcG9uZW50cy9tYWlsYm94LWRpYWxvZy9tYWlsYm94LWRpYWxvZy5jb21wb25lbnQuc2NzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFLHNCQUFBO0VBQ0EsaUJBQUE7QUFDRjs7QUFFQTtFQUNFLHFCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxlQUFBO0VBQ0EsY0FBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSxXQUFBO0VBQ0EsZUFBQTtFQUNBLGlCQUFBO0VBQ0Esa0JBQUE7RUFDQSxzQkFBQTtBQUNGOztBQUVBO0VBQ0UsZ0JBQUE7RUFDQSxhQUFBO0VBQ0EsZUFBQTtBQUNGOztBQUVBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGlCQUFBO0VBQ0EsbUJBQUE7RUFDQSxrQkFBQTtFQUNBLG1DQUFBO0VBQ0EsY0FBQTtBQUNGOztBQUVBOztFQUVFLGFBQUE7RUFDQSxrQkFBQTtFQUNBLFlBQUE7QUFDRjs7QUFFQTtFQUNFLHNCQUFBO0VBQ0EsaUJBQUE7QUFDRjs7QUFFQTtFQUNFLG1CQUFBO0VBQ0Esa0NBQUE7QUFDRjtBQUNFO0VBQ0UsMEJBQUE7RUFDQSxvQ0FBQTtBQUNKOztBQUdBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsOEJBQUE7QUFBRjs7QUFHQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxnQkFBQTtBQUFGOztBQUdBO0VBQ0UsZUFBQTtFQUNBLFlBQUE7RUFDQSxXQUFBO0FBQUY7O0FBR0E7RUFDRSxnQkFBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSxXQUFBO0VBQ0EsZUFBQTtFQUNBLGdCQUFBO0FBQUY7O0FBR0E7RUFDRSxlQUFBO0VBQ0EsWUFBQTtBQUFGOztBQUdBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGFBQUE7RUFDQSxlQUFBO0VBQ0EsYUFBQTtBQUFGO0FBRUU7RUFDRSxlQUFBO0VBQ0EsWUFBQTtFQUNBLFdBQUE7QUFBSjs7QUFJQTtFQUNFLGFBQUE7QUFERjs7QUFJQTtFQUNFLGFBQUE7RUFDQSxxQkFBQTtFQUNBLHNCQUFBO0FBREY7O0FBSUE7RUFDRSxlQUFBO0FBREY7O0FBSUE7RUFDRSxXQUFBO0FBREY7O0FBSUE7RUFDRSxhQUFBO0VBQ0EseUJBQUE7RUFDQSxRQUFBO0VBQ0Esa0JBQUE7QUFERjs7QUFJQTtFQUNFLGNBQUE7QUFERjs7QUFJQSxnQ0FBQTtBQUNBO0VBQ0UsY0FBQTtBQURGOztBQUlBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsU0FBQTtBQURGOztBQUlBO0VBQ0UsaUJBQUE7RUFDQSxtQkFBQTtFQUNBLGVBQUE7RUFDQSxnQkFBQTtFQUNBLHlCQUFBO0VBQ0EscUJBQUE7RUFDQSxXQUFBO0FBREY7QUFHRTtFQUFrQixtQkFBQTtBQUFwQjtBQUNFO0VBQXFCLG1CQUFBO0FBRXZCO0FBREU7RUFBa0IsbUJBQUE7QUFJcEI7QUFIRTtFQUFxQixtQkFBQTtBQU12QjtBQUxFO0VBQW1CLG1CQUFBO0FBUXJCOztBQUxBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGVBQUE7RUFDQSxZQUFBO0FBUUY7QUFORTtFQUFXLGVBQUE7RUFBaUIsWUFBQTtFQUFjLFdBQUE7QUFXNUM7O0FBUkE7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxRQUFBO0VBQ0EsZ0JBQUE7RUFDQSxtQkFBQTtFQUNBLG1CQUFBO0VBQ0EsV0FBQTtFQUNBLGVBQUE7RUFDQSxnQkFBQTtBQVdGO0FBVEU7RUFBVyxlQUFBO0VBQWlCLFlBQUE7RUFBYyxXQUFBO0FBYzVDOztBQVhBO0VBQ0UsZUFBQTtFQUNBLFlBQUE7QUFjRjs7QUFYQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLGVBQUE7RUFDQSxRQUFBO0VBQ0EsaUJBQUE7QUFjRjtBQVpFO0VBQVcsZUFBQTtFQUFpQixZQUFBO0VBQWMsV0FBQTtFQUFhLFlBQUE7QUFrQnpEO0FBaEJFO0VBQ0UsZ0JBQUE7RUFDQSxtQkFBQTtFQUNBLCtCQUFBO0VBQ0EsZUFBQTtBQWtCSjs7QUFkQTtFQUNFLGVBQUE7RUFDQSxZQUFBO0FBaUJGOztBQWRBO0VBQ0UsZ0JBQUE7RUFDQSxnQkFBQTtFQUNBLHlDQUFBO0FBaUJGOztBQWRBO0VBQ0UsY0FBQTtFQUNBLDZDQUFBO0FBaUJGOztBQWRBO0VBQ0UsZ0JBQUE7RUFDQSxlQUFBO0VBQ0EsaUJBQUE7QUFpQkY7O0FBZEE7RUFDRSxlQUFBO0VBQ0EsZ0JBQUE7RUFDQSxrQkFBQTtFQUNBLCtCQUFBO0FBaUJGO0FBZkU7RUFBaUIsbUNBQUE7RUFBcUMsY0FBQTtBQW1CeEQ7QUFsQkU7RUFBb0IsbUNBQUE7RUFBcUMsY0FBQTtBQXNCM0Q7O0FBbkJBO0VBQ0UsZUFBQTtFQUNBLHFCQUFBO0VBQ0Esc0JBQUE7RUFDQSxlQUFBO0FBc0JGOztBQW5CQTtFQUNFLGVBQUE7RUFDQSxlQUFBO0VBQ0EsY0FBQTtBQXNCRiIsInNvdXJjZXNDb250ZW50IjpbIi50aXRsZS1pY29uIHtcbiAgdmVydGljYWwtYWxpZ246IG1pZGRsZTtcbiAgbWFyZ2luLXJpZ2h0OiA2cHg7XG59XG5cbi51bnJlYWQtcGlsbCB7XG4gIGRpc3BsYXk6IGlubGluZS1ibG9jaztcbiAgbWFyZ2luLWxlZnQ6IDhweDtcbiAgbWluLXdpZHRoOiAyMHB4O1xuICBwYWRkaW5nOiAwIDZweDtcbiAgYm9yZGVyLXJhZGl1czogMTBweDtcbiAgYmFja2dyb3VuZDogI2QzMmYyZjtcbiAgY29sb3I6ICNmZmY7XG4gIGZvbnQtc2l6ZTogMTJweDtcbiAgbGluZS1oZWlnaHQ6IDIwcHg7XG4gIHRleHQtYWxpZ246IGNlbnRlcjtcbiAgdmVydGljYWwtYWxpZ246IG1pZGRsZTtcbn1cblxuLnN1YnRpdGxlIHtcbiAgbWFyZ2luOiAwIDAgMTJweDtcbiAgb3BhY2l0eTogMC43NTtcbiAgZm9udC1zaXplOiAxM3B4O1xufVxuXG4ubWFpbGJveC1lcnJvciB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gIGdhcDogNnB4O1xuICBwYWRkaW5nOiA4cHggMTJweDtcbiAgbWFyZ2luLWJvdHRvbTogMTBweDtcbiAgYm9yZGVyLXJhZGl1czogNnB4O1xuICBiYWNrZ3JvdW5kOiByZ2JhKDIxMSwgNDcsIDQ3LCAwLjEyKTtcbiAgY29sb3I6ICNkMzJmMmY7XG59XG5cbi5tYWlsYm94LWxvYWRpbmcsXG4ubWFpbGJveC1lbXB0eSB7XG4gIHBhZGRpbmc6IDI0cHg7XG4gIHRleHQtYWxpZ246IGNlbnRlcjtcbiAgb3BhY2l0eTogMC43O1xufVxuXG4ubWFpbGJveC1lbXB0eSBtYXQtaWNvbiB7XG4gIHZlcnRpY2FsLWFsaWduOiBtaWRkbGU7XG4gIG1hcmdpbi1yaWdodDogNnB4O1xufVxuXG4ubXNnLWNhcmQge1xuICBtYXJnaW4tYm90dG9tOiAxMnB4O1xuICBib3JkZXItbGVmdDogM3B4IHNvbGlkIHRyYW5zcGFyZW50O1xuXG4gICYubXNnLXVucmVhZCB7XG4gICAgYm9yZGVyLWxlZnQtY29sb3I6ICMxOTc2ZDI7XG4gICAgYmFja2dyb3VuZDogcmdiYSgyNSwgMTE4LCAyMTAsIDAuMDUpO1xuICB9XG59XG5cbi5tc2ctaGVhZGVyIHtcbiAgZGlzcGxheTogZmxleDtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAganVzdGlmeS1jb250ZW50OiBzcGFjZS1iZXR3ZWVuO1xufVxuXG4ubXNnLWZyb20ge1xuICBkaXNwbGF5OiBmbGV4O1xuICBhbGlnbi1pdGVtczogY2VudGVyO1xuICBnYXA6IDZweDtcbiAgZm9udC13ZWlnaHQ6IDYwMDtcbn1cblxuLmZyb20taWNvbiB7XG4gIGZvbnQtc2l6ZTogMjBweDtcbiAgaGVpZ2h0OiAyMHB4O1xuICB3aWR0aDogMjBweDtcbn1cblxuLm5ldy1jaGlwIHtcbiAgcGFkZGluZzogMXB4IDhweDtcbiAgYm9yZGVyLXJhZGl1czogMTBweDtcbiAgYmFja2dyb3VuZDogIzE5NzZkMjtcbiAgY29sb3I6ICNmZmY7XG4gIGZvbnQtc2l6ZTogMTFweDtcbiAgZm9udC13ZWlnaHQ6IDUwMDtcbn1cblxuLm1zZy10aW1lIHtcbiAgZm9udC1zaXplOiAxMnB4O1xuICBvcGFjaXR5OiAwLjY7XG59XG5cbi5tc2ctcHJvamVjdCB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gIGdhcDogNHB4O1xuICBtYXJnaW46IDZweCAwO1xuICBmb250LXNpemU6IDEycHg7XG4gIG9wYWNpdHk6IDAuNzU7XG5cbiAgbWF0LWljb24ge1xuICAgIGZvbnQtc2l6ZTogMTZweDtcbiAgICBoZWlnaHQ6IDE2cHg7XG4gICAgd2lkdGg6IDE2cHg7XG4gIH1cbn1cblxuLm1zZy10b3BpY3Mge1xuICBtYXJnaW46IDZweCAwO1xufVxuXG4ubXNnLWJvZHkge1xuICBtYXJnaW46IDhweCAwO1xuICB3aGl0ZS1zcGFjZTogcHJlLXdyYXA7XG4gIHdvcmQtYnJlYWs6IGJyZWFrLXdvcmQ7XG59XG5cbi5yZXBseS1ib3gge1xuICBtYXJnaW4tdG9wOiA4cHg7XG59XG5cbi5yZXBseS1maWVsZCB7XG4gIHdpZHRoOiAxMDAlO1xufVxuXG4udGFiLWFjdGlvbnMge1xuICBkaXNwbGF5OiBmbGV4O1xuICBqdXN0aWZ5LWNvbnRlbnQ6IGZsZXgtZW5kO1xuICBnYXA6IDZweDtcbiAgcGFkZGluZzogOHB4IDAgNHB4O1xufVxuXG4uZmxleEV4cGFuZCB7XG4gIGZsZXg6IDEgMSBhdXRvO1xufVxuXG4vKiAtLS0tIFRhYiBjb252ZXJzYXppb25pIC0tLS0gKi9cbi5jb252LWNhcmQge1xuICBtYXJnaW46IDEycHggMDtcbn1cblxuLmNvbnYtaGVhZGVyIHtcbiAgZGlzcGxheTogZmxleDtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgZ2FwOiAxMHB4O1xufVxuXG4uY29udi1zdGF0dXMge1xuICBwYWRkaW5nOiAycHggMTBweDtcbiAgYm9yZGVyLXJhZGl1czogMTBweDtcbiAgZm9udC1zaXplOiAxMXB4O1xuICBmb250LXdlaWdodDogNjAwO1xuICB0ZXh0LXRyYW5zZm9ybTogdXBwZXJjYXNlO1xuICBsZXR0ZXItc3BhY2luZzogMC4zcHg7XG4gIGNvbG9yOiAjZmZmO1xuXG4gICYuc3RhdHVzLWFjdGl2ZSB7IGJhY2tncm91bmQ6ICMyZTdkMzI7IH1cbiAgJi5zdGF0dXMtZXhoYXVzdGVkIHsgYmFja2dyb3VuZDogI2VmNmMwMDsgfVxuICAmLnN0YXR1cy1raWxsZWQgeyBiYWNrZ3JvdW5kOiAjYzYyODI4OyB9XG4gICYuc3RhdHVzLWNvbXBsZXRlZCB7IGJhY2tncm91bmQ6ICM1NDZlN2E7IH1cbiAgJi5zdGF0dXMtdW5rbm93biB7IGJhY2tncm91bmQ6ICM5ZTllOWU7IH1cbn1cblxuLmNvbnYtaG9wcyB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gIGdhcDogM3B4O1xuICBmb250LXNpemU6IDEycHg7XG4gIG9wYWNpdHk6IDAuODtcblxuICBtYXQtaWNvbiB7IGZvbnQtc2l6ZTogMTZweDsgaGVpZ2h0OiAxNnB4OyB3aWR0aDogMTZweDsgfVxufVxuXG4uY29udi1mZWRlcmF0ZWQge1xuICBkaXNwbGF5OiBmbGV4O1xuICBhbGlnbi1pdGVtczogY2VudGVyO1xuICBnYXA6IDNweDtcbiAgcGFkZGluZzogMXB4IDhweDtcbiAgYm9yZGVyLXJhZGl1czogMTBweDtcbiAgYmFja2dyb3VuZDogIzVlMzViMTtcbiAgY29sb3I6ICNmZmY7XG4gIGZvbnQtc2l6ZTogMTFweDtcbiAgZm9udC13ZWlnaHQ6IDYwMDtcblxuICBtYXQtaWNvbiB7IGZvbnQtc2l6ZTogMTRweDsgaGVpZ2h0OiAxNHB4OyB3aWR0aDogMTRweDsgfVxufVxuXG4uY29udi10aW1lIHtcbiAgZm9udC1zaXplOiAxMnB4O1xuICBvcGFjaXR5OiAwLjY7XG59XG5cbi5jb252LXBhcnRpY2lwYW50cyB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gIGZsZXgtd3JhcDogd3JhcDtcbiAgZ2FwOiA2cHg7XG4gIG1hcmdpbjogOHB4IDAgNHB4O1xuXG4gIG1hdC1pY29uIHsgZm9udC1zaXplOiAxOHB4OyBoZWlnaHQ6IDE4cHg7IHdpZHRoOiAxOHB4OyBvcGFjaXR5OiAwLjc7IH1cblxuICAucGFydGljaXBhbnQge1xuICAgIHBhZGRpbmc6IDFweCA4cHg7XG4gICAgYm9yZGVyLXJhZGl1czogMTBweDtcbiAgICBiYWNrZ3JvdW5kOiByZ2JhKDAsIDAsIDAsIDAuMDgpO1xuICAgIGZvbnQtc2l6ZTogMTJweDtcbiAgfVxufVxuXG4uY29udi1tZXRhIHtcbiAgZm9udC1zaXplOiAxMnB4O1xuICBvcGFjaXR5OiAwLjY7XG59XG5cbi50aHJlYWQtZGV0YWlsIHtcbiAgbWFyZ2luLXRvcDogMTBweDtcbiAgcGFkZGluZy10b3A6IDhweDtcbiAgYm9yZGVyLXRvcDogMXB4IHNvbGlkIHJnYmEoMCwgMCwgMCwgMC4xMik7XG59XG5cbi50aHJlYWQtbXNnIHtcbiAgcGFkZGluZzogNnB4IDA7XG4gIGJvcmRlci1ib3R0b206IDFweCBkYXNoZWQgcmdiYSgwLCAwLCAwLCAwLjA4KTtcbn1cblxuLnRocmVhZC1yb3V0ZSB7XG4gIGZvbnQtd2VpZ2h0OiA2MDA7XG4gIGZvbnQtc2l6ZTogMTJweDtcbiAgbWFyZ2luLXJpZ2h0OiA4cHg7XG59XG5cbi50aHJlYWQtc3RhdGUge1xuICBmb250LXNpemU6IDExcHg7XG4gIHBhZGRpbmc6IDFweCA2cHg7XG4gIGJvcmRlci1yYWRpdXM6IDhweDtcbiAgYmFja2dyb3VuZDogcmdiYSgwLCAwLCAwLCAwLjA4KTtcblxuICAmLnN0YXRlLWZhaWxlZCB7IGJhY2tncm91bmQ6IHJnYmEoMTk4LCA0MCwgNDAsIDAuMTUpOyBjb2xvcjogI2M2MjgyODsgfVxuICAmLnN0YXRlLXByb2Nlc3NlZCB7IGJhY2tncm91bmQ6IHJnYmEoNDYsIDEyNSwgNTAsIDAuMTUpOyBjb2xvcjogIzJlN2QzMjsgfVxufVxuXG4udGhyZWFkLWJvZHkge1xuICBtYXJnaW4tdG9wOiA0cHg7XG4gIHdoaXRlLXNwYWNlOiBwcmUtd3JhcDtcbiAgd29yZC1icmVhazogYnJlYWstd29yZDtcbiAgZm9udC1zaXplOiAxM3B4O1xufVxuXG4udGhyZWFkLWVycm9yIHtcbiAgbWFyZ2luLXRvcDogNHB4O1xuICBmb250LXNpemU6IDEycHg7XG4gIGNvbG9yOiAjYzYyODI4O1xufVxuIl0sInNvdXJjZVJvb3QiOiIifQ== */"]
     });
   }
 }

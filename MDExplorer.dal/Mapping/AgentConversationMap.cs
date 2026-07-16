@@ -16,6 +16,9 @@ namespace MDExplorer.DataAccess.Mapping
             Map(x => x.HopLimit).Not.Nullable();
             Map(x => x.StartedAt).Not.Nullable();
             Map(x => x.LastActivityAt).Not.Nullable();
+            Map(x => x.FederationId).Nullable();
+            Map(x => x.RemoteOwner).Length(300).Nullable();
+            Map(x => x.RemoteAgent).Length(300).Nullable();
         }
     }
 }

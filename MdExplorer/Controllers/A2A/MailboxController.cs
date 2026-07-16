@@ -255,6 +255,10 @@ namespace MdExplorer.Controllers.A2A
                         participants,
                         startedAt = c.StartedAt,
                         lastActivityAt = c.LastActivityAt,
+                        federationId = c.FederationId,
+                        remoteOwner = c.RemoteOwner,
+                        remoteAgent = c.RemoteAgent,
+                        federated = c.FederationId != null,
                     };
                 }).ToList();
 
@@ -308,6 +312,10 @@ namespace MdExplorer.Controllers.A2A
                         hopLimit = conv.HopLimit,
                         startedAt = conv.StartedAt,
                         lastActivityAt = conv.LastActivityAt,
+                        federationId = conv.FederationId,
+                        remoteOwner = conv.RemoteOwner,
+                        remoteAgent = conv.RemoteAgent,
+                        federated = conv.FederationId != null,
                     },
                     messages,
                 });
