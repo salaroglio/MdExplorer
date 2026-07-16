@@ -104,13 +104,17 @@ namespace MdExplorer.Services.AgentRun
 
         private async Task DeliverPendingAsync(CancellationToken ct)
         {
+            var now = DateTime.UtcNow;
             List<Guid> pendingIds;
             using (var scope = _scopeFactory.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
                 db.BeginTransaction();
-                pendingIds = db.GetDal<AgentMessage>().GetList().ToList()
-                    .Where(m => m.State == AgentMessage.StateEnum.Pending)
+                // Filtro a livello DB (non ToList poi Where): solo i pending il cui backoff è
+                // scaduto (NextAttemptAt null o passato) vengono ripescati.
+                pendingIds = db.GetDal<AgentMessage>().GetList()
+                    .Where(m => m.State == AgentMessage.StateEnum.Pending
+                                && (m.NextAttemptAt == null || m.NextAttemptAt <= now))
                     .OrderBy(m => m.CreatedAt)
                     .Take(BatchSize)
                     .Select(m => m.Id)
@@ -352,11 +356,15 @@ namespace MdExplorer.Services.AgentRun
                 {
                     m.State = AgentMessage.StateEnum.Failed;
                     m.ProcessedAt = DateTime.UtcNow;
+                    m.NextAttemptAt = null;
                     m.Error = $"Fallito dopo {m.Attempts} tentativi: {error}";
                 }
                 else
                 {
-                    m.State = AgentMessage.StateEnum.Pending; // backoff: riprovato al prossimo giro
+                    // Backoff temporizzato: torna pending ma idoneo solo dopo l'attesa, così i
+                    // tentativi si distanziano invece di bruciarsi in pochi secondi.
+                    m.State = AgentMessage.StateEnum.Pending;
+                    m.NextAttemptAt = DateTime.UtcNow + AgentRetryBackoff.DelayFor(m.Attempts);
                     m.Error = error;
                 }
             });

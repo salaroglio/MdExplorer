@@ -37,6 +37,14 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual DateTime CreatedAt { get; set; }
         public virtual DateTime? ProcessedAt { get; set; }
 
+        /// <summary>
+        /// Primo istante in cui il messaggio può essere riprovato dopo un fallimento (backoff
+        /// temporizzato). Null = subito idoneo. Il dispatcher salta i pending con
+        /// <c>NextAttemptAt</c> ancora nel futuro, così i tentativi si distanziano nel tempo
+        /// invece di bruciarsi tutti in pochi secondi.
+        /// </summary>
+        public virtual DateTime? NextAttemptAt { get; set; }
+
         public virtual string Error { get; set; }
 
         /// <summary>Valori ammessi per <see cref="State"/>.</summary>
