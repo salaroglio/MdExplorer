@@ -35,10 +35,12 @@ namespace MdExplorer.Features.Yaml
             RegexOptions.Compiled);
 
         /// <summary>
-        /// Nomi riservati non registrabili (§6): il cittadino speciale <c>user</c>
-        /// e il grafo condiviso <c>shared</c>.
+        /// Nomi riservati non registrabili (§6): il cittadino speciale <c>user</c>, il grafo
+        /// condiviso <c>shared</c> e <c>external</c> — identità di sistema assegnata dal gateway
+        /// ai mittenti anonimi (vedi <c>MessageAuthorization.ExternalSender</c>). Riservarlo
+        /// impedisce che un cittadino omonimo faccia collidere e rifiutare il traffico anonimo.
         /// </summary>
-        public static readonly string[] ReservedNames = { "user", "shared" };
+        public static readonly string[] ReservedNames = { "user", "shared", "external" };
 
         public AgentCardParseResult GetDescriptor(string markdown)
         {
@@ -112,7 +114,7 @@ namespace MdExplorer.Features.Yaml
                 return $"Nome agente '{name}' non valido: il carattere '@' è riservato ai nomi federati.";
 
             if (ReservedNames.Contains(name, StringComparer.OrdinalIgnoreCase))
-                return $"Nome agente '{name}' riservato: 'user' e 'shared' non sono registrabili.";
+                return $"Nome agente '{name}' riservato: 'user', 'shared' ed 'external' non sono registrabili.";
 
             if (!KebabCaseRx.IsMatch(name))
                 return $"Nome agente '{name}' non valido: usare kebab-case (minuscole, cifre e trattini).";

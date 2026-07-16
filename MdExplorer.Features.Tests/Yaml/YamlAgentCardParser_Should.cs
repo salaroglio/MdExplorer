@@ -159,13 +159,15 @@ corpo";
             StringAssert.Contains(result.RegistrationError, "name");
         }
 
-        // ---- nomi riservati user / shared ----
+        // ---- nomi riservati user / shared / external ----
 
         [DataTestMethod]
         [DataRow("user")]
         [DataRow("shared")]
         [DataRow("USER")]
         [DataRow("Shared")]
+        [DataRow("external")]
+        [DataRow("External")]
         public void Reject_reserved_names(string reserved)
         {
             var md = $@"---
