@@ -5943,6 +5943,23 @@ class ProjectSettingsService {
     });
   }
   // ============================================================
+  //   Agent City / Federation activation (.development.yml, §12.4)
+  // ============================================================
+  getAgentCity(projectPath) {
+    return this.http.get('../api/MdProjects/AgentCity', {
+      params: {
+        path: projectPath
+      }
+    });
+  }
+  setAgentCity(projectPath, body) {
+    return this.http.post('../api/MdProjects/SetAgentCity', body, {
+      params: {
+        path: projectPath
+      }
+    });
+  }
+  // ============================================================
   //   Knowledge Graph (Neo4j) settings + sync
   // ============================================================
   getKgSettings(projectId) {

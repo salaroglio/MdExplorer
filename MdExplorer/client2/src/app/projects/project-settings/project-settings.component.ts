@@ -24,6 +24,11 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   plantUmlKeepOriginalColorsEnabled: boolean = false;
   copilotCliAutoSelectEnabled: boolean = true;
   excludeSubmodulesEnabled: boolean = true;
+
+  // Agent City / Federation (§12.4) — activation lives in .development.yml (shared via git).
+  agentCityEnabled: boolean = false;
+  agentCityOwnershipDoc: string = '';
+  agentCityHasRoomSecret: boolean = false;
   indexAllTextFilesEnabled: boolean = false;
   textFileExtensions: string = '';
   textFileExtensionsDefault: string = '';
@@ -148,6 +153,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.loadKgSettings();
     this.loadFusekiSettings();
     this.loadAtlassianSettings();
+    this.loadAgentCity();
 
     this.ragProgressSub = this.serverMessages.ragIndexingProgress$.subscribe(data => {
       this.ragProcessed = data.processed;
@@ -452,6 +458,37 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         console.error('Error saving Exclude Submodules setting:', error);
         this.saving = false;
         this.excludeSubmodulesEnabled = !this.excludeSubmodulesEnabled;
+      }
+    });
+  }
+
+  loadAgentCity(): void {
+    if (!this.projectPath) return;
+    this.projectSettingsService.getAgentCity(this.projectPath).subscribe({
+      next: (res) => {
+        this.agentCityEnabled = !!res?.enabled;
+        this.agentCityOwnershipDoc = res?.ownershipDoc || '';
+        this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
+      },
+      error: (err) => console.error('Error loading Agent City settings:', err)
+    });
+  }
+
+  onAgentCityChange(): void {
+    this.saving = true;
+    this.projectSettingsService.setAgentCity(this.projectPath, {
+      enabled: this.agentCityEnabled,
+      ownershipDoc: this.agentCityOwnershipDoc?.trim() || undefined,
+    }).subscribe({
+      next: (res) => {
+        this.saving = false;
+        this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
+        this.agentCityOwnershipDoc = res?.ownershipDoc || '';
+      },
+      error: (err) => {
+        console.error('Error saving Agent City settings:', err);
+        this.saving = false;
+        this.agentCityEnabled = !this.agentCityEnabled;
       }
     });
   }

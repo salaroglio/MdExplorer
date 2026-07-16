@@ -53,6 +53,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentRegistryService _registry;
         private readonly IEnumerable<IAlgorithmicAgent> _algorithmicAgents;
         private readonly ILlmAgentWaker _llmWaker;
+        private readonly IProjectOwnershipService _ownership;
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly ILogger<AgentMessageDispatcher> _logger;
 
@@ -61,6 +62,7 @@ namespace MdExplorer.Services.AgentRun
             IAgentRegistryService registry,
             IEnumerable<IAlgorithmicAgent> algorithmicAgents,
             ILlmAgentWaker llmWaker,
+            IProjectOwnershipService ownership,
             IHubContext<MonitorMDHub> hubContext,
             ILogger<AgentMessageDispatcher> logger)
         {
@@ -68,6 +70,7 @@ namespace MdExplorer.Services.AgentRun
             _registry = registry;
             _algorithmicAgents = algorithmicAgents;
             _llmWaker = llmWaker;
+            _ownership = ownership;
             _hubContext = hubContext;
             _logger = logger;
         }
@@ -305,6 +308,9 @@ namespace MdExplorer.Services.AgentRun
             }
 
             var roster = BuildRoster(catalog, entry.Name);
+            // Ownership del progetto (§12.3): iniettata come routing hint SOLO se la
+            // federazione è attiva e il doc è valido (il servizio ritorna null altrimenti).
+            var ownership = SafeGetOwnership(snapshot.ProjectPath);
             var startedAt = DateTime.UtcNow;
             LlmWakeOutcome outcome;
             try
@@ -320,6 +326,7 @@ namespace MdExplorer.Services.AgentRun
                     MessageBody = snapshot.Body,
                     Topics = AgentTopics.Split(snapshot.Topics),
                     Roster = roster,
+                    Ownership = ownership,
                 }, ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -370,6 +377,17 @@ namespace MdExplorer.Services.AgentRun
             => string.IsNullOrEmpty(body) || body.Length <= BodyPreviewMax
                 ? body
                 : body.Substring(0, BodyPreviewMax) + "…";
+
+        /// <summary>Ownership del progetto per l'iniezione (§12.3); best-effort, mai fa fallire il run.</summary>
+        private IReadOnlyList<MdExplorer.Features.Agents.OwnershipEntry> SafeGetOwnership(string projectPath)
+        {
+            try { return _ownership.GetActiveOwnership(projectPath); }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Dispatcher] Caricamento ownership fallito per '{Project}'", projectPath);
+                return null;
+            }
+        }
 
         /// <summary>Rubrica (§6): cittadini fidati del progetto, escluso il destinatario stesso.</summary>
         private static IReadOnlyList<AgentRosterEntry> BuildRoster(

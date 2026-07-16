@@ -200,6 +200,63 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
         }
 
+        /// <summary>
+        /// Stato di attivazione della città degli agenti (§12.4). Il room secret NON è
+        /// esposto (credenziale, vive nel .development.yml condiviso via git): il client
+        /// sa solo se esiste.
+        /// </summary>
+        [HttpGet]
+        public IActionResult AgentCity([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+
+            var cfg = _projectMetadataService.GetAgentCity(path);
+            return Ok(ToAgentCityDto(cfg));
+        }
+
+        /// <summary>Attiva/disattiva la città e imposta il doc di ownership (§12.4).</summary>
+        [HttpPost]
+        public IActionResult SetAgentCity([FromQuery] string path, [FromBody] AgentCityRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+            if (request == null)
+                return BadRequest(new { message = "request body is required" });
+
+            try
+            {
+                var saved = _projectMetadataService.SetAgentCity(path, new AgentCityConfig
+                {
+                    Enabled = request.Enabled,
+                    OwnershipDoc = request.OwnershipDoc,
+                    RelayUrl = request.RelayUrl,
+                });
+                return Ok(ToAgentCityDto(saved));
+            }
+            catch (Exception ex)
+            {
+                var logger = HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>();
+                logger?.LogError(ex, "Failed to save agentCity for {Path}", path);
+                return StatusCode(500, new { message = "Failed to save agent city activation", error = ex.Message });
+            }
+        }
+
+        private static object ToAgentCityDto(AgentCityConfig cfg) => new
+        {
+            enabled = cfg?.Enabled ?? false,
+            ownershipDoc = cfg?.OwnershipDoc,
+            relayUrl = cfg?.RelayUrl,
+            hasRoomSecret = !string.IsNullOrWhiteSpace(cfg?.RoomSecret),
+        };
+
+        public class AgentCityRequest
+        {
+            public bool Enabled { get; set; }
+            public string OwnershipDoc { get; set; }
+            public string RelayUrl { get; set; }
+        }
+
         [HttpGet]
         public IActionResult GitAuthors([FromQuery] string path)
         {

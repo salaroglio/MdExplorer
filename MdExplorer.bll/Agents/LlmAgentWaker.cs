@@ -18,6 +18,8 @@ namespace MdExplorer.Features.Agents
         public string MessageBody { get; set; }
         public IReadOnlyList<string> Topics { get; set; }
         public IReadOnlyList<AgentRosterEntry> Roster { get; set; }
+        /// <summary>Ownership del progetto (§12.3) quando la federazione è attiva; null = niente iniezione.</summary>
+        public IReadOnlyList<OwnershipEntry> Ownership { get; set; }
     }
 
     /// <summary>Esito del risveglio: il dispatcher lo mappa su processed / retry-or-fail.</summary>
@@ -89,7 +91,8 @@ namespace MdExplorer.Features.Agents
             {
                 // R1: il messaggio entra come DATO dentro delimitatori, non come istruzione.
                 var prompt = AgentPromptComposer.ComposeMessageWakePrompt(
-                    request.AgentFileContent, request.FromAgent, request.MessageBody, request.Roster, request.Topics);
+                    request.AgentFileContent, request.FromAgent, request.MessageBody,
+                    request.Roster, request.Topics, request.Ownership);
 
                 var env = new Dictionary<string, string>
                 {

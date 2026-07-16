@@ -136,6 +136,17 @@ export class ProjectSettingsService {
   }
 
   // ============================================================
+  //   Agent City / Federation activation (.development.yml, §12.4)
+  // ============================================================
+  getAgentCity(projectPath: string): Observable<{ enabled: boolean; ownershipDoc: string | null; relayUrl: string | null; hasRoomSecret: boolean }> {
+    return this.http.get<any>('../api/MdProjects/AgentCity', { params: { path: projectPath } });
+  }
+
+  setAgentCity(projectPath: string, body: { enabled: boolean; ownershipDoc?: string; relayUrl?: string }): Observable<any> {
+    return this.http.post<any>('../api/MdProjects/SetAgentCity', body, { params: { path: projectPath } });
+  }
+
+  // ============================================================
   //   Knowledge Graph (Neo4j) settings + sync
   // ============================================================
   getKgSettings(projectId: string): Observable<any> {
