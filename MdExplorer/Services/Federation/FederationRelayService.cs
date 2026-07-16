@@ -65,6 +65,7 @@ namespace MdExplorer.Services.Federation
 
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IFederationPresenceService _presence;
+        private readonly IHeadlessProjectActivator _activator;
         private readonly ILogger<FederationRelayService> _logger;
         private readonly string _baseUrl;   // es. https://errantia.net (namespace /mdfed appeso)
         private readonly string _apiKey;    // gate di base del relay (stesso del canale chat)
@@ -78,11 +79,13 @@ namespace MdExplorer.Services.Federation
         public FederationRelayService(
             IServiceScopeFactory scopeFactory,
             IFederationPresenceService presence,
+            IHeadlessProjectActivator activator,
             IConfiguration configuration,
             ILogger<FederationRelayService> logger)
         {
             _scopeFactory = scopeFactory;
             _presence = presence;
+            _activator = activator;
             _logger = logger;
 
             // Il relay è lo stesso server del canale chat: base host + engine path condivisi,
@@ -143,6 +146,10 @@ namespace MdExplorer.Services.Federation
                 // Pre-filtro economico: git-resolviamo SOLO i progetti con la città attiva.
                 var cfg = Safe(() => metadata.GetAgentCity(project.Path));
                 if (cfg == null || !cfg.Enabled) continue;
+
+                // Attivazione headless (§12.7): senza client, indicizza gli .agent.md e scalda
+                // il registry, così presenza e gate federato scoprono/svegliano gli agenti.
+                _activator.ActivateForFederation(project.Path);
 
                 var (origin, email) = ResolveGit(project.Path);
                 var roster = BuildTrustedRoster(registry, project.Path);
