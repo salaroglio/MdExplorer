@@ -148,7 +148,7 @@ namespace MdExplorer.Features.Execution
             if (string.IsNullOrWhiteSpace(body))
                 throw new ArgumentException("Agent file has no content outside the prompt-template section.", nameof(agentFileContent));
 
-            var sender = string.IsNullOrWhiteSpace(fromAgent) ? "sconosciuto" : fromAgent.Trim();
+            var sender = NeutralizeSender(fromAgent);
 
             var sb = new StringBuilder();
             sb.Append(body.TrimEnd());
@@ -162,6 +162,39 @@ namespace MdExplorer.Features.Execution
             sb.Append(WakeCloseDelimiter).Append('\n');
 
             return sb.ToString().TrimEnd() + "\n";
+        }
+
+        // Lunghezza massima ragionevole per un nome mittente (kebab-case corti; 'external').
+        // Oltre, è quasi certamente un tentativo di iniettare testo nella riga d'intestazione.
+        private const int SenderMaxLength = 80;
+
+        /// <summary>
+        /// Sanifica il nome del mittente prima di interpolarlo <b>fuori</b> dai delimitatori
+        /// (nella riga "Hai ricevuto un messaggio da **{sender}**"). Il canale autenticato e il
+        /// gateway (dopo il fix R#1) impongono già kebab-case, ma questa funzione è pura e
+        /// pubblica: difesa in profondità perché un sender ostile — newline per uscire dalla
+        /// riga, delimitatori forgiati, testo lunghissimo — non possa iniettare istruzioni nella
+        /// zona non protetta del prompt. Collassa a una singola riga, neutralizza i delimitatori,
+        /// tronca. Vuoto → "sconosciuto".
+        /// </summary>
+        private static string NeutralizeSender(string fromAgent)
+        {
+            if (string.IsNullOrWhiteSpace(fromAgent)) return "sconosciuto";
+
+            // Una sola riga: qualunque a-capo (o ritorno carrello) diventa spazio, così il
+            // sender non può "sfondare" la riga d'intestazione e scrivere fuori dai delimitatori.
+            var oneLine = fromAgent.Replace('\r', ' ').Replace('\n', ' ').Trim();
+
+            oneLine = oneLine
+                .Replace(WakeOpenDelimiter, "<delimitatore neutralizzato>")
+                .Replace(WakeCloseDelimiter, "<delimitatore neutralizzato>")
+                .Replace("<<<<<<<", "‹‹‹‹‹‹‹")
+                .Replace(">>>>>>>", "›››››››");
+
+            if (oneLine.Length > SenderMaxLength)
+                oneLine = oneLine.Substring(0, SenderMaxLength) + "…";
+
+            return oneLine.Length == 0 ? "sconosciuto" : oneLine;
         }
 
         // Impedisce che il corpo del messaggio "chiuda" o falsifichi i delimitatori.
