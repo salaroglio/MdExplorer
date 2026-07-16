@@ -159,6 +159,16 @@ namespace MdExplorer.Services.AgentRun
                 return;
             }
 
+            // Backstop autorizzativo (§6): la whitelist accepts_messages_from del destinatario
+            // vale per OGNI percorso di accodamento (gateway incluso), non solo per il send
+            // autenticato — e viene ri-verificata qui perché la card può cambiare tra
+            // accodamento e consegna.
+            if (!MessageAuthorization.IsSenderAccepted(entry.AcceptsMessagesFrom, snapshot.FromAgent))
+            {
+                MarkFailed(messageId, $"'{snapshot.FromAgent}' non è tra i mittenti accettati da '{snapshot.ToAgent}' (accepts_messages_from).");
+                return;
+            }
+
             // 4) risveglio LLM (§7 passo 5): RunToken nell'ambiente + messaggio come DATO fra delimitatori.
             if (string.Equals(entry.Kind, AgentIdentity.KindEnum.Llm, StringComparison.OrdinalIgnoreCase))
             {

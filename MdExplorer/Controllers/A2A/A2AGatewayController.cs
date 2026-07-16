@@ -64,9 +64,9 @@ namespace MdExplorer.Controllers.A2A
             if (projectPath == null)
                 return JsonRpc(idNode, error: (-32001, $"Progetto {projectKey} non trovato."));
 
-            // --- ri-validazione del destinatario dalle fonti (§7): cittadino, trusted,
-            //     algoritmico (in questo step il gateway non sveglia agenti LLM) ---
-            var entry = _registry.RefreshCatalog(projectPath)
+            // --- ri-validazione del destinatario dalle fonti (§7): cittadino, trusted ---
+            var catalog = _registry.RefreshCatalog(projectPath);
+            var entry = catalog
                 .FirstOrDefault(e => e.IsCitizen && string.Equals(e.Name, agentName, StringComparison.OrdinalIgnoreCase));
             if (entry == null)
                 return JsonRpc(idNode, error: (-32001, $"Agente '{agentName}' non trovato o non cittadino."));
@@ -74,12 +74,31 @@ namespace MdExplorer.Controllers.A2A
                 return JsonRpc(idNode, error: (-32002, $"Agente '{agentName}' non è trusted: conferma il trust prima di inviargli messaggi."));
             // Da Fase 3 step 4b il dispatcher sveglia anche gli agenti LLM: nessuna restrizione di Kind qui.
 
-            // --- estrazione messaggio + contesto, poi ACCODAMENTO nella mailbox (§8) ---
-            var (text, contextId, fromAgent) = ReadMessage(paramsEl);
+            // --- estrazione messaggio + contesto ---
+            var (text, contextId, declaredFrom) = ReadMessage(paramsEl);
+
+            // Il mittente dichiarato è NON autenticato: normalizzato fail-loud. 'user' e i
+            // nomi non kebab-case sono rifiutati — esenzione hop e riapertura conversazioni
+            // spettano solo a canali dove il mittente è certificato.
+            var fromAgent = MdExplorer.Features.Agents.MessageAuthorization.ResolveDeclaredSender(declaredFrom, out var senderError);
+            if (fromAgent == null)
+                return JsonRpc(idNode, error: (-32602, senderError));
+
+            // Un nome di cittadino non è spendibile qui: i cittadini si parlano sul canale
+            // autenticato (RunToken, tool SendAgentMessage), dove il mittente è certificato.
+            if (catalog.Any(e => e.IsCitizen && string.Equals(e.Name, fromAgent, StringComparison.OrdinalIgnoreCase)))
+                return JsonRpc(idNode, error: (-32005, $"fromAgent '{fromAgent}' è un cittadino del progetto: i messaggi tra cittadini passano dal canale autenticato (tool SendAgentMessage), non dal gateway."));
+
+            // Filtro fine del destinatario (§6) fail-fast; il backstop autoritativo è nel
+            // dispatcher alla consegna, comune a ogni percorso di accodamento.
+            if (!MdExplorer.Features.Agents.MessageAuthorization.IsSenderAccepted(entry.AcceptsMessagesFrom, fromAgent))
+                return JsonRpc(idNode, error: (-32003, $"'{fromAgent}' non è tra i mittenti accettati da '{agentName}' (accepts_messages_from)."));
+
+            // --- ACCODAMENTO nella mailbox (§8) ---
             var enqueue = _mailbox.Enqueue(new EnqueueRequest
             {
                 ProjectPath = projectPath,
-                FromAgent = string.IsNullOrWhiteSpace(fromAgent) ? "external" : fromAgent,
+                FromAgent = fromAgent,
                 ToAgent = agentName,
                 Body = text,
                 ContextId = contextId,

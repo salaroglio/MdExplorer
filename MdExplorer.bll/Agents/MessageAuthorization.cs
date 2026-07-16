@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MdExplorer.Features.Yaml;
 
 namespace MdExplorer.Features.Agents
 {
@@ -21,6 +22,34 @@ namespace MdExplorer.Features.Agents
     /// </summary>
     public static class MessageAuthorization
     {
+        /// <summary>Mittente attribuito ai chiamanti del gateway che non si dichiarano.</summary>
+        public const string ExternalSender = "external";
+
+        /// <summary>
+        /// Normalizza il mittente <b>dichiarato</b> dal gateway non-autenticato (§7):
+        /// assente → <see cref="ExternalSender"/>; presente → deve essere un identificatore
+        /// kebab-case non riservato (stesse regole dei nomi cittadino). In particolare
+        /// <c>user</c> è rifiutato: l'esenzione hop e la riapertura delle conversazioni
+        /// esaurite spettano solo a canali dove il mittente è certificato, mai a una
+        /// stringa dichiarata. Restituisce null e valorizza <paramref name="error"/> se
+        /// il nome è inaccettabile (fail-loud).
+        /// </summary>
+        public static string ResolveDeclaredSender(string declaredFromAgent, out string error)
+        {
+            error = null;
+            var declared = declaredFromAgent?.Trim();
+            if (string.IsNullOrEmpty(declared))
+                return ExternalSender;
+
+            var nameError = YamlAgentCardParser.ValidateAgentName(declared);
+            if (nameError != null)
+            {
+                error = $"fromAgent dichiarato non valido. {nameError}";
+                return null;
+            }
+            return declared;
+        }
+
         public static bool IsSenderAccepted(IEnumerable<string> acceptsMessagesFrom, string senderName)
         {
             var sender = senderName?.Trim();
