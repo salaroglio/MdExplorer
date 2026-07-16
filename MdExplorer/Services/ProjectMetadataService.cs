@@ -21,6 +21,8 @@ namespace MdExplorer.Services
         void SetDescription(string projectPath, string description);
         IList<ProjectParticipant> GetParticipants(string projectPath);
         void SetParticipants(string projectPath, IList<ProjectParticipant> participants);
+        AgentCityConfig GetAgentCity(string projectPath);
+        AgentCityConfig SetAgentCity(string projectPath, AgentCityConfig config);
         ProjectIconConfig GetIcon(string projectPath);
         string GetIconAbsolutePath(string projectPath);
         void SetIcon(string projectPath, byte[] pngBytes);
@@ -216,6 +218,106 @@ namespace MdExplorer.Services
 
             File.WriteAllText(filePath, serializer.Serialize(config));
             _logger.LogInformation("Project participants updated in {FilePath} ({Count} entries)", filePath, normalized.Count);
+        }
+
+        public AgentCityConfig GetAgentCity(string projectPath)
+        {
+            if (string.IsNullOrEmpty(projectPath) || !Directory.Exists(projectPath))
+                return null;
+
+            var filePath = Path.Combine(projectPath, FileName);
+            if (!File.Exists(filePath))
+                return null;
+
+            try
+            {
+                var yaml = File.ReadAllText(filePath);
+                if (string.IsNullOrWhiteSpace(yaml))
+                    return null;
+
+                var deserializer = new DeserializerBuilder()
+                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                    .IgnoreUnmatchedProperties()
+                    .Build();
+
+                var config = deserializer.Deserialize<DevelopmentConfig>(yaml);
+                return config?.AgentCity;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to read agentCity config from {FilePath}", filePath);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Persist the federation activation (§12.4). When enabling for the first time and
+        /// no room secret exists yet, one is generated (shared via git). Returns the config
+        /// as persisted (with the generated secret, if any). Disabling keeps the secret so
+        /// re-enabling reuses the same room key.
+        /// </summary>
+        public AgentCityConfig SetAgentCity(string projectPath, AgentCityConfig config)
+        {
+            if (string.IsNullOrEmpty(projectPath))
+                throw new ArgumentException("projectPath is required", nameof(projectPath));
+            if (!Directory.Exists(projectPath))
+                throw new DirectoryNotFoundException($"Project path does not exist: {projectPath}");
+            if (config == null)
+                throw new ArgumentNullException(nameof(config));
+
+            var filePath = Path.Combine(projectPath, FileName);
+            var deserializer = new DeserializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .IgnoreUnmatchedProperties()
+                .Build();
+
+            DevelopmentConfig root;
+            if (File.Exists(filePath))
+            {
+                var yaml = File.ReadAllText(filePath);
+                root = string.IsNullOrWhiteSpace(yaml)
+                    ? new DevelopmentConfig()
+                    : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
+            }
+            else
+            {
+                root = new DevelopmentConfig();
+            }
+
+            // Preserve an existing room secret (it is a shared credential): a caller that
+            // did not carry it forward must not silently rotate the key for the whole team.
+            var existingSecret = root.AgentCity?.RoomSecret;
+            var secret = string.IsNullOrWhiteSpace(config.RoomSecret) ? existingSecret : config.RoomSecret.Trim();
+
+            // First activation with no secret anywhere → generate one (fail-loud principle:
+            // an enabled city without a room key is a broken precondition, so we fix it here).
+            if (config.Enabled && string.IsNullOrWhiteSpace(secret))
+                secret = GenerateRoomSecret();
+
+            root.AgentCity = new AgentCityConfig
+            {
+                Enabled = config.Enabled,
+                OwnershipDoc = string.IsNullOrWhiteSpace(config.OwnershipDoc) ? null : config.OwnershipDoc.Trim(),
+                RoomSecret = string.IsNullOrWhiteSpace(secret) ? null : secret,
+                RelayUrl = string.IsNullOrWhiteSpace(config.RelayUrl) ? null : config.RelayUrl.Trim(),
+            };
+
+            var serializer = new SerializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .ConfigureDefaultValuesHandling(YamlDotNet.Serialization.DefaultValuesHandling.OmitNull)
+                .Build();
+
+            File.WriteAllText(filePath, serializer.Serialize(root));
+            _logger.LogInformation("AgentCity config updated in {FilePath} (enabled={Enabled})", filePath, config.Enabled);
+            return root.AgentCity;
+        }
+
+        // Room secret = 32 random bytes, base64url (URL/YAML-safe, no padding). Shared via git.
+        private static string GenerateRoomSecret()
+        {
+            var bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);
+            return Convert.ToBase64String(bytes)
+                .Replace('+', '-').Replace('/', '_').TrimEnd('=');
         }
 
         public ProjectIconConfig GetIcon(string projectPath)

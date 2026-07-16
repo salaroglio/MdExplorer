@@ -43,6 +43,47 @@ namespace MdExplorer.Service.Models
         /// per-user API token is NEVER stored here — it lives encrypted in UserDB.
         /// </summary>
         public AtlassianConfig Atlassian { get; set; }
+
+        /// <summary>
+        /// Federation activation of the agent city (§12.4 Agent-Harness-A2A). Null/absent
+        /// or <c>Enabled=false</c> → the city and federation stay OFF (full retrocompat).
+        /// Travels with the repo via git so the whole team shares the same activation and
+        /// the same room secret. MUST live in this typed model: a section not modelled here
+        /// would be WIPED on the next participants/description write (they go through the
+        /// typed round-trip).
+        /// </summary>
+        public AgentCityConfig AgentCity { get; set; }
+    }
+
+    /// <summary>
+    /// Per-project federation activation, committed in <c>.development.yml</c> (§12.4).
+    /// Shared across the team via git; the room secret is a shared credential (room key +
+    /// payload-encryption key), NOT the common MdChat API key.
+    /// </summary>
+    public class AgentCityConfig
+    {
+        /// <summary>Master switch: when false/absent, the city and federation are OFF.</summary>
+        public bool Enabled { get; set; }
+
+        /// <summary>
+        /// Relative path (from project root) of the ownership markdown doc
+        /// (<c>mde_type: ownership</c>) — routing hint "who owns which scope, with which
+        /// agents". Optional: absent → no ownership table injected.
+        /// </summary>
+        public string OwnershipDoc { get; set; }
+
+        /// <summary>
+        /// Per-project room secret, generated on first activation. Doubles as the relay
+        /// room credential and the seed of the payload-encryption key (HKDF, §12.6/6b).
+        /// Shared via git so every city on the same repo derives the same key.
+        /// </summary>
+        public string RoomSecret { get; set; }
+
+        /// <summary>
+        /// Optional override of the federation relay URL. Null → the built-in default
+        /// (errantia.net) is used. Kept here so a team can point at a self-hosted relay.
+        /// </summary>
+        public string RelayUrl { get; set; }
     }
 
     /// <summary>

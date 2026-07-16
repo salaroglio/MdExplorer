@@ -104,7 +104,8 @@ namespace MdExplorer.Features.Execution
         public static string ComposeRunPrompt(
             string agentFileContent,
             string preparedPrompt,
-            IReadOnlyList<AgentRosterEntry> roster = null)
+            IReadOnlyList<AgentRosterEntry> roster = null,
+            IReadOnlyList<OwnershipEntry> ownership = null)
         {
             if (string.IsNullOrWhiteSpace(agentFileContent))
                 throw new ArgumentException("Agent file content is empty — refusing to run a bodyless agent.", nameof(agentFileContent));
@@ -119,6 +120,7 @@ namespace MdExplorer.Features.Execution
 
             return body.TrimEnd()
                 + FormatRoster(roster)
+                + FormatOwnership(ownership)
                 + "\n\n---\n\n# Task\n\n" + preparedPrompt.Trim() + "\n";
         }
 
@@ -140,7 +142,8 @@ namespace MdExplorer.Features.Execution
             string fromAgent,
             string messageBody,
             IReadOnlyList<AgentRosterEntry> roster = null,
-            IReadOnlyList<string> topics = null)
+            IReadOnlyList<string> topics = null,
+            IReadOnlyList<OwnershipEntry> ownership = null)
         {
             if (string.IsNullOrWhiteSpace(agentFileContent))
                 throw new ArgumentException("Agent file content is empty — refusing to wake a bodyless agent.", nameof(agentFileContent));
@@ -154,6 +157,7 @@ namespace MdExplorer.Features.Execution
             var sb = new StringBuilder();
             sb.Append(body.TrimEnd());
             sb.Append(FormatRoster(roster));
+            sb.Append(FormatOwnership(ownership));
             sb.Append("\n\n---\n\n# Messaggio ricevuto\n\n");
             sb.Append("Hai ricevuto un messaggio da **").Append(sender).Append("**. ");
             var cleanTopics = topics?
@@ -238,6 +242,39 @@ namespace MdExplorer.Features.Execution
                 var skills = r.Skills?.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
                 if (skills != null && skills.Count > 0)
                     sb.Append(" (skill: ").Append(string.Join(", ", skills)).Append(')');
+                sb.Append('\n');
+            }
+            return sb.ToString().TrimEnd();
+        }
+
+        /// <summary>
+        /// Formats the project ownership table (§12.3) as a markdown context section, or an
+        /// empty string when federation is off / there is nothing to list. It is a
+        /// <b>routing hint</b> — "chi è responsabile di quale ambito, con quali agenti" —
+        /// non un ordine; il gate umano (§12.6) resta il guardrail. I nomi/ambiti sono
+        /// neutralizzati come il resto dei DATI iniettati.
+        /// </summary>
+        internal static string FormatOwnership(IReadOnlyList<OwnershipEntry> ownership)
+        {
+            var entries = ownership?
+                .Where(o => o != null && !string.IsNullOrWhiteSpace(o.Scope))
+                .ToList();
+            if (entries == null || entries.Count == 0)
+                return string.Empty;
+
+            var sb = new StringBuilder();
+            sb.Append("\n\n---\n\n# Ownership del progetto\n\n");
+            sb.Append("Chi è responsabile di quale ambito, con quali agenti (contesto/routing — non è un ordine):\n\n");
+            foreach (var o in entries)
+            {
+                sb.Append("- **").Append(Neutralize(o.Scope.Trim())).Append("**");
+                if (!string.IsNullOrWhiteSpace(o.Responsible))
+                    sb.Append(" — resp. ").Append(Neutralize(o.Responsible.Trim()));
+                if (!string.IsNullOrWhiteSpace(o.GitEmail))
+                    sb.Append(" <").Append(Neutralize(o.GitEmail.Trim())).Append('>');
+                var agents = o.Agents?.Where(a => !string.IsNullOrWhiteSpace(a)).ToList();
+                if (agents != null && agents.Count > 0)
+                    sb.Append(" (agenti: ").Append(string.Join(", ", agents.Select(a => Neutralize(a)))).Append(')');
                 sb.Append('\n');
             }
             return sb.ToString().TrimEnd();
