@@ -12,9 +12,12 @@ namespace MdExplorer.Services.AgentRun
 {
     /// <summary>
     /// Implementazione reale del seam <see cref="IAgentTurnRunner"/>: esegue un turno
-    /// headless su GitHub Copilot CLI. Applica working directory ed <b>ambiente</b> (dove
-    /// viaggia il RunToken) sul provider, poi ripulisce l'override — il provider è un
-    /// singleton condiviso e un token non deve trapelare al chiamante successivo.
+    /// headless su GitHub Copilot CLI passando working directory ed <b>ambiente</b> (dove
+    /// viaggia il RunToken) <b>per-chiamata</b> via <see cref="CopilotInvocation"/>. Nessuna
+    /// scrittura su stato condiviso del provider: due run concorrenti non possono scambiarsi
+    /// l'identità perché non esiste un campo su cui competere (superato il vecchio pattern
+    /// "set property → run → clear" che sotto concorrenza faceva partire un run col token
+    /// di un altro).
     /// <para>
     /// Questo è il punto in cui una fake <see cref="IAgentTurnRunner"/> sostituisce Copilot
     /// nei test, senza spawn di processo.
@@ -41,17 +44,10 @@ namespace MdExplorer.Services.AgentRun
                     "Copilot CLI is not installed or not authenticated. Install it and run 'copilot' once to log in.");
             }
 
-            copilot.WorkingDirectory = request.WorkingDirectory;
-            copilot.EnvironmentOverrides = request.Environment;
-            try
-            {
-                return await copilot.ChatAsync(request.ComposedPrompt, ct: ct);
-            }
-            finally
-            {
-                // Non lasciare il RunToken (o una working dir stantìa) sul singleton condiviso.
-                copilot.EnvironmentOverrides = null;
-            }
+            // Identità e working dir viaggiano nell'invocation, non sul singleton: isolamento
+            // per costruzione tra run concorrenti.
+            var invocation = new CopilotInvocation(request.WorkingDirectory, request.Environment);
+            return await copilot.RunHeadlessAsync(request.ComposedPrompt, invocation, ct: ct);
         }
     }
 }

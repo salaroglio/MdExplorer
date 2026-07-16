@@ -40,20 +40,14 @@ namespace MdExplorer.Features.Services.AI
         private const int MAX_COMMAND_LINE_CHARS = 30000;
 
         /// <summary>
-        /// Working directory for the copilot process.
-        /// Should be set to the current MdExplorer project path before each call.
+        /// Working directory <b>ambientale</b> per i chiamanti legacy (chat interattiva, commit
+        /// message, ecc.) che non portano identità: la impostano prima di una chiamata a
+        /// <see cref="ChatAsync"/>. <b>NON usarla per i run degli agenti</b>: è stato condiviso
+        /// sul singleton e non è sicura sotto concorrenza. Il path degli agenti passa la working
+        /// dir (e l'ambiente col RunToken) per-chiamata via <see cref="RunHeadlessAsync"/> +
+        /// <see cref="CopilotInvocation"/>, dove l'isolamento è garantito per costruzione.
         /// </summary>
         public string WorkingDirectory { get; set; }
-
-        /// <summary>
-        /// Extra environment variables to inject into the copilot child process (it inherits
-        /// the Service's environment and these override/add on top). This is the channel for
-        /// the agent <c>RunToken</c> (R2): the token travels in the environment — never in the
-        /// prompt — so the child MCP can authenticate outgoing messages back to the Service.
-        /// Null = no override. Set it before a call and clear it after (the provider is a
-        /// singleton shared across callers).
-        /// </summary>
-        public IReadOnlyDictionary<string, string> EnvironmentOverrides { get; set; }
 
         // Availability cache
         private bool? _cachedAvailability;
@@ -146,6 +140,29 @@ namespace MdExplorer.Features.Services.AI
 
             var output = await RunCopilotProcessAsync(prompt, modelId, streaming: false, ct: ct);
 
+            return StripUsageMetrics(output);
+        }
+
+        /// <summary>
+        /// Esegue un turno headless <b>stateless</b>: working directory e ambiente (canale del
+        /// RunToken, R2) arrivano nell'<paramref name="invocation"/> e vengono usati SOLO da
+        /// questa chiamata — nessuna scrittura su stato condiviso del provider. È il punto
+        /// d'ingresso della "città degli agenti": due run concorrenti non possono contaminarsi
+        /// l'identità perché non esiste un campo su cui competere. Fail-loud se l'invocation
+        /// manca (senza contesto non c'è isolamento da garantire).
+        /// </summary>
+        public async Task<string> RunHeadlessAsync(string prompt, CopilotInvocation invocation, string modelId = null, CancellationToken ct = default)
+        {
+            if (invocation == null)
+                throw new ArgumentNullException(nameof(invocation),
+                    "CopilotInvocation obbligatoria: un run headless deve portare il proprio contesto (working dir + ambiente), mai ereditarlo dallo stato condiviso.");
+
+            _logger.LogInformation("[CopilotCliProvider.RunHeadlessAsync] Starting with prompt length: {Length}", prompt?.Length ?? 0);
+
+            if (!IsAvailable())
+                throw new InvalidOperationException("Copilot CLI is not available. Make sure it is installed and authenticated.");
+
+            var output = await RunCopilotProcessAsync(prompt, modelId, streaming: false, ct: ct, invocation: invocation);
             return StripUsageMetrics(output);
         }
 
@@ -468,9 +485,9 @@ Always provide clear, concise, and well-formatted responses using proper markdow
 
         #region Private helpers
 
-        private async Task<string> RunCopilotProcessAsync(string prompt, string model, bool streaming, CancellationToken ct, bool outputFormatJson = false)
+        private async Task<string> RunCopilotProcessAsync(string prompt, string model, bool streaming, CancellationToken ct, bool outputFormatJson = false, CopilotInvocation invocation = null)
         {
-            var psi = CreateProcessStartInfo(prompt, model, streaming, outputFormatJson);
+            var psi = CreateProcessStartInfo(prompt, model, streaming, outputFormatJson, invocation);
             using var process = new Process { StartInfo = psi };
 
             process.Start();
@@ -508,7 +525,7 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             return output;
         }
 
-        private ProcessStartInfo CreateProcessStartInfo(string prompt, string model, bool streaming, bool outputFormatJson = false)
+        private ProcessStartInfo CreateProcessStartInfo(string prompt, string model, bool streaming, bool outputFormatJson = false, CopilotInvocation invocation = null)
         {
             var useStdin = ShouldUseStdin(prompt);
 
@@ -557,26 +574,43 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                 psi.RedirectStandardInput = true;
             }
 
-            if (!string.IsNullOrEmpty(WorkingDirectory) && System.IO.Directory.Exists(WorkingDirectory))
+            // Working directory: quella per-chiamata (run degli agenti) vince; in sua assenza,
+            // il fallback ambientale per i chiamanti legacy. L'ambiente (RunToken) invece NON
+            // ha fallback ambientale — vedi sotto.
+            var workingDirectory = invocation?.WorkingDirectory;
+            if (string.IsNullOrEmpty(workingDirectory))
+                workingDirectory = WorkingDirectory;
+            if (!string.IsNullOrEmpty(workingDirectory) && System.IO.Directory.Exists(workingDirectory))
             {
-                psi.WorkingDirectory = WorkingDirectory;
-                _logger.LogInformation("[CopilotCliProvider] Working directory set to: {WorkingDir}", WorkingDirectory);
+                psi.WorkingDirectory = workingDirectory;
+                _logger.LogInformation("[CopilotCliProvider] Working directory set to: {WorkingDir}", workingDirectory);
             }
 
-            // Inject the RunToken (and its identity claims) into the child's environment.
-            // psi.Environment is pre-seeded from the parent (UseShellExecute=false), so the
-            // child inherits everything and we only override these keys. Never logged.
-            var envOverrides = EnvironmentOverrides;
-            if (envOverrides != null)
-            {
-                foreach (var kv in envOverrides)
-                {
-                    if (string.IsNullOrEmpty(kv.Key)) continue;
-                    psi.Environment[kv.Key] = kv.Value ?? string.Empty;
-                }
-            }
+            // Inietta il RunToken (e le sue claim d'identità) nell'ambiente del figlio. Env preso
+            // ESCLUSIVAMENTE dall'invocation per-chiamata: MAI da stato condiviso del provider —
+            // è questa l'invariante che rende impossibile lo scambio d'identità tra run concorrenti.
+            // psi.Environment è pre-caricato dal padre (UseShellExecute=false): il figlio eredita
+            // tutto e noi sovrascriviamo solo queste chiavi. Mai loggato.
+            ApplyEnvironmentOverrides(psi.Environment, invocation);
 
             return psi;
+        }
+
+        /// <summary>
+        /// Applica gli override d'ambiente di un <see cref="CopilotInvocation"/> al set di
+        /// variabili del processo da spawnare. Puro e testabile: l'ambiente proviene SOLO
+        /// dall'invocation (mai da stato condiviso), garanzia strutturale dell'isolamento
+        /// d'identità tra run concorrenti. Null/vuoto = nessun override.
+        /// </summary>
+        internal static void ApplyEnvironmentOverrides(IDictionary<string, string> target, CopilotInvocation invocation)
+        {
+            var overrides = invocation?.EnvironmentOverrides;
+            if (target == null || overrides == null) return;
+            foreach (var kv in overrides)
+            {
+                if (string.IsNullOrEmpty(kv.Key)) continue;
+                target[kv.Key] = kv.Value ?? string.Empty;
+            }
         }
 
         private bool ShouldUseStdin(string prompt)
