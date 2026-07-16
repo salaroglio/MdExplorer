@@ -261,6 +261,8 @@ namespace MdExplorer.Services.AgentRegistry
                             .Select(s => new AgentRegistrySkill { Id = s.Id, Description = s.Description })
                             .ToList() ?? new List<AgentRegistrySkill>(),
                         Tools = parsed.Tools ?? new List<string>(),
+                        AcceptsMessagesFrom = parsed.Card.AcceptsMessagesFrom ?? new List<string>(),
+                        MaxHops = parsed.Card.MaxHops,
                         // R3: impronta del blocco a2a: + tools: per la decadenza del trust.
                         CurrentA2ABlockHash = AgentTrustHasher.ComputeHash(parsed.Card, parsed.Tools),
                     });
@@ -310,6 +312,9 @@ namespace MdExplorer.Services.AgentRegistry
                     Skills = card?.Skills?
                         .Select(s => new AgentRegistrySkill { Id = s.Id, Description = s.Description })
                         .ToList() ?? new List<AgentRegistrySkill>(),
+                    // Gli agenti algoritmici sono utility di sistema: aperti a chiunque nel progetto.
+                    AcceptsMessagesFrom = new List<string> { "*" },
+                    MaxHops = null,
                     ParseError = nameError,
                     // Gli algoritmici non hanno tools: dichiarati; l'hash copre la sola card.
                     CurrentA2ABlockHash = nameError == null ? AgentTrustHasher.ComputeHash(card, null) : null,

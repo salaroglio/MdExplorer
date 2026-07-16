@@ -43,6 +43,24 @@ namespace MdExplorer.Features.Tests.Agents
         }
 
         [TestMethod]
+        public void Propagate_accepts_messages_from_and_max_hops_to_the_entry()
+        {
+            var discovered = new DiscoveredAgentCard
+            {
+                Name = "stem-curator",
+                Kind = AgentIdentity.KindEnum.Llm,
+                AgentFilePath = "/p/a.agent.md",
+                AcceptsMessagesFrom = new List<string> { "cobol-pipeline", "*" },
+                MaxHops = 12,
+            };
+
+            var e = _reconciler.Reconcile(new[] { discovered }, Enumerable.Empty<ExistingIdentity>()).Single();
+
+            CollectionAssert.AreEqual(new[] { "cobol-pipeline", "*" }, e.AcceptsMessagesFrom.ToArray());
+            Assert.AreEqual(12, e.MaxHops);
+        }
+
+        [TestMethod]
         public void Exclude_both_agents_that_share_a_name_deterministically()
         {
             var catalog = _reconciler.Reconcile(

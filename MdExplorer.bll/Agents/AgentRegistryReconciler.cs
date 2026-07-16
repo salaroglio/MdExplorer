@@ -47,6 +47,8 @@ namespace MdExplorer.Features.Agents
                     Role = d.Role,
                     Skills = d.Skills ?? new List<AgentRegistrySkill>(),
                     Tools = d.Tools ?? new List<string>(),
+                    AcceptsMessagesFrom = d.AcceptsMessagesFrom ?? new List<string>(),
+                    MaxHops = d.MaxHops,
                     CurrentA2ABlockHash = d.CurrentA2ABlockHash,
                 };
 

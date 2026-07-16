@@ -118,6 +118,95 @@ public class MdExplorerTools
     }
 
     // ============================================================
+    //   Agent-to-agent messaging (città degli agenti, §7)
+    // ============================================================
+
+    // Il RunToken viaggia NELL'AMBIENTE del processo (mai nel prompt): il Service lo
+    // conia al risveglio, lo mette nell'env del processo Copilot, che lo eredita a questo
+    // MCP. Presentandolo, il Service certifica l'identità del mittente (anti-spoofing R2).
+    private const string RunTokenEnvVar = "MDE_RUN_TOKEN";
+    private const string RunTokenHeader = "X-MDE-Run-Token";
+
+    private static string? RunToken()
+    {
+        var t = Environment.GetEnvironmentVariable(RunTokenEnvVar);
+        return string.IsNullOrWhiteSpace(t) ? null : t;
+    }
+
+    [McpServerTool, Description(
+        "Send a message to ANOTHER agent that lives in the same MdExplorer project (the " +
+        "'city of agents'). Only available to an agent that was itself woken by a message: " +
+        "your identity as the sender is taken from the run environment and cannot be forged. " +
+        "Use ListAgents first to see who you may contact. The recipient must trust you " +
+        "(its 'accepts_messages_from' must include your name or '*'). Delivery is asynchronous: " +
+        "the message is queued and the recipient is woken by the harness. This does NOT return " +
+        "the recipient's answer — it returns a queue receipt (taskId).")]
+    public async Task<string> SendAgentMessage(
+        [Description("The recipient agent's name (kebab-case), as shown by ListAgents.")] string toAgent,
+        [Description("The message body. Plain text; state your intent clearly.")] string message,
+        [Description("Optional topics/tags describing the message, comma-separated (context only).")] string topics = null)
+    {
+        var token = RunToken();
+        if (token == null)
+            return "Error: SendAgentMessage is only available to an agent woken by a message (no run token in the environment).";
+        if (string.IsNullOrWhiteSpace(toAgent)) return "Error: toAgent is required.";
+        if (string.IsNullOrWhiteSpace(message)) return "Error: message is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new
+            {
+                toAgent = toAgent.Trim(),
+                message,
+                topics = string.IsNullOrWhiteSpace(topics)
+                    ? new List<string>()
+                    : topics.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0).ToList(),
+            };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/api/A2A/messages/send") { Content = content };
+            req.Headers.Add(RunTokenHeader, token);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Send refused ({(int)resp.StatusCode}): {body}";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "List the other trusted agents you may contact in your MdExplorer project (name, role, " +
+        "skills), plus whether each currently accepts messages from you. Only available to an " +
+        "agent woken by a message: the project and your identity come from the run environment. " +
+        "Call this before SendAgentMessage.")]
+    public async Task<string> ListAgents()
+    {
+        var token = RunToken();
+        if (token == null)
+            return "Error: ListAgents is only available to an agent woken by a message (no run token in the environment).";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, "/api/A2A/messages/roster");
+            req.Headers.Add(RunTokenHeader, token);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Error ({(int)resp.StatusCode}): {body}";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    // ============================================================
     //   Knowledge Graph (Neo4j) tools
     // ============================================================
 

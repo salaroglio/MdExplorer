@@ -72,8 +72,7 @@ namespace MdExplorer.Controllers.A2A
                 return JsonRpc(idNode, error: (-32001, $"Agente '{agentName}' non trovato o non cittadino."));
             if (!entry.Trusted)
                 return JsonRpc(idNode, error: (-32002, $"Agente '{agentName}' non è trusted: conferma il trust prima di inviargli messaggi."));
-            if (!string.Equals(entry.Kind, AgentIdentity.KindEnum.Algorithmic, StringComparison.OrdinalIgnoreCase))
-                return JsonRpc(idNode, error: (-32003, $"Agente '{agentName}' è LLM: il risveglio da messaggio degli agenti LLM arriva nello step successivo."));
+            // Da Fase 3 step 4b il dispatcher sveglia anche gli agenti LLM: nessuna restrizione di Kind qui.
 
             // --- estrazione messaggio + contesto, poi ACCODAMENTO nella mailbox (§8) ---
             var (text, contextId, fromAgent) = ReadMessage(paramsEl);
@@ -84,6 +83,7 @@ namespace MdExplorer.Controllers.A2A
                 ToAgent = agentName,
                 Body = text,
                 ContextId = contextId,
+                HopLimitOverride = entry.MaxHops,
             });
 
             if (!enqueue.Accepted)
