@@ -29,6 +29,7 @@ namespace MdExplorer.IntegrationTests.Infrastructure
         public AgentCityFactory Factory { get; }
         public HttpClient Client { get; }
         public FakeAgentTurnRunner Runner => Factory.Runner;
+        public FakeAgentRunGate Gate => Factory.Gate;
 
         public AgentCityContext()
         {

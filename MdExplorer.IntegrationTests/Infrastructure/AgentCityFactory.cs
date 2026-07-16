@@ -30,6 +30,7 @@ namespace MdExplorer.IntegrationTests.Infrastructure
     {
         public string DataDir { get; }
         public FakeAgentTurnRunner Runner { get; } = new FakeAgentTurnRunner();
+        public FakeAgentRunGate Gate { get; } = new FakeAgentRunGate();
 
         public AgentCityFactory()
         {
@@ -48,6 +49,11 @@ namespace MdExplorer.IntegrationTests.Infrastructure
 
                 services.RemoveAll<IAgentTurnRunner>();
                 services.AddSingleton<IAgentTurnRunner>(Runner);
+
+                // Gate del run sostituibile: la coda differita diventa esercitabile senza
+                // forzare concorrenza reale sul tetto istanze Copilot.
+                services.RemoveAll<MdExplorer.Services.AgentRun.IAgentRunGate>();
+                services.AddSingleton<MdExplorer.Services.AgentRun.IAgentRunGate>(Gate);
             });
         }
 

@@ -54,8 +54,13 @@ namespace MdExplorer.Services.AgentRun
         private readonly IEnumerable<IAlgorithmicAgent> _algorithmicAgents;
         private readonly ILlmAgentWaker _llmWaker;
         private readonly IProjectOwnershipService _ownership;
+        private readonly IAgentRunGate _runGate;
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly ILogger<AgentMessageDispatcher> _logger;
+
+        // Attesa prima di riprovare un messaggio parcheggiato: breve, così appena la
+        // condizione si libera (slot Copilot, fine manutenzione) la ripresa è rapida.
+        private static readonly TimeSpan DeferDelay = TimeSpan.FromSeconds(5);
 
         public AgentMessageDispatcher(
             IServiceScopeFactory scopeFactory,
@@ -63,6 +68,7 @@ namespace MdExplorer.Services.AgentRun
             IEnumerable<IAlgorithmicAgent> algorithmicAgents,
             ILlmAgentWaker llmWaker,
             IProjectOwnershipService ownership,
+            IAgentRunGate runGate,
             IHubContext<MonitorMDHub> hubContext,
             ILogger<AgentMessageDispatcher> logger)
         {
@@ -71,6 +77,7 @@ namespace MdExplorer.Services.AgentRun
             _algorithmicAgents = algorithmicAgents;
             _llmWaker = llmWaker;
             _ownership = ownership;
+            _runGate = runGate;
             _hubContext = hubContext;
             _logger = logger;
         }
@@ -289,6 +296,18 @@ namespace MdExplorer.Services.AgentRun
             Guid messageId, AgentMessage snapshot, AgentRegistryEntry entry,
             IReadOnlyList<AgentRegistryEntry> catalog, CancellationToken ct)
         {
+            // Coda differita (§12.5): se non c'è capacità (tetto istanze Copilot) l'agente NON
+            // gira adesso — la richiesta è PARCHEGGIATA, non fallita. Il parcheggio non consuma
+            // tentativi (come lo shutdown): torna pending e riprova a slot libero.
+            var gate = _runGate.TryEnter(snapshot.ProjectPath, entry.Name);
+            if (!gate.Admitted)
+            {
+                Defer(messageId, gate.DeferredReason);
+                return;
+            }
+
+            using var slot = gate.Slot;
+
             if (string.IsNullOrWhiteSpace(entry.AgentFilePath) || !File.Exists(entry.AgentFilePath))
             {
                 MarkFailed(messageId, $"File dell'agente LLM '{entry.Name}' non trovato: '{entry.AgentFilePath}'.");
@@ -443,6 +462,7 @@ namespace MdExplorer.Services.AgentRun
                 m.State = AgentMessage.StateEnum.Processed;
                 m.ProcessedAt = DateTime.UtcNow;
                 m.Error = null;
+                m.DeferredReason = null;   // il run è avvenuto: nessun parcheggio residuo
             });
 
         private void MarkFailed(Guid messageId, string error)
@@ -451,6 +471,21 @@ namespace MdExplorer.Services.AgentRun
                 m.State = AgentMessage.StateEnum.Failed;
                 m.ProcessedAt = DateTime.UtcNow;
                 m.Error = error;
+                m.DeferredReason = null;
+            });
+
+        /// <summary>
+        /// Parcheggia la consegna (§12.5): torna <c>pending</c> con il motivo, riprovabile solo
+        /// dopo una breve attesa. <b>Non</b> tocca <see cref="AgentMessage.Attempts"/> — il
+        /// parcheggio non è un fallimento (come lo shutdown, §7).
+        /// </summary>
+        private void Defer(Guid messageId, string reason)
+            => UpdateMessage(messageId, m =>
+            {
+                m.State = AgentMessage.StateEnum.Pending;
+                m.DeferredReason = reason;
+                m.NextAttemptAt = DateTime.UtcNow + DeferDelay;
+                // Attempts invariato di proposito.
             });
 
         private void RetryOrFail(Guid messageId, string error)

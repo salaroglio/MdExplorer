@@ -62,6 +62,16 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// </summary>
         public virtual DateTime? ReadAt { get; set; }
 
+        /// <summary>
+        /// Motivo per cui la consegna è <b>parcheggiata</b> (§12.5 coda differita, Fase 6c):
+        /// l'agente non è eseguibile adesso ma la richiesta NON fallisce. Valori
+        /// <see cref="DeferredReasonEnum"/> (<c>resources</c>/<c>maintenance</c>/<c>user</c>).
+        /// <c>null</c> = non differito. Il messaggio resta <c>pending</c> e viene ripreso via
+        /// <see cref="NextAttemptAt"/> quando la condizione si libera; il parcheggio
+        /// <b>non consuma <see cref="Attempts"/></b> (come lo shutdown, §7) — diverso da "fallito".
+        /// </summary>
+        public virtual string DeferredReason { get; set; }
+
         /// <summary>Valori ammessi per <see cref="State"/>.</summary>
         public static class StateEnum
         {
@@ -69,6 +79,17 @@ namespace MdExplorer.Abstractions.Entities.UserDB
             public const string Delivered = "delivered";
             public const string Processed = "processed";
             public const string Failed = "failed";
+        }
+
+        /// <summary>Cause del parcheggio (§12.5). Prefisso <c>deferred:</c> nella UI.</summary>
+        public static class DeferredReasonEnum
+        {
+            /// <summary>Tetto istanze Copilot raggiunto: nessuno slot libero adesso.</summary>
+            public const string Resources = "resources";
+            /// <summary>Agente in manutenzione (WIP), segnalato al team via <c>.development.yml</c>.</summary>
+            public const string Maintenance = "maintenance";
+            /// <summary>Condizione temporanea dell'utente su questa macchina (UserDB).</summary>
+            public const string User = "user";
         }
     }
 }
