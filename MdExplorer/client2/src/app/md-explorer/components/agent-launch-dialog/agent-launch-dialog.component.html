@@ -4,6 +4,35 @@
 </h2>
 
 <mat-dialog-content>
+  <!-- Coda di lavoro dell'agente (§12.5/§12.6): parcheggiati + federate in attesa di gate -->
+  <div *ngIf="queueCount > 0" class="agent-queue">
+    <div class="agent-queue-title">
+      <mat-icon>inbox</mat-icon> {{ 'AGENT_LAUNCH.QUEUE_TITLE' | translate:{ count: queueCount } }}
+    </div>
+
+    <div *ngFor="let m of queue?.messages" class="agent-queue-item">
+      <span class="q-from">{{ m.fromAgent }}</span>
+      <span *ngIf="m.deferredReason" class="q-deferred">
+        {{ ('AGENT_LAUNCH.QUEUE_DEFERRED_' + (m.deferredReason | uppercase)) | translate }}
+      </span>
+      <span class="q-preview" [title]="m.bodyPreview">{{ m.bodyPreview }}</span>
+      <span class="flexExpand"></span>
+      <button mat-icon-button [matTooltip]="'AGENT_LAUNCH.QUEUE_FORCE' | translate" (click)="forceQueued(m.id)">
+        <mat-icon>play_arrow</mat-icon>
+      </button>
+      <button mat-icon-button [matTooltip]="'AGENT_LAUNCH.QUEUE_DISCARD' | translate" (click)="discardQueued(m.id)">
+        <mat-icon>delete_outline</mat-icon>
+      </button>
+    </div>
+
+    <div *ngFor="let f of queue?.federatedPending" class="agent-queue-item federated">
+      <mat-icon class="q-hub">hub</mat-icon>
+      <span class="q-from">{{ f.fromOwner || '?' }}</span>
+      <span class="q-deferred fed">{{ f.scope }}</span>
+      <span class="q-preview" [title]="f.message">{{ 'AGENT_LAUNCH.QUEUE_FED_WAITING' | translate }}</span>
+    </div>
+  </div>
+
   <!-- Prompt -->
   <label class="field-label" for="agent-prompt">{{ 'AGENT_LAUNCH.PROMPT_LABEL' | translate }}</label>
   <mat-form-field appearance="outline" class="full-width">

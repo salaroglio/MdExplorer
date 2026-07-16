@@ -109,3 +109,41 @@ h2[mat-dialog-title] {
     }
   }
 }
+
+/* Coda di lavoro dell'agente (Fase 6d) */
+.agent-queue {
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  border-left: 3px solid #ef6c00;
+}
+.agent-queue-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+
+  mat-icon { font-size: 18px; height: 18px; width: 18px; }
+}
+.agent-queue-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 2px 0;
+
+  .q-from { font-weight: 600; }
+  .q-deferred {
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: rgba(239, 108, 0, 0.18);
+    color: #ef6c00;
+    &.fed { background: rgba(94, 53, 177, 0.18); color: #5e35b1; }
+  }
+  .q-preview { opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+  .q-hub { font-size: 16px; height: 16px; width: 16px; color: #5e35b1; }
+  .flexExpand { flex: 1 1 auto; }
+}

@@ -1,4 +1,4 @@
-import { Component, Inject } from '@angular/core';
+import { Component, Inject, OnInit } from '@angular/core';
 import {
   MatLegacyDialog as MatDialog,
   MatLegacyDialogRef as MatDialogRef,
@@ -10,6 +10,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { AgentLaunchService, AgentParam } from '../../services/agent-launch.service';
 import { AgentScheduleService } from '../../services/agent-schedule.service';
+import { AgentQueue, AgentQueueService } from '../../services/agent-queue.service';
 import { AgentScheduleDialogComponent } from '../agent-schedule-dialog/agent-schedule-dialog.component';
 import { ShowFileSystemComponent } from '../../../commons/components/show-file-system/show-file-system.component';
 import { ShowFileMetadata } from '../../../commons/components/show-file-system/show-file-metadata';
@@ -30,7 +31,10 @@ export interface AgentLaunchDialogData {
   templateUrl: './agent-launch-dialog.component.html',
   styleUrls: ['./agent-launch-dialog.component.scss'],
 })
-export class AgentLaunchDialogComponent {
+export class AgentLaunchDialogComponent implements OnInit {
+  // Coda di lavoro dell'agente (§12.5/§12.6, Fase 6d): parcheggiati + federate in attesa.
+  queue: AgentQueue | null = null;
+  queueLoading = false;
   // What the user reads/edits in the textarea: the free text before normalization,
   // and ONLY the `## Task` body afterwards. The machine scaffolding (title + the
   // ```params declaration block) is kept out of sight in `headerPart` — it still
@@ -69,6 +73,30 @@ export class AgentLaunchDialogComponent {
     this.prompt = task;
   }
 
+  ngOnInit(): void {
+    this.loadQueue();
+  }
+
+  loadQueue(): void {
+    this.queueLoading = true;
+    this.agentQueueService.queue(this.data.agentName, this.data.projectPath).subscribe({
+      next: (q) => { this.queue = q; this.queueLoading = false; },
+      error: () => { this.queueLoading = false; /* best-effort: la coda non deve rompere il lancio */ },
+    });
+  }
+
+  get queueCount(): number {
+    return (this.queue?.messages?.length || 0) + (this.queue?.federatedPending?.length || 0);
+  }
+
+  forceQueued(id: string): void {
+    this.agentQueueService.force(id).subscribe({ next: () => this.loadQueue(), error: () => this.loadQueue() });
+  }
+
+  discardQueued(id: string): void {
+    this.agentQueueService.discard(id).subscribe({ next: () => this.loadQueue(), error: () => this.loadQueue() });
+  }
+
   constructor(
     public dialogRef: MatDialogRef<AgentLaunchDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: AgentLaunchDialogData,
@@ -77,6 +105,7 @@ export class AgentLaunchDialogComponent {
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private translate: TranslateService,
+    private agentQueueService: AgentQueueService,
   ) {
     // Precedence: the per-user local draft (UserDB) wins; if there is none, seed from
     // the shared template stored inside the .agent.md (travels with git).

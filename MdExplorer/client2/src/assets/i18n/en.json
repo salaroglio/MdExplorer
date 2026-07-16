@@ -1620,6 +1620,13 @@
   },
   "AGENT_LAUNCH": {
     "TITLE": "Launch agent",
+    "QUEUE_TITLE": "Work queue ({{count}})",
+    "QUEUE_DEFERRED_RESOURCES": "parked: resources",
+    "QUEUE_DEFERRED_MAINTENANCE": "parked: maintenance",
+    "QUEUE_DEFERRED_USER": "parked: paused",
+    "QUEUE_FORCE": "Run now",
+    "QUEUE_DISCARD": "Discard",
+    "QUEUE_FED_WAITING": "federated — awaiting your authorization",
     "PROMPT_LABEL": "Launch prompt",
     "PROMPT_PLACEHOLDER": "Describe what the agent must do, mentioning the markdown files it needs...",
     "PROMPT_HINT": "Write freely, then let Copilot rewrite it in the MdExplorer convention",

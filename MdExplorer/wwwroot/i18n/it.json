@@ -1620,6 +1620,13 @@
   },
   "AGENT_LAUNCH": {
     "TITLE": "Lancia agente",
+    "QUEUE_TITLE": "Coda di lavoro ({{count}})",
+    "QUEUE_DEFERRED_RESOURCES": "parcheggiato: risorse",
+    "QUEUE_DEFERRED_MAINTENANCE": "parcheggiato: manutenzione",
+    "QUEUE_DEFERRED_USER": "parcheggiato: in pausa",
+    "QUEUE_FORCE": "Esegui ora",
+    "QUEUE_DISCARD": "Scarta",
+    "QUEUE_FED_WAITING": "federata — in attesa della tua autorizzazione",
     "PROMPT_LABEL": "Prompt di lancio",
     "PROMPT_PLACEHOLDER": "Descrivi cosa deve fare l'agente, citando i markdown che gli servono...",
     "PROMPT_HINT": "Scrivi liberamente, poi lascia che Copilot lo riscriva nella convenzione MdExplorer",
