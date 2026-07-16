@@ -178,6 +178,23 @@ Sei l'agente {name}.";
             return (resp.StatusCode, await resp.Content.ReadAsStringAsync());
         }
 
+        // ---- helper HTTP generici ----
+
+        public async Task<(System.Net.HttpStatusCode Status, System.Text.Json.JsonDocument Json)> GetJson(string url)
+        {
+            var resp = await Client.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            return (resp.StatusCode, System.Text.Json.JsonDocument.Parse(string.IsNullOrWhiteSpace(body) ? "{}" : body));
+        }
+
+        public async Task<(System.Net.HttpStatusCode Status, string Body)> PostJson(string url, string json)
+        {
+            HttpContent content = json == null ? null
+                : new StringContent(json, Encoding.UTF8, "application/json");
+            var resp = await Client.PostAsync(url, content);
+            return (resp.StatusCode, await resp.Content.ReadAsStringAsync());
+        }
+
         // ---- coda differita: pausa utente locale (Fase 6c) ----
 
         /// <summary>Mette in pausa un agente su questa "macchina" (riga AgentPause in UserDB).</summary>

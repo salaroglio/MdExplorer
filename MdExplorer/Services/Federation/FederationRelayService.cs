@@ -7,6 +7,7 @@ using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Features.Agents;
+using MdExplorer.Features.Federation;
 using MdExplorer.Services.AgentRegistry;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -204,12 +205,54 @@ namespace MdExplorer.Services.Federation
                 else
                 {
                     var conn = new RoomConnection(_baseUrl, EnginePath, _apiKey, announce, _logger);
+                    var captured = announce;             // per la closure del deliver
+                    conn.OnDeliver = env => HandleDeliver(captured, env);
                     _rooms[roomId] = conn;
                     conn.Start();                        // fire-and-forget: OnConnected fa join+announce
                 }
             }
 
             return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Un messaggio federato è arrivato per una stanza: decifra la busta col room secret del
+        /// progetto (mai lasciato la macchina), ricostruisce la richiesta e la passa al gate umano
+        /// (§12.6) — che NON fa partire nulla finché l'umano non autorizza. Fail-loud sui log:
+        /// busta non apribile (secret sbagliato/manomessa) o payload malformato.
+        /// </summary>
+        private void HandleDeliver(FederationAnnounce announce, string envelope)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var meta = scope.ServiceProvider.GetRequiredService<MdExplorer.Services.IProjectMetadataService>();
+                var secret = meta.GetAgentCity(announce.ProjectPath)?.RoomSecret;
+                if (string.IsNullOrWhiteSpace(secret))
+                {
+                    _logger.LogWarning("[Federation] deliver per stanza {Room} ma room secret assente: scartato.", announce.RoomId);
+                    return;
+                }
+
+                var json = FederationCrypto.Decrypt(secret, announce.RoomId, envelope);
+                var payload = System.Text.Json.JsonSerializer.Deserialize<FederatedRequestPayload>(json);
+                if (payload == null)
+                {
+                    _logger.LogWarning("[Federation] deliver per stanza {Room}: payload nullo dopo decrypt.", announce.RoomId);
+                    return;
+                }
+
+                var receiver = scope.ServiceProvider.GetRequiredService<IFederatedRequestReceiver>();
+                receiver.Receive(announce.ProjectPath, payload);
+            }
+            catch (FederationCryptoException ex)
+            {
+                _logger.LogWarning(ex, "[Federation] busta 'deliver' non apribile per stanza {Room} (secret errato/manomessa).", announce.RoomId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Federation] gestione 'deliver' fallita per stanza {Room}.", announce.RoomId);
+            }
         }
 
         public override async Task StopAsync(CancellationToken cancellationToken)
@@ -277,6 +320,9 @@ namespace MdExplorer.Services.Federation
             private SocketIOClient.SocketIO _socket;
             private bool _disposed;
 
+            /// <summary>Invocato con la busta cifrata di un messaggio in arrivo (evento relay <c>deliver</c>).</summary>
+            public Action<string> OnDeliver;
+
             public RoomConnection(string baseUrl, string enginePath, string apiKey, FederationAnnounce announce, ILogger logger)
             {
                 _baseUrl = baseUrl;
@@ -311,6 +357,17 @@ namespace MdExplorer.Services.Federation
                     socket.OnConnected += (s, e) => { _ = JoinAndAnnounceAsync(); };
                     socket.OnDisconnected += (s, reason) =>
                         _logger.LogWarning("[Federation] stanza {Room}: disconnesso ({Reason})", _announce?.RoomId, reason);
+                    // Messaggio federato in arrivo: passa la busta cifrata al service (decifra+gate).
+                    socket.On("deliver", resp =>
+                    {
+                        try
+                        {
+                            var msg = resp.GetValue<System.Text.Json.JsonElement>(0);
+                            if (msg.TryGetProperty("envelope", out var env) && env.ValueKind == System.Text.Json.JsonValueKind.String)
+                                OnDeliver?.Invoke(env.GetString());
+                        }
+                        catch (Exception ex) { _logger.LogWarning(ex, "[Federation] parse 'deliver' fallito"); }
+                    });
                     _socket = socket;
                     _ = ConnectAsync(socket);
                 }

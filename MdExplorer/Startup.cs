@@ -122,6 +122,7 @@ namespace MdExplorer
             // Il FederationRelayService è DORMIENTE finché nessun progetto abilita la città;
             // il collegamento reale al relay è un seam rimandato (nessuna connessione oggi).
             services.AddSingleton<Services.Federation.IFederationPresenceService, Services.Federation.FederationPresenceService>();
+            services.AddSingleton<Services.Federation.IFederatedRequestReceiver, Services.Federation.FederatedRequestReceiver>();
             services.AddSingleton<Services.Federation.FederationRelayService>();
             services.AddSingleton<Services.Federation.IFederationState>(sp => sp.GetRequiredService<Services.Federation.FederationRelayService>());
             services.AddHostedService(sp => sp.GetRequiredService<Services.Federation.FederationRelayService>());
