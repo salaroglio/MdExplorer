@@ -5,71 +5,146 @@
 </h2>
 
 <mat-dialog-content>
-  <p class="subtitle">{{ 'MAILBOX.SUBTITLE' | translate }}</p>
+  <mat-tab-group (selectedIndexChange)="onTabChange($event)">
 
-  <div *ngIf="error" class="mailbox-error">
-    <mat-icon>error_outline</mat-icon> {{ error }}
-  </div>
+    <!-- ============ Tab 1: Inbox ============ -->
+    <mat-tab label="{{ 'MAILBOX.TAB_INBOX' | translate }}">
+      <p class="subtitle">{{ 'MAILBOX.SUBTITLE' | translate }}</p>
 
-  <div *ngIf="loading" class="mailbox-loading">
-    {{ 'MAILBOX.LOADING' | translate }}
-  </div>
-
-  <div *ngIf="!loading && !messages.length && !error" class="mailbox-empty">
-    <mat-icon>mark_email_read</mat-icon>
-    {{ (includeRead ? 'MAILBOX.EMPTY_ALL' : 'MAILBOX.EMPTY_UNREAD') | translate }}
-  </div>
-
-  <mat-card *ngFor="let msg of messages" class="msg-card" [class.msg-unread]="!msg.read">
-    <mat-card-content>
-      <div class="msg-header">
-        <div class="msg-from">
-          <mat-icon class="from-icon">smart_toy</mat-icon>
-          <span class="from-name">{{ msg.fromAgent }}</span>
-          <span *ngIf="!msg.read" class="new-chip">{{ 'MAILBOX.NEW' | translate }}</span>
-        </div>
-        <span class="msg-time" [title]="msg.createdAt">{{ msg.createdAt | date:'short' }}</span>
+      <div *ngIf="error" class="mailbox-error">
+        <mat-icon>error_outline</mat-icon> {{ error }}
       </div>
 
-      <div class="msg-project" [title]="msg.projectPath">
-        <mat-icon>folder</mat-icon> {{ projectName(msg.projectPath) }}
+      <div *ngIf="loading" class="mailbox-loading">{{ 'MAILBOX.LOADING' | translate }}</div>
+
+      <div *ngIf="!loading && !messages.length && !error" class="mailbox-empty">
+        <mat-icon>mark_email_read</mat-icon>
+        {{ (includeRead ? 'MAILBOX.EMPTY_ALL' : 'MAILBOX.EMPTY_UNREAD') | translate }}
       </div>
 
-      <div *ngIf="msg.topics?.length" class="msg-topics">
-        <mat-chip-list>
-          <mat-chip *ngFor="let t of msg.topics">{{ t }}</mat-chip>
-        </mat-chip-list>
+      <mat-card *ngFor="let msg of messages" class="msg-card" [class.msg-unread]="!msg.read">
+        <mat-card-content>
+          <div class="msg-header">
+            <div class="msg-from">
+              <mat-icon class="from-icon">smart_toy</mat-icon>
+              <span class="from-name">{{ msg.fromAgent }}</span>
+              <span *ngIf="!msg.read" class="new-chip">{{ 'MAILBOX.NEW' | translate }}</span>
+            </div>
+            <span class="msg-time" [title]="msg.createdAt">{{ msg.createdAt | date:'short' }}</span>
+          </div>
+
+          <div class="msg-project" [title]="msg.projectPath">
+            <mat-icon>folder</mat-icon> {{ projectName(msg.projectPath) }}
+          </div>
+
+          <div *ngIf="msg.topics?.length" class="msg-topics">
+            <mat-chip-list>
+              <mat-chip *ngFor="let t of msg.topics">{{ t }}</mat-chip>
+            </mat-chip-list>
+          </div>
+
+          <div class="msg-body">{{ msg.body }}</div>
+
+          <div class="reply-box">
+            <mat-form-field appearance="outline" class="reply-field">
+              <mat-label>{{ 'MAILBOX.REPLY_LABEL' | translate }}</mat-label>
+              <textarea matInput rows="2"
+                        [(ngModel)]="replyDraft[msg.conversationId]"
+                        [placeholder]="'MAILBOX.REPLY_PLACEHOLDER' | translate"></textarea>
+            </mat-form-field>
+          </div>
+        </mat-card-content>
+
+        <mat-card-actions align="end">
+          <button *ngIf="!msg.read" mat-button (click)="markRead(msg)">
+            <mat-icon>done</mat-icon> {{ 'MAILBOX.MARK_READ' | translate }}
+          </button>
+          <button mat-raised-button color="primary" [disabled]="!canReply(msg)" (click)="reply(msg)">
+            <mat-icon>send</mat-icon> {{ 'MAILBOX.REPLY_BUTTON' | translate }}
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
+      <div class="tab-actions">
+        <button mat-button (click)="toggleIncludeRead()">
+          {{ (includeRead ? 'MAILBOX.SHOW_UNREAD_ONLY' : 'MAILBOX.SHOW_ALL') | translate }}
+        </button>
+        <button mat-button (click)="reload()" [disabled]="loading">{{ 'MAILBOX.REFRESH' | translate }}</button>
+      </div>
+    </mat-tab>
+
+    <!-- ============ Tab 2: Conversazioni (governance) ============ -->
+    <mat-tab label="{{ 'MAILBOX.TAB_CONVERSATIONS' | translate }}">
+      <p class="subtitle">{{ 'MAILBOX.CONV_SUBTITLE' | translate }}</p>
+
+      <div *ngIf="conversationsError" class="mailbox-error">
+        <mat-icon>error_outline</mat-icon> {{ conversationsError }}
       </div>
 
-      <div class="msg-body">{{ msg.body }}</div>
+      <div *ngIf="conversationsLoading" class="mailbox-loading">{{ 'MAILBOX.LOADING' | translate }}</div>
 
-      <div class="reply-box">
-        <mat-form-field appearance="outline" class="reply-field">
-          <mat-label>{{ 'MAILBOX.REPLY_LABEL' | translate }}</mat-label>
-          <textarea matInput rows="2"
-                    [(ngModel)]="replyDraft[msg.conversationId]"
-                    [placeholder]="'MAILBOX.REPLY_PLACEHOLDER' | translate"></textarea>
-        </mat-form-field>
+      <div *ngIf="!conversationsLoading && !conversations.length && !conversationsError" class="mailbox-empty">
+        <mat-icon>forum</mat-icon> {{ 'MAILBOX.CONV_EMPTY' | translate }}
       </div>
-    </mat-card-content>
 
-    <mat-card-actions align="end">
-      <button *ngIf="!msg.read" mat-button (click)="markRead(msg)">
-        <mat-icon>done</mat-icon> {{ 'MAILBOX.MARK_READ' | translate }}
-      </button>
-      <button mat-raised-button color="primary"
-              [disabled]="!canReply(msg)"
-              (click)="reply(msg)">
-        <mat-icon>send</mat-icon> {{ 'MAILBOX.REPLY_BUTTON' | translate }}
-      </button>
-    </mat-card-actions>
-  </mat-card>
+      <mat-card *ngFor="let conv of conversations" class="conv-card">
+        <mat-card-content>
+          <div class="conv-header">
+            <span class="conv-status" [ngClass]="statusClass(conv.status)">
+              {{ ('MAILBOX.STATUS_' + (conv.status | uppercase)) | translate }}
+            </span>
+            <span class="conv-hops" [matTooltip]="'MAILBOX.HOPS_TOOLTIP' | translate">
+              <mat-icon>route</mat-icon> {{ conv.hopCount }}/{{ conv.hopLimit }}
+            </span>
+            <span class="flexExpand"></span>
+            <span class="conv-time" [title]="conv.lastActivityAt">{{ conv.lastActivityAt | date:'short' }}</span>
+          </div>
+
+          <div class="conv-participants">
+            <mat-icon>group</mat-icon>
+            <span *ngFor="let p of conv.participants" class="participant">{{ p }}</span>
+          </div>
+          <div class="conv-meta">
+            {{ 'MAILBOX.MESSAGE_COUNT' | translate:{ count: conv.messageCount } }}
+          </div>
+
+          <!-- Dettaglio thread on-demand -->
+          <div *ngIf="expandedId === conv.id" class="thread-detail">
+            <div *ngIf="threadLoading" class="mailbox-loading">{{ 'MAILBOX.LOADING' | translate }}</div>
+            <div *ngFor="let m of threadMessages" class="thread-msg">
+              <span class="thread-route">{{ m.fromAgent }} → {{ m.toAgent }}</span>
+              <span class="thread-state" [ngClass]="'state-' + m.state">{{ m.state }}</span>
+              <div class="thread-body">{{ m.body }}</div>
+              <div *ngIf="m.error" class="thread-error">{{ m.error }}</div>
+            </div>
+          </div>
+        </mat-card-content>
+
+        <mat-card-actions align="end">
+          <button mat-button (click)="toggleThread(conv)">
+            <mat-icon>{{ expandedId === conv.id ? 'expand_less' : 'expand_more' }}</mat-icon>
+            {{ (expandedId === conv.id ? 'MAILBOX.HIDE_MESSAGES' : 'MAILBOX.VIEW_MESSAGES') | translate }}
+          </button>
+          <button *ngIf="conv.status === 'exhausted'" mat-stroked-button color="primary" (click)="reopen(conv)">
+            <mat-icon>lock_open</mat-icon> {{ 'MAILBOX.REOPEN' | translate }}
+          </button>
+          <button *ngIf="conv.status === 'active' || conv.status === 'exhausted'"
+                  mat-stroked-button color="warn" (click)="kill(conv)">
+            <mat-icon>block</mat-icon> {{ 'MAILBOX.KILL' | translate }}
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
+      <div class="tab-actions">
+        <button mat-button (click)="loadConversations()" [disabled]="conversationsLoading">
+          {{ 'MAILBOX.REFRESH' | translate }}
+        </button>
+      </div>
+    </mat-tab>
+
+  </mat-tab-group>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button (click)="toggleIncludeRead()">
-    {{ (includeRead ? 'MAILBOX.SHOW_UNREAD_ONLY' : 'MAILBOX.SHOW_ALL') | translate }}
-  </button>
-  <button mat-button (click)="reload()" [disabled]="loading">{{ 'MAILBOX.REFRESH' | translate }}</button>
   <button mat-button (click)="close()">{{ 'MAILBOX.CLOSE' | translate }}</button>
 </mat-dialog-actions>

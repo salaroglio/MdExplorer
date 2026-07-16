@@ -21,6 +21,39 @@ export interface MailboxInbox {
   unread: number;
 }
 
+/** Riepilogo di un thread di conversazione (§8), per l'osservabilità/governo (Fase 4b). */
+export interface ConversationSummary {
+  id: string;
+  projectPath: string;
+  startedBy: string;
+  status: string;              // active | completed | killed | exhausted
+  hopCount: number;
+  hopLimit: number;
+  messageCount: number;
+  participants: string[];
+  startedAt: string;
+  lastActivityAt: string;
+}
+
+/** Un messaggio dentro un thread (vista dettaglio). */
+export interface ConversationMessage {
+  id: string;
+  fromAgent: string;
+  toAgent: string;
+  body: string;
+  topics: string[];
+  state: string;
+  createdAt: string;
+  processedAt: string | null;
+  readAt: string | null;
+  error: string | null;
+}
+
+export interface ConversationThread {
+  conversation: ConversationSummary;
+  messages: ConversationMessage[];
+}
+
 /**
  * La porta dell'umano sulla mailbox della città (§13 Fase 4a): legge i messaggi
  * indirizzati a `user`, li marca letti e risponde risvegliando l'agente nella stessa
@@ -51,5 +84,29 @@ export class MailboxService {
     Observable<{ accepted: boolean; taskId: string; conversationId: string; toAgent: string }> {
     return this.http.post<{ accepted: boolean; taskId: string; conversationId: string; toAgent: string }>(
       '/api/A2A/mailbox/reply', { conversationId, body });
+  }
+
+  // ---- 4b: osservabilità e governo dei thread ----
+
+  conversations(projectPath: string): Observable<{ conversations: ConversationSummary[] }> {
+    let params = new HttpParams();
+    if (projectPath) params = params.set('projectPath', projectPath);
+    return this.http.get<{ conversations: ConversationSummary[] }>(
+      '/api/A2A/mailbox/conversations', { params });
+  }
+
+  conversationMessages(conversationId: string): Observable<ConversationThread> {
+    return this.http.get<ConversationThread>(
+      `/api/A2A/mailbox/conversations/${conversationId}/messages`);
+  }
+
+  kill(conversationId: string): Observable<{ status: string }> {
+    return this.http.post<{ status: string }>(
+      `/api/A2A/mailbox/conversations/${conversationId}/kill`, null);
+  }
+
+  reopen(conversationId: string): Observable<{ status: string; hopCount: number }> {
+    return this.http.post<{ status: string; hopCount: number }>(
+      `/api/A2A/mailbox/conversations/${conversationId}/reopen`, null);
   }
 }

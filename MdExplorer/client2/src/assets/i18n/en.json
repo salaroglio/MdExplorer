@@ -1711,7 +1711,21 @@
     "REFRESH": "Refresh",
     "CLOSE": "Close",
     "TOAST": "🔔 New message from \"{{agent}}\".",
-    "TOAST_OPEN": "Open"
+    "TOAST_OPEN": "Open",
+    "TAB_INBOX": "Inbox",
+    "TAB_CONVERSATIONS": "Conversations",
+    "CONV_SUBTITLE": "Conversation threads between the agents of this project. You can end a runaway thread or reopen an exhausted one.",
+    "CONV_EMPTY": "No conversations yet.",
+    "STATUS_ACTIVE": "active",
+    "STATUS_EXHAUSTED": "exhausted",
+    "STATUS_KILLED": "killed",
+    "STATUS_COMPLETED": "completed",
+    "HOPS_TOOLTIP": "Hops used / limit (anti-loop budget)",
+    "MESSAGE_COUNT": "{{count}} message(s)",
+    "VIEW_MESSAGES": "View messages",
+    "HIDE_MESSAGES": "Hide messages",
+    "REOPEN": "Reopen",
+    "KILL": "End thread"
   },
   "AGENT_TRUST": {
     "TITLE": "Trust this agent?",

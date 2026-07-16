@@ -205,6 +205,188 @@ namespace MdExplorer.Controllers.A2A
             });
         }
 
+        // ---- 4b: osservabilità e governance dei thread ----
+
+        /// <summary>
+        /// I thread di conversazione (§8), più recenti prima. Filtro opzionale per progetto.
+        /// Ogni voce porta lo stato, il budget hop consumato (x/limit) e i partecipanti,
+        /// per l'osservabilità umana e le azioni di governo (kill/reopen).
+        /// </summary>
+        [HttpGet("conversations")]
+        public IActionResult Conversations([FromQuery] string? projectPath, [FromQuery] int take = DefaultTake)
+        {
+            try
+            {
+                var convs = _session.GetDal<AgentConversation>().GetList().ToList().AsEnumerable();
+                if (!string.IsNullOrWhiteSpace(projectPath))
+                    convs = convs.Where(c => AgentPathComparer.Equals(c.ProjectPath, projectPath));
+
+                var ordered = convs
+                    .OrderByDescending(c => c.LastActivityAt)
+                    .Take(Math.Clamp(take, 1, 500))
+                    .ToList();
+
+                // Messaggi dei soli thread in pagina, per contare e ricavare i partecipanti.
+                var ids = ordered.Select(c => c.Id).ToHashSet();
+                var msgsByConv = _session.GetDal<AgentMessage>().GetList().ToList()
+                    .Where(m => ids.Contains(m.ConversationId))
+                    .GroupBy(m => m.ConversationId)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
+                var items = ordered.Select(c =>
+                {
+                    msgsByConv.TryGetValue(c.Id, out var msgs);
+                    msgs ??= new List<AgentMessage>();
+                    var participants = msgs
+                        .SelectMany(m => new[] { m.FromAgent, m.ToAgent })
+                        .Where(n => !string.IsNullOrWhiteSpace(n))
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                        .ToList();
+                    return new
+                    {
+                        id = c.Id,
+                        projectPath = c.ProjectPath,
+                        startedBy = c.StartedBy,
+                        status = c.Status,
+                        hopCount = c.HopCount,
+                        hopLimit = c.HopLimit,
+                        messageCount = msgs.Count,
+                        participants,
+                        startedAt = c.StartedAt,
+                        lastActivityAt = c.LastActivityAt,
+                    };
+                }).ToList();
+
+                return Ok(new { conversations = items });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Mailbox] Conversations query fallita");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>I messaggi di un thread, dal più vecchio al più recente (ordine di lettura).</summary>
+        [HttpGet("conversations/{conversationId}/messages")]
+        public IActionResult ConversationMessages(Guid conversationId)
+        {
+            try
+            {
+                var conv = _session.GetDal<AgentConversation>().GetList().ToList()
+                    .FirstOrDefault(c => c.Id == conversationId);
+                if (conv == null)
+                    return NotFound(new { error = $"Conversazione '{conversationId}' non trovata." });
+
+                var messages = _session.GetDal<AgentMessage>().GetList().ToList()
+                    .Where(m => m.ConversationId == conversationId)
+                    .OrderBy(m => m.CreatedAt)
+                    .Select(m => new
+                    {
+                        id = m.Id,
+                        fromAgent = m.FromAgent,
+                        toAgent = m.ToAgent,
+                        body = m.Body,
+                        topics = AgentTopics.Split(m.Topics),
+                        state = m.State,
+                        createdAt = m.CreatedAt,
+                        processedAt = m.ProcessedAt,
+                        readAt = m.ReadAt,
+                        error = m.Error,
+                    })
+                    .ToList();
+
+                return Ok(new
+                {
+                    conversation = new
+                    {
+                        id = conv.Id,
+                        projectPath = conv.ProjectPath,
+                        startedBy = conv.StartedBy,
+                        status = conv.Status,
+                        hopCount = conv.HopCount,
+                        hopLimit = conv.HopLimit,
+                        startedAt = conv.StartedAt,
+                        lastActivityAt = conv.LastActivityAt,
+                    },
+                    messages,
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Mailbox] ConversationMessages query fallita");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Kill switch (§9): l'umano termina un thread. Il mailbox già rifiuta ogni
+        /// accodamento successivo su una conversazione <c>killed</c>. Idempotente.
+        /// </summary>
+        [HttpPost("conversations/{conversationId}/kill")]
+        public IActionResult Kill(Guid conversationId)
+        {
+            try
+            {
+                var dal = _session.GetDal<AgentConversation>();
+                var conv = dal.GetList().ToList().FirstOrDefault(c => c.Id == conversationId);
+                if (conv == null)
+                    return NotFound(new { error = $"Conversazione '{conversationId}' non trovata." });
+
+                if (conv.Status != AgentConversation.StatusEnum.Killed)
+                {
+                    _session.BeginTransaction();
+                    conv.Status = AgentConversation.StatusEnum.Killed;
+                    conv.LastActivityAt = DateTime.UtcNow;
+                    dal.Save(conv);
+                    _session.Commit();
+                    _logger.LogInformation("[Mailbox] Conversazione {Conv} terminata (killed) dall'umano", conversationId);
+                }
+                return Ok(new { status = conv.Status });
+            }
+            catch (Exception ex)
+            {
+                _session.Rollback();
+                _logger.LogError(ex, "[Mailbox] Kill fallito per {Conv}", conversationId);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Riapertura di un thread <c>exhausted</c> (§9): solo l'umano, hop azzerati, torna
+        /// <c>active</c>. Fail-loud su stati diversi da exhausted (un thread active/killed non
+        /// si "riapre").
+        /// </summary>
+        [HttpPost("conversations/{conversationId}/reopen")]
+        public IActionResult Reopen(Guid conversationId)
+        {
+            try
+            {
+                var dal = _session.GetDal<AgentConversation>();
+                var conv = dal.GetList().ToList().FirstOrDefault(c => c.Id == conversationId);
+                if (conv == null)
+                    return NotFound(new { error = $"Conversazione '{conversationId}' non trovata." });
+
+                if (conv.Status != AgentConversation.StatusEnum.Exhausted)
+                    return UnprocessableEntity(new { error = $"Solo una conversazione 'exhausted' può essere riaperta (stato attuale: '{conv.Status}')." });
+
+                _session.BeginTransaction();
+                conv.Status = AgentConversation.StatusEnum.Active;
+                conv.HopCount = 0;
+                conv.LastActivityAt = DateTime.UtcNow;
+                dal.Save(conv);
+                _session.Commit();
+                _logger.LogInformation("[Mailbox] Conversazione {Conv} riaperta dall'umano (hop azzerati)", conversationId);
+                return Ok(new { status = conv.Status, hopCount = conv.HopCount });
+            }
+            catch (Exception ex)
+            {
+                _session.Rollback();
+                _logger.LogError(ex, "[Mailbox] Reopen fallito per {Conv}", conversationId);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         private void MarkThreadToUserRead(Guid convId)
         {
             try

@@ -177,6 +177,46 @@ Sei l'agente {name}.";
             return (resp.StatusCode, await resp.Content.ReadAsStringAsync());
         }
 
+        // ---- governance dei thread (Fase 4b) ----
+
+        /// <summary>White-box: forza lo stato (ed eventualmente l'hopCount) di una conversazione.</summary>
+        public void SetConversationStatus(Guid id, string status, int? hopCount = null)
+        {
+            using var scope = Factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var dal = db.GetDal<AgentConversation>();
+            var conv = dal.GetList().First(c => c.Id == id);
+            conv.Status = status;
+            if (hopCount.HasValue) conv.HopCount = hopCount.Value;
+            dal.Save(conv);
+            db.Commit();
+        }
+
+        public async Task<(System.Net.HttpStatusCode Status, System.Text.Json.JsonDocument Json)> GetConversations(string projectPath)
+        {
+            var url = $"/api/A2A/mailbox/conversations?projectPath={Uri.EscapeDataString(projectPath)}";
+            var resp = await Client.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            return (resp.StatusCode, System.Text.Json.JsonDocument.Parse(body));
+        }
+
+        public async Task<(System.Net.HttpStatusCode Status, System.Text.Json.JsonDocument Json)> GetConversationMessages(Guid id)
+        {
+            var resp = await Client.GetAsync($"/api/A2A/mailbox/conversations/{id}/messages");
+            var body = await resp.Content.ReadAsStringAsync();
+            return (resp.StatusCode, System.Text.Json.JsonDocument.Parse(body));
+        }
+
+        public async Task<System.Net.HttpStatusCode> Kill(Guid id)
+            => (await Client.PostAsync($"/api/A2A/mailbox/conversations/{id}/kill", null)).StatusCode;
+
+        public async Task<(System.Net.HttpStatusCode Status, string Body)> Reopen(Guid id)
+        {
+            var resp = await Client.PostAsync($"/api/A2A/mailbox/conversations/{id}/reopen", null);
+            return (resp.StatusCode, await resp.Content.ReadAsStringAsync());
+        }
+
         // ---- asserzioni sulla mailbox ----
 
         public List<AgentMessage> Messages()

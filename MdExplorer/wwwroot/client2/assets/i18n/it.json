@@ -1711,7 +1711,21 @@
     "REFRESH": "Aggiorna",
     "CLOSE": "Chiudi",
     "TOAST": "🔔 Nuovo messaggio da \"{{agent}}\".",
-    "TOAST_OPEN": "Apri"
+    "TOAST_OPEN": "Apri",
+    "TAB_INBOX": "Posta in arrivo",
+    "TAB_CONVERSATIONS": "Conversazioni",
+    "CONV_SUBTITLE": "I thread di conversazione tra gli agenti di questo progetto. Puoi terminare un thread impazzito o riaprirne uno esaurito.",
+    "CONV_EMPTY": "Nessuna conversazione.",
+    "STATUS_ACTIVE": "attiva",
+    "STATUS_EXHAUSTED": "esaurita",
+    "STATUS_KILLED": "terminata",
+    "STATUS_COMPLETED": "completata",
+    "HOPS_TOOLTIP": "Hop usati / limite (budget anti-loop)",
+    "MESSAGE_COUNT": "{{count}} messaggio/i",
+    "VIEW_MESSAGES": "Vedi messaggi",
+    "HIDE_MESSAGES": "Nascondi messaggi",
+    "REOPEN": "Riapri",
+    "KILL": "Termina thread"
   },
   "AGENT_TRUST": {
     "TITLE": "Concedi il trust a questo agente?",

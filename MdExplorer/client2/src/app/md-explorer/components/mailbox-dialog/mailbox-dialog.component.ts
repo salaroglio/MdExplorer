@@ -5,7 +5,9 @@ import {
 } from '@angular/material/legacy-dialog';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { MailboxMessage, MailboxService } from '../../services/mailbox.service';
+import {
+  ConversationMessage, ConversationSummary, MailboxMessage, MailboxService,
+} from '../../services/mailbox.service';
 
 export interface MailboxDialogData {
   projectPath: string;
@@ -33,6 +35,15 @@ export class MailboxDialogComponent implements OnInit {
   /** Testo della risposta in composizione, per conversationId. */
   replyDraft: { [conversationId: string]: string } = {};
   sending: { [conversationId: string]: boolean } = {};
+
+  // ---- 4b: tab conversazioni + governance ----
+  conversations: ConversationSummary[] = [];
+  conversationsLoading = false;
+  conversationsError: string | null = null;
+  /** Id del thread espanso e i suoi messaggi (dettaglio on-demand). */
+  expandedId: string | null = null;
+  threadMessages: ConversationMessage[] = [];
+  threadLoading = false;
 
   constructor(
     public dialogRef: MatDialogRef<MailboxDialogComponent>,
@@ -101,6 +112,69 @@ export class MailboxDialogComponent implements OnInit {
 
   projectName(path: string): string {
     return (path || '').split(/[\\\/]/).filter(Boolean).pop() || path || '';
+  }
+
+  // ---- 4b: conversazioni + governance ----
+
+  loadConversations(): void {
+    this.conversationsLoading = true;
+    this.conversationsError = null;
+    this.mailbox.conversations(this.data?.projectPath || '').subscribe({
+      next: (res) => {
+        this.conversations = res.conversations || [];
+        this.conversationsLoading = false;
+      },
+      error: (err) => {
+        this.conversationsError = err?.error?.error || err?.message || 'Errore nel caricamento delle conversazioni.';
+        this.conversationsLoading = false;
+      },
+    });
+  }
+
+  /** Il primo ingresso nel tab conversazioni carica pigramente la lista. */
+  onTabChange(index: number): void {
+    if (index === 1 && !this.conversations.length && !this.conversationsLoading) {
+      this.loadConversations();
+    }
+  }
+
+  toggleThread(conv: ConversationSummary): void {
+    if (this.expandedId === conv.id) {
+      this.expandedId = null;
+      this.threadMessages = [];
+      return;
+    }
+    this.expandedId = conv.id;
+    this.threadMessages = [];
+    this.threadLoading = true;
+    this.mailbox.conversationMessages(conv.id).subscribe({
+      next: (res) => {
+        this.threadMessages = res.messages || [];
+        this.threadLoading = false;
+      },
+      error: (err) => {
+        this.threadLoading = false;
+        this.showError(err);
+      },
+    });
+  }
+
+  kill(conv: ConversationSummary): void {
+    this.mailbox.kill(conv.id).subscribe({
+      next: (res) => { conv.status = res.status; },
+      error: (err) => this.showError(err),
+    });
+  }
+
+  reopen(conv: ConversationSummary): void {
+    this.mailbox.reopen(conv.id).subscribe({
+      next: (res) => { conv.status = res.status; conv.hopCount = res.hopCount; },
+      error: (err) => this.showError(err),
+    });
+  }
+
+  statusClass(status: string): string {
+    return 'status-' + (status || 'unknown');
   }
 
   private showError(err: any): void {
