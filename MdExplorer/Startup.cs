@@ -111,6 +111,14 @@ namespace MdExplorer
             services.AddSingleton<Services.AgentRun.IAgentMailbox, Services.AgentRun.AgentMailbox>();
             services.AddHostedService<Services.AgentRun.AgentMessageDispatcher>();
 
+            // Federazione (Fase 6b): assemblaggio annuncio cifrato + presidio lato Service.
+            // Il FederationRelayService è DORMIENTE finché nessun progetto abilita la città;
+            // il collegamento reale al relay è un seam rimandato (nessuna connessione oggi).
+            services.AddSingleton<Services.Federation.IFederationPresenceService, Services.Federation.FederationPresenceService>();
+            services.AddSingleton<Services.Federation.FederationRelayService>();
+            services.AddSingleton<Services.Federation.IFederationState>(sp => sp.GetRequiredService<Services.Federation.FederationRelayService>());
+            services.AddHostedService(sp => sp.GetRequiredService<Services.Federation.FederationRelayService>());
+
             // RunToken store (R2, §10): identità del mittente per i messaggi in uscita.
             // Il token è generato al risveglio e passato nell'ambiente del processo agente.
             services.AddSingleton<MdExplorer.Features.Agents.IRunTokenStore, MdExplorer.Features.Agents.RunTokenStore>();
