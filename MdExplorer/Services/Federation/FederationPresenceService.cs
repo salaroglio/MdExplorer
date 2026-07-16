@@ -13,6 +13,10 @@ namespace MdExplorer.Services.Federation
     {
         public string RoomId { get; init; }
         public string RelayUrl { get; init; }
+        /// <summary>Id del padrone (SHA256 email) — IN CHIARO: serve al relay per join/routing.</summary>
+        public string OwnerId { get; init; }
+        /// <summary>Credenziale di stanza (HKDF info "mdfed-join") presentata al join.</summary>
+        public string JoinToken { get; init; }
         /// <summary>Presenza serializzata e cifrata col room secret (busta chiusa, R15).</summary>
         public string EncryptedPresence { get; init; }
     }
@@ -81,6 +85,8 @@ namespace MdExplorer.Services.Federation
             {
                 RoomId = roomId,
                 RelayUrl = string.IsNullOrWhiteSpace(cfg.RelayUrl) ? DefaultRelayUrl : cfg.RelayUrl.Trim(),
+                OwnerId = presence.OwnerId,
+                JoinToken = FederationCrypto.DeriveJoinToken(cfg.RoomSecret, roomId),
                 EncryptedPresence = envelope,
             };
         }
