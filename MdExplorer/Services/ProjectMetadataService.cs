@@ -294,12 +294,17 @@ namespace MdExplorer.Services
             if (config.Enabled && string.IsNullOrWhiteSpace(secret))
                 secret = GenerateRoomSecret();
 
+            // La lista di manutenzione è preservata se il chiamante non la porta (una save di
+            // enabled/ownership dalla UI non deve azzerare i WIP segnalati dal team).
+            var maintenance = NormalizeMaintenance(config.Maintenance ?? root.AgentCity?.Maintenance);
+
             root.AgentCity = new AgentCityConfig
             {
                 Enabled = config.Enabled,
                 OwnershipDoc = string.IsNullOrWhiteSpace(config.OwnershipDoc) ? null : config.OwnershipDoc.Trim(),
                 RoomSecret = string.IsNullOrWhiteSpace(secret) ? null : secret,
                 RelayUrl = string.IsNullOrWhiteSpace(config.RelayUrl) ? null : config.RelayUrl.Trim(),
+                Maintenance = maintenance,
             };
 
             var serializer = new SerializerBuilder()
@@ -310,6 +315,19 @@ namespace MdExplorer.Services
             File.WriteAllText(filePath, serializer.Serialize(root));
             _logger.LogInformation("AgentCity config updated in {FilePath} (enabled={Enabled})", filePath, config.Enabled);
             return root.AgentCity;
+        }
+
+        // Lista manutenzione normalizzata: trim, niente vuoti/duplicati (case-insensitive),
+        // null se non resta nulla (così la sezione resta pulita nel YAML).
+        private static List<string> NormalizeMaintenance(IEnumerable<string> names)
+        {
+            if (names == null) return null;
+            var list = names
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Select(n => n.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return list.Count == 0 ? null : list;
         }
 
         // Room secret = 32 random bytes, base64url (URL/YAML-safe, no padding). Shared via git.

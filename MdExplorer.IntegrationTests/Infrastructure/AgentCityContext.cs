@@ -178,6 +178,39 @@ Sei l'agente {name}.";
             return (resp.StatusCode, await resp.Content.ReadAsStringAsync());
         }
 
+        // ---- coda differita: pausa utente locale (Fase 6c) ----
+
+        /// <summary>Mette in pausa un agente su questa "macchina" (riga AgentPause in UserDB).</summary>
+        public void PauseAgent(string projectPath, string agentName, string reason = null)
+        {
+            using var scope = Factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            db.GetDal<AgentPause>().Save(new AgentPause
+            {
+                ProjectPath = projectPath,
+                AgentName = agentName,
+                Reason = reason,
+                CreatedAt = DateTime.UtcNow,
+            });
+            db.Commit();
+        }
+
+        /// <summary>Toglie la pausa (elimina le righe AgentPause del progetto+agente).</summary>
+        public void ResumeAgent(string projectPath, string agentName)
+        {
+            using var scope = Factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var dal = db.GetDal<AgentPause>();
+            var rows = dal.GetList().ToList()
+                .Where(p => string.Equals(p.AgentName, agentName, StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(p.ProjectPath, projectPath, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            foreach (var r in rows) dal.Delete(r);
+            db.Commit();
+        }
+
         // ---- governance dei thread (Fase 4b) ----
 
         /// <summary>White-box: forza lo stato (ed eventualmente l'hopCount) di una conversazione.</summary>

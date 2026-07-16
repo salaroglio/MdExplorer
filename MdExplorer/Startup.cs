@@ -113,6 +113,9 @@ namespace MdExplorer
             // (deferred:resources) invece di saturare la macchina. Capacità per-installazione.
             services.AddSingleton<Services.AgentRun.IAgentRunGate>(
                 new Services.AgentRun.CopilotResourceGate(Services.AgentRun.CopilotResourceGate.DefaultMaxConcurrent));
+            // Politica di disponibilità (§12.5): manutenzione (git) / pausa utente (UserDB) →
+            // deferred:maintenance / deferred:user, valutata prima del tetto risorse.
+            services.AddSingleton<Services.AgentRun.IAgentAvailabilityPolicy, Services.AgentRun.AgentAvailabilityPolicy>();
             services.AddHostedService<Services.AgentRun.AgentMessageDispatcher>();
 
             // Federazione (Fase 6b): assemblaggio annuncio cifrato + presidio lato Service.

@@ -55,6 +55,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly ILlmAgentWaker _llmWaker;
         private readonly IProjectOwnershipService _ownership;
         private readonly IAgentRunGate _runGate;
+        private readonly IAgentAvailabilityPolicy _availability;
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly ILogger<AgentMessageDispatcher> _logger;
 
@@ -69,6 +70,7 @@ namespace MdExplorer.Services.AgentRun
             ILlmAgentWaker llmWaker,
             IProjectOwnershipService ownership,
             IAgentRunGate runGate,
+            IAgentAvailabilityPolicy availability,
             IHubContext<MonitorMDHub> hubContext,
             ILogger<AgentMessageDispatcher> logger)
         {
@@ -78,6 +80,7 @@ namespace MdExplorer.Services.AgentRun
             _llmWaker = llmWaker;
             _ownership = ownership;
             _runGate = runGate;
+            _availability = availability;
             _hubContext = hubContext;
             _logger = logger;
         }
@@ -296,9 +299,18 @@ namespace MdExplorer.Services.AgentRun
             Guid messageId, AgentMessage snapshot, AgentRegistryEntry entry,
             IReadOnlyList<AgentRegistryEntry> catalog, CancellationToken ct)
         {
-            // Coda differita (§12.5): se non c'è capacità (tetto istanze Copilot) l'agente NON
-            // gira adesso — la richiesta è PARCHEGGIATA, non fallita. Il parcheggio non consuma
-            // tentativi (come lo shutdown): torna pending e riprova a slot libero.
+            // Coda differita (§12.5) — cause DI POLITICA per prime (manutenzione WIP via git,
+            // pausa utente locale): se l'agente è indisponibile, parcheggia senza nemmeno
+            // tentare uno slot Copilot.
+            var policyDefer = _availability.CheckDeferral(snapshot.ProjectPath, entry.Name);
+            if (policyDefer != null)
+            {
+                Defer(messageId, policyDefer);
+                return;
+            }
+
+            // Poi la causa DI RISORSA: tetto istanze Copilot. Il parcheggio non consuma tentativi
+            // (come lo shutdown): torna pending e riprova a slot libero.
             var gate = _runGate.TryEnter(snapshot.ProjectPath, entry.Name);
             if (!gate.Admitted)
             {

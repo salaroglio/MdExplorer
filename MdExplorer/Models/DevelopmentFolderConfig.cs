@@ -84,6 +84,15 @@ namespace MdExplorer.Service.Models
         /// (errantia.net) is used. Kept here so a team can point at a self-hosted relay.
         /// </summary>
         public string RelayUrl { get; set; }
+
+        /// <summary>
+        /// Agenti in <b>manutenzione (WIP)</b>, per <c>a2a.name</c> (§12.5 coda differita). È
+        /// una condizione da segnalare a TUTTO il team, quindi vive qui (git) e NON nel blocco
+        /// <c>a2a:</c> del file agente — modificarlo lì cambierebbe l'A2ABlockHash e farebbe
+        /// decadere il trust (R3). Un agente in questa lista → le richieste per lui sono
+        /// <c>deferred:maintenance</c> (parcheggiate, non fallite) finché non esce dalla lista.
+        /// </summary>
+        public List<string> Maintenance { get; set; }
     }
 
     /// <summary>
