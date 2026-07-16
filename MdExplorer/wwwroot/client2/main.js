@@ -16936,6 +16936,9 @@ class MdServerMessagesService {
     // AgentMessageDispatcher when a citizen escalates to the human: drives the toast
     // + the unread badge on the toolbar bell.
     this.agentMessageReceived$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    // Observable for federated intervention requests (§12.6): another city asks an agent
+    // of THIS one to act — needs the human gate (approve/reject) before any run.
+    this.federationRequestReceived$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for KG drift events (emitted by FileSystemWatcherManager when a .md
     // diverges from the // sourceDocHash header of its adjacent .kg.cypher).
     this.kgStale$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
@@ -17039,6 +17042,11 @@ class MdServerMessagesService {
         this.hubConnection.on('agentMessageReceived', data => {
           console.log('🔔 SignalR event received: agentMessageReceived', data);
           this.agentMessageReceived$.next(data);
+        });
+        // Federated intervention request (§12.6): needs the human gate
+        this.hubConnection.on('federationRequestReceived', data => {
+          console.log('🌐 SignalR event received: federationRequestReceived', data);
+          this.federationRequestReceived$.next(data);
         });
         // KG drift detection — .md edited but .kg.cypher is out of sync
         this.hubConnection.on('kgStale', data => {
@@ -17453,8 +17461,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.07.16.4',
-  buildTime: '2026.07.16 18:57:26'
+  version: '2026.07.16.5',
+  buildTime: '2026.07.16 20:24:01'
 };
 
 /***/ }),

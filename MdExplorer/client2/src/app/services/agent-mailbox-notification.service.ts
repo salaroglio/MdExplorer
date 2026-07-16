@@ -30,6 +30,8 @@ export class AgentMailboxNotificationService {
     private serverMessages: MdServerMessagesService,
   ) {
     this.serverMessages.agentMessageReceived$.subscribe(evt => this.onMessage(evt));
+    // Richiesta federata (§12.6): toast prioritario + apertura sul tab del gate.
+    this.serverMessages.federationRequestReceived$.subscribe(evt => this.onFederationRequest(evt));
   }
 
   /** Il toolbar comunica il progetto attivo; ricarichiamo il conteggio non-letti. */
@@ -46,14 +48,22 @@ export class AgentMailboxNotificationService {
     });
   }
 
-  /** Apre il centro notifiche; al termine riallinea il badge. */
-  public open(): void {
+  /** Apre il centro notifiche (opzionalmente su un tab: 0 inbox, 1 conversazioni, 2 federazione). */
+  public open(initialTab: number = 0): void {
     const ref = this.dialog.open(MailboxDialogComponent, {
       width: '640px',
       maxHeight: '82vh',
-      data: { projectPath: this.currentProjectPath },
+      data: { projectPath: this.currentProjectPath, initialTab },
     });
     ref.afterClosed().subscribe(() => this.refresh());
+  }
+
+  private onFederationRequest(evt: { fromOwner: string; scope: string }): void {
+    const toast = this.snackBar.open(
+      this.translate.instant('FEDERATION.TOAST', { owner: evt.fromOwner || '?', scope: evt.scope || '?' }),
+      this.translate.instant('FEDERATION.TOAST_REVIEW'),
+      { duration: 12000, horizontalPosition: 'right', verticalPosition: 'bottom', panelClass: ['kg-stale-snack'] });
+    toast.onAction().subscribe(() => this.open(2));   // apre sul tab "Richieste federate"
   }
 
   private onMessage(evt: { fromAgent: string; projectPath: string }): void {

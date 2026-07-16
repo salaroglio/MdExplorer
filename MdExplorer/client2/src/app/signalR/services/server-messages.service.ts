@@ -67,6 +67,19 @@ export class MdServerMessagesService {
     createdAt: string
   }>();
 
+  // Observable for federated intervention requests (§12.6): another city asks an agent
+  // of THIS one to act — needs the human gate (approve/reject) before any run.
+  public federationRequestReceived$ = new Subject<{
+    id: string,
+    federationId: string,
+    projectPath: string,
+    fromOwner: string,
+    fromAgent: string,
+    targetAgent: string,
+    scope: string,
+    createdAt: string
+  }>();
+
   // Observable for KG drift events (emitted by FileSystemWatcherManager when a .md
   // diverges from the // sourceDocHash header of its adjacent .kg.cypher).
   public kgStale$ = new Subject<{
@@ -215,6 +228,12 @@ export class MdServerMessagesService {
       this.hubConnection.on('agentMessageReceived', (data) => {
         console.log('🔔 SignalR event received: agentMessageReceived', data);
         this.agentMessageReceived$.next(data);
+      });
+
+      // Federated intervention request (§12.6): needs the human gate
+      this.hubConnection.on('federationRequestReceived', (data) => {
+        console.log('🌐 SignalR event received: federationRequestReceived', data);
+        this.federationRequestReceived$.next(data);
       });
 
       // KG drift detection — .md edited but .kg.cypher is out of sync

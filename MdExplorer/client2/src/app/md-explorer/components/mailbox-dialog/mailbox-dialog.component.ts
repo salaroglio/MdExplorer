@@ -8,9 +8,12 @@ import { TranslateService } from '@ngx-translate/core';
 import {
   ConversationMessage, ConversationSummary, MailboxMessage, MailboxService,
 } from '../../services/mailbox.service';
+import { FederationRequest, FederationService } from '../../services/federation.service';
 
 export interface MailboxDialogData {
   projectPath: string;
+  /** Tab iniziale: 0 inbox, 1 conversazioni, 2 richieste federate. */
+  initialTab?: number;
 }
 
 /**
@@ -45,16 +48,28 @@ export class MailboxDialogComponent implements OnInit {
   threadMessages: ConversationMessage[] = [];
   threadLoading = false;
 
+  // ---- 6d: richieste federate (gate umano §12.6) ----
+  federationRequests: FederationRequest[] = [];
+  fedLoading = false;
+  fedError: string | null = null;
+  /** Override dell'agente proposto, per requestId. */
+  approveAgent: { [id: string]: string } = {};
+  deciding: { [id: string]: boolean } = {};
+  selectedTab = 0;
+
   constructor(
     public dialogRef: MatDialogRef<MailboxDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: MailboxDialogData,
     private mailbox: MailboxService,
+    private federation: FederationService,
     private snackBar: MatSnackBar,
     private translate: TranslateService,
   ) {}
 
   ngOnInit(): void {
     this.reload();
+    this.selectedTab = this.data?.initialTab ?? 0;
+    if (this.selectedTab === 2) this.loadFederationRequests();
   }
 
   reload(): void {
@@ -131,11 +146,49 @@ export class MailboxDialogComponent implements OnInit {
     });
   }
 
-  /** Il primo ingresso nel tab conversazioni carica pigramente la lista. */
+  /** Primo ingresso in un tab → carica pigramente la sua lista. */
   onTabChange(index: number): void {
+    this.selectedTab = index;
     if (index === 1 && !this.conversations.length && !this.conversationsLoading) {
       this.loadConversations();
+    } else if (index === 2 && !this.federationRequests.length && !this.fedLoading) {
+      this.loadFederationRequests();
     }
+  }
+
+  // ---- 6d: gate delle richieste federate ----
+
+  loadFederationRequests(): void {
+    this.fedLoading = true;
+    this.fedError = null;
+    this.federation.requests(this.data?.projectPath || '').subscribe({
+      next: (res) => { this.federationRequests = res.requests || []; this.fedLoading = false; },
+      error: (err) => {
+        this.fedError = err?.error?.error || err?.message || 'Errore nel caricamento delle richieste federate.';
+        this.fedLoading = false;
+      },
+    });
+  }
+
+  approveFederation(req: FederationRequest): void {
+    this.deciding[req.id] = true;
+    const override = this.approveAgent[req.id]?.trim() || undefined;
+    this.federation.approve(req.id, override).subscribe({
+      next: (res) => {
+        this.deciding[req.id] = false;
+        this.snackBar.open(this.translate.instant('FEDERATION.APPROVED', { agent: res.targetAgent }), 'OK', { duration: 4000 });
+        this.loadFederationRequests();
+      },
+      error: (err) => { this.deciding[req.id] = false; this.showError(err); },
+    });
+  }
+
+  rejectFederation(req: FederationRequest): void {
+    this.deciding[req.id] = true;
+    this.federation.reject(req.id).subscribe({
+      next: () => { this.deciding[req.id] = false; this.loadFederationRequests(); },
+      error: (err) => { this.deciding[req.id] = false; this.showError(err); },
+    });
   }
 
   toggleThread(conv: ConversationSummary): void {

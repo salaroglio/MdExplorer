@@ -1734,6 +1734,19 @@
     "KILL": "End thread",
     "FEDERATED": "federated"
   },
+  "FEDERATION": {
+    "TAB": "Federated requests",
+    "SUBTITLE": "Requests from other members' cities. Nothing runs until you authorize it.",
+    "EMPTY": "No pending federated requests.",
+    "FROM_AGENT": "from agent",
+    "TARGET": "target",
+    "CHANGE_AGENT": "Change agent (optional)",
+    "APPROVE": "Authorize",
+    "REJECT": "Reject",
+    "APPROVED": "Authorized: agent \"{{agent}}\" woken.",
+    "TOAST": "🌐 Federated request from \"{{owner}}\" on scope \"{{scope}}\".",
+    "TOAST_REVIEW": "Review"
+  },
   "AGENT_TRUST": {
     "TITLE": "Trust this agent?",
     "MESSAGE": "The agent \"{{agent}}\" will be allowed to participate in conversations inside {{project}}.\n\nRequested tools: {{tools}}",

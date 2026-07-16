@@ -5,7 +5,7 @@
 </h2>
 
 <mat-dialog-content>
-  <mat-tab-group (selectedIndexChange)="onTabChange($event)">
+  <mat-tab-group [selectedIndex]="selectedTab" (selectedIndexChange)="onTabChange($event)">
 
     <!-- ============ Tab 1: Inbox ============ -->
     <mat-tab label="{{ 'MAILBOX.TAB_INBOX' | translate }}">
@@ -141,6 +141,64 @@
 
       <div class="tab-actions">
         <button mat-button (click)="loadConversations()" [disabled]="conversationsLoading">
+          {{ 'MAILBOX.REFRESH' | translate }}
+        </button>
+      </div>
+    </mat-tab>
+
+    <!-- ============ Tab 3: Richieste federate (gate umano §12.6) ============ -->
+    <mat-tab label="{{ 'FEDERATION.TAB' | translate }}">
+      <p class="subtitle">{{ 'FEDERATION.SUBTITLE' | translate }}</p>
+
+      <div *ngIf="fedError" class="mailbox-error">
+        <mat-icon>error_outline</mat-icon> {{ fedError }}
+      </div>
+
+      <div *ngIf="fedLoading" class="mailbox-loading">{{ 'MAILBOX.LOADING' | translate }}</div>
+
+      <div *ngIf="!fedLoading && !federationRequests.length && !fedError" class="mailbox-empty">
+        <mat-icon>hub</mat-icon> {{ 'FEDERATION.EMPTY' | translate }}
+      </div>
+
+      <mat-card *ngFor="let req of federationRequests" class="msg-card">
+        <mat-card-content>
+          <div class="msg-header">
+            <div class="msg-from">
+              <mat-icon class="from-icon">hub</mat-icon>
+              <span class="from-name">{{ req.fromOwner || '?' }}</span>
+              <span class="new-chip">{{ req.scope }}</span>
+            </div>
+            <span class="msg-time" [title]="req.createdAt">{{ req.createdAt | date:'short' }}</span>
+          </div>
+
+          <div class="msg-project">
+            <mat-icon>smart_toy</mat-icon>
+            {{ 'FEDERATION.FROM_AGENT' | translate }}: {{ req.fromAgent || '?' }} →
+            {{ 'FEDERATION.TARGET' | translate }}: <strong>{{ req.targetAgent }}</strong>
+          </div>
+
+          <div class="msg-body">{{ req.message }}</div>
+
+          <div class="reply-box">
+            <mat-form-field appearance="outline" class="reply-field">
+              <mat-label>{{ 'FEDERATION.CHANGE_AGENT' | translate }}</mat-label>
+              <input matInput [(ngModel)]="approveAgent[req.id]" [placeholder]="req.targetAgent">
+            </mat-form-field>
+          </div>
+        </mat-card-content>
+
+        <mat-card-actions align="end">
+          <button mat-stroked-button color="warn" [disabled]="deciding[req.id]" (click)="rejectFederation(req)">
+            <mat-icon>block</mat-icon> {{ 'FEDERATION.REJECT' | translate }}
+          </button>
+          <button mat-raised-button color="primary" [disabled]="deciding[req.id]" (click)="approveFederation(req)">
+            <mat-icon>verified_user</mat-icon> {{ 'FEDERATION.APPROVE' | translate }}
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
+      <div class="tab-actions">
+        <button mat-button (click)="loadFederationRequests()" [disabled]="fedLoading">
           {{ 'MAILBOX.REFRESH' | translate }}
         </button>
       </div>

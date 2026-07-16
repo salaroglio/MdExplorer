@@ -1734,6 +1734,19 @@
     "KILL": "Termina thread",
     "FEDERATED": "federata"
   },
+  "FEDERATION": {
+    "TAB": "Richieste federate",
+    "SUBTITLE": "Richieste dalle città di altri membri. Nulla parte finché non autorizzi.",
+    "EMPTY": "Nessuna richiesta federata in attesa.",
+    "FROM_AGENT": "da agente",
+    "TARGET": "bersaglio",
+    "CHANGE_AGENT": "Cambia agente (opzionale)",
+    "APPROVE": "Autorizza",
+    "REJECT": "Rifiuta",
+    "APPROVED": "Autorizzata: agente \"{{agent}}\" svegliato.",
+    "TOAST": "🌐 Richiesta federata da \"{{owner}}\" sull'ambito \"{{scope}}\".",
+    "TOAST_REVIEW": "Rivedi"
+  },
   "AGENT_TRUST": {
     "TITLE": "Concedi il trust a questo agente?",
     "MESSAGE": "L'agente \"{{agent}}\" potrà partecipare alle conversazioni dentro {{project}}.\n\nTool richiesti: {{tools}}",
