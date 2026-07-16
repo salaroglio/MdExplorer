@@ -31,6 +31,21 @@ namespace MdExplorer.Features.Agents
             => $"{(agentName ?? string.Empty).Trim()}@{EmailDomain}";
 
         /// <summary>
+        /// Nome di firma derivato dal file <c>&lt;x&gt;.agent.md</c>, per i run schedulati/manuali
+        /// di un agente <b>non-cittadino</b> (senza blocco <c>a2a:</c>, quindi senza nome a2a).
+        /// Preferisci sempre il nome a2a del cittadino quando c'è; questo è il fallback.
+        /// </summary>
+        public static string NameFromAgentFile(string agentFilePath)
+        {
+            var file = System.IO.Path.GetFileName(agentFilePath ?? string.Empty);
+            const string suffix = ".agent.md";
+            if (file.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                file = file.Substring(0, file.Length - suffix.Length);
+            file = file.Trim();
+            return file.Length == 0 ? "agent" : file;
+        }
+
+        /// <summary>
         /// Le quattro variabili d'ambiente che firmano ogni commit fatto dal processo
         /// dell'agente come l'agente stesso (autore <b>e</b> committer). Vuoto se il nome manca.
         /// </summary>

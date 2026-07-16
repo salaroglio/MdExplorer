@@ -30,5 +30,17 @@ namespace MdExplorer.Features.Tests.Agents
             Assert.AreEqual(0, AgentGitIdentity.EnvFor(null).Count);
             Assert.AreEqual(0, AgentGitIdentity.EnvFor("   ").Count);
         }
+
+        [TestMethod]
+        public void Derive_the_signature_name_from_a_non_citizen_agent_file()
+        {
+            Assert.AreEqual("nightly-report", AgentGitIdentity.NameFromAgentFile("/p/agents/nightly-report.agent.md"));
+            Assert.AreEqual("nightly-report", AgentGitIdentity.NameFromAgentFile("nightly-report.AGENT.MD"));
+            // Nessun suffisso .agent.md → tiene il nome file com'è.
+            Assert.AreEqual("foo", AgentGitIdentity.NameFromAgentFile("/p/foo"));
+            // Vuoto/null → sentinella stabile.
+            Assert.AreEqual("agent", AgentGitIdentity.NameFromAgentFile(null));
+            Assert.AreEqual("agent", AgentGitIdentity.NameFromAgentFile(""));
+        }
     }
 }

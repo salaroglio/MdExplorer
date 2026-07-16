@@ -83,6 +83,28 @@ namespace MdExplorer.Services.AgentRun
             }
         }
 
+        /// <summary>
+        /// Il nome con cui firmare i commit del run (§10). Preferisce il nome a2a del
+        /// cittadino (identità stabile dalla card); se l'agente non è cittadino, ripiega sul
+        /// nome derivato dal file. Fail-soft: un intoppo del registry non deve impedire il run,
+        /// si degrada al nome-da-file.
+        /// </summary>
+        private string ResolveGitSignatureName(string projectPath, string agentFilePath)
+        {
+            try
+            {
+                var entry = _agentRegistry.GetCatalog(projectPath)
+                    .FirstOrDefault(e => e.IsCitizen && PathEquals(e.AgentFilePath, agentFilePath));
+                if (entry != null && !string.IsNullOrWhiteSpace(entry.Name))
+                    return entry.Name;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[AgentRun] Nome a2a non risolvibile per {File}: firmo col nome-da-file.", agentFilePath);
+            }
+            return AgentGitIdentity.NameFromAgentFile(agentFilePath);
+        }
+
         private static bool PathEquals(string a, string b)
         {
             if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b))
@@ -173,6 +195,10 @@ namespace MdExplorer.Services.AgentRun
                 var roster = BuildRoster(request.ProjectPath, request.AgentFilePath);
                 var composedPrompt = AgentPromptComposer.ComposeRunPrompt(agentContent, request.PreparedPrompt, roster);
 
+                // Firma git per-agente (§10) anche per i run schedulati/manuali: l'agente che
+                // scrive nel workspace committa con la propria identità, non con quella dell'umano.
+                var gitName = ResolveGitSignatureName(request.ProjectPath, request.AgentFilePath);
+
                 // Attraverso il seam provider-agnostico (IAgentTurnRunner): il runner reale
                 // (CopilotTurnRunner) verifica la disponibilità e lancia Copilot; una fake lo
                 // sostituisce nei test. I run schedulati/manuali non passano un RunToken.
@@ -180,6 +206,7 @@ namespace MdExplorer.Services.AgentRun
                 {
                     ComposedPrompt = composedPrompt,
                     WorkingDirectory = request.ProjectPath,
+                    Environment = AgentGitIdentity.EnvFor(gitName),
                 }, cts.Token);
 
                 _logger.LogInformation(
