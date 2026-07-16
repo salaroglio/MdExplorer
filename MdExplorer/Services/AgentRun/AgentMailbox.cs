@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Linq;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
@@ -61,8 +60,8 @@ namespace MdExplorer.Services.AgentRun
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<AgentMailbox> _logger;
 
-        // Dedup anti-storm: "project|from|to|context" → ultimo accodamento.
-        private readonly ConcurrentDictionary<string, DateTime> _lastEnqueued = new();
+        // Dedup anti-storm: registra atomicamente e si autolimita (vedi StormDedup).
+        private readonly StormDedup _dedup = new StormDedup(DedupWindow);
 
         public AgentMailbox(IServiceScopeFactory scopeFactory, ILogger<AgentMailbox> logger)
         {
@@ -85,8 +84,9 @@ namespace MdExplorer.Services.AgentRun
             }
 
             // Dedup anti-storm (§9 punto 2): stessa coppia+contesto entro 2s → scartato.
+            // Registrazione atomica al controllo: due richieste simultanee non passano entrambe.
             var dedupKey = $"{request.ProjectPath}|{from}|{to}|{request.ContextId ?? "new"}";
-            if (_lastEnqueued.TryGetValue(dedupKey, out var last) && (now - last) < DedupWindow)
+            if (!_dedup.TryAccept(dedupKey, now))
             {
                 _logger.LogDebug("[Mailbox] dedup: {From}->{To} scartato (storm 2s)", from, to);
                 return new EnqueueResult { Accepted = false, RejectionReason = "Messaggio duplicato entro la finestra anti-storm (2s)." };
@@ -147,7 +147,6 @@ namespace MdExplorer.Services.AgentRun
                 db.GetDal<AgentMessage>().Save(message);
                 db.Commit();
 
-                _lastEnqueued[dedupKey] = now;
                 return new EnqueueResult
                 {
                     Accepted = true,
