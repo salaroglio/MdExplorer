@@ -240,7 +240,7 @@ namespace MdExplorer.Services.AgentRun
                     A2ATaskId = snapshot.A2ATaskId,
                     FromAgent = snapshot.FromAgent,
                     Message = snapshot.Body,
-                    Topics = new List<string>(),
+                    Topics = AgentTopics.Split(snapshot.Topics),
                 };
                 result = await agent.ExecuteAsync(context, ct) ?? AgentTaskResult.Fail("Nessun risultato prodotto.");
             }
@@ -305,6 +305,7 @@ namespace MdExplorer.Services.AgentRun
                     ConversationId = snapshot.ConversationId.ToString(),
                     FromAgent = snapshot.FromAgent,
                     MessageBody = snapshot.Body,
+                    Topics = AgentTopics.Split(snapshot.Topics),
                     Roster = roster,
                 }, ct);
             }
@@ -466,6 +467,7 @@ namespace MdExplorer.Services.AgentRun
             ToAgent = m.ToAgent,
             ProjectPath = m.ProjectPath,
             Body = m.Body,
+            Topics = m.Topics,
             State = m.State,
             Attempts = m.Attempts,
             CreatedAt = m.CreatedAt,

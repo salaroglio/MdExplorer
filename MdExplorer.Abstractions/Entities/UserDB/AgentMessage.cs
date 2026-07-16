@@ -28,6 +28,13 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// <summary>Testo del messaggio (Parts A2A serializzate).</summary>
         public virtual string Body { get; set; }
 
+        /// <summary>
+        /// Argomenti dichiarati dal mittente (§8): metadata di contesto, uno per riga.
+        /// Nessun entity-linking — è solo contesto passato all'agente destinatario. Null/vuoto
+        /// = nessun argomento.
+        /// </summary>
+        public virtual string Topics { get; set; }
+
         /// <summary>"pending" | "delivered" | "processed" | "failed".</summary>
         public virtual string State { get; set; }
 

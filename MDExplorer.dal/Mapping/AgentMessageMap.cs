@@ -15,6 +15,7 @@ namespace MDExplorer.DataAccess.Mapping
             Map(x => x.ToAgent).Length(200).Not.Nullable();
             Map(x => x.ProjectPath).Length(int.MaxValue).Not.Nullable();
             Map(x => x.Body).Length(int.MaxValue).Nullable();
+            Map(x => x.Topics).Length(int.MaxValue).Nullable();
             Map(x => x.State).Length(50).Not.Nullable();
             Map(x => x.Attempts).Not.Nullable();
             Map(x => x.CreatedAt).Not.Nullable();

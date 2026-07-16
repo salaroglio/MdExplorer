@@ -16,6 +16,7 @@ namespace MdExplorer.Features.Agents
         public string ConversationId { get; set; }
         public string FromAgent { get; set; }
         public string MessageBody { get; set; }
+        public IReadOnlyList<string> Topics { get; set; }
         public IReadOnlyList<AgentRosterEntry> Roster { get; set; }
     }
 
@@ -88,7 +89,7 @@ namespace MdExplorer.Features.Agents
             {
                 // R1: il messaggio entra come DATO dentro delimitatori, non come istruzione.
                 var prompt = AgentPromptComposer.ComposeMessageWakePrompt(
-                    request.AgentFileContent, request.FromAgent, request.MessageBody, request.Roster);
+                    request.AgentFileContent, request.FromAgent, request.MessageBody, request.Roster, request.Topics);
 
                 var env = new Dictionary<string, string>
                 {

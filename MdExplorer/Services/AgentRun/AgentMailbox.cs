@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
@@ -20,6 +21,8 @@ namespace MdExplorer.Services.AgentRun
         public string ContextId { get; set; }
         /// <summary>Override del limite hop (da <c>max_hops</c> del destinatario); null = default.</summary>
         public int? HopLimitOverride { get; set; }
+        /// <summary>Argomenti dichiarati dal mittente (§8): contesto passato all'agente.</summary>
+        public IList<string> Topics { get; set; }
     }
 
     /// <summary>Esito dell'accodamento. Fail-loud: se non accettato, porta il motivo.</summary>
@@ -140,6 +143,7 @@ namespace MdExplorer.Services.AgentRun
                     ToAgent = to,
                     ProjectPath = request.ProjectPath,
                     Body = request.Body,
+                    Topics = AgentTopics.Join(request.Topics),
                     State = AgentMessage.StateEnum.Pending,
                     Attempts = 0,
                     CreatedAt = now,

@@ -75,7 +75,7 @@ namespace MdExplorer.Controllers.A2A
             // Da Fase 3 step 4b il dispatcher sveglia anche gli agenti LLM: nessuna restrizione di Kind qui.
 
             // --- estrazione messaggio + contesto ---
-            var (text, contextId, declaredFrom) = ReadMessage(paramsEl);
+            var (text, contextId, declaredFrom, topics) = ReadMessage(paramsEl);
 
             // Il mittente dichiarato è NON autenticato: normalizzato fail-loud. 'user' e i
             // nomi non kebab-case sono rifiutati — esenzione hop e riapertura conversazioni
@@ -103,6 +103,7 @@ namespace MdExplorer.Controllers.A2A
                 Body = text,
                 ContextId = contextId,
                 HopLimitOverride = entry.MaxHops,
+                Topics = topics,
             });
 
             if (!enqueue.Accepted)
@@ -134,10 +135,11 @@ namespace MdExplorer.Controllers.A2A
             return string.IsNullOrWhiteSpace(project?.Path) ? null : project.Path;
         }
 
-        private static (string text, string contextId, string fromAgent) ReadMessage(JsonElement paramsEl)
+        private static (string text, string contextId, string fromAgent, List<string> topics) ReadMessage(JsonElement paramsEl)
         {
             var sb = new StringBuilder();
             string contextId = null, fromAgent = null;
+            List<string> topics = null;
 
             if (paramsEl.TryGetProperty("message", out var msg) && msg.ValueKind == JsonValueKind.Object)
             {
@@ -149,13 +151,24 @@ namespace MdExplorer.Controllers.A2A
                 if (msg.TryGetProperty("contextId", out var c) && c.ValueKind == JsonValueKind.String)
                     contextId = c.GetString();
 
-                // Mittente dichiarato (§8): metadata non-standard, best-effort (non autenticato
-                // finché non c'è il RunToken, R2 — step successivo).
-                if (msg.TryGetProperty("metadata", out var meta) && meta.ValueKind == JsonValueKind.Object
-                    && meta.TryGetProperty("fromAgent", out var f) && f.ValueKind == JsonValueKind.String)
-                    fromAgent = f.GetString();
+                if (msg.TryGetProperty("metadata", out var meta) && meta.ValueKind == JsonValueKind.Object)
+                {
+                    // Mittente dichiarato (§8): metadata non-standard, best-effort. NON è
+                    // autenticato: il gateway lo normalizza/rifiuta (vedi ResolveDeclaredSender).
+                    if (meta.TryGetProperty("fromAgent", out var f) && f.ValueKind == JsonValueKind.String)
+                        fromAgent = f.GetString();
+
+                    // Argomenti dichiarati (§8), se il chiamante A2A li porta nei metadata.
+                    if (meta.TryGetProperty("topics", out var tp) && tp.ValueKind == JsonValueKind.Array)
+                    {
+                        topics = new List<string>();
+                        foreach (var item in tp.EnumerateArray())
+                            if (item.ValueKind == JsonValueKind.String)
+                                topics.Add(item.GetString());
+                    }
+                }
             }
-            return (sb.ToString(), contextId, fromAgent);
+            return (sb.ToString(), contextId, fromAgent, topics);
         }
 
         private IActionResult JsonRpc(JsonNode idNode, JsonNode resultNode = null, (int code, string message)? error = null)

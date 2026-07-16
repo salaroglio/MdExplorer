@@ -94,6 +94,23 @@ namespace MdExplorer.Features.Tests.Agents
         }
 
         [TestMethod]
+        public void Include_declared_topics_as_context_when_present()
+        {
+            var p = AgentPromptComposer.ComposeMessageWakePrompt(
+                Body, "cobol-pipeline", "msg", null, new[] { "deploy", "urgent" });
+            StringAssert.Contains(p, "Argomenti dichiarati");
+            StringAssert.Contains(p, "deploy");
+            StringAssert.Contains(p, "urgent");
+        }
+
+        [TestMethod]
+        public void Omit_the_topics_line_when_there_are_none()
+        {
+            var p = AgentPromptComposer.ComposeMessageWakePrompt(Body, "x", "msg", null, new string[0]);
+            Assert.IsFalse(p.Contains("Argomenti dichiarati"));
+        }
+
+        [TestMethod]
         [ExpectedException(typeof(ArgumentException))]
         public void Refuse_an_empty_agent_body()
         {

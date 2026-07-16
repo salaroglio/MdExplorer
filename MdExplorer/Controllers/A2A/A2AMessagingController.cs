@@ -83,6 +83,7 @@ namespace MdExplorer.Controllers.A2A
                 Body = request.Message,
                 ContextId = claims.ConversationId,          // stessa conversazione → gli hop si accumulano (anti-loop)
                 HopLimitOverride = recipient.MaxHops,
+                Topics = request.Topics,                    // §8: contesto dichiarato dal mittente
             });
 
             if (!result.Accepted)
