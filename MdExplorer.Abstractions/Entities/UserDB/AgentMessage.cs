@@ -54,6 +54,14 @@ namespace MdExplorer.Abstractions.Entities.UserDB
 
         public virtual string Error { get; set; }
 
+        /// <summary>
+        /// Istante in cui l'<b>umano</b> ha visto/gestito questo messaggio dalla UI (§13 Fase 4).
+        /// Rilevante solo per i messaggi <c>ToAgent == user</c>: <c>null</c> = non letto (entra
+        /// nel badge non-letti della inbox); valorizzato quando l'utente lo apre o risponde.
+        /// Ortogonale a <see cref="State"/> (che è il ciclo di consegna del dispatcher).
+        /// </summary>
+        public virtual DateTime? ReadAt { get; set; }
+
         /// <summary>Valori ammessi per <see cref="State"/>.</summary>
         public static class StateEnum
         {

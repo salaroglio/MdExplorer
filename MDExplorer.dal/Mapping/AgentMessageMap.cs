@@ -21,6 +21,7 @@ namespace MDExplorer.DataAccess.Mapping
             Map(x => x.CreatedAt).Not.Nullable();
             Map(x => x.ProcessedAt).Nullable();
             Map(x => x.NextAttemptAt).Nullable();
+            Map(x => x.ReadAt).Nullable();
             Map(x => x.Error).Length(int.MaxValue).Nullable();
         }
     }

@@ -16932,6 +16932,10 @@ class MdServerMessagesService {
     this.markFolderProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for *.agent.md headless runs (AgentRunJobService): started/completed/failed
     this.agentJobProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    // Observable for agent→user mailbox messages (§13 Fase 4a). Emitted by
+    // AgentMessageDispatcher when a citizen escalates to the human: drives the toast
+    // + the unread badge on the toolbar bell.
+    this.agentMessageReceived$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for KG drift events (emitted by FileSystemWatcherManager when a .md
     // diverges from the // sourceDocHash header of its adjacent .kg.cypher).
     this.kgStale$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
@@ -17030,6 +17034,11 @@ class MdServerMessagesService {
         // *.agent.md headless run progress (manual launch, schedule, hook)
         this.hubConnection.on('agentJobProgress', data => {
           this.agentJobProgress$.next(data);
+        });
+        // Agent→user mailbox message (§13 Fase 4a): a citizen escalated to the human
+        this.hubConnection.on('agentMessageReceived', data => {
+          console.log('🔔 SignalR event received: agentMessageReceived', data);
+          this.agentMessageReceived$.next(data);
         });
         // KG drift detection — .md edited but .kg.cypher is out of sync
         this.hubConnection.on('kgStale', data => {
@@ -17444,8 +17453,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.07.15.1',
-  buildTime: '2026.07.15 21:26:42'
+  version: '2026.07.16.1',
+  buildTime: '2026.07.16 16:42:23'
 };
 
 /***/ }),

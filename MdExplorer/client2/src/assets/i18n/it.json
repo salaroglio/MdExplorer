@@ -630,6 +630,7 @@
     "EDIT_DOCUMENT": "modifica documento",
     "EXPORT_WORD": "esporta in word",
     "AGENT_REGISTRY": "Città degli agenti",
+    "AGENT_MAILBOX": "Messaggi degli agenti",
     "BOOKMARKS": "Segnalibri",
     "OPEN_REACT_EDITOR": "Apri Editor React",
     "DETACH_DOCUMENT": "Apri il documento in una finestra separata",
@@ -1692,6 +1693,25 @@
     "EXCLUDED_TITLE": "Esclusi (non registrabili)",
     "REFRESH": "Aggiorna",
     "CLOSE": "Chiudi"
+  },
+  "MAILBOX": {
+    "TITLE": "Messaggi degli agenti",
+    "SUBTITLE": "Messaggi che gli agenti di questo progetto ti hanno inviato. Rispondi per risvegliare l'agente nella stessa conversazione.",
+    "LOADING": "Caricamento messaggi…",
+    "EMPTY_UNREAD": "Nessun messaggio non letto.",
+    "EMPTY_ALL": "Nessun messaggio dagli agenti.",
+    "NEW": "nuovo",
+    "MARK_READ": "Segna letto",
+    "REPLY_LABEL": "La tua risposta",
+    "REPLY_PLACEHOLDER": "Scrivi una risposta per risvegliare l'agente…",
+    "REPLY_BUTTON": "Rispondi",
+    "REPLY_SENT": "Risposta inviata a \"{{agent}}\".",
+    "SHOW_ALL": "Mostra tutti",
+    "SHOW_UNREAD_ONLY": "Solo non letti",
+    "REFRESH": "Aggiorna",
+    "CLOSE": "Chiudi",
+    "TOAST": "🔔 Nuovo messaggio da \"{{agent}}\".",
+    "TOAST_OPEN": "Apri"
   },
   "AGENT_TRUST": {
     "TITLE": "Concedi il trust a questo agente?",

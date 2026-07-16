@@ -1,0 +1,69 @@
+import { Injectable } from '@angular/core';
+import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { TranslateService } from '@ngx-translate/core';
+import { BehaviorSubject } from 'rxjs';
+import { MdServerMessagesService } from '../signalR/services/server-messages.service';
+import { MailboxService } from '../md-explorer/services/mailbox.service';
+import { MailboxDialogComponent } from '../md-explorer/components/mailbox-dialog/mailbox-dialog.component';
+
+/**
+ * La metà "la città parla all'umano" della Fase 4a. Ascolta l'evento SignalR
+ * `agentMessageReceived` (un cittadino ha scritto a `user`): mostra un toast con
+ * azione "Apri" e mantiene il conteggio dei non-letti (`unread$`) che il toolbar
+ * lega al badge della campanella. È il gemello di AiNotificationService per la mailbox.
+ */
+@Injectable({ providedIn: 'root' })
+export class AgentMailboxNotificationService {
+
+  /** Non-letti correnti: il toolbar ci lega il badge della campanella. */
+  public unread$ = new BehaviorSubject<number>(0);
+
+  /** Progetto corrente su cui contare i non-letti (impostato dal toolbar). */
+  private currentProjectPath = '';
+
+  constructor(
+    private snackBar: MatSnackBar,
+    private dialog: MatDialog,
+    private translate: TranslateService,
+    private mailbox: MailboxService,
+    private serverMessages: MdServerMessagesService,
+  ) {
+    this.serverMessages.agentMessageReceived$.subscribe(evt => this.onMessage(evt));
+  }
+
+  /** Il toolbar comunica il progetto attivo; ricarichiamo il conteggio non-letti. */
+  public setProject(projectPath: string): void {
+    this.currentProjectPath = projectPath || '';
+    this.refresh();
+  }
+
+  /** Ricarica il badge non-letti dal Service (fonte autoritativa). */
+  public refresh(): void {
+    this.mailbox.unreadCount(this.currentProjectPath).subscribe({
+      next: (res) => this.unread$.next(res.unread || 0),
+      error: () => { /* best-effort: il badge non deve rompere la UI */ },
+    });
+  }
+
+  /** Apre il centro notifiche; al termine riallinea il badge. */
+  public open(): void {
+    const ref = this.dialog.open(MailboxDialogComponent, {
+      width: '640px',
+      maxHeight: '82vh',
+      data: { projectPath: this.currentProjectPath },
+    });
+    ref.afterClosed().subscribe(() => this.refresh());
+  }
+
+  private onMessage(evt: { fromAgent: string; projectPath: string }): void {
+    // Aggiorna il badge dalla fonte autoritativa (conta anche eventuali arretrati).
+    this.refresh();
+
+    const toast = this.snackBar.open(
+      this.translate.instant('MAILBOX.TOAST', { agent: evt.fromAgent }),
+      this.translate.instant('MAILBOX.TOAST_OPEN'),
+      { duration: 8000, horizontalPosition: 'right', verticalPosition: 'bottom' });
+    toast.onAction().subscribe(() => this.open());
+  }
+}

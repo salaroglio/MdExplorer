@@ -1,0 +1,75 @@
+<h2 mat-dialog-title>
+  <mat-icon class="title-icon">forum</mat-icon>
+  {{ 'MAILBOX.TITLE' | translate }}
+  <span *ngIf="unread > 0" class="unread-pill">{{ unread }}</span>
+</h2>
+
+<mat-dialog-content>
+  <p class="subtitle">{{ 'MAILBOX.SUBTITLE' | translate }}</p>
+
+  <div *ngIf="error" class="mailbox-error">
+    <mat-icon>error_outline</mat-icon> {{ error }}
+  </div>
+
+  <div *ngIf="loading" class="mailbox-loading">
+    {{ 'MAILBOX.LOADING' | translate }}
+  </div>
+
+  <div *ngIf="!loading && !messages.length && !error" class="mailbox-empty">
+    <mat-icon>mark_email_read</mat-icon>
+    {{ (includeRead ? 'MAILBOX.EMPTY_ALL' : 'MAILBOX.EMPTY_UNREAD') | translate }}
+  </div>
+
+  <mat-card *ngFor="let msg of messages" class="msg-card" [class.msg-unread]="!msg.read">
+    <mat-card-content>
+      <div class="msg-header">
+        <div class="msg-from">
+          <mat-icon class="from-icon">smart_toy</mat-icon>
+          <span class="from-name">{{ msg.fromAgent }}</span>
+          <span *ngIf="!msg.read" class="new-chip">{{ 'MAILBOX.NEW' | translate }}</span>
+        </div>
+        <span class="msg-time" [title]="msg.createdAt">{{ msg.createdAt | date:'short' }}</span>
+      </div>
+
+      <div class="msg-project" [title]="msg.projectPath">
+        <mat-icon>folder</mat-icon> {{ projectName(msg.projectPath) }}
+      </div>
+
+      <div *ngIf="msg.topics?.length" class="msg-topics">
+        <mat-chip-list>
+          <mat-chip *ngFor="let t of msg.topics">{{ t }}</mat-chip>
+        </mat-chip-list>
+      </div>
+
+      <div class="msg-body">{{ msg.body }}</div>
+
+      <div class="reply-box">
+        <mat-form-field appearance="outline" class="reply-field">
+          <mat-label>{{ 'MAILBOX.REPLY_LABEL' | translate }}</mat-label>
+          <textarea matInput rows="2"
+                    [(ngModel)]="replyDraft[msg.conversationId]"
+                    [placeholder]="'MAILBOX.REPLY_PLACEHOLDER' | translate"></textarea>
+        </mat-form-field>
+      </div>
+    </mat-card-content>
+
+    <mat-card-actions align="end">
+      <button *ngIf="!msg.read" mat-button (click)="markRead(msg)">
+        <mat-icon>done</mat-icon> {{ 'MAILBOX.MARK_READ' | translate }}
+      </button>
+      <button mat-raised-button color="primary"
+              [disabled]="!canReply(msg)"
+              (click)="reply(msg)">
+        <mat-icon>send</mat-icon> {{ 'MAILBOX.REPLY_BUTTON' | translate }}
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="toggleIncludeRead()">
+    {{ (includeRead ? 'MAILBOX.SHOW_UNREAD_ONLY' : 'MAILBOX.SHOW_ALL') | translate }}
+  </button>
+  <button mat-button (click)="reload()" [disabled]="loading">{{ 'MAILBOX.REFRESH' | translate }}</button>
+  <button mat-button (click)="close()">{{ 'MAILBOX.CLOSE' | translate }}</button>
+</mat-dialog-actions>

@@ -630,6 +630,7 @@
     "EDIT_DOCUMENT": "edit document",
     "EXPORT_WORD": "export in word",
     "AGENT_REGISTRY": "City of agents",
+    "AGENT_MAILBOX": "Agent messages",
     "BOOKMARKS": "Bookmarks",
     "OPEN_REACT_EDITOR": "Open React Editor",
     "DETACH_DOCUMENT": "Open document in a separate window",
@@ -1692,6 +1693,25 @@
     "EXCLUDED_TITLE": "Excluded (not registrable)",
     "REFRESH": "Refresh",
     "CLOSE": "Close"
+  },
+  "MAILBOX": {
+    "TITLE": "Agent messages",
+    "SUBTITLE": "Messages the agents of this project have sent to you. Reply to wake the agent in the same conversation.",
+    "LOADING": "Loading messages…",
+    "EMPTY_UNREAD": "No unread messages.",
+    "EMPTY_ALL": "No messages from agents yet.",
+    "NEW": "new",
+    "MARK_READ": "Mark read",
+    "REPLY_LABEL": "Your reply",
+    "REPLY_PLACEHOLDER": "Write a reply to wake the agent…",
+    "REPLY_BUTTON": "Reply",
+    "REPLY_SENT": "Reply sent to \"{{agent}}\".",
+    "SHOW_ALL": "Show all",
+    "SHOW_UNREAD_ONLY": "Unread only",
+    "REFRESH": "Refresh",
+    "CLOSE": "Close",
+    "TOAST": "🔔 New message from \"{{agent}}\".",
+    "TOAST_OPEN": "Open"
   },
   "AGENT_TRUST": {
     "TITLE": "Trust this agent?",

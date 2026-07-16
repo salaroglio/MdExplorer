@@ -62,6 +62,33 @@ namespace MdExplorer.Controllers.A2A
 
             var to = request.ToAgent.Trim();
 
+            // Escalation all'umano (§9): 'user' è sempre un destinatario valido — non è un
+            // cittadino, non ha whitelist, e l'escalation non deve mai morire per trust/budget.
+            // Salta i controlli su cittadinanza/accepts e accoda (hop esente lato guard). È la
+            // metà "la città parla all'umano" della Fase 4.
+            if (string.Equals(to, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase))
+            {
+                var toUser = _mailbox.Enqueue(new EnqueueRequest
+                {
+                    ProjectPath = claims.ProjectPath,
+                    FromAgent = claims.AgentName,               // R2: mittente certificato
+                    ToAgent = ConversationHopGuard.UserRecipient,
+                    Body = request.Message,
+                    ContextId = claims.ConversationId,          // stesso thread del risveglio
+                    Topics = request.Topics,
+                });
+                if (!toUser.Accepted)
+                    return StatusCode(409, new { error = toUser.RejectionReason });
+
+                _logger.LogInformation("[A2A/send] {From} -> user accodato (task {Task})", claims.AgentName, toUser.TaskId);
+                return Ok(new
+                {
+                    accepted = true,
+                    taskId = toUser.TaskId,
+                    conversationId = toUser.ConversationId.ToString(),
+                });
+            }
+
             // Ri-validazione del destinatario dalle fonti (§6/§7): la cache non è mai l'autorità.
             var recipient = _registry.RefreshCatalog(claims.ProjectPath)
                 .FirstOrDefault(e => e.IsCitizen && string.Equals(e.Name, to, StringComparison.OrdinalIgnoreCase));

@@ -148,6 +148,35 @@ Sei l'agente {name}.";
             return (resp.StatusCode, await resp.Content.ReadAsStringAsync());
         }
 
+        // ---- porta dell'umano sulla mailbox (Fase 4a, /api/A2A/mailbox) ----
+
+        /// <summary>GET della inbox dell'umano (messaggi to:user). Ritorna il JSON grezzo.</summary>
+        public async Task<(System.Net.HttpStatusCode Status, System.Text.Json.JsonDocument Json)> GetInbox(
+            string projectPath, bool includeRead = false)
+        {
+            var url = $"/api/A2A/mailbox/inbox?projectPath={Uri.EscapeDataString(projectPath)}&includeRead={includeRead}";
+            var resp = await Client.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            return (resp.StatusCode, System.Text.Json.JsonDocument.Parse(body));
+        }
+
+        /// <summary>Marca letto un messaggio to:user.</summary>
+        public async Task<System.Net.HttpStatusCode> MarkRead(Guid messageId)
+        {
+            var resp = await Client.PostAsync($"/api/A2A/mailbox/inbox/{messageId}/read", null);
+            return resp.StatusCode;
+        }
+
+        /// <summary>L'umano risponde in un thread: POST /api/A2A/mailbox/reply.</summary>
+        public async Task<(System.Net.HttpStatusCode Status, string Body)> Reply(string conversationId, string body)
+        {
+            var payload = System.Text.Json.JsonSerializer.Serialize(
+                new { conversationId, body });
+            var content = new StringContent(payload, Encoding.UTF8, "application/json");
+            var resp = await Client.PostAsync("/api/A2A/mailbox/reply", content);
+            return (resp.StatusCode, await resp.Content.ReadAsStringAsync());
+        }
+
         // ---- asserzioni sulla mailbox ----
 
         public List<AgentMessage> Messages()

@@ -10,7 +10,9 @@ using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Models.Agents;
 using MdExplorer.Abstractions.Services;
 using MdExplorer.Features.Agents;
+using MdExplorer.Hubs;
 using MdExplorer.Services.AgentRegistry;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -36,6 +38,11 @@ namespace MdExplorer.Services.AgentRun
         private const int BatchSize = 20;
         private const int OutputSummaryMax = 2000;
 
+        // Anteprima del corpo nella notifica push all'umano: la UI carica il testo pieno
+        // dalla inbox su richiesta, il push porta solo un assaggio.
+        private const int BodyPreviewMax = 280;
+        private const string MailboxReceivedEvent = "agentMessageReceived";
+
         // Retention: i messaggi conclusi (processed/failed) vengono purgati dopo questa finestra,
         // altrimenti la tabella cresce all'infinito. La purga gira all'avvio e poi a intervalli.
         private static readonly TimeSpan RetentionWindow = TimeSpan.FromDays(14);
@@ -46,6 +53,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentRegistryService _registry;
         private readonly IEnumerable<IAlgorithmicAgent> _algorithmicAgents;
         private readonly ILlmAgentWaker _llmWaker;
+        private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly ILogger<AgentMessageDispatcher> _logger;
 
         public AgentMessageDispatcher(
@@ -53,12 +61,14 @@ namespace MdExplorer.Services.AgentRun
             IAgentRegistryService registry,
             IEnumerable<IAlgorithmicAgent> algorithmicAgents,
             ILlmAgentWaker llmWaker,
+            IHubContext<MonitorMDHub> hubContext,
             ILogger<AgentMessageDispatcher> logger)
         {
             _scopeFactory = scopeFactory;
             _registry = registry;
             _algorithmicAgents = algorithmicAgents;
             _llmWaker = llmWaker;
+            _hubContext = hubContext;
             _logger = logger;
         }
 
@@ -187,10 +197,13 @@ namespace MdExplorer.Services.AgentRun
                 snapshot = Clone(msg);
             }
 
-            // 2) messaggio verso l'umano: persistito per la UI (notifica SignalR in Fase 4)
+            // 2) messaggio verso l'umano (§13 Fase 4a): persistito per la inbox e notificato
+            // via SignalR così la UI mostra toast + badge. Il messaggio resta 'processed'
+            // (consegna conclusa) ma non-letto (ReadAt null) finché l'utente non lo apre.
             if (string.Equals(snapshot.ToAgent, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase))
             {
                 MarkProcessed(messageId);
+                await NotifyUserMailboxAsync(snapshot);
                 return;
             }
 
@@ -325,6 +338,38 @@ namespace MdExplorer.Services.AgentRun
             if (outcome.Success) MarkProcessed(messageId);
             else RetryOrFail(messageId, outcome.Error);
         }
+
+        /// <summary>
+        /// Notifica push all'umano di un messaggio a lui indirizzato (§13 Fase 4a). Broadcast su
+        /// <see cref="MonitorMDHub"/>: le finestre aperte mostrano toast + badge. Best-effort —
+        /// il messaggio è già persistito nella inbox, quindi un push mancato non perde nulla
+        /// (la UI lo ripesca dalla inbox); logghiamo e proseguiamo, mai fail del run per questo.
+        /// </summary>
+        private async Task NotifyUserMailboxAsync(AgentMessage snapshot)
+        {
+            try
+            {
+                await _hubContext.Clients.All.SendAsync(MailboxReceivedEvent, new
+                {
+                    conversationId = snapshot.ConversationId.ToString(),
+                    messageId = snapshot.Id.ToString(),
+                    fromAgent = snapshot.FromAgent,
+                    projectPath = snapshot.ProjectPath,
+                    bodyPreview = Preview(snapshot.Body),
+                    topics = AgentTopics.Split(snapshot.Topics),
+                    createdAt = snapshot.CreatedAt,
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Dispatcher] Notifica SignalR mailbox (to:user) fallita per {Id}", snapshot.Id);
+            }
+        }
+
+        private static string Preview(string body)
+            => string.IsNullOrEmpty(body) || body.Length <= BodyPreviewMax
+                ? body
+                : body.Substring(0, BodyPreviewMax) + "…";
 
         /// <summary>Rubrica (§6): cittadini fidati del progetto, escluso il destinatario stesso.</summary>
         private static IReadOnlyList<AgentRosterEntry> BuildRoster(

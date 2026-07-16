@@ -19,6 +19,7 @@ import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog
 import { GitMessagesComponent } from '../../../git/components/git-messages/git-messages.component';
 import { CommitMessageDialogComponent } from '../../../git/dialogs/commit-message-dialog/commit-message-dialog.component';
 import { AgentRegistryDialogComponent } from '../agent-registry-dialog/agent-registry-dialog.component';
+import { AgentMailboxNotificationService } from '../../../services/agent-mailbox-notification.service';
 import { GitHistoryDialogComponent } from '../../../git/dialogs/git-history-dialog/git-history-dialog.component';
 import { GitBranchDialogComponent } from '../../../git/dialogs/git-branch-dialog/git-branch-dialog.component';
 import { GitSetupRemoteGenericDialogComponent } from '../../../git/dialogs/git-setup-remote-generic-dialog/git-setup-remote-generic-dialog.component';
@@ -102,12 +103,16 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private tocProgressService: TocProgressService,
     private translate: TranslateService,
     private themeService: ThemeService,
-    private documentRefreshService: DocumentRefreshService
+    private documentRefreshService: DocumentRefreshService,
+    private mailboxNotifications: AgentMailboxNotificationService
 
   ) {
     this.TitleToShow = "MdExplorer";
     this.connectionIsActive = true;
   }
+
+  /** Non-letti della inbox dell'umano (§13 Fase 4a): badge sulla campanella. */
+  public mailboxUnread: number = 0;
 
   /** Apre la "città degli agenti" del progetto corrente (registry + trust, §6). */
   openAgentRegistry(): void {
@@ -117,6 +122,11 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       maxHeight: '80vh',
       data: { projectPath },
     });
+  }
+
+  /** Apre il centro notifiche (messaggi degli agenti verso l'umano, §13 Fase 4a). */
+  openMailbox(): void {
+    this.mailboxNotifications.open();
   }
 
   ngOnInit(): void {
@@ -152,12 +162,16 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.filesAndAuthors = _.whatFilesWillBeChanged;
     });
     
+    // Mailbox non-letti (§13 Fase 4a): il badge segue il conteggio autoritativo.
+    this.mailboxNotifications.unread$.subscribe(n => this.mailboxUnread = n);
+
     // Set initial project path if available
     const currentProject = this.projectService.currentProjects$.value;
     if (currentProject && currentProject.path) {
       this.gitservice.setProjectPath(currentProject.path);
+      this.mailboxNotifications.setProject(currentProject.path);
     }
-    
+
     // Subscribe to project changes to update Git service
     this.projectService.currentProjects$.subscribe((project: any) => {
       if (project && project.path) {
@@ -165,6 +179,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         this.resetGitState();
         // Then set new project path and trigger poll
         this.gitservice.setProjectPath(project.path);
+        // Ricarica il badge non-letti per il nuovo progetto
+        this.mailboxNotifications.setProject(project.path);
 
         // Check if manual credentials are needed (auto-detection failed)
         // Only show dialog for non-OAuth providers - OAuth providers (GitHub, GitLab, Azure, Bitbucket)

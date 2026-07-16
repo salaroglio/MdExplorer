@@ -54,6 +54,19 @@ export class MdServerMessagesService {
     outputTail?: string
   }>();
 
+  // Observable for agent→user mailbox messages (§13 Fase 4a). Emitted by
+  // AgentMessageDispatcher when a citizen escalates to the human: drives the toast
+  // + the unread badge on the toolbar bell.
+  public agentMessageReceived$ = new Subject<{
+    conversationId: string,
+    messageId: string,
+    fromAgent: string,
+    projectPath: string,
+    bodyPreview: string,
+    topics?: string[],
+    createdAt: string
+  }>();
+
   // Observable for KG drift events (emitted by FileSystemWatcherManager when a .md
   // diverges from the // sourceDocHash header of its adjacent .kg.cypher).
   public kgStale$ = new Subject<{
@@ -196,6 +209,12 @@ export class MdServerMessagesService {
       // *.agent.md headless run progress (manual launch, schedule, hook)
       this.hubConnection.on('agentJobProgress', (data) => {
         this.agentJobProgress$.next(data);
+      });
+
+      // Agent→user mailbox message (§13 Fase 4a): a citizen escalated to the human
+      this.hubConnection.on('agentMessageReceived', (data) => {
+        console.log('🔔 SignalR event received: agentMessageReceived', data);
+        this.agentMessageReceived$.next(data);
       });
 
       // KG drift detection — .md edited but .kg.cypher is out of sync
