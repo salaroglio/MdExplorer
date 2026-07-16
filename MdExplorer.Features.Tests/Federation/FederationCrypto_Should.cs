@@ -110,5 +110,21 @@ namespace MdExplorer.Features.Tests.Federation
             Assert.ThrowsException<ArgumentException>(() => FederationCrypto.DeriveKey("", Room));
             Assert.ThrowsException<ArgumentException>(() => FederationCrypto.DeriveKey(Secret, ""));
         }
+
+        [TestMethod]
+        public void Derive_a_join_token_that_all_cities_share_but_is_not_the_key()
+        {
+            var t1 = FederationCrypto.DeriveJoinToken(Secret, Room);
+            var t2 = FederationCrypto.DeriveJoinToken(Secret, Room);
+            Assert.AreEqual(t1, t2, "stesso secret+room → stesso join token (coerenza di stanza)");
+
+            // Il join token NON deve coincidere con la chiave di cifratura (info diversa):
+            // il relay che lo custodisce non deve poter risalire alla chiave.
+            var keyHex = Convert.ToHexString(FederationCrypto.DeriveKey(Secret, Room)).ToLowerInvariant();
+            Assert.AreNotEqual(keyHex, t1);
+
+            Assert.AreNotEqual(t1, FederationCrypto.DeriveJoinToken("altro-secret", Room));
+            Assert.AreNotEqual(t1, FederationCrypto.DeriveJoinToken(Secret, "altra-stanza"));
+        }
     }
 }

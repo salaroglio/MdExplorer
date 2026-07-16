@@ -32,6 +32,10 @@ namespace MdExplorer.Features.Federation
         public const string Version = "v1";
         private const string Prefix = "mdfed.v1.";
         private static readonly byte[] Info = Encoding.UTF8.GetBytes("mdfed-v1");
+        // Info DIVERSA per la credenziale di stanza: il join token è derivato dallo stesso
+        // secret ma con etichetta distinta, così il relay può custodire/confrontare il token
+        // di join SENZA mai poter derivare la chiave di cifratura (buste chiuse, R15).
+        private static readonly byte[] JoinInfo = Encoding.UTF8.GetBytes("mdfed-join");
 
         private const int KeyLen = 32;    // AES-256
         private const int NonceLen = 12;  // 96-bit, raccomandato per GCM
@@ -51,6 +55,25 @@ namespace MdExplorer.Features.Federation
             var ikm = Encoding.UTF8.GetBytes(roomSecret);
             var salt = Encoding.UTF8.GetBytes(roomId);
             return HKDF.DeriveKey(HashAlgorithmName.SHA256, ikm, KeyLen, salt, Info);
+        }
+
+        /// <summary>
+        /// Credenziale di stanza per il relay (§12.6, hardening #11): HKDF(secret, salt=roomId,
+        /// info="mdfed-join") → 16 byte hex. Tutte le città con lo stesso secret derivano lo
+        /// stesso token e il relay ne impone la coerenza per stanza — <b>senza</b> poter risalire
+        /// alla chiave di cifratura (info diversa). È ciò che il client presenta all'handshake.
+        /// </summary>
+        public static string DeriveJoinToken(string roomSecret, string roomId)
+        {
+            if (string.IsNullOrEmpty(roomSecret))
+                throw new ArgumentException("room secret assente.", nameof(roomSecret));
+            if (string.IsNullOrEmpty(roomId))
+                throw new ArgumentException("roomId assente.", nameof(roomId));
+
+            var ikm = Encoding.UTF8.GetBytes(roomSecret);
+            var salt = Encoding.UTF8.GetBytes(roomId);
+            var token = HKDF.DeriveKey(HashAlgorithmName.SHA256, ikm, 16, salt, JoinInfo);
+            return Convert.ToHexString(token).ToLowerInvariant();
         }
 
         /// <summary>Cifra <paramref name="plaintext"/> in una busta <c>mdfed.v1....</c>.</summary>
