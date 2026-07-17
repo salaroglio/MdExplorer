@@ -96,8 +96,13 @@ namespace MdExplorer.Services.Federation
                 .Replace("ws://", "http://")
                 .Replace("/mdchat", "")
                 .TrimEnd('/');
-            _apiKey = configuration["MdChat:ApiKey"];   // può mancare: allora resta dormiente
+            // Placeholder versionato (YOUR_API_KEY_HERE) o assente ⇒ null ⇒ dormiente. La chiave
+            // vera arriva da env MdChat__ApiKey / appsettings.Development.json (gitignored) / user-secrets.
+            _apiKey = MdExplorer.Services.TeamChat.MdChatConfig.ResolveApiKey(configuration);
+            _apiKeyIsPlaceholder = MdExplorer.Services.TeamChat.MdChatConfig.IsPlaceholderApiKey(configuration);
         }
+
+        private readonly bool _apiKeyIsPlaceholder;
 
         public IReadOnlyList<LocalCity> GetLocalCities() => _snapshot;
 
@@ -209,7 +214,11 @@ namespace MdExplorer.Services.Federation
             {
                 if (!_warnedNoApiKey)
                 {
-                    _logger.LogWarning("[Federation] città attive ma 'MdChat:ApiKey' assente: impossibile connettersi al relay. Resto dormiente.");
+                    if (_apiKeyIsPlaceholder)
+                        _logger.LogWarning("[Federation] città attive ma 'MdChat:ApiKey' è ancora il placeholder ('{Ph}'): imposta la chiave vera via env MdChat__ApiKey, appsettings.Development.json (gitignored) o user-secrets. Resto dormiente.",
+                            MdExplorer.Services.TeamChat.MdChatConfig.PlaceholderApiKey);
+                    else
+                        _logger.LogWarning("[Federation] città attive ma 'MdChat:ApiKey' assente: impossibile connettersi al relay. Resto dormiente.");
                     _warnedNoApiKey = true;
                 }
                 return Task.CompletedTask;
