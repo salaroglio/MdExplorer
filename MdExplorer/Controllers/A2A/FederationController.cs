@@ -68,11 +68,19 @@ namespace MdExplorer.Controllers.A2A
         [HttpGet("requests")]
         public IActionResult Requests([FromQuery] string? projectPath, [FromQuery] bool includeDecided = false)
         {
-            var reqs = _session.GetDal<FederationRequest>().GetList().ToList().AsEnumerable();
+            // Filtro di stato a livello SQL; il path (comparazione normalizzata, non
+            // traducibile) si applica in memoria sul set già ridotto. Lettura dentro una
+            // transazione esplicita (igiene della sessione condivisa UserDB).
+            _session.BeginTransaction();
+            var query = _session.GetDal<FederationRequest>().GetList();
+            if (!includeDecided)
+                query = query.Where(r => r.Status == FederationRequest.StatusEnum.Pending);
+            var fetched = query.ToList();
+            _session.Commit();
+
+            var reqs = fetched.AsEnumerable();
             if (!string.IsNullOrWhiteSpace(projectPath))
                 reqs = reqs.Where(r => AgentPathComparer.Equals(r.ProjectPath, projectPath));
-            if (!includeDecided)
-                reqs = reqs.Where(r => r.Status == FederationRequest.StatusEnum.Pending);
 
             var items = reqs
                 .OrderByDescending(r => r.CreatedAt)
@@ -105,7 +113,9 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult Approve(Guid id, [FromBody] ApproveFederationRequest? body)
         {
             var dal = _session.GetDal<FederationRequest>();
-            var req = dal.GetList().ToList().FirstOrDefault(r => r.Id == id);
+            _session.BeginTransaction();
+            var req = dal.GetList().FirstOrDefault(r => r.Id == id);
+            _session.Commit();
             if (req == null)
                 return NotFound(new { error = $"Richiesta federata '{id}' non trovata." });
             if (req.Status != FederationRequest.StatusEnum.Pending)
@@ -122,7 +132,9 @@ namespace MdExplorer.Controllers.A2A
                 return StatusCode(403, new { error = $"L'agente '{targetAgent}' non è trusted: concedi il trust prima di autorizzare." });
 
             // Conversazione locale con la correlazione federata (budget hop proprio, §12.6).
-            Guid convId;
+            // NB: la decisione (Approved) si committa solo DOPO che l'enqueue è accettato:
+            // se il mailbox rifiuta, la richiesta resta pending e l'umano può riprovare —
+            // mai una richiesta "consumata" senza che l'agente sia stato svegliato.
             _session.BeginTransaction();
             var conv = new AgentConversation
             {
@@ -138,12 +150,8 @@ namespace MdExplorer.Controllers.A2A
                 RemoteAgent = req.FromAgent,
             };
             _session.GetDal<AgentConversation>().Save(conv);
-            convId = conv.Id;
-
-            req.Status = FederationRequest.StatusEnum.Approved;
-            req.DecidedAt = DateTime.UtcNow;
-            dal.Save(req);
             _session.Commit();
+            var convId = conv.Id;
 
             // L'umano vouches: mittente 'user' (hop esente, sempre ammesso). La provenienza
             // remota vera vive sulla conversazione (RemoteOwner/RemoteAgent + FederationId).
@@ -158,7 +166,20 @@ namespace MdExplorer.Controllers.A2A
                 Topics = AgentTopics.Split(req.Topics),
             });
             if (!enqueue.Accepted)
+            {
+                // Rollback logico: la conversazione appena creata (nessun messaggio) non
+                // serve più; la richiesta resta pending, ritentabile dalla UI.
+                _session.BeginTransaction();
+                _session.GetDal<AgentConversation>().Delete(conv);
+                _session.Commit();
                 return StatusCode(409, new { error = enqueue.RejectionReason });
+            }
+
+            _session.BeginTransaction();
+            req.Status = FederationRequest.StatusEnum.Approved;
+            req.DecidedAt = DateTime.UtcNow;
+            dal.Save(req);
+            _session.Commit();
 
             _logger.LogInformation("[Federation] richiesta {Id} APPROVATA → sveglio '{Agent}' in conversazione {Conv}", id, targetAgent, convId);
             return Ok(new { approved = true, conversationId = convId.ToString(), targetAgent });
@@ -169,13 +190,19 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult Reject(Guid id)
         {
             var dal = _session.GetDal<FederationRequest>();
-            var req = dal.GetList().ToList().FirstOrDefault(r => r.Id == id);
-            if (req == null)
-                return NotFound(new { error = $"Richiesta federata '{id}' non trovata." });
-            if (req.Status != FederationRequest.StatusEnum.Pending)
-                return UnprocessableEntity(new { error = $"Richiesta già decisa (stato: '{req.Status}')." });
-
             _session.BeginTransaction();
+            var req = dal.GetList().FirstOrDefault(r => r.Id == id);
+            if (req == null)
+            {
+                _session.Commit();
+                return NotFound(new { error = $"Richiesta federata '{id}' non trovata." });
+            }
+            if (req.Status != FederationRequest.StatusEnum.Pending)
+            {
+                _session.Commit();
+                return UnprocessableEntity(new { error = $"Richiesta già decisa (stato: '{req.Status}')." });
+            }
+
             req.Status = FederationRequest.StatusEnum.Rejected;
             req.DecidedAt = DateTime.UtcNow;
             dal.Save(req);

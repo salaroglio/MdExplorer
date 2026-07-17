@@ -298,12 +298,19 @@ namespace MdExplorer.Services
             // enabled/ownership dalla UI non deve azzerare i WIP segnalati dal team).
             var maintenance = NormalizeMaintenance(config.Maintenance ?? root.AgentCity?.Maintenance);
 
+            // Come il room secret: il relay URL è una scelta di squadra committata nel yml
+            // (relay self-hosted); un caller che non lo porta non deve riportare la città
+            // sul relay di default.
+            var relayUrl = string.IsNullOrWhiteSpace(config.RelayUrl)
+                ? root.AgentCity?.RelayUrl
+                : config.RelayUrl.Trim();
+
             root.AgentCity = new AgentCityConfig
             {
                 Enabled = config.Enabled,
                 OwnershipDoc = string.IsNullOrWhiteSpace(config.OwnershipDoc) ? null : config.OwnershipDoc.Trim(),
                 RoomSecret = string.IsNullOrWhiteSpace(secret) ? null : secret,
-                RelayUrl = string.IsNullOrWhiteSpace(config.RelayUrl) ? null : config.RelayUrl.Trim(),
+                RelayUrl = string.IsNullOrWhiteSpace(relayUrl) ? null : relayUrl,
                 Maintenance = maintenance,
             };
 

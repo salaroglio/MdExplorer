@@ -302,8 +302,19 @@ namespace MdExplorer.Services.Federation
             }
 
             var envelope = FederationCrypto.Encrypt(secret, city.RoomId, System.Text.Json.JsonSerializer.Serialize(payload));
-            await conn.SendAsync(targetOwnerId, envelope);
-            return true;
+            try
+            {
+                await conn.SendAsync(targetOwnerId, envelope);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // Contratto: "false se nessuna connessione attiva" — vale anche quando la
+                // RoomConnection esiste ma il socket è giù (relay caduto, mid-reconnect):
+                // il chiamante deve vedere un 503 ritentabile, non un 500 generico.
+                _logger.LogWarning(ex, "[Federation] send federato fallito per '{Project}' (socket non attivo?)", projectPath);
+                return false;
+            }
         }
 
         public override async Task StopAsync(CancellationToken cancellationToken)

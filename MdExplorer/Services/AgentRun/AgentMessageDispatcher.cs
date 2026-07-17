@@ -301,12 +301,21 @@ namespace MdExplorer.Services.AgentRun
         {
             // Coda differita (§12.5) — cause DI POLITICA per prime (manutenzione WIP via git,
             // pausa utente locale): se l'agente è indisponibile, parcheggia senza nemmeno
-            // tentare uno slot Copilot.
-            var policyDefer = _availability.CheckDeferral(snapshot.ProjectPath, entry.Name);
-            if (policyDefer != null)
+            // tentare uno slot Copilot. Il "forza-ora" dell'umano (ForcedAt, Fase 6d) scavalca
+            // la politica — altrimenti la leva sarebbe un no-op: la condizione che ha causato
+            // il parcheggio è ancora lì e riparcheggerebbe subito. Il tetto risorse resta.
+            if (snapshot.ForcedAt == null)
             {
-                Defer(messageId, policyDefer);
-                return;
+                var policyDefer = _availability.CheckDeferral(snapshot.ProjectPath, entry.Name);
+                if (policyDefer != null)
+                {
+                    Defer(messageId, policyDefer);
+                    return;
+                }
+            }
+            else
+            {
+                _logger.LogInformation("[Dispatcher] messaggio {Id} forzato dall'umano: differimenti di politica saltati", messageId);
             }
 
             // Poi la causa DI RISORSA: tetto istanze Copilot. Il parcheggio non consuma tentativi
@@ -475,6 +484,7 @@ namespace MdExplorer.Services.AgentRun
                 m.ProcessedAt = DateTime.UtcNow;
                 m.Error = null;
                 m.DeferredReason = null;   // il run è avvenuto: nessun parcheggio residuo
+                m.ForcedAt = null;
             });
 
         private void MarkFailed(Guid messageId, string error)
@@ -484,6 +494,7 @@ namespace MdExplorer.Services.AgentRun
                 m.ProcessedAt = DateTime.UtcNow;
                 m.Error = error;
                 m.DeferredReason = null;
+                m.ForcedAt = null;
             });
 
         /// <summary>
@@ -581,6 +592,7 @@ namespace MdExplorer.Services.AgentRun
             State = m.State,
             Attempts = m.Attempts,
             CreatedAt = m.CreatedAt,
+            ForcedAt = m.ForcedAt,
         };
 
         private static string SafeName(IAlgorithmicAgent a)

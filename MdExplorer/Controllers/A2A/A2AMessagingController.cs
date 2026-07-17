@@ -30,6 +30,11 @@ namespace MdExplorer.Controllers.A2A
     {
         public const string RunTokenHeader = "X-MDE-Run-Token";
 
+        // Tetto anti-flood del ramo agente→umano (§9): l'escalation è hop-esente e senza
+        // whitelist, quindi questo è l'unico limite. Conta i non-letti della conversazione:
+        // l'umano che legge/risponde libera il budget, un agente in loop si ferma qui.
+        private const int MaxUnreadUserMessagesPerConversation = 10;
+
         private readonly IRunTokenStore _tokens;
         private readonly IAgentRegistryService _registry;
         private readonly IAgentMailbox _mailbox;
@@ -82,6 +87,20 @@ namespace MdExplorer.Controllers.A2A
             // metà "la città parla all'umano" della Fase 4.
             if (string.Equals(to, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase))
             {
+                // Anti-flood: essendo hop-esente, senza un tetto un agente in loop (o
+                // prompt-injected) potrebbe riempire la inbox e affogare le escalation vere.
+                if (Guid.TryParse(claims.ConversationId, out var userConvId))
+                {
+                    _session.BeginTransaction();
+                    var unreadInThread = _session.GetDal<AgentMessage>().GetList()
+                        .Count(m => m.ConversationId == userConvId
+                                    && m.ToAgent == ConversationHopGuard.UserRecipient
+                                    && m.ReadAt == null);
+                    _session.Commit();
+                    if (unreadInThread >= MaxUnreadUserMessagesPerConversation)
+                        return StatusCode(429, new { error = $"Tetto messaggi verso l'umano raggiunto ({MaxUnreadUserMessagesPerConversation} non letti in questa conversazione): attendi che l'umano legga o risponda." });
+                }
+
                 var toUser = _mailbox.Enqueue(new EnqueueRequest
                 {
                     ProjectPath = claims.ProjectPath,
@@ -203,13 +222,18 @@ namespace MdExplorer.Controllers.A2A
 
             var targetOwnerId = FederationRoom.ComputeUserId(entry.GitEmail);
 
-            // Hop + correlazione FederationId sulla conversazione d'origine (§12.6).
+            // Hop + correlazione FederationId sulla conversazione d'origine (§12.6). Il
+            // guardrail si VALUTA prima del send, ma hop e correlazione si committano solo
+            // DOPO un send riuscito: un relay irraggiungibile (503) non deve bruciare il
+            // budget hop della conversazione a ogni retry.
             var fedId = Guid.NewGuid();
+            AgentConversation conv = null;
+            var newHopCount = 0;
             if (Guid.TryParse(claims.ConversationId, out var convId))
             {
                 _session.BeginTransaction();
                 var dal = _session.GetDal<AgentConversation>();
-                var conv = dal.GetList().ToList().FirstOrDefault(c => c.Id == convId);
+                conv = dal.GetList().FirstOrDefault(c => c.Id == convId);
                 if (conv != null)
                 {
                     if (conv.Status == AgentConversation.StatusEnum.Killed)
@@ -226,13 +250,8 @@ namespace MdExplorer.Controllers.A2A
                         _session.Commit();
                         return StatusCode(409, new { error = $"Limite hop raggiunto ({conv.HopLimit}): conversazione esaurita." });
                     }
-                    conv.HopCount = decision.NewHopCount;
+                    newHopCount = decision.NewHopCount;
                     fedId = conv.FederationId ?? fedId;
-                    conv.FederationId = fedId;
-                    conv.RemoteOwner = entry.GitEmail;
-                    conv.RemoteAgent = targetAgent;
-                    conv.LastActivityAt = DateTime.UtcNow;
-                    dal.Save(conv);
                 }
                 _session.Commit();
             }
@@ -251,6 +270,20 @@ namespace MdExplorer.Controllers.A2A
             var sent = await _federationSender.SendFederatedRequestAsync(claims.ProjectPath, targetOwnerId, payload);
             if (!sent)
                 return StatusCode(503, new { error = "Nessuna connessione federata attiva per il progetto (città accesa e relay raggiungibile?)." });
+
+            // Send riuscito: solo ora l'hop è consumato e la correlazione persistita.
+            if (conv != null)
+            {
+                _session.BeginTransaction();
+                var dal = _session.GetDal<AgentConversation>();
+                conv.HopCount = newHopCount;
+                conv.FederationId = fedId;
+                conv.RemoteOwner = entry.GitEmail;
+                conv.RemoteAgent = targetAgent;
+                conv.LastActivityAt = DateTime.UtcNow;
+                dal.Save(conv);
+                _session.Commit();
+            }
 
             _logger.LogInformation("[A2A/request-intervention] {From} → ambito '{Scope}' ({Agent}@{Owner}), fed {Fed}",
                 claims.AgentName, entry.Scope, targetAgent, entry.GitEmail, fedId);

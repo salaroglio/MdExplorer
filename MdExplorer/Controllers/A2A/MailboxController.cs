@@ -58,24 +58,31 @@ namespace MdExplorer.Controllers.A2A
         {
             try
             {
-                var messages = _session.GetDal<AgentMessage>().GetList().ToList()
-                    .Where(m => string.Equals(m.ToAgent, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase));
-
-                if (!string.IsNullOrWhiteSpace(projectPath))
-                    messages = messages.Where(m => AgentPathComparer.Equals(m.ProjectPath, projectPath));
+                // Filtri a livello SQL (destinatario 'user' — il valore in DB è sempre la
+                // costante, scritta dal codice — e non-letti); il path (comparazione
+                // normalizzata, non traducibile) si applica in memoria sul set già ridotto.
+                // Lettura dentro una transazione esplicita (igiene della sessione UserDB).
+                _session.BeginTransaction();
+                var query = _session.GetDal<AgentMessage>().GetList()
+                    .Where(m => m.ToAgent == ConversationHopGuard.UserRecipient);
                 if (!includeRead)
-                    messages = messages.Where(m => m.ReadAt == null);
+                    query = query.Where(m => m.ReadAt == null);
+                var fetched = query.OrderByDescending(m => m.CreatedAt).ToList();
 
-                var items = messages
-                    .OrderByDescending(m => m.CreatedAt)
+                // Il badge conta i non-letti: se la pagina è già "solo non-letti" riusa la
+                // fetch, altrimenti una seconda query mirata (mai l'intera tabella).
+                var unreadAll = !includeRead
+                    ? fetched
+                    : _session.GetDal<AgentMessage>().GetList()
+                        .Where(m => m.ToAgent == ConversationHopGuard.UserRecipient && m.ReadAt == null)
+                        .ToList();
+                _session.Commit();
+
+                var items = FilterByProject(fetched, projectPath)
                     .Take(Math.Clamp(take, 1, 500))
                     .Select(ToInboxDto)
                     .ToList();
-
-                var unread = _session.GetDal<AgentMessage>().GetList().ToList()
-                    .Count(m => string.Equals(m.ToAgent, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase)
-                                && m.ReadAt == null
-                                && (string.IsNullOrWhiteSpace(projectPath) || AgentPathComparer.Equals(m.ProjectPath, projectPath)));
+                var unread = FilterByProject(unreadAll, projectPath).Count();
 
                 return Ok(new { messages = items, unread });
             }
@@ -92,10 +99,12 @@ namespace MdExplorer.Controllers.A2A
         {
             try
             {
-                var unread = _session.GetDal<AgentMessage>().GetList().ToList()
-                    .Count(m => string.Equals(m.ToAgent, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase)
-                                && m.ReadAt == null
-                                && (string.IsNullOrWhiteSpace(projectPath) || AgentPathComparer.Equals(m.ProjectPath, projectPath)));
+                _session.BeginTransaction();
+                var unreadAll = _session.GetDal<AgentMessage>().GetList()
+                    .Where(m => m.ToAgent == ConversationHopGuard.UserRecipient && m.ReadAt == null)
+                    .ToList();
+                _session.Commit();
+                var unread = FilterByProject(unreadAll, projectPath).Count();
                 return Ok(new { unread });
             }
             catch (Exception ex)
@@ -112,19 +121,25 @@ namespace MdExplorer.Controllers.A2A
             try
             {
                 var dal = _session.GetDal<AgentMessage>();
-                var msg = dal.GetList().ToList().FirstOrDefault(m => m.Id == messageId);
+                _session.BeginTransaction();
+                var msg = dal.GetList().FirstOrDefault(m => m.Id == messageId);
                 if (msg == null)
+                {
+                    _session.Commit();
                     return NotFound(new { error = $"Messaggio '{messageId}' non trovato." });
+                }
                 if (!string.Equals(msg.ToAgent, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase))
+                {
+                    _session.Commit();
                     return BadRequest(new { error = "Solo i messaggi indirizzati a 'user' possono essere marcati come letti." });
+                }
 
                 if (msg.ReadAt == null)
                 {
-                    _session.BeginTransaction();
                     msg.ReadAt = DateTime.UtcNow;
                     dal.Save(msg);
-                    _session.Commit();
                 }
+                _session.Commit();
                 return Ok(new { read = true, readAt = msg.ReadAt });
             }
             catch (Exception ex)
@@ -152,18 +167,22 @@ namespace MdExplorer.Controllers.A2A
             if (!Guid.TryParse(request.ConversationId, out var convId))
                 return BadRequest(new { error = $"conversationId non valido: '{request.ConversationId}'." });
 
-            var conversation = _session.GetDal<AgentConversation>().GetList().ToList()
+            _session.BeginTransaction();
+            var conversation = _session.GetDal<AgentConversation>().GetList()
                 .FirstOrDefault(c => c.Id == convId);
-            if (conversation == null)
-                return NotFound(new { error = $"Conversazione '{convId}' non trovata." });
 
             // Il destinatario naturale della risposta: l'agente che ha scritto a 'user' per
             // ultimo in questo thread. Fail-loud se non esiste (non c'è a chi rispondere).
-            var lastToUser = _session.GetDal<AgentMessage>().GetList().ToList()
-                .Where(m => m.ConversationId == convId
-                            && string.Equals(m.ToAgent, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase))
-                .OrderByDescending(m => m.CreatedAt)
-                .FirstOrDefault();
+            var lastToUser = conversation == null
+                ? null
+                : _session.GetDal<AgentMessage>().GetList()
+                    .Where(m => m.ConversationId == convId && m.ToAgent == ConversationHopGuard.UserRecipient)
+                    .OrderByDescending(m => m.CreatedAt)
+                    .FirstOrDefault();
+            _session.Commit();
+
+            if (conversation == null)
+                return NotFound(new { error = $"Conversazione '{convId}' non trovata." });
             if (lastToUser == null)
                 return UnprocessableEntity(new { error = "In questo thread nessun agente ha scritto a 'user': non c'è un destinatario a cui rispondere." });
 
@@ -217,19 +236,31 @@ namespace MdExplorer.Controllers.A2A
         {
             try
             {
-                var convs = _session.GetDal<AgentConversation>().GetList().ToList().AsEnumerable();
+                _session.BeginTransaction();
+                var allConvs = _session.GetDal<AgentConversation>().GetList()
+                    .OrderByDescending(c => c.LastActivityAt)
+                    .ToList();
+                _session.Commit();
+
+                var convs = allConvs.AsEnumerable();
                 if (!string.IsNullOrWhiteSpace(projectPath))
                     convs = convs.Where(c => AgentPathComparer.Equals(c.ProjectPath, projectPath));
 
                 var ordered = convs
-                    .OrderByDescending(c => c.LastActivityAt)
                     .Take(Math.Clamp(take, 1, 500))
                     .ToList();
 
-                // Messaggi dei soli thread in pagina, per contare e ricavare i partecipanti.
-                var ids = ordered.Select(c => c.Id).ToHashSet();
-                var msgsByConv = _session.GetDal<AgentMessage>().GetList().ToList()
-                    .Where(m => ids.Contains(m.ConversationId))
+                // Messaggi dei soli thread in pagina (IN a livello SQL, non l'intera tabella),
+                // per contare e ricavare i partecipanti.
+                var ids = ordered.Select(c => c.Id).ToList();
+                _session.BeginTransaction();
+                var pageMsgs = ids.Count == 0
+                    ? new List<AgentMessage>()
+                    : _session.GetDal<AgentMessage>().GetList()
+                        .Where(m => ids.Contains(m.ConversationId))
+                        .ToList();
+                _session.Commit();
+                var msgsByConv = pageMsgs
                     .GroupBy(m => m.ConversationId)
                     .ToDictionary(g => g.Key, g => g.ToList());
 
@@ -277,14 +308,20 @@ namespace MdExplorer.Controllers.A2A
         {
             try
             {
-                var conv = _session.GetDal<AgentConversation>().GetList().ToList()
+                _session.BeginTransaction();
+                var conv = _session.GetDal<AgentConversation>().GetList()
                     .FirstOrDefault(c => c.Id == conversationId);
+                var threadMsgs = conv == null
+                    ? new List<AgentMessage>()
+                    : _session.GetDal<AgentMessage>().GetList()
+                        .Where(m => m.ConversationId == conversationId)
+                        .OrderBy(m => m.CreatedAt)
+                        .ToList();
+                _session.Commit();
                 if (conv == null)
                     return NotFound(new { error = $"Conversazione '{conversationId}' non trovata." });
 
-                var messages = _session.GetDal<AgentMessage>().GetList().ToList()
-                    .Where(m => m.ConversationId == conversationId)
-                    .OrderBy(m => m.CreatedAt)
+                var messages = threadMsgs
                     .Select(m => new
                     {
                         id = m.Id,
@@ -337,19 +374,24 @@ namespace MdExplorer.Controllers.A2A
             try
             {
                 var dal = _session.GetDal<AgentConversation>();
-                var conv = dal.GetList().ToList().FirstOrDefault(c => c.Id == conversationId);
+                _session.BeginTransaction();
+                var conv = dal.GetList().FirstOrDefault(c => c.Id == conversationId);
                 if (conv == null)
-                    return NotFound(new { error = $"Conversazione '{conversationId}' non trovata." });
-
-                if (conv.Status != AgentConversation.StatusEnum.Killed)
                 {
-                    _session.BeginTransaction();
+                    _session.Commit();
+                    return NotFound(new { error = $"Conversazione '{conversationId}' non trovata." });
+                }
+
+                var wasKilled = conv.Status == AgentConversation.StatusEnum.Killed;
+                if (!wasKilled)
+                {
                     conv.Status = AgentConversation.StatusEnum.Killed;
                     conv.LastActivityAt = DateTime.UtcNow;
                     dal.Save(conv);
-                    _session.Commit();
-                    _logger.LogInformation("[Mailbox] Conversazione {Conv} terminata (killed) dall'umano", conversationId);
                 }
+                _session.Commit();
+                if (!wasKilled)
+                    _logger.LogInformation("[Mailbox] Conversazione {Conv} terminata (killed) dall'umano", conversationId);
                 return Ok(new { status = conv.Status });
             }
             catch (Exception ex)
@@ -371,14 +413,20 @@ namespace MdExplorer.Controllers.A2A
             try
             {
                 var dal = _session.GetDal<AgentConversation>();
-                var conv = dal.GetList().ToList().FirstOrDefault(c => c.Id == conversationId);
+                _session.BeginTransaction();
+                var conv = dal.GetList().FirstOrDefault(c => c.Id == conversationId);
                 if (conv == null)
+                {
+                    _session.Commit();
                     return NotFound(new { error = $"Conversazione '{conversationId}' non trovata." });
+                }
 
                 if (conv.Status != AgentConversation.StatusEnum.Exhausted)
+                {
+                    _session.Commit();
                     return UnprocessableEntity(new { error = $"Solo una conversazione 'exhausted' può essere riaperta (stato attuale: '{conv.Status}')." });
+                }
 
-                _session.BeginTransaction();
                 conv.Status = AgentConversation.StatusEnum.Active;
                 conv.HopCount = 0;
                 conv.LastActivityAt = DateTime.UtcNow;
@@ -400,14 +448,12 @@ namespace MdExplorer.Controllers.A2A
             try
             {
                 var dal = _session.GetDal<AgentMessage>();
-                var open = dal.GetList().ToList()
+                _session.BeginTransaction();
+                var open = dal.GetList()
                     .Where(m => m.ConversationId == convId
-                                && string.Equals(m.ToAgent, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase)
+                                && m.ToAgent == ConversationHopGuard.UserRecipient
                                 && m.ReadAt == null)
                     .ToList();
-                if (open.Count == 0) return;
-
-                _session.BeginTransaction();
                 var now = DateTime.UtcNow;
                 foreach (var m in open) { m.ReadAt = now; dal.Save(m); }
                 _session.Commit();
@@ -418,6 +464,13 @@ namespace MdExplorer.Controllers.A2A
                 _logger.LogWarning(ex, "[Mailbox] Marcatura letti del thread {Conv} fallita (best-effort)", convId);
             }
         }
+
+        // Il confronto path (AgentPathComparer normalizza) non è traducibile in SQL: si
+        // applica in memoria, sempre su un set già ridotto dai filtri SQL.
+        private static IEnumerable<AgentMessage> FilterByProject(IEnumerable<AgentMessage> messages, string projectPath)
+            => string.IsNullOrWhiteSpace(projectPath)
+                ? messages
+                : messages.Where(m => AgentPathComparer.Equals(m.ProjectPath, projectPath));
 
         private object ToInboxDto(AgentMessage m) => new
         {

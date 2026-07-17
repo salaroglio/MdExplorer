@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
@@ -89,7 +90,29 @@ namespace MdExplorer.Services.Federation
             {
                 var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
                 db.BeginTransaction();
-                db.GetDal<FederationRequest>().Save(request);
+                var dal = db.GetDal<FederationRequest>();
+
+                // Idempotenza sulle riconsegne: l'origine RIUSA lo stesso FederationId per
+                // tutta la conversazione (retry dopo un errore transiente, redeliver del relay),
+                // quindi il dedup è su (FederationId, TargetAgent, Message) e solo contro i gate
+                // ancora pending — un retry non materializza un secondo gate umano, un follow-up
+                // legittimo (testo diverso) sì.
+                var duplicate = dal.GetList()
+                    .Where(r => r.FederationId == fedId
+                                && r.Status == FederationRequest.StatusEnum.Pending
+                                && r.TargetAgent == request.TargetAgent
+                                && r.Message == request.Message)
+                    .ToList()
+                    .FirstOrDefault(r => AgentPathComparer.Equals(r.ProjectPath, projectPath));
+                if (duplicate != null)
+                {
+                    db.Commit();
+                    _logger.LogInformation("[Federation] richiesta federata duplicata (fed {Fed}) → riuso il gate pending {Id}",
+                        fedId, duplicate.Id);
+                    return duplicate.Id;
+                }
+
+                dal.Save(request);
                 db.Commit();
             }
 

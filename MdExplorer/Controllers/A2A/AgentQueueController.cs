@@ -38,10 +38,21 @@ namespace MdExplorer.Controllers.A2A
 
             try
             {
+                // Stato filtrato a livello SQL (i non-conclusi sono pochi); nome agente
+                // (case-insensitive) e path (normalizzato) in memoria sul set ridotto.
+                // Letture in transazione esplicita (igiene della sessione UserDB).
+                _session.BeginTransaction();
+                var openMessages = _session.GetDal<AgentMessage>().GetList()
+                    .Where(m => m.State == AgentMessage.StateEnum.Pending || m.State == AgentMessage.StateEnum.Delivered)
+                    .ToList();
+                var pendingRequests = _session.GetDal<FederationRequest>().GetList()
+                    .Where(r => r.Status == FederationRequest.StatusEnum.Pending)
+                    .ToList();
+                _session.Commit();
+
                 // Messaggi non conclusi per l'agente (pending/delivered), col motivo del parcheggio.
-                var messages = _session.GetDal<AgentMessage>().GetList().ToList()
+                var messages = openMessages
                     .Where(m => string.Equals(m.ToAgent, name, StringComparison.OrdinalIgnoreCase)
-                                && (m.State == AgentMessage.StateEnum.Pending || m.State == AgentMessage.StateEnum.Delivered)
                                 && (string.IsNullOrWhiteSpace(projectPath) || AgentPathComparer.Equals(m.ProjectPath, projectPath)))
                     .OrderBy(m => m.CreatedAt)
                     .Select(m => new
@@ -60,9 +71,8 @@ namespace MdExplorer.Controllers.A2A
                     .ToList();
 
                 // Richieste federate in attesa di gate, a lui indirizzate.
-                var federated = _session.GetDal<FederationRequest>().GetList().ToList()
+                var federated = pendingRequests
                     .Where(r => string.Equals(r.TargetAgent, name, StringComparison.OrdinalIgnoreCase)
-                                && r.Status == FederationRequest.StatusEnum.Pending
                                 && (string.IsNullOrWhiteSpace(projectPath) || AgentPathComparer.Equals(r.ProjectPath, projectPath)))
                     .OrderBy(r => r.CreatedAt)
                     .Select(r => new
@@ -86,9 +96,12 @@ namespace MdExplorer.Controllers.A2A
         }
 
         /// <summary>
-        /// Forza-ora un messaggio parcheggiato: azzera l'attesa e il motivo così il dispatcher
-        /// lo riprova al prossimo giro. Vale solo per un messaggio ancora <c>pending</c> (non
-        /// scavalca il gate federato, che vive in FederationRequest, non qui).
+        /// Forza-ora un messaggio parcheggiato: azzera l'attesa e il motivo, e marca
+        /// <c>ForcedAt</c> così il dispatcher <b>salta i differimenti di politica</b>
+        /// (maintenance/user) fino alla conclusione — senza il flag la policy rileggerebbe la
+        /// stessa condizione e riparcheggerebbe subito (no-op silenzioso). Il tetto risorse
+        /// resta. Vale solo per un messaggio ancora <c>pending</c> (non scavalca il gate
+        /// federato, che vive in FederationRequest, non qui).
         /// </summary>
         [HttpPost("queue/{messageId}/force")]
         public IActionResult Force(Guid messageId)
@@ -96,15 +109,22 @@ namespace MdExplorer.Controllers.A2A
             try
             {
                 var dal = _session.GetDal<AgentMessage>();
-                var msg = dal.GetList().ToList().FirstOrDefault(m => m.Id == messageId);
-                if (msg == null)
-                    return NotFound(new { error = $"Messaggio '{messageId}' non trovato." });
-                if (msg.State != AgentMessage.StateEnum.Pending)
-                    return UnprocessableEntity(new { error = $"Solo un messaggio 'pending' può essere forzato (stato: '{msg.State}')." });
-
                 _session.BeginTransaction();
+                var msg = dal.GetList().FirstOrDefault(m => m.Id == messageId);
+                if (msg == null)
+                {
+                    _session.Commit();
+                    return NotFound(new { error = $"Messaggio '{messageId}' non trovato." });
+                }
+                if (msg.State != AgentMessage.StateEnum.Pending)
+                {
+                    _session.Commit();
+                    return UnprocessableEntity(new { error = $"Solo un messaggio 'pending' può essere forzato (stato: '{msg.State}')." });
+                }
+
                 msg.NextAttemptAt = null;
                 msg.DeferredReason = null;
+                msg.ForcedAt = DateTime.UtcNow;
                 dal.Save(msg);
                 _session.Commit();
                 _logger.LogInformation("[AgentQueue] messaggio {Id} forzato (riprova immediata)", messageId);
@@ -125,15 +145,22 @@ namespace MdExplorer.Controllers.A2A
             try
             {
                 var dal = _session.GetDal<AgentMessage>();
-                var msg = dal.GetList().ToList().FirstOrDefault(m => m.Id == messageId);
-                if (msg == null)
-                    return NotFound(new { error = $"Messaggio '{messageId}' non trovato." });
-                if (msg.State == AgentMessage.StateEnum.Processed || msg.State == AgentMessage.StateEnum.Failed)
-                    return UnprocessableEntity(new { error = $"Il messaggio è già concluso (stato: '{msg.State}')." });
-
                 _session.BeginTransaction();
+                var msg = dal.GetList().FirstOrDefault(m => m.Id == messageId);
+                if (msg == null)
+                {
+                    _session.Commit();
+                    return NotFound(new { error = $"Messaggio '{messageId}' non trovato." });
+                }
+                if (msg.State == AgentMessage.StateEnum.Processed || msg.State == AgentMessage.StateEnum.Failed)
+                {
+                    _session.Commit();
+                    return UnprocessableEntity(new { error = $"Il messaggio è già concluso (stato: '{msg.State}')." });
+                }
+
                 msg.State = AgentMessage.StateEnum.Failed;
                 msg.DeferredReason = null;
+                msg.ForcedAt = null;
                 msg.ProcessedAt = DateTime.UtcNow;
                 msg.Error = "Scartato dall'utente dalla coda dell'agente.";
                 dal.Save(msg);

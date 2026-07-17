@@ -488,7 +488,10 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       error: (err) => {
         console.error('Error saving Agent City settings:', err);
         this.saving = false;
-        this.agentCityEnabled = !this.agentCityEnabled;
+        // Il salvataggio è fallito: riallinea la UI allo stato PERSISTITO rileggendolo
+        // dal server. Niente inversione cieca del checkbox: questo handler è agganciato
+        // anche al blur del campo ownership-doc, e lì il toggle non è stato toccato.
+        this.loadAgentCity();
       }
     });
   }

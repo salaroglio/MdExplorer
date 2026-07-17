@@ -72,6 +72,15 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// </summary>
         public virtual string DeferredReason { get; set; }
 
+        /// <summary>
+        /// L'umano ha chiesto il "forza-ora" dalla coda (§12.5 Fase 6d): finché il messaggio
+        /// non si conclude, il dispatcher <b>salta i differimenti di politica</b>
+        /// (maintenance/user) — altrimenti la leva sarebbe un no-op silenzioso, perché la
+        /// policy rileggerebbe la stessa condizione e riparcheggerebbe subito. Il tetto
+        /// risorse (Copilot) resta: uno slot non si può forzare. <c>null</c> = non forzato.
+        /// </summary>
+        public virtual DateTime? ForcedAt { get; set; }
+
         /// <summary>Valori ammessi per <see cref="State"/>.</summary>
         public static class StateEnum
         {
