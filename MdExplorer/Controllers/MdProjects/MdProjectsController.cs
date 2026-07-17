@@ -250,11 +250,17 @@ namespace MdExplorer.Service.Controllers.MdProjects
             hasRoomSecret = !string.IsNullOrWhiteSpace(cfg?.RoomSecret),
         };
 
+        /// <summary>
+        /// Campi nullable di proposito (memoria <c>dto_nullable_implicit_required</c>): la UI
+        /// invia solo enabled+ownershipDoc — con reference type non-nullable la validazione
+        /// automatica di <c>[ApiController]</c> risponderebbe 400 "RelayUrl is required" prima
+        /// di entrare nell'action, rendendo l'attivazione città impossibile dalla UI.
+        /// </summary>
         public class AgentCityRequest
         {
             public bool Enabled { get; set; }
-            public string OwnershipDoc { get; set; }
-            public string RelayUrl { get; set; }
+            public string? OwnershipDoc { get; set; }
+            public string? RelayUrl { get; set; }
         }
 
         [HttpGet]

@@ -381,6 +381,7 @@ namespace MdExplorer.Services.Federation
             private volatile FederationAnnounce _announce;
             private SocketIOClient.SocketIO _socket;
             private bool _disposed;
+            private int _connectFailures;
 
             /// <summary>Invocato con la busta cifrata di un messaggio in arrivo (evento relay <c>deliver</c>).</summary>
             public Action<string> OnDeliver;
@@ -416,9 +417,25 @@ namespace MdExplorer.Services.Federation
                         ReconnectionDelayMax = 30000,
                     });
                     // A ogni (ri)connessione: join della stanza + annuncio.
-                    socket.OnConnected += (s, e) => { _ = JoinAndAnnounceAsync(); };
+                    socket.OnConnected += (s, e) =>
+                    {
+                        System.Threading.Interlocked.Exchange(ref _connectFailures, 0);
+                        _ = JoinAndAnnounceAsync();
+                    };
                     socket.OnDisconnected += (s, reason) =>
                         _logger.LogWarning("[Federation] stanza {Room}: disconnesso ({Reason})", _announce?.RoomId, reason);
+                    // Un handshake rifiutato (es. API key errata) altrimenti è un retry infinito
+                    // PERFETTAMENTE silenzioso: nessuna riga di log, città mai federata. Log
+                    // throttlato: il primo fallimento e poi uno ogni 20.
+                    socket.OnError += (s, err) =>
+                        _logger.LogWarning("[Federation] stanza {Room}: errore dal relay: {Error}", _announce?.RoomId, err);
+                    socket.OnReconnectError += (s, ex) =>
+                    {
+                        var n = System.Threading.Interlocked.Increment(ref _connectFailures);
+                        if (n == 1 || n % 20 == 0)
+                            _logger.LogWarning("[Federation] stanza {Room}: connessione al relay fallita (tentativo {N}): {Msg}",
+                                _announce?.RoomId, n, ex.Message);
+                    };
                     // Messaggio federato in arrivo: passa la busta cifrata al service (decifra+gate).
                     socket.On("deliver", resp =>
                     {
