@@ -56,8 +56,14 @@ namespace MdExplorer.Services.AgentRun
         private readonly IProjectOwnershipService _ownership;
         private readonly IAgentRunGate _runGate;
         private readonly IAgentAvailabilityPolicy _availability;
+        private readonly MdExplorer.Services.AgentMemory.IAgentMemoryService _memory;
+        private readonly MdExplorer.Services.AgentMemory.IFusekiConnectionResolver _fusekiResolver;
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly ILogger<AgentMessageDispatcher> _logger;
+
+        // Quanti fatti al massimo iniettare al risveglio: abbastanza per il contesto, non tanti
+        // da riempire il prompt (antidoto al context rot — SPARQL mirata, non un blob).
+        private const int MemoryRecallLimit = 20;
 
         // Attesa prima di riprovare un messaggio parcheggiato: breve, così appena la
         // condizione si libera (slot Copilot, fine manutenzione) la ripresa è rapida.
@@ -71,6 +77,8 @@ namespace MdExplorer.Services.AgentRun
             IProjectOwnershipService ownership,
             IAgentRunGate runGate,
             IAgentAvailabilityPolicy availability,
+            MdExplorer.Services.AgentMemory.IAgentMemoryService memory,
+            MdExplorer.Services.AgentMemory.IFusekiConnectionResolver fusekiResolver,
             IHubContext<MonitorMDHub> hubContext,
             ILogger<AgentMessageDispatcher> logger)
         {
@@ -81,6 +89,8 @@ namespace MdExplorer.Services.AgentRun
             _ownership = ownership;
             _runGate = runGate;
             _availability = availability;
+            _memory = memory;
+            _fusekiResolver = fusekiResolver;
             _hubContext = hubContext;
             _logger = logger;
         }
@@ -351,6 +361,10 @@ namespace MdExplorer.Services.AgentRun
             // Ownership del progetto (§12.3): iniettata come routing hint SOLO se la
             // federazione è attiva e il doc è valido (il servizio ritorna null altrimenti).
             var ownership = SafeGetOwnership(snapshot.ProjectPath);
+            // Memoria rilevante (§11 Fase 5c): SPARQL mirata sui topic del messaggio → i fatti
+            // che questo agente (e la città) ha già appreso. Best-effort fail-loud: Fuseki giù
+            // → run SENZA memoria + warning, mai un finto successo silenzioso.
+            var memory = await SafeRecallMemoryAsync(snapshot, entry, ct);
             var startedAt = DateTime.UtcNow;
             LlmWakeOutcome outcome;
             try
@@ -367,6 +381,7 @@ namespace MdExplorer.Services.AgentRun
                     Topics = AgentTopics.Split(snapshot.Topics),
                     Roster = roster,
                     Ownership = ownership,
+                    RetrievedMemory = memory,
                 }, ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -425,6 +440,49 @@ namespace MdExplorer.Services.AgentRun
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "[Dispatcher] Caricamento ownership fallito per '{Project}'", projectPath);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Recupero della memoria al risveglio (§11 Fase 5c): risolve Fuseki dal progetto e, se
+        /// abilitato, interroga il grafo dell'agente (+ shared) filtrando per i topic del
+        /// messaggio in arrivo. Fail-loud best-effort: se Fuseki è irraggiungibile il run
+        /// procede SENZA memoria ma con un warning esplicito — mai un finto successo silenzioso.
+        /// Memoria non abilitata (resolver null) = nessun fatto, nessun warning (caso normale).
+        /// </summary>
+        private async Task<IReadOnlyList<MdExplorer.Features.Agents.RecalledFact>> SafeRecallMemoryAsync(
+            AgentMessage snapshot, AgentRegistryEntry entry, CancellationToken ct)
+        {
+            if (entry.IdentityId == null) return null;
+
+            MdExplorer.Services.AgentMemory.FusekiConnection conn;
+            try { conn = _fusekiResolver.Resolve(snapshot.ProjectPath); }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Dispatcher] Risoluzione Fuseki fallita per '{Project}': risveglio senza memoria", snapshot.ProjectPath);
+                return null;
+            }
+            if (conn == null) return null;   // memoria non abilitata: caso normale
+
+            try
+            {
+                var topics = AgentTopics.Split(snapshot.Topics);
+                var facts = await _memory.QueryAsync(conn, entry.IdentityId.Value, topics, MemoryRecallLimit);
+                if (facts == null || facts.Count == 0) return null;
+                return facts.Select(f => new MdExplorer.Features.Agents.RecalledFact
+                {
+                    Statement = f.Statement,
+                    Confidence = f.Confidence,
+                    Shared = f.Shared,
+                }).ToList();
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                // Fail-loud: Fuseki abilitato ma non raggiungibile/rotto. Il run va avanti senza
+                // memoria, ma lo diciamo forte (non un successo mascherato).
+                _logger.LogWarning(ex, "[Dispatcher] Recupero memoria fallito per '{Agent}' (Fuseki abilitato ma non raggiungibile?): risveglio senza memoria", entry.Name);
                 return null;
             }
         }

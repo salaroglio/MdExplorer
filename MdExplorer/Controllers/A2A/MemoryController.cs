@@ -2,15 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Ad.Tools.Dal.Extensions;
-using MdExplorer.Abstractions.DB;
-using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Features.AgentMemory;
 using MdExplorer.Features.Agents;
 using MdExplorer.Features.Services.KnowledgeGraph;
 using MdExplorer.Services.AgentMemory;
 using MdExplorer.Services.AgentRegistry;
-using MdExplorer.Services.AgentRun;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -34,23 +30,20 @@ namespace MdExplorer.Controllers.A2A
         private readonly IRunTokenStore _tokens;
         private readonly IAgentRegistryService _registry;
         private readonly IAgentMemoryService _memory;
-        private readonly IUserSettingsDB _session;
-        private readonly IPasswordProtector _passwordProtector;
+        private readonly IFusekiConnectionResolver _fusekiResolver;
         private readonly ILogger<MemoryController> _logger;
 
         public MemoryController(
             IRunTokenStore tokens,
             IAgentRegistryService registry,
             IAgentMemoryService memory,
-            IUserSettingsDB session,
-            IPasswordProtector passwordProtector,
+            IFusekiConnectionResolver fusekiResolver,
             ILogger<MemoryController> logger)
         {
             _tokens = tokens;
             _registry = registry;
             _memory = memory;
-            _session = session;
-            _passwordProtector = passwordProtector;
+            _fusekiResolver = fusekiResolver;
             _logger = logger;
         }
 
@@ -167,39 +160,14 @@ namespace MdExplorer.Controllers.A2A
                 return null;
             }
 
-            // Coordinate Fuseki del progetto (lettura in transazione esplicita — igiene sessione).
-            Project project;
-            ProjectFusekiSettings settings;
-            // Materializza prima del confronto path: AgentPathComparer.Equals non è
-            // traducibile in SQL da NHibernate (gotcha noto).
-            _session.BeginTransaction();
-            project = _session.GetDal<Project>().GetList().ToList()
-                .FirstOrDefault(p => AgentPathComparer.Equals(p.Path, claims.ProjectPath));
-            settings = project == null ? null : _session.GetDal<ProjectFusekiSettings>().GetList()
-                .FirstOrDefault(s => s.Project.Id == project.Id);
-            _session.Commit();
-
-            if (settings == null || !settings.Enabled || string.IsNullOrWhiteSpace(settings.Dataset))
+            var conn = _fusekiResolver.Resolve(claims.ProjectPath);
+            if (conn == null)
             {
                 error = StatusCode(409, new { error = "La memoria (Fuseki) non è abilitata per questo progetto." });
                 return null;
             }
 
-            var password = string.IsNullOrEmpty(settings.PasswordEncrypted)
-                ? string.Empty
-                : _passwordProtector.Unprotect(settings.PasswordEncrypted);
-
-            return new Resolved
-            {
-                AgentIdentityId = entry.IdentityId.Value,
-                Conn = new FusekiConnection
-                {
-                    BaseUri = settings.Uri,
-                    Dataset = settings.Dataset,
-                    Username = settings.Username ?? string.Empty,
-                    Password = password,
-                },
-            };
+            return new Resolved { AgentIdentityId = entry.IdentityId.Value, Conn = conn };
         }
 
         private static List<string> SplitTags(string csv)

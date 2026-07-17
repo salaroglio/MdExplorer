@@ -20,6 +20,17 @@ namespace MdExplorer.Features.Agents
         public IReadOnlyList<AgentRosterEntry> Roster { get; set; }
         /// <summary>Ownership del progetto (§12.3) quando la federazione è attiva; null = niente iniezione.</summary>
         public IReadOnlyList<OwnershipEntry> Ownership { get; set; }
+        /// <summary>Memoria rilevante recuperata al risveglio (§11 Fase 5c); null/vuoto = niente iniezione.</summary>
+        public IReadOnlyList<RecalledFact> RetrievedMemory { get; set; }
+    }
+
+    /// <summary>Un fatto recuperato dalla memoria dell'agente, per l'iniezione nel prompt (§11).</summary>
+    public class RecalledFact
+    {
+        public string Statement { get; set; }
+        public double Confidence { get; set; }
+        /// <summary>Vero se dal grafo condiviso della città (non dalla memoria privata).</summary>
+        public bool Shared { get; set; }
     }
 
     /// <summary>Esito del risveglio: il dispatcher lo mappa su processed / retry-or-fail.</summary>
@@ -92,7 +103,7 @@ namespace MdExplorer.Features.Agents
                 // R1: il messaggio entra come DATO dentro delimitatori, non come istruzione.
                 var prompt = AgentPromptComposer.ComposeMessageWakePrompt(
                     request.AgentFileContent, request.FromAgent, request.MessageBody,
-                    request.Roster, request.Topics, request.Ownership);
+                    request.Roster, request.Topics, request.Ownership, request.RetrievedMemory);
 
                 var env = new Dictionary<string, string>
                 {
