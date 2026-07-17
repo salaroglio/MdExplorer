@@ -122,6 +122,8 @@ namespace MdExplorer
             // per-agente forzato server-side. Braccio verso Fuseki (il controller fa l'enforcement).
             services.AddSingleton<Services.AgentMemory.IAgentMemoryService, Services.AgentMemory.AgentMemoryService>();
             services.AddSingleton<Services.AgentMemory.IFusekiConnectionResolver, Services.AgentMemory.FusekiConnectionResolver>();
+            // Istanza Fuseki gestita (addon on-demand): avvio/stop di proprietà del Service.
+            services.AddSingleton<Services.AgentMemory.IFusekiProcessManager, Services.AgentMemory.FusekiProcessManager>();
 
             // Federazione (Fase 6b): assemblaggio annuncio cifrato + presidio lato Service.
             // Il FederationRelayService è DORMIENTE finché nessun progetto abilita la città;

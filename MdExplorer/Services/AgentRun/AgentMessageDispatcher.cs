@@ -457,9 +457,11 @@ namespace MdExplorer.Services.AgentRun
             if (entry.IdentityId == null) return null;
 
             MdExplorer.Services.AgentMemory.FusekiConnection conn;
-            try { conn = _fusekiResolver.Resolve(snapshot.ProjectPath); }
+            try { conn = await _fusekiResolver.ResolveAsync(snapshot.ProjectPath, ct); }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
+                // Include l'addon Fuseki mancante (istanza gestita): risveglio senza memoria + warning.
                 _logger.LogWarning(ex, "[Dispatcher] Risoluzione Fuseki fallita per '{Project}': risveglio senza memoria", snapshot.ProjectPath);
                 return null;
             }

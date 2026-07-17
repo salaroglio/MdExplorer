@@ -61,7 +61,7 @@ namespace MdExplorer.Controllers.A2A
             if (request == null || string.IsNullOrWhiteSpace(request.Statement))
                 return BadRequest(new { error = "statement è obbligatorio." });
 
-            var resolved = ResolveAgentAndFuseki(claims, out var error);
+            var (resolved, error) = await ResolveAgentAndFusekiAsync(claims);
             if (resolved == null)
                 return error;
 
@@ -103,7 +103,7 @@ namespace MdExplorer.Controllers.A2A
             if (claims == null)
                 return Unauthorized(new { error = "RunToken assente o non valido." });
 
-            var resolved = ResolveAgentAndFuseki(claims, out var error);
+            var (resolved, error) = await ResolveAgentAndFusekiAsync(claims);
             if (resolved == null)
                 return error;
 
@@ -148,26 +148,26 @@ namespace MdExplorer.Controllers.A2A
         /// coordinate Fuseki del progetto. Ritorna null + un IActionResult d'errore se l'agente
         /// non è un cittadino o Fuseki non è abilitato.
         /// </summary>
-        private Resolved ResolveAgentAndFuseki(RunTokenClaims claims, out IActionResult error)
+        private async Task<(Resolved Resolved, IActionResult Error)> ResolveAgentAndFusekiAsync(RunTokenClaims claims)
         {
-            error = null;
-
             var entry = _registry.RefreshCatalog(claims.ProjectPath)
                 .FirstOrDefault(e => e.IsCitizen && string.Equals(e.Name, claims.AgentName, StringComparison.OrdinalIgnoreCase));
             if (entry == null || entry.IdentityId == null)
-            {
-                error = NotFound(new { error = $"Identità dell'agente '{claims.AgentName}' non risolvibile: memoria non disponibile." });
-                return null;
-            }
+                return (null, NotFound(new { error = $"Identità dell'agente '{claims.AgentName}' non risolvibile: memoria non disponibile." }));
 
-            var conn = _fusekiResolver.Resolve(claims.ProjectPath);
+            FusekiConnection conn;
+            try
+            {
+                conn = await _fusekiResolver.ResolveAsync(claims.ProjectPath);
+            }
+            catch (FusekiAddonMissingException ax)
+            {
+                return (null, StatusCode(409, new { error = ax.Message }));
+            }
             if (conn == null)
-            {
-                error = StatusCode(409, new { error = "La memoria (Fuseki) non è abilitata per questo progetto." });
-                return null;
-            }
+                return (null, StatusCode(409, new { error = "La memoria (Fuseki) non è abilitata per questo progetto." }));
 
-            return new Resolved { AgentIdentityId = entry.IdentityId.Value, Conn = conn };
+            return (new Resolved { AgentIdentityId = entry.IdentityId.Value, Conn = conn }, null);
         }
 
         private static List<string> SplitTags(string csv)

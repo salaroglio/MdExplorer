@@ -11,6 +11,7 @@ namespace MDExplorer.DataAccess.Mapping
             Id(x => x.Id).GeneratedBy.GuidComb();
             References(x => x.Project).Column("ProjectId").Not.Nullable().Unique();
             Map(x => x.Enabled).Not.Nullable();
+            Map(x => x.Managed).Not.Nullable();
             Map(x => x.Uri).Length(500).Not.Nullable();
             Map(x => x.Dataset).Length(200).Not.Nullable();
             Map(x => x.Username).Length(200).Not.Nullable();

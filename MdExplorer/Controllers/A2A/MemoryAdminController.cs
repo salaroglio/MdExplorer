@@ -48,7 +48,9 @@ namespace MdExplorer.Controllers.A2A
             if (string.IsNullOrWhiteSpace(projectPath))
                 return BadRequest(new { error = "projectPath è obbligatorio." });
 
-            var conn = _fusekiResolver.Resolve(projectPath);
+            FusekiConnection conn;
+            try { conn = await _fusekiResolver.ResolveAsync(projectPath); }
+            catch (FusekiAddonMissingException ax) { return StatusCode(409, new { error = ax.Message }); }
             if (conn == null)
                 return StatusCode(409, new { error = "La memoria (Fuseki) non è abilitata per questo progetto." });
 
@@ -103,8 +105,8 @@ namespace MdExplorer.Controllers.A2A
             if (request.Confidence < 0 || request.Confidence > 1)
                 return BadRequest(new { error = "confidence deve essere tra 0 e 1." });
 
-            var guard = GuardProjectGraph(request.ProjectPath, request.Graph, out var conn, out var error);
-            if (!guard) return error;
+            var (conn, error) = await GuardProjectGraphAsync(request.ProjectPath, request.Graph);
+            if (conn == null) return error;
 
             try
             {
@@ -124,8 +126,8 @@ namespace MdExplorer.Controllers.A2A
             if (string.IsNullOrWhiteSpace(projectPath) || string.IsNullOrWhiteSpace(graph) || string.IsNullOrWhiteSpace(factUri))
                 return BadRequest(new { error = "projectPath, graph, factUri sono obbligatori." });
 
-            var guard = GuardProjectGraph(projectPath, graph, out var conn, out var error);
-            if (!guard) return error;
+            var (conn, error) = await GuardProjectGraphAsync(projectPath, graph);
+            if (conn == null) return error;
 
             try
             {
@@ -144,7 +146,9 @@ namespace MdExplorer.Controllers.A2A
         {
             if (string.IsNullOrWhiteSpace(projectPath))
                 return BadRequest(new { error = "projectPath è obbligatorio." });
-            var conn = _fusekiResolver.Resolve(projectPath);
+            FusekiConnection conn;
+            try { conn = await _fusekiResolver.ResolveAsync(projectPath); }
+            catch (FusekiAddonMissingException ax) { return StatusCode(409, new { error = ax.Message }); }
             if (conn == null)
                 return StatusCode(409, new { error = "La memoria (Fuseki) non è abilitata per questo progetto." });
 
@@ -188,22 +192,18 @@ namespace MdExplorer.Controllers.A2A
 
         // Vincola una curatela a un grafo che appartiene DAVVERO al progetto (agente cittadino o
         // shared): impedisce all'umano — o a un input manipolato — di toccare grafi arbitrari.
-        private bool GuardProjectGraph(string projectPath, string graph, out FusekiConnection conn, out IActionResult error)
+        private async Task<(FusekiConnection Conn, IActionResult Error)> GuardProjectGraphAsync(string projectPath, string graph)
         {
-            error = null;
-            conn = _fusekiResolver.Resolve(projectPath);
+            FusekiConnection conn;
+            try { conn = await _fusekiResolver.ResolveAsync(projectPath); }
+            catch (FusekiAddonMissingException ax) { return (null, StatusCode(409, new { error = ax.Message })); }
             if (conn == null)
-            {
-                error = StatusCode(409, new { error = "La memoria (Fuseki) non è abilitata per questo progetto." });
-                return false;
-            }
+                return (null, StatusCode(409, new { error = "La memoria (Fuseki) non è abilitata per questo progetto." }));
+
             var allowed = new HashSet<string>(ResolveGraphNames(projectPath).Keys) { AgentMemoryGraphs.Shared };
             if (!allowed.Contains(graph))
-            {
-                error = BadRequest(new { error = "Il grafo indicato non appartiene a questo progetto." });
-                return false;
-            }
-            return true;
+                return (null, BadRequest(new { error = "Il grafo indicato non appartiene a questo progetto." }));
+            return (conn, null);
         }
     }
 

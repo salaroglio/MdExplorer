@@ -136,6 +136,24 @@ Sei l'agente {name}.";
             db.Commit();
         }
 
+        /// <summary>Abilita Fuseki GESTITO per un progetto (il Service avvia l'istanza; Uri ignorato).</summary>
+        public void EnableManagedFuseki(Guid projectId, string dataset)
+        {
+            using var scope = Factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var project = db.GetDal<Project>().GetList().First(p => p.Id == projectId);
+            var dal = db.GetDal<ProjectFusekiSettings>();
+            var settings = dal.GetList().FirstOrDefault(s => s.Project.Id == projectId)
+                ?? new ProjectFusekiSettings { Project = project };
+            settings.Enabled = true;
+            settings.Managed = true;
+            settings.Dataset = dataset;
+            settings.Username = string.Empty;
+            dal.Save(settings);
+            db.Commit();
+        }
+
         /// <summary>Conia un RunToken legato a queste claim (per esercitare il canale autenticato).</summary>
         public string MintRunToken(string agentName, string projectPath, string conversationId)
         {
