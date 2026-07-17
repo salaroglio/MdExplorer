@@ -22,6 +22,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="AgentMemory\mde-agent.ttl" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="dotNetRDF" Version="3.5.2" />
     <PackageReference Include="LLamaSharp" Version="0.26.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />

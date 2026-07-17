@@ -118,6 +118,24 @@ Sei l'agente {name}.";
             registry.TrustAgent(projectPath, agentName);
         }
 
+        /// <summary>Abilita Fuseki per un progetto puntando a un dataset dato (memoria, Fase 5).</summary>
+        public void EnableFuseki(Guid projectId, string uri, string dataset)
+        {
+            using var scope = Factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var project = db.GetDal<Project>().GetList().First(p => p.Id == projectId);
+            var dal = db.GetDal<ProjectFusekiSettings>();
+            var settings = dal.GetList().FirstOrDefault(s => s.Project.Id == projectId)
+                ?? new ProjectFusekiSettings { Project = project };
+            settings.Enabled = true;
+            settings.Uri = uri;
+            settings.Dataset = dataset;
+            settings.Username = string.Empty;
+            dal.Save(settings);
+            db.Commit();
+        }
+
         /// <summary>Conia un RunToken legato a queste claim (per esercitare il canale autenticato).</summary>
         public string MintRunToken(string agentName, string projectPath, string conversationId)
         {

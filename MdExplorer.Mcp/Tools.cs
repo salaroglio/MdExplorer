@@ -226,6 +226,82 @@ public class MdExplorerTools
     }
 
     [McpServerTool, Description(
+        "Remember a fact you learned, so your FUTURE selves recall it across wake-ups (semantic " +
+        "memory). Only available to an agent woken by a message: the fact is stored in YOUR private " +
+        "memory graph, keyed to your stable identity from the run environment — you cannot write to " +
+        "another agent's memory. Admit ONLY facts that are specific, verifiable and operational " +
+        "(e.g. 'the payments batch runs at 02:00 UTC'), never chit-chat or restatements of the " +
+        "prompt. Give 'about' tags that match the topics of the conversation so retrieval finds it " +
+        "later. Provenance (which run, which conversation) is recorded automatically.")]
+    public async Task<string> AssertLearnedFact(
+        [Description("The fact, as a short declarative statement. Specific, verifiable, operational.")] string statement,
+        [Description("Topic tags this fact is about, comma-separated (align them with the message topics).")] string about = null,
+        [Description("Confidence 0..1 (default 0.7). Use ~1.0 only for facts a human confirmed.")] double confidence = 0.7)
+    {
+        var token = RunToken();
+        if (token == null)
+            return "Error: AssertLearnedFact is only available to an agent woken by a message (no run token in the environment).";
+        if (string.IsNullOrWhiteSpace(statement)) return "Error: statement is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new { statement = statement.Trim(), about, confidence };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/api/A2A/memory/assert") { Content = content };
+            req.Headers.Add(RunTokenHeader, token);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Assert refused ({(int)resp.StatusCode}): {body}";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Recall what you (and the shared city memory) already know about some topics, before you " +
+        "start working. Only available to an agent woken by a message: you see ONLY your own memory " +
+        "graph plus the shared one — never another agent's. Pass the topics you care about; you get " +
+        "back the relevant facts with their confidence. Use this to avoid re-deriving what a past " +
+        "run already established.")]
+    public async Task<string> QueryAgentMemory(
+        [Description("Topics/tags to recall facts about, comma-separated. Empty = your most confident facts.")] string topics = null,
+        [Description("Max facts to return (default 20).")] int limit = 20)
+    {
+        var token = RunToken();
+        if (token == null)
+            return "Error: QueryAgentMemory is only available to an agent woken by a message (no run token in the environment).";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new
+            {
+                topics = string.IsNullOrWhiteSpace(topics)
+                    ? new List<string>()
+                    : topics.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0).ToList(),
+                limit,
+            };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/api/A2A/memory/query") { Content = content };
+            req.Headers.Add(RunTokenHeader, token);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Query refused ({(int)resp.StatusCode}): {body}";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
         "List the other trusted agents you may contact in your MdExplorer project (name, role, " +
         "skills), plus whether each currently accepts messages from you. Only available to an " +
         "agent woken by a message: the project and your identity come from the run environment. " +

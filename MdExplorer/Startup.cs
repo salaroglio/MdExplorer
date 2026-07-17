@@ -118,6 +118,10 @@ namespace MdExplorer
             services.AddSingleton<Services.AgentRun.IAgentAvailabilityPolicy, Services.AgentRun.AgentAvailabilityPolicy>();
             services.AddHostedService<Services.AgentRun.AgentMessageDispatcher>();
 
+            // Memoria semantica degli agenti (Fase 5b, §11): assert/query su Fuseki, grafo
+            // per-agente forzato server-side. Braccio verso Fuseki (il controller fa l'enforcement).
+            services.AddSingleton<Services.AgentMemory.IAgentMemoryService, Services.AgentMemory.AgentMemoryService>();
+
             // Federazione (Fase 6b): assemblaggio annuncio cifrato + presidio lato Service.
             // Il FederationRelayService è DORMIENTE finché nessun progetto abilita la città;
             // il collegamento reale al relay è un seam rimandato (nessuna connessione oggi).
