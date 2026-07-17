@@ -19,6 +19,7 @@ import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog
 import { GitMessagesComponent } from '../../../git/components/git-messages/git-messages.component';
 import { CommitMessageDialogComponent } from '../../../git/dialogs/commit-message-dialog/commit-message-dialog.component';
 import { AgentRegistryDialogComponent } from '../agent-registry-dialog/agent-registry-dialog.component';
+import { AgentMemoryDialogComponent } from '../agent-memory-dialog/agent-memory-dialog.component';
 import { AgentMailboxNotificationService } from '../../../services/agent-mailbox-notification.service';
 import { GitHistoryDialogComponent } from '../../../git/dialogs/git-history-dialog/git-history-dialog.component';
 import { GitBranchDialogComponent } from '../../../git/dialogs/git-branch-dialog/git-branch-dialog.component';
@@ -118,6 +119,16 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   openAgentRegistry(): void {
     const projectPath = this.projectService.currentProjects$.value?.path || '';
     this.dialog.open(AgentRegistryDialogComponent, {
+      width: '720px',
+      maxHeight: '80vh',
+      data: { projectPath },
+    });
+  }
+
+  /** Apre la vista/curatela della memoria degli agenti del progetto (§11 Fase 5d). */
+  openAgentMemory(): void {
+    const projectPath = this.projectService.currentProjects$.value?.path || '';
+    this.dialog.open(AgentMemoryDialogComponent, {
       width: '720px',
       maxHeight: '80vh',
       data: { projectPath },

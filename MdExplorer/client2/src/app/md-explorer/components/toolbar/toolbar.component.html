@@ -24,6 +24,9 @@
     <button mat-icon-button [matTooltip]="'TOOLBAR.AGENT_REGISTRY' | translate" (click)="openAgentRegistry()" class="toolbar-btn btn-agents">
       <mat-icon>groups</mat-icon>
     </button>
+    <button mat-icon-button [matTooltip]="'TOOLBAR.AGENT_MEMORY' | translate" (click)="openAgentMemory()" class="toolbar-btn btn-agent-memory">
+      <mat-icon>psychology</mat-icon>
+    </button>
     <button mat-icon-button [matTooltip]="'TOOLBAR.AGENT_MAILBOX' | translate" (click)="openMailbox()" class="toolbar-btn btn-mailbox"
             [matBadge]="mailboxUnread" [matBadgeHidden]="mailboxUnread === 0" matBadgeColor="warn" matBadgeSize="small">
       <mat-icon>forum</mat-icon>

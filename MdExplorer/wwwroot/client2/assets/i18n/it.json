@@ -636,6 +636,7 @@
     "EDIT_DOCUMENT": "modifica documento",
     "EXPORT_WORD": "esporta in word",
     "AGENT_REGISTRY": "Città degli agenti",
+    "AGENT_MEMORY": "Memoria degli agenti",
     "AGENT_MAILBOX": "Messaggi degli agenti",
     "BOOKMARKS": "Segnalibri",
     "OPEN_REACT_EDITOR": "Apri Editor React",
@@ -1684,6 +1685,17 @@
     "NEW_BUTTON": "Nuova",
     "EXECUTIONS": "Esecuzioni",
     "NO_EXECUTIONS": "Nessuna esecuzione"
+  },
+  "AGENT_MEMORY": {
+    "TITLE": "Memoria degli agenti",
+    "RELOAD": "Ricarica",
+    "SHOW_DIARY": "Mostra diario",
+    "HIDE_DIARY": "Nascondi diario",
+    "LOADING": "Carico la memoria…",
+    "EMPTY": "Nessun fatto in memoria. Gli agenti registrano ciò che imparano mentre lavorano.",
+    "CONFIDENCE": "Affidabilità",
+    "DELETE": "Rimuovi questo fatto",
+    "CLOSE": "Chiudi"
   },
   "AGENT_REGISTRY": {
     "TITLE": "Città degli agenti",

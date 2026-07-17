@@ -27,6 +27,18 @@ namespace MdExplorer.Services.AgentMemory
         public bool Shared { get; set; }
     }
 
+    /// <summary>Un fatto con le sue coordinate (fatto-URI + grafo): vista umana + curatela (§11 Fase 5d).</summary>
+    public sealed class MemoryFactDetail
+    {
+        public string FactUri { get; set; }
+        public string Graph { get; set; }
+        public string Statement { get; set; }
+        public double Confidence { get; set; }
+        public IReadOnlyList<string> Tags { get; set; } = Array.Empty<string>();
+        public string CreatedAt { get; set; }
+        public bool Shared { get; set; }
+    }
+
     /// <summary>
     /// La memoria semantica degli agenti (Fase 5b, §11) sopra Fuseki. <b>Non conosce il RunToken</b>:
     /// riceve dal controller il <c>agentIdentityId</c> GIÀ risolto e ne deriva il named graph con
@@ -43,6 +55,15 @@ namespace MdExplorer.Services.AgentMemory
 
         /// <summary>Recupera i fatti dal grafo dell'agente + shared, filtrati per topic.</summary>
         Task<IReadOnlyList<MemoryFact>> QueryAsync(FusekiConnection conn, Guid agentIdentityId, IReadOnlyList<string> topics, int limit);
+
+        /// <summary>Vista umana (§11 Fase 5d): elenca i fatti dei grafi indicati (con fatto-URI+grafo).</summary>
+        Task<IReadOnlyList<MemoryFactDetail>> ListAsync(FusekiConnection conn, IReadOnlyList<string> graphs, int limit);
+
+        /// <summary>Curatela: cambia la confidence di un fatto.</summary>
+        Task SetConfidenceAsync(FusekiConnection conn, string graph, string factUri, double confidence);
+
+        /// <summary>Curatela: rimuove un fatto (tutte le sue triple).</summary>
+        Task DeleteFactAsync(FusekiConnection conn, string graph, string factUri);
     }
 
     public class AgentMemoryService : IAgentMemoryService
@@ -99,6 +120,64 @@ namespace MdExplorer.Services.AgentMemory
             var sparql = AgentMemoryFactBuilder.BuildQuery(graph, topics, limit);
             var json = await _fuseki.QueryAsync(conn.BaseUri, conn.Dataset, sparql, conn.Username, conn.Password);
             return ParseResults(json, graph);
+        }
+
+        public async Task<IReadOnlyList<MemoryFactDetail>> ListAsync(FusekiConnection conn, IReadOnlyList<string> graphs, int limit)
+        {
+            Validate(conn);
+            await EnsureReadyAsync(conn);
+
+            var sparql = AgentMemoryFactBuilder.BuildListQuery(graphs, limit);
+            var json = await _fuseki.QueryAsync(conn.BaseUri, conn.Dataset, sparql, conn.Username, conn.Password);
+
+            var list = new List<MemoryFactDetail>();
+            using var doc = JsonDocument.Parse(json);
+            if (!doc.RootElement.TryGetProperty("results", out var results)) return list;
+            if (!results.TryGetProperty("bindings", out var bindings)) return list;
+
+            foreach (var b in bindings.EnumerateArray())
+            {
+                var statement = Str(b, "statement");
+                if (string.IsNullOrEmpty(statement)) continue;
+                double.TryParse(Str(b, "confidence"), System.Globalization.NumberStyles.Any,
+                    System.Globalization.CultureInfo.InvariantCulture, out var conf);
+                var tagsRaw = Str(b, "tags");
+                var tags = string.IsNullOrWhiteSpace(tagsRaw)
+                    ? Array.Empty<string>()
+                    : tagsRaw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                var g = Str(b, "g");
+                list.Add(new MemoryFactDetail
+                {
+                    FactUri = Str(b, "f"),
+                    Graph = g,
+                    Statement = statement,
+                    Confidence = conf,
+                    Tags = tags,
+                    CreatedAt = Str(b, "createdAt"),
+                    Shared = g == AgentMemoryGraphs.Shared,
+                });
+            }
+            return list;
+        }
+
+        public async Task SetConfidenceAsync(FusekiConnection conn, string graph, string factUri, double confidence)
+        {
+            Validate(conn);
+            if (string.IsNullOrWhiteSpace(graph) || string.IsNullOrWhiteSpace(factUri))
+                throw new ArgumentException("graph e factUri richiesti.");
+            var update = AgentMemoryFactBuilder.BuildSetConfidenceUpdate(graph, factUri, confidence);
+            await _fuseki.UpdateAsync(conn.BaseUri, conn.Dataset, update, conn.Username, conn.Password);
+            _logger.LogInformation("[AgentMemory] curatela: confidence di {Uri} → {C}", factUri, confidence);
+        }
+
+        public async Task DeleteFactAsync(FusekiConnection conn, string graph, string factUri)
+        {
+            Validate(conn);
+            if (string.IsNullOrWhiteSpace(graph) || string.IsNullOrWhiteSpace(factUri))
+                throw new ArgumentException("graph e factUri richiesti.");
+            var update = AgentMemoryFactBuilder.BuildDeleteFactUpdate(graph, factUri);
+            await _fuseki.UpdateAsync(conn.BaseUri, conn.Dataset, update, conn.Username, conn.Password);
+            _logger.LogInformation("[AgentMemory] curatela: fatto {Uri} rimosso", factUri);
         }
 
         private static IReadOnlyList<MemoryFact> ParseResults(string sparqlResultsJson, string agentGraph)

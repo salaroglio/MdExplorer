@@ -636,6 +636,7 @@
     "EDIT_DOCUMENT": "edit document",
     "EXPORT_WORD": "export in word",
     "AGENT_REGISTRY": "City of agents",
+    "AGENT_MEMORY": "Agent memory",
     "AGENT_MAILBOX": "Agent messages",
     "BOOKMARKS": "Bookmarks",
     "OPEN_REACT_EDITOR": "Open React Editor",
@@ -1684,6 +1685,17 @@
     "NEW_BUTTON": "New",
     "EXECUTIONS": "Executions",
     "NO_EXECUTIONS": "No executions yet"
+  },
+  "AGENT_MEMORY": {
+    "TITLE": "Agent memory",
+    "RELOAD": "Reload",
+    "SHOW_DIARY": "Show diary",
+    "HIDE_DIARY": "Hide diary",
+    "LOADING": "Loading memory…",
+    "EMPTY": "No facts in memory yet. Agents record what they learn as they work.",
+    "CONFIDENCE": "Confidence",
+    "DELETE": "Remove this fact",
+    "CLOSE": "Close"
   },
   "AGENT_REGISTRY": {
     "TITLE": "City of agents",

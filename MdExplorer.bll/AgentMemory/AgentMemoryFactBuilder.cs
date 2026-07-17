@@ -108,6 +108,63 @@ namespace MdExplorer.Features.AgentMemory
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Vista UMANA (§11 Fase 5d): elenca i fatti dei grafi indicati (memoria di uno o più
+        /// agenti + eventualmente shared) esponendo <b>fatto-URI e grafo</b> — servono alla
+        /// curatela (edit/delete puntuali). Nessun filtro per tag: è l'ispezione completa.
+        /// </summary>
+        public static string BuildListQuery(IReadOnlyList<string> graphs, int limit)
+        {
+            if (graphs == null || graphs.Count == 0)
+                throw new ArgumentException("almeno un grafo richiesto.", nameof(graphs));
+            var lim = Math.Clamp(limit <= 0 ? 100 : limit, 1, 1000);
+
+            var sb = new StringBuilder();
+            sb.Append(P);
+            sb.Append("SELECT ?f ?g ?statement ?confidence ?createdAt (GROUP_CONCAT(DISTINCT ?tag; separator=\",\") AS ?tags)\n");
+            sb.Append("WHERE {\n");
+            sb.Append("  GRAPH ?g {\n");
+            sb.Append("    ?f a mdeag:LearnedFact ;\n");
+            sb.Append("       mdeag:statement ?statement ;\n");
+            sb.Append("       mdeag:confidence ?confidence .\n");
+            sb.Append("    OPTIONAL { ?f mdeag:aboutTag ?tag }\n");
+            sb.Append("    OPTIONAL { ?f mdeag:createdAt ?createdAt }\n");
+            sb.Append("  }\n");
+            sb.Append("  FILTER(?g IN (")
+              .Append(string.Join(", ", graphs.Select(SparqlText.Iri)))
+              .Append("))\n");
+            sb.Append("}\n");
+            sb.Append("GROUP BY ?f ?g ?statement ?confidence ?createdAt\n");
+            sb.Append("ORDER BY DESC(?confidence) DESC(?createdAt)\n");
+            sb.Append("LIMIT ").Append(lim);
+            return sb.ToString();
+        }
+
+        /// <summary>Curatela (§11 Fase 5d): sostituisce la confidence di un fatto (DELETE+INSERT nel suo grafo).</summary>
+        public static string BuildSetConfidenceUpdate(string graph, string factUri, double confidence)
+        {
+            var g = SparqlText.Iri(graph);
+            var f = SparqlText.Iri(factUri);
+            var sb = new StringBuilder();
+            sb.Append(P);
+            sb.Append("DELETE { GRAPH ").Append(g).Append(" { ").Append(f).Append(" mdeag:confidence ?old } }\n");
+            sb.Append("INSERT { GRAPH ").Append(g).Append(" { ").Append(f).Append(" mdeag:confidence ")
+              .Append(SparqlText.Double(ClampConfidence(confidence))).Append(" } }\n");
+            sb.Append("WHERE  { GRAPH ").Append(g).Append(" { ").Append(f).Append(" mdeag:confidence ?old } }");
+            return sb.ToString();
+        }
+
+        /// <summary>Curatela (§11 Fase 5d): rimuove TUTTE le triple del fatto dal suo grafo (soggetto = factUri).</summary>
+        public static string BuildDeleteFactUpdate(string graph, string factUri)
+        {
+            var g = SparqlText.Iri(graph);
+            var f = SparqlText.Iri(factUri);
+            var sb = new StringBuilder();
+            sb.Append(P);
+            sb.Append("DELETE WHERE { GRAPH ").Append(g).Append(" { ").Append(f).Append(" ?p ?o } }");
+            return sb.ToString();
+        }
+
         private static double ClampConfidence(double c) => Math.Clamp(c, 0.0, 1.0);
 
         private static List<string> NormalizeTags(IReadOnlyList<string> tags)
