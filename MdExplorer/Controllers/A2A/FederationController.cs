@@ -131,11 +131,17 @@ namespace MdExplorer.Controllers.A2A
             if (!citizen.Trusted)
                 return StatusCode(403, new { error = $"L'agente '{targetAgent}' non è trusted: concedi il trust prima di autorizzare." });
 
-            // Conversazione locale con la correlazione federata (budget hop proprio, §12.6).
-            // NB: la decisione (Approved) si committa solo DOPO che l'enqueue è accettato:
-            // se il mailbox rifiuta, la richiesta resta pending e l'umano può riprovare —
-            // mai una richiesta "consumata" senza che l'agente sia stato svegliato.
+            // CLAIM ATOMICO (anti doppio-click / doppia UI): in UNA transazione ri-leggo la
+            // richiesta, verifico che sia ancora pending, e la marco Approved insieme alla
+            // creazione della conversazione. Una seconda approvazione concorrente troverà lo
+            // stato già Approved e si fermerà — nessun doppio wake dell'agente.
             _session.BeginTransaction();
+            var reqFresh = dal.GetList().FirstOrDefault(r => r.Id == id);
+            if (reqFresh == null || reqFresh.Status != FederationRequest.StatusEnum.Pending)
+            {
+                _session.Commit();
+                return UnprocessableEntity(new { error = "Richiesta già decisa (approvazione concorrente?)." });
+            }
             var conv = new AgentConversation
             {
                 ProjectPath = req.ProjectPath,
@@ -145,11 +151,14 @@ namespace MdExplorer.Controllers.A2A
                 HopLimit = ConversationHopGuard.ClampHopLimit(citizen.MaxHops),
                 StartedAt = DateTime.UtcNow,
                 LastActivityAt = DateTime.UtcNow,
-                FederationId = req.FederationId,
-                RemoteOwner = req.FromOwner,
-                RemoteAgent = req.FromAgent,
+                FederationId = reqFresh.FederationId,
+                RemoteOwner = reqFresh.FromOwner,
+                RemoteAgent = reqFresh.FromAgent,
             };
             _session.GetDal<AgentConversation>().Save(conv);
+            reqFresh.Status = FederationRequest.StatusEnum.Approved;
+            reqFresh.DecidedAt = DateTime.UtcNow;
+            dal.Save(reqFresh);
             _session.Commit();
             var convId = conv.Id;
 
@@ -167,19 +176,20 @@ namespace MdExplorer.Controllers.A2A
             });
             if (!enqueue.Accepted)
             {
-                // Rollback logico: la conversazione appena creata (nessun messaggio) non
-                // serve più; la richiesta resta pending, ritentabile dalla UI.
+                // REVERT del claim: l'enqueue è fallito, quindi nessun agente è stato svegliato.
+                // Riporto la richiesta a pending (ritentabile) ed elimino la conversazione orfana.
                 _session.BeginTransaction();
+                var reqRevert = dal.GetList().FirstOrDefault(r => r.Id == id);
+                if (reqRevert != null)
+                {
+                    reqRevert.Status = FederationRequest.StatusEnum.Pending;
+                    reqRevert.DecidedAt = null;
+                    dal.Save(reqRevert);
+                }
                 _session.GetDal<AgentConversation>().Delete(conv);
                 _session.Commit();
                 return StatusCode(409, new { error = enqueue.RejectionReason });
             }
-
-            _session.BeginTransaction();
-            req.Status = FederationRequest.StatusEnum.Approved;
-            req.DecidedAt = DateTime.UtcNow;
-            dal.Save(req);
-            _session.Commit();
 
             _logger.LogInformation("[Federation] richiesta {Id} APPROVATA → sveglio '{Agent}' in conversazione {Conv}", id, targetAgent, convId);
             return Ok(new { approved = true, conversationId = convId.ToString(), targetAgent });

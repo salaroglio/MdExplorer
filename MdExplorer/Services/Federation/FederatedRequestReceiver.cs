@@ -19,6 +19,13 @@ namespace MdExplorer.Services.Federation
     /// </summary>
     public sealed class FederatedRequestPayload
     {
+        /// <summary>
+        /// Idempotency key univoca per SINGOLA emissione (§12.6): l'origine ne conia una nuova
+        /// a ogni <c>request-intervention</c>. Il ricevente deduplica su questa — così una
+        /// <b>redelivery del relay</b> (stesso RequestId) non crea un secondo gate, ma due
+        /// interventi distinti (RequestId diversi) sì, anche a parità di testo.
+        /// </summary>
+        public string RequestId { get; set; }
         public string FederationId { get; set; }
         public string FromOwner { get; set; }
         public string FromAgent { get; set; }
@@ -71,10 +78,14 @@ namespace MdExplorer.Services.Federation
 
             // FederationId: se assente/non valido lo generiamo (correlazione comunque tracciata).
             var fedId = Guid.TryParse(payload.FederationId, out var g) ? g : Guid.NewGuid();
+            // RequestId (idempotency key della singola emissione): può mancare da un'origine
+            // vecchia — allora il dedup ricade sul vecchio criterio (FederationId+Target+Message).
+            Guid? requestId = Guid.TryParse(payload.RequestId, out var rq) ? rq : (Guid?)null;
 
             var request = new FederationRequest
             {
                 FederationId = fedId,
+                RequestId = requestId,
                 ProjectPath = projectPath,
                 FromOwner = payload.FromOwner,
                 FromAgent = payload.FromAgent,
@@ -92,23 +103,33 @@ namespace MdExplorer.Services.Federation
                 db.BeginTransaction();
                 var dal = db.GetDal<FederationRequest>();
 
-                // Idempotenza sulle riconsegne: l'origine RIUSA lo stesso FederationId per
-                // tutta la conversazione (retry dopo un errore transiente, redeliver del relay),
-                // quindi il dedup è su (FederationId, TargetAgent, Message) e solo contro i gate
-                // ancora pending — un retry non materializza un secondo gate umano, un follow-up
-                // legittimo (testo diverso) sì.
-                var duplicate = dal.GetList()
-                    .Where(r => r.FederationId == fedId
-                                && r.Status == FederationRequest.StatusEnum.Pending
-                                && r.TargetAgent == request.TargetAgent
-                                && r.Message == request.Message)
-                    .ToList()
-                    .FirstOrDefault(r => AgentPathComparer.Equals(r.ProjectPath, projectPath));
+                // Idempotenza sulle RICONSEGNE del relay: se c'è un RequestId, deduplica SOLO su
+                // quello (stessa emissione ri-consegnata) — così due interventi distinti con testo
+                // identico ma RequestId diversi generano DUE gate. Origine vecchia senza RequestId:
+                // ricade sul criterio storico (FederationId+Target+Message), solo contro i pending.
+                FederationRequest duplicate;
+                if (requestId.HasValue)
+                {
+                    duplicate = dal.GetList()
+                        .Where(r => r.RequestId == requestId.Value)
+                        .ToList()
+                        .FirstOrDefault(r => AgentPathComparer.Equals(r.ProjectPath, projectPath));
+                }
+                else
+                {
+                    duplicate = dal.GetList()
+                        .Where(r => r.FederationId == fedId
+                                    && r.Status == FederationRequest.StatusEnum.Pending
+                                    && r.TargetAgent == request.TargetAgent
+                                    && r.Message == request.Message)
+                        .ToList()
+                        .FirstOrDefault(r => AgentPathComparer.Equals(r.ProjectPath, projectPath));
+                }
                 if (duplicate != null)
                 {
                     db.Commit();
-                    _logger.LogInformation("[Federation] richiesta federata duplicata (fed {Fed}) → riuso il gate pending {Id}",
-                        fedId, duplicate.Id);
+                    _logger.LogInformation("[Federation] richiesta federata duplicata (req {Req}, fed {Fed}) → riuso il gate {Id}",
+                        requestId, fedId, duplicate.Id);
                     return duplicate.Id;
                 }
 

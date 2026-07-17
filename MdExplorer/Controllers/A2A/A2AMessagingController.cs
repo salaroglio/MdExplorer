@@ -228,7 +228,6 @@ namespace MdExplorer.Controllers.A2A
             // budget hop della conversazione a ogni retry.
             var fedId = Guid.NewGuid();
             AgentConversation conv = null;
-            var newHopCount = 0;
             if (Guid.TryParse(claims.ConversationId, out var convId))
             {
                 _session.BeginTransaction();
@@ -241,7 +240,8 @@ namespace MdExplorer.Controllers.A2A
                         _session.Commit();
                         return StatusCode(409, new { error = "La conversazione è terminata (killed)." });
                     }
-                    // La richiesta federata è un fan-out: conta 1 hop (non esente).
+                    // La richiesta federata è un fan-out: conta 1 hop (non esente). Qui si VALUTA
+                    // soltanto (l'incremento vero avviene dopo il send, con re-read fresco).
                     var decision = ConversationHopGuard.Evaluate(claims.AgentName, targetAgent, conv.HopCount, conv.HopLimit);
                     if (!decision.Allowed)
                     {
@@ -250,7 +250,6 @@ namespace MdExplorer.Controllers.A2A
                         _session.Commit();
                         return StatusCode(409, new { error = $"Limite hop raggiunto ({conv.HopLimit}): conversazione esaurita." });
                     }
-                    newHopCount = decision.NewHopCount;
                     fedId = conv.FederationId ?? fedId;
                 }
                 _session.Commit();
@@ -258,6 +257,11 @@ namespace MdExplorer.Controllers.A2A
 
             var payload = new FederatedRequestPayload
             {
+                // Idempotency key FRESCA per ogni chiamata: distingue una redelivery del relay
+                // (stesso RequestId → il ricevente la deduplica) da due interventi distinti
+                // (RequestId diversi → due gate), anche a parità di testo. FederationId invece
+                // resta stabile per la conversazione (correlazione).
+                RequestId = Guid.NewGuid().ToString(),
                 FederationId = fedId.ToString(),
                 FromOwner = ResolveLocalGitEmail(claims.ProjectPath),
                 FromAgent = claims.AgentName,               // R2: identità certificata dal token
@@ -271,17 +275,25 @@ namespace MdExplorer.Controllers.A2A
             if (!sent)
                 return StatusCode(503, new { error = "Nessuna connessione federata attiva per il progetto (città accesa e relay raggiungibile?)." });
 
-            // Send riuscito: solo ora l'hop è consumato e la correlazione persistita.
+            // Send riuscito: solo ora l'hop è consumato e la correlazione persistita. Ri-leggo la
+            // conversazione FRESCA e incremento di 1 (delta), NON riscrivo il valore assoluto
+            // calcolato prima del send: due richieste concorrenti sulla stessa conversazione
+            // devono sommare entrambi gli hop, non sovrascriversi (altrimenti il guardrail
+            // anti-loop regredirebbe). La correlazione non si clobbera se già impostata.
             if (conv != null)
             {
                 _session.BeginTransaction();
                 var dal = _session.GetDal<AgentConversation>();
-                conv.HopCount = newHopCount;
-                conv.FederationId = fedId;
-                conv.RemoteOwner = entry.GitEmail;
-                conv.RemoteAgent = targetAgent;
-                conv.LastActivityAt = DateTime.UtcNow;
-                dal.Save(conv);
+                var fresh = dal.GetList().FirstOrDefault(c => c.Id == convId);
+                if (fresh != null)
+                {
+                    fresh.HopCount = fresh.HopCount + 1;
+                    fresh.FederationId = fresh.FederationId ?? fedId;
+                    fresh.RemoteOwner = entry.GitEmail;
+                    fresh.RemoteAgent = targetAgent;
+                    fresh.LastActivityAt = DateTime.UtcNow;
+                    dal.Save(fresh);
+                }
                 _session.Commit();
             }
 

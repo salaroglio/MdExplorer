@@ -90,6 +90,9 @@ namespace MdExplorer.Controllers.A2A
             }
             catch (Exception ex)
             {
+                // Rollback come in Force/Discard: una transazione appesa sulla sessione UserDB
+                // condivisa può rompere il Commit di un controller successivo (igiene sessione).
+                _session.Rollback();
                 _logger.LogError(ex, "[AgentQueue] query fallita per '{Agent}'", name);
                 return StatusCode(500, new { error = ex.Message });
             }
@@ -152,10 +155,14 @@ namespace MdExplorer.Controllers.A2A
                     _session.Commit();
                     return NotFound(new { error = $"Messaggio '{messageId}' non trovato." });
                 }
-                if (msg.State == AgentMessage.StateEnum.Processed || msg.State == AgentMessage.StateEnum.Failed)
+                // Solo un messaggio ANCORA in coda (pending) si può scartare. Un 'delivered' è
+                // GIÀ in esecuzione (turno LLM partito): scartarlo non ferma il run e verrebbe
+                // sovrascritto dal dispatcher a fine turno (MarkProcessed) — fail-loud invece di
+                // illudere l'utente che l'agente non girerà.
+                if (msg.State != AgentMessage.StateEnum.Pending)
                 {
                     _session.Commit();
-                    return UnprocessableEntity(new { error = $"Il messaggio è già concluso (stato: '{msg.State}')." });
+                    return UnprocessableEntity(new { error = $"Solo un messaggio 'pending' può essere scartato (stato: '{msg.State}'): un messaggio già in consegna non si ferma dalla coda." });
                 }
 
                 msg.State = AgentMessage.StateEnum.Failed;

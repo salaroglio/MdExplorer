@@ -10,6 +10,7 @@ namespace MDExplorer.DataAccess.Mapping
             Table("FederationRequest");
             Id(x => x.Id).GeneratedBy.GuidComb();
             Map(x => x.FederationId).Not.Nullable();
+            Map(x => x.RequestId).Nullable();
             Map(x => x.ProjectPath).Length(int.MaxValue).Not.Nullable();
             Map(x => x.FromOwner).Length(300).Nullable();
             Map(x => x.FromAgent).Length(200).Nullable();

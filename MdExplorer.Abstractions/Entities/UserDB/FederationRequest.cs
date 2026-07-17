@@ -17,6 +17,14 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// <summary>Correlazione col lato d'origine (stessa <see cref="AgentConversation.FederationId"/>).</summary>
         public virtual Guid FederationId { get; set; }
 
+        /// <summary>
+        /// Idempotency key della singola emissione d'origine (§12.6): dedup delle redelivery del
+        /// relay. Diverso dal <see cref="FederationId"/> (che è per-conversazione): due interventi
+        /// distinti hanno RequestId diversi anche a parità di testo. <c>null</c> per le righe
+        /// pre-esistenti (dedup allora ricade sul vecchio criterio).
+        /// </summary>
+        public virtual Guid? RequestId { get; set; }
+
         /// <summary>Progetto locale bersaglio (dove vive l'agente richiesto).</summary>
         public virtual string ProjectPath { get; set; }
 

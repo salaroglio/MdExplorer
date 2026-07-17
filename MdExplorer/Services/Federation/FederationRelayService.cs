@@ -74,6 +74,8 @@ namespace MdExplorer.Services.Federation
         // Una connessione per stanza (roomId). ConcurrentDictionary: scritto dal loop di
         // scansione, letto anche dal thread dell'endpoint RequestIntervention (send).
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, RoomConnection> _rooms = new();
+        // Progetti già attivati headless in questa esecuzione: evita il walk FS + Engine DB a ogni scan.
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _activatedProjects = new();
         private bool _warnedNoApiKey;
 
         public FederationRelayService(
@@ -153,8 +155,11 @@ namespace MdExplorer.Services.Federation
                 if (cfg == null || !cfg.Enabled) continue;
 
                 // Attivazione headless (§12.7): senza client, indicizza gli .agent.md e scalda
-                // il registry, così presenza e gate federato scoprono/svegliano gli agenti.
-                _activator.ActivateForFederation(project.Path);
+                // il registry. UNA volta per progetto (non a ogni tick da 60s): l'operazione fa
+                // walk del filesystem + apertura Engine DB, sarebbe churn continuo. I file agente
+                // aggiunti a caldo li ripesca la riapertura del progetto / il FSW.
+                if (_activatedProjects.TryAdd(project.Path, 0))
+                    _activator.ActivateForFederation(project.Path);
 
                 var (origin, email) = ResolveGit(project.Path);
                 var roster = BuildTrustedRoster(registry, project.Path);
@@ -192,10 +197,18 @@ namespace MdExplorer.Services.Federation
         /// </summary>
         private Task TransmitPendingAsync(IReadOnlyList<FederationAnnounce> announces, CancellationToken ct)
         {
-            var desired = announces
+            // Una connessione per stanza. Se PIÙ progetti risolvono alla stessa stanza (stesso
+            // repo aperto due volte), teniamo il primo ma lo diciamo forte: gli altri NON si
+            // federano (le deliver andrebbero legate al progetto sbagliato). Limitazione visibile,
+            // non misrouting silenzioso.
+            var grouped = announces
                 .Where(a => a != null && !string.IsNullOrWhiteSpace(a.RoomId))
                 .GroupBy(a => a.RoomId)
-                .ToDictionary(g => g.Key, g => g.First());
+                .ToList();
+            foreach (var g in grouped.Where(g => g.Count() > 1))
+                _logger.LogWarning("[Federation] stanza {Room}: più progetti mappano sullo stesso repo — federo solo '{Kept}', ignoro: {Dropped}",
+                    g.Key, g.First().ProjectPath, string.Join(", ", g.Skip(1).Select(a => a.ProjectPath)));
+            var desired = grouped.ToDictionary(g => g.Key, g => g.First());
 
             // Chiudi le connessioni delle stanze non più attive.
             foreach (var roomId in _rooms.Keys.Where(k => !desired.ContainsKey(k)).ToList())
@@ -233,7 +246,11 @@ namespace MdExplorer.Services.Federation
                 }
                 else
                 {
-                    var conn = new RoomConnection(_baseUrl, EnginePath, _apiKey, announce, _logger);
+                    // Onora l'override per-progetto agentCity.relayUrl: la connessione va sul
+                    // relay dichiarato (scheme+host), non sempre su quello globale. Se assente/
+                    // non parsabile, ricade sul base globale.
+                    var baseUrl = ToHttpBase(announce.RelayUrl) ?? _baseUrl;
+                    var conn = new RoomConnection(baseUrl, EnginePath, _apiKey, announce, _logger);
                     var captured = announce;             // per la closure del deliver
                     conn.OnDeliver = env => HandleDeliver(captured, env);
                     _rooms[roomId] = conn;
@@ -313,8 +330,11 @@ namespace MdExplorer.Services.Federation
             var envelope = FederationCrypto.Encrypt(secret, city.RoomId, System.Text.Json.JsonSerializer.Serialize(payload));
             try
             {
-                await conn.SendAsync(targetOwnerId, envelope);
-                return true;
+                // true SOLO se il relay ackka la presa in carico (consegnata o accodata).
+                var acked = await conn.SendAsync(targetOwnerId, envelope);
+                if (!acked)
+                    _logger.LogWarning("[Federation] send federato per '{Project}': il relay non ha confermato (perso/ok:false/timeout).", projectPath);
+                return acked;
             }
             catch (Exception ex)
             {
@@ -334,6 +354,23 @@ namespace MdExplorer.Services.Federation
             }
             _rooms.Clear();
             await base.StopAsync(cancellationToken);
+        }
+
+        /// <summary>
+        /// Ricava il base URL HTTP (scheme+host) da un URL ws/wss del relay, ignorando il path.
+        /// <c>wss://relay.example.com/mdfed</c> → <c>https://relay.example.com</c>. null se non parsabile.
+        /// </summary>
+        private static string ToHttpBase(string wsUrl)
+        {
+            if (string.IsNullOrWhiteSpace(wsUrl)) return null;
+            try
+            {
+                var s = wsUrl.Trim().Replace("wss://", "https://").Replace("ws://", "http://");
+                if (!s.StartsWith("http", StringComparison.OrdinalIgnoreCase)) s = "https://" + s;
+                var uri = new Uri(s);
+                return $"{uri.Scheme}://{uri.Authority}";
+            }
+            catch { return null; }
         }
 
         private (string Origin, string Email) ResolveGit(string projectPath)
@@ -495,13 +532,36 @@ namespace MdExplorer.Services.Federation
                 catch (Exception ex) { _logger.LogWarning(ex, "[Federation] announce stanza {Room} fallito", a.RoomId); }
             }
 
-            /// <summary>Emette un <c>send</c> mirato (richiesta federata cifrata) verso un'altra città.</summary>
-            public async Task SendAsync(string toOwnerId, string envelope)
+            /// <summary>
+            /// Emette un <c>send</c> mirato (richiesta federata cifrata) verso un'altra città e
+            /// <b>attende l'ack del relay</b>: ritorna true SOLO se il relay conferma
+            /// <c>ok:true</c> (consegnata alla città online, o accodata per una città spenta —
+            /// entrambe consegne durevoli). Un frame perso, un <c>ok:false</c> o un ack mancante
+            /// entro il timeout ⇒ false: il chiamante non deve credere spedito ciò che non lo è
+            /// (altrimenti brucia un hop per nulla).
+            /// </summary>
+            public async Task<bool> SendAsync(string toOwnerId, string envelope)
             {
                 var socket = _socket;
                 if (socket == null || !socket.Connected)
                     throw new InvalidOperationException("connessione alla stanza non attiva: impossibile spedire.");
-                await socket.EmitAsync("send", new { toOwnerId, envelope });
+
+                var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                await socket.EmitAsync("send", response =>
+                {
+                    try
+                    {
+                        var el = response.GetValue<System.Text.Json.JsonElement>(0);
+                        var ok = el.TryGetProperty("ok", out var okEl)
+                                 && okEl.ValueKind == System.Text.Json.JsonValueKind.True;
+                        tcs.TrySetResult(ok);
+                    }
+                    catch { tcs.TrySetResult(false); }
+                }, new { toOwnerId, envelope });
+
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                using (cts.Token.Register(() => tcs.TrySetResult(false)))
+                    return await tcs.Task;
             }
 
             public void Dispose()

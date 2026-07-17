@@ -29,6 +29,18 @@ namespace MdExplorer.Features.Tests.Federation
         }
 
         [TestMethod]
+        public void Normalize_collapses_dotgit_with_and_without_trailing_slash()
+        {
+            // Il bug che la review ha segnalato: 'repo.git' e 'repo.git/' devono dare la STESSA
+            // stanza (prima chat e federazione divergevano su questo edge).
+            var a = FederationRoom.ComputeRoomId("https://github.com/acme/repo.git");
+            var b = FederationRoom.ComputeRoomId("https://github.com/acme/repo.git/");
+            var c = FederationRoom.ComputeRoomId("https://github.com/acme/repo");
+            Assert.AreEqual(a, b, "repo.git/ e repo.git → stessa stanza");
+            Assert.AreEqual(a, c, "…e uguale a repo senza suffisso");
+        }
+
+        [TestMethod]
         public void Compute_a_stable_case_insensitive_owner_id()
         {
             var a = FederationRoom.ComputeUserId("Carlo@X.IT");
