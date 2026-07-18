@@ -51,6 +51,13 @@ namespace MdExplorer.Services.Federation
         public string HandoffRef { get; set; }
         /// <summary>Fase 7d.5 — sha di testa a cui B deve sincronizzarsi (la testa di <see cref="HandoffRef"/>).</summary>
         public string BaseCommit { get; set; }
+
+        /// <summary>
+        /// Fase 7e — sha del <b>submodule (codice)</b> atterrato via il gate del push umano, distinto
+        /// da <see cref="BaseCommit"/> (che è il sync del superprogetto-doc). B lo usa per sincronizzare
+        /// il submodule allo sha giusto. <c>null</c> = nessun gate del codice.
+        /// </summary>
+        public string SubmoduleBaseCommit { get; set; }
     }
 
     /// <summary>

@@ -80,6 +80,14 @@ export class MdServerMessagesService {
     createdAt: string
   }>();
 
+  // Fase 7e — un agente ha toccato il submodule (codice) nel suo worktree: awareness (no diff).
+  public submoduleTouchedByAgent$ = new Subject<{
+    projectPath: string,
+    submodule: string,
+    agent: string,
+    at: string
+  }>();
+
   // Observable for KG drift events (emitted by FileSystemWatcherManager when a .md
   // diverges from the // sourceDocHash header of its adjacent .kg.cypher).
   public kgStale$ = new Subject<{
@@ -234,6 +242,12 @@ export class MdServerMessagesService {
       this.hubConnection.on('federationRequestReceived', (data) => {
         console.log('🌐 SignalR event received: federationRequestReceived', data);
         this.federationRequestReceived$.next(data);
+      });
+
+      // Fase 7e — awareness del tocco submodule da parte di un agente (gate del push umano).
+      this.hubConnection.on('submoduleTouchedByAgent', (data) => {
+        console.log('🧩 SignalR event received: submoduleTouchedByAgent', data);
+        this.submoduleTouchedByAgent$.next(data);
       });
 
       // KG drift detection — .md edited but .kg.cypher is out of sync

@@ -1768,6 +1768,9 @@
     "TOAST": "🌐 Richiesta federata da \"{{owner}}\" sull'ambito \"{{scope}}\".",
     "TOAST_REVIEW": "Rivedi"
   },
+  "SUBMODULE_GATE": {
+    "TOAST": "🧩 L'agente \"{{agent}}\" ha modificato il codice nel submodule \"{{submodule}}\". Committa e pusha per sbloccare l'agente successivo."
+  },
   "AGENT_TRUST": {
     "TITLE": "Concedi il trust a questo agente?",
     "MESSAGE": "L'agente \"{{agent}}\" potrà partecipare alle conversazioni dentro {{project}}.\n\nTool richiesti: {{tools}}",

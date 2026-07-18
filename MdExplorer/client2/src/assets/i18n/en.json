@@ -1768,6 +1768,9 @@
     "TOAST": "🌐 Federated request from \"{{owner}}\" on scope \"{{scope}}\".",
     "TOAST_REVIEW": "Review"
   },
+  "SUBMODULE_GATE": {
+    "TOAST": "🧩 Agent \"{{agent}}\" changed code in submodule \"{{submodule}}\". Commit & push it to release the next agent."
+  },
   "AGENT_TRUST": {
     "TITLE": "Trust this agent?",
     "MESSAGE": "The agent \"{{agent}}\" will be allowed to participate in conversations inside {{project}}.\n\nRequested tools: {{tools}}",

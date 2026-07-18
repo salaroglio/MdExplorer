@@ -25,6 +25,7 @@ namespace MDExplorer.DataAccess.Mapping
             Map(x => x.DeferredReason).Length(50).Nullable();
             Map(x => x.ForcedAt).Nullable();
             Map(x => x.TriggerSource).Length(50).Nullable();
+            Map(x => x.SubmoduleBaseCommit).Length(100).Nullable();
             Map(x => x.Error).Length(int.MaxValue).Nullable();
         }
     }

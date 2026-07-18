@@ -32,6 +32,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly ILogger<AgentScheduleEventService> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IAgentRunJobService _agentRunJobService;
+        private readonly ISubmoduleGateService _submoduleGate;
 
         // (normalized project path, trigger) → last fired
         private readonly ConcurrentDictionary<string, DateTime> _lastFired = new();
@@ -39,16 +40,25 @@ namespace MdExplorer.Services.AgentRun
         public AgentScheduleEventService(
             ILogger<AgentScheduleEventService> logger,
             IServiceScopeFactory scopeFactory,
-            IAgentRunJobService agentRunJobService)
+            IAgentRunJobService agentRunJobService,
+            ISubmoduleGateService submoduleGate)
         {
             _logger = logger;
             _scopeFactory = scopeFactory;
             _agentRunJobService = agentRunJobService;
+            _submoduleGate = submoduleGate;
         }
 
         public void OnProjectOpened(string projectPath) => Fire(projectPath, "projectOpen");
 
-        public void OnCommitDetected(string projectPath) => Fire(projectPath, "commit");
+        public void OnCommitDetected(string projectPath)
+        {
+            // Fase 7e.4 — gate del codice: un commit umano può aver fatto atterrare il submodule
+            // toccato da un agente → cattura lo sha e rilascia le deferral awaiting-push.
+            try { _submoduleGate?.OnCommitDetected(projectPath); }
+            catch (Exception ex) { _logger.LogWarning(ex, "[ScheduleEvent] rilascio gate submodule fallito per '{Project}'", projectPath); }
+            Fire(projectPath, "commit");
+        }
 
         private void Fire(string projectPath, string triggerType)
         {

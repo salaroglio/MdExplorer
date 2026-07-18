@@ -85,6 +85,13 @@ namespace MdExplorer.Services.AgentRun
         /// <summary>Fase 7d.1/7d.4 — branch <c>agent/*</c> già fusi in <paramref name="intoBranch"/> (native <c>git branch --merged</c>).</summary>
         Task<IReadOnlyList<string>> ListMergedAgentBranchesAsync(string projectPath, string intoBranch, CancellationToken ct = default);
 
+        /// <summary>
+        /// Fase 7e.1 — path relativi dei submodule "toccati" (sporchi) nel worktree, per il gate del
+        /// codice (§6bis). Legge i submodule dal <c>.gitmodules</c> e li incrocia con
+        /// <c>git status --porcelain</c>. Vuoto se il worktree non ha submodule o sono puliti.
+        /// </summary>
+        Task<IReadOnlyList<string>> GetDirtySubmodulesAsync(string worktreePath, CancellationToken ct = default);
+
         /// <summary>Root dei worktree di un progetto: <c>{AppData}/MdExplorer/worktrees/{project-hash}</c>.</summary>
         string WorktreeRootForProject(string projectPath);
 
@@ -350,6 +357,54 @@ namespace MdExplorer.Services.AgentRun
                     result.Add(line);
             }
             return result;
+        }
+
+        public async Task<IReadOnlyList<string>> GetDirtySubmodulesAsync(string worktreePath, CancellationToken ct = default)
+        {
+            var submodulePaths = ReadSubmodulePaths(worktreePath);
+            if (submodulePaths.Count == 0)
+                return System.Array.Empty<string>();
+
+            var (code, outp, _) = await GitAsync(worktreePath, "status --porcelain --ignore-submodules=none", ct);
+            if (code != 0)
+                return System.Array.Empty<string>();
+
+            var dirty = new List<string>();
+            foreach (var raw in outp.Split('\n'))
+            {
+                if (raw.Length < 4) continue;
+                var status = raw.Substring(0, 2);
+                if (status == "  ") continue;                 // pulito
+                var path = raw.Substring(3).Trim().Trim('"'); // porcelain: 2 char stato + spazio + path
+                var slash = path.IndexOf(" -> ", System.StringComparison.Ordinal);
+                if (slash >= 0) path = path.Substring(slash + 4);   // rename: prendi la destinazione
+                path = path.TrimEnd('/');
+                if (submodulePaths.Contains(path) && !dirty.Contains(path))
+                    dirty.Add(path);
+            }
+            return dirty;
+        }
+
+        /// <summary>Legge i path dei submodule dal <c>.gitmodules</c> del worktree (normalizzati a '/').</summary>
+        private static HashSet<string> ReadSubmodulePaths(string worktreePath)
+        {
+            var set = new HashSet<string>(System.StringComparer.Ordinal);
+            var gm = Path.Combine(worktreePath, ".gitmodules");
+            if (!File.Exists(gm)) return set;
+            try
+            {
+                foreach (var line in File.ReadAllLines(gm))
+                {
+                    var t = line.Trim();
+                    if (!t.StartsWith("path", System.StringComparison.OrdinalIgnoreCase)) continue;
+                    var eq = t.IndexOf('=');
+                    if (eq < 0) continue;
+                    var p = t.Substring(eq + 1).Trim().Replace('\\', '/').TrimEnd('/');
+                    if (p.Length > 0) set.Add(p);
+                }
+            }
+            catch { /* best-effort */ }
+            return set;
         }
 
         private async Task<string> ResolveDefaultBranchAsync(string worktreePath, CancellationToken ct)

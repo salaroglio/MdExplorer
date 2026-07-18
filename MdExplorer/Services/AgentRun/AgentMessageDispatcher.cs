@@ -60,6 +60,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly MdExplorer.Services.AgentMemory.IAgentMemoryService _memory;
         private readonly MdExplorer.Services.AgentMemory.IFusekiConnectionResolver _fusekiResolver;
         private readonly IAgentWorktreeManager _worktree;
+        private readonly ISubmoduleGateService _submoduleGate;
         private readonly MdExplorer.Services.IProjectMetadataService _projectMetadata;
         private readonly MdExplorer.Services.Federation.IFederationSender _federationSender;
         private readonly IHubContext<MonitorMDHub> _hubContext;
@@ -84,6 +85,7 @@ namespace MdExplorer.Services.AgentRun
             MdExplorer.Services.AgentMemory.IAgentMemoryService memory,
             MdExplorer.Services.AgentMemory.IFusekiConnectionResolver fusekiResolver,
             IAgentWorktreeManager worktree,
+            ISubmoduleGateService submoduleGate,
             MdExplorer.Services.IProjectMetadataService projectMetadata,
             MdExplorer.Services.Federation.IFederationSender federationSender,
             IHubContext<MonitorMDHub> hubContext,
@@ -99,6 +101,7 @@ namespace MdExplorer.Services.AgentRun
             _memory = memory;
             _fusekiResolver = fusekiResolver;
             _worktree = worktree;
+            _submoduleGate = submoduleGate;
             _projectMetadata = projectMetadata;
             _federationSender = federationSender;
             _hubContext = hubContext;
@@ -452,6 +455,11 @@ namespace MdExplorer.Services.AgentRun
             {
                 try { await _worktree.CommitAndPushBranchAsync(snapshot.ProjectPath, entry.Name, $"deliverable {entry.Name}", ct); }
                 catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] push deliverable per '{Agent}' fallito (best-effort).", entry.Name); }
+
+                // Fase 7e.1 — gate del codice: se l'agente ha toccato un submodule nel worktree, apri
+                // il gate del push umano (awareness + differimento dei dispatch finché non atterra).
+                try { await _submoduleGate.RecordTouchedAsync(snapshot.ProjectPath, entry.Name, workingDirectory, ct); }
+                catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] rilevamento tocco submodule per '{Agent}' fallito.", entry.Name); }
             }
         }
 

@@ -120,6 +120,9 @@ namespace MdExplorer
             // opt-in via agentCity.useAgentWorktrees. Il reaper pota i worktree orfani.
             services.AddSingleton<Services.AgentRun.IAgentWorktreeManager, Services.AgentRun.AgentWorktreeManager>();
             services.AddHostedService<Services.AgentRun.AgentWorktreeReaper>();
+            // Gate del push umano per il codice (Fase 7e): un agente tocca il submodule → awareness
+            // + dispatch differito finché l'umano non committa (release token = sha del submodule).
+            services.AddSingleton<Services.AgentRun.ISubmoduleGateService, Services.AgentRun.SubmoduleGateService>();
             services.AddHostedService<Services.AgentRun.AgentMessageDispatcher>();
 
             // Memoria semantica degli agenti (Fase 5b, §11): assert/query su Fuseki, grafo

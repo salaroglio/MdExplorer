@@ -32,6 +32,8 @@ export class AgentMailboxNotificationService {
     this.serverMessages.agentMessageReceived$.subscribe(evt => this.onMessage(evt));
     // Richiesta federata (§12.6): toast prioritario + apertura sul tab del gate.
     this.serverMessages.federationRequestReceived$.subscribe(evt => this.onFederationRequest(evt));
+    // Fase 7e — un agente ha toccato il codice (submodule): awareness, solo info (nessun diff).
+    this.serverMessages.submoduleTouchedByAgent$.subscribe(evt => this.onSubmoduleTouched(evt));
   }
 
   /** Il toolbar comunica il progetto attivo; ricarichiamo il conteggio non-letti. */
@@ -64,6 +66,14 @@ export class AgentMailboxNotificationService {
       this.translate.instant('FEDERATION.TOAST_REVIEW'),
       { duration: 12000, horizontalPosition: 'right', verticalPosition: 'bottom', panelClass: ['kg-stale-snack'] });
     toast.onAction().subscribe(() => this.open(2));   // apre sul tab "Richieste federate"
+  }
+
+  private onSubmoduleTouched(evt: { agent: string; submodule: string }): void {
+    // Awareness only (§6bis): l'agente ha prodotto codice nel submodule; il push è dell'umano.
+    this.snackBar.open(
+      this.translate.instant('SUBMODULE_GATE.TOAST', { agent: evt.agent || '?', submodule: evt.submodule || '?' }),
+      this.translate.instant('COMMON.OK'),
+      { duration: 12000, horizontalPosition: 'right', verticalPosition: 'bottom', panelClass: ['kg-stale-snack'] });
   }
 
   private onMessage(evt: { fromAgent: string; projectPath: string }): void {

@@ -27,15 +27,18 @@ namespace MdExplorer.Services.AgentRun
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IProjectMetadataService _metadata;
+        private readonly ISubmoduleGateService _submoduleGate;
         private readonly ILogger<AgentAvailabilityPolicy> _logger;
 
         public AgentAvailabilityPolicy(
             IServiceScopeFactory scopeFactory,
             IProjectMetadataService metadata,
+            ISubmoduleGateService submoduleGate,
             ILogger<AgentAvailabilityPolicy> logger)
         {
             _scopeFactory = scopeFactory;
             _metadata = metadata;
+            _submoduleGate = submoduleGate;
             _logger = logger;
         }
 
@@ -72,6 +75,11 @@ namespace MdExplorer.Services.AgentRun
             {
                 _logger.LogWarning(ex, "[Availability] lettura pausa utente fallita per '{Agent}'", agentName);
             }
+
+            // 3) Gate del codice (Fase 7e): un agente ha toccato il submodule non ancora pushato →
+            // differisci finché l'umano non committa. Project-level (§6bis): la catena si ferma.
+            var codeGate = _submoduleGate?.CheckAwaitingPush(projectPath);
+            if (codeGate != null) return codeGate;
 
             return null;
         }

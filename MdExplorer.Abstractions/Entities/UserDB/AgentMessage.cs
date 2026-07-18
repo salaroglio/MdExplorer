@@ -89,6 +89,14 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// </summary>
         public virtual string TriggerSource { get; set; }
 
+        /// <summary>
+        /// Fase 7e.4 — sha del submodule (codice) catturato al push umano che ha rilasciato la
+        /// deferral <c>awaiting-push</c> di questo messaggio. Distinto dal <c>BaseCommit</c> di
+        /// 7d.5 (quello = sync del superprogetto-doc; questo = sha del submodule-codice). Null =
+        /// nessun gate del codice ha toccato questo messaggio.
+        /// </summary>
+        public virtual string SubmoduleBaseCommit { get; set; }
+
         /// <summary>Valori ammessi per <see cref="State"/>.</summary>
         public static class StateEnum
         {
@@ -107,6 +115,8 @@ namespace MdExplorer.Abstractions.Entities.UserDB
             public const string Maintenance = "maintenance";
             /// <summary>Condizione temporanea dell'utente su questa macchina (UserDB).</summary>
             public const string User = "user";
+            /// <summary>Fase 7e — gate del codice: un agente ha toccato un submodule non ancora pushato dall'umano.</summary>
+            public const string AwaitingPush = "awaiting-push";
         }
     }
 }

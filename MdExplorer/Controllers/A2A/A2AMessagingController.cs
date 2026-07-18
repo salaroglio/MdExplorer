@@ -42,6 +42,7 @@ namespace MdExplorer.Controllers.A2A
         private readonly IFederationSender _federationSender;
         private readonly IUserSettingsDB _session;
         private readonly MdExplorer.Services.AgentRun.IAgentWorktreeManager _worktree;
+        private readonly MdExplorer.Services.AgentRun.ISubmoduleGateService _submoduleGate;
         private readonly IProjectMetadataService _projectMetadata;
         private readonly ILogger<A2AMessagingController> _logger;
 
@@ -53,6 +54,7 @@ namespace MdExplorer.Controllers.A2A
             IFederationSender federationSender,
             IUserSettingsDB session,
             MdExplorer.Services.AgentRun.IAgentWorktreeManager worktree,
+            MdExplorer.Services.AgentRun.ISubmoduleGateService submoduleGate,
             IProjectMetadataService projectMetadata,
             ILogger<A2AMessagingController> logger)
         {
@@ -63,6 +65,7 @@ namespace MdExplorer.Controllers.A2A
             _federationSender = federationSender;
             _session = session;
             _worktree = worktree;
+            _submoduleGate = submoduleGate;
             _projectMetadata = projectMetadata;
             _logger = logger;
         }
@@ -297,6 +300,12 @@ namespace MdExplorer.Controllers.A2A
                     _logger.LogInformation("[A2A/request-intervention] handoff pubblicato: {Ref}@{Sha}", pushed.Branch, pushed.HeadSha);
                 }
             }
+
+            // Fase 7e — se un gate del codice si è chiuso (l'umano ha pushato il submodule toccato),
+            // allega lo sha del submodule così B può sincronizzare anche il codice (campo dedicato).
+            var submoduleSha = _submoduleGate.GetResolvedSubmoduleSha(claims.ProjectPath);
+            if (!string.IsNullOrWhiteSpace(submoduleSha))
+                payload.SubmoduleBaseCommit = submoduleSha;
 
             var sent = await _federationSender.SendFederatedRequestAsync(claims.ProjectPath, targetOwnerId, payload);
             if (!sent)
