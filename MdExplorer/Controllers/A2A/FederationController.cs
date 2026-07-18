@@ -152,6 +152,7 @@ namespace MdExplorer.Controllers.A2A
                 StartedAt = DateTime.UtcNow,
                 LastActivityAt = DateTime.UtcNow,
                 FederationId = reqFresh.FederationId,
+                RequestId = reqFresh.RequestId,   // Fase 7a: ponte per l'intervention-result di ritorno
                 RemoteOwner = reqFresh.FromOwner,
                 RemoteAgent = reqFresh.FromAgent,
             };

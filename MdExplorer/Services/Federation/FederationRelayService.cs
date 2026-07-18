@@ -40,6 +40,13 @@ namespace MdExplorer.Services.Federation
     public interface IFederationSender
     {
         Task<bool> SendFederatedRequestAsync(string projectPath, string targetOwnerId, FederatedRequestPayload payload);
+
+        /// <summary>
+        /// Spedisce l'esito di ritorno di un intervento delegato (Fase 7a): stesso tunnel cifrato
+        /// della richiesta, payload distinto (<see cref="FederatedResultPayload"/>). false se il
+        /// progetto non ha una connessione federata attiva.
+        /// </summary>
+        Task<bool> SendFederatedResultAsync(string projectPath, string targetOwnerId, FederatedResultPayload payload);
     }
 
     /// <summary>
@@ -267,6 +274,12 @@ namespace MdExplorer.Services.Federation
         /// (§12.6) — che NON fa partire nulla finché l'umano non autorizza. Fail-loud sui log:
         /// busta non apribile (secret sbagliato/manomessa) o payload malformato.
         /// </summary>
+        /// <summary>Solo il discriminante di busta, per instradare senza deserializzare tutto (Fase 7a).</summary>
+        private sealed class KindPeek
+        {
+            public string Kind { get; set; }
+        }
+
         private void HandleDeliver(FederationAnnounce announce, string envelope)
         {
             try
@@ -281,6 +294,23 @@ namespace MdExplorer.Services.Federation
                 }
 
                 var json = FederationCrypto.Decrypt(secret, announce.RoomId, envelope);
+
+                // Peek del discriminante di busta (Fase 7a) PRIMA di deserializzare il payload
+                // pieno: una busta senza Kind (origine vecchia) = request-intervention.
+                var kind = System.Text.Json.JsonSerializer.Deserialize<KindPeek>(json)?.Kind;
+                if (string.Equals(kind, FederationKind.InterventionResult, StringComparison.OrdinalIgnoreCase))
+                {
+                    var result = System.Text.Json.JsonSerializer.Deserialize<FederatedResultPayload>(json);
+                    if (result == null)
+                    {
+                        _logger.LogWarning("[Federation] deliver 'intervention-result' per stanza {Room}: payload nullo dopo decrypt.", announce.RoomId);
+                        return;
+                    }
+                    var resultReceiver = scope.ServiceProvider.GetRequiredService<IFederatedResultReceiver>();
+                    resultReceiver.Receive(announce.ProjectPath, result);
+                    return;
+                }
+
                 var payload = System.Text.Json.JsonSerializer.Deserialize<FederatedRequestPayload>(json);
                 if (payload == null)
                 {
@@ -306,7 +336,18 @@ namespace MdExplorer.Services.Federation
         /// e lo emette al relay (<c>send</c> mirato per <paramref name="targetOwnerId"/>) sulla
         /// connessione della stanza. false se il progetto non ha una connessione federata attiva.
         /// </summary>
-        public async Task<bool> SendFederatedRequestAsync(string projectPath, string targetOwnerId, FederatedRequestPayload payload)
+        public Task<bool> SendFederatedRequestAsync(string projectPath, string targetOwnerId, FederatedRequestPayload payload)
+            => SendEnvelopeAsync(projectPath, targetOwnerId, System.Text.Json.JsonSerializer.Serialize(payload));
+
+        /// <inheritdoc/>
+        public Task<bool> SendFederatedResultAsync(string projectPath, string targetOwnerId, FederatedResultPayload payload)
+            => SendEnvelopeAsync(projectPath, targetOwnerId, System.Text.Json.JsonSerializer.Serialize(payload));
+
+        // Core condiviso: cifra il JSON già serializzato del payload TIPATO col room secret del
+        // progetto e lo emette al relay. Serializzare qui su `object` perderebbe le proprietà
+        // (System.Text.Json guarda il tipo statico), perciò ogni overload serializza il proprio
+        // tipo concreto e passa qui la stringa.
+        private async Task<bool> SendEnvelopeAsync(string projectPath, string targetOwnerId, string payloadJson)
         {
             var city = _snapshot.FirstOrDefault(c => AgentPathComparer.Equals(c.ProjectPath, projectPath));
             if (city == null || !_rooms.TryGetValue(city.RoomId, out var conn))
@@ -327,7 +368,7 @@ namespace MdExplorer.Services.Federation
                 return false;
             }
 
-            var envelope = FederationCrypto.Encrypt(secret, city.RoomId, System.Text.Json.JsonSerializer.Serialize(payload));
+            var envelope = FederationCrypto.Encrypt(secret, city.RoomId, payloadJson);
             try
             {
                 // true SOLO se il relay ackka la presa in carico (consegnata o accodata).

@@ -81,6 +81,14 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// </summary>
         public virtual DateTime? ForcedAt { get; set; }
 
+        /// <summary>
+        /// Etichetta d'audit della causa del risveglio (Fase 7a): valorizzata per i wake speciali
+        /// (es. <c>federated-result</c> = ritorno di un intervento federato); <c>null</c> per un
+        /// messaggio ordinario. Il dispatcher la propaga nell'<see cref="AgentExecutionLog"/>
+        /// (fallback <c>message</c> quando null), così l'audit distingue questi risvegli.
+        /// </summary>
+        public virtual string TriggerSource { get; set; }
+
         /// <summary>Valori ammessi per <see cref="State"/>.</summary>
         public static class StateEnum
         {

@@ -41,6 +41,15 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// </summary>
         public virtual Guid? FederationId { get; set; }
 
+        /// <summary>
+        /// Idempotency key della singola emissione federata (Fase 7a): sul lato DESTINAZIONE è
+        /// copiata dal <see cref="FederationRequest.RequestId"/> all'approvazione, così l'agente
+        /// bersaglio può citarla ESATTA nell'<c>intervention-result</c> senza risalire per
+        /// <see cref="FederationId"/> (ambiguo con più richieste sulla stessa federazione).
+        /// <c>null</c> = conversazione non federata o richiesta d'origine senza RequestId.
+        /// </summary>
+        public virtual Guid? RequestId { get; set; }
+
         /// <summary>La città remota controparte: <c>gitEmail</c>/ownerId del padrone (federate only).</summary>
         public virtual string RemoteOwner { get; set; }
 

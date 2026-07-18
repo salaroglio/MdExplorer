@@ -14,7 +14,11 @@ namespace MdExplorer.Services.AgentRun
         public string AgentFilePath { get; set; }
         /// <summary>Normalized prompt with parameter placeholders already substituted.</summary>
         public string PreparedPrompt { get; set; }
-        /// <summary>"manual" | "cron" | "commit" | "projectOpen".</summary>
+        /// <summary>
+        /// "manual" | "cron" | "commit" | "projectOpen" | "message" (dispatcher) |
+        /// "federated-result" (Fase 7a: risveglio di ritorno di un intervento federato).
+        /// Stringhe letterali, non costanti.
+        /// </summary>
         public string TriggerSource { get; set; } = "manual";
         /// <summary>SignalR connection to notify; null → broadcast to all clients.</summary>
         public string ConnectionId { get; set; }

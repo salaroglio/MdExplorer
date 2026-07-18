@@ -302,6 +302,30 @@ Sei l'agente {name}.";
             db.Commit();
         }
 
+        /// <summary>White-box: imposta la RequestId di una conversazione (ponte 7a lato destinazione).</summary>
+        public void SetConversationRequestId(Guid id, Guid requestId)
+        {
+            using var scope = Factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var dal = db.GetDal<AgentConversation>();
+            var conv = dal.GetList().First(c => c.Id == id);
+            conv.RequestId = requestId;
+            dal.Save(conv);
+            db.Commit();
+        }
+
+        /// <summary>White-box: le righe del ledger d'origine (FederationDispatch, Fase 7a).</summary>
+        public List<FederationDispatch> Dispatches()
+        {
+            using var scope = Factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var list = db.GetDal<FederationDispatch>().GetList().ToList();
+            db.Commit();
+            return list;
+        }
+
         /// <summary>White-box: marca una conversazione come federata (correlazione §12.6).</summary>
         public void MarkConversationFederated(Guid id, Guid federationId, string remoteOwner, string remoteAgent)
         {

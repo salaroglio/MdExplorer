@@ -23,6 +23,12 @@ namespace MdExplorer.Services.AgentRun
         public int? HopLimitOverride { get; set; }
         /// <summary>Argomenti dichiarati dal mittente (§8): contesto passato all'agente.</summary>
         public IList<string> Topics { get; set; }
+        /// <summary>
+        /// Etichetta d'audit della causa del risveglio (Fase 7a): valorizzata per i wake speciali
+        /// (es. <c>federated-result</c>); <c>null</c> per un messaggio ordinario → il dispatcher
+        /// logga il default <c>message</c>.
+        /// </summary>
+        public string TriggerSource { get; set; }
     }
 
     /// <summary>Esito dell'accodamento. Fail-loud: se non accettato, porta il motivo.</summary>
@@ -147,6 +153,7 @@ namespace MdExplorer.Services.AgentRun
                     State = AgentMessage.StateEnum.Pending,
                     Attempts = 0,
                     CreatedAt = now,
+                    TriggerSource = request.TriggerSource,
                 };
                 db.GetDal<AgentMessage>().Save(message);
                 db.Commit();

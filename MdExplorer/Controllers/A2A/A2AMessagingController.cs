@@ -297,6 +297,26 @@ namespace MdExplorer.Controllers.A2A
                 _session.Commit();
             }
 
+            // Ledger LATO ORIGINE (Fase 7a): registra la richiesta smistata come pending, con la
+            // stessa RequestId inviata nel payload = chiave di correlazione dell'esito che tornerà.
+            // OriginAgent = l'agente locale da risvegliare al ritorno (claims certificati, NON
+            // StartedBy che vale spesso "user"). Persistito solo dopo un send riuscito.
+            _session.BeginTransaction();
+            _session.GetDal<FederationDispatch>().Save(new FederationDispatch
+            {
+                RequestId = Guid.Parse(payload.RequestId),
+                FederationId = fedId,
+                ProjectPath = claims.ProjectPath,
+                ConversationId = convId,
+                OriginAgent = claims.AgentName,
+                TargetOwner = targetOwnerId,
+                TargetAgent = targetAgent,
+                Topics = AgentTopics.Join(request.Topics),
+                Status = FederationDispatch.StatusEnum.Pending,
+                CreatedAt = DateTime.UtcNow,
+            });
+            _session.Commit();
+
             _logger.LogInformation("[A2A/request-intervention] {From} → ambito '{Scope}' ({Agent}@{Owner}), fed {Fed}",
                 claims.AgentName, entry.Scope, targetAgent, entry.GitEmail, fedId);
             return Ok(new
@@ -306,6 +326,59 @@ namespace MdExplorer.Controllers.A2A
                 targetAgent,
                 targetOwner = entry.GitEmail,
             });
+        }
+
+        /// <summary>
+        /// Il ritorno del cerchio (Fase 7a): l'agente <b>B</b> chiama qui quando conclude un
+        /// intervento delegato. Dalla sua conversazione federata (claims certificati) ricava
+        /// <c>RequestId</c> + controparte e spedisce all'origine un <c>intervention-result</c>
+        /// cifrato. Rotta assoluta: sta col canale autenticato (RunToken), non con la UI loopback.
+        /// </summary>
+        [HttpPost("~/api/A2A/federation/result")]
+        public async System.Threading.Tasks.Task<IActionResult> ReportResult([FromBody] FederationResultRequest request)
+        {
+            var claims = ResolveClaims();
+            if (claims == null)
+                return Unauthorized(new { error = "RunToken assente o non valido." });
+            if (request == null || string.IsNullOrWhiteSpace(request.Verdict))
+                return BadRequest(new { error = "verdict è obbligatorio." });
+
+            if (!Guid.TryParse(claims.ConversationId, out var convId))
+                return UnprocessableEntity(new { error = "Il RunToken non porta una conversazione valida." });
+
+            AgentConversation conv;
+            _session.BeginTransaction();
+            conv = _session.GetDal<AgentConversation>().GetList().FirstOrDefault(c => c.Id == convId);
+            _session.Commit();
+            if (conv == null)
+                return NotFound(new { error = "Conversazione non trovata." });
+
+            // Deve essere il lato DESTINAZIONE di una federazione: RemoteOwner (l'origine) e
+            // RequestId (il ponte di 7a) sono le due precondizioni per correlare l'esito.
+            if (string.IsNullOrWhiteSpace(conv.RemoteOwner))
+                return UnprocessableEntity(new { error = "La conversazione non è federata: nessun esito da riportare." });
+            if (!conv.RequestId.HasValue)
+                return UnprocessableEntity(new { error = "La conversazione federata non porta un RequestId: impossibile correlare l'esito all'origine." });
+
+            var targetOwnerId = FederationRoom.ComputeUserId(conv.RemoteOwner);
+
+            var payload = new FederatedResultPayload
+            {
+                Kind = FederationKind.InterventionResult,
+                RequestId = conv.RequestId.Value.ToString(),
+                FederationId = conv.FederationId?.ToString(),
+                Verdict = request.Verdict.Trim(),
+                Reason = string.IsNullOrWhiteSpace(request.Reason) ? null : request.Reason.Trim(),
+                Topics = request.Topics,
+            };
+
+            var sent = await _federationSender.SendFederatedResultAsync(claims.ProjectPath, targetOwnerId, payload);
+            if (!sent)
+                return StatusCode(503, new { error = "Nessuna connessione federata attiva per il progetto (città accesa e relay raggiungibile?)." });
+
+            _logger.LogInformation("[A2A/federation/result] {Agent} → esito '{Verdict}' per req {Req} verso {Owner}",
+                claims.AgentName, payload.Verdict, payload.RequestId, conv.RemoteOwner);
+            return Ok(new { reported = true, requestId = payload.RequestId, verdict = payload.Verdict });
         }
 
         private static string ResolveLocalGitEmail(string projectPath)
@@ -334,6 +407,20 @@ namespace MdExplorer.Controllers.A2A
         public string? Scope { get; set; }
         public string? Message { get; set; }
         public string? PreferredAgent { get; set; }
+        public List<string>? Topics { get; set; }
+    }
+
+    /// <summary>
+    /// Body dell'<c>intervention-result</c> (Fase 7a). Campi nullable di proposito
+    /// (dto_nullable_implicit_required): <c>Verdict</c> non-nullable risponderebbe 400 PRIMA del
+    /// check del token — lo validiamo a mano dopo l'auth, così un non autenticato vede 401.
+    /// </summary>
+    public class FederationResultRequest
+    {
+        /// <summary>Esito: <c>success</c> | <c>rejected</c> | <c>not-ready</c> (FederationVerdict).</summary>
+        public string? Verdict { get; set; }
+        /// <summary>Reason codificato opzionale (FederationReason): <c>not-for-me</c>, <c>merge-conflict-with-main</c>, …</summary>
+        public string? Reason { get; set; }
         public List<string>? Topics { get; set; }
     }
 

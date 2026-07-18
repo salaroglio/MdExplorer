@@ -20,6 +20,14 @@ namespace MdExplorer.Services.Federation
     public sealed class FederatedRequestPayload
     {
         /// <summary>
+        /// Discriminante di busta (Fase 7a): <c>"request-intervention"</c> (default) instrada al
+        /// gate umano; <c>"intervention-result"</c> è l'esito di ritorno (payload distinto,
+        /// vedi <see cref="FederatedResultPayload"/>). Null/empty su un payload vecchio =
+        /// <c>request-intervention</c> (retrocompatibilità).
+        /// </summary>
+        public string Kind { get; set; }
+
+        /// <summary>
         /// Idempotency key univoca per SINGOLA emissione (§12.6): l'origine ne conia una nuova
         /// a ogni <c>request-intervention</c>. Il ricevente deduplica su questa — così una
         /// <b>redelivery del relay</b> (stesso RequestId) non crea un secondo gate, ma due

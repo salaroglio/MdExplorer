@@ -131,6 +131,7 @@ namespace MdExplorer
             services.AddSingleton<Services.Federation.IFederationPresenceService, Services.Federation.FederationPresenceService>();
             services.AddSingleton<Services.Federation.IHeadlessProjectActivator, Services.Federation.HeadlessProjectActivator>();
             services.AddSingleton<Services.Federation.IFederatedRequestReceiver, Services.Federation.FederatedRequestReceiver>();
+            services.AddSingleton<Services.Federation.IFederatedResultReceiver, Services.Federation.FederatedResultReceiver>();
             services.AddSingleton<Services.Federation.FederationRelayService>();
             services.AddSingleton<Services.Federation.IFederationState>(sp => sp.GetRequiredService<Services.Federation.FederationRelayService>());
             services.AddSingleton<Services.Federation.IFederationSender>(sp => sp.GetRequiredService<Services.Federation.FederationRelayService>());

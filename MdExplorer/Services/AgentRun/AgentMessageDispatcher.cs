@@ -519,7 +519,7 @@ namespace MdExplorer.Services.AgentRun
                 {
                     ProjectPath = snapshot.ProjectPath,
                     AgentFilePath = entry.AgentFilePath,
-                    TriggerSource = "message",
+                    TriggerSource = snapshot.TriggerSource ?? "message",
                     ExecutedBy = "dispatcher",
                     StartedAt = startedAt,
                     FinishedAt = DateTime.UtcNow,
@@ -623,7 +623,7 @@ namespace MdExplorer.Services.AgentRun
                 {
                     ProjectPath = snapshot.ProjectPath,
                     AgentFilePath = $"(algorithmic:{snapshot.ToAgent})",
-                    TriggerSource = "message",
+                    TriggerSource = snapshot.TriggerSource ?? "message",
                     ExecutedBy = "dispatcher",
                     StartedAt = startedAt,
                     FinishedAt = DateTime.UtcNow,
