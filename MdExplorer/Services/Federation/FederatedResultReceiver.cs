@@ -1,10 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
+using MdExplorer.Features.AgentMemory;
 using MdExplorer.Features.Agents;
+using MdExplorer.Features.Federation;
+using MdExplorer.Services.AgentMemory;
+using MdExplorer.Services.AgentRegistry;
 using MdExplorer.Services.AgentRun;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -49,7 +54,7 @@ namespace MdExplorer.Services.Federation
     /// </summary>
     public interface IFederatedResultReceiver
     {
-        void Receive(string projectPath, FederatedResultPayload payload);
+        Task Receive(string projectPath, FederatedResultPayload payload);
     }
 
     public class FederatedResultReceiver : IFederatedResultReceiver
@@ -63,21 +68,38 @@ namespace MdExplorer.Services.Federation
         /// <summary>Etichetta d'audit del risveglio (TriggerSource dell'AgentExecutionLog).</summary>
         public const string TriggerSource = "federated-result";
 
+        // Delta di confidence sul fatto di routing (Fase 7b). Reinforce/erode per delta: la
+        // conoscenza è volatile e apprende su più episodi, non si sovrascrive.
+        private const double ReinforceDelta = 0.10;    // success → il routing ha funzionato
+        private const double ErodeDelta = -0.15;       // rejected → scelta sbagliata (peso maggiore)
+        private const double LightErodeDelta = -0.05;  // not-ready → precondizione mancante, non colpa del routing
+        private const double InitialConfidence = 0.6;  // confidence moderata alla prima comparsa del fatto
+        private const int MemoryScanLimit = 500;       // fatti scanditi per trovare quello pertinente
+
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IAgentMailbox _mailbox;
+        private readonly IAgentRegistryService _registry;
+        private readonly IAgentMemoryService _memory;
+        private readonly IFusekiConnectionResolver _fusekiResolver;
         private readonly ILogger<FederatedResultReceiver> _logger;
 
         public FederatedResultReceiver(
             IServiceScopeFactory scopeFactory,
             IAgentMailbox mailbox,
+            IAgentRegistryService registry,
+            IAgentMemoryService memory,
+            IFusekiConnectionResolver fusekiResolver,
             ILogger<FederatedResultReceiver> logger)
         {
             _scopeFactory = scopeFactory;
             _mailbox = mailbox;
+            _registry = registry;
+            _memory = memory;
+            _fusekiResolver = fusekiResolver;
             _logger = logger;
         }
 
-        public void Receive(string projectPath, FederatedResultPayload payload)
+        public async Task Receive(string projectPath, FederatedResultPayload payload)
         {
             if (payload == null) throw new ArgumentNullException(nameof(payload));
             if (string.IsNullOrWhiteSpace(projectPath))
@@ -150,19 +172,141 @@ namespace MdExplorer.Services.Federation
             {
                 // Fail-loud (REGOLA #2): l'esito è stato correlato e il ledger chiuso, ma la
                 // conversazione d'origine non può più accoglierlo (killed/exhausted). Non è un
-                // fallback silenzioso: lo si registra perché l'umano possa riprenderlo.
+                // fallback silenzioso: lo si registra perché l'umano possa riprenderlo. NON
+                // usciamo: la memoria (7b) va comunque aggiornata — l'esito è noto.
                 _logger.LogWarning(
                     "[Federation] esito per RequestId {Req} correlato ma NON consegnato all'agente '{Agent}': {Reason}",
                     requestId, dispatch.OriginAgent, enqueue.RejectionReason);
-                return;
             }
 
-            // TODO 7b: reinforce/erode — qui la memoria dell'agente d'origine verrà aggiornata
-            // in base al verdict (Success → rinforzo; Rejected/NotReady → erosione + fatto).
+            // Fase 7b — memoria dagli esiti: reinforce/erode della confidence dell'agente
+            // d'origine + fatto sul CHI/COSA. Best-effort: se Fuseki è disabilitato è il caso
+            // normale (niente memoria, non un errore); se è abilitato ma rotto, fail-loud.
+            await ReconcileMemoryAsync(projectPath, dispatch, verdict, reason);
 
             _logger.LogInformation(
                 "[Federation] esito '{Verdict}' per RequestId {Req} → risvegliato '{Agent}' nella conversazione {Conv}.",
                 verdict, requestId, dispatch.OriginAgent, dispatch.ConversationId);
+        }
+
+        /// <summary>
+        /// Aggiorna la memoria dell'agente d'origine in base al verdict (Fase 7b). Il fatto di
+        /// <b>routing</b> ("delegare [topic] a &lt;agente&gt; è affidabile") è STABILE tra gli
+        /// episodi: success lo rinforza, rejected/not-ready lo erodono (per delta, non assoluto,
+        /// così apprende su più esiti). In più: <c>rejected</c> asserisce un fatto sul CHI
+        /// (routing sbagliato); <c>not-ready</c> asserisce la <b>precondizione</b> sul COSA
+        /// (azionabile PRIMA del prossimo invio — shift-left del check da B verso A).
+        /// </summary>
+        private async Task ReconcileMemoryAsync(string projectPath, FederationDispatch dispatch, string verdict, string reason)
+        {
+            // Identità dell'agente d'origine: il grafo di memoria è forzato da AgentIdentity.Id
+            // (stabile al rename), non dal nome. Non risolvibile → niente memoria (non è un errore).
+            var entry = _registry.RefreshCatalog(projectPath)
+                .FirstOrDefault(e => e.IsCitizen && string.Equals(e.Name, dispatch.OriginAgent, StringComparison.OrdinalIgnoreCase));
+            if (entry?.IdentityId == null)
+            {
+                _logger.LogInformation("[Federation/7b] identità di '{Agent}' non risolvibile: nessun aggiornamento di memoria.", dispatch.OriginAgent);
+                return;
+            }
+
+            FusekiConnection conn;
+            try
+            {
+                conn = await _fusekiResolver.ResolveAsync(projectPath);
+            }
+            catch (Exception ex)
+            {
+                // Fuseki abilitato (addon gestito?) ma non risolvibile: fail-loud, non un finto ok.
+                _logger.LogWarning(ex, "[Federation/7b] risoluzione Fuseki fallita per '{Project}': memoria non aggiornata.", projectPath);
+                return;
+            }
+            if (conn == null)
+            {
+                // Memoria non abilitata per il progetto: caso NORMALE, l'unico "niente memoria" lecito.
+                _logger.LogDebug("[Federation/7b] memoria (Fuseki) non abilitata per '{Project}': nessun aggiornamento.", projectPath);
+                return;
+            }
+
+            var identityId = entry.IdentityId.Value;
+            var graph = AgentMemoryGraphs.ForAgent(identityId);
+            var topics = AgentTopics.Split(dispatch.Topics);
+            var tagsText = topics.Count > 0 ? string.Join(", ", topics) : dispatch.TargetAgent;
+
+            // Delta sul fatto di routing secondo il verdict.
+            double routingDelta;
+            switch (verdict)
+            {
+                case FederationVerdict.Success: routingDelta = ReinforceDelta; break;
+                case FederationVerdict.Rejected: routingDelta = ErodeDelta; break;
+                case FederationVerdict.NotReady: routingDelta = LightErodeDelta; break;
+                default:
+                    _logger.LogInformation("[Federation/7b] verdict '{Verdict}' non riconosciuto: nessun aggiustamento di routing.", verdict);
+                    return;
+            }
+
+            try
+            {
+                // Un solo scan del grafo: lo riuso sia per il routing sia per il fatto CHI/COSA.
+                var existing = await _memory.ListAsync(conn, new[] { graph }, MemoryScanLimit);
+
+                var routingStatement = $"routing verso '{dispatch.TargetAgent}' per [{tagsText}] è affidabile";
+                await UpsertByDeltaAsync(conn, identityId, graph, existing, routingStatement, topics, routingDelta, dispatch);
+
+                if (verdict == FederationVerdict.Rejected)
+                {
+                    // Fatto sul CHI: la scelta di routing è sbagliata (aboutTag not-for-me).
+                    var whoStatement = $"'{dispatch.TargetAgent}' non è competente per [{tagsText}]";
+                    var whoTags = topics.Concat(new[] { FederationReason.NotForMe }).ToList();
+                    await UpsertByDeltaAsync(conn, identityId, graph, existing, whoStatement, whoTags, ReinforceDelta, dispatch);
+                }
+                else if (verdict == FederationVerdict.NotReady && !string.IsNullOrWhiteSpace(reason))
+                {
+                    // Fatto sul COSA: la precondizione mancante (aboutTag = reason macchina).
+                    var whatStatement = $"prima di delegare [{tagsText}] a '{dispatch.TargetAgent}' serve: {reason}";
+                    var whatTags = topics.Concat(new[] { reason }).ToList();
+                    await UpsertByDeltaAsync(conn, identityId, graph, existing, whatStatement, whatTags, ReinforceDelta, dispatch);
+                }
+
+                _logger.LogInformation("[Federation/7b] memoria di '{Agent}' aggiornata (verdict '{Verdict}', delta routing {Delta:+0.00;-0.00}).",
+                    dispatch.OriginAgent, verdict, routingDelta);
+            }
+            catch (Exception ex)
+            {
+                // Fuseki abilitato ma la scrittura è fallita: fail-loud, il ledger/wake restano validi.
+                _logger.LogWarning(ex, "[Federation/7b] aggiornamento memoria fallito per '{Agent}' (Fuseki abilitato ma non scrivibile?).", dispatch.OriginAgent);
+            }
+        }
+
+        /// <summary>
+        /// Upsert per delta di un fatto identificato dal suo <paramref name="statement"/>: se esiste
+        /// già nel grafo, ne aggiusta la confidence di <paramref name="delta"/> (clamp [0,1]); se
+        /// non esiste, lo asserisce a confidence moderata (già orientata dal primo esito).
+        /// </summary>
+        private async Task UpsertByDeltaAsync(
+            FusekiConnection conn, Guid identityId, string graph,
+            IReadOnlyList<MemoryFactDetail> existing, string statement,
+            IReadOnlyList<string> aboutTags, double delta, FederationDispatch dispatch)
+        {
+            var match = existing.FirstOrDefault(f => string.Equals(f.Statement, statement, StringComparison.Ordinal));
+            if (match != null)
+            {
+                var newConfidence = Math.Clamp(match.Confidence + delta, 0.0, 1.0);
+                await _memory.SetConfidenceAsync(conn, graph, match.FactUri, newConfidence);
+            }
+            else
+            {
+                await _memory.AssertFactAsync(conn, identityId, new LearnedFactInput
+                {
+                    Statement = statement,
+                    Confidence = Math.Clamp(InitialConfidence + delta, 0.0, 1.0),
+                    AboutTags = aboutTags,
+                    // Provenance: il fatto è appreso dall'ESITO di questo intervento federato →
+                    // la RequestId è il "run" che l'ha prodotto (correlabile al dispatch).
+                    RunId = dispatch.RequestId,
+                    ConversationId = dispatch.ConversationId.ToString(),
+                    CreatedAtUtc = DateTime.UtcNow,
+                });
+            }
         }
     }
 }

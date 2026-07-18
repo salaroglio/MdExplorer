@@ -100,7 +100,7 @@ mde_type: ownership
 
             // L'esito torna (nell'harness a una città, invocazione diretta del receiver).
             var receiver = ctx.Factory.Services.GetRequiredService<IFederatedResultReceiver>();
-            receiver.Receive(path, new FederatedResultPayload
+            await receiver.Receive(path, new FederatedResultPayload
             {
                 Kind = FederationKind.InterventionResult,
                 RequestId = requestId.ToString(),
@@ -137,8 +137,8 @@ mde_type: ownership
                 RequestId = requestId.ToString(),
                 Verdict = FederationVerdict.Success,
             };
-            receiver.Receive(path, payload);
-            receiver.Receive(path, payload);   // riconsegna del relay
+            await receiver.Receive(path, payload);
+            await receiver.Receive(path, payload);   // riconsegna del relay
 
             var wakes = ctx.Messages().Count(m =>
                 m.ToAgent == "analyst" && m.TriggerSource == FederatedResultReceiver.TriggerSource);
@@ -148,13 +148,13 @@ mde_type: ownership
         // ---- Filtro anti-avvelenamento ----
 
         [TestMethod]
-        public void Drop_a_result_whose_request_id_is_unknown()
+        public async Task Drop_a_result_whose_request_id_is_unknown()
         {
             using var ctx = new AgentCityContext();
             var (_, path) = ctx.SeedProject("fedresult-unknown");
 
             var receiver = ctx.Factory.Services.GetRequiredService<IFederatedResultReceiver>();
-            receiver.Receive(path, new FederatedResultPayload
+            await receiver.Receive(path, new FederatedResultPayload
             {
                 Kind = FederationKind.InterventionResult,
                 RequestId = Guid.NewGuid().ToString(),   // nessun dispatch corrispondente

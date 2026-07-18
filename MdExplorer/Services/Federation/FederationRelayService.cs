@@ -259,7 +259,7 @@ namespace MdExplorer.Services.Federation
                     var baseUrl = ToHttpBase(announce.RelayUrl) ?? _baseUrl;
                     var conn = new RoomConnection(baseUrl, EnginePath, _apiKey, announce, _logger);
                     var captured = announce;             // per la closure del deliver
-                    conn.OnDeliver = env => HandleDeliver(captured, env);
+                    conn.OnDeliver = env => { _ = HandleDeliverAsync(captured, env); };
                     _rooms[roomId] = conn;
                     conn.Start();                        // fire-and-forget: OnConnected fa join+announce
                 }
@@ -280,7 +280,7 @@ namespace MdExplorer.Services.Federation
             public string Kind { get; set; }
         }
 
-        private void HandleDeliver(FederationAnnounce announce, string envelope)
+        private async Task HandleDeliverAsync(FederationAnnounce announce, string envelope)
         {
             try
             {
@@ -307,7 +307,7 @@ namespace MdExplorer.Services.Federation
                         return;
                     }
                     var resultReceiver = scope.ServiceProvider.GetRequiredService<IFederatedResultReceiver>();
-                    resultReceiver.Receive(announce.ProjectPath, result);
+                    await resultReceiver.Receive(announce.ProjectPath, result);
                     return;
                 }
 
