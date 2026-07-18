@@ -13,6 +13,12 @@ namespace MdExplorer.Features.Agents
         public string AgentName { get; set; }
         public string AgentFileContent { get; set; }
         public string ProjectPath { get; set; }
+        /// <summary>
+        /// Directory di lavoro del processo agente (Fase 7c): il worktree isolato quando attivo.
+        /// <b>Solo</b> il cwd del turno — <see cref="ProjectPath"/> resta il progetto vero (claims
+        /// del RunToken, <c>MDE_PROJECT_PATH</c>, memoria/registry). <c>null</c> = gira nel progetto.
+        /// </summary>
+        public string WorkingDirectory { get; set; }
         public string ConversationId { get; set; }
         public string FromAgent { get; set; }
         public string MessageBody { get; set; }
@@ -122,7 +128,9 @@ namespace MdExplorer.Features.Agents
                 var output = await _runner.RunTurnAsync(new AgentTurnRequest
                 {
                     ComposedPrompt = prompt,
-                    WorkingDirectory = request.ProjectPath,
+                    // Fase 7c: cwd = worktree se attivo, altrimenti il progetto. Claims ed env
+                    // (sopra) restano SEMPRE sul progetto vero — il cwd è disaccoppiato.
+                    WorkingDirectory = request.WorkingDirectory ?? request.ProjectPath,
                     Environment = env,
                 }, ct);
 

@@ -312,6 +312,7 @@ namespace MdExplorer.Services
                 RoomSecret = string.IsNullOrWhiteSpace(secret) ? null : secret,
                 RelayUrl = string.IsNullOrWhiteSpace(relayUrl) ? null : relayUrl,
                 Maintenance = maintenance,
+                UseAgentWorktrees = config.UseAgentWorktrees,   // Fase 7c: opt-in isolamento worktree
             };
 
             var serializer = new SerializerBuilder()

@@ -10,6 +10,7 @@ using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Models.Agents;
 using MdExplorer.Abstractions.Services;
 using MdExplorer.Features.Agents;
+using MdExplorer.Features.Federation;
 using MdExplorer.Hubs;
 using MdExplorer.Services.AgentRegistry;
 using Microsoft.AspNetCore.SignalR;
@@ -58,6 +59,8 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentAvailabilityPolicy _availability;
         private readonly MdExplorer.Services.AgentMemory.IAgentMemoryService _memory;
         private readonly MdExplorer.Services.AgentMemory.IFusekiConnectionResolver _fusekiResolver;
+        private readonly IAgentWorktreeManager _worktree;
+        private readonly MdExplorer.Services.IProjectMetadataService _projectMetadata;
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly ILogger<AgentMessageDispatcher> _logger;
 
@@ -79,6 +82,8 @@ namespace MdExplorer.Services.AgentRun
             IAgentAvailabilityPolicy availability,
             MdExplorer.Services.AgentMemory.IAgentMemoryService memory,
             MdExplorer.Services.AgentMemory.IFusekiConnectionResolver fusekiResolver,
+            IAgentWorktreeManager worktree,
+            MdExplorer.Services.IProjectMetadataService projectMetadata,
             IHubContext<MonitorMDHub> hubContext,
             ILogger<AgentMessageDispatcher> logger)
         {
@@ -91,6 +96,8 @@ namespace MdExplorer.Services.AgentRun
             _availability = availability;
             _memory = memory;
             _fusekiResolver = fusekiResolver;
+            _worktree = worktree;
+            _projectMetadata = projectMetadata;
             _hubContext = hubContext;
             _logger = logger;
         }
@@ -365,6 +372,25 @@ namespace MdExplorer.Services.AgentRun
             // che questo agente (e la città) ha già appreso. Best-effort fail-loud: Fuseki giù
             // → run SENZA memoria + warning, mai un finto successo silenzioso.
             var memory = await SafeRecallMemoryAsync(snapshot, entry, ct);
+
+            // Fase 7c — isolamento d'esecuzione: se il progetto ha attivato useAgentWorktrees, il
+            // turno gira in un worktree isolato (branch fresco per-attività). SOLO il cwd cambia:
+            // claims del RunToken, MDE_PROJECT_PATH, memoria e registry restano sul progetto vero.
+            string workingDirectory = null;
+            if (UseWorktree(snapshot.ProjectPath))
+            {
+                var prep = await _worktree.PrepareForRunAsync(
+                    snapshot.ProjectPath, entry.Name, ResolveActivityId(snapshot), ct: ct);
+                if (!prep.Success)
+                {
+                    RetryOrFail(messageId, prep.MergeConflict
+                        ? $"worktree in conflitto di merge dell'handoff ({FederationReason.MergeConflictWithMain})"
+                        : $"preparazione worktree per '{entry.Name}' fallita: {prep.Error}");
+                    return;
+                }
+                workingDirectory = prep.WorktreePath;
+            }
+
             var startedAt = DateTime.UtcNow;
             LlmWakeOutcome outcome;
             try
@@ -375,6 +401,7 @@ namespace MdExplorer.Services.AgentRun
                     AgentName = entry.Name,
                     AgentFileContent = agentContent,
                     ProjectPath = snapshot.ProjectPath,
+                    WorkingDirectory = workingDirectory,
                     ConversationId = snapshot.ConversationId.ToString(),
                     FromAgent = snapshot.FromAgent,
                     MessageBody = snapshot.Body,
@@ -487,6 +514,45 @@ namespace MdExplorer.Services.AgentRun
                 _logger.LogWarning(ex, "[Dispatcher] Recupero memoria fallito per '{Agent}' (Fuseki abilitato ma non raggiungibile?): risveglio senza memoria", entry.Name);
                 return null;
             }
+        }
+
+        /// <summary>Worktree per-agente attivo per il progetto? (opt-in <c>agentCity.useAgentWorktrees</c>, Fase 7c).</summary>
+        private bool UseWorktree(string projectPath)
+        {
+            try
+            {
+                var city = _projectMetadata.GetAgentCity(projectPath);
+                return city != null && city.UseAgentWorktrees;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Dispatcher] lettura agentCity per '{Project}' fallita: worktree disattivato per questo run.", projectPath);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Id d'attività per il nome del branch (Fase 7c): la <c>RequestId</c> federata della
+        /// conversazione se presente (così 7d può ricostruire <c>agent/&lt;A&gt;/&lt;RequestId&gt;</c>),
+        /// altrimenti l'Id del messaggio (risvegli locali: manual/cron/commit/projectOpen).
+        /// </summary>
+        private string ResolveActivityId(AgentMessage snapshot)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+                db.BeginTransaction();
+                var conv = db.GetDal<AgentConversation>().GetList().FirstOrDefault(c => c.Id == snapshot.ConversationId);
+                db.Commit();
+                if (conv?.RequestId != null)
+                    return conv.RequestId.Value.ToString("N");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Dispatcher] risoluzione activityId per il worktree fallita: uso l'Id del messaggio.");
+            }
+            return snapshot.Id.ToString("N");
         }
 
         /// <summary>Rubrica (§6): cittadini fidati del progetto, escluso il destinatario stesso.</summary>

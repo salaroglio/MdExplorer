@@ -93,6 +93,15 @@ namespace MdExplorer.Service.Models
         /// <c>deferred:maintenance</c> (parcheggiate, non fallite) finché non esce dalla lista.
         /// </summary>
         public List<string> Maintenance { get; set; }
+
+        /// <summary>
+        /// Isolamento d'esecuzione per-agente (Fase 7c): quando <c>true</c>, ogni risveglio LLM
+        /// gira in un <b>worktree git persistente</b> fuori dal progetto (branch fresco per
+        /// attività, reset "prepara-prima-di-eseguire"), invece che nella working tree dell'umano.
+        /// <b>Opt-in, default false</b>: assente/false → comportamento storico (cwd = progetto).
+        /// Richiede che il progetto sia un repo git con remote <c>origin</c>.
+        /// </summary>
+        public bool UseAgentWorktrees { get; set; }
     }
 
     /// <summary>

@@ -116,6 +116,10 @@ namespace MdExplorer
             // Politica di disponibilità (§12.5): manutenzione (git) / pausa utente (UserDB) →
             // deferred:maintenance / deferred:user, valutata prima del tetto risorse.
             services.AddSingleton<Services.AgentRun.IAgentAvailabilityPolicy, Services.AgentRun.AgentAvailabilityPolicy>();
+            // Isolamento d'esecuzione per-agente (Fase 7c): worktree git persistente per agente,
+            // opt-in via agentCity.useAgentWorktrees. Il reaper pota i worktree orfani.
+            services.AddSingleton<Services.AgentRun.IAgentWorktreeManager, Services.AgentRun.AgentWorktreeManager>();
+            services.AddHostedService<Services.AgentRun.AgentWorktreeReaper>();
             services.AddHostedService<Services.AgentRun.AgentMessageDispatcher>();
 
             // Memoria semantica degli agenti (Fase 5b, §11): assert/query su Fuseki, grafo
