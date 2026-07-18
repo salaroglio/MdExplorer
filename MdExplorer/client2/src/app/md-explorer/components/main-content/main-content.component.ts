@@ -134,6 +134,17 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
 
+    // Fase 7h — review read-only: mostra il documento CORRENTE dal worktree dell'agente scelto.
+    this.service.viewWorktree$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(agent => {
+      const currentPath = this.contentState$.value.currentPath;
+      if (!currentPath || !agent) { return; }
+      const cleanPath = this.cleanRelativePath(currentPath);
+      const dateTime = new Date().getTime() / 1000;
+      this.htmlSource = `../api/MdExplorerWorktree/render/${cleanPath}?agent=${encodeURIComponent(agent)}&time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&theme=${this.themeService.getResolvedTheme()}`;
+    });
+
     // Enhanced subscription with loading state management
     this.service.selectedMdFileFromSideNav.pipe(
       takeUntil(this.destroy$),

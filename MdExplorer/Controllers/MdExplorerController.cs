@@ -47,6 +47,7 @@ namespace MdExplorer.Controllers
         private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentDescriptor;
         private readonly IYamlDefaultGenerator _yamlDefaultGenerator;
         private readonly MarkdownSourceMapService _sourceMapService;
+        private readonly MdExplorer.Services.AgentRun.IAgentWorktreeManager _worktree;
 
         public MdExplorerController(ILogger<MdExplorerController> logger,
             IOptions<MdExplorerAppSettings> options,
@@ -60,6 +61,7 @@ namespace MdExplorer.Controllers
             IYamlDefaultGenerator yamlDefaultGenerator,
             IWorkLink[] modifiers,
             MarkdownSourceMapService sourceMapService,
+            MdExplorer.Services.AgentRun.IAgentWorktreeManager worktree,
             IDatabaseManager databaseManager = null
             ) : base(logger, options, hubContext, session, engineDB, commandRunner,modifiers, helper, databaseManager)
         {
@@ -68,6 +70,7 @@ namespace MdExplorer.Controllers
             _yamlDocumentDescriptor = yamlDocumentDescriptor;
             _yamlDefaultGenerator = yamlDefaultGenerator;
             _sourceMapService = sourceMapService;
+            _worktree = worktree;
         }
 
         /// <summary>
@@ -299,7 +302,94 @@ namespace MdExplorer.Controllers
             return toReturn;
         }
 
-        private async Task<XmlDocument> ProcessAsSlideTypeDocument(string markdownTxt, 
+        /// <summary>
+        /// Fase 7h — elenco dei worktree degli agenti del progetto aperto (agente → path).
+        /// Read-only: alimenta il sottomenu "Worktree" del toolbar.
+        /// </summary>
+        [HttpGet("/api/MdExplorerWorktree/list")]
+        public IActionResult ListAgentWorktrees()
+        {
+            var projectPath = GetProjectPath();
+            if (string.IsNullOrEmpty(projectPath))
+                return Ok(new { worktrees = Array.Empty<object>() });
+            var root = _worktree.WorktreeRootForProject(projectPath);
+            if (!Directory.Exists(root))
+                return Ok(new { worktrees = Array.Empty<object>() });
+            var list = Directory.EnumerateDirectories(root)
+                .Select(d => new { agent = Path.GetFileName(d), path = d })
+                .OrderBy(x => x.agent, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return Ok(new { worktrees = list });
+        }
+
+        /// <summary>
+        /// Fase 7h — render READ-ONLY di un documento dal worktree di un agente (review di ciò
+        /// che l'agente ha prodotto). NESSUNA scrittura: né cache <c>.md/</c>, né EngineDB, né
+        /// eventi SignalR, né <c>SetCurrentDirectory</c>. La root è il worktree, risolto dal
+        /// progetto aperto (connectionId); il progetto principale resta intatto.
+        /// </summary>
+        [HttpGet("/api/MdExplorerWorktree/render/{*url}")]
+        public async Task<IActionResult> GetWorktreeReadOnlyAsync(string url)
+        {
+            var agent = Request.Query["agent"].ToString();
+            var connectionId = Request.Query["ConnectionId"].ToString();
+            var theme = Request.Query["theme"].FirstOrDefault() ?? "light";
+            if (string.IsNullOrWhiteSpace(agent))
+                return BadRequest("Parametro 'agent' richiesto.");
+
+            var projectPath = GetProjectPath();
+            if (string.IsNullOrEmpty(projectPath))
+                return NotFound("Nessun progetto aperto per risolvere il worktree.");
+
+            string worktreeRoot;
+            try { worktreeRoot = _worktree.WorktreePathFor(projectPath, agent); }
+            catch (ArgumentException) { return BadRequest($"Agente '{agent}' non valido."); }
+            if (!Directory.Exists(worktreeRoot))
+                return NotFound($"Nessun worktree per l'agente '{agent}'.");
+
+            var rootPathSystem = worktreeRoot + Path.DirectorySeparatorChar;
+            var relativePathFile = "/" + (url ?? string.Empty);
+            var relativePathExtension = Path.GetExtension(relativePathFile);
+
+            // Asset non-md (immagini, ecc.): risolti dalla root del WORKTREE.
+            if (relativePathExtension != "" && relativePathExtension != ".md" && !relativePathFile.EndsWith(".md.directory"))
+            {
+                var asset = CreateAResponseForNotMdFile(rootPathSystem, relativePathFile, relativePathExtension);
+                return asset == null ? NotFound($"File non trovato nel worktree: {relativePathFile}") : (IActionResult)asset;
+            }
+
+            var fullPathFile = ManageIfThePathContainsExtensionMdOrNot(rootPathSystem, relativePathFile, relativePathExtension);
+            if (!System.IO.File.Exists(fullPathFile))
+                return NotFound($"'{relativePathFile}' non presente nel worktree di '{agent}'.");
+
+            string markdownTxt;
+            using (var fs = new FileStream(fullPathFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var sr = new StreamReader(fs, Encoding.UTF8))
+                markdownTxt = sr.ReadToEnd();
+
+            var monitoredMd = new MonitoredMDModel
+            {
+                Path = fullPathFile,
+                Name = Path.GetFileName(fullPathFile),
+                RelativePath = relativePathFile.TrimStart(Path.DirectorySeparatorChar, '/'),
+                FullPath = fullPathFile,
+                FullDirectoryPath = Path.GetDirectoryName(fullPathFile),
+            };
+
+            var doc1 = await ProcessAsMarkdownTypeDocument(
+                markdownTxt, relativePathFile, fullPathFile, connectionId, monitoredMd, theme,
+                explicitRoot: worktreeRoot, readOnly: true);
+
+            var htmlContent = (doc1.DocumentElement != null &&
+                doc1.DocumentElement.GetAttribute("_html_fallback") == "true")
+                ? doc1.DocumentElement.InnerText
+                : doc1.InnerXml;
+
+            // NESSUNA scrittura cache/EngineDB, NESSUN evento SignalR: read-only puro.
+            return new ContentResult { ContentType = "text/html; charset=utf-8", Content = htmlContent };
+        }
+
+        private async Task<XmlDocument> ProcessAsSlideTypeDocument(string markdownTxt,
                         string relativePathFile, string fullPathFile, MonitoredMDModel monitoredMd)
         {
 
@@ -422,18 +512,31 @@ namespace MdExplorer.Controllers
             return notMdFile;
         }
 
+        /// <summary>
+        /// Renderizza un documento markdown in HTML. Fase 7h: <paramref name="explicitRoot"/> e
+        /// <paramref name="readOnly"/> abilitano il render <b>read-only da una root esplicita</b>
+        /// (worktree di un agente). Con i default (root = <see cref="MdControllerBase{T}.GetProjectPath"/>,
+        /// readOnly = false) il comportamento è IDENTICO a prima. In readonly si saltano gli effetti
+        /// collaterali che muterebbero lo stato della main window / del progetto aperto: eventi
+        /// SignalR, valutazione Rule#1 (che è solo un evento) e <c>SetCurrentDirectory</c> (hazard
+        /// globale). Le scritture EngineDB/cache restano fuori da qui (le fa il chiamante).
+        /// </summary>
         private async Task<XmlDocument> ProcessAsMarkdownTypeDocument(
                 string readText,
                 string relativePathFileSystem,
                 string fullPathFile,
                 string connectionId,
                 MonitoredMDModel monitoredMd,
-                string theme = "light")
+                string theme = "light",
+                string explicitRoot = null,
+                bool readOnly = false)
         {
+            // Root unica per tutto il metodo: il progetto aperto (normale) o il worktree (readonly).
+            var root = string.IsNullOrEmpty(explicitRoot) ? GetProjectPath() : explicitRoot;
             var requestInfo = new RequestInfo()
             {
                 CurrentQueryRequest = relativePathFileSystem,
-                CurrentRoot = GetProjectPath(),
+                CurrentRoot = root,
                 AbsolutePathFile = fullPathFile,
                 RootQueryRequest = relativePathFileSystem,
                 ConnectionId = connectionId,
@@ -443,7 +546,8 @@ namespace MdExplorer.Controllers
             if (readText.Contains("```plantuml"))
             {
                 isPlantuml = true;
-                await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStart", monitoredMd);
+                if (!readOnly)
+                    await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStart", monitoredMd);
             }
 
             try
@@ -453,13 +557,15 @@ namespace MdExplorer.Controllers
             var originalText = readText;
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
 
-            // Check if Rule #1 is enabled for current project
+            // Check if Rule #1 is enabled for current project.
+            // Readonly (worktree review): Rule#1 produce SOLO un evento SignalR verso la main
+            // window e legge il ProjectDB del progetto aperto (non del worktree) → si salta.
             var isRule1Enabled = false;
             try
             {
                 // Check if Rule #1 is enabled in project settings (stored in ProjectDB)
                 // Get IProjectDB from services
-                var projectDB = HttpContext.RequestServices.GetService<IProjectDB>();
+                var projectDB = readOnly ? null : HttpContext.RequestServices.GetService<IProjectDB>();
                 if (projectDB != null)
                 {
                     var projectSettingsDal = projectDB.GetDal<MdExplorer.Abstractions.Entities.ProjectDB.ProjectSetting>();
@@ -550,13 +656,15 @@ namespace MdExplorer.Controllers
                     _logger.LogError(sourceMapEx, "❌ [SourceMap] Source mapping failed for: {File} — rendering without source map, AI selection disabled on this document", fullPathFile);
                     result = Markdown.ToHtml(readText, pipeline);
                 }
-                Directory.SetCurrentDirectory(GetProjectPath());
+                // SetCurrentDirectory è un hazard GLOBALE (cwd di processo): in readonly si salta
+                // per non corrompere render concorrenti del progetto aperto.
+                if (!readOnly) Directory.SetCurrentDirectory(root);
                 result = _commandRunner.TransformAfterConversion(result, requestInfo);
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, $"⚠️ [MdExplorer] Markdown rendering failed for: {fullPathFile}");
-                Directory.SetCurrentDirectory(GetProjectPath());
+                if (!readOnly) Directory.SetCurrentDirectory(root);
                 result = BuildMarkdownRenderingErrorHtml(fullPathFile, readText, ex);
             }
 
@@ -617,8 +725,7 @@ namespace MdExplorer.Controllers
                      
                     ";
             XmlDocument doc1 = new XmlDocument();
-            var projectPath = GetProjectPath();
-            CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId, projectPath, theme);
+            CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId, root, theme);
 
             try
             {
@@ -656,7 +763,7 @@ namespace MdExplorer.Controllers
             }
             finally
             {
-                if (isPlantuml)
+                if (isPlantuml && !readOnly)
                 {
                     await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStop", monitoredMd);
                 }

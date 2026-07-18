@@ -67,6 +67,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   howManyCommitAreToPush: number;
   howManyFilesAreToPull: number;
   branches: IBranch[];
+  // Fase 7h: worktree degli agenti del progetto, per il sottomenu "Worktree".
+  worktreeList: { agent: string; path: string }[] = [];
   taglist: ITag[];
   currentMdFile: MdFile
   public connectionIsActive: boolean = true;
@@ -845,6 +847,22 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.projectService.setNewFolderProject(_.fullPath);
 
     });
+    this.matMenuTrigger?.closeMenu();
+  }
+
+  // Fase 7h — carica i worktree degli agenti quando il menu branch si apre.
+  loadWorktrees(): void {
+    const cid = this.connectionId || this.monitorMDService.connectionId;
+    if (!cid) { this.worktreeList = []; return; }
+    this.mdFileService.getAgentWorktrees(cid).subscribe({
+      next: list => this.worktreeList = list,
+      error: () => this.worktreeList = []
+    });
+  }
+
+  // Fase 7h — mostra il documento corrente dal worktree dell'agente (review read-only).
+  openWorktree(agent: string): void {
+    this.mdFileService.viewWorktree(agent);
     this.matMenuTrigger?.closeMenu();
   }
 

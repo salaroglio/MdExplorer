@@ -130,6 +130,7 @@
         <button class="smallMessagesToPush" (click)="push()" *ngIf="somethingIsToPush">{{ 'TOOLBAR.TO_PUSH' | translate:{ count: howManyCommitAreToPush } }}</button>
       </div>
       <button mat-button [matMenuTriggerFor]="tagsAndBranches" #branchMenuTrigger="matMenuTrigger"
+              (menuOpened)="loadWorktrees()"
               [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">
         [{{currentBranch}}] <img src="/assets/gitlogo.png" />
       </button>
@@ -179,6 +180,15 @@
         <mat-icon style="text-align:right" class="branch-icon">account_tree</mat-icon>
       </button>
     </div>
+    <!-- Fase 7h: review read-only dei worktree degli agenti -->
+    <div [matMenuTriggerFor]="agentWorktrees"
+         class="container"
+         mat-menu-item>
+      <span>{{ 'TOOLBAR.WORKTREE' | translate }}</span><span class="flexExpand"></span>
+      <button mat-icon-button>
+        <mat-icon style="text-align:right" class="worktree-icon">folder_open</mat-icon>
+      </button>
+    </div>
     <div (click)="openAddSubmoduleDialog()"
          class="container"
          mat-menu-item (click)="$event.stopPropagation()">
@@ -188,6 +198,17 @@
       </button>
     </div>
   </div>
+</mat-menu>
+
+<!-- Fase 7h: sottomenu dei worktree degli agenti (review read-only) -->
+<mat-menu #agentWorktrees="matMenu">
+  <button mat-menu-item disabled *ngIf="worktreeList.length === 0">
+    {{ 'TOOLBAR.WORKTREE_EMPTY' | translate }}
+  </button>
+  <button mat-menu-item *ngFor="let wt of worktreeList" (click)="openWorktree(wt.agent)">
+    <mat-icon>folder_open</mat-icon>
+    <span>{{ wt.agent }}</span>
+  </button>
 </mat-menu>
 
 <!-- Git Init Menu for non-Git projects -->

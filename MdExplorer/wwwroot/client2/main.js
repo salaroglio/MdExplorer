@@ -10990,13 +10990,14 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "MdFileService": () => (/* binding */ MdFileService)
 /* harmony export */ });
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common/http */ 8987);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 228);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 6317);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs/operators */ 9337);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs/operators */ 3158);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs/operators */ 635);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs/operators */ 9337);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs/operators */ 3158);
 /* harmony import */ var _models_md_file__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../models/md-file */ 1115);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../signalR/services/server-messages.service */ 8635);
 /* harmony import */ var _app_store_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./app-store.service */ 451);
 
@@ -11015,6 +11016,8 @@ class MdFileService {
     this.appStoreService = appStoreService;
     this._navigationArray = []; // deve morire
     this._revealInTree = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
+    // Fase 7h: richiesta di review read-only del documento corrente dal worktree di un agente.
+    this._viewWorktree = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
     // Epoch counter for loadAll: every call invalidates the previous one. Without
     // it, two overlapping reloads (e.g. git pull + branch switch in quick
     // succession) raced and whichever HTTP response landed LAST won — possibly
@@ -11103,6 +11106,18 @@ class MdFileService {
   requestRevealInTree(file) {
     this._revealInTree.next(file);
   }
+  // ---- Worktree review read-only (Fase 7h) ----
+  /** Emette l'agente di cui mostrare il worktree (il main-content ripunta l'iframe read-only). */
+  get viewWorktree$() {
+    return this._viewWorktree.asObservable();
+  }
+  viewWorktree(agentName) {
+    this._viewWorktree.next(agentName);
+  }
+  /** Elenco dei worktree degli agenti del progetto aperto (agente → path). */
+  getAgentWorktrees(connectionId) {
+    return this.http.get(`../api/MdExplorerWorktree/list?connectionId=${connectionId}`).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_5__.map)(r => r?.worktrees ?? []));
+  }
   get selectedDirectoryFromNewDirectory() {
     return this._selectedDirectoryFromNewDirectory.asObservable();
   }
@@ -11140,7 +11155,7 @@ class MdFileService {
   }
   getDocumentSettings(mdFile) {
     const url = '../api/mdFiles/getdocumentsettings';
-    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams().set('fullPath', mdFile.fullPath);
+    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('fullPath', mdFile.fullPath);
     return this.http.get(url, {
       params
     });
@@ -11474,7 +11489,7 @@ class MdFileService {
    * @param parentFullPath fullPath ASSOLUTO della cartella (per le compact folder: l'ultimo segmento).
    */
   revealFolderExtras(parentFullPath) {
-    return this.loadFolderExtraContent(parentFullPath).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.tap)(children => {
+    return this.loadFolderExtraContent(parentFullPath).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.tap)(children => {
       const kids = children || [];
       kids.forEach(child => {
         child.isExtra = true;
@@ -11831,7 +11846,7 @@ class MdFileService {
   }
   loadDynFolders(path, level) {
     const url = '../api/mdfiles/GetDynFoldersDocument';
-    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams().set('path', path).set('level', String(level));
+    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', path).set('level', String(level));
     return this.http.get(url, {
       params
     }).subscribe(data => {
@@ -11852,14 +11867,14 @@ class MdFileService {
       url = '../api/mdfiles/GetDynFoldersAndFilesDocument';
     }
     console.log(url);
-    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams().set('path', path).set('level', String(level));
+    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', path).set('level', String(level));
     return this.http.get(url, {
       params
     });
   }
   loadPublishNodes(path, level) {
     const url = '../api/mdPublishNodes';
-    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpParams().set('path', path).set('level', String(level));
+    var params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', path).set('level', String(level));
     return this.http.get(url, {
       params
     });
@@ -11892,9 +11907,9 @@ class MdFileService {
     console.log('[MdFileService] file.fullPath:', file.fullPath);
     const url = '../api/mdfiles/OpenFolderOnFileExplorer';
     console.log('[MdFileService] POST to:', url);
-    return this.http.post(url, file).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.tap)(response => {
+    return this.http.post(url, file).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.tap)(response => {
       console.log('[MdFileService] Response received:', response);
-    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.catchError)(error => {
+    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.catchError)(error => {
       console.error('[MdFileService] Error in openFolderOnFileExplorer:', error);
       throw error;
     }));
@@ -12100,11 +12115,11 @@ class MdFileService {
   }
   static {
     this.ɵfac = function MdFileService_Factory(t) {
-      return new (t || MdFileService)(_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_5__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_8__.Injector), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_app_store_service__WEBPACK_IMPORTED_MODULE_2__.AppStoreService));
+      return new (t || MdFileService)(_angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_9__.Injector), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_app_store_service__WEBPACK_IMPORTED_MODULE_2__.AppStoreService));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵdefineInjectable"]({
       token: MdFileService,
       factory: MdFileService.ɵfac,
       providedIn: 'root'
@@ -17461,8 +17476,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.07.17.2',
-  buildTime: '2026.07.17 20:14:47'
+  version: '2026.07.18.1',
+  buildTime: '2026.07.18 23:30:15'
 };
 
 /***/ }),

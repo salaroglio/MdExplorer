@@ -22,6 +22,11 @@ namespace MdExplorer.IntegrationTests
     [TestClass]
     public class AgentWorktree_Should
     {
+        // Guardia contro l'hazard globale SetCurrentDirectory (§7h): un test precedente può
+        // lasciare la cwd in una temp dir cancellata → Process.Start(git) fallirebbe a GetCwd().
+        [TestInitialize]
+        public void ResetCwd() => Directory.SetCurrentDirectory(AppContext.BaseDirectory);
+
         private static (int Code, string Out, string Err) Git(string cwd, string args)
         {
             var p = new Process

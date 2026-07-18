@@ -657,6 +657,8 @@
     "MANAGE_REMOTE": "Gestisci Remote",
     "HISTORY": "Cronologia",
     "BRANCH": "Branch",
+    "WORKTREE": "Worktree",
+    "WORKTREE_EMPTY": "Nessun worktree di agenti",
     "ADD_SUBMODULE": "Aggiungi submodule",
     "INITIALIZE_GIT": "Inizializza Git",
     "AUTH_FAILED": "Autenticazione fallita",
