@@ -61,6 +61,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly MdExplorer.Services.AgentMemory.IFusekiConnectionResolver _fusekiResolver;
         private readonly IAgentWorktreeManager _worktree;
         private readonly MdExplorer.Services.IProjectMetadataService _projectMetadata;
+        private readonly MdExplorer.Services.Federation.IFederationSender _federationSender;
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly ILogger<AgentMessageDispatcher> _logger;
 
@@ -84,6 +85,7 @@ namespace MdExplorer.Services.AgentRun
             MdExplorer.Services.AgentMemory.IFusekiConnectionResolver fusekiResolver,
             IAgentWorktreeManager worktree,
             MdExplorer.Services.IProjectMetadataService projectMetadata,
+            MdExplorer.Services.Federation.IFederationSender federationSender,
             IHubContext<MonitorMDHub> hubContext,
             ILogger<AgentMessageDispatcher> logger)
         {
@@ -98,6 +100,7 @@ namespace MdExplorer.Services.AgentRun
             _fusekiResolver = fusekiResolver;
             _worktree = worktree;
             _projectMetadata = projectMetadata;
+            _federationSender = federationSender;
             _hubContext = hubContext;
             _logger = logger;
         }
@@ -379,13 +382,29 @@ namespace MdExplorer.Services.AgentRun
             string workingDirectory = null;
             if (UseWorktree(snapshot.ProjectPath))
             {
+                var rc = ResolveRunContext(snapshot);
+                // Fase 7d.5 — sync al ref di handoff dell'origine (se presente) come parte del prepare.
                 var prep = await _worktree.PrepareForRunAsync(
-                    snapshot.ProjectPath, entry.Name, ResolveActivityId(snapshot), ct: ct);
+                    snapshot.ProjectPath, entry.Name, rc.ActivityId, handoffRef: rc.HandoffRef, ct: ct);
                 if (!prep.Success)
                 {
-                    RetryOrFail(messageId, prep.MergeConflict
-                        ? $"worktree in conflitto di merge dell'handoff ({FederationReason.MergeConflictWithMain})"
-                        : $"preparazione worktree per '{entry.Name}' fallita: {prep.Error}");
+                    var reason = prep.MergeConflict ? FederationReason.MergeConflictWithMain
+                               : prep.SyncFailed ? FederationReason.GitSyncFailed
+                               : null;
+                    // Run federato (lato destinazione) + causa codificata → riporta l'esito not-ready
+                    // all'origine al posto dell'agente (che non parte) e chiudi: conflitto/sync non si
+                    // auto-risolvono, un retry sarebbe inutile.
+                    if (!string.IsNullOrEmpty(rc.RemoteOwner) && rc.RequestId != null && reason != null)
+                    {
+                        await ReportNotReadyToOriginAsync(snapshot.ProjectPath, rc, reason);
+                        MarkFailed(messageId, $"preparazione worktree fallita ({reason}): esito not-ready riportato all'origine.");
+                    }
+                    else
+                    {
+                        RetryOrFail(messageId, prep.MergeConflict
+                            ? $"worktree in conflitto di merge dell'handoff ({FederationReason.MergeConflictWithMain})"
+                            : $"preparazione worktree per '{entry.Name}' fallita: {prep.Error}");
+                    }
                     return;
                 }
                 workingDirectory = prep.WorktreePath;
@@ -426,6 +445,14 @@ namespace MdExplorer.Services.AgentRun
 
             if (outcome.Success) MarkProcessed(messageId);
             else RetryOrFail(messageId, outcome.Error);
+
+            // Fase 7d.2 — deliverable: a run riuscito nel worktree, pubblica il branch d'attività su
+            // origin (commit → push refspec). Best-effort: un push mancato non fallisce il run già concluso.
+            if (outcome.Success && workingDirectory != null)
+            {
+                try { await _worktree.CommitAndPushBranchAsync(snapshot.ProjectPath, entry.Name, $"deliverable {entry.Name}", ct); }
+                catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] push deliverable per '{Agent}' fallito (best-effort).", entry.Name); }
+            }
         }
 
         /// <summary>
@@ -531,12 +558,23 @@ namespace MdExplorer.Services.AgentRun
             }
         }
 
+        /// <summary>Contesto della conversazione utile al run in worktree (Fase 7c/7d).</summary>
+        private sealed class RunWorktreeContext
+        {
+            /// <summary>Id d'attività per il branch: RequestId federata (7d) o Id del messaggio (locale).</summary>
+            public string ActivityId { get; set; }
+            public string HandoffRef { get; set; }
+            public string BaseCommit { get; set; }
+            public string RemoteOwner { get; set; }
+            public Guid? RequestId { get; set; }
+            public Guid? FederationId { get; set; }
+        }
+
         /// <summary>
-        /// Id d'attività per il nome del branch (Fase 7c): la <c>RequestId</c> federata della
-        /// conversazione se presente (così 7d può ricostruire <c>agent/&lt;A&gt;/&lt;RequestId&gt;</c>),
-        /// altrimenti l'Id del messaggio (risvegli locali: manual/cron/commit/projectOpen).
+        /// Legge dalla conversazione l'id d'attività (per il nome del branch) e — se federata — il
+        /// riferimento di handoff e la controparte, per la sync (7d.5) e il report not-ready.
         /// </summary>
-        private string ResolveActivityId(AgentMessage snapshot)
+        private RunWorktreeContext ResolveRunContext(AgentMessage snapshot)
         {
             try
             {
@@ -545,14 +583,52 @@ namespace MdExplorer.Services.AgentRun
                 db.BeginTransaction();
                 var conv = db.GetDal<AgentConversation>().GetList().FirstOrDefault(c => c.Id == snapshot.ConversationId);
                 db.Commit();
-                if (conv?.RequestId != null)
-                    return conv.RequestId.Value.ToString("N");
+                if (conv != null)
+                {
+                    return new RunWorktreeContext
+                    {
+                        ActivityId = conv.RequestId?.ToString("N") ?? snapshot.Id.ToString("N"),
+                        HandoffRef = conv.HandoffRef,
+                        BaseCommit = conv.BaseCommit,
+                        RemoteOwner = conv.RemoteOwner,
+                        RequestId = conv.RequestId,
+                        FederationId = conv.FederationId,
+                    };
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "[Dispatcher] risoluzione activityId per il worktree fallita: uso l'Id del messaggio.");
+                _logger.LogWarning(ex, "[Dispatcher] risoluzione run context per il worktree fallita: uso l'Id del messaggio.");
             }
-            return snapshot.Id.ToString("N");
+            return new RunWorktreeContext { ActivityId = snapshot.Id.ToString("N") };
+        }
+
+        /// <summary>
+        /// Fase 7d.5 — riporta un esito <c>not-ready</c> all'origine quando il prepare del worktree
+        /// di un run federato fallisce (conflitto/sync): l'agente non parte, quindi lo comunica il
+        /// dispatcher al suo posto, così il cerchio (7a/7b) si chiude anche sul fallimento.
+        /// </summary>
+        private async Task ReportNotReadyToOriginAsync(string projectPath, RunWorktreeContext rc, string reason)
+        {
+            try
+            {
+                var targetOwner = MdExplorer.Features.Federation.FederationRoom.ComputeUserId(rc.RemoteOwner);
+                var payload = new MdExplorer.Services.Federation.FederatedResultPayload
+                {
+                    Kind = MdExplorer.Services.Federation.FederationKind.InterventionResult,
+                    RequestId = rc.RequestId?.ToString(),
+                    FederationId = rc.FederationId?.ToString(),
+                    Verdict = FederationVerdict.NotReady,
+                    Reason = reason,
+                };
+                var ok = await _federationSender.SendFederatedResultAsync(projectPath, targetOwner, payload);
+                if (!ok)
+                    _logger.LogWarning("[Dispatcher] esito not-ready per req {Req} non spedito (relay non raggiungibile?).", rc.RequestId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Dispatcher] invio esito not-ready all'origine fallito.");
+            }
         }
 
         /// <summary>Rubrica (§6): cittadini fidati del progetto, escluso il destinatario stesso.</summary>

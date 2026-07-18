@@ -155,6 +155,8 @@ namespace MdExplorer.Controllers.A2A
                 RequestId = reqFresh.RequestId,   // Fase 7a: ponte per l'intervention-result di ritorno
                 RemoteOwner = reqFresh.FromOwner,
                 RemoteAgent = reqFresh.FromAgent,
+                HandoffRef = reqFresh.HandoffRef, // Fase 7d.5: B si sincronizza a questo ref al wake
+                BaseCommit = reqFresh.BaseCommit,
             };
             _session.GetDal<AgentConversation>().Save(conv);
             reqFresh.Status = FederationRequest.StatusEnum.Approved;

@@ -91,6 +91,20 @@ namespace MdExplorer.Services.AgentRun
             foreach (var project in projects)
             {
                 ct.ThrowIfCancellationRequested();
+
+                // Fase 7d.4 — cleanup per raggiungibilità: i branch agent/* già fusi nel default
+                // possono sparire (solo main persiste, §7ter). Locale-only: la cancellazione dei
+                // ref remoti è outward-facing e la lascia al flusso di merge (7g). Non-git → lista vuota.
+                try
+                {
+                    foreach (var branch in await _worktree.ListMergedAgentBranchesAsync(project.Path, null, ct))
+                    {
+                        _logger.LogInformation("[WorktreeReaper] branch '{Branch}' fuso in main → cancello (raggiungibile da main).", branch);
+                        await _worktree.DeleteBranchAsync(project.Path, branch, remoteToo: false, ct);
+                    }
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "[WorktreeReaper] cleanup branch fusi per '{Project}' fallito.", project.Path); }
+
                 var root = _worktree.WorktreeRootForProject(project.Path);
                 if (!Directory.Exists(root)) continue;
 

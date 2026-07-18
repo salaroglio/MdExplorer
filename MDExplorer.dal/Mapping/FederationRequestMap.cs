@@ -18,6 +18,8 @@ namespace MDExplorer.DataAccess.Mapping
             Map(x => x.Scope).Length(300).Nullable();
             Map(x => x.Message).Length(int.MaxValue).Nullable();
             Map(x => x.Topics).Length(int.MaxValue).Nullable();
+            Map(x => x.HandoffRef).Length(400).Nullable();
+            Map(x => x.BaseCommit).Length(100).Nullable();
             Map(x => x.Status).Length(50).Not.Nullable();
             Map(x => x.CreatedAt).Not.Nullable();
             Map(x => x.DecidedAt).Nullable();

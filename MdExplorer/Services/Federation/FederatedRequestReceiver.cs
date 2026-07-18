@@ -42,6 +42,15 @@ namespace MdExplorer.Services.Federation
         public string TargetAgent { get; set; }
         public string Message { get; set; }
         public List<string> Topics { get; set; }
+
+        /// <summary>
+        /// Fase 7d.5 — riferimento di handoff: il branch ref COMPLETO (<c>agent/&lt;A&gt;/&lt;id&gt;</c>)
+        /// che porta il lavoro dell'origine, già pushato su origin. <c>null</c> = nessun handoff
+        /// (retrocompatibilità). B si sincronizza a questo ref come primo predicato d'esecuzione.
+        /// </summary>
+        public string HandoffRef { get; set; }
+        /// <summary>Fase 7d.5 — sha di testa a cui B deve sincronizzarsi (la testa di <see cref="HandoffRef"/>).</summary>
+        public string BaseCommit { get; set; }
     }
 
     /// <summary>
@@ -101,6 +110,8 @@ namespace MdExplorer.Services.Federation
                 Scope = payload.Scope,
                 Message = payload.Message,
                 Topics = AgentTopics.Join(payload.Topics),
+                HandoffRef = string.IsNullOrWhiteSpace(payload.HandoffRef) ? null : payload.HandoffRef.Trim(),
+                BaseCommit = string.IsNullOrWhiteSpace(payload.BaseCommit) ? null : payload.BaseCommit.Trim(),
                 Status = FederationRequest.StatusEnum.Pending,
                 CreatedAt = DateTime.UtcNow,
             };

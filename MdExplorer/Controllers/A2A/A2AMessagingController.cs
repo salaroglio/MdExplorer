@@ -41,6 +41,8 @@ namespace MdExplorer.Controllers.A2A
         private readonly IProjectOwnershipService _ownership;
         private readonly IFederationSender _federationSender;
         private readonly IUserSettingsDB _session;
+        private readonly MdExplorer.Services.AgentRun.IAgentWorktreeManager _worktree;
+        private readonly IProjectMetadataService _projectMetadata;
         private readonly ILogger<A2AMessagingController> _logger;
 
         public A2AMessagingController(
@@ -50,6 +52,8 @@ namespace MdExplorer.Controllers.A2A
             IProjectOwnershipService ownership,
             IFederationSender federationSender,
             IUserSettingsDB session,
+            MdExplorer.Services.AgentRun.IAgentWorktreeManager worktree,
+            IProjectMetadataService projectMetadata,
             ILogger<A2AMessagingController> logger)
         {
             _tokens = tokens;
@@ -58,7 +62,16 @@ namespace MdExplorer.Controllers.A2A
             _ownership = ownership;
             _federationSender = federationSender;
             _session = session;
+            _worktree = worktree;
+            _projectMetadata = projectMetadata;
             _logger = logger;
+        }
+
+        /// <summary>Worktree per-agente attivo per il progetto? (opt-in <c>agentCity.useAgentWorktrees</c>, Fase 7c).</summary>
+        private bool UseWorktree(string projectPath)
+        {
+            try { var c = _projectMetadata.GetAgentCity(projectPath); return c != null && c.UseAgentWorktrees; }
+            catch { return false; }
         }
 
         /// <summary>
@@ -270,6 +283,20 @@ namespace MdExplorer.Controllers.A2A
                 Message = request.Message,
                 Topics = request.Topics,
             };
+
+            // Fase 7d.5 — passaggio dati via GIT: se l'origine gira in worktree, PRIMA di spedire
+            // la richiesta pubblica il branco di lavoro (commit → push) e allega il ref di handoff,
+            // così il destinatario potrà sincronizzarsi al lavoro dell'origine (§6: commit→push→richiesta→sync).
+            if (UseWorktree(claims.ProjectPath))
+            {
+                var pushed = await _worktree.CommitAndPushBranchAsync(claims.ProjectPath, claims.AgentName, $"handoff {payload.RequestId}");
+                if (pushed != null)
+                {
+                    payload.HandoffRef = pushed.Branch;
+                    payload.BaseCommit = pushed.HeadSha;
+                    _logger.LogInformation("[A2A/request-intervention] handoff pubblicato: {Ref}@{Sha}", pushed.Branch, pushed.HeadSha);
+                }
+            }
 
             var sent = await _federationSender.SendFederatedRequestAsync(claims.ProjectPath, targetOwnerId, payload);
             if (!sent)

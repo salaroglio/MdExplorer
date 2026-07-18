@@ -56,6 +56,16 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// <summary>L'agente remoto coinvolto (nome qualificato <c>agente@gitEmail</c>), federate only.</summary>
         public virtual string RemoteAgent { get; set; }
 
+        /// <summary>
+        /// Fase 7d.5 — riferimento di handoff (branch ref completo dell'origine) copiato dalla
+        /// <see cref="FederationRequest"/> all'approvazione; il dispatcher lo passa a
+        /// <c>PrepareForRunAsync</c> perché B si sincronizzi al lavoro dell'origine. <c>null</c> = nessun handoff.
+        /// </summary>
+        public virtual string HandoffRef { get; set; }
+
+        /// <summary>Fase 7d.5 — sha di testa a cui B deve sincronizzarsi (testa di <see cref="HandoffRef"/>).</summary>
+        public virtual string BaseCommit { get; set; }
+
         /// <summary>Valori ammessi per <see cref="Status"/>.</summary>
         public static class StatusEnum
         {

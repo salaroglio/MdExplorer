@@ -46,6 +46,16 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// <summary>Argomenti dichiarati, uno per riga (come <see cref="AgentMessage.Topics"/>).</summary>
         public virtual string Topics { get; set; }
 
+        /// <summary>
+        /// Fase 7d.5 — riferimento di handoff: branch ref COMPLETO (<c>agent/&lt;A&gt;/&lt;id&gt;</c>)
+        /// col lavoro dell'origine, già pushato. <c>null</c> = nessun handoff. Copiato sull'
+        /// <see cref="AgentConversation"/> all'approvazione, poi usato da B per sincronizzarsi.
+        /// </summary>
+        public virtual string HandoffRef { get; set; }
+
+        /// <summary>Fase 7d.5 — sha di testa a cui B deve sincronizzarsi (testa di <see cref="HandoffRef"/>).</summary>
+        public virtual string BaseCommit { get; set; }
+
         /// <summary>"pending" | "approved" | "rejected".</summary>
         public virtual string Status { get; set; }
 
