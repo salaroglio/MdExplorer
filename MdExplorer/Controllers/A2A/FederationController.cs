@@ -147,18 +147,34 @@ namespace MdExplorer.Controllers.A2A
             var local = _state.GetLocalCities().AsEnumerable();
             if (!string.IsNullOrWhiteSpace(projectPath))
                 local = local.Where(c => AgentPathComparer.Equals(c.ProjectPath, projectPath));
+            var localList = local.ToList();
+
+            // Città REMOTE accese sulle stanze in scope (roster del relay decifrato lato service).
+            var remote = localList
+                .SelectMany(c => _state.GetRemotePresence(c.ProjectPath)
+                    .Select(p => new
+                    {
+                        projectPath = c.ProjectPath,
+                        roomId = c.RoomId,
+                        ownerId = p.OwnerId,
+                        gitEmail = p.GitEmail,
+                        agents = (p.Agents ?? new System.Collections.Generic.List<MdExplorer.Features.Federation.FederatedAgentSummary>())
+                            .Select(a => new { name = a.Name, role = a.Role, skills = a.Skills })
+                            .ToList(),
+                    }))
+                .ToList();
 
             return Ok(new
             {
-                local = local.Select(c => new
+                local = localList.Select(c => new
                 {
                     projectPath = c.ProjectPath,
                     projectName = c.ProjectName,
                     roomId = c.RoomId,
                     relayUrl = c.RelayUrl,
                 }).ToList(),
-                remote = System.Array.Empty<object>(),
-                relayConnected = false,
+                remote,
+                relayConnected = localList.Any(c => _state.IsRelayConnected(c.ProjectPath)),
             });
         }
 

@@ -37,6 +37,12 @@ namespace MdExplorer.Services.Federation
         /// nessun'altra città è online. La presenza è effimera: rispecchia lo stato del relay ora.
         /// </summary>
         IReadOnlyList<CityPresence> GetRemotePresence(string projectPath);
+
+        /// <summary>
+        /// true se la connessione al relay per la stanza del progetto è attiva ora. Con
+        /// <paramref name="projectPath"/> vuoto: true se ALMENO una stanza è connessa.
+        /// </summary>
+        bool IsRelayConnected(string projectPath);
     }
 
     /// <summary>
@@ -176,6 +182,15 @@ namespace MdExplorer.Services.Federation
                 }
             }
             return result;
+        }
+
+        /// <inheritdoc/>
+        public bool IsRelayConnected(string projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath))
+                return _rooms.Values.Any(r => r.Connected);
+            var city = _snapshot.FirstOrDefault(c => AgentPathComparer.Equals(c.ProjectPath, projectPath));
+            return city != null && _rooms.TryGetValue(city.RoomId, out var conn) && conn.Connected;
         }
 
         // Segnale per una ri-scansione IMMEDIATA (es. cambio identità impersonata → riconnetti la
@@ -572,6 +587,9 @@ namespace MdExplorer.Services.Federation
 
             /// <summary>Snapshot delle presenze remote note: (ownerId, busta cifrata). Mai la mia città.</summary>
             public IReadOnlyList<KeyValuePair<string, string>> RemotePresenceEnvelopes => _remotePresence.ToArray();
+
+            /// <summary>true se il socket verso il relay è attualmente connesso (join/announce in corso).</summary>
+            public bool Connected => _socket?.Connected == true;
 
             public RoomConnection(string baseUrl, string enginePath, string apiKey, FederationAnnounce announce, ILogger logger)
             {
