@@ -273,6 +273,8 @@ namespace MdExplorer.Controllers.A2A
 
             var payload = new FederatedRequestPayload
             {
+                // Discriminante di busta ESPLICITO (niente più fallback "null = request-intervention").
+                Kind = MdExplorer.Services.Federation.FederationKind.RequestIntervention,
                 // Idempotency key FRESCA per ogni chiamata: distingue una redelivery del relay
                 // (stesso RequestId → il ricevente la deduplica) da due interventi distinti
                 // (RequestId diversi → due gate), anche a parità di testo. FederationId invece
@@ -307,6 +309,27 @@ namespace MdExplorer.Controllers.A2A
             if (!string.IsNullOrWhiteSpace(submoduleSha))
                 payload.SubmoduleBaseCommit = submoduleSha;
 
+            // Ledger LATO ORIGINE (Fase 7a) — persistito PRIMA del send: l'invariante è "se è stato
+            // spedito, il ledger esiste". Altrimenti un esito che torna prima/senza il commit del
+            // ledger verrebbe scartato dal filtro anti-avvelenamento e il cerchio non si chiuderebbe
+            // mai. Se il Save fallisce, NON spediamo (l'agente ritenta) → nessun orfano su B.
+            // OriginAgent = claims certificati (NON StartedBy, che vale spesso "user").
+            _session.BeginTransaction();
+            _session.GetDal<FederationDispatch>().Save(new FederationDispatch
+            {
+                RequestId = Guid.Parse(payload.RequestId),
+                FederationId = fedId,
+                ProjectPath = claims.ProjectPath,
+                ConversationId = convId,
+                OriginAgent = claims.AgentName,
+                TargetOwner = targetOwnerId,
+                TargetAgent = targetAgent,
+                Topics = AgentTopics.Join(request.Topics),
+                Status = FederationDispatch.StatusEnum.Pending,
+                CreatedAt = DateTime.UtcNow,
+            });
+            _session.Commit();
+
             var sent = await _federationSender.SendFederatedRequestAsync(claims.ProjectPath, targetOwnerId, payload);
             if (!sent)
                 return StatusCode(503, new { error = "Nessuna connessione federata attiva per il progetto (città accesa e relay raggiungibile?)." });
@@ -332,26 +355,6 @@ namespace MdExplorer.Controllers.A2A
                 }
                 _session.Commit();
             }
-
-            // Ledger LATO ORIGINE (Fase 7a): registra la richiesta smistata come pending, con la
-            // stessa RequestId inviata nel payload = chiave di correlazione dell'esito che tornerà.
-            // OriginAgent = l'agente locale da risvegliare al ritorno (claims certificati, NON
-            // StartedBy che vale spesso "user"). Persistito solo dopo un send riuscito.
-            _session.BeginTransaction();
-            _session.GetDal<FederationDispatch>().Save(new FederationDispatch
-            {
-                RequestId = Guid.Parse(payload.RequestId),
-                FederationId = fedId,
-                ProjectPath = claims.ProjectPath,
-                ConversationId = convId,
-                OriginAgent = claims.AgentName,
-                TargetOwner = targetOwnerId,
-                TargetAgent = targetAgent,
-                Topics = AgentTopics.Join(request.Topics),
-                Status = FederationDispatch.StatusEnum.Pending,
-                CreatedAt = DateTime.UtcNow,
-            });
-            _session.Commit();
 
             _logger.LogInformation("[A2A/request-intervention] {From} → ambito '{Scope}' ({Agent}@{Owner}), fed {Fed}",
                 claims.AgentName, entry.Scope, targetAgent, entry.GitEmail, fedId);

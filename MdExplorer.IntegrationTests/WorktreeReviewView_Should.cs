@@ -110,6 +110,29 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Reject_path_traversal_out_of_the_worktree()
+        {
+            if (Git(Path.GetTempPath(), "--version").Code != 0) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var path = SetupGitProject(ctx, "wt-traversal");
+            var connectionId = "conn-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            ctx.Factory.Services.GetRequiredService<IDatabaseManager>().RegisterConnection(connectionId, path);
+            await ctx.Factory.Services.GetRequiredService<IAgentWorktreeManager>().EnsureWorktreeAsync(path, "worker");
+
+            // agent = ".." → nome non valido (WorktreePathFor allowlist): 400, niente escape della dir.
+            var r1 = await ctx.Client.GetAsync($"/api/MdExplorerWorktree/render/x?agent=..&connectionId={connectionId}");
+            Assert.AreEqual(HttpStatusCode.BadRequest, r1.StatusCode);
+
+            // url con '..' verso un file esterno: mai servito (bloccato dalla guardia di containment).
+            var r2 = await ctx.Client.GetAsync(
+                $"/api/MdExplorerWorktree/render/..%2F..%2F..%2F..%2F..%2Fetc%2Fpasswd?agent=worker&connectionId={connectionId}");
+            Assert.AreNotEqual(HttpStatusCode.OK, r2.StatusCode, "il traversal non deve mai restituire 200");
+            var body = await r2.Content.ReadAsStringAsync();
+            Assert.IsFalse(body.Contains("root:"), "nessun contenuto di /etc/passwd trapelato");
+        }
+
+        [TestMethod]
         public async Task List_the_worktrees_of_the_open_project()
         {
             if (Git(Path.GetTempPath(), "--version").Code != 0) { Assert.Inconclusive("git non disponibile."); return; }

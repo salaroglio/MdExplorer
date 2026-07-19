@@ -456,15 +456,17 @@ namespace MdExplorer.Services.AgentRun
             // origin (commit → push refspec). Best-effort: un push mancato non fallisce il run già concluso.
             if (outcome.Success && workingDirectory != null)
             {
-                HandoffPushResult pushed = null;
-                try { pushed = await _worktree.CommitAndPushBranchAsync(snapshot.ProjectPath, entry.Name, $"deliverable {entry.Name}", ct); }
-                catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] push deliverable per '{Agent}' fallito (best-effort).", entry.Name); }
-
-                // Fase 7e.1 — gate del codice: se l'agente ha toccato un submodule nel worktree, apri
-                // il gate del push umano (awareness + differimento). Ritorna true se ha toccato codice.
+                // Fase 7e.1 — gate del codice: rilevato PRIMA del commit del deliverable, perché il
+                // commit azzererebbe lo `git status` del submodule (sia i contenuti sporchi sia un
+                // nuovo commit dentro il submodule). Se toccato → apri il gate umano e NON auto-merge:
+                // il codice non pushato non deve mai atterrare nel default (pointer irrisolvibile).
                 bool codeTouched = false;
                 try { codeTouched = await _submoduleGate.RecordTouchedAsync(snapshot.ProjectPath, entry.Name, workingDirectory, ct); }
                 catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] rilevamento tocco submodule per '{Agent}' fallito.", entry.Name); }
+
+                HandoffPushResult pushed = null;
+                try { pushed = await _worktree.CommitAndPushBranchAsync(snapshot.ProjectPath, entry.Name, $"deliverable {entry.Name}", ct); }
+                catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] push deliverable per '{Agent}' fallito (best-effort).", entry.Name); }
 
                 // Fase 7g — cancello del merge: auto-merge del deliverable-DOC (opt-in), SOLO se non
                 // ha toccato codice (il merge del codice è umano, §7e) e il gate meccanico approva.

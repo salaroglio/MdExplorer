@@ -351,6 +351,14 @@ namespace MdExplorer.Controllers
             var relativePathFile = "/" + (url ?? string.Empty);
             var relativePathExtension = Path.GetExtension(relativePathFile);
 
+            // Anti-traversal (§7h fix): il path risolto DEVE restare sotto la root del worktree.
+            // Blocca '..%2F..' nel catch-all che altrimenti servirebbe file arbitrari dal disco.
+            if (!IsUnderRoot(worktreeRoot, Path.GetFullPath(Path.Combine(rootPathSystem, relativePathFile.TrimStart('/', '\\')))))
+            {
+                _logger.LogWarning("❌ [MdExplorerWorktree] path traversal bloccato: '{Rel}' fuori da '{Root}'", relativePathFile, worktreeRoot);
+                return BadRequest("Percorso non valido.");
+            }
+
             // Asset non-md (immagini, ecc.): risolti dalla root del WORKTREE.
             if (relativePathExtension != "" && relativePathExtension != ".md" && !relativePathFile.EndsWith(".md.directory"))
             {
@@ -387,6 +395,15 @@ namespace MdExplorer.Controllers
 
             // NESSUNA scrittura cache/EngineDB, NESSUN evento SignalR: read-only puro.
             return new ContentResult { ContentType = "text/html; charset=utf-8", Content = htmlContent };
+        }
+
+        /// <summary>Il path risolto <paramref name="candidate"/> è dentro <paramref name="root"/>? (anti-traversal).</summary>
+        private static bool IsUnderRoot(string root, string candidate)
+        {
+            var normRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, '/');
+            var normCand = Path.GetFullPath(candidate);
+            return string.Equals(normCand, normRoot, StringComparison.OrdinalIgnoreCase)
+                || normCand.StartsWith(normRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
         }
 
         private async Task<XmlDocument> ProcessAsSlideTypeDocument(string markdownTxt,
@@ -541,6 +558,7 @@ namespace MdExplorer.Controllers
                 RootQueryRequest = relativePathFileSystem,
                 ConnectionId = connectionId,
                 BaseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}",
+                ReadOnly = readOnly,   // Fase 7h: i comandi non scrivono su disco né cambiano cwd
             };
             var isPlantuml = false;
             if (readText.Contains("```plantuml"))

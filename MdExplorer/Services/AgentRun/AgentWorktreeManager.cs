@@ -141,11 +141,18 @@ namespace MdExplorer.Services.AgentRun
         public string WorktreeRootForProject(string projectPath)
             => Path.Combine(WorktreesRoot, Helper.HGetHashString(projectPath));
 
+        // Allowlist stretta per il nome agente usato come componente di path e di branch: solo
+        // identificatori (i nomi a2a sono kebab-case). Blocca traversal ('..', separatori) e
+        // qualsiasi carattere che possa uscire dalla dir dell'agente o confondere git.
+        private static readonly System.Text.RegularExpressions.Regex SafeAgentName =
+            new("^[A-Za-z0-9._-]+$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
         public string WorktreePathFor(string projectPath, string agentName)
         {
-            if (string.IsNullOrWhiteSpace(agentName) || agentName.IndexOfAny(new[] { '/', '\\', ':' }) >= 0)
+            var name = (agentName ?? string.Empty).Trim();
+            if (name.Length == 0 || name == "." || name == ".." || !SafeAgentName.IsMatch(name))
                 throw new ArgumentException($"Nome agente non valido per un path di worktree: '{agentName}'.", nameof(agentName));
-            return Path.Combine(WorktreeRootForProject(projectPath), agentName);
+            return Path.Combine(WorktreeRootForProject(projectPath), name);
         }
 
         public async Task<string> EnsureWorktreeAsync(string projectPath, string agentName, CancellationToken ct = default)
@@ -165,7 +172,7 @@ namespace MdExplorer.Services.AgentRun
             // Già un worktree valido? (rev-parse dentro il path riesce)
             if (Directory.Exists(worktreePath))
             {
-                var (probe, _, _) = await GitAsync(worktreePath, "rev-parse --is-inside-work-tree", ct);
+                var (probe, _, _) = await GitAsync(worktreePath, new[] { "rev-parse", "--is-inside-work-tree" }, ct);
                 if (probe == 0) return worktreePath;
 
                 // Cartella presente ma non è un worktree valido (stale): pulisci e ricrea.
@@ -176,7 +183,7 @@ namespace MdExplorer.Services.AgentRun
             Directory.CreateDirectory(WorktreeRootForProject(projectPath));
 
             // Detached su HEAD corrente: il prepare farà il checkout del branch d'attività vero.
-            var (code, _, err) = await GitAsync(projectPath, $"worktree add --detach {Quote(worktreePath)}", ct);
+            var (code, _, err) = await GitAsync(projectPath, new[] { "worktree", "add", "--detach", worktreePath }, ct);
             if (code != 0)
                 throw new InvalidOperationException(
                     $"Creazione worktree per '{agentName}' fallita in '{projectPath}' (è un repo git?): {Describe(code, err)}");
@@ -200,20 +207,20 @@ namespace MdExplorer.Services.AgentRun
                     WorktreePathFor(projectPath, agentName), ct);
 
                 // 1) fetch origin
-                var (fc, _, fe) = await GitAsync(worktreePath, "fetch origin", ct);
+                var (fc, _, fe) = await GitAsync(worktreePath, new[] { "fetch", "origin" }, ct);
                 if (fc != 0) return WorktreePrepareResult.Fail($"git fetch origin fallito: {Describe(fc, fe)}");
 
                 // baseBranch: se non dato, risolvi il default del remote (origin/HEAD), fallback main.
                 var resolvedBase = string.IsNullOrWhiteSpace(baseBranch) ? await ResolveDefaultBranchAsync(worktreePath, ct) : baseBranch.Trim();
 
                 // 2) reset --hard + clean -fd (MAI -x: gli untracked ignorati restano)
-                var (rc, _, re) = await GitAsync(worktreePath, "reset --hard", ct);
+                var (rc, _, re) = await GitAsync(worktreePath, new[] { "reset", "--hard" }, ct);
                 if (rc != 0) return WorktreePrepareResult.Fail($"git reset --hard fallito: {Describe(rc, re)}");
-                await GitAsync(worktreePath, "clean -fd", ct);   // best-effort: pulizia scratch
+                await GitAsync(worktreePath, new[] { "clean", "-fd" }, ct);   // best-effort: pulizia scratch
 
                 // 3) branch fresco per-attività da origin/<base>
                 var branch = $"agent/{agentName}/{activityId}";
-                var (cc, _, ce) = await GitAsync(worktreePath, $"checkout -B {Quote(branch)} {Quote("origin/" + resolvedBase)}", ct);
+                var (cc, _, ce) = await GitAsync(worktreePath, new[] { "checkout", "-B", branch, "origin/" + resolvedBase }, ct);
                 if (cc != 0) return WorktreePrepareResult.Fail($"git checkout -B '{branch}' da 'origin/{resolvedBase}' fallito: {Describe(cc, ce)}");
 
                 // 4) merge dell'handoff (ref COMPLETO): sync fallita (ref assente) → git-sync-failed;
@@ -223,23 +230,23 @@ namespace MdExplorer.Services.AgentRun
                     var remoteRef = "origin/" + handoffRef.Trim();
                     // Il ref di handoff deve esistere sul remote (dopo il fetch): se manca, la sync
                     // al lavoro di A è fallita a monte (branch non pushato/ref sbagliato).
-                    var (vc, _, _) = await GitAsync(worktreePath, $"rev-parse --verify --quiet {Quote(remoteRef + "^{commit}")}", ct);
+                    var (vc, _, _) = await GitAsync(worktreePath, new[] { "rev-parse", "--verify", "--quiet", remoteRef + "^{commit}" }, ct);
                     if (vc != 0)
                     {
                         _logger.LogWarning("[Worktree] ref di handoff '{Ref}' assente sul remote per '{Agent}': git-sync-failed.", remoteRef, agentName);
                         return WorktreePrepareResult.SyncFail(worktreePath);
                     }
-                    var (mc, _, me) = await GitAsync(worktreePath, $"merge {Quote(remoteRef)}", ct);
+                    var (mc, _, me) = await GitAsync(worktreePath, new[] { "merge", remoteRef }, ct);
                     if (mc != 0)
                     {
-                        await GitAsync(worktreePath, "merge --abort", ct);   // ripristina lo stato pulito
+                        await GitAsync(worktreePath, new[] { "merge", "--abort" }, ct);   // ripristina lo stato pulito
                         _logger.LogWarning("[Worktree] merge di '{Ref}' in conflitto per '{Agent}': not-ready. {Err}", remoteRef, agentName, me);
                         return WorktreePrepareResult.Conflict(worktreePath);
                     }
                 }
 
                 // 5) submodule (il worktree fresco NON li popola): best-effort, no-op se assenti
-                var (sc, _, se) = await GitAsync(worktreePath, "submodule update --init", ct);
+                var (sc, _, se) = await GitAsync(worktreePath, new[] { "submodule", "update", "--init" }, ct);
                 if (sc != 0)
                     _logger.LogWarning("[Worktree] submodule update per '{Agent}' non riuscito (best-effort): {Err}", agentName, se);
 
@@ -270,8 +277,8 @@ namespace MdExplorer.Services.AgentRun
             // Progetto ancora presente → rimozione pulita via git (aggiorna .git/worktrees).
             if (Directory.Exists(projectPath))
             {
-                var (code, _, err) = await GitAsync(projectPath, $"worktree remove --force {Quote(worktreePath)}", ct);
-                await GitAsync(projectPath, "worktree prune", ct);
+                var (code, _, err) = await GitAsync(projectPath, new[] { "worktree", "remove", "--force", worktreePath }, ct);
+                await GitAsync(projectPath, new[] { "worktree", "prune" }, ct);
                 if (code == 0)
                 {
                     _logger.LogInformation("[Worktree] rimosso per '{Agent}': {Path}", agentName, worktreePath);
@@ -296,13 +303,25 @@ namespace MdExplorer.Services.AgentRun
             try
             {
                 var identity = AgentGitIdentity.EnvFor(agentName);
-                await GitAsync(worktreePath, "add -A", ct);
-                // commit -a: se non c'è nulla da committare git ritorna != 0 (non è un errore) → si prosegue.
-                var msg = string.IsNullOrWhiteSpace(commitMessage) ? "agent deliverable" : commitMessage.Replace("\"", "'");
-                await GitAsync(worktreePath, $"commit -m {Quote(msg)}", ct, identity);
+                await GitAsync(worktreePath, new[] { "add", "-A" }, ct);
 
-                var (bc, branchOut, _) = await GitAsync(worktreePath, "rev-parse --abbrev-ref HEAD", ct);
-                var (hc, shaOut, _) = await GitAsync(worktreePath, "rev-parse HEAD", ct);
+                // Distinguo "nulla da committare" (ok, si prosegue) da un commit FALLITO (index.lock,
+                // hook, stato non risolto): non basta ignorare l'exit code, altrimenti pubblicheremmo
+                // un branch SENZA il lavoro dell'agente (fallback silenzioso vietato, REGOLA #2).
+                var (stc, statusOut, _) = await GitAsync(worktreePath, new[] { "status", "--porcelain" }, ct);
+                if (stc == 0 && !string.IsNullOrWhiteSpace(statusOut))
+                {
+                    var msg = string.IsNullOrWhiteSpace(commitMessage) ? "agent deliverable" : commitMessage;
+                    var (cc, _, ce) = await GitAsync(worktreePath, new[] { "commit", "-m", msg }, ct, identity);
+                    if (cc != 0)
+                    {
+                        _logger.LogError("[Worktree] commit del deliverable di '{Agent}' FALLITO ({Err}): handoff NON pubblicato per non perdere il lavoro dell'agente.", agentName, Describe(cc, ce));
+                        return null;
+                    }
+                }
+
+                var (bc, branchOut, _) = await GitAsync(worktreePath, new[] { "rev-parse", "--abbrev-ref", "HEAD" }, ct);
+                var (hc, shaOut, _) = await GitAsync(worktreePath, new[] { "rev-parse", "HEAD" }, ct);
                 if (bc != 0 || hc != 0)
                     return null;
                 var branch = branchOut.Trim();
@@ -311,7 +330,7 @@ namespace MdExplorer.Services.AgentRun
                     return null;   // detached: nessun branch d'attività da pushare
 
                 // Push per REFSPEC (PushAsync di LibGit2Sharp è upstream-only): pubblica il branch nuovo.
-                var (pc, _, pe) = await GitAsync(worktreePath, $"push origin {Quote(branch + ":refs/heads/" + branch)}", ct);
+                var (pc, _, pe) = await GitAsync(worktreePath, new[] { "push", "origin", branch + ":refs/heads/" + branch }, ct);
                 if (pc != 0)
                 {
                     _logger.LogWarning("[Worktree] push del branch '{Branch}' per '{Agent}' fallito: {Err}", branch, agentName, Describe(pc, pe));
@@ -332,12 +351,12 @@ namespace MdExplorer.Services.AgentRun
             await gate.WaitAsync(ct);
             try
             {
-                var (cc, _, ce) = await GitAsync(projectPath, $"checkout {Quote(intoBranch)}", ct);
+                var (cc, _, ce) = await GitAsync(projectPath, new[] { "checkout", intoBranch }, ct);
                 if (cc != 0) { _logger.LogWarning("[Worktree] merge: checkout '{Into}' fallito: {Err}", intoBranch, ce); return false; }
-                var (mc, _, me) = await GitAsync(projectPath, $"merge {Quote(sourceRef)}", ct);
+                var (mc, _, me) = await GitAsync(projectPath, new[] { "merge", sourceRef }, ct);
                 if (mc != 0)
                 {
-                    await GitAsync(projectPath, "merge --abort", ct);
+                    await GitAsync(projectPath, new[] { "merge", "--abort" }, ct);
                     _logger.LogWarning("[Worktree] merge di '{Src}' in '{Into}' fallito: {Err}", sourceRef, intoBranch, me);
                     return false;
                 }
@@ -356,25 +375,25 @@ namespace MdExplorer.Services.AgentRun
             await gate.WaitAsync(ct);
             try
             {
-                var (fc, _, _) = await GitAsync(worktreePath, "fetch origin", ct);
+                var (fc, _, _) = await GitAsync(worktreePath, new[] { "fetch", "origin" }, ct);
                 if (fc != 0) return DeliverableMergeOutcome.Failed;
 
                 var def = await ResolveDefaultBranchAsync(worktreePath, ct);
 
                 // Detached su origin/<default>: evita "branch già checked-out" (il main è nel progetto umano).
-                var (cc, _, ce) = await GitAsync(worktreePath, $"checkout --detach {Quote("origin/" + def)}", ct);
+                var (cc, _, ce) = await GitAsync(worktreePath, new[] { "checkout", "--detach", "origin/" + def }, ct);
                 if (cc != 0) { _logger.LogWarning("[Worktree] auto-merge: checkout detached su origin/{Def} fallito: {Err}", def, ce); return DeliverableMergeOutcome.Failed; }
 
-                var (mc, _, me) = await GitAsync(worktreePath, $"merge --no-edit {Quote(activityBranch)}", ct);
+                var (mc, _, me) = await GitAsync(worktreePath, new[] { "merge", "--no-edit", activityBranch }, ct);
                 if (mc != 0)
                 {
-                    await GitAsync(worktreePath, "merge --abort", ct);
+                    await GitAsync(worktreePath, new[] { "merge", "--abort" }, ct);
                     _logger.LogWarning("[Worktree] auto-merge di '{Branch}' in '{Def}' in conflitto: not-ready. {Err}", activityBranch, def, me);
                     return DeliverableMergeOutcome.Conflict;
                 }
 
                 // Push del merge sul default di origin (non-fast-forward → qualcun altro ha spinto: ritentabile).
-                var (pc, _, pe) = await GitAsync(worktreePath, $"push origin {Quote("HEAD:refs/heads/" + def)}", ct);
+                var (pc, _, pe) = await GitAsync(worktreePath, new[] { "push", "origin", "HEAD:refs/heads/" + def }, ct);
                 if (pc != 0) { _logger.LogWarning("[Worktree] auto-merge: push di '{Def}' fallito (non-fast-forward?): {Err}", def, pe); return DeliverableMergeOutcome.Failed; }
 
                 _logger.LogInformation("[Worktree] deliverable di '{Agent}' auto-merge in '{Def}' e pushato.", agentName, def);
@@ -394,11 +413,11 @@ namespace MdExplorer.Services.AgentRun
             await gate.WaitAsync(ct);
             try
             {
-                var (lc, _, le) = await GitAsync(projectPath, $"branch -D {Quote(branch)}", ct);
+                var (lc, _, le) = await GitAsync(projectPath, new[] { "branch", "-D", branch }, ct);
                 if (lc != 0) _logger.LogWarning("[Worktree] cancellazione branch locale '{Branch}' fallita: {Err}", branch, le);
                 if (remoteToo)
                 {
-                    var (rc, _, re) = await GitAsync(projectPath, $"push origin --delete {Quote(branch)}", ct);
+                    var (rc, _, re) = await GitAsync(projectPath, new[] { "push", "origin", "--delete", branch }, ct);
                     if (rc != 0) _logger.LogWarning("[Worktree] cancellazione branch remoto '{Branch}' fallita: {Err}", branch, re);
                 }
             }
@@ -408,7 +427,7 @@ namespace MdExplorer.Services.AgentRun
         public async Task<IReadOnlyList<string>> ListMergedAgentBranchesAsync(string projectPath, string intoBranch, CancellationToken ct = default)
         {
             var into = string.IsNullOrWhiteSpace(intoBranch) ? await ResolveDefaultBranchAsync(projectPath, ct) : intoBranch.Trim();
-            var (code, outp, _) = await GitAsync(projectPath, $"branch --merged {Quote(into)}", ct);
+            var (code, outp, _) = await GitAsync(projectPath, new[] { "branch", "--merged", into }, ct);
             if (code != 0) return System.Array.Empty<string>();
             var result = new List<string>();
             foreach (var raw in outp.Split('\n'))
@@ -426,7 +445,7 @@ namespace MdExplorer.Services.AgentRun
             if (submodulePaths.Count == 0)
                 return System.Array.Empty<string>();
 
-            var (code, outp, _) = await GitAsync(worktreePath, "status --porcelain --ignore-submodules=none", ct);
+            var (code, outp, _) = await GitAsync(worktreePath, new[] { "status", "--porcelain", "--ignore-submodules=none" }, ct);
             if (code != 0)
                 return System.Array.Empty<string>();
 
@@ -471,7 +490,7 @@ namespace MdExplorer.Services.AgentRun
         private async Task<string> ResolveDefaultBranchAsync(string worktreePath, CancellationToken ct)
         {
             // origin/HEAD → refs/remotes/origin/<default>. Fallback 'main' se non risolvibile.
-            var (code, outp, _) = await GitAsync(worktreePath, "symbolic-ref --short refs/remotes/origin/HEAD", ct);
+            var (code, outp, _) = await GitAsync(worktreePath, new[] { "symbolic-ref", "--short", "refs/remotes/origin/HEAD" }, ct);
             if (code == 0 && !string.IsNullOrWhiteSpace(outp))
             {
                 var name = outp.Trim();
@@ -483,25 +502,29 @@ namespace MdExplorer.Services.AgentRun
         }
 
         private static string RepoKey(string projectPath) => Helper.HGetHashString(projectPath ?? string.Empty);
-        private static string Quote(string s) => "\"" + s + "\"";
 
         private static string Describe(int code, string stderr)
             => code == GitNotFoundExit ? "git non trovato nel PATH"
              : code == GitTimeoutExit ? "timeout"
              : $"exit {code}: {stderr?.Trim()}";
 
-        /// <summary>Esegue git nativo (LibGit2Sharp non fa worktree). GIT_TERMINAL_PROMPT=0 = fail-fast senza hang.</summary>
+        /// <summary>
+        /// Esegue git nativo (LibGit2Sharp non fa worktree). Gli argomenti passano come
+        /// <see cref="ProcessStartInfo.ArgumentList"/>: ogni token è un argv <b>letterale</b>, quindi
+        /// nessun quoting e <b>nessuna injection</b> possibile (anche da ref/branch controllati da
+        /// una città peer). <c>GIT_TERMINAL_PROMPT=0</c> = fail-fast senza hang.
+        /// </summary>
         private async Task<(int ExitCode, string Stdout, string Stderr)> GitAsync(
-            string workingDirectory, string arguments, CancellationToken ct,
+            string workingDirectory, string[] args, CancellationToken ct,
             IReadOnlyDictionary<string, string> extraEnv = null)
         {
-            _logger.LogDebug("[Worktree] git -C {Dir}: git {Args}", workingDirectory, arguments);
+            var pretty = string.Join(" ", args);
+            _logger.LogDebug("[Worktree] git -C {Dir}: git {Args}", workingDirectory, pretty);
             var process = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
                     FileName = "git",
-                    Arguments = arguments,
                     WorkingDirectory = workingDirectory,
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
@@ -509,6 +532,8 @@ namespace MdExplorer.Services.AgentRun
                     CreateNoWindow = true,
                 }
             };
+            foreach (var a in args)
+                process.StartInfo.ArgumentList.Add(a);
             process.StartInfo.EnvironmentVariables["GIT_TERMINAL_PROMPT"] = "0";
             if (extraEnv != null)
                 foreach (var kv in extraEnv)
@@ -528,7 +553,7 @@ namespace MdExplorer.Services.AgentRun
             if (!completed)
             {
                 try { process.Kill(true); } catch { }
-                _logger.LogError("[Worktree] git {Args} in timeout ({Ms}ms)", arguments, DefaultTimeoutMs);
+                _logger.LogError("[Worktree] git {Args} in timeout ({Ms}ms)", pretty, DefaultTimeoutMs);
                 return (GitTimeoutExit, string.Empty, "timeout");
             }
 

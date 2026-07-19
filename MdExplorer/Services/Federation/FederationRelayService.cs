@@ -83,6 +83,13 @@ namespace MdExplorer.Services.Federation
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, RoomConnection> _rooms = new();
         // Progetti già attivati headless in questa esecuzione: evita il walk FS + Engine DB a ogni scan.
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _activatedProjects = new();
+
+        // Fase 7: serializza il processing dei deliver PER STANZA. OnDeliver è fire-and-forget
+        // (`_ = HandleDeliverAsync(...)`), quindi due buste consecutive girerebbero in concorrenza:
+        // ripristina l'ordinamento sequenziale che il vecchio handler sincrono garantiva, così il
+        // reinforce/erode della memoria (read-modify-write SPARQL, 7b) e i check-then-write dei
+        // receiver non interleavano.
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Threading.SemaphoreSlim> _deliverGates = new();
         private bool _warnedNoApiKey;
 
         public FederationRelayService(
@@ -282,6 +289,9 @@ namespace MdExplorer.Services.Federation
 
         private async Task HandleDeliverAsync(FederationAnnounce announce, string envelope)
         {
+            // Serializza per stanza: la busta N+1 attende il completamento di N (memoria/idempotenza).
+            var gate = _deliverGates.GetOrAdd(announce.RoomId ?? string.Empty, _ => new System.Threading.SemaphoreSlim(1, 1));
+            await gate.WaitAsync();
             try
             {
                 using var scope = _scopeFactory.CreateScope();
@@ -329,6 +339,7 @@ namespace MdExplorer.Services.Federation
             {
                 _logger.LogWarning(ex, "[Federation] gestione 'deliver' fallita per stanza {Room}.", announce.RoomId);
             }
+            finally { gate.Release(); }
         }
 
         /// <summary>
