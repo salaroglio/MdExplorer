@@ -102,6 +102,15 @@ namespace MdExplorer.Service.Models
         /// Richiede che il progetto sia un repo git con remote <c>origin</c>.
         /// </summary>
         public bool UseAgentWorktrees { get; set; }
+
+        /// <summary>
+        /// Auto-merge dei deliverable-doc degli agenti (Fase 7g): quando <c>true</c>, a un deliverable
+        /// pushato (7d.2) che NON tocca il submodule-codice, un gate meccanico fonde il branch
+        /// d'attività nel default e pusha (doc-CI leggera/assente → auto). <b>Opt-in, default false</b>:
+        /// il merge in main resta manuale. Richiede <see cref="UseAgentWorktrees"/>. Il merge del
+        /// CODICE resta umano (§7e). Conflitto → not-ready (l'agente rilavora).
+        /// </summary>
+        public bool AutoMergeAgentDeliverables { get; set; }
     }
 
     /// <summary>

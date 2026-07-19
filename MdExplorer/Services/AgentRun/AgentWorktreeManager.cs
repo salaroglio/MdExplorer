@@ -29,6 +29,17 @@ namespace MdExplorer.Services.AgentRun
         public static WorktreePrepareResult Fail(string error) => new() { Success = false, Error = error };
     }
 
+    /// <summary>Esito dell'auto-merge di un deliverable nel default (Fase 7g).</summary>
+    public enum DeliverableMergeOutcome
+    {
+        /// <summary>Fuso nel default e pushato su origin.</summary>
+        Merged,
+        /// <summary>Conflitto di merge → il chiamante lo mappa su not-ready (l'agente rilavora).</summary>
+        Conflict,
+        /// <summary>Fallito (fetch/checkout/push ko, es. non-fast-forward): ritentabile.</summary>
+        Failed,
+    }
+
     /// <summary>Esito del commit+push del branch d'attività di un agente (Fase 7d.2/7d.5).</summary>
     public sealed class HandoffPushResult
     {
@@ -76,8 +87,16 @@ namespace MdExplorer.Services.AgentRun
         /// </summary>
         Task<HandoffPushResult> CommitAndPushBranchAsync(string projectPath, string agentName, string commitMessage, CancellationToken ct = default);
 
-        /// <summary>Fase 7d.1 — merge esplicito <paramref name="sourceRef"/> in <paramref name="intoBranch"/> (native). Metodo, NON auto-innescato (7g).</summary>
+        /// <summary>Fase 7d.1 — merge esplicito <paramref name="sourceRef"/> in <paramref name="intoBranch"/> (native). Metodo base.</summary>
         Task<bool> MergeBranchAsync(string projectPath, string sourceRef, string intoBranch, CancellationToken ct = default);
+
+        /// <summary>
+        /// Fase 7g — fonde il branch d'attività nel default e lo pusha su origin, SENZA disturbare
+        /// la working tree dell'umano: opera nel worktree dell'agente in <b>detached HEAD</b> su
+        /// <c>origin/&lt;default&gt;</c> (git vieta lo stesso branch in due worktree), poi
+        /// <c>push origin HEAD:&lt;default&gt;</c>. Conflitto → <see cref="DeliverableMergeOutcome.Conflict"/>.
+        /// </summary>
+        Task<DeliverableMergeOutcome> MergeDeliverableIntoDefaultAsync(string projectPath, string agentName, string activityBranch, CancellationToken ct = default);
 
         /// <summary>Fase 7d.1 — cancella un branch (locale e, se <paramref name="remoteToo"/>, sul remote).</summary>
         Task DeleteBranchAsync(string projectPath, string branch, bool remoteToo, CancellationToken ct = default);
@@ -323,6 +342,48 @@ namespace MdExplorer.Services.AgentRun
                     return false;
                 }
                 return true;
+            }
+            finally { gate.Release(); }
+        }
+
+        public async Task<DeliverableMergeOutcome> MergeDeliverableIntoDefaultAsync(string projectPath, string agentName, string activityBranch, CancellationToken ct = default)
+        {
+            var worktreePath = WorktreePathFor(projectPath, agentName);
+            if (!Directory.Exists(worktreePath) || string.IsNullOrWhiteSpace(activityBranch))
+                return DeliverableMergeOutcome.Failed;
+
+            var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct);
+            try
+            {
+                var (fc, _, _) = await GitAsync(worktreePath, "fetch origin", ct);
+                if (fc != 0) return DeliverableMergeOutcome.Failed;
+
+                var def = await ResolveDefaultBranchAsync(worktreePath, ct);
+
+                // Detached su origin/<default>: evita "branch già checked-out" (il main è nel progetto umano).
+                var (cc, _, ce) = await GitAsync(worktreePath, $"checkout --detach {Quote("origin/" + def)}", ct);
+                if (cc != 0) { _logger.LogWarning("[Worktree] auto-merge: checkout detached su origin/{Def} fallito: {Err}", def, ce); return DeliverableMergeOutcome.Failed; }
+
+                var (mc, _, me) = await GitAsync(worktreePath, $"merge --no-edit {Quote(activityBranch)}", ct);
+                if (mc != 0)
+                {
+                    await GitAsync(worktreePath, "merge --abort", ct);
+                    _logger.LogWarning("[Worktree] auto-merge di '{Branch}' in '{Def}' in conflitto: not-ready. {Err}", activityBranch, def, me);
+                    return DeliverableMergeOutcome.Conflict;
+                }
+
+                // Push del merge sul default di origin (non-fast-forward → qualcun altro ha spinto: ritentabile).
+                var (pc, _, pe) = await GitAsync(worktreePath, $"push origin {Quote("HEAD:refs/heads/" + def)}", ct);
+                if (pc != 0) { _logger.LogWarning("[Worktree] auto-merge: push di '{Def}' fallito (non-fast-forward?): {Err}", def, pe); return DeliverableMergeOutcome.Failed; }
+
+                _logger.LogInformation("[Worktree] deliverable di '{Agent}' auto-merge in '{Def}' e pushato.", agentName, def);
+                return DeliverableMergeOutcome.Merged;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "[Worktree] auto-merge fallito per '{Agent}'", agentName);
+                return DeliverableMergeOutcome.Failed;
             }
             finally { gate.Release(); }
         }

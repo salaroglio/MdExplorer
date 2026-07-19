@@ -123,6 +123,9 @@ namespace MdExplorer
             // Gate del push umano per il codice (Fase 7e): un agente tocca il submodule → awareness
             // + dispatch differito finché l'umano non committa (release token = sha del submodule).
             services.AddSingleton<Services.AgentRun.ISubmoduleGateService, Services.AgentRun.SubmoduleGateService>();
+            // Cancello meccanico del merge dei deliverable-doc (Fase 7g): default auto-approva;
+            // un client CI o un agente-revisore rimpiazza questo seam senza toccare il dispatcher.
+            services.AddSingleton<Services.AgentRun.IDeliverableMergeGate, Services.AgentRun.AutoApproveMergeGate>();
             services.AddHostedService<Services.AgentRun.AgentMessageDispatcher>();
 
             // Memoria semantica degli agenti (Fase 5b, §11): assert/query su Fuseki, grafo

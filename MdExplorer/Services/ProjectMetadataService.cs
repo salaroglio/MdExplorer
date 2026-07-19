@@ -313,6 +313,7 @@ namespace MdExplorer.Services
                 RelayUrl = string.IsNullOrWhiteSpace(relayUrl) ? null : relayUrl,
                 Maintenance = maintenance,
                 UseAgentWorktrees = config.UseAgentWorktrees,   // Fase 7c: opt-in isolamento worktree
+                AutoMergeAgentDeliverables = config.AutoMergeAgentDeliverables,   // Fase 7g: opt-in auto-merge doc
             };
 
             var serializer = new SerializerBuilder()

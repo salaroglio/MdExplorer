@@ -24,8 +24,11 @@ namespace MdExplorer.Services.AgentRun
     /// </summary>
     public interface ISubmoduleGateService
     {
-        /// <summary>Registra i submodule toccati dall'agente nel worktree e notifica (awareness). Idempotente.</summary>
-        Task RecordTouchedAsync(string projectPath, string agentName, string worktreePath, CancellationToken ct = default);
+        /// <summary>
+        /// Registra i submodule toccati dall'agente nel worktree e notifica (awareness). Idempotente.
+        /// Ritorna <c>true</c> se il run ha toccato codice (gate aperto) → il chiamante NON auto-merge (7g).
+        /// </summary>
+        Task<bool> RecordTouchedAsync(string projectPath, string agentName, string worktreePath, CancellationToken ct = default);
 
         /// <summary><c>awaiting-push</c> se il progetto ha un gate del codice aperto, altrimenti <c>null</c>.</summary>
         string CheckAwaitingPush(string projectPath);
@@ -59,12 +62,12 @@ namespace MdExplorer.Services.AgentRun
             _logger = logger;
         }
 
-        public async Task RecordTouchedAsync(string projectPath, string agentName, string worktreePath, CancellationToken ct = default)
+        public async Task<bool> RecordTouchedAsync(string projectPath, string agentName, string worktreePath, CancellationToken ct = default)
         {
             IReadOnlyList<string> dirty;
             try { dirty = await _worktree.GetDirtySubmodulesAsync(worktreePath, ct); }
-            catch (Exception ex) { _logger.LogWarning(ex, "[SubmoduleGate] rilevamento submodule sporchi fallito per '{Wt}'", worktreePath); return; }
-            if (dirty.Count == 0) return;
+            catch (Exception ex) { _logger.LogWarning(ex, "[SubmoduleGate] rilevamento submodule sporchi fallito per '{Wt}'", worktreePath); return false; }
+            if (dirty.Count == 0) return false;
 
             var created = new List<string>();
             using (var scope = _scopeFactory.CreateScope())
@@ -96,6 +99,7 @@ namespace MdExplorer.Services.AgentRun
                 _logger.LogInformation("[SubmoduleGate] '{Agent}' ha toccato il submodule '{Sub}' in '{Project}': gate del push aperto.", agentName, sub, projectPath);
                 NotifyUser(projectPath, sub, agentName);
             }
+            return true;   // codice toccato → il chiamante non deve auto-merge (7g); è dell'umano (§7e)
         }
 
         public string CheckAwaitingPush(string projectPath)

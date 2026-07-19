@@ -61,6 +61,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly MdExplorer.Services.AgentMemory.IFusekiConnectionResolver _fusekiResolver;
         private readonly IAgentWorktreeManager _worktree;
         private readonly ISubmoduleGateService _submoduleGate;
+        private readonly IDeliverableMergeGate _mergeGate;
         private readonly MdExplorer.Services.IProjectMetadataService _projectMetadata;
         private readonly MdExplorer.Services.Federation.IFederationSender _federationSender;
         private readonly IHubContext<MonitorMDHub> _hubContext;
@@ -86,6 +87,7 @@ namespace MdExplorer.Services.AgentRun
             MdExplorer.Services.AgentMemory.IFusekiConnectionResolver fusekiResolver,
             IAgentWorktreeManager worktree,
             ISubmoduleGateService submoduleGate,
+            IDeliverableMergeGate mergeGate,
             MdExplorer.Services.IProjectMetadataService projectMetadata,
             MdExplorer.Services.Federation.IFederationSender federationSender,
             IHubContext<MonitorMDHub> hubContext,
@@ -102,6 +104,7 @@ namespace MdExplorer.Services.AgentRun
             _fusekiResolver = fusekiResolver;
             _worktree = worktree;
             _submoduleGate = submoduleGate;
+            _mergeGate = mergeGate;
             _projectMetadata = projectMetadata;
             _federationSender = federationSender;
             _hubContext = hubContext;
@@ -453,13 +456,38 @@ namespace MdExplorer.Services.AgentRun
             // origin (commit → push refspec). Best-effort: un push mancato non fallisce il run già concluso.
             if (outcome.Success && workingDirectory != null)
             {
-                try { await _worktree.CommitAndPushBranchAsync(snapshot.ProjectPath, entry.Name, $"deliverable {entry.Name}", ct); }
+                HandoffPushResult pushed = null;
+                try { pushed = await _worktree.CommitAndPushBranchAsync(snapshot.ProjectPath, entry.Name, $"deliverable {entry.Name}", ct); }
                 catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] push deliverable per '{Agent}' fallito (best-effort).", entry.Name); }
 
                 // Fase 7e.1 — gate del codice: se l'agente ha toccato un submodule nel worktree, apri
-                // il gate del push umano (awareness + differimento dei dispatch finché non atterra).
-                try { await _submoduleGate.RecordTouchedAsync(snapshot.ProjectPath, entry.Name, workingDirectory, ct); }
+                // il gate del push umano (awareness + differimento). Ritorna true se ha toccato codice.
+                bool codeTouched = false;
+                try { codeTouched = await _submoduleGate.RecordTouchedAsync(snapshot.ProjectPath, entry.Name, workingDirectory, ct); }
                 catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] rilevamento tocco submodule per '{Agent}' fallito.", entry.Name); }
+
+                // Fase 7g — cancello del merge: auto-merge del deliverable-DOC (opt-in), SOLO se non
+                // ha toccato codice (il merge del codice è umano, §7e) e il gate meccanico approva.
+                if (pushed != null && !codeTouched && AutoMergeEnabled(snapshot.ProjectPath))
+                {
+                    try
+                    {
+                        if (await _mergeGate.ShouldMergeAsync(snapshot.ProjectPath, entry.Name, pushed.Branch, ct))
+                        {
+                            var mo = await _worktree.MergeDeliverableIntoDefaultAsync(snapshot.ProjectPath, entry.Name, pushed.Branch, ct);
+                            if (mo == DeliverableMergeOutcome.Conflict)
+                            {
+                                // Conflitto → not-ready nel feedback loop (federato: riporta all'origine).
+                                var rc = ResolveRunContext(snapshot);
+                                if (!string.IsNullOrEmpty(rc.RemoteOwner) && rc.RequestId != null)
+                                    await ReportNotReadyToOriginAsync(snapshot.ProjectPath, rc, FederationReason.MergeConflictWithMain);
+                                else
+                                    _logger.LogWarning("[Dispatcher] auto-merge del deliverable di '{Agent}' in conflitto (not-ready): rilavorare.", entry.Name);
+                            }
+                        }
+                    }
+                    catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] auto-merge del deliverable di '{Agent}' fallito.", entry.Name); }
+                }
             }
         }
 
@@ -564,6 +592,13 @@ namespace MdExplorer.Services.AgentRun
                 _logger.LogWarning(ex, "[Dispatcher] lettura agentCity per '{Project}' fallita: worktree disattivato per questo run.", projectPath);
                 return false;
             }
+        }
+
+        /// <summary>Auto-merge dei deliverable-doc attivo? (opt-in <c>agentCity.autoMergeAgentDeliverables</c>, Fase 7g).</summary>
+        private bool AutoMergeEnabled(string projectPath)
+        {
+            try { return _projectMetadata.GetAgentCity(projectPath)?.AutoMergeAgentDeliverables == true; }
+            catch { return false; }
         }
 
         /// <summary>Contesto della conversazione utile al run in worktree (Fase 7c/7d).</summary>
