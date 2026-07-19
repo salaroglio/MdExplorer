@@ -97,6 +97,9 @@ mde_type: ownership
             Assert.AreEqual(HttpStatusCode.OK, s);
             var users = json.RootElement.GetProperty("users").EnumerateArray().ToList();
             Assert.IsTrue(users.Any(u => u.GetProperty("email").GetString() == "marco@acme.it"), "marco è un padrone del doc");
+            // Badge presenza: ogni utente porta il flag 'online'; senza relay attivo (test) è false.
+            Assert.IsTrue(users.All(u => u.TryGetProperty("online", out var o) && o.ValueKind == System.Text.Json.JsonValueKind.False),
+                "senza connessione federata attiva nessun padrone risulta online");
 
             // POST /impersonate con test-mode OFF → 409 azionabile.
             var (c1, _) = await ctx.PostJson("/api/A2A/federation/impersonate",

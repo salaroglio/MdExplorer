@@ -86,6 +86,8 @@ export interface CityUser {
   ownerId: string;
   displayName: string;
   isMe: boolean;
+  /** true se la città REMOTA di questo padrone è accesa ora sulla stanza (badge presenza). */
+  online: boolean;
 }
 
 export interface ImpersonationStatus {

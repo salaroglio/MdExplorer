@@ -30,6 +30,13 @@ namespace MdExplorer.Services.Federation
     public interface IFederationState
     {
         IReadOnlyList<LocalCity> GetLocalCities();
+
+        /// <summary>
+        /// Le città REMOTE attualmente accese sulla stanza del progetto (§12.5), decifrate dal
+        /// roster del relay. Lista vuota se il progetto non ha una connessione federata attiva o
+        /// nessun'altra città è online. La presenza è effimera: rispecchia lo stato del relay ora.
+        /// </summary>
+        IReadOnlyList<CityPresence> GetRemotePresence(string projectPath);
     }
 
     /// <summary>
@@ -127,6 +134,49 @@ namespace MdExplorer.Services.Federation
         private readonly bool _apiKeyIsPlaceholder;
 
         public IReadOnlyList<LocalCity> GetLocalCities() => _snapshot;
+
+        /// <inheritdoc/>
+        public IReadOnlyList<CityPresence> GetRemotePresence(string projectPath)
+        {
+            var city = _snapshot.FirstOrDefault(c => AgentPathComparer.Equals(c.ProjectPath, projectPath));
+            if (city == null || !_rooms.TryGetValue(city.RoomId, out var conn))
+                return Array.Empty<CityPresence>();
+
+            var envelopes = conn.RemotePresenceEnvelopes;
+            if (envelopes.Count == 0)
+                return Array.Empty<CityPresence>();
+
+            string secret;
+            using (var scope = _scopeFactory.CreateScope())
+            {
+                var meta = scope.ServiceProvider.GetRequiredService<MdExplorer.Services.IProjectMetadataService>();
+                secret = meta.GetAgentCity(projectPath)?.RoomSecret;
+            }
+            if (string.IsNullOrWhiteSpace(secret))
+                return Array.Empty<CityPresence>();
+
+            var result = new List<CityPresence>(envelopes.Count);
+            foreach (var kv in envelopes)
+            {
+                try
+                {
+                    var json = FederationCrypto.Decrypt(secret, city.RoomId, kv.Value);
+                    var presence = System.Text.Json.JsonSerializer.Deserialize<CityPresence>(json);
+                    if (presence == null) continue;
+                    if (string.IsNullOrWhiteSpace(presence.OwnerId)) presence.OwnerId = kv.Key;
+                    result.Add(presence);
+                }
+                catch (FederationCryptoException ex)
+                {
+                    _logger.LogWarning(ex, "[Federation] presenza remota di {Owner} non apribile (secret errato/manomessa).", kv.Key);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[Federation] presenza remota di {Owner} malformata dopo decrypt.", kv.Key);
+                }
+            }
+            return result;
+        }
 
         // Segnale per una ri-scansione IMMEDIATA (es. cambio identità impersonata → riconnetti la
         // stanza col nuovo ownerId senza aspettare il tick da 60s).
@@ -514,6 +564,15 @@ namespace MdExplorer.Services.Federation
             /// <summary>Invocato con la busta cifrata di un messaggio in arrivo (evento relay <c>deliver</c>).</summary>
             public Action<string> OnDeliver;
 
+            // Presenza remota della stanza: ownerId → busta cifrata dell'annuncio (CityPresence).
+            // Popolata dal roster ritornato nell'ack di 'join' e mantenuta dagli eventi 'presence'
+            // (città accesa/riannunciata) e 'offline' (ultima connessione della città caduta). Le
+            // buste restano cifrate qui: la decifratura vive nel service (ha lo scope col room secret).
+            private readonly System.Collections.Concurrent.ConcurrentDictionary<string, string> _remotePresence = new();
+
+            /// <summary>Snapshot delle presenze remote note: (ownerId, busta cifrata). Mai la mia città.</summary>
+            public IReadOnlyList<KeyValuePair<string, string>> RemotePresenceEnvelopes => _remotePresence.ToArray();
+
             public RoomConnection(string baseUrl, string enginePath, string apiKey, FederationAnnounce announce, ILogger logger)
             {
                 _baseUrl = baseUrl;
@@ -551,7 +610,13 @@ namespace MdExplorer.Services.Federation
                         _ = JoinAndAnnounceAsync();
                     };
                     socket.OnDisconnected += (s, reason) =>
+                    {
+                        // La presenza remota è effimera lato relay: a ogni rejoin l'ack di 'join'
+                        // rimanda il roster completo. Svuota per non mostrare città come accese dopo
+                        // una caduta della NOSTRA connessione (non sapremmo dei loro 'offline').
+                        _remotePresence.Clear();
                         _logger.LogWarning("[Federation] stanza {Room}: disconnesso ({Reason})", _announce?.RoomId, reason);
+                    };
                     // Un handshake rifiutato (es. API key errata) altrimenti è un retry infinito
                     // PERFETTAMENTE silenzioso: nessuna riga di log, città mai federata. Log
                     // throttlato: il primo fallimento e poi uno ogni 20.
@@ -574,6 +639,29 @@ namespace MdExplorer.Services.Federation
                                 OnDeliver?.Invoke(env.GetString());
                         }
                         catch (Exception ex) { _logger.LogWarning(ex, "[Federation] parse 'deliver' fallito"); }
+                    });
+                    // Presenza: una città della stanza si è accesa o ha riannunciato il suo catalogo.
+                    socket.On("presence", resp =>
+                    {
+                        try
+                        {
+                            var msg = resp.GetValue<System.Text.Json.JsonElement>(0);
+                            if (msg.TryGetProperty("ownerId", out var oid) && oid.ValueKind == System.Text.Json.JsonValueKind.String
+                                && msg.TryGetProperty("presence", out var env) && env.ValueKind == System.Text.Json.JsonValueKind.String)
+                                _remotePresence[oid.GetString()] = env.GetString();
+                        }
+                        catch (Exception ex) { _logger.LogWarning(ex, "[Federation] parse 'presence' fallito"); }
+                    });
+                    // Offline: l'ultima connessione di una città della stanza è caduta.
+                    socket.On("offline", resp =>
+                    {
+                        try
+                        {
+                            var msg = resp.GetValue<System.Text.Json.JsonElement>(0);
+                            if (msg.TryGetProperty("ownerId", out var oid) && oid.ValueKind == System.Text.Json.JsonValueKind.String)
+                                _remotePresence.TryRemove(oid.GetString(), out _);
+                        }
+                        catch (Exception ex) { _logger.LogWarning(ex, "[Federation] parse 'offline' fallito"); }
                     });
                     _socket = socket;
                     _ = ConnectAsync(socket);
@@ -598,7 +686,26 @@ namespace MdExplorer.Services.Federation
                 try
                 {
                     // L'ordine è garantito sul singolo socket: il server processa join prima di announce.
-                    await socket.EmitAsync("join", new { roomId = a.RoomId, ownerId = a.OwnerId, joinToken = a.JoinToken });
+                    // L'ack di 'join' porta il roster della stanza (chi è già acceso): lo assorbiamo
+                    // come stato iniziale della presenza remota, poi 'presence'/'offline' lo mantengono.
+                    await socket.EmitAsync("join", response =>
+                    {
+                        try
+                        {
+                            var ack = response.GetValue<System.Text.Json.JsonElement>(0);
+                            _remotePresence.Clear();
+                            if (ack.TryGetProperty("roster", out var roster) && roster.ValueKind == System.Text.Json.JsonValueKind.Array)
+                            {
+                                foreach (var e in roster.EnumerateArray())
+                                {
+                                    if (e.TryGetProperty("ownerId", out var oid) && oid.ValueKind == System.Text.Json.JsonValueKind.String
+                                        && e.TryGetProperty("presence", out var env) && env.ValueKind == System.Text.Json.JsonValueKind.String)
+                                        _remotePresence[oid.GetString()] = env.GetString();
+                                }
+                            }
+                        }
+                        catch (Exception ex) { _logger.LogWarning(ex, "[Federation] parse roster di 'join' fallito"); }
+                    }, new { roomId = a.RoomId, ownerId = a.OwnerId, joinToken = a.JoinToken });
                     await AnnounceAsync(socket, a);
                     _logger.LogInformation("[Federation] stanza {Room}: join+announce verso il relay ok", a.RoomId);
                 }

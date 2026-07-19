@@ -1786,7 +1786,9 @@
     "TEST_MODE": "Identity test mode",
     "PICK_HINT": "Act as another owner of the city:",
     "BACK_TO_ME": "Back to me",
-    "BANNER": "⚠️ Test mode: you are acting as {{email}}"
+    "BANNER": "⚠️ Test mode: you are acting as {{email}}",
+    "ONLINE": "City online on the room",
+    "OFFLINE": "Owner not connected"
   },
   "AGENT_TRUST": {
     "TITLE": "Trust this agent?",

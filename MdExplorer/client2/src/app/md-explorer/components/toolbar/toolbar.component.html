@@ -168,7 +168,9 @@
       <div class="identity-hint">{{ 'IDENTITY.PICK_HINT' | translate }}</div>
       <button mat-menu-item *ngFor="let u of cityUsers" (click)="actAs(u.email)" [disabled]="u.isMe">
         <mat-icon>{{ u.isMe ? 'person' : 'person_outline' }}</mat-icon>
-        <span>{{ u.displayName }}</span>
+        <span class="identity-user-name">{{ u.displayName }}</span>
+        <span class="presence-dot" [class.online]="u.online" [class.offline]="!u.online"
+              [matTooltip]="(u.online ? 'IDENTITY.ONLINE' : 'IDENTITY.OFFLINE') | translate"></span>
       </button>
       <button mat-menu-item *ngIf="identity?.impersonated" (click)="backToMe()">
         <mat-icon>undo</mat-icon> {{ 'IDENTITY.BACK_TO_ME' | translate }}

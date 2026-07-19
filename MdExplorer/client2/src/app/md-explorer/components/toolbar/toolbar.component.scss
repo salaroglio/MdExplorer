@@ -286,4 +286,13 @@ mat-toolbar button.git-menu-btn {
   .identity-badge { margin-left: 6px; color: #b71c1c; font-weight: 600; }
   .identity-testmode { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
   .identity-hint { font-size: 12px; opacity: .7; margin: 8px 0 4px; }
+  // Il nome occupa lo spazio, il pallino di presenza va a filo destro della riga.
+  .identity-user-name { flex: 1 1 auto; }
+  .presence-dot {
+    flex: 0 0 auto;
+    width: 8px; height: 8px; border-radius: 50%;
+    margin-left: 8px;
+    &.online  { background: #2e7d32; box-shadow: 0 0 0 2px rgba(46,125,50,.25); }   // città accesa sulla stanza
+    &.offline { background: #bdbdbd; }                                             // padrone non connesso ora
+  }
 }

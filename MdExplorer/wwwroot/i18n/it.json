@@ -1786,7 +1786,9 @@
     "TEST_MODE": "Modalità test identità",
     "PICK_HINT": "Agisci come un altro padrone della città:",
     "BACK_TO_ME": "Torna a me",
-    "BANNER": "⚠️ Modalità test: stai agendo come {{email}}"
+    "BANNER": "⚠️ Modalità test: stai agendo come {{email}}",
+    "ONLINE": "Città accesa sulla stanza",
+    "OFFLINE": "Padrone non connesso"
   },
   "AGENT_TRUST": {
     "TITLE": "Concedi il trust a questo agente?",

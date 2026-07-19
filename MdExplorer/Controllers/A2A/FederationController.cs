@@ -64,17 +64,28 @@ namespace MdExplorer.Controllers.A2A
                 return StatusCode(409, new { error = "Città non attiva o senza documento di ownership valido." });
 
             var me = _identity.ResolveEmail(projectPath);
+            // OwnerId delle città REMOTE accese ora sulla stanza (badge presenza): la mia macchina
+            // non compare nel roster del relay, quindi la mia riga resta sempre offline qui.
+            var onlineOwners = _state.GetRemotePresence(projectPath)
+                .Select(p => p.OwnerId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var users = entries
                 .Select(e => e.GitEmail)
                 .Where(e => !string.IsNullOrWhiteSpace(e))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(e => e, StringComparer.OrdinalIgnoreCase)
-                .Select(email => new
+                .Select(email =>
                 {
-                    email,
-                    ownerId = MdExplorer.Features.Federation.FederationRoom.ComputeUserId(email),
-                    displayName = email,
-                    isMe = string.Equals(email, me, StringComparison.OrdinalIgnoreCase),
+                    var ownerId = MdExplorer.Features.Federation.FederationRoom.ComputeUserId(email);
+                    return new
+                    {
+                        email,
+                        ownerId,
+                        displayName = email,
+                        isMe = string.Equals(email, me, StringComparison.OrdinalIgnoreCase),
+                        online = onlineOwners.Contains(ownerId),
+                    };
                 })
                 .ToList();
             return Ok(new { testMode = _identity.IsTestModeEnabled(), users });
