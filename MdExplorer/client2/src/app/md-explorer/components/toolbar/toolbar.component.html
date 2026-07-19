@@ -24,6 +24,12 @@
     <button mat-icon-button [matTooltip]="'TOOLBAR.AGENT_REGISTRY' | translate" (click)="openAgentRegistry()" class="toolbar-btn btn-agents">
       <mat-icon>groups</mat-icon>
     </button>
+    <!-- Impersonazione utente (test città): selettore identità -->
+    <button mat-icon-button [matTooltip]="'IDENTITY.MENU' | translate" [matMenuTriggerFor]="identityMenu"
+            (menuOpened)="loadIdentity(); loadCityUsers()" class="toolbar-btn btn-identity"
+            [ngClass]="{ 'identity-impersonating': identity?.impersonated }">
+      <mat-icon>{{ identity?.impersonated ? 'switch_account' : 'account_circle' }}</mat-icon>
+    </button>
     <button mat-icon-button [matTooltip]="'TOOLBAR.AGENT_MEMORY' | translate" (click)="openAgentMemory()" class="toolbar-btn btn-agent-memory">
       <mat-icon>psychology</mat-icon>
     </button>
@@ -137,7 +143,40 @@
     </span>
 
   </mat-toolbar-row>
+
+  <!-- Banner impersonazione: sempre visibile mentre agisci come un altro utente -->
+  <mat-toolbar-row *ngIf="identity?.impersonated" class="identity-banner">
+    <mat-icon>warning</mat-icon>
+    <span>{{ 'IDENTITY.BANNER' | translate:{ email: identity?.email } }}</span>
+    <span class="flexExpand"></span>
+    <button mat-stroked-button (click)="backToMe()">{{ 'IDENTITY.BACK_TO_ME' | translate }}</button>
+  </mat-toolbar-row>
 </mat-toolbar>
+
+<!-- Menu selettore identità (test città) -->
+<mat-menu #identityMenu="matMenu">
+  <div class="identity-menu" (click)="$event.stopPropagation()">
+    <div class="identity-current">
+      {{ 'IDENTITY.YOU_ARE' | translate }} <strong>{{ identity?.email || '?' }}</strong>
+      <span *ngIf="identity?.impersonated" class="identity-badge">{{ 'IDENTITY.IMPERSONATING' | translate }}</span>
+    </div>
+    <label class="identity-testmode">
+      <input type="checkbox" [checked]="identity?.testMode" (change)="toggleTestMode($any($event.target).checked)" />
+      {{ 'IDENTITY.TEST_MODE' | translate }}
+    </label>
+    <div *ngIf="identity?.testMode" class="identity-users">
+      <div class="identity-hint">{{ 'IDENTITY.PICK_HINT' | translate }}</div>
+      <button mat-menu-item *ngFor="let u of cityUsers" (click)="actAs(u.email)" [disabled]="u.isMe">
+        <mat-icon>{{ u.isMe ? 'person' : 'person_outline' }}</mat-icon>
+        <span>{{ u.displayName }}</span>
+      </button>
+      <button mat-menu-item *ngIf="identity?.impersonated" (click)="backToMe()">
+        <mat-icon>undo</mat-icon> {{ 'IDENTITY.BACK_TO_ME' | translate }}
+      </button>
+    </div>
+  </div>
+</mat-menu>
+
 <!--[matMenuTriggerFor]="FileAndAutorsToPull"
 #menuTrigger="matMenuTrigger"
  (mouseenter)="openMenu(menuTrigger)"

@@ -4,6 +4,7 @@ import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
 import { MdFileService } from '../../services/md-file.service';
+import { FederationService, CityUser, ImpersonationStatus } from '../../services/federation.service';
 import { RulesComponent } from '../../../signalR/dialogs/rules/rules.component';
 import { MdFile } from '../../models/md-file';
 import { GITService } from '../../../git/services/gitservice.service';
@@ -69,6 +70,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   branches: IBranch[];
   // Fase 7h: worktree degli agenti del progetto, per il sottomenu "Worktree".
   worktreeList: { agent: string; path: string }[] = [];
+  // Impersonazione utente (test città): identità effettiva + lista padroni.
+  identity: ImpersonationStatus | null = null;
+  cityUsers: CityUser[] = [];
   taglist: ITag[];
   currentMdFile: MdFile
   public connectionIsActive: boolean = true;
@@ -98,6 +102,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private gitservice: GITService,
     private appSettings: AppCurrentMetadataService,
     private projectService: ProjectsService,
+    private federationService: FederationService,
     private router: Router,
     private waitingDialogService: WaitingDialogService,
     private bookmarksService: BookmarksService,
@@ -194,6 +199,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         this.gitservice.setProjectPath(project.path);
         // Ricarica il badge non-letti per il nuovo progetto
         this.mailboxNotifications.setProject(project.path);
+        // Identità effettiva (banner impersonazione)
+        this.loadIdentity();
 
         // Check if manual credentials are needed (auto-detection failed)
         // Only show dialog for non-OAuth providers - OAuth providers (GitHub, GitLab, Azure, Bitbucket)
@@ -848,6 +855,60 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
     });
     this.matMenuTrigger?.closeMenu();
+  }
+
+  // ---- Impersonazione utente (test città) ----
+
+  private showError(err: any): void {
+    const msg = err?.error?.error || err?.message || 'Operazione fallita.';
+    this._snackBar.open(`⚠️ ${msg}`, 'OK', { duration: 8000, verticalPosition: 'top' });
+  }
+
+  private get currentProjectPath(): string {
+    return this.projectService.currentProjects$.value?.path || '';
+  }
+
+  loadIdentity(): void {
+    const p = this.currentProjectPath;
+    if (!p) { this.identity = null; return; }
+    this.federationService.impersonationStatus(p).subscribe({
+      next: (s) => this.identity = s,
+      error: () => this.identity = null,
+    });
+  }
+
+  loadCityUsers(): void {
+    const p = this.currentProjectPath;
+    if (!p) { this.cityUsers = []; return; }
+    this.federationService.cityUsers(p).subscribe({
+      next: (r) => this.cityUsers = r.users || [],
+      error: () => this.cityUsers = [],
+    });
+  }
+
+  toggleTestMode(enabled: boolean): void {
+    this.federationService.setTestMode(enabled).subscribe({
+      next: () => this.loadIdentity(),
+      error: (err) => this.showError(err),
+    });
+  }
+
+  actAs(email: string): void {
+    const p = this.currentProjectPath;
+    if (!p) { return; }
+    this.federationService.impersonate(p, email).subscribe({
+      next: (s) => { this.identity = s; this.matMenuTrigger?.closeMenu(); },
+      error: (err) => this.showError(err),
+    });
+  }
+
+  backToMe(): void {
+    const p = this.currentProjectPath;
+    if (!p) { return; }
+    this.federationService.stopImpersonation(p).subscribe({
+      next: (s) => this.identity = s,
+      error: (err) => this.showError(err),
+    });
   }
 
   // Fase 7h — carica i worktree degli agenti quando il menu branch si apre.

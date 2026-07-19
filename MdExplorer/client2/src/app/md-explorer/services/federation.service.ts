@@ -54,4 +54,43 @@ export class FederationService {
   reject(id: string): Observable<{ rejected: boolean }> {
     return this.http.post<{ rejected: boolean }>(`/api/A2A/federation/requests/${id}/reject`, null);
   }
+
+  // ---- Impersonazione utente (test della città) ----
+
+  cityUsers(projectPath: string): Observable<{ testMode: boolean; users: CityUser[] }> {
+    const params = new HttpParams().set('projectPath', projectPath || '');
+    return this.http.get<{ testMode: boolean; users: CityUser[] }>('/api/A2A/federation/users', { params });
+  }
+
+  impersonationStatus(projectPath: string): Observable<ImpersonationStatus> {
+    const params = new HttpParams().set('projectPath', projectPath || '');
+    return this.http.get<ImpersonationStatus>('/api/A2A/federation/impersonate', { params });
+  }
+
+  setTestMode(enabled: boolean): Observable<{ testMode: boolean }> {
+    return this.http.post<{ testMode: boolean }>('/api/A2A/federation/impersonate/test-mode', { enabled });
+  }
+
+  impersonate(projectPath: string, email: string): Observable<ImpersonationStatus> {
+    return this.http.post<ImpersonationStatus>('/api/A2A/federation/impersonate', { projectPath, email });
+  }
+
+  stopImpersonation(projectPath: string): Observable<ImpersonationStatus> {
+    const params = new HttpParams().set('projectPath', projectPath || '');
+    return this.http.delete<ImpersonationStatus>('/api/A2A/federation/impersonate', { params });
+  }
+}
+
+export interface CityUser {
+  email: string;
+  ownerId: string;
+  displayName: string;
+  isMe: boolean;
+}
+
+export interface ImpersonationStatus {
+  testMode: boolean;
+  email: string;
+  ownerId: string;
+  impersonated: boolean;
 }

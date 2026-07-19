@@ -1779,6 +1779,15 @@
   "SUBMODULE_GATE": {
     "TOAST": "🧩 Agent \"{{agent}}\" changed code in submodule \"{{submodule}}\". Commit & push it to release the next agent."
   },
+  "IDENTITY": {
+    "MENU": "Identity (test)",
+    "YOU_ARE": "You are acting as",
+    "IMPERSONATING": "impersonating",
+    "TEST_MODE": "Identity test mode",
+    "PICK_HINT": "Act as another owner of the city:",
+    "BACK_TO_ME": "Back to me",
+    "BANNER": "⚠️ Test mode: you are acting as {{email}}"
+  },
   "AGENT_TRUST": {
     "TITLE": "Trust this agent?",
     "MESSAGE": "The agent \"{{agent}}\" will be allowed to participate in conversations inside {{project}}.\n\nRequested tools: {{tools}}",

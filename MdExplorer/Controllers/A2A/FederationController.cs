@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
@@ -25,6 +26,9 @@ namespace MdExplorer.Controllers.A2A
         private readonly IUserSettingsDB _session;
         private readonly IAgentMailbox _mailbox;
         private readonly IAgentRegistryService _registry;
+        private readonly IEffectiveOwnerIdentity _identity;
+        private readonly MdExplorer.Services.IProjectOwnershipService _ownership;
+        private readonly IFederationSender _federationSender;
         private readonly ILogger<FederationController> _logger;
 
         public FederationController(
@@ -32,13 +36,98 @@ namespace MdExplorer.Controllers.A2A
             IUserSettingsDB session,
             IAgentMailbox mailbox,
             IAgentRegistryService registry,
+            IEffectiveOwnerIdentity identity,
+            MdExplorer.Services.IProjectOwnershipService ownership,
+            IFederationSender federationSender,
             ILogger<FederationController> logger)
         {
             _state = state;
             _session = session;
             _mailbox = mailbox;
             _registry = registry;
+            _identity = identity;
+            _ownership = ownership;
+            _federationSender = federationSender;
             _logger = logger;
+        }
+
+        // ---- Impersonazione utente per il test della città (identità-padrone effettiva) ----
+
+        /// <summary>Elenco degli utenti-padrone della città dall'ownership doc (per il selettore identità).</summary>
+        [HttpGet("users")]
+        public IActionResult Users([FromQuery] string projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath))
+                return BadRequest(new { error = "projectPath è obbligatorio." });
+            var entries = _ownership.GetActiveOwnership(projectPath);
+            if (entries == null)
+                return StatusCode(409, new { error = "Città non attiva o senza documento di ownership valido." });
+
+            var me = _identity.ResolveEmail(projectPath);
+            var users = entries
+                .Select(e => e.GitEmail)
+                .Where(e => !string.IsNullOrWhiteSpace(e))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(e => e, StringComparer.OrdinalIgnoreCase)
+                .Select(email => new
+                {
+                    email,
+                    ownerId = MdExplorer.Features.Federation.FederationRoom.ComputeUserId(email),
+                    displayName = email,
+                    isMe = string.Equals(email, me, StringComparison.OrdinalIgnoreCase),
+                })
+                .ToList();
+            return Ok(new { testMode = _identity.IsTestModeEnabled(), users });
+        }
+
+        /// <summary>Stato dell'identità effettiva del progetto (per il banner).</summary>
+        [HttpGet("impersonate")]
+        public IActionResult ImpersonationStatus([FromQuery] string projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath))
+                return BadRequest(new { error = "projectPath è obbligatorio." });
+            var id = _identity.Resolve(projectPath);
+            return Ok(new { testMode = _identity.IsTestModeEnabled(), email = id.Email, ownerId = id.OwnerId, impersonated = id.Impersonated });
+        }
+
+        /// <summary>Abilita/disabilita la modalità test identità (globale).</summary>
+        [HttpPost("impersonate/test-mode")]
+        public IActionResult SetTestMode([FromBody] TestModeRequest body)
+        {
+            _identity.SetTestMode(body?.Enabled == true);
+            return Ok(new { testMode = _identity.IsTestModeEnabled() });
+        }
+
+        /// <summary>Agisci come l'utente indicato (solo in modalità test; email dev'essere un padrone del doc).</summary>
+        [HttpPost("impersonate")]
+        public async Task<IActionResult> Impersonate([FromBody] ImpersonateRequest body)
+        {
+            if (body == null || string.IsNullOrWhiteSpace(body.ProjectPath) || string.IsNullOrWhiteSpace(body.Email))
+                return BadRequest(new { error = "projectPath ed email sono obbligatori." });
+            if (!_identity.IsTestModeEnabled())
+                return StatusCode(409, new { error = "Abilita la modalità test identità prima di impersonare un utente." });
+
+            var entries = _ownership.GetActiveOwnership(body.ProjectPath);
+            var known = entries?.Any(e => string.Equals(e.GitEmail, body.Email.Trim(), StringComparison.OrdinalIgnoreCase)) == true;
+            if (!known)
+                return UnprocessableEntity(new { error = $"'{body.Email}' non è un padrone dell'ownership doc: impersonazione rifiutata." });
+
+            _identity.SetImpersonation(body.ProjectPath.Trim(), body.Email.Trim());
+            await _federationSender.ReconnectProjectAsync(body.ProjectPath.Trim());   // riconnetti col nuovo ownerId
+            var id = _identity.Resolve(body.ProjectPath.Trim());
+            return Ok(new { impersonated = id.Impersonated, email = id.Email, ownerId = id.OwnerId });
+        }
+
+        /// <summary>Torna alla tua identità reale.</summary>
+        [HttpDelete("impersonate")]
+        public async Task<IActionResult> StopImpersonation([FromQuery] string projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath))
+                return BadRequest(new { error = "projectPath è obbligatorio." });
+            _identity.ClearImpersonation(projectPath.Trim());
+            await _federationSender.ReconnectProjectAsync(projectPath.Trim());
+            var id = _identity.Resolve(projectPath.Trim());
+            return Ok(new { impersonated = id.Impersonated, email = id.Email, ownerId = id.OwnerId });
         }
 
         [HttpGet("cities")]
@@ -230,5 +319,16 @@ namespace MdExplorer.Controllers.A2A
     {
         /// <summary>Override opzionale dell'agente proposto.</summary>
         public string? TargetAgent { get; set; }
+    }
+
+    public class TestModeRequest
+    {
+        public bool Enabled { get; set; }
+    }
+
+    public class ImpersonateRequest
+    {
+        public string? ProjectPath { get; set; }
+        public string? Email { get; set; }
     }
 }

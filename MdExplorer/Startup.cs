@@ -143,6 +143,9 @@ namespace MdExplorer
             // il collegamento reale al relay è un seam rimandato (nessuna connessione oggi).
             services.AddSingleton<Services.Federation.IFederationPresenceService, Services.Federation.FederationPresenceService>();
             services.AddSingleton<Services.Federation.IHeadlessProjectActivator, Services.Federation.HeadlessProjectActivator>();
+            // Seam identità-padrone (test impersonazione): unico punto che risolve email→ownerId,
+            // con override impersonato per-progetto (solo in modalità test). Default = git email reale.
+            services.AddSingleton<Services.Federation.IEffectiveOwnerIdentity, Services.Federation.EffectiveOwnerIdentity>();
             services.AddSingleton<Services.Federation.IFederatedRequestReceiver, Services.Federation.FederatedRequestReceiver>();
             services.AddSingleton<Services.Federation.IFederatedResultReceiver, Services.Federation.FederatedResultReceiver>();
             services.AddSingleton<Services.Federation.FederationRelayService>();

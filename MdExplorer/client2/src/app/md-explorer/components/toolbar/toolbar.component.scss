@@ -266,3 +266,24 @@ mat-toolbar button.git-menu-btn {
     color: var(--mde-error-fg);
   }
 }
+
+/* Impersonazione utente (test città) */
+.identity-banner {
+  background: #b71c1c;
+  color: #fff;
+  min-height: 34px;
+  height: 34px;
+  font-size: 13px;
+  gap: 8px;
+  mat-icon { color: #fff; }
+  button { color: #fff; border-color: rgba(255,255,255,.6); }
+}
+.btn-identity.identity-impersonating mat-icon { color: #ffca28; }
+.identity-menu {
+  padding: 8px 12px;
+  min-width: 240px;
+  .identity-current { font-size: 13px; margin-bottom: 6px; }
+  .identity-badge { margin-left: 6px; color: #b71c1c; font-weight: 600; }
+  .identity-testmode { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+  .identity-hint { font-size: 12px; opacity: .7; margin: 8px 0 4px; }
+}

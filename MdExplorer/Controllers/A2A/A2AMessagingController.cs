@@ -44,6 +44,7 @@ namespace MdExplorer.Controllers.A2A
         private readonly MdExplorer.Services.AgentRun.IAgentWorktreeManager _worktree;
         private readonly MdExplorer.Services.AgentRun.ISubmoduleGateService _submoduleGate;
         private readonly IProjectMetadataService _projectMetadata;
+        private readonly MdExplorer.Services.Federation.IEffectiveOwnerIdentity _effectiveIdentity;
         private readonly ILogger<A2AMessagingController> _logger;
 
         public A2AMessagingController(
@@ -56,6 +57,7 @@ namespace MdExplorer.Controllers.A2A
             MdExplorer.Services.AgentRun.IAgentWorktreeManager worktree,
             MdExplorer.Services.AgentRun.ISubmoduleGateService submoduleGate,
             IProjectMetadataService projectMetadata,
+            MdExplorer.Services.Federation.IEffectiveOwnerIdentity effectiveIdentity,
             ILogger<A2AMessagingController> logger)
         {
             _tokens = tokens;
@@ -67,6 +69,7 @@ namespace MdExplorer.Controllers.A2A
             _worktree = worktree;
             _submoduleGate = submoduleGate;
             _projectMetadata = projectMetadata;
+            _effectiveIdentity = effectiveIdentity;
             _logger = logger;
         }
 
@@ -281,7 +284,8 @@ namespace MdExplorer.Controllers.A2A
                 // resta stabile per la conversazione (correlazione).
                 RequestId = Guid.NewGuid().ToString(),
                 FederationId = fedId.ToString(),
-                FromOwner = ResolveLocalGitEmail(claims.ProjectPath),
+                // FromOwner dal SEAM identità (impersonata in modalità test, altrimenti git email reale).
+                FromOwner = _effectiveIdentity.ResolveEmail(claims.ProjectPath),
                 FromAgent = claims.AgentName,               // R2: identità certificata dal token
                 Scope = entry.Scope,
                 TargetAgent = targetAgent,
@@ -420,15 +424,6 @@ namespace MdExplorer.Controllers.A2A
             return Ok(new { reported = true, requestId = payload.RequestId, verdict = payload.Verdict });
         }
 
-        private static string ResolveLocalGitEmail(string projectPath)
-        {
-            try
-            {
-                using var repo = new LibGit2Sharp.Repository(projectPath);
-                return repo.Config.Get<string>("user.email")?.Value;
-            }
-            catch { return null; }
-        }
 
         private RunTokenClaims ResolveClaims()
         {

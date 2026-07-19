@@ -1779,6 +1779,15 @@
   "SUBMODULE_GATE": {
     "TOAST": "🧩 L'agente \"{{agent}}\" ha modificato il codice nel submodule \"{{submodule}}\". Committa e pusha per sbloccare l'agente successivo."
   },
+  "IDENTITY": {
+    "MENU": "Identità (test)",
+    "YOU_ARE": "Stai agendo come",
+    "IMPERSONATING": "impersonato",
+    "TEST_MODE": "Modalità test identità",
+    "PICK_HINT": "Agisci come un altro padrone della città:",
+    "BACK_TO_ME": "Torna a me",
+    "BANNER": "⚠️ Modalità test: stai agendo come {{email}}"
+  },
   "AGENT_TRUST": {
     "TITLE": "Concedi il trust a questo agente?",
     "MESSAGE": "L'agente \"{{agent}}\" potrà partecipare alle conversazioni dentro {{project}}.\n\nTool richiesti: {{tools}}",

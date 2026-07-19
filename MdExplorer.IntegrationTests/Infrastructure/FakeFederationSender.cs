@@ -33,5 +33,12 @@ namespace MdExplorer.IntegrationTests.Infrastructure
             LastResultPayload = payload;
             return Task.FromResult(Result);
         }
+
+        public string LastReconnectedProject { get; private set; }
+        public Task ReconnectProjectAsync(string projectPath)
+        {
+            LastReconnectedProject = projectPath;
+            return Task.CompletedTask;
+        }
     }
 }

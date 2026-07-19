@@ -47,6 +47,12 @@ namespace MdExplorer.Services.Federation
         /// progetto non ha una connessione federata attiva.
         /// </summary>
         Task<bool> SendFederatedResultAsync(string projectPath, string targetOwnerId, FederatedResultPayload payload);
+
+        /// <summary>
+        /// Chiude e ricostruisce la connessione della stanza del progetto (test impersonazione):
+        /// dopo un cambio di identità effettiva, la macchina si riconnette al relay col nuovo ownerId.
+        /// </summary>
+        Task ReconnectProjectAsync(string projectPath);
     }
 
     /// <summary>
@@ -122,6 +128,10 @@ namespace MdExplorer.Services.Federation
 
         public IReadOnlyList<LocalCity> GetLocalCities() => _snapshot;
 
+        // Segnale per una ri-scansione IMMEDIATA (es. cambio identità impersonata → riconnetti la
+        // stanza col nuovo ownerId senza aspettare il tick da 60s).
+        private readonly System.Threading.SemaphoreSlim _rescanSignal = new(0, int.MaxValue);
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             while (!stoppingToken.IsCancellationRequested)
@@ -137,9 +147,25 @@ namespace MdExplorer.Services.Federation
                 {
                     _logger.LogError(ex, "[Federation] Scansione presenza fallita");
                 }
-                try { await Task.Delay(ScanInterval, stoppingToken); }
+                // Attende il tick OPPURE un segnale di rescan immediato (cambio identità).
+                try { await Task.WhenAny(Task.Delay(ScanInterval, stoppingToken), _rescanSignal.WaitAsync(stoppingToken)); }
                 catch (OperationCanceledException) { break; }
             }
+        }
+
+        /// <inheritdoc/>
+        public Task ReconnectProjectAsync(string projectPath)
+        {
+            // Chiude la connessione della stanza del progetto: la prossima scansione la ricostruisce
+            // con l'identità effettiva corrente (il join fissa l'ownerId → non basta ri-annunciare).
+            var city = _snapshot.FirstOrDefault(c => AgentPathComparer.Equals(c.ProjectPath, projectPath));
+            if (city != null && _rooms.TryRemove(city.RoomId, out var conn))
+            {
+                try { conn.Dispose(); } catch { /* best effort */ }
+                _logger.LogInformation("[Federation] stanza {Room} chiusa per reconnect (cambio identità).", city.RoomId);
+            }
+            try { _rescanSignal.Release(); } catch { /* già al massimo */ }
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -156,6 +182,7 @@ namespace MdExplorer.Services.Federation
             var metadata = scope.ServiceProvider.GetRequiredService<IProjectMetadataService>();
             var registry = scope.ServiceProvider.GetRequiredService<IAgentRegistryService>();
             var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            var effectiveIdentity = scope.ServiceProvider.GetRequiredService<IEffectiveOwnerIdentity>();
 
             List<Project> projects;
             db.BeginTransaction();
@@ -175,7 +202,10 @@ namespace MdExplorer.Services.Federation
                 if (_activatedProjects.TryAdd(project.Path, 0))
                     _activator.ActivateForFederation(project.Path);
 
-                var (origin, email) = ResolveGit(project.Path);
+                // origin = da git; email = dal SEAM identità (impersonata in modalità test, altrimenti
+                // la git email reale). È qui che la macchina si presenta al relay come l'ownerId di X.
+                var (origin, _) = ResolveGit(project.Path);
+                var email = effectiveIdentity.ResolveEmail(project.Path);
                 var roster = BuildTrustedRoster(registry, project.Path);
 
                 FederationAnnounce announce;
