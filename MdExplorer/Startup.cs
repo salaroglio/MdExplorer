@@ -129,6 +129,9 @@ namespace MdExplorer
             // per-agente forzato server-side. Braccio verso Fuseki (il controller fa l'enforcement).
             services.AddSingleton<Services.AgentMemory.IAgentMemoryService, Services.AgentMemory.AgentMemoryService>();
             services.AddSingleton<Services.AgentMemory.IFusekiConnectionResolver, Services.AgentMemory.FusekiConnectionResolver>();
+            // Consolidamento (Fase 7f): gesto umano che promuove i fatti durevoli nel .agent.md e
+            // decade il resto (promozione + decadimento in un solo atto per-conversazione).
+            services.AddSingleton<Services.AgentMemory.IMemoryConsolidationService, Services.AgentMemory.MemoryConsolidationService>();
             // Istanza Fuseki gestita (addon on-demand): avvio/stop di proprietà del Service.
             services.AddSingleton<Services.AgentMemory.IFusekiProcessManager, Services.AgentMemory.FusekiProcessManager>();
 

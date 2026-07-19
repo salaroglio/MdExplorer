@@ -113,4 +113,30 @@ export class MailboxService {
     return this.http.post<{ status: string; hopCount: number }>(
       `/api/A2A/mailbox/conversations/${conversationId}/reopen`, null);
   }
+
+  // ---- Consolidamento memoria (Fase 7f) ----
+
+  /** Fatti in memoria del progetto (tutti gli agenti + shared), per la scelta di promozione. */
+  memoryFacts(projectPath: string): Observable<{ facts: MemFact[] }> {
+    const params = new HttpParams().set('projectPath', projectPath || '');
+    return this.http.get<{ facts: MemFact[] }>('/api/mem/facts', { params });
+  }
+
+  /** Consolida una conversazione: promuove i fatti scelti nel .agent.md e decade il resto. */
+  consolidate(conversationId: string, projectPath: string, promote: { factUri: string; graph: string; statement: string }[])
+    : Observable<{ consolidated: boolean; memoryDisabled?: boolean; promoted?: number; decayed?: number; deleted?: number; agents?: string[] }> {
+    return this.http.post<any>(
+      `/api/mem/conversations/${conversationId}/consolidate`, { projectPath, promote });
+  }
+}
+
+/** Un fatto in memoria (proiezione di /api/mem/facts). */
+export interface MemFact {
+  factUri: string;
+  graph: string;
+  agent: string;
+  statement: string;
+  confidence: number;
+  tags: string[];
+  shared: boolean;
 }

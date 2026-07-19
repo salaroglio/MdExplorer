@@ -1721,6 +1721,14 @@
     "REFRESH": "Refresh",
     "CLOSE": "Close"
   },
+  "CONSOLIDATE": {
+    "ACTION": "Consolidate",
+    "HINT": "Choose the durable facts to promote into the agents' cards. The rest decays.",
+    "EMPTY": "No facts in memory for this conversation's agents.",
+    "CONFIRM": "Promote & decay",
+    "DONE": "Consolidated: {{promoted}} promoted, {{decayed}} decayed, {{deleted}} removed.",
+    "DISABLED": "Memory (Fuseki) is not enabled for this project."
+  },
   "MAILBOX": {
     "TITLE": "Agent messages",
     "SUBTITLE": "Messages the agents of this project have sent to you. Reply to wake the agent in the same conversation.",

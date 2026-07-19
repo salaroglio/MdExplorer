@@ -1721,6 +1721,14 @@
     "REFRESH": "Aggiorna",
     "CLOSE": "Chiudi"
   },
+  "CONSOLIDATE": {
+    "ACTION": "Consolida",
+    "HINT": "Scegli i fatti durevoli da promuovere nelle schede degli agenti. Il resto decade.",
+    "EMPTY": "Nessun fatto in memoria per gli agenti di questa conversazione.",
+    "CONFIRM": "Promuovi e decadi",
+    "DONE": "Consolidato: {{promoted}} promossi, {{decayed}} decaduti, {{deleted}} rimossi.",
+    "DISABLED": "La memoria (Fuseki) non è abilitata per questo progetto."
+  },
   "MAILBOX": {
     "TITLE": "Messaggi degli agenti",
     "SUBTITLE": "Messaggi che gli agenti di questo progetto ti hanno inviato. Rispondi per risvegliare l'agente nella stessa conversazione.",

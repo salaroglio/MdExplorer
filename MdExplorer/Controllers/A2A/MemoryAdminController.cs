@@ -27,18 +27,51 @@ namespace MdExplorer.Controllers.A2A
         private readonly IAgentRegistryService _registry;
         private readonly IAgentMemoryService _memory;
         private readonly IFusekiConnectionResolver _fusekiResolver;
+        private readonly IMemoryConsolidationService _consolidation;
         private readonly ILogger<MemoryAdminController> _logger;
 
         public MemoryAdminController(
             IAgentRegistryService registry,
             IAgentMemoryService memory,
             IFusekiConnectionResolver fusekiResolver,
+            IMemoryConsolidationService consolidation,
             ILogger<MemoryAdminController> logger)
         {
             _registry = registry;
             _memory = memory;
             _fusekiResolver = fusekiResolver;
+            _consolidation = consolidation;
             _logger = logger;
+        }
+
+        /// <summary>
+        /// Consolidamento di una conversazione (§5.1 Fase 7f): promuove i fatti scelti dall'umano
+        /// nel <c>.agent.md</c> degli agenti coinvolti (li rimuove da Fuseki) e decade il resto.
+        /// Un solo gesto = promozione + decadimento. Fuseki disabilitato = no-op (non è un errore).
+        /// </summary>
+        [HttpPost("conversations/{conversationId}/consolidate")]
+        public async Task<IActionResult> Consolidate(Guid conversationId, [FromBody] ConsolidateRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath))
+                return BadRequest(new { error = "projectPath è obbligatorio." });
+
+            var promote = (request.Promote ?? new List<PromoteFactDto>())
+                .Where(p => p != null)
+                .Select(p => new PromoteFactInput { FactUri = p.FactUri, Graph = p.Graph, Statement = p.Statement })
+                .ToList();
+
+            var res = await _consolidation.ConsolidateAsync(request.ProjectPath.Trim(), conversationId, promote);
+            if (res.MemoryDisabled)
+                return Ok(new { consolidated = false, memoryDisabled = true });
+
+            return Ok(new
+            {
+                consolidated = true,
+                promoted = res.Promoted,
+                decayed = res.Decayed,
+                deleted = res.Deleted,
+                agents = res.Agents,
+            });
         }
 
         /// <summary>Elenca i fatti in memoria del progetto (tutti gli agenti + shared), o di un solo agente.</summary>
@@ -213,5 +246,19 @@ namespace MdExplorer.Controllers.A2A
         public string Graph { get; set; }
         public string FactUri { get; set; }
         public double Confidence { get; set; }
+    }
+
+    /// <summary>Body del consolidamento (Fase 7f): i fatti che l'umano ha scelto di promuovere.</summary>
+    public class ConsolidateRequest
+    {
+        public string ProjectPath { get; set; }
+        public List<PromoteFactDto> Promote { get; set; }
+    }
+
+    public class PromoteFactDto
+    {
+        public string FactUri { get; set; }
+        public string Graph { get; set; }
+        public string Statement { get; set; }
     }
 }

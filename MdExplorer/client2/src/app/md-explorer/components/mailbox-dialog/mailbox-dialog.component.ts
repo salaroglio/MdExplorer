@@ -6,7 +6,7 @@ import {
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import {
-  ConversationMessage, ConversationSummary, MailboxMessage, MailboxService,
+  ConversationMessage, ConversationSummary, MailboxMessage, MailboxService, MemFact,
 } from '../../services/mailbox.service';
 import { FederationRequest, FederationService } from '../../services/federation.service';
 
@@ -47,6 +47,12 @@ export class MailboxDialogComponent implements OnInit {
   expandedId: string | null = null;
   threadMessages: ConversationMessage[] = [];
   threadLoading = false;
+
+  // ---- 7f: consolidamento (promozione + decadimento) ----
+  consolidateOpenId: string | null = null;
+  consolidateFacts: (MemFact & { selected: boolean })[] = [];
+  consolidateLoading = false;
+  consolidateBusy = false;
 
   // ---- 6d: richieste federate (gate umano §12.6) ----
   federationRequests: FederationRequest[] = [];
@@ -223,6 +229,51 @@ export class MailboxDialogComponent implements OnInit {
     this.mailbox.reopen(conv.id).subscribe({
       next: (res) => { conv.status = res.status; conv.hopCount = res.hopCount; },
       error: (err) => this.showError(err),
+    });
+  }
+
+  // ---- 7f: consolidamento ----
+
+  /** Apre il pannello di consolidamento: carica i fatti dei partecipanti (per la scelta di promozione). */
+  startConsolidate(conv: ConversationSummary): void {
+    if (this.consolidateOpenId === conv.id) { this.consolidateOpenId = null; return; }
+    this.consolidateOpenId = conv.id;
+    this.consolidateFacts = [];
+    this.consolidateLoading = true;
+    const parts = (conv.participants || []).map(p => (p || '').toLowerCase());
+    this.mailbox.memoryFacts(this.data?.projectPath || '').subscribe({
+      next: (res) => {
+        this.consolidateFacts = (res.facts || [])
+          .filter(f => !f.shared && parts.includes((f.agent || '').toLowerCase()))
+          .map(f => ({ ...f, selected: false }));
+        this.consolidateLoading = false;
+      },
+      error: (err) => { this.consolidateLoading = false; this.showError(err); },
+    });
+  }
+
+  cancelConsolidate(): void {
+    this.consolidateOpenId = null;
+    this.consolidateFacts = [];
+  }
+
+  /** Promuove i fatti selezionati nel .agent.md e decade il resto. */
+  confirmConsolidate(conv: ConversationSummary): void {
+    const promote = this.consolidateFacts
+      .filter(f => f.selected)
+      .map(f => ({ factUri: f.factUri, graph: f.graph, statement: f.statement }));
+    this.consolidateBusy = true;
+    this.mailbox.consolidate(conv.id, this.data?.projectPath || '', promote).subscribe({
+      next: (res) => {
+        this.consolidateBusy = false;
+        this.consolidateOpenId = null;
+        this.consolidateFacts = [];
+        const msg = res.memoryDisabled
+          ? this.translate.instant('CONSOLIDATE.DISABLED')
+          : this.translate.instant('CONSOLIDATE.DONE', { promoted: res.promoted || 0, decayed: res.decayed || 0, deleted: res.deleted || 0 });
+        this.snackBar.open(msg, 'OK', { duration: 8000 });
+      },
+      error: (err) => { this.consolidateBusy = false; this.showError(err); },
     });
   }
 
