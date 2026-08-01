@@ -2,6 +2,25 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
+/** Da dove viene un valore risolto del relay (catena: progetto → .development.yml → globale). */
+export type RelaySettingSource = 'None' | 'Project' | 'DevelopmentYml' | 'Global';
+
+export interface RelaySettings {
+  relayUrl: string;
+  relayUrlSource: RelaySettingSource;
+  /** La chiave non viaggia mai verso il client: si sa solo se c'è. */
+  hasApiKey: boolean;
+  apiKeySource: RelaySettingSource;
+  lastTestedAt: string | null;
+  lastTestSuccess: boolean | null;
+}
+
+export interface RelayTestResult {
+  success: boolean;
+  statusCode: number | null;
+  message: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -144,6 +163,23 @@ export class ProjectSettingsService {
 
   setAgentCity(projectPath: string, body: { enabled: boolean; ownershipDoc?: string; relayUrl?: string }): Observable<any> {
     return this.http.post<any>('../api/MdProjects/SetAgentCity', body, { params: { path: projectPath } });
+  }
+
+  // ------------------------------------------------------------
+  //   Relay della federazione: indirizzo + API key, PER PROGETTO.
+  //   La chiave non attraversa mai il filo in uscita dal server:
+  //   il GET dice solo se c'è e da dove arriva.
+  // ------------------------------------------------------------
+  getRelaySettings(projectPath: string): Observable<RelaySettings> {
+    return this.http.get<RelaySettings>('../api/MdProjects/RelaySettings', { params: { path: projectPath } });
+  }
+
+  setRelaySettings(projectPath: string, body: { relayUrl?: string; apiKey?: string; clearApiKey?: boolean }): Observable<RelaySettings> {
+    return this.http.post<RelaySettings>('../api/MdProjects/SetRelaySettings', body, { params: { path: projectPath } });
+  }
+
+  testRelaySettings(projectPath: string): Observable<RelayTestResult> {
+    return this.http.post<RelayTestResult>('../api/MdProjects/TestRelaySettings', {}, { params: { path: projectPath } });
   }
 
   // ============================================================

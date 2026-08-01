@@ -49,6 +49,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
         private readonly FoldersIgnoreService _foldersIgnoreService;
         private readonly IProjectMetadataService _projectMetadataService;
         private readonly IGitAuthorsService _gitAuthorsService;
+        private readonly MdExplorer.Services.Federation.IProjectRelaySettingsService _relaySettings;
         private readonly IEnumerable<IAiProvider> _aiProviders;
 
         public MdProjectsController(IUserSettingsDB userSettingsDB,
@@ -62,8 +63,10 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 FoldersIgnoreService foldersIgnoreService,
                 IProjectMetadataService projectMetadataService,
                 IGitAuthorsService gitAuthorsService,
+                MdExplorer.Services.Federation.IProjectRelaySettingsService relaySettings,
                 IEnumerable<IAiProvider> aiProviders)
         {
+            _relaySettings = relaySettings;
             _userSettingsDB = userSettingsDB;
             _services = services;
             _processUtil = processUtil;
@@ -261,6 +264,87 @@ namespace MdExplorer.Service.Controllers.MdProjects
             public bool Enabled { get; set; }
             public string? OwnershipDoc { get; set; }
             public string? RelayUrl { get; set; }
+        }
+
+        /// <summary>
+        /// Impostazioni del relay per QUESTO progetto: indirizzo e presenza della chiave. La
+        /// chiave non esce mai dal server — il client sa solo se c'è e da dove arriva.
+        /// </summary>
+        [HttpGet]
+        public IActionResult RelaySettings([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+
+            var cfg = _projectMetadataService.GetAgentCity(path);
+            var view = _relaySettings.Get(path, cfg?.RelayUrl);
+            return Ok(ToRelayDto(view));
+        }
+
+        /// <summary>Salva indirizzo e/o chiave del relay per questo progetto.</summary>
+        [HttpPost]
+        public IActionResult SetRelaySettings([FromQuery] string path, [FromBody] RelaySettingsRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+            if (request == null)
+                return BadRequest(new { message = "request body is required" });
+
+            try
+            {
+                _relaySettings.Save(path, request.RelayUrl, request.ApiKey, request.ClearApiKey);
+
+                var cfg = _projectMetadataService.GetAgentCity(path);
+                return Ok(ToRelayDto(_relaySettings.Get(path, cfg?.RelayUrl)));
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Precondizione non soddisfatta (progetto non registrato): messaggio azionabile,
+                // non un 500 generico.
+                return UnprocessableEntity(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                var logger = HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>();
+                logger?.LogError(ex, "Failed to save relay settings for {Path}", path);
+                return StatusCode(500, new { message = "Failed to save relay settings", error = ex.Message });
+            }
+        }
+
+        /// <summary>Bussa al relay con la chiave configurata e riporta cosa ha risposto.</summary>
+        [HttpPost]
+        public async Task<IActionResult> TestRelaySettings([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+
+            var cfg = _projectMetadataService.GetAgentCity(path);
+            var result = await _relaySettings.TestAsync(path, cfg?.RelayUrl, HttpContext.RequestAborted);
+            return Ok(new { success = result.Success, statusCode = result.StatusCode, message = result.Message });
+        }
+
+        private static object ToRelayDto(MdExplorer.Services.Federation.RelaySettingsView view) => new
+        {
+            relayUrl = view.RelayUrl,
+            relayUrlSource = view.RelayUrlSource.ToString(),
+            hasApiKey = view.HasApiKey,
+            apiKeySource = view.ApiKeySource.ToString(),
+            lastTestedAt = view.LastTestedAt,
+            lastTestSuccess = view.LastTestSuccess,
+        };
+
+        /// <summary>
+        /// Nullable di proposito, come <see cref="AgentCityRequest"/>: la UI manda solo i campi
+        /// che cambia, e un reference type non-nullable farebbe scattare il 400 automatico di
+        /// <c>[ApiController]</c> prima di entrare nell'action (memoria dto_nullable_implicit_required).
+        /// </summary>
+        public class RelaySettingsRequest
+        {
+            public string? RelayUrl { get; set; }
+            /// <summary>Vuoto/assente ⇒ chiave invariata (la UI non rimanda mai quella salvata).</summary>
+            public string? ApiKey { get; set; }
+            /// <summary>Richiesta esplicita di rimuovere la chiave salvata.</summary>
+            public bool ClearApiKey { get; set; }
         }
 
         [HttpGet]

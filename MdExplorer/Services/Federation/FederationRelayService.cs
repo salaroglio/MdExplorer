@@ -94,7 +94,7 @@ namespace MdExplorer.Services.Federation
         private readonly IHeadlessProjectActivator _activator;
         private readonly ILogger<FederationRelayService> _logger;
         private readonly string _baseUrl;   // es. https://errantia.net (namespace /mdfed appeso)
-        private readonly string _apiKey;    // gate di base del relay (stesso del canale chat)
+        private readonly IProjectRelaySettingsService _relaySettings;   // chiave/URL per progetto
 
         private volatile IReadOnlyList<LocalCity> _snapshot = Array.Empty<LocalCity>();
         // Una connessione per stanza (roomId). ConcurrentDictionary: scritto dal loop di
@@ -109,18 +109,21 @@ namespace MdExplorer.Services.Federation
         // reinforce/erode della memoria (read-modify-write SPARQL, 7b) e i check-then-write dei
         // receiver non interleavano.
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Threading.SemaphoreSlim> _deliverGates = new();
-        private bool _warnedNoApiKey;
+        /// <summary>Progetti già segnalati come "senza API key", per non ripetere il warning a ogni scan.</summary>
+        private readonly System.Collections.Generic.HashSet<string> _warnedNoApiKey = new(System.StringComparer.OrdinalIgnoreCase);
 
         public FederationRelayService(
             IServiceScopeFactory scopeFactory,
             IFederationPresenceService presence,
             IHeadlessProjectActivator activator,
+            IProjectRelaySettingsService relaySettings,
             IConfiguration configuration,
             ILogger<FederationRelayService> logger)
         {
             _scopeFactory = scopeFactory;
             _presence = presence;
             _activator = activator;
+            _relaySettings = relaySettings;
             _logger = logger;
 
             // Il relay è lo stesso server del canale chat: base host + engine path condivisi,
@@ -131,13 +134,10 @@ namespace MdExplorer.Services.Federation
                 .Replace("ws://", "http://")
                 .Replace("/mdchat", "")
                 .TrimEnd('/');
-            // Placeholder versionato (YOUR_API_KEY_HERE) o assente ⇒ null ⇒ dormiente. La chiave
-            // vera arriva da env MdChat__ApiKey / appsettings.Development.json (gitignored) / user-secrets.
-            _apiKey = MdExplorer.Services.TeamChat.MdChatConfig.ResolveApiKey(configuration);
-            _apiKeyIsPlaceholder = MdExplorer.Services.TeamChat.MdChatConfig.IsPlaceholderApiKey(configuration);
+            // NB: la API key NON si legge più qui. È per progetto (UserDB) con ricaduta sulla
+            // globale, e va risolta al momento di aprire la stanza: un cambio dalle impostazioni
+            // di progetto deve avere effetto al prossimo scan, senza riavviare il Service.
         }
-
-        private readonly bool _apiKeyIsPlaceholder;
 
         public IReadOnlyList<LocalCity> GetLocalCities() => _snapshot;
 
@@ -332,20 +332,6 @@ namespace MdExplorer.Services.Federation
             if (desired.Count == 0)
                 return Task.CompletedTask;
 
-            if (string.IsNullOrWhiteSpace(_apiKey))
-            {
-                if (!_warnedNoApiKey)
-                {
-                    if (_apiKeyIsPlaceholder)
-                        _logger.LogWarning("[Federation] città attive ma 'MdChat:ApiKey' è ancora il placeholder ('{Ph}'): imposta la chiave vera via env MdChat__ApiKey, appsettings.Development.json (gitignored) o user-secrets. Resto dormiente.",
-                            MdExplorer.Services.TeamChat.MdChatConfig.PlaceholderApiKey);
-                    else
-                        _logger.LogWarning("[Federation] città attive ma 'MdChat:ApiKey' assente: impossibile connettersi al relay. Resto dormiente.");
-                    _warnedNoApiKey = true;
-                }
-                return Task.CompletedTask;
-            }
-
             // Apri/aggiorna le connessioni delle stanze attive.
             foreach (var (roomId, announce) in desired)
             {
@@ -355,11 +341,25 @@ namespace MdExplorer.Services.Federation
                 }
                 else
                 {
-                    // Onora l'override per-progetto agentCity.relayUrl: la connessione va sul
-                    // relay dichiarato (scheme+host), non sempre su quello globale. Se assente/
+                    // La chiave è PER PROGETTO (UserDB, impostazioni di progetto) con ricaduta
+                    // sulla globale MdChat:ApiKey. Senza chiave questa città resta dormiente —
+                    // le altre no: il gate è per stanza, non più globale.
+                    var apiKey = _relaySettings.ResolveApiKey(announce.ProjectPath);
+                    if (string.IsNullOrWhiteSpace(apiKey))
+                    {
+                        if (_warnedNoApiKey.Add(announce.ProjectPath))
+                            _logger.LogWarning(
+                                "[Federation] '{Project}' ha la città attiva ma nessuna API key del relay: impostala nelle impostazioni di progetto (sezione Città degli agenti). Questa città resta dormiente.",
+                                announce.ProjectPath);
+                        continue;
+                    }
+                    _warnedNoApiKey.Remove(announce.ProjectPath);   // chiave arrivata: riavvisa se sparisce
+
+                    // Onora l'override per-progetto del relay: la connessione va sul relay
+                    // dichiarato (scheme+host), non sempre su quello globale. Se assente/
                     // non parsabile, ricade sul base globale.
                     var baseUrl = ToHttpBase(announce.RelayUrl) ?? _baseUrl;
-                    var conn = new RoomConnection(baseUrl, EnginePath, _apiKey, announce, _logger);
+                    var conn = new RoomConnection(baseUrl, EnginePath, apiKey, announce, _logger);
                     var captured = announce;             // per la closure del deliver
                     conn.OnDeliver = env => { _ = HandleDeliverAsync(captured, env); };
                     _rooms[roomId] = conn;

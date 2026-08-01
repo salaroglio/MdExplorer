@@ -365,7 +365,19 @@
     "TEXT_EXTENSIONS_HINT": "Comma-separated list (e.g. .txt,.csv,.cs). Leave empty to use the default.",
     "REINDEX_TEXT": "Reindex text files",
     "REINDEXING_TEXT": "Reindexing…",
-    "REINDEX_TEXT_DESC": "Rebuilds only the text-file index (leaves markdown untouched). Use it after changing the extension list."
+    "REINDEX_TEXT_DESC": "Rebuilds only the text-file index (leaves markdown untouched). Use it after changing the extension list.",
+    "RELAY_URL": "Relay address",
+    "RELAY_URL_DESC": "Where the Service connects for federation. Empty = use the one declared in the project's .development.yml, otherwise the default relay.",
+    "RELAY_API_KEY": "Relay key",
+    "RELAY_API_KEY_SET": "Key configured — type here only to replace it",
+    "RELAY_API_KEY_EMPTY": "Paste the relay key here",
+    "RELAY_API_KEY_DESC": "This is the relay server's entry password. It stays on this machine, encrypted: unlike the room secret it does NOT travel through git, because it opens the whole relay rather than a single room.",
+    "RELAY_SAVE_KEY": "Save key",
+    "RELAY_CLEAR_KEY": "Remove key",
+    "RELAY_TEST": "Test connection",
+    "RELAY_TESTING": "Knocking on the relay…",
+    "RELAY_KEY_FROM_GLOBAL": "No key for this project: the application-wide key is being used.",
+    "RELAY_KEY_MISSING": "No key configured: federation for this project stays dormant."
   },
   "GIT_COMMIT": {
     "TITLE": "Commit Message",

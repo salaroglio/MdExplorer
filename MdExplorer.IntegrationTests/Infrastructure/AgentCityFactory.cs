@@ -6,6 +6,7 @@ using MdExplorer.Service.HostedServices;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
@@ -43,6 +44,13 @@ namespace MdExplorer.IntegrationTests.Infrastructure
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            // Harness ermetico anche sulla config: se la macchina di chi esegue i test ha una
+            // API key vera del relay (env MdChat__ApiKey o appsettings.Development.json), la
+            // catena di risoluzione ricadrebbe su quella e i test su "nessuna chiave" fallirebbero
+            // solo su quella macchina. Qui la azzeriamo, come già facciamo con XDG_DATA_HOME.
+            builder.ConfigureAppConfiguration(cfg => cfg.AddInMemoryCollection(
+                new System.Collections.Generic.Dictionary<string, string> { ["MdChat:ApiKey"] = string.Empty }));
+
             builder.ConfigureTestServices(services =>
             {
                 RemoveHostedService<MonitorMDHostedService>(services);

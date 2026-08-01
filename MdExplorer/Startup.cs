@@ -1,5 +1,6 @@
 using MdExplorer.Hubs;
 using MdExplorer.Service.Models;
+using Microsoft.AspNetCore.DataProtection;
 using Ad.Tools.Dal;
 using Ad.Tools.Dal.Concrete;
 using MDExplorer.DataAccess.Mapping;
@@ -141,6 +142,17 @@ namespace MdExplorer
             // Federazione (Fase 6b): assemblaggio annuncio cifrato + presidio lato Service.
             // Il FederationRelayService è DORMIENTE finché nessun progetto abilita la città;
             // il collegamento reale al relay è un seam rimandato (nessuna connessione oggi).
+            // Indirizzo relay + API key PER PROGETTO (UserDB, chiave cifrata): la chiave non sta in
+            // git — a differenza del room secret — perché apre il relay intero, non una sola stanza.
+            // Data Protection con chiavi persistite nella cartella dati di MDE: DEVE sopravvivere
+            // ai riavvii, altrimenti le API key salvate diventerebbero indecifrabili. Nome
+            // applicazione fissato per non dipendere dal nome dell'eseguibile.
+            services.AddDataProtection()
+                .SetApplicationName("MdExplorer")
+                .PersistKeysToFileSystem(new System.IO.DirectoryInfo(
+                    System.IO.Path.Combine(Utilities.CrossPlatformPath.GetAppDataPath(), "dataprotection-keys")));
+            services.AddSingleton<Services.Federation.IRelayKeyProtector, Services.Federation.RelayKeyProtector>();
+            services.AddSingleton<Services.Federation.IProjectRelaySettingsService, Services.Federation.ProjectRelaySettingsService>();
             services.AddSingleton<Services.Federation.IFederationPresenceService, Services.Federation.FederationPresenceService>();
             services.AddSingleton<Services.Federation.IHeadlessProjectActivator, Services.Federation.HeadlessProjectActivator>();
             // Seam identità-padrone (test impersonazione): unico punto che risolve email→ownerId,

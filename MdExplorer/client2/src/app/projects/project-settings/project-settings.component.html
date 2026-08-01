@@ -205,6 +205,71 @@
                 🔑 {{ 'PROJECT_SETTINGS.AGENT_CITY_ROOM_SECRET_SET' | translate }}
               </p>
             </div>
+
+            <!-- Relay: indirizzo e chiave d'ingresso. Il room secret sopra viaggia col repo
+                 (apre UNA stanza); questa chiave apre il relay intero, quindi resta locale. -->
+            <div class="setting-item" *ngIf="agentCityEnabled">
+              <label class="setting-label">{{ 'PROJECT_SETTINGS.RELAY_URL' | translate }}</label>
+              <mat-form-field appearance="outline" style="width:100%">
+                <input matInput
+                       [(ngModel)]="relayUrl"
+                       (blur)="onRelaySettingsChange()"
+                       [disabled]="saving"
+                       placeholder="wss://errantia.net/mdchat">
+              </mat-form-field>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.RELAY_URL_DESC' | translate }}
+              </p>
+
+              <label class="setting-label">{{ 'PROJECT_SETTINGS.RELAY_API_KEY' | translate }}</label>
+              <mat-form-field appearance="outline" style="width:100%">
+                <input matInput
+                       type="password"
+                       autocomplete="off"
+                       [(ngModel)]="relayApiKey"
+                       [disabled]="saving"
+                       [placeholder]="(relayHasApiKey ? 'PROJECT_SETTINGS.RELAY_API_KEY_SET' : 'PROJECT_SETTINGS.RELAY_API_KEY_EMPTY') | translate">
+              </mat-form-field>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.RELAY_API_KEY_DESC' | translate }}
+              </p>
+
+              <div class="setting-actions" style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button mat-stroked-button color="primary"
+                        [disabled]="saving || !relayApiKey?.trim()"
+                        (click)="onRelaySettingsChange()">
+                  <mat-icon>save</mat-icon>
+                  {{ 'PROJECT_SETTINGS.RELAY_SAVE_KEY' | translate }}
+                </button>
+                <button mat-stroked-button
+                        [disabled]="saving || relayTesting"
+                        (click)="testRelay()">
+                  <mat-icon>wifi_tethering</mat-icon>
+                  {{ 'PROJECT_SETTINGS.RELAY_TEST' | translate }}
+                </button>
+                <button mat-stroked-button color="warn"
+                        *ngIf="relayHasApiKey && relayApiKeySource === 'Project'"
+                        [disabled]="saving"
+                        (click)="clearRelayApiKey()">
+                  <mat-icon>delete</mat-icon>
+                  {{ 'PROJECT_SETTINGS.RELAY_CLEAR_KEY' | translate }}
+                </button>
+              </div>
+
+              <p class="setting-description" *ngIf="relayTesting">
+                {{ 'PROJECT_SETTINGS.RELAY_TESTING' | translate }}
+              </p>
+              <p class="setting-description" *ngIf="relayTestMessage">
+                <span *ngIf="relayTestSuccess">✅</span><span *ngIf="relayTestSuccess === false">⚠️</span>
+                {{ relayTestMessage }}
+              </p>
+              <p class="setting-description" *ngIf="relayApiKeySource === 'Global'">
+                {{ 'PROJECT_SETTINGS.RELAY_KEY_FROM_GLOBAL' | translate }}
+              </p>
+              <p class="setting-description" *ngIf="relayApiKeySource === 'None'">
+                {{ 'PROJECT_SETTINGS.RELAY_KEY_MISSING' | translate }}
+              </p>
+            </div>
           </mat-card-content>
         </mat-card>
 

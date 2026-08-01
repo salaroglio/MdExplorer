@@ -365,7 +365,19 @@
     "TEXT_EXTENSIONS_HINT": "Elenco separato da virgole (es. .txt,.csv,.cs). Lascia vuoto per usare il default.",
     "REINDEX_TEXT": "Reindicizza file di testo",
     "REINDEXING_TEXT": "Reindicizzazione…",
-    "REINDEX_TEXT_DESC": "Ricostruisce solo l'indice dei file di testo (non tocca i markdown). Usalo dopo aver cambiato l'elenco delle estensioni."
+    "REINDEX_TEXT_DESC": "Ricostruisce solo l'indice dei file di testo (non tocca i markdown). Usalo dopo aver cambiato l'elenco delle estensioni.",
+    "RELAY_URL": "Indirizzo del relay",
+    "RELAY_URL_DESC": "Dove il Service si collega per la federazione. Vuoto = si usa quello dichiarato nel .development.yml del progetto, altrimenti il relay predefinito.",
+    "RELAY_API_KEY": "Chiave del relay",
+    "RELAY_API_KEY_SET": "Chiave configurata — scrivi qui solo per sostituirla",
+    "RELAY_API_KEY_EMPTY": "Incolla qui la chiave del relay",
+    "RELAY_API_KEY_DESC": "È la password d'ingresso del server relay. Resta su questa macchina, cifrata: a differenza del room secret NON viaggia in git, perché apre il relay intero e non una sola stanza.",
+    "RELAY_SAVE_KEY": "Salva chiave",
+    "RELAY_CLEAR_KEY": "Rimuovi chiave",
+    "RELAY_TEST": "Verifica connessione",
+    "RELAY_TESTING": "Sto bussando al relay…",
+    "RELAY_KEY_FROM_GLOBAL": "Nessuna chiave per questo progetto: si sta usando quella globale dell'applicazione.",
+    "RELAY_KEY_MISSING": "Nessuna chiave configurata: la federazione di questo progetto resta dormiente."
   },
   "GIT_COMMIT": {
     "TITLE": "Messaggio di Commit",

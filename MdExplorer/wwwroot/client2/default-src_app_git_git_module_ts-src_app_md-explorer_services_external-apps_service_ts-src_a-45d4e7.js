@@ -5959,6 +5959,32 @@ class ProjectSettingsService {
       }
     });
   }
+  // ------------------------------------------------------------
+  //   Relay della federazione: indirizzo + API key, PER PROGETTO.
+  //   La chiave non attraversa mai il filo in uscita dal server:
+  //   il GET dice solo se c'è e da dove arriva.
+  // ------------------------------------------------------------
+  getRelaySettings(projectPath) {
+    return this.http.get('../api/MdProjects/RelaySettings', {
+      params: {
+        path: projectPath
+      }
+    });
+  }
+  setRelaySettings(projectPath, body) {
+    return this.http.post('../api/MdProjects/SetRelaySettings', body, {
+      params: {
+        path: projectPath
+      }
+    });
+  }
+  testRelaySettings(projectPath) {
+    return this.http.post('../api/MdProjects/TestRelaySettings', {}, {
+      params: {
+        path: projectPath
+      }
+    });
+  }
   // ============================================================
   //   Knowledge Graph (Neo4j) settings + sync
   // ============================================================

@@ -46,11 +46,16 @@ namespace MdExplorer.Services.Federation
         public const string DefaultRelayUrl = "wss://errantia.net";
 
         private readonly IProjectMetadataService _metadata;
+        private readonly IProjectRelaySettingsService _relaySettings;
         private readonly ILogger<FederationPresenceService> _logger;
 
-        public FederationPresenceService(IProjectMetadataService metadata, ILogger<FederationPresenceService> logger)
+        public FederationPresenceService(
+            IProjectMetadataService metadata,
+            IProjectRelaySettingsService relaySettings,
+            ILogger<FederationPresenceService> logger)
         {
             _metadata = metadata;
+            _relaySettings = relaySettings;
             _logger = logger;
         }
 
@@ -86,7 +91,8 @@ namespace MdExplorer.Services.Federation
             return new FederationAnnounce
             {
                 RoomId = roomId,
-                RelayUrl = string.IsNullOrWhiteSpace(cfg.RelayUrl) ? DefaultRelayUrl : cfg.RelayUrl.Trim(),
+                // Catena: impostazione di progetto (UserDB) → agentCity.relayUrl (git) → default.
+                RelayUrl = _relaySettings.ResolveRelayUrl(projectPath, cfg.RelayUrl),
                 ProjectPath = projectPath,
                 OwnerId = presence.OwnerId,
                 JoinToken = FederationCrypto.DeriveJoinToken(cfg.RoomSecret, roomId),

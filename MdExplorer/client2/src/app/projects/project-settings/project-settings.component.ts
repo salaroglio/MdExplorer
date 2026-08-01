@@ -29,6 +29,17 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   agentCityEnabled: boolean = false;
   agentCityOwnershipDoc: string = '';
   agentCityHasRoomSecret: boolean = false;
+
+  // Relay della federazione (per progetto). La chiave non arriva mai dal server:
+  // relayApiKey è solo il campo di INSERIMENTO, vuoto se non si sta cambiando nulla.
+  relayUrl: string = '';
+  relayUrlSource: string = 'None';
+  relayHasApiKey: boolean = false;
+  relayApiKeySource: string = 'None';
+  relayApiKey: string = '';
+  relayTesting: boolean = false;
+  relayTestMessage: string = '';
+  relayTestSuccess: boolean | null = null;
   indexAllTextFilesEnabled: boolean = false;
   textFileExtensions: string = '';
   textFileExtensionsDefault: string = '';
@@ -471,6 +482,90 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
       },
       error: (err) => console.error('Error loading Agent City settings:', err)
+    });
+    this.loadRelaySettings();
+  }
+
+  loadRelaySettings(): void {
+    if (!this.projectPath) return;
+    this.projectSettingsService.getRelaySettings(this.projectPath).subscribe({
+      next: (res) => {
+        this.relayUrl = res?.relayUrl || '';
+        this.relayUrlSource = res?.relayUrlSource || 'None';
+        this.relayHasApiKey = !!res?.hasApiKey;
+        this.relayApiKeySource = res?.apiKeySource || 'None';
+        this.relayTestSuccess = res?.lastTestSuccess ?? null;
+      },
+      error: (err) => console.error('Error loading relay settings:', err)
+    });
+  }
+
+  onRelaySettingsChange(): void {
+    if (!this.projectPath) return;
+    this.saving = true;
+    this.projectSettingsService.setRelaySettings(this.projectPath, {
+      relayUrl: this.relayUrl?.trim() || undefined,
+      // Campo vuoto = "non sto cambiando la chiave": il server la lascia com'è.
+      apiKey: this.relayApiKey?.trim() || undefined,
+    }).subscribe({
+      next: (res) => {
+        this.saving = false;
+        this.relayApiKey = '';            // mai tenere il segreto nel campo dopo il salvataggio
+        this.relayUrl = res?.relayUrl || '';
+        this.relayUrlSource = res?.relayUrlSource || 'None';
+        this.relayHasApiKey = !!res?.hasApiKey;
+        this.relayApiKeySource = res?.apiKeySource || 'None';
+        this.relayTestMessage = '';
+        this.relayTestSuccess = null;
+      },
+      error: (err) => {
+        console.error('Error saving relay settings:', err);
+        this.saving = false;
+        this.relayTestSuccess = false;
+        this.relayTestMessage = err?.error?.message || 'Salvataggio fallito.';
+        this.loadRelaySettings();          // riallinea allo stato persistito
+      }
+    });
+  }
+
+  clearRelayApiKey(): void {
+    if (!this.projectPath) return;
+    this.saving = true;
+    this.projectSettingsService.setRelaySettings(this.projectPath, {
+      relayUrl: this.relayUrl?.trim() || undefined,
+      clearApiKey: true,
+    }).subscribe({
+      next: (res) => {
+        this.saving = false;
+        this.relayApiKey = '';
+        this.relayHasApiKey = !!res?.hasApiKey;
+        this.relayApiKeySource = res?.apiKeySource || 'None';
+        this.relayTestMessage = '';
+        this.relayTestSuccess = null;
+      },
+      error: (err) => {
+        console.error('Error clearing relay api key:', err);
+        this.saving = false;
+        this.loadRelaySettings();
+      }
+    });
+  }
+
+  testRelay(): void {
+    if (!this.projectPath) return;
+    this.relayTesting = true;
+    this.relayTestMessage = '';
+    this.projectSettingsService.testRelaySettings(this.projectPath).subscribe({
+      next: (res) => {
+        this.relayTesting = false;
+        this.relayTestSuccess = !!res?.success;
+        this.relayTestMessage = res?.message || '';
+      },
+      error: (err) => {
+        this.relayTesting = false;
+        this.relayTestSuccess = false;
+        this.relayTestMessage = err?.error?.message || 'Verifica fallita.';
+      }
     });
   }
 
