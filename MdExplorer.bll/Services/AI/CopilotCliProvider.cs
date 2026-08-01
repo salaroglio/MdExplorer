@@ -166,6 +166,26 @@ namespace MdExplorer.Features.Services.AI
             return StripUsageMetrics(output);
         }
 
+        /// <summary>
+        /// Turno headless con l'esito <b>completo</b>: testo, codice d'uscita e stderr. A
+        /// differenza di <see cref="RunHeadlessAsync"/> non solleva sull'uscita non-zero — la
+        /// decisione spetta al chiamante. Esiste per il runner degli agenti: lì un'uscita
+        /// non-zero con stderr vuoto passava per successo, e faceva partire la pubblicazione del
+        /// deliverable, l'auto-merge e un verdetto federato di successo su un lavoro fallito.
+        /// </summary>
+        public async Task<CopilotRunResult> RunHeadlessDetailedAsync(string prompt, CopilotInvocation invocation, string modelId = null, CancellationToken ct = default)
+        {
+            if (invocation == null)
+                throw new ArgumentNullException(nameof(invocation),
+                    "CopilotInvocation obbligatoria: un run headless deve portare il proprio contesto (working dir + ambiente), mai ereditarlo dallo stato condiviso.");
+
+            if (!IsAvailable())
+                throw new InvalidOperationException("Copilot CLI is not available. Make sure it is installed and authenticated.");
+
+            var run = await RunCopilotProcessCoreAsync(prompt, modelId, streaming: false, ct: ct, invocation: invocation);
+            return new CopilotRunResult(StripUsageMetrics(run.Text), run.ExitCode, run.Error);
+        }
+
         public async IAsyncEnumerable<string> StreamChatAsync(
             string prompt,
             string modelId = null,
@@ -485,7 +505,29 @@ Always provide clear, concise, and well-formatted responses using proper markdow
 
         #region Private helpers
 
+        /// <summary>
+        /// Percorso legacy: ritorna il solo testo e solleva quando l'uscita è non-zero <b>e</b>
+        /// stderr non è vuoto. Comportamento invariato per chat, commit message e affini.
+        /// </summary>
         private async Task<string> RunCopilotProcessAsync(string prompt, string model, bool streaming, CancellationToken ct, bool outputFormatJson = false, CopilotInvocation invocation = null)
+        {
+            var run = await RunCopilotProcessCoreAsync(prompt, model, streaming, ct, outputFormatJson, invocation);
+
+            if (run.ExitCode != 0 && !string.IsNullOrWhiteSpace(run.Error))
+            {
+                _logger.LogError("[CopilotCliProvider] Process exited with code {ExitCode}: {Error}", run.ExitCode, run.Error);
+                throw new Exception($"Copilot CLI error (exit code {run.ExitCode}): {run.Error}");
+            }
+
+            return run.Text;
+        }
+
+        /// <summary>
+        /// Esecuzione nuda: restituisce testo, codice d'uscita e stderr <b>senza decidere</b> se
+        /// sia un errore. Nessuno stato sull'istanza — il risultato è per-chiamata, come
+        /// <see cref="CopilotInvocation"/>: due run concorrenti non possono contaminarsi.
+        /// </summary>
+        private async Task<CopilotRunResult> RunCopilotProcessCoreAsync(string prompt, string model, bool streaming, CancellationToken ct, bool outputFormatJson = false, CopilotInvocation invocation = null)
         {
             var psi = CreateProcessStartInfo(prompt, model, streaming, outputFormatJson, invocation);
             using var process = new Process { StartInfo = psi };
@@ -516,13 +558,7 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             var output = await outputTask;
             var error = await errorTask;
 
-            if (process.ExitCode != 0 && !string.IsNullOrWhiteSpace(error))
-            {
-                _logger.LogError("[CopilotCliProvider] Process exited with code {ExitCode}: {Error}", process.ExitCode, error);
-                throw new Exception($"Copilot CLI error (exit code {process.ExitCode}): {error}");
-            }
-
-            return output;
+            return new CopilotRunResult(output, process.ExitCode, error);
         }
 
         private ProcessStartInfo CreateProcessStartInfo(string prompt, string model, bool streaming, bool outputFormatJson = false, CopilotInvocation invocation = null)

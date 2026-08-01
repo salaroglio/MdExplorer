@@ -28,15 +28,28 @@ namespace MdExplorer.IntegrationTests.Infrastructure
         /// </summary>
         public Func<AgentTurnRequest, CancellationToken, Task<string>> Behavior { get; set; }
 
-        public Task<string> RunTurnAsync(AgentTurnRequest request, CancellationToken ct = default)
+        /// <summary>
+        /// Se valorizzato, il turno si conclude con questo esito NON riuscito invece che con
+        /// <see cref="AgentTurnOutcome.Completed"/> — serve a esercitare il fallimento che non
+        /// solleva (tetto di iterazioni, uscita non-zero), che è il caso per cui esiste
+        /// <see cref="AgentTurnResult"/>.
+        /// </summary>
+        public AgentTurnOutcome? FailWith { get; set; }
+
+        public async Task<AgentTurnResult> RunTurnAsync(AgentTurnRequest request, CancellationToken ct = default)
         {
             Interlocked.Increment(ref _calls);
             LastRequest = request;
 
             var behavior = Behavior;
-            return behavior != null
-                ? behavior(request, ct)
-                : Task.FromResult("(fake turn: nessuna azione)");
+            var text = behavior != null
+                ? await behavior(request, ct)
+                : "(fake turn: nessuna azione)";
+
+            var fail = FailWith;
+            return fail.HasValue
+                ? AgentTurnResult.Failed(fail.Value, $"fake: turno concluso come {fail.Value}", text)
+                : AgentTurnResult.Completed(text);
         }
     }
 }

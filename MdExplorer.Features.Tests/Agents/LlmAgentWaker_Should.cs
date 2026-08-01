@@ -30,13 +30,19 @@ namespace MdExplorer.Features.Tests.Agents
             public string ReturnValue { get; set; } = "fatto";
             public Exception ToThrow { get; set; }
 
-            public Task<string> RunTurnAsync(AgentTurnRequest request, CancellationToken ct = default)
+            /// <summary>Esito non riuscito da restituire SENZA sollevare.</summary>
+            public AgentTurnOutcome? FailWith { get; set; }
+            public int? Iterations { get; set; }
+
+            public Task<AgentTurnResult> RunTurnAsync(AgentTurnRequest request, CancellationToken ct = default)
             {
                 LastRequest = request;
                 var token = request.Environment != null && request.Environment.TryGetValue(LlmAgentWaker.EnvRunToken, out var t) ? t : null;
                 TokenWasValidDuringRun = token != null && _store.Validate(token) != null;
                 if (ToThrow != null) throw ToThrow;
-                return Task.FromResult(ReturnValue);
+                return Task.FromResult(FailWith.HasValue
+                    ? AgentTurnResult.Failed(FailWith.Value, "budget esaurito", ReturnValue, Iterations)
+                    : AgentTurnResult.Completed(ReturnValue, Iterations));
             }
         }
 
@@ -152,6 +158,46 @@ namespace MdExplorer.Features.Tests.Agents
             StringAssert.Contains(outcome.Error, "boom");
             var token = runner.LastRequest.Environment[LlmAgentWaker.EnvRunToken];
             Assert.IsNull(store.Validate(token), "anche in errore il token va revocato");
+        }
+
+        /// <summary>
+        /// Il caso per cui esiste <see cref="AgentTurnResult"/>: il runner non solleva, torna un
+        /// testo, ma il turno NON è concluso. Col contratto a stringa questo passava per successo
+        /// e faceva partire deliverable, auto-merge e verdetto federato positivo.
+        /// </summary>
+        [TestMethod]
+        public async Task Treat_an_unfinished_turn_as_a_failure_even_without_an_exception()
+        {
+            var store = new RunTokenStore();
+            var runner = new CapturingRunner(store)
+            {
+                FailWith = AgentTurnOutcome.Exhausted,
+                ReturnValue = "Tool execution loop exceeded maximum iterations.",
+                Iterations = 10,
+            };
+            var waker = new LlmAgentWaker(store, runner);
+
+            var outcome = await waker.WakeAsync(Request());
+
+            Assert.IsFalse(outcome.Success, "un turno lasciato a metà non è un successo");
+            Assert.AreEqual(AgentTurnOutcome.Exhausted, outcome.Outcome);
+            Assert.AreEqual(10, outcome.Iterations, "le iterazioni consumate restano osservabili");
+            StringAssert.Contains(outcome.Error, "budget esaurito");
+        }
+
+        [TestMethod]
+        public async Task Report_a_completed_turn_with_its_iterations()
+        {
+            var store = new RunTokenStore();
+            var runner = new CapturingRunner(store) { ReturnValue = "fatto", Iterations = 3 };
+            var waker = new LlmAgentWaker(store, runner);
+
+            var outcome = await waker.WakeAsync(Request());
+
+            Assert.IsTrue(outcome.Success);
+            Assert.AreEqual(AgentTurnOutcome.Completed, outcome.Outcome);
+            Assert.AreEqual("fatto", outcome.Output);
+            Assert.AreEqual(3, outcome.Iterations);
         }
 
         [TestMethod]

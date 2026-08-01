@@ -450,7 +450,34 @@ namespace MdExplorer.Services.AgentRun
             LogLlmExecution(snapshot, entry, startedAt, outcome);
 
             if (outcome.Success) MarkProcessed(messageId);
-            else RetryOrFail(messageId, outcome.Error);
+            else
+            {
+                RetryOrFail(messageId, outcome.Error);
+
+                // Il turno non è arrivato in fondo (budget di iterazioni esaurito, provider in
+                // errore). Se è un lavoro federato, l'origine sta aspettando: dirle "not-ready"
+                // quando i tentativi sono finiti è l'unico modo perché la sua memoria impari il
+                // vero. Tacere qui significa lasciarla in attesa; dire "success" — come faceva
+                // il contratto a stringa — significa rinforzarle la fiducia su un fallimento.
+                if (IsTerminallyFailed(messageId))
+                {
+                    var rc = ResolveRunContext(snapshot);
+                    if (!string.IsNullOrEmpty(rc.RemoteOwner) && rc.RequestId != null)
+                    {
+                        try
+                        {
+                            await ReportNotReadyToOriginAsync(
+                                snapshot.ProjectPath, rc, FederationReason.AgentTurnIncomplete);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex,
+                                "[Dispatcher] impossibile riportare all'origine il turno incompleto di '{Agent}'.", entry.Name);
+                        }
+                    }
+                }
+                return;   // nessun deliverable da un turno non concluso
+            }
 
             // Fase 7d.2 — deliverable: a run riuscito nel worktree, pubblica il branch d'attività su
             // origin (commit → push refspec). Best-effort: un push mancato non fallisce il run già concluso.
@@ -757,6 +784,29 @@ namespace MdExplorer.Services.AgentRun
                 m.NextAttemptAt = DateTime.UtcNow + DeferDelay;
                 // Attempts invariato di proposito.
             });
+
+        /// <summary>
+        /// True se il messaggio ha esaurito i tentativi ed è ormai <c>Failed</c>. Si rilegge lo
+        /// stato invece di ricalcolare la soglia: la verità è quella persistita da
+        /// <see cref="RetryOrFail"/>, non una seconda copia della politica.
+        /// </summary>
+        private bool IsTerminallyFailed(Guid messageId)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+                db.BeginTransaction();
+                var m = db.GetDal<AgentMessage>().GetList().FirstOrDefault(x => x.Id == messageId);
+                db.Commit();
+                return m?.State == AgentMessage.StateEnum.Failed;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Dispatcher] lettura stato messaggio {Id} fallita", messageId);
+                return false;
+            }
+        }
 
         private void RetryOrFail(Guid messageId, string error)
             => UpdateMessage(messageId, m =>

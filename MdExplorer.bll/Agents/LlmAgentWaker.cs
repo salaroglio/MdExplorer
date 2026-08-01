@@ -46,8 +46,19 @@ namespace MdExplorer.Features.Agents
         public string Output { get; private set; }
         public string Error { get; private set; }
 
-        public static LlmWakeOutcome Ok(string output) => new LlmWakeOutcome { Success = true, Output = output };
-        public static LlmWakeOutcome Fail(string error) => new LlmWakeOutcome { Success = false, Error = error };
+        /// <summary>Com'è finito il turno sotto. Serve al dispatcher per distinguere un
+        /// fallimento del provider da un lavoro lasciato a metà (che va riportato all'origine
+        /// come <c>not-ready</c>, non come errore generico).</summary>
+        public AgentTurnOutcome Outcome { get; private set; }
+
+        /// <summary>Iterazioni di tool calling consumate, se il runner sa contarle.</summary>
+        public int? Iterations { get; private set; }
+
+        public static LlmWakeOutcome Ok(string output, int? iterations = null)
+            => new LlmWakeOutcome { Success = true, Output = output, Outcome = AgentTurnOutcome.Completed, Iterations = iterations };
+
+        public static LlmWakeOutcome Fail(string error, AgentTurnOutcome outcome = AgentTurnOutcome.ProviderError, int? iterations = null)
+            => new LlmWakeOutcome { Success = false, Error = error, Outcome = outcome, Iterations = iterations };
     }
 
     public interface ILlmAgentWaker
@@ -125,7 +136,7 @@ namespace MdExplorer.Features.Agents
                 foreach (var kv in AgentGitIdentity.EnvFor(request.AgentName))
                     env[kv.Key] = kv.Value;
 
-                var output = await _runner.RunTurnAsync(new AgentTurnRequest
+                var result = await _runner.RunTurnAsync(new AgentTurnRequest
                 {
                     ComposedPrompt = prompt,
                     // Fase 7c: cwd = worktree se attivo, altrimenti il progetto. Claims ed env
@@ -134,7 +145,13 @@ namespace MdExplorer.Features.Agents
                     Environment = env,
                 }, ct);
 
-                return LlmWakeOutcome.Ok(output);
+                // Un turno può fallire SENZA sollevare (tetto di iterazioni, tool in errore):
+                // l'esito lo dice il runner, non l'assenza di eccezioni.
+                return result.IsSuccess
+                    ? LlmWakeOutcome.Ok(result.Text, result.Iterations)
+                    : LlmWakeOutcome.Fail(
+                        result.Diagnostic ?? $"turno concluso come {result.Outcome}",
+                        result.Outcome, result.Iterations);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {

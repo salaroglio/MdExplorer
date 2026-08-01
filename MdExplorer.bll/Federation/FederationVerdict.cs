@@ -35,6 +35,14 @@ namespace MdExplorer.Features.Federation
         /// <summary>Sync al ref/commit di handoff fallito (7d.5) → <see cref="FederationVerdict.NotReady"/>.</summary>
         public const string GitSyncFailed = "git-sync-failed";
 
+        /// <summary>
+        /// Il turno dell'agente non è arrivato in fondo — budget di iterazioni esaurito o
+        /// provider in errore → <see cref="FederationVerdict.NotReady"/>. Distinto da una
+        /// precondizione mancante: qui non manca nulla all'origine, è il bersaglio che non ha
+        /// concluso, e ritentare ha senso.
+        /// </summary>
+        public const string AgentTurnIncomplete = "agent-turn-incomplete";
+
         /// <summary>Prefisso per una precondizione mancante specifica: <c>precondition:&lt;x&gt;</c>.</summary>
         public const string PreconditionPrefix = "precondition:";
     }

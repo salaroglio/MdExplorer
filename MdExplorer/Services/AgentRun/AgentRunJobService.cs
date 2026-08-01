@@ -202,12 +202,36 @@ namespace MdExplorer.Services.AgentRun
                 // Attraverso il seam provider-agnostico (IAgentTurnRunner): il runner reale
                 // (CopilotTurnRunner) verifica la disponibilità e lancia Copilot; una fake lo
                 // sostituisce nei test. I run schedulati/manuali non passano un RunToken.
-                var output = await _turnRunner.RunTurnAsync(new AgentTurnRequest
+                var turn = await _turnRunner.RunTurnAsync(new AgentTurnRequest
                 {
                     ComposedPrompt = composedPrompt,
                     WorkingDirectory = request.ProjectPath,
                     Environment = AgentGitIdentity.EnvFor(gitName),
                 }, cts.Token);
+
+                // Un turno può concludersi male SENZA sollevare (tetto di iterazioni, uscita
+                // non-zero): registrarlo come "success" mentirebbe allo storico dell'agente.
+                if (!turn.IsSuccess)
+                {
+                    var why = turn.Diagnostic ?? $"turno concluso come {turn.Outcome}";
+                    _logger.LogWarning(
+                        "[AgentRun] FAILED agent='{Agent}' runId={RunId} outcome={Outcome}: {Why}",
+                        agentName, request.RunId, turn.Outcome, why);
+                    CompleteLogRow(logId, request, "error", Tail(turn.Text), why);
+                    await SendAsync(request, new
+                    {
+                        runId = request.RunId,
+                        scheduleId = request.ScheduleId,
+                        agentName,
+                        agentFilePath = request.AgentFilePath,
+                        triggerSource = request.TriggerSource,
+                        phase = "error",
+                        error = why
+                    });
+                    return;
+                }
+
+                var output = turn.Text;
 
                 _logger.LogInformation(
                     "[AgentRun] COMPLETED agent='{Agent}' runId={RunId} outputChars={Chars}",

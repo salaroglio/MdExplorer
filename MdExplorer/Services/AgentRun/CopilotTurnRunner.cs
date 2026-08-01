@@ -32,7 +32,7 @@ namespace MdExplorer.Services.AgentRun
             _providers = providers;
         }
 
-        public async Task<string> RunTurnAsync(AgentTurnRequest request, CancellationToken ct = default)
+        public async Task<AgentTurnResult> RunTurnAsync(AgentTurnRequest request, CancellationToken ct = default)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
 
@@ -47,7 +47,22 @@ namespace MdExplorer.Services.AgentRun
             // Identità e working dir viaggiano nell'invocation, non sul singleton: isolamento
             // per costruzione tra run concorrenti.
             var invocation = new CopilotInvocation(request.WorkingDirectory, request.Environment);
-            return await copilot.RunHeadlessAsync(request.ComposedPrompt, invocation, ct: ct);
+
+            // Esito DETTAGLIATO, non solo il testo: `RunHeadlessAsync` solleva solo quando
+            // l'uscita è non-zero E stderr non è vuoto, quindi un'uscita non-zero silenziosa
+            // passava per successo e faceva partire tutta la macchina a valle (pubblicazione
+            // del deliverable, auto-merge, verdetto federato di successo).
+            var run = await copilot.RunHeadlessDetailedAsync(request.ComposedPrompt, invocation, ct: ct);
+
+            if (run.ExitCode != 0)
+            {
+                var detail = string.IsNullOrWhiteSpace(run.Error)
+                    ? $"Copilot CLI è uscito con codice {run.ExitCode} senza messaggio d'errore."
+                    : $"Copilot CLI è uscito con codice {run.ExitCode}: {run.Error}";
+                return AgentTurnResult.Failed(AgentTurnOutcome.ProviderError, detail, run.Text);
+            }
+
+            return AgentTurnResult.Completed(run.Text);
         }
     }
 }
