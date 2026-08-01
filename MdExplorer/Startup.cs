@@ -119,6 +119,9 @@ namespace MdExplorer
             services.AddSingleton<Services.AgentRun.IAgentAvailabilityPolicy, Services.AgentRun.AgentAvailabilityPolicy>();
             // Isolamento d'esecuzione per-agente (Fase 7c): worktree git persistente per agente,
             // opt-in via agentCity.useAgentWorktrees. Il reaper pota i worktree orfani.
+            // Sessione d'intervento manuale sul worktree: apre/chiude, mette in coda l'agente
+            // e — su annullamento — rimette il lavoro in coda invece di perderlo.
+            services.AddSingleton<Services.AgentRun.IAgentWorktreeHoldService, Services.AgentRun.AgentWorktreeHoldService>();
             services.AddSingleton<Services.AgentRun.IAgentWorktreeManager, Services.AgentRun.AgentWorktreeManager>();
             // Isolamento worktree: scelta della MACCHINA (UserDB), non della squadra (git).
             services.AddSingleton<Services.AgentRun.IAgentWorktreePreference, Services.AgentRun.AgentWorktreePreference>();

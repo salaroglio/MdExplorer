@@ -133,9 +133,12 @@ namespace MdExplorer.Services.AgentRun
         private readonly ConcurrentDictionary<string, SemaphoreSlim> _repoGates = new();
         private bool _disposed;
 
-        public AgentWorktreeManager(ILogger<AgentWorktreeManager> logger)
+        private readonly IAgentWorktreeHoldService _hold;
+
+        public AgentWorktreeManager(ILogger<AgentWorktreeManager> logger, IAgentWorktreeHoldService hold)
         {
             _logger = logger;
+            _hold = hold;
         }
 
         public string WorktreeRootForProject(string projectPath)
@@ -203,6 +206,19 @@ namespace MdExplorer.Services.AgentRun
             await gate.WaitAsync(ct);
             try
             {
+                // RETE SOTTO LA RETE: con una sessione d'intervento aperta l'agente e' gia' in
+                // coda e non dovrebbe arrivare fin qui. Se ci arriva lo stesso — coda aggirata,
+                // run forzato — qui sotto ci sono 'reset --hard' e 'clean -fd', che
+                // cancellerebbero il lavoro non committato di una persona senza chiedere e senza
+                // recupero. Meglio un run rifiutato che lavoro umano distrutto.
+                if (_hold.IsHeld(projectPath, agentName))
+                {
+                    var why = _hold.ReasonFor(projectPath, agentName);
+                    return WorktreePrepareResult.Fail(
+                        $"Sessione d'intervento aperta sul worktree di '{agentName}' ({why}): mi rifiuto di ripulirlo. " +
+                        "Chiudila dalla vista di revisione — concludendo o annullando — e l'agente riprende.");
+                }
+
                 var worktreePath = await EnsureWorktreeUnlockedAsync(projectPath, agentName,
                     WorktreePathFor(projectPath, agentName), ct);
 
