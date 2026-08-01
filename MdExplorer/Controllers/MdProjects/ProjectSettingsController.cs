@@ -385,18 +385,9 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 var pref = HttpContext.RequestServices
                     .GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>();
 
+                // L'import dalla vecchia sede lo fa il servizio: unico punto, stessa verita'
+                // per UI e dispatcher.
                 var raw = pref.GetRaw(projectPath);
-                if (raw == null)
-                {
-                    var legacy = HttpContext.RequestServices
-                        .GetRequiredService<MdExplorer.Services.IProjectMetadataService>()
-                        .GetAgentCity(projectPath)?.UseAgentWorktrees;
-                    if (legacy != null)
-                    {
-                        try { pref.Set(projectPath, legacy); raw = legacy; }
-                        catch (Exception ex) { _logger.LogWarning(ex, "[Worktree] import dal .development.yml fallito"); }
-                    }
-                }
 
                 return Ok(new
                 {

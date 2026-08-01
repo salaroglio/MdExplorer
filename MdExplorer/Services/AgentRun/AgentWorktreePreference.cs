@@ -37,15 +37,54 @@ namespace MdExplorer.Services.AgentRun
     public class AgentWorktreePreference : IAgentWorktreePreference
     {
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly MdExplorer.Services.IProjectMetadataService _metadata;
         private readonly ILogger<AgentWorktreePreference> _logger;
 
-        public AgentWorktreePreference(IServiceScopeFactory scopeFactory, ILogger<AgentWorktreePreference> logger)
+        public AgentWorktreePreference(
+            IServiceScopeFactory scopeFactory,
+            MdExplorer.Services.IProjectMetadataService metadata,
+            ILogger<AgentWorktreePreference> logger)
         {
             _scopeFactory = scopeFactory;
+            _metadata = metadata;
             _logger = logger;
         }
 
         public bool IsEnabled(string projectPath) => GetRaw(projectPath) ?? DefaultFor(projectPath);
+
+        /// <summary>Progetti per cui l'import dal yml è già stato tentato (una sola volta per avvio).</summary>
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _importAttempted
+            = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Import una-tantum dalla sede precedente: se qui non è mai stato deciso nulla ma il
+        /// <c>.development.yml</c> porta ancora un valore esplicito, quel valore diventa la
+        /// preferenza locale. Una scelta già espressa non deve essere ignorata in silenzio solo
+        /// perché l'impostazione ha cambiato casa.
+        /// <para>
+        /// Vive <b>qui</b> e non nell'endpoint della UI: se lo facesse solo la UI, il dispatcher
+        /// vedrebbe il default e la UI il valore importato — due verità diverse a seconda di chi
+        /// guarda per primo.
+        /// </para>
+        /// </summary>
+        private bool? ImportLegacyIfAny(string projectPath)
+        {
+            if (!_importAttempted.TryAdd(projectPath, 0)) return null;
+            try
+            {
+                var legacy = _metadata.GetAgentCity(projectPath)?.UseAgentWorktrees;
+                if (legacy == null) return null;
+                Set(projectPath, legacy);
+                _logger.LogInformation(
+                    "[Worktree] preferenza importata dal .development.yml per '{Path}': {Value}", projectPath, legacy);
+                return legacy;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Worktree] import dal .development.yml fallito per '{Path}'", projectPath);
+                return null;
+            }
+        }
 
         public bool? GetRaw(string projectPath)
         {
@@ -62,7 +101,7 @@ namespace MdExplorer.Services.AgentRun
                 var project = FindProject(db, projectPath);
                 var value = project?.UseAgentWorktrees;
                 db.Commit();
-                return value;
+                return value ?? ImportLegacyIfAny(projectPath);
             }
             catch (Exception ex)
             {
