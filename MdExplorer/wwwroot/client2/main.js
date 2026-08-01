@@ -14082,10 +14082,25 @@ class AiChatService {
    * which clears the streaming state; we optimistically clear it here too.
    */
   cancelPrompt() {
-    if (this.hubConnection.state === 'Connected') {
-      this.hubConnection.invoke('CancelPrompt').catch(err => console.error('Error cancelling prompt:', err));
+    if (this.hubConnection.state !== 'Connected') {
+      this._isStreaming$.next(false); // niente connessione: non c'è nulla che stia generando
+      return;
     }
-    this._isStreaming$.next(false);
+    // NIENTE OTTIMISMO. Prima si spegneva subito l'indicatore: il pulsante SEMBRAVA aver
+    // fermato la generazione mentre il backend continuava — ed era il motivo per cui lo Stop
+    // "a volte non funzionava". Lo stato si spegne quando arriva StreamComplete dal server,
+    // che è l'unico a sapere davvero quando il turno è finito.
+    this.hubConnection.invoke('CancelPrompt').then(cancelled => {
+      if (!cancelled) {
+        // Il server non aveva nulla in volo: allora l'indicatore era già disallineato, e
+        // spegnerlo qui è corretto (non stiamo nascondendo un turno vivo).
+        console.warn('CancelPrompt: nessun turno in volo lato server');
+        this._isStreaming$.next(false);
+      }
+    }).catch(err => {
+      console.error('Error cancelling prompt:', err);
+      this._isStreaming$.next(false);
+    });
   }
   /**
    * Send a message on a specific channel (used by PromptLab cards).
@@ -17492,8 +17507,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.08.01.4',
-  buildTime: '2026.08.01 23:55:51'
+  version: '2026.08.02.1',
+  buildTime: '2026.08.02 01:30:10'
 };
 
 /***/ }),

@@ -125,10 +125,17 @@ namespace MdExplorer.Hubs
         /// Copilot agent to stop (session/cancel); the caller's SendMessage then completes the
         /// turn normally, so whatever was already streamed stays visible.
         /// </summary>
-        public Task CancelPrompt()
+        public Task<bool> CancelPrompt()
         {
-            _copilotAcpPool?.CancelActivePrompt(Context.ConnectionId);
-            return Task.CompletedTask;
+            var cancelled = _copilotAcpPool?.CancelActivePrompt(Context.ConnectionId) ?? false;
+            if (!cancelled)
+            {
+                // Niente in volo per questa connessione. Dirlo al client conta: prima si
+                // restituiva sempre "fatto" e la UI spegneva l'indicatore, dando l'impressione
+                // di aver fermato qualcosa che invece continuava.
+                _logger.LogInformation("[AiChatHub] CancelPrompt: nessun turno in volo per {ConnectionId}", Context.ConnectionId);
+            }
+            return Task.FromResult(cancelled);
         }
 
         /// <summary>
@@ -252,6 +259,13 @@ namespace MdExplorer.Hubs
 
         public async Task SendMessage(string message, string channelId = "default")
         {
+            // ANNULLAMENTO: un solo punto, fuori dal try così è visibile anche al finally.
+            // Prima esisteva solo dentro il ramo Copilot ACP: su OpenAI/Gemini/locale il
+            // pulsante Stop non trovava nulla da cancellare e restituiva 'false' a nessuno,
+            // mentre il backend continuava a generare.
+            using var turnCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
+            _copilotAcpPool?.RegisterActivePrompt(Context.ConnectionId, turnCts);
+
             try
             {
                 channelId = string.IsNullOrEmpty(channelId) ? "default" : channelId;
@@ -259,6 +273,7 @@ namespace MdExplorer.Hubs
 
                 // Get chat mode for this connection
                 var chatMode = GetChatMode();
+
                 
                 // Check if using external AI provider (Gemini or OpenAI)
                 if (chatMode.ProviderType.HasValue)
@@ -345,7 +360,8 @@ namespace MdExplorer.Hubs
                             toolExecutorFunc,
                             chatMode.ModelId,
                             currentDoc,
-                            conversationHistory);
+                            conversationHistory,
+                            turnCts.Token);
 
                         _logger.LogInformation($"[SendMessage] Received response from {provider.GetName()}: {response?.Substring(0, Math.Min(response?.Length ?? 0, 100))}...");
 
@@ -411,10 +427,24 @@ namespace MdExplorer.Hubs
 
                 await Clients.Caller.SendAsync("StreamComplete", channelId);
             }
+            catch (OperationCanceledException)
+            {
+                // Stop premuto dall'utente: il turno finisce PULITO. Mostrarlo come errore
+                // rosso in chat sarebbe sbagliato — l'utente ha ottenuto ciò che ha chiesto.
+                // Ciò che era già arrivato resta visibile.
+                _logger.LogInformation("[AiChatHub] turno annullato dall'utente (channel={Channel})", channelId);
+                await Clients.Caller.SendAsync("StreamComplete", channelId);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing chat message");
                 await Clients.Caller.SendAsync("ReceiveError", ex.Message, channelId);
+            }
+            finally
+            {
+                // Il turno non è più in volo: toglilo dal registro, altrimenti uno Stop
+                // successivo cancellerebbe un token morto e riferirebbe "fatto" a vuoto.
+                _copilotAcpPool?.UnregisterActivePrompt(Context.ConnectionId, turnCts);
             }
         }
 
