@@ -512,7 +512,11 @@ namespace MdExplorer.Services.AgentRun
                     {
                         if (await _mergeGate.ShouldMergeAsync(snapshot.ProjectPath, entry.Name, pushed.Branch, ct))
                         {
-                            var mo = await _worktree.MergeDeliverableIntoDefaultAsync(snapshot.ProjectPath, entry.Name, pushed.Branch, ct);
+                            // Il merge è un'operazione LOCALE: vuole il ref locale. Il nome
+                            // pubblicato vive su origin e non ha un ref in casa — passarlo qui
+                            // faceva fallire il merge (e il fallimento si presentava come
+                            // 'conflitto', che era una diagnosi fuorviante).
+                            var mo = await _worktree.MergeDeliverableIntoDefaultAsync(snapshot.ProjectPath, entry.Name, pushed.LocalBranch, ct);
                             if (mo == DeliverableMergeOutcome.Conflict)
                             {
                                 // Conflitto → not-ready nel feedback loop (federato: riporta all'origine).

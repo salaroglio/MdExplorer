@@ -72,7 +72,8 @@ namespace MdExplorer.IntegrationTests
             var pushed = await m.CommitAndPushBranchAsync(path, "worker", "deliverable");
             Assert.IsNotNull(pushed);
 
-            var outcome = await m.MergeDeliverableIntoDefaultAsync(path, "worker", pushed.Branch);
+            // Il merge è locale: vuole il ref locale, non il nome pubblicato su origin.
+            var outcome = await m.MergeDeliverableIntoDefaultAsync(path, "worker", pushed.LocalBranch);
             Assert.AreEqual(DeliverableMergeOutcome.Merged, outcome);
 
             // Il deliverable è ora nel default di origin.

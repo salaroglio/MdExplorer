@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -44,7 +45,18 @@ namespace MdExplorer.Services.AgentRun
     public sealed class HandoffPushResult
     {
         /// <summary>Nome del branch pushato (ref COMPLETO da usare come handoffRef, es. <c>agent/&lt;A&gt;/&lt;id&gt;</c>).</summary>
+        /// <summary>
+        /// Nome <b>pubblicato</b> su origin: parlante, ricavato dai file toccati. È quello da
+        /// spedire al collega come ref di handoff — il locale su origin non esiste.
+        /// </summary>
         public string Branch { get; init; }
+
+        /// <summary>
+        /// Nome <b>locale</b> del branch d'attività. Serve alle operazioni git in casa (merge,
+        /// cancellazione): il nome pubblicato non ha un ref locale, e usarlo per un <c>merge</c>
+        /// lo farebbe fallire — che è esattamente ciò che è successo la prima volta.
+        /// </summary>
+        public string LocalBranch { get; init; }
         /// <summary>Sha del commit di testa pushato (baseCommit a cui il ricevente deve sincronizzarsi).</summary>
         public string HeadSha { get; init; }
     }
@@ -134,11 +146,16 @@ namespace MdExplorer.Services.AgentRun
         private bool _disposed;
 
         private readonly IAgentWorktreeHoldService _hold;
+        private readonly MdExplorer.Services.Federation.IEffectiveOwnerIdentity _ownerIdentity;
 
-        public AgentWorktreeManager(ILogger<AgentWorktreeManager> logger, IAgentWorktreeHoldService hold)
+        public AgentWorktreeManager(
+            ILogger<AgentWorktreeManager> logger,
+            IAgentWorktreeHoldService hold,
+            MdExplorer.Services.Federation.IEffectiveOwnerIdentity ownerIdentity)
         {
             _logger = logger;
             _hold = hold;
+            _ownerIdentity = ownerIdentity;
         }
 
         public string WorktreeRootForProject(string projectPath)
@@ -345,18 +362,62 @@ namespace MdExplorer.Services.AgentRun
                 if (string.IsNullOrWhiteSpace(branch) || branch == "HEAD")
                     return null;   // detached: nessun branch d'attività da pushare
 
-                // Push per REFSPEC (PushAsync di LibGit2Sharp è upstream-only): pubblica il branch nuovo.
-                var (pc, _, pe) = await GitAsync(worktreePath, new[] { "push", "origin", branch + ":refs/heads/" + branch }, ct);
+                // NOME PUBBLICATO: si decide QUI, non alla creazione del branch. È l'unico
+                // istante in cui l'esito è noto — e non è troppo tardi, perché il push usa una
+                // refspec e i due lati sono indipendenti. L'etichetta viene dai file
+                // effettivamente toccati: un fatto, non un'interpretazione.
+                var published = await ComposePublishedBranchAsync(projectPath, worktreePath, agentName, branch, ct);
+
+                // Push per REFSPEC (PushAsync di LibGit2Sharp è upstream-only): pubblica il branch
+                // locale sotto il nome parlante.
+                var (pc, _, pe) = await GitAsync(worktreePath, new[] { "push", "origin", "--force-with-lease", branch + ":refs/heads/" + published }, ct);
                 if (pc != 0)
                 {
-                    _logger.LogWarning("[Worktree] push del branch '{Branch}' per '{Agent}' fallito: {Err}", branch, agentName, Describe(pc, pe));
+                    _logger.LogWarning("[Worktree] push del branch '{Branch}' per '{Agent}' fallito: {Err}", published, agentName, Describe(pc, pe));
                     return null;
                 }
 
-                _logger.LogInformation("[Worktree] deliverable di '{Agent}' pubblicato: {Branch}@{Sha}", agentName, branch, headSha);
-                return new HandoffPushResult { Branch = branch, HeadSha = headSha };
+                _logger.LogInformation("[Worktree] deliverable di '{Agent}' pubblicato: {Branch}@{Sha} (locale: {Local})",
+                    agentName, published, headSha, branch);
+
+                // Il ref di handoff spedito al collega DEVE essere quello pubblicato: il locale
+                // non esiste su origin, e il peer farebbe 'merge origin/<locale>' senza trovarlo.
+                return new HandoffPushResult { Branch = published, LocalBranch = branch, HeadSha = headSha };
             }
             finally { gate.Release(); }
+        }
+
+        /// <summary>
+        /// Compone il nome pubblicato dai file toccati rispetto al default del remote.
+        /// Fail-soft: se il diff non è calcolabile si ripiega sull'etichetta generica — un nome
+        /// meno parlante è meglio di un deliverable non pubblicato.
+        /// </summary>
+        private async Task<string> ComposePublishedBranchAsync(
+            string projectPath, string worktreePath, string agentName, string localBranch, CancellationToken ct)
+        {
+            var changed = new List<string>();
+            try
+            {
+                var baseBranch = await ResolveDefaultBranchAsync(worktreePath, ct);
+                // Tre punti: differenza rispetto al punto in cui il ramo si è separato, non
+                // rispetto allo stato attuale del default (che nel frattempo può essere avanzato).
+                var (dc, dout, _) = await GitAsync(worktreePath,
+                    new[] { "diff", "--name-only", $"origin/{baseBranch}...HEAD" }, ct);
+                if (dc == 0 && !string.IsNullOrWhiteSpace(dout))
+                    changed.AddRange(dout.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Worktree] diff per il nome del branch non calcolabile: uso l'etichetta generica.");
+            }
+
+            // L'activityId è l'ultimo segmento del nome locale (agent/<agente>/<activityId>).
+            var activityId = localBranch?.Split('/').LastOrDefault();
+
+            var ownerEmail = _ownerIdentity?.ResolveEmail(projectPath);
+
+            return AgentBranchNaming.ComposePublishedBranch(
+                ownerEmail, agentName, changed, activityId, DateTime.UtcNow);
         }
 
         public async Task<bool> MergeBranchAsync(string projectPath, string sourceRef, string intoBranch, CancellationToken ct = default)

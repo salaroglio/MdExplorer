@@ -78,12 +78,20 @@ namespace MdExplorer.IntegrationTests
 
             var pushed = await m.CommitAndPushBranchAsync(path, "worker", "deliverable");
             Assert.IsNotNull(pushed, "il branch deve essere pubblicato");
-            Assert.AreEqual("agent/worker/act1", pushed.Branch);
+            // Locale sobrio, pubblicato parlante: sono due nomi diversi per costruzione.
+            Assert.AreEqual("agent/worker/act1", pushed.LocalBranch);
+            StringAssert.StartsWith(pushed.Branch, "agent/");
+            Assert.AreNotEqual(pushed.LocalBranch, pushed.Branch, "il pubblicato non è il locale");
             Assert.IsFalse(string.IsNullOrWhiteSpace(pushed.HeadSha));
 
-            // Il ref esiste su origin.
-            var lsRemote = Git(path, "ls-remote origin agent/worker/act1").Out;
-            StringAssert.Contains(lsRemote, "agent/worker/act1", "il branch è su origin");
+            // Su origin esiste il nome PUBBLICATO — quello che il peer usera' per l'handoff —
+            // e NON il nome locale, che resta in casa.
+            var lsRemote = Git(path, $"ls-remote origin {pushed.Branch}").Out;
+            StringAssert.Contains(lsRemote, pushed.Branch, "il branch pubblicato è su origin");
+
+            var localOnRemote = Git(path, $"ls-remote origin {pushed.LocalBranch}").Out;
+            Assert.IsTrue(string.IsNullOrWhiteSpace(localOnRemote),
+                "il nome locale non deve esistere su origin");
         }
 
         [TestMethod]
@@ -178,7 +186,12 @@ mde_type: ownership
 
             var sent = ctx.FederationSender.LastPayload;
             Assert.IsNotNull(sent);
-            Assert.AreEqual("agent/analyst/actOrigin", sent.HandoffRef, "il ref di handoff = il branch d'attività dell'origine");
+            // Il ref di handoff deve essere il nome PUBBLICATO: il locale su origin non esiste,
+            // e il peer farebbe 'merge origin/<locale>' senza trovarlo.
+            StringAssert.StartsWith(sent.HandoffRef, "agent/", "il ref di handoff è un branch d'agente");
+            StringAssert.Contains(sent.HandoffRef, "analyst", "porta il nome dell'agente d'origine");
+            Assert.AreNotEqual("agent/analyst/actOrigin", sent.HandoffRef,
+                "non è il nome locale: quello non è pubblicato su origin");
             Assert.IsFalse(string.IsNullOrWhiteSpace(sent.BaseCommit), "il baseCommit accompagna l'handoff");
         }
     }
