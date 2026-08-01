@@ -672,7 +672,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         /// CLI then reports "taking longer than expected / Failed to connect". "dotnet run" also
         /// pollutes stdout with build output, corrupting the JSON-RPC stdio channel.
         /// </summary>
-        private static string? ResolveMcpExecutable(string baseDir)
+        internal static string? ResolveMcpExecutable(string baseDir)
         {
             var exeName = OperatingSystem.IsWindows() ? "MdExplorer.Mcp.exe" : "MdExplorer.Mcp";
 

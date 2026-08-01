@@ -279,6 +279,7 @@
          Solo il package base 'A2A'; 'A2A.AspNetCore'/MapA2A si valuta a parte (agenti
          dinamici). Solo preview su NuGet (decisione #3). -->
     <PackageReference Include="A2A" Version="1.0.0-preview2" />
+    <PackageReference Include="ModelContextProtocol" Version="2.0.0" />
     <PackageReference Include="System.Drawing.Common" Version="10.0.5" />
     <PackageReference Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
     <PackageReference Include="YamlDotNet" Version="11.2.1" />
