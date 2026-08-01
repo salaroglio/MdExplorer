@@ -335,39 +335,60 @@ namespace MdExplorer.Services.Federation
             // Apri/aggiorna le connessioni delle stanze attive.
             foreach (var (roomId, announce) in desired)
             {
+                // La chiave è PER PROGETTO (UserDB, impostazioni di progetto) con ricaduta
+                // sulla globale MdChat:ApiKey. Senza chiave questa città resta dormiente —
+                // le altre no: il gate è per stanza, non più globale.
+                var apiKey = _relaySettings.ResolveApiKey(announce.ProjectPath);
+                if (string.IsNullOrWhiteSpace(apiKey))
+                {
+                    if (_warnedNoApiKey.Add(announce.ProjectPath))
+                        _logger.LogWarning(
+                            "[Federation] '{Project}' ha la città attiva ma nessuna API key del relay: impostala nelle impostazioni di progetto (sezione Città degli agenti). Questa città resta dormiente.",
+                            announce.ProjectPath);
+                    // Chiave rimossa mentre la stanza era aperta: chiudila, altrimenti resterebbe
+                    // collegata con una credenziale che l'utente ha revocato.
+                    CloseRoom(roomId, "chiave del relay rimossa");
+                    continue;
+                }
+                _warnedNoApiKey.Remove(announce.ProjectPath);   // chiave arrivata: riavvisa se sparisce
+
+                // Onora l'override per-progetto del relay: la connessione va sul relay
+                // dichiarato (scheme+host), non sempre su quello globale. Se assente/
+                // non parsabile, ricade sul base globale.
+                var baseUrl = ToHttpBase(announce.RelayUrl) ?? _baseUrl;
+
                 if (_rooms.TryGetValue(roomId, out var existing))
                 {
-                    existing.UpdateAnnounce(announce);   // presenza cambiata? ri-annuncia
-                }
-                else
-                {
-                    // La chiave è PER PROGETTO (UserDB, impostazioni di progetto) con ricaduta
-                    // sulla globale MdChat:ApiKey. Senza chiave questa città resta dormiente —
-                    // le altre no: il gate è per stanza, non più globale.
-                    var apiKey = _relaySettings.ResolveApiKey(announce.ProjectPath);
-                    if (string.IsNullOrWhiteSpace(apiKey))
+                    // Chiave/indirizzo sono catturati alla costruzione della connessione: se
+                    // l'utente li cambia dalle impostazioni, una connessione già aperta
+                    // continuerebbe a ritentare con quelli vecchi PER SEMPRE (osservato dal vivo:
+                    // salvata la chiave giusta, la stanza restava su "Invalid API key"). Quindi
+                    // qui si confronta e, se sono cambiati, si riapre.
+                    if (existing.Matches(baseUrl, apiKey))
                     {
-                        if (_warnedNoApiKey.Add(announce.ProjectPath))
-                            _logger.LogWarning(
-                                "[Federation] '{Project}' ha la città attiva ma nessuna API key del relay: impostala nelle impostazioni di progetto (sezione Città degli agenti). Questa città resta dormiente.",
-                                announce.ProjectPath);
+                        existing.UpdateAnnounce(announce);   // presenza cambiata? ri-annuncia
                         continue;
                     }
-                    _warnedNoApiKey.Remove(announce.ProjectPath);   // chiave arrivata: riavvisa se sparisce
 
-                    // Onora l'override per-progetto del relay: la connessione va sul relay
-                    // dichiarato (scheme+host), non sempre su quello globale. Se assente/
-                    // non parsabile, ricade sul base globale.
-                    var baseUrl = ToHttpBase(announce.RelayUrl) ?? _baseUrl;
-                    var conn = new RoomConnection(baseUrl, EnginePath, apiKey, announce, _logger);
-                    var captured = announce;             // per la closure del deliver
-                    conn.OnDeliver = env => { _ = HandleDeliverAsync(captured, env); };
-                    _rooms[roomId] = conn;
-                    conn.Start();                        // fire-and-forget: OnConnected fa join+announce
+                    CloseRoom(roomId, "chiave o indirizzo del relay cambiati");
                 }
+
+                var conn = new RoomConnection(baseUrl, EnginePath, apiKey, announce, _logger);
+                var captured = announce;             // per la closure del deliver
+                conn.OnDeliver = env => { _ = HandleDeliverAsync(captured, env); };
+                _rooms[roomId] = conn;
+                conn.Start();                        // fire-and-forget: OnConnected fa join+announce
             }
 
             return Task.CompletedTask;
+        }
+
+        /// <summary>Chiude e dimentica una stanza aperta, spiegando nel log il perché.</summary>
+        private void CloseRoom(string roomId, string reason)
+        {
+            if (!_rooms.TryRemove(roomId, out var conn)) return;
+            try { conn.Dispose(); } catch { /* best effort */ }
+            _logger.LogInformation("[Federation] stanza {Room} chiusa: {Reason}", roomId, reason);
         }
 
         /// <summary>
@@ -599,6 +620,15 @@ namespace MdExplorer.Services.Federation
                 _announce = announce;
                 _logger = logger;
             }
+
+            /// <summary>
+            /// true se questa connessione sta già usando esattamente questo relay e questa chiave.
+            /// Serve al presidio per accorgersi che l'utente li ha cambiati dalle impostazioni:
+            /// sono catturati alla costruzione, quindi l'unico modo di applicarli è riaprire.
+            /// </summary>
+            public bool Matches(string baseUrl, string apiKey)
+                => string.Equals(_baseUrl, baseUrl, StringComparison.OrdinalIgnoreCase)
+                   && string.Equals(_apiKey, apiKey, StringComparison.Ordinal);
 
             public void UpdateAnnounce(FederationAnnounce a)
             {
