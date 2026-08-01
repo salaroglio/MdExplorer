@@ -61,11 +61,12 @@ namespace MdExplorer.IntegrationTests
             WorkingDirectory = "/tmp",
             Environment = new Dictionary<string, string>
             {
-                ["MDE_PROJECT_PATH"] = "/tmp/progetto",
                 ["MDE_AGENT_NAME"] = "test-agent",
-                [ProviderTurnRunner.EnvDeclaredTools] = "read,write",
-                [ProviderTurnRunner.EnvTrusted] = "1",
             },
+            ProjectPath = "/tmp/progetto",
+            AgentName = "test-agent",
+            DeclaredTools = new[] { "read", "write" },
+            Trusted = true,
         };
 
         private static ProviderTurnRunner Runner(IChatClient chat)
@@ -96,10 +97,7 @@ namespace MdExplorer.IntegrationTests
 
             var request = Request();
             // Non fidato: la lettura resta, scrittura e azioni verso l'esterno no.
-            request.Environment = new Dictionary<string, string>(request.Environment)
-            {
-                [ProviderTurnRunner.EnvTrusted] = "0",
-            };
+            request.Trusted = false;
 
             try { await Runner(chat).RunTurnAsync(request); }
             catch (InvalidOperationException ex) when (ex.Message.Contains("Server MCP"))

@@ -434,6 +434,10 @@ namespace MdExplorer.Services.AgentRun
                     Roster = roster,
                     Ownership = ownership,
                     RetrievedMemory = memory,
+                    // Autorizzazione dei tool (Fase B): cosa l'agente ha dichiarato e se
+                    // l'umano si fida. Il runner su provider ne deriva i tool da esporre.
+                    DeclaredTools = entry.Tools?.ToList(),
+                    Trusted = entry.Trusted,
                 }, ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)

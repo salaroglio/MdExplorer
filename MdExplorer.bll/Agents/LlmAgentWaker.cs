@@ -28,6 +28,12 @@ namespace MdExplorer.Features.Agents
         public IReadOnlyList<OwnershipEntry> Ownership { get; set; }
         /// <summary>Memoria rilevante recuperata al risveglio (§11 Fase 5c); null/vuoto = niente iniezione.</summary>
         public IReadOnlyList<RecalledFact> RetrievedMemory { get; set; }
+
+        /// <summary>Manifesto <c>tools:</c> della card: cosa l'agente dichiara di voler usare.</summary>
+        public IReadOnlyList<string> DeclaredTools { get; set; }
+
+        /// <summary>Fiducia dell'umano su questo agente. Insieme al manifesto decide i tool esposti.</summary>
+        public bool Trusted { get; set; }
     }
 
     /// <summary>Un fatto recuperato dalla memoria dell'agente, per l'iniezione nel prompt (§11).</summary>
@@ -139,6 +145,12 @@ namespace MdExplorer.Features.Agents
                 var result = await _runner.RunTurnAsync(new AgentTurnRequest
                 {
                     ComposedPrompt = prompt,
+                    AgentName = request.AgentName,
+                    ProjectPath = request.ProjectPath,
+                    // Autorizzazione dei tool: passata come dato, non via ambiente (vedi
+                    // AgentTurnRequest.DeclaredTools).
+                    DeclaredTools = request.DeclaredTools,
+                    Trusted = request.Trusted,
                     // Fase 7c: cwd = worktree se attivo, altrimenti il progetto. Claims ed env
                     // (sopra) restano SEMPRE sul progetto vero — il cwd è disaccoppiato.
                     WorkingDirectory = request.WorkingDirectory ?? request.ProjectPath,

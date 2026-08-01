@@ -53,24 +53,20 @@ namespace MdExplorer.Services.AgentRun
             _logger = logger;
         }
 
-        /// <summary>Manifesto e fiducia del turno corrente, passati dal chiamante via ambiente.</summary>
-        public const string EnvDeclaredTools = "MDE_AGENT_TOOLS";
-        public const string EnvTrusted = "MDE_AGENT_TRUSTED";
-
         public async Task<AgentTurnResult> RunTurnAsync(AgentTurnRequest request, CancellationToken ct = default)
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
 
-            var projectPath = Env(request, "MDE_PROJECT_PATH");
-            var baseClient = _clients.Create(projectPath)
+            var baseClient = _clients.Create(request.ProjectPath)
                 ?? throw new InvalidOperationException(
                     "Nessun provider AI configurato per questo progetto: impossibile risvegliare l'agente. " +
                     "Configuralo nelle impostazioni di progetto, oppure lascia il runner su Copilot.");
 
-            var declared = SplitManifest(Env(request, EnvDeclaredTools));
-            var trusted = string.Equals(Env(request, EnvTrusted), "1", StringComparison.Ordinal);
-
-            await using var toolSet = await _tools.OpenAsync(request.Environment, declared, trusted, ct);
+            // Manifesto e fiducia arrivano come DATI dalla richiesta: se passassero
+            // dall'ambiente, chi dimentica di popolarlo otterrebbe un agente ridotto alla sola
+            // lettura senza che nessuno se ne accorga.
+            await using var toolSet = await _tools.OpenAsync(
+                request.Environment, request.DeclaredTools, request.Trusted, ct);
 
             using var chat = new ChatClientBuilder(baseClient)
                 .UseFunctionInvocation(configure: f =>
@@ -125,17 +121,6 @@ namespace MdExplorer.Services.AgentRun
 
             return AgentTurnResult.Completed(text, iterations);
         }
-
-        private static string Env(AgentTurnRequest request, string key)
-            => request.Environment != null && request.Environment.TryGetValue(key, out var v) ? v : null;
-
-        private static IReadOnlyList<string> SplitManifest(string raw)
-            => string.IsNullOrWhiteSpace(raw)
-                ? Array.Empty<string>()
-                : raw.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                     .Select(s => s.Trim())
-                     .Where(s => s.Length > 0)
-                     .ToList();
 
         /// <summary>Quante volte si è tornati al provider: una per messaggio di assistente.</summary>
         private static int CountProviderRoundTrips(ChatResponse response)

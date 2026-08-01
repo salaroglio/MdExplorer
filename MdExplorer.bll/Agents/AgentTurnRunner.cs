@@ -14,6 +14,25 @@ namespace MdExplorer.Features.Agents
         public string ComposedPrompt { get; set; }
         public string WorkingDirectory { get; set; }
 
+        /// <summary>Nome A2A del cittadino che sta girando (diagnostica e log).</summary>
+        public string AgentName { get; set; }
+
+        /// <summary>Progetto di appartenenza: risolve provider, chiavi e impostazioni.</summary>
+        public string ProjectPath { get; set; }
+
+        /// <summary>
+        /// Il manifesto <c>tools:</c> dichiarato dalla card, e la fiducia che l'umano gli ha
+        /// dato. Sono <b>dati di dominio</b>, non variabili d'ambiente: l'ambiente serve a
+        /// far attraversare un confine di processo (è il caso di Copilot e del RunToken), ma un
+        /// runner in-process non ha confini da attraversare — e passarli di lì significherebbe
+        /// che chi dimentica di popolarli ottiene un agente ridotto alla sola lettura senza
+        /// che nessuno se ne accorga.
+        /// </summary>
+        public IReadOnlyList<string> DeclaredTools { get; set; }
+
+        /// <summary>Fiducia dell'umano su questo agente (per macchina, da UserDB).</summary>
+        public bool Trusted { get; set; }
+
         /// <summary>
         /// Override d'ambiente per il processo del provider. Il figlio eredita l'ambiente
         /// del Service e vi aggiunge/sovrascrive queste chiavi — è il canale del RunToken.
