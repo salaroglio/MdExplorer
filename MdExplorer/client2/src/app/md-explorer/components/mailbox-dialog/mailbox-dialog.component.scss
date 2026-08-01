@@ -170,6 +170,22 @@
   mat-icon { font-size: 16px; height: 16px; width: 16px; }
 }
 
+// Delega interna: stessa forma del badge federato ma tinta diversa — e' un parente,
+// non un gemello: stessa mappa di ownership, ma il lavoro non ha lasciato la macchina.
+.conv-scope {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #00695c;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+
+  mat-icon { font-size: 14px; height: 14px; width: 14px; }
+}
+
 .conv-federated {
   display: flex;
   align-items: center;

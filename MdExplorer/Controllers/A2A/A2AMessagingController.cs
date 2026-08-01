@@ -11,6 +11,7 @@ using MdExplorer.Services.AgentRegistry;
 using MdExplorer.Services.AgentRun;
 using MdExplorer.Services.Federation;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Controllers.A2A
@@ -45,6 +46,7 @@ namespace MdExplorer.Controllers.A2A
         private readonly MdExplorer.Services.AgentRun.ISubmoduleGateService _submoduleGate;
         private readonly IProjectMetadataService _projectMetadata;
         private readonly MdExplorer.Services.Federation.IEffectiveOwnerIdentity _effectiveIdentity;
+        private readonly IHubContext<MdExplorer.Hubs.MonitorMDHub> _hubContext;
         private readonly ILogger<A2AMessagingController> _logger;
 
         public A2AMessagingController(
@@ -58,8 +60,10 @@ namespace MdExplorer.Controllers.A2A
             MdExplorer.Services.AgentRun.ISubmoduleGateService submoduleGate,
             IProjectMetadataService projectMetadata,
             MdExplorer.Services.Federation.IEffectiveOwnerIdentity effectiveIdentity,
+            IHubContext<MdExplorer.Hubs.MonitorMDHub> hubContext,
             ILogger<A2AMessagingController> logger)
         {
+            _hubContext = hubContext;
             _tokens = tokens;
             _registry = registry;
             _mailbox = mailbox;
@@ -241,6 +245,19 @@ namespace MdExplorer.Controllers.A2A
 
             var targetOwnerId = FederationRoom.ComputeUserId(entry.GitEmail);
 
+            // DELEGA INTERNA: il responsabile dell'ambito è l'umano locale. Uscire sul relay
+            // significherebbe mandare la busta al VPS perché torni indietro alla stessa città
+            // (il relay non esclude il mittente), bruciare latenza e aprire un gate umano per
+            // farsi autorizzare da sé stessi. Il gate custodisce la fiducia fra umani DIVERSI:
+            // verso di sé non ha niente da custodire. Quindi si accoda in mailbox, come farebbe
+            // send_agent_message — stessa conversazione, hop consumato, anti-loop intatto — e
+            // l'umano riceve una NOTIFICA, non una richiesta di permesso.
+            var localOwnerEmail = _effectiveIdentity.ResolveEmail(claims.ProjectPath);
+            if (string.Equals(targetOwnerId, FederationRoom.ComputeUserId(localOwnerEmail), StringComparison.OrdinalIgnoreCase))
+            {
+                return await DelegateLocallyAsync(claims, entry, targetAgent, request);
+            }
+
             // Hop + correlazione FederationId sulla conversazione d'origine (§12.6). Il
             // guardrail si VALUTA prima del send, ma hop e correlazione si committano solo
             // DOPO un send riuscito: un relay irraggiungibile (503) non deve bruciare il
@@ -368,6 +385,90 @@ namespace MdExplorer.Controllers.A2A
                 federationId = fedId.ToString(),
                 targetAgent,
                 targetOwner = entry.GitEmail,
+            });
+        }
+
+        /// <summary>
+        /// Delega su un ambito di cui è responsabile l'umano locale: resta in casa.
+        /// <para>
+        /// Differenze dal percorso federato, tutte volute: <b>nessun relay</b> (il destinatario è
+        /// questa stessa città), <b>nessun gate</b> (non c'è una seconda persona di cui guadagnare
+        /// la fiducia), <b>stessa conversazione</b> — così gli hop continuano ad accumularsi e il
+        /// guardrail anti-loop non è aggirabile delegando a sé stessi in cerchio.
+        /// </para>
+        /// <para>
+        /// Resta però tracciato il <b>perché</b>: l'ambito finisce sulla conversazione, e l'umano
+        /// riceve una notifica informativa. Senza, la delega sarebbe indistinguibile da un
+        /// messaggio qualunque e si perderebbe l'informazione più utile — che gli agenti stanno
+        /// esercitando una riga precisa della tua mappa di ownership.
+        /// </para>
+        /// </summary>
+        private async System.Threading.Tasks.Task<IActionResult> DelegateLocallyAsync(
+            RunTokenClaims claims, OwnershipEntry entry, string targetAgent, RequestInterventionRequest request)
+        {
+            var enqueued = _mailbox.Enqueue(new MdExplorer.Services.AgentRun.EnqueueRequest
+            {
+                ProjectPath = claims.ProjectPath,
+                FromAgent = claims.AgentName,          // R2: identità certificata dal token
+                ToAgent = targetAgent,
+                Body = request.Message,
+                ContextId = claims.ConversationId,      // stessa conversazione: gli hop si sommano
+                Topics = request.Topics,
+                TriggerSource = "internal-delegation",
+            });
+
+            if (!enqueued.Accepted)
+            {
+                _logger.LogWarning("[A2A/request-intervention] delega interna rifiutata: {Reason}", enqueued.RejectionReason);
+                return StatusCode(409, new { error = enqueued.RejectionReason });
+            }
+
+            // L'ambito sulla conversazione: è ciò che rende leggibile il risveglio a posteriori.
+            {
+                var cid = enqueued.ConversationId;
+                _session.BeginTransaction();
+                var dal = _session.GetDal<AgentConversation>();
+                var conv = dal.GetList().FirstOrDefault(c => c.Id == cid);
+                if (conv != null)
+                {
+                    conv.Scope = entry.Scope;
+                    conv.LastActivityAt = DateTime.UtcNow;
+                    dal.Save(conv);
+                }
+                _session.Commit();
+            }
+
+            // Consapevolezza, non permesso: stesso binario dei toast della mailbox.
+            try
+            {
+                await _hubContext.Clients.All.SendAsync("agentDelegationRouted", new
+                {
+                    projectPath = claims.ProjectPath,
+                    scope = entry.Scope,
+                    fromAgent = claims.AgentName,
+                    toAgent = targetAgent,
+                    conversationId = enqueued.ConversationId.ToString(),
+                });
+            }
+            catch (Exception ex)
+            {
+                // La notifica è best-effort: la delega è già persistita, e la conversazione
+                // resta visibile nel centro notifiche anche senza il push.
+                _logger.LogWarning(ex, "[A2A/request-intervention] notifica di delega interna non inviata");
+            }
+
+            _logger.LogInformation(
+                "[A2A/request-intervention] delega INTERNA {From} → {Agent} su ambito '{Scope}' (responsabile locale, niente relay)",
+                claims.AgentName, targetAgent, entry.Scope);
+
+            return Ok(new
+            {
+                requested = true,
+                local = true,
+                scope = entry.Scope,
+                targetAgent,
+                targetOwner = entry.GitEmail,
+                conversationId = enqueued.ConversationId.ToString(),
             });
         }
 

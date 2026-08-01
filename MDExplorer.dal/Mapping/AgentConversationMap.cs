@@ -20,6 +20,7 @@ namespace MDExplorer.DataAccess.Mapping
             Map(x => x.RequestId).Nullable();
             Map(x => x.RemoteOwner).Length(300).Nullable();
             Map(x => x.RemoteAgent).Length(300).Nullable();
+            Map(x => x.Scope).Length(200).Nullable();
             Map(x => x.HandoffRef).Length(400).Nullable();
             Map(x => x.BaseCommit).Length(100).Nullable();
         }

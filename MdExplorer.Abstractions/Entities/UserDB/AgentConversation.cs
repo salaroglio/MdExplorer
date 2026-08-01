@@ -57,6 +57,14 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual string RemoteAgent { get; set; }
 
         /// <summary>
+        /// Ambito di ownership che ha generato questa conversazione (delega interna o federata).
+        /// Null = conversazione ordinaria. Serve a non perdere il <i>perché</i> di un risveglio:
+        /// senza, una delega instradata sulla mappa di ownership sarebbe indistinguibile da un
+        /// messaggio qualunque.
+        /// </summary>
+        public virtual string Scope { get; set; }
+
+        /// <summary>
         /// Fase 7d.5 — riferimento di handoff (branch ref completo dell'origine) copiato dalla
         /// <see cref="FederationRequest"/> all'approvazione; il dispatcher lo passa a
         /// <c>PrepareForRunAsync</c> perché B si sincronizzi al lavoro dell'origine. <c>null</c> = nessun handoff.

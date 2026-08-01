@@ -1773,7 +1773,10 @@
     "HIDE_MESSAGES": "Nascondi messaggi",
     "REOPEN": "Riapri",
     "KILL": "Termina thread",
-    "FEDERATED": "federata"
+    "FEDERATED": "federata",
+    "INTERNAL_DELEGATION": "delega interna",
+    "INTERNAL_DELEGATION_TOOLTIP": "Un agente ha instradato il lavoro su questo ambito usando la mappa di ownership. Il responsabile sei tu, quindi è rimasto in locale: niente relay, niente autorizzazione da chiedere.",
+    "DELEGATION_TOAST": "{{from}} ha passato un lavoro a {{to}} sull'ambito «{{scope}}» — gestito in locale."
   },
   "FEDERATION": {
     "TAB": "Richieste federate",

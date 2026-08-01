@@ -289,6 +289,7 @@ namespace MdExplorer.Controllers.A2A
                         federationId = c.FederationId,
                         remoteOwner = c.RemoteOwner,
                         remoteAgent = c.RemoteAgent,
+                        scope = c.Scope,
                         federated = c.FederationId != null,
                     };
                 }).ToList();
@@ -352,6 +353,7 @@ namespace MdExplorer.Controllers.A2A
                         federationId = conv.FederationId,
                         remoteOwner = conv.RemoteOwner,
                         remoteAgent = conv.RemoteAgent,
+                        scope = conv.Scope,
                         federated = conv.FederationId != null,
                     },
                     messages,

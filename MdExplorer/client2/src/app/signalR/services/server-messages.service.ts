@@ -80,6 +80,17 @@ export class MdServerMessagesService {
     createdAt: string
   }>();
 
+  // Delega interna: un agente ha instradato lavoro su un ambito il cui responsabile e'
+  // l'umano locale. Non e' un permesso da concedere (il gate custodisce la fiducia fra umani
+  // diversi): e' consapevolezza che la mappa di ownership e' stata esercitata.
+  public agentDelegationRouted$ = new Subject<{
+    projectPath: string,
+    scope: string,
+    fromAgent: string,
+    toAgent: string,
+    conversationId: string
+  }>();
+
   // Fase 7e — un agente ha toccato il submodule (codice) nel suo worktree: awareness (no diff).
   public submoduleTouchedByAgent$ = new Subject<{
     projectPath: string,
@@ -242,6 +253,12 @@ export class MdServerMessagesService {
       this.hubConnection.on('federationRequestReceived', (data) => {
         console.log('🌐 SignalR event received: federationRequestReceived', data);
         this.federationRequestReceived$.next(data);
+      });
+
+      // Delega interna instradata dalla mappa di ownership, rimasta in locale.
+      this.hubConnection.on('agentDelegationRouted', (data) => {
+        console.log('🔀 SignalR event received: agentDelegationRouted', data);
+        this.agentDelegationRouted$.next(data);
       });
 
       // Fase 7e — awareness del tocco submodule da parte di un agente (gate del push umano).

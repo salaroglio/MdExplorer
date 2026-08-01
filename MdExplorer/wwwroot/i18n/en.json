@@ -1773,7 +1773,10 @@
     "HIDE_MESSAGES": "Hide messages",
     "REOPEN": "Reopen",
     "KILL": "End thread",
-    "FEDERATED": "federated"
+    "FEDERATED": "federated",
+    "INTERNAL_DELEGATION": "internal handoff",
+    "INTERNAL_DELEGATION_TOOLTIP": "An agent routed the work for this scope using the ownership map. You are the owner, so it stayed local: no relay, no authorization to grant.",
+    "DELEGATION_TOAST": "{{from}} handed work to {{to}} on scope “{{scope}}” — handled locally."
   },
   "FEDERATION": {
     "TAB": "Federated requests",

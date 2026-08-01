@@ -97,6 +97,13 @@
                   [matTooltip]="(conv.remoteAgent || conv.remoteOwner || '') + ''">
               <mat-icon>hub</mat-icon> {{ 'MAILBOX.FEDERATED' | translate }}
             </span>
+            <!-- Delega interna: ambito instradato sulla mappa di ownership, ma il responsabile
+                 sei tu, quindi e' rimasta in casa (niente relay, niente gate). -->
+            <span *ngIf="!conv.federated && conv.scope" class="conv-scope"
+                  [matTooltip]="'MAILBOX.INTERNAL_DELEGATION_TOOLTIP' | translate">
+              <mat-icon>alt_route</mat-icon>
+              {{ 'MAILBOX.INTERNAL_DELEGATION' | translate }} · {{ conv.scope }}
+            </span>
             <span class="conv-hops" [matTooltip]="'MAILBOX.HOPS_TOOLTIP' | translate">
               <mat-icon>route</mat-icon> {{ conv.hopCount }}/{{ conv.hopLimit }}
             </span>

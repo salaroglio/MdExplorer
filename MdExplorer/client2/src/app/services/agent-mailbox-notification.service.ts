@@ -34,6 +34,9 @@ export class AgentMailboxNotificationService {
     this.serverMessages.federationRequestReceived$.subscribe(evt => this.onFederationRequest(evt));
     // Fase 7e — un agente ha toccato il codice (submodule): awareness, solo info (nessun diff).
     this.serverMessages.submoduleTouchedByAgent$.subscribe(evt => this.onSubmoduleTouched(evt));
+    // Delega interna: consapevolezza, non permesso — il gate custodisce la fiducia fra umani
+    // diversi, e verso sé stessi non ha niente da custodire.
+    this.serverMessages.agentDelegationRouted$.subscribe(evt => this.onDelegationRouted(evt));
   }
 
   /** Il toolbar comunica il progetto attivo; ricarichiamo il conteggio non-letti. */
@@ -74,6 +77,18 @@ export class AgentMailboxNotificationService {
       this.translate.instant('SUBMODULE_GATE.TOAST', { agent: evt.agent || '?', submodule: evt.submodule || '?' }),
       this.translate.instant('COMMON.OK'),
       { duration: 12000, horizontalPosition: 'right', verticalPosition: 'bottom', panelClass: ['kg-stale-snack'] });
+  }
+
+  private onDelegationRouted(evt: { fromAgent: string; toAgent: string; scope: string }): void {
+    // Informativo e non bloccante, ma con l'azione per aprire il viewer: se la stessa delega
+    // ricorre spesso, e' la mappa di ownership che sta chiedendo di essere rivista.
+    const toast = this.snackBar.open(
+      this.translate.instant('MAILBOX.DELEGATION_TOAST', {
+        from: evt.fromAgent || '?', to: evt.toAgent || '?', scope: evt.scope || '?',
+      }),
+      this.translate.instant('MAILBOX.TOAST_OPEN'),
+      { duration: 9000, horizontalPosition: 'right', verticalPosition: 'bottom' });
+    toast.onAction().subscribe(() => this.open(1));   // tab "Conversazioni"
   }
 
   private onMessage(evt: { fromAgent: string; projectPath: string }): void {
