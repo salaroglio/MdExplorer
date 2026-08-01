@@ -211,7 +211,7 @@
             <div class="setting-item" *ngIf="agentCityEnabled">
               <mat-checkbox
                 [(ngModel)]="agentUseWorktrees"
-                (change)="onAgentCityChange()"
+                (change)="onAgentWorktreesChange()"
                 [disabled]="saving || !projectIsGit">
                 <span class="setting-label">{{ 'PROJECT_SETTINGS.AGENT_WORKTREES' | translate }}</span>
               </mat-checkbox>

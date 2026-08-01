@@ -264,7 +264,8 @@ namespace MdExplorer.Services
         {
             if (cfg == null) return null;
 
-            cfg.UseAgentWorktrees ??= IsGitWithOrigin(projectPath);
+            // Il worktree NON si risolve piu' qui: e' una scelta della macchina e vive in
+            // UserDB (IAgentWorktreePreference). Nel yml resta solo per import una-tantum.
             cfg.AutoMergeAgentDeliverables ??= IsGitWithOrigin(projectPath);
             return cfg;
         }

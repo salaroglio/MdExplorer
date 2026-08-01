@@ -31,7 +31,6 @@ namespace MdExplorer.IntegrationTests
             {
                 Enabled = true,
                 OwnershipDoc = "ownership.md",
-                UseAgentWorktrees = true,
                 AutoMergeAgentDeliverables = true,
             });
 
@@ -43,10 +42,8 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(System.Net.HttpStatusCode.OK, res.StatusCode, await res.Content.ReadAsStringAsync());
 
             var after = meta.GetAgentCity(path);
-            Assert.IsTrue(after.UseAgentWorktrees,
-                "l'isolamento worktree non deve spegnersi perché la UI non lo invia");
-            Assert.IsTrue(after.AutoMergeAgentDeliverables,
-                "nemmeno l'auto-merge");
+            Assert.AreEqual(true, after.AutoMergeAgentDeliverables,
+                "l'auto-merge non deve spegnersi perché la UI non lo invia");
         }
 
         [TestMethod]
@@ -56,16 +53,16 @@ namespace MdExplorer.IntegrationTests
             var (_, path) = ctx.SeedProject("flag-esplicito");
             var meta = ctx.Factory.Services.GetRequiredService<IProjectMetadataService>();
 
-            meta.SetAgentCity(path, new AgentCityConfig { Enabled = true, UseAgentWorktrees = true });
+            meta.SetAgentCity(path, new AgentCityConfig { Enabled = true, AutoMergeAgentDeliverables = true });
 
             // Preservare non deve voler dire "impossibile spegnere": inviato esplicitamente, vince.
             var query = "?path=" + System.Uri.EscapeDataString(path);
             var res = await ctx.Client.PostAsync("/api/MdProjects/SetAgentCity" + query,
-                new StringContent("{\"enabled\":true,\"useAgentWorktrees\":false}",
+                new StringContent("{\"enabled\":true,\"autoMergeAgentDeliverables\":false}",
                     Encoding.UTF8, "application/json"));
             Assert.AreEqual(System.Net.HttpStatusCode.OK, res.StatusCode);
 
-            Assert.IsFalse(meta.GetAgentCity(path).UseAgentWorktrees);
+            Assert.AreEqual(false, meta.GetAgentCity(path).AutoMergeAgentDeliverables);
         }
     }
 }

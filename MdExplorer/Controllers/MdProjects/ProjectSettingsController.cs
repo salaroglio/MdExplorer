@@ -4,6 +4,7 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.ProjectDB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
@@ -370,6 +371,78 @@ namespace MdExplorer.Service.Controllers.MdProjects
         }
 
         [HttpGet]
+        /// <summary>
+        /// Isolamento worktree per-agente: preferenza di QUESTA macchina (UserDB), non del repo.
+        /// Se non è mai stata decisa qui, si importa una-tantum l'eventuale valore esplicito del
+        /// <c>.development.yml</c> — dove il flag viveva prima — così una scelta già espressa non
+        /// viene ignorata in silenzio.
+        /// </summary>
+        [HttpGet]
+        public IActionResult GetAgentWorktreesSetting([FromQuery] string projectPath)
+        {
+            try
+            {
+                var pref = HttpContext.RequestServices
+                    .GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>();
+
+                var raw = pref.GetRaw(projectPath);
+                if (raw == null)
+                {
+                    var legacy = HttpContext.RequestServices
+                        .GetRequiredService<MdExplorer.Services.IProjectMetadataService>()
+                        .GetAgentCity(projectPath)?.UseAgentWorktrees;
+                    if (legacy != null)
+                    {
+                        try { pref.Set(projectPath, legacy); raw = legacy; }
+                        catch (Exception ex) { _logger.LogWarning(ex, "[Worktree] import dal .development.yml fallito"); }
+                    }
+                }
+
+                return Ok(new
+                {
+                    enabled = raw ?? pref.DefaultFor(projectPath),
+                    isExplicit = raw != null,
+                    defaultValue = pref.DefaultFor(projectPath),
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetAgentWorktreesSetting] fallito");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        public IActionResult SetAgentWorktreesSetting([FromBody] SetAgentWorktreesRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath))
+                return BadRequest(new { error = "projectPath è obbligatorio" });
+
+            try
+            {
+                HttpContext.RequestServices
+                    .GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>()
+                    .Set(request.ProjectPath, request.Enabled);
+                return Ok(new { enabled = request.Enabled });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return UnprocessableEntity(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SetAgentWorktreesSetting] fallito");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary><c>Enabled</c> nullable: null = torna al default del progetto.</summary>
+        public class SetAgentWorktreesRequest
+        {
+            public string ProjectPath { get; set; }
+            public bool? Enabled { get; set; }
+        }
+
         public IActionResult GetExcludeSubmodulesSetting([FromQuery] string projectPath)
         {
             try

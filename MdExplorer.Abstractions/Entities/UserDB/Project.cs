@@ -22,6 +22,14 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual bool ExcludeSubmodulesFromGitStatus { get; set; } = true;
 
         /// <summary>
+        /// Isolamento worktree per-agente su QUESTA macchina. <c>null</c> = non deciso → default
+        /// (acceso se il progetto è git con remoto <c>origin</c>). Vive qui e non nel
+        /// <c>.development.yml</c> perché costa spazio disco locale: è una scelta della macchina,
+        /// non una regola del repo.
+        /// </summary>
+        public virtual bool? UseAgentWorktrees { get; set; }
+
+        /// <summary>
         /// When ON, a SEPARATE background index (side-car FTS + TextFile table) is
         /// built and maintained for non-markdown text files. Completely additive:
         /// the markdown world (MarkdownFile / MdEngineFts) is never touched.

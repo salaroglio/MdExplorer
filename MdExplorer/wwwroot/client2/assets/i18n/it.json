@@ -379,7 +379,7 @@
     "RELAY_KEY_FROM_GLOBAL": "Nessuna chiave per questo progetto: si sta usando quella globale dell'applicazione.",
     "RELAY_KEY_MISSING": "Nessuna chiave configurata: la federazione di questo progetto resta dormiente.",
     "AGENT_WORKTREES": "Isolamento: ogni agente lavora in una copia separata",
-    "AGENT_WORKTREES_DESC": "L'agente non scrive nella tua working copy: lavora in un worktree git suo, su un branch dedicato creato fresco da origin. Il suo lavoro ti arriva come branch pubblicato. Costa spazio disco (qualche centinaio di MB per agente).",
+    "AGENT_WORKTREES_DESC": "L'agente non scrive nella tua working copy: lavora in un worktree git suo, su un branch dedicato creato fresco da origin. Il suo lavoro ti arriva come branch pubblicato. Vale SOLO SU QUESTA MACCHINA (costa spazio disco: qualche centinaio di MB per agente) e non viene imposta ai colleghi via git.",
     "AGENT_AUTOMERGE": "Fondi da solo i deliverable di documentazione",
     "AGENT_AUTOMERGE_DESC": "Quando un agente conclude un lavoro che tocca solo documentazione, il suo branch viene fuso nel ramo principale senza chiedertelo. Il merge del CODICE resta sempre tuo.",
     "AGENT_AUTOMERGE_WARN": "Attenzione: con questa opzione il ramo principale può cambiare senza il tuo intervento. Il codice no, la documentazione sì.",

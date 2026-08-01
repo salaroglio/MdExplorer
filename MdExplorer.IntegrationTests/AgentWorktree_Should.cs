@@ -79,12 +79,14 @@ namespace MdExplorer.IntegrationTests
                 .SetAgentCity(path, new AgentCityConfig
                 {
                     Enabled = true,
-                    UseAgentWorktrees = true,
                     // Auto-merge spento ESPLICITAMENTE: qui si verifica l'isolamento, non la
                     // fusione. Col default acceso la fusione avviene a fine run nel worktree in
                     // detached HEAD, e il branch d'attività non sarebbe più osservabile qui.
                     AutoMergeAgentDeliverables = false,
                 });
+            // L'isolamento e' una preferenza di MACCHINA (UserDB), non del repo.
+            ctx.Factory.Services.GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>()
+                .Set(path, true);
 
             // Il fake agente scrive uno scratch nel SUO cwd: deve finire nel worktree, non nel progetto.
             ctx.Runner.Behavior = (req, _) =>
@@ -128,7 +130,9 @@ namespace MdExplorer.IntegrationTests
             // origin è acceso, quindi qui si verifica il comportamento con il flag a false —
             // non più "cosa fa se non lo tocchi".
             ctx.Factory.Services.GetRequiredService<IProjectMetadataService>()
-                .SetAgentCity(path, new AgentCityConfig { Enabled = true, UseAgentWorktrees = false });
+                .SetAgentCity(path, new AgentCityConfig { Enabled = true });
+            ctx.Factory.Services.GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>()
+                .Set(path, false);
             ctx.Runner.Behavior = (_, __) => Task.FromResult("ok");
 
             var rpc = await GatewayRpc.SendMessage(ctx.Client, key, "worker", "fai qualcosa");

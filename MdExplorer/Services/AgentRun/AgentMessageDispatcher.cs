@@ -60,6 +60,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly MdExplorer.Services.AgentMemory.IAgentMemoryService _memory;
         private readonly MdExplorer.Services.AgentMemory.IFusekiConnectionResolver _fusekiResolver;
         private readonly IAgentWorktreeManager _worktree;
+        private readonly IAgentWorktreePreference _worktreePref;
         private readonly ISubmoduleGateService _submoduleGate;
         private readonly IDeliverableMergeGate _mergeGate;
         private readonly MdExplorer.Services.IProjectMetadataService _projectMetadata;
@@ -86,6 +87,7 @@ namespace MdExplorer.Services.AgentRun
             MdExplorer.Services.AgentMemory.IAgentMemoryService memory,
             MdExplorer.Services.AgentMemory.IFusekiConnectionResolver fusekiResolver,
             IAgentWorktreeManager worktree,
+            IAgentWorktreePreference worktreePref,
             ISubmoduleGateService submoduleGate,
             IDeliverableMergeGate mergeGate,
             MdExplorer.Services.IProjectMetadataService projectMetadata,
@@ -103,6 +105,7 @@ namespace MdExplorer.Services.AgentRun
             _memory = memory;
             _fusekiResolver = fusekiResolver;
             _worktree = worktree;
+            _worktreePref = worktreePref;
             _submoduleGate = submoduleGate;
             _mergeGate = mergeGate;
             _projectMetadata = projectMetadata;
@@ -619,8 +622,9 @@ namespace MdExplorer.Services.AgentRun
         {
             try
             {
-                var city = _projectMetadata.GetAgentCity(projectPath);
-                return city?.UseAgentWorktrees == true;
+                // Preferenza di MACCHINA (UserDB), non del repo: il worktree costa disco
+                // locale, quindi non si eredita dal .development.yml del team.
+                return _worktreePref.IsEnabled(projectPath);
             }
             catch (Exception ex)
             {

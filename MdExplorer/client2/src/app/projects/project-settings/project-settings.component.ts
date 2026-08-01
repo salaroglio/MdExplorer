@@ -484,13 +484,34 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.agentCityEnabled = !!res?.enabled;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
-        this.agentUseWorktrees = !!res?.useAgentWorktrees;
         this.agentAutoMergeDeliverables = !!res?.autoMergeAgentDeliverables;
         this.projectIsGit = !!(res as any)?.isGitRepository;
       },
       error: (err) => console.error('Error loading Agent City settings:', err)
     });
     this.loadRelaySettings();
+    this.loadAgentWorktrees();
+  }
+
+  /** Preferenza locale di isolamento: UserDB, non .development.yml. */
+  loadAgentWorktrees(): void {
+    if (!this.projectPath) return;
+    this.projectSettingsService.getAgentWorktreesSetting(this.projectPath).subscribe({
+      next: (res) => { this.agentUseWorktrees = !!res?.enabled; },
+      error: (err) => console.error('Error loading agent worktrees setting:', err)
+    });
+  }
+
+  onAgentWorktreesChange(): void {
+    this.saving = true;
+    this.projectSettingsService.setAgentWorktreesSetting(this.agentUseWorktrees, this.projectPath).subscribe({
+      next: () => { this.saving = false; },
+      error: (err) => {
+        console.error('Error saving agent worktrees setting:', err);
+        this.saving = false;
+        this.loadAgentWorktrees();   // riallinea allo stato persistito
+      }
+    });
   }
 
   loadRelaySettings(): void {
@@ -581,16 +602,15 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.projectSettingsService.setAgentCity(this.projectPath, {
       enabled: this.agentCityEnabled,
       ownershipDoc: this.agentCityOwnershipDoc?.trim() || undefined,
-      // Inviati sempre espliciti: il server preserva i valori solo quando il campo è assente,
-      // quindi mandarli evita ambiguità fra "non deciso" e "spento apposta".
-      useAgentWorktrees: this.agentUseWorktrees,
+      // Inviato sempre esplicito: il server preserva i valori solo quando il campo è assente,
+      // quindi mandarlo evita ambiguità fra "non deciso" e "spento apposta". Il worktree NON
+      // passa di qui: è una preferenza di macchina, ha il suo endpoint.
       autoMergeAgentDeliverables: this.agentAutoMergeDeliverables,
     }).subscribe({
       next: (res) => {
         this.saving = false;
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
-        this.agentUseWorktrees = !!res?.useAgentWorktrees;
         this.agentAutoMergeDeliverables = !!res?.autoMergeAgentDeliverables;
       },
       error: (err) => {

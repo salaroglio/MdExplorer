@@ -5860,6 +5860,23 @@ class ProjectSettingsService {
       projectPath
     });
   }
+  /**
+   * Isolamento worktree: preferenza di QUESTA macchina (UserDB), non del repo — costa spazio
+   * disco locale, quindi non si impone al team via git come le altre opzioni della città.
+   */
+  getAgentWorktreesSetting(projectPath) {
+    return this.http.get('../api/ProjectSettings/GetAgentWorktreesSetting', {
+      params: {
+        projectPath
+      }
+    });
+  }
+  setAgentWorktreesSetting(enabled, projectPath) {
+    return this.http.post('../api/ProjectSettings/SetAgentWorktreesSetting', {
+      enabled,
+      projectPath
+    });
+  }
   getExcludeSubmodulesSetting(projectPath) {
     const url = '../api/ProjectSettings/GetExcludeSubmodulesSetting';
     return this.http.get(url, {

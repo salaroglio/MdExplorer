@@ -153,7 +153,8 @@ namespace MdExplorer.IntegrationTests
             var path = SetupGitProject(ctx, "hd-transport");
             // Ownership: WSAA-TOT → marco@acme.it/javadev.
             ctx.Factory.Services.GetRequiredService<IProjectMetadataService>()
-                .SetAgentCity(path, new AgentCityConfig { Enabled = true, OwnershipDoc = "ownership.md", UseAgentWorktrees = true });
+                .SetAgentCity(path, new AgentCityConfig { Enabled = true, OwnershipDoc = "ownership.md" });
+            ctx.Factory.Services.GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>().Set(path, true);
             File.WriteAllText(Path.Combine(path, "ownership.md"), @"---
 mde_type: ownership
 ---

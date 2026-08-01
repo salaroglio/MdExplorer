@@ -3920,7 +3920,7 @@ function ProjectSettingsComponent_div_64_Template(rf, ctx) {
     })("change", function ProjectSettingsComponent_div_64_Template_mat_checkbox_change_1_listener() {
       _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r73);
       const ctx_r74 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r74.onAgentCityChange());
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r74.onAgentWorktreesChange());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](2, "span", 10);
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](3);
@@ -6497,13 +6497,36 @@ class ProjectSettingsComponent {
         this.agentCityEnabled = !!res?.enabled;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
-        this.agentUseWorktrees = !!res?.useAgentWorktrees;
         this.agentAutoMergeDeliverables = !!res?.autoMergeAgentDeliverables;
         this.projectIsGit = !!res?.isGitRepository;
       },
       error: err => console.error('Error loading Agent City settings:', err)
     });
     this.loadRelaySettings();
+    this.loadAgentWorktrees();
+  }
+  /** Preferenza locale di isolamento: UserDB, non .development.yml. */
+  loadAgentWorktrees() {
+    if (!this.projectPath) return;
+    this.projectSettingsService.getAgentWorktreesSetting(this.projectPath).subscribe({
+      next: res => {
+        this.agentUseWorktrees = !!res?.enabled;
+      },
+      error: err => console.error('Error loading agent worktrees setting:', err)
+    });
+  }
+  onAgentWorktreesChange() {
+    this.saving = true;
+    this.projectSettingsService.setAgentWorktreesSetting(this.agentUseWorktrees, this.projectPath).subscribe({
+      next: () => {
+        this.saving = false;
+      },
+      error: err => {
+        console.error('Error saving agent worktrees setting:', err);
+        this.saving = false;
+        this.loadAgentWorktrees(); // riallinea allo stato persistito
+      }
+    });
   }
   loadRelaySettings() {
     if (!this.projectPath) return;
@@ -6589,16 +6612,15 @@ class ProjectSettingsComponent {
     this.projectSettingsService.setAgentCity(this.projectPath, {
       enabled: this.agentCityEnabled,
       ownershipDoc: this.agentCityOwnershipDoc?.trim() || undefined,
-      // Inviati sempre espliciti: il server preserva i valori solo quando il campo è assente,
-      // quindi mandarli evita ambiguità fra "non deciso" e "spento apposta".
-      useAgentWorktrees: this.agentUseWorktrees,
+      // Inviato sempre esplicito: il server preserva i valori solo quando il campo è assente,
+      // quindi mandarlo evita ambiguità fra "non deciso" e "spento apposta". Il worktree NON
+      // passa di qui: è una preferenza di macchina, ha il suo endpoint.
       autoMergeAgentDeliverables: this.agentAutoMergeDeliverables
     }).subscribe({
       next: res => {
         this.saving = false;
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
-        this.agentUseWorktrees = !!res?.useAgentWorktrees;
         this.agentAutoMergeDeliverables = !!res?.autoMergeAgentDeliverables;
       },
       error: err => {

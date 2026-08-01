@@ -120,6 +120,8 @@ namespace MdExplorer
             // Isolamento d'esecuzione per-agente (Fase 7c): worktree git persistente per agente,
             // opt-in via agentCity.useAgentWorktrees. Il reaper pota i worktree orfani.
             services.AddSingleton<Services.AgentRun.IAgentWorktreeManager, Services.AgentRun.AgentWorktreeManager>();
+            // Isolamento worktree: scelta della MACCHINA (UserDB), non della squadra (git).
+            services.AddSingleton<Services.AgentRun.IAgentWorktreePreference, Services.AgentRun.AgentWorktreePreference>();
             services.AddHostedService<Services.AgentRun.AgentWorktreeReaper>();
             // Gate del push umano per il codice (Fase 7e): un agente tocca il submodule → awareness
             // + dispatch differito finché l'umano non committa (release token = sha del submodule).

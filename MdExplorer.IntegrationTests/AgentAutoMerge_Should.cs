@@ -112,7 +112,8 @@ namespace MdExplorer.IntegrationTests
             ctx.IndexAgentFiles(path);
             ctx.Trust(path, "worker");
             ctx.Factory.Services.GetRequiredService<IProjectMetadataService>()
-                .SetAgentCity(path, new AgentCityConfig { Enabled = true, UseAgentWorktrees = true, AutoMergeAgentDeliverables = true });
+                .SetAgentCity(path, new AgentCityConfig { Enabled = true, AutoMergeAgentDeliverables = true });
+            ctx.Factory.Services.GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>().Set(path, true);
 
             // Il fake agente scrive un deliverable nel suo worktree.
             ctx.Runner.Behavior = (req, _) =>

@@ -86,6 +86,18 @@ export class ProjectSettingsService {
     return this.http.post<any>(url, { enabled, projectPath });
   }
 
+  /**
+   * Isolamento worktree: preferenza di QUESTA macchina (UserDB), non del repo — costa spazio
+   * disco locale, quindi non si impone al team via git come le altre opzioni della città.
+   */
+  getAgentWorktreesSetting(projectPath: string): Observable<{enabled: boolean; isExplicit: boolean; defaultValue: boolean}> {
+    return this.http.get<any>('../api/ProjectSettings/GetAgentWorktreesSetting', { params: { projectPath } });
+  }
+
+  setAgentWorktreesSetting(enabled: boolean | null, projectPath: string): Observable<any> {
+    return this.http.post<any>('../api/ProjectSettings/SetAgentWorktreesSetting', { enabled, projectPath });
+  }
+
   getExcludeSubmodulesSetting(projectPath: string): Observable<{enabled: boolean}> {
     const url = '../api/ProjectSettings/GetExcludeSubmodulesSetting';
     return this.http.get<{enabled: boolean}>(url, { params: { projectPath } });

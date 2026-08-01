@@ -43,6 +43,7 @@ namespace MdExplorer.Controllers.A2A
         private readonly IFederationSender _federationSender;
         private readonly IUserSettingsDB _session;
         private readonly MdExplorer.Services.AgentRun.IAgentWorktreeManager _worktree;
+        private readonly MdExplorer.Services.AgentRun.IAgentWorktreePreference _worktreePref;
         private readonly MdExplorer.Services.AgentRun.ISubmoduleGateService _submoduleGate;
         private readonly IProjectMetadataService _projectMetadata;
         private readonly MdExplorer.Services.Federation.IEffectiveOwnerIdentity _effectiveIdentity;
@@ -57,6 +58,7 @@ namespace MdExplorer.Controllers.A2A
             IFederationSender federationSender,
             IUserSettingsDB session,
             MdExplorer.Services.AgentRun.IAgentWorktreeManager worktree,
+            MdExplorer.Services.AgentRun.IAgentWorktreePreference worktreePref,
             MdExplorer.Services.AgentRun.ISubmoduleGateService submoduleGate,
             IProjectMetadataService projectMetadata,
             MdExplorer.Services.Federation.IEffectiveOwnerIdentity effectiveIdentity,
@@ -71,6 +73,7 @@ namespace MdExplorer.Controllers.A2A
             _federationSender = federationSender;
             _session = session;
             _worktree = worktree;
+            _worktreePref = worktreePref;
             _submoduleGate = submoduleGate;
             _projectMetadata = projectMetadata;
             _effectiveIdentity = effectiveIdentity;
@@ -80,7 +83,8 @@ namespace MdExplorer.Controllers.A2A
         /// <summary>Worktree per-agente attivo per il progetto? (opt-in <c>agentCity.useAgentWorktrees</c>, Fase 7c).</summary>
         private bool UseWorktree(string projectPath)
         {
-            try { var c = _projectMetadata.GetAgentCity(projectPath); return c?.UseAgentWorktrees == true; }
+            // Preferenza di MACCHINA (UserDB): vedi AgentWorktreePreference.
+            try { return _worktreePref.IsEnabled(projectPath); }
             catch { return false; }
         }
 

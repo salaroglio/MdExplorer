@@ -24,6 +24,7 @@ namespace MDExplorer.DataAccess.Mapping
             Map(_ => _.UseCopilotCliAsDefault).Not.Nullable().Default("1");
             Map(_ => _.ExecutionTrusted).Not.Nullable().Default("0");
             Map(_ => _.ExcludeSubmodulesFromGitStatus).Not.Nullable().Default("1");
+            Map(_ => _.UseAgentWorktrees).Nullable();
             Map(_ => _.IndexAllTextFiles).Not.Nullable().Default("0");
             Map(_ => _.TextFileExtensions).Length(int.MaxValue).Nullable();
             HasMany(x => x.Bookmarks).LazyLoad().Cascade.SaveUpdate();

@@ -105,9 +105,10 @@ namespace MdExplorer.IntegrationTests
                 .SetAgentCity(path, new AgentCityConfig
                 {
                     Enabled = true,
-                    UseAgentWorktrees = true,
                     AutoMergeAgentDeliverables = true,
                 });
+            ctx.Factory.Services.GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>()
+                .Set(path, true);
 
             // L'agente scrive davvero qualcosa nel worktree, poi il turno si esaurisce: il
             // lavoro è a metà, e proprio per questo NON va pubblicato.
