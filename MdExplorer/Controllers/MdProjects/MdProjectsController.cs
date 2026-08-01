@@ -215,7 +215,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 return BadRequest(new { message = "path is required" });
 
             var cfg = _projectMetadataService.GetAgentCity(path);
-            return Ok(ToAgentCityDto(cfg));
+            return Ok(ToAgentCityDto(cfg, path));
         }
 
         /// <summary>Attiva/disattiva la città e imposta il doc di ownership (§12.4).</summary>
@@ -229,13 +229,22 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
             try
             {
+                // I flag opt-in (worktree, auto-merge) sono booleani: non possono distinguere
+                // "non inviato" da "false". La UI oggi manda solo enabled+ownershipDoc, quindi
+                // senza questa preservazione il primo salvataggio dalle impostazioni li
+                // SPEGNEREBBE in silenzio — stessa forma del difetto gia' chiuso su RelayUrl e
+                // RoomSecret. Nullable nel DTO: null = lascia com'e'.
+                var current = _projectMetadataService.GetAgentCity(path);
+
                 var saved = _projectMetadataService.SetAgentCity(path, new AgentCityConfig
                 {
                     Enabled = request.Enabled,
                     OwnershipDoc = request.OwnershipDoc,
                     RelayUrl = request.RelayUrl,
+                    UseAgentWorktrees = request.UseAgentWorktrees ?? current?.UseAgentWorktrees ?? false,
+                    AutoMergeAgentDeliverables = request.AutoMergeAgentDeliverables ?? current?.AutoMergeAgentDeliverables ?? false,
                 });
-                return Ok(ToAgentCityDto(saved));
+                return Ok(ToAgentCityDto(saved, path));
             }
             catch (Exception ex)
             {
@@ -245,12 +254,19 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
         }
 
-        private static object ToAgentCityDto(AgentCityConfig cfg) => new
+        private static object ToAgentCityDto(AgentCityConfig cfg, string projectPath) => new
         {
             enabled = cfg?.Enabled ?? false,
             ownershipDoc = cfg?.OwnershipDoc,
             relayUrl = cfg?.RelayUrl,
             hasRoomSecret = !string.IsNullOrWhiteSpace(cfg?.RoomSecret),
+            useAgentWorktrees = cfg?.UseAgentWorktrees ?? false,
+            autoMergeAgentDeliverables = cfg?.AutoMergeAgentDeliverables ?? false,
+            // Senza git non esistono né worktree né merge: la UI disabilita le due opzioni
+            // invece di lasciarle spuntabili e poi inerti.
+            isGitRepository = !string.IsNullOrWhiteSpace(projectPath)
+                              && (Directory.Exists(Path.Combine(projectPath, ".git"))
+                                  || System.IO.File.Exists(Path.Combine(projectPath, ".git"))),
         };
 
         /// <summary>
@@ -264,6 +280,12 @@ namespace MdExplorer.Service.Controllers.MdProjects
             public bool Enabled { get; set; }
             public string? OwnershipDoc { get; set; }
             public string? RelayUrl { get; set; }
+
+            /// <summary>Opt-in isolamento worktree (Fase 7c). <c>null</c> = non toccare.</summary>
+            public bool? UseAgentWorktrees { get; set; }
+
+            /// <summary>Opt-in auto-merge dei deliverable-doc (Fase 7g). <c>null</c> = non toccare.</summary>
+            public bool? AutoMergeAgentDeliverables { get; set; }
         }
 
         /// <summary>

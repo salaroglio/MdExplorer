@@ -101,7 +101,13 @@ namespace MdExplorer.Service.Models
         /// <b>Opt-in, default false</b>: assente/false → comportamento storico (cwd = progetto).
         /// Richiede che il progetto sia un repo git con remote <c>origin</c>.
         /// </summary>
-        public bool UseAgentWorktrees { get; set; }
+        /// <summary>
+        /// <c>null</c> = <b>non deciso</b>: si applica il default, che è <c>true</c> quando il
+        /// progetto è un repo git (l'isolamento serve, e può funzionare) e <c>false</c> quando
+        /// non lo è (senza git non esistono worktree). Distinguere "assente" da "false" è ciò
+        /// che permette di avere un default sensato senza impedire di spegnerlo a mano.
+        /// </summary>
+        public bool? UseAgentWorktrees { get; set; }
 
         /// <summary>
         /// Auto-merge dei deliverable-doc degli agenti (Fase 7g): quando <c>true</c>, a un deliverable
@@ -110,7 +116,11 @@ namespace MdExplorer.Service.Models
         /// il merge in main resta manuale. Richiede <see cref="UseAgentWorktrees"/>. Il merge del
         /// CODICE resta umano (§7e). Conflitto → not-ready (l'agente rilavora).
         /// </summary>
-        public bool AutoMergeAgentDeliverables { get; set; }
+        /// <summary>
+        /// <c>null</c> = non deciso → default come sopra (git presente ⇒ acceso). Il merge del
+        /// CODICE resta umano in ogni caso (§7e): questo riguarda solo i deliverable-doc.
+        /// </summary>
+        public bool? AutoMergeAgentDeliverables { get; set; }
     }
 
     /// <summary>

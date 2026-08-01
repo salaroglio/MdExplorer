@@ -377,7 +377,13 @@
     "RELAY_TEST": "Test connection",
     "RELAY_TESTING": "Knocking on the relay…",
     "RELAY_KEY_FROM_GLOBAL": "No key for this project: the application-wide key is being used.",
-    "RELAY_KEY_MISSING": "No key configured: federation for this project stays dormant."
+    "RELAY_KEY_MISSING": "No key configured: federation for this project stays dormant.",
+    "AGENT_WORKTREES": "Isolation: each agent works in its own copy",
+    "AGENT_WORKTREES_DESC": "The agent does not write into your working copy: it works in its own git worktree, on a dedicated branch freshly created from origin. Its work reaches you as a published branch. Costs disk space (a few hundred MB per agent).",
+    "AGENT_AUTOMERGE": "Merge documentation deliverables automatically",
+    "AGENT_AUTOMERGE_DESC": "When an agent finishes work that touches documentation only, its branch is merged into the main branch without asking you. Merging CODE always stays yours.",
+    "AGENT_AUTOMERGE_WARN": "Careful: with this option the main branch can change without your intervention. Not the code — the documentation.",
+    "AGENT_NEEDS_GIT": "This project is not a git repository: without git there are no worktrees and no merges, so both options stay off."
   },
   "GIT_COMMIT": {
     "TITLE": "Commit Message",

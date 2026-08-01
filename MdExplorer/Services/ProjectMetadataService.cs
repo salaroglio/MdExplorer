@@ -241,12 +241,73 @@ namespace MdExplorer.Services
                     .Build();
 
                 var config = deserializer.Deserialize<DevelopmentConfig>(yaml);
-                return config?.AgentCity;
+                return ApplyRuntimeDefaults(config?.AgentCity, projectPath);
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Failed to read agentCity config from {FilePath}", filePath);
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Risolve i flag <b>non decisi</b> (null nel yml) con un default che dipende dal
+        /// progetto: se è un repo git, isolamento worktree e auto-merge dei deliverable-doc
+        /// sono accesi; se git non c'è, spenti — senza git non esistono né worktree né merge.
+        /// <para>
+        /// Il default si applica <b>qui</b>, nel punto unico da cui tutti leggono (dispatcher,
+        /// controller, UI): applicarlo altrove significherebbe averne due copie che prima o poi
+        /// divergono. Un valore scritto esplicitamente nel yml vince sempre sul default.
+        /// </para>
+        /// </summary>
+        private static AgentCityConfig ApplyRuntimeDefaults(AgentCityConfig cfg, string projectPath)
+        {
+            if (cfg == null) return null;
+
+            cfg.UseAgentWorktrees ??= IsGitWithOrigin(projectPath);
+            cfg.AutoMergeAgentDeliverables ??= IsGitWithOrigin(projectPath);
+            return cfg;
+        }
+
+        /// <summary>
+        /// Git <b>con un remoto <c>origin</c></b>. Non basta la presenza di <c>.git</c>: il
+        /// worktree di un agente si prepara con un <c>fetch</c> e prende il branch base da
+        /// <c>origin/HEAD</c>, e l'auto-merge <b>pusha</b>. Su un repo solo locale il default
+        /// acceso farebbe fallire ogni run al prepare — un default che rompe non è un default.
+        /// <para>Lettura testuale di <c>.git/config</c>: questo metodo sta su un percorso caldo
+        /// (il dispatcher lo interroga per ogni messaggio), aprire il repo sarebbe sproporzionato.</para>
+        /// </summary>
+        private static bool IsGitWithOrigin(string projectPath)
+        {
+            try
+            {
+                var gitPath = Path.Combine(projectPath, ".git");
+                string configPath;
+
+                if (Directory.Exists(gitPath))
+                {
+                    configPath = Path.Combine(gitPath, "config");
+                }
+                else if (File.Exists(gitPath))
+                {
+                    // worktree/submodule: '.git' è un file con "gitdir: <percorso>"
+                    var line = File.ReadAllText(gitPath).Trim();
+                    const string prefix = "gitdir:";
+                    if (!line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return false;
+                    var dir = line.Substring(prefix.Length).Trim();
+                    if (!Path.IsPathRooted(dir)) dir = Path.GetFullPath(Path.Combine(projectPath, dir));
+                    configPath = Path.Combine(dir, "config");
+                }
+                else return false;
+
+                return File.Exists(configPath)
+                       && File.ReadAllText(configPath).Contains("[remote \"origin\"]", StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                // In dubbio, spento: un default che accende cose senza esserne certo è peggio
+                // di un default che chiede all'utente di spuntare una casella.
+                return false;
             }
         }
 

@@ -29,6 +29,10 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   agentCityEnabled: boolean = false;
   agentCityOwnershipDoc: string = '';
   agentCityHasRoomSecret: boolean = false;
+  agentUseWorktrees: boolean = false;
+  agentAutoMergeDeliverables: boolean = false;
+  /** Senza git non esistono worktree né merge: le due opzioni restano spente e non toccabili. */
+  projectIsGit: boolean = false;
 
   // Relay della federazione (per progetto). La chiave non arriva mai dal server:
   // relayApiKey è solo il campo di INSERIMENTO, vuoto se non si sta cambiando nulla.
@@ -480,6 +484,9 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.agentCityEnabled = !!res?.enabled;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
+        this.agentUseWorktrees = !!res?.useAgentWorktrees;
+        this.agentAutoMergeDeliverables = !!res?.autoMergeAgentDeliverables;
+        this.projectIsGit = !!(res as any)?.isGitRepository;
       },
       error: (err) => console.error('Error loading Agent City settings:', err)
     });
@@ -574,11 +581,17 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.projectSettingsService.setAgentCity(this.projectPath, {
       enabled: this.agentCityEnabled,
       ownershipDoc: this.agentCityOwnershipDoc?.trim() || undefined,
+      // Inviati sempre espliciti: il server preserva i valori solo quando il campo è assente,
+      // quindi mandarli evita ambiguità fra "non deciso" e "spento apposta".
+      useAgentWorktrees: this.agentUseWorktrees,
+      autoMergeAgentDeliverables: this.agentAutoMergeDeliverables,
     }).subscribe({
       next: (res) => {
         this.saving = false;
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
+        this.agentUseWorktrees = !!res?.useAgentWorktrees;
+        this.agentAutoMergeDeliverables = !!res?.autoMergeAgentDeliverables;
       },
       error: (err) => {
         console.error('Error saving Agent City settings:', err);

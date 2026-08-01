@@ -377,7 +377,13 @@
     "RELAY_TEST": "Verifica connessione",
     "RELAY_TESTING": "Sto bussando al relay…",
     "RELAY_KEY_FROM_GLOBAL": "Nessuna chiave per questo progetto: si sta usando quella globale dell'applicazione.",
-    "RELAY_KEY_MISSING": "Nessuna chiave configurata: la federazione di questo progetto resta dormiente."
+    "RELAY_KEY_MISSING": "Nessuna chiave configurata: la federazione di questo progetto resta dormiente.",
+    "AGENT_WORKTREES": "Isolamento: ogni agente lavora in una copia separata",
+    "AGENT_WORKTREES_DESC": "L'agente non scrive nella tua working copy: lavora in un worktree git suo, su un branch dedicato creato fresco da origin. Il suo lavoro ti arriva come branch pubblicato. Costa spazio disco (qualche centinaio di MB per agente).",
+    "AGENT_AUTOMERGE": "Fondi da solo i deliverable di documentazione",
+    "AGENT_AUTOMERGE_DESC": "Quando un agente conclude un lavoro che tocca solo documentazione, il suo branch viene fuso nel ramo principale senza chiedertelo. Il merge del CODICE resta sempre tuo.",
+    "AGENT_AUTOMERGE_WARN": "Attenzione: con questa opzione il ramo principale può cambiare senza il tuo intervento. Il codice no, la documentazione sì.",
+    "AGENT_NEEDS_GIT": "Questo progetto non è un repository git: senza git non esistono né worktree né merge, quindi le due opzioni restano spente."
   },
   "GIT_COMMIT": {
     "TITLE": "Messaggio di Commit",

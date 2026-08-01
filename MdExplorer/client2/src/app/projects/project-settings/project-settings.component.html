@@ -206,6 +206,37 @@
               </p>
             </div>
 
+            <!-- Isolamento e auto-merge: hanno senso solo su un repo git, quindi senza git
+                 restano spenti e non toccabili invece di essere spuntabili e poi inerti. -->
+            <div class="setting-item" *ngIf="agentCityEnabled">
+              <mat-checkbox
+                [(ngModel)]="agentUseWorktrees"
+                (change)="onAgentCityChange()"
+                [disabled]="saving || !projectIsGit">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.AGENT_WORKTREES' | translate }}</span>
+              </mat-checkbox>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.AGENT_WORKTREES_DESC' | translate }}
+              </p>
+
+              <mat-checkbox
+                [(ngModel)]="agentAutoMergeDeliverables"
+                (change)="onAgentCityChange()"
+                [disabled]="saving || !projectIsGit">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.AGENT_AUTOMERGE' | translate }}</span>
+              </mat-checkbox>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.AGENT_AUTOMERGE_DESC' | translate }}
+              </p>
+              <p class="setting-description" *ngIf="agentAutoMergeDeliverables && projectIsGit">
+                ⚠️ {{ 'PROJECT_SETTINGS.AGENT_AUTOMERGE_WARN' | translate }}
+              </p>
+
+              <p class="setting-description" *ngIf="!projectIsGit">
+                ℹ️ {{ 'PROJECT_SETTINGS.AGENT_NEEDS_GIT' | translate }}
+              </p>
+            </div>
+
             <!-- Relay: indirizzo e chiave d'ingresso. Il room secret sopra viaggia col repo
                  (apre UNA stanza); questa chiave apre il relay intero, quindi resta locale. -->
             <div class="setting-item" *ngIf="agentCityEnabled">

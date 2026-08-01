@@ -620,7 +620,7 @@ namespace MdExplorer.Services.AgentRun
             try
             {
                 var city = _projectMetadata.GetAgentCity(projectPath);
-                return city != null && city.UseAgentWorktrees;
+                return city?.UseAgentWorktrees == true;
             }
             catch (Exception ex)
             {

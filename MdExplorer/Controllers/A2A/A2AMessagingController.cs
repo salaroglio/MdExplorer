@@ -80,7 +80,7 @@ namespace MdExplorer.Controllers.A2A
         /// <summary>Worktree per-agente attivo per il progetto? (opt-in <c>agentCity.useAgentWorktrees</c>, Fase 7c).</summary>
         private bool UseWorktree(string projectPath)
         {
-            try { var c = _projectMetadata.GetAgentCity(projectPath); return c != null && c.UseAgentWorktrees; }
+            try { var c = _projectMetadata.GetAgentCity(projectPath); return c?.UseAgentWorktrees == true; }
             catch { return false; }
         }
 
