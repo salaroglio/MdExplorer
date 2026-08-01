@@ -77,10 +77,10 @@ namespace MdExplorer.Features.Yaml
                     : NotACitizen();
             }
 
-            return Validate(wrapper.A2a, wrapper.Tools);
+            return Validate(wrapper.A2a, wrapper.Tools, wrapper.Runtime);
         }
 
-        private static AgentCardParseResult Validate(AgentCardDescriptor card, List<string> tools)
+        private static AgentCardParseResult Validate(AgentCardDescriptor card, List<string> tools, AgentRuntimeDescriptor runtime)
         {
             var error = ValidateAgentName(card.Name);
             if (error != null)
@@ -93,6 +93,7 @@ namespace MdExplorer.Features.Yaml
             {
                 Card = card,
                 Tools = tools,
+                Runtime = runtime,
                 HasA2aBlock = true,
                 IsValid = true,
             };
@@ -150,11 +151,12 @@ namespace MdExplorer.Features.Yaml
         private static AgentCardParseResult Invalid(string reason)
             => new AgentCardParseResult { HasA2aBlock = true, IsValid = false, RegistrationError = reason };
 
-        // Wrapper: cattura la sezione a2a: e il campo tools:, il resto è ignorato.
+        // Wrapper: cattura la sezione a2a:, il campo tools: e il blocco runtime:, il resto è ignorato.
         private class A2aFrontmatterWrapper
         {
             public AgentCardDescriptor A2a { get; set; }
             public List<string> Tools { get; set; }
+            public AgentRuntimeDescriptor Runtime { get; set; }
         }
     }
 }

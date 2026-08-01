@@ -438,6 +438,8 @@ namespace MdExplorer.Services.AgentRun
                     // l'umano si fida. Il runner su provider ne deriva i tool da esporre.
                     DeclaredTools = entry.Tools?.ToList(),
                     Trusted = entry.Trusted,
+                    RuntimeProvider = entry.RuntimeProvider,
+                    RuntimeModel = entry.RuntimeModel,
                 }, ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)

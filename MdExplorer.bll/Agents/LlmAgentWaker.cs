@@ -34,6 +34,12 @@ namespace MdExplorer.Features.Agents
 
         /// <summary>Fiducia dell'umano su questo agente. Insieme al manifesto decide i tool esposti.</summary>
         public bool Trusted { get; set; }
+
+        /// <summary>Provider dichiarato nel blocco <c>runtime:</c> della card (vuoto = predefinito).</summary>
+        public string RuntimeProvider { get; set; }
+
+        /// <summary>Modello dichiarato nel blocco <c>runtime:</c> della card (vuoto = predefinito).</summary>
+        public string RuntimeModel { get; set; }
     }
 
     /// <summary>Un fatto recuperato dalla memoria dell'agente, per l'iniezione nel prompt (§11).</summary>
@@ -151,6 +157,8 @@ namespace MdExplorer.Features.Agents
                     // AgentTurnRequest.DeclaredTools).
                     DeclaredTools = request.DeclaredTools,
                     Trusted = request.Trusted,
+                    RequestedProvider = request.RuntimeProvider,
+                    RequestedModel = request.RuntimeModel,
                     // Fase 7c: cwd = worktree se attivo, altrimenti il progetto. Claims ed env
                     // (sopra) restano SEMPRE sul progetto vero — il cwd è disaccoppiato.
                     WorkingDirectory = request.WorkingDirectory ?? request.ProjectPath,

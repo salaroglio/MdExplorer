@@ -14,6 +14,12 @@ namespace MdExplorer.Features.Yaml.Models
         public AgentCardDescriptor Card { get; set; }
 
         /// <summary>
+        /// Blocco <c>runtime:</c> (provider + modello), fuori dall'impronta della fiducia.
+        /// Null = nessuna dichiarazione, si usa il predefinito del progetto.
+        /// </summary>
+        public AgentRuntimeDescriptor Runtime { get; set; }
+
+        /// <summary>
         /// True se il frontmatter dichiara un blocco <c>a2a:</c> (intenzione di
         /// cittadinanza). False = file retrocompatibile, lanciabile/schedulabile
         /// come oggi ma non cittadino.

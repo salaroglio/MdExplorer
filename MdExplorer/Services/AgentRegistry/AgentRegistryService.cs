@@ -261,6 +261,8 @@ namespace MdExplorer.Services.AgentRegistry
                             .Select(s => new AgentRegistrySkill { Id = s.Id, Description = s.Description })
                             .ToList() ?? new List<AgentRegistrySkill>(),
                         Tools = parsed.Tools ?? new List<string>(),
+                        RuntimeProvider = parsed.Runtime?.Provider,
+                        RuntimeModel = parsed.Runtime?.Model,
                         AcceptsMessagesFrom = parsed.Card.AcceptsMessagesFrom ?? new List<string>(),
                         MaxHops = parsed.Card.MaxHops,
                         // R3: impronta del blocco a2a: + tools: per la decadenza del trust.

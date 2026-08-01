@@ -45,6 +45,12 @@ namespace MdExplorer.Features.Agents
 
         /// <summary>Campo <c>tools:</c> dichiarato (per il dialog di trust: cosa CHIEDE l'agente).</summary>
         public IList<string> Tools { get; set; } = new List<string>();
+        /// <summary>Provider richiesto dal blocco <c>runtime:</c> della card (vuoto = predefinito).</summary>
+        public string RuntimeProvider { get; set; }
+
+        /// <summary>Modello richiesto dal blocco <c>runtime:</c> della card (vuoto = predefinito).</summary>
+        public string RuntimeModel { get; set; }
+
 
         /// <summary>Whitelist mittenti (<c>a2a.accepts_messages_from</c>); <c>["*"]</c> = chiunque.</summary>
         public IList<string> AcceptsMessagesFrom { get; set; } = new List<string>();
@@ -82,6 +88,12 @@ namespace MdExplorer.Features.Agents
 
         /// <summary>Tool dichiarati (<c>tools:</c>): il dialog di trust li mostra, evidenziando i pericolosi.</summary>
         public IList<string> Tools { get; set; } = new List<string>();
+        /// <summary>Provider richiesto dal blocco <c>runtime:</c> della card (vuoto = predefinito).</summary>
+        public string RuntimeProvider { get; set; }
+
+        /// <summary>Modello richiesto dal blocco <c>runtime:</c> della card (vuoto = predefinito).</summary>
+        public string RuntimeModel { get; set; }
+
 
         /// <summary>
         /// Whitelist dei mittenti che questo destinatario accetta (<c>accepts_messages_from</c>);

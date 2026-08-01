@@ -34,6 +34,16 @@ namespace MdExplorer.Features.Agents
         public bool Trusted { get; set; }
 
         /// <summary>
+        /// Provider e modello richiesti dal blocco <c>runtime:</c> della card. Vuoti = si usa il
+        /// predefinito. Se valorizzati e il runner non può soddisfarli, il turno deve
+        /// <b>fallire dicendolo</b>: mai ripiegare su un altro modello, perché un agente che
+        /// gira su un motore diverso da quello dichiarato produce un lavoro che nessuno ha
+        /// autorizzato e che sembra riuscito.
+        /// </summary>
+        public string RequestedProvider { get; set; }
+        public string RequestedModel { get; set; }
+
+        /// <summary>
         /// Override d'ambiente per il processo del provider. Il figlio eredita l'ambiente
         /// del Service e vi aggiunge/sovrascrive queste chiavi — è il canale del RunToken.
         /// </summary>
