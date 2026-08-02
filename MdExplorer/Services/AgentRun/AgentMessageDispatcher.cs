@@ -395,9 +395,38 @@ namespace MdExplorer.Services.AgentRun
             if (UseWorktree(snapshot.ProjectPath))
             {
                 var rc = ResolveRunContext(snapshot);
-                // Fase 7d.5 — sync al ref di handoff dell'origine (se presente) come parte del prepare.
-                var prep = await _worktree.PrepareForRunAsync(
-                    snapshot.ProjectPath, entry.Name, rc.ActivityId, handoffRef: rc.HandoffRef, ct: ct);
+
+                // Catena LOCALE: il mittente ha lasciato il suo ramo sulla conversazione, e il
+                // destinatario si siede dove ha lavorato lui — senza fetch, senza reset, senza
+                // clean. Quelle servono a ripulire un posto che arriva da un lavoro ESTRANEO; qui
+                // quello che c'e' sopra e' il motivo per cui questo agente e' stato chiamato, e
+                // ripulirlo cancellerebbe la consegna.
+                WorktreePrepareResult prep;
+                if (!string.IsNullOrWhiteSpace(rc.ChainBranch))
+                {
+                    prep = await _worktree.ContinueChainAsync(snapshot.ProjectPath, rc.ChainBranch, ct);
+                    if (prep.Busy)
+                    {
+                        // Non e' un errore: e' un «non adesso». Aspetta senza consumare tentativi,
+                        // come gia' si aspetta quando i posti sono pieni.
+                        Defer(messageId, AgentMessage.DeferredReasonEnum.ChainBusy);
+                        _logger.LogInformation("[Dispatcher] '{Agent}' aspetta il suo turno nella catena: {Why}.", entry.Name, prep.Error);
+                        return;
+                    }
+                    if (!prep.Success)
+                    {
+                        // La scrivania non c'e' piu': inventarsi un posto pulito sarebbe peggio,
+                        // il destinatario lavorerebbe senza quello che gli e' stato passato.
+                        RetryOrFail(messageId, $"catena non continuabile: {prep.Error}");
+                        return;
+                    }
+                }
+                else
+                {
+                    // Fase 7d.5 — sync al ref di handoff dell'origine (se presente) come parte del prepare.
+                    prep = await _worktree.PrepareForRunAsync(
+                        snapshot.ProjectPath, entry.Name, rc.ActivityId, handoffRef: rc.HandoffRef, ct: ct);
+                }
                 if (!prep.Success)
                 {
                     var reason = prep.MergeConflict ? FederationReason.MergeConflictWithMain
@@ -666,6 +695,8 @@ namespace MdExplorer.Services.AgentRun
             /// <summary>Id d'attività per il branch: RequestId federata (7d) o Id del messaggio (locale).</summary>
             public string ActivityId { get; set; }
             public string HandoffRef { get; set; }
+            /// <summary>Ramo di una catena locale: il destinatario eredita la scrivania del mittente.</summary>
+            public string ChainBranch { get; set; }
             public string BaseCommit { get; set; }
             public string RemoteOwner { get; set; }
             public Guid? RequestId { get; set; }
@@ -691,6 +722,7 @@ namespace MdExplorer.Services.AgentRun
                     {
                         ActivityId = conv.RequestId?.ToString("N") ?? snapshot.Id.ToString("N"),
                         HandoffRef = conv.HandoffRef,
+                        ChainBranch = conv.ChainBranch,
                         BaseCommit = conv.BaseCommit,
                         RemoteOwner = conv.RemoteOwner,
                         RequestId = conv.RequestId,

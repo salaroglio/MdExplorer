@@ -22,12 +22,18 @@ namespace MdExplorer.Services.AgentRun
         public bool MergeConflict { get; private set; }
         /// <summary>La sync al ref/commit di handoff è fallita (ref assente/fetch ko, Fase 7d.5) → not-ready/git-sync-failed.</summary>
         public bool SyncFailed { get; private set; }
+        /// <summary>
+        /// La scrivania della catena è occupata da chi ci sta ancora lavorando. Non è un
+        /// fallimento: è un «non adesso», e il chiamante deve aspettare invece di ritentare.
+        /// </summary>
+        public bool Busy { get; private set; }
         public string Error { get; private set; }
 
         public static WorktreePrepareResult Ok(string path) => new() { Success = true, WorktreePath = path };
         public static WorktreePrepareResult Conflict(string path) => new() { Success = false, MergeConflict = true, WorktreePath = path, Error = "merge-conflict-with-main" };
         public static WorktreePrepareResult SyncFail(string path) => new() { Success = false, SyncFailed = true, WorktreePath = path, Error = "git-sync-failed" };
         public static WorktreePrepareResult Fail(string error) => new() { Success = false, Error = error };
+        public static WorktreePrepareResult BusyDesk(string why) => new() { Success = false, Busy = true, Error = why };
     }
 
     /// <summary>Esito dell'auto-merge di un deliverable nel default (Fase 7g).</summary>
@@ -84,6 +90,23 @@ namespace MdExplorer.Services.AgentRun
         /// se <paramref name="handoffRef"/> è dato (ref COMPLETO) — merge di <c>origin/&lt;handoffRef&gt;</c>.
         /// Conflitto di merge → <see cref="WorktreePrepareResult.MergeConflict"/> (non auto-risolve).
         /// </summary>
+        /// <summary>
+        /// Continua una catena locale: il destinatario eredita la scrivania e il ramo del
+        /// mittente, e li usa <b>com'è</b>.
+        /// <para>
+        /// Qui NON si fa né fetch né <c>reset --hard</c> né <c>clean -fd</c>: quelle servono a
+        /// ripulire un posto che arriva da un lavoro estraneo, mentre qui quello che c'è sopra è
+        /// esattamente il motivo per cui il secondo agente è stato chiamato. Ripulire
+        /// cancellerebbe la consegna.
+        /// </para>
+        /// <para>
+        /// Fallisce — invece di ripiegare su un posto nuovo — se il ramo atteso non è più lì: chi
+        /// continua una catena deve trovare lo stato che gli è stato passato, non un altro.
+        /// </para>
+        /// </summary>
+        Task<WorktreePrepareResult> ContinueChainAsync(
+            string projectPath, string expectedBranch, CancellationToken ct = default);
+
         Task<WorktreePrepareResult> PrepareForRunAsync(
             string projectPath, string agentName, string activityId,
             string baseBranch = null, string handoffRef = null, CancellationToken ct = default);
@@ -149,6 +172,9 @@ namespace MdExplorer.Services.AgentRun
         /// </para>
         /// </summary>
         Task<string> FindAgentWorktreeAsync(string projectPath, string agentName, CancellationToken ct = default);
+
+        /// <summary>Ramo in checkout in un posto di lavoro; <c>null</c> se detached o indeterminato.</summary>
+        Task<string> CurrentBranchAsync(string worktreePath, CancellationToken ct = default);
 
         /// <summary>I posti esistenti e chi li occupa, per la vista di revisione e per il reaper.</summary>
         Task<IReadOnlyList<WorktreeSlot>> ListSlotsAsync(string projectPath, CancellationToken ct = default);
@@ -477,6 +503,14 @@ namespace MdExplorer.Services.AgentRun
             finally { gate.Release(); }
         }
 
+        public async Task<string> CurrentBranchAsync(string worktreePath, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(worktreePath) || !Directory.Exists(worktreePath)) return null;
+            var (_, outp, _) = await GitAsync(worktreePath, new[] { "rev-parse", "--abbrev-ref", "HEAD" }, ct);
+            var branch = (outp ?? string.Empty).Trim();
+            return branch.Length == 0 || branch == "HEAD" ? null : branch;
+        }
+
         public async Task<IReadOnlyList<WorktreeSlot>> ListSlotsAsync(string projectPath, CancellationToken ct = default)
         {
             var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
@@ -555,6 +589,51 @@ namespace MdExplorer.Services.AgentRun
                 if (subProblem != null)
                     throw new InvalidOperationException(subProblem);
                 return path;
+            }
+            finally { gate.Release(); }
+        }
+
+        public async Task<WorktreePrepareResult> ContinueChainAsync(
+            string projectPath, string expectedBranch, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(expectedBranch))
+                return WorktreePrepareResult.Fail("Ramo della catena mancante: non so quale scrivania continuare.");
+
+            var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct);
+            try
+            {
+                var slots = await ReadSlotsUnlockedAsync(projectPath, ct);
+                var desk = slots.FirstOrDefault(x => string.Equals(x.Branch, expectedBranch, StringComparison.Ordinal));
+
+                if (desk == null)
+                {
+                    // Nessuno ha piu' quel ramo in checkout: la scrivania e' stata riciclata da un
+                    // altro agente mentre la catena era in corso. Il lavoro non e' perso (e' un
+                    // ramo), ma questa NON e' piu' una continuazione — dirlo, non fingere.
+                    return WorktreePrepareResult.Fail(
+                        $"La scrivania con il ramo '{expectedBranch}' non c'è più: la catena si è interrotta. " +
+                        "Il lavoro è sul suo ramo e si può riprendere dalla revisione.");
+                }
+
+                if (desk.Held)
+                {
+                    return WorktreePrepareResult.BusyDesk(
+                        $"sul posto {desk.Index} c'è una sessione d'intervento aperta");
+                }
+
+                // Il mittente sta ancora scrivendo: «lo stato in cui si trova» non esiste finché
+                // non si ferma, e due processi sulla stessa cartella si pestano i piedi.
+                if (IsLeased(desk.Path))
+                {
+                    return WorktreePrepareResult.BusyDesk(
+                        $"sul posto {desk.Index} c'è ancora un turno in corso");
+                }
+
+                // Nient'altro. La scrivania si usa com'è: e' tutto il punto.
+                _leases[desk.Path] = (AgentOfBranch(expectedBranch) ?? "catena", DateTimeOffset.UtcNow);
+                _logger.LogInformation("[Worktree] catena continuata sul posto {Index} ({Branch}).", desk.Index, expectedBranch);
+                return WorktreePrepareResult.Ok(desk.Path);
             }
             finally { gate.Release(); }
         }

@@ -117,6 +117,12 @@ namespace MdExplorer.Abstractions.Entities.UserDB
             public const string User = "user";
             /// <summary>Fase 7e — gate del codice: un agente ha toccato un submodule non ancora pushato dall'umano.</summary>
             public const string AwaitingPush = "awaiting-push";
+            /// <summary>
+            /// Catena locale: il mittente sta ancora lavorando nella scrivania che il destinatario
+            /// deve ereditare. Non è un errore — «lo stato in cui il mittente si trova» esiste solo
+            /// quando il mittente si è fermato — quindi si aspetta senza consumare tentativi.
+            /// </summary>
+            public const string ChainBusy = "chain-busy";
         }
     }
 }

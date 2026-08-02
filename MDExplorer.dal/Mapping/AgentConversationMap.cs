@@ -23,6 +23,8 @@ namespace MDExplorer.DataAccess.Mapping
             Map(x => x.Scope).Length(200).Nullable();
             Map(x => x.HandoffRef).Length(400).Nullable();
             Map(x => x.BaseCommit).Length(100).Nullable();
+            // Catena locale: il ramo che il destinatario eredita dal mittente.
+            Map(x => x.ChainBranch).Length(400).Nullable();
         }
     }
 }

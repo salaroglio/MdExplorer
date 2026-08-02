@@ -74,6 +74,14 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// <summary>Fase 7d.5 — sha di testa a cui B deve sincronizzarsi (testa di <see cref="HandoffRef"/>).</summary>
         public virtual string BaseCommit { get; set; }
 
+        /// <summary>
+        /// Il ramo su cui vive questa catena, quando è <b>locale</b>: il destinatario eredita la
+        /// scrivania e il ramo del mittente invece di aprirne di suoi, perché «analizza e poi
+        /// implementa» è un solo lavoro e merita una richiesta di merge sola.
+        /// <para><c>null</c> = nessuna catena, il destinatario prepara un posto suo.</para>
+        /// </summary>
+        public virtual string ChainBranch { get; set; }
+
         /// <summary>Valori ammessi per <see cref="Status"/>.</summary>
         public static class StatusEnum
         {

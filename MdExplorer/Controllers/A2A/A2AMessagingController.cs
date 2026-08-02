@@ -95,7 +95,7 @@ namespace MdExplorer.Controllers.A2A
         /// la consegna è asincrona (dispatcher).
         /// </summary>
         [HttpPost("send")]
-        public IActionResult Send([FromBody] SendAgentMessageRequest request)
+        public async System.Threading.Tasks.Task<IActionResult> Send([FromBody] SendAgentMessageRequest request)
         {
             var claims = ResolveClaims();
             if (claims == null)
@@ -176,6 +176,30 @@ namespace MdExplorer.Controllers.A2A
             if (!result.Accepted)
                 return StatusCode(409, new { error = result.RejectionReason });
 
+            // Catena LOCALE: il destinatario eredita la scrivania e il ramo del mittente invece
+            // di aprirne di suoi. «Analizza e poi implementa» e' un solo lavoro, nato da un solo
+            // gesto umano: su due rami diventerebbero due richieste di merge per una cosa sola,
+            // con la seconda che dipende dalla prima. E non c'e' niente da sincronizzare via
+            // origin — il lavoro del mittente e' gia' li' dove il destinatario si siedera'.
+            if (UseWorktree(claims.ProjectPath))
+            {
+                try
+                {
+                    var desk = await _worktree.FindAgentWorktreeAsync(claims.ProjectPath, claims.AgentName);
+                    var branch = desk != null ? await _worktree.CurrentBranchAsync(desk) : null;
+                    if (!string.IsNullOrWhiteSpace(branch))
+                        AttachChainBranchToConversation(result.ConversationId, branch);
+                }
+                catch (Exception ex)
+                {
+                    // Senza il ramo della catena il destinatario preparera' un posto suo: lavora
+                    // lo stesso, ma non vedra' quello che il mittente ha appena scritto. Va detto.
+                    _logger.LogError(ex,
+                        "[A2A/send] ramo della catena non registrato per '{From}' -> '{To}': il destinatario partira' da un posto pulito.",
+                        claims.AgentName, to);
+                }
+            }
+
             _logger.LogInformation("[A2A/send] {From} -> {To} accodato (task {Task})", claims.AgentName, to, result.TaskId);
             return Ok(new
             {
@@ -183,6 +207,23 @@ namespace MdExplorer.Controllers.A2A
                 taskId = result.TaskId,
                 conversationId = result.ConversationId.ToString(),
             });
+        }
+
+        /// <summary>
+        /// Registra sulla conversazione il ramo su cui vive la catena: il dispatcher lo leggerà
+        /// al risveglio del destinatario per farlo sedere dove ha lavorato il mittente.
+        /// </summary>
+        private void AttachChainBranchToConversation(Guid conversationId, string branch)
+        {
+            _session.BeginTransaction();
+            var dal = _session.GetDal<AgentConversation>();
+            var conv = dal.GetList().FirstOrDefault(c => c.Id == conversationId);
+            if (conv != null)
+            {
+                conv.ChainBranch = branch;
+                dal.Save(conv);
+            }
+            _session.Commit();
         }
 
         /// <summary>
