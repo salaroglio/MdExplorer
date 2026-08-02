@@ -32,10 +32,29 @@ namespace MdExplorer.Services.AgentRun
 
         /// <summary>Imposta (o azzera, con <c>null</c>) la scelta locale.</summary>
         void Set(string projectPath, bool? enabled);
+
+        /// <summary>
+        /// Posti di lavoro del pool: quanti agenti possono girare insieme su questa macchina.
+        /// Non deciso ⇒ <see cref="DefaultSlots"/>.
+        /// </summary>
+        int SlotsFor(string projectPath);
+
+        /// <summary>Imposta i posti (o torna al default con <c>null</c>).</summary>
+        void SetSlots(string projectPath, int? slots);
     }
 
     public class AgentWorktreePreference : IAgentWorktreePreference
     {
+        /// <summary>
+        /// Due posti: abbastanza per far collaborare due agenti, poco abbastanza perché lo
+        /// spazio dentro il progetto resti sostenibile (~190 MB l'uno).
+        /// </summary>
+        public const int DefaultSlots = 2;
+
+        /// <summary>Oltre questo non si va: il pool è anche il tetto di concorrenza, e un numero
+        /// alto significherebbe altrettante istanze di modello che girano insieme.</summary>
+        public const int MaxSlots = 8;
+
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly MdExplorer.Services.IProjectMetadataService _metadata;
         private readonly ILogger<AgentWorktreePreference> _logger;
@@ -108,6 +127,64 @@ namespace MdExplorer.Services.AgentRun
                 _logger.LogWarning(ex, "[Worktree] lettura preferenza fallita per '{Path}'", projectPath);
                 return null;
             }
+        }
+
+        public int SlotsFor(string projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath)) return DefaultSlots;
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+                db.Clear();
+                db.BeginTransaction();
+                var project = FindProject(db, projectPath);
+                var slots = project?.AgentWorktreeSlots;
+                db.Commit();
+                return Normalize(slots);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Worktree] lettura dei posti fallita per '{Path}': uso il default", projectPath);
+                return DefaultSlots;
+            }
+        }
+
+        public void SetSlots(string projectPath, int? slots)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath))
+                throw new ArgumentException("projectPath è obbligatorio", nameof(projectPath));
+            if (slots != null && (slots < 1 || slots > MaxSlots))
+                throw new ArgumentOutOfRangeException(nameof(slots),
+                    $"I posti devono stare fra 1 e {MaxSlots}: sono anche il tetto di quanti agenti girano insieme.");
+
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.Clear();
+            db.BeginTransaction();
+            try
+            {
+                var project = FindProject(db, projectPath)
+                    ?? throw new InvalidOperationException(
+                        $"Nessun progetto registrato per '{projectPath}': aprilo prima di configurarne i posti.");
+                project.AgentWorktreeSlots = slots;
+                db.GetDal<Project>().Save(project);
+                db.Commit();
+            }
+            catch
+            {
+                db.Rollback();
+                throw;
+            }
+        }
+
+        /// <summary>Un valore fuori scala in DB non deve propagarsi: si riporta nei limiti.</summary>
+        private static int Normalize(int? slots)
+        {
+            if (slots == null) return DefaultSlots;
+            if (slots < 1) return 1;
+            if (slots > MaxSlots) return MaxSlots;
+            return slots.Value;
         }
 
         public void Set(string projectPath, bool? enabled)

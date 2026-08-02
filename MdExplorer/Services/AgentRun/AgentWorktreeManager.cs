@@ -281,10 +281,35 @@ namespace MdExplorer.Services.AgentRun
                     }
                 }
 
-                // 5) submodule (il worktree fresco NON li popola): best-effort, no-op se assenti
-                var (sc, _, se) = await GitAsync(worktreePath, new[] { "submodule", "update", "--init" }, ct);
-                if (sc != 0)
-                    _logger.LogWarning("[Worktree] submodule update per '{Agent}' non riuscito (best-effort): {Err}", agentName, se);
+                // 5) SUBMODULE: devono seguire il padre, non arrangiarsi.
+                //
+                // Un worktree fresco non li popola, e il 'reset --hard' del padre NON entra
+                // dentro di loro: senza i passi qui sotto un agente si troverebbe il codice al
+                // commit di un run precedente — o modificato da un altro agente — mentre la
+                // documentazione e' a quello nuovo. Lavorerebbe su una realta' che non esiste.
+                if (File.Exists(Path.Combine(worktreePath, ".gitmodules")))
+                {
+                    // sync: l'URL nel .gitmodules puo' essere cambiato SUL BRANCH che abbiamo
+                    // appena messo in checkout.
+                    var (syc, _, sye) = await GitAsync(worktreePath, new[] { "submodule", "sync", "--recursive" }, ct);
+                    if (syc != 0)
+                        return WorktreePrepareResult.Fail($"git submodule sync fallito: {Describe(syc, sye)}");
+
+                    // --force e' il pezzo che mancava: senza, un submodule con modifiche locali
+                    // resta com'e' e le porta nel run successivo. --recursive per i nidificati.
+                    var (sc, _, se) = await GitAsync(worktreePath,
+                        new[] { "submodule", "update", "--init", "--recursive", "--force" }, ct);
+                    if (sc != 0)
+                        return WorktreePrepareResult.Fail(
+                            $"git submodule update fallito: {Describe(sc, se)}. " +
+                            "L'agente lavorerebbe con il codice assente o disallineato rispetto alla documentazione.");
+
+                    // Il 'clean -fd' del padre non scende nei submodule: i file non tracciati
+                    // lasciati la' dentro sopravvivrebbero. MAI -x, come per il padre: gli
+                    // ignorati (build, dipendenze) restano e non si ricostruiscono ogni volta.
+                    await GitAsync(worktreePath,
+                        new[] { "submodule", "foreach", "--recursive", "git clean -fd" }, ct);
+                }
 
                 _logger.LogInformation("[Worktree] preparato per '{Agent}': branch '{Branch}' da origin/{Base}", agentName, branch, resolvedBase);
                 return WorktreePrepareResult.Ok(worktreePath);

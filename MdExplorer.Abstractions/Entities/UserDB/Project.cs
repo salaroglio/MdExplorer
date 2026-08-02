@@ -30,6 +30,14 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual bool? UseAgentWorktrees { get; set; }
 
         /// <summary>
+        /// Posti di lavoro (worktree) che gli agenti possono occupare contemporaneamente su
+        /// questa macchina. <c>null</c> = non deciso → <b>2</b>. È anche il tetto fisico di
+        /// quanti agenti girano insieme: il pool sostituisce il semaforo separato, così non
+        /// esistono due limiti che possono dire cose diverse.
+        /// </summary>
+        public virtual int? AgentWorktreeSlots { get; set; }
+
+        /// <summary>
         /// When ON, a SEPARATE background index (side-car FTS + TextFile table) is
         /// built and maintained for non-markdown text files. Completely additive:
         /// the markdown world (MarkdownFile / MdEngineFts) is never touched.

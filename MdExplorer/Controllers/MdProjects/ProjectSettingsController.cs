@@ -394,6 +394,10 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     enabled = raw ?? pref.DefaultFor(projectPath),
                     isExplicit = raw != null,
                     defaultValue = pref.DefaultFor(projectPath),
+                    // Posti del pool: quanti agenti possono lavorare insieme su questa macchina.
+                    slots = pref.SlotsFor(projectPath),
+                    defaultSlots = MdExplorer.Services.AgentRun.AgentWorktreePreference.DefaultSlots,
+                    maxSlots = MdExplorer.Services.AgentRun.AgentWorktreePreference.MaxSlots,
                 });
             }
             catch (Exception ex)
@@ -411,12 +415,17 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
             try
             {
-                HttpContext.RequestServices
-                    .GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>()
-                    .Set(request.ProjectPath, request.Enabled);
-                return Ok(new { enabled = request.Enabled });
+                var pref = HttpContext.RequestServices
+                    .GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>();
+                pref.Set(request.ProjectPath, request.Enabled);
+                if (request.Slots != null) pref.SetSlots(request.ProjectPath, request.Slots);
+                return Ok(new { enabled = request.Enabled, slots = pref.SlotsFor(request.ProjectPath) });
             }
             catch (InvalidOperationException ex)
+            {
+                return UnprocessableEntity(new { error = ex.Message });
+            }
+            catch (ArgumentOutOfRangeException ex)
             {
                 return UnprocessableEntity(new { error = ex.Message });
             }
@@ -432,6 +441,9 @@ namespace MdExplorer.Service.Controllers.MdProjects
         {
             public string ProjectPath { get; set; }
             public bool? Enabled { get; set; }
+
+            /// <summary>Posti del pool. <c>null</c> = non toccare (la UI puo' salvare solo il flag).</summary>
+            public int? Slots { get; set; }
         }
 
         public IActionResult GetExcludeSubmodulesSetting([FromQuery] string projectPath)
