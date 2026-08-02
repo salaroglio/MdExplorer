@@ -1,0 +1,97 @@
+<div class="changes-panel">
+
+  <!-- L'intestazione dice sempre DI CHI e' il lavoro: e' l'unica cosa che distingue
+       "quello che ho scritto io" da "quello che ha prodotto un agente". -->
+  <div class="changes-header" [class.agent-context]="agent">
+    <mat-icon>{{ agent ? 'smart_toy' : 'person' }}</mat-icon>
+    <span class="context-label">
+      {{ agent ? agent : ('CHANGES.YOUR_WORK' | translate) }}
+    </span>
+    <span class="branch" *ngIf="view?.branch" [matTooltip]="'CHANGES.BRANCH_TOOLTIP' | translate">
+      <mat-icon>alt_route</mat-icon>{{ view?.branch }}
+    </span>
+    <span class="flexExpand"></span>
+    <button mat-icon-button *ngIf="agent" (click)="backToMyWork()"
+            [matTooltip]="'CHANGES.BACK_TO_MINE' | translate">
+      <mat-icon>keyboard_return</mat-icon>
+    </button>
+    <button mat-icon-button (click)="refresh()" [matTooltip]="'CHANGES.REFRESH' | translate">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
+
+  <div *ngIf="loading" class="changes-empty">
+    <mat-spinner diameter="24"></mat-spinner>
+  </div>
+
+  <!-- Una condizione che l'utente puo' risolvere, non un errore da nascondere. -->
+  <div *ngIf="!loading && view?.problem" class="changes-empty problem">
+    <mat-icon>info</mat-icon>
+    <p>{{ view?.problem }}</p>
+  </div>
+
+  <!-- Senza git non c'e' un "prima" con cui confrontarsi: dirlo, invece di far credere
+       che non sia cambiato niente. -->
+  <div *ngIf="!loading && view?.notAGitRepository" class="changes-empty problem">
+    <mat-icon>help_outline</mat-icon>
+    <p>{{ 'CHANGES.NO_GIT' | translate }}</p>
+  </div>
+
+  <div *ngIf="!loading && view && !view.problem && !view.notAGitRepository">
+
+    <div *ngIf="view.files.length === 0" class="changes-empty">
+      <mat-icon>check_circle</mat-icon>
+      <p>{{ 'CHANGES.NOTHING' | translate:{ base: view.baseBranch || '—' } }}</p>
+    </div>
+
+    <div *ngIf="view.files.length > 0">
+      <div class="counts">
+        <span class="c-added" *ngIf="countOf('added') || countOf('untracked')">
+          +{{ countOf('added') + countOf('untracked') }} {{ 'CHANGES.ADDED' | translate }}
+        </span>
+        <span class="c-modified" *ngIf="countOf('modified')">
+          ~{{ countOf('modified') }} {{ 'CHANGES.MODIFIED' | translate }}
+        </span>
+        <span class="c-deleted" *ngIf="countOf('deleted')">
+          −{{ countOf('deleted') }} {{ 'CHANGES.DELETED' | translate }}
+        </span>
+        <span class="c-renamed" *ngIf="countOf('renamed')">
+          →{{ countOf('renamed') }} {{ 'CHANGES.RENAMED' | translate }}
+        </span>
+        <span class="flexExpand"></span>
+        <span class="vs-base" *ngIf="view.baseBranch">
+          {{ 'CHANGES.VS_BASE' | translate:{ base: view.baseBranch } }}
+        </span>
+      </div>
+
+      <ul class="files">
+        <ng-container *ngFor="let f of view.files; trackBy: trackByPath">
+          <li [ngClass]="'f-' + f.change" [class.opened]="openedPath === f.path"
+              (click)="open(f)" [title]="f.oldPath ? (f.oldPath + ' → ' + f.path) : f.path">
+            <mat-icon class="change-icon">{{ iconFor(f.change) }}</mat-icon>
+            <span class="file-path">{{ f.path }}</span>
+            <span class="flexExpand"></span>
+            <button mat-icon-button class="discard" (click)="discard(f, $event)"
+                    [matTooltip]="'CHANGES.DISCARD' | translate">
+              <mat-icon>undo</mat-icon>
+            </button>
+          </li>
+
+          <!-- Il diff sotto al file: si guarda dov'e' l'elemento, senza perdere il posto
+               nell'elenco. -->
+          <li class="diff-row" *ngIf="openedPath === f.path">
+            <div *ngIf="diffLoading" class="diff-loading">
+              <mat-spinner diameter="18"></mat-spinner>
+            </div>
+            <div *ngIf="!diffLoading && !diffText" class="diff-empty">
+              {{ 'CHANGES.DIFF_EMPTY' | translate }}
+            </div>
+            <pre *ngIf="!diffLoading && diffText" class="diff"><span
+              *ngFor="let l of diffLines()" [ngClass]="'d-' + l.kind">{{ l.text }}
+</span></pre>
+          </li>
+        </ng-container>
+      </ul>
+    </div>
+  </div>
+</div>

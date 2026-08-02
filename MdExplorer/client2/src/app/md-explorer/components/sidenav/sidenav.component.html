@@ -35,14 +35,15 @@
         </ng-template>
         <app-md-tree></app-md-tree>
       </mat-tab>
-      <!-- Revisione del lavoro degli agenti: allo stesso livello dei documenti, perche' e'
-           l'altra faccia della stessa cosa — cosa c'e' nel progetto, e cosa chiede di entrarci. -->
+      <!-- Le differenze: fratello dell'albero dei documenti. Da una parte i file del
+           progetto, dall'altra quelli toccati — e cliccandoli, il diff. Sempre presente,
+           perche' un tab che appare e sparisce sposta gli altri sotto il dito. -->
       <mat-tab>
         <ng-template mat-tab-label>
-          <mat-icon>rate_review</mat-icon>
-          {{ 'SIDENAV.AGENT_REVIEW' | translate }}
+          <mat-icon>difference</mat-icon>
+          {{ 'SIDENAV.CHANGES' | translate }}
         </ng-template>
-        <app-agent-review></app-agent-review>
+        <app-working-changes></app-working-changes>
       </mat-tab>
       <mat-tab *ngIf="currentBranch != null">
         <ng-template mat-tab-label>

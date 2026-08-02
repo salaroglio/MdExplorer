@@ -236,6 +236,14 @@
       </div>
     </mat-tab>
 
+    <!-- ============ Tab 4: Lavoro degli agenti da decidere ============ -->
+    <!-- Sta qui e non in un tab dei documenti perche' qui si DECIDE: come la posta e le
+         richieste federate, e' roba che arriva e aspetta una risposta. Il tab accanto ai
+         documenti serve invece a GUARDARE le differenze. -->
+    <mat-tab label="{{ 'AGENT_REVIEW.TAB' | translate }}">
+      <app-agent-review></app-agent-review>
+    </mat-tab>
+
   </mat-tab-group>
 </mat-dialog-content>
 

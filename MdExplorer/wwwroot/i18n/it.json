@@ -812,7 +812,8 @@
     "MARK_AGENT": "Mark Agent",
     "MARK_SEARCH": "Mark Search",
     "TEAM_CHAT": "Chat di Team",
-    "AGENT_REVIEW": "Revisione agenti"
+    "AGENT_REVIEW": "Revisione agenti",
+    "CHANGES": "Differenze"
   },
   "MARK_SEARCH": {
     "TITLE": "Mark Search",
@@ -1842,6 +1843,25 @@
     "REJECTED": "Rifiutata. Il ramo resta: puoi ancora metterci mano.",
     "MERGE_FAILED": "Il merge non è riuscito: probabilmente c'è un conflitto da risolvere a mano.",
     "TAKEN": "Cartella aperta: {{path}} — l'agente è in coda finché non chiudi.",
-    "TAKEN_NO_FOLDER": "Sessione aperta, ma non sono riuscito ad aprire il file manager. La cartella è: {{path}}"
+    "TAKEN_NO_FOLDER": "Sessione aperta, ma non sono riuscito ad aprire il file manager. La cartella è: {{path}}",
+    "TAB": "Lavoro degli agenti"
+  },
+  "CHANGES": {
+    "YOUR_WORK": "Il tuo lavoro",
+    "BACK_TO_MINE": "Torna al tuo lavoro",
+    "REFRESH": "Rileggi da git",
+    "BRANCH_TOOLTIP": "Ramo su cui si sta lavorando qui",
+    "VS_BASE": "rispetto a {{base}}",
+    "NOTHING": "Niente di diverso da {{base}}",
+    "NO_GIT": "Questa cartella non è un repository git: non c'è un «prima» con cui confrontarsi.",
+    "ADDED": "aggiunti",
+    "MODIFIED": "modificati",
+    "DELETED": "eliminati",
+    "RENAMED": "rinominati",
+    "DISCARD": "Butta via le modifiche a questo file",
+    "DISCARD_CONFIRM": "Buttare via le modifiche a «{{path}}»? Non si può annullare.",
+    "DISCARD_FAILED": "Non sono riuscito a buttare via le modifiche.",
+    "DIFF_EMPTY": "Nessuna differenza testuale (file binario o solo permessi).",
+    "DIFF_FAILED": "Differenza non calcolabile per questo file."
   }
 }

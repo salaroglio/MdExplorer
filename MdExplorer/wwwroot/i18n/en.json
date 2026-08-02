@@ -812,7 +812,8 @@
     "MARK_AGENT": "Mark Agent",
     "MARK_SEARCH": "Mark Search",
     "TEAM_CHAT": "Team Chat",
-    "AGENT_REVIEW": "Agent review"
+    "AGENT_REVIEW": "Agent review",
+    "CHANGES": "Changes"
   },
   "MARK_SEARCH": {
     "TITLE": "Mark Search",
@@ -1842,6 +1843,25 @@
     "REJECTED": "Rejected. The branch stays: you can still take it over.",
     "MERGE_FAILED": "The merge failed: there is probably a conflict to resolve by hand.",
     "TAKEN": "Folder opened: {{path}} — the agent is queued until you close.",
-    "TAKEN_NO_FOLDER": "Session opened, but I could not open the file manager. The folder is: {{path}}"
+    "TAKEN_NO_FOLDER": "Session opened, but I could not open the file manager. The folder is: {{path}}",
+    "TAB": "Agent work"
+  },
+  "CHANGES": {
+    "YOUR_WORK": "Your work",
+    "BACK_TO_MINE": "Back to your work",
+    "REFRESH": "Re-read from git",
+    "BRANCH_TOOLTIP": "Branch being worked on here",
+    "VS_BASE": "vs {{base}}",
+    "NOTHING": "Nothing differs from {{base}}",
+    "NO_GIT": "This folder is not a git repository: there is no “before” to compare against.",
+    "ADDED": "added",
+    "MODIFIED": "modified",
+    "DELETED": "deleted",
+    "RENAMED": "renamed",
+    "DISCARD": "Throw away the changes to this file",
+    "DISCARD_CONFIRM": "Throw away the changes to “{{path}}”? This cannot be undone.",
+    "DISCARD_FAILED": "Could not throw away the changes.",
+    "DIFF_EMPTY": "No textual difference (binary file or mode change only).",
+    "DIFF_FAILED": "Diff not available for this file."
   }
 }

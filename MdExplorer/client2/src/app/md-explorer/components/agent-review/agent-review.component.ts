@@ -5,6 +5,7 @@ import { Subscription } from 'rxjs';
 import { AgentReviewService, ChangedFile, MergeRequest } from '../../services/agent-review.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { ProjectsService } from '../../services/projects.service';
+import { ReviewContextService } from '../../services/review-context.service';
 
 /**
  * La revisione del lavoro degli agenti, accanto a "Documenti progetto".
@@ -32,6 +33,7 @@ export class AgentReviewComponent implements OnInit, OnDestroy {
     private review: AgentReviewService,
     private serverMessages: MdServerMessagesService,
     private projects: ProjectsService,
+    private context: ReviewContextService,
     private snackBar: MatSnackBar,
     private translate: TranslateService,
   ) {}
@@ -95,6 +97,9 @@ export class AgentReviewComponent implements OnInit, OnDestroy {
     this.review.take(r.id).subscribe({
       next: (res) => {
         this.busyId = null;
+        // Da qui in poi il tab delle differenze, gli aggregati e il commit parlano di lui:
+        // stai lavorando nel suo posto, non nel tuo.
+        this.context.enterAgent(r.agentName);
         this.snackBar.open(
           this.translate.instant(
             res.folderOpened ? 'AGENT_REVIEW.TAKEN' : 'AGENT_REVIEW.TAKEN_NO_FOLDER',
@@ -115,6 +120,9 @@ export class AgentReviewComponent implements OnInit, OnDestroy {
     this.review.release(r.id, discard).subscribe({
       next: (res) => {
         this.busyId = null;
+        // Sessione chiusa: il posto non e' piu' tuo, quindi il contesto torna al tuo lavoro.
+        // Senza, il tab continuerebbe a mostrare un worktree che l'agente puo' ripulire.
+        if (this.context.agent === r.agentName) this.context.backToUser();
         this.snackBar.open(res.message, 'OK', { duration: 10000 });
         this.refresh();
       },

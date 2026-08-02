@@ -121,6 +121,10 @@ namespace MdExplorer
             // opt-in via agentCity.useAgentWorktrees. Il reaper pota i worktree orfani.
             // Sessione d'intervento manuale sul worktree: apre/chiude, mette in coda l'agente
             // e — su annullamento — rimette il lavoro in coda invece di perderlo.
+            // git di sistema: worktree, submodule e diff testuali, che LibGit2Sharp non copre.
+            services.AddSingleton<Services.Git.INativeGitRunner, Services.Git.NativeGitRunner>();
+            // La vista delle differenze del tab: interroga git, non il FileSystemWatcher.
+            services.AddSingleton<Services.AgentRun.IWorkingChangesService, Services.AgentRun.WorkingChangesService>();
             services.AddSingleton<Services.AgentRun.IAgentWorktreeHoldService, Services.AgentRun.AgentWorktreeHoldService>();
             services.AddSingleton<Services.AgentRun.IAgentWorktreeManager, Services.AgentRun.AgentWorktreeManager>();
             // Isolamento worktree: scelta della MACCHINA (UserDB), non della squadra (git).
