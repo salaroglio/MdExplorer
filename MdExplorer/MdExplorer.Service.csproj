@@ -1,5 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- System.Data.SQLite.Core 1.0.113.1 spedisce lo STESSO SQLite.Interop.dll (byte identici)
+       sia in runtimes/win-x64/native/netstandard2.0 sia in .../netstandard2.1. Nel publish
+       entrambi finirebbero su "SQLite.Interop.dll" e .NET 8 si ferma con NETSDK1152
+       ("multiple publish output files with the same relative path"). Teniamo netstandard2.1. -->
+  <Target Name="DropDuplicateSQLiteInterop" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)"
+                             Condition="'%(Filename)%(Extension)' == 'SQLite.Interop.dll' And $([MSBuild]::ValueOrDefault('%(FullPath)', '').Contains('netstandard2.0'))" />
+    </ItemGroup>
+    <PropertyGroup>
+      <_SQLiteInteropCount>@(ResolvedFileToPublish->WithMetadataValue('Filename', 'SQLite.Interop')->Count())</_SQLiteInteropCount>
+    </PropertyGroup>
+    <!-- Fail-loud: se il filtro le togliesse entrambe il publish riuscirebbe lo stesso, e l'app
+         morirebbe a runtime con "Unable to load DLL 'SQLite.Interop.dll'" al primo accesso al DB. -->
+    <Error Condition="'$(RuntimeIdentifier)' == 'win-x64' And '$(_SQLiteInteropCount)' != '1'"
+           Text="Attesa 1 copia di SQLite.Interop.dll nel publish, trovate $(_SQLiteInteropCount). Il filtro di DropDuplicateSQLiteInterop non e' piu' allineato al layout di System.Data.SQLite.Core." />
+  </Target>
+
   <Target Name="PostPublish" AfterTargets="AfterPublish">
     <Message Text="BEGIN After-publish PublishDir=$(PublishDir) PublishUrl=$(PublishUrl)" Importance="high" />
     <Copy SourceFiles="$(OutDir)Binaries\Plantuml.jar"
