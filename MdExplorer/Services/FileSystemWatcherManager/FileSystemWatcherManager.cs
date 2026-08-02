@@ -895,6 +895,10 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 if (string.IsNullOrEmpty(path) ||
                     !path.EndsWith(".agent.md", StringComparison.OrdinalIgnoreCase))
                     return;
+                // La copia di un agente dentro un worktree non e' un agente: registrarla
+                // significherebbe avere due volte lo stesso nome nella citta'.
+                if (FoldersIgnoreService.IsInsideAgentWorktrees(path, context.ProjectPath))
+                    return;
                 var registry = _serviceProvider.GetService<AgentRegistry.IAgentRegistryService>();
                 registry?.OnAgentFileChanged(context.ProjectPath);
             }
@@ -1706,6 +1710,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
         private bool ShouldIgnoreMarkdownFile(WatcherContext context, string fullPath)
         {
+            // I posti di lavoro degli agenti contengono una copia intera del progetto: senza
+            // questo, ogni file che un agente scrive comparirebbe nell'albero dell'utente.
+            if (FoldersIgnoreService.IsInsideAgentWorktrees(fullPath, context.ProjectPath))
+            {
+                return true;
+            }
+
             var relativePath = fullPath.Substring(context.ProjectPath.Length).TrimStart(Path.DirectorySeparatorChar);
             relativePath = relativePath.Replace(Path.DirectorySeparatorChar, '/');
 

@@ -344,7 +344,7 @@ namespace MdExplorer.Service.Controllers
 
                 // Enumera tutti i .md ricorsivamente, escludendo cartelle speciali
                 var excludedDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                    { ".md", ".mdword", ".git", "node_modules" };
+                    { ".md", ".mdword", ".git", "node_modules", ".worktrees" };
 
                 var mdFiles = Directory.EnumerateFiles(folderAbsolutePath, "*.md", SearchOption.AllDirectories)
                     .Where(f =>

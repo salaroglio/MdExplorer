@@ -773,6 +773,11 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     gitignoreContent.AppendLine("# MdExplorer specific files and folders");
                     gitignoreContent.AppendLine(".md/");
                     gitignoreContent.AppendLine(".mdword/");
+                    // Posti di lavoro degli agenti: vivono dentro il progetto ma sono aree di
+                    // lavoro, non contenuto. Senza questa riga comparirebbero come non tracciati
+                    // e un 'add -A' di un agente tenterebbe di committarsi dentro il proprio
+                    // worktree.
+                    gitignoreContent.AppendLine(".worktrees/");
                     gitignoreContent.AppendLine("");
                     gitignoreContent.AppendLine("# P2P shared files (metadata.json is tracked for P2P info sharing)");
                     gitignoreContent.AppendLine(".p2pshare/files/");
@@ -850,6 +855,16 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 {
                     block.AppendLine("# MDE Mark Search temporary answer documents — wiped on every project open");
                     block.AppendLine(".md/mark-search/");
+                }
+
+                // Idem per i posti di lavoro degli agenti: la cartella e' nata dopo, quindi i
+                // progetti gia' esistenti — che sono la maggioranza — non hanno la riga e senza
+                // questo blocco vedrebbero apparire migliaia di file non tracciati al primo
+                // risveglio di un agente.
+                if (!existing.Contains(".worktrees/"))
+                {
+                    block.AppendLine("# MDE — posti di lavoro degli agenti: aree di lavoro, non contenuto");
+                    block.AppendLine(".worktrees/");
                 }
 
                 if (block.Length == 0)

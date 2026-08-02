@@ -30,7 +30,7 @@ namespace MdExplorer.Services.Federation
         // Cartelle da saltare nella scansione degli agenti (rumore / working dir).
         private static readonly HashSet<string> SkipDirs = new(StringComparer.OrdinalIgnoreCase)
         {
-            ".git", "node_modules", ".md", ".mdMetadata", "bin", "obj", ".vs",
+            ".git", "node_modules", ".md", ".mdMetadata", "bin", "obj", ".vs", ".worktrees",
         };
 
         private readonly IDatabaseManager _databaseManager;
