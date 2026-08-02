@@ -222,6 +222,25 @@
               <p class="setting-description" *ngIf="!projectIsGit">
                 ℹ️ {{ 'PROJECT_SETTINGS.AGENT_NEEDS_GIT' | translate }}
               </p>
+
+              <!-- I posti hanno senso solo con l'isolamento acceso: senza, gli agenti girano
+                   nel progetto e di scrivanie non ce n'e' nessuna da contare. -->
+              <div class="setting-inline" *ngIf="agentUseWorktrees && projectIsGit">
+                <label for="agentWorktreeSlots" class="setting-label">
+                  {{ 'PROJECT_SETTINGS.AGENT_WORKTREE_SLOTS' | translate }}
+                </label>
+                <mat-form-field appearance="outline" class="slots-field">
+                  <input matInput id="agentWorktreeSlots" type="number"
+                         [(ngModel)]="agentWorktreeSlots"
+                         (change)="onAgentWorktreeSlotsChange()"
+                         [disabled]="saving"
+                         min="1" [max]="agentWorktreeMaxSlots">
+                </mat-form-field>
+                <p class="setting-description">
+                  {{ 'PROJECT_SETTINGS.AGENT_WORKTREE_SLOTS_DESC' | translate:{
+                       def: agentWorktreeDefaultSlots, max: agentWorktreeMaxSlots } }}
+                </p>
+              </div>
             </div>
 
             <!-- Relay: indirizzo e chiave d'ingresso. Il room secret sopra viaggia col repo

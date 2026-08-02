@@ -30,6 +30,10 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   agentCityOwnershipDoc: string = '';
   agentCityHasRoomSecret: boolean = false;
   agentUseWorktrees: boolean = false;
+  /** Posti di lavoro del pool: quanti agenti possono lavorare insieme su questa macchina. */
+  agentWorktreeSlots: number = 2;
+  agentWorktreeDefaultSlots: number = 2;
+  agentWorktreeMaxSlots: number = 8;
   agentAutoMergeDeliverables: boolean = false;
   /** Senza git non esistono worktree né merge: le due opzioni restano spente e non toccabili. */
   projectIsGit: boolean = false;
@@ -497,21 +501,46 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   loadAgentWorktrees(): void {
     if (!this.projectPath) return;
     this.projectSettingsService.getAgentWorktreesSetting(this.projectPath).subscribe({
-      next: (res) => { this.agentUseWorktrees = !!res?.enabled; },
+      next: (res) => {
+        this.agentUseWorktrees = !!res?.enabled;
+        if (res?.slots) this.agentWorktreeSlots = res.slots;
+        if (res?.defaultSlots) this.agentWorktreeDefaultSlots = res.defaultSlots;
+        if (res?.maxSlots) this.agentWorktreeMaxSlots = res.maxSlots;
+      },
       error: (err) => console.error('Error loading agent worktrees setting:', err)
     });
   }
 
   onAgentWorktreesChange(): void {
+    this.saveAgentWorktrees();
+  }
+
+  /**
+   * Quanti posti di lavoro. È anche il tetto degli agenti che girano insieme: sono la stessa
+   * domanda, e per questo qui c'è un numero solo.
+   */
+  onAgentWorktreeSlotsChange(): void {
+    const n = Number(this.agentWorktreeSlots);
+    if (!Number.isInteger(n) || n < 1 || n > this.agentWorktreeMaxSlots) {
+      // Un numero fuori scala non si manda al server: si rimette quello vero.
+      this.loadAgentWorktrees();
+      return;
+    }
+    this.saveAgentWorktrees();
+  }
+
+  private saveAgentWorktrees(): void {
     this.saving = true;
-    this.projectSettingsService.setAgentWorktreesSetting(this.agentUseWorktrees, this.projectPath).subscribe({
-      next: () => { this.saving = false; },
-      error: (err) => {
-        console.error('Error saving agent worktrees setting:', err);
-        this.saving = false;
-        this.loadAgentWorktrees();   // riallinea allo stato persistito
-      }
-    });
+    this.projectSettingsService
+      .setAgentWorktreesSetting(this.agentUseWorktrees, this.projectPath, this.agentWorktreeSlots)
+      .subscribe({
+        next: () => { this.saving = false; },
+        error: (err) => {
+          console.error('Error saving agent worktrees setting:', err);
+          this.saving = false;
+          this.loadAgentWorktrees();   // riallinea allo stato persistito
+        }
+      });
   }
 
   loadRelaySettings(): void {

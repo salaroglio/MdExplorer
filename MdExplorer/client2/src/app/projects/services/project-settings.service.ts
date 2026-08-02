@@ -90,12 +90,18 @@ export class ProjectSettingsService {
    * Isolamento worktree: preferenza di QUESTA macchina (UserDB), non del repo — costa spazio
    * disco locale, quindi non si impone al team via git come le altre opzioni della città.
    */
-  getAgentWorktreesSetting(projectPath: string): Observable<{enabled: boolean; isExplicit: boolean; defaultValue: boolean}> {
+  getAgentWorktreesSetting(projectPath: string): Observable<{
+    enabled: boolean; isExplicit: boolean; defaultValue: boolean;
+    /** Posti di lavoro del pool: quanti agenti possono lavorare insieme su questa macchina. */
+    slots: number; defaultSlots: number; maxSlots: number;
+  }> {
     return this.http.get<any>('../api/ProjectSettings/GetAgentWorktreesSetting', { params: { projectPath } });
   }
 
-  setAgentWorktreesSetting(enabled: boolean | null, projectPath: string): Observable<any> {
-    return this.http.post<any>('../api/ProjectSettings/SetAgentWorktreesSetting', { enabled, projectPath });
+  /** `slots` assente = lascia il numero com'è; `null` = torna al default. */
+  setAgentWorktreesSetting(enabled: boolean | null, projectPath: string, slots?: number | null): Observable<any> {
+    return this.http.post<any>('../api/ProjectSettings/SetAgentWorktreesSetting',
+      { enabled, projectPath, slots });
   }
 
   getExcludeSubmodulesSetting(projectPath: string): Observable<{enabled: boolean}> {

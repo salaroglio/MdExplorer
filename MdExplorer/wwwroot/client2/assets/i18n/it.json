@@ -383,7 +383,9 @@
     "AGENT_AUTOMERGE": "Fondi da solo i deliverable di documentazione",
     "AGENT_AUTOMERGE_DESC": "Quando un agente conclude un lavoro che tocca solo documentazione, il suo branch viene fuso nel ramo principale senza chiedertelo. Il merge del CODICE resta sempre tuo.",
     "AGENT_AUTOMERGE_WARN": "Attenzione: con questa opzione il ramo principale può cambiare senza il tuo intervento. Il codice no, la documentazione sì.",
-    "AGENT_NEEDS_GIT": "Questo progetto non è un repository git: senza git non esistono né worktree né merge, quindi le due opzioni restano spente."
+    "AGENT_NEEDS_GIT": "Questo progetto non è un repository git: senza git non esistono né worktree né merge, quindi le due opzioni restano spente.",
+    "AGENT_WORKTREE_SLOTS": "Posti di lavoro per gli agenti",
+    "AGENT_WORKTREE_SLOTS_DESC": "Quanti agenti possono lavorare insieme: ogni posto è una copia del progetto sul disco, ed è anche il tetto degli agenti in esecuzione contemporanea. Predefinito {{def}}, massimo {{max}}."
   },
   "GIT_COMMIT": {
     "TITLE": "Messaggio di Commit",

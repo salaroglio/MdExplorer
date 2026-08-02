@@ -5871,10 +5871,12 @@ class ProjectSettingsService {
       }
     });
   }
-  setAgentWorktreesSetting(enabled, projectPath) {
+  /** `slots` assente = lascia il numero com'è; `null` = torna al default. */
+  setAgentWorktreesSetting(enabled, projectPath, slots) {
     return this.http.post('../api/ProjectSettings/SetAgentWorktreesSetting', {
       enabled,
-      projectPath
+      projectPath,
+      slots
     });
   }
   getExcludeSubmodulesSetting(projectPath) {
