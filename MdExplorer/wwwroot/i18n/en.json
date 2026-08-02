@@ -701,7 +701,9 @@
     "FILE_RESTORED": "File \"{{name}}\" restored",
     "TOC_UPDATED": "TOC updated successfully",
     "TOC_UPDATE_FAILED": "TOC update failed",
-    "TOC_UPDATE_ERROR": "Error updating TOC"
+    "TOC_UPDATE_ERROR": "Error updating TOC",
+    "TO_COMMIT_AGENT": "To commit — {{agent}}",
+    "SEE_DIFFERENCES": "See the differences"
   },
   "MD_TREE": {
     "RENAME_FOLDER": "rename folder",

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Subject } from 'rxjs';
 
 /**
  * Di chi è il lavoro che stai guardando adesso.
@@ -14,6 +14,17 @@ import { BehaviorSubject } from 'rxjs';
 @Injectable({ providedIn: 'root' })
 export class ReviewContextService {
   readonly agent$ = new BehaviorSubject<string | null>(null);
+
+  /**
+   * Qualcuno chiede di far vedere le differenze. Passa di qui perché chi lo chiede — la
+   * finestrella del commit, in un altro angolo dell'applicazione — non deve sapere in che
+   * posizione sta quel tab: lo sa solo chi i tab li dichiara.
+   */
+  readonly showChanges$ = new Subject<void>();
+
+  showChanges(): void {
+    this.showChanges$.next();
+  }
 
   get agent(): string | null {
     return this.agent$.value;

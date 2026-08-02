@@ -14,6 +14,8 @@ import { IBranch } from '../../../git/models/branch';
 import { MatLegacyTabGroup as MatTabGroup } from '@angular/material/legacy-tabs';
 import { ITag } from '../../../git/models/Tag';
 import { ProjectsService } from '../../services/projects.service';
+import { ReviewContextService } from '../../services/review-context.service';
+import { WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
 import { Router } from '@angular/router';
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
@@ -37,7 +39,6 @@ import { FileNameAndAuthor } from '../../../git/models/DataToPull';
 import { TocGenerationService } from '../../services/toc-generation.service';
 import { TocProgressService } from '../../services/toc-progress.service';
 import { ThemeService } from '../../../services/theme.service';
-import { GitChangedFile } from '../../../git/models/modern-git-models';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../../commons/components/confirm-dialog/confirm-dialog.component';
 import { TranslateService } from '@ngx-translate/core';
 import _ from 'lodash';
@@ -81,7 +82,16 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   subscriptionserverSelectedMdFile: Subscription;
   public showMenu: boolean = false;
   public showCommitMenu: boolean = false;
-  public changedFiles: GitChangedFile[] = [];
+
+  /**
+   * Gli aggregati della finestrella, e di CHI sono.
+   *
+   * In revisione i numeri sono quelli dell'agente e il commit agisce nel suo posto di lavoro:
+   * altrimenti guarderesti il lavoro di uno e committeresti quello di un altro. La lista dei
+   * file non sta piu' qui — sta nel tab, dove si puo' vedere il diff prima di decidere.
+   */
+  public reviewAgent: string | null = null;
+  public changesView: WorkingChangesView | null = null;
   public isLoadingChangedFiles: boolean = false;
   public hasRemoteConfigured: boolean = true; // Default true to hide menu initially
   public currentRemoteUrl: string = '';
@@ -102,6 +112,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private gitservice: GITService,
     private appSettings: AppCurrentMetadataService,
     private projectService: ProjectsService,
+    private reviewContext: ReviewContextService,
+    private workingChanges: WorkingChangesService,
     private federationService: FederationService,
     private router: Router,
     private waitingDialogService: WaitingDialogService,
@@ -148,6 +160,12 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    // Entrare o uscire dalla revisione cambia di chi sono i numeri della finestrella.
+    this.reviewContext.agent$.subscribe(agent => {
+      this.reviewAgent = agent;
+      this.changesView = null;
+    });
+
     // Get connectionId from SignalR service for export notifications
     this.connectionId = this.monitorMDService.connectionId;
     // If connectionId is not yet available, get it when ready
@@ -706,9 +724,11 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   commit(): void {
-    const projectPath = this.getProjectPath();
+    // In revisione il commit agisce nel posto di lavoro dell'agente: e' li' che hai
+    // modificato i file, e committare nel progetto non salverebbe nulla di quel lavoro.
+    const projectPath = this.commitRootPath();
     if (!projectPath) return;
-    
+
     // Ask user for commit message using Material Dialog
     const dialogRef = this.dialog.open(CommitMessageDialogComponent, {
       width: '500px',
@@ -1160,122 +1180,45 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     if (!projectPath) return;
 
     this.isLoadingChangedFiles = true;
-    this.gitservice.getChangedFiles(projectPath).subscribe(
-      response => {
-        this.changedFiles = response.files || [];
+    // Stessa fonte del tab — git — cosi' i numeri della finestrella e la lista che vedi
+    // cliccando «vedi le differenze» non possono raccontare due storie diverse.
+    this.workingChanges.list(projectPath, this.reviewAgent).subscribe({
+      next: view => {
+        this.changesView = view;
         this.isLoadingChangedFiles = false;
       },
-      error => {
-        console.error('Error loading changed files:', error);
-        this.changedFiles = [];
+      error: err => {
+        this.changesView = err?.error?.problem ? err.error : null;
         this.isLoadingChangedFiles = false;
-      }
-    );
+      },
+    });
+  }
+
+  /** Quanti file di un certo tipo: i quattro numeri della finestrella. */
+  changeCount(kind: 'added' | 'modified' | 'deleted' | 'renamed'): number {
+    const files = this.changesView?.files || [];
+    // I non tracciati sono aggiunte a tutti gli effetti per chi guarda: distinguerli qui
+    // vorrebbe dire un quinto numero che non dice niente di piu'.
+    if (kind === 'added') return files.filter(f => f.change === 'added' || f.change === 'untracked').length;
+    return files.filter(f => f.change === kind).length;
+  }
+
+  /** Porta al tab delle differenze, dove si guarda file per file e si scarta. */
+  seeTheDifferences(): void {
+    this.showCommitMenu = false;
+    this.reviewContext.showChanges();
   }
 
   /**
-   * Discard changes to a file (restore from HEAD) or delete new files from disk
+   * Dove agisce il commit: il progetto, o il posto di lavoro dell'agente quando sei in
+   * revisione. Senza questo committeresti nel tuo progetto delle modifiche che hai fatto
+   * dentro il worktree di un altro — cioe' non committeresti niente.
    */
-  discardFile(file: GitChangedFile): void {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return;
-
-    if (file.isNew) {
-      // For new files, show dialog to confirm DELETE from disk
-      const dialogData: ConfirmDialogData = {
-        title: 'Elimina file',
-        message: `Vuoi eliminare definitivamente il file "${file.fileName}"? Questa azione non può essere annullata.`,
-        confirmText: 'Elimina',
-        cancelText: 'Annulla'
-      };
-
-      const dialogRef = this.dialog.open(ConfirmDialogComponent, {
-        width: '400px',
-        data: dialogData
-      });
-
-      dialogRef.afterClosed().subscribe(confirmed => {
-        if (confirmed) {
-          this.gitservice.deleteFile(projectPath, file.relativePath).subscribe(
-            response => {
-              if (response.success) {
-                this.changedFiles = this.changedFiles.filter(f => f.relativePath !== file.relativePath);
-                this.checkConnection();
-                this._snackBar.open(this.translate.instant('TOOLBAR.FILE_DELETED', { name: file.fileName }), 'OK', {
-                  duration: 3000,
-                  horizontalPosition: 'right',
-                  verticalPosition: 'bottom'
-                });
-              } else {
-                this._snackBar.open(`Errore: ${response.errorMessage}`, 'OK', {
-                  duration: 5000,
-                  horizontalPosition: 'right',
-                  verticalPosition: 'bottom',
-                  panelClass: ['error-snackbar']
-                });
-              }
-            },
-            error => {
-              console.error('Error deleting file:', error);
-              this._snackBar.open(`Errore: ${error.message}`, 'OK', {
-                duration: 5000,
-                horizontalPosition: 'right',
-                verticalPosition: 'bottom',
-                panelClass: ['error-snackbar']
-              });
-            }
-          );
-        }
-      });
-    } else {
-      // For modified files, show dialog to confirm discard changes
-      const dialogData: ConfirmDialogData = {
-        title: 'Scarta modifiche',
-        message: `Vuoi scartare le modifiche a "${file.fileName}"? Questa azione non può essere annullata.`,
-        confirmText: 'Scarta',
-        cancelText: 'Annulla'
-      };
-
-      const dialogRef = this.dialog.open(ConfirmDialogComponent, {
-        width: '400px',
-        data: dialogData
-      });
-
-      dialogRef.afterClosed().subscribe(confirmed => {
-        if (confirmed) {
-          this.gitservice.discardFile(projectPath, file.relativePath, false).subscribe(
-            response => {
-              if (response.success) {
-                this.changedFiles = this.changedFiles.filter(f => f.relativePath !== file.relativePath);
-                this.checkConnection();
-                this._snackBar.open(this.translate.instant('TOOLBAR.FILE_RESTORED', { name: file.fileName }), 'OK', {
-                  duration: 3000,
-                  horizontalPosition: 'right',
-                  verticalPosition: 'bottom'
-                });
-              } else {
-                this._snackBar.open(`Errore: ${response.errorMessage}`, 'OK', {
-                  duration: 5000,
-                  horizontalPosition: 'right',
-                  verticalPosition: 'bottom',
-                  panelClass: ['error-snackbar']
-                });
-              }
-            },
-            error => {
-              console.error('Error discarding file:', error);
-              this._snackBar.open(`Errore: ${error.message}`, 'OK', {
-                duration: 5000,
-                horizontalPosition: 'right',
-                verticalPosition: 'bottom',
-                panelClass: ['error-snackbar']
-              });
-            }
-          );
-        }
-      });
-    }
+  private commitRootPath(): string | null {
+    if (this.reviewAgent && this.changesView?.rootPath) return this.changesView.rootPath;
+    return this.getProjectPath();
   }
+
 
   isTocDirectoryFile(): boolean {
     return this.currentMdFile?.name?.endsWith('.md.directory') || false;

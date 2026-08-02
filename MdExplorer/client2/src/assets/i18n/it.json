@@ -701,7 +701,9 @@
     "FILE_RESTORED": "File \"{{name}}\" ripristinato",
     "TOC_UPDATED": "TOC aggiornato con successo",
     "TOC_UPDATE_FAILED": "Aggiornamento TOC fallito",
-    "TOC_UPDATE_ERROR": "Errore durante aggiornamento TOC"
+    "TOC_UPDATE_ERROR": "Errore durante aggiornamento TOC",
+    "TO_COMMIT_AGENT": "Da committare — {{agent}}",
+    "SEE_DIFFERENCES": "Vedi le differenze"
   },
   "MD_TREE": {
     "RENAME_FOLDER": "rinomina cartella",

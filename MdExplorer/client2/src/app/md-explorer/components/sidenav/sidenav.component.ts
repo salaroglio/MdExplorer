@@ -10,6 +10,7 @@ import { GITService } from '../../../git/services/gitservice.service';
 import { MatSidenav } from '@angular/material/sidenav';
 import { MdFile } from '../../models/md-file';
 import { ProjectsService } from '../../services/projects.service';
+import { ReviewContextService } from '../../services/review-context.service';
 import { MdNavigationService } from '../../services/md-navigation.service';
 import { LayoutService } from '../../services/layout.service';
 import { ClipboardPasteService } from '../../services/clipboard-paste.service';
@@ -40,6 +41,15 @@ export class SidenavComponent implements OnInit, OnDestroy {
   public readonly teamChatEnabled: boolean = false;
   public fileSystemWatcherEnabled: boolean = true;
   public selectedTabIndex: number = 0;
+
+  /**
+   * Posizione del tab delle differenze: secondo, subito dopo i documenti.
+   * E' un numero posizionale, e resta tale — ma sta qui, accanto al template che dichiara
+   * i tab, cosi' chi ne aggiunge uno ha la riga da correggere sotto gli occhi.
+   */
+  private changesTabIndex(): number {
+    return 1;
+  }
   @ViewChild('sidenav', { static: false }) sidenav: MatSidenav;
 
   // Embedded app persistence
@@ -67,6 +77,7 @@ export class SidenavComponent implements OnInit, OnDestroy {
     private currentFolder: AppCurrentMetadataService,
     private gitService: GITService,
     private projectService: ProjectsService,
+    private reviewContext: ReviewContextService,
     public navService:MdNavigationService,
     private ref: ChangeDetectorRef, // Injected ChangeDetectorRef
     private layoutService: LayoutService,
@@ -202,6 +213,13 @@ export class SidenavComponent implements OnInit, OnDestroy {
 
 
   ngOnInit(): void {
+
+    // «Vedi le differenze» dalla finestrella del commit, che sta in un altro angolo
+    // dell'applicazione e non deve conoscere l'ordine dei tab.
+    this.reviewContext.showChanges$.subscribe(() => {
+      const index = this.changesTabIndex();
+      if (index >= 0) this.selectedTabIndex = index;
+    });
 
     this.breakpointObserver.observe([`(max-width:${SMALL_WIDTH_BREAKPOINT}px)`])
       .subscribe((state: BreakpointState) => {

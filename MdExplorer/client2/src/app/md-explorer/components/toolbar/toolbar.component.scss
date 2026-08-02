@@ -296,3 +296,52 @@ mat-toolbar button.git-menu-btn {
     &.offline { background: #bdbdbd; }                                             // padrone non connesso ora
   }
 }
+
+/* Gli aggregati al posto della lista: quattro numeri, non venti righe da leggere.
+   La lista sta nel tab, dove si vede il diff prima di scartare. */
+.commit-aggregates {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 8px 10px;
+
+  .agg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 2px;
+    border-radius: 6px;
+    background: rgba(128, 128, 128, .12);
+
+    .n { font-size: 16px; font-weight: 600; line-height: 1.1; }
+    .l { font-size: 10px; opacity: .7; }
+  }
+
+  .agg-added .n { color: #2e7d32; }
+  .agg-modified .n { color: #ef6c00; }
+  .agg-deleted .n { color: #c62828; }
+  .agg-renamed .n { color: #6a1b9a; }
+}
+
+.commit-menu-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 10px 10px;
+}
+
+.commit-menu-header .ctx-icon {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+  vertical-align: middle;
+  margin-right: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .commit-aggregates {
+    .agg-added .n { color: #81c784; }
+    .agg-modified .n { color: #ffb74d; }
+    .agg-deleted .n { color: #e57373; }
+    .agg-renamed .n { color: #ce93d8; }
+  }
+}
