@@ -143,7 +143,10 @@ namespace MdExplorer.IntegrationTests
             ctx.Factory.Services.GetRequiredService<IDatabaseManager>().RegisterConnection(connectionId, path);
 
             var manager = ctx.Factory.Services.GetRequiredService<IAgentWorktreeManager>();
-            await manager.EnsureWorktreeAsync(path, "worker");
+            // Un posto vuoto non e' "il worktree di worker": con il pool l'occupante lo dice il
+            // branch in checkout, quindi serve un prepare vero, non solo la cartella.
+            var prep = await manager.PrepareForRunAsync(path, "worker", "att1");
+            Assert.IsTrue(prep.Success, prep.Error);
 
             var (status, json) = await ctx.GetJson($"/api/MdExplorerWorktree/list?connectionId={connectionId}");
             Assert.AreEqual(HttpStatusCode.OK, status);

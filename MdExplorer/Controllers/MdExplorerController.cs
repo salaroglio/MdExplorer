@@ -307,16 +307,16 @@ namespace MdExplorer.Controllers
         /// Read-only: alimenta il sottomenu "Worktree" del toolbar.
         /// </summary>
         [HttpGet("/api/MdExplorerWorktree/list")]
-        public IActionResult ListAgentWorktrees()
+        public async Task<IActionResult> ListAgentWorktrees()
         {
             var projectPath = GetProjectPath();
             if (string.IsNullOrEmpty(projectPath))
                 return Ok(new { worktrees = Array.Empty<object>() });
-            var root = _worktree.WorktreeRootForProject(projectPath);
-            if (!Directory.Exists(root))
-                return Ok(new { worktrees = Array.Empty<object>() });
-            var list = Directory.EnumerateDirectories(root)
-                .Select(d => new { agent = Path.GetFileName(d), path = d })
+            // Il nome della cartella non dice più chi ci lavora: i posti si chiamano slot-1,
+            // slot-2, e l'occupante lo si chiede a git (il branch in checkout).
+            var list = (await _worktree.ListSlotsAsync(projectPath))
+                .Where(x => x.Agent != null)
+                .Select(x => new { agent = x.Agent, path = x.Path, slot = x.Index })
                 .OrderBy(x => x.agent, StringComparer.OrdinalIgnoreCase)
                 .ToList();
             return Ok(new { worktrees = list });
@@ -342,9 +342,9 @@ namespace MdExplorer.Controllers
                 return NotFound("Nessun progetto aperto per risolvere il worktree.");
 
             string worktreeRoot;
-            try { worktreeRoot = _worktree.WorktreePathFor(projectPath, agent); }
+            try { worktreeRoot = await _worktree.FindAgentWorktreeAsync(projectPath, agent); }
             catch (ArgumentException) { return BadRequest($"Agente '{agent}' non valido."); }
-            if (!Directory.Exists(worktreeRoot))
+            if (worktreeRoot == null || !Directory.Exists(worktreeRoot))
                 return NotFound($"Nessun worktree per l'agente '{agent}'.");
 
             var rootPathSystem = worktreeRoot + Path.DirectorySeparatorChar;

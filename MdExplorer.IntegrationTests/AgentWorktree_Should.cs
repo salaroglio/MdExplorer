@@ -100,7 +100,8 @@ namespace MdExplorer.IntegrationTests
             await ctx.WaitForMessages(m => m.Any(x => x.ToAgent == "worker" && x.State == AgentMessage.StateEnum.Processed));
 
             var manager = ctx.Factory.Services.GetRequiredService<IAgentWorktreeManager>();
-            var worktree = manager.WorktreePathFor(path, "worker");
+            var worktree = await manager.FindAgentWorktreeAsync(path, "worker");
+            Assert.IsNotNull(worktree, "l'agente deve occupare un posto del pool");
 
             // Il cwd del turno è il worktree, NON il progetto dell'umano.
             Assert.AreEqual(worktree, ctx.Runner.LastRequest.WorkingDirectory, "il turno gira nel worktree");
@@ -141,7 +142,8 @@ namespace MdExplorer.IntegrationTests
 
             Assert.AreEqual(path, ctx.Runner.LastRequest.WorkingDirectory, "flag OFF: cwd = progetto");
             var manager = ctx.Factory.Services.GetRequiredService<IAgentWorktreeManager>();
-            Assert.IsFalse(Directory.Exists(manager.WorktreePathFor(path, "worker")), "nessun worktree creato");
+            Assert.IsNull(await manager.FindAgentWorktreeAsync(path, "worker"), "nessun posto occupato");
+            Assert.IsFalse(Directory.Exists(manager.WorktreeRootForProject(path)), "nessuna cartella .worktrees creata");
         }
 
         [TestMethod]

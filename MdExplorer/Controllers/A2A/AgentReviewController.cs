@@ -85,18 +85,25 @@ namespace MdExplorer.Controllers.A2A
         /// directory del worktree nel file manager, dove il branch è già in check-out.
         /// </summary>
         [HttpPost("requests/{id}/take")]
-        public IActionResult Take(Guid id)
+        public async Task<IActionResult> Take(Guid id)
         {
             var r = _requests.Get(id);
             if (r == null) return NotFound(new { error = "Richiesta inesistente." });
 
-            var worktreePath = _worktree.WorktreePathFor(r.ProjectPath, r.AgentName);
-            if (!System.IO.Directory.Exists(worktreePath))
-                return UnprocessableEntity(new
-                {
-                    error = $"Il worktree di '{r.AgentName}' non esiste più sul disco: " +
-                            "non c'è nulla su cui intervenire."
-                });
+            // I posti di lavoro sono pochi e si riciclano: quello dove l'agente ha prodotto
+            // questo lavoro può essere già passato a un altro. Il lavoro però è un branch, quindi
+            // si rimette su un posto — è la ragione per cui non basta comporre un percorso.
+            string worktreePath;
+            try
+            {
+                worktreePath = await _worktree.MaterializeForReviewAsync(
+                    r.ProjectPath, r.AgentName, r.LocalBranch);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Review] impossibile rimettere '{Branch}' su un posto di lavoro.", r.LocalBranch);
+                return UnprocessableEntity(new { error = ex.Message });
+            }
 
             // Prima la sessione, poi la cartella: se aprissimo prima il file manager e la
             // sessione fallisse, l'utente si troverebbe a modificare un worktree che l'agente

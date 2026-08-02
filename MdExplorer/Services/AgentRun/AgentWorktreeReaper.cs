@@ -28,19 +28,23 @@ namespace MdExplorer.Services.AgentRun
     {
         private static readonly TimeSpan SweepInterval = TimeSpan.FromMinutes(30);
         private static readonly TimeSpan StartupDelay = TimeSpan.FromSeconds(60);
-        private static string WorktreesRoot => Path.Combine(CrossPlatformPath.GetMdExplorerDataDirectory(), "worktrees");
+        /// <summary>Dove stavano i worktree prima del 02/08/2026. Resta solo per svuotarla.</summary>
+        private static string LegacyWorktreesRoot => Path.Combine(CrossPlatformPath.GetMdExplorerDataDirectory(), "worktrees");
 
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IAgentWorktreeManager _worktree;
+        private readonly IAgentWorktreePreference _preference;
         private readonly ILogger<AgentWorktreeReaper> _logger;
 
         public AgentWorktreeReaper(
             IServiceScopeFactory scopeFactory,
             IAgentWorktreeManager worktree,
+            IAgentWorktreePreference preference,
             ILogger<AgentWorktreeReaper> logger)
         {
             _scopeFactory = scopeFactory;
             _worktree = worktree;
+            _preference = preference;
             _logger = logger;
         }
 
@@ -62,10 +66,6 @@ namespace MdExplorer.Services.AgentRun
 
         private async Task SweepAsync(CancellationToken ct)
         {
-            // Niente root worktrees → niente da potare (caso normale finché la feature non è usata).
-            if (!Directory.Exists(WorktreesRoot))
-                return;
-
             List<Project> projects;
             using (var scope = _scopeFactory.CreateScope())
             {
@@ -75,19 +75,27 @@ namespace MdExplorer.Services.AgentRun
                 db.Commit();
             }
 
-            // 1) Cartelle-hash di progetti che non esistono più → rimozione diretta dell'intera dir.
-            var liveHashes = new HashSet<string>(projects.Select(p => Helper.HGetHashString(p.Path)), StringComparer.OrdinalIgnoreCase);
-            foreach (var hashDir in SafeSubdirs(WorktreesRoot))
+            // 1) I worktree stavano in AppData: dal 02/08/2026 vivono dentro il progetto. Quelli
+            // vecchi non li usa più nessuno — nessun percorso del codice li nomina — ma pesano
+            // quanto una copia intera della documentazione a testa. Li tolgo una volta sola.
+            if (Directory.Exists(LegacyWorktreesRoot))
             {
-                if (liveHashes.Contains(Path.GetFileName(hashDir))) continue;
-                _logger.LogInformation("[WorktreeReaper] progetto sparito → rimuovo worktree orfani {Dir}", hashDir);
-                try { Directory.Delete(hashDir, recursive: true); }
-                catch (Exception ex) { _logger.LogWarning(ex, "[WorktreeReaper] eliminazione {Dir} fallita.", hashDir); }
+                _logger.LogInformation(
+                    "[WorktreeReaper] rimuovo i worktree della vecchia posizione ({Dir}): ora stanno dentro i progetti.",
+                    LegacyWorktreesRoot);
+                try { Directory.Delete(LegacyWorktreesRoot, recursive: true); }
+                catch (Exception ex) { _logger.LogWarning(ex, "[WorktreeReaper] eliminazione di {Dir} fallita.", LegacyWorktreesRoot); }
+
+                // I repo hanno ancora, in .git/worktrees, i riferimenti a cartelle che non ci sono
+                // più: senza prune, git rifiuta di ricreare un worktree con lo stesso nome.
+                foreach (var project in projects)
+                {
+                    try { await _worktree.PruneWorktreesAsync(project.Path, ct); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "[WorktreeReaper] prune di '{Project}' fallito.", project.Path); }
+                }
             }
 
-            // 2) Per ogni progetto vivo con dei worktree: pota gli agenti non più nel catalogo.
-            using var scope2 = _scopeFactory.CreateScope();
-            var registry = scope2.ServiceProvider.GetRequiredService<IAgentRegistryService>();
+            // 2) Per ogni progetto vivo: branch fusi e posti eccedenti.
             foreach (var project in projects)
             {
                 ct.ThrowIfCancellationRequested();
@@ -108,28 +116,27 @@ namespace MdExplorer.Services.AgentRun
                 var root = _worktree.WorktreeRootForProject(project.Path);
                 if (!Directory.Exists(root)) continue;
 
-                HashSet<string> liveAgents;
-                try
-                {
-                    // Solo agenti realmente persistiti (con identità): un catalogo vuoto per errore
-                    // NON deve far potare tutto → se la lettura fallisce si salta il progetto.
-                    liveAgents = new HashSet<string>(
-                        registry.RefreshCatalog(project.Path).Where(e => e.IdentityId != null).Select(e => e.Name),
-                        StringComparer.OrdinalIgnoreCase);
-                }
+                // Con il pool, un agente che sparisce dal catalogo non lascia una cartella
+                // orfana: il suo posto viene semplicemente riciclato dal prossimo. Quello che
+                // invece resta indietro sono i posti eccedenti, quando qualcuno abbassa il
+                // numero nelle impostazioni: continuerebbero a occupare una copia intera del
+                // progetto senza che nessuno li usi mai più.
+                IReadOnlyList<WorktreeSlot> slots;
+                try { slots = await _worktree.ListSlotsAsync(project.Path, ct); }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "[WorktreeReaper] catalogo non leggibile per '{Project}': salto la potatura.", project.Path);
+                    _logger.LogWarning(ex, "[WorktreeReaper] posti non leggibili per '{Project}': salto la potatura.", project.Path);
                     continue;
                 }
 
-                foreach (var agentDir in SafeSubdirs(root))
+                var limit = _preference.SlotsFor(project.Path);
+                foreach (var slot in slots.Where(x => x.Index > limit && !x.Held))
                 {
-                    var agentName = Path.GetFileName(agentDir);
-                    if (liveAgents.Contains(agentName)) continue;
-                    _logger.LogInformation("[WorktreeReaper] agente '{Agent}' non più nel catalogo di '{Project}': rimuovo il worktree.", agentName, project.Path);
-                    try { await _worktree.RemoveWorktreeAsync(project.Path, agentName, ct); }
-                    catch (Exception ex) { _logger.LogWarning(ex, "[WorktreeReaper] rimozione worktree '{Agent}' fallita.", agentName); }
+                    _logger.LogInformation(
+                        "[WorktreeReaper] posto {Index} oltre il limite di {Limit} per '{Project}': lo rimuovo.",
+                        slot.Index, limit, project.Path);
+                    try { await _worktree.RemoveSlotAsync(project.Path, slot.Index, ct); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "[WorktreeReaper] rimozione del posto {Index} fallita.", slot.Index); }
                 }
             }
         }

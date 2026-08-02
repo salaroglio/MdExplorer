@@ -126,11 +126,74 @@ namespace MdExplorer.Services.AgentRun
         /// </summary>
         Task<IReadOnlyList<string>> GetDirtySubmodulesAsync(string worktreePath, CancellationToken ct = default);
 
-        /// <summary>Root dei worktree di un progetto: <c>{AppData}/MdExplorer/worktrees/{project-hash}</c>.</summary>
+        /// <summary>
+        /// Dove stanno i posti di lavoro degli agenti: <c>{progetto}/.worktrees</c>.
+        /// <para>
+        /// Dentro il progetto, non in AppData, perché un worktree è utile solo finché il progetto
+        /// esiste: spostare o cancellare la documentazione portava via i worktree lasciando in
+        /// AppData cartelle che nessuno collegava più a niente. La cartella è esclusa da indice,
+        /// albero e git (<see cref="MdExplorer.Service.Services.FoldersIgnoreService.AgentWorktreesFolder"/>).
+        /// </para>
+        /// </summary>
         string WorktreeRootForProject(string projectPath);
 
-        /// <summary>Path del worktree di un agente (non lo crea).</summary>
-        string WorktreePathFor(string projectPath, string agentName);
+        /// <summary>
+        /// Il posto attualmente occupato da <paramref name="agentName"/>, oppure <c>null</c> se
+        /// l'agente non ne ha uno.
+        /// <para>
+        /// Non è più una funzione del nome: con il pool un agente non ha una cartella sua, occupa
+        /// uno dei posti disponibili, e quale sia lo dice <b>git</b> — il branch in checkout nel
+        /// posto. Chiedere a git invece che tenere un registro a parte significa che spegnere
+        /// l'applicazione, rimuovere un worktree a mano o cambiare macchina non lasciano mai
+        /// un'assegnazione che dice una cosa mentre il disco ne dice un'altra.
+        /// </para>
+        /// </summary>
+        Task<string> FindAgentWorktreeAsync(string projectPath, string agentName, CancellationToken ct = default);
+
+        /// <summary>I posti esistenti e chi li occupa, per la vista di revisione e per il reaper.</summary>
+        Task<IReadOnlyList<WorktreeSlot>> ListSlotsAsync(string projectPath, CancellationToken ct = default);
+
+        /// <summary>
+        /// Rimette il lavoro di un agente su un posto perché una persona possa metterci mano.
+        /// <para>
+        /// Serve perché con il pool il posto dov'è nato quel lavoro può essere già stato preso da
+        /// un altro agente. Il lavoro però non è andato perso — è un branch — quindi lo si
+        /// rimaterializza: si prende un posto e ci si fa il check-out. Da qui in poi la sessione
+        /// d'intervento lo protegge da chi vorrebbe subentrare.
+        /// </para>
+        /// </summary>
+        Task<string> MaterializeForReviewAsync(string projectPath, string agentName, string localBranch, CancellationToken ct = default);
+
+        /// <summary>
+        /// Il turno è finito: il posto torna disponibile. Va chiamato comunque sia andata —
+        /// altrimenti un run fallito prima del commit terrebbe la scrivania occupata.
+        /// </summary>
+        void ReleaseSlot(string worktreePath);
+
+        /// <summary>Rimuove un posto del pool (usato dal reaper per i posti oltre il limite).</summary>
+        Task RemoveSlotAsync(string projectPath, int slotIndex, CancellationToken ct = default);
+
+        /// <summary>
+        /// <c>git worktree prune</c>: toglie da <c>.git/worktrees</c> i riferimenti a cartelle
+        /// sparite. Senza, git rifiuta di ricreare un posto con lo stesso nome.
+        /// </summary>
+        Task PruneWorktreesAsync(string projectPath, CancellationToken ct = default);
+    }
+
+    /// <summary>Un posto di lavoro del pool e il suo occupante attuale.</summary>
+    public sealed class WorktreeSlot
+    {
+        /// <summary>Numero del posto (1..N), come compare nel path: <c>.worktrees/slot-1</c>.</summary>
+        public int Index { get; init; }
+        public string Path { get; init; }
+        /// <summary>Agente che ci sta lavorando, dedotto dal branch in checkout. <c>null</c> = libero.</summary>
+        public string Agent { get; init; }
+        /// <summary>Branch in checkout, o <c>null</c> se detached/indeterminato.</summary>
+        public string Branch { get; init; }
+        /// <summary>Data dell'ultimo commit visibile dal posto: dice quale posto è fermo da più tempo.</summary>
+        public DateTimeOffset LastActivityUtc { get; init; }
+        /// <summary>C'è una sessione d'intervento umana aperta: il posto non si tocca.</summary>
+        public bool Held { get; init; }
     }
 
     public sealed class AgentWorktreeManager : IAgentWorktreeManager, IDisposable
@@ -140,29 +203,54 @@ namespace MdExplorer.Services.AgentRun
         private const int GitTimeoutExit = -9998;
         private const int DefaultTimeoutMs = 300000;
 
-        private static string WorktreesRoot => Path.Combine(CrossPlatformPath.GetMdExplorerDataDirectory(), "worktrees");
-
         private readonly ILogger<AgentWorktreeManager> _logger;
         // Un lock per repo (project-hash): git worktree add/remove toccano lo stesso .git/worktrees;
         // e un agente esegue una cosa alla volta (actor model). Serializza per repo, non globale.
         private readonly ConcurrentDictionary<string, SemaphoreSlim> _repoGates = new();
+
+        // Posti prenotati da un run in corso: path del posto → quando è cominciato.
+        // Senza questo, l'eviction sceglierebbe per data dell'ultimo commit e un agente appena
+        // partito — che di commit non ne ha ancora fatti — sarebbe il candidato ideale a farsi
+        // togliere la scrivania mentre ci sta scrivendo. La prenotazione scade da sola: se un
+        // processo muore a metà run, il posto non resta bloccato per sempre.
+        private readonly ConcurrentDictionary<string, (string Agent, DateTimeOffset Since)> _leases =
+            new(StringComparer.OrdinalIgnoreCase);
+        private static readonly TimeSpan LeaseMaxAge = TimeSpan.FromHours(6);
+
+        /// <summary>
+        /// Il posto è prenotato da <b>qualcun altro</b>. La prenotazione porta il nome di chi l'ha
+        /// presa perché altrimenti impedirebbe anche a lui di tornarci: un agente che prepara due
+        /// volte di fila si troverebbe la propria prenotazione a sbarrargli la strada.
+        /// </summary>
+        private bool IsLeasedByOthers(string slotPath, string agentName)
+            => _leases.TryGetValue(slotPath, out var lease)
+               && DateTimeOffset.UtcNow - lease.Since < LeaseMaxAge
+               && !string.Equals(lease.Agent, agentName, StringComparison.OrdinalIgnoreCase);
+
+        private bool IsLeased(string slotPath)
+            => _leases.TryGetValue(slotPath, out var lease)
+               && DateTimeOffset.UtcNow - lease.Since < LeaseMaxAge;
         private bool _disposed;
 
         private readonly IAgentWorktreeHoldService _hold;
         private readonly MdExplorer.Services.Federation.IEffectiveOwnerIdentity _ownerIdentity;
+        private readonly IAgentWorktreePreference _preference;
 
         public AgentWorktreeManager(
             ILogger<AgentWorktreeManager> logger,
             IAgentWorktreeHoldService hold,
-            MdExplorer.Services.Federation.IEffectiveOwnerIdentity ownerIdentity)
+            MdExplorer.Services.Federation.IEffectiveOwnerIdentity ownerIdentity,
+            IAgentWorktreePreference preference)
         {
             _logger = logger;
             _hold = hold;
             _ownerIdentity = ownerIdentity;
+            _preference = preference;
         }
 
         public string WorktreeRootForProject(string projectPath)
-            => Path.Combine(WorktreesRoot, Helper.HGetHashString(projectPath));
+            => Path.Combine(projectPath ?? string.Empty,
+                MdExplorer.Service.Services.FoldersIgnoreService.AgentWorktreesFolder);
 
         // Allowlist stretta per il nome agente usato come componente di path e di branch: solo
         // identificatori (i nomi a2a sono kebab-case). Blocca traversal ('..', separatori) e
@@ -170,49 +258,294 @@ namespace MdExplorer.Services.AgentRun
         private static readonly System.Text.RegularExpressions.Regex SafeAgentName =
             new("^[A-Za-z0-9._-]+$", System.Text.RegularExpressions.RegexOptions.Compiled);
 
-        public string WorktreePathFor(string projectPath, string agentName)
+        /// <summary>
+        /// Il nome dell'agente finisce in un path e in un nome di branch: qui si ferma tutto ciò
+        /// che potrebbe uscire dalla cartella del pool o confondere git.
+        /// </summary>
+        public static string ValidateAgentName(string agentName)
         {
             var name = (agentName ?? string.Empty).Trim();
             if (name.Length == 0 || name == "." || name == ".." || !SafeAgentName.IsMatch(name))
                 throw new ArgumentException($"Nome agente non valido per un path di worktree: '{agentName}'.", nameof(agentName));
-            return Path.Combine(WorktreeRootForProject(projectPath), name);
+            return name;
         }
 
         public async Task<string> EnsureWorktreeAsync(string projectPath, string agentName, CancellationToken ct = default)
         {
-            var worktreePath = WorktreePathFor(projectPath, agentName);
             var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
             await gate.WaitAsync(ct);
             try
             {
-                return await EnsureWorktreeUnlockedAsync(projectPath, agentName, worktreePath, ct);
+                return await AcquireSlotUnlockedAsync(projectPath, agentName, ct);
             }
             finally { gate.Release(); }
         }
 
-        private async Task<string> EnsureWorktreeUnlockedAsync(string projectPath, string agentName, string worktreePath, CancellationToken ct)
+        /// <summary>
+        /// Assegna un posto del pool a <paramref name="agentName"/> — riusandolo, creandone uno
+        /// nuovo se ci sta nel limite, o subentrando in quello fermo da più tempo.
+        /// <para>
+        /// Il pool esiste perché un worktree costa una copia intera del progetto: con un posto per
+        /// agente, una città di dieci agenti moltiplicava per dieci la documentazione sul disco.
+        /// Con due posti (il default), due agenti lavorano davvero in parallelo e il terzo aspetta
+        /// il suo turno subentrando — che è esattamente quello che farebbe una persona con due
+        /// scrivanie.
+        /// </para>
+        /// <para>
+        /// Subentrare non perde niente: il lavoro dell'agente precedente è già un commit sul suo
+        /// branch e, se aveva consegnato, anche su origin. Quello che <b>non</b> si tocca mai è un
+        /// posto con una sessione d'intervento aperta: lì dentro c'è del lavoro umano non salvato.
+        /// </para>
+        /// </summary>
+        private async Task<string> AcquireSlotUnlockedAsync(string projectPath, string agentName, CancellationToken ct)
         {
-            // Già un worktree valido? (rev-parse dentro il path riesce)
-            if (Directory.Exists(worktreePath))
-            {
-                var (probe, _, _) = await GitAsync(worktreePath, new[] { "rev-parse", "--is-inside-work-tree" }, ct);
-                if (probe == 0) return worktreePath;
+            var name = ValidateAgentName(agentName);
+            var root = WorktreeRootForProject(projectPath);
+            var slots = await ReadSlotsUnlockedAsync(projectPath, ct);
 
-                // Cartella presente ma non è un worktree valido (stale): pulisci e ricrea.
-                _logger.LogWarning("[Worktree] '{Path}' esiste ma non è un worktree valido: ricreo.", worktreePath);
-                await RemoveWorktreeUnlockedAsync(projectPath, agentName, worktreePath, ct);
+            // 1) L'agente ha già un posto: ci torna. Il prepare lo riporterà in ordine.
+            var own = slots.FirstOrDefault(x => string.Equals(x.Agent, name, StringComparison.OrdinalIgnoreCase));
+            if (own != null)
+            {
+                _leases[own.Path] = (name, DateTimeOffset.UtcNow);
+                return own.Path;
             }
 
-            Directory.CreateDirectory(WorktreeRootForProject(projectPath));
+            var limit = _preference.SlotsFor(projectPath);
 
-            // Detached su HEAD corrente: il prepare farà il checkout del branch d'attività vero.
-            var (code, _, err) = await GitAsync(projectPath, new[] { "worktree", "add", "--detach", worktreePath }, ct);
-            if (code != 0)
+            // 2) Un posto libero (nessuno ci lavora) entro il limite: il caso normale all'avvio.
+            var free = slots.FirstOrDefault(
+                x => x.Agent == null && !x.Held && !IsLeasedByOthers(x.Path, name) && x.Index <= limit);
+            if (free != null)
+            {
+                _leases[free.Path] = (name, DateTimeOffset.UtcNow);
+                return free.Path;
+            }
+
+            // 3) C'è spazio nel limite per un posto nuovo.
+            if (slots.Count(x => x.Index <= limit) < limit)
+            {
+                var used = new HashSet<int>(slots.Select(x => x.Index));
+                var index = Enumerable.Range(1, limit).First(i => !used.Contains(i));
+                var path = Path.Combine(root, "slot-" + index);
+
+                Directory.CreateDirectory(root);
+                var (code, _, err) = await GitAsync(projectPath, new[] { "worktree", "add", "--detach", path }, ct);
+                if (code != 0)
+                    throw new InvalidOperationException(
+                        $"Creazione del posto di lavoro {index} fallita in '{projectPath}' (è un repo git?): {Describe(code, err)}");
+
+                _leases[path] = (name, DateTimeOffset.UtcNow);
+                _logger.LogInformation("[Worktree] posto {Index} creato per '{Agent}': {Path}", index, name, path);
+                return path;
+            }
+
+            // 4) Tutti occupati: subentro in quello fermo da più tempo, saltando le sessioni umane.
+            var victim = slots.Where(x => !x.Held && !IsLeasedByOthers(x.Path, name))
+                              .OrderByDescending(x => x.Index > limit)   // i posti oltre il limite vanno riassorbiti per primi
+                              .ThenBy(x => x.LastActivityUtc)
+                              .FirstOrDefault();
+            if (victim == null)
                 throw new InvalidOperationException(
-                    $"Creazione worktree per '{agentName}' fallita in '{projectPath}' (è un repo git?): {Describe(code, err)}");
+                    $"Tutti i {slots.Count} posti di lavoro di '{projectPath}' sono occupati da un run in corso o da " +
+                    $"una sessione d'intervento aperta: '{name}' non ha dove lavorare. Aspetta che un agente finisca, " +
+                    "concludi una revisione dalla vista di revisione, oppure aumenta i posti nelle impostazioni del progetto.");
 
-            _logger.LogInformation("[Worktree] creato per '{Agent}': {Path}", agentName, worktreePath);
-            return worktreePath;
+            _logger.LogInformation(
+                "[Worktree] '{Agent}' subentra nel posto {Index}, lasciato da '{Previous}' (fermo dal {When:u}).",
+                name, victim.Index, victim.Agent ?? "nessuno", victim.LastActivityUtc);
+            _leases[victim.Path] = (name, DateTimeOffset.UtcNow);
+            return victim.Path;
+        }
+
+        /// <summary>Legge i posti esistenti da disco e da git. Chiamare con il gate del repo preso.</summary>
+        private async Task<List<WorktreeSlot>> ReadSlotsUnlockedAsync(string projectPath, CancellationToken ct)
+        {
+            var root = WorktreeRootForProject(projectPath);
+            var result = new List<WorktreeSlot>();
+            if (!Directory.Exists(root)) return result;
+
+            IEnumerable<string> dirs;
+            try { dirs = Directory.EnumerateDirectories(root, "slot-*"); }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Worktree] lettura dei posti in '{Root}' fallita.", root);
+                return result;
+            }
+
+            foreach (var dir in dirs)
+            {
+                if (!int.TryParse(Path.GetFileName(dir).Substring("slot-".Length), out var index))
+                    continue;
+
+                // Cartella che non è (più) un worktree valido: la tolgo di mezzo e la ricreo dopo.
+                var (probe, _, _) = await GitAsync(dir, new[] { "rev-parse", "--is-inside-work-tree" }, ct);
+                if (probe != 0)
+                {
+                    _logger.LogWarning("[Worktree] '{Path}' non è un worktree valido: lo rimuovo.", dir);
+                    await RemoveWorktreeUnlockedAsync(projectPath, "slot-" + index, dir, ct);
+                    continue;
+                }
+
+                var (_, branchOut, _) = await GitAsync(dir, new[] { "rev-parse", "--abbrev-ref", "HEAD" }, ct);
+                var branch = (branchOut ?? string.Empty).Trim();
+                if (branch.Length == 0 || branch == "HEAD") branch = null;
+
+                var agent = AgentOfBranch(branch);
+
+                var when = DateTimeOffset.MinValue;
+                var (lc, lout, _) = await GitAsync(dir, new[] { "log", "-1", "--format=%ct" }, ct);
+                if (lc == 0 && long.TryParse((lout ?? string.Empty).Trim(), out var epoch))
+                    when = DateTimeOffset.FromUnixTimeSeconds(epoch);
+
+                result.Add(new WorktreeSlot
+                {
+                    Index = index,
+                    Path = dir,
+                    Agent = agent,
+                    Branch = branch,
+                    LastActivityUtc = when,
+                    Held = agent != null && _hold.IsHeld(projectPath, agent),
+                });
+            }
+
+            return result.OrderBy(x => x.Index).ToList();
+        }
+
+        /// <summary>
+        /// Allinea i submodule al commit pinnato dal branch in checkout. Restituisce <c>null</c>
+        /// se è andata, altrimenti il motivo — che il chiamante deve trattare come un fallimento,
+        /// non ignorare: un agente con il codice assente o al commit sbagliato documenterebbe una
+        /// realtà che non esiste.
+        /// </summary>
+        private async Task<string> SyncSubmodulesAsync(string worktreePath, CancellationToken ct)
+        {
+            if (!File.Exists(Path.Combine(worktreePath, ".gitmodules")))
+                return null;
+
+            // sync: l'URL nel .gitmodules può essere cambiato SUL BRANCH appena messo in checkout.
+            var (syc, _, sye) = await GitAsync(worktreePath, new[] { "submodule", "sync", "--recursive" }, ct);
+            if (syc != 0)
+                return $"git submodule sync fallito: {Describe(syc, sye)}";
+
+            // --force è il pezzo che mancava: senza, un submodule con modifiche locali resta com'è
+            // e se le porta nel run successivo. --recursive per i nidificati.
+            var (sc, _, se) = await GitAsync(worktreePath,
+                new[] { "submodule", "update", "--init", "--recursive", "--force" }, ct);
+            if (sc != 0)
+                return $"git submodule update fallito: {Describe(sc, se)}. " +
+                       "L'agente lavorerebbe con il codice assente o disallineato rispetto alla documentazione.";
+
+            // Il 'clean -fd' del padre non scende nei submodule: i file non tracciati lasciati lì
+            // dentro sopravvivrebbero. MAI -x, come per il padre: gli ignorati (build, dipendenze)
+            // restano e non si ricostruiscono ogni volta.
+            await GitAsync(worktreePath, new[] { "submodule", "foreach", "--recursive", "git clean -fd" }, ct);
+            return null;
+        }
+
+        /// <summary>Da <c>agent/&lt;nome&gt;/&lt;attività&gt;</c> al nome dell'agente. Il branch È l'assegnazione.</summary>
+        private static string AgentOfBranch(string branch)
+        {
+            if (string.IsNullOrEmpty(branch) || !branch.StartsWith("agent/", StringComparison.Ordinal))
+                return null;
+            var rest = branch.Substring("agent/".Length);
+            var slash = rest.IndexOf('/');
+            return slash > 0 ? rest.Substring(0, slash) : null;
+        }
+
+        public async Task<string> FindAgentWorktreeAsync(string projectPath, string agentName, CancellationToken ct = default)
+        {
+            var name = ValidateAgentName(agentName);
+            var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct);
+            try
+            {
+                var slots = await ReadSlotsUnlockedAsync(projectPath, ct);
+                return slots.FirstOrDefault(x => string.Equals(x.Agent, name, StringComparison.OrdinalIgnoreCase))?.Path;
+            }
+            finally { gate.Release(); }
+        }
+
+        public async Task<IReadOnlyList<WorktreeSlot>> ListSlotsAsync(string projectPath, CancellationToken ct = default)
+        {
+            var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct);
+            try { return await ReadSlotsUnlockedAsync(projectPath, ct); }
+            finally { gate.Release(); }
+        }
+
+        public void ReleaseSlot(string worktreePath)
+        {
+            if (!string.IsNullOrEmpty(worktreePath)) _leases.TryRemove(worktreePath, out _);
+        }
+
+        public async Task RemoveSlotAsync(string projectPath, int slotIndex, CancellationToken ct = default)
+        {
+            var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct);
+            try
+            {
+                var path = Path.Combine(WorktreeRootForProject(projectPath), "slot-" + slotIndex);
+                if (IsLeased(path))
+                {
+                    _logger.LogInformation("[Worktree] posto {Index} in uso da un run: non lo rimuovo ora.", slotIndex);
+                    return;
+                }
+                await RemoveWorktreeUnlockedAsync(projectPath, "slot-" + slotIndex, path, ct);
+                _leases.TryRemove(path, out _);
+            }
+            finally { gate.Release(); }
+        }
+
+        public async Task PruneWorktreesAsync(string projectPath, CancellationToken ct = default)
+        {
+            if (!Directory.Exists(projectPath)) return;
+            var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct);
+            try { await GitAsync(projectPath, new[] { "worktree", "prune" }, ct); }
+            finally { gate.Release(); }
+        }
+
+        public async Task<string> MaterializeForReviewAsync(
+            string projectPath, string agentName, string localBranch, CancellationToken ct = default)
+        {
+            var name = ValidateAgentName(agentName);
+            if (string.IsNullOrWhiteSpace(localBranch))
+                throw new ArgumentException("Branch mancante: non so cosa rimettere sul posto.", nameof(localBranch));
+
+            var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct);
+            try
+            {
+                var slots = await ReadSlotsUnlockedAsync(projectPath, ct);
+
+                // Già lì e già su quel branch: non c'è niente da rifare.
+                var here = slots.FirstOrDefault(x => string.Equals(x.Branch, localBranch, StringComparison.Ordinal));
+                if (here != null)
+                {
+                    _leases[here.Path] = (name, DateTimeOffset.UtcNow);
+                    return here.Path;
+                }
+
+                var path = await AcquireSlotUnlockedAsync(projectPath, name, ct);
+
+                // Il posto arriva da un altro lavoro: va ripulito, altrimenti il check-out
+                // si porterebbe dietro i file dell'agente precedente.
+                await GitAsync(path, new[] { "reset", "--hard" }, ct);
+                await GitAsync(path, new[] { "clean", "-fd" }, ct);
+
+                var (cc, _, ce) = await GitAsync(path, new[] { "checkout", localBranch }, ct);
+                if (cc != 0)
+                    throw new InvalidOperationException(
+                        $"Non riesco a rimettere il branch '{localBranch}' sul posto {path}: {Describe(cc, ce)}. " +
+                        "Se il branch risulta già in uso, un altro posto lo sta tenendo aperto.");
+
+                var subProblem = await SyncSubmodulesAsync(path, ct);
+                if (subProblem != null)
+                    throw new InvalidOperationException(subProblem);
+                return path;
+            }
+            finally { gate.Release(); }
         }
 
         public async Task<WorktreePrepareResult> PrepareForRunAsync(
@@ -239,8 +572,7 @@ namespace MdExplorer.Services.AgentRun
                         "Chiudila dalla vista di revisione — concludendo o annullando — e l'agente riprende.");
                 }
 
-                var worktreePath = await EnsureWorktreeUnlockedAsync(projectPath, agentName,
-                    WorktreePathFor(projectPath, agentName), ct);
+                var worktreePath = await AcquireSlotUnlockedAsync(projectPath, agentName, ct);
 
                 // 1) fetch origin
                 var (fc, _, fe) = await GitAsync(worktreePath, new[] { "fetch", "origin" }, ct);
@@ -287,28 +619,9 @@ namespace MdExplorer.Services.AgentRun
                 // dentro di loro: senza i passi qui sotto un agente si troverebbe il codice al
                 // commit di un run precedente — o modificato da un altro agente — mentre la
                 // documentazione e' a quello nuovo. Lavorerebbe su una realta' che non esiste.
-                if (File.Exists(Path.Combine(worktreePath, ".gitmodules")))
                 {
-                    // sync: l'URL nel .gitmodules puo' essere cambiato SUL BRANCH che abbiamo
-                    // appena messo in checkout.
-                    var (syc, _, sye) = await GitAsync(worktreePath, new[] { "submodule", "sync", "--recursive" }, ct);
-                    if (syc != 0)
-                        return WorktreePrepareResult.Fail($"git submodule sync fallito: {Describe(syc, sye)}");
-
-                    // --force e' il pezzo che mancava: senza, un submodule con modifiche locali
-                    // resta com'e' e le porta nel run successivo. --recursive per i nidificati.
-                    var (sc, _, se) = await GitAsync(worktreePath,
-                        new[] { "submodule", "update", "--init", "--recursive", "--force" }, ct);
-                    if (sc != 0)
-                        return WorktreePrepareResult.Fail(
-                            $"git submodule update fallito: {Describe(sc, se)}. " +
-                            "L'agente lavorerebbe con il codice assente o disallineato rispetto alla documentazione.");
-
-                    // Il 'clean -fd' del padre non scende nei submodule: i file non tracciati
-                    // lasciati la' dentro sopravvivrebbero. MAI -x, come per il padre: gli
-                    // ignorati (build, dipendenze) restano e non si ricostruiscono ogni volta.
-                    await GitAsync(worktreePath,
-                        new[] { "submodule", "foreach", "--recursive", "git clean -fd" }, ct);
+                    var problem = await SyncSubmodulesAsync(worktreePath, ct);
+                    if (problem != null) return WorktreePrepareResult.Fail(problem);
                 }
 
                 _logger.LogInformation("[Worktree] preparato per '{Agent}': branch '{Branch}' da origin/{Base}", agentName, branch, resolvedBase);
@@ -323,10 +636,18 @@ namespace MdExplorer.Services.AgentRun
 
         public async Task RemoveWorktreeAsync(string projectPath, string agentName, CancellationToken ct = default)
         {
-            var worktreePath = WorktreePathFor(projectPath, agentName);
+            var name = ValidateAgentName(agentName);
             var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
             await gate.WaitAsync(ct);
-            try { await RemoveWorktreeUnlockedAsync(projectPath, agentName, worktreePath, ct); }
+            try
+            {
+                var slots = await ReadSlotsUnlockedAsync(projectPath, ct);
+                var own = slots.FirstOrDefault(x => string.Equals(x.Agent, name, StringComparison.OrdinalIgnoreCase));
+                // Nessun posto occupato da questo agente: non c'è niente da rimuovere. Con il pool
+                // è la condizione normale — un agente che non lavora semplicemente non occupa nulla.
+                if (own == null) return;
+                await RemoveWorktreeUnlockedAsync(projectPath, name, own.Path, ct);
+            }
             finally { gate.Release(); }
         }
 
@@ -355,8 +676,8 @@ namespace MdExplorer.Services.AgentRun
 
         public async Task<HandoffPushResult> CommitAndPushBranchAsync(string projectPath, string agentName, string commitMessage, CancellationToken ct = default)
         {
-            var worktreePath = WorktreePathFor(projectPath, agentName);
-            if (!Directory.Exists(worktreePath))
+            var worktreePath = await FindAgentWorktreeAsync(projectPath, agentName, ct);
+            if (worktreePath == null || !Directory.Exists(worktreePath))
                 return null;
 
             var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
@@ -456,8 +777,8 @@ namespace MdExplorer.Services.AgentRun
         public async Task<IReadOnlyList<ChangedFile>> ChangedFilesAsync(
             string projectPath, string agentName, CancellationToken ct = default)
         {
-            var worktreePath = WorktreePathFor(projectPath, agentName);
-            if (!Directory.Exists(worktreePath)) return System.Array.Empty<ChangedFile>();
+            var worktreePath = await FindAgentWorktreeAsync(projectPath, agentName, ct);
+            if (worktreePath == null || !Directory.Exists(worktreePath)) return System.Array.Empty<ChangedFile>();
 
             try
             {
@@ -498,8 +819,8 @@ namespace MdExplorer.Services.AgentRun
 
         public async Task<DeliverableMergeOutcome> MergeDeliverableIntoDefaultAsync(string projectPath, string agentName, string activityBranch, CancellationToken ct = default)
         {
-            var worktreePath = WorktreePathFor(projectPath, agentName);
-            if (!Directory.Exists(worktreePath) || string.IsNullOrWhiteSpace(activityBranch))
+            var worktreePath = await FindAgentWorktreeAsync(projectPath, agentName, ct);
+            if (worktreePath == null || !Directory.Exists(worktreePath) || string.IsNullOrWhiteSpace(activityBranch))
                 return DeliverableMergeOutcome.Failed;
 
             var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));

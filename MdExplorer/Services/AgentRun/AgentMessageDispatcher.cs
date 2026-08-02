@@ -422,126 +422,136 @@ namespace MdExplorer.Services.AgentRun
                 workingDirectory = prep.WorktreePath;
             }
 
-            var startedAt = DateTime.UtcNow;
-            LlmWakeOutcome outcome;
+            // Il posto di lavoro resta prenotato per tutta la durata del turno, comunque
+            // vada: senza questo, un run che fallisce prima di committare terrebbe occupata
+            // una delle due scrivanie finché la prenotazione non scade da sola.
             try
             {
-                outcome = await _llmWaker.WakeAsync(new LlmWakeRequest
+                var startedAt = DateTime.UtcNow;
+                LlmWakeOutcome outcome;
+                try
                 {
-                    RunId = Guid.NewGuid(),
-                    AgentName = entry.Name,
-                    AgentFileContent = agentContent,
-                    ProjectPath = snapshot.ProjectPath,
-                    WorkingDirectory = workingDirectory,
-                    ConversationId = snapshot.ConversationId.ToString(),
-                    FromAgent = snapshot.FromAgent,
-                    MessageBody = snapshot.Body,
-                    Topics = AgentTopics.Split(snapshot.Topics),
-                    Roster = roster,
-                    Ownership = ownership,
-                    RetrievedMemory = memory,
-                    // Autorizzazione dei tool (Fase B): cosa l'agente ha dichiarato e se
-                    // l'umano si fida. Il runner su provider ne deriva i tool da esporre.
-                    DeclaredTools = entry.Tools?.ToList(),
-                    Trusted = entry.Trusted,
-                    RuntimeProvider = entry.RuntimeProvider,
-                    RuntimeModel = entry.RuntimeModel,
-                }, ct);
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                // Shutdown: lascia il messaggio 'delivered', la recovery lo rimette 'pending'.
-                throw;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[Dispatcher] Risveglio LLM di '{Agent}' fallito", entry.Name);
-                outcome = LlmWakeOutcome.Fail(ex.Message);
-            }
-
-            LogLlmExecution(snapshot, entry, startedAt, outcome);
-
-            if (outcome.Success) MarkProcessed(messageId);
-            else
-            {
-                RetryOrFail(messageId, outcome.Error);
-
-                // Il turno non è arrivato in fondo (budget di iterazioni esaurito, provider in
-                // errore). Se è un lavoro federato, l'origine sta aspettando: dirle "not-ready"
-                // quando i tentativi sono finiti è l'unico modo perché la sua memoria impari il
-                // vero. Tacere qui significa lasciarla in attesa; dire "success" — come faceva
-                // il contratto a stringa — significa rinforzarle la fiducia su un fallimento.
-                if (IsTerminallyFailed(messageId))
-                {
-                    var rc = ResolveRunContext(snapshot);
-                    if (!string.IsNullOrEmpty(rc.RemoteOwner) && rc.RequestId != null)
+                    outcome = await _llmWaker.WakeAsync(new LlmWakeRequest
                     {
-                        try
-                        {
-                            await ReportNotReadyToOriginAsync(
-                                snapshot.ProjectPath, rc, FederationReason.AgentTurnIncomplete);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex,
-                                "[Dispatcher] impossibile riportare all'origine il turno incompleto di '{Agent}'.", entry.Name);
-                        }
-                    }
+                        RunId = Guid.NewGuid(),
+                        AgentName = entry.Name,
+                        AgentFileContent = agentContent,
+                        ProjectPath = snapshot.ProjectPath,
+                        WorkingDirectory = workingDirectory,
+                        ConversationId = snapshot.ConversationId.ToString(),
+                        FromAgent = snapshot.FromAgent,
+                        MessageBody = snapshot.Body,
+                        Topics = AgentTopics.Split(snapshot.Topics),
+                        Roster = roster,
+                        Ownership = ownership,
+                        RetrievedMemory = memory,
+                        // Autorizzazione dei tool (Fase B): cosa l'agente ha dichiarato e se
+                        // l'umano si fida. Il runner su provider ne deriva i tool da esporre.
+                        DeclaredTools = entry.Tools?.ToList(),
+                        Trusted = entry.Trusted,
+                        RuntimeProvider = entry.RuntimeProvider,
+                        RuntimeModel = entry.RuntimeModel,
+                    }, ct);
                 }
-                return;   // nessun deliverable da un turno non concluso
-            }
-
-            // Fase 7d.2 — deliverable: a run riuscito nel worktree, pubblica il branch d'attività su
-            // origin (commit → push refspec). Best-effort: un push mancato non fallisce il run già concluso.
-            if (outcome.Success && workingDirectory != null)
-            {
-                // Fase 7e.1 — gate del codice: rilevato PRIMA del commit del deliverable, perché il
-                // commit azzererebbe lo `git status` del submodule (sia i contenuti sporchi sia un
-                // nuovo commit dentro il submodule). Se toccato → apri il gate umano e NON auto-merge:
-                // il codice non pushato non deve mai atterrare nel default (pointer irrisolvibile).
-                bool codeTouched = false;
-                try { codeTouched = await _submoduleGate.RecordTouchedAsync(snapshot.ProjectPath, entry.Name, workingDirectory, ct); }
-                catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] rilevamento tocco submodule per '{Agent}' fallito.", entry.Name); }
-
-                HandoffPushResult pushed = null;
-                try { pushed = await _worktree.CommitAndPushBranchAsync(snapshot.ProjectPath, entry.Name, $"deliverable {entry.Name}", ct); }
-                catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] push deliverable per '{Agent}' fallito (best-effort).", entry.Name); }
-
-                // Il deliverable-DOC non entra piu' in main da solo: PROPONE. Il gate meccanico
-                // resta — sara' il posto dove una CI o un agente-revisore pre-qualificheranno il
-                // lavoro — ma il suo "si'" apre una richiesta che decide l'umano.
-                // Il codice non passa mai di qui: il suo merge e' umano per disegno (§7e).
-                if (pushed != null && !codeTouched)
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
-                    try
-                    {
-                        if (await _mergeGate.ShouldMergeAsync(snapshot.ProjectPath, entry.Name, pushed.Branch, ct))
-                        {
-                            var changed = await _worktree.ChangedFilesAsync(snapshot.ProjectPath, entry.Name, ct);
-                            _mergeRequests.Open(snapshot.ProjectPath, entry.Name,
-                                pushed.Branch, pushed.LocalBranch, pushed.HeadSha, changed);
+                    // Shutdown: lascia il messaggio 'delivered', la recovery lo rimette 'pending'.
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[Dispatcher] Risveglio LLM di '{Agent}' fallito", entry.Name);
+                    outcome = LlmWakeOutcome.Fail(ex.Message);
+                }
 
-                            // La UI si accende: c'e' qualcosa da decidere.
+                LogLlmExecution(snapshot, entry, startedAt, outcome);
+
+                if (outcome.Success) MarkProcessed(messageId);
+                else
+                {
+                    RetryOrFail(messageId, outcome.Error);
+
+                    // Il turno non è arrivato in fondo (budget di iterazioni esaurito, provider in
+                    // errore). Se è un lavoro federato, l'origine sta aspettando: dirle "not-ready"
+                    // quando i tentativi sono finiti è l'unico modo perché la sua memoria impari il
+                    // vero. Tacere qui significa lasciarla in attesa; dire "success" — come faceva
+                    // il contratto a stringa — significa rinforzarle la fiducia su un fallimento.
+                    if (IsTerminallyFailed(messageId))
+                    {
+                        var rc = ResolveRunContext(snapshot);
+                        if (!string.IsNullOrEmpty(rc.RemoteOwner) && rc.RequestId != null)
+                        {
                             try
                             {
-                                await _hubContext.Clients.All.SendAsync("agentMergeRequested", new
-                                {
-                                    projectPath = snapshot.ProjectPath,
-                                    agentName = entry.Name,
-                                    branch = pushed.Branch,
-                                    files = changed.Count,
-                                });
+                                await ReportNotReadyToOriginAsync(
+                                    snapshot.ProjectPath, rc, FederationReason.AgentTurnIncomplete);
                             }
                             catch (Exception ex)
                             {
-                                // Best-effort: la richiesta e' gia' persistita e la vista la
-                                // ripesca comunque; un push mancato non perde nulla.
-                                _logger.LogWarning(ex, "[Dispatcher] notifica di richiesta merge non inviata.");
+                                _logger.LogWarning(ex,
+                                    "[Dispatcher] impossibile riportare all'origine il turno incompleto di '{Agent}'.", entry.Name);
                             }
                         }
                     }
-                    catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] apertura richiesta di merge per '{Agent}' fallita.", entry.Name); }
+                    return;   // nessun deliverable da un turno non concluso
                 }
+
+                // Fase 7d.2 — deliverable: a run riuscito nel worktree, pubblica il branch d'attività su
+                // origin (commit → push refspec). Best-effort: un push mancato non fallisce il run già concluso.
+                if (outcome.Success && workingDirectory != null)
+                {
+                    // Fase 7e.1 — gate del codice: rilevato PRIMA del commit del deliverable, perché il
+                    // commit azzererebbe lo `git status` del submodule (sia i contenuti sporchi sia un
+                    // nuovo commit dentro il submodule). Se toccato → apri il gate umano e NON auto-merge:
+                    // il codice non pushato non deve mai atterrare nel default (pointer irrisolvibile).
+                    bool codeTouched = false;
+                    try { codeTouched = await _submoduleGate.RecordTouchedAsync(snapshot.ProjectPath, entry.Name, workingDirectory, ct); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] rilevamento tocco submodule per '{Agent}' fallito.", entry.Name); }
+
+                    HandoffPushResult pushed = null;
+                    try { pushed = await _worktree.CommitAndPushBranchAsync(snapshot.ProjectPath, entry.Name, $"deliverable {entry.Name}", ct); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] push deliverable per '{Agent}' fallito (best-effort).", entry.Name); }
+
+                    // Il deliverable-DOC non entra piu' in main da solo: PROPONE. Il gate meccanico
+                    // resta — sara' il posto dove una CI o un agente-revisore pre-qualificheranno il
+                    // lavoro — ma il suo "si'" apre una richiesta che decide l'umano.
+                    // Il codice non passa mai di qui: il suo merge e' umano per disegno (§7e).
+                    if (pushed != null && !codeTouched)
+                    {
+                        try
+                        {
+                            if (await _mergeGate.ShouldMergeAsync(snapshot.ProjectPath, entry.Name, pushed.Branch, ct))
+                            {
+                                var changed = await _worktree.ChangedFilesAsync(snapshot.ProjectPath, entry.Name, ct);
+                                _mergeRequests.Open(snapshot.ProjectPath, entry.Name,
+                                    pushed.Branch, pushed.LocalBranch, pushed.HeadSha, changed);
+
+                                // La UI si accende: c'e' qualcosa da decidere.
+                                try
+                                {
+                                    await _hubContext.Clients.All.SendAsync("agentMergeRequested", new
+                                    {
+                                        projectPath = snapshot.ProjectPath,
+                                        agentName = entry.Name,
+                                        branch = pushed.Branch,
+                                        files = changed.Count,
+                                    });
+                                }
+                                catch (Exception ex)
+                                {
+                                    // Best-effort: la richiesta e' gia' persistita e la vista la
+                                    // ripesca comunque; un push mancato non perde nulla.
+                                    _logger.LogWarning(ex, "[Dispatcher] notifica di richiesta merge non inviata.");
+                                }
+                            }
+                        }
+                        catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] apertura richiesta di merge per '{Agent}' fallita.", entry.Name); }
+                    }
+                }
+            }
+            finally
+            {
+                if (workingDirectory != null) _worktree.ReleaseSlot(workingDirectory);
             }
         }
 
