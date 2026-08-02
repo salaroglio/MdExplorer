@@ -18262,6 +18262,30 @@ class MainContentComponent {
     // channel that keeps the open document in sync with the pulled content.
     this.monitorMDService.gitPullRefreshed$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_15__.takeUntil)(this.destroy$)).subscribe(data => this.reloadOpenDocumentIfChanged(data?.changedFiles, 'git pull'));
     this.monitorMDService.gitBranchSwitched$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_15__.takeUntil)(this.destroy$)).subscribe(data => this.reloadOpenDocumentIfChanged(data?.changedFiles, 'branch switch'));
+    // Submodule popolati all'apertura del progetto. Il fallimento va DETTO: prima finiva
+    // appeso al messaggio di successo del clone e l'unico modo di accorgersene era aprire la
+    // cartella del codice e trovarla vuota.
+    this.monitorMDService.submoduleInit$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_15__.takeUntil)(this.destroy$)).subscribe(e => {
+      if (e.phase === 'started') {
+        this.snackBar.open(this.translate.instant('SUBMODULE.FETCHING', {
+          list: (e.submodules || []).join(', ')
+        }), undefined, {
+          duration: 4000
+        });
+      } else if (e.phase === 'completed') {
+        this.snackBar.open(this.translate.instant('SUBMODULE.READY', {
+          list: (e.submodules || []).join(', ')
+        }), 'OK', {
+          duration: 5000
+        });
+      } else {
+        // Niente scadenza: un codice che manca cambia quello che leggi nella documentazione,
+        // e va chiuso da te, non da un timer.
+        this.snackBar.open(e.error || this.translate.instant('SUBMODULE.FAILED'), 'OK', {
+          panelClass: ['error-snackbar']
+        });
+      }
+    });
     // Manual refresh requested from the toolbar (app-bar) refresh button.
     this.documentRefreshService.refresh$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_15__.takeUntil)(this.destroy$)).subscribe(() => this.refreshCurrentFile());
     // Subscribe to layout changes - RIMOSSO per usare solo CSS

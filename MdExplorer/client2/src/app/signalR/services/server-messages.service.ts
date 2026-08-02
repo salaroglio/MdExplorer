@@ -117,6 +117,16 @@ export class MdServerMessagesService {
     reason: 'header-missing' | 'hash-mismatch'
   }>();
 
+  // I submodule del progetto: popolati all'apertura, non solo su clone e pull.
+  // Il fallimento arriva qui perché prima finiva appeso al messaggio di successo del clone —
+  // il clone risultava riuscito, la cartella del codice restava vuota e nessuno lo leggeva.
+  public submoduleInit$ = new Subject<{
+    phase: 'started' | 'completed' | 'failed',
+    projectPath: string,
+    submodules: string[],
+    error?: string
+  }>();
+
   // Observable for Screenshot Annotation Wizard (from iframe Ctrl+V)
   public screenshotAnnotationRequest$ = new Subject<{
     success: boolean,
@@ -285,6 +295,18 @@ export class MdServerMessagesService {
       this.hubConnection.on('kgStale', (data) => {
         console.warn('⚠️ SignalR event received: kgStale', data);
         this.kgStale$.next(data);
+      });
+
+      // Submodule del progetto (apertura, clone, pull)
+      this.hubConnection.on('submoduleInitStarted', (d) => {
+        this.submoduleInit$.next({ phase: 'started', projectPath: d?.projectPath, submodules: d?.submodules || [] });
+      });
+      this.hubConnection.on('submoduleInitCompleted', (d) => {
+        this.submoduleInit$.next({ phase: 'completed', projectPath: d?.projectPath, submodules: d?.submodules || [] });
+      });
+      this.hubConnection.on('submoduleInitFailed', (d) => {
+        console.error('❌ SignalR: submoduleInitFailed', d);
+        this.submoduleInit$.next({ phase: 'failed', projectPath: d?.projectPath, submodules: d?.submodules || [], error: d?.error });
       });
 
       // Runnable fenced code blocks — streaming output from MdExecutionController

@@ -1865,5 +1865,10 @@
     "DISCARD_FAILED": "Non sono riuscito a buttare via le modifiche.",
     "DIFF_EMPTY": "Nessuna differenza testuale (file binario o solo permessi).",
     "DIFF_FAILED": "Differenza non calcolabile per questo file."
+  },
+  "SUBMODULE": {
+    "FETCHING": "Recupero il codice di {{list}}…",
+    "READY": "Codice di {{list}} pronto.",
+    "FAILED": "Non sono riuscito a popolare i sottomoduli del progetto."
   }
 }

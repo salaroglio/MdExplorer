@@ -1865,5 +1865,10 @@
     "DISCARD_FAILED": "Could not throw away the changes.",
     "DIFF_EMPTY": "No textual difference (binary file or mode change only).",
     "DIFF_FAILED": "Diff not available for this file."
+  },
+  "SUBMODULE": {
+    "FETCHING": "Fetching the code for {{list}}…",
+    "READY": "Code for {{list}} is ready.",
+    "FAILED": "Could not populate the project's submodules."
   }
 }

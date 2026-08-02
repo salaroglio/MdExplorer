@@ -122,6 +122,12 @@ namespace MdExplorer
             // opt-in via agentCity.useAgentWorktrees. Il reaper pota i worktree orfani.
             // Sessione d'intervento manuale sul worktree: apre/chiude, mette in coda l'agente
             // e — su annullamento — rimette il lavoro in coda invece di perderlo.
+            // Popola i submodule all'APERTURA del progetto, non solo su clone e pull: chi apre
+            // una cartella clonata da fuori MdExplorer non li vedeva popolare mai.
+            services.AddSingleton<Services.Git.IProjectSubmoduleInitializer, Services.Git.ProjectSubmoduleInitializer>();
+            services.AddSingleton<MdExplorer.Abstractions.Services.IProjectOpenedEventHandler>(
+                sp => (Services.Git.ProjectSubmoduleInitializer)sp.GetRequiredService<Services.Git.IProjectSubmoduleInitializer>());
+
             // git di sistema: worktree, submodule e diff testuali, che LibGit2Sharp non copre.
             services.AddSingleton<Services.Git.INativeGitRunner, Services.Git.NativeGitRunner>();
             // La vista delle differenze del tab: interroga git, non il FileSystemWatcher.

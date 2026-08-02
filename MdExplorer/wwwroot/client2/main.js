@@ -16980,6 +16980,10 @@ class MdServerMessagesService {
     // Observable for KG drift events (emitted by FileSystemWatcherManager when a .md
     // diverges from the // sourceDocHash header of its adjacent .kg.cypher).
     this.kgStale$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    // I submodule del progetto: popolati all'apertura, non solo su clone e pull.
+    // Il fallimento arriva qui perché prima finiva appeso al messaggio di successo del clone —
+    // il clone risultava riuscito, la cartella del codice restava vuota e nessuno lo leggeva.
+    this.submoduleInit$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for Screenshot Annotation Wizard (from iframe Ctrl+V)
     this.screenshotAnnotationRequest$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable streams for runnable fenced code blocks (MdExecutionController)
@@ -17105,6 +17109,30 @@ class MdServerMessagesService {
         this.hubConnection.on('kgStale', data => {
           console.warn('⚠️ SignalR event received: kgStale', data);
           this.kgStale$.next(data);
+        });
+        // Submodule del progetto (apertura, clone, pull)
+        this.hubConnection.on('submoduleInitStarted', d => {
+          this.submoduleInit$.next({
+            phase: 'started',
+            projectPath: d?.projectPath,
+            submodules: d?.submodules || []
+          });
+        });
+        this.hubConnection.on('submoduleInitCompleted', d => {
+          this.submoduleInit$.next({
+            phase: 'completed',
+            projectPath: d?.projectPath,
+            submodules: d?.submodules || []
+          });
+        });
+        this.hubConnection.on('submoduleInitFailed', d => {
+          console.error('❌ SignalR: submoduleInitFailed', d);
+          this.submoduleInit$.next({
+            phase: 'failed',
+            projectPath: d?.projectPath,
+            submodules: d?.submodules || [],
+            error: d?.error
+          });
         });
         // Runnable fenced code blocks — streaming output from MdExecutionController
         this.hubConnection.on('execution.output', data => {
@@ -17514,8 +17542,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.08.02.7',
-  buildTime: '2026.08.02 10:34:34'
+  version: '2026.08.02.8',
+  buildTime: '2026.08.02 11:01:55'
 };
 
 /***/ }),

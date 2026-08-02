@@ -220,6 +220,28 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(data => this.reloadOpenDocumentIfChanged(data?.changedFiles, 'branch switch'));
 
+    // Submodule popolati all'apertura del progetto. Il fallimento va DETTO: prima finiva
+    // appeso al messaggio di successo del clone e l'unico modo di accorgersene era aprire la
+    // cartella del codice e trovarla vuota.
+    this.monitorMDService.submoduleInit$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(e => {
+      if (e.phase === 'started') {
+        this.snackBar.open(
+          this.translate.instant('SUBMODULE.FETCHING', { list: (e.submodules || []).join(', ') }),
+          undefined, { duration: 4000 });
+      } else if (e.phase === 'completed') {
+        this.snackBar.open(
+          this.translate.instant('SUBMODULE.READY', { list: (e.submodules || []).join(', ') }),
+          'OK', { duration: 5000 });
+      } else {
+        // Niente scadenza: un codice che manca cambia quello che leggi nella documentazione,
+        // e va chiuso da te, non da un timer.
+        this.snackBar.open(e.error || this.translate.instant('SUBMODULE.FAILED'), 'OK',
+          { panelClass: ['error-snackbar'] });
+      }
+    });
+
     // Manual refresh requested from the toolbar (app-bar) refresh button.
     this.documentRefreshService.refresh$.pipe(
       takeUntil(this.destroy$)

@@ -29,13 +29,42 @@ namespace MdExplorer.Services.Git
             ILogger<ModernGitService> logger,
             IUserSettingsDB userSettingsDB,
             IOptions<GitAuthenticationOptions> authOptions = null,
-            IOptions<GitOperationOptions> operationOptions = null)
+            IOptions<GitOperationOptions> operationOptions = null,
+            IProjectSubmoduleInitializer submodules = null)
         {
             _credentialResolvers = credentialResolvers?.OrderBy(r => r.GetPriority()) ?? throw new ArgumentNullException(nameof(credentialResolvers));
             _logger = logger;
             _userSettingsDB = userSettingsDB;
             _authOptions = authOptions?.Value ?? new GitAuthenticationOptions();
             _operationOptions = operationOptions?.Value ?? new GitOperationOptions();
+            _submodules = submodules;
+        }
+
+        /// <summary>
+        /// Chi popola i submodule. Clone e pull passano di qui invece di farlo per conto loro,
+        /// così esiste un solo posto che sa come si popolano e un solo posto che racconta com'è
+        /// andata: prima il fallimento finiva appeso al messaggio di successo del clone, il clone
+        /// risultava riuscito, la cartella restava vuota e nessuno leggeva quel pezzo di frase.
+        /// Opzionale perché il servizio git viene costruito anche fuori dal grafo completo.
+        /// </summary>
+        private readonly IProjectSubmoduleInitializer _submodules;
+
+        /// <summary>
+        /// Popola i submodule tramite l'inizializzatore condiviso; senza di lui (costruzione
+        /// isolata) ripiega sul comando diretto, che fa la stessa cosa ma senza notifica.
+        /// </summary>
+        private async Task<GitOperationResult> EnsureSubmodulesAsync(string repositoryPath)
+        {
+            if (_submodules == null)
+                return await UpdateSubmodulesAsync(repositoryPath);
+
+            var res = await _submodules.EnsureAsync(repositoryPath);
+            return new GitOperationResult
+            {
+                Success = res.Success,
+                Message = res.NothingToDo ? "No submodules" : "Submodules updated",
+                ErrorMessage = res.Error,
+            };
         }
 
         /// <summary>
@@ -213,7 +242,7 @@ namespace MdExplorer.Services.Git
                 ClearCredentialCallHistory();
 
                 // Populate/refresh submodules after pull (native git; no-op when .gitmodules absent)
-                var submoduleResult = await UpdateSubmodulesAsync(repositoryPath);
+                var submoduleResult = await EnsureSubmodulesAsync(repositoryPath);
                 if (!submoduleResult.Success)
                 {
                     message += $" (warning: submodule update failed: {submoduleResult.ErrorMessage})";
@@ -533,7 +562,7 @@ namespace MdExplorer.Services.Git
                     if (nativeResult.Success)
                     {
                         // Populate submodules after clone (native git; no-op when .gitmodules absent)
-                        var nativeSubmoduleResult = await UpdateSubmodulesAsync(localPath);
+                        var nativeSubmoduleResult = await EnsureSubmodulesAsync(localPath);
                         if (!nativeSubmoduleResult.Success)
                         {
                             nativeResult.Message += $" (warning: submodule update failed: {nativeSubmoduleResult.ErrorMessage})";
@@ -868,7 +897,7 @@ namespace MdExplorer.Services.Git
 
                 // Populate submodules after clone (native git; no-op when .gitmodules absent)
                 var cloneMessage = $"Successfully cloned repository to {clonedRepoPath}";
-                var submoduleUpdateResult = await UpdateSubmodulesAsync(localPath);
+                var submoduleUpdateResult = await EnsureSubmodulesAsync(localPath);
                 if (!submoduleUpdateResult.Success)
                 {
                     cloneMessage += $" (warning: submodule update failed: {submoduleUpdateResult.ErrorMessage})";
@@ -1251,7 +1280,7 @@ namespace MdExplorer.Services.Git
 
                 // Populate nested submodules; a failure here is a visible warning — the add itself succeeded
                 var message = $"Submodule '{submoduleName}' added and committed.";
-                var nestedResult = await UpdateSubmodulesAsync(repositoryPath);
+                var nestedResult = await EnsureSubmodulesAsync(repositoryPath);
                 if (!nestedResult.Success)
                 {
                     message += $" Warning: nested submodule init failed: {nestedResult.ErrorMessage}";
