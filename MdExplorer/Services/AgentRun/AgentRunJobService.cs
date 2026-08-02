@@ -35,6 +35,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentTurnRunner _turnRunner;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly AgentRegistry.IAgentRegistryService _agentRegistry;
+        private readonly MdExplorer.Features.Agents.IRunTokenStore _tokens;
 
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
 
@@ -43,13 +44,15 @@ namespace MdExplorer.Services.AgentRun
             IHubContext<MonitorMDHub> hubContext,
             IAgentTurnRunner turnRunner,
             IServiceScopeFactory scopeFactory,
-            AgentRegistry.IAgentRegistryService agentRegistry)
+            AgentRegistry.IAgentRegistryService agentRegistry,
+            MdExplorer.Features.Agents.IRunTokenStore tokens)
         {
             _logger = logger;
             _hubContext = hubContext;
             _turnRunner = turnRunner;
             _scopeFactory = scopeFactory;
             _agentRegistry = agentRegistry;
+            _tokens = tokens;
         }
 
         /// <summary>
@@ -202,12 +205,49 @@ namespace MdExplorer.Services.AgentRun
                 // Attraverso il seam provider-agnostico (IAgentTurnRunner): il runner reale
                 // (CopilotTurnRunner) verifica la disponibilità e lancia Copilot; una fake lo
                 // sostituisce nei test. I run schedulati/manuali non passano un RunToken.
-                var turn = await _turnRunner.RunTurnAsync(new AgentTurnRequest
+                // Un agente lanciato a mano è un cittadino come gli altri: senza RunToken non
+                // potrebbe chiamare un collega, chiedere un intervento su un ambito altrui né
+                // leggere la rubrica — tutti i tool della città si autenticano con questo. Prima
+                // mancava, e un agente lanciato dalla UI si trovava «RunToken assente o non
+                // valido» su ogni tentativo di parlare con qualcuno.
+                // gitName arriva dal registry ed E' gia' il nome a2a del cittadino (ripiega sul
+                // nome-da-file solo se il catalogo non lo conosce): e' la stessa identita' con
+                // cui firma i commit, quindi il token non puo' dire una cosa e la firma un'altra.
+                var a2aName = gitName;
+                var runToken = _tokens.Mint(new MdExplorer.Features.Agents.RunTokenClaims
                 {
-                    ComposedPrompt = composedPrompt,
-                    WorkingDirectory = request.ProjectPath,
-                    Environment = AgentGitIdentity.EnvFor(gitName),
-                }, cts.Token);
+                    RunId = request.RunId,
+                    AgentName = a2aName,
+                    ProjectPath = request.ProjectPath,
+                    ConversationId = null,
+                });
+
+                var env = new Dictionary<string, string>
+                {
+                    [MdExplorer.Features.Agents.LlmAgentWaker.EnvRunToken] = runToken,
+                    [MdExplorer.Features.Agents.LlmAgentWaker.EnvAgentName] = a2aName ?? string.Empty,
+                    [MdExplorer.Features.Agents.LlmAgentWaker.EnvProjectPath] = request.ProjectPath ?? string.Empty,
+                };
+                foreach (var kv in AgentGitIdentity.EnvFor(gitName))
+                    env[kv.Key] = kv.Value;
+
+                AgentTurnResult turn;
+                try
+                {
+                    turn = await _turnRunner.RunTurnAsync(new AgentTurnRequest
+                    {
+                        ComposedPrompt = composedPrompt,
+                        AgentName = a2aName,
+                        ProjectPath = request.ProjectPath,
+                        WorkingDirectory = request.ProjectPath,
+                        Environment = env,
+                    }, cts.Token);
+                }
+                finally
+                {
+                    // Il token vale un run: finito il turno non deve restare spendibile.
+                    _tokens.Revoke(runToken);
+                }
 
                 // Un turno può concludersi male SENZA sollevare (tetto di iterazioni, uscita
                 // non-zero): registrarlo come "success" mentirebbe allo storico dell'agente.

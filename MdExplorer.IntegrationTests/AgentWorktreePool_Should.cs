@@ -43,6 +43,28 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Hide_the_workplaces_from_git_without_waiting_for_a_project_open()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var (_, path) = SetupGitProject(ctx, "pool-gitignore");
+            var m = Manager(ctx);
+
+            var prep = await m.PrepareForRunAsync(path, "alfa", "att1");
+            Assert.IsTrue(prep.Success, prep.Error);
+
+            // La riga la scrive anche l'apertura del progetto, ma un agente puo' svegliarsi
+            // senza che nessuno abbia aperto niente: verificato dal vivo, '?? .worktrees/'
+            // compariva fra i file non tracciati dopo il primo risveglio.
+            StringAssert.Contains(File.ReadAllText(Path.Combine(path, ".gitignore")), ".worktrees/");
+
+            var (_, status) = Git(path, "status --porcelain");
+            Assert.IsFalse(status.Contains(".worktrees"),
+                "i posti di lavoro non devono comparire fra le modifiche del progetto");
+        }
+
+        [TestMethod]
         public async Task Give_two_agents_two_different_workplaces()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }

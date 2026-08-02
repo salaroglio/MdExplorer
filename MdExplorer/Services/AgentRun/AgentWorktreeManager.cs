@@ -201,6 +201,8 @@ namespace MdExplorer.Services.AgentRun
         // git non trovato / timeout: codici sentinella (fuori dal range 0..255 dei veri exit).
         private const int GitNotFoundExit = -9999;
         private const int GitTimeoutExit = -9998;
+        // La cartella di lavoro non esiste: non è colpa di git, ed è bene non dire che lo è.
+        private const int GitBadWorkingDirExit = -9997;
         private const int DefaultTimeoutMs = 300000;
 
         private readonly ILogger<AgentWorktreeManager> _logger;
@@ -330,6 +332,15 @@ namespace MdExplorer.Services.AgentRun
                 var path = Path.Combine(root, "slot-" + index);
 
                 Directory.CreateDirectory(root);
+
+                // La riga '.worktrees/' nel .gitignore la scrive l'apertura del progetto — ma un
+                // agente puo' svegliarsi senza che nessuno abbia aperto niente (attivazione
+                // headless, messaggio federato), e allora la cartella comparirebbe fra i file non
+                // tracciati. Verificato dal vivo: '?? .worktrees/' in 'git status' dopo il primo
+                // risveglio. La si scrive qui, dove la cartella nasce.
+                try { MdExplorer.Service.ProjectsManager.EnsureGitignoreEntries(projectPath); }
+                catch (Exception ex) { _logger.LogWarning(ex, "[Worktree] .gitignore non aggiornato per '{Path}'.", projectPath); }
+
                 var (code, _, err) = await GitAsync(projectPath, new[] { "worktree", "add", "--detach", path }, ct);
                 if (code != 0)
                     throw new InvalidOperationException(
@@ -957,6 +968,7 @@ namespace MdExplorer.Services.AgentRun
 
         private static string Describe(int code, string stderr)
             => code == GitNotFoundExit ? "git non trovato nel PATH"
+             : code == GitBadWorkingDirExit ? stderr
              : code == GitTimeoutExit ? "timeout"
              : $"exit {code}: {stderr?.Trim()}";
 
@@ -994,6 +1006,15 @@ namespace MdExplorer.Services.AgentRun
             try { process.Start(); }
             catch (System.ComponentModel.Win32Exception ex)
             {
+                // Win32Exception(2) = "file o directory inesistente", e copre DUE casi diversi:
+                // git assente, oppure la cartella di lavoro sparita. Raccontarne uno solo manda
+                // a cercare la cosa sbagliata — successo dal vivo: "git non trovato nel PATH"
+                // con git regolarmente installato e un progetto cancellato dal disco.
+                if (!Directory.Exists(workingDirectory))
+                {
+                    _logger.LogError("[Worktree] cartella di lavoro inesistente: {Dir}", workingDirectory);
+                    return (GitBadWorkingDirExit, string.Empty, $"cartella di lavoro inesistente: {workingDirectory}");
+                }
                 _logger.LogError(ex, "[Worktree] git non trovato nel PATH");
                 return (GitNotFoundExit, string.Empty, ex.Message);
             }

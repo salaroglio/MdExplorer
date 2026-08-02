@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -35,6 +36,7 @@ namespace MdExplorer.Services.Git
         /// <summary>Motivo leggibile, per messaggi che l'utente deve poter capire.</summary>
         public string Describe()
             => ExitCode == NativeGitRunner.GitNotFoundExit ? "git non trovato nel PATH"
+             : ExitCode == NativeGitRunner.GitBadWorkingDirExit ? Stderr
              : ExitCode == NativeGitRunner.GitTimeoutExit ? "timeout"
              : $"exit {ExitCode}: {Stderr?.Trim()}";
     }
@@ -45,6 +47,8 @@ namespace MdExplorer.Services.Git
         // essere confusi con un esito di git.
         public const int GitNotFoundExit = -9999;
         public const int GitTimeoutExit = -9998;
+        /// <summary>La cartella di lavoro non esiste: non è colpa di git, ed è bene non dire che lo è.</summary>
+        public const int GitBadWorkingDirExit = -9997;
         public const int DefaultTimeoutMs = 300000;
 
         private readonly ILogger<NativeGitRunner> _logger;
@@ -79,6 +83,15 @@ namespace MdExplorer.Services.Git
             try { process.Start(); }
             catch (System.ComponentModel.Win32Exception ex)
             {
+                // Win32Exception(2) = "file o directory inesistente", e copre DUE casi diversi:
+                // git assente, oppure la cartella di lavoro sparita. Raccontarne uno solo manda
+                // a cercare la cosa sbagliata — successo dal vivo: "git non trovato nel PATH"
+                // con git regolarmente installato e un progetto cancellato dal disco.
+                if (!Directory.Exists(workingDirectory))
+                {
+                    _logger.LogError("[git] cartella di lavoro inesistente: {Dir}", workingDirectory);
+                    return new GitResult { ExitCode = GitBadWorkingDirExit, Stdout = string.Empty, Stderr = $"cartella di lavoro inesistente: {workingDirectory}" };
+                }
                 _logger.LogError(ex, "[git] non trovato nel PATH");
                 return new GitResult { ExitCode = GitNotFoundExit, Stdout = string.Empty, Stderr = ex.Message };
             }
