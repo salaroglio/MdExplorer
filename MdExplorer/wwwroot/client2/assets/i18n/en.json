@@ -1676,7 +1676,10 @@
     "SAVED_LOCAL": "Prompt saved for you only",
     "SAVE_MENU_ARIA": "More save options",
     "SAVE_SCHEDULE": "Schedule",
-    "SAVE_SCHEDULE_TOOLTIP": "Save and open the scheduling dialog (time-based run)"
+    "SAVE_SCHEDULE_TOOLTIP": "Save and open the scheduling dialog (time-based run)",
+    "ISOLATE": "Work in an isolated workplace",
+    "ISOLATE_ON": "The agent works on its own branch, in a copy of the project: it signs its own commit and asks your permission to merge. Your work is untouched.",
+    "ISOLATE_OFF": "The agent writes here, on your branch: you see the result straight away, but its changes mix with yours and you sign them when you commit."
   },
   "AGENT_SCHEDULE": {
     "TITLE": "Agent scheduling",

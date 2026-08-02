@@ -147,3 +147,16 @@ h2[mat-dialog-title] {
   .q-hub { font-size: 16px; height: 16px; width: 16px; color: #5e35b1; }
   .flexExpand { flex: 1 1 auto; }
 }
+
+/* La scelta di dove lavora sta appena sopra i pulsanti: e' l'ultima cosa che guardi
+   prima di lanciare, ed e' quella che decide se l'agente tocca il tuo ramo. */
+.isolation-choice {
+  padding: 4px 24px 0;
+
+  .isolation-hint {
+    margin: 4px 0 0 32px;
+    font-size: 11px;
+    opacity: .7;
+    line-height: 1.35;
+  }
+}

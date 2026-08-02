@@ -9,6 +9,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 
 import { AgentLaunchService, AgentParam } from '../../services/agent-launch.service';
+import { ProjectSettingsService } from '../../../projects/services/project-settings.service';
 import { AgentScheduleService } from '../../services/agent-schedule.service';
 import { AgentQueue, AgentQueueService } from '../../services/agent-queue.service';
 import { AgentScheduleDialogComponent } from '../agent-schedule-dialog/agent-schedule-dialog.component';
@@ -47,6 +48,18 @@ export class AgentLaunchDialogComponent implements OnInit {
 
   isNormalizing = false;
   isLaunching = false;
+
+  /**
+   * Dove far lavorare l'agente in QUESTO lancio.
+   *
+   * Il default lo dà l'impostazione del progetto, ma i due gesti sono diversi: «lancia e guarda
+   * cosa fa» su un ritocco vuole il progetto, con il risultato lì sotto gli occhi; un lavoro
+   * vero vuole l'isolamento, perché nel progetto finirebbe mescolato al tuo sul tuo ramo — e
+   * quando lo committi lo firmi tu.
+   */
+  useWorktree = false;
+  /** Senza git non ci sono rami né posti di lavoro: la spunta non ha nulla da offrire. */
+  canIsolate = false;
   aiError: string | null = null;
 
   // Splits a normalized prompt at its `## Task` heading. Header = everything before it
@@ -75,6 +88,24 @@ export class AgentLaunchDialogComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadQueue();
+    this.loadIsolationDefault();
+  }
+
+  /**
+   * Il default della spunta viene dall'impostazione del progetto: la spunta decide QUESTO
+   * lancio, l'impostazione dice come si lavora di solito.
+   */
+  private loadIsolationDefault(): void {
+    this.projectSettingsService.getAgentWorktreesSetting(this.data.projectPath).subscribe({
+      next: (res) => {
+        this.useWorktree = !!res?.enabled;
+        // Il default del backend è vero solo su un repo con un origin: se lì è falso e nessuno
+        // ha scelto, l'isolamento non è nemmeno possibile e la spunta mentirebbe.
+        this.canIsolate = !!res?.defaultValue || !!res?.enabled;
+      },
+      // Best-effort: se l'impostazione non si legge, si lancia dove si è sempre lanciato.
+      error: () => { this.useWorktree = false; this.canIsolate = false; },
+    });
   }
 
   loadQueue(): void {
@@ -101,6 +132,7 @@ export class AgentLaunchDialogComponent implements OnInit {
     public dialogRef: MatDialogRef<AgentLaunchDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: AgentLaunchDialogData,
     private agentLaunchService: AgentLaunchService,
+    private projectSettingsService: ProjectSettingsService,
     private agentScheduleService: AgentScheduleService,
     private dialog: MatDialog,
     private snackBar: MatSnackBar,
@@ -300,7 +332,8 @@ export class AgentLaunchDialogComponent implements OnInit {
     this.aiError = null;
 
     this.agentLaunchService
-      .launch(this.data.projectPath, this.data.agentFilePath, this.composeFull(), this.paramValues)
+      .launch(this.data.projectPath, this.data.agentFilePath, this.composeFull(), this.paramValues,
+              this.useWorktree)
       .subscribe({
         next: (response) => {
           this.isLaunching = false;

@@ -158,7 +158,8 @@ namespace MdExplorer.Controllers.AI
                 AgentFilePath = request.AgentFilePath,
                 PreparedPrompt = prepared,
                 TriggerSource = "manual",
-                ConnectionId = request.ConnectionId
+                ConnectionId = request.ConnectionId,
+                UseWorktree = request.UseWorktree,
             };
 
             try
@@ -411,6 +412,11 @@ namespace MdExplorer.Controllers.AI
         public string? Prompt { get; set; }
         public Dictionary<string, string>? ParameterValues { get; set; }
         public string? ConnectionId { get; set; }
+        /// <summary>
+        /// La spunta del dialogo: <c>true</c> = in un posto di lavoro isolato, <c>false</c> = nel
+        /// progetto, sul ramo dell'utente. Assente = come dice l'impostazione del progetto.
+        /// </summary>
+        public bool? UseWorktree { get; set; }
     }
 
     public class AgentParamDto

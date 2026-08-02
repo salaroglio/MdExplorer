@@ -61,12 +61,15 @@ export class AgentLaunchService {
     agentFilePath: string,
     prompt: string,
     parameterValues: { [name: string]: string },
+    /** `true` = posto di lavoro isolato, `false` = nel progetto. Assente = come da impostazione. */
+    useWorktree?: boolean,
   ): Observable<LaunchAgentResponse> {
     return this.http.post<LaunchAgentResponse>('/api/AgentPrompts/launch', {
       projectPath,
       agentFilePath,
       prompt,
       parameterValues,
+      useWorktree,
     });
   }
 }

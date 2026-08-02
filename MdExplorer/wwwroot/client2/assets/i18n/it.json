@@ -1676,7 +1676,10 @@
     "SAVED_LOCAL": "Prompt salvato solo per te",
     "SAVE_MENU_ARIA": "Altre opzioni di salvataggio",
     "SAVE_SCHEDULE": "Schedula",
-    "SAVE_SCHEDULE_TOOLTIP": "Salva e apre la maschera di schedulazione (esecuzione a tempo)"
+    "SAVE_SCHEDULE_TOOLTIP": "Salva e apre la maschera di schedulazione (esecuzione a tempo)",
+    "ISOLATE": "Lavora in un posto di lavoro isolato",
+    "ISOLATE_ON": "L'agente lavora su un ramo suo, in una copia del progetto: firma il proprio commit e ti chiede il permesso di entrare. Il tuo lavoro non viene toccato.",
+    "ISOLATE_OFF": "L'agente scrive qui, sul tuo ramo: vedi subito il risultato, ma le sue modifiche si mescolano alle tue e committandole le firmi tu."
   },
   "AGENT_SCHEDULE": {
     "TITLE": "Schedulazione agente",

@@ -24,6 +24,20 @@ namespace MdExplorer.Services.AgentRun
         public string ConnectionId { get; set; }
         /// <summary>Set when the run originates from a saved schedule.</summary>
         public Guid? ScheduleId { get; set; }
+
+        /// <summary>
+        /// Dove far lavorare l'agente: <c>true</c> = in un posto di lavoro isolato, <c>false</c> =
+        /// nel progetto, sul ramo dell'utente. <c>null</c> = come dice l'impostazione del
+        /// progetto.
+        /// <para>
+        /// Esiste perché sono due gesti diversi. «Lancia e guarda cosa fa» su un ritocco veloce
+        /// vuole il progetto: il risultato è lì, sotto gli occhi. Un lavoro vero vuole
+        /// l'isolamento, perché altrimenti finisce mescolato al tuo sul tuo ramo, e quando lo
+        /// committi lo firmi tu — fra sei mesi <c>git blame</c> dirà il tuo nome su righe che ha
+        /// scritto una macchina.
+        /// </para>
+        /// </summary>
+        public bool? UseWorktree { get; set; }
     }
 
     /// <summary>

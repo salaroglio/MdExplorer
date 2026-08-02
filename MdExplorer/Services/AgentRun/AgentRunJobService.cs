@@ -36,6 +36,9 @@ namespace MdExplorer.Services.AgentRun
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly AgentRegistry.IAgentRegistryService _agentRegistry;
         private readonly MdExplorer.Features.Agents.IRunTokenStore _tokens;
+        private readonly IAgentWorktreeManager _worktree;
+        private readonly IAgentWorktreePreference _worktreePreference;
+        private readonly IAgentMergeRequestService _mergeRequests;
 
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
 
@@ -45,8 +48,14 @@ namespace MdExplorer.Services.AgentRun
             IAgentTurnRunner turnRunner,
             IServiceScopeFactory scopeFactory,
             AgentRegistry.IAgentRegistryService agentRegistry,
-            MdExplorer.Features.Agents.IRunTokenStore tokens)
+            MdExplorer.Features.Agents.IRunTokenStore tokens,
+            IAgentWorktreeManager worktree,
+            IAgentWorktreePreference worktreePreference,
+            IAgentMergeRequestService mergeRequests)
         {
+            _worktree = worktree;
+            _worktreePreference = worktreePreference;
+            _mergeRequests = mergeRequests;
             _logger = logger;
             _hubContext = hubContext;
             _turnRunner = turnRunner;
@@ -92,6 +101,65 @@ namespace MdExplorer.Services.AgentRun
         /// nome derivato dal file. Fail-soft: un intoppo del registry non deve impedire il run,
         /// si degrada al nome-da-file.
         /// </summary>
+        /// <summary>
+        /// Il default dell'isolamento per questo progetto. Fail-soft verso il <b>progetto</b>: se
+        /// la preferenza non è leggibile, meglio un agente che lavora dove hai sempre visto
+        /// lavorare che un run rifiutato per una lettura andata storta.
+        /// </summary>
+        private bool SafeIsolationDefault(string projectPath)
+        {
+            try { return _worktreePreference.IsEnabled(projectPath); }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[AgentRun] preferenza di isolamento non leggibile per '{Path}': lavoro nel progetto.", projectPath);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Consegna il lavoro di un run isolato: commit firmato dall'agente, branch pubblicato,
+        /// richiesta di merge. Senza questo il lavoro resterebbe in un posto che il primo agente
+        /// successivo ripulisce con <c>reset --hard</c>.
+        /// <para>Fail-soft: un intoppo qui non trasforma un turno riuscito in un fallimento — ma
+        /// si vede nel log, non si finge che sia andata.</para>
+        /// </summary>
+        private async Task PublishIsolatedWorkAsync(AgentRunRequestModel request, string agentName, CancellationToken ct)
+        {
+            try
+            {
+                var pushed = await _worktree.CommitAndPushBranchAsync(
+                    request.ProjectPath, agentName, $"lavoro di {agentName}", ct);
+                if (pushed == null)
+                {
+                    // Nessun commit = l'agente non ha toccato niente: è un esito, non un errore.
+                    _logger.LogInformation("[AgentRun] '{Agent}': niente da consegnare dal posto di lavoro.", agentName);
+                    return;
+                }
+
+                var changed = await _worktree.ChangedFilesAsync(request.ProjectPath, agentName, ct);
+                _mergeRequests.Open(request.ProjectPath, agentName,
+                    pushed.Branch, pushed.LocalBranch, pushed.HeadSha, changed);
+
+                // La UI si accende: c'è qualcosa da decidere.
+                await _hubContext.Clients.All.SendAsync("agentMergeRequested", new
+                {
+                    projectPath = request.ProjectPath,
+                    agentName,
+                    branch = pushed.Branch,
+                    files = changed.Count,
+                }, ct);
+
+                _logger.LogInformation("[AgentRun] '{Agent}': lavoro consegnato su '{Branch}', {N} file.",
+                    agentName, pushed.Branch, changed.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "[AgentRun] consegna del lavoro isolato di '{Agent}' fallita: il lavoro è sul suo ramo, ma nessuno te l'ha chiesto di approvare.",
+                    agentName);
+            }
+        }
+
         private string ResolveGitSignatureName(string projectPath, string agentFilePath)
         {
             try
@@ -222,6 +290,26 @@ namespace MdExplorer.Services.AgentRun
                     ConversationId = null,
                 });
 
+                // DOVE lavora: la spunta del dialogo decide il singolo lancio, l'impostazione del
+                // progetto fa il default. Senza isolamento l'agente scrive sul TUO ramo, nella tua
+                // working tree, e il suo lavoro diventa indistinguibile dal tuo.
+                var isolate = request.UseWorktree ?? SafeIsolationDefault(request.ProjectPath);
+                var workDir = request.ProjectPath;
+                if (isolate)
+                {
+                    var prep = await _worktree.PrepareForRunAsync(
+                        request.ProjectPath, a2aName, request.RunId.ToString("N"), ct: cts.Token);
+                    if (!prep.Success)
+                    {
+                        // Non ripiego sul progetto: chi ha chiesto l'isolamento non deve
+                        // ritrovarsi l'agente dentro il proprio ramo perché un git è andato storto.
+                        _tokens.Revoke(runToken);
+                        throw new InvalidOperationException(
+                            $"Posto di lavoro non preparabile per '{a2aName}': {prep.Error}");
+                    }
+                    workDir = prep.WorktreePath;
+                }
+
                 var env = new Dictionary<string, string>
                 {
                     [MdExplorer.Features.Agents.LlmAgentWaker.EnvRunToken] = runToken,
@@ -239,7 +327,9 @@ namespace MdExplorer.Services.AgentRun
                         ComposedPrompt = composedPrompt,
                         AgentName = a2aName,
                         ProjectPath = request.ProjectPath,
-                        WorkingDirectory = request.ProjectPath,
+                        // Solo il cwd cambia: le claim del token e l'ambiente restano sul
+                        // progetto vero, altrimenti l'agente parlerebbe a nome di un worktree.
+                        WorkingDirectory = workDir,
                         Environment = env,
                     }, cts.Token);
                 }
@@ -247,7 +337,14 @@ namespace MdExplorer.Services.AgentRun
                 {
                     // Il token vale un run: finito il turno non deve restare spendibile.
                     _tokens.Revoke(runToken);
+                    if (isolate) _worktree.ReleaseSlot(workDir);
                 }
+
+                // Isolato: il lavoro non può restare in un posto che verrà riciclato. Si committa,
+                // si pubblica e si chiede il permesso — lo stesso trattamento di un agente svegliato
+                // da un messaggio, perché è la stessa cosa: lavoro di una macchina che aspetta un sì.
+                if (isolate && turn.IsSuccess)
+                    await PublishIsolatedWorkAsync(request, a2aName, cts.Token);
 
                 // Un turno può concludersi male SENZA sollevare (tetto di iterazioni, uscita
                 // non-zero): registrarlo come "success" mentirebbe allo storico dell'agente.

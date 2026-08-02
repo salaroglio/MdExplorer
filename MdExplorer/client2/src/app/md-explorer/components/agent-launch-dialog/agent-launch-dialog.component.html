@@ -98,6 +98,18 @@
   </div>
 </mat-dialog-content>
 
+<!-- DOVE lavora l'agente in questo lancio. Il default lo da' l'impostazione del progetto,
+     ma i due gesti sono diversi: un ritocco veloce lo vuoi qui sotto gli occhi, un lavoro
+     vero lo vuoi isolato — altrimenti finisce mescolato al tuo, sul tuo ramo. -->
+<div class="isolation-choice" *ngIf="canIsolate">
+  <mat-checkbox [(ngModel)]="useWorktree" [disabled]="isLaunching">
+    {{ 'AGENT_LAUNCH.ISOLATE' | translate }}
+  </mat-checkbox>
+  <p class="isolation-hint">
+    {{ (useWorktree ? 'AGENT_LAUNCH.ISOLATE_ON' : 'AGENT_LAUNCH.ISOLATE_OFF') | translate }}
+  </p>
+</div>
+
 <mat-dialog-actions align="end">
   <button mat-button (click)="onCancel()" [disabled]="isLaunching">
     {{ 'COMMON.CANCEL' | translate }}
