@@ -35,6 +35,15 @@
         </ng-template>
         <app-md-tree></app-md-tree>
       </mat-tab>
+      <!-- Revisione del lavoro degli agenti: allo stesso livello dei documenti, perche' e'
+           l'altra faccia della stessa cosa — cosa c'e' nel progetto, e cosa chiede di entrarci. -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon>rate_review</mat-icon>
+          {{ 'SIDENAV.AGENT_REVIEW' | translate }}
+        </ng-template>
+        <app-agent-review></app-agent-review>
+      </mat-tab>
       <mat-tab *ngIf="currentBranch != null">
         <ng-template mat-tab-label>
           <mat-icon>smart_toy</mat-icon>

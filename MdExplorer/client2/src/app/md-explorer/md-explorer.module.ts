@@ -18,6 +18,7 @@ import { RulesComponent } from '../signalR/dialogs/rules/rules.component';
 import { NewMarkdownComponent } from './components/dialogs/new-markdown/new-markdown.component';
 import { NewDirectoryComponent } from './components/dialogs/new-directory/new-directory.component';
 import { MdTreeComponent } from './components/md-tree/md-tree.component';
+import { AgentReviewComponent } from './components/agent-review/agent-review.component';
 import { ConnectionLostComponent } from '../signalR/dialogs/connection-lost/connection-lost.component';
 import { ParsingProjectComponent } from '../signalR/dialogs/parsing-project/parsing-project.component';
 import { ChangeDirectoryComponent } from './components/dialogs/change-directory/change-directory.component';
@@ -90,6 +91,7 @@ const routes: Routes = [
 
 @NgModule({
   declarations: [
+    AgentReviewComponent,
     SidenavComponent,
     ToolbarComponent,
     SafePipe,

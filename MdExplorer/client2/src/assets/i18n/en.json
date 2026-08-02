@@ -811,7 +811,8 @@
     "PROJECT_DOCS": "Project docs",
     "MARK_AGENT": "Mark Agent",
     "MARK_SEARCH": "Mark Search",
-    "TEAM_CHAT": "Team Chat"
+    "TEAM_CHAT": "Team Chat",
+    "AGENT_REVIEW": "Agent review"
   },
   "MARK_SEARCH": {
     "TITLE": "Mark Search",
@@ -1820,5 +1821,27 @@
     "UNTRUST_TITLE": "Revoke trust?",
     "UNTRUST_MESSAGE": "The agent \"{{agent}}\" will stop participating in conversations until trusted again.",
     "UNTRUST_CONFIRM": "Revoke"
+  },
+  "AGENT_REVIEW": {
+    "TITLE": "Agent work to review",
+    "REFRESH": "Refresh",
+    "EMPTY": "Nothing waiting: your agents have nothing for you to approve.",
+    "BRANCH_TOOLTIP": "The published branch: owner, agent, date and what it worked on.",
+    "ADDED": "new",
+    "MODIFIED": "changed",
+    "DELETED": "deleted",
+    "APPROVE": "Approve",
+    "REJECT": "Reject",
+    "TAKE": "Take it over",
+    "TAKE_TOOLTIP": "Opens the agent's working folder and queues the agent until you are done.",
+    "SESSION_OPEN": "You are working in this folder: the agent is queued and will not touch it.",
+    "CONCLUDE": "I'm done",
+    "DISCARD": "Discard and send back",
+    "DISCARD_TOOLTIP": "Throws away your changes and puts the request back in the queue for the agent to redo.",
+    "MERGED": "Work merged into the main branch.",
+    "REJECTED": "Rejected. The branch stays: you can still take it over.",
+    "MERGE_FAILED": "The merge failed: there is probably a conflict to resolve by hand.",
+    "TAKEN": "Folder opened: {{path}} — the agent is queued until you close.",
+    "TAKEN_NO_FOLDER": "Session opened, but I could not open the file manager. The folder is: {{path}}"
   }
 }

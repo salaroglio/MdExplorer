@@ -811,7 +811,8 @@
     "PROJECT_DOCS": "Documenti progetto",
     "MARK_AGENT": "Mark Agent",
     "MARK_SEARCH": "Mark Search",
-    "TEAM_CHAT": "Chat di Team"
+    "TEAM_CHAT": "Chat di Team",
+    "AGENT_REVIEW": "Revisione agenti"
   },
   "MARK_SEARCH": {
     "TITLE": "Mark Search",
@@ -1820,5 +1821,27 @@
     "UNTRUST_TITLE": "Revocare il trust?",
     "UNTRUST_MESSAGE": "L'agente \"{{agent}}\" smetterà di partecipare finché non gli viene riconcesso il trust.",
     "UNTRUST_CONFIRM": "Revoca"
+  },
+  "AGENT_REVIEW": {
+    "TITLE": "Lavoro degli agenti da rivedere",
+    "REFRESH": "Aggiorna",
+    "EMPTY": "Nessuna richiesta in attesa: gli agenti non hanno nulla da farti approvare.",
+    "BRANCH_TOOLTIP": "Il ramo pubblicato: padrone, agente, data e su cosa ha lavorato.",
+    "ADDED": "nuovi",
+    "MODIFIED": "modificati",
+    "DELETED": "eliminati",
+    "APPROVE": "Autorizza",
+    "REJECT": "Rifiuta",
+    "TAKE": "Ci metto mano",
+    "TAKE_TOOLTIP": "Apre la cartella di lavoro dell'agente e lo mette in coda finché non chiudi.",
+    "SESSION_OPEN": "Stai lavorando in questa cartella: l'agente è in coda e non la toccherà.",
+    "CONCLUDE": "Ho finito",
+    "DISCARD": "Annulla e rimanda all'agente",
+    "DISCARD_TOOLTIP": "Butta le tue modifiche e rimette la richiesta in coda, perché l'agente la rifaccia.",
+    "MERGED": "Lavoro fuso nel ramo principale.",
+    "REJECTED": "Rifiutata. Il ramo resta: puoi ancora metterci mano.",
+    "MERGE_FAILED": "Il merge non è riuscito: probabilmente c'è un conflitto da risolvere a mano.",
+    "TAKEN": "Cartella aperta: {{path}} — l'agente è in coda finché non chiudi.",
+    "TAKEN_NO_FOLDER": "Sessione aperta, ma non sono riuscito ad aprire il file manager. La cartella è: {{path}}"
   }
 }

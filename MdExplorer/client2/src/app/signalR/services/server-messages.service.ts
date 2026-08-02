@@ -91,6 +91,14 @@ export class MdServerMessagesService {
     conversationId: string
   }>();
 
+  // Un agente ha consegnato e CHIEDE di fondere: il tab di revisione si accende.
+  public agentMergeRequested$ = new Subject<{
+    projectPath: string,
+    agentName: string,
+    branch: string,
+    files: number
+  }>();
+
   // Fase 7e — un agente ha toccato il submodule (codice) nel suo worktree: awareness (no diff).
   public submoduleTouchedByAgent$ = new Subject<{
     projectPath: string,
@@ -259,6 +267,12 @@ export class MdServerMessagesService {
       this.hubConnection.on('agentDelegationRouted', (data) => {
         console.log('🔀 SignalR event received: agentDelegationRouted', data);
         this.agentDelegationRouted$.next(data);
+      });
+
+      // Richiesta di merge aperta da un agente: la revisione ha qualcosa da mostrare.
+      this.hubConnection.on('agentMergeRequested', (data) => {
+        console.log('🔀 SignalR event received: agentMergeRequested', data);
+        this.agentMergeRequested$.next(data);
       });
 
       // Fase 7e — awareness del tocco submodule da parte di un agente (gate del push umano).

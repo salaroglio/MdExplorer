@@ -16973,6 +16973,8 @@ class MdServerMessagesService {
     // l'umano locale. Non e' un permesso da concedere (il gate custodisce la fiducia fra umani
     // diversi): e' consapevolezza che la mappa di ownership e' stata esercitata.
     this.agentDelegationRouted$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    // Un agente ha consegnato e CHIEDE di fondere: il tab di revisione si accende.
+    this.agentMergeRequested$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Fase 7e — un agente ha toccato il submodule (codice) nel suo worktree: awareness (no diff).
     this.submoduleTouchedByAgent$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for KG drift events (emitted by FileSystemWatcherManager when a .md
@@ -17088,6 +17090,11 @@ class MdServerMessagesService {
         this.hubConnection.on('agentDelegationRouted', data => {
           console.log('🔀 SignalR event received: agentDelegationRouted', data);
           this.agentDelegationRouted$.next(data);
+        });
+        // Richiesta di merge aperta da un agente: la revisione ha qualcosa da mostrare.
+        this.hubConnection.on('agentMergeRequested', data => {
+          console.log('🔀 SignalR event received: agentMergeRequested', data);
+          this.agentMergeRequested$.next(data);
         });
         // Fase 7e — awareness del tocco submodule da parte di un agente (gate del push umano).
         this.hubConnection.on('submoduleTouchedByAgent', data => {
@@ -17507,8 +17514,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.08.02.2',
-  buildTime: '2026.08.02 02:15:08'
+  version: '2026.08.02.4',
+  buildTime: '2026.08.02 07:36:15'
 };
 
 /***/ }),
