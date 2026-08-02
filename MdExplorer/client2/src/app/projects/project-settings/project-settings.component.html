@@ -219,19 +219,6 @@
                 {{ 'PROJECT_SETTINGS.AGENT_WORKTREES_DESC' | translate }}
               </p>
 
-              <mat-checkbox
-                [(ngModel)]="agentAutoMergeDeliverables"
-                (change)="onAgentCityChange()"
-                [disabled]="saving || !projectIsGit">
-                <span class="setting-label">{{ 'PROJECT_SETTINGS.AGENT_AUTOMERGE' | translate }}</span>
-              </mat-checkbox>
-              <p class="setting-description">
-                {{ 'PROJECT_SETTINGS.AGENT_AUTOMERGE_DESC' | translate }}
-              </p>
-              <p class="setting-description" *ngIf="agentAutoMergeDeliverables && projectIsGit">
-                ⚠️ {{ 'PROJECT_SETTINGS.AGENT_AUTOMERGE_WARN' | translate }}
-              </p>
-
               <p class="setting-description" *ngIf="!projectIsGit">
                 ℹ️ {{ 'PROJECT_SETTINGS.AGENT_NEEDS_GIT' | translate }}
               </p>

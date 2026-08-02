@@ -132,6 +132,8 @@ namespace MdExplorer
             // Cancello meccanico del merge dei deliverable-doc (Fase 7g): default auto-approva;
             // un client CI o un agente-revisore rimpiazza questo seam senza toccare il dispatcher.
             services.AddSingleton<Services.AgentRun.IDeliverableMergeGate, Services.AgentRun.AutoApproveMergeGate>();
+            // Il "si" del gate non fonde piu': apre una richiesta che decide l'umano.
+            services.AddSingleton<Services.AgentRun.IAgentMergeRequestService, Services.AgentRun.AgentMergeRequestService>();
             services.AddHostedService<Services.AgentRun.AgentMessageDispatcher>();
 
             // Memoria semantica degli agenti (Fase 5b, §11): assert/query su Fuseki, grafo

@@ -100,6 +100,9 @@ namespace MdExplorer.Services.AgentRun
         Task<HandoffPushResult> CommitAndPushBranchAsync(string projectPath, string agentName, string commitMessage, CancellationToken ct = default);
 
         /// <summary>Fase 7d.1 — merge esplicito <paramref name="sourceRef"/> in <paramref name="intoBranch"/> (native). Metodo base.</summary>
+        /// <summary>File toccati dal lavoro dell'agente, per la revisione umana.</summary>
+        Task<IReadOnlyList<ChangedFile>> ChangedFilesAsync(string projectPath, string agentName, CancellationToken ct = default);
+
         Task<bool> MergeBranchAsync(string projectPath, string sourceRef, string intoBranch, CancellationToken ct = default);
 
         /// <summary>
@@ -418,6 +421,32 @@ namespace MdExplorer.Services.AgentRun
 
             return AgentBranchNaming.ComposePublishedBranch(
                 ownerEmail, agentName, changed, activityId, DateTime.UtcNow);
+        }
+
+        /// <summary>
+        /// File toccati dal lavoro dell'agente rispetto al punto in cui il ramo si e' separato
+        /// dal default. E' lo stesso dato da cui si ricava l'etichetta del branch: qui serve
+        /// all'umano per capire cosa sta autorizzando.
+        /// </summary>
+        public async Task<IReadOnlyList<ChangedFile>> ChangedFilesAsync(
+            string projectPath, string agentName, CancellationToken ct = default)
+        {
+            var worktreePath = WorktreePathFor(projectPath, agentName);
+            if (!Directory.Exists(worktreePath)) return System.Array.Empty<ChangedFile>();
+
+            try
+            {
+                var baseBranch = await ResolveDefaultBranchAsync(worktreePath, ct);
+                var (dc, dout, _) = await GitAsync(worktreePath,
+                    new[] { "diff", "--name-status", $"origin/{baseBranch}...HEAD" }, ct);
+                if (dc != 0) return System.Array.Empty<ChangedFile>();
+                return AgentMergeRequestService.ParseNameStatus(dout);
+            }
+            catch (System.Exception ex)
+            {
+                _logger.LogWarning(ex, "[Worktree] elenco file toccati non calcolabile per '{Agent}'.", agentName);
+                return System.Array.Empty<ChangedFile>();
+            }
         }
 
         public async Task<bool> MergeBranchAsync(string projectPath, string sourceRef, string intoBranch, CancellationToken ct = default)

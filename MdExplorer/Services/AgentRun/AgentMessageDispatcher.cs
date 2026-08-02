@@ -63,6 +63,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentWorktreePreference _worktreePref;
         private readonly ISubmoduleGateService _submoduleGate;
         private readonly IDeliverableMergeGate _mergeGate;
+        private readonly IAgentMergeRequestService _mergeRequests;
         private readonly MdExplorer.Services.IProjectMetadataService _projectMetadata;
         private readonly MdExplorer.Services.Federation.IFederationSender _federationSender;
         private readonly IHubContext<MonitorMDHub> _hubContext;
@@ -90,6 +91,7 @@ namespace MdExplorer.Services.AgentRun
             IAgentWorktreePreference worktreePref,
             ISubmoduleGateService submoduleGate,
             IDeliverableMergeGate mergeGate,
+            IAgentMergeRequestService mergeRequests,
             MdExplorer.Services.IProjectMetadataService projectMetadata,
             MdExplorer.Services.Federation.IFederationSender federationSender,
             IHubContext<MonitorMDHub> hubContext,
@@ -108,6 +110,7 @@ namespace MdExplorer.Services.AgentRun
             _worktreePref = worktreePref;
             _submoduleGate = submoduleGate;
             _mergeGate = mergeGate;
+            _mergeRequests = mergeRequests;
             _projectMetadata = projectMetadata;
             _federationSender = federationSender;
             _hubContext = hubContext;
@@ -504,31 +507,40 @@ namespace MdExplorer.Services.AgentRun
                 try { pushed = await _worktree.CommitAndPushBranchAsync(snapshot.ProjectPath, entry.Name, $"deliverable {entry.Name}", ct); }
                 catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] push deliverable per '{Agent}' fallito (best-effort).", entry.Name); }
 
-                // Fase 7g — cancello del merge: auto-merge del deliverable-DOC (opt-in), SOLO se non
-                // ha toccato codice (il merge del codice è umano, §7e) e il gate meccanico approva.
-                if (pushed != null && !codeTouched && AutoMergeEnabled(snapshot.ProjectPath))
+                // Il deliverable-DOC non entra piu' in main da solo: PROPONE. Il gate meccanico
+                // resta — sara' il posto dove una CI o un agente-revisore pre-qualificheranno il
+                // lavoro — ma il suo "si'" apre una richiesta che decide l'umano.
+                // Il codice non passa mai di qui: il suo merge e' umano per disegno (§7e).
+                if (pushed != null && !codeTouched)
                 {
                     try
                     {
                         if (await _mergeGate.ShouldMergeAsync(snapshot.ProjectPath, entry.Name, pushed.Branch, ct))
                         {
-                            // Il merge è un'operazione LOCALE: vuole il ref locale. Il nome
-                            // pubblicato vive su origin e non ha un ref in casa — passarlo qui
-                            // faceva fallire il merge (e il fallimento si presentava come
-                            // 'conflitto', che era una diagnosi fuorviante).
-                            var mo = await _worktree.MergeDeliverableIntoDefaultAsync(snapshot.ProjectPath, entry.Name, pushed.LocalBranch, ct);
-                            if (mo == DeliverableMergeOutcome.Conflict)
+                            var changed = await _worktree.ChangedFilesAsync(snapshot.ProjectPath, entry.Name, ct);
+                            _mergeRequests.Open(snapshot.ProjectPath, entry.Name,
+                                pushed.Branch, pushed.LocalBranch, pushed.HeadSha, changed);
+
+                            // La UI si accende: c'e' qualcosa da decidere.
+                            try
                             {
-                                // Conflitto → not-ready nel feedback loop (federato: riporta all'origine).
-                                var rc = ResolveRunContext(snapshot);
-                                if (!string.IsNullOrEmpty(rc.RemoteOwner) && rc.RequestId != null)
-                                    await ReportNotReadyToOriginAsync(snapshot.ProjectPath, rc, FederationReason.MergeConflictWithMain);
-                                else
-                                    _logger.LogWarning("[Dispatcher] auto-merge del deliverable di '{Agent}' in conflitto (not-ready): rilavorare.", entry.Name);
+                                await _hubContext.Clients.All.SendAsync("agentMergeRequested", new
+                                {
+                                    projectPath = snapshot.ProjectPath,
+                                    agentName = entry.Name,
+                                    branch = pushed.Branch,
+                                    files = changed.Count,
+                                });
+                            }
+                            catch (Exception ex)
+                            {
+                                // Best-effort: la richiesta e' gia' persistita e la vista la
+                                // ripesca comunque; un push mancato non perde nulla.
+                                _logger.LogWarning(ex, "[Dispatcher] notifica di richiesta merge non inviata.");
                             }
                         }
                     }
-                    catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] auto-merge del deliverable di '{Agent}' fallito.", entry.Name); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] apertura richiesta di merge per '{Agent}' fallita.", entry.Name); }
                 }
             }
         }
@@ -638,12 +650,6 @@ namespace MdExplorer.Services.AgentRun
         }
 
         /// <summary>Auto-merge dei deliverable-doc attivo? (opt-in <c>agentCity.autoMergeAgentDeliverables</c>, Fase 7g).</summary>
-        private bool AutoMergeEnabled(string projectPath)
-        {
-            try { return _projectMetadata.GetAgentCity(projectPath)?.AutoMergeAgentDeliverables == true; }
-            catch { return false; }
-        }
-
         /// <summary>Contesto della conversazione utile al run in worktree (Fase 7c/7d).</summary>
         private sealed class RunWorktreeContext
         {

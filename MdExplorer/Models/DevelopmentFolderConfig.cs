@@ -117,8 +117,12 @@ namespace MdExplorer.Service.Models
         /// CODICE resta umano (§7e). Conflitto → not-ready (l'agente rilavora).
         /// </summary>
         /// <summary>
-        /// <c>null</c> = non deciso → default come sopra (git presente ⇒ acceso). Il merge del
-        /// CODICE resta umano in ogni caso (§7e): questo riguarda solo i deliverable-doc.
+        /// ⚠️ <b>RITIRATO (2026-08-02)</b>: non è più letto da nessuno. Il merge automatico dei
+        /// deliverable-doc è stato sostituito dalla <b>richiesta di merge</b> — il gate meccanico
+        /// resta ma propone invece di fondere, e decide l'umano. La proprietà sopravvive solo
+        /// perché i <c>.development.yml</c> esistenti la contengono e la deserializzazione non
+        /// deve rompersi; la spunta corrispondente è stata tolta dalla UI, perché un campo di
+        /// configurazione che il backend non consuma è una bugia verso chi lo spunta.
         /// </summary>
         public bool? AutoMergeAgentDeliverables { get; set; }
     }

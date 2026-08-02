@@ -104,7 +104,7 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
-        public async Task Auto_merge_end_to_end_when_the_flag_is_on()
+        public async Task Not_merge_by_itself_anymore_even_with_the_old_flag_on()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
             using var ctx = new AgentCityContext();
@@ -127,7 +127,8 @@ namespace MdExplorer.IntegrationTests
             Assert.IsFalse(rpc.IsError, $"{rpc.ErrorCode} {rpc.ErrorMessage}");
             await ctx.WaitForMessages(msgs => msgs.Any(x => x.ToAgent == "worker" && x.State == AgentMessage.StateEnum.Processed));
 
-            // Poll: l'auto-merge (post-run) è best-effort dopo il MarkProcessed → attendi che origin/main abbia il file.
+            // Si attende comunque, per dare a un eventuale (indesiderato) auto-merge il tempo
+            // di manifestarsi: un test che non aspetta non dimostra un'assenza.
             var deadline = DateTime.UtcNow.AddSeconds(20);
             bool merged = false;
             while (DateTime.UtcNow < deadline)
@@ -136,7 +137,11 @@ namespace MdExplorer.IntegrationTests
                 if (Git(path, "cat-file -e origin/main:from-agent.md").Code == 0) { merged = true; break; }
                 await Task.Delay(500);
             }
-            Assert.IsTrue(merged, "col flag ON il deliverable è auto-fuso in origin/main");
+            // Il merge automatico e' RITIRATO: il deliverable propone, non entra da solo.
+            // Questo test resta come guardia — se un giorno tornasse a fondere in silenzio,
+            // qui si accorgerebbe qualcuno.
+            Assert.IsFalse(merged,
+                "il deliverable non deve entrare in main da solo: ora apre una richiesta");
         }
     }
 }
