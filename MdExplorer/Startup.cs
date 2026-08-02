@@ -112,8 +112,9 @@ namespace MdExplorer
             services.AddSingleton<Services.AgentRun.IAgentMailbox, Services.AgentRun.AgentMailbox>();
             // Cancello del run LLM (§12.5): tetto istanze Copilot concorrenti → coda differita
             // (deferred:resources) invece di saturare la macchina. Capacità per-installazione.
-            services.AddSingleton<Services.AgentRun.IAgentRunGate>(
-                new Services.AgentRun.CopilotResourceGate(Services.AgentRun.CopilotResourceGate.DefaultMaxConcurrent));
+            // Il tetto dei run insieme non e' piu' un numero suo: sono i posti di lavoro del
+            // progetto. Una manopola sola per una domanda sola.
+            services.AddSingleton<Services.AgentRun.IAgentRunGate, Services.AgentRun.CopilotResourceGate>();
             // Politica di disponibilità (§12.5): manutenzione (git) / pausa utente (UserDB) →
             // deferred:maintenance / deferred:user, valutata prima del tetto risorse.
             services.AddSingleton<Services.AgentRun.IAgentAvailabilityPolicy, Services.AgentRun.AgentAvailabilityPolicy>();

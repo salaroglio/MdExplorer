@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using MdExplorer.Abstractions.Entities.UserDB;
 
@@ -45,28 +46,82 @@ namespace MdExplorer.Services.AgentRun
     }
 
     /// <summary>
-    /// Tetto delle istanze Copilot concorrenti (§9/§12.5): semaforo globale sui run LLM. A
-    /// slot pieni → <c>deferred:resources</c>, così la macchina dell'umano che ci lavora non
-    /// viene saturata. Non attende (try-acquire immediato): il parcheggio è più onesto di una
-    /// coda cieca lato dispatcher. Il limite è capacità della MACCHINA (per-installazione).
+    /// Quanti agenti possono girare insieme (§9/§12.5). A slot pieni →
+    /// <c>deferred:resources</c>, così la macchina dell'umano che ci lavora non viene saturata.
+    /// Non attende (try-acquire immediato): il parcheggio è più onesto di una coda cieca lato
+    /// dispatcher.
+    /// <para>
+    /// Il numero non è più suo: <b>è quello dei posti di lavoro del progetto</b>. Erano due
+    /// manopole indipendenti che rispondevano alla stessa domanda — quanti agenti insieme su
+    /// questa macchina — e potevano contraddirsi: con quattro posti configurati e un tetto di
+    /// due, due agenti restavano parcheggiati davanti a due scrivanie libere. Nel verso opposto
+    /// era peggio: ammessi più agenti dei posti, il terzo arrivava all'assegnazione, non
+    /// trovava dove sedersi e il run <b>falliva</b> invece di aspettare educatamente il turno.
+    /// </para>
+    /// <para>
+    /// Senza isolamento non ci sono scrivanie da contare e vale il default della macchina.
+    /// </para>
     /// </summary>
     public sealed class CopilotResourceGate : IAgentRunGate
     {
         public const int DefaultMaxConcurrent = 2;
 
-        private readonly SemaphoreSlim _slots;
+        private readonly IAgentWorktreePreference _preference;
 
-        public CopilotResourceGate(int maxConcurrent)
+        // Un semaforo per progetto: il tetto è una proprietà del progetto (quanti posti gli hai
+        // dato), non dell'installazione. Insieme al limite con cui è stato creato, per accorgersi
+        // che nel frattempo qualcuno l'ha cambiato nelle impostazioni.
+        private readonly ConcurrentDictionary<string, (int Limit, SemaphoreSlim Slots)> _perProject =
+            new(StringComparer.OrdinalIgnoreCase);
+
+        public CopilotResourceGate(IAgentWorktreePreference preference)
         {
-            _slots = new SemaphoreSlim(Math.Max(1, maxConcurrent));
+            _preference = preference;
         }
 
         public AgentRunGateDecision TryEnter(string projectPath, string agentName)
         {
+            var slots = SlotsFor(projectPath);
+
             // Acquisizione non bloccante: se non c'è slot, parcheggia invece di attendere.
-            if (_slots.Wait(0))
-                return AgentRunGateDecision.Admit(new SemaphoreSlot(_slots));
+            if (slots.Wait(0))
+                return AgentRunGateDecision.Admit(new SemaphoreSlot(slots));
             return AgentRunGateDecision.Defer(AgentMessage.DeferredReasonEnum.Resources);
+        }
+
+        private SemaphoreSlim SlotsFor(string projectPath)
+        {
+            var key = projectPath ?? string.Empty;
+            var wanted = EffectiveLimit(projectPath);
+
+            var entry = _perProject.AddOrUpdate(key,
+                _ => (wanted, new SemaphoreSlim(wanted)),
+                (_, current) => current.Limit == wanted
+                    ? current
+                    // Limite cambiato nelle impostazioni: si riparte da un semaforo della misura
+                    // giusta. Chi sta girando rilascerà nel vecchio, che nessuno guarda più —
+                    // per la durata di quei run il tetto può essere superato di poco, ed è meglio
+                    // di un limite che resta quello di ieri finché non si riavvia.
+                    : (wanted, new SemaphoreSlim(wanted)));
+
+            return entry.Slots;
+        }
+
+        private int EffectiveLimit(string projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath)) return DefaultMaxConcurrent;
+            try
+            {
+                // Senza isolamento gli agenti girano nel progetto e di scrivanie non ce ne sono:
+                // resta il tetto della macchina.
+                if (!_preference.IsEnabled(projectPath)) return DefaultMaxConcurrent;
+                return Math.Max(1, _preference.SlotsFor(projectPath));
+            }
+            catch
+            {
+                // Preferenza illeggibile: meglio il default della macchina che nessun tetto.
+                return DefaultMaxConcurrent;
+            }
         }
 
         private sealed class SemaphoreSlot : IAgentRunSlot
