@@ -1,7 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <!-- Deve seguire il TFM di MdExplorer.Service (net8.0-windows su Windows): un test
+         net8.0 che referenzia un Service net8.0-windows fa fallire il restore con NU1201. -->
+    <TargetFramework Condition="$([MSBuild]::IsOSPlatform('Windows'))">net8.0-windows</TargetFramework>
+    <TargetFramework Condition="!$([MSBuild]::IsOSPlatform('Windows'))">net8.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>annotations</Nullable>
     <IsPackable>false</IsPackable>
