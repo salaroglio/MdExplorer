@@ -3,7 +3,7 @@ name: mde-readme
 description: Write README sections that include runnable script examples MdExplorer can execute interactively. Use whenever you document a CLI tool, build/deploy script, dev task, or any command-line invocation in a README, sprint note, or how-to doc. Each example must declare its parameters in a way MdExplorer's runner can detect, so the user can fill them in a dialog and click ▶ Run.
 mde:
   origin: mdexplorer
-  version: 6
+  version: 7
   updatePolicy: replace
 ---
 
@@ -73,23 +73,52 @@ Rules:
   Windows, macOS and Linux.
 
 The same `<NAME>` is then referenced inside the script body as `<name>` (lower-cased and with
-underscores allowed) — case-insensitive match. Placeholders **never quoted by you**; the runner
-quotes them safely per shell.
+underscores allowed) — case-insensitive match.
 
-This bites hardest in **variable assignments**, where the quoting habit is strongest. Leave the
-placeholder bare:
+## Quoting — YOU own the delimiters
 
-| Correct (bare)       | Wrong (quoted)          |
-| -------------------- | ----------------------- |
-| `$fuseki = <FUSEKI>` | `$fuseki = "<FUSEKI>"`  |
-| `DEST=<target_dir>`  | `DEST="<target_dir>"`   |
+The runner substitutes a placeholder with the value **exactly as the user typed it**, verbatim.
+It adds **no quotes and no escaping**. A `<TOKEN>` stands for *text*, not for a shell word — so
+whatever you write around the token in the markdown is exactly what the shell will see.
 
-The runner substitutes `<FUSEKI>` with an **already shell-quoted** value (e.g.
-`'http://localhost:3030'`). If you also quote it, the two stack up — `"<FUSEKI>"` →
-`"'http://localhost:3030'"` — and the variable ends up holding **literal quote characters**,
-producing failures like *"Invalid URI: hostname could not be parsed"*. The only exception is the
-legacy `export VAR="<x>"` form (Example 3), where the runner rewrites the entire right-hand side,
-quotes included.
+The practical consequence: **if the value could contain spaces or shell metacharacters, you must
+quote the placeholder yourself.**
+
+| Situation                                | Write this                        |
+| ---------------------------------------- | --------------------------------- |
+| Value may contain spaces (paths, titles) | `$dest = "<target_dir>"`          |
+| Command argument, free text              | `./deploy.sh --msg "<message>"`   |
+| Token spliced inside a longer literal    | `$uri = "http://host:3030/<dataset>/query"` |
+| Numeric / boolean / known-safe token     | `--port <port>`                   |
+| Value that must NOT be interpolated (pwsh) | `$raw = '<literal_text>'`       |
+
+Pick the delimiter that suits the shell and the value:
+
+- **PowerShell** — `"<X>"` interpolates (`$`, backtick are live); `'<X>'` is literal.
+- **bash / sh** — `"<X>"` interpolates (`$`, backtick, `\`); `'<X>'` is fully literal.
+- **cmd** — `"<X>"`; note cmd has no escape for an embedded `"`.
+
+Two consequences worth internalising:
+
+1. **Never double-quote by habit and by template.** Because the runner no longer quotes, writing
+   `"<X>"` is now *correct*, not a bug — this is the opposite of the pre-v7 convention. If you are
+   updating an older README written against v6, the bare `$fuseki = <FUSEKI>` forms still work for
+   single-token values with no spaces, but should be re-quoted as `"<FUSEKI>"` to stay safe.
+2. **A value containing the delimiter still breaks the script.** `'<TITLE>'` with a value of
+   `l'analisi` produces broken PowerShell. When the value is free-form prose, prefer the
+   `export VAR="<x>"` / `param()` default forms below, which the runner rewrites *whole* — quotes
+   and escaping included.
+
+### The two forms the runner still quotes for you
+
+`export VAR="default"` (bash) and `[string]$Var = 'default'` inside a PowerShell `param()` block
+are **not** placeholder substitution: the runner replaces the entire right-hand side of the
+assignment, adding correct quoting and escaping itself. Use these when the value is untrusted
+free text — they are the escape-proof path.
+
+```bash
+export GREETING="hello"      # runner rewrites the whole RHS, quotes included
+```
 
 ## Working directory — every command runs from the PROJECT ROOT
 
@@ -169,8 +198,11 @@ project root** (see the previous section) and use `/`.
 # @param ENV       — target environment (default: staging)
 # @param VERSION   — git tag or branch to deploy
 # @param API_KEY   — deployment API key (secret)
-./deploy.sh --env <env> --version <version> --key <api_key>
+./deploy.sh --env <env> --version "<version>" --key "<api_key>"
 ```
+
+`<env>` is a short enum-like token, safe bare. `<version>` and `<api_key>` are quoted because the
+user could paste anything into them — the runner will not quote for you.
 
 ### 2. PowerShell — local build
 
@@ -182,9 +214,10 @@ dotnet publish src/MyApp.csproj -c <Configuration> -r <Runtime> --self-contained
 
 ### 3. Bash with env-export style (also detected, legacy)
 
-**Special case:** the quotes around `"<greeting>"` are correct *only* here — the `export VAR=...`
-form makes the runner rewrite the whole right-hand side. Everywhere else (plain `$var = <x>`
-assignments, command arguments) keep placeholders **bare**.
+**Use this form for untrusted free text.** The `export VAR=...` form makes the runner rewrite the
+whole right-hand side, so it adds correct quoting *and* escaping — a value containing quotes or
+`$` cannot break out. Plain placeholder substitution elsewhere is verbatim, so there you carry the
+quoting burden yourself.
 
 ```bash
 # @param GREETING — message to print (default: Hello)
@@ -259,10 +292,12 @@ When you are asked to write or update a README that documents a runnable script:
   exist.
 - ❌ Don't use angle brackets for anything other than parameter placeholders inside runnable
   blocks; the parser treats `<word>` as a parameter.
-- ❌ Don't quote a placeholder in an assignment or argument — `$x = "<param>"`, `--key "<key>"`.
-  The runner already shell-quotes substituted values, so your quotes stack and inject literal
-  quote characters. Keep them bare: `$x = <param>`, `--key <key>`. (Sole exception: the legacy
-  `export VAR="<x>"` form.)
+- ❌ Don't leave a placeholder bare when its value can contain spaces or shell metacharacters —
+  `$dest = <target_dir>`, `--msg <message>`. Substitution is verbatim, so a value like
+  `My Documents` splits into two words and the command breaks. Quote it: `$dest = "<target_dir>"`.
+- ❌ Don't rely on the runner to escape a value that contains your own delimiter (an apostrophe
+  inside `'<X>'`). For free-form prose use the `export VAR="<x>"` / `param()` default forms, which
+  the runner rewrites whole.
 - ❌ Don't mix shells in a single fence (e.g. `bash` fence with PowerShell syntax inside).
 - ❌ Don't write a script path relative to the README's folder (`python main.py` when `main.py`
   lives beside the README in a subfolder). The block runs from the **project root**, so it fails
@@ -279,7 +314,8 @@ When you are asked to write or update a README that documents a runnable script:
 - [ ] Every placeholder `<name>` in the call has a matching `@param NAME` line above.
 - [ ] Every relative path (the invoked script, helper/config/output files) is written **relative to the project root**, not to the README's folder — the block runs from the project root.
 - [ ] Every path uses **forward slashes `/`**, never backslashes `\`, and no absolute root / drive letter — so the same document runs on both Windows and Linux/macOS.
-- [ ] Placeholders are **bare** (`$x = <name>`, `--key <name>`), never self-quoted — the runner quotes them.
+- [ ] Every placeholder whose value could contain spaces or metacharacters is **quoted by you**
+      (`$x = "<name>"`, `--key "<key>"`) — substitution is verbatim, the runner adds nothing.
 - [ ] Sensitive parameters are marked `secret` (or named with a secret-like suffix).
 - [ ] Defaults are provided for non-secret parameters where a sensible default exists.
 - [ ] Prose above the block explains the side effects.
