@@ -697,6 +697,40 @@ public class MdExplorerTools
     }
 
     [McpServerTool, Description(
+        "Attaches a file to a Jira issue. This is a WRITE operation that uploads the file's " +
+        "contents to Jira, where everyone with access to the issue can read them — only use " +
+        "it on a file the user asked you to attach. The path may be absolute (e.g. " +
+        "'/var/log/app.log') or relative to the MdExplorer project root (e.g. " +
+        "'docs/report.pdf'). Use it for a document, a log or a rendered image (a chart cannot " +
+        "be interactive on an issue: render it to an image first, then attach it).")]
+    public async Task<string> JiraAttachFile(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("The Jira issue key, e.g. 'BCO-123'.")] string issueKey,
+        [Description("Path of the file to attach: absolute, or relative to the project root.")] string filePath,
+        [Description("Name to give the attachment in Jira (optional — defaults to the file's own name).")] string fileName = null)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        if (string.IsNullOrWhiteSpace(issueKey)) return "issueKey is required.";
+        if (string.IsNullOrWhiteSpace(filePath)) return "filePath is required.";
+        try
+        {
+            var payload = new { projectId = pid, filePath, fileName };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var resp = await client.PostAsync(
+                $"/api/atlassian/jira/issue/{Uri.EscapeDataString(issueKey.Trim())}/attachment", content);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraAttachFile", project, $"issueKey={issueKey},filePath={filePath}", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
         "Lists the Jira fields available on the site, with the exact field name, its " +
         "'customfield_XXXXX' id, the schema type and — in valueHint — the value shape to " +
         "pass. Call this BEFORE setting customFields on JiraCreateIssue/JiraUpdateIssue: " +

@@ -73,6 +73,20 @@ namespace MdExplorer.Features.Services.Atlassian
         public string ValueHint { get; set; }
     }
 
+    /// <summary>
+    /// One file attached to an issue, as returned by POST .../attachments.
+    /// <see cref="ContentUrl"/> needs the same Basic auth as the rest of the API:
+    /// it is not a public link.
+    /// </summary>
+    public class JiraAttachment
+    {
+        public string Id { get; set; }
+        public string FileName { get; set; }
+        public long Size { get; set; }
+        public string MimeType { get; set; }
+        public string ContentUrl { get; set; }
+    }
+
     public class JiraComment
     {
         public string Author { get; set; }

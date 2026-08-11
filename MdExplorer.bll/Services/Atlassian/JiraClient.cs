@@ -382,6 +382,79 @@ namespace MdExplorer.Features.Services.Atlassian
             return list;
         }
 
+        // ── Attachments ─────────────────────────────────────────────
+
+        public async Task<IReadOnlyList<JiraAttachment>> AttachFileAsync(
+            JiraConnection conn, string issueKey, System.IO.Stream content, string fileName,
+            CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (string.IsNullOrWhiteSpace(issueKey)) throw new AtlassianApiException("issueKey is required.");
+            if (content == null) throw new AtlassianApiException("File content is required.");
+            if (string.IsNullOrWhiteSpace(fileName)) throw new AtlassianApiException("fileName is required.");
+
+            var url = $"{BaseUrl(conn)}/rest/api/3/issue/{Uri.EscapeDataString(issueKey.Trim())}/attachments";
+
+            // Multipart, quindi fuori dal giro di SendJsonAsync (che manda JSON): qui si
+            // riusano solo l'autenticazione e la traduzione degli errori.
+            var client = _httpClientFactory.CreateClient();
+            using var req = new HttpRequestMessage(HttpMethod.Post, url);
+            req.Headers.Authorization = new AuthenticationHeaderValue("Basic", BasicToken(conn));
+            req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            // Difesa XSRF di Atlassian: senza questo header l'upload viene rifiutato. Non è
+            // opzionale e non ha equivalenti negli altri endpoint.
+            req.Headers.Add("X-Atlassian-Token", "no-check");
+
+            using var form = new MultipartFormDataContent();
+            var part = new StreamContent(content);           // stream, non ReadAllBytes: un allegato
+            part.Headers.ContentType =                        // grande non deve finire tutto in RAM
+                new MediaTypeHeaderValue("application/octet-stream");
+            form.Add(part, "file", fileName);                 // il nome del campo DEVE essere "file"
+            req.Content = form;
+
+            HttpResponseMessage resp;
+            try
+            {
+                resp = await client.SendAsync(req, ct);
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new AtlassianApiException(
+                    $"Could not reach Jira at {BaseUrl(conn)}: {ex.Message}", null, ex);
+            }
+
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            EnsureSuccessOrThrow(resp, body, url);
+
+            // La risposta è un ARRAY: Jira accetta più file per richiesta, noi ne mandiamo uno.
+            var list = new List<JiraAttachment>();
+            if (!string.IsNullOrWhiteSpace(body))
+            {
+                using var doc = JsonDocument.Parse(body);
+                if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var el in doc.RootElement.EnumerateArray())
+                    {
+                        list.Add(new JiraAttachment
+                        {
+                            Id = GetString(el, "id"),
+                            FileName = GetString(el, "filename"),
+                            MimeType = GetString(el, "mimeType"),
+                            ContentUrl = GetString(el, "content"),
+                            Size = el.TryGetProperty("size", out var s) && s.TryGetInt64(out var n) ? n : 0,
+                        });
+                    }
+                }
+            }
+
+            if (list.Count == 0)
+                throw new AtlassianApiException(
+                    "Jira accepted the upload but returned no attachment: the file may have been " +
+                    "stripped by an attachment policy, or attachments may be disabled on this project.");
+
+            return list;
+        }
+
         // ── Custom fields ───────────────────────────────────────────
 
         public async Task<IReadOnlyList<JiraFieldMeta>> ListFieldsAsync(

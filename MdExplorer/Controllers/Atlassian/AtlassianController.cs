@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
@@ -493,6 +494,62 @@ namespace MdExplorer.Service.Controllers.Atlassian
             catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] Statuses failed"); return StatusCode(500, new { error = ex.Message }); }
         }
 
+        public class AttachFileRequest
+        {
+            public Guid ProjectId { get; set; }
+            /// <summary>Percorso del file: assoluto, oppure relativo alla root del progetto.</summary>
+            public string FilePath { get; set; }
+            /// <summary>Nome con cui allegarlo; assente → il nome del file sul disco.</summary>
+            public string? FileName { get; set; }
+        }
+
+        // ============================================================
+        //   POST /api/atlassian/jira/issue/{key}/attachment
+        //   Allega un file dell'AREA DI PROGETTO a una issue.
+        // ============================================================
+        [HttpPost("jira/issue/{key}/attachment")]
+        public async Task<IActionResult> AttachFile(string key, [FromBody] AttachFileRequest req)
+        {
+            if (req == null) return BadRequest(new { error = "body required" });
+            if (string.IsNullOrWhiteSpace(key)) return BadRequest(new { error = "issue key required" });
+
+            var ctx = BuildContext(req.ProjectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+
+            // Percorso assoluto, o relativo alla root del progetto. Nessun vincolo di
+            // posizione: la scelta di cosa allegare è dell'utente.
+            if (!AttachmentPathResolver.TryResolve(ctx.ProjectPath, req.FilePath, out var fullPath, out var fileError))
+                return BadRequest(new { error = fileError });
+
+            var name = string.IsNullOrWhiteSpace(req.FileName)
+                ? Path.GetFileName(fullPath)
+                : Path.GetFileName(req.FileName.Trim());   // solo il nome: niente path nel nome allegato
+
+            try
+            {
+                using var stream = System.IO.File.OpenRead(fullPath);
+                var attached = await _jiraClient.AttachFileAsync(ctx.Connection, key.Trim(), stream, name);
+                return Ok(new { issueKey = key, count = attached.Count, attachments = attached });
+            }
+            catch (AtlassianApiException ex)
+            {
+                return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure });
+            }
+            catch (IOException ex)
+            {
+                return BadRequest(new { error = $"Cannot read '{req.FilePath}': {ex.Message}" });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return BadRequest(new { error = $"Cannot read '{req.FilePath}': {ex.Message}" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AtlassianController] AttachFile failed for {Key}", key);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         public class CommentRequest
         {
             public Guid ProjectId { get; set; }
@@ -827,6 +884,8 @@ namespace MdExplorer.Service.Controllers.Atlassian
             public IActionResult ErrorResult { get; set; }
             public JiraConnection Connection { get; set; }
             public List<string> ProjectKeys { get; set; } = new List<string>();
+            /// <summary>Cartella del progetto: confine per i file che si possono allegare.</summary>
+            public string ProjectPath { get; set; }
         }
 
         private AtlassianContext BuildContext(Guid projectId)
@@ -870,6 +929,7 @@ namespace MdExplorer.Service.Controllers.Atlassian
                     ApiToken = _passwordProtector.Unprotect(settings.ApiTokenEncrypted)
                 };
                 ctx.ProjectKeys = cfg.JiraProjectKeys ?? new List<string>();
+                ctx.ProjectPath = project.Path;
                 return ctx;
             }
             catch (Exception ex)

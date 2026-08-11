@@ -52,6 +52,16 @@ namespace MdExplorer.Features.Services.Atlassian
         Task<IReadOnlyList<JiraFieldMeta>> ListFieldsAsync(
             JiraConnection conn, bool customOnly = true, string nameFilter = null, CancellationToken ct = default);
 
+        /// <summary>
+        /// Uploads a file to an issue (POST /rest/api/3/issue/{key}/attachments, multipart).
+        /// The caller owns the stream and decides where the bytes come from: this client
+        /// never touches the disk, so the "which files may leave the machine" question stays
+        /// with the caller that knows the project boundary.
+        /// </summary>
+        Task<IReadOnlyList<JiraAttachment>> AttachFileAsync(
+            JiraConnection conn, string issueKey, System.IO.Stream content, string fileName,
+            CancellationToken ct = default);
+
         /// <summary>Adds a comment (plain text wrapped to ADF). Returns the comment id.</summary>
         Task<string> AddCommentAsync(JiraConnection conn, string issueKey, string body, CancellationToken ct = default);
 
