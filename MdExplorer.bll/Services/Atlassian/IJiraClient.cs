@@ -43,6 +43,15 @@ namespace MdExplorer.Features.Services.Atlassian
         /// <summary>Lists the Jira projects the user can see (key + name).</summary>
         Task<IReadOnlyList<JiraProject>> ListProjectsAsync(JiraConnection conn, CancellationToken ct = default);
 
+        /// <summary>
+        /// Lists the site's field catalog so a caller can discover the exact name, the
+        /// customfield_ id and the accepted value shape before writing. Without this a
+        /// caller can only learn a field's name by guessing it wrong. Reads the same
+        /// per-site cache the write path uses.
+        /// </summary>
+        Task<IReadOnlyList<JiraFieldMeta>> ListFieldsAsync(
+            JiraConnection conn, bool customOnly = true, string nameFilter = null, CancellationToken ct = default);
+
         /// <summary>Adds a comment (plain text wrapped to ADF). Returns the comment id.</summary>
         Task<string> AddCommentAsync(JiraConnection conn, string issueKey, string body, CancellationToken ct = default);
 

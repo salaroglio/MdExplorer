@@ -382,6 +382,36 @@ namespace MdExplorer.Service.Controllers.Atlassian
             }
         }
 
+        // ============================================================
+        //   GET /api/atlassian/jira/fields?projectId=&customOnly=&nameFilter=
+        //   Field discovery: the exact name, the customfield_ id and the value
+        //   shape to pass on create/update. Without this a caller can only learn
+        //   a custom field's name by guessing it wrong.
+        // ============================================================
+        [HttpGet("jira/fields")]
+        public async Task<IActionResult> Fields(
+            [FromQuery] Guid projectId,
+            [FromQuery] bool customOnly = true,
+            [FromQuery] string nameFilter = null)
+        {
+            var ctx = BuildContext(projectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            try
+            {
+                var fields = await _jiraClient.ListFieldsAsync(ctx.Connection, customOnly, nameFilter);
+                return Ok(new { projectId, count = fields.Count, fields });
+            }
+            catch (AtlassianApiException ex)
+            {
+                return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AtlassianController] Fields failed for {ProjectId}", projectId);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         public class CreateIssueRequest
         {
             public Guid ProjectId { get; set; }

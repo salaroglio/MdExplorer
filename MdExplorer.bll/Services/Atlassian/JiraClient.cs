@@ -384,6 +384,66 @@ namespace MdExplorer.Features.Services.Atlassian
 
         // ── Custom fields ───────────────────────────────────────────
 
+        public async Task<IReadOnlyList<JiraFieldMeta>> ListFieldsAsync(
+            JiraConnection conn, bool customOnly = true, string nameFilter = null, CancellationToken ct = default)
+        {
+            Validate(conn);
+            var meta = await GetFieldMetaAsync(conn, ct);
+
+            IEnumerable<JiraFieldMeta> q = meta;
+            if (customOnly) q = q.Where(m => m.IsCustom);
+            if (!string.IsNullOrWhiteSpace(nameFilter))
+            {
+                var needle = nameFilter.Trim();
+                q = q.Where(m => (m.Name ?? string.Empty).IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0
+                              || (m.Id ?? string.Empty).IndexOf(needle, StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+
+            // Project into fresh instances: GetFieldMetaAsync hands back the cached
+            // objects, and ValueHint must not be written onto shared state.
+            return q.OrderBy(m => m.Name, StringComparer.OrdinalIgnoreCase)
+                    .Select(m => new JiraFieldMeta
+                    {
+                        Id = m.Id,
+                        Name = m.Name,
+                        IsCustom = m.IsCustom,
+                        SchemaType = m.SchemaType,
+                        ItemsType = m.ItemsType,
+                        ValueHint = DescribeAcceptedValue(m)
+                    })
+                    .ToList();
+        }
+
+        /// <summary>
+        /// Describes what a caller may pass for a field — the read-side mirror of
+        /// <see cref="CoerceCustomValue"/>. Keep the two in step: every schema type the
+        /// coercion accepts as a scalar must say so here, and every type it rejects must
+        /// be reported as needing a structured value.
+        /// </summary>
+        private static string DescribeAcceptedValue(JiraFieldMeta meta)
+        {
+            switch (meta.SchemaType)
+            {
+                case "string":   return "scalar — a string, e.g. \"some text\".";
+                case "number":   return "scalar — a number, e.g. 5.";
+                case "date":     return "scalar — a date \"yyyy-MM-dd\".";
+                case "datetime": return "scalar — an ISO-8601 timestamp.";
+                case "any":      return "scalar — passed through unchanged.";
+                case "option":   return "scalar — the option label; it is wrapped as {\"value\": ...}.";
+                case "user":     return "scalar — the user's accountId; it is wrapped as {\"accountId\": ...}.";
+                case "array":
+                    switch (meta.ItemsType)
+                    {
+                        case "string": return "scalar (wrapped into a 1-element array) or a JSON array of strings.";
+                        case "option": return "scalar option label (wrapped as [{\"value\": ...}]) or a JSON array.";
+                        case "user":   return "scalar accountId (wrapped as [{\"accountId\": ...}]) or a JSON array.";
+                        default:       return $"structured — a JSON array of '{meta.ItemsType ?? "?"}' in Jira's own shape.";
+                    }
+                default:
+                    return $"structured — schema type '{meta.SchemaType ?? "(unknown)"}' needs the JSON object/array Jira expects.";
+            }
+        }
+
         /// <summary>
         /// Fetches the site's field catalog (/rest/api/3/field), cached per site for a
         /// few minutes. Custom fields expose the id ("customfield_10016"), the human

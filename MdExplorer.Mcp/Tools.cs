@@ -697,6 +697,37 @@ public class MdExplorerTools
     }
 
     [McpServerTool, Description(
+        "Lists the Jira fields available on the site, with the exact field name, its " +
+        "'customfield_XXXXX' id, the schema type and — in valueHint — the value shape to " +
+        "pass. Call this BEFORE setting customFields on JiraCreateIssue/JiraUpdateIssue: " +
+        "field names must match Jira exactly, and a wrong or ambiguous name is rejected " +
+        "rather than guessed. Use nameFilter to look up one field (e.g. 'points'); set " +
+        "customOnly=false to also see the built-in system fields.")]
+    public async Task<string> JiraListFields(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("Return only custom fields (default true). Pass false to include system fields too.")] bool customOnly = true,
+        [Description("Case-insensitive substring to filter by field name or id (optional).")] string nameFilter = null)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        try
+        {
+            var url = $"/api/atlassian/jira/fields?projectId={pid}&customOnly={(customOnly ? "true" : "false")}";
+            if (!string.IsNullOrWhiteSpace(nameFilter))
+                url += $"&nameFilter={Uri.EscapeDataString(nameFilter.Trim())}";
+            var resp = await client.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraListFields", project, $"customOnly={customOnly},nameFilter={nameFilter}", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
         "Discovers a Jira project's workflow: the statuses (stages) per issue type, " +
         "each tagged with its category (To Do / In Progress / Done). Use this to " +
         "understand the process so you can suggest the next step. To know exactly " +

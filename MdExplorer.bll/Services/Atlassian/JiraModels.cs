@@ -64,6 +64,13 @@ namespace MdExplorer.Features.Services.Atlassian
         public bool IsCustom { get; set; }
         public string SchemaType { get; set; } // string / number / option / user / array / date / datetime / …
         public string ItemsType { get; set; }  // for arrays: option / string / user / …
+
+        /// <summary>
+        /// Human-readable description of the value this field accepts on write, mirroring
+        /// the coercion rules. Populated only by the discovery path (ListFieldsAsync) so a
+        /// caller knows whether a scalar is enough or a structured JSON value is required.
+        /// </summary>
+        public string ValueHint { get; set; }
     }
 
     public class JiraComment
