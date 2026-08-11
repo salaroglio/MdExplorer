@@ -12,6 +12,7 @@ import { MdFileService } from '../../md-explorer/services/md-file.service';
 import { CatalogPickerDialogComponent } from '../dialogs/catalog-picker/catalog-picker.component';
 import { StoreCatalogApp } from '../../md-explorer/models/app-store.models';
 import { TranslateService } from '@ngx-translate/core';
+import { AgentCityStateService } from '../../md-explorer/services/agent-city-state.service';
 
 @Component({
   selector: 'app-project-settings',
@@ -159,7 +160,8 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     private externalAppsService: ExternalAppsService,
     private mdFileService: MdFileService,
     private dialog: MatDialog,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private agentCityState: AgentCityStateService
   ) {
     this.projectId = data.projectId;
     this.projectName = data.projectName;
@@ -641,6 +643,10 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
         this.agentAutoMergeDeliverables = !!res?.autoMergeAgentDeliverables;
+        // La toolbar mostra i comandi della città in base a questo flag: allineala
+        // subito, altrimenti resterebbe ferma fino alla riapertura del progetto.
+        // Il service ignora il salvataggio se riguarda un progetto non aperto.
+        this.agentCityState.set(this.projectPath, !!res?.enabled);
       },
       error: (err) => {
         console.error('Error saving Agent City settings:', err);

@@ -24,6 +24,7 @@ import { CommitMessageDialogComponent } from '../../../git/dialogs/commit-messag
 import { AgentRegistryDialogComponent } from '../agent-registry-dialog/agent-registry-dialog.component';
 import { AgentMemoryDialogComponent } from '../agent-memory-dialog/agent-memory-dialog.component';
 import { AgentMailboxNotificationService } from '../../../services/agent-mailbox-notification.service';
+import { AgentCityStateService } from '../../services/agent-city-state.service';
 import { GitHistoryDialogComponent } from '../../../git/dialogs/git-history-dialog/git-history-dialog.component';
 import { GitBranchDialogComponent } from '../../../git/dialogs/git-branch-dialog/git-branch-dialog.component';
 import { GitSetupRemoteGenericDialogComponent } from '../../../git/dialogs/git-setup-remote-generic-dialog/git-setup-remote-generic-dialog.component';
@@ -74,6 +75,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   // Impersonazione utente (test città): identità effettiva + lista padroni.
   identity: ImpersonationStatus | null = null;
   cityUsers: CityUser[] = [];
+  /** Master switch del progetto: governa la visibilità dei comandi della città. */
+  cityEnabled: boolean = false;
+  private citySubscriptions = new Subscription();
   taglist: ITag[];
   currentMdFile: MdFile
   public connectionIsActive: boolean = true;
@@ -124,7 +128,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private translate: TranslateService,
     private themeService: ThemeService,
     private documentRefreshService: DocumentRefreshService,
-    private mailboxNotifications: AgentMailboxNotificationService
+    private mailboxNotifications: AgentMailboxNotificationService,
+    private agentCityState: AgentCityStateService
 
   ) {
     this.TitleToShow = "MdExplorer";
@@ -165,6 +170,15 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.reviewAgent = agent;
       this.changesView = null;
     });
+
+    // I comandi della città esistono solo dove la città è accesa: seguiamo il progetto
+    // aperto (BehaviorSubject, quindi il valore corrente arriva subito) e lo stato
+    // condiviso, che le impostazioni aggiornano senza bisogno di ricaricare la toolbar.
+    this.citySubscriptions.add(
+      this.projectService.currentProjects$.subscribe(project =>
+        this.agentCityState.refresh(project?.path || '')));
+    this.citySubscriptions.add(
+      this.agentCityState.enabled$.subscribe(enabled => this.cityEnabled = enabled));
 
     // Get connectionId from SignalR service for export notifications
     this.connectionId = this.monitorMDService.connectionId;
@@ -289,6 +303,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     console.log("ngOnDestroy toolbar");
     this.subscriptionserverSelectedMdFile.unsubscribe();
+    this.citySubscriptions.unsubscribe();
   }
 
 

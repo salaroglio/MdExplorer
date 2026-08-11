@@ -21,19 +21,24 @@
     <button mat-icon-button [matTooltip]="'TOOLBAR.DETACH_DOCUMENT' | translate" [disabled]="!relativePath" (click)="detachDocument()" class="toolbar-btn btn-detach">
       <mat-icon>open_in_new</mat-icon>
     </button>
-    <button mat-icon-button [matTooltip]="'TOOLBAR.AGENT_REGISTRY' | translate" (click)="openAgentRegistry()" class="toolbar-btn btn-agents">
+    <!-- Comandi della città degli agenti: visibili solo dove il progetto ha
+         agentCity.enabled acceso (.development.yml). -->
+    <button *ngIf="cityEnabled" mat-icon-button [matTooltip]="'TOOLBAR.AGENT_REGISTRY' | translate" (click)="openAgentRegistry()" class="toolbar-btn btn-agents">
       <mat-icon>groups</mat-icon>
     </button>
-    <!-- Impersonazione utente (test città): selettore identità -->
-    <button mat-icon-button [matTooltip]="'IDENTITY.MENU' | translate" [matMenuTriggerFor]="identityMenu"
+    <!-- Impersonazione utente (test città): selettore identità. Resta visibile mentre
+         un'impersonazione è in corso anche a città spenta, altrimenti si toglierebbe
+         la via d'uscita a chi ha spento il flag da impersonato. -->
+    <button *ngIf="cityEnabled || identity?.impersonated"
+            mat-icon-button [matTooltip]="'IDENTITY.MENU' | translate" [matMenuTriggerFor]="identityMenu"
             (menuOpened)="loadIdentity(); loadCityUsers()" class="toolbar-btn btn-identity"
             [ngClass]="{ 'identity-impersonating': identity?.impersonated }">
       <mat-icon>{{ identity?.impersonated ? 'switch_account' : 'account_circle' }}</mat-icon>
     </button>
-    <button mat-icon-button [matTooltip]="'TOOLBAR.AGENT_MEMORY' | translate" (click)="openAgentMemory()" class="toolbar-btn btn-agent-memory">
+    <button *ngIf="cityEnabled" mat-icon-button [matTooltip]="'TOOLBAR.AGENT_MEMORY' | translate" (click)="openAgentMemory()" class="toolbar-btn btn-agent-memory">
       <mat-icon>psychology</mat-icon>
     </button>
-    <button mat-icon-button [matTooltip]="'TOOLBAR.AGENT_MAILBOX' | translate" (click)="openMailbox()" class="toolbar-btn btn-mailbox"
+    <button *ngIf="cityEnabled" mat-icon-button [matTooltip]="'TOOLBAR.AGENT_MAILBOX' | translate" (click)="openMailbox()" class="toolbar-btn btn-mailbox"
             [matBadge]="mailboxUnread" [matBadgeHidden]="mailboxUnread === 0" matBadgeColor="warn" matBadgeSize="small">
       <mat-icon>forum</mat-icon>
     </button>
