@@ -420,7 +420,7 @@ namespace MdExplorer.Features.Services.Atlassian
             catch (HttpRequestException ex)
             {
                 throw new AtlassianApiException(
-                    $"Could not reach Jira at {BaseUrl(conn)}: {ex.Message}", null, ex);
+                    AtlassianNetworkDiagnostics.DescribeUnreachable("Jira", BaseUrl(conn), ex), null, ex);
             }
 
             var body = await resp.Content.ReadAsStringAsync(ct);
@@ -735,7 +735,7 @@ namespace MdExplorer.Features.Services.Atlassian
             catch (HttpRequestException ex)
             {
                 throw new AtlassianApiException(
-                    $"Could not reach Jira at {BaseUrl(conn)}: {ex.Message}", null, ex);
+                    AtlassianNetworkDiagnostics.DescribeUnreachable("Jira", BaseUrl(conn), ex), null, ex);
             }
 
             var content = await resp.Content.ReadAsStringAsync(ct);
