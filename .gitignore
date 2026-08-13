@@ -459,3 +459,5 @@ llama-cpp-b8255/
 .vscode/mcp.json
 # MDE Mark Search temporary answer documents — wiped on every project open
 .md/mark-search/
+# MDE — posti di lavoro degli agenti: aree di lavoro, non contenuto
+.worktrees/

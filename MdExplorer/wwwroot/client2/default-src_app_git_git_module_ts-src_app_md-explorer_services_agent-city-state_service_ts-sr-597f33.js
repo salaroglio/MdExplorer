@@ -1,5 +1,5 @@
 "use strict";
-(self["webpackChunkclient2"] = self["webpackChunkclient2"] || []).push([["default-src_app_git_git_module_ts-src_app_md-explorer_services_external-apps_service_ts-src_a-45d4e7"],{
+(self["webpackChunkclient2"] = self["webpackChunkclient2"] || []).push([["default-src_app_git_git_module_ts-src_app_md-explorer_services_agent-city-state_service_ts-sr-597f33"],{
 
 /***/ 4386:
 /*!**************************************************************************************!*\
@@ -5398,6 +5398,85 @@ class GitCredentialService {
 
 /***/ }),
 
+/***/ 278:
+/*!******************************************************************!*\
+  !*** ./src/app/md-explorer/services/agent-city-state.service.ts ***!
+  \******************************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "AgentCityStateService": () => (/* binding */ AgentCityStateService)
+/* harmony export */ });
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _projects_services_project_settings_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../projects/services/project-settings.service */ 5450);
+
+
+
+/**
+ * Stato del master switch "città degli agenti" (`agentCity.enabled` in
+ * .development.yml) per il progetto aperto.
+ *
+ * Vive in un service condiviso perché i due punti che lo usano sono lontani fra
+ * loro: la toolbar, che mostra o nasconde i comandi della città, e le impostazioni
+ * di progetto, che lo cambiano. Senza un canale comune la toolbar resterebbe ferma
+ * allo stato letto all'apertura del progetto.
+ */
+class AgentCityStateService {
+  constructor(projectSettings) {
+    this.projectSettings = projectSettings;
+    this.enabledSubject = new rxjs__WEBPACK_IMPORTED_MODULE_1__.BehaviorSubject(false);
+    /** Progetto a cui si riferisce lo stato pubblicato: quello aperto nella toolbar. */
+    this.currentPath = '';
+    /** true solo quando il progetto aperto ha la città attiva. */
+    this.enabled$ = this.enabledSubject.asObservable();
+  }
+  /** Rilegge il flag dal backend. Nessun progetto aperto → città spenta, senza chiamata. */
+  refresh(projectPath) {
+    this.currentPath = projectPath || '';
+    if (!this.currentPath) {
+      this.enabledSubject.next(false);
+      return;
+    }
+    const asked = this.currentPath;
+    this.projectSettings.getAgentCity(asked).subscribe({
+      next: cfg => {
+        if (asked === this.currentPath) this.enabledSubject.next(!!cfg?.enabled);
+      },
+      error: err => {
+        // Stato ignoto: nascondiamo i comandi della città e lo dichiariamo, invece
+        // di mostrarli come se il flag fosse acceso.
+        console.warn('[AgentCity] stato non leggibile, comandi della città nascosti:', err);
+        if (asked === this.currentPath) this.enabledSubject.next(false);
+      }
+    });
+  }
+  /**
+   * Allinea lo stato alla risposta di un salvataggio, senza una rilettura.
+   * Il path è obbligatorio: le impostazioni si aprono anche su un progetto della
+   * lista diverso da quello aperto, e il suo flag non deve toccare la toolbar.
+   */
+  set(projectPath, enabled) {
+    if (!projectPath || projectPath !== this.currentPath) return;
+    this.enabledSubject.next(!!enabled);
+  }
+  static {
+    this.ɵfac = function AgentCityStateService_Factory(t) {
+      return new (t || AgentCityStateService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_projects_services_project_settings_service__WEBPACK_IMPORTED_MODULE_0__.ProjectSettingsService));
+    };
+  }
+  static {
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({
+      token: AgentCityStateService,
+      factory: AgentCityStateService.ɵfac,
+      providedIn: 'root'
+    });
+  }
+}
+
+/***/ }),
+
 /***/ 9595:
 /*!***************************************************************!*\
   !*** ./src/app/md-explorer/services/external-apps.service.ts ***!
@@ -10487,4 +10566,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_git_git_module_ts-src_app_md-explorer_services_external-apps_service_ts-src_a-45d4e7.js.map
+//# sourceMappingURL=default-src_app_git_git_module_ts-src_app_md-explorer_services_agent-city-state_service_ts-sr-597f33.js.map

@@ -55,6 +55,28 @@
   margin-bottom: 0.3em;
 }
 
+.param-caption {
+  display: block;
+  margin-bottom: 0.25em;
+  line-height: 1.3;
+}
+
+.param-caption-name {
+  font-family: Consolas, "Courier New", monospace;
+  font-weight: 600;
+  font-size: 0.85em;
+  color: var(--mde-text-primary);
+}
+
+.param-caption-desc {
+  font-size: 0.8em;
+  color: var(--mde-text-secondary);
+
+  &::before {
+    content: "— ";
+  }
+}
+
 .param-field {
   width: 100%;
 }

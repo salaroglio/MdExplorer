@@ -73,7 +73,7 @@
                 if (element.dataset.detachedDisabled) return;
                 element.dataset.detachedDisabled = '1';
                 element.classList.add('mde-detached-disabled');
-                element.querySelectorAll('.mde-run-btn, .mde-run-caret, .mde-run-service, .mde-param-picker')
+                element.querySelectorAll('.mde-run-btn, .mde-run-caret, .mde-run-service, .mde-param-picker, .mde-copy-btn')
                     .forEach(function (btn) {
                         btn.disabled = true;
                         btn.style.opacity = '0.5';
@@ -134,6 +134,14 @@
                 });
             }
 
+            var copyBtn = element.querySelector('.mde-copy-btn');
+            if (copyBtn) {
+                copyBtn.addEventListener('click', function (evt) {
+                    evt.preventDefault();
+                    requestCopy(parsed);
+                });
+            }
+
             // Split-button caret → toggle the "Run as service" menu.
             var caret = element.querySelector('.mde-run-caret');
             var menu = element.querySelector('.mde-run-menu');
@@ -183,7 +191,10 @@
     function harvestInlineValues(element, declaredParams) {
         // If the toolbar renders param inputs, harvest current values; otherwise
         // fall back to the server-declared defaults.
-        var inputs = element.querySelectorAll('.mde-exec-params input[data-param-name]');
+        // <select> covers the enum parameters (`@param X — a | b`); the picker button also
+        // carries data-param-name but its value lives in the hidden input next to it.
+        var inputs = element.querySelectorAll(
+            '.mde-exec-params input[data-param-name], .mde-exec-params select[data-param-name]');
         if (!inputs.length) return { params: declaredParams, inline: false };
         var byName = {};
         inputs.forEach(function (inp) {
@@ -277,6 +288,117 @@
             console.error('[mde-exec] postMessage to parent failed:', e);
             markIdle(parsed, 'communication error');
         }
+    }
+
+    // Copy is resolved and written to the system clipboard by the backend (same substitution the
+    // runner applies), so what you paste is exactly what Run would execute.
+    //
+    // The call goes STRAIGHT to the backend from here, not through the Angular parent: the iframe
+    // is same-origin with the server, this is the pattern the other in-document clipboard actions
+    // already use (clipboard-paste.js, html-preview.js → ZipAndCopyToClipboard), and it keeps the
+    // button working regardless of what the shell around the document is running.
+    function requestCopy(parsed) {
+        markCopyState(parsed, 'pending');
+        var harvested = harvestInlineValues(parsed.element, parsed.params);
+        var parameters = {};
+        (harvested.params || []).forEach(function (p) {
+            parameters[p.name] = p.defaultValue || '';
+        });
+
+        fetch('/api/MdExecution/Copy', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                blockId: parsed.blockId,
+                language: parsed.lang,
+                code: parsed.code,
+                parameters: parameters,
+            }),
+        })
+            .then(function (response) {
+                if (!response.ok) {
+                    return response.json()
+                        .catch(function () { return {}; })
+                        .then(function (body) {
+                            throw new Error([body.error, body.hint].filter(Boolean).join(' — ')
+                                || ('Server error ' + response.status));
+                        });
+                }
+                return response.json();
+            })
+            .then(function () {
+                markCopyState(parsed, 'done');
+            })
+            .catch(function (err) {
+                console.error('[mde-exec] copy failed:', err);
+                markCopyState(parsed, 'error', err.message || 'Copy failed');
+            });
+    }
+
+    // Material Icons glyphs (filled, fill=currentColor) — the same solid family the Angular
+    // toolbar uses. Thin outline icons read washed out next to them at this size.
+    var SVG_OPEN = '<svg class="mde-copy-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13"'
+        + ' viewBox="0 0 24 24" fill="currentColor">';
+    var ICON_CHECK = SVG_OPEN + '<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"></path></svg>';
+    var ICON_ERROR = SVG_OPEN + '<path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59'
+        + ' 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>';
+
+    // Replaces the glyph only, leaving the " Copy" label in place — the button keeps the same
+    // shape as Run next to it, just changing what it says.
+    function setCopyIcon(btn, html) {
+        var icon = btn.querySelector('.mde-copy-icon');
+        if (icon) icon.outerHTML = html;
+        else btn.insertAdjacentHTML('afterbegin', html);
+    }
+
+    // 'pending' | 'done' | 'error' — the button reports the backend's answer (✓ only once the
+    // clipboard write has actually confirmed), then returns to the copy icon.
+    function markCopyState(parsed, state, message) {
+        var btn = parsed.element.querySelector('.mde-copy-btn');
+        if (!btn) return;
+        var label = btn.querySelector('.mde-copy-label');
+        // Captured once, so restoring never has to re-declare the icon the server rendered.
+        if (!parsed.copyIconHtml) {
+            var restIcon = btn.querySelector('.mde-copy-icon');
+            parsed.copyIconHtml = restIcon ? restIcon.outerHTML : '';
+        }
+        if (parsed.copyResetTimer) {
+            clearTimeout(parsed.copyResetTimer);
+            parsed.copyResetTimer = null;
+        }
+        btn.classList.remove('is-copied', 'is-copy-error', 'is-copying');
+
+        if (state === 'pending') {
+            btn.disabled = true;
+            btn.classList.add('is-copying');
+            // Never wait forever: if the request hangs, the button would stay disabled with no
+            // explanation. Report it instead — a late answer just overwrites this.
+            parsed.copyResetTimer = setTimeout(function () {
+                parsed.copyResetTimer = null;
+                markCopyState(parsed, 'error', 'No answer from the server');
+            }, 8000);
+            return;
+        }
+
+        btn.disabled = false;
+        if (state === 'done') {
+            btn.classList.add('is-copied');
+            setCopyIcon(btn, ICON_CHECK);
+            if (label) label.textContent = ' Copied';
+            btn.title = 'Copied to the clipboard';
+        } else {
+            btn.classList.add('is-copy-error');
+            setCopyIcon(btn, ICON_ERROR);
+            if (label) label.textContent = ' Failed';
+            btn.title = message || 'Copy failed';
+        }
+        parsed.copyResetTimer = setTimeout(function () {
+            btn.classList.remove('is-copied', 'is-copy-error');
+            setCopyIcon(btn, parsed.copyIconHtml);
+            if (label) label.textContent = ' Copy';
+            btn.title = 'Copy the command with the current parameter values';
+            parsed.copyResetTimer = null;
+        }, 2000);
     }
 
     function requestStopService(parsed) {

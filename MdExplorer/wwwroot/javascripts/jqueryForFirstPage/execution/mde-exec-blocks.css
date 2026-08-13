@@ -45,30 +45,39 @@
     min-width: 0;
 }
 
+/* Chip made of two visually distinct segments: the name on a tinted prefix, the value
+   on plain background. Without the divider the caption reads as part of the value. */
 .mde-param {
     display: inline-flex;
-    align-items: center;
+    align-items: stretch;
     background: #fff;
     border: 1px solid #ced4da;
     border-radius: 3px;
-    padding: 0 0.35em 0 0.5em;
-    gap: 0.35em;
+    padding: 0;
+    gap: 0;
     line-height: 1.3;
+    overflow: hidden;
 }
 
 .mde-param-name {
+    display: inline-flex;
+    align-items: center;
+    background: #f1f3f5;
+    border-right: 1px solid #ced4da;
+    padding: 0.18em 0.5em;
     color: #495057;
     font-family: Consolas, "Courier New", monospace;
     font-size: 0.78em;
     font-weight: 600;
     letter-spacing: 0.02em;
+    white-space: nowrap;
 }
 
 .mde-param-input {
     border: none;
     outline: none;
     background: transparent;
-    padding: 0.18em 0;
+    padding: 0.18em 0.5em;
     min-width: 5em;
     width: 8em;
     font-family: inherit;
@@ -80,6 +89,15 @@
     outline: none;
 }
 
+/* Enum variant: a dropdown sized to its content, not to the 8em text-input width. */
+.mde-param-select {
+    width: auto;
+    min-width: 0;
+    padding-right: 0.35em;
+    cursor: pointer;
+    appearance: auto;
+}
+
 .mde-param:focus-within {
     border-color: #6aa8ff;
     box-shadow: 0 0 0 2px rgba(106, 168, 255, 0.18);
@@ -89,7 +107,7 @@
     background: transparent;
     border: none;
     cursor: pointer;
-    padding: 0 0.15em;
+    padding: 0 0.35em 0 0.1em;
     font-size: 0.95em;
     color: #6c757d;
     line-height: 1;
@@ -99,9 +117,10 @@
     color: #212529;
 }
 
-/* Path-picker variant: a single button (file/folder browser) that replaces the text input. */
+/* Path-picker variant: a single button (file/folder browser) that replaces the text input.
+   The name segment already carries its own padding, so the chip adds none. */
 .mde-param-path {
-    padding: 0 0 0 0.5em;
+    padding: 0;
 }
 
 .mde-param-picker {
@@ -136,6 +155,69 @@
     white-space: nowrap;
     direction: rtl; /* keep the end of long paths visible */
     text-align: left;
+}
+
+/* Twin of .mde-run-btn — same geometry, border weight and hover fill, in the toolbar grey
+   (#666666, the Angular --mde-icon-color) instead of green: same button, different action.
+   The explicit `margin` also neutralises the .20rem the document stylesheet puts on every
+   <button> (MdCustomCSS.css), which would otherwise offset this one inside the toolbar. */
+.mde-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25em;
+    padding: 0.2em 0.7em;
+    margin: 0 0.4em 0 0;
+    border: 1px solid #666666;
+    border-radius: 3px;
+    background: #fff;
+    color: #666666;
+    cursor: pointer;
+    font-size: 0.85em;
+    line-height: 1.3;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+    flex-shrink: 0;
+}
+
+.mde-copy-btn:hover:not(:disabled) {
+    background: #666666;
+    color: #fff;
+}
+
+.mde-copy-btn:disabled {
+    cursor: default;
+}
+
+.mde-copy-btn.is-copying {
+    opacity: 0.6;
+}
+
+/* Outcome states borrow the Run green / error red so success reads at a glance. */
+.mde-copy-btn.is-copied {
+    border-color: #198754;
+    color: #198754;
+}
+
+.mde-copy-btn.is-copied:hover:not(:disabled) {
+    background: #198754;
+    color: #fff;
+}
+
+.mde-copy-btn.is-copy-error {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+.mde-copy-btn.is-copy-error:hover:not(:disabled) {
+    background: #dc3545;
+    color: #fff;
+}
+
+.mde-copy-icon {
+    flex-shrink: 0;
+}
+
+.mde-copy-icon {
+    display: block;
 }
 
 .mde-run-btn {
@@ -335,6 +417,8 @@ body.dark-theme .mde-exec-block .mde-param {
 }
 
 body.dark-theme .mde-exec-block .mde-param-name {
+    background: #343846;
+    border-right-color: #3d4250;
     color: #c0c7d4;
 }
 
@@ -342,6 +426,14 @@ body.dark-theme .mde-exec-block .mde-param-input {
     color: #f0f3f9;
     background: transparent;
     border: none;
+}
+
+/* A native <select> paints its own popup with the OS/page background: force both so the
+   list is not black-on-black (or white-on-white) once opened. */
+body.dark-theme .mde-exec-block .mde-param-select,
+body.dark-theme .mde-exec-block .mde-param-select option {
+    background: #2a2d38;
+    color: #f0f3f9;
 }
 
 body.dark-theme .mde-exec-block .mde-param-input::placeholder {
@@ -388,6 +480,38 @@ body.dark-theme .mde-exec-block .mde-run-btn {
     background: transparent;
     border: 1px solid #4ec27a;
     color: #8de3a6;
+}
+
+body.dark-theme .mde-exec-block .mde-copy-btn {
+    background: transparent;
+    border: 1px solid #8a919e;
+    color: #cccccc;
+}
+
+body.dark-theme .mde-exec-block .mde-copy-btn:hover:not(:disabled) {
+    background: #4a4f5c;
+    border-color: #a8b0bd;
+    color: #ffffff;
+}
+
+body.dark-theme .mde-exec-block .mde-copy-btn.is-copied {
+    border-color: #4ec27a;
+    color: #8de3a6;
+}
+
+body.dark-theme .mde-exec-block .mde-copy-btn.is-copied:hover:not(:disabled) {
+    background: #2d6a3f;
+    color: #ffffff;
+}
+
+body.dark-theme .mde-exec-block .mde-copy-btn.is-copy-error {
+    border-color: #ef6f6f;
+    color: #ef9a9a;
+}
+
+body.dark-theme .mde-exec-block .mde-copy-btn.is-copy-error:hover:not(:disabled) {
+    background: #7a2e2e;
+    color: #ffffff;
 }
 
 body.dark-theme .mde-exec-block .mde-run-btn:hover:not(:disabled) {

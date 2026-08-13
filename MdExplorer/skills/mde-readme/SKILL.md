@@ -3,7 +3,7 @@ name: mde-readme
 description: Write README sections that include runnable script examples MdExplorer can execute interactively. Use whenever you document a CLI tool, build/deploy script, dev task, or any command-line invocation in a README, sprint note, or how-to doc. Each example must declare its parameters in a way MdExplorer's runner can detect, so the user can fill them in a dialog and click ▶ Run.
 mde:
   origin: mdexplorer
-  version: 7
+  version: 8
   updatePolicy: replace
 ---
 
@@ -49,7 +49,7 @@ Use comments natural to the shell:
 The grammar for each parameter line is:
 
 ```
-<comment-prefix> @param <NAME> [— description]  [default: <value>]  [secret]  [type: file|dir|out-file]
+<comment-prefix> @param <NAME> [— description]  [<val> | <val> | …]  [default: <value>]  [secret]  [type: file|dir|out-file]
 ```
 
 Rules:
@@ -58,6 +58,16 @@ Rules:
   after the name on the same line is the description.
 - `default: <value>` (anywhere on the line, in parentheses or after the description) sets the
   default value pre-filled in the dialog.
+- **A list of admissible values, written as an alternation, renders a dropdown** instead of a free
+  text field — the user picks, they cannot mistype. Two accepted forms:
+  - the description **is** the list: `# @param DIALECT — cobol | pli (default: pli)`
+  - the list is labelled inside a longer description: `# @param ENV — target environment, options: dev|staging|prod`
+    (`options`, `values`, `choices`, `one of` are all accepted).
+
+  Each value must be a **single word** (letters, digits, `.` `_` `-` `+` `/`) and there must be at
+  least two of them — a pipe inside ordinary prose is left alone, so a description like
+  `command to pipe into grep | wc` stays free text. Declare the `default:` as one of the listed
+  values so the dropdown opens on it.
 - `secret` (or the name containing `KEY`/`TOKEN`/`SECRET`/`PASSWORD`/`PWD`) renders the field as
   a password input.
 - `type: file` renders a **path-picker button** that opens MdExplorer's file browser **rooted at
@@ -195,22 +205,27 @@ project root** (see the previous section) and use `/`.
 ### 1. Bash — deploy script
 
 ```bash
-# @param ENV       — target environment (default: staging)
+# @param ENV       — dev | staging | prod (default: staging)
 # @param VERSION   — git tag or branch to deploy
 # @param API_KEY   — deployment API key (secret)
 ./deploy.sh --env <env> --version "<version>" --key "<api_key>"
 ```
 
-`<env>` is a short enum-like token, safe bare. `<version>` and `<api_key>` are quoted because the
-user could paste anything into them — the runner will not quote for you.
+`<env>` is picked from a dropdown (the three declared values), so it is a short safe token and can
+stay bare. `<version>` and `<api_key>` are quoted because the user could paste anything into them
+— the runner will not quote for you.
 
 ### 2. PowerShell — local build
 
 ```powershell
-# @param Configuration — Debug or Release (default: Release)
-# @param Runtime       — RID like win-x64, linux-x64 (default: win-x64)
+# @param Configuration — Debug | Release (default: Release)
+# @param Runtime       — target RID, options: win-x64|linux-x64|osx-arm64 (default: win-x64)
 dotnet publish src/MyApp.csproj -c <Configuration> -r <Runtime> --self-contained
 ```
+
+Both parameters have a closed set of values, so they render as dropdowns: the user picks
+`Release` or `Debug` instead of typing it. `Configuration` uses the bare form (the description is
+the list), `Runtime` the labelled one (prose plus `options:`).
 
 ### 3. Bash with env-export style (also detected, legacy)
 
@@ -316,6 +331,8 @@ When you are asked to write or update a README that documents a runnable script:
 - [ ] Every path uses **forward slashes `/`**, never backslashes `\`, and no absolute root / drive letter — so the same document runs on both Windows and Linux/macOS.
 - [ ] Every placeholder whose value could contain spaces or metacharacters is **quoted by you**
       (`$x = "<name>"`, `--key "<key>"`) — substitution is verbatim, the runner adds nothing.
+- [ ] Every parameter with a closed set of values declares it as an alternation (`cobol | pli`,
+      `options: dev|staging|prod`) so the user gets a dropdown instead of a free-text field.
 - [ ] Sensitive parameters are marked `secret` (or named with a secret-like suffix).
 - [ ] Defaults are provided for non-secret parameters where a sensible default exists.
 - [ ] Prose above the block explains the side effects.

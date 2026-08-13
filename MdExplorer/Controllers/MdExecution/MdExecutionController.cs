@@ -4,6 +4,7 @@ using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Features.Execution;
 using MdExplorer.Hubs;
 using MdExplorer.Services.Execution;
+using MdExplorer.Utilities;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
@@ -54,6 +55,14 @@ namespace MdExplorer.Service.Controllers.MdExecution
             public string Language { get; set; }
             public string Code { get; set; }
             public string ProjectPath { get; set; }
+            public Dictionary<string, string> Parameters { get; set; }
+        }
+
+        public class CopyRequest
+        {
+            public string BlockId { get; set; }
+            public string Language { get; set; }
+            public string Code { get; set; }
             public Dictionary<string, string> Parameters { get; set; }
         }
 
@@ -195,6 +204,58 @@ namespace MdExplorer.Service.Controllers.MdExecution
                         new { blockId = request.BlockId, message = ex.Message });
                 }
                 catch { /* client may be gone; best-effort notification */ }
+                return StatusCode(500, new { error = ex.Message, blockId = request.BlockId });
+            }
+        }
+
+        /// <summary>
+        /// Puts the command in the system clipboard with the current parameter values already
+        /// substituted — the exact text Run would execute, ready to paste in a terminal.
+        /// <para>
+        /// The clipboard write happens here, server-side, through the same
+        /// <see cref="CrossPlatformClipboard"/> used by the paste wizard: the browser clipboard API
+        /// is unavailable to a sandboxed iframe without a user gesture surviving the round trip.
+        /// </para>
+        /// <para>
+        /// No trust check: producing text executes nothing. Copy therefore works in a project where
+        /// execution has never been enabled.
+        /// </para>
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> Copy([FromBody] CopyRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Language) || request.Code == null)
+                return BadRequest(new { error = "language and code are required" });
+
+            try
+            {
+                // Same detection + substitution as Run, so what lands in the clipboard is exactly
+                // what the runner would execute — no second implementation to keep in sync.
+                var detected = ParameterExtractor.Extract(request.Code, request.Language);
+                var resolvedCode = ParameterSubstitution.Apply(
+                    request.Code,
+                    detected,
+                    request.Parameters ?? new Dictionary<string, string>());
+
+                var result = await CrossPlatformClipboard.SetTextAsync(resolvedCode);
+                if (!result.Success)
+                {
+                    _logger.LogWarning(
+                        "[MdExecution] Copy failed for block {BlockId}: {Error}",
+                        request.BlockId, result.ErrorMessage);
+                    return StatusCode(500, new
+                    {
+                        error = result.ErrorMessage,
+                        hint = result.PlatformHint,
+                        blockId = request.BlockId,
+                    });
+                }
+
+                return Ok(new { blockId = request.BlockId, length = resolvedCode.Length });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[MdExecution] Copy failed for block {BlockId}", request.BlockId);
                 return StatusCode(500, new { error = ex.Message, blockId = request.BlockId });
             }
         }

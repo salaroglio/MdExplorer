@@ -7,6 +7,8 @@ export interface RunCommandDialogParameter {
   isSecret: boolean;
   description?: string;
   kind?: string;
+  /** Closed set of admissible values — renders a dropdown instead of a text input. */
+  options?: string[];
 }
 
 export interface RunCommandDialogData {
@@ -40,7 +42,9 @@ export class RunCommandDialogComponent implements OnInit {
 
   ngOnInit(): void {
     for (const p of this.data.params || []) {
-      this.values[p.name] = p.defaultValue || '';
+      // A dropdown with no declared default falls back to its first entry — same as the
+      // inline <select> the browser renders in the document, so both paths run the same value.
+      this.values[p.name] = p.defaultValue || (p.options?.length ? p.options[0] : '');
     }
   }
 
