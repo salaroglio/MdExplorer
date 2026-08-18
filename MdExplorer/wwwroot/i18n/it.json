@@ -1884,7 +1884,8 @@
     "AHEAD": "{{count}} da pushare",
     "AHEAD_TIP": "Commit fatti qui e non ancora pubblicati: finché restano, chi clona non li trova.",
     "BEHIND": "{{count}} da tirare",
-    "BEHIND_TIP": "Commit che stanno sul remoto e non ancora qui: il pull del progetto non li porta se non passa anche da questo repository."
+    "BEHIND_TIP": "Commit che stanno sul remoto e non ancora qui: il pull del progetto non li porta se non passa anche da questo repository.",
+    "CLOSE_DIFF": "Chiudi la differenza e torna al documento"
   },
   "SUBMODULE": {
     "FETCHING": "Recupero il codice di {{list}}…",

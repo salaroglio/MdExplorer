@@ -1884,7 +1884,8 @@
     "AHEAD": "{{count}} to push",
     "AHEAD_TIP": "Commits made here and not published yet: while they stay, whoever clones will not find them.",
     "BEHIND": "{{count}} to pull",
-    "BEHIND_TIP": "Commits on the remote and not here yet: pulling the project does not bring them unless it goes through this repository too."
+    "BEHIND_TIP": "Commits on the remote and not here yet: pulling the project does not bring them unless it goes through this repository too.",
+    "CLOSE_DIFF": "Close the diff and go back to the document"
   },
   "SUBMODULE": {
     "FETCHING": "Fetching the code for {{list}}…",
