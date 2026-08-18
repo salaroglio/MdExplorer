@@ -1,6 +1,6 @@
 {
   "name": "client2",
-  "version": "2026.08.18.7",
+  "version": "2026.08.18.8",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
