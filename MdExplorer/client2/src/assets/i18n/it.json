@@ -228,9 +228,6 @@
     "AGENT_CITY_OWNERSHIP_DOC": "Documento di ownership (percorso relativo)",
     "AGENT_CITY_OWNERSHIP_DOC_DESC": "File markdown (mde_type: ownership) che mappa gli ambiti a responsabili e agenti. Iniettato nel prompt degli agenti come routing hint.",
     "AGENT_CITY_ROOM_SECRET_SET": "Room secret generato e condiviso via .development.yml.",
-    "GIT_TITLE": "Git",
-    "EXCLUDE_SUBMODULES": "Escludi i submodule git dal rilevamento delle modifiche",
-    "EXCLUDE_SUBMODULES_DESC": "Quando abilitata, le modifiche dentro i submodule git vengono ignorate: il submodule non compare mai nella lista delle modifiche della toolbar e non accende il pulsante di commit. Disabilitala per questo progetto se vuoi tracciare e committare le modifiche del submodule da MdExplorer.",
     "IDE_SETTINGS": "Impostazioni IDE",
     "IDE_CONFIGURATION": "Configurazione IDE",
     "IDE_SELECT_DESC": "Seleziona quale IDE deve essere usato per aprire i file dalla toolbar:",
@@ -705,7 +702,16 @@
     "TOC_UPDATE_FAILED": "Aggiornamento TOC fallito",
     "TOC_UPDATE_ERROR": "Errore durante aggiornamento TOC",
     "TO_COMMIT_AGENT": "Da committare — {{agent}}",
-    "SEE_DIFFERENCES": "Vedi le differenze"
+    "SEE_DIFFERENCES": "Vedi le differenze",
+    "TO_COMMIT_HERE": "{{count}} da committare",
+    "TO_COMMIT_SPREAD": "{{count}} da committare in {{repos}} repository",
+    "COMMIT_HERE": "Committa",
+    "COMMIT_HERE_TIP": "Committa in «{{repo}}» — il commit resta in questo repository",
+    "PUSHING_ALL": "Pubblico… i submodule prima, il progetto per ultimo",
+    "PUSH_ALL_TIP": "Pubblica il progetto e i suoi submodule. I figli vanno per primi: se qualcosa si ferma, il progetto non viene toccato e il remoto resta coerente.",
+    "PUSH_DONE": "Pubblicato: {{count}} repository.",
+    "PUSH_DONE_LEFT": "Pubblicato: {{count}} repository. Resta indietro: {{left}}.",
+    "PUSH_STOPPED": "Fermato su «{{repo}}»: {{why}}. Il progetto NON è stato pubblicato, il remoto è rimasto coerente."
   },
   "MD_TREE": {
     "RENAME_FOLDER": "rinomina cartella",
@@ -1869,7 +1875,14 @@
     "DISCARD_CONFIRM": "Buttare via le modifiche a «{{path}}»? Non si può annullare.",
     "DISCARD_FAILED": "Non sono riuscito a buttare via le modifiche.",
     "DIFF_EMPTY": "Nessuna differenza testuale (file binario o solo permessi).",
-    "DIFF_FAILED": "Differenza non calcolabile per questo file."
+    "DIFF_FAILED": "Differenza non calcolabile per questo file.",
+    "DETACHED": "HEAD staccato",
+    "POINTER_MOVED": "puntatore spostato",
+    "POINTER_MOVED_TIP": "Il progetto registra per questo submodule un commit diverso: è una modifica DEL PROGETTO, e si committa lì.",
+    "POINTER_MOVED_NOTE": "Il riferimento a questo submodule è cambiato. Non è un file di qui: si committa nel progetto che lo contiene.",
+    "NOT_INITIALIZED": "non scaricato",
+    "AHEAD": "{{count}} da pushare",
+    "AHEAD_TIP": "Commit fatti qui e non ancora pubblicati: finché restano, chi clona non li trova."
   },
   "SUBMODULE": {
     "FETCHING": "Recupero il codice di {{list}}…",

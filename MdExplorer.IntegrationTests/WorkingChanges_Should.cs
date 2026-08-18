@@ -42,7 +42,7 @@ namespace MdExplorer.IntegrationTests
 
             Assert.IsNull(view.Problem, view.Problem);
             Assert.AreEqual("user", view.ContextKind);
-            var byPath = view.Files.ToDictionary(f => f.Path, f => f.Change);
+            var byPath = view.Repos[0].Files.ToDictionary(f => f.Path, f => f.Change);
 
             Assert.AreEqual("modified", byPath["README.md"]);
             Assert.AreEqual("deleted", byPath["vecchio.md"]);
@@ -70,10 +70,10 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual("agent", his.ContextKind);
             Assert.AreEqual("alfa", his.ContextLabel);
             Assert.AreEqual(prep.WorktreePath, his.RootPath, "il contesto dell'agente è il suo posto di lavoro");
-            CollectionAssert.Contains(his.Files.Select(f => f.Path).ToList(), "prodotto-da-alfa.md");
+            CollectionAssert.Contains(his.Repos[0].Files.Select(f => f.Path).ToList(), "prodotto-da-alfa.md");
 
             // I due contesti non si mescolano: il lavoro dell'agente non è nel progetto dell'utente.
-            CollectionAssert.DoesNotContain(mine.Files.Select(f => f.Path).ToList(), "prodotto-da-alfa.md");
+            CollectionAssert.DoesNotContain(mine.Repos[0].Files.Select(f => f.Path).ToList(), "prodotto-da-alfa.md");
         }
 
         [TestMethod]
@@ -92,7 +92,7 @@ namespace MdExplorer.IntegrationTests
             // Committato e pubblicato: è esattamente ciò che l'umano deve poter guardare prima
             // di autorizzare. Un confronto solo con la working tree non lo mostrerebbe.
             var view = await Service(ctx).GetAsync(path, "alfa");
-            CollectionAssert.Contains(view.Files.Select(f => f.Path).ToList(), "consegna.md");
+            CollectionAssert.Contains(view.Repos[0].Files.Select(f => f.Path).ToList(), "consegna.md");
         }
 
         [TestMethod]

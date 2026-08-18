@@ -127,38 +127,21 @@ namespace MdExplorer.Services.Git
         }
 
         /// <summary>
-        /// Builds the <see cref="StatusOptions"/> used for every working-directory status query,
-        /// honoring the per-project "ExcludeSubmodulesFromGitStatus" flag (default ON, applied
-        /// globally when no project row is found). When enabled, LibGit2Sharp omits submodule
-        /// entries from the status, so a dirty submodule — or one whose recorded commit moved —
-        /// no longer marks the parent repository as changed (which would otherwise keep the
-        /// toolbar commit button perpetually lit).
+        /// Le opzioni di ogni lettura dello stato: i submodule restano <b>fuori</b>.
+        /// <para>
+        /// Non è più configurabile per progetto (colonna rimossa il 18/08/2026). La manopola
+        /// esisteva perché un submodule sporco teneva acceso per sempre il pulsante Commit della
+        /// toolbar; quel pulsante ora legge la vista per repository, che dice <i>cosa</i> c'è e
+        /// <i>dove</i>, quindi non c'era più niente da tarare.
+        /// </para>
+        /// <para>
+        /// L'esclusione resta perché serve a chi legge ancora questo stato — l'avviso prima del
+        /// cambio di ramo — e lì è la risposta giusta: cambiare ramo nel progetto non tocca il
+        /// contenuto dei submodule, quindi un submodule sporco non è un motivo per fermarti.
+        /// </para>
         /// </summary>
-        private StatusOptions BuildStatusOptions(string repositoryPath)
-        {
-            bool excludeSubmodules = true; // global default: keep submodules out of the change indicator
-            try
-            {
-                var normalizedPath = NormalizeRepositoryPath(repositoryPath);
-                // Match the read pattern used by ProjectSettingsController: clear the session
-                // cache first so a freshly toggled per-project value is picked up immediately.
-                _userSettingsDB.Clear();
-                var project = _userSettingsDB.GetDal<Project>().GetList().ToList()
-                    .FirstOrDefault(p => !string.IsNullOrEmpty(p.Path) &&
-                        NormalizeRepositoryPath(p.Path).Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
-                if (project != null)
-                {
-                    excludeSubmodules = project.ExcludeSubmodulesFromGitStatus;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex,
-                    "[GitStatus] Could not read ExcludeSubmodulesFromGitStatus for {RepoPath}; defaulting to exclude submodules",
-                    repositoryPath);
-            }
-            return new StatusOptions { ExcludeSubmodules = excludeSubmodules };
-        }
+        private static StatusOptions BuildStatusOptions(string repositoryPath)
+            => new StatusOptions { ExcludeSubmodules = true };
 
         /// <summary>
         /// Full-path normalization tolerant of a trailing directory separator, so that a

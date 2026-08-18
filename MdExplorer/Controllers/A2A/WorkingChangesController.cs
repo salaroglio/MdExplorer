@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using MdExplorer.Services.AgentRun;
+using MdExplorer.Services.Git;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 
@@ -20,12 +21,46 @@ namespace MdExplorer.Controllers.A2A
     public class WorkingChangesController : ControllerBase
     {
         private readonly IWorkingChangesService _changes;
+        private readonly ISafePushService _push;
         private readonly ILogger<WorkingChangesController> _logger;
 
-        public WorkingChangesController(IWorkingChangesService changes, ILogger<WorkingChangesController> logger)
+        public WorkingChangesController(
+            IWorkingChangesService changes, ISafePushService push, ILogger<WorkingChangesController> logger)
         {
             _changes = changes;
+            _push = push;
             _logger = logger;
+        }
+
+        /// <summary>
+        /// Pubblica il progetto e i suoi submodule. <b>I figli prima, il padre per ultimo</b>:
+        /// qualunque fallimento a monte lascia il remoto vecchio ma coerente, mai rotto.
+        /// </summary>
+        [HttpPost("push-all")]
+        public async Task<IActionResult> PushAll([FromBody] PushAllRequest body)
+        {
+            if (body == null || string.IsNullOrWhiteSpace(body.ProjectPath))
+                return BadRequest(new { error = "Nessun progetto indicato." });
+
+            var result = await _push.PushEverythingAsync(body.ProjectPath, EmptyToNull(body.Agent));
+
+            if (result.Refused != null)
+            {
+                // Rifiutato PRIMA di toccare qualsiasi remoto: e' una condizione che l'utente puo'
+                // risolvere, non un errore del server.
+                _logger.LogInformation("[PubblicaTutto] rifiutato: {Why}", result.Refused);
+                return UnprocessableEntity(result);
+            }
+
+            _logger.LogInformation("[PubblicaTutto] {Esito}: {Passi} passi.",
+                result.Success ? "riuscito" : "interrotto", result.Steps.Count);
+            return result.Success ? Ok(result) : StatusCode(502, result);
+        }
+
+        public sealed class PushAllRequest
+        {
+            public string? ProjectPath { get; set; }
+            public string? Agent { get; set; }
         }
 
         /// <summary>Elenco dei file diversi dal ramo di partenza, nel contesto indicato.</summary>
@@ -42,12 +77,13 @@ namespace MdExplorer.Controllers.A2A
         /// <summary>Differenza testuale di un file, in unified diff.</summary>
         [HttpGet("diff")]
         public async Task<IActionResult> Diff(
-            [FromQuery] string? projectPath, [FromQuery] string? agent, [FromQuery] string? path)
+            [FromQuery] string? projectPath, [FromQuery] string? agent,
+            [FromQuery] string? path, [FromQuery] string? repo)
         {
             try
             {
-                var diff = await _changes.DiffAsync(projectPath, EmptyToNull(agent), path);
-                return Ok(new { path, diff });
+                var diff = await _changes.DiffAsync(projectPath, EmptyToNull(agent), path, EmptyToNull(repo));
+                return Ok(new { path, repo, diff });
             }
             catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
             catch (InvalidOperationException ex) { return UnprocessableEntity(new { error = ex.Message }); }
@@ -65,9 +101,11 @@ namespace MdExplorer.Controllers.A2A
                 return BadRequest(new { error = "Percorso mancante." });
             try
             {
-                var what = await _changes.DiscardAsync(body.ProjectPath, EmptyToNull(body.Agent), body.Path);
-                _logger.LogInformation("[Changes] '{Path}' {What} (agente: {Agent}).", body.Path, what, body.Agent ?? "—");
-                return Ok(new { path = body.Path, outcome = what });
+                var what = await _changes.DiscardAsync(
+                    body.ProjectPath, EmptyToNull(body.Agent), body.Path, EmptyToNull(body.Repo));
+                _logger.LogInformation("[Changes] '{Repo}/{Path}' {What} (agente: {Agent}).",
+                    body.Repo ?? ".", body.Path, what, body.Agent ?? "—");
+                return Ok(new { path = body.Path, repo = body.Repo, outcome = what });
             }
             catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
             catch (InvalidOperationException ex) { return UnprocessableEntity(new { error = ex.Message }); }
@@ -79,6 +117,8 @@ namespace MdExplorer.Controllers.A2A
             public string? ProjectPath { get; set; }
             public string? Agent { get; set; }
             public string? Path { get; set; }
+            /// <summary>Repository di cui il percorso è relativo: vuoto = la radice del contesto.</summary>
+            public string? Repo { get; set; }
         }
 
         private static string? EmptyToNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s;

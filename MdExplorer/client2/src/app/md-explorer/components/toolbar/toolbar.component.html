@@ -91,7 +91,7 @@
           <button class="smallMessagesToCommit"
                   (click)="commit()"
                   (mouseenter)="showCommitMenu=true; loadChangedFiles()">
-            {{ 'TOOLBAR.FILES_TO_COMMIT' | translate:{ count: howManyFilesAreToCommit } }}
+            {{ toCommitLabel() }}
           </button>
           <div class="commit-menu"
                *ngIf="showCommitMenu"
@@ -108,37 +108,54 @@
               {{ 'COMMON.LOADING' | translate }}
             </div>
 
-            <!-- Quattro numeri al posto della lista: la lista sta nel tab, dove si vede il
-                 diff prima di scartare. Qui serve solo sapere quanto c'e'. -->
-            <div *ngIf="!isLoadingChangedFiles && changesView && !changesView.problem" class="commit-aggregates">
-              <div class="agg agg-added">
-                <span class="n">{{ changeCount('added') }}</span>
-                <span class="l">{{ 'CHANGES.ADDED' | translate }}</span>
+            <!-- Una riga per repository, perche' e' l'unita' in cui si committa: un totale
+                 unico direbbe che basta un commit, e non e' vero. La lista dei file sta nel
+                 tab, dove si vede il diff prima di scartare. -->
+            <div *ngIf="!isLoadingChangedFiles && changesView && !changesView.problem" class="commit-repos">
+              <div class="commit-repo" *ngFor="let r of reposToCommit; trackBy: trackByRepo">
+                <mat-icon class="r-icon">{{ r.depth === 0 ? 'folder_special' : 'account_tree' }}</mat-icon>
+                <span class="r-label">{{ r.label }}</span>
+                <span class="r-branch" *ngIf="r.branch">{{ r.branch }}</span>
+                <span class="r-branch r-detached" *ngIf="r.detached">{{ 'CHANGES.DETACHED' | translate }}</span>
+                <span class="flexExpand"></span>
+                <span class="r-badge" *ngIf="r.pointerMoved">{{ 'CHANGES.POINTER_MOVED' | translate }}</span>
+                <span class="r-counts">
+                  <span class="agg-added" *ngIf="countIn(r, 'added') || countIn(r, 'untracked')">+{{ countIn(r, 'added') + countIn(r, 'untracked') }}</span>
+                  <span class="agg-modified" *ngIf="countIn(r, 'modified')">~{{ countIn(r, 'modified') }}</span>
+                  <span class="agg-deleted" *ngIf="countIn(r, 'deleted')">&minus;{{ countIn(r, 'deleted') }}</span>
+                  <span class="agg-renamed" *ngIf="countIn(r, 'renamed')">&rarr;{{ countIn(r, 'renamed') }}</span>
+                </span>
+
+                <!-- Un commit per repository, perche' e' li' che il commit va a finire. Mai
+                     disabilitato in silenzio: il motivo sta nel tooltip. -->
+                <button mat-stroked-button class="r-commit"
+                        [disabled]="!!r.commitBlocker"
+                        [matTooltip]="r.commitBlocker || ('TOOLBAR.COMMIT_HERE_TIP' | translate:{ repo: r.label })"
+                        matTooltipPosition="left"
+                        (click)="commitRepo(r, $event)">
+                  <mat-icon>{{ r.commitBlocker ? 'block' : 'check' }}</mat-icon>
+                  {{ 'TOOLBAR.COMMIT_HERE' | translate }}
+                </button>
               </div>
-              <div class="agg agg-modified">
-                <span class="n">{{ changeCount('modified') }}</span>
-                <span class="l">{{ 'CHANGES.MODIFIED' | translate }}</span>
-              </div>
-              <div class="agg agg-deleted">
-                <span class="n">{{ changeCount('deleted') }}</span>
-                <span class="l">{{ 'CHANGES.DELETED' | translate }}</span>
-              </div>
-              <div class="agg agg-renamed">
-                <span class="n">{{ changeCount('renamed') }}</span>
-                <span class="l">{{ 'CHANGES.RENAMED' | translate }}</span>
-              </div>
+            </div>
+
+            <!-- Perche' pushare adesso romperebbe il repository per gli altri: si legge PRIMA. -->
+            <div class="commit-push-warn"
+                 *ngIf="!isLoadingChangedFiles && changesView?.repos?.length && changesView.repos[0].pushWarnings?.length">
+              <mat-icon>warning</mat-icon>
+              <span>{{ changesView.repos[0].pushWarnings[0] }}</span>
             </div>
 
             <div *ngIf="!isLoadingChangedFiles && changesView?.problem" class="commit-menu-empty">
               {{ changesView?.problem }}
             </div>
 
-            <div *ngIf="!isLoadingChangedFiles && changesView && !changesView.problem && changesView.files.length === 0"
+            <div *ngIf="!isLoadingChangedFiles && changesView && !changesView.problem && reposToCommit.length === 0"
                  class="commit-menu-empty">
               {{ 'TOOLBAR.NO_MODIFIED_FILES' | translate }}
             </div>
 
-            <div class="commit-menu-actions" *ngIf="!isLoadingChangedFiles && changesView?.files?.length">
+            <div class="commit-menu-actions" *ngIf="!isLoadingChangedFiles && reposToCommit.length">
               <button mat-stroked-button (click)="seeTheDifferences(); $event.stopPropagation()">
                 <mat-icon>difference</mat-icon>
                 {{ 'TOOLBAR.SEE_DIFFERENCES' | translate }}
@@ -160,7 +177,12 @@
               </table>
           </div>
         </div>
-        <button class="smallMessagesToPush" (click)="push()" *ngIf="somethingIsToPush">{{ 'TOOLBAR.TO_PUSH' | translate:{ count: howManyCommitAreToPush } }}</button>
+        <!-- Pubblica il progetto E i suoi submodule, nell'ordine che non puo' rompere niente:
+             i figli prima, il padre per ultimo. -->
+        <button class="smallMessagesToPush" (click)="pushEverything()" *ngIf="somethingIsToPush"
+                [matTooltip]="'TOOLBAR.PUSH_ALL_TIP' | translate">
+          {{ 'TOOLBAR.TO_PUSH' | translate:{ count: howManyCommitAreToPush } }}
+        </button>
       </div>
       <button mat-button [matMenuTriggerFor]="tagsAndBranches" #branchMenuTrigger="matMenuTrigger"
               (menuOpened)="loadWorktrees()"

@@ -4,7 +4,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
 import { ProjectsService } from '../../services/projects.service';
 import { ReviewContextService } from '../../services/review-context.service';
-import { ChangeKind, WorkingChange, WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
+import { ChangeKind, RepoChanges, WorkingChange, WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
 
 /**
  * Il tab delle differenze, fratello dell'albero dei documenti.
@@ -15,6 +15,10 @@ import { ChangeKind, WorkingChange, WorkingChangesService, WorkingChangesView } 
  * via, negherebbe l'accesso alla storia.
  *
  * Segue il contesto: il tuo lavoro, oppure quello di un agente quando entri in revisione.
+ *
+ * I file sono raggruppati **per repository** — il progetto e i suoi submodule — perché il
+ * repository è l'unità in cui si committa: mescolarli darebbe un elenco in cui due righe vicine
+ * finiscono in posti diversi.
  */
 @Component({
   selector: 'app-working-changes',
@@ -27,10 +31,17 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
   projectPath = '';
   agent: string | null = null;
 
-  /** File aperto nel riquadro del diff. */
+  /** File aperto nel riquadro del diff: identificato da repository E percorso, non dal solo percorso. */
   openedPath: string | null = null;
+  openedRepo: string | null = null;
   diffText = '';
   diffLoading = false;
+
+  /**
+   * Chi ha aperto o chiuso cosa, per percorso di repository. Serve perché la vista si rilegge
+   * dopo ogni azione: senza, i gruppi tornerebbero al loro stato di partenza a ogni scarto.
+   */
+  private readonly chosen = new Map<string, boolean>();
 
   private subs: Subscription[] = [];
 
@@ -82,12 +93,13 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
     });
   }
 
-  open(file: WorkingChange): void {
-    if (this.openedPath === file.path) { this.closeDiff(); return; }
+  open(repo: RepoChanges, file: WorkingChange): void {
+    if (this.openedPath === file.path && this.openedRepo === repo.path) { this.closeDiff(); return; }
     this.openedPath = file.path;
+    this.openedRepo = repo.path;
     this.diffText = '';
     this.diffLoading = true;
-    this.changes.diff(this.projectPath, this.agent, file.path).subscribe({
+    this.changes.diff(this.projectPath, this.agent, file.path, repo.path).subscribe({
       next: r => { this.diffText = r.diff || ''; this.diffLoading = false; },
       error: err => {
         this.diffLoading = false;
@@ -99,18 +111,46 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
 
   closeDiff(): void {
     this.openedPath = null;
+    this.openedRepo = null;
     this.diffText = '';
   }
 
+  // ---- i gruppi ----
+
+  /** C'è qualcosa da guardare qui dentro? Decide come si presenta un gruppo la prima volta. */
+  hasSomething(repo: RepoChanges): boolean {
+    return repo.files.length > 0 || repo.pointerMoved || repo.notInitialized;
+  }
+
+  /** Chiuso di partenza se non c'è niente: aprire cinque gruppi vuoti non aiuta a capire. */
+  isCollapsed(repo: RepoChanges): boolean {
+    const choice = this.chosen.get(repo.path);
+    return choice !== undefined ? choice : !this.hasSomething(repo);
+  }
+
+  toggle(repo: RepoChanges): void {
+    this.chosen.set(repo.path, !this.isCollapsed(repo));
+  }
+
+  /** Quanti file di un tipo in QUESTO repository. */
+  countIn(repo: RepoChanges, change: ChangeKind): number {
+    return repo.files.filter(f => f.change === change).length;
+  }
+
+  trackByRepo = (_: number, r: RepoChanges) => r.path;
+
   /** Si scarta DOPO aver visto il diff, non alla cieca: per questo sta qui e non nel commit. */
-  discard(file: WorkingChange, event: MouseEvent): void {
+  discard(repo: RepoChanges, file: WorkingChange, event: MouseEvent): void {
     event.stopPropagation();
-    const question = this.translate.instant('CHANGES.DISCARD_CONFIRM', { path: file.path });
+    // Il nome del repository sta nella domanda: due file omonimi in due submodule diversi
+    // sarebbero indistinguibili, e questo gesto non si annulla.
+    const where = repo.path ? repo.path + '/' + file.path : file.path;
+    const question = this.translate.instant('CHANGES.DISCARD_CONFIRM', { path: where });
     if (!window.confirm(question)) return;
 
-    this.changes.discard(this.projectPath, this.agent, file.path).subscribe({
+    this.changes.discard(this.projectPath, this.agent, file.path, repo.path).subscribe({
       next: () => {
-        if (this.openedPath === file.path) this.closeDiff();
+        if (this.openedPath === file.path && this.openedRepo === repo.path) this.closeDiff();
         this.refresh();
       },
       error: err => this.snackBar.open(
@@ -129,10 +169,6 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
           : text.startsWith('diff ') || text.startsWith('index ') ? 'meta'
           : 'ctx',
     }));
-  }
-
-  countOf(change: ChangeKind): number {
-    return (this.view?.files || []).filter(f => f.change === change).length;
   }
 
   iconFor(change: ChangeKind): string {

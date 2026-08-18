@@ -15,7 +15,7 @@ import { MatLegacyTabGroup as MatTabGroup } from '@angular/material/legacy-tabs'
 import { ITag } from '../../../git/models/Tag';
 import { ProjectsService } from '../../services/projects.service';
 import { ReviewContextService } from '../../services/review-context.service';
-import { WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
+import { ChangeKind, RepoChanges, SafePushResult, WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
 import { Router } from '@angular/router';
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
@@ -96,6 +96,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
    */
   public reviewAgent: string | null = null;
   public changesView: WorkingChangesView | null = null;
+  /** I repository che hanno davvero qualcosa da committare: le righe del pannello. */
+  public reposToCommit: RepoChanges[] = [];
   public isLoadingChangedFiles: boolean = false;
   public hasRemoteConfigured: boolean = true; // Default true to hide menu initially
   public currentRemoteUrl: string = '';
@@ -196,10 +198,13 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     // get current branch name and if the branch has something to commit
     this.gitservice.currentBranch$.subscribe(branch => {
       this.currentBranch = branch.name;
-      this.somethingIsChangedInTheBranch = branch.somethingIsChangedInTheBranch;
-      this.howManyFilesAreToCommit = branch.howManyFilesAreChanged;
       this.howManyCommitAreToPush = branch.howManyCommitAreToPush;
       this.connectionIsActive = true;
+      // Se c'e' qualcosa da committare NON lo decide piu' questo conteggio: escludeva i
+      // submodule, quindi con del lavoro non salvato dentro uno di essi il pulsante restava
+      // spento. Lo decide la vista per repository, che e' anche cio' che il pannello mostra:
+      // una fonte sola, e i due numeri non possono piu' contraddirsi.
+      this.loadChangedFiles();
     });
 
     this.gitservice.commmitsToPull$.subscribe(_ => {
@@ -1200,22 +1205,157 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     this.workingChanges.list(projectPath, this.reviewAgent).subscribe({
       next: view => {
         this.changesView = view;
+        this.applyChangeSummary(view);
         this.isLoadingChangedFiles = false;
       },
       error: err => {
         this.changesView = err?.error?.problem ? err.error : null;
+        this.applyChangeSummary(this.changesView);
         this.isLoadingChangedFiles = false;
       },
     });
   }
 
-  /** Quanti file di un certo tipo: i quattro numeri della finestrella. */
-  changeCount(kind: 'added' | 'modified' | 'deleted' | 'renamed'): number {
-    const files = this.changesView?.files || [];
-    // I non tracciati sono aggiunte a tutti gli effetti per chi guarda: distinguerli qui
-    // vorrebbe dire un quinto numero che non dice niente di piu'.
-    if (kind === 'added') return files.filter(f => f.change === 'added' || f.change === 'untracked').length;
-    return files.filter(f => f.change === kind).length;
+  /**
+   * Il pulsante si accende se ALMENO UN repository ha qualcosa — la radice o un submodule,
+   * indifferentemente: un commit e' comunque un lavoro che ti resta da fare.
+   */
+  private applyChangeSummary(view: WorkingChangesView | null): void {
+    const repos = view?.repos || [];
+    this.reposToCommit = repos.filter(r => this.repoHasWork(r));
+    this.howManyFilesAreToCommit = this.reposToCommit.reduce((n, r) => n + r.files.length, 0);
+    this.somethingIsChangedInTheBranch = this.reposToCommit.length > 0;
+  }
+
+  /** Qualcosa da fare QUI: file da salvare, oppure un riferimento a submodule da registrare. */
+  repoHasWork(repo: RepoChanges): boolean {
+    return repo.files.length > 0 || repo.pointerMoved;
+  }
+
+  /** Quanti file di un tipo in un repository: i numeri della riga. */
+  countIn(repo: RepoChanges, change: ChangeKind): number {
+    return repo.files.filter(f => f.change === change).length;
+  }
+
+  /**
+   * Cosa scrivere sul pulsante. Il numero da solo mentirebbe quando il lavoro e' sparso: quei
+   * file non si chiudono con un commit, ma con uno per repository. Il numero di repository e'
+   * l'informazione che manca, quindi si dice.
+   */
+  toCommitLabel(): string {
+    const spread = this.reposToCommit.length;
+    return spread > 1
+      ? this.translate.instant('TOOLBAR.TO_COMMIT_SPREAD', { count: this.howManyFilesAreToCommit, repos: spread })
+      : this.translate.instant('TOOLBAR.TO_COMMIT_HERE', { count: this.howManyFilesAreToCommit });
+  }
+
+  trackByRepo = (_: number, r: RepoChanges) => r.path;
+
+  /**
+   * Pubblica tutto, in un ordine che non puo' rompere il repository per gli altri: i submodule
+   * prima, il progetto per ultimo. Se un submodule non e' pubblicabile ci si ferma PRIMA di
+   * toccare qualsiasi remoto, e si dice perche'.
+   */
+  pushEverything(): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+
+    const info = new WaitingDialogInfo();
+    info.message = this.translate.instant('TOOLBAR.PUSHING_ALL');
+    this.waitingDialogService.showMessageBox(info);
+
+    this.workingChanges.pushAll(projectPath, this.reviewAgent).subscribe({
+      next: result => {
+        this.waitingDialogService.closeMessageBox();
+        this.reportPush(result);
+        this.loadChangedFiles();
+      },
+      error: err => {
+        this.waitingDialogService.closeMessageBox();
+        const result: SafePushResult = err?.error?.refused !== undefined ? err.error : null;
+        if (result) { this.reportPush(result); this.loadChangedFiles(); return; }
+        this._snackBar.open(
+          this.translate.instant('TOOLBAR.PUSH_FAILED', { error: err?.message || '' }), 'OK',
+          { duration: 8000, verticalPosition: 'top', panelClass: ['error-snackbar'] });
+      },
+    });
+  }
+
+  /**
+   * Cosa dire dopo. Un rifiuto NON e' un errore da nascondere: e' una condizione che l'utente puo'
+   * risolvere, e il messaggio dice gia' come.
+   */
+  private reportPush(result: SafePushResult): void {
+    if (result.refused) {
+      this._snackBar.open(result.refused, 'OK', { duration: 12000, verticalPosition: 'top' });
+      return;
+    }
+    if (!result.success) {
+      const failed = (result.steps || []).find(s => !s.ok);
+      this._snackBar.open(
+        this.translate.instant('TOOLBAR.PUSH_STOPPED', { repo: failed?.label || '?', why: failed?.outcome || '' }),
+        'OK', { duration: 12000, verticalPosition: 'top', panelClass: ['error-snackbar'] });
+      return;
+    }
+    // Cio' che resta indietro non e' un errore: e' roba non committata, che pubblicare non
+    // porterebbe via. Ma senza dirlo si crede di aver pubblicato tutto.
+    const left = result.leftBehind || [];
+    const message = left.length
+      ? this.translate.instant('TOOLBAR.PUSH_DONE_LEFT', { count: result.steps.length, left: left.join(', ') })
+      : this.translate.instant('TOOLBAR.PUSH_DONE', { count: result.steps.length });
+    this._snackBar.open(message, 'OK', { duration: 8000, verticalPosition: 'top' });
+  }
+
+  /** Dove sta questo repository sul disco: la radice del contesto, piu' il suo percorso. */
+  repoAbsolutePath(repo: RepoChanges): string {
+    const root = this.changesView?.rootPath || '';
+    if (!repo.path) return root;
+    const sep = root.includes('\\') ? '\\' : '/';
+    return root.replace(/[\\/]+$/, '') + sep + repo.path.replace(/\//g, sep);
+  }
+
+  /**
+   * Committa in QUESTO repository. Nessun endpoint nuovo: `CommitAsync` prende un percorso e
+   * committa li', e un submodule e' un repository git a tutti gli effetti.
+   *
+   * Dopo, la vista si rilegge — e il progetto padre si accende da solo, perche' committare nel
+   * figlio ne sposta il puntatore. Non e' un effetto collaterale da nascondere: e' il lavoro
+   * nuovo che si e' appena creato, ed e' il modo in cui si impara come funziona git.
+   */
+  commitRepo(repo: RepoChanges, event: MouseEvent): void {
+    event.stopPropagation();
+    if (repo.commitBlocker) return;   // il pulsante e' gia' disabilitato: qui e' solo una rete
+
+    const target = this.repoAbsolutePath(repo);
+    if (!target) return;
+
+    const dialogRef = this.dialog.open(CommitMessageDialogComponent, {
+      width: '500px',
+      data: { defaultMessage: 'Update from MdExplorer', projectPath: target },
+    });
+
+    dialogRef.afterClosed().subscribe(commitMessage => {
+      if (commitMessage === null || commitMessage === undefined) return;
+
+      const info = new WaitingDialogInfo();
+      info.message = 'Please wait... committing changes';
+      this.waitingDialogService.showMessageBox(info);
+
+      this.gitservice.modernCommit(target, commitMessage).subscribe(
+        response => {
+          this.handleGitResponse(response, 'commit');
+          this.waitingDialogService.closeMessageBox();
+          this.loadChangedFiles();
+        },
+        error => {
+          this.waitingDialogService.closeMessageBox();
+          const errorMessage = error.error?.errorMessage || error.message || '';
+          this._snackBar.open(this.translate.instant('TOOLBAR.COMMIT_FAILED', { error: errorMessage }), 'OK', {
+            duration: 5000, verticalPosition: 'top', panelClass: ['error-snackbar'],
+          });
+        }
+      );
+    });
   }
 
   /** Porta al tab delle differenze, dove si guarda file per file e si scarta. */

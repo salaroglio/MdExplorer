@@ -299,29 +299,6 @@ mat-toolbar button.git-menu-btn {
 
 /* Gli aggregati al posto della lista: quattro numeri, non venti righe da leggere.
    La lista sta nel tab, dove si vede il diff prima di scartare. */
-.commit-aggregates {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-  padding: 8px 10px;
-
-  .agg {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 6px 2px;
-    border-radius: 6px;
-    background: rgba(128, 128, 128, .12);
-
-    .n { font-size: 16px; font-weight: 600; line-height: 1.1; }
-    .l { font-size: 10px; opacity: .7; }
-  }
-
-  .agg-added .n { color: #2e7d32; }
-  .agg-modified .n { color: #ef6c00; }
-  .agg-deleted .n { color: #c62828; }
-  .agg-renamed .n { color: #6a1b9a; }
-}
 
 .commit-menu-actions {
   display: flex;
@@ -338,10 +315,99 @@ mat-toolbar button.git-menu-btn {
 }
 
 @media (prefers-color-scheme: dark) {
-  .commit-aggregates {
-    .agg-added .n { color: #81c784; }
-    .agg-modified .n { color: #ffb74d; }
-    .agg-deleted .n { color: #e57373; }
-    .agg-renamed .n { color: #ce93d8; }
+}
+
+// Una riga per repository: e' l'unita' in cui si committa.
+.commit-repos {
+  padding: 2px 0 6px;
+}
+
+.commit-repo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  white-space: nowrap;
+
+  .r-icon { font-size: 15px; width: 15px; height: 15px; opacity: .65; }
+  .r-label { font-weight: 600; }
+
+  .r-branch {
+    font-family: monospace;
+    font-size: 10.5px;
+    opacity: .7;
+
+    // Senza ramo un commit resta orfano: si vede subito che qui c'e' un problema.
+    &.r-detached { color: #c62828; opacity: 1; }
+  }
+
+  .r-badge {
+    padding: 1px 6px;
+    border-radius: 9px;
+    font-size: 10px;
+    background: rgba(106, 27, 154, .15);
+    color: #6a1b9a;
+  }
+
+  .r-commit {
+    min-width: 0;
+    height: 24px;
+    padding: 0 8px;
+    line-height: 24px;
+    font-size: 11px;
+
+    mat-icon { font-size: 14px; width: 14px; height: 14px; margin-right: 2px; }
+
+    // Disabilitato ma leggibile: il motivo sta nel tooltip, e va invogliato a cercarlo.
+    &[disabled] { opacity: .45; }
+  }
+
+  .r-counts {
+    display: inline-flex;
+    gap: 6px;
+    font-family: monospace;
+    font-size: 11.5px;
+
+    .agg-added { color: #2e7d32; }
+    .agg-modified { color: #ef6c00; }
+    .agg-deleted { color: #c62828; }
+    .agg-renamed { color: #6a1b9a; }
+  }
+}
+
+// L'unico avviso che si legge PRIMA di fare il danno: non si nasconde e non si richiude.
+.commit-push-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 8px 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(249, 168, 37, .14);
+  border-left: 3px solid #f9a825;
+  font-size: 11.5px;
+  white-space: normal;
+
+  mat-icon { color: #f9a825; font-size: 16px; width: 16px; height: 16px; flex: 0 0 auto; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .commit-repo {
+    .r-branch.r-detached { color: #e57373; }
+    .r-badge { background: rgba(206, 147, 216, .18); color: #ce93d8; }
+
+    .r-counts {
+      .agg-added { color: #81c784; }
+      .agg-modified { color: #ffb74d; }
+      .agg-deleted { color: #e57373; }
+      .agg-renamed { color: #ce93d8; }
+    }
+  }
+
+  .commit-push-warn {
+    background: rgba(249, 168, 37, .1);
+    border-left-color: #ffb74d;
+    mat-icon { color: #ffb74d; }
   }
 }

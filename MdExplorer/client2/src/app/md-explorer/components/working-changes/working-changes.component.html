@@ -39,59 +39,99 @@
 
   <div *ngIf="!loading && view && !view.problem && !view.notAGitRepository">
 
-    <div *ngIf="view.files.length === 0" class="changes-empty">
-      <mat-icon>check_circle</mat-icon>
-      <p>{{ 'CHANGES.NOTHING' | translate:{ base: view.baseBranch || '—' } }}</p>
+    <!-- Perche' pushare adesso romperebbe il repository per gli altri: si dice PRIMA, non
+         come errore di chi clona giorni dopo. -->
+    <div class="push-warnings" *ngIf="view.repos?.length && view.repos[0].pushWarnings?.length">
+      <mat-icon>warning</mat-icon>
+      <ul>
+        <li *ngFor="let w of view.repos[0].pushWarnings">{{ w }}</li>
+      </ul>
     </div>
 
-    <div *ngIf="view.files.length > 0">
-      <div class="counts">
-        <span class="c-added" *ngIf="countOf('added') || countOf('untracked')">
-          +{{ countOf('added') + countOf('untracked') }} {{ 'CHANGES.ADDED' | translate }}
+    <!-- Un gruppo per repository: e' l'unita' in cui si committa, quindi e' l'unita' di cui
+         si parla. Un elenco unico metterebbe vicine due righe che finiscono in posti diversi. -->
+    <div class="repo" *ngFor="let r of view.repos; trackBy: trackByRepo"
+         [class.repo-nested]="r.depth > 0" [class.repo-quiet]="!hasSomething(r)">
+
+      <div class="repo-header" (click)="toggle(r)" [style.paddingLeft.px]="8 + r.depth * 14">
+        <mat-icon class="chevron">{{ isCollapsed(r) ? 'chevron_right' : 'expand_more' }}</mat-icon>
+        <mat-icon class="repo-icon">{{ r.depth === 0 ? 'folder_special' : 'account_tree' }}</mat-icon>
+        <span class="repo-label">{{ r.label }}</span>
+
+        <span class="branch" *ngIf="r.branch">
+          <mat-icon>alt_route</mat-icon>{{ r.branch }}
         </span>
-        <span class="c-modified" *ngIf="countOf('modified')">
-          ~{{ countOf('modified') }} {{ 'CHANGES.MODIFIED' | translate }}
+        <span class="branch detached" *ngIf="r.detached" [matTooltip]="r.commitBlocker || ''">
+          <mat-icon>link_off</mat-icon>{{ 'CHANGES.DETACHED' | translate }}
         </span>
-        <span class="c-deleted" *ngIf="countOf('deleted')">
-          −{{ countOf('deleted') }} {{ 'CHANGES.DELETED' | translate }}
+
+        <span class="badge b-pointer" *ngIf="r.pointerMoved"
+              [matTooltip]="'CHANGES.POINTER_MOVED_TIP' | translate">
+          {{ 'CHANGES.POINTER_MOVED' | translate }}
         </span>
-        <span class="c-renamed" *ngIf="countOf('renamed')">
-          →{{ countOf('renamed') }} {{ 'CHANGES.RENAMED' | translate }}
+        <span class="badge b-missing" *ngIf="r.notInitialized"
+              [matTooltip]="r.commitBlocker || ''">
+          {{ 'CHANGES.NOT_INITIALIZED' | translate }}
         </span>
+        <span class="badge b-ahead" *ngIf="r.ahead > 0"
+              [matTooltip]="'CHANGES.AHEAD_TIP' | translate">
+          {{ 'CHANGES.AHEAD' | translate:{ count: r.ahead } }}
+        </span>
+
         <span class="flexExpand"></span>
-        <span class="vs-base" *ngIf="view.baseBranch">
-          {{ 'CHANGES.VS_BASE' | translate:{ base: view.baseBranch } }}
+
+        <span class="counts">
+          <span class="c-added" *ngIf="countIn(r, 'added') || countIn(r, 'untracked')">
+            +{{ countIn(r, 'added') + countIn(r, 'untracked') }}
+          </span>
+          <span class="c-modified" *ngIf="countIn(r, 'modified')">~{{ countIn(r, 'modified') }}</span>
+          <span class="c-deleted" *ngIf="countIn(r, 'deleted')">&minus;{{ countIn(r, 'deleted') }}</span>
+          <span class="c-renamed" *ngIf="countIn(r, 'renamed')">&rarr;{{ countIn(r, 'renamed') }}</span>
         </span>
       </div>
 
-      <ul class="files">
-        <ng-container *ngFor="let f of view.files; trackBy: trackByPath">
-          <li [ngClass]="'f-' + f.change" [class.opened]="openedPath === f.path"
-              (click)="open(f)" [title]="f.oldPath ? (f.oldPath + ' → ' + f.path) : f.path">
-            <mat-icon class="change-icon">{{ iconFor(f.change) }}</mat-icon>
-            <span class="file-path">{{ f.path }}</span>
-            <span class="flexExpand"></span>
-            <button mat-icon-button class="discard" (click)="discard(f, $event)"
-                    [matTooltip]="'CHANGES.DISCARD' | translate">
-              <mat-icon>undo</mat-icon>
-            </button>
-          </li>
+      <div class="repo-body" *ngIf="!isCollapsed(r)">
 
-          <!-- Il diff sotto al file: si guarda dov'e' l'elemento, senza perdere il posto
-               nell'elenco. -->
-          <li class="diff-row" *ngIf="openedPath === f.path">
-            <div *ngIf="diffLoading" class="diff-loading">
-              <mat-spinner diameter="18"></mat-spinner>
-            </div>
-            <div *ngIf="!diffLoading && !diffText" class="diff-empty">
-              {{ 'CHANGES.DIFF_EMPTY' | translate }}
-            </div>
-            <pre *ngIf="!diffLoading && diffText" class="diff"><span
-              *ngFor="let l of diffLines()" [ngClass]="'d-' + l.kind">{{ l.text }}
+        <!-- Il puntatore spostato NON e' un file di questo repository: e' lavoro del padre.
+             Dirlo qui, dove si guarda il submodule, evita di cercarlo dove non c'e'. -->
+        <div class="repo-note" *ngIf="r.pointerMoved">
+          {{ 'CHANGES.POINTER_MOVED_NOTE' | translate }}
+        </div>
+
+        <div class="repo-note" *ngIf="r.files.length === 0 && !r.notInitialized">
+          {{ 'CHANGES.NOTHING' | translate:{ base: r.baseBranch || '—' } }}
+        </div>
+
+        <ul class="files" *ngIf="r.files.length > 0">
+          <ng-container *ngFor="let f of r.files; trackBy: trackByPath">
+            <li [ngClass]="'f-' + f.change"
+                [class.opened]="openedPath === f.path && openedRepo === r.path"
+                (click)="open(r, f)" [title]="f.oldPath ? (f.oldPath + ' → ' + f.path) : f.path">
+              <mat-icon class="change-icon">{{ iconFor(f.change) }}</mat-icon>
+              <span class="file-path">{{ f.path }}</span>
+              <span class="flexExpand"></span>
+              <button mat-icon-button class="discard" (click)="discard(r, f, $event)"
+                      [matTooltip]="'CHANGES.DISCARD' | translate">
+                <mat-icon>undo</mat-icon>
+              </button>
+            </li>
+
+            <!-- Il diff sotto al file: si guarda dov'e' l'elemento, senza perdere il posto
+                 nell'elenco. -->
+            <li class="diff-row" *ngIf="openedPath === f.path && openedRepo === r.path">
+              <div *ngIf="diffLoading" class="diff-loading">
+                <mat-spinner diameter="18"></mat-spinner>
+              </div>
+              <div *ngIf="!diffLoading && !diffText" class="diff-empty">
+                {{ 'CHANGES.DIFF_EMPTY' | translate }}
+              </div>
+              <pre *ngIf="!diffLoading && diffText" class="diff"><span
+                *ngFor="let l of diffLines()" [ngClass]="'d-' + l.kind">{{ l.text }}
 </span></pre>
-          </li>
-        </ng-container>
-      </ul>
+            </li>
+          </ng-container>
+        </ul>
+      </div>
     </div>
   </div>
 </div>

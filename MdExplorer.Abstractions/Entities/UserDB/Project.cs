@@ -19,7 +19,6 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual bool PlantUmlKeepOriginalColorsInDarkMode { get; set; } = false;
         public virtual bool UseCopilotCliAsDefault { get; set; } = true;
         public virtual bool ExecutionTrusted { get; set; } = false;
-        public virtual bool ExcludeSubmodulesFromGitStatus { get; set; } = true;
 
         /// <summary>
         /// Isolamento worktree per-agente su QUESTA macchina. <c>null</c> = non deciso → default

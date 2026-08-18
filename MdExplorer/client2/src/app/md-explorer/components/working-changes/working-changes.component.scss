@@ -45,6 +45,92 @@
   &.problem { opacity: .85; }
 }
 
+
+// Perche' pushare adesso romperebbe il repository per gli altri. Sta in cima e non si
+// richiude: e' l'unico avviso che si legge PRIMA di fare il danno, non dopo.
+.push-warnings {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 8px;
+  border-radius: 4px;
+  background: rgba(249, 168, 37, .12);
+  border-left: 3px solid #f9a825;
+  font-size: 12px;
+
+  mat-icon { color: #f9a825; font-size: 18px; width: 18px; height: 18px; }
+  ul { margin: 0; padding-left: 16px; }
+  li + li { margin-top: 3px; }
+}
+
+// Un gruppo per repository: e' l'unita' in cui si committa.
+.repo {
+  margin-bottom: 4px;
+
+  // Nessuna modifica qui: resta leggibile ma non chiede attenzione.
+  &.repo-quiet .repo-header { opacity: .55; }
+}
+
+.repo-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12.5px;
+
+  &:hover { background: rgba(128, 128, 128, .12); }
+
+  .chevron { font-size: 18px; width: 18px; height: 18px; opacity: .6; }
+  .repo-icon { font-size: 16px; width: 16px; height: 16px; opacity: .7; }
+  .repo-label { font-weight: 600; }
+
+  .branch {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-family: monospace;
+    font-size: 11px;
+    opacity: .75;
+
+    mat-icon { font-size: 13px; width: 13px; height: 13px; }
+
+    // Senza ramo un commit resta orfano: si vede a colpo d'occhio che qui c'e' un problema.
+    &.detached { color: #c62828; opacity: 1; }
+  }
+
+  .badge {
+    padding: 1px 6px;
+    border-radius: 9px;
+    font-size: 10.5px;
+    white-space: nowrap;
+
+    &.b-pointer { background: rgba(106, 27, 154, .15); color: #6a1b9a; }
+    &.b-missing { background: rgba(128, 128, 128, .18); }
+    &.b-ahead   { background: rgba(21, 101, 192, .15); color: #1565c0; }
+  }
+
+  .counts {
+    padding: 0;
+    gap: 7px;
+    font-family: monospace;
+    font-size: 11.5px;
+  }
+}
+
+.repo-body { padding-left: 10px; }
+
+// Il puntatore spostato non e' un file di qui: dirlo dove si guarda, non lasciarlo cercare.
+.repo-note {
+  padding: 4px 8px 6px;
+  font-size: 11.5px;
+  opacity: .65;
+  font-style: italic;
+}
+
 .counts {
   display: flex;
   align-items: center;
@@ -119,6 +205,21 @@
 }
 
 @media (prefers-color-scheme: dark) {
+  .repo-header {
+    .branch.detached { color: #e57373; }
+
+    .badge {
+      &.b-pointer { background: rgba(206, 147, 216, .18); color: #ce93d8; }
+      &.b-ahead   { background: rgba(100, 181, 246, .18); color: #64b5f6; }
+    }
+  }
+
+  .push-warnings {
+    background: rgba(249, 168, 37, .1);
+    border-left-color: #ffb74d;
+    mat-icon { color: #ffb74d; }
+  }
+
   .counts {
     .c-added { color: #81c784; }
     .c-modified { color: #ffb74d; }

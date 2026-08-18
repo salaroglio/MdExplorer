@@ -104,15 +104,6 @@ export class ProjectSettingsService {
       { enabled, projectPath, slots });
   }
 
-  getExcludeSubmodulesSetting(projectPath: string): Observable<{enabled: boolean}> {
-    const url = '../api/ProjectSettings/GetExcludeSubmodulesSetting';
-    return this.http.get<{enabled: boolean}>(url, { params: { projectPath } });
-  }
-
-  setExcludeSubmodulesSetting(enabled: boolean, projectPath: string): Observable<any> {
-    const url = '../api/ProjectSettings/SetExcludeSubmodulesSetting';
-    return this.http.post<any>(url, { enabled, projectPath });
-  }
 
   getTextIndexingSetting(projectPath: string): Observable<{enabled: boolean, extensions: string, defaultExtensions: string}> {
     const url = '../api/ProjectSettings/GetTextIndexingSetting';
