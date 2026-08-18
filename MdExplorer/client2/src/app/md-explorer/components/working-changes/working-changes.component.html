@@ -122,19 +122,6 @@
               </button>
             </li>
 
-            <!-- Il diff sotto al file: si guarda dov'e' l'elemento, senza perdere il posto
-                 nell'elenco. -->
-            <li class="diff-row" *ngIf="openedPath === f.path && openedRepo === r.path">
-              <div *ngIf="diffLoading" class="diff-loading">
-                <mat-spinner diameter="18"></mat-spinner>
-              </div>
-              <div *ngIf="!diffLoading && !diffText" class="diff-empty">
-                {{ 'CHANGES.DIFF_EMPTY' | translate }}
-              </div>
-              <pre *ngIf="!diffLoading && diffText" class="diff"><span
-                *ngFor="let l of diffLines()" [ngClass]="'d-' + l.kind">{{ l.text }}
-</span></pre>
-            </li>
           </ng-container>
         </ul>
       </div>

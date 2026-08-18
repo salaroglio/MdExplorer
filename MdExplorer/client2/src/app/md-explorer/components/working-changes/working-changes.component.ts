@@ -3,6 +3,7 @@ import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack
 import { TranslateService } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
 import { ProjectsService } from '../../services/projects.service';
+import { DiffViewerService } from '../../services/diff-viewer.service';
 import { ReviewContextService } from '../../services/review-context.service';
 import { ChangeKind, RepoChanges, WorkingChange, WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
 
@@ -34,8 +35,6 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
   /** File aperto nel riquadro del diff: identificato da repository E percorso, non dal solo percorso. */
   openedPath: string | null = null;
   openedRepo: string | null = null;
-  diffText = '';
-  diffLoading = false;
 
   /**
    * Chi ha aperto o chiuso cosa, per percorso di repository. Serve perché la vista si rilegge
@@ -49,6 +48,7 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
     private changes: WorkingChangesService,
     private projects: ProjectsService,
     private context: ReviewContextService,
+    private diffViewer: DiffViewerService,
     private snackBar: MatSnackBar,
     private translate: TranslateService,
   ) {}
@@ -93,26 +93,27 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Apre la differenza NEL RIQUADRO GRANDE, non sotto la riga. Qui resta solo l'evidenziazione,
+   * cosi' si sa sempre cosa si sta guardando senza perdere il posto nell'elenco.
+   */
   open(repo: RepoChanges, file: WorkingChange): void {
     if (this.openedPath === file.path && this.openedRepo === repo.path) { this.closeDiff(); return; }
     this.openedPath = file.path;
     this.openedRepo = repo.path;
-    this.diffText = '';
-    this.diffLoading = true;
-    this.changes.diff(this.projectPath, this.agent, file.path, repo.path).subscribe({
-      next: r => { this.diffText = r.diff || ''; this.diffLoading = false; },
-      error: err => {
-        this.diffLoading = false;
-        this.diffText = '';
-        this.snackBar.open(err?.error?.error || this.translate.instant('CHANGES.DIFF_FAILED'), 'OK', { duration: 8000 });
-      },
+    this.diffViewer.show({
+      projectPath: this.projectPath,
+      repo: repo.path,
+      path: file.path,
+      repoLabel: repo.label,
+      agent: this.agent,
     });
   }
 
   closeDiff(): void {
     this.openedPath = null;
     this.openedRepo = null;
-    this.diffText = '';
+    this.diffViewer.close();
   }
 
   // ---- i gruppi ----
@@ -156,19 +157,6 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
       error: err => this.snackBar.open(
         err?.error?.error || this.translate.instant('CHANGES.DISCARD_FAILED'), 'OK', { duration: 8000 }),
     });
-  }
-
-  /** Le righe del diff, per colorarle senza una libreria. */
-  diffLines(): { text: string; kind: string }[] {
-    return (this.diffText || '').split('\n').map(text => ({
-      text,
-      kind: text.startsWith('+++') || text.startsWith('---') ? 'meta'
-          : text.startsWith('@@') ? 'hunk'
-          : text.startsWith('+') ? 'add'
-          : text.startsWith('-') ? 'del'
-          : text.startsWith('diff ') || text.startsWith('index ') ? 'meta'
-          : 'ctx',
-    }));
   }
 
   iconFor(change: ChangeKind): string {

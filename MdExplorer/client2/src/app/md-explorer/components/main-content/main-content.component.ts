@@ -15,6 +15,8 @@ import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack
 import { ProjectsService } from '../../services/projects.service';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
+import { DiffRequest, DiffViewerService } from '../../services/diff-viewer.service';
+import { WorkingChangesService } from '../../services/working-changes.service';
 import { ThemeService } from '../../../services/theme.service';
 import { AiSelectionDialogComponent } from '../dialogs/ai-selection-dialog/ai-selection-dialog.component';
 
@@ -43,6 +45,31 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   mdFile: MdFile;
   html: string;
   htmlSource: string = '../welcome.html';
+
+  // ---- la differenza di un file, mostrata QUI e non nella barra laterale ----
+
+  /** Cosa si sta guardando. `null` = si torna al documento. */
+  diffRequest: DiffRequest | null = null;
+  diffText = '';
+  diffLoading = false;
+  diffError = '';
+
+  /** Le righe del diff, per colorarle senza una libreria. */
+  diffLines(): { text: string; kind: string }[] {
+    return (this.diffText || '').split('\n').map(text => ({
+      text,
+      kind: text.startsWith('+++') || text.startsWith('---') ? 'meta'
+          : text.startsWith('@@') ? 'hunk'
+          : text.startsWith('+') ? 'add'
+          : text.startsWith('-') ? 'del'
+          : text.startsWith('diff ') || text.startsWith('index ') ? 'meta'
+          : 'ctx',
+    }));
+  }
+
+  closeDiff(): void {
+    this.diffViewer.close();
+  }
   public _HideIFrame = false;
 
   // New state management properties
@@ -80,7 +107,9 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     private projectsService: ProjectsService,
     private http: HttpClient,
     private translate: TranslateService,
-    private themeService: ThemeService
+    private themeService: ThemeService,
+    private diffViewer: DiffViewerService,
+    private workingChanges: WorkingChangesService
   ) {
     
     // Initialize observables from state
@@ -120,6 +149,27 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit(): void {
     // Initialize P2P message listener for iframe communication
     this.setupP2PMessageListener();
+
+    // La differenza di un file si guarda QUI, dove si guarda il documento: nella barra laterale
+    // stava in una colonna stretta e spingeva giu' il resto dell'elenco, facendo perdere il posto
+    // proprio mentre si confrontava.
+    this.diffViewer.opened$.pipe(takeUntil(this.destroy$)).subscribe(request => {
+      this.diffRequest = request;
+      this.diffText = '';
+      this.diffError = '';
+      if (!request) { this.ref.detectChanges(); return; }
+
+      this.diffLoading = true;
+      this.ref.detectChanges();
+      this.workingChanges.diff(request.projectPath, request.agent, request.path, request.repo).subscribe({
+        next: r => { this.diffText = r.diff || ''; this.diffLoading = false; this.ref.detectChanges(); },
+        error: err => {
+          this.diffLoading = false;
+          this.diffError = err?.error?.error || this.translate.instant('CHANGES.DIFF_FAILED');
+          this.ref.detectChanges();
+        },
+      });
+    });
 
     // Reload iframe when theme changes
     this.themeService.currentTheme$.pipe(
@@ -315,7 +365,11 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    
+
+    // Si apre un documento: la differenza che era qui non c'entra piu' e va via da sola. Due cose
+    // non possono stare nello stesso riquadro, e lasciarla sarebbe peggio che chiuderla.
+    this.diffViewer.close();
+
     // Update state to loading
     this.loadingStartTime = new Date();
     this.updateState({

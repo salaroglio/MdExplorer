@@ -489,3 +489,82 @@
 }
 
 // Dark mode is handled by CSS variables in styles.scss (body.dark-theme)
+
+// La differenza di un file occupa il riquadro grande, al posto del documento: e' la stessa
+// domanda — «cosa c'e' scritto qui» — quindi e' lo stesso posto.
+.diff-view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--mat-app-background-color, #fff);
+  z-index: 2;
+}
+
+.diff-view-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(128, 128, 128, .3);
+  font-size: 13px;
+  flex: 0 0 auto;
+
+  .flexExpand { flex: 1 1 auto; }
+
+  // Il repository davanti al percorso: due file omonimi in submodule diversi sono
+  // indistinguibili senza.
+  .dv-repo {
+    font-family: monospace;
+    font-size: 11.5px;
+    padding: 1px 6px;
+    border-radius: 9px;
+    background: rgba(128, 128, 128, .16);
+  }
+
+  .dv-path { font-family: monospace; font-weight: 600; }
+  .dv-base { font-size: 11.5px; opacity: .7; }
+}
+
+.diff-view-body {
+  flex: 1 1 auto;
+  overflow: auto;
+  min-height: 0;
+}
+
+.dv-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  opacity: .7;
+  text-align: center;
+  font-size: 13px;
+
+  &.dv-problem { opacity: .9; }
+}
+
+.dv-diff {
+  margin: 0;
+  padding: 10px 12px;
+  font-family: monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  // Il diff puo' essere largo: scorre dentro il suo riquadro, senza spingere la pagina.
+  overflow-x: auto;
+  white-space: pre;
+
+  .d-add { color: #2e7d32; }
+  .d-del { color: #c62828; }
+  .d-hunk { color: #1565c0; }
+  .d-meta { opacity: .55; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .dv-diff {
+    .d-add { color: #81c784; }
+    .d-del { color: #e57373; }
+    .d-hunk { color: #64b5f6; }
+  }
+}
