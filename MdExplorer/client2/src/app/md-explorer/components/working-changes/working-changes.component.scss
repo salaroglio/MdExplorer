@@ -111,6 +111,7 @@
     &.b-pointer { background: rgba(106, 27, 154, .15); color: #6a1b9a; }
     &.b-missing { background: rgba(128, 128, 128, .18); }
     &.b-ahead   { background: rgba(21, 101, 192, .15); color: #1565c0; }
+    &.b-behind  { background: rgba(46, 125, 50, .15); color: #2e7d32; }
   }
 
   .counts {
@@ -211,6 +212,7 @@
     .badge {
       &.b-pointer { background: rgba(206, 147, 216, .18); color: #ce93d8; }
       &.b-ahead   { background: rgba(100, 181, 246, .18); color: #64b5f6; }
+      &.b-behind  { background: rgba(129, 199, 132, .18); color: #81c784; }
     }
   }
 

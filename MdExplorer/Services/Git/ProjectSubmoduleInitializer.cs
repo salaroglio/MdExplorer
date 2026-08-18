@@ -67,12 +67,20 @@ namespace MdExplorer.Services.Git
         public ProjectSubmoduleInitializer(
             INativeGitRunner git,
             IHubContext<MonitorMDHub> hub,
-            ILogger<ProjectSubmoduleInitializer> logger)
+            ILogger<ProjectSubmoduleInitializer> logger,
+            ISubmoduleBranchAttacher attacher = null)
         {
             _git = git;
             _hub = hub;
             _logger = logger;
+            _attacher = attacher;
         }
+
+        /// <summary>
+        /// Chi rimette i submodule sul loro ramo. Lo stesso che usano pull e clone: il riaggancio
+        /// deve comportarsi allo stesso modo da qualunque strada si arrivi.
+        /// </summary>
+        private readonly ISubmoduleBranchAttacher _attacher;
 
         /// <summary>
         /// L'aggancio all'apertura del progetto. Il contratto dell'hook dice «veloce o
@@ -99,6 +107,16 @@ namespace MdExplorer.Services.Git
             // stragrande maggioranza dei progetti di documentazione, e deve costare zero.
             if (!File.Exists(Path.Combine(projectPath, ".gitmodules")))
                 return new SubmoduleEnsureResult { NothingToDo = true, Success = true };
+
+            // Il riaggancio va fatto ANCHE quando non c'era niente da popolare: un submodule
+            // scaricato in un giro precedente e' li' con HEAD staccato, e senza un ramo non ci si
+            // puo' committare. E' la strada da cui passa l'apertura del progetto, dove capita di
+            // piu': chi clona da fuori MdExplorer se li ritrova cosi'.
+            if (_attacher != null)
+            {
+                try { await _attacher.AttachAsync(projectPath, ct); }
+                catch (Exception ex) { _logger.LogWarning(ex, "[Submodule] riaggancio non riuscito per '{Path}'.", projectPath); }
+            }
 
             if (!_running.TryAdd(projectPath, 0))
             {

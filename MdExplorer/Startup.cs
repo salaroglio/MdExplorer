@@ -130,6 +130,11 @@ namespace MdExplorer
 
             // git di sistema: worktree, submodule e diff testuali, che LibGit2Sharp non copre.
             services.AddSingleton<Services.Git.INativeGitRunner, Services.Git.NativeGitRunner>();
+
+            // Rimette i submodule sul loro ramo dopo un aggiornamento. Condiviso fra il pull/clone
+            // e l'apertura del progetto: chi apre una cartella clonata da fuori li trovava
+            // popolati ma con HEAD staccato, quindi inservibili per committare.
+            services.AddSingleton<Services.Git.ISubmoduleBranchAttacher, Services.Git.SubmoduleBranchAttacher>();
             // La vista delle differenze del tab: interroga git, non il FileSystemWatcher.
             services.AddSingleton<Services.AgentRun.IWorkingChangesService, Services.AgentRun.WorkingChangesService>();
             // Scoped e non singleton: dipende da IModernGitService, che e' scoped (le credenziali

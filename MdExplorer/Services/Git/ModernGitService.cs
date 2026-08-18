@@ -30,7 +30,8 @@ namespace MdExplorer.Services.Git
             IUserSettingsDB userSettingsDB,
             IOptions<GitAuthenticationOptions> authOptions = null,
             IOptions<GitOperationOptions> operationOptions = null,
-            IProjectSubmoduleInitializer submodules = null)
+            IProjectSubmoduleInitializer submodules = null,
+            ISubmoduleBranchAttacher attacher = null)
         {
             _credentialResolvers = credentialResolvers?.OrderBy(r => r.GetPriority()) ?? throw new ArgumentNullException(nameof(credentialResolvers));
             _logger = logger;
@@ -38,6 +39,7 @@ namespace MdExplorer.Services.Git
             _authOptions = authOptions?.Value ?? new GitAuthenticationOptions();
             _operationOptions = operationOptions?.Value ?? new GitOperationOptions();
             _submodules = submodules;
+            _attacher = attacher;
         }
 
         /// <summary>
@@ -50,21 +52,43 @@ namespace MdExplorer.Services.Git
         private readonly IProjectSubmoduleInitializer _submodules;
 
         /// <summary>
+        /// Chi rimette i submodule sul loro ramo dopo un aggiornamento. Condiviso con l'apertura
+        /// del progetto: senza, il riaggancio sarebbe solo su clone e pull, e chi apre una cartella
+        /// clonata da fuori se li ritroverebbe staccati per sempre.
+        /// </summary>
+        private readonly ISubmoduleBranchAttacher _attacher;
+
+        /// <summary>Un riaggancio non riuscito non invalida l'operazione: i file sono gia' quelli giusti.</summary>
+        private async Task AttachSafely(string repositoryPath)
+        {
+            try { await _attacher.AttachAsync(repositoryPath); }
+            catch (Exception ex) { _logger.LogWarning(ex, "[Submodule] riaggancio non riuscito in '{Path}'.", repositoryPath); }
+        }
+
+        /// <summary>
         /// Popola i submodule tramite l'inizializzatore condiviso; senza di lui (costruzione
         /// isolata) ripiega sul comando diretto, che fa la stessa cosa ma senza notifica.
         /// </summary>
         private async Task<GitOperationResult> EnsureSubmodulesAsync(string repositoryPath)
         {
-            if (_submodules == null)
-                return await UpdateSubmodulesAsync(repositoryPath);
-
-            var res = await _submodules.EnsureAsync(repositoryPath);
-            return new GitOperationResult
+            // L'inizializzatore popola i submodule VUOTI, con le sue notifiche. Non basta dopo un
+            // pull: se il submodule c'e' gia' ma sta a un commit vecchio, lui dice «gia' tutti
+            // popolati» e non tocca niente — e il codice resta indietro rispetto alla
+            // documentazione appena tirata giu'. Verificato con un test: pull fast-forward
+            // riuscito, contenuto del submodule ancora quello di prima.
+            if (_submodules != null)
             {
-                Success = res.Success,
-                Message = res.NothingToDo ? "No submodules" : "Submodules updated",
-                ErrorMessage = res.Error,
-            };
+                var ensured = await _submodules.EnsureAsync(repositoryPath);
+                if (!ensured.Success)
+                    return new GitOperationResult { Success = false, ErrorMessage = ensured.Error };
+                if (ensured.NothingToDo && !File.Exists(Path.Combine(repositoryPath, ".gitmodules")))
+                    return new GitOperationResult { Success = true, Message = "No submodules" };
+            }
+
+            // E poi si allinea davvero ai commit registrati: e' un no-op quando sono gia' li'.
+            var updated = await UpdateSubmodulesAsync(repositoryPath);
+            if (updated.Success && _attacher != null) await AttachSafely(repositoryPath);
+            return updated;
         }
 
         /// <summary>

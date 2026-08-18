@@ -77,6 +77,12 @@
               [matTooltip]="'CHANGES.AHEAD_TIP' | translate">
           {{ 'CHANGES.AHEAD' | translate:{ count: r.ahead } }}
         </span>
+        <!-- Anche il ritardo e' per repository: il pull del progetto non dice quanto sono
+             indietro i submodule, e ognuno ha il suo remoto. -->
+        <span class="badge b-behind" *ngIf="r.behind > 0"
+              [matTooltip]="'CHANGES.BEHIND_TIP' | translate">
+          {{ 'CHANGES.BEHIND' | translate:{ count: r.behind } }}
+        </span>
 
         <span class="flexExpand"></span>
 

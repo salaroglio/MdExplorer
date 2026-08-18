@@ -1882,7 +1882,9 @@
     "POINTER_MOVED_NOTE": "The reference to this submodule changed. It is not a file of this repository: commit it in the project that contains it.",
     "NOT_INITIALIZED": "not downloaded",
     "AHEAD": "{{count}} to push",
-    "AHEAD_TIP": "Commits made here and not published yet: while they stay, whoever clones will not find them."
+    "AHEAD_TIP": "Commits made here and not published yet: while they stay, whoever clones will not find them.",
+    "BEHIND": "{{count}} to pull",
+    "BEHIND_TIP": "Commits on the remote and not here yet: pulling the project does not bring them unless it goes through this repository too."
   },
   "SUBMODULE": {
     "FETCHING": "Fetching the code for {{list}}…",

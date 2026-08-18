@@ -1882,7 +1882,9 @@
     "POINTER_MOVED_NOTE": "Il riferimento a questo submodule è cambiato. Non è un file di qui: si committa nel progetto che lo contiene.",
     "NOT_INITIALIZED": "non scaricato",
     "AHEAD": "{{count}} da pushare",
-    "AHEAD_TIP": "Commit fatti qui e non ancora pubblicati: finché restano, chi clona non li trova."
+    "AHEAD_TIP": "Commit fatti qui e non ancora pubblicati: finché restano, chi clona non li trova.",
+    "BEHIND": "{{count}} da tirare",
+    "BEHIND_TIP": "Commit che stanno sul remoto e non ancora qui: il pull del progetto non li porta se non passa anche da questo repository."
   },
   "SUBMODULE": {
     "FETCHING": "Recupero il codice di {{list}}…",
