@@ -5958,21 +5958,6 @@ class ProjectSettingsService {
       slots
     });
   }
-  getExcludeSubmodulesSetting(projectPath) {
-    const url = '../api/ProjectSettings/GetExcludeSubmodulesSetting';
-    return this.http.get(url, {
-      params: {
-        projectPath
-      }
-    });
-  }
-  setExcludeSubmodulesSetting(enabled, projectPath) {
-    const url = '../api/ProjectSettings/SetExcludeSubmodulesSetting';
-    return this.http.post(url, {
-      enabled,
-      projectPath
-    });
-  }
   getTextIndexingSetting(projectPath) {
     const url = '../api/ProjectSettings/GetTextIndexingSetting';
     return this.http.get(url, {
@@ -10566,4 +10551,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_git_git_module_ts-src_app_md-explorer_services_agent-city-state_service_ts-sr-597f33.js.map
+//# sourceMappingURL=default-src_app_git_git_module_ts-src_app_md-explorer_services_agent-city-state_service_ts-sr-597f33.64ced43346bb85d7.js.map

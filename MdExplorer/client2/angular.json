@@ -21,6 +21,7 @@
           "builder": "@angular-devkit/build-angular:browser",
           "options": {
             "outputPath": "../wwwroot/client2",
+            "outputHashing": "all",
             "index": "src/index.html",
             "main": "src/main.ts",
             "polyfills": "src/polyfills.ts",

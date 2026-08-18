@@ -228,9 +228,6 @@
     "AGENT_CITY_OWNERSHIP_DOC": "Ownership document (relative path)",
     "AGENT_CITY_OWNERSHIP_DOC_DESC": "Markdown file (mde_type: ownership) mapping scopes to responsible people and agents. Injected into the agents' prompt as a routing hint.",
     "AGENT_CITY_ROOM_SECRET_SET": "Room secret generated and shared via .development.yml.",
-    "GIT_TITLE": "Git",
-    "EXCLUDE_SUBMODULES": "Exclude git submodules from change detection",
-    "EXCLUDE_SUBMODULES_DESC": "When enabled, changes inside git submodules are ignored: the submodule never appears in the toolbar change list and never lights up the commit button. Disable it for this project if you want to track and commit submodule changes from MdExplorer.",
     "IDE_SETTINGS": "IDE Settings",
     "IDE_CONFIGURATION": "IDE Configuration",
     "IDE_SELECT_DESC": "Select which IDE should be used to open files from the toolbar:",
@@ -705,7 +702,16 @@
     "TOC_UPDATE_FAILED": "TOC update failed",
     "TOC_UPDATE_ERROR": "Error updating TOC",
     "TO_COMMIT_AGENT": "To commit — {{agent}}",
-    "SEE_DIFFERENCES": "See the differences"
+    "SEE_DIFFERENCES": "See the differences",
+    "TO_COMMIT_HERE": "{{count}} to commit",
+    "TO_COMMIT_SPREAD": "{{count}} to commit across {{repos}} repositories",
+    "COMMIT_HERE": "Commit",
+    "COMMIT_HERE_TIP": "Commit in “{{repo}}” — the commit stays in this repository",
+    "PUSHING_ALL": "Publishing… submodules first, the project last",
+    "PUSH_ALL_TIP": "Publish the project and its submodules. Children go first: if anything stops, the project is not touched and the remote stays consistent.",
+    "PUSH_DONE": "Published: {{count}} repositories.",
+    "PUSH_DONE_LEFT": "Published: {{count}} repositories. Left behind: {{left}}.",
+    "PUSH_STOPPED": "Stopped at “{{repo}}”: {{why}}. The project was NOT published, the remote stayed consistent."
   },
   "MD_TREE": {
     "RENAME_FOLDER": "rename folder",
@@ -1869,7 +1875,14 @@
     "DISCARD_CONFIRM": "Throw away the changes to “{{path}}”? This cannot be undone.",
     "DISCARD_FAILED": "Could not throw away the changes.",
     "DIFF_EMPTY": "No textual difference (binary file or mode change only).",
-    "DIFF_FAILED": "Diff not available for this file."
+    "DIFF_FAILED": "Diff not available for this file.",
+    "DETACHED": "detached HEAD",
+    "POINTER_MOVED": "pointer moved",
+    "POINTER_MOVED_TIP": "The project records a different commit for this submodule: that is a change OF THE PROJECT, and it is committed there.",
+    "POINTER_MOVED_NOTE": "The reference to this submodule changed. It is not a file of this repository: commit it in the project that contains it.",
+    "NOT_INITIALIZED": "not downloaded",
+    "AHEAD": "{{count}} to push",
+    "AHEAD_TIP": "Commits made here and not published yet: while they stay, whoever clones will not find them."
   },
   "SUBMODULE": {
     "FETCHING": "Fetching the code for {{list}}…",
