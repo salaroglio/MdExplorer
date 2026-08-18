@@ -132,6 +132,9 @@ namespace MdExplorer
             services.AddSingleton<Services.Git.INativeGitRunner, Services.Git.NativeGitRunner>();
             // La vista delle differenze del tab: interroga git, non il FileSystemWatcher.
             services.AddSingleton<Services.AgentRun.IWorkingChangesService, Services.AgentRun.WorkingChangesService>();
+            // Scoped e non singleton: dipende da IModernGitService, che e' scoped (le credenziali
+            // si risolvono per richiesta).
+            services.AddScoped<Services.Git.ISafePushService, Services.Git.SafePushService>();
             services.AddSingleton<Services.AgentRun.IAgentWorktreeHoldService, Services.AgentRun.AgentWorktreeHoldService>();
             services.AddSingleton<Services.AgentRun.IAgentWorktreeManager, Services.AgentRun.AgentWorktreeManager>();
             // Isolamento worktree: scelta della MACCHINA (UserDB), non della squadra (git).
@@ -560,17 +563,36 @@ namespace MdExplorer
             // Do something with the addresses
             foreach (var addresses in addressFeature.Addresses)
             {
+                int port;
+                try { port = new Uri(addresses).Port; }
+                catch (UriFormatException ex)
+                {
+                    logger.LogWarning(ex, "[Startup] Address '{Address}' is not a URI; skipped", addresses);
+                    continue;
+                }
+
+                // Port 0 means no real port: that is what a test host reports, because it never
+                // binds a socket. Announcing it would tell whoever looks for MdExplorer to connect
+                // to nothing, and opening a browser on it opens a page that cannot answer.
+                // Seen live: 'dotnet test' with MdExplorer running overwrote the real port.txt
+                // with 0 - breaking MCP discovery - and opened a browser tab per test.
+                if (port == 0)
+                {
+                    logger.LogInformation(
+                        "[Startup] Address '{Address}' has no real port: no browser, no discovery file.", addresses);
+                    continue;
+                }
+
                 OpenUrl($"{addresses}/client2/index.html", logger);
 
                 // Save port for MCP server discovery
                 try
                 {
-                    var uri = new Uri(addresses);
                     var portDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MdExplorer");
                     Directory.CreateDirectory(portDir);
                     var portFile = Path.Combine(portDir, "port.txt");
-                    System.IO.File.WriteAllText(portFile, uri.Port.ToString());
-                    logger.LogInformation("[Startup] MCP port file written: {PortFile} = {Port}", portFile, uri.Port);
+                    System.IO.File.WriteAllText(portFile, port.ToString());
+                    logger.LogInformation("[Startup] MCP port file written: {PortFile} = {Port}", portFile, port);
                 }
                 catch (Exception ex)
                 {
