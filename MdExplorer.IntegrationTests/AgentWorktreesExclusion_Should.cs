@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using MdExplorer.IntegrationTests.Infrastructure;
 using MdExplorer.Service.Services;
@@ -82,6 +82,97 @@ namespace MdExplorer.IntegrationTests
             {
                 Directory.Delete(project, true);
             }
+        }
+
+        [TestMethod]
+        public void Hide_the_dot_md_support_folder_of_a_project_that_already_existed()
+        {
+            // La .md e' l'area di appoggio dell'applicazione: cache HTML, database di progetto,
+            // template rigenerabili. Chi apre con MDE un repository di documentazione gia'
+            // versionato non riceveva mai quella riga — la scriveva solo il blocco della
+            // creazione, che su un .git esistente non parte nemmeno.
+            var project = Path.Combine(Path.GetTempPath(), "mde-dotmd-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path.Combine(project, ".git"));
+            var gitignore = Path.Combine(project, ".gitignore");
+            File.WriteAllText(gitignore, "# scritto a mano tempo fa\nbozze/\n");
+
+            try
+            {
+                MdExplorer.Service.ProjectsManager.EnsureGitignoreEntries(project);
+
+                Assert.AreEqual(1, CountLines(gitignore, ".md/"));
+                StringAssert.Contains(File.ReadAllText(gitignore), "bozze/",
+                    "quello che c'era prima resta dov'era");
+
+                // Il progetto si riapre tutti i giorni: la riga non deve moltiplicarsi.
+                MdExplorer.Service.ProjectsManager.EnsureGitignoreEntries(project);
+                Assert.AreEqual(1, CountLines(gitignore, ".md/"));
+            }
+            finally
+            {
+                Directory.Delete(project, true);
+            }
+        }
+
+        [TestMethod]
+        public void Not_mistake_an_existing_mark_search_line_for_the_whole_folder()
+        {
+            // Il caso insidioso: un repository passato da una versione precedente ha gia'
+            // ".md/mark-search/". Un controllo per sottostringa su ".md/" lo scambierebbe per
+            // "cartella gia' esclusa" e lascerebbe scoperta tutta la .md.
+            var project = Path.Combine(Path.GetTempPath(), "mde-dotmd-parz-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path.Combine(project, ".git"));
+            var gitignore = Path.Combine(project, ".gitignore");
+            File.WriteAllText(gitignore, ".github/**/mde-*\n.vscode/mcp.json\n.md/mark-search/\n.worktrees/\n");
+
+            try
+            {
+                MdExplorer.Service.ProjectsManager.EnsureGitignoreEntries(project);
+
+                var lines = File.ReadAllLines(gitignore);
+                CollectionAssert.Contains(Array.ConvertAll(lines, l => l.Trim()), ".md/");
+            }
+            finally
+            {
+                Directory.Delete(project, true);
+            }
+        }
+
+        [TestMethod]
+        public void Leave_a_project_that_already_excludes_dot_md_untouched()
+        {
+            // Un repository nato da MDE ha gia' la riga: riaprirlo non deve aggiungere nulla,
+            // ne' la .md/ ne' la mark-search resa superflua.
+            var project = Path.Combine(Path.GetTempPath(), "mde-dotmd-ok-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path.Combine(project, ".git"));
+            var gitignore = Path.Combine(project, ".gitignore");
+            File.WriteAllText(gitignore, ".github/**/mde-*\n.vscode/mcp.json\n.md/\n.worktrees/\n");
+            var before = File.ReadAllText(gitignore);
+
+            try
+            {
+                MdExplorer.Service.ProjectsManager.EnsureGitignoreEntries(project);
+
+                Assert.AreEqual(before, File.ReadAllText(gitignore));
+            }
+            finally
+            {
+                Directory.Delete(project, true);
+            }
+        }
+
+        /// <summary>
+        /// Conta le righe del .gitignore uguali al pattern. Il confronto e' sulla riga intera:
+        /// cercare la sottostringa ".md/" pescherebbe anche ".md/mark-search/".
+        /// </summary>
+        private static int CountLines(string gitignorePath, string pattern)
+        {
+            var count = 0;
+            foreach (var line in File.ReadAllLines(gitignorePath))
+            {
+                if (line.Trim() == pattern) count++;
+            }
+            return count;
         }
 
         private static int CountOccurrences(string haystack, string needle)

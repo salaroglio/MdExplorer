@@ -849,13 +849,31 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     block.AppendLine(".vscode/mcp.json");
                 }
 
-                // Separate marker: repos that got the per-install block from an older MDE
-                // version must still receive this entry.
-                if (!existing.Contains(".md/mark-search/"))
+                // La cartella .md e' l'area di appoggio dell'applicazione — cache HTML dei
+                // documenti, database di progetto, template rigenerabili — non contenuto del
+                // progetto. Il .gitignore scritto alla creazione la esclude gia' (vedi
+                // InitializeGitRepository), ma quel blocco non tocca mai i progetti aperti su un
+                // repository Git preesistente: erano proprio quelli a ritrovarsi .md/ tracciabile.
+                //
+                // Il confronto e' riga per riga e non un Contains(".md/"): quest'ultimo sarebbe
+                // soddisfatto anche dalla sola voce ".md/mark-search/" scritta dalle versioni
+                // precedenti, e la cartella resterebbe scoperta.
+                var hasMdFolderEntry = existing
+                    .Split('\n')
+                    .Select(line => line.Trim())
+                    .Any(line => line == ".md/" || line == ".md"
+                              || line == "/.md/" || line == "/.md");
+
+                if (!hasMdFolderEntry)
                 {
-                    block.AppendLine("# MDE Mark Search temporary answer documents — wiped on every project open");
-                    block.AppendLine(".md/mark-search/");
+                    block.AppendLine("# MDE — cartella di appoggio dell'applicazione (cache, database, template)");
+                    block.AppendLine(".md/");
                 }
+
+                // NOTA: le versioni precedenti scrivevano qui la sola ".md/mark-search/".
+                // Ora e' superflua in entrambi i casi — o la .md/ e' gia' esclusa, o l'abbiamo
+                // appena esclusa qui sopra — quindi non la si aggiunge piu'. Quella gia'
+                // presente nei progetti esistenti resta dov'e': e' innocua.
 
                 // Idem per i posti di lavoro degli agenti: la cartella e' nata dopo, quindi i
                 // progetti gia' esistenti — che sono la maggioranza — non hanno la riga e senza
