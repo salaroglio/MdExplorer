@@ -55,11 +55,11 @@
   margin: 0 0 8px;
   padding: 8px;
   border-radius: 4px;
-  background: rgba(249, 168, 37, .12);
-  border-left: 3px solid #f9a825;
+  background: var(--mde-warning-bg);
+  border-left: 3px solid var(--mde-warning-fg);
   font-size: 12px;
 
-  mat-icon { color: #f9a825; font-size: 18px; width: 18px; height: 18px; }
+  mat-icon { color: var(--mde-warning-fg); font-size: 18px; width: 18px; height: 18px; }
   ul { margin: 0; padding-left: 16px; }
   li + li { margin-top: 3px; }
 }
@@ -82,7 +82,7 @@
   user-select: none;
   font-size: 12.5px;
 
-  &:hover { background: rgba(128, 128, 128, .12); }
+  &:hover { background: var(--mde-bg-hover); }
 
   .chevron { font-size: 18px; width: 18px; height: 18px; opacity: .6; }
   .repo-icon { font-size: 16px; width: 16px; height: 16px; opacity: .7; }
@@ -99,7 +99,12 @@
     mat-icon { font-size: 13px; width: 13px; height: 13px; }
 
     // Senza ramo un commit resta orfano: si vede a colpo d'occhio che qui c'e' un problema.
-    &.detached { color: #c62828; opacity: 1; }
+    &.detached {
+      color: var(--mde-error-fg);
+      opacity: 1;
+      font-weight: 600;
+      animation: mde-detached-pulse 1.1s ease-in-out infinite;
+    }
   }
 
   .badge {
@@ -108,10 +113,10 @@
     font-size: 10.5px;
     white-space: nowrap;
 
-    &.b-pointer { background: rgba(106, 27, 154, .15); color: #6a1b9a; }
-    &.b-missing { background: rgba(128, 128, 128, .18); }
-    &.b-ahead   { background: rgba(21, 101, 192, .15); color: #1565c0; }
-    &.b-behind  { background: rgba(46, 125, 50, .15); color: #2e7d32; }
+    &.b-pointer { background: var(--mde-bg-tertiary); color: var(--mde-accent-secondary); }
+    &.b-missing { background: var(--mde-bg-tertiary); color: var(--mde-text-secondary); }
+    &.b-ahead   { background: var(--mde-bg-tertiary); color: var(--mde-accent-primary); }
+    &.b-behind  { background: var(--mde-bg-tertiary); color: var(--mde-success-fg); }
   }
 
   .counts {
@@ -206,22 +211,6 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .repo-header {
-    .branch.detached { color: #e57373; }
-
-    .badge {
-      &.b-pointer { background: rgba(206, 147, 216, .18); color: #ce93d8; }
-      &.b-ahead   { background: rgba(100, 181, 246, .18); color: #64b5f6; }
-      &.b-behind  { background: rgba(129, 199, 132, .18); color: #81c784; }
-    }
-  }
-
-  .push-warnings {
-    background: rgba(249, 168, 37, .1);
-    border-left-color: #ffb74d;
-    mat-icon { color: #ffb74d; }
-  }
-
   .counts {
     .c-added { color: #81c784; }
     .c-modified { color: #ffb74d; }
@@ -241,4 +230,19 @@
     .d-del { color: #e57373; }
     .d-hunk { color: #64b5f6; }
   }
+}
+
+// L'HEAD staccato non e' uno stato fra gli altri: da li' un commit resta orfano, e prima di
+// questa vista la cosa era muta per mesi. Pulsa perche' va notato, non perche' e' carino.
+@keyframes mde-detached-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .28; }
+}
+
+// Chi ha chiesto al sistema meno animazioni ha spesso un motivo serio: resta il rosso, che
+// l'informazione la da' lo stesso.
+@media (prefers-reduced-motion: reduce) {
+  .branch.detached,
+  .repo-header .branch.detached,
+  .commit-repo .r-branch.r-detached { animation: none !important; }
 }
