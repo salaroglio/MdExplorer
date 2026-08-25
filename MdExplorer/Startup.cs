@@ -1,4 +1,4 @@
-using MdExplorer.Hubs;
+﻿using MdExplorer.Hubs;
 using MdExplorer.Service.Models;
 using Microsoft.AspNetCore.DataProtection;
 using Ad.Tools.Dal;
@@ -294,7 +294,19 @@ namespace MdExplorer
             services.AddScoped<Features.Services.ITocGenerationService, Services.TocGenerationHubService>();
 
             // Knowledge Graph (Neo4j) ingest pipeline
-            services.AddSingleton<Features.Services.KnowledgeGraph.IPasswordProtector, Features.Services.KnowledgeGraph.DpapiPasswordProtector>();
+            // Protettore dei segreti (token Atlassian, password Neo4j/Fuseki) SCELTO PER OS:
+            // - Windows: DPAPI, invariato. Cambiarlo renderebbe illeggibili i segreti gia' salvati.
+            // - Linux/macOS/Docker: DPAPI non esiste e lancerebbe PlatformNotSupportedException su
+            //   ogni Protect/Unprotect (Jira/Confluence via MCP inutilizzabili headless) -> Data
+            //   Protection, cross-platform, con le chiavi persistite piu' sopra in questo metodo.
+            if (OperatingSystem.IsWindows())
+            {
+                services.AddSingleton<Features.Services.KnowledgeGraph.IPasswordProtector, Features.Services.KnowledgeGraph.DpapiPasswordProtector>();
+            }
+            else
+            {
+                services.AddSingleton<Features.Services.KnowledgeGraph.IPasswordProtector, Services.Security.DataProtectionPasswordProtector>();
+            }
             services.AddSingleton<Features.Services.KnowledgeGraph.INeo4jConnectionPool, Features.Services.KnowledgeGraph.Neo4jConnectionPool>();
             services.AddSingleton<Features.Services.KnowledgeGraph.IKgIngestService, Features.Services.KnowledgeGraph.KgIngestService>();
             services.AddScoped<Features.Services.KnowledgeGraph.IFolderKgConfigResolver, Features.Services.KnowledgeGraph.FolderKgConfigResolver>();
