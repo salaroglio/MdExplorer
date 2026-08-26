@@ -1,0 +1,54 @@
+# BuildKit reads "<dockerfile-path>.dockerignore" if it exists, falling back
+# to "<context-root>/.dockerignore" otherwise. Keeping the file next to the
+# Dockerfile keeps the repo root clean. Requires DOCKER_BUILDKIT=1 (default
+# in Docker 23.0+ and "docker compose build").
+
+# VCS & editor
+.git/
+.gitignore
+.vs/
+.vscode/
+.idea/
+.claude/
+
+# Local docker scratch (don't recurse into ourselves)
+docker/
+
+# Build outputs / caches
+**/bin/
+**/obj/
+**/dist/
+**/[Oo]bj/
+**/[Bb]in/
+**/node_modules/
+**/.angular/
+**/.next/
+
+# Submodules (large, not needed for headless web build)
+ElectronMdExplorer/
+docs-internal/
+mdExplorerWebSite/
+mdexplorer-demo/
+
+# Binaries that we don't need in the Linux container
+MdExplorer/Binaries/ElectronMdExplorer/
+MdExplorer/Binaries/Graphviz/windows/
+MdExplorer/LlamaCppOverride/
+llama-cpp-*/
+
+# AI models (downloaded on-demand at runtime)
+**/*.gguf
+**/*.ggml
+AI-Models/
+
+# Logs and local data
+**/Logs/
+**/*.log
+# NOTE: MdExplorer.db and MdEngine.db in MdExplorer/ are *embedded resource
+# templates* (see MdExplorer.Service.csproj). Don't filter them out — only
+# the runtime copies (which live elsewhere) need to be excluded, and they
+# already are by virtue of being outside the build context.
+
+# OS junk
+**/.DS_Store
+**/Thumbs.db

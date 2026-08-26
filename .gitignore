@@ -428,8 +428,12 @@ MdExplorer.AI.Premium/
 experiments/
 nul
 
-# Docker (experimental, scratch space — not committed)
-/docker/
+# Docker — la ricetta (Dockerfile, compose, script) E' versionata: senza di essa
+# l'immagine pubblicata su GHCR non sarebbe riproducibile. Restano fuori solo gli
+# scratch di runtime e il .env, che puo' contenere un PAT GitHub (vedi .env.example).
+/docker/data/
+/docker/workspace/
+/docker/.env
 
 # Temporary scripts
 SurfLinkFix.ps1
