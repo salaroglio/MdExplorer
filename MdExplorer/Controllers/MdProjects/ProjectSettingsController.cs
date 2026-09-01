@@ -694,11 +694,16 @@ namespace MdExplorer.Service.Controllers.MdProjects
         public string ProjectPath { get; set; }
     }
 
+    /// <summary>
+    /// Nullable per scelta: con &lt;Nullable&gt;annotations&lt;/Nullable&gt; una string non nullable
+    /// e' un [Required] implicito, e un campo mancante darebbe un 400 opaco invece del messaggio
+    /// esplicito che l'endpoint sa produrre.
+    /// </summary>
     public class SetHarnessRequest
     {
-        public string ProjectPath { get; set; }
+        public string? ProjectPath { get; set; }
 
         /// <summary><c>copilot</c>, <c>opencode</c> oppure <c>none</c>.</summary>
-        public string Target { get; set; }
+        public string? Target { get; set; }
     }
 }

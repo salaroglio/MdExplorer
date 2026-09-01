@@ -1127,8 +1127,15 @@ namespace MdExplorer.Service.Controllers.MdProjects
         /// Harness scelto dalla finestra di creazione: <c>copilot</c>, <c>opencode</c> o
         /// <c>none</c>. Assente alla RIAPERTURA di un progetto: in quel caso decide il
         /// progetto stesso, che se lo porta scritto in .development.yml.
+        /// <para>
+        /// ⚠️ DEVE restare <c>string?</c>. Il progetto compila con
+        /// <c>&lt;Nullable&gt;annotations&lt;/Nullable&gt;</c>, e una <c>string</c> non nullable in
+        /// un DTO diventa un <c>[Required]</c> implicito: l'apertura di un progetto manda solo
+        /// <c>path</c>, quindi il binding fallirebbe e <c>[ApiController]</c> risponderebbe 400
+        /// PRIMA di entrare nel metodo — senza che nessuno possa intercettarlo.
+        /// </para>
         /// </summary>
-        public string Harness { get; set; }
+        public string? Harness { get; set; }
 
         /// <summary>
         /// Forma precedente della stessa scelta, quando l'unico harness era Copilot.

@@ -85,6 +85,29 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Let_a_project_be_opened_without_naming_a_harness()
+        {
+            // IL DIFETTO, in forma di test. Aprire un progetto manda solo { path }: nessun
+            // harness, perche' lo decide il progetto. Con <Nullable>annotations</Nullable> una
+            // string NON nullable nel DTO diventa un [Required] implicito, quindi il binding
+            // falliva e [ApiController] rispondeva 400 PRIMA di entrare nel metodo — per tutti i
+            // progetti, e senza che il client potesse dire niente di piu' di "non succede nulla".
+            using var ctx = new AgentCityContext();
+
+            // Senza ConnectionId l'endpoint risponde 400 di suo: e' proprio quello che serve,
+            // perche' quel messaggio si puo' produrre SOLO se il binding e' andato a buon fine e
+            // il corpo del metodo e' stato eseguito.
+            var res = await ctx.Client.PostAsync("/api/MdProjects/SetFolderProject",
+                Json(new { path = "/tmp/qualsiasi" }));
+
+            var body = await res.Content.ReadAsStringAsync();
+            StringAssert.Contains(body, "ConnectionId",
+                "il metodo deve essere stato eseguito: se si vede un errore di validazione, il DTO e' tornato non nullable");
+            Assert.IsFalse(body.Contains("Harness", StringComparison.OrdinalIgnoreCase),
+                "un errore di validazione su Harness significa che il campo e' tornato [Required] implicito");
+        }
+
+        [TestMethod]
         public async Task Refuse_a_harness_it_does_not_know()
         {
             using var ctx = new AgentCityContext();

@@ -68,8 +68,12 @@ namespace MdExplorer.Service.Controllers.Diagrams
 
         public class PlantumlCheckRequest
         {
-            /// <summary>Il sorgente del diagramma, senza il fence markdown.</summary>
-            public string Source { get; set; }
+            /// <summary>
+            /// Il sorgente del diagramma, senza il fence markdown.
+            /// Nullable per scelta: non nullable sarebbe un [Required] implicito e un campo
+            /// mancante darebbe un 400 opaco al posto del messaggio dell'endpoint.
+            /// </summary>
+            public string? Source { get; set; }
         }
     }
 }
