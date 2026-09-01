@@ -160,13 +160,18 @@
 /* Twin of .mde-run-btn — same geometry, border weight and hover fill, in the toolbar grey
    (#666666, the Angular --mde-icon-color) instead of green: same button, different action.
    The explicit `margin` also neutralises the .20rem the document stylesheet puts on every
-   <button> (MdCustomCSS.css), which would otherwise offset this one inside the toolbar. */
+   <button> (MdCustomCSS.css), which would otherwise offset this one inside the toolbar.
+   The LEFT margin is `auto` and that is what keeps this button pinned to the right edge next
+   to Run. Without it, a block with no parameters has only three items in the toolbar and the
+   `space-between` of .mde-exec-toolbar leaves Copy stranded halfway across. When parameters
+   ARE there, .mde-exec-params (flex: 1 1 auto) has already eaten the free space, so the auto
+   margin gets nothing and the layout is unchanged. */
 .mde-copy-btn {
     display: inline-flex;
     align-items: center;
     gap: 0.25em;
     padding: 0.2em 0.7em;
-    margin: 0 0.4em 0 0;
+    margin: 0 0.4em 0 auto;
     border: 1px solid #666666;
     border-radius: 3px;
     background: #fff;
