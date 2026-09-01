@@ -3,7 +3,7 @@ name: mde-plantuml
 description: "Disegna diagrammi PlantUML in MdExplorer con colore sobrio e le convenzioni proprie di ogni tipo di diagramma. Use when: blocco plantuml, diagramma di flusso, workflow, activity diagram, sequence diagram, diagramma di sequenza, class diagram, diagramma delle classi, schema del database, ER, entity relationship, colorare un diagramma, il diagramma non si vede in tema scuro."
 mde:
   origin: mdexplorer
-  version: 1
+  version: 2
   updatePolicy: replace
 ---
 
@@ -54,6 +54,20 @@ La regola che ne discende è una sola:
 > **La tinta sopravvive, la luminosità si ribalta.** Codifica il significato nel *colore*, mai nel *chiaro/scuro*.
 
 Un diagramma con "grigio chiaro = fatto, grigio scuro = da fare" si legge al contrario in tema scuro. Gli stessi due stati distinti come verde e ambra si leggono uguali in entrambi i temi.
+
+## Prima di consegnare: verifica
+
+Se hai a disposizione lo strumento **`CheckPlantuml`** (server MCP di MdExplorer), chiamalo su ogni diagramma prima di scriverlo nel documento. Non renderizza niente, costa poco, e vede cose che tu non puoi vedere.
+
+Come si legge la risposta:
+
+- **`ok: true`** — il diagramma si vede. Se ci sono `warning`, valuta se correggerli; sono difetti che si notano solo in tema scuro.
+- **`ok: false`** — c'è almeno un `error`: il diagramma **non comparirà affatto**. Per ogni problema hai `line`, la riga stessa in `source`, il `meaning` e **una** correzione in `fix`. Applicala e richiama la verifica.
+- **`toolUnavailable` valorizzato** — la verifica **non è stata eseguita**: manca qualcosa sulla macchina. Il tuo diagramma non è stato giudicato, quindi **non cambiarlo**: riferisci all'utente cosa manca.
+
+Quest'ultimo punto è il più importante da rispettare. Correggere un diagramma sano perché la verifica non è partita è il modo più veloce di peggiorarlo.
+
+Lo strumento non sostituisce le regole che seguono: controlla la sintassi e i due difetti tipici di MdExplorer, non se il diagramma si capisce. Quello resta compito tuo.
 
 ## Colore: una regola sola
 
@@ -209,3 +223,4 @@ Project ||--o{ Bookmark
 - [ ] Riempimenti pallidi, tratti saturi; nessun riempimento bianco puro.
 - [ ] `!theme plain` in testa, così i default di PlantUML non decidono al posto tuo.
 - [ ] Le regole del tipo di diagramma sono rispettate: attivazioni nei sequence, cardinalità nei class ed ER, un solo start negli activity.
+- [ ] Se `CheckPlantuml` è disponibile, la risposta è `ok: true` (o gli avvisi rimasti sono una scelta consapevole).
