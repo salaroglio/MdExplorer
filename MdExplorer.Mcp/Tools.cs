@@ -682,7 +682,9 @@ public class MdExplorerTools
         [Description("Issue summary (title).")] string summary,
         [Description("Issue description in plain text (optional).")] string description = null,
         [Description("Issue type, default 'Task'.")] string issueType = null,
-        [Description("Priority name, e.g. 'Highest'/'High'/'Medium'/'Low' (optional).")] string priority = null,
+        [Description("Priority name, e.g. 'Highest'/'High'/'Medium'/'Low' (optional). Must be the name " +
+                     "Jira stores, which stays English on a localised site; a wrong one is rejected with " +
+                     "the list of valid names, and nothing is created.")] string priority = null,
         [Description("Due date 'yyyy-MM-dd' (optional).")] string dueDate = null,
         [Description("Jira project key, e.g. 'BCO' (optional — defaults to the configured key).")] string projectKey = null,
         [Description("Who to assign the new issue to: a person's name or email, resolved to an accountId " +
@@ -693,7 +695,10 @@ public class MdExplorerTools
                      "(the 'Parent'/'Principale' field), e.g. 'BCE-1694' (optional).")] string parentKey = null,
         [Description("Any other field to set, as a JSON object keyed by field id or exact field name " +
                      "(optional). Takes custom fields AND system fields with no argument of their own, e.g. " +
-                     "{\"Story Points\": 5, \"fixVersions\": \"REL. Q4 2026\", \"reporter\": \"<accountId>\"}. " +
+                     "{\"Story Points\": 5, \"fixVersions\": \"REL. Q4 2026\", \"reporter\": \"Enrico Torrelli\"}. " +
+                     "User fields (reporter, and any custom people field) take a name or an email and are " +
+                     "resolved to the accountId for you; if the name matches nobody or several people, " +
+                     "NOTHING is written and the error lists the candidates. " +
                      "Ids are language-independent, names are localised per site — prefer the id, and call " +
                      "JiraListFields with customOnly=false to discover both. Scalars are shaped from the field's " +
                      "schema; pass a structured JSON value for types that need one. If Jira answers that a field " +
@@ -967,7 +972,9 @@ public class MdExplorerTools
                      "field), e.g. 'BCE-1694' (optional).")] string parentKey = null,
         [Description("Any other field to change, as a JSON object keyed by field id or exact field name " +
                      "(optional). Takes custom fields AND system fields with no argument of their own, e.g. " +
-                     "{\"Story Points\": 8, \"fixVersions\": \"REL. Q4 2026\"}. Ids are language-independent, " +
+                     "{\"Story Points\": 8, \"fixVersions\": \"REL. Q4 2026\", \"reporter\": \"Enrico Torrelli\"}. " +
+                     "User fields take a name or email and are resolved to the accountId for you. " +
+                     "Ids are language-independent, " +
                      "names are localised per site — prefer the id (JiraListFields with customOnly=false lists " +
                      "both). A JSON null clears a field.")] string customFields = null)
     {

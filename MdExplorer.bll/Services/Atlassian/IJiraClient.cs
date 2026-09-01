@@ -106,6 +106,15 @@ namespace MdExplorer.Features.Services.Atlassian
         Task<IReadOnlyList<JiraUser>> SearchUsersAsync(JiraConnection conn, string query, int maxResults, CancellationToken ct = default);
 
         /// <summary>
+        /// Resolves a free-text name/email to candidate users, trying the literal query
+        /// then the name tokens and the reversed order. Returns every match (active, real
+        /// accounts, de-duplicated): 0 or >1 candidates is the caller's to disambiguate,
+        /// never this client's to guess.
+        /// </summary>
+        Task<IReadOnlyList<JiraUser>> ResolveUsersAsync(
+            JiraConnection conn, string query, CancellationToken ct = default);
+
+        /// <summary>
         /// Sets the assignee of an issue (PUT /rest/api/3/issue/{key}/assignee). Pass a
         /// null/empty accountId to unassign.
         /// </summary>

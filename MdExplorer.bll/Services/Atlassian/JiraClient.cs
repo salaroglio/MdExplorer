@@ -36,6 +36,16 @@ namespace MdExplorer.Features.Services.Atlassian
             public IReadOnlyList<JiraFieldMeta> Fields;
         }
 
+        // Priority names, same cache shape and lifetime. The site's priority scheme is
+        // about as stable as its field catalog, and we read it on every write that sets
+        // a priority.
+        private static readonly ConcurrentDictionary<string, CachedPriorities> _priorityCache = new();
+        private sealed class CachedPriorities
+        {
+            public DateTime FetchedUtc;
+            public IReadOnlyList<string> Names;
+        }
+
         public JiraClient(IHttpClientFactory httpClientFactory, ILogger<JiraClient> logger)
         {
             _httpClientFactory = httpClientFactory;
@@ -200,7 +210,7 @@ namespace MdExplorer.Features.Services.Atlassian
             if (!string.IsNullOrWhiteSpace(req.Description))
                 fields["description"] = JsonNode.Parse(AdfBuilder.FromPlainText(req.Description));
             if (!string.IsNullOrWhiteSpace(req.Priority))
-                fields["priority"] = new JsonObject { ["name"] = req.Priority.Trim() };
+                fields["priority"] = new JsonObject { ["name"] = await ResolvePriorityAsync(conn, req.Priority, ct) };
             if (!string.IsNullOrWhiteSpace(req.DueDate))
                 fields["duedate"] = req.DueDate.Trim();
             if (!string.IsNullOrWhiteSpace(req.ParentKey))
@@ -248,7 +258,7 @@ namespace MdExplorer.Features.Services.Atlassian
             var fields = new JsonObject();
             if (!string.IsNullOrWhiteSpace(req.Summary)) fields["summary"] = req.Summary.Trim();
             if (req.Description != null) fields["description"] = JsonNode.Parse(AdfBuilder.FromPlainText(req.Description));
-            if (!string.IsNullOrWhiteSpace(req.Priority)) fields["priority"] = new JsonObject { ["name"] = req.Priority.Trim() };
+            if (!string.IsNullOrWhiteSpace(req.Priority)) fields["priority"] = new JsonObject { ["name"] = await ResolvePriorityAsync(conn, req.Priority, ct) };
             if (!string.IsNullOrWhiteSpace(req.DueDate)) fields["duedate"] = req.DueDate.Trim();
             if (!string.IsNullOrWhiteSpace(req.ParentKey)) fields["parent"] = new JsonObject { ["key"] = req.ParentKey.Trim() };
 
@@ -372,6 +382,54 @@ namespace MdExplorer.Features.Services.Atlassian
             var body = new JsonObject { ["accountId"] = string.IsNullOrWhiteSpace(accountId) ? null : accountId.Trim() };
             using var _ = await SendJsonAsync(conn, HttpMethod.Put,
                 $"{BaseUrl(conn)}/rest/api/3/issue/{Uri.EscapeDataString(issueKey.Trim())}/assignee", body, ct);
+        }
+
+        /// <summary>
+        /// Resolves a free-text name/email to candidate Jira users. Tries the literal
+        /// query first; only if that finds nothing does it fall back to the individual
+        /// name tokens and the reversed order (handles "Mario Rossi" vs "Rossi Mario",
+        /// partials, comma forms). Keeps only active, real ("atlassian") accounts and
+        /// de-duplicates by accountId. Returning every candidate rather than picking one
+        /// is deliberate: assigning work to the wrong person is not a guess worth making,
+        /// so the caller disambiguates.
+        /// </summary>
+        public async Task<IReadOnlyList<JiraUser>> ResolveUsersAsync(
+            JiraConnection conn, string query, CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (string.IsNullOrWhiteSpace(query))
+                throw new AtlassianApiException("A name or email is required to resolve a user.");
+
+            var seen = new Dictionary<string, JiraUser>(StringComparer.OrdinalIgnoreCase);
+
+            async Task AddMatches(string q)
+            {
+                if (string.IsNullOrWhiteSpace(q)) return;
+                var found = await SearchUsersAsync(conn, q.Trim(), 20, ct);
+                foreach (var u in found)
+                {
+                    if (string.IsNullOrEmpty(u.AccountId) || !u.Active) continue;
+                    if (!string.IsNullOrEmpty(u.AccountType) &&
+                        !string.Equals(u.AccountType, "atlassian", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!seen.ContainsKey(u.AccountId)) seen[u.AccountId] = u;
+                }
+            }
+
+            var norm = Regex.Replace(query.Trim(), @"\s+", " ");
+            await AddMatches(norm);
+
+            if (seen.Count == 0)
+            {
+                var tokens = norm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (tokens.Length > 1)
+                {
+                    await AddMatches(tokens[tokens.Length - 1]);          // surname
+                    await AddMatches(tokens[0]);                          // first name
+                    await AddMatches(string.Join(" ", tokens.Reverse())); // reversed order
+                }
+            }
+
+            return seen.Values.ToList();
         }
 
         public async Task<IReadOnlyList<JiraProject>> ListProjectsAsync(JiraConnection conn, CancellationToken ct = default)
@@ -656,7 +714,8 @@ namespace MdExplorer.Features.Services.Atlassian
                 case "datetime": return "scalar — an ISO-8601 timestamp.";
                 case "any":      return "scalar — passed through unchanged.";
                 case "option":   return "scalar — the option label; it is wrapped as {\"value\": ...}.";
-                case "user":     return "scalar — the user's accountId; it is wrapped as {\"accountId\": ...}.";
+                case "user":     return "scalar — the person's name, email or accountId; a name is looked up " +
+                                        "and wrapped as {\"accountId\": ...}.";
                 case "version":
                 case "component":
                 case "group":
@@ -666,7 +725,8 @@ namespace MdExplorer.Features.Services.Atlassian
                     {
                         case "string": return "scalar (wrapped into a 1-element array) or a JSON array of strings.";
                         case "option": return "scalar option label (wrapped as [{\"value\": ...}]) or a JSON array.";
-                        case "user":   return "scalar accountId (wrapped as [{\"accountId\": ...}]) or a JSON array.";
+                        case "user":   return "scalar name/email/accountId (looked up, then wrapped as " +
+                                              "[{\"accountId\": ...}]) or a JSON array.";
                         case "version":
                         case "component":
                         case "group":  return $"scalar {meta.ItemsType} name (wrapped as [{{\"name\": ...}}]) or a JSON array.";
@@ -732,8 +792,131 @@ namespace MdExplorer.Features.Services.Atlassian
                 var key = kvp.Key?.Trim();
                 if (string.IsNullOrEmpty(key)) continue;
                 var target = ResolveFieldByKey(meta, key);
-                fields[target.Id] = CoerceCustomValue(key, kvp.Value, target);
+
+                // A scalar string for a user field ("Enrico Torrelli") or for priority
+                // ("Bassa") is resolved here, before the shaping: both are cases where
+                // the caller knows a human label and Jira wants something else, and both
+                // must fail BEFORE anything is written rather than as a 400 afterwards.
+                var value = kvp.Value;
+                var scalar = value as JsonValue;
+                if (scalar != null && scalar.GetValueKind() == JsonValueKind.String)
+                {
+                    var raw = scalar.GetValue<string>();
+                    if (IsUserField(target))
+                        value = JsonValue.Create(await ResolveUserScalarAsync(conn, target, raw, ct));
+                    else if (string.Equals(target.Id, "priority", StringComparison.OrdinalIgnoreCase))
+                        value = JsonValue.Create(await ResolvePriorityAsync(conn, raw, ct));
+                }
+
+                fields[target.Id] = CoerceCustomValue(key, value, target);
             }
+        }
+
+        /// <summary>A field Jira wants an accountId for — a single user or a list of them.</summary>
+        private static bool IsUserField(JiraFieldMeta meta) =>
+            string.Equals(meta.SchemaType, "user", StringComparison.OrdinalIgnoreCase) ||
+            (string.Equals(meta.SchemaType, "array", StringComparison.OrdinalIgnoreCase) &&
+             string.Equals(meta.ItemsType, "user", StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>
+        /// Turns what a caller wrote for a user field into the accountId Jira needs. An
+        /// accountId is passed through; anything else is looked up by name/email, and 0
+        /// or >1 matches throw with the candidates rather than writing the wrong person.
+        /// </summary>
+        private async Task<string> ResolveUserScalarAsync(
+            JiraConnection conn, JiraFieldMeta target, string raw, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return raw;
+            if (LooksLikeAccountId(raw)) return raw.Trim();
+
+            var label = target.Name ?? target.Id;
+            var candidates = await ResolveUsersAsync(conn, raw, ct);
+
+            if (candidates.Count == 0)
+                throw new AtlassianApiException(
+                    $"Field '{label}': no Jira user matches '{raw.Trim()}' — nothing was written. Try a " +
+                    "different spelling, just the surname, or an email; or pass the accountId, or the " +
+                    "value already shaped as {\"accountId\": \"...\"}. Note that setting a reporter also " +
+                    "needs the \"Modify Reporter\" permission on your account.");
+
+            if (candidates.Count > 1)
+                throw new AtlassianApiException(
+                    $"Field '{label}': {candidates.Count} Jira users match '{raw.Trim()}' — nothing was " +
+                    $"written. Candidates: {string.Join("; ", candidates.Select(u => $"{u.DisplayName} <{u.EmailAddress}> = {u.AccountId}"))}. " +
+                    "Ask the user which one, then pass that accountId.");
+
+            return candidates[0].AccountId;
+        }
+
+        /// <summary>
+        /// Tells an accountId from a person's name. Jira Cloud ids are either 24 chars of
+        /// [0-9a-z] (the legacy form) or namespaced with a colon ("557058:uuid",
+        /// "qm:uuid:uuid"); none of them contains whitespace or '@'. Anything else is
+        /// taken to be a name to look up — and when that guess is wrong the caller still
+        /// has the explicit shape, {"accountId": "..."}, which is passed through untouched.
+        /// </summary>
+        private static bool LooksLikeAccountId(string value)
+        {
+            var v = value.Trim();
+            if (v.Length == 0) return false;
+            if (v.Any(char.IsWhiteSpace) || v.IndexOf('@') >= 0) return false;
+            if (v.IndexOf(':') >= 0) return true;
+            return Regex.IsMatch(v, "^[0-9a-zA-Z]{24}$");
+        }
+
+        /// <summary>
+        /// Validates a priority name against the site's own list and returns it with the
+        /// stored casing. Jira localises priority labels in the UI but the API only takes
+        /// the stored name, so "Bassa" is rejected with a 400 that says nothing useful —
+        /// this turns that into an error naming the valid values, before anything is written.
+        /// </summary>
+        private async Task<string> ResolvePriorityAsync(JiraConnection conn, string priority, CancellationToken ct)
+        {
+            var wanted = priority.Trim();
+            var names = await GetPriorityNamesAsync(conn, ct);
+
+            // No list (an old site, or a token without the permission to read it): leave
+            // the value alone and let Jira be the authority, exactly as before.
+            if (names.Count == 0) return wanted;
+
+            var match = names.FirstOrDefault(n => string.Equals(n, wanted, StringComparison.OrdinalIgnoreCase));
+            if (match != null) return match;
+
+            throw new AtlassianApiException(
+                $"Priority '{wanted}' does not exist on this Jira site. Valid priorities: {string.Join(", ", names)}. " +
+                "Jira wants the name it stores, which stays English on a localised site (use 'Low', not 'Bassa'). " +
+                "A project can also accept only some of these — JiraGetCreateFields lists the ones valid for the " +
+                "issue type you are creating.");
+        }
+
+        /// <summary>Site priority names (/rest/api/3/priority), cached per site.</summary>
+        private async Task<IReadOnlyList<string>> GetPriorityNamesAsync(JiraConnection conn, CancellationToken ct)
+        {
+            var siteKey = BaseUrl(conn);
+            if (_priorityCache.TryGetValue(siteKey, out var cached) &&
+                (DateTime.UtcNow - cached.FetchedUtc) < FieldCacheTtl)
+                return cached.Names;
+
+            var names = new List<string>();
+            try
+            {
+                using var doc = await GetJsonAsync(conn, $"{siteKey}/rest/api/3/priority", ct);
+                if (doc != null && doc.RootElement.ValueKind == JsonValueKind.Array)
+                    foreach (var pr in doc.RootElement.EnumerateArray())
+                    {
+                        var n = GetString(pr, "name");
+                        if (!string.IsNullOrEmpty(n)) names.Add(n);
+                    }
+            }
+            catch (AtlassianApiException ex)
+            {
+                // Not being able to READ the priority list must not block a WRITE that
+                // might well be valid: fall back to letting Jira judge the value.
+                _logger.LogWarning(ex, "[JiraClient] Could not read the priority list from {Site}", siteKey);
+            }
+
+            _priorityCache[siteKey] = new CachedPriorities { FetchedUtc = DateTime.UtcNow, Names = names };
+            return names;
         }
 
         /// <summary>
