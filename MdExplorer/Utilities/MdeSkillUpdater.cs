@@ -154,6 +154,7 @@ namespace MdExplorer.Utilities
             new CatalogEntry("mde-abox", Shared("MdExplorer.Service.skills.mde_abox.SKILL.md"), requiresFuseki: true),
             new CatalogEntry("mde-shacl", Shared("MdExplorer.Service.skills.mde_shacl.SKILL.md"), requiresFuseki: true),
             new CatalogEntry("mde-prompt-for-agents", Shared("MdExplorer.Service.skills.mde_prompt_for_agents.SKILL.md")),
+            new CatalogEntry("mde-plantuml", Shared("MdExplorer.Service.skills.mde_plantuml.SKILL.md")),
         };
 
         /// <summary>
