@@ -413,6 +413,56 @@ namespace MdExplorer.Service.Controllers.Atlassian
             }
         }
 
+        // ============================================================
+        //   GET /api/atlassian/jira/createfields?projectId=&projectKey=&issueType=
+        //   Create-screen discovery. jira/fields answers "does this field exist on
+        //   the site"; this answers "can I set it while creating THIS issue type in
+        //   THIS project" — the question a 400 "not on the appropriate screen"
+        //   answers too late.
+        // ============================================================
+        [HttpGet("jira/createfields")]
+        public async Task<IActionResult> CreateFields(
+            [FromQuery] Guid projectId,
+            [FromQuery] string issueType,
+            [FromQuery] string projectKey = null)
+        {
+            var ctx = BuildContext(projectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            var key = string.IsNullOrWhiteSpace(projectKey) ? ctx.ProjectKeys.FirstOrDefault() : projectKey.Trim();
+            if (string.IsNullOrWhiteSpace(key))
+                return BadRequest(new { error = "No Jira project key: set one in Project Settings → Atlassian or pass projectKey." });
+            if (string.IsNullOrWhiteSpace(issueType))
+                return BadRequest(new { error = "issueType required (e.g. 'Task', 'Epic')." });
+            try
+            {
+                var screen = await _jiraClient.GetCreateFieldsAsync(ctx.Connection, key, issueType);
+                return Ok(new { projectId, count = screen.Fields.Count, screen });
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] CreateFields failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        // ============================================================
+        //   GET /api/atlassian/jira/versions?projectId=&projectKey=
+        //   The versions a fixVersions field will accept in this project.
+        // ============================================================
+        [HttpGet("jira/versions")]
+        public async Task<IActionResult> Versions([FromQuery] Guid projectId, [FromQuery] string projectKey = null)
+        {
+            var ctx = BuildContext(projectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            var key = string.IsNullOrWhiteSpace(projectKey) ? ctx.ProjectKeys.FirstOrDefault() : projectKey.Trim();
+            if (string.IsNullOrWhiteSpace(key))
+                return BadRequest(new { error = "No Jira project key: set one in Project Settings → Atlassian or pass projectKey." });
+            try
+            {
+                var versions = await _jiraClient.GetProjectVersionsAsync(ctx.Connection, key);
+                return Ok(new { projectId, projectKey = key, count = versions.Count, versions });
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] Versions failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
         public class CreateIssueRequest
         {
             public Guid ProjectId { get; set; }
@@ -425,6 +475,8 @@ namespace MdExplorer.Service.Controllers.Atlassian
             public string? Priority { get; set; }
             public string? DueDate { get; set; }
             public string? ProjectKey { get; set; }   // optional; default = first configured key
+            public string? Assignee { get; set; }     // name/email to resolve; overrides AssignToSelf
+            public string? AssigneeAccountId { get; set; }  // already resolved (after disambiguation)
             public bool AssignToSelf { get; set; } = true;
             public string? ParentKey { get; set; }         // optional; epic/parent link
             public JsonObject? CustomFields { get; set; }  // optional; name/id -> value
@@ -448,6 +500,44 @@ namespace MdExplorer.Service.Controllers.Atlassian
 
             try
             {
+                // Resolve the assignee BEFORE creating anything. A name that is unknown
+                // or ambiguous must not leave a half-done issue behind: the caller would
+                // have to retry the create and would duplicate it. Nothing is written
+                // until we know who it goes to.
+                string assigneeAccountId = req.AssigneeAccountId?.Trim();
+                object assigneeEcho = null;
+                if (string.IsNullOrWhiteSpace(assigneeAccountId) && !string.IsNullOrWhiteSpace(req.Assignee))
+                {
+                    var candidates = await ResolveAssignableUsersAsync(ctx.Connection, req.Assignee);
+                    if (candidates.Count == 0)
+                        return Ok(new
+                        {
+                            ok = false,
+                            notFound = true,
+                            created = (object)null,
+                            query = req.Assignee,
+                            message = $"No Jira user matches '{req.Assignee}' — NOTHING was created. " +
+                                      "Try a different spelling, just the surname, or an email; or pass assigneeAccountId; " +
+                                      "or drop the assignee to create the issue unassigned."
+                        });
+
+                    if (candidates.Count > 1)
+                        return Ok(new
+                        {
+                            ok = false,
+                            ambiguous = true,
+                            created = (object)null,
+                            query = req.Assignee,
+                            candidates = candidates.Select(u => new { u.AccountId, u.DisplayName, u.EmailAddress }).ToList(),
+                            message = $"{candidates.Count} users match '{req.Assignee}' — NOTHING was created. " +
+                                      "Ask the user which one, then call JiraCreateIssue again passing that assigneeAccountId."
+                        });
+
+                    var only = candidates[0];
+                    assigneeAccountId = only.AccountId;
+                    assigneeEcho = new { only.AccountId, only.DisplayName, only.EmailAddress };
+                }
+
                 var created = await _jiraClient.CreateIssueAsync(ctx.Connection, new JiraCreateIssueRequest
                 {
                     ProjectKey = key,
@@ -457,10 +547,19 @@ namespace MdExplorer.Service.Controllers.Atlassian
                     Priority = req.Priority,
                     DueDate = req.DueDate,
                     AssignToSelf = req.AssignToSelf,
+                    AssigneeAccountId = assigneeAccountId,
                     ParentKey = req.ParentKey,
                     CustomFields = req.CustomFields
                 });
-                return Ok(new { projectId = req.ProjectId, created });
+                return Ok(new
+                {
+                    ok = true,
+                    projectId = req.ProjectId,
+                    created,
+                    assignee = assigneeEcho ?? (string.IsNullOrWhiteSpace(assigneeAccountId)
+                        ? null
+                        : (object)new { accountId = assigneeAccountId })
+                });
             }
             catch (AtlassianApiException ex)
             {

@@ -659,11 +659,24 @@ public class MdExplorerTools
     }
 
     [McpServerTool, Description(
-        "Creates a Jira issue and assigns it to the current user. This is a WRITE " +
+        "Creates a Jira issue. By default it is assigned to the current user; pass " +
+        "'assignee' (a name or email) to assign it to someone else in the same call — " +
+        "the tool resolves the person to their Jira accountId itself. Read the JSON 'ok' " +
+        "field: ok=true -> created (the issue key, URL and resolved assignee are echoed " +
+        "back). notFound=true or ambiguous=true -> NOTHING WAS CREATED, because the " +
+        "assignee could not be pinned down; for ambiguous, 'candidates' lists each " +
+        "accountId + name + email — show them to the user, get the choice, then call this " +
+        "tool again with that exact 'assigneeAccountId'. Do NOT retry blindly: a second " +
+        "call after a successful create makes a duplicate issue. This is a WRITE " +
         "operation — only use it when the user explicitly asks to create/open an " +
         "issue (e.g. to seed test issues). Returns the created issue key and URL. " +
         "projectKey defaults to the project's configured key; issueType defaults to " +
-        "'Task'. priority (e.g. 'High') and dueDate ('yyyy-MM-dd') are optional.")]
+        "'Task'. priority (e.g. 'High') and dueDate ('yyyy-MM-dd') are optional. " +
+        "Any other field — including system fields with no argument here, such as " +
+        "fixVersions, components, labels or reporter — goes in 'customFields'. " +
+        "priority takes the name Jira stores (usually English: 'Low', not 'Bassa'). " +
+        "Setting anything beyond summary/description? Call JiraGetCreateFields first: " +
+        "it lists what this project + issue type actually accepts on creation.")]
     public async Task<string> JiraCreateIssue(
         [Description("Project name. Use GetProjects first to discover available project names.")] string project,
         [Description("Issue summary (title).")] string summary,
@@ -672,11 +685,20 @@ public class MdExplorerTools
         [Description("Priority name, e.g. 'Highest'/'High'/'Medium'/'Low' (optional).")] string priority = null,
         [Description("Due date 'yyyy-MM-dd' (optional).")] string dueDate = null,
         [Description("Jira project key, e.g. 'BCO' (optional — defaults to the configured key).")] string projectKey = null,
+        [Description("Who to assign the new issue to: a person's name or email, resolved to an accountId " +
+                     "by the tool (optional — omitted means assign to the current user).")] string assignee = null,
+        [Description("The exact Jira accountId of the assignee, when already known (e.g. after " +
+                     "disambiguating an 'ambiguous' result). Skips the name lookup.")] string assigneeAccountId = null,
         [Description("Parent issue key to link this issue to — typically the EPIC a story belongs to " +
                      "(the 'Parent'/'Principale' field), e.g. 'BCE-1694' (optional).")] string parentKey = null,
-        [Description("Custom fields as a JSON object keyed by field name or customfield_ id (optional), " +
-                     "e.g. {\"Story Points\": 5, \"Severity\": \"High\"}. Scalars are shaped from the field's " +
-                     "schema; pass a structured JSON value for types that need one.")] string customFields = null)
+        [Description("Any other field to set, as a JSON object keyed by field id or exact field name " +
+                     "(optional). Takes custom fields AND system fields with no argument of their own, e.g. " +
+                     "{\"Story Points\": 5, \"fixVersions\": \"REL. Q4 2026\", \"reporter\": \"<accountId>\"}. " +
+                     "Ids are language-independent, names are localised per site — prefer the id, and call " +
+                     "JiraListFields with customOnly=false to discover both. Scalars are shaped from the field's " +
+                     "schema; pass a structured JSON value for types that need one. If Jira answers that a field " +
+                     "'cannot be set / is not on the appropriate screen', it is missing from the CREATE screen: " +
+                     "create the issue without it, then set it with JiraUpdateIssue.")] string customFields = null)
     {
         var client = _httpClientFactory.CreateClient("MdExplorer");
         var pid = await ResolveProjectIdAsync(client, project);
@@ -694,14 +716,18 @@ public class MdExplorerTools
                 priority,
                 dueDate,
                 projectKey,
-                assignToSelf = true,
+                // Assign-to-self only when no one else was named: an explicit assignee
+                // takes over, and saying both would be contradictory.
+                assignToSelf = string.IsNullOrWhiteSpace(assignee) && string.IsNullOrWhiteSpace(assigneeAccountId),
+                assignee,
+                assigneeAccountId,
                 parentKey,
                 customFields = customFieldsNode
             };
             var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
             var resp = await client.PostAsync("/api/atlassian/jira/issue", content);
             var body = await resp.Content.ReadAsStringAsync();
-            await LogToolCall("JiraCreateIssue", project, $"summary={summary}", body);
+            await LogToolCall("JiraCreateIssue", project, $"summary={summary}, assignee={assignee}, assigneeAccountId={assigneeAccountId}", body);
             return body;
         }
         catch (HttpRequestException ex)
@@ -768,12 +794,15 @@ public class MdExplorerTools
     }
 
     [McpServerTool, Description(
-        "Lists the Jira fields available on the site, with the exact field name, its " +
-        "'customfield_XXXXX' id, the schema type and — in valueHint — the value shape to " +
-        "pass. Call this BEFORE setting customFields on JiraCreateIssue/JiraUpdateIssue: " +
-        "field names must match Jira exactly, and a wrong or ambiguous name is rejected " +
-        "rather than guessed. Use nameFilter to look up one field (e.g. 'points'); set " +
-        "customOnly=false to also see the built-in system fields.")]
+        "Lists the Jira fields available on the site, with the exact field name, its id " +
+        "(a system id such as 'fixVersions', or 'customfield_XXXXX'), the schema type and " +
+        "— in valueHint — the value shape to pass. Call this BEFORE setting fields on " +
+        "JiraCreateIssue/JiraUpdateIssue: names must match Jira exactly and are localised " +
+        "per site, so a wrong or ambiguous name is rejected rather than guessed. Pass " +
+        "customOnly=false whenever the field might be a built-in one (fix version, " +
+        "component, reporter, labels…) — with the default true you only see custom fields " +
+        "and risk picking a same-named custom field instead of the system one. Use " +
+        "nameFilter to look up a single field (e.g. 'points', 'version').")]
     public async Task<string> JiraListFields(
         [Description("Project name. Use GetProjects first to discover available project names.")] string project,
         [Description("Return only custom fields (default true). Pass false to include system fields too.")] bool customOnly = true,
@@ -790,6 +819,72 @@ public class MdExplorerTools
             var resp = await client.GetAsync(url);
             var body = await resp.Content.ReadAsStringAsync();
             await LogToolCall("JiraListFields", project, $"customOnly={customOnly},nameFilter={nameFilter}", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Lists the fields you can actually set while CREATING a given issue type in a " +
+        "given Jira project — the create screen — with each field's id, name, whether it " +
+        "is required, its schema and, in valueHint, the value shape to pass; allowedValues " +
+        "lists the accepted labels when the field has a closed set. This is NOT the same " +
+        "as JiraListFields: that one lists every field defined on the site, and a field can " +
+        "exist there and still be absent from this screen, in which case Jira rejects the " +
+        "create with 'cannot be set. It is not on the appropriate screen, or unknown'. Call " +
+        "this BEFORE JiraCreateIssue whenever you intend to set anything beyond summary/" +
+        "description, and pick field ids from what it returns. A field you need that is " +
+        "missing here may still be editable after creation — create the issue, then set it " +
+        "with JiraUpdateIssue.")]
+    public async Task<string> JiraGetCreateFields(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("Issue type to create, e.g. 'Task', 'Bug', 'Epic'. The localised name works too.")] string issueType,
+        [Description("Jira project key, e.g. 'BCE' (optional — defaults to the configured key).")] string projectKey = null)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        if (string.IsNullOrWhiteSpace(issueType)) return "issueType is required (e.g. 'Task', 'Epic').";
+        try
+        {
+            var url = $"/api/atlassian/jira/createfields?projectId={pid}&issueType={Uri.EscapeDataString(issueType.Trim())}";
+            if (!string.IsNullOrWhiteSpace(projectKey))
+                url += $"&projectKey={Uri.EscapeDataString(projectKey.Trim())}";
+            var resp = await client.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraGetCreateFields", project, $"issueType={issueType},projectKey={projectKey}", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Lists a Jira project's versions (releases) — name, id, released/archived and " +
+        "release date. These are the only values a fix-version field accepts: check the " +
+        "release name here before passing it to JiraCreateIssue/JiraUpdateIssue, e.g. " +
+        "{\"fixVersions\": \"REL. Q4 2026\"}, rather than discovering from a 400 that it " +
+        "is spelled differently or does not exist in this project.")]
+    public async Task<string> JiraGetProjectVersions(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("Jira project key, e.g. 'BCE' (optional — defaults to the configured key).")] string projectKey = null)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        try
+        {
+            var url = $"/api/atlassian/jira/versions?projectId={pid}";
+            if (!string.IsNullOrWhiteSpace(projectKey))
+                url += $"&projectKey={Uri.EscapeDataString(projectKey.Trim())}";
+            var resp = await client.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraGetProjectVersions", project, $"projectKey={projectKey}", body);
             return body;
         }
         catch (HttpRequestException ex)
@@ -856,8 +951,11 @@ public class MdExplorerTools
 
     [McpServerTool, Description(
         "Edits fields of an existing Jira issue (WRITE): summary, description, " +
-        "priority and/or due date. Only the arguments you pass are changed. Use only " +
-        "when the user explicitly asks to modify an issue.")]
+        "priority and/or due date — and, via 'customFields', any other field, custom or " +
+        "system (fixVersions, components, labels, reporter…). Only the arguments you " +
+        "pass are changed. Use only when the user explicitly asks to modify an issue. " +
+        "Also the way to set a field that JiraCreateIssue could not, because it is on " +
+        "the edit screen but not the create screen.")]
     public async Task<string> JiraUpdateIssue(
         [Description("Project name.")] string project,
         [Description("Issue key, e.g. 'SCRUM-5'.")] string issueKey,
@@ -867,8 +965,11 @@ public class MdExplorerTools
         [Description("New due date 'yyyy-MM-dd' (optional).")] string dueDate = null,
         [Description("Parent issue key — link this issue to an EPIC or parent (the 'Parent'/'Principale' " +
                      "field), e.g. 'BCE-1694' (optional).")] string parentKey = null,
-        [Description("Custom fields to change, as a JSON object keyed by field name or customfield_ id " +
-                     "(optional), e.g. {\"Story Points\": 8}. A JSON null clears a field.")] string customFields = null)
+        [Description("Any other field to change, as a JSON object keyed by field id or exact field name " +
+                     "(optional). Takes custom fields AND system fields with no argument of their own, e.g. " +
+                     "{\"Story Points\": 8, \"fixVersions\": \"REL. Q4 2026\"}. Ids are language-independent, " +
+                     "names are localised per site — prefer the id (JiraListFields with customOnly=false lists " +
+                     "both). A JSON null clears a field.")] string customFields = null)
     {
         var client = _httpClientFactory.CreateClient("MdExplorer");
         var pid = await ResolveProjectIdAsync(client, project);

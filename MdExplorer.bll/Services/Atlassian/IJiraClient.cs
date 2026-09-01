@@ -53,6 +53,21 @@ namespace MdExplorer.Features.Services.Atlassian
             JiraConnection conn, bool customOnly = true, string nameFilter = null, CancellationToken ct = default);
 
         /// <summary>
+        /// Reads the fields the CREATE screen of a project + issue type actually exposes.
+        /// <see cref="ListFieldsAsync"/> answers "does this field exist on the site", which
+        /// is a different question: a field can exist and still be off this screen, and Jira
+        /// then refuses the create with "not on the appropriate screen". Ask this first.
+        /// </summary>
+        Task<JiraCreateFieldsResult> GetCreateFieldsAsync(
+            JiraConnection conn, string projectKey, string issueType, CancellationToken ct = default);
+
+        /// <summary>
+        /// Lists a project's versions — the values a fixVersions/versions field accepts.
+        /// </summary>
+        Task<IReadOnlyList<JiraVersion>> GetProjectVersionsAsync(
+            JiraConnection conn, string projectKey, CancellationToken ct = default);
+
+        /// <summary>
         /// Uploads a file to an issue (POST /rest/api/3/issue/{key}/attachments, multipart).
         /// The caller owns the stream and decides where the bytes come from: this client
         /// never touches the disk, so the "which files may leave the machine" question stays

@@ -74,6 +74,47 @@ namespace MdExplorer.Features.Services.Atlassian
     }
 
     /// <summary>
+    /// One field as the CREATE screen of a given project + issue type exposes it — which
+    /// is not the same thing as the site's field catalog (<see cref="JiraFieldMeta"/>).
+    /// A field can exist on the site and still be absent here, and Jira then rejects the
+    /// create with "cannot be set. It is not on the appropriate screen, or unknown".
+    /// </summary>
+    public class JiraCreateField
+    {
+        public string Id { get; set; }          // "summary", "fixVersions", "customfield_10016"
+        public string Name { get; set; }        // localised, as this site spells it
+        public bool Required { get; set; }
+        public string SchemaType { get; set; }
+        public string ItemsType { get; set; }
+        public string ValueHint { get; set; }   // same coercion hint as ListFieldsAsync
+
+        /// <summary>
+        /// The closed set of values Jira accepts here, when the field has one (a select,
+        /// a version, a component…), flattened to readable labels. Null when the field
+        /// takes free values. Capped — see <see cref="AllowedValuesTruncated"/>.
+        /// </summary>
+        public List<string> AllowedValues { get; set; }
+        public bool AllowedValuesTruncated { get; set; }
+    }
+
+    /// <summary>The create screen of one project + issue type.</summary>
+    public class JiraCreateFieldsResult
+    {
+        public string ProjectKey { get; set; }
+        public string IssueType { get; set; }    // the name as this site spells it
+        public string IssueTypeId { get; set; }
+
+        /// <summary>
+        /// The untranslated (English) issue type name, when the site localises it —
+        /// null when the two coincide. Names are localised, so this is what tells a
+        /// caller that "Epica" and "Epic" are the same type.
+        /// </summary>
+        public string IssueTypeUntranslated { get; set; }
+
+        public List<JiraCreateField> Fields { get; set; } = new List<JiraCreateField>();
+    }
+
+    /// <summary>
     /// One file attached to an issue, as returned by POST .../attachments.
     /// <see cref="ContentUrl"/> needs the same Basic auth as the rest of the API:
     /// it is not a public link.
@@ -128,6 +169,14 @@ namespace MdExplorer.Features.Services.Atlassian
         public bool AssignToSelf { get; set; } = true;
 
         /// <summary>
+        /// Optional accountId to assign the new issue to. Takes precedence over
+        /// <see cref="AssignToSelf"/>. Already resolved: name lookup (and the
+        /// ambiguity that comes with it) belongs to the caller, before anything
+        /// is created — see AtlassianController.CreateIssue.
+        /// </summary>
+        public string AssigneeAccountId { get; set; }
+
+        /// <summary>
         /// Optional parent issue key — the epic a story belongs to (the "Parent"/"Principale"
         /// field), or the parent of a subtask. Sent as the system field parent: {"key": ...}.
         /// </summary>
@@ -152,6 +201,19 @@ namespace MdExplorer.Features.Services.Atlassian
     {
         public string Key { get; set; }
         public string Name { get; set; }
+    }
+
+    /// <summary>
+    /// A version of a project — the set of values a fixVersions/versions field accepts.
+    /// Asking for these is how a caller checks a release name exists before writing it.
+    /// </summary>
+    public class JiraVersion
+    {
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public bool Released { get; set; }
+        public bool Archived { get; set; }
+        public string ReleaseDate { get; set; }
     }
 
     /// <summary>Fields to change on an existing issue. Only non-null/non-blank ones are sent.</summary>

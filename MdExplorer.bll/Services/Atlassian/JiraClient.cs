@@ -182,10 +182,13 @@ namespace MdExplorer.Features.Services.Atlassian
             if (string.IsNullOrWhiteSpace(req.Summary))
                 throw new AtlassianApiException("A summary is required to create an issue.");
 
-            // Resolve the caller's accountId up-front when assigning to self, so we
-            // can assign via the dedicated /assignee endpoint (unambiguous on Cloud).
+            // Resolve the accountId up-front so we can assign via the dedicated
+            // /assignee endpoint (unambiguous on Cloud). An explicit assignee wins
+            // over assign-to-self; the caller has already turned a name into an id.
             string accountId = null;
-            if (req.AssignToSelf)
+            if (!string.IsNullOrWhiteSpace(req.AssigneeAccountId))
+                accountId = req.AssigneeAccountId.Trim();
+            else if (req.AssignToSelf)
                 accountId = (await VerifyAsync(conn, ct))?.AccountId;
 
             var fields = new JsonObject
@@ -382,6 +385,156 @@ namespace MdExplorer.Features.Services.Atlassian
             return list;
         }
 
+        // ── Create screen & project versions ────────────────────────
+
+        /// <summary>
+        /// Reads the fields the CREATE screen of a project + issue type actually exposes
+        /// (/issue/createmeta/{project}/issuetypes/{id}). The site field catalog cannot
+        /// answer this: it lists every field that exists somewhere, so a caller picking
+        /// from it can choose one Jira will then refuse as "not on the appropriate screen".
+        /// </summary>
+        public async Task<JiraCreateFieldsResult> GetCreateFieldsAsync(
+            JiraConnection conn, string projectKey, string issueType, CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (string.IsNullOrWhiteSpace(projectKey)) throw new AtlassianApiException("projectKey is required.");
+            if (string.IsNullOrWhiteSpace(issueType)) throw new AtlassianApiException("issueType is required.");
+
+            var project = Uri.EscapeDataString(projectKey.Trim());
+            var wanted = issueType.Trim();
+
+            // 1. Issue type name -> id. Type names are localised per site, so match the
+            //    untranslated name too: "Epic" has to work on an Italian site as well.
+            string typeId = null, typeName = null, untranslated = null;
+            var available = new List<string>();
+            using (var types = await GetJsonAsync(conn,
+                $"{BaseUrl(conn)}/rest/api/3/issue/createmeta/{project}/issuetypes?maxResults={CreateMetaPageSize}", ct))
+            {
+                if (types != null && types.RootElement.TryGetProperty("values", out var vals) &&
+                    vals.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var t in vals.EnumerateArray())
+                    {
+                        var n = GetString(t, "name");
+                        var u = GetString(t, "untranslatedName");
+                        available.Add(string.IsNullOrEmpty(u) || string.Equals(u, n, StringComparison.Ordinal) ? n : $"{n} ({u})");
+                        if (typeId == null &&
+                            (string.Equals(n, wanted, StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(u, wanted, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            typeId = GetString(t, "id");
+                            typeName = n;
+                            untranslated = u;
+                        }
+                    }
+                }
+            }
+
+            if (typeId == null)
+                throw new AtlassianApiException(
+                    $"Issue type '{wanted}' cannot be created in project '{projectKey.Trim()}'. " +
+                    $"Creatable types here: {(available.Count == 0 ? "(none — check the project key and your permissions)" : string.Join(", ", available))}.");
+
+            var result = new JiraCreateFieldsResult
+            {
+                ProjectKey = projectKey.Trim(),
+                IssueType = typeName,
+                IssueTypeId = typeId,
+                IssueTypeUntranslated = string.Equals(untranslated, typeName, StringComparison.Ordinal) ? null : untranslated
+            };
+
+            // 2. The screen itself. Paginated — a busy create screen runs past one page.
+            var startAt = 0;
+            while (true)
+            {
+                using var page = await GetJsonAsync(conn,
+                    $"{BaseUrl(conn)}/rest/api/3/issue/createmeta/{project}/issuetypes/{Uri.EscapeDataString(typeId)}" +
+                    $"?startAt={startAt}&maxResults={CreateMetaPageSize}", ct);
+                if (page == null || !page.RootElement.TryGetProperty("values", out var fields) ||
+                    fields.ValueKind != JsonValueKind.Array)
+                    break;
+
+                var read = 0;
+                foreach (var f in fields.EnumerateArray()) { result.Fields.Add(MapCreateField(f)); read++; }
+                startAt += read;
+
+                var isLast = page.RootElement.TryGetProperty("isLast", out var l) && l.ValueKind == JsonValueKind.True;
+                var total = page.RootElement.TryGetProperty("total", out var t) && t.ValueKind == JsonValueKind.Number
+                    ? t.GetInt32() : startAt;
+                if (read == 0 || isLast || startAt >= total) break;
+            }
+
+            return result;
+        }
+
+        /// <summary>Maps one createmeta field entry, reusing the write-side value hint.</summary>
+        private static JiraCreateField MapCreateField(JsonElement f)
+        {
+            var meta = new JiraFieldMeta
+            {
+                Id = GetString(f, "fieldId") ?? GetString(f, "key"),
+                Name = GetString(f, "name")
+            };
+            if (f.TryGetProperty("schema", out var sc) && sc.ValueKind == JsonValueKind.Object)
+            {
+                meta.SchemaType = GetString(sc, "type");
+                meta.ItemsType = GetString(sc, "items");
+            }
+            meta.IsCustom = meta.Id != null && meta.Id.StartsWith("customfield_", StringComparison.OrdinalIgnoreCase);
+
+            var field = new JiraCreateField
+            {
+                Id = meta.Id,
+                Name = meta.Name,
+                Required = f.TryGetProperty("required", out var r) && r.ValueKind == JsonValueKind.True,
+                SchemaType = meta.SchemaType,
+                ItemsType = meta.ItemsType,
+                ValueHint = DescribeAcceptedValue(meta)
+            };
+
+            if (f.TryGetProperty("allowedValues", out var allowed) && allowed.ValueKind == JsonValueKind.Array)
+            {
+                var labels = new List<string>();
+                foreach (var v in allowed.EnumerateArray())
+                {
+                    if (labels.Count >= AllowedValuesMax) { field.AllowedValuesTruncated = true; break; }
+                    var label = v.ValueKind == JsonValueKind.String
+                        ? v.GetString()
+                        : GetString(v, "name") ?? GetString(v, "value") ?? GetString(v, "id");
+                    if (!string.IsNullOrEmpty(label)) labels.Add(label);
+                }
+                if (labels.Count > 0) field.AllowedValues = labels;
+            }
+            return field;
+        }
+
+        /// <summary>
+        /// Lists a project's versions (/project/{key}/versions) — the values a
+        /// fixVersions/versions field will accept. Checking here beats discovering
+        /// from a 400 that the release name was spelled differently.
+        /// </summary>
+        public async Task<IReadOnlyList<JiraVersion>> GetProjectVersionsAsync(
+            JiraConnection conn, string projectKey, CancellationToken ct = default)
+        {
+            Validate(conn);
+            if (string.IsNullOrWhiteSpace(projectKey)) throw new AtlassianApiException("projectKey is required.");
+
+            using var doc = await GetJsonAsync(conn,
+                $"{BaseUrl(conn)}/rest/api/3/project/{Uri.EscapeDataString(projectKey.Trim())}/versions", ct);
+            var list = new List<JiraVersion>();
+            if (doc != null && doc.RootElement.ValueKind == JsonValueKind.Array)
+                foreach (var v in doc.RootElement.EnumerateArray())
+                    list.Add(new JiraVersion
+                    {
+                        Id = GetString(v, "id"),
+                        Name = GetString(v, "name"),
+                        Released = v.TryGetProperty("released", out var rel) && rel.ValueKind == JsonValueKind.True,
+                        Archived = v.TryGetProperty("archived", out var arc) && arc.ValueKind == JsonValueKind.True,
+                        ReleaseDate = GetString(v, "releaseDate")
+                    });
+            return list;
+        }
+
         // ── Attachments ─────────────────────────────────────────────
 
         public async Task<IReadOnlyList<JiraAttachment>> AttachFileAsync(
@@ -504,12 +657,19 @@ namespace MdExplorer.Features.Services.Atlassian
                 case "any":      return "scalar — passed through unchanged.";
                 case "option":   return "scalar — the option label; it is wrapped as {\"value\": ...}.";
                 case "user":     return "scalar — the user's accountId; it is wrapped as {\"accountId\": ...}.";
+                case "version":
+                case "component":
+                case "group":
+                case "priority": return $"scalar — the {meta.SchemaType} name; it is wrapped as {{\"name\": ...}}.";
                 case "array":
                     switch (meta.ItemsType)
                     {
                         case "string": return "scalar (wrapped into a 1-element array) or a JSON array of strings.";
                         case "option": return "scalar option label (wrapped as [{\"value\": ...}]) or a JSON array.";
                         case "user":   return "scalar accountId (wrapped as [{\"accountId\": ...}]) or a JSON array.";
+                        case "version":
+                        case "component":
+                        case "group":  return $"scalar {meta.ItemsType} name (wrapped as [{{\"name\": ...}}]) or a JSON array.";
                         default:       return $"structured — a JSON array of '{meta.ItemsType ?? "?"}' in Jira's own shape.";
                     }
                 default:
@@ -554,10 +714,11 @@ namespace MdExplorer.Features.Services.Atlassian
         }
 
         /// <summary>
-        /// Resolves each caller-supplied custom field (by human name or raw customfield_
-        /// id), shapes its value from the field schema, and writes it into <paramref name="fields"/>.
-        /// Throws (never guesses) when a name is unknown or ambiguous — a scoped write
-        /// must be deterministic.
+        /// Resolves each caller-supplied field (by id or human name — custom fields and
+        /// system fields such as fixVersions/reporter alike), shapes its value from the
+        /// field schema, and writes it into <paramref name="fields"/>. Throws (never
+        /// guesses) when a key is unknown or ambiguous — a scoped write must be
+        /// deterministic.
         /// </summary>
         private async Task ApplyCustomFieldsAsync(
             JiraConnection conn, JsonObject fields, JsonObject customFields, CancellationToken ct)
@@ -576,32 +737,63 @@ namespace MdExplorer.Features.Services.Atlassian
         }
 
         /// <summary>
-        /// Maps a caller-supplied key — a human field name or a raw customfield_ id — to its
-        /// field definition. An explicit id resolves to the known schema, or to an id-only stub
-        /// when the field is unknown (that path then requires a structured value). A name that
-        /// matches nothing, or matches more than one field, throws (never guesses).
+        /// Maps a caller-supplied key — a field id or a human field name — to its field
+        /// definition. Any id in the site catalog resolves, system fields included
+        /// ("fixVersions", "reporter", …), so a caller is never forced through the
+        /// localised name; an unknown customfield_ id resolves to an id-only stub (that
+        /// path then requires a structured value). Names are matched case-insensitively.
+        /// A key that matches nothing, or more than one field, throws (never guesses).
         /// </summary>
         private static JiraFieldMeta ResolveFieldByKey(IReadOnlyList<JiraFieldMeta> meta, string key)
         {
+            // Id first: ids are stable and language-independent, names are localised per
+            // site, so an exact id is the one unambiguous way to name a field.
+            var byId = meta.FirstOrDefault(m => string.Equals(m.Id, key, StringComparison.OrdinalIgnoreCase));
+            if (byId != null) return byId;
+
             if (Regex.IsMatch(key, @"^customfield_\d+$", RegexOptions.IgnoreCase))
-                return meta.FirstOrDefault(m => string.Equals(m.Id, key, StringComparison.OrdinalIgnoreCase))
-                       ?? new JiraFieldMeta { Id = key, IsCustom = true };
+                return new JiraFieldMeta { Id = key, IsCustom = true };
 
             var matches = meta.Where(m => string.Equals(m.Name, key, StringComparison.OrdinalIgnoreCase)).ToList();
             if (matches.Count == 0)
-            {
-                var available = string.Join(", ", meta.Where(m => m.IsCustom && !string.IsNullOrEmpty(m.Name))
-                                                        .Select(m => m.Name).Distinct().OrderBy(n => n));
                 throw new AtlassianApiException(
-                    $"Custom field '{key}' not found on this Jira site. Available custom fields: {available}.");
-            }
+                    $"Field '{key}' not found on this Jira site. {DescribeNearMatches(meta, key)} " +
+                    "Field names are localised, ids are not: pass the name exactly as Jira spells it, " +
+                    "or the id — a system id such as 'fixVersions'/'reporter'/'components', or " +
+                    "'customfield_XXXXX'. Call JiraListFields with customOnly=false and a nameFilter " +
+                    "to look the field up.");
             if (matches.Count > 1)
             {
                 var ids = string.Join(", ", matches.Select(m => $"{m.Name} ({m.Id})"));
                 throw new AtlassianApiException(
-                    $"Custom field name '{key}' is ambiguous — it matches: {ids}. Pass the exact customfield_ id instead.");
+                    $"Field name '{key}' is ambiguous — it matches: {ids}. Pass the exact field id instead.");
             }
             return matches[0];
+        }
+
+        /// <summary>
+        /// Builds the "did you mean" half of an unknown-field error: the fields whose name
+        /// or id contains the key (or vice versa), system fields included. Listing only the
+        /// custom fields — as this used to — pushes a caller towards a same-named custom
+        /// field when the field it actually wants is a system one.
+        /// </summary>
+        private static string DescribeNearMatches(IReadOnlyList<JiraFieldMeta> meta, string key)
+        {
+            bool Touches(string candidate) =>
+                !string.IsNullOrEmpty(candidate) &&
+                (candidate.IndexOf(key, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                 key.IndexOf(candidate, StringComparison.OrdinalIgnoreCase) >= 0);
+
+            var near = meta.Where(m => Touches(m.Name) || Touches(m.Id))
+                           .Select(m => $"{m.Name ?? "(unnamed)"} ({m.Id})")
+                           .Distinct()
+                           .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                           .Take(15)
+                           .ToList();
+
+            return near.Count == 0
+                ? "No field on this site has a similar name or id."
+                : $"Closest matches: {string.Join(", ", near)}.";
         }
 
         /// <summary>
@@ -628,19 +820,30 @@ namespace MdExplorer.Features.Services.Atlassian
                     return new JsonObject { ["value"] = value.DeepClone() };
                 case "user":
                     return new JsonObject { ["accountId"] = value.DeepClone() };
+                // Named entities — the caller knows them by their label ("REL. Q4 2026",
+                // "High"), and Jira takes that label in a {"name": ...} envelope.
+                case "version":
+                case "component":
+                case "group":
+                case "priority":
+                    return new JsonObject { ["name"] = value.DeepClone() };
                 case "array":
                     switch (meta.ItemsType)
                     {
                         case "string": return new JsonArray(value.DeepClone());
                         case "option": return new JsonArray(new JsonObject { ["value"] = value.DeepClone() });
                         case "user":   return new JsonArray(new JsonObject { ["accountId"] = value.DeepClone() });
+                        case "version":
+                        case "component":
+                        case "group":
+                            return new JsonArray(new JsonObject { ["name"] = value.DeepClone() });
                         default:
                             throw new AtlassianApiException(
-                                $"Custom field '{meta.Name}' is an array of '{meta.ItemsType}' — pass a JSON array in Jira's shape.");
+                                $"Field '{meta.Name ?? meta.Id}' is an array of '{meta.ItemsType}' — pass a JSON array in Jira's shape.");
                     }
                 default:
                     throw new AtlassianApiException(
-                        $"Custom field '{meta.Name ?? meta.Id}' has schema type '{meta.SchemaType ?? "(unknown)"}', which " +
+                        $"Field '{meta.Name ?? meta.Id}' has schema type '{meta.SchemaType ?? "(unknown)"}', which " +
                         "needs a structured value. Pass it already in Jira's JSON shape (object/array).");
             }
         }
@@ -784,6 +987,14 @@ namespace MdExplorer.Features.Services.Atlassian
             if (string.IsNullOrWhiteSpace(conn.ApiToken))
                 throw new AtlassianApiException("Atlassian API token is not set (Project Settings → Atlassian).");
         }
+
+        // createmeta is paginated; 100 covers a create screen in one round-trip in
+        // practice, and the loop still follows isLast/total when it does not.
+        private const int CreateMetaPageSize = 100;
+
+        // A select can carry hundreds of options; past a few dozen the list stops being
+        // useful to read and starts crowding out the rest of the answer.
+        private const int AllowedValuesMax = 50;
 
         private static string BaseUrl(JiraConnection conn) => conn.BaseUrl.TrimEnd('/');
 
