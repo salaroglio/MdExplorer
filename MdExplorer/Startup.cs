@@ -258,6 +258,7 @@ namespace MdExplorer
             services.AddSingleton<IAiProvider, OpenAiProvider>();
             services.AddSingleton<IAiProvider, GeminiProvider>();
             services.AddSingleton<IAiProvider, CopilotCliProvider>();
+            services.AddSingleton<IAiProvider, ClaudeCodeProvider>();
 
             // Agenti algoritmici (città degli agenti, §6 Agent-Harness-A2A): cittadini
             // C# deterministici, stessa cittadinanza degli agenti .agent.md. Ogni
@@ -269,6 +270,11 @@ namespace MdExplorer
             // Long-lived Copilot CLI ACP sessions (one persistent process per SignalR connection)
             services.AddSingleton<MdExplorer.Features.Services.AI.CopilotAcp.CopilotAcpSessionPool>();
 
+            // Sessioni Claude Code di lunga durata (un processo `claude -p` per connessione
+            // SignalR, protocollo nativo stream-json). Pool separato da quello di Copilot:
+            // stessa politica, CLI e protocollo diversi.
+            services.AddSingleton<MdExplorer.Features.Services.AI.ClaudeCode.ClaudeCodeSessionPool>();
+
             // Source map md→HTML per la feature "Usa AI" su selezione
             services.AddSingleton<MdExplorer.Features.Services.SourceMapping.MarkdownSourceMapService>();
 
@@ -276,6 +282,7 @@ namespace MdExplorer
             services.AddSingleton<IModelDiscoveryProvider, OpenAiModelDiscovery>();
             services.AddSingleton<IModelDiscoveryProvider, GeminiModelDiscovery>();
             services.AddSingleton<IModelDiscoveryProvider, CopilotCliModelDiscovery>();
+            services.AddSingleton<IModelDiscoveryProvider, ClaudeCodeModelDiscovery>();
 
             // Add AI Tool Calling services
             // PathValidator is now created dynamically by ToolExecutor with the current workspace root

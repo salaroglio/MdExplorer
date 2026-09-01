@@ -18,6 +18,24 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual bool LinkIndexingEnabled { get; set; } = true;
         public virtual bool PlantUmlKeepOriginalColorsInDarkMode { get; set; } = false;
         public virtual bool UseCopilotCliAsDefault { get; set; } = true;
+
+        /// <summary>
+        /// Selezione automatica di <b>Claude Code CLI</b> come motore della chat, quando il CLI
+        /// è installato su questa macchina. Gemello di <see cref="UseCopilotCliAsDefault"/>.
+        /// <para>
+        /// Default <c>false</c>, e non è una svista: <see cref="UseCopilotCliAsDefault"/> nasce
+        /// <c>true</c>, quindi accenderli entrambi di serie significherebbe che ogni progetto
+        /// esistente cambia motore da solo al primo aggiornamento. Chi vuole Claude Code lo
+        /// dice.
+        /// </para>
+        /// <para>
+        /// <b>Quando sono accesi tutti e due</b> vince Claude Code: il suo flag è OFF di
+        /// fabbrica, quindi trovarlo acceso è una scelta deliberata dell'utente, mentre quello
+        /// di Copilot potrebbe essere semplicemente il default mai toccato. La regola è "la
+        /// scelta esplicita batte il default".
+        /// </para>
+        /// </summary>
+        public virtual bool UseClaudeCodeAsDefault { get; set; } = false;
         public virtual bool ExecutionTrusted { get; set; } = false;
 
         /// <summary>

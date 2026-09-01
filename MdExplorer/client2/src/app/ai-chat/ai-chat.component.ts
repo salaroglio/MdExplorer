@@ -40,6 +40,33 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     { id: 'claude-opus-4.7', label: 'Opus 4.7' }
   ];
 
+  // Claude Code auto-select: stessa idea, picker sugli alias del CLI. Alias e non nomi
+  // pieni con la data, così puntano sempre all'ultimo modello di quella famiglia e non
+  // invecchiano a ogni rilascio.
+  claudeCodeUnavailable = false;
+  claudeCodeAutoSelected = false;
+  selectedClaudeCodeModel: string | null = null;
+  readonly claudeCodeModelOptions: ReadonlyArray<{ id: string; label: string }> = [
+    { id: 'sonnet', label: 'Sonnet' },
+    { id: 'opus', label: 'Opus' },
+    { id: 'haiku', label: 'Haiku' }
+  ];
+
+  /**
+   * Consuntivo dell'ultimo turno di Claude Code: costo del turno, cumulato della sessione,
+   * token e quanta parte delle finestre a 5 ore e 7 giorni è già bruciata.
+   *
+   * È il dato che con Copilot ACP semplicemente non esiste — là il risultato del prompt
+   * porta solo "end_turn" — ed è il motivo per cui l'indicatore consumi era stato
+   * accantonato. Qui arriva da solo a fine turno.
+   */
+  claudeUsage: {
+    turnCostUsd: number | null; sessionCostUsd: number | null;
+    inputTokens: number | null; outputTokens: number | null; thinkingTokens: number | null;
+    durationMs: number | null; model: string | null;
+    fiveHourUtilization: number | null; sevenDayUtilization: number | null;
+  } | null = null;
+
   // Edit message state
   editingMessageId: string | null = null;
   editedContent: string = '';
@@ -175,6 +202,44 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.selectedCopilotModel = null;
         }
       });
+
+    // Stessa manopola, per Claude Code. Il backend garantisce che al massimo UNO dei due
+    // auto-select arrivi acceso, quindi queste due sottoscrizioni non si contendono la chat.
+    this.projectsService.claudeCodeAutoConfig$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(config => {
+        if (!config) {
+          this.claudeCodeUnavailable = false;
+          this.claudeCodeAutoSelected = false;
+          this.selectedClaudeCodeModel = null;
+          return;
+        }
+        if (config.autoSelect && config.available) {
+          const model = config.defaultModel || 'sonnet';
+          console.log('[AiChatComponent] Auto-selecting Claude Code with model:', model);
+          this.claudeCodeUnavailable = false;
+          this.claudeCodeAutoSelected = true;
+          this.selectedClaudeCodeModel = model;
+          this.aiService.setProvider('claudecode', model);
+          this.aiService.notifyClaudeCodeConnected(model);
+        } else if (config.autoSelect && !config.available) {
+          console.log('[AiChatComponent] Claude Code auto-select acceso ma CLI non disponibile — chat bloccata');
+          this.claudeCodeUnavailable = true;
+          this.claudeCodeAutoSelected = false;
+          this.selectedClaudeCodeModel = null;
+          this.aiService.notifyClaudeCodeDisconnected();
+        } else {
+          this.claudeCodeUnavailable = false;
+          this.claudeCodeAutoSelected = false;
+          this.selectedClaudeCodeModel = null;
+        }
+      });
+
+    // Consuntivo di fine turno. Arriva solo da Claude Code: con gli altri provider resta
+    // null e la riga non compare.
+    this.aiService.claudeUsage$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(usage => { this.claudeUsage = usage; });
   }
 
   ngAfterViewChecked(): void {
@@ -265,6 +330,36 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     } catch (err) {
       console.error('[AiChatComponent] Failed to switch Copilot model:', err);
     }
+  }
+
+  async selectClaudeCodeModel(modelId: string): Promise<void> {
+    if (!this.claudeCodeAutoSelected) return;
+    if (this.selectedClaudeCodeModel === modelId) return;
+    if (this.isConfiguringProvider) return;
+    console.log('[AiChatComponent] Modello Claude Code cambiato in:', modelId);
+    this.selectedClaudeCodeModel = modelId;
+    try {
+      await this.aiService.setProviderAsync('claudecode', modelId);
+      this.aiService.notifyClaudeCodeConnected(modelId);
+      // Il consuntivo precedente si riferisce a un'altra sessione: il cambio modello ne
+      // apre una nuova. Tenerlo a video vorrebbe dire attribuire quei costi al modello
+      // sbagliato.
+      this.claudeUsage = null;
+    } catch (err) {
+      console.error('[AiChatComponent] Cambio di modello Claude Code fallito:', err);
+    }
+  }
+
+  /** Costo in dollari, con abbastanza decimali da non diventare "0,00" su un turno breve. */
+  formatUsd(value: number | null): string {
+    if (value == null) return '—';
+    return '$' + value.toFixed(value < 0.01 ? 4 : 2);
+  }
+
+  /** Frazione 0..1 → percentuale intera. */
+  formatPercent(value: number | null): string {
+    if (value == null) return '—';
+    return Math.round(value * 100) + '%';
   }
 
   toggleModelManager(): void {

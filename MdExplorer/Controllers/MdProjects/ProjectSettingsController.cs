@@ -370,6 +370,77 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
         }
 
+        /// <summary>
+        /// Manopola gemella per Claude Code. ⚠️ Il default di lettura è <c>false</c> — opposto a
+        /// quello di Copilot — perché un progetto che non ha mai visto questa impostazione non
+        /// deve cambiare motore della chat da solo.
+        /// </summary>
+        [HttpGet]
+        public IActionResult GetClaudeCodeAutoSelectSetting([FromQuery] string projectPath)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList()
+                    .FirstOrDefault(p => p.Path == projectPath);
+
+                if (project == null)
+                {
+                    project = projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, projectPath, StringComparison.OrdinalIgnoreCase));
+                }
+
+                return Ok(new
+                {
+                    enabled = project?.UseClaudeCodeAsDefault ?? false
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting ClaudeCodeAutoSelect setting");
+                return StatusCode(500, new { error = "Failed to get ClaudeCodeAutoSelect setting" });
+            }
+        }
+
+        [HttpPost]
+        public IActionResult SetClaudeCodeAutoSelectSetting([FromBody] SetClaudeCodeAutoSelectRequest request)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                _userSettingsDB.BeginTransaction();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList()
+                    .FirstOrDefault(p => p.Path == request.ProjectPath);
+
+                if (project == null)
+                {
+                    project = projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, request.ProjectPath, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (project == null)
+                {
+                    _userSettingsDB.Rollback();
+                    _logger.LogWarning($"[SetClaudeCodeAutoSelectSetting] Project not found for path: '{request.ProjectPath}'");
+                    return NotFound(new { error = "Project not found" });
+                }
+
+                project.UseClaudeCodeAsDefault = request.Enabled;
+                projectDal.Save(project);
+                _userSettingsDB.Commit();
+
+                return Ok(new { message = "ClaudeCodeAutoSelect setting saved successfully" });
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                _logger.LogError(ex, "Error saving ClaudeCodeAutoSelect setting");
+                return StatusCode(500, new { error = "Failed to save ClaudeCodeAutoSelect setting" });
+            }
+        }
+
         [HttpGet]
         /// <summary>
         /// Isolamento worktree per-agente: preferenza di QUESTA macchina (UserDB), non del repo.
@@ -539,6 +610,12 @@ namespace MdExplorer.Service.Controllers.MdProjects
     }
 
     public class SetCopilotCliAutoSelectRequest
+    {
+        public bool Enabled { get; set; }
+        public string ProjectPath { get; set; }
+    }
+
+    public class SetClaudeCodeAutoSelectRequest
     {
         public bool Enabled { get; set; }
         public string ProjectPath { get; set; }

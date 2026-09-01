@@ -87,6 +87,17 @@ export class AiChatService {
   private _isStreaming$ = new BehaviorSubject<boolean>(false);
   public isStreaming$ = this._isStreaming$.asObservable();
 
+  /**
+   * Consuntivo dell'ultimo turno di Claude Code (evento SignalR `ReceiveClaudeUsage`).
+   * Resta null per ogni altro provider: nessun altro lo manda.
+   */
+  private _claudeUsage$ = new BehaviorSubject<any | null>(null);
+  public claudeUsage$ = this._claudeUsage$.asObservable();
+
+  /** Ultima attività sui tool osservata nel turno in corso (riga di stato, non risposta). */
+  private _toolActivity$ = new BehaviorSubject<string | null>(null);
+  public toolActivity$ = this._toolActivity$.asObservable();
+
   private _gpuInfo$ = new BehaviorSubject<GpuInfo | null>(null);
   public gpuInfo$ = this._gpuInfo$.asObservable();
   
@@ -189,12 +200,32 @@ export class AiChatService {
       }
     });
 
+    // Consuntivo di fine turno: solo Claude Code lo manda. Il canale privato (mark-search,
+    // promptlab, ai-selection) non ha dove mostrarlo, quindi si tiene solo quello della chat.
+    this.hubConnection.on('ReceiveClaudeUsage', (usage: any, channelId?: string) => {
+      if ((channelId || 'default') === 'default') {
+        this._claudeUsage$.next(usage ?? null);
+      }
+    });
+
+    // Attività sui tool: "sta leggendo X", "sta eseguendo Y". È una riga di stato, non la
+    // risposta, e per questo NON entra nel messaggio in costruzione.
+    this.hubConnection.on('ReceiveToolActivity', (activity: string, channelId?: string) => {
+      const ch = channelId || 'default';
+      this._channelEvent$.next({ type: 'tool', data: activity, channelId: ch });
+      if (ch === 'default') {
+        this._toolActivity$.next(activity);
+      }
+    });
+
     this.hubConnection.on('StreamComplete', (channelId?: string) => {
       const ch = channelId || 'default';
       this._channelEvent$.next({ type: 'complete', data: null, channelId: ch });
       if (ch === 'default') {
         this.finalizeStreamingMessage();
         this._isStreaming$.next(false);
+        // Il turno è finito: l'ultima attività sui tool non è più "sta facendo", è passato.
+        this._toolActivity$.next(null);
       }
     });
 
@@ -205,6 +236,7 @@ export class AiChatService {
         console.error('Chat error:', error);
         this.addMessage('system', `Error: ${error}`);
         this._isStreaming$.next(false);
+        this._toolActivity$.next(null);
       }
     });
 
@@ -459,7 +491,8 @@ export class AiChatService {
 
   /**
    * Get an Observable stream of events filtered for a specific channelId.
-   * Each event has { type: 'chunk' | 'thinking' | 'complete' | 'error', data: any }.
+   * Each event has { type: 'chunk' | 'thinking' | 'tool' | 'complete' | 'error', data: any }.
+   * 'tool' arriva solo da Claude Code ed è una riga di stato, non testo della risposta.
    * Used by PromptLab cards to subscribe to their own channel.
    */
   getChannelStream$(channelId: string): Observable<{ type: string; data: any }> {
@@ -786,6 +819,21 @@ export class AiChatService {
     );
   }
 
+  checkClaudeCodeConfiguration(): Observable<any> {
+    return this.http.get('/api/claudecode/configured');
+  }
+
+  /**
+   * Modelli di Claude Code. Passa dall'endpoint generico per tipo di provider: la lista è
+   * dichiarata lato server (il CLI non espone un comando per elencarla) e sono alias
+   * — `sonnet`, `opus`, `haiku` — che puntano sempre all'ultima versione della famiglia.
+   */
+  getClaudeCodeModels(): Observable<any[]> {
+    return this.getModelsByProvider('ClaudeCode').pipe(
+      map((response: any) => response.models || [])
+    );
+  }
+
   getCopilotCliSystemPrompt(): Observable<any> {
     return this.http.get('/api/copilotcli/system-prompt');
   }
@@ -854,6 +902,21 @@ export class AiChatService {
     this._isModelLoaded$.next(false);
     this._currentModel$.next(null);
     console.log('[AiChatService] CopilotCli disconnected');
+  }
+
+  notifyClaudeCodeConnected(modelId: string): void {
+    console.log('[AiChatService] notifyClaudeCodeConnected con modelId:', modelId);
+    this._isModelLoaded$.next(true);
+    this._currentModel$.next(`ClaudeCode: ${modelId}`);
+  }
+
+  notifyClaudeCodeDisconnected(): void {
+    this._isModelLoaded$.next(false);
+    this._currentModel$.next(null);
+    // Il consuntivo si riferisce a una sessione che non c'è più: lasciarlo a video
+    // farebbe credere che quei numeri riguardino ancora la chat aperta.
+    this._claudeUsage$.next(null);
+    console.log('[AiChatService] ClaudeCode disconnesso');
   }
 
   generateCommitMessage(projectPath: string): Observable<any> {

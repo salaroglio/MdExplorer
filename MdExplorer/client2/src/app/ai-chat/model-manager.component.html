@@ -16,7 +16,10 @@
             <mat-icon inline="true" class="brand-github-fg" style="vertical-align: middle;">terminal</mat-icon>
             {{ 'MODEL_MANAGER.CONNECTED_TO' | translate }} {{ currentModel }}
           </span>
-          <span *ngIf="!currentModel.startsWith('Gemini') && !currentModel.startsWith('OpenAI') && !currentModel.startsWith('CopilotCli')">
+          <span *ngIf="currentModel.startsWith('ClaudeCode')">
+            {{ currentModel }}
+          </span>
+          <span *ngIf="!currentModel.startsWith('Gemini') && !currentModel.startsWith('OpenAI') && !currentModel.startsWith('CopilotCli') && !currentModel.startsWith('ClaudeCode')">
             {{ 'MODEL_MANAGER.LOCAL_MODEL' | translate }} {{ currentModel }}
             <span *ngIf="gpuEnabled" class="gpu-indicator">
               <mat-icon inline="true">memory</mat-icon>
@@ -176,6 +179,10 @@
         <button mat-raised-button class="brand-github-bg" (click)="toggleCopilotCliConfig()">
           <mat-icon>terminal</mat-icon>
           {{ (showCopilotCliConfig ? 'MODEL_MANAGER.HIDE_COPILOT' : 'MODEL_MANAGER.CONFIGURE_COPILOT') | translate }}
+        </button>
+        <button mat-raised-button color="primary" (click)="toggleClaudeCodeConfig()">
+          <mat-icon>terminal</mat-icon>
+          {{ (showClaudeCodeConfig ? 'MODEL_MANAGER.HIDE_CLAUDE_CODE' : 'MODEL_MANAGER.CONFIGURE_CLAUDE_CODE') | translate }}
         </button>
       </div>
 
@@ -449,6 +456,78 @@
       </mat-card>
 
       <!-- Copilot CLI Configuration Card -->
+      <mat-card *ngIf="showClaudeCodeConfig" class="copilotcli-config-card" style="margin: 20px 0;">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>terminal</mat-icon>
+            {{ 'MODEL_MANAGER.CLAUDE_CODE_CONFIG' | translate }}
+          </mat-card-title>
+          <mat-card-subtitle>
+            {{ 'MODEL_MANAGER.CLAUDE_CODE_CONFIG_DESC' | translate }}
+          </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngIf="!claudeCodeAvailable">
+            <mat-chip-list style="margin-bottom: 16px;">
+              <mat-chip color="warn" selected>
+                <mat-icon>warning</mat-icon>
+                {{ 'MODEL_MANAGER.CLAUDE_CODE_NOT_INSTALLED' | translate }}
+              </mat-chip>
+            </mat-chip-list>
+            <p>{{ 'MODEL_MANAGER.CLAUDE_CODE_INSTALL_DESC' | translate }}</p>
+            <code>npm install -g &#64;anthropic-ai/claude-code</code>
+          </div>
+
+          <div *ngIf="claudeCodeAvailable">
+            <mat-chip-list style="margin-bottom: 16px;">
+              <mat-chip color="accent" selected>
+                <mat-icon>check_circle</mat-icon>
+                {{ 'MODEL_MANAGER.CLAUDE_CODE_AVAILABLE' | translate }}
+              </mat-chip>
+            </mat-chip-list>
+
+            <h4 style="margin: 0 0 12px 0;">{{ 'MODEL_MANAGER.AVAILABLE_MODELS' | translate }}</h4>
+            <div class="models-grid">
+              <mat-card *ngFor="let model of claudeCodeModels" class="model-card">
+                <mat-card-header>
+                  <mat-card-title>{{ model.name }}</mat-card-title>
+                  <mat-card-subtitle>
+                    {{ 'MODEL_MANAGER.VIA_CLAUDE_CODE' | translate }} | {{ (model.inputTokenLimit || 200000) / 1000 }}K input / {{ (model.outputTokenLimit || 64000) / 1000 }}K output
+                  </mat-card-subtitle>
+                </mat-card-header>
+
+                <mat-card-content>
+                  <p class="model-description">{{ model.description }}</p>
+
+                  <mat-chip-list *ngIf="useClaudeCode && selectedClaudeCodeModel === model.id">
+                    <mat-chip color="accent" selected>
+                      <mat-icon>check_circle</mat-icon>
+                      {{ 'MODEL_MANAGER.CONNECTED' | translate }}
+                    </mat-chip>
+                  </mat-chip-list>
+                </mat-card-content>
+
+                <mat-card-actions>
+                  <button mat-raised-button color="primary"
+                          *ngIf="!useClaudeCode || selectedClaudeCodeModel !== model.id"
+                          (click)="connectClaudeCodeModel(model.id)">
+                    <mat-icon>terminal</mat-icon>
+                    {{ 'COMMON.CONNECT' | translate }}
+                  </button>
+
+                  <button mat-button
+                          *ngIf="useClaudeCode && selectedClaudeCodeModel === model.id"
+                          (click)="disconnectClaudeCode()">
+                    <mat-icon>cloud_off</mat-icon>
+                    {{ 'COMMON.DISCONNECT' | translate }}
+                  </button>
+                </mat-card-actions>
+              </mat-card>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
       <mat-card *ngIf="showCopilotCliConfig" class="copilotcli-config-card" style="margin: 20px 0;">
         <mat-card-header>
           <mat-card-title>

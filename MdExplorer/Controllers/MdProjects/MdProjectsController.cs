@@ -875,6 +875,47 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 }
                 logPhase("CopilotCli availability (sync probe)");
 
+                // Claude Code auto-select: stesso probe deterministico, provider diverso.
+                // Qui il controllo di installazione è una scansione del PATH, quindi costa
+                // millisecondi e non ha nemmeno il problema del cold start di Copilot.
+                bool claudeCodeAutoSelect = project.UseClaudeCodeAsDefault;
+                bool claudeCodeAvailable = false;
+                string claudeCodeDefaultModel = null;
+                if (claudeCodeAutoSelect)
+                {
+                    var claudeProvider = _aiProviders?
+                        .FirstOrDefault(p => p.GetProviderType() == ProviderType.ClaudeCode) as ClaudeCodeProvider;
+                    if (claudeProvider == null)
+                    {
+                        throw new InvalidOperationException(
+                            "Il progetto ha UseClaudeCodeAsDefault=true ma ClaudeCodeProvider non è stato risolto dalla DI. " +
+                            "Controlla le registrazioni IAiProvider in Startup.cs.");
+                    }
+                    claudeProvider.WorkingDirectory = request.Path;
+                    // Alias, non nome pieno: punta sempre all'ultimo Sonnet e non invecchia.
+                    claudeCodeDefaultModel = "sonnet";
+                    claudeCodeAvailable = claudeProvider.IsAvailable();
+                    logger?.LogInformation(
+                        "🤖 ClaudeCode auto-select: available={Available}, model={Model}, cwd={Cwd}",
+                        claudeCodeAvailable, claudeCodeDefaultModel, request.Path);
+                }
+                logPhase("ClaudeCode availability (sync probe)");
+
+                // Precedenza quando sono accesi entrambi: vince Claude Code. Il suo flag nasce
+                // OFF, quindi trovarlo acceso è una scelta deliberata; quello di Copilot nasce
+                // ON e potrebbe essere solo il default mai toccato. La scelta esplicita batte
+                // il default — e il client riceve UN solo auto-select acceso, così non deve
+                // arbitrare da solo (due sottoscrizioni che si contendono la chat sarebbero
+                // una corsa, non una regola).
+                if (claudeCodeAutoSelect && claudeCodeAvailable && copilotCliAutoSelect)
+                {
+                    logger?.LogInformation(
+                        "🤖 Auto-select: accesi sia ClaudeCode sia CopilotCli → vince ClaudeCode (scelta esplicita sul default)");
+                    copilotCliAutoSelect = false;
+                    copilotCliAvailable = false;
+                    copilotCliDefaultModel = null;
+                }
+
                 __perfTotal.Stop();
                 logger?.LogWarning("⏱️ [SetFolderProject PERF] TOTAL: {Ms} ms", __perfTotal.ElapsedMilliseconds);
 
@@ -892,7 +933,10 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     detectedProvider = detectedProvider,
                     copilotCliAutoSelect = copilotCliAutoSelect,
                     copilotCliAvailable = copilotCliAvailable,
-                    copilotCliDefaultModel = copilotCliDefaultModel
+                    copilotCliDefaultModel = copilotCliDefaultModel,
+                    claudeCodeAutoSelect = claudeCodeAutoSelect,
+                    claudeCodeAvailable = claudeCodeAvailable,
+                    claudeCodeDefaultModel = claudeCodeDefaultModel
                 });
             }
             catch (Exception ex)

@@ -441,6 +441,47 @@
     }
   }
 
+  /* Riga del consuntivo di Claude Code: informativa, non un avviso — deve leggersi
+     senza rubare l'occhio alla conversazione. Token del tema, così regge chiaro e scuro
+     (i colori del contenuto non stanno negli .scss del viewer, ma questa è chat, non viewer). */
+  .claude-usage-row {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 16px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--mde-text-secondary, rgba(0, 0, 0, 0.6));
+    background: var(--mde-surface-2, rgba(0, 0, 0, 0.03));
+    border-top: 1px solid var(--mde-divider, rgba(0, 0, 0, 0.08));
+
+    .usage-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      opacity: 0.7;
+    }
+
+    .usage-item strong {
+      font-weight: 600;
+    }
+
+    .usage-sep {
+      opacity: 0.4;
+    }
+
+    /* Spinge le finestre di consumo a destra: sono un dato di contesto, non del turno. */
+    .usage-spacer {
+      flex: 1;
+    }
+
+    .usage-window {
+      opacity: 0.8;
+      white-space: nowrap;
+    }
+  }
+
   .copilot-cli-unavailable-banner {
     flex-shrink: 0;
     display: flex;
