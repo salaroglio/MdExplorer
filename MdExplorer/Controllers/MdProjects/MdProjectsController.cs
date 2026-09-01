@@ -679,6 +679,27 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 __perfPhase.Restart();
             };
 
+            // La scelta dell'harness arriva SOLO dalla finestra di creazione. Su una riapertura
+            // la richiesta non la porta, e allora comanda il progetto: e' cosi' che una scelta
+            // "nessun harness" smette di essere riscritta a Copilot a ogni apertura.
+            HarnessTarget? requestedHarness;
+            if (!string.IsNullOrWhiteSpace(request.Harness))
+            {
+                if (!HarnessLayout.TryParseId(request.Harness, out var parsed))
+                {
+                    return BadRequest(new { error = $"Unknown harness '{request.Harness}'. Allowed values: {HarnessLayout.AllowedIds}." });
+                }
+                requestedHarness = parsed;
+            }
+            else if (request.AddCopilotInstructions.HasValue)
+            {
+                requestedHarness = request.AddCopilotInstructions.Value ? HarnessTarget.Copilot : HarnessTarget.None;
+            }
+            else
+            {
+                requestedHarness = null;
+            }
+
             try
             {
                 // Invalidate FoldersIgnore cache to pick up any changes to .mdFoldersIgnore
@@ -687,7 +708,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
                 // IMPORTANT: Run migrations FIRST, before opening database sessions
                 // This prevents "database is locked" errors because NHibernate holds the file open
-                bool gitInitialized = ProjectsManager.SetNewProject(_services, request.Path, request.InitializeGit ?? false, request.AddCopilotInstructions ?? true);
+                bool gitInitialized = ProjectsManager.SetNewProject(_services, request.Path, request.InitializeGit ?? false, requestedHarness);
                 logger?.LogInformation($"✅ Database migrations completed for project: {request.Path}");
                 logPhase("ProjectsManager.SetNewProject (migrations+init)");
 
@@ -1101,6 +1122,18 @@ namespace MdExplorer.Service.Controllers.MdProjects
     {
         public string Path { get; set; }
         public bool? InitializeGit { get; set; }
+
+        /// <summary>
+        /// Harness scelto dalla finestra di creazione: <c>copilot</c>, <c>opencode</c> o
+        /// <c>none</c>. Assente alla RIAPERTURA di un progetto: in quel caso decide il
+        /// progetto stesso, che se lo porta scritto in .development.yml.
+        /// </summary>
+        public string Harness { get; set; }
+
+        /// <summary>
+        /// Forma precedente della stessa scelta, quando l'unico harness era Copilot.
+        /// Mantenuta per i client non ancora aggiornati; <see cref="Harness"/> ha la precedenza.
+        /// </summary>
         public bool? AddCopilotInstructions { get; set; }
     }
 }

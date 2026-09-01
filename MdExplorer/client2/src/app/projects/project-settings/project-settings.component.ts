@@ -1,7 +1,7 @@
 import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
 import { MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialogRef as MatDialogRef, MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { Subscription } from 'rxjs';
-import { ProjectSettingsService } from '../services/project-settings.service';
+import { HarnessTarget, ProjectSettingsService } from '../services/project-settings.service';
 import { CompatibilityModeService } from '../../services/compatibility-mode.service';
 import { IdeConfigurationService } from '../services/ide-configuration.service';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
@@ -24,6 +24,9 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   linkIndexingEnabled: boolean = true;
   plantUmlKeepOriginalColorsEnabled: boolean = false;
   copilotCliAutoSelectEnabled: boolean = true;
+  // Gemella della precedente. Default false: rispecchia il backend, dove un progetto che non
+  // ha mai visto l'opzione non deve cambiare motore della chat da solo.
+  claudeCodeAutoSelectEnabled: boolean = false;
 
   // Agent City / Federation (§12.4) — activation lives in .development.yml (shared via git).
   agentCityEnabled: boolean = false;
@@ -56,6 +59,13 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   stickyScrollEnabled: boolean = true;
   selectedIde: string = 'vscode';
   private lastSavedIde: string = 'vscode';
+
+  // Harness agentico (.development.yml). `harnessDeclared` a false = progetto creato prima che
+  // la scelta esistesse: quello mostrato è dedotto dalle cartelle sul disco, non ancora scritto.
+  harness: HarnessTarget = 'none';
+  harnessDeclared: boolean = true;
+  private lastSavedHarness: HarnessTarget = 'none';
+  savingHarness: boolean = false;
   vscodePath: string = '';
   intellijPath: string = '';
   projectId: string;
@@ -174,6 +184,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.loadFusekiSettings();
     this.loadAtlassianSettings();
     this.loadAgentCity();
+    this.loadHarness();
 
     this.ragProgressSub = this.serverMessages.ragIndexingProgress$.subscribe(data => {
       this.ragProcessed = data.processed;
@@ -222,10 +233,11 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     let stickyScrollLoaded = false;
     let plantUmlKeepOriginalColorsLoaded = false;
     let copilotCliAutoSelectLoaded = false;
+    let claudeCodeAutoSelectLoaded = false;
     let textIndexingLoaded = false;
 
     const checkIfDone = () => {
-      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded && stickyScrollLoaded && plantUmlKeepOriginalColorsLoaded && copilotCliAutoSelectLoaded && textIndexingLoaded) {
+      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded && stickyScrollLoaded && plantUmlKeepOriginalColorsLoaded && copilotCliAutoSelectLoaded && claudeCodeAutoSelectLoaded && textIndexingLoaded) {
         this.loading = false;
       }
     };
@@ -282,6 +294,20 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       error: (error) => {
         console.error('Error loading Copilot CLI Auto-Select setting:', error);
         copilotCliAutoSelectLoaded = true;
+        checkIfDone();
+      }
+    });
+
+    // Load Claude Code Auto-Select setting
+    this.projectSettingsService.getClaudeCodeAutoSelectSetting(this.projectPath).subscribe({
+      next: (response) => {
+        this.claudeCodeAutoSelectEnabled = response.enabled;
+        claudeCodeAutoSelectLoaded = true;
+        checkIfDone();
+      },
+      error: (error) => {
+        console.error('Error loading Claude Code Auto-Select setting:', error);
+        claudeCodeAutoSelectLoaded = true;
         checkIfDone();
       }
     });
@@ -454,6 +480,22 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     });
   }
 
+  onClaudeCodeAutoSelectChange(): void {
+    this.saving = true;
+    this.projectSettingsService.setClaudeCodeAutoSelectSetting(this.claudeCodeAutoSelectEnabled, this.projectPath).subscribe({
+      next: () => {
+        this.saving = false;
+      },
+      error: (error) => {
+        console.error('Error saving Claude Code Auto-Select setting:', error);
+        this.saving = false;
+        // Rimetti la casella com'era: mostrarla spuntata quando il salvataggio è fallito
+        // vorrebbe dire mentire sullo stato del progetto.
+        this.claudeCodeAutoSelectEnabled = !this.claudeCodeAutoSelectEnabled;
+      }
+    });
+  }
+
 
   loadAgentCity(): void {
     if (!this.projectPath) return;
@@ -501,6 +543,45 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       return;
     }
     this.saveAgentWorktrees();
+  }
+
+  loadHarness(): void {
+    if (!this.projectPath) return;
+    this.projectSettingsService.getHarness(this.projectPath).subscribe({
+      next: (res) => {
+        this.harness = res?.target || 'none';
+        this.harnessDeclared = !!res?.declared;
+        this.lastSavedHarness = this.harness;
+      },
+      error: (err) => {
+        console.error('Error loading harness setting:', err);
+      }
+    });
+  }
+
+  /**
+   * Cambiare harness installa subito i file dove il nuovo harness li vuole, ma NON rimuove
+   * quelli del precedente: sono file che stanno in un repository, magari personalizzati o già
+   * committati, e cancellarli per un cambio di impostazione sarebbe un danno che nessuno ha
+   * chiesto. La UI lo dice, così la cartella rimasta non sembra un errore.
+   */
+  onHarnessChange(): void {
+    if (this.harness === this.lastSavedHarness) return;
+
+    this.savingHarness = true;
+    this.projectSettingsService.setHarness(this.harness, this.projectPath).subscribe({
+      next: (res) => {
+        this.harness = res?.target || this.harness;
+        this.harnessDeclared = true;
+        this.lastSavedHarness = this.harness;
+        this.savingHarness = false;
+      },
+      error: (err) => {
+        console.error('Error saving harness setting:', err);
+        this.savingHarness = false;
+        this.loadHarness();   // riallinea allo stato persistito
+      }
+    });
   }
 
   private saveAgentWorktrees(): void {

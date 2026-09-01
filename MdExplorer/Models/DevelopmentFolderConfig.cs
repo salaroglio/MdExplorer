@@ -53,6 +53,32 @@ namespace MdExplorer.Service.Models
         /// typed round-trip).
         /// </summary>
         public AgentCityConfig AgentCity { get; set; }
+
+        /// <summary>
+        /// Harness agentico per cui MdExplorer installa skill, agent e prompt
+        /// (vedi docs-internal/Sprints/2026-08-31-Opencode-Harness-Support.md).
+        /// Null/assente = progetto creato prima che la scelta esistesse: la prima apertura la
+        /// deduce dal disco una volta sola e la scrive qui. Da lì in poi questa è l'unica fonte
+        /// di verità.
+        /// <para>DEVE stare in questo modello tipizzato: una sezione non modellata qui viene
+        /// CANCELLATA al primo salvataggio che passa dal round-trip (vedi la nota su
+        /// <see cref="AgentCity"/>).</para>
+        /// </summary>
+        public HarnessConfig Harness { get; set; }
+    }
+
+    /// <summary>
+    /// Sezione <c>harness:</c> di <c>.development.yml</c>. Committata col repository: la scelta
+    /// dell'harness è una caratteristica del progetto condivisa dal team, non una preferenza
+    /// della singola macchina.
+    /// </summary>
+    public class HarnessConfig
+    {
+        /// <summary>
+        /// <c>copilot</c>, <c>opencode</c> oppure <c>none</c>. Resta uno scalare: la scelta è
+        /// esclusiva, e modellarla come lista prima che serva davvero sarebbe prematuro.
+        /// </summary>
+        public string Target { get; set; }
     }
 
     /// <summary>

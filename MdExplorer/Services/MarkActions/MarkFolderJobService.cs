@@ -1,3 +1,4 @@
+using MdExplorer.Utilities;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -124,8 +125,8 @@ namespace MdExplorer.Services.MarkActions
                 }
 
                 // ---- Load the precooked prompts (deployed by MdeSkillUpdater) ----
-                var summarizePrompt = LoadPromptBody(projectPath, "mde-mark-summarize.prompt.md");
-                var synthesisPrompt = LoadPromptBody(projectPath, "mde-mark-folder-synthesis.prompt.md");
+                var summarizePrompt = LoadPromptBody(projectPath, "mde-mark-summarize");
+                var synthesisPrompt = LoadPromptBody(projectPath, "mde-mark-folder-synthesis");
 
                 // ---- Enumerate the subtree bottom-up (leaf folders first) ----
                 var folders = EnumerateFoldersBottomUp(folderFullPath, projectPath);
@@ -431,14 +432,14 @@ namespace MdExplorer.Services.MarkActions
         // ─────────────────────────────────────────────────────────────────────
         // Precooked prompt loading.
         // ─────────────────────────────────────────────────────────────────────
-        private static string LoadPromptBody(string projectPath, string fileName)
+        /// <param name="name">
+        /// Nome LOGICO del prompt (senza estensione): il percorso e l'estensione dipendono
+        /// dall'harness del progetto — <c>.github/prompts/&lt;n&gt;.prompt.md</c> per Copilot,
+        /// <c>.opencode/commands/&lt;n&gt;.md</c> per opencode — e li risolve MdeAssetResolver.
+        /// </param>
+        private static string LoadPromptBody(string projectPath, string name)
         {
-            var path = Path.Combine(projectPath, ".github", "prompts", fileName);
-            if (!File.Exists(path))
-                throw new FileNotFoundException(
-                    $"Prompt precotto mancante: '{path}'. Riapri il progetto per rigenerare i file in .github/prompts/.");
-
-            var text = File.ReadAllText(path);
+            var text = File.ReadAllText(MdeAssetResolver.PromptFullPath(projectPath, name));
 
             // Strip leading YAML frontmatter.
             var fm = Regex.Match(text, @"^---[ \t]*\r?\n.*?\r?\n---[ \t]*\r?\n", RegexOptions.Singleline);

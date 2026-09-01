@@ -507,6 +507,71 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
         }
 
+        /// <summary>
+        /// Harness agentico del progetto: dove MdExplorer installa skill, agent e prompt.
+        /// Vive in <c>.development.yml</c> e non in UserDB — e' una caratteristica del
+        /// repository, condivisa dal team, non una preferenza della macchina.
+        /// </summary>
+        [HttpGet]
+        public IActionResult GetHarness([FromQuery] string projectPath)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(projectPath))
+                    return BadRequest(new { error = "projectPath is required" });
+
+                // Dichiarato nel yml; se il progetto non e' ancora migrato, quello che dice
+                // il disco. Nessuna scrittura: leggere le impostazioni non cambia il progetto.
+                var declared = MdExplorer.Utilities.HarnessSettings.Read(projectPath);
+                var target = declared ?? MdExplorer.Utilities.HarnessSettings.DetectFromDisk(projectPath);
+
+                return Ok(new
+                {
+                    target = MdExplorer.Utilities.HarnessSettings.IdOf(target),
+                    declared = declared.HasValue
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                // harness.target scritto a mano con un valore che non esiste: si dice qual e'.
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetHarness] fallito per {ProjectPath}", projectPath);
+                return StatusCode(500, new { error = "Failed to read the project harness" });
+            }
+        }
+
+        [HttpPost]
+        public IActionResult SetHarness([FromBody] SetHarnessRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath))
+                    return BadRequest(new { error = "projectPath is required" });
+
+                if (!MdExplorer.Utilities.HarnessLayout.TryParseId(request.Target, out var target))
+                {
+                    return BadRequest(new
+                    {
+                        error = $"Unknown harness '{request.Target}'. Allowed values: {MdExplorer.Utilities.HarnessLayout.AllowedIds}."
+                    });
+                }
+
+                var services = HttpContext.RequestServices;
+                MdExplorer.Service.ProjectsManager.ApplyHarness(services, request.ProjectPath, target);
+
+                _logger.LogInformation("[SetHarness] {ProjectPath} → {Target}", request.ProjectPath, request.Target);
+                return Ok(new { target = MdExplorer.Utilities.HarnessSettings.IdOf(target) });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SetHarness] fallito per {ProjectPath}", request?.ProjectPath);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         /// <summary><c>Enabled</c> nullable: null = torna al default del progetto.</summary>
         public class SetAgentWorktreesRequest
         {
@@ -627,5 +692,13 @@ namespace MdExplorer.Service.Controllers.MdProjects
         /// <summary>Comma-separated allow-list; null/blank → central default.</summary>
         public string Extensions { get; set; }
         public string ProjectPath { get; set; }
+    }
+
+    public class SetHarnessRequest
+    {
+        public string ProjectPath { get; set; }
+
+        /// <summary><c>copilot</c>, <c>opencode</c> oppure <c>none</c>.</summary>
+        public string Target { get; set; }
     }
 }

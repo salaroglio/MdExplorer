@@ -5940,6 +5940,26 @@ class ProjectSettingsService {
     });
   }
   /**
+   * Selezione automatica di Claude Code. Gemella di quella Copilot, ma il default lato
+   * backend è OFF: un progetto che non ha mai visto questa opzione non deve cambiare
+   * motore della chat da solo.
+   */
+  getClaudeCodeAutoSelectSetting(projectPath) {
+    const url = '../api/ProjectSettings/GetClaudeCodeAutoSelectSetting';
+    return this.http.get(url, {
+      params: {
+        projectPath
+      }
+    });
+  }
+  setClaudeCodeAutoSelectSetting(enabled, projectPath) {
+    const url = '../api/ProjectSettings/SetClaudeCodeAutoSelectSetting';
+    return this.http.post(url, {
+      enabled,
+      projectPath
+    });
+  }
+  /**
    * Isolamento worktree: preferenza di QUESTA macchina (UserDB), non del repo — costa spazio
    * disco locale, quindi non si impone al team via git come le altre opzioni della città.
    */
@@ -5971,6 +5991,24 @@ class ProjectSettingsService {
     return this.http.post(url, {
       enabled,
       extensions,
+      projectPath
+    });
+  }
+  getHarness(projectPath) {
+    return this.http.get('../api/ProjectSettings/GetHarness', {
+      params: {
+        projectPath
+      }
+    });
+  }
+  /**
+   * Cambia l'harness e installa subito i file dove il nuovo harness li vuole.
+   * Non rimuove quelli del precedente: sono file in un repository, possibilmente
+   * personalizzati — la pulizia resta una scelta esplicita dell'utente.
+   */
+  setHarness(target, projectPath) {
+    return this.http.post('../api/ProjectSettings/SetHarness', {
+      target,
       projectPath
     });
   }
@@ -10551,4 +10589,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_git_git_module_ts-src_app_md-explorer_services_agent-city-state_service_ts-sr-597f33.64ced43346bb85d7.js.map
+//# sourceMappingURL=default-src_app_git_git_module_ts-src_app_md-explorer_services_agent-city-state_service_ts-sr-597f33.1f90f29c13d43eaa.js.map

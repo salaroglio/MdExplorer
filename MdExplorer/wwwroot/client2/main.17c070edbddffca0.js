@@ -12292,6 +12292,11 @@ class ProjectsService {
     // Consumers (ai-chat.component) decide whether to silently connect to Copilot CLI
     // or to disable the chat with a "not installed" banner.
     this.copilotCliAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(null);
+    // Stessa cosa per Claude Code. Sono due flussi separati ma il backend garantisce che
+    // ne arrivi acceso al massimo UNO: la precedenza (quando entrambi i flag sono attivi
+    // vince Claude Code) è decisa là, in un punto solo, non contesa qui fra due
+    // sottoscrizioni che scriverebbero a turno sullo stesso stato della chat.
+    this.claudeCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(null);
     // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
     this.projectChangingSubject = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
     this.projectChanging$ = this.projectChangingSubject.asObservable();
@@ -12300,6 +12305,8 @@ class ProjectsService {
     this.currentOderId = null;
     // Retry handle for the Copilot CLI availability re-check (see emitCopilotCliAutoConfig).
     this.copilotCliRetryTimer = null;
+    // Idem per Claude Code (vedi emitClaudeCodeAutoConfig).
+    this.claudeCodeRetryTimer = null;
     this.dataStore = {
       mdProjects: []
     };
@@ -12341,6 +12348,7 @@ class ProjectsService {
         _this2.applyPlantUmlKeepOriginalClass(path);
         // Emit Copilot CLI auto-select hint for ai-chat to consume
         _this2.emitCopilotCliAutoConfig(response);
+        _this2.emitClaudeCodeAutoConfig(response);
         // Update compatibility mode from response
         if (response.compatibilityMode) {
           const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.GitHub : response.compatibilityMode === 'commonmark' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.CommonMark : _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.MdExplorer;
@@ -12366,7 +12374,9 @@ class ProjectsService {
     const request = {
       path: config.projectPath,
       initializeGit: config.initializeGit,
-      addCopilotInstructions: config.addCopilotInstructions
+      // La scelta dell'harness viaggia SOLO alla creazione. Alla riapertura non si manda:
+      // decide il progetto, che se la porta scritta in .development.yml.
+      harness: config.harness
     };
     this.http.post('../api/MdProjects/SetFolderProject', request).subscribe(/*#__PURE__*/function () {
       var _ref2 = (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (response) {
@@ -12381,6 +12391,7 @@ class ProjectsService {
         _this3.applyPlantUmlKeepOriginalClass(config.projectPath);
         // Emit Copilot CLI auto-select hint for ai-chat to consume
         _this3.emitCopilotCliAutoConfig(response);
+        _this3.emitClaudeCodeAutoConfig(response);
         // Update compatibility mode from response
         if (response.compatibilityMode) {
           const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.GitHub : response.compatibilityMode === 'commonmark' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.CommonMark : _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.MdExplorer;
@@ -12543,6 +12554,50 @@ class ProjectsService {
           next: r => {
             if (r?.configured === true) {
               this.copilotCliAutoConfig$.next({
+                autoSelect: true,
+                available: true,
+                defaultModel
+              });
+            }
+          },
+          error: () => {}
+        });
+      }, 2000);
+    }
+  }
+  /**
+   * Gemella di emitCopilotCliAutoConfig per Claude Code.
+   *
+   * La ri-verifica qui è meno probabile che serva — la disponibilità di Claude Code è una
+   * scansione del PATH, non un processo da avviare, quindi non ha una cache fredda da
+   * scaldare — ma resta per simmetria e non costa nulla quando la prima risposta è già
+   * "disponibile".
+   */
+  emitClaudeCodeAutoConfig(response) {
+    if (this.claudeCodeRetryTimer) {
+      clearTimeout(this.claudeCodeRetryTimer);
+      this.claudeCodeRetryTimer = null;
+    }
+    if (response == null) return;
+    if (typeof response.claudeCodeAutoSelect !== 'boolean') {
+      this.claudeCodeAutoConfig$.next(null);
+      return;
+    }
+    const autoSelect = response.claudeCodeAutoSelect === true;
+    const available = response.claudeCodeAvailable === true;
+    const defaultModel = response.claudeCodeDefaultModel ?? null;
+    this.claudeCodeAutoConfig$.next({
+      autoSelect,
+      available,
+      defaultModel
+    });
+    if (autoSelect && !available) {
+      this.claudeCodeRetryTimer = setTimeout(() => {
+        this.claudeCodeRetryTimer = null;
+        this.http.get('../api/ClaudeCode/configured').subscribe({
+          next: r => {
+            if (r?.configured === true) {
+              this.claudeCodeAutoConfig$.next({
                 autoSelect: true,
                 available: true,
                 defaultModel
@@ -13883,6 +13938,15 @@ class AiChatService {
     // True while a prompt is streaming a response on the default channel — drives the Stop button.
     this._isStreaming$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
     this.isStreaming$ = this._isStreaming$.asObservable();
+    /**
+     * Consuntivo dell'ultimo turno di Claude Code (evento SignalR `ReceiveClaudeUsage`).
+     * Resta null per ogni altro provider: nessun altro lo manda.
+     */
+    this._claudeUsage$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
+    this.claudeUsage$ = this._claudeUsage$.asObservable();
+    /** Ultima attività sui tool osservata nel turno in corso (riga di stato, non risposta). */
+    this._toolActivity$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
+    this.toolActivity$ = this._toolActivity$.asObservable();
     this._gpuInfo$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
     this.gpuInfo$ = this._gpuInfo$.asObservable();
     this._gpuEnabled$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(false);
@@ -13967,6 +14031,26 @@ class AiChatService {
         this.appendToThinkingContent(chunk);
       }
     });
+    // Consuntivo di fine turno: solo Claude Code lo manda. Il canale privato (mark-search,
+    // promptlab, ai-selection) non ha dove mostrarlo, quindi si tiene solo quello della chat.
+    this.hubConnection.on('ReceiveClaudeUsage', (usage, channelId) => {
+      if ((channelId || 'default') === 'default') {
+        this._claudeUsage$.next(usage ?? null);
+      }
+    });
+    // Attività sui tool: "sta leggendo X", "sta eseguendo Y". È una riga di stato, non la
+    // risposta, e per questo NON entra nel messaggio in costruzione.
+    this.hubConnection.on('ReceiveToolActivity', (activity, channelId) => {
+      const ch = channelId || 'default';
+      this._channelEvent$.next({
+        type: 'tool',
+        data: activity,
+        channelId: ch
+      });
+      if (ch === 'default') {
+        this._toolActivity$.next(activity);
+      }
+    });
     this.hubConnection.on('StreamComplete', channelId => {
       const ch = channelId || 'default';
       this._channelEvent$.next({
@@ -13977,6 +14061,8 @@ class AiChatService {
       if (ch === 'default') {
         this.finalizeStreamingMessage();
         this._isStreaming$.next(false);
+        // Il turno è finito: l'ultima attività sui tool non è più "sta facendo", è passato.
+        this._toolActivity$.next(null);
       }
     });
     this.hubConnection.on('ReceiveError', (error, channelId) => {
@@ -13990,6 +14076,7 @@ class AiChatService {
         console.error('Chat error:', error);
         this.addMessage('system', `Error: ${error}`);
         this._isStreaming$.next(false);
+        this._toolActivity$.next(null);
       }
     });
     // Automatic reconnect assigns a NEW connectionId, and the backend wiped all state
@@ -14214,7 +14301,8 @@ class AiChatService {
   }
   /**
    * Get an Observable stream of events filtered for a specific channelId.
-   * Each event has { type: 'chunk' | 'thinking' | 'complete' | 'error', data: any }.
+   * Each event has { type: 'chunk' | 'thinking' | 'tool' | 'complete' | 'error', data: any }.
+   * 'tool' arriva solo da Claude Code ed è una riga di stato, non testo della risposta.
    * Used by PromptLab cards to subscribe to their own channel.
    */
   getChannelStream$(channelId) {
@@ -14508,6 +14596,17 @@ class AiChatService {
   getCopilotCliModels() {
     return this.getModelsByProvider('CopilotCli').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(response => response.models || []));
   }
+  checkClaudeCodeConfiguration() {
+    return this.http.get('/api/claudecode/configured');
+  }
+  /**
+   * Modelli di Claude Code. Passa dall'endpoint generico per tipo di provider: la lista è
+   * dichiarata lato server (il CLI non espone un comando per elencarla) e sono alias
+   * — `sonnet`, `opus`, `haiku` — che puntano sempre all'ultima versione della famiglia.
+   */
+  getClaudeCodeModels() {
+    return this.getModelsByProvider('ClaudeCode').pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(response => response.models || []));
+  }
   getCopilotCliSystemPrompt() {
     return this.http.get('/api/copilotcli/system-prompt');
   }
@@ -14566,6 +14665,19 @@ class AiChatService {
     this._isModelLoaded$.next(false);
     this._currentModel$.next(null);
     console.log('[AiChatService] CopilotCli disconnected');
+  }
+  notifyClaudeCodeConnected(modelId) {
+    console.log('[AiChatService] notifyClaudeCodeConnected con modelId:', modelId);
+    this._isModelLoaded$.next(true);
+    this._currentModel$.next(`ClaudeCode: ${modelId}`);
+  }
+  notifyClaudeCodeDisconnected() {
+    this._isModelLoaded$.next(false);
+    this._currentModel$.next(null);
+    // Il consuntivo si riferisce a una sessione che non c'è più: lasciarlo a video
+    // farebbe credere che quei numeri riguardino ancora la chat aperta.
+    this._claudeUsage$.next(null);
+    console.log('[AiChatService] ClaudeCode disconnesso');
   }
   generateCommitMessage(projectPath) {
     return this.http.post('/api/GitAi/generate-commit-message', {
@@ -17598,8 +17710,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.08.18.11',
-  buildTime: '2026.08.18 16:52:34'
+  version: '2026.09.01.1',
+  buildTime: '2026.09.01 08:59:01'
 };
 
 /***/ }),
@@ -17633,4 +17745,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.7ad8abbf414708ed.js.map
+//# sourceMappingURL=main.17c070edbddffca0.js.map

@@ -32,11 +32,16 @@ namespace MdExplorer.Service
 {
     public class ProjectsManager
     {
-        public static bool SetNewProject(IServiceProvider serviceProvider, string pathFromParameter, bool initializeGit = true, bool addCopilotInstructions = true)
+        /// <param name="requestedHarness">
+        /// Harness chosen right now by the creation dialog. <c>null</c> — the normal case when
+        /// re-opening a project — means "read it from the project": the choice lives in
+        /// .development.yml, not in the request. See HarnessSettings.Resolve.
+        /// </param>
+        public static bool SetNewProject(IServiceProvider serviceProvider, string pathFromParameter, bool initializeGit = true, HarnessTarget? requestedHarness = null)
         {
             // Fuseki/Jena skills are deployed only for projects configured for Fuseki.
             var fusekiEnabled = IsFusekiEnabled(serviceProvider, pathFromParameter);
-            ConfigTemplates(pathFromParameter, null, addCopilotInstructions, fusekiEnabled);
+            ConfigTemplates(pathFromParameter, null, requestedHarness, fusekiEnabled);
 
             // Initialize Git repository only if requested
             bool gitInitialized = false;
@@ -256,7 +261,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
     return effectivePath; // Return the path that was actually used.
 }
 
-        public static void ConfigTemplates(string mdPath, IServiceCollection services = null, bool addCopilotInstructions = true, bool fusekiEnabled = false)
+        public static void ConfigTemplates(string mdPath, IServiceCollection services = null, HarnessTarget? requestedHarness = null, bool fusekiEnabled = false)
         {
             //var directory = $"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md";
             var directory = $"{mdPath}{Path.DirectorySeparatorChar}.md";
@@ -266,7 +271,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             Directory.CreateDirectory(directoryEmoji);
 
             // Copy configuration files to project root if they don't exist
-            CopyConfigurationFilesToProject(mdPath, addCopilotInstructions, fusekiEnabled);
+            CopyConfigurationFilesToProject(mdPath, requestedHarness, fusekiEnabled);
 
             var assembly = Assembly.GetExecutingAssembly();
             var embeddedSubfolder = "MdExplorer.Service.EmojiForPandoc.";
@@ -362,75 +367,260 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             }
         }
         
-        private static void CopyConfigurationFilesToProject(string projectPath, bool addCopilotInstructions = true, bool fusekiEnabled = false)
+        private static void CopyConfigurationFilesToProject(string projectPath, HarnessTarget? requestedHarness = null, bool fusekiEnabled = false)
         {
             try
             {
-                var assembly = Assembly.GetExecutingAssembly();
+                EnsureBaseConfigurationFiles(projectPath);
 
-                // Copy .mdapplicationtoopen file
-                var mdApplicationToOpenPath = Path.Combine(projectPath, ".mdapplicationtoopen");
-                if (!File.Exists(mdApplicationToOpenPath))
-                {
-                    FileUtil.ExtractResFile("MdExplorer.Service..mdapplicationtoopen", mdApplicationToOpenPath);
-                    Console.WriteLine($"Created configuration file: {mdApplicationToOpenPath}");
-                }
+                // L'harness si risolve DOPO i file base: la scelta vive in .development.yml, che
+                // deve gia' esistere perche' ci si possa scrivere dentro senza perdere i default
+                // del template embedded.
+                var harness = HarnessSettings.Resolve(projectPath, requestedHarness);
+                InstallHarnessAssets(projectPath, harness, fusekiEnabled);
 
-                // Copy .mdchangeignore file
-                var mdChangeIgnorePath = Path.Combine(projectPath, ".mdchangeignore");
-                if (!File.Exists(mdChangeIgnorePath))
-                {
-                    FileUtil.ExtractResFile("MdExplorer.Service..mdchangeignore", mdChangeIgnorePath);
-                    Console.WriteLine($"Created configuration file: {mdChangeIgnorePath}");
-                }
-
-                // Copy .mdFoldersIgnore file
-                var mdFoldersIgnorePath = Path.Combine(projectPath, ".mdFoldersIgnore");
-                if (!File.Exists(mdFoldersIgnorePath))
-                {
-                    FileUtil.ExtractResFile("MdExplorer.Service..mdFoldersIgnore", mdFoldersIgnorePath);
-                    Console.WriteLine($"Created folders ignore configuration file: {mdFoldersIgnorePath}");
-                }
-
-                // Copy .development.yml file
-                var developmentConfigPath = Path.Combine(projectPath, ".development.yml");
-                if (!File.Exists(developmentConfigPath))
-                {
-                    FileUtil.ExtractResFile("MdExplorer.Service..development.yml", developmentConfigPath);
-                    Console.WriteLine($"Created development configuration file: {developmentConfigPath}");
-                }
-
-                // Create .github folder and copy copilot-instructions.md only if requested
-                if (addCopilotInstructions)
-                {
-                    var githubPath = Path.Combine(projectPath, ".github");
-                    Directory.CreateDirectory(githubPath);
-
-                    var copilotInstructionsPath = Path.Combine(githubPath, "copilot-instructions.md");
-                    if (!File.Exists(copilotInstructionsPath))
-                    {
-                        FileUtil.ExtractResFile("MdExplorer.Service.copilot-instructions.md", copilotInstructionsPath);
-                        Console.WriteLine($"Created GitHub Copilot instructions file: {copilotInstructionsPath}");
-                    }
-
-                    // Copilot agent skills — version-aware install/update.
-                    // Each MdE-managed skill has an `mde:` block in its frontmatter; the updater
-                    // upgrades it on every project open if the embedded version is newer, but
-                    // leaves user-customized skills alone (when `origin` differs or is missing).
-                    MdeSkillUpdater.EnsureAllSkillsInstalled(projectPath, fusekiEnabled);
-                }
-
-                // Create .vscode folder with MCP server configuration
-                CreateVsCodeMcpConfig(projectPath);
-
-                // Create .copilot folder with MCP server configuration (for Copilot CLI)
-                CreateCopilotCliMcpConfig(projectPath);
+                RegisterMcpServerForHarness(projectPath, harness);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error copying configuration files: {ex.Message}");
                 // Non-critical error, continue without the files
             }
+        }
+
+        /// <summary>
+        /// Switches an EXISTING project to the given harness: persists the choice, installs the
+        /// instructions and the three catalogs where the new harness wants them, registers the MCP
+        /// server and updates the .gitignore.
+        /// <para>
+        /// What it deliberately does NOT do is delete the previous harness folder. Those files are
+        /// in someone's repository, possibly customised, possibly committed: removing them on a
+        /// settings change would be a destructive act nobody asked for. They stay, and
+        /// <c>IsPerInstallArtifact</c> keeps recognising them so they never get committed.
+        /// </para>
+        /// </summary>
+        public static void ApplyHarness(IServiceProvider serviceProvider, string projectPath, HarnessTarget harness)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath) || !Directory.Exists(projectPath))
+                throw new DirectoryNotFoundException($"Project path does not exist: {projectPath}");
+
+            // .development.yml deve esistere prima che ci si scriva l'harness dentro.
+            EnsureBaseConfigurationFiles(projectPath);
+            HarnessSettings.Write(projectPath, harness);
+
+            var fusekiEnabled = IsFusekiEnabled(serviceProvider, projectPath);
+            InstallHarnessAssets(projectPath, harness, fusekiEnabled);
+            RegisterMcpServerForHarness(projectPath, harness);
+            EnsureGitignoreEntries(projectPath);
+        }
+
+        /// <summary>
+        /// The project configuration files that do not depend on the agent harness. Idempotent:
+        /// every file is written only when missing, so calling this twice costs nothing.
+        /// </summary>
+        private static void EnsureBaseConfigurationFiles(string projectPath)
+        {
+            // Copy .mdapplicationtoopen file
+            var mdApplicationToOpenPath = Path.Combine(projectPath, ".mdapplicationtoopen");
+            if (!File.Exists(mdApplicationToOpenPath))
+            {
+                FileUtil.ExtractResFile("MdExplorer.Service..mdapplicationtoopen", mdApplicationToOpenPath);
+                Console.WriteLine($"Created configuration file: {mdApplicationToOpenPath}");
+            }
+
+            // Copy .mdchangeignore file
+            var mdChangeIgnorePath = Path.Combine(projectPath, ".mdchangeignore");
+            if (!File.Exists(mdChangeIgnorePath))
+            {
+                FileUtil.ExtractResFile("MdExplorer.Service..mdchangeignore", mdChangeIgnorePath);
+                Console.WriteLine($"Created configuration file: {mdChangeIgnorePath}");
+            }
+
+            // Copy .mdFoldersIgnore file
+            var mdFoldersIgnorePath = Path.Combine(projectPath, ".mdFoldersIgnore");
+            if (!File.Exists(mdFoldersIgnorePath))
+            {
+                FileUtil.ExtractResFile("MdExplorer.Service..mdFoldersIgnore", mdFoldersIgnorePath);
+                Console.WriteLine($"Created folders ignore configuration file: {mdFoldersIgnorePath}");
+            }
+
+            // Copy .development.yml file — deve esistere prima che si scriva harness.target.
+            var developmentConfigPath = Path.Combine(projectPath, ".development.yml");
+            if (!File.Exists(developmentConfigPath))
+            {
+                FileUtil.ExtractResFile("MdExplorer.Service..development.yml", developmentConfigPath);
+                Console.WriteLine($"Created development configuration file: {developmentConfigPath}");
+            }
+        }
+
+        /// <summary>
+        /// Installs the project instructions and the three catalogs (skills, agents, prompts) at
+        /// the places the project's harness prescribes. A project that declares no harness gets
+        /// none of them — and that is said out loud, not guessed away.
+        /// </summary>
+        private static void InstallHarnessAssets(string projectPath, HarnessTarget harness, bool fusekiEnabled)
+        {
+            if (harness == HarnessTarget.None)
+            {
+                Console.WriteLine("[ProjectsManager] harness.target = none: no instructions, skills, agents or prompts installed.");
+                return;
+            }
+
+            var layout = HarnessLayout.For(harness);
+
+            var instructionsPath = layout.InstructionsFullPath(projectPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(instructionsPath));
+            if (!File.Exists(instructionsPath))
+            {
+                FileUtil.ExtractResFile(layout.InstructionsResource, instructionsPath);
+                Console.WriteLine($"Created project instructions file ({layout.Id}): {instructionsPath}");
+            }
+
+            // Version-aware install/update. Each MdE-managed asset has an `mde:` block in its
+            // frontmatter; the updater upgrades it on every project open if the embedded version
+            // is newer, but leaves user-customized files alone (when `origin` differs or is missing).
+            MdeSkillUpdater.EnsureCatalogsInstalled(projectPath, layout, fusekiEnabled);
+        }
+
+        /// <summary>
+        /// Registers the MdExplorer MCP server where the project's harness looks for it.
+        /// Copilot reads <c>.vscode/mcp.json</c> and <c>~/.copilot/mcp-config.json</c>; opencode
+        /// reads its own config. A project with no harness gets no registration: the choice is
+        /// exclusive, so we do not scatter configuration for a tool this project does not use.
+        /// </summary>
+        private static void RegisterMcpServerForHarness(string projectPath, HarnessTarget harness)
+        {
+            switch (harness)
+            {
+                case HarnessTarget.Copilot:
+                    // Create .vscode folder with MCP server configuration
+                    CreateVsCodeMcpConfig(projectPath);
+                    // Create .copilot folder with MCP server configuration (for Copilot CLI)
+                    CreateCopilotCliMcpConfig(projectPath);
+                    break;
+
+                case HarnessTarget.OpenCode:
+                    CreateOpenCodeMcpConfig();
+                    break;
+
+                default:
+                    Console.WriteLine("[ProjectsManager] harness.target = none: no MCP server registration.");
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Adds the MdExplorer server to opencode's global config
+        /// (<c>~/.config/opencode/opencode.json</c>, key <c>mcp</c>).
+        /// <para>
+        /// Global and not the project's own <c>opencode.json</c> on purpose: the entry carries the
+        /// absolute path of THIS installation's MCP executable, which committed in a project file
+        /// would be noise — or a broken path — for everyone else on the team. Same reasoning as
+        /// <see cref="CreateCopilotCliMcpConfig"/>.
+        /// </para>
+        /// <para>
+        /// The file is merged, never rewritten: only the <c>mcp.mdexplorer</c> entry is touched,
+        /// so a user's own opencode configuration survives untouched.
+        /// </para>
+        /// </summary>
+        private static void CreateOpenCodeMcpConfig()
+        {
+            try
+            {
+                var userHome = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                var configDir = Path.Combine(userHome, ".config", "opencode");
+                Directory.CreateDirectory(configDir);
+
+                var configPath = Path.Combine(configDir, "opencode.json");
+                const string serverKey = "mdexplorer";
+
+                var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                var mcpExePath = ResolveMcpExecutable(baseDir);
+
+                // In opencode `command` is an ARRAY (argv), not a string.
+                System.Text.Json.Nodes.JsonObject serverEntry;
+                if (mcpExePath != null)
+                {
+                    serverEntry = new System.Text.Json.Nodes.JsonObject
+                    {
+                        ["type"] = "local",
+                        ["command"] = new System.Text.Json.Nodes.JsonArray(mcpExePath),
+                        ["enabled"] = true
+                    };
+                }
+                else
+                {
+                    // Dev box with sources but nothing built yet — last resort, same caveat as
+                    // the Copilot CLI path (see ResolveMcpExecutable).
+                    var mcpProjectPath = FindMcpProjectPath(baseDir);
+                    serverEntry = new System.Text.Json.Nodes.JsonObject
+                    {
+                        ["type"] = "local",
+                        ["command"] = new System.Text.Json.Nodes.JsonArray("dotnet", "run", "--project", mcpProjectPath),
+                        ["enabled"] = true
+                    };
+                }
+
+                System.Text.Json.Nodes.JsonObject root;
+                if (File.Exists(configPath))
+                {
+                    root = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(configPath))?.AsObject()
+                           ?? new System.Text.Json.Nodes.JsonObject();
+                }
+                else
+                {
+                    root = new System.Text.Json.Nodes.JsonObject
+                    {
+                        ["$schema"] = "https://opencode.ai/config.json"
+                    };
+                }
+
+                if (root["mcp"] is not System.Text.Json.Nodes.JsonObject servers)
+                {
+                    servers = new System.Text.Json.Nodes.JsonObject();
+                    root["mcp"] = servers;
+                }
+
+                // Write when missing, or heal an entry whose launch target no longer resolves —
+                // never replace a working user customization.
+                var entryMissing = !servers.ContainsKey(serverKey);
+                var entryBroken = servers[serverKey] is System.Text.Json.Nodes.JsonObject existing
+                                  && OpenCodeMcpEntryLaunchTargetMissing(existing);
+                if (entryMissing || (mcpExePath != null && entryBroken))
+                {
+                    servers[serverKey] = serverEntry;
+                }
+
+                var json = root.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(configPath, json);
+                Console.WriteLine($"opencode MCP configuration ensured: {configPath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error creating opencode MCP configuration: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// True when an opencode <c>mcp</c> entry points at an executable that is not there any
+        /// more (an install path that changed between versions), or at the fragile
+        /// "dotnet run" form. Both mean the server will fail to start.
+        /// </summary>
+        private static bool OpenCodeMcpEntryLaunchTargetMissing(System.Text.Json.Nodes.JsonObject entry)
+        {
+            if (entry["command"] is not System.Text.Json.Nodes.JsonArray command || command.Count == 0)
+            {
+                return true;
+            }
+
+            var head = command[0]?.GetValue<string>();
+            if (string.IsNullOrWhiteSpace(head)) return true;
+
+            // "dotnet run --project ..." self-locks its bin folder and fails to launch: treat it
+            // as broken so a real executable replaces it as soon as one exists.
+            if (string.Equals(head, "dotnet", StringComparison.OrdinalIgnoreCase)) return true;
+
+            return !File.Exists(head);
         }
 
         private static void CreateVsCodeMcpConfig(string projectPath)
@@ -817,10 +1007,16 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
         /// <summary>
         /// Ensures the project's .gitignore excludes the per-install artifacts that MdExplorer
-        /// generates under .github (skills/prompts/agents named mde-*) and the instance-specific
-        /// .vscode/mcp.json. These depend on the installed MDE version — different per client —
-        /// so they must never be committed to a documentation repository shared across clients.
-        /// Idempotent: appends the block at most once, and only when the folder is a Git repo.
+        /// generates for the harness the project targets (skills/prompts/agents named mde-*, and
+        /// the instance-specific MCP config). These depend on the installed MDE version —
+        /// different per client — so they must never be committed to a documentation repository
+        /// shared across clients.
+        /// <para>
+        /// Which patterns those are comes from the project's <see cref="HarnessLayout"/>: an
+        /// opencode project needs <c>.opencode/**/mde-*</c>, and writing the Copilot patterns
+        /// there would exclude nothing while cluttering someone else's .gitignore.
+        /// </para>
+        /// Idempotent: every pattern is appended at most once, and only when the folder is a Git repo.
         /// </summary>
         /// <param name="projectPath">Path to the project folder</param>
         public static void EnsureGitignoreEntries(string projectPath)
@@ -839,14 +1035,26 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
                 var block = new StringBuilder();
 
-                // Idempotency marker: the wildcard pattern is unique enough to detect a previous run.
-                if (!existing.Contains(".github/**/mde-*"))
+                // Un progetto che non dichiara un harness non genera artefatti per-install:
+                // non c'e' niente da escludere e non si scrive nulla a nome suo.
+                var declaredHarness = HarnessSettings.Read(projectPath) ?? HarnessTarget.None;
+                if (declaredHarness != HarnessTarget.None)
                 {
-                    block.AppendLine("# MDE per-install artifacts — managed by MdExplorer, do not commit");
-                    block.AppendLine("# (skill/prompt/agent files generated under .github vary by the installed");
-                    block.AppendLine("#  MDE version, and the MCP config is instance-specific)");
-                    block.AppendLine(".github/**/mde-*");
-                    block.AppendLine(".vscode/mcp.json");
+                    var layout = HarnessLayout.For(declaredHarness);
+                    var missing = layout.GitignorePatterns
+                        .Where(pattern => !existing.Contains(pattern))
+                        .ToList();
+
+                    if (missing.Count > 0)
+                    {
+                        block.AppendLine("# MDE per-install artifacts — managed by MdExplorer, do not commit");
+                        block.AppendLine($"# (skill/prompt/agent files generated under {layout.RootFolder} vary by the");
+                        block.AppendLine("#  installed MDE version, and the MCP config is instance-specific)");
+                        foreach (var pattern in missing)
+                        {
+                            block.AppendLine(pattern);
+                        }
+                    }
                 }
 
                 // La cartella .md e' l'area di appoggio dell'applicazione — cache HTML dei
@@ -984,9 +1192,15 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
         /// <summary>
         /// True when a repo-relative path is a per-install MDE artifact: the instance-specific
-        /// <c>.vscode/mcp.json</c>, or anything under <c>.github/</c> with a path segment named
-        /// <c>mde-*</c> (covers both <c>mde-*</c> files and files inside <c>mde-*</c> directories).
-        /// Mirrors the <c>.github/**/mde-*</c> + <c>.vscode/mcp.json</c> .gitignore patterns.
+        /// <c>.vscode/mcp.json</c>, or anything under a harness root (<c>.github/</c>,
+        /// <c>.opencode/</c>) with a path segment named <c>mde-*</c> (covers both <c>mde-*</c>
+        /// files and files inside <c>mde-*</c> directories).
+        /// Mirrors the <c>&lt;root&gt;/**/mde-*</c> + <c>.vscode/mcp.json</c> .gitignore patterns.
+        /// <para>
+        /// Deliberately NOT limited to the harness the project currently declares: a project that
+        /// switched harness leaves the old folder behind, and those files stay per-install
+        /// artifacts that must not be committed.
+        /// </para>
         /// </summary>
         private static bool IsPerInstallArtifact(string relativePath)
         {
@@ -1002,9 +1216,14 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 return true;
             }
 
-            if (p.StartsWith(".github/", StringComparison.OrdinalIgnoreCase))
+            foreach (var layout in HarnessLayout.All)
             {
-                // Skip segment [0] (".github"); any later segment starting with "mde-" matches.
+                if (!p.StartsWith(layout.RootFolder + "/", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                // Skip segment [0] (the harness root); any later segment starting with "mde-" matches.
                 var segments = p.Split('/');
                 for (int i = 1; i < segments.Length; i++)
                 {

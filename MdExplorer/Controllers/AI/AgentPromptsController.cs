@@ -1,3 +1,4 @@
+using MdExplorer.Utilities;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
@@ -24,7 +25,12 @@ namespace MdExplorer.Controllers.AI
     [Route("api/[controller]")]
     public class AgentPromptsController : ControllerBase
     {
-        private const string SkillRelativePath = ".github/skills/mde-prompt-for-agents/SKILL.md";
+        /// <summary>
+        /// Nome LOGICO della skill. Dove stia il file lo decide l'harness del progetto
+        /// (.github/skills/... per Copilot, .opencode/skills/... per opencode): lo risolve
+        /// MdeAssetResolver, qui non si nominano percorsi.
+        /// </summary>
+        private const string SkillName = "mde-prompt-for-agents";
 
         private readonly IEnumerable<IAiProvider> _aiProviders;
         private readonly MdExplorer.Services.AgentRun.IAgentRunJobService _agentRunJobService;
@@ -63,15 +69,22 @@ namespace MdExplorer.Controllers.AI
                 });
             }
 
-            var skillPath = Path.Combine(request.ProjectPath, SkillRelativePath.Replace('/', Path.DirectorySeparatorChar));
-            if (!System.IO.File.Exists(skillPath))
+            // Il percorso serve due volte: per verificare che il file ci sia e per CITARLO nel
+            // meta-prompt qui sotto. Deve quindi essere quello vero del progetto, non un
+            // .github/... cablato che su un progetto opencode manderebbe il modello a vuoto.
+            string skillRelativePath;
+            try
+            {
+                skillRelativePath = MdeAssetResolver.SkillRelativePath(request.ProjectPath, SkillName);
+            }
+            catch (Exception ex) when (ex is System.IO.FileNotFoundException || ex is InvalidOperationException)
             {
                 // The skill is installed by MdeSkillUpdater at project open; if it is missing
                 // something is off — say it, don't improvise a convention inline.
                 return Ok(new NormalizeAgentPromptResponse
                 {
                     Success = false,
-                    Error = $"Skill file not found: {SkillRelativePath}. Re-open the project to let MdExplorer install its skills."
+                    Error = ex.Message
                 });
             }
 
@@ -90,7 +103,7 @@ namespace MdExplorer.Controllers.AI
             {
                 copilot.WorkingDirectory = request.ProjectPath;
                 var metaPrompt =
-                    $"Read the file `{SkillRelativePath}` in the current working directory. " +
+                    $"Read the file `{skillRelativePath}` in the current working directory. " +
                     "Rewrite the prompt below following that convention EXACTLY. " +
                     "Return only the rewritten prompt, with no commentary and no surrounding code fence.\n\n" +
                     "---\n\n" + request.Prompt;

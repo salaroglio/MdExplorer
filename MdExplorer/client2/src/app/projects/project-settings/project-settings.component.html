@@ -383,6 +383,58 @@
 
         <mat-card class="settings-section">
           <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.HARNESS_TITLE' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="setting-item">
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.HARNESS_DESC' | translate }}
+              </p>
+
+              <div class="setting-description" *ngIf="!harnessDeclared">
+                <mat-icon class="inline-warn-icon">info</mat-icon>
+                {{ 'PROJECT_SETTINGS.HARNESS_NOT_DECLARED' | translate }}
+              </div>
+
+              <mat-radio-group
+                [(ngModel)]="harness"
+                (change)="onHarnessChange()"
+                [disabled]="savingHarness">
+                <mat-radio-button value="copilot" class="ide-radio">
+                  <span class="ide-label">
+                    <mat-icon class="ide-icon-inline copilot-color">smart_toy</mat-icon>
+                    {{ 'PROJECT_SETTINGS.HARNESS_COPILOT' | translate }}
+                  </span>
+                </mat-radio-button>
+                <mat-radio-button value="opencode" class="ide-radio">
+                  <span class="ide-label">
+                    <mat-icon class="ide-icon-inline">terminal</mat-icon>
+                    {{ 'PROJECT_SETTINGS.HARNESS_OPENCODE' | translate }}
+                  </span>
+                </mat-radio-button>
+                <mat-radio-button value="none" class="ide-radio">
+                  <span class="ide-label">
+                    <mat-icon class="ide-icon-inline">block</mat-icon>
+                    {{ 'PROJECT_SETTINGS.HARNESS_NONE' | translate }}
+                  </span>
+                </mat-radio-button>
+              </mat-radio-group>
+
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.HARNESS_SWITCH_NOTE' | translate }}
+              </p>
+            </div>
+
+            <div *ngIf="savingHarness" class="saving-indicator">
+              <mat-spinner diameter="20"></mat-spinner>
+              <span>{{ 'COMMON.SAVING' | translate }}</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="settings-section">
+          <mat-card-header>
             <mat-card-title>{{ 'PROJECT_SETTINGS.COPILOT_CLI_TITLE' | translate }}</mat-card-title>
           </mat-card-header>
 
@@ -396,6 +448,31 @@
               </mat-checkbox>
               <p class="setting-description">
                 {{ 'PROJECT_SETTINGS.COPILOT_CLI_AUTO_SELECT_DESC' | translate }}
+              </p>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="settings-section">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.CLAUDE_CODE_TITLE' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="setting-item" *ngIf="!loading">
+              <mat-checkbox
+                [(ngModel)]="claudeCodeAutoSelectEnabled"
+                (change)="onClaudeCodeAutoSelectChange()"
+                [disabled]="saving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.CLAUDE_CODE_AUTO_SELECT' | translate }}</span>
+              </mat-checkbox>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.CLAUDE_CODE_AUTO_SELECT_DESC' | translate }}
+              </p>
+              <!-- La regola di precedenza va detta dove si accende l'interruttore: scoprirla
+                   dal comportamento sarebbe un mistero. -->
+              <p class="setting-description" *ngIf="claudeCodeAutoSelectEnabled && copilotCliAutoSelectEnabled">
+                {{ 'PROJECT_SETTINGS.CLAUDE_CODE_WINS_OVER_COPILOT' | translate }}
               </p>
             </div>
           </mat-card-content>

@@ -1,11 +1,3 @@
----
-description: "Tutor che crea skill custom MdE per estrarre grafi di concetti specifici di dominio. Use when: nuova skill, skill per mapping, skill per requirement, skill per architettura, estrarre concetti da documenti tecnici, creare convenzione di estrazione concetti, mde-skillcreator."
-tools: [read, write, edit, search]
-mde:
-  origin: mdexplorer
-  version: 4
-  updatePolicy: replace
----
 
 <!--
 MdExplorer-managed agent.

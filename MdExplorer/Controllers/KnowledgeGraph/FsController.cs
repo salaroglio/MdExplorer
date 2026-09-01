@@ -143,11 +143,16 @@ namespace MdExplorer.Service.Controllers.KnowledgeGraph
                 _userSettingsDB.Commit();
 
                 // Now that the project is configured for Fuseki, deploy the Fuseki/Jena
-                // skills (TBox/ABox/SHACL) into .github immediately — without waiting for
-                // the next project open. Gated on Enabled; never removes on disable.
+                // skills (TBox/ABox/SHACL) immediately — without waiting for the next project
+                // open. Gated on Enabled; never removes on disable. Le skill vanno dove le
+                // vuole l'harness del progetto: un opencode non deve ritrovarsi un .github.
                 if (req.Enabled && !string.IsNullOrWhiteSpace(projectPath))
                 {
-                    try { MdeSkillUpdater.EnsureAllSkillsInstalled(projectPath, fusekiEnabled: true); }
+                    try
+                    {
+                        MdeSkillUpdater.EnsureCatalogsInstalled(
+                            projectPath, MdeAssetResolver.LayoutFor(projectPath), fusekiEnabled: true);
+                    }
                     catch (Exception skEx) { _logger.LogWarning(skEx, "[FsController] Fuseki skill install failed for {ProjectId}", projectId); }
                 }
 
