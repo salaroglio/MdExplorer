@@ -90,7 +90,7 @@
     </button>
 
     <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="openFolderOn(item)">
-      <mat-icon>folder_open</mat-icon>
+      <mat-icon class="gold-icon">folder_open</mat-icon>
       <span>{{ 'MD_TREE.OPEN_EXPLORER' | translate }}</span>
     </button>
     <button *ngIf="item.type==='folder'" mat-menu-item (click)="openTocDirectory(item)">
