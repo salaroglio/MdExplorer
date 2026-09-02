@@ -17,6 +17,8 @@
 // Dark-based themes (dark + milan): fondi e testi di mat-tree/sidenav arrivano
 // dal tema Material nativo. Resta solo l'inversione dell'icona GitHub
 // (svg nera → bianca sui fondi scuri).
+// NB: .opencode-icon NON va invertita — il marchio è già glifo bianco su
+// tessera scura, invertirlo lo ribalterebbe in tessera bianca su glifo nero.
 :host-context(body.dark-theme) .github-icon,
 :host-context(body.milan-theme) .github-icon {
   filter: invert(1);

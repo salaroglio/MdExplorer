@@ -272,6 +272,12 @@
            alt="GitHub Copilot"
            class="custom-folder-icon github-icon"
            style="width: 24px; height: 24px; margin: 12px;" />
+      <!-- Icona per cartella .opencode (harness opencode) -->
+      <img *ngIf="node.name=='.opencode' && node.indexingStatus !== 'indexing'"
+           src="/assets/opencode.svg"
+           alt="opencode"
+           class="custom-folder-icon opencode-icon"
+           style="width: 24px; height: 24px; margin: 12px;" />
       <!-- Icona per cartella promptlab -->
       <img *ngIf="node.name==='promptlab' && node.indexingStatus !== 'indexing'"
            src="/assets/promptlab-flask.svg"
@@ -279,13 +285,13 @@
            class="custom-folder-icon"
            style="width: 24px; height: 24px; margin: 12px;" />
       <!-- Icona per cartelle con tag "program" -->
-      <mat-icon *ngIf="isProgramFolder(node) && node.name!='.github' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
+      <mat-icon *ngIf="isProgramFolder(node) && node.name!='.github' && node.name!='.opencode' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
                 color="primary"
                 class="mat-icon-rtl-mirror terminal-icon">
         terminal
       </mat-icon>
       <!-- Icona per cartelle normali (verde se cartella rivelata via "occhio") -->
-      <mat-icon *ngIf="!isProgramFolder(node) && node.name!='mdPublish' && node.name!='.github' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
+      <mat-icon *ngIf="!isProgramFolder(node) && node.name!='mdPublish' && node.name!='.github' && node.name!='.opencode' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
                 class="gold-icon mat-icon-rtl-mirror folder-icon"
                 [class.extra-revealed]="node.isExtra">
         {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}

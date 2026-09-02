@@ -31,6 +31,7 @@ using MdExplorer.Service.Controllers.MdFiles.Models;
 using MdExplorer.Service.Controllers.MdFiles.ModelsDto;
 using MdExplorer.Service.Models;
 using MdExplorer.Service.Utilities;
+using MdExplorer.Utilities;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -1846,7 +1847,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var scanOverallTimer = System.Diagnostics.Stopwatch.StartNew();
 
             // Carica solo primo livello di cartelle che contengono file markdown
-            // Ordina: .github primo, poi folder "program", poi alfabetico
+            // Ordina: cartella harness (.github/.opencode) prima, poi folder "program", poi alfabetico
             var sortedFolders = SortFoldersWithPriority(
                 Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")),
                 isRootLevel: true,
@@ -3115,7 +3116,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
         /// <summary>
-        /// Ordina i folder: .github primo (solo root), poi folder "program", poi alfabetico
+        /// Ordina i folder: la cartella dell'harness (.github / .opencode) prima (solo root),
+        /// poi folder "program", poi alfabetico
         /// </summary>
         private List<string> SortFoldersWithPriority(IEnumerable<string> folders, bool isRootLevel, string projectRoot)
         {
@@ -3128,8 +3130,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             var folderName = Path.GetFileName(folderPath);
 
-            // .github sempre primo (solo a livello root)
-            if (isRootLevel && folderName.Equals(".github", StringComparison.OrdinalIgnoreCase))
+            // Cartella di un harness (.github, .opencode) sempre prima, solo a livello root.
+            // L'elenco arriva da HarnessLayout.All: aggiungere un harness non deve
+            // richiedere un altro literal qui dentro.
+            if (isRootLevel && HarnessLayout.All.Any(_ => folderName.Equals(_.RootFolder, StringComparison.OrdinalIgnoreCase)))
                 return 0;
 
             // Folder con tag "program"
