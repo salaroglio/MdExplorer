@@ -27681,6 +27681,10 @@ class ToolbarComponent {
       // spento. Lo decide la vista per repository, che e' anche cio' che il pannello mostra:
       // una fonte sola, e i due numeri non possono piu' contraddirsi.
       this.loadChangedFiles();
+      // Quanti commit restano da pubblicare lo dicono i ref LOCALI (AheadBy): dopo un commit
+      // il pulsante deve comparire subito. Aspettare il fetch dal remoto lo teneva nascosto
+      // proprio nel momento in cui serviva.
+      this.somethingIsToPush = branch.howManyCommitAreToPush > 0;
     });
     this.gitservice.commmitsToPull$.subscribe(_ => {
       this.somethingIsToPull = _.somethingIsToPull;
@@ -28132,9 +28136,30 @@ class ToolbarComponent {
       });
       return;
     }
+    // Prima i numeri LOCALI, poi il remoto. Se si aggiornassero solo dentro checkConnection()
+    // resterebbero appesi alla rete (probe di autenticazione + fetch da origin): dopo un commit
+    // il contatore «da committare» continuerebbe a mostrare i file appena salvati finche' il
+    // remoto non risponde, o fino al giro di polling successivo — 60 secondi.
+    this.refreshLocalGitCounters();
     // Always refresh connection status after successful operations
     // Tree refresh is handled via SignalR gitPullRefreshed event in md-file.service + md-tree
     this.checkConnection();
+  }
+  /**
+   * Rilegge i contatori che stanno gia' sul disco: `git status` e i ref locali. Nessuna
+   * chiamata al remoto, quindi risponde subito e non puo' restare in attesa di una rete lenta
+   * o assente. Cio' che dipende davvero dal remoto (quanto c'e' da scaricare) lo aggiorna
+   * checkConnection() per conto suo, quando arriva.
+   */
+  refreshLocalGitCounters() {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+    this.gitservice.modernGetBranchStatus(projectPath).subscribe(
+    // La sottoscrizione a currentBranch$ ricarica anche la vista per repository: una fonte
+    // sola, cosi' il numero sul pulsante e le righe del pannello non si contraddicono.
+    branch => this.gitservice.currentBranch$.next(branch),
+    // Stato locale non disponibile: almeno i file da committare si rileggono lo stesso.
+    () => this.loadChangedFiles());
   }
   /**
    * Validates and returns the current project path.
@@ -28711,9 +28736,9 @@ class ToolbarComponent {
       info.message = 'Please wait... committing changes';
       this.waitingDialogService.showMessageBox(info);
       this.gitservice.modernCommit(target, commitMessage).subscribe(response => {
+        // La ricarica della vista la fa gia' handleGitResponse (refreshLocalGitCounters).
         this.handleGitResponse(response, 'commit');
         this.waitingDialogService.closeMessageBox();
-        this.loadChangedFiles();
       }, error => {
         this.waitingDialogService.closeMessageBox();
         const errorMessage = error.error?.errorMessage || error.message || '';
@@ -38939,4 +38964,4 @@ const lexer = _Lexer.lex;
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.ac3f7d17f5b278d3.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.213e0e66a60eb610.js.map
