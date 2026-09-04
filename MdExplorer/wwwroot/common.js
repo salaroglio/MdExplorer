@@ -170,6 +170,8 @@ if (window.commonJsLoaded) {
         // INTERACTIVE-SVG: Click-to-highlight for PlantUML diagrams
         document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg.js');
+        document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/mark-diagram-context.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/mark-diagram-context.js');
         document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-sequence.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-sequence.js');
 

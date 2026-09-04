@@ -107,6 +107,20 @@ export class MarkAssistantService {
   /** Subscription to the SignalR folder-summarizer progress stream (active during a job). */
   private folderProgressSub: Subscription | null = null;
 
+  /** Subscription to the SignalR diagram-explanation stream (active while explaining a box). */
+  private diagramSub: Subscription | null = null;
+
+  /**
+   * Volatile per-session cache of the explanations already produced, keyed by
+   * document + box. Nothing is written to disk: close the document and it is gone,
+   * which also means there is no staleness to invalidate. Re-selecting a box
+   * re-shows the answer instead of paying for it twice.
+   */
+  private readonly diagramAnswers = new Map<string, string>();
+
+  /** Box currently being explained — chunks arriving for any other box are ignored. */
+  private diagramBoxInFlight: string | null = null;
+
   constructor(
     private translate: TranslateService,
     private projectsService: ProjectsService,
@@ -632,6 +646,115 @@ export class MarkAssistantService {
       default:
         return this._text.getValue();
     }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  //  "Ask to MarkAgent" on a PlantUML diagram box
+  // ──────────────────────────────────────────────────────────────────────
+
+  /**
+   * Takes over Mark's dialog to explain one diagram box.
+   *
+   * Mark's window is a view on the present, not a chat log: every new box (and
+   * every follow-up question) REPLACES what was on screen. The user's attention
+   * is the scarce resource here — the long document already wasted it once.
+   *
+   * An already-explained box is re-shown from the volatile cache without asking
+   * the model again.
+   */
+  beginDiagramExplanation(context: { documentPath: string; box: { name: string } }): void {
+    const key = this.diagramKey(context.documentPath, context.box.name);
+    const cached = this.diagramAnswers.get(key);
+
+    this.takeOverDialog();
+
+    if (cached) {
+      // Re-shown instantly: the point of the cache is that a box you already
+      // asked about never costs a second wait.
+      this.diagramBoxInFlight = null;
+      this._text.next(cached);
+      this._continueArrow.next(true);
+      return;
+    }
+
+    this.diagramBoxInFlight = context.box.name;
+    this._text.next(
+      this.translate.instant('MARK.DIAGRAM.THINKING', { box: context.box.name })
+    );
+
+    this.diagramSub?.unsubscribe();
+    this.diagramSub = this.serverMessages.markDiagramExplain$.subscribe(evt => {
+      this.onDiagramEvent(context.documentPath, evt);
+    });
+  }
+
+  /** Shows a failure in Mark's dialog — the user asked, they deserve to know why not. */
+  showDiagramError(boxName: string, message: string): void {
+    this.takeOverDialog();
+    this.diagramBoxInFlight = null;
+    this.diagramSub?.unsubscribe();
+    this.diagramSub = null;
+    this._text.next(message);
+    this._continueArrow.next(true);
+  }
+
+  /** Accumulates the streamed answer. The model's own pace is the typewriter. */
+  private onDiagramEvent(documentPath: string, evt: any): void {
+    if (!evt) return;
+    // A late chunk from the box the user has already moved on from must not
+    // overwrite the answer now on screen.
+    if (evt.box && this.diagramBoxInFlight && evt.box !== this.diagramBoxInFlight) return;
+
+    switch (evt.phase) {
+      case 'start':
+        this._text.next('');
+        this._continueArrow.next(false);
+        break;
+
+      case 'chunk':
+        this._text.next((this._text.getValue() || '') + (evt.text || ''));
+        break;
+
+      case 'done': {
+        const answer = (evt.text || this._text.getValue() || '').trim();
+        this._text.next(answer);
+        this._continueArrow.next(true);
+        if (evt.box) this.diagramAnswers.set(this.diagramKey(documentPath, evt.box), answer);
+        this.diagramBoxInFlight = null;
+        this.diagramSub?.unsubscribe();
+        this.diagramSub = null;
+        break;
+      }
+
+      case 'error':
+        this.showDiagramError(evt.box, evt.message || 'Non sono riuscito a spiegare questo box.');
+        break;
+    }
+  }
+
+  private diagramKey(documentPath: string, boxName: string): string {
+    return `${documentPath}::${boxName}`;
+  }
+
+  /**
+   * Clears whatever lesson or answer owned the dialog and makes Mark visible.
+   * Same manual takeover startFolderSummarize does, so a lesson running to its
+   * natural end cannot minimize Mark while an explanation is on screen.
+   */
+  private takeOverDialog(): void {
+    this.abortFlag = true;
+    setTimeout(() => { this.abortFlag = false; }, 60);
+
+    this.currentLesson = null;
+    this.currentSpotlightSelector = null;
+    this._spotlight.next(null);
+    this._dim.next(false);
+    this._staticMode.next(false);
+    this._actions.next(null);
+    this._continueArrow.next(false);
+    this._isResponding.next(false);
+    this.resolveAction(null);
+    this._state.next('playing');
   }
 
   /**

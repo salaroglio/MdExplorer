@@ -1543,6 +1543,9 @@
       "UNDOCK": "See the ⤴ button on my panel? Press it and I become a separate window, even on a second monitor.",
       "AI_COMMIT": "When you commit, MdE can write the message for you with AI. Set up a provider in Settings and try it.",
       "DONE": "Told you everything for now. Come back if you need me!"
+    },
+    "DIAGRAM": {
+      "THINKING": "Looking at the \"{{box}}\" box..."
     }
   },
   "UNIFIED_SETTINGS": {

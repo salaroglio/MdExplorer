@@ -1543,6 +1543,9 @@
       "UNDOCK": "Vedi il pulsante ⤴ in cima al mio pannello? Premilo e divento una finestra separata, anche su un secondo schermo.",
       "AI_COMMIT": "Quando fai commit, MdE può scrivere il messaggio per te con l'AI. Configura un provider in Impostazioni e prova.",
       "DONE": "Per ora ti ho detto tutto. Torna se ti serve!"
+    },
+    "DIAGRAM": {
+      "THINKING": "Sto guardando il box \"{{box}}\"..."
     }
   },
   "UNIFIED_SETTINGS": {

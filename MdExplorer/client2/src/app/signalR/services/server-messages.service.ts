@@ -42,6 +42,16 @@ export class MdServerMessagesService {
   // Observable for the Mark folder-summarizer job progress (MarkActionsController)
   public markFolderProgress$ = new Subject<any>();
 
+  // Observable for the "Ask to MarkAgent" diagram explanation stream
+  // (MarkDiagramController). Phases: start | chunk | done | error.
+  public markDiagramExplain$ = new Subject<{
+    phase: 'start' | 'chunk' | 'done' | 'error',
+    box?: string,
+    text?: string,
+    sentences?: number,
+    message?: string,
+  }>();
+
   // Observable for *.agent.md headless runs (AgentRunJobService): started/completed/failed
   public agentJobProgress$ = new Subject<{
     runId: string,
@@ -254,6 +264,11 @@ export class MdServerMessagesService {
       // Mark folder-summarizer job progress
       this.hubConnection.on('markFolderProgress', (data) => {
         this.markFolderProgress$.next(data);
+      });
+
+      // "Ask to MarkAgent" diagram explanation, streamed chunk by chunk
+      this.hubConnection.on('markDiagramExplain', (data) => {
+        this.markDiagramExplain$.next(data);
       });
 
       // *.agent.md headless run progress (manual launch, schedule, hook)

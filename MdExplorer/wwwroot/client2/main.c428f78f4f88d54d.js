@@ -12,20 +12,22 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "AppComponent": () => (/* binding */ AppComponent)
 /* harmony export */ });
 /* harmony import */ var _shared_animations__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./shared/animations */ 6055);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/platform-browser */ 4497);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/platform-browser */ 4497);
 /* harmony import */ var _services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./services/app-current-metadata.service */ 1804);
-/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/router */ 124);
+/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/router */ 124);
 /* harmony import */ var _services_ai_notification_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./services/ai-notification.service */ 2843);
 /* harmony import */ var _services_url_handler_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./services/url-handler.service */ 3876);
 /* harmony import */ var _services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./services/file-change-notification.service */ 322);
 /* harmony import */ var _services_language_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./services/language.service */ 1155);
 /* harmony import */ var _services_theme_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./services/theme.service */ 8140);
 /* harmony import */ var _services_execution_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./services/execution.service */ 2512);
-/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./signalR/services/server-messages.service */ 8635);
-/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
-/* harmony import */ var _mark_assistant_mark_assistant_component__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./mark-assistant/mark-assistant.component */ 9937);
-/* harmony import */ var _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./components/title-bar/title-bar.component */ 9063);
+/* harmony import */ var _mark_assistant_mark_diagram_service__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./mark-assistant/mark-diagram.service */ 4926);
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./signalR/services/server-messages.service */ 8635);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
+/* harmony import */ var _mark_assistant_mark_assistant_component__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./mark-assistant/mark-assistant.component */ 9937);
+/* harmony import */ var _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./components/title-bar/title-bar.component */ 9063);
+
 
 
 
@@ -50,7 +52,10 @@ class AppComponent {
     }
     //
   }
-  constructor(titleService, currentFolder, route, router, aiNotificationService, urlHandlerService, fileChangeNotificationService, languageService, themeService, executionService, serverMessages, snackBar) {
+  constructor(titleService, currentFolder, route, router, aiNotificationService, urlHandlerService, fileChangeNotificationService, languageService, themeService, executionService,
+  // Instantiated for its side effect: it installs the "Ask to MarkAgent"
+  // postMessage listener before any document can be opened.
+  markDiagramService, serverMessages, snackBar) {
     this.titleService = titleService;
     this.currentFolder = currentFolder;
     this.route = route;
@@ -61,6 +66,7 @@ class AppComponent {
     this.languageService = languageService;
     this.themeService = themeService;
     this.executionService = executionService;
+    this.markDiagramService = markDiagramService;
     this.serverMessages = serverMessages;
     this.snackBar = snackBar;
     this.title = 'client2';
@@ -100,18 +106,18 @@ class AppComponent {
   }
   static {
     this.ɵfac = function AppComponent_Factory(t) {
-      return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_12__.Title), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_1__.AppCurrentMetadataService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_13__.ActivatedRoute), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_13__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_services_ai_notification_service__WEBPACK_IMPORTED_MODULE_2__.AiNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_services_url_handler_service__WEBPACK_IMPORTED_MODULE_3__.UrlHandlerService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_4__.FileChangeNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_services_language_service__WEBPACK_IMPORTED_MODULE_5__.LanguageService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_services_theme_service__WEBPACK_IMPORTED_MODULE_6__.ThemeService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_services_execution_service__WEBPACK_IMPORTED_MODULE_7__.ExecutionService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_8__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_14__.MatLegacySnackBar));
+      return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_13__.Title), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_1__.AppCurrentMetadataService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_14__.ActivatedRoute), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_14__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_ai_notification_service__WEBPACK_IMPORTED_MODULE_2__.AiNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_url_handler_service__WEBPACK_IMPORTED_MODULE_3__.UrlHandlerService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_4__.FileChangeNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_language_service__WEBPACK_IMPORTED_MODULE_5__.LanguageService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_theme_service__WEBPACK_IMPORTED_MODULE_6__.ThemeService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_execution_service__WEBPACK_IMPORTED_MODULE_7__.ExecutionService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_mark_assistant_mark_diagram_service__WEBPACK_IMPORTED_MODULE_8__.MarkDiagramService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_9__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_15__.MatLegacySnackBar));
     };
   }
   static {
-    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵdefineComponent"]({
+    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdefineComponent"]({
       type: AppComponent,
       selectors: [["app-root"]],
       hostBindings: function AppComponent_HostBindings(rf, ctx) {
         if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵlistener"]("unload", function AppComponent_unload_HostBindingHandler($event) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵlistener"]("unload", function AppComponent_unload_HostBindingHandler($event) {
             return ctx.unloadHandler($event);
-          }, false, _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵresolveWindow"]);
+          }, false, _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵresolveWindow"]);
         }
       },
       decls: 5,
@@ -119,19 +125,19 @@ class AppComponent {
       consts: [[1, "container", "app-content"], ["o", "outlet"]],
       template: function AppComponent_Template(rf, ctx) {
         if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelement"](0, "app-title-bar");
-          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementStart"](1, "div", 0);
-          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelement"](2, "router-outlet", null, 1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵelement"](4, "app-mark-assistant");
+          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵelement"](0, "app-title-bar");
+          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵelementStart"](1, "div", 0);
+          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵelement"](2, "router-outlet", null, 1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵelement"](4, "app-mark-assistant");
         }
         if (rf & 2) {
-          const _r0 = _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵreference"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_11__["ɵɵproperty"]("@routeAnimations", _r0.isActivated ? _r0.activatedRoute : "");
+          const _r0 = _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵreference"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵproperty"]("@routeAnimations", _r0.isActivated ? _r0.activatedRoute : "");
         }
       },
-      dependencies: [_angular_router__WEBPACK_IMPORTED_MODULE_13__.RouterOutlet, _mark_assistant_mark_assistant_component__WEBPACK_IMPORTED_MODULE_9__.MarkAssistantComponent, _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_10__.TitleBarComponent],
+      dependencies: [_angular_router__WEBPACK_IMPORTED_MODULE_14__.RouterOutlet, _mark_assistant_mark_assistant_component__WEBPACK_IMPORTED_MODULE_10__.MarkAssistantComponent, _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_11__.TitleBarComponent],
       styles: [".flex-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-flow: row wrap;\n  flex-direction: row;\n  flex-wrap: wrap;\n}\n\n.flex-item[_ngcontent-%COMP%] {\n  background: tomato;\n}\n\n.app-content[_ngcontent-%COMP%] {\n  margin-top: 30px;\n  height: calc(100vh - 30px);\n  display: flex;\n  flex-direction: column;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvYXBwLmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBO0VBQ0UsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsbUJBQUE7RUFDQSxlQUFBO0FBQ0Y7O0FBRUE7RUFDRSxrQkFBQTtBQUNGOztBQUVBO0VBQ0UsZ0JBQUE7RUFDQSwwQkFBQTtFQUNBLGFBQUE7RUFDQSxzQkFBQTtBQUNGIiwic291cmNlc0NvbnRlbnQiOlsiLmZsZXgtY29udGFpbmVyIHtcbiAgZGlzcGxheTogZmxleDtcbiAgZmxleC1mbG93OiByb3cgd3JhcDtcbiAgZmxleC1kaXJlY3Rpb246IHJvdztcbiAgZmxleC13cmFwOiB3cmFwOyAgXG59XG5cbi5mbGV4LWl0ZW0ge1xuICBiYWNrZ3JvdW5kOiB0b21hdG87XG59XG5cbi5hcHAtY29udGVudCB7XG4gIG1hcmdpbi10b3A6IDMwcHg7IC8vIFNwYWNlIGZvciB0aXRsZSBiYXJcbiAgaGVpZ2h0OiBjYWxjKDEwMHZoIC0gMzBweCk7IC8vIEltcG9zdGEgbCdhbHRlenphIHBlciBvY2N1cGFyZSB0dXR0byBsbyBzcGF6aW8gZGlzcG9uaWJpbGVcbiAgZGlzcGxheTogZmxleDtcbiAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcbn1cblxuIl0sInNvdXJjZVJvb3QiOiIifQ== */"],
       data: {
         animation: [_shared_animations__WEBPACK_IMPORTED_MODULE_0__.slideInAnimation]
@@ -10023,6 +10029,17 @@ class MarkAssistantService {
     this.actionResolve = null;
     /** Subscription to the SignalR folder-summarizer progress stream (active during a job). */
     this.folderProgressSub = null;
+    /** Subscription to the SignalR diagram-explanation stream (active while explaining a box). */
+    this.diagramSub = null;
+    /**
+     * Volatile per-session cache of the explanations already produced, keyed by
+     * document + box. Nothing is written to disk: close the document and it is gone,
+     * which also means there is no staleness to invalidate. Re-selecting a box
+     * re-shows the answer instead of paying for it twice.
+     */
+    this.diagramAnswers = new Map();
+    /** Box currently being explained — chunks arriving for any other box are ignored. */
+    this.diagramBoxInFlight = null;
     this.scheduleSpotlightRecompute = () => {
       if (this.rafScheduled) return;
       if (!this.currentSpotlightSelector) return;
@@ -10509,6 +10526,103 @@ class MarkAssistantService {
         return this._text.getValue();
     }
   }
+  // ──────────────────────────────────────────────────────────────────────
+  //  "Ask to MarkAgent" on a PlantUML diagram box
+  // ──────────────────────────────────────────────────────────────────────
+  /**
+   * Takes over Mark's dialog to explain one diagram box.
+   *
+   * Mark's window is a view on the present, not a chat log: every new box (and
+   * every follow-up question) REPLACES what was on screen. The user's attention
+   * is the scarce resource here — the long document already wasted it once.
+   *
+   * An already-explained box is re-shown from the volatile cache without asking
+   * the model again.
+   */
+  beginDiagramExplanation(context) {
+    const key = this.diagramKey(context.documentPath, context.box.name);
+    const cached = this.diagramAnswers.get(key);
+    this.takeOverDialog();
+    if (cached) {
+      // Re-shown instantly: the point of the cache is that a box you already
+      // asked about never costs a second wait.
+      this.diagramBoxInFlight = null;
+      this._text.next(cached);
+      this._continueArrow.next(true);
+      return;
+    }
+    this.diagramBoxInFlight = context.box.name;
+    this._text.next(this.translate.instant('MARK.DIAGRAM.THINKING', {
+      box: context.box.name
+    }));
+    this.diagramSub?.unsubscribe();
+    this.diagramSub = this.serverMessages.markDiagramExplain$.subscribe(evt => {
+      this.onDiagramEvent(context.documentPath, evt);
+    });
+  }
+  /** Shows a failure in Mark's dialog — the user asked, they deserve to know why not. */
+  showDiagramError(boxName, message) {
+    this.takeOverDialog();
+    this.diagramBoxInFlight = null;
+    this.diagramSub?.unsubscribe();
+    this.diagramSub = null;
+    this._text.next(message);
+    this._continueArrow.next(true);
+  }
+  /** Accumulates the streamed answer. The model's own pace is the typewriter. */
+  onDiagramEvent(documentPath, evt) {
+    if (!evt) return;
+    // A late chunk from the box the user has already moved on from must not
+    // overwrite the answer now on screen.
+    if (evt.box && this.diagramBoxInFlight && evt.box !== this.diagramBoxInFlight) return;
+    switch (evt.phase) {
+      case 'start':
+        this._text.next('');
+        this._continueArrow.next(false);
+        break;
+      case 'chunk':
+        this._text.next((this._text.getValue() || '') + (evt.text || ''));
+        break;
+      case 'done':
+        {
+          const answer = (evt.text || this._text.getValue() || '').trim();
+          this._text.next(answer);
+          this._continueArrow.next(true);
+          if (evt.box) this.diagramAnswers.set(this.diagramKey(documentPath, evt.box), answer);
+          this.diagramBoxInFlight = null;
+          this.diagramSub?.unsubscribe();
+          this.diagramSub = null;
+          break;
+        }
+      case 'error':
+        this.showDiagramError(evt.box, evt.message || 'Non sono riuscito a spiegare questo box.');
+        break;
+    }
+  }
+  diagramKey(documentPath, boxName) {
+    return `${documentPath}::${boxName}`;
+  }
+  /**
+   * Clears whatever lesson or answer owned the dialog and makes Mark visible.
+   * Same manual takeover startFolderSummarize does, so a lesson running to its
+   * natural end cannot minimize Mark while an explanation is on screen.
+   */
+  takeOverDialog() {
+    this.abortFlag = true;
+    setTimeout(() => {
+      this.abortFlag = false;
+    }, 60);
+    this.currentLesson = null;
+    this.currentSpotlightSelector = null;
+    this._spotlight.next(null);
+    this._dim.next(false);
+    this._staticMode.next(false);
+    this._actions.next(null);
+    this._continueArrow.next(false);
+    this._isResponding.next(false);
+    this.resolveAction(null);
+    this._state.next('playing');
+  }
   /**
    * Plays the "next" applicable micro-tip in the queue.
    *
@@ -10695,6 +10809,93 @@ class MarkAssistantService {
     this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_14__["ɵɵdefineInjectable"]({
       token: MarkAssistantService,
       factory: MarkAssistantService.ɵfac,
+      providedIn: 'root'
+    });
+  }
+}
+
+/***/ }),
+
+/***/ 4926:
+/*!********************************************************!*\
+  !*** ./src/app/mark-assistant/mark-diagram.service.ts ***!
+  \********************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "MarkDiagramService": () => (/* binding */ MarkDiagramService)
+/* harmony export */ });
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var _mark_assistant_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./mark-assistant.service */ 5270);
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
+
+
+
+
+/**
+ * "Ask to MarkAgent" — bridge between the markdown iframe and Mark's dialog.
+ *
+ * Listens for the `mde-mark.askAboutBox` postMessage the iframe fires when the
+ * user picks the context-menu entry on a diagram box, then asks the backend to
+ * explain it. The answer arrives over SignalR (`markDiagramExplain`) and is
+ * rendered by MarkAssistantService.
+ *
+ * Instantiated in AppComponent — the listener must exist before the user opens
+ * any document, the same way ExecutionService works for ▶ Run blocks.
+ */
+class MarkDiagramService {
+  constructor(http, mark, serverMessages) {
+    this.http = http;
+    this.mark = mark;
+    this.serverMessages = serverMessages;
+    this.baseUrl = '../api/markdiagram';
+    this.setupIframeListener();
+  }
+  setupIframeListener() {
+    window.addEventListener('message', event => {
+      const data = event.data;
+      if (!data || data.type !== 'mde-mark.askAboutBox') return;
+      if (!data.context?.box?.name) return;
+      this.ask(data.context);
+    });
+  }
+  /**
+   * Asks MarkAgent about one box. The reply is not awaited here: it streams
+   * back over SignalR into Mark's dialog.
+   */
+  ask(context) {
+    const connectionId = this.serverMessages.connectionId;
+    if (!connectionId) {
+      // Without SignalR there is no channel for the answer. Say so in the
+      // dialog rather than firing a request whose reply can never arrive.
+      this.mark.showDiagramError(context.box.name, 'Non sono connesso al servizio: riapri il documento e riprova.');
+      return;
+    }
+    this.mark.beginDiagramExplanation(context);
+    this.explainBox(context, connectionId).subscribe({
+      error: err => {
+        console.warn('[MarkDiagram] explain-box request failed', err);
+        this.mark.showDiagramError(context.box.name, err?.error || 'Non sono riuscito ad avviare la spiegazione.');
+      }
+    });
+  }
+  explainBox(context, connectionId) {
+    return this.http.post(`${this.baseUrl}/explain-box`, {
+      connectionId,
+      context
+    });
+  }
+  static {
+    this.ɵfac = function MarkDiagramService_Factory(t) {
+      return new (t || MarkDiagramService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_3__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_mark_assistant_service__WEBPACK_IMPORTED_MODULE_0__.MarkAssistantService), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__.MdServerMessagesService));
+    };
+  }
+  static {
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({
+      token: MarkDiagramService,
+      factory: MarkDiagramService.ɵfac,
       providedIn: 'root'
     });
   }
@@ -17128,6 +17329,9 @@ class MdServerMessagesService {
     this.publishProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for the Mark folder-summarizer job progress (MarkActionsController)
     this.markFolderProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    // Observable for the "Ask to MarkAgent" diagram explanation stream
+    // (MarkDiagramController). Phases: start | chunk | done | error.
+    this.markDiagramExplain$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for *.agent.md headless runs (AgentRunJobService): started/completed/failed
     this.agentJobProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for agent→user mailbox messages (§13 Fase 4a). Emitted by
@@ -17243,6 +17447,10 @@ class MdServerMessagesService {
         // Mark folder-summarizer job progress
         this.hubConnection.on('markFolderProgress', data => {
           this.markFolderProgress$.next(data);
+        });
+        // "Ask to MarkAgent" diagram explanation, streamed chunk by chunk
+        this.hubConnection.on('markDiagramExplain', data => {
+          this.markDiagramExplain$.next(data);
         });
         // *.agent.md headless run progress (manual launch, schedule, hook)
         this.hubConnection.on('agentJobProgress', data => {
@@ -17710,8 +17918,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.03.1',
-  buildTime: '2026.09.03 14:34:22'
+  version: '2026.09.04.1',
+  buildTime: '2026.09.04 11:17:11'
 };
 
 /***/ }),
@@ -17745,4 +17953,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.7d3441ac5d3fbcab.js.map
+//# sourceMappingURL=main.c428f78f4f88d54d.js.map

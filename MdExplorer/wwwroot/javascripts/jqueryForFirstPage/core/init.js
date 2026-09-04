@@ -17,13 +17,19 @@ $(function() {
         drawing: typeof toggleMdCanvas !== 'undefined',
         toc: typeof toggleTOC !== 'undefined',
         interactiveSvg: typeof InteractiveSvg !== 'undefined',
-        interactiveSvgSequence: typeof InteractiveSvgSequence !== 'undefined'
+        interactiveSvgSequence: typeof InteractiveSvgSequence !== 'undefined',
+        markDiagramContext: typeof MarkDiagramContext !== 'undefined'
     });
 
     // Auto-initialize interactive SVG for all PlantUML diagrams on page
     // Component/class diagrams (legacy: elem_, cluster_, link_  |  new v1.2026.1+: g.entity, g.cluster, g.link)
     if (typeof InteractiveSvg !== 'undefined') {
         InteractiveSvg.initAll();
+    }
+    // Right-click "Ask to MarkAgent" on diagram boxes. Runs after InteractiveSvg
+    // because it reuses its highlighting via InteractiveSvg.selectElement().
+    if (typeof MarkDiagramContext !== 'undefined') {
+        MarkDiagramContext.initAll();
     }
     // Sequence diagrams (participant boxes and message arrows)
     if (typeof InteractiveSvgSequence !== 'undefined') {
