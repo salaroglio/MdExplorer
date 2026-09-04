@@ -161,7 +161,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
 
       this.diffLoading = true;
       this.ref.detectChanges();
-      this.workingChanges.diff(request.projectPath, request.agent, request.path, request.repo).subscribe({
+      this.workingChanges.diff(request.projectPath, request.agent, request.path, request.repo, request.oldPath).subscribe({
         next: r => { this.diffText = r.diff || ''; this.diffLoading = false; this.ref.detectChanges(); },
         error: err => {
           this.diffLoading = false;

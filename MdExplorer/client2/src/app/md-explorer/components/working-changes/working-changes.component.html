@@ -105,7 +105,18 @@
         </div>
 
         <div class="repo-note" *ngIf="r.files.length === 0 && !r.notInitialized">
-          {{ 'CHANGES.NOTHING' | translate:{ base: r.baseBranch || '—' } }}
+          {{ 'CHANGES.NOTHING' | translate }}
+        </div>
+
+        <!-- Tre cose diverse, tre righe diverse. Prima erano un elenco solo, e ci finiva
+             dentro anche cio' che manca perche' non e' stato fatto pull: sembrava lavoro da
+             salvare ed era lavoro da scaricare. -->
+        <div class="repo-note repo-note-unpushed" *ngIf="unpushedCount(r) > 0">
+          {{ 'CHANGES.UNPUSHED_NOTE' | translate:{ count: unpushedCount(r), base: r.baseBranch || '—' } }}
+        </div>
+
+        <div class="repo-note repo-note-incoming" *ngIf="incomingCount(r) > 0">
+          {{ 'CHANGES.INCOMING_NOTE' | translate:{ count: incomingCount(r), base: r.baseBranch || '—' } }}
         </div>
 
         <ul class="files" *ngIf="r.files.length > 0">

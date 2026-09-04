@@ -78,11 +78,13 @@ namespace MdExplorer.Controllers.A2A
         [HttpGet("diff")]
         public async Task<IActionResult> Diff(
             [FromQuery] string? projectPath, [FromQuery] string? agent,
-            [FromQuery] string? path, [FromQuery] string? repo)
+            [FromQuery] string? path, [FromQuery] string? repo, [FromQuery] string? oldPath)
         {
             try
             {
-                var diff = await _changes.DiffAsync(projectPath, EmptyToNull(agent), path, EmptyToNull(repo));
+                // oldPath arriva solo per le rinomine: senza, git non puo' accoppiare i due
+                // lati e risponderebbe che il file e' nuovo.
+                var diff = await _changes.DiffAsync(projectPath, EmptyToNull(agent), path, EmptyToNull(repo), EmptyToNull(oldPath));
                 return Ok(new { path, repo, diff });
             }
             catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }

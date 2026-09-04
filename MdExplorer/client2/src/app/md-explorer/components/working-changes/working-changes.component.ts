@@ -105,6 +105,7 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
       projectPath: this.projectPath,
       repo: repo.path,
       path: file.path,
+      oldPath: file.oldPath,
       repoLabel: repo.label,
       agent: this.agent,
     });
@@ -120,8 +121,20 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
 
   /** C'è qualcosa da guardare qui dentro? Decide come si presenta un gruppo la prima volta. */
   hasSomething(repo: RepoChanges): boolean {
-    return repo.files.length > 0 || repo.pointerMoved || repo.notInitialized;
+    return repo.files.length > 0
+        || (repo.unpushed?.length ?? 0) > 0
+        || (repo.incoming?.length ?? 0) > 0
+        || repo.pointerMoved || repo.notInitialized;
   }
+
+  /** Quanti commit locali attendono un push, in file. */
+  unpushedCount(repo: RepoChanges): number { return repo.unpushed?.length ?? 0; }
+
+  /**
+   * Quanti file arriverebbero con un pull. Sono l'unica voce che NON è lavoro
+   * dell'utente: stanno in una riga a parte perché non si confondano con il resto.
+   */
+  incomingCount(repo: RepoChanges): number { return repo.incoming?.length ?? 0; }
 
   /** Chiuso di partenza se non c'è niente: aprire cinque gruppi vuoti non aiuta a capire. */
   isCollapsed(repo: RepoChanges): boolean {

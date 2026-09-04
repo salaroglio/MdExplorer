@@ -60,6 +60,15 @@ namespace MdExplorer.Services.AgentRun
         /// <summary>Commit indietro rispetto all'upstream: quanto c'è da tirare giù.</summary>
         public int Behind { get; init; }
 
+        /// <summary>Commit locali che il ramo di riferimento non ha ancora: da pushare.</summary>
+        public IReadOnlyList<WorkingChange> Unpushed { get; init; } = Array.Empty<WorkingChange>();
+
+        /// <summary>
+        /// Cio' che il ramo di riferimento ha e tu no: <b>da scaricare</b>. Non e' lavoro tuo e
+        /// non va committato — sta in un elenco a parte apposta perche' non si confonda.
+        /// </summary>
+        public IReadOnlyList<WorkingChange> Incoming { get; init; } = Array.Empty<WorkingChange>();
+
         /// <summary>
         /// Il padre registra per questo submodule un commit diverso da quello in checkout, e non è
         /// ancora committato nel padre. È una modifica <b>del padre</b>, non di questo repository:
@@ -141,8 +150,12 @@ namespace MdExplorer.Services.AgentRun
         /// <paramref name="repoPath"/> <c>null</c> o vuoto = la radice; altrimenti il percorso del
         /// submodule, e <paramref name="relativePath"/> è relativo a <b>quello</b>.
         /// </summary>
+        /// <param name="oldPath">
+        /// Percorso precedente, quando il file e' stato rinominato. Serve perche' git riconosca
+        /// la rinomina: con un percorso solo la vede come un file nuovo.
+        /// </param>
         Task<string> DiffAsync(string projectPath, string agentName, string relativePath,
-            string repoPath = null, CancellationToken ct = default);
+            string repoPath = null, string oldPath = null, CancellationToken ct = default);
 
         /// <summary>
         /// Butta via le modifiche a un singolo file, riportandolo com'era sul ramo di partenza
@@ -299,37 +312,73 @@ namespace MdExplorer.Services.AgentRun
             var (branch, detached, upstream, ahead, behind) = await ReadBranchAsync(dir, ct);
             var baseRef = await ResolveBaseRefAsync(dir, ct);
 
-            var files = new List<WorkingChange>();
+            // Tre domande diverse, tre elenchi diversi. Prima erano un mucchio solo, e il
+            // mucchio mentiva: 'diff <base>' senza i tre punti confronta il ramo remoto con la
+            // working tree, quindi mescola quello che devi salvare, quello che hai gia' salvato
+            // e non hai pushato, e — il caso che ha fatto scoprire il difetto — quello che devi
+            // ancora SCARICARE. Le prime due sono tue, la terza no, e finivano tutte sotto lo
+            // stesso pulsante "Commit".
+            //
+            // Il caso reale (04/09/2026): un collega rinomina una cartella e pusha; chi non ha
+            // ancora fatto pull si vede 223 file elencati come da committare. Erano l'inverso
+            // del suo commit.
 
-            // Un solo confronto per entrambe le cose: 'diff <base>' senza i tre punti mette a
-            // paragone il ramo di partenza con la working tree ATTUALE, quindi comprende sia i
-            // commit gia' fatti sia le modifiche ancora da salvare. Con i tre punti vedremmo solo
-            // i commit, e il lavoro in corso di una persona sparirebbe dalla vista.
+            // IL TUO LAVORO, e solo il tuo. Due pezzi:
+            //
+            //   a) i commit locali che il ramo di riferimento non ha  ('base...HEAD')
+            //   b) cio' che non e' ancora committato                  ('git status')
+            //
+            // Prima era un solo 'diff <base>' a DUE punti, e li' stava il difetto: due punti
+            // confrontano il ramo remoto con la working tree, quindi ci finisce dentro anche
+            // l'INVERSO di cio' che il remoto ha in piu' — cioe' quello che devi ancora
+            // SCARICARE, presentato come roba tua da salvare.
+            //
+            // Il caso reale (04/09/2026): un collega rinomina una cartella e pusha; chi non ha
+            // ancora fatto pull si vede 223 file elencati come da committare. Erano l'inverso
+            // del suo commit. I tre punti partono dall'antenato comune e quel lato non lo
+            // guardano nemmeno.
+            var files = new List<WorkingChange>();
+            var unpushed = new List<WorkingChange>();
+            var incoming = new List<WorkingChange>();
+
             if (baseRef != null)
             {
-                // '--ignore-submodules=all': un submodule sporco farebbe comparire la sua cartella
-                // qui come "modificata". La sua riga esiste gia', con dentro i suoi file veri.
-                var diff = await _git.RunAsync(dir, new[] { "diff", "--name-status", "-M", "--ignore-submodules=all", baseRef }, ct);
-                if (diff.Ok) files.AddRange(ParseNameStatus(diff.Stdout));
-                else _logger.LogDebug("[Changes] diff contro '{Base}' non riuscito in '{Dir}': {Why}", baseRef, dir, diff.Describe());
+                // '--ignore-submodules=all': un submodule sporco farebbe comparire la sua
+                // cartella qui come "modificata". La sua riga esiste gia', con dentro i suoi file.
+                var mine = await _git.RunAsync(dir,
+                    new[] { "diff", "--name-status", "-M", "--ignore-submodules=all", $"{baseRef}...HEAD" }, ct);
+                if (mine.Ok) unpushed.AddRange(ParseNameStatus(mine.Stdout));
+                else _logger.LogDebug("[Changes] diff '{Base}...HEAD' non riuscito in '{Dir}': {Why}", baseRef, dir, mine.Describe());
+
+                // Cio' che il ramo di riferimento ha e tu no: NON e' lavoro tuo, e sta in un
+                // elenco a parte proprio perche' non si confonda con esso.
+                var theirs = await _git.RunAsync(dir,
+                    new[] { "diff", "--name-status", "-M", "--ignore-submodules=all", $"HEAD...{baseRef}" }, ct);
+                if (theirs.Ok) incoming.AddRange(ParseNameStatus(theirs.Stdout));
+                else _logger.LogDebug("[Changes] diff 'HEAD...{Base}' non riuscito in '{Dir}': {Why}", baseRef, dir, theirs.Describe());
             }
 
-            // I file mai aggiunti a git non compaiono in nessun diff: senza questo, un documento
-            // appena creato — il caso piu' comune — risulterebbe inesistente.
+            files.AddRange(unpushed);
+
+            // Il lavoro in corso vince su quello gia' committato: se un file e' stato
+            // committato e poi toccato di nuovo, quello che conta e' che va salvato.
             var status = await _git.RunAsync(dir, new[] { "status", "--porcelain", "--untracked-files=all", "--ignore-submodules=all" }, ct);
             if (status.Ok)
             {
-                foreach (var line in SplitLines(status.Stdout))
+                foreach (var change in ParsePorcelainStatus(status.Stdout))
                 {
-                    if (!line.StartsWith("?? ", StringComparison.Ordinal)) continue;
-                    var path = Unquote(line.Substring(3).Trim());
-                    if (files.Any(f => string.Equals(f.Path, path, StringComparison.Ordinal))) continue;
-                    files.Add(new WorkingChange { Change = "untracked", Path = path });
+                    files.RemoveAll(f => string.Equals(f.Path, change.Path, StringComparison.Ordinal));
+                    files.Add(change);
                 }
             }
+            else _logger.LogDebug("[Changes] status non riuscito in '{Dir}': {Why}", dir, status.Describe());
 
             if (excludePaths != null && excludePaths.Count > 0)
+            {
                 files.RemoveAll(f => excludePaths.Contains(f.Path.TrimEnd('/')));
+                unpushed.RemoveAll(f => excludePaths.Contains(f.Path.TrimEnd('/')));
+                incoming.RemoveAll(f => excludePaths.Contains(f.Path.TrimEnd('/')));
+            }
 
             return new RepoChanges
             {
@@ -346,6 +395,8 @@ namespace MdExplorer.Services.AgentRun
                 RecordedCommitUnpublished = recordedCommitUnpublished,
                 RecordedCommitUnknown = recordedCommitUnknown,
                 Files = files.OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase).ToList(),
+                Unpushed = unpushed.OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase).ToList(),
+                Incoming = incoming.OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase).ToList(),
                 PushWarnings = pushWarnings ?? Array.Empty<string>(),
                 CommitBlocker = detached
                     ? "HEAD staccato: un commit fatto qui non finirebbe su nessun ramo e resterebbe orfano."
@@ -354,7 +405,7 @@ namespace MdExplorer.Services.AgentRun
         }
 
         public async Task<string> DiffAsync(string projectPath, string agentName, string relativePath,
-            string repoPath = null, CancellationToken ct = default)
+            string repoPath = null, string oldPath = null, CancellationToken ct = default)
         {
             var (root, _, _, problem) = await ResolveContextAsync(projectPath, agentName, ct);
             if (problem != null) throw new InvalidOperationException(problem);
@@ -379,9 +430,19 @@ namespace MdExplorer.Services.AgentRun
                 return added.Stdout ?? string.Empty;
             }
 
+            // Una rinomina git la riconosce solo se vede ENTRAMBI i lati. Passando il solo
+            // percorso nuovo, non puo' accoppiarli e risponde "new file mode / index 0000000",
+            // cioe' un file nuovo — mentre la lista, che il diff completo lo aveva, lo aveva
+            // giustamente chiamato "rinominato". Due viste che si contraddicono a un click di
+            // distanza, ed e' cosi' che una cartella rinominata da un collega e' sembrata
+            // duecento file nuovi da salvare.
+            var paths = string.IsNullOrWhiteSpace(oldPath)
+                ? new[] { safe }
+                : new[] { SafeRelative(dir, oldPath), safe };
+
             var args = baseRef != null
-                ? new[] { "diff", "-M", baseRef, "--", safe }
-                : new[] { "diff", "-M", "--", safe };
+                ? new[] { "diff", "-M", baseRef, "--" }.Concat(paths).ToArray()
+                : new[] { "diff", "-M", "--" }.Concat(paths).ToArray();
             var res = await _git.RunAsync(dir, args, ct);
             if (!res.Ok && string.IsNullOrEmpty(res.Stdout))
                 throw new InvalidOperationException($"Differenza non calcolabile per '{relativePath}': {res.Describe()}");
@@ -699,6 +760,66 @@ namespace MdExplorer.Services.AgentRun
         }
 
         // ---- lettura dell'output di git ----
+
+        /// <summary>
+        /// Legge <c>git status --porcelain</c>: cio' che differisce da HEAD, cioe' l'unica cosa
+        /// che ha senso chiamare "da committare".
+        /// <para>
+        /// Prima di qui si leggevano solo le righe <c>??</c> e tutto il resto arrivava da un
+        /// diff contro il ramo remoto: per questo comparivano file gia' committati, e perfino
+        /// file che mancavano perche' non era stato fatto pull.
+        /// </para>
+        /// </summary>
+        internal static IReadOnlyList<WorkingChange> ParsePorcelainStatus(string output)
+        {
+            var list = new List<WorkingChange>();
+            foreach (var line in SplitLines(output))
+            {
+                if (line.Length < 4) continue;
+                var x = line[0];
+                var y = line[1];
+                var rest = line.Substring(3);
+
+                if (x == '?' && y == '?')
+                {
+                    list.Add(new WorkingChange { Change = "untracked", Path = Unquote(rest.Trim()) });
+                    continue;
+                }
+
+                // Le rinomine portano i due percorsi separati da " -> ".
+                if (x == 'R' || y == 'R')
+                {
+                    var sep = rest.IndexOf(" -> ", StringComparison.Ordinal);
+                    if (sep > 0)
+                    {
+                        list.Add(new WorkingChange
+                        {
+                            Change = "renamed",
+                            OldPath = Unquote(rest.Substring(0, sep).Trim()),
+                            Path = Unquote(rest.Substring(sep + 4).Trim()),
+                        });
+                        continue;
+                    }
+                }
+
+                // Conta il codice piu' significativo fra indice (x) e working tree (y):
+                // un file aggiunto all'indice e poi modificato resta "aggiunto".
+                var code = x != ' ' && x != '?' ? x : y;
+                var change = code switch
+                {
+                    'A' => "added",
+                    'D' => "deleted",
+                    'M' => "modified",
+                    'C' => "added",
+                    'T' => "modified",
+                    'U' => "modified",
+                    _ => null,
+                };
+                if (change == null) continue;
+                list.Add(new WorkingChange { Change = change, Path = Unquote(rest.Trim()) });
+            }
+            return list;
+        }
 
         internal static IReadOnlyList<WorkingChange> ParseNameStatus(string output)
         {

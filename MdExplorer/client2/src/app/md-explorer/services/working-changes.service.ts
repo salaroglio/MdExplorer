@@ -44,6 +44,10 @@ export interface RepoChanges {
   recordedCommitUnknown: string | null;
 
   files: WorkingChange[];
+  /** Commit locali che il ramo di riferimento non ha ancora: da pushare. */
+  unpushed?: WorkingChange[];
+  /** Ciò che il ramo di riferimento ha e tu no: da scaricare. Non è lavoro tuo. */
+  incoming?: WorkingChange[];
 
   /** Perché qui non si può committare. `null` = si può. Mai disabilitare senza dirlo. */
   commitBlocker: string | null;
@@ -106,10 +110,12 @@ export class WorkingChangesService {
    * **quello**. Un file dentro un submodule appartiene a un altro repository: chiedere il suo
    * diff alla radice non darebbe niente.
    */
-  diff(projectPath: string, agent: string | null, path: string, repo = ''): Observable<{ path: string; diff: string }> {
+  diff(projectPath: string, agent: string | null, path: string, repo = '', oldPath = ''): Observable<{ path: string; diff: string }> {
     const params: any = { projectPath, path };
     if (agent) params.agent = agent;
     if (repo) params.repo = repo;
+    // Solo per le rinomine: git accoppia i due lati solo se li vede entrambi.
+    if (oldPath) params.oldPath = oldPath;
     return this.http.get<{ path: string; diff: string }>('../api/WorkingChanges/diff', { params });
   }
 

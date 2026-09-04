@@ -8,6 +8,11 @@ export interface DiffRequest {
   repo: string;
   /** Percorso del file, relativo al repository indicato. */
   path: string;
+  /**
+   * Percorso precedente, per i file rinominati. Va passato a git insieme al nuovo:
+   * con un percorso solo la rinomina non viene riconosciuta e il file sembra nuovo.
+   */
+  oldPath?: string;
   /** Etichetta del repository, per l'intestazione. */
   repoLabel: string;
   agent: string | null;
