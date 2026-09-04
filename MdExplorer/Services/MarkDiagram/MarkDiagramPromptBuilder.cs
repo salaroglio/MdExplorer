@@ -57,9 +57,15 @@ namespace MdExplorer.Services.MarkDiagram
                 "   Usale per collocare il box, non per descrivere il diagramma riga per riga.",
                 "",
                 "4. Niente preamboli, niente riepiloghi, niente 'come richiesto'. Parti dal contenuto.",
-                "   Niente elenchi puntati: frasi in prosa, dirette.",
                 "",
-                "5. Scrivi in italiano, con lo stesso lessico del documento.",
+                "5. USA GLI ELENCHI PUNTATI quando aiutano davvero, e spesso aiutano: un elenco",
+                "   si scorre con l'occhio, un paragrafo va letto tutto. Sono il modo giusto per",
+                "   le responsabilita' di un box, le entita' che lo circondano, i vincoli.",
+                "   Un punto = una riga breve, e ogni riga conta nel limite delle dieci frasi.",
+                "   Resta in prosa quando devi spiegare UN concetto o legare due cose fra loro:",
+                "   spezzare un ragionamento in punti lo fa sembrare una lista della spesa.",
+                "",
+                "6. Scrivi in italiano, con lo stesso lessico del documento.",
             });
         }
 
