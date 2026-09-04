@@ -11,6 +11,7 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Models.AI;
 using MdExplorer.Abstractions.Services;
+using MdExplorer.Features.Services.AI;
 using MdExplorer.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
@@ -72,7 +73,7 @@ namespace MdExplorer.Services.MarkDiagram
             {
                 await SendAsync(connectionId, new { phase = "start", box = boxName });
 
-                var provider = ResolveConfiguredProvider(out var modelId, out var whyNot);
+                var provider = ResolveConfiguredProvider(projectPath, out var modelId, out var whyNot);
                 if (provider == null)
                 {
                     // No silent fallback to "some other provider that happens to work":
@@ -202,52 +203,170 @@ namespace MdExplorer.Services.MarkDiagram
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Returns the provider the user configured as their reference LLM — and only
-        /// that one. Unlike MarkFolderJobService, which walks a fallback chain, this
-        /// feature refuses to answer through a provider the user did not choose:
-        /// an explanation is worth only as much as the model behind it, so silently
-        /// downgrading would be worse than saying nothing.
+        /// Returns the LLM the user actually chose, and only that one.
+        ///
+        /// MdExplorer expresses that choice in TWO independent places, and both count:
+        ///
+        ///   1. <c>Setting.AI_DefaultProvider</c> / <c>AI_DefaultModel</c> — global, set
+        ///      explicitly from the AI preferences. Wins when present.
+        ///   2. <c>Project.UseClaudeCodeAsDefault</c> / <c>UseCopilotCliAsDefault</c> —
+        ///      per project, "use this CLI automatically when it is installed".
+        ///
+        /// Reading only the first one was a bug: <c>UseCopilotCliAsDefault</c> is born
+        /// <c>true</c>, so a user who never opened the AI preferences still has a working
+        /// engine everywhere else in the app — and MarkAgent alone claimed there was none.
+        ///
+        /// When both per-project flags are on, Claude Code wins. Its flag is born OFF, so
+        /// finding it on is a deliberate choice, while Copilot's may simply be the default
+        /// nobody touched: the explicit choice beats the default. Same rule as
+        /// MdProjectsController, on purpose — two places must not arbitrate differently.
+        ///
+        /// What this method still refuses to do is walk a chain of substitutes: if the
+        /// chosen engine is missing or unavailable, MarkAgent says so instead of answering
+        /// through a model the user never picked.
         /// </summary>
-        private IAiProvider? ResolveConfiguredProvider(out string? modelId, out string? whyNot)
+        private IAiProvider? ResolveConfiguredProvider(string projectPath, out string? modelId, out string? whyNot)
         {
             modelId = null;
             whyNot = null;
-
-            var (preferredKey, preferredModel) = ReadDefaultPreferences();
-            if (string.IsNullOrWhiteSpace(preferredKey))
-            {
-                whyNot = "Non ho un LLM di riferimento configurato. Impostalo nelle preferenze AI e riprova.";
-                return null;
-            }
 
             var byKey = _aiProviders?
                 .Where(p => p != null)
                 .GroupBy(p => ProviderKey(p.GetProviderType()))
                 .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
-            if (byKey == null || !byKey.TryGetValue(preferredKey, out var provider))
+            if (byKey == null || byKey.Count == 0)
             {
-                whyNot = $"Il provider configurato ('{preferredKey}') non risulta registrato in questa installazione.";
+                whyNot = "Nessun provider AI risulta registrato in questa installazione.";
                 return null;
             }
 
-            try
+            // 1 ─ Preferenza globale esplicita.
+            var (preferredKey, preferredModel) = ReadDefaultPreferences();
+            if (!string.IsNullOrWhiteSpace(preferredKey))
             {
-                if (!provider.IsAvailable())
+                if (!byKey.TryGetValue(preferredKey, out var chosen))
                 {
-                    whyNot = $"Il provider configurato ('{preferredKey}') non è al momento disponibile.";
+                    whyNot = $"Il provider configurato ('{preferredKey}') non risulta registrato in questa installazione.";
                     return null;
                 }
+                if (!IsUsable(chosen, projectPath, out var why))
+                {
+                    whyNot = why;
+                    return null;
+                }
+                modelId = preferredModel;
+                return chosen;
+            }
+
+            // 2 ─ Auto-select per progetto, con la precedenza di MdProjectsController.
+            var (useClaudeCode, useCopilotCli) = ReadProjectAutoSelect(projectPath);
+
+            if (useClaudeCode &&
+                byKey.TryGetValue("claudecode", out var claude) &&
+                IsUsable(claude, projectPath, out _))
+            {
+                // Alias, non nome pieno: punta sempre all'ultimo Sonnet e non invecchia.
+                modelId = "sonnet";
+                return claude;
+            }
+
+            if (useCopilotCli && byKey.TryGetValue("copilotcli", out var copilot))
+            {
+                if (IsUsable(copilot, projectPath, out var whyCopilot))
+                {
+                    // Nessun modello: il flag --model viene omesso e sceglie il CLI.
+                    //
+                    // Quali modelli esistano è una proprietà DELL'INSTALLAZIONE, non del
+                    // programma: nessuna costante scritta qui può essere giusta ovunque.
+                    // Verificato il 04/09/2026 — su questa macchina (Copilot CLI 1.0.82)
+                    // claude-sonnet-5, gpt-5 e claude-haiku-4.5 sono tutti rifiutati con
+                    // "Model ... is not available" e passa solo 'auto', mentre su altre
+                    // installazioni esistono modelli che qui non ci sono. È lo stesso
+                    // motivo per cui CopilotCliProvider non ha una costante di default.
+                    //
+                    // Chi vuole UN modello preciso lo dichiara nelle preferenze AI
+                    // (AI_DefaultProvider + AI_DefaultModel): vivono nel DB utente, quindi
+                    // hanno la stessa granularità del problema — per installazione. Quel
+                    // ramo sta più in alto e vince su questo.
+                    modelId = null;
+                    return copilot;
+                }
+                // Il progetto ha scelto Copilot CLI ma non è utilizzabile: dire perché è
+                // più utile del generico "nessun LLM configurato".
+                whyNot = whyCopilot;
+                return null;
+            }
+
+            whyNot = "Non ho un LLM di riferimento configurato. Impostalo nelle preferenze AI, "
+                   + "oppure attiva un CLI nelle impostazioni del progetto.";
+            return null;
+        }
+
+        /// <summary>
+        /// Availability check. The CLI providers answer differently depending on the
+        /// directory they run in, so the project path is handed to them first — the same
+        /// thing MdProjectsController does when the project is opened.
+        /// </summary>
+        private bool IsUsable(IAiProvider provider, string projectPath, out string? whyNot)
+        {
+            whyNot = null;
+            var key = ProviderKey(provider.GetProviderType());
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(projectPath))
+                {
+                    if (provider is CopilotCliProvider copilot) copilot.WorkingDirectory = projectPath;
+                    else if (provider is ClaudeCodeProvider claude) claude.WorkingDirectory = projectPath;
+                }
+
+                if (provider.IsAvailable()) return true;
+
+                whyNot = $"Il motore configurato ('{key}') non è al momento disponibile su questa macchina.";
+                return false;
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "[MarkDiagram] Availability check failed for '{Key}'", preferredKey);
-                whyNot = $"Non riesco a contattare il provider configurato ('{preferredKey}'): {ex.Message}";
-                return null;
+                _logger.LogWarning(ex, "[MarkDiagram] Availability check failed for '{Key}'", key);
+                whyNot = $"Non riesco a contattare il motore configurato ('{key}'): {ex.Message}";
+                return false;
             }
+        }
 
-            modelId = preferredModel;
-            return provider;
+        /// <summary>
+        /// Per-project auto-select flags. A project row that cannot be found is treated as
+        /// "nothing chosen here" rather than as the entity defaults: the defaults describe a
+        /// project that exists, and inventing one would resurrect the silent fallback.
+        /// </summary>
+        private (bool useClaudeCode, bool useCopilotCli) ReadProjectAutoSelect(string projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath)) return (false, false);
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetService<IUserSettingsDB>();
+                if (db == null) return (false, false);
+
+                db.BeginTransaction();
+                var projects = db.GetDal<Project>().GetList().ToList();
+                db.Commit();
+
+                var project = projects.FirstOrDefault(p =>
+                    string.Equals(p.Path, projectPath, StringComparison.OrdinalIgnoreCase));
+
+                if (project == null)
+                {
+                    _logger.LogWarning("[MarkDiagram] No Project row for path {Path}", projectPath);
+                    return (false, false);
+                }
+
+                return (project.UseClaudeCodeAsDefault, project.UseCopilotCliAsDefault);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[MarkDiagram] Could not read the per-project AI auto-select flags");
+                return (false, false);
+            }
         }
 
         private static string ProviderKey(ProviderType type) => type switch
