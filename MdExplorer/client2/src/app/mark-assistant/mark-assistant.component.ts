@@ -1,11 +1,21 @@
 import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, Subscription, map } from 'rxjs';
+import { marked } from 'marked';
 import { MarkAssistantService } from './mark-assistant.service';
 import { MarkAction, MarkState, SpotlightRect } from './mark-types';
 
 interface DialogPosition { left: number; top: number; }
+/** Larghezza della finestra e altezza dell'area di testo, in px. */
+interface DialogSize { width: number; textHeight: number; }
 
 const POSITION_KEY = 'mark.dialog.position';
+const SIZE_KEY = 'mark.dialog.size';
+
+// Limiti del ridimensionamento. Il minimo tiene la faccia di Mark e una riga
+// leggibile; il massimo evita che la finestra esca dallo schermo.
+const MIN_WIDTH = 380;
+const MAX_WIDTH = 1200;
+const MIN_TEXT_HEIGHT = 80;
 /** Movement threshold (px) above which a mousedown→up is treated as a drag, not a click. */
 const DRAG_CLICK_THRESHOLD = 5;
 
@@ -16,6 +26,7 @@ const DRAG_CLICK_THRESHOLD = 5;
 })
 export class MarkAssistantComponent implements OnInit, OnDestroy {
   @ViewChild('wrapRef', { static: false }) wrapRef!: ElementRef<HTMLElement>;
+  @ViewChild('textRef', { static: false }) textRef!: ElementRef<HTMLElement>;
 
   state$!: Observable<MarkState>;
   text$!: Observable<string>;
@@ -35,6 +46,20 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
 
   /** Custom position (top/left in px). null = use default bottom-right anchor. */
   position: DialogPosition | null = null;
+
+  /** Dimensione scelta dall'utente. null = quella di default definita nel CSS. */
+  size: DialogSize | null = null;
+
+  /** Testo di Mark reso in HTML: le risposte dell'AI arrivano in markdown. */
+  renderedText$!: Observable<string>;
+
+  /** Ridimensionamento in corso. */
+  isResizing = false;
+  private resizeStartX = 0;
+  private resizeStartY = 0;
+  private resizeStartWidth = 0;
+  private resizeStartTextHeight = 0;
+  private textSub: Subscription | null = null;
 
   /** Drag state. */
   isDragging = false;
@@ -57,7 +82,39 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
     this.actions$ = this.mark.actions$;
     this.canUndock = this.mark.canUndock;
 
+    // Le risposte dell'AI contengono markdown (paragrafi, enfasi, a volte codice):
+    // renderlo dà al testo la struttura che il modello ha voluto dargli. Il binding
+    // usa [innerHTML], quindi Angular sanifica: nessun bypass del sanitizer.
+    this.renderedText$ = this.text$.pipe(map(t => this.renderMarkdown(t)));
+
     this.loadPosition();
+    this.loadSize();
+
+    // Mentre la risposta arriva in streaming, resta incollato in fondo — ma solo
+    // se l'utente ci era già: se è risalito a rileggere, non glielo si strappa via.
+    this.textSub = this.text$.subscribe(() => this.scheduleAutoScroll());
+  }
+
+  /**
+   * Converte il markdown in HTML. Se il parsing fallisce si ripiega sul testo
+   * grezzo con gli a-capo preservati: meglio un testo spoglio che una box vuota.
+   */
+  private renderMarkdown(text: string | null): string {
+    if (!text) return '';
+    try {
+      return marked.parse(text, { async: false, gfm: true, breaks: true }) as string;
+    } catch {
+      return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br>');
+    }
+  }
+
+  private scheduleAutoScroll(): void {
+    setTimeout(() => {
+      const el = this.textRef?.nativeElement;
+      if (!el) return;
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      if (distanceFromBottom < 80) el.scrollTop = el.scrollHeight;
+    }, 0);
   }
 
   onUndockClick(event: Event): void {
@@ -68,6 +125,9 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     document.removeEventListener('mousemove', this.onDragMove);
     document.removeEventListener('mouseup', this.onDragEnd);
+    document.removeEventListener('mousemove', this.onResizeMove);
+    document.removeEventListener('mouseup', this.onResizeEnd);
+    this.textSub?.unsubscribe();
   }
 
   onDialogClick(): void {
@@ -121,7 +181,7 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
   onDragStart(event: MouseEvent): void {
     if (event.button !== 0) return; // only left button
     const t = event.target as HTMLElement;
-    if (t.closest('input, textarea, button, .send-btn, .skip-btn')) return;
+    if (t.closest('input, textarea, button, .send-btn, .skip-btn, .resize-handle')) return;
 
     const wrap = this.wrapRef?.nativeElement;
     if (!wrap) return;
@@ -161,6 +221,92 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
     if (!this.position) return;
     this.position = this.clampToViewport(this.position.left, this.position.top);
     this.savePosition();
+  }
+
+  // ── Ridimensionamento ────────────────────────────────────────────────────
+
+  /**
+   * La maniglia sta nell'angolo OPPOSTO all'ancoraggio, così trascinarla muove
+   * il bordo che si vede muovere:
+   *
+   *   - posizione di default (in basso a destra, fissa) → maniglia in alto a
+   *     sinistra: allargare fa crescere la box verso sinistra e verso l'alto;
+   *   - posizione scelta dall'utente (ancorata in alto a sinistra) → maniglia
+   *     in basso a destra, dove la crescita avviene davvero.
+   *
+   * Il segno del delta si inverte di conseguenza: senza questo, in una delle
+   * due modalità la box scapperebbe dalla direzione del mouse.
+   */
+  onResizeStart(event: MouseEvent): void {
+    if (event.button !== 0) return;
+    const wrap = this.wrapRef?.nativeElement;
+    const text = this.textRef?.nativeElement;
+    if (!wrap || !text) return;
+
+    this.isResizing = true;
+    this.resizeStartX = event.clientX;
+    this.resizeStartY = event.clientY;
+    this.resizeStartWidth = wrap.offsetWidth;
+    this.resizeStartTextHeight = text.clientHeight;
+
+    document.addEventListener('mousemove', this.onResizeMove);
+    document.addEventListener('mouseup', this.onResizeEnd);
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  private onResizeMove = (event: MouseEvent): void => {
+    if (!this.isResizing) return;
+    // -1 quando la maniglia è in alto a sinistra: allontanarsi (dx negativo)
+    // deve ingrandire.
+    const sign = this.position === null ? -1 : 1;
+    const dx = (event.clientX - this.resizeStartX) * sign;
+    const dy = (event.clientY - this.resizeStartY) * sign;
+
+    const maxWidth = Math.min(MAX_WIDTH, window.innerWidth - 40);
+    const maxTextHeight = Math.max(MIN_TEXT_HEIGHT, window.innerHeight * 0.8);
+
+    this.size = {
+      width: Math.round(Math.max(MIN_WIDTH, Math.min(this.resizeStartWidth + dx, maxWidth))),
+      textHeight: Math.round(Math.max(MIN_TEXT_HEIGHT, Math.min(this.resizeStartTextHeight + dy, maxTextHeight))),
+    };
+  };
+
+  private onResizeEnd = (): void => {
+    if (!this.isResizing) return;
+    this.isResizing = false;
+    document.removeEventListener('mousemove', this.onResizeMove);
+    document.removeEventListener('mouseup', this.onResizeEnd);
+    this.saveSize();
+    // Ingrandendo, la box potrebbe ora sporgere dallo schermo.
+    if (this.position) {
+      this.position = this.clampToViewport(this.position.left, this.position.top);
+      this.savePosition();
+    }
+  };
+
+  /** Torna alla dimensione di default (doppio click sulla maniglia). */
+  onResizeReset(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.size = null;
+    try { localStorage.removeItem(SIZE_KEY); } catch { /* storage non disponibile */ }
+  }
+
+  private loadSize(): void {
+    try {
+      const raw = localStorage.getItem(SIZE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as DialogSize;
+      if (typeof parsed?.width === 'number' && typeof parsed?.textHeight === 'number') {
+        this.size = parsed;
+      }
+    } catch { /* voce corrotta: si riparte dal default */ }
+  }
+
+  private saveSize(): void {
+    if (!this.size) return;
+    try { localStorage.setItem(SIZE_KEY, JSON.stringify(this.size)); } catch { /* storage non disponibile */ }
   }
 
   // ── Position persistence + viewport clamping ─────────────────────────────

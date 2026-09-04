@@ -35,6 +35,8 @@
      [class.has-custom-position]="position !== null"
      [style.left.px]="position?.left"
      [style.top.px]="position?.top"
+     [style.width.px]="size?.width"
+     [class.resizing]="isResizing"
      (mousedown)="onDragStart($event)"
      (click)="onDialogClick()">
 
@@ -54,6 +56,14 @@
     <div class="rivet rivet-bl"></div>
     <div class="rivet rivet-br"></div>
 
+    <!-- Maniglia di ridimensionamento. Sta nell'angolo opposto all'ancoraggio
+         (vedi onResizeStart); doppio click riporta alla dimensione di default. -->
+    <div class="resize-handle"
+         *ngIf="(state$ | async) === 'playing'"
+         [title]="'Trascina per ridimensionare — doppio click per la dimensione originale'"
+         (mousedown)="onResizeStart($event)"
+         (dblclick)="onResizeReset($event)"></div>
+
     <div class="led-area">
       <div class="led"></div>
       <div class="led-label">{{ 'MARK.TRANSMITTING' | translate }}</div>
@@ -72,7 +82,12 @@
       <img class="face-portrait" src="/assets/mark.png" alt="Mark" draggable="false">
       <div class="dialog-text-area">
         <div class="dialog-name">MARK</div>
-        <div class="dialog-text" [class.static]="(staticMode$ | async)">{{ text$ | async }}<span class="cursor" *ngIf="(continueArrow$ | async) === false && (text$ | async)?.length > 0"></span></div>
+        <div #textRef
+             class="dialog-text"
+             [class.static]="(staticMode$ | async)"
+             [style.maxHeight.px]="size?.textHeight">
+          <div class="dialog-text-body" [innerHTML]="renderedText$ | async"></div><span class="cursor" *ngIf="(continueArrow$ | async) === false && (text$ | async)?.length > 0"></span>
+        </div>
       </div>
     </div>
 

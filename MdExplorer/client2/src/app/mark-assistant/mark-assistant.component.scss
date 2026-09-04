@@ -378,10 +378,157 @@
   text-shadow: 1px 1px 0 var(--mrk-hard-shadow);
   min-height: 56px;
 
+  // Una risposta lunga faceva crescere la finestra oltre il bordo dello schermo:
+  // la parte alta usciva e diventava irraggiungibile, perché la box è ancorata in
+  // basso. Con un tetto e lo scorrimento il testo resta tutto raggiungibile.
+  // Il valore viene sovrascritto inline quando l'utente ridimensiona.
+  max-height: min(50vh, 460px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 8px;
+
+  // Barra di scorrimento in tono con il resto della scocca, invece di quella
+  // di sistema che stonerebbe con la grafica retro.
+  scrollbar-width: thin;
+  scrollbar-color: var(--mrk-accent-fg) transparent;
+
+  &::-webkit-scrollbar { width: 10px; }
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, .35);
+    border: 1px solid var(--mrk-hard-shadow);
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--mrk-accent-fg);
+    border: 1px solid var(--mrk-hard-shadow);
+    &:hover { filter: brightness(1.2); }
+  }
+
   &.static {
     color: #888;
     font-style: italic;
   }
+}
+
+// ── Markdown reso dentro la box ──────────────────────────────────────────────
+// Le risposte dell'AI arrivano in markdown. Senza queste regole i paragrafi si
+// incollano l'uno all'altro e gli elenchi perdono il rientro, cioè proprio la
+// struttura che rende la risposta scorribile con l'occhio.
+.dialog-text-body {
+  display: inline;
+
+  :first-child { margin-top: 0; }
+  :last-child { margin-bottom: 0; }
+
+  p {
+    margin: 0 0 .6em;
+    display: block;
+  }
+
+  // Il caso più frequente — cronaca dell'attesa e risposte brevi — è un
+  // paragrafo solo: reso in linea, così il cursore lampeggiante gli resta
+  // accanto invece di finire a capo da solo. Con più paragrafi tornano
+  // blocchi, e il cursore in fondo è la posizione giusta.
+  p:only-child {
+    display: inline;
+    margin: 0;
+  }
+
+  ul, ol {
+    margin: .4em 0 .6em;
+    padding-left: 1.6em;
+  }
+
+  li { margin-bottom: .2em; }
+
+  strong { color: var(--mrk-accent-fg); font-weight: normal; }
+  em { font-style: italic; opacity: .9; }
+
+  code {
+    font-family: 'VT323', monospace;
+    font-size: .95em;
+    background: rgba(0, 0, 0, .4);
+    border: 1px solid var(--mrk-hard-shadow);
+    padding: 0 4px;
+  }
+
+  pre {
+    margin: .5em 0;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, .45);
+    border: 1px solid var(--mrk-hard-shadow);
+    overflow-x: auto;
+
+    code { background: none; border: 0; padding: 0; }
+  }
+
+  h1, h2, h3, h4 {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    color: var(--mrk-accent-fg);
+    margin: .9em 0 .5em;
+    letter-spacing: 1px;
+  }
+
+  blockquote {
+    margin: .5em 0;
+    padding-left: 10px;
+    border-left: 3px solid var(--mrk-accent-fg);
+    opacity: .85;
+  }
+
+  table {
+    border-collapse: collapse;
+    margin: .5em 0;
+    th, td {
+      border: 1px solid var(--mrk-hard-shadow);
+      padding: 2px 8px;
+      text-align: left;
+    }
+  }
+}
+
+// ── Maniglia di ridimensionamento ────────────────────────────────────────────
+.resize-handle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  z-index: 3;
+  cursor: nwse-resize;
+  // Tre tacche diagonali, nello stile dei rivetti già presenti sulla scocca.
+  background:
+    linear-gradient(135deg, transparent 0 42%, var(--mrk-accent-fg) 42% 52%, transparent 52%),
+    linear-gradient(135deg, transparent 0 62%, var(--mrk-accent-fg) 62% 72%, transparent 72%),
+    linear-gradient(135deg, transparent 0 82%, var(--mrk-accent-fg) 82% 92%, transparent 92%);
+  opacity: .45;
+  transition: opacity .15s ease;
+
+  &:hover { opacity: 1; }
+}
+
+// La maniglia prende il posto del rivetto d'angolo invece di coprirlo: l'angolo
+// diventa una vite che si può girare, e la scocca resta coerente.
+.mark-dialog-wrap:not(.has-custom-position) .resize-handle {
+  top: 3px;
+  left: 3px;
+  transform: rotate(180deg);
+}
+
+.mark-dialog-wrap.has-custom-position .resize-handle {
+  bottom: 3px;
+  right: 3px;
+}
+
+// Il rivetto sostituito sparisce, ma solo quando la maniglia c'è davvero
+// (cioè mentre Mark parla: *ngIf su state === 'playing').
+.mark-dialog-wrap.on:not(.minimized):not(.has-custom-position) .rivet-tl { display: none; }
+.mark-dialog-wrap.on:not(.minimized).has-custom-position .rivet-br { display: none; }
+
+// Durante il ridimensionamento le transizioni darebbero un effetto elastico
+// che fa perdere il contatto fra mouse e bordo.
+.mark-dialog-wrap.resizing {
+  transition: none;
+
+  .mark-dialog-box { transition: none; }
 }
 
 .cursor {
