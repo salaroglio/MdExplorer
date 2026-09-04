@@ -126,21 +126,22 @@ namespace MdExplorer.Services.MarkDiagram
 
                 var documentText = ReadDocument(context, projectPath, out var truncated);
 
+                // Le regole vanno DENTRO il prompt, non passate da SetSystemPromptAsync.
+                //
+                // Quel metodo sembra fare al caso nostro e invece fa due danni. Primo: il
+                // valore che salva viene letto solo da ChatWithToolsAsync — StreamChatAsync,
+                // che è la strada di MarkAgent, non lo guarda mai. Le regole finivano scritte
+                // in un'impostazione e poi ignorate: nessun limite di dieci frasi, nessun
+                // divieto di inventare, nessun elenco puntato mai arrivato al modello.
+                // Secondo: quell'impostazione è GLOBALE (CopilotCli_SystemPrompt) ed è la
+                // stessa che usa la chat AI dell'utente — ogni spiegazione di un box gliela
+                // sovrascriveva in silenzio.
+                //
+                // Un prompt che non arriva è peggio di un prompt assente: si continua a
+                // ritoccarlo credendo di cambiare qualcosa.
                 var systemPrompt = MarkDiagramPromptBuilder.BuildSystemPrompt();
-                var userPrompt = MarkDiagramPromptBuilder.BuildUserPrompt(context!, documentText, truncated);
-
-                try
-                {
-                    await provider.SetSystemPromptAsync(systemPrompt);
-                }
-                catch (Exception ex)
-                {
-                    // Not every provider supports a separate system prompt; fold it in.
-                    _logger.LogInformation(ex,
-                        "[MarkDiagram] Provider '{Provider}' rejected SetSystemPromptAsync, inlining the rules",
-                        provider.GetName());
-                    userPrompt = systemPrompt + "\n\n" + userPrompt;
-                }
+                var userPrompt = systemPrompt + "\n\n---\n\n"
+                               + MarkDiagramPromptBuilder.BuildUserPrompt(context!, documentText, truncated);
 
                 var relationCount = context?.Relations?.Count ?? 0;
                 await SendStatusAsync(connectionId, boxName,
