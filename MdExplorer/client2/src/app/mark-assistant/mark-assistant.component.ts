@@ -37,6 +37,16 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
   isResponding$!: Observable<boolean>;
   isUndocked$!: Observable<boolean>;
   actions$!: Observable<MarkAction[] | null>;
+  /** Cronaca del "pensiero", mostrata nel fumetto fuori dalla box. */
+  thinking$!: Observable<string[]>;
+
+  /**
+   * Il fumetto sta sopra la box, ma Mark si può trascinare ovunque: se è vicino
+   * al bordo alto lo spazio sopra non c'è e il pensiero finirebbe fuori schermo.
+   * In quel caso si ribalta sotto.
+   */
+  thinkBelow = false;
+  private thinkSub: Subscription | null = null;
 
   /** True only when running in Electron with the undock IPC bridge available. */
   canUndock = false;
@@ -80,6 +90,7 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
     this.isResponding$ = this.mark.isResponding$;
     this.isUndocked$ = this.mark.isUndocked$;
     this.actions$ = this.mark.actions$;
+    this.thinking$ = this.mark.thinking$;
     this.canUndock = this.mark.canUndock;
 
     // Le risposte dell'AI contengono markdown (paragrafi, enfasi, a volte codice):
@@ -93,6 +104,7 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
     // Mentre la risposta arriva in streaming, resta incollato in fondo — ma solo
     // se l'utente ci era già: se è risalito a rileggere, non glielo si strappa via.
     this.textSub = this.text$.subscribe(() => this.scheduleAutoScroll());
+    this.thinkSub = this.thinking$.subscribe(() => this.scheduleThinkPlacement());
   }
 
   /**
@@ -128,6 +140,19 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
     document.removeEventListener('mousemove', this.onResizeMove);
     document.removeEventListener('mouseup', this.onResizeEnd);
     this.textSub?.unsubscribe();
+    this.thinkSub?.unsubscribe();
+  }
+
+  /**
+   * Decide se il fumetto sta sopra o sotto. La soglia è l'altezza massima che
+   * il fumetto può occupare più il margine della coda.
+   */
+  private scheduleThinkPlacement(): void {
+    setTimeout(() => {
+      const wrap = this.wrapRef?.nativeElement;
+      if (!wrap) return;
+      this.thinkBelow = wrap.getBoundingClientRect().top < 260;
+    }, 0);
   }
 
   onDialogClick(): void {
@@ -214,6 +239,7 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
     document.removeEventListener('mousemove', this.onDragMove);
     document.removeEventListener('mouseup', this.onDragEnd);
     this.savePosition();
+    this.scheduleThinkPlacement();
   };
 
   @HostListener('window:resize')
@@ -221,6 +247,7 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
     if (!this.position) return;
     this.position = this.clampToViewport(this.position.left, this.position.top);
     this.savePosition();
+    this.scheduleThinkPlacement();
   }
 
   // ── Ridimensionamento ────────────────────────────────────────────────────

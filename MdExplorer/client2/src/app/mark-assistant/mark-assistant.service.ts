@@ -69,6 +69,16 @@ export class MarkAssistantService {
   readonly isResponding$: Observable<boolean> = this._isResponding.asObservable();
 
   /**
+   * Cronaca di cosa Mark sta facendo mentre non ha ancora una risposta.
+   * Vive in un fumetto separato, FUORI dalla box: dentro ci va solo la risposta
+   * ufficiale. Tenerli separati evita che il processo si confonda col risultato —
+   * finché stavano nello stesso posto, l'ultima riga di cronaca poteva essere
+   * scambiata per una risposta.
+   */
+  private readonly _thinking = new BehaviorSubject<string[]>([]);
+  readonly thinking$: Observable<string[]> = this._thinking.asObservable();
+
+  /**
    * Action buttons for the current step (when set, the lesson loop is paused
    * waiting for the user to click one). The component renders these below
    * the dialog text.
@@ -127,6 +137,9 @@ export class MarkAssistantService {
    * of the real answer the commentary must never overwrite it again.
    */
   private diagramAnswerStarted = false;
+
+  /** Timer che dissolve il fumetto dopo la risposta. */
+  private thinkingTimer: any = null;
 
   constructor(
     private translate: TranslateService,
@@ -678,6 +691,8 @@ export class MarkAssistantService {
     if (cached) {
       // Re-shown instantly: the point of the cache is that a box you already
       // asked about never costs a second wait.
+      this.clearThinkingTimer();
+      this._thinking.next([]);
       this.diagramBoxInFlight = null;
       this._text.next(cached);
       this._continueArrow.next(true);
@@ -686,6 +701,8 @@ export class MarkAssistantService {
 
     this.diagramBoxInFlight = context.box.name;
     this.diagramAnswerStarted = false;
+    this.clearThinkingTimer();
+    this._thinking.next([]);
     this._text.next(
       this.translate.instant('MARK.DIAGRAM.THINKING', { box: context.box.name })
     );
@@ -698,6 +715,9 @@ export class MarkAssistantService {
 
   /** Shows a failure in Mark's dialog — the user asked, they deserve to know why not. */
   showDiagramError(boxName: string, message: string): void {
+    // Il fumetto NON viene svuotato: l'ultima riga rimasta dice a che punto si
+    // e' fermato, ed e' l'informazione piu' utile quando qualcosa va storto.
+    this.clearThinkingTimer();
     this.takeOverDialog();
     this.diagramBoxInFlight = null;
     this.diagramAnswerStarted = false;
@@ -721,8 +741,10 @@ export class MarkAssistantService {
         break;
 
       case 'status':
-        // Cronaca dell'attesa: sostituisce la riga precedente, mai la risposta.
-        if (!this.diagramAnswerStarted) this._text.next(evt.message || '');
+        // Il pensiero si accumula nel fumetto: la box resta alla risposta.
+        if (!this.diagramAnswerStarted && evt.message) {
+          this._thinking.next([...this._thinking.getValue(), evt.message]);
+        }
         break;
 
       case 'chunk':
@@ -747,12 +769,31 @@ export class MarkAssistantService {
         this.diagramAnswerStarted = false;
         this.diagramSub?.unsubscribe();
         this.diagramSub = null;
+        // Il pensiero ha esaurito il suo compito: si dissolve da solo, così non
+        // resta a ingombrare accanto alla risposta.
+        this.fadeThinkingAway();
         break;
       }
 
       case 'error':
         this.showDiagramError(evt.box, evt.message || 'Non sono riuscito a spiegare questo box.');
         break;
+    }
+  }
+
+  /** Svuota il fumetto dopo qualche secondo dalla risposta. */
+  private fadeThinkingAway(): void {
+    this.clearThinkingTimer();
+    this.thinkingTimer = setTimeout(() => {
+      this._thinking.next([]);
+      this.thinkingTimer = null;
+    }, 4000);
+  }
+
+  private clearThinkingTimer(): void {
+    if (this.thinkingTimer) {
+      clearTimeout(this.thinkingTimer);
+      this.thinkingTimer = null;
     }
   }
 

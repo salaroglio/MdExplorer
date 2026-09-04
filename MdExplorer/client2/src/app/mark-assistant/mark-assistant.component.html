@@ -40,6 +40,26 @@
      (mousedown)="onDragStart($event)"
      (click)="onDialogClick()">
 
+  <!-- Fumetto del pensiero. Esce dalla box e vive fuori: dentro ci va solo la
+       risposta ufficiale, qui il come ci si e' arrivati. Sparisce da solo qualche
+       secondo dopo la risposta, ma resta se qualcosa e' andato storto — l'ultima
+       riga dice a che punto si e' fermato. -->
+  <div class="think-bubble"
+       *ngIf="(thinking$ | async) as steps"
+       [class.on]="steps.length > 0"
+       [class.below]="thinkBelow">
+    <div class="think-body">
+      <div class="think-line"
+           *ngFor="let step of steps; let last = last"
+           [class.current]="last">
+        <span class="think-mark">{{ last ? '▸' : '✓' }}</span>{{ step }}
+      </div>
+    </div>
+    <span class="think-tail think-tail-1"></span>
+    <span class="think-tail think-tail-2"></span>
+    <span class="think-tail think-tail-3"></span>
+  </div>
+
   <div class="antenna"></div>
 
   <!-- Tiny dismiss button — visible only when minimized (icon mode).
