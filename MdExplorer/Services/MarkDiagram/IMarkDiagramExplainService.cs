@@ -34,5 +34,15 @@ namespace MdExplorer.Services.MarkDiagram
             string connectionId,
             string question,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Applica la modifica proposta e confermata dall'utente. Il contenuto non viaggia
+        /// dal client: era già qui, ed è esattamente quello che gli è stato mostrato.
+        /// </summary>
+        /// <returns><c>false</c> se non c'è nessuna proposta in attesa.</returns>
+        Task<bool> ApplyEditAsync(string connectionId, CancellationToken ct = default);
+
+        /// <summary>Butta via la proposta senza applicarla.</summary>
+        Task<bool> DiscardEditAsync(string connectionId);
     }
 }

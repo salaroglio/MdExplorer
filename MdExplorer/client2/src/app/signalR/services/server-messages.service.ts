@@ -45,12 +45,17 @@ export class MdServerMessagesService {
   // Observable for the "Ask to MarkAgent" diagram explanation stream
   // (MarkDiagramController). Phases: start | chunk | done | error.
   public markDiagramExplain$ = new Subject<{
-    phase: 'start' | 'status' | 'chunk' | 'done' | 'error',
+    phase: 'start' | 'status' | 'chunk' | 'proposal' | 'done' | 'error',
     box?: string,
     text?: string,
     sentences?: number,
     message?: string,
     followUp?: boolean,
+    // fase 'proposal': cosa MarkAgent propone di cambiare, in attesa di conferma
+    summary?: string,
+    changesDiagram?: boolean,
+    textEdits?: number,
+    otherDocuments?: string[],
   }>();
 
   // Observable for *.agent.md headless runs (AgentRunJobService): started/completed/failed

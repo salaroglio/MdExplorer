@@ -1545,7 +1545,10 @@
       "DONE": "Told you everything for now. Come back if you need me!"
     },
     "DIAGRAM": {
-      "THINKING": "Looking at the \"{{box}}\" box..."
+      "THINKING": "Looking at the \"{{box}}\" box...",
+      "APPLY": "Apply",
+      "DISCARD": "Leave it",
+      "DISCARDED": "All right, I changed nothing."
     }
   },
   "UNIFIED_SETTINGS": {

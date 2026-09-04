@@ -54,6 +54,10 @@ export class MarkDiagramService {
     // conoscere MarkAssistantService, non il contrario — vedi il commento su
     // registerDiagramFollowUpSender.
     this.mark.registerDiagramFollowUpSender(q => this.askFollowUp(q));
+    this.mark.registerDiagramEditActions(
+      () => this.applyEdit(),
+      () => this.discardEdit(),
+    );
   }
 
   private setupIframeListener(): void {
@@ -116,6 +120,25 @@ export class MarkDiagramService {
           : (err?.error?.message || 'Non sono riuscito a inoltrare la domanda.');
         this.mark.showDiagramError('', message);
       },
+    });
+  }
+
+  /** Conferma la modifica proposta: il contenuto è già sul server. */
+  applyEdit(): void {
+    const connectionId = this.serverMessages.connectionId;
+    if (!connectionId) return;
+    this.http.post(`${this.baseUrl}/apply-edit`, { connectionId }).subscribe({
+      error: (err) => this.mark.showDiagramError('',
+        err?.error?.message || 'Non sono riuscito ad applicare la modifica.'),
+    });
+  }
+
+  /** Butta via la modifica proposta. */
+  discardEdit(): void {
+    const connectionId = this.serverMessages.connectionId;
+    if (!connectionId) return;
+    this.http.post(`${this.baseUrl}/discard-edit`, { connectionId }).subscribe({
+      error: () => { /* niente da applicare: nulla di grave */ },
     });
   }
 

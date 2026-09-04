@@ -67,4 +67,45 @@ namespace MdExplorer.Services.MarkDiagram
         public string? ConnectionId { get; set; }
         public string? Question { get; set; }
     }
+
+    /// <summary>
+    /// Una sostituzione puntuale nel testo del documento.
+    /// <see cref="Find"/> deve comparire <b>esattamente una volta</b>: se compare zero volte
+    /// o più di una, la modifica non è applicabile senza ambiguità e l'intera proposta viene
+    /// rifiutata. Meglio un rifiuto che una sostituzione nel punto sbagliato.
+    /// </summary>
+    public class MarkDiagramTextEdit
+    {
+        public string? Find { get; set; }
+        public string? Replace { get; set; }
+        /// <summary>Perché questa modifica consegue dal cambiamento del diagramma.</summary>
+        public string? Why { get; set; }
+    }
+
+    /// <summary>
+    /// Quello che MarkAgent propone di cambiare. Nulla di tutto ciò viene scritto finché
+    /// l'utente non conferma.
+    /// </summary>
+    public class MarkDiagramEditProposal
+    {
+        /// <summary>Cosa cambia, nelle solite dieci frasi al massimo.</summary>
+        public string? Summary { get; set; }
+
+        /// <summary>Il sorgente PlantUML nuovo, integrale. Null = il diagramma non cambia.</summary>
+        public string? NewPlantuml { get; set; }
+
+        public List<MarkDiagramTextEdit>? TextEdits { get; set; }
+
+        /// <summary>
+        /// Altri documenti del progetto che nominano le entità toccate (F6). Trovati da noi
+        /// con la ricerca trigram, non chiesti al modello: è un fatto, non un'opinione.
+        /// <b>Non vengono modificati</b> — servono solo ad avvisare.
+        /// </summary>
+        public List<string>? OtherDocuments { get; set; }
+    }
+
+    public class MarkDiagramApplyRequest
+    {
+        public string? ConnectionId { get; set; }
+    }
 }

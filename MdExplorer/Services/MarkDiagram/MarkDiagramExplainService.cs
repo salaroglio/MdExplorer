@@ -52,6 +52,14 @@ namespace MdExplorer.Services.MarkDiagram
             string ProjectPath,
             string SessionId);
 
+        /// <summary>
+        /// Proposta di modifica in attesa di conferma, per connessione. Vive qui e non nel
+        /// client perché è il backend ad applicarla: il client conferma, non trasporta il
+        /// contenuto — così quello che viene scritto è esattamente quello che è stato
+        /// mostrato, e non qualcosa che ha fatto un viaggio in più.
+        /// </summary>
+        private readonly ConcurrentDictionary<string, MarkDiagramEditProposal> _pendingEdits = new();
+
         public MarkDiagramExplainService(
             ILogger<MarkDiagramExplainService> logger,
             IHubContext<MonitorMDHub> hubContext,
@@ -85,6 +93,11 @@ namespace MdExplorer.Services.MarkDiagram
             // Sessione nuova per ogni box: le spiegazioni non si contaminano fra loro.
             var sessionId = Guid.NewGuid().ToString();
             _conversations[connectionId] = new DiagramConversation(context, projectPath, sessionId);
+
+            // Una proposta lasciata in sospeso non deve sopravvivere: l'utente ha cambiato
+            // box, quindi non e' piu' quella che gli era stata mostrata. Una conferma che
+            // arrivasse dopo applicherebbe qualcosa che nessuno sta piu' guardando.
+            _pendingEdits.TryRemove(connectionId, out _);
 
             try
             {
@@ -187,6 +200,9 @@ namespace MdExplorer.Services.MarkDiagram
 
             var boxName = conversation.Context?.Box?.Name;
 
+            // Stessa ragione: una nuova domanda supera la proposta precedente.
+            _pendingEdits.TryRemove(connectionId, out _);
+
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             if (_running.TryRemove(connectionId, out var previous))
             {
@@ -218,7 +234,8 @@ namespace MdExplorer.Services.MarkDiagram
                     $"{question}\n\n" +
                     $"(Ricorda: stiamo parlando del box \"{boxName}\" del diagramma. " +
                     $"Rispondi in non più di {MarkDiagramPromptBuilder.MaxSentences} frasi, " +
-                    "senza inventare ciò che il documento non dice.)";
+                    "senza inventare ciò che il documento non dice.)\n\n" +
+                    MarkDiagramPromptBuilder.BuildEditInstructions();
 
                 var answer = new StringBuilder();
                 await foreach (var chunk in StreamAsync(provider, followUpPrompt, modelId, conversation.SessionId, cts.Token))
@@ -230,6 +247,26 @@ namespace MdExplorer.Services.MarkDiagram
                 }
 
                 var full = answer.ToString().Trim();
+
+                // Il modello ha proposto una modifica invece di rispondere?
+                var proposal = TryParseProposal(full);
+                if (proposal != null)
+                {
+                    proposal.OtherDocuments = FindOtherDocumentsMentioning(conversation, cts.Token);
+                    _pendingEdits[connectionId] = proposal;
+
+                    await SendAsync(connectionId, new
+                    {
+                        phase = "proposal",
+                        box = boxName,
+                        summary = proposal.Summary,
+                        changesDiagram = !string.IsNullOrWhiteSpace(proposal.NewPlantuml),
+                        textEdits = proposal.TextEdits?.Count ?? 0,
+                        otherDocuments = proposal.OtherDocuments,
+                    });
+                    return true;
+                }
+
                 var sentences = MarkDiagramPromptBuilder.CountSentences(full);
                 if (sentences > MarkDiagramPromptBuilder.MaxSentences)
                 {
@@ -291,6 +328,231 @@ namespace MdExplorer.Services.MarkDiagram
         }
 
         // ─────────────────────────────────────────────────────────────────────
+        //  Modifica su conferma (F5) e impatti fuori documento (F6)
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Estrae la proposta dal blocco ```mde-edit. Se il blocco non c'è, il modello ha
+        /// solo risposto: non è un errore. Se c'è ma è malformato lo è, e va detto — una
+        /// proposta letta a metà è peggio di nessuna proposta.
+        /// </summary>
+        private MarkDiagramEditProposal? TryParseProposal(string answer)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(
+                answer,
+                "```" + MarkDiagramPromptBuilder.EditFence + "\\s*(.+?)```",
+                System.Text.RegularExpressions.RegexOptions.Singleline);
+            if (!match.Success) return null;
+
+            try
+            {
+                var proposal = System.Text.Json.JsonSerializer.Deserialize<MarkDiagramEditProposal>(
+                    match.Groups[1].Value,
+                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                // Un blocco che non cambia niente non è una proposta.
+                if (proposal == null) return null;
+                if (string.IsNullOrWhiteSpace(proposal.NewPlantuml) &&
+                    (proposal.TextEdits == null || proposal.TextEdits.Count == 0))
+                {
+                    _logger.LogWarning("[MarkDiagram] Blocco di modifica senza modifiche: ignorato");
+                    return null;
+                }
+                return proposal;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[MarkDiagram] Blocco di modifica malformato");
+                throw new InvalidOperationException(
+                    "Ho preparato una modifica ma non sono riuscito a rileggerla. Riprova a chiedermela.", ex);
+            }
+        }
+
+        /// <summary>
+        /// F6 — altri documenti che nominano le entità toccate. <b>Non vengono modificati</b>:
+        /// servono a dire all'utente fin dove arriva l'onda, e a fermarsi lì.
+        ///
+        /// <para>
+        /// La ricerca la facciamo noi con il trigram invece di chiederla al modello: chi
+        /// nomina cosa è un fatto verificabile, e su un fatto un indice è più affidabile di
+        /// un'inferenza.
+        /// </para>
+        /// </summary>
+        private List<string> FindOtherDocumentsMentioning(DiagramConversation conversation, CancellationToken ct)
+        {
+            var risultati = new List<string>();
+            var boxName = conversation.Context?.Box?.Name;
+            if (string.IsNullOrWhiteSpace(boxName)) return risultati;
+
+            // Il nome qualificato può essere "A.B.C": si cerca l'ultimo segmento, che è
+            // quello che compare nella prosa.
+            var termine = boxName.Contains('.') ? boxName.Substring(boxName.LastIndexOf('.') + 1) : boxName;
+            if (termine.Length < 3) return risultati; // sotto i 3 caratteri il trigram non può
+
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var search = scope.ServiceProvider.GetService<ISearchService>();
+                if (search == null) return risultati;
+
+                var trovati = search.SearchContentAsync(termine, conversation.ProjectPath, 20)
+                    .GetAwaiter().GetResult();
+
+                var documentoCorrente = System.IO.Path.GetFileName(conversation.Context?.DocumentPath ?? string.Empty);
+                foreach (var r in trovati)
+                {
+                    if (string.Equals(r.FileName, documentoCorrente, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!risultati.Contains(r.FileName)) risultati.Add(r.FileName);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Non fatale: la modifica sul documento corrente resta valida. Ma va detto,
+                // perché l'assenza di avvisi non deve essere scambiata per "nessun impatto".
+                _logger.LogWarning(ex, "[MarkDiagram] Ricerca degli impatti fuori documento non riuscita");
+            }
+            return risultati;
+        }
+
+        public async Task<bool> ApplyEditAsync(string connectionId, CancellationToken ct = default)
+        {
+            if (!_pendingEdits.TryRemove(connectionId, out var proposal)) return false;
+            if (!_conversations.TryGetValue(connectionId, out var conversation)) return false;
+
+            var boxName = conversation.Context?.Box?.Name;
+
+            try
+            {
+                await SendStatusAsync(connectionId, boxName, "Applico la modifica al documento...");
+
+                var fullPath = ResolveDocumentPath(conversation.Context, conversation.ProjectPath);
+                if (fullPath == null || !System.IO.File.Exists(fullPath))
+                    throw new InvalidOperationException("Non trovo più il documento da modificare.");
+
+                var original = System.IO.File.ReadAllText(fullPath);
+                var updated = original;
+
+                // 1 ─ Il blocco PlantUML. Si sostituisce il SORGENTE ESATTO che era stato
+                //     letto dall'SVG: se nel frattempo il documento è cambiato non lo si
+                //     trova, e ci si ferma invece di scrivere su un testo diverso da quello
+                //     su cui il modello ha ragionato.
+                if (!string.IsNullOrWhiteSpace(proposal.NewPlantuml))
+                {
+                    var sorgenteVecchio = conversation.Context?.PlantumlSource?.Trim();
+                    if (string.IsNullOrWhiteSpace(sorgenteVecchio))
+                        throw new InvalidOperationException("Non ho il sorgente originale del diagramma.");
+
+                    var occorrenze = ContaOccorrenze(updated, sorgenteVecchio);
+                    if (occorrenze != 1)
+                        throw new InvalidOperationException(
+                            occorrenze == 0
+                                ? "Il diagramma nel documento non è più quello che avevo letto: forse è stato modificato nel frattempo. Non tocco nulla."
+                                : $"Il sorgente del diagramma compare {occorrenze} volte nel documento: non so quale intendi. Non tocco nulla.");
+
+                    updated = updated.Replace(sorgenteVecchio, proposal.NewPlantuml.Trim());
+                }
+
+                // 2 ─ Le conseguenze nel testo. Ogni frammento deve comparire esattamente
+                //     una volta: zero significa che il modello l'ha inventato, più di una
+                //     che non si sa dove. In entrambi i casi si rifiuta TUTTO il blocco,
+                //     perché una modifica applicata a metà lascia il documento incoerente,
+                //     che è peggio di non averla applicata.
+                foreach (var edit in proposal.TextEdits ?? new List<MarkDiagramTextEdit>())
+                {
+                    if (string.IsNullOrEmpty(edit.Find)) continue;
+                    var n = ContaOccorrenze(updated, edit.Find);
+                    if (n != 1)
+                        throw new InvalidOperationException(
+                            n == 0
+                                ? $"Non trovo nel documento il testo «{Abbrevia(edit.Find)}». Non applico nulla."
+                                : $"Il testo «{Abbrevia(edit.Find)}» compare {n} volte: non so quale cambiare. Non applico nulla.");
+
+                    updated = updated.Replace(edit.Find, edit.Replace ?? string.Empty);
+                }
+
+                if (updated == original)
+                    throw new InvalidOperationException("La modifica non cambierebbe nulla nel documento.");
+
+                ScriviInModoAtomico(fullPath, updated);
+
+                var quante = (proposal.TextEdits?.Count ?? 0);
+                var cosa = !string.IsNullOrWhiteSpace(proposal.NewPlantuml)
+                    ? (quante > 0 ? $"diagramma e {quante} punti del testo" : "diagramma")
+                    : $"{quante} punti del testo";
+
+                var messaggio = $"Fatto: ho aggiornato {cosa}.";
+                if (proposal.OtherDocuments is { Count: > 0 })
+                {
+                    messaggio += $" Ricorda che {string.Join(", ", proposal.OtherDocuments)} " +
+                                 (proposal.OtherDocuments.Count == 1 ? "nomina" : "nominano") +
+                                 " la stessa entità: quelli non li ho toccati.";
+                }
+
+                await SendAsync(connectionId, new { phase = "done", box = boxName, text = messaggio, followUp = true });
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[MarkDiagram] Applicazione della modifica fallita");
+                await SendAsync(connectionId, new { phase = "error", box = boxName, message = ex.Message });
+                return true;
+            }
+        }
+
+        public Task<bool> DiscardEditAsync(string connectionId)
+            => Task.FromResult(_pendingEdits.TryRemove(connectionId, out _));
+
+        private static int ContaOccorrenze(string testo, string frammento)
+        {
+            if (string.IsNullOrEmpty(frammento)) return 0;
+            var n = 0;
+            var i = testo.IndexOf(frammento, StringComparison.Ordinal);
+            while (i >= 0)
+            {
+                n++;
+                if (n > 1) return n; // basta sapere che è ambiguo
+                i = testo.IndexOf(frammento, i + frammento.Length, StringComparison.Ordinal);
+            }
+            return n;
+        }
+
+        private static string Abbrevia(string s)
+            => s.Length <= 60 ? s.Replace("\n", " ") : s.Substring(0, 60).Replace("\n", " ") + "…";
+
+        /// <summary>
+        /// Scrittura atomica: si scrive un file temporaneo nella stessa cartella e poi lo si
+        /// sposta sopra l'originale. Se qualcosa va storto a metà, il documento dell'utente
+        /// resta quello di prima invece di diventare mezzo scritto.
+        /// </summary>
+        private static void ScriviInModoAtomico(string path, string content)
+        {
+            var dir = System.IO.Path.GetDirectoryName(path)!;
+            var temp = System.IO.Path.Combine(dir, $".{System.IO.Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
+            try
+            {
+                System.IO.File.WriteAllText(temp, content);
+                System.IO.File.Move(temp, path, overwrite: true);
+            }
+            finally
+            {
+                if (System.IO.File.Exists(temp))
+                {
+                    try { System.IO.File.Delete(temp); } catch { /* residuo innocuo */ }
+                }
+            }
+        }
+
+        private string? ResolveDocumentPath(MarkDiagramContextDto? context, string projectPath)
+        {
+            var documentPath = context?.DocumentPath;
+            if (string.IsNullOrWhiteSpace(documentPath)) return null;
+            var fullPath = System.IO.Path.IsPathRooted(documentPath)
+                ? System.IO.Path.GetFullPath(documentPath)
+                : System.IO.Path.GetFullPath(System.IO.Path.Combine(projectPath ?? string.Empty, documentPath.TrimStart('/', '\\')));
+            return IsInsideProject(fullPath, projectPath) ? fullPath : null;
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
         //  Document
         // ─────────────────────────────────────────────────────────────────────
 
@@ -306,13 +568,14 @@ namespace MdExplorer.Services.MarkDiagram
 
             try
             {
-                var fullPath = Path.IsPathRooted(documentPath)
-                    ? Path.GetFullPath(documentPath)
-                    : Path.GetFullPath(Path.Combine(projectPath ?? string.Empty, documentPath.TrimStart('/', '\\')));
+                // Stesso calcolo che usa l'applicazione delle modifiche: due modi diversi di
+                // risolvere lo stesso percorso sono un invito a leggere un file e scriverne
+                // un altro.
+                var fullPath = ResolveDocumentPath(context, projectPath);
 
-                if (!IsInsideProject(fullPath, projectPath))
+                if (fullPath == null)
                 {
-                    _logger.LogWarning("[MarkDiagram] Document outside the project, refusing to read: {Path}", fullPath);
+                    _logger.LogWarning("[MarkDiagram] Document outside the project, refusing to read: {Path}", documentPath);
                     return string.Empty;
                 }
 

@@ -10202,6 +10202,10 @@ class MarkAssistantService {
   registerDiagramFollowUpSender(send) {
     this.diagramFollowUpSender = send;
   }
+  registerDiagramEditActions(apply, discard) {
+    this.diagramApplyEdit = apply;
+    this.diagramDiscardEdit = discard;
+  }
   constructor(translate, projectsService, router, injector, serverMessages, markActions) {
     this.translate = translate;
     this.projectsService = projectsService;
@@ -10302,6 +10306,9 @@ class MarkAssistantService {
      * registrazione il ciclo non esiste proprio.
      */
     this.diagramFollowUpSender = null;
+    /** Registrate dallo stesso servizio, per la stessa ragione: niente ciclo di import. */
+    this.diagramApplyEdit = null;
+    this.diagramDiscardEdit = null;
     this.scheduleSpotlightRecompute = () => {
       if (this.rafScheduled) return;
       if (!this.currentSpotlightSelector) return;
@@ -10899,6 +10906,38 @@ class MarkAssistantService {
         }
         this._text.next((this._text.getValue() || '') + (evt.text || ''));
         break;
+      case 'proposal':
+        {
+          // MarkAgent propone una modifica al documento. Non si applica nulla: si
+          // mostra cosa cambierebbe e si aspetta. La scrittura e' l'unica azione
+          // di MarkAgent che lascia tracce, ed e' l'unica che passa da un pulsante.
+          this.diagramAnswerStarted = true; // il fumetto non deve piu' scrivere qui
+          this._text.next(this.formatProposal(evt));
+          this._continueArrow.next(false);
+          this.clearThinkingTimer();
+          this._thinking.next([]);
+          this._actions.next([{
+            labelKey: 'MARK.DIAGRAM.APPLY',
+            icon: '\u2713',
+            handler: () => {
+              this._actions.next(null);
+              this.diagramApplyEdit?.();
+            }
+          }, {
+            labelKey: 'MARK.DIAGRAM.DISCARD',
+            icon: '\u2715',
+            handler: () => {
+              this._actions.next(null);
+              this.diagramDiscardEdit?.();
+              this._text.next(this.translate.instant('MARK.DIAGRAM.DISCARDED'));
+              this._continueArrow.next(true);
+            }
+          }]);
+          this.diagramBoxInFlight = null;
+          this.diagramSub?.unsubscribe();
+          this.diagramSub = null;
+          break;
+        }
       case 'done':
         {
           // Se non è mai partita una risposta, quello che c'è a schermo è la cronaca
@@ -10939,6 +10978,25 @@ class MarkAssistantService {
       clearTimeout(this.thinkingTimer);
       this.thinkingTimer = null;
     }
+  }
+  /**
+   * Rende la proposta in markdown. Mostra QUANTO cambia prima di COSA: chi deve
+   * dare un ok vuole prima sapere l'ampiezza dell'intervento.
+   */
+  formatProposal(evt) {
+    const righe = [];
+    const pezzi = [];
+    if (evt.changesDiagram) pezzi.push('il diagramma');
+    if (evt.textEdits > 0) pezzi.push(evt.textEdits === 1 ? '1 punto del testo' : `${evt.textEdits} punti del testo`);
+    righe.push(`**Proposta di modifica** — cambierebbe ${pezzi.join(' e ') || 'nulla'}.`);
+    righe.push('');
+    if (evt.summary) righe.push(evt.summary);
+    if (evt.otherDocuments?.length) {
+      righe.push('');
+      const elenco = evt.otherDocuments.map(d => `- ${d}`).join('\n');
+      righe.push(`⚠️ Anche questi documenti nominano la stessa entità, e **non li tocco**:\n${elenco}`);
+    }
+    return righe.join('\n');
   }
   diagramKey(documentPath, boxName) {
     return `${documentPath}::${boxName}`;
@@ -11207,6 +11265,7 @@ class MarkDiagramService {
     // conoscere MarkAssistantService, non il contrario — vedi il commento su
     // registerDiagramFollowUpSender.
     this.mark.registerDiagramFollowUpSender(q => this.askFollowUp(q));
+    this.mark.registerDiagramEditActions(() => this.applyEdit(), () => this.discardEdit());
   }
   setupIframeListener() {
     window.addEventListener('message', event => {
@@ -11257,6 +11316,26 @@ class MarkDiagramService {
         const message = err?.status === 409 ? 'Non stiamo parlando di nessun box: fai prima tasto destro su un elemento del diagramma.' : err?.error?.message || 'Non sono riuscito a inoltrare la domanda.';
         this.mark.showDiagramError('', message);
       }
+    });
+  }
+  /** Conferma la modifica proposta: il contenuto è già sul server. */
+  applyEdit() {
+    const connectionId = this.serverMessages.connectionId;
+    if (!connectionId) return;
+    this.http.post(`${this.baseUrl}/apply-edit`, {
+      connectionId
+    }).subscribe({
+      error: err => this.mark.showDiagramError('', err?.error?.message || 'Non sono riuscito ad applicare la modifica.')
+    });
+  }
+  /** Butta via la modifica proposta. */
+  discardEdit() {
+    const connectionId = this.serverMessages.connectionId;
+    if (!connectionId) return;
+    this.http.post(`${this.baseUrl}/discard-edit`, {
+      connectionId
+    }).subscribe({
+      error: () => {}
     });
   }
   explainBox(context, connectionId) {
@@ -18296,8 +18375,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.04.12',
-  buildTime: '2026.09.04 16:01:33'
+  version: '2026.09.04.14',
+  buildTime: '2026.09.04 16:39:00'
 };
 
 /***/ }),
@@ -18331,4 +18410,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.dd82fb3710e62e41.js.map
+//# sourceMappingURL=main.425ac38e6d9da265.js.map

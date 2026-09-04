@@ -79,5 +79,33 @@ namespace MdExplorer.Controllers.MarkDiagram
 
             return Ok(new { started = true });
         }
+
+        /// <summary>
+        /// Conferma della modifica proposta. Il corpo porta solo la connessione: il
+        /// contenuto della modifica è già sul server, ed è esattamente quello che è stato
+        /// mostrato all'utente — non rifà il viaggio, quindi non può cambiare per strada.
+        /// </summary>
+        [HttpPost("apply-edit")]
+        public async Task<IActionResult> ApplyEdit([FromBody] MarkDiagramApplyRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.ConnectionId))
+                return BadRequest("connectionId is required");
+
+            var applied = await _explainService.ApplyEditAsync(request.ConnectionId, CancellationToken.None);
+            if (!applied)
+                return Conflict(new { message = "Nessuna modifica in attesa di conferma." });
+
+            return Ok(new { started = true });
+        }
+
+        [HttpPost("discard-edit")]
+        public async Task<IActionResult> DiscardEdit([FromBody] MarkDiagramApplyRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.ConnectionId))
+                return BadRequest("connectionId is required");
+
+            await _explainService.DiscardEditAsync(request.ConnectionId);
+            return Ok(new { discarded = true });
+        }
     }
 }

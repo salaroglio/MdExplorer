@@ -167,6 +167,15 @@ export class MarkAssistantService {
     this.diagramFollowUpSender = send;
   }
 
+  /** Registrate dallo stesso servizio, per la stessa ragione: niente ciclo di import. */
+  private diagramApplyEdit: (() => void) | null = null;
+  private diagramDiscardEdit: (() => void) | null = null;
+
+  registerDiagramEditActions(apply: () => void, discard: () => void): void {
+    this.diagramApplyEdit = apply;
+    this.diagramDiscardEdit = discard;
+  }
+
   constructor(
     private translate: TranslateService,
     private projectsService: ProjectsService,
@@ -814,6 +823,38 @@ export class MarkAssistantService {
         this._text.next((this._text.getValue() || '') + (evt.text || ''));
         break;
 
+      case 'proposal': {
+        // MarkAgent propone una modifica al documento. Non si applica nulla: si
+        // mostra cosa cambierebbe e si aspetta. La scrittura e' l'unica azione
+        // di MarkAgent che lascia tracce, ed e' l'unica che passa da un pulsante.
+        this.diagramAnswerStarted = true;   // il fumetto non deve piu' scrivere qui
+        this._text.next(this.formatProposal(evt));
+        this._continueArrow.next(false);
+        this.clearThinkingTimer();
+        this._thinking.next([]);
+        this._actions.next([
+          {
+            labelKey: 'MARK.DIAGRAM.APPLY',
+            icon: '\u2713',
+            handler: () => { this._actions.next(null); this.diagramApplyEdit?.(); },
+          },
+          {
+            labelKey: 'MARK.DIAGRAM.DISCARD',
+            icon: '\u2715',
+            handler: () => {
+              this._actions.next(null);
+              this.diagramDiscardEdit?.();
+              this._text.next(this.translate.instant('MARK.DIAGRAM.DISCARDED'));
+              this._continueArrow.next(true);
+            },
+          },
+        ]);
+        this.diagramBoxInFlight = null;
+        this.diagramSub?.unsubscribe();
+        this.diagramSub = null;
+        break;
+      }
+
       case 'done': {
         // Se non è mai partita una risposta, quello che c'è a schermo è la cronaca
         // dell'attesa: spacciarla per risposta sarebbe peggio che ammettere il vuoto.
@@ -857,6 +898,28 @@ export class MarkAssistantService {
       clearTimeout(this.thinkingTimer);
       this.thinkingTimer = null;
     }
+  }
+
+  /**
+   * Rende la proposta in markdown. Mostra QUANTO cambia prima di COSA: chi deve
+   * dare un ok vuole prima sapere l'ampiezza dell'intervento.
+   */
+  private formatProposal(evt: any): string {
+    const righe: string[] = [];
+    const pezzi: string[] = [];
+    if (evt.changesDiagram) pezzi.push('il diagramma');
+    if (evt.textEdits > 0) pezzi.push(evt.textEdits === 1 ? '1 punto del testo' : `${evt.textEdits} punti del testo`);
+
+    righe.push(`**Proposta di modifica** — cambierebbe ${pezzi.join(' e ') || 'nulla'}.`);
+    righe.push('');
+    if (evt.summary) righe.push(evt.summary);
+
+    if (evt.otherDocuments?.length) {
+      righe.push('');
+      const elenco = evt.otherDocuments.map((d: string) => `- ${d}`).join('\n');
+      righe.push(`⚠️ Anche questi documenti nominano la stessa entità, e **non li tocco**:\n${elenco}`);
+    }
+    return righe.join('\n');
   }
 
   private diagramKey(documentPath: string, boxName: string): string {

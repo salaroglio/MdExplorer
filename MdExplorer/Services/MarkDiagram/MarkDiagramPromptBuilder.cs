@@ -196,6 +196,59 @@ namespace MdExplorer.Services.MarkDiagram
         }
 
         /// <summary>
+        /// Marcatore del blocco con cui il modello propone una modifica. Deliberatamente
+        /// improbabile in un testo normale: se comparisse per caso, verrebbe interpretato
+        /// come una proposta di modifica al documento dell'utente.
+        /// </summary>
+        public const string EditFence = "mde-edit";
+
+        /// <summary>
+        /// Istruzioni aggiunte al prompt delle domande di seguito: dicono al modello come
+        /// proporre una modifica quando l'utente ne chiede una.
+        ///
+        /// <para>
+        /// La divisione del lavoro è quella di sempre: il modello decide <b>cosa</b>
+        /// cambiare, il backend applica <b>esattamente</b> e verifica. Per questo si chiede
+        /// un blocco strutturato e non una descrizione a parole — una descrizione andrebbe
+        /// reinterpretata al momento di scrivere, ed è lì che si sbaglia file.
+        /// </para>
+        /// </summary>
+        public static string BuildEditInstructions()
+        {
+            return string.Join("\n", new[]
+            {
+                "SE l'utente chiede di CAMBIARE il diagramma o il documento, non limitarti a",
+                "descrivere la modifica: proponila in un blocco come questo, e nient'altro dopo.",
+                "",
+                "```" + EditFence,
+                "{",
+                "  \"summary\": \"cosa cambia e perché, in non più di dieci frasi\",",
+                "  \"newPlantuml\": \"il sorgente PlantUML NUOVO, integrale, senza i backtick\",",
+                "  \"textEdits\": [",
+                "    { \"find\": \"testo esatto da sostituire\", \"replace\": \"nuovo testo\", \"why\": \"perché consegue\" }",
+                "  ]",
+                "}",
+                "```",
+                "",
+                "REGOLE DEL BLOCCO, e sono vincolanti:",
+                "",
+                "- \"find\" deve essere copiato ALLA LETTERA dal documento e comparire UNA SOLA",
+                "  VOLTA in tutto il testo. Se un frammento è ambiguo allungalo finché non è",
+                "  unico. Una sostituzione ambigua viene rifiutata in blocco, non indovinata.",
+                "- Includi in \"textEdits\" TUTTE le conseguenze del cambiamento nel documento:",
+                "  se sposti una dipendenza, il paragrafo che la descriveva ora è falso.",
+                "  Le conseguenze dimenticate sono il vero danno di una modifica al diagramma.",
+                "- \"newPlantuml\" va omesso se il diagramma non cambia; \"textEdits\" va omesso",
+                "  se cambia solo il diagramma.",
+                "- Non toccare altri documenti: se sospetti che ne siano coinvolti, dillo in",
+                "  \"summary\" e fermati lì.",
+                "",
+                "Se invece l'utente sta solo facendo una domanda, rispondi normalmente e NON",
+                "usare il blocco.",
+            });
+        }
+
+        /// <summary>
         /// Counts sentences in a reply. Used to notice when the model ignores the
         /// ten-sentence rule. Deliberately NOT used to truncate: a reply cut mid-thought
         /// is worse than a long one, and the fix belongs in the prompt.

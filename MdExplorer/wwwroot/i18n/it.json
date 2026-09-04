@@ -1545,7 +1545,10 @@
       "DONE": "Per ora ti ho detto tutto. Torna se ti serve!"
     },
     "DIAGRAM": {
-      "THINKING": "Sto guardando il box \"{{box}}\"..."
+      "THINKING": "Sto guardando il box \"{{box}}\"...",
+      "APPLY": "Applica",
+      "DISCARD": "Lascia stare",
+      "DISCARDED": "Va bene, non ho toccato nulla."
     }
   },
   "UNIFIED_SETTINGS": {
