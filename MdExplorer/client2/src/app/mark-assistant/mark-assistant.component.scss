@@ -413,11 +413,20 @@
 // Le risposte dell'AI arrivano in markdown. Senza queste regole i paragrafi si
 // incollano l'uno all'altro e gli elenchi perdono il rientro, cioè proprio la
 // struttura che rende la risposta scorribile con l'occhio.
-.dialog-text-body {
+//
+// ⚠️ Serve `::ng-deep`, e non è un vezzo. Con l'incapsulamento delle viste
+// Angular marca gli elementi del TEMPLATE con `_ngcontent-*` e compila i
+// selettori di conseguenza: `.dialog-text-body[_ngcontent] p[_ngcontent]`.
+// Gli elementi inseriti da `[innerHTML]` quell'attributo non ce l'hanno, quindi
+// senza `::ng-deep` le regole vengono emesse ma non corrispondono a nulla — che
+// è il motivo per cui la prima versione mostrava markdown reso ma senza rientri.
+// `:host` davanti tiene la deroga dentro il componente invece di farla colare
+// su tutta l'applicazione.
+:host ::ng-deep .dialog-text-body {
   display: inline;
 
-  :first-child { margin-top: 0; }
-  :last-child { margin-bottom: 0; }
+  > :first-child { margin-top: 0; }
+  > :last-child { margin-bottom: 0; }
 
   p {
     margin: 0 0 .6em;
@@ -435,10 +444,31 @@
 
   ul, ol {
     margin: .4em 0 .6em;
-    padding-left: 1.6em;
+    padding-left: 1.5em;
   }
 
-  li { margin-bottom: .2em; }
+  ul { list-style: none; }
+
+  // Pallini disegnati a mano: quelli di sistema stonano col resto.
+  ul > li::before {
+    content: '▪';
+    color: var(--mrk-accent-fg);
+    display: inline-block;
+    width: 1em;
+    margin-left: -1em;
+  }
+
+  ol { padding-left: 1.7em; }
+  ol > li::marker { color: var(--mrk-accent-fg); }
+
+  li {
+    margin-bottom: .25em;
+    display: list-item;
+  }
+
+  // Elenco dentro elenco: il rientro deve raddoppiare, altrimenti la gerarchia
+  // si perde ed è proprio quella che si voleva far vedere.
+  li > ul, li > ol { margin: .25em 0 .25em; }
 
   strong { color: var(--mrk-accent-fg); font-weight: normal; }
   em { font-style: italic; opacity: .9; }
@@ -476,6 +506,12 @@
     opacity: .85;
   }
 
+  hr {
+    border: 0;
+    border-top: 1px solid var(--mrk-hard-shadow);
+    margin: .7em 0;
+  }
+
   table {
     border-collapse: collapse;
     margin: .5em 0;
@@ -484,6 +520,7 @@
       padding: 2px 8px;
       text-align: left;
     }
+    th { color: var(--mrk-accent-fg); }
   }
 }
 
