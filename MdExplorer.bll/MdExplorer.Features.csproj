@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <!-- L'SDK di Copilot scaricherebbe un proprio CLI (oltre 300 MB) nell'output.
+         MdExplorer usa quello installato dall'utente, che ha gia' la sua autenticazione. -->
+    <CopilotSkipCliDownload>true</CopilotSkipCliDownload>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>annotations</Nullable>
@@ -27,6 +30,7 @@
 
   <ItemGroup>
     <PackageReference Include="dotNetRDF" Version="3.5.2" />
+    <PackageReference Include="GitHub.Copilot.SDK" Version="1.0.11" />
     <PackageReference Include="LLamaSharp" Version="0.26.0" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />

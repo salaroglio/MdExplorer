@@ -10,6 +10,9 @@
                              Condition="'%(Filename)%(Extension)' == 'SQLite.Interop.dll' And $([MSBuild]::ValueOrDefault('%(FullPath)', '').Contains('netstandard2.0'))" />
     </ItemGroup>
     <PropertyGroup>
+    <!-- L'SDK di Copilot scaricherebbe un proprio CLI (oltre 300 MB) nell'output.
+         MdExplorer usa quello installato dall'utente, che ha gia' la sua autenticazione. -->
+    <CopilotSkipCliDownload>true</CopilotSkipCliDownload>
       <_SQLiteInteropCount>@(ResolvedFileToPublish->WithMetadataValue('Filename', 'SQLite.Interop')->Count())</_SQLiteInteropCount>
     </PropertyGroup>
     <!-- Fail-loud: se il filtro le togliesse entrambe il publish riuscirebbe lo stesso, e l'app

@@ -282,6 +282,7 @@ namespace MdExplorer
             // Model discovery per ogni provider
             services.AddSingleton<IModelDiscoveryProvider, OpenAiModelDiscovery>();
             services.AddSingleton<IModelDiscoveryProvider, GeminiModelDiscovery>();
+            services.AddSingleton<MdExplorer.Features.Services.AI.CopilotSdkModelSource>();
             services.AddSingleton<IModelDiscoveryProvider, CopilotCliModelDiscovery>();
             services.AddSingleton<IModelDiscoveryProvider, ClaudeCodeModelDiscovery>();
 
