@@ -1,6 +1,8 @@
-import { Injectable, Injector } from '@angular/core';
+import { Injectable, Injector, SecurityContext } from '@angular/core';
+import { DomSanitizer } from '@angular/platform-browser';
+import { marked } from 'marked';
 import { NavigationEnd, Router } from '@angular/router';
-import { BehaviorSubject, Observable, Subscription, combineLatest, firstValueFrom } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, combineLatest, firstValueFrom, map } from 'rxjs';
 import { filter, skip, take } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
 import { ProjectsService } from '../md-explorer/services/projects.service';
@@ -51,6 +53,15 @@ export class MarkAssistantService {
 
   private readonly _text = new BehaviorSubject<string>('');
   readonly text$: Observable<string> = this._text.asObservable();
+
+  /**
+   * Il testo di Mark reso in HTML. Vive qui e non nel componente perché le finestre
+   * che lo mostrano sono DUE: quella agganciata e quella staccata in un BrowserWindow
+   * a sé. Con due conversioni separate le due finestre finirebbero per divergere —
+   * ed è già successo: la finestra staccata mostrava markdown grezzo mentre l'altra
+   * lo rendeva.
+   */
+  readonly renderedText$: Observable<string> = this._text.pipe(map(t => this.renderMarkdown(t)));
 
   private readonly _staticMode = new BehaviorSubject<boolean>(false);
   readonly staticMode$: Observable<boolean> = this._staticMode.asObservable();
@@ -183,6 +194,7 @@ export class MarkAssistantService {
     private injector: Injector,
     private serverMessages: MdServerMessagesService,
     private markActions: MarkActionsService,
+    private sanitizer: DomSanitizer,
   ) {
     this.lessonRegistry = buildLessonRegistry({
       launch: (id: string) => this.launch(id),
@@ -230,6 +242,9 @@ export class MarkAssistantService {
       this.actions$,
       this.continueArrow$,
       this.state$,
+      // Senza questo, la cronaca del pensiero resterebbe ferma alla prima riga
+      // nella finestra staccata: e' li' che l'attesa sembra un guasto.
+      this.thinking$,
     ]).subscribe(() => {
       api.pushState(this.snapshotState());
     });
@@ -289,6 +304,8 @@ export class MarkAssistantService {
     actions: { label: string; icon?: string }[] | null;
     transmittingLabel: string;
     inputPlaceholder: string;
+    html: string;
+    thinking: string[];
   } {
     const rawActions = this._actions.getValue();
     const actions = rawActions
@@ -306,6 +323,10 @@ export class MarkAssistantService {
       actions,
       transmittingLabel: this.translate.instant('MARK.TRANSMITTING'),
       inputPlaceholder: this.translate.instant('MARK.INPUT.PLACEHOLDER'),
+      // La finestra staccata riceve l'HTML gia' pronto e gia' sanificato: non deve
+      // avere una propria copia di marked, e non puo' divergere da quella agganciata.
+      html: this.renderMarkdown(this._text.getValue()),
+      thinking: this._thinking.getValue(),
     };
   }
 
@@ -920,6 +941,27 @@ export class MarkAssistantService {
       righe.push(`⚠️ Anche questi documenti nominano la stessa entità, e **non li tocco**:\n${elenco}`);
     }
     return righe.join('\n');
+  }
+
+  /**
+   * Markdown → HTML, poi sanificato con il sanitizer di Angular.
+   *
+   * La sanificazione qui non è ridondante: nella finestra agganciata ci penserebbe
+   * `[innerHTML]`, ma questo stesso HTML viene spedito per IPC alla finestra
+   * staccata, che lo assegna a `innerHTML` a mano e non ha nessuna rete sotto.
+   * Sanificando una volta sola, alla sorgente, entrambe le finestre ricevono
+   * qualcosa di già sicuro.
+   */
+  renderMarkdown(text: string | null): string {
+    if (!text) return '';
+    let html: string;
+    try {
+      html = marked.parse(text, { async: false, gfm: true, breaks: true }) as string;
+    } catch {
+      // Meglio un testo spoglio che una box vuota.
+      html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br>');
+    }
+    return this.sanitizer.sanitize(SecurityContext.HTML, html) ?? '';
   }
 
   private diagramKey(documentPath: string, boxName: string): string {

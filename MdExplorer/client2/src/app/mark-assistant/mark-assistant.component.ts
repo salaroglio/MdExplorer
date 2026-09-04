@@ -1,6 +1,5 @@
 import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { Observable, Subscription, map } from 'rxjs';
-import { marked } from 'marked';
+import { Observable, Subscription } from 'rxjs';
 import { MarkAssistantService } from './mark-assistant.service';
 import { MarkAction, MarkState, SpotlightRect } from './mark-types';
 
@@ -93,10 +92,9 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
     this.thinking$ = this.mark.thinking$;
     this.canUndock = this.mark.canUndock;
 
-    // Le risposte dell'AI contengono markdown (paragrafi, enfasi, a volte codice):
-    // renderlo dà al testo la struttura che il modello ha voluto dargli. Il binding
-    // usa [innerHTML], quindi Angular sanifica: nessun bypass del sanitizer.
-    this.renderedText$ = this.text$.pipe(map(t => this.renderMarkdown(t)));
+    // Una sola conversione markdown, quella del servizio, condivisa con la finestra
+    // staccata: due pipeline separate divergerebbero, e lo hanno gia' fatto.
+    this.renderedText$ = this.mark.renderedText$;
 
     this.loadPosition();
     this.loadSize();
@@ -105,19 +103,6 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
     // se l'utente ci era già: se è risalito a rileggere, non glielo si strappa via.
     this.textSub = this.text$.subscribe(() => this.scheduleAutoScroll());
     this.thinkSub = this.thinking$.subscribe(() => this.scheduleThinkPlacement());
-  }
-
-  /**
-   * Converte il markdown in HTML. Se il parsing fallisce si ripiega sul testo
-   * grezzo con gli a-capo preservati: meglio un testo spoglio che una box vuota.
-   */
-  private renderMarkdown(text: string | null): string {
-    if (!text) return '';
-    try {
-      return marked.parse(text, { async: false, gfm: true, breaks: true }) as string;
-    } catch {
-      return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br>');
-    }
   }
 
   private scheduleAutoScroll(): void {
