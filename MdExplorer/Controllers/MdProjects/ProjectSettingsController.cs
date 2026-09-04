@@ -4,6 +4,7 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.ProjectDB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
@@ -369,8 +370,13 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
         }
 
+        /// <summary>
+        /// Manopola gemella per Claude Code. ⚠️ Il default di lettura è <c>false</c> — opposto a
+        /// quello di Copilot — perché un progetto che non ha mai visto questa impostazione non
+        /// deve cambiare motore della chat da solo.
+        /// </summary>
         [HttpGet]
-        public IActionResult GetExcludeSubmodulesSetting([FromQuery] string projectPath)
+        public IActionResult GetClaudeCodeAutoSelectSetting([FromQuery] string projectPath)
         {
             try
             {
@@ -387,18 +393,18 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
                 return Ok(new
                 {
-                    enabled = project?.ExcludeSubmodulesFromGitStatus ?? true
+                    enabled = project?.UseClaudeCodeAsDefault ?? false
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting ExcludeSubmodules setting");
-                return StatusCode(500, new { error = "Failed to get ExcludeSubmodules setting" });
+                _logger.LogError(ex, "Error getting ClaudeCodeAutoSelect setting");
+                return StatusCode(500, new { error = "Failed to get ClaudeCodeAutoSelect setting" });
             }
         }
 
         [HttpPost]
-        public IActionResult SetExcludeSubmodulesSetting([FromBody] SetExcludeSubmodulesRequest request)
+        public IActionResult SetClaudeCodeAutoSelectSetting([FromBody] SetClaudeCodeAutoSelectRequest request)
         {
             try
             {
@@ -417,21 +423,225 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 if (project == null)
                 {
                     _userSettingsDB.Rollback();
-                    _logger.LogWarning($"[SetExcludeSubmodulesSetting] Project not found for path: '{request.ProjectPath}'");
+                    _logger.LogWarning($"[SetClaudeCodeAutoSelectSetting] Project not found for path: '{request.ProjectPath}'");
                     return NotFound(new { error = "Project not found" });
                 }
 
-                project.ExcludeSubmodulesFromGitStatus = request.Enabled;
+                project.UseClaudeCodeAsDefault = request.Enabled;
                 projectDal.Save(project);
                 _userSettingsDB.Commit();
 
-                return Ok(new { message = "ExcludeSubmodules setting saved successfully" });
+                return Ok(new { message = "ClaudeCodeAutoSelect setting saved successfully" });
             }
             catch (Exception ex)
             {
                 _userSettingsDB.Rollback();
-                _logger.LogError(ex, "Error saving ExcludeSubmodules setting");
-                return StatusCode(500, new { error = "Failed to save ExcludeSubmodules setting" });
+                _logger.LogError(ex, "Error saving ClaudeCodeAutoSelect setting");
+                return StatusCode(500, new { error = "Failed to save ClaudeCodeAutoSelect setting" });
+            }
+        }
+
+        [HttpGet]
+        /// <summary>
+        /// Isolamento worktree per-agente: preferenza di QUESTA macchina (UserDB), non del repo.
+        /// Se non è mai stata decisa qui, si importa una-tantum l'eventuale valore esplicito del
+        /// <c>.development.yml</c> — dove il flag viveva prima — così una scelta già espressa non
+        /// viene ignorata in silenzio.
+        /// </summary>
+        [HttpGet]
+        public IActionResult GetAgentWorktreesSetting([FromQuery] string projectPath)
+        {
+            try
+            {
+                var pref = HttpContext.RequestServices
+                    .GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>();
+
+                // L'import dalla vecchia sede lo fa il servizio: unico punto, stessa verita'
+                // per UI e dispatcher.
+                var raw = pref.GetRaw(projectPath);
+
+                return Ok(new
+                {
+                    enabled = raw ?? pref.DefaultFor(projectPath),
+                    isExplicit = raw != null,
+                    defaultValue = pref.DefaultFor(projectPath),
+                    // Posti del pool: quanti agenti possono lavorare insieme su questa macchina.
+                    slots = pref.SlotsFor(projectPath),
+                    defaultSlots = MdExplorer.Services.AgentRun.AgentWorktreePreference.DefaultSlots,
+                    maxSlots = MdExplorer.Services.AgentRun.AgentWorktreePreference.MaxSlots,
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetAgentWorktreesSetting] fallito");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        public IActionResult SetAgentWorktreesSetting([FromBody] SetAgentWorktreesRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath))
+                return BadRequest(new { error = "projectPath è obbligatorio" });
+
+            try
+            {
+                var pref = HttpContext.RequestServices
+                    .GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>();
+                pref.Set(request.ProjectPath, request.Enabled);
+                if (request.Slots != null) pref.SetSlots(request.ProjectPath, request.Slots);
+                return Ok(new { enabled = request.Enabled, slots = pref.SlotsFor(request.ProjectPath) });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return UnprocessableEntity(new { error = ex.Message });
+            }
+            catch (ArgumentOutOfRangeException ex)
+            {
+                return UnprocessableEntity(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SetAgentWorktreesSetting] fallito");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Harness agentico del progetto: dove MdExplorer installa skill, agent e prompt.
+        /// Vive in <c>.development.yml</c> e non in UserDB — e' una caratteristica del
+        /// repository, condivisa dal team, non una preferenza della macchina.
+        /// </summary>
+        [HttpGet]
+        public IActionResult GetHarness([FromQuery] string projectPath)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(projectPath))
+                    return BadRequest(new { error = "projectPath is required" });
+
+                // Dichiarato nel yml; se il progetto non e' ancora migrato, quello che dice
+                // il disco. Nessuna scrittura: leggere le impostazioni non cambia il progetto.
+                var declared = MdExplorer.Utilities.HarnessSettings.Read(projectPath);
+                var target = declared ?? MdExplorer.Utilities.HarnessSettings.DetectFromDisk(projectPath);
+
+                return Ok(new
+                {
+                    target = MdExplorer.Utilities.HarnessSettings.IdOf(target),
+                    declared = declared.HasValue
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                // harness.target scritto a mano con un valore che non esiste: si dice qual e'.
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetHarness] fallito per {ProjectPath}", projectPath);
+                return StatusCode(500, new { error = "Failed to read the project harness" });
+            }
+        }
+
+        [HttpPost]
+        public IActionResult SetHarness([FromBody] SetHarnessRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath))
+                    return BadRequest(new { error = "projectPath is required" });
+
+                if (!MdExplorer.Utilities.HarnessLayout.TryParseId(request.Target, out var target))
+                {
+                    return BadRequest(new
+                    {
+                        error = $"Unknown harness '{request.Target}'. Allowed values: {MdExplorer.Utilities.HarnessLayout.AllowedIds}."
+                    });
+                }
+
+                var services = HttpContext.RequestServices;
+                MdExplorer.Service.ProjectsManager.ApplyHarness(services, request.ProjectPath, target);
+
+                _logger.LogInformation("[SetHarness] {ProjectPath} → {Target}", request.ProjectPath, request.Target);
+                return Ok(new { target = MdExplorer.Utilities.HarnessSettings.IdOf(target) });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[SetHarness] fallito per {ProjectPath}", request?.ProjectPath);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary><c>Enabled</c> nullable: null = torna al default del progetto.</summary>
+        public class SetAgentWorktreesRequest
+        {
+            public string ProjectPath { get; set; }
+            public bool? Enabled { get; set; }
+
+            /// <summary>Posti del pool. <c>null</c> = non toccare (la UI puo' salvare solo il flag).</summary>
+            public int? Slots { get; set; }
+        }
+
+        [HttpGet]
+        public IActionResult GetTextIndexingSetting([FromQuery] string projectPath)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList().FirstOrDefault(p => p.Path == projectPath)
+                    ?? projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, projectPath, StringComparison.OrdinalIgnoreCase));
+
+                return Ok(new
+                {
+                    enabled = project?.IndexAllTextFiles ?? false,
+                    extensions = project?.TextFileExtensions,
+                    defaultExtensions = MdExplorer.Abstractions.Services.TextFileClassifier.DefaultExtensionsCsv
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting TextIndexing setting");
+                return StatusCode(500, new { error = "Failed to get TextIndexing setting" });
+            }
+        }
+
+        /// <summary>
+        /// Persists the text-index flag + allow-list. Blank extensions are stored as
+        /// null (project falls back to the central default).
+        /// </summary>
+        [HttpPost]
+        public IActionResult SetTextIndexingSetting([FromBody] SetTextIndexingRequest request)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                _userSettingsDB.BeginTransaction();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList().FirstOrDefault(p => p.Path == request.ProjectPath)
+                    ?? projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, request.ProjectPath, StringComparison.OrdinalIgnoreCase));
+
+                if (project == null)
+                {
+                    _userSettingsDB.Rollback();
+                    _logger.LogWarning($"[SetTextIndexingSetting] Project not found for path: '{request.ProjectPath}'");
+                    return NotFound(new { error = "Project not found" });
+                }
+
+                project.IndexAllTextFiles = request.Enabled;
+                project.TextFileExtensions = string.IsNullOrWhiteSpace(request.Extensions) ? null : request.Extensions.Trim();
+                projectDal.Save(project);
+                _userSettingsDB.Commit();
+
+                return Ok(new { message = "TextIndexing setting saved successfully" });
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                _logger.LogError(ex, "Error saving TextIndexing setting");
+                return StatusCode(500, new { error = "Failed to save TextIndexing setting" });
             }
         }
     }
@@ -470,9 +680,30 @@ namespace MdExplorer.Service.Controllers.MdProjects
         public string ProjectPath { get; set; }
     }
 
-    public class SetExcludeSubmodulesRequest
+    public class SetClaudeCodeAutoSelectRequest
     {
         public bool Enabled { get; set; }
         public string ProjectPath { get; set; }
+    }
+
+    public class SetTextIndexingRequest
+    {
+        public bool Enabled { get; set; }
+        /// <summary>Comma-separated allow-list; null/blank → central default.</summary>
+        public string Extensions { get; set; }
+        public string ProjectPath { get; set; }
+    }
+
+    /// <summary>
+    /// Nullable per scelta: con &lt;Nullable&gt;annotations&lt;/Nullable&gt; una string non nullable
+    /// e' un [Required] implicito, e un campo mancante darebbe un 400 opaco invece del messaggio
+    /// esplicito che l'endpoint sa produrre.
+    /// </summary>
+    public class SetHarnessRequest
+    {
+        public string? ProjectPath { get; set; }
+
+        /// <summary><c>copilot</c>, <c>opencode</c> oppure <c>none</c>.</summary>
+        public string? Target { get; set; }
     }
 }

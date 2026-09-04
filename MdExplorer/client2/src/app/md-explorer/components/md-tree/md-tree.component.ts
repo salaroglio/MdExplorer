@@ -30,6 +30,8 @@ import { ProjectSettingsService } from '../../../projects/services/project-setti
 import { ShowFileSystemComponent } from '../../../commons/components/show-file-system/show-file-system.component';
 import { ShowFileMetadata } from '../../../commons/components/show-file-system/show-file-metadata';
 import { InstallWizardDialogComponent, InstallWizardData } from '../dialogs/install-wizard/install-wizard.component';
+import { AgentLaunchDialogComponent } from '../agent-launch-dialog/agent-launch-dialog.component';
+import { AgentScheduleDialogComponent } from '../agent-schedule-dialog/agent-schedule-dialog.component';
 import { AppStoreService } from '../../services/app-store.service';
 import { BulkExportProgressService } from '../../services/bulk-export-progress.service';
 import { FileEventsService } from '../../services/file-events.service';
@@ -124,6 +126,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       developmentTags: node.developmentTags,
       // True when the folder owns a generated TOC file (drives the TOC icon)
       hasToc: node.hasToc,
+      // *.agent.md detection is purely name-based: no backend round-trip needed
+      isAgentFile: (node.type === 'mdFile' || node.type === 'mdFileTimer')
+        && !!node.name && node.name.toLowerCase().endsWith('.agent.md'),
       // Folder "reveal extra content" (eye) state
       hasExtraContent: node.hasExtraContent,
       extraLoaded: node.extraLoaded,
@@ -573,6 +578,15 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         const extra = node.compactedSegments.slice(1, idx + 1).map(s => s.name).join('/');
         segmentItem.relativePath = `${baseRel}/${extra}`;
       }
+
+      // Occhio "reveal contenuto extra" sul segmento FOGLIA: compactSingleNode copia su
+      // node.hasExtraContent proprio il flag dell'ultimo segmento, e reveal/hide/lookup
+      // nel dataStore risolvono solo il path del segmento profondo. I segmenti intermedi
+      // sono assorbiti dalla compattazione (nessun flag, reveal non supportato) → niente occhio.
+      if (idx === node.compactedSegments.length - 1) {
+        segmentItem.hasExtraContent = node.hasExtraContent;
+        segmentItem.extraLoaded = this.folderHasRevealedExtras(segmentItem);
+      }
     }
 
     this.menuTopLeftPosition.x = event.clientX;
@@ -964,6 +978,37 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
+   * Opens the Agent Launch dialog for a *.agent.md file. Wired to the robot icon
+   * shown on nodes whose node.isAgentFile === true.
+   */
+  openAgentLaunchDialog(node: MdFile, event: MouseEvent) {
+    // Stop the click from bubbling to the row (which would open the document).
+    event.stopPropagation();
+    const projectPath = this.projectsService.currentProjects$.value?.path || '';
+    this.dialog.open(AgentLaunchDialogComponent, {
+      width: '700px',
+      data: {
+        projectPath,
+        agentFilePath: node.fullPath,
+        agentName: node.name,
+      },
+    });
+  }
+
+  /** Per-user scheduling of a *.agent.md agent (context-menu entry). */
+  openAgentScheduling(node: MdFile) {
+    const projectPath = this.projectsService.currentProjects$.value?.path || '';
+    this.dialog.open(AgentScheduleDialogComponent, {
+      width: '760px',
+      data: {
+        projectPath,
+        agentFilePath: node.fullPath,
+        agentName: node.name,
+      },
+    });
+  }
+
+  /**
    * Left-click on a folder row. A GREEN (revealed-but-not-yet-drilled-in) folder — one that
    * appeared only because it was revealed (isExtra) and has no content loaded yet — reveals its
    * content on click, exactly like the eye. Any other folder, or a green one already drilled in,
@@ -990,7 +1035,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   revealFolderExtras(node: MdFile) {
     const parentFullPath = this.getFolderRevealPath(node);
     this.mdFileService.revealFolderExtras(parentFullPath).subscribe({
-      next: () => { this.treeControl.expand(node); },
+      // Espande il flat node REALE del tree, non `node` com'era prima: quando il reveal parte
+      // dal menù di un segmento compattato, `node` è un MdFile sintetico il cui fullPath è
+      // quello del segmento foglia, mentre l'expansionModel (trackBy fullPath) conosce la riga
+      // compatta con il fullPath del PRIMO segmento → expand(node) non apriva la riga.
+      next: () => { this.treeControl.expand(this.findFlatFolder(parentFullPath) ?? node); },
       error: (err) => {
         console.error('[MdTreeComponent] revealFolderExtras failed:', err);
         this.snackBar.open(this.translate.instant('MD_TREE.REVEAL_ERROR'), 'OK', { duration: 3000 });
@@ -1016,6 +1065,19 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   /** True when the folder currently shows revealed extra content (isExtra children). */
   private folderHasRevealedExtras(node: MdFile): boolean {
     return this.mdFileService.hasRevealedExtras(this.getFolderRevealPath(node));
+  }
+
+  /**
+   * Flat node of the rendered tree representing the folder at `path` — direct fullPath match
+   * or, for compact rows, a match on any compacted segment. Needed because the expansion
+   * model is keyed by the row's own fullPath (first segment for compact rows).
+   */
+  private findFlatFolder(path: string): IFileInfoNode | null {
+    const target = path.toLowerCase();
+    return this.treeControl.dataNodes?.find(n => n.type === 'folder' && (
+      n.fullPath?.toLowerCase() === target ||
+      (n.isCompacted && n.compactedSegments?.some(s => s.fullPath.toLowerCase() === target))
+    )) ?? null;
   }
   
   exportFolderToWord(node: MdFile) {
@@ -1678,6 +1740,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── Storm batch processing ──
 
   private processStormChanges(changes: any[]): void {
+    let createdFilesCount = 0;
+    let lastCreatedFile: any = null;
     for (const change of changes) {
       try {
         const action = change.action; // 'created', 'deleted', 'changed', 'renamed'
@@ -1688,7 +1752,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
             if (isDir) {
               this.handleFolderCreated(change);
             } else {
-              this.handleNewMarkdownFileCreated(change);
+              // suppressNavigation: durante una raffica non si naviga a ogni
+              // file creato (N navigazioni + N snackbar), si aggiunge solo al tree.
+              this.handleNewMarkdownFileCreated(change, true);
+              createdFilesCount++;
+              lastCreatedFile = change;
             }
             break;
 
@@ -1717,7 +1785,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
               if (change.oldFullPath) {
                 this.handleMarkdownFileDeleted({ fullPath: change.oldFullPath, name: '' });
               }
-              this.handleNewMarkdownFileCreated(change);
+              this.handleNewMarkdownFileCreated(change, true);
             }
             break;
         }
@@ -1726,12 +1794,63 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
     this.changeDetectorRef.markForCheck();
+
+    if (createdFilesCount > 0) {
+      // Il pulsante d'azione apre l'ultimo file inserito dalla raffica
+      // (i change sono ordinati per timestamp dal backend).
+      const snackRef = this.snackBar.open(
+        this.translate.instant('MD_TREE.STORM_FILES_CREATED', { count: createdFilesCount }),
+        this.translate.instant('MD_TREE.OPEN_LAST_CREATED', { name: lastCreatedFile.name }),
+        {
+          duration: 8000,
+          horizontalPosition: 'right',
+          verticalPosition: 'bottom',
+          panelClass: ['success-snackbar']
+        }
+      );
+      snackRef.onAction().pipe(takeUntil(this.destroy$)).subscribe(() => {
+        this.openStormCreatedFile(lastCreatedFile);
+      });
+    }
+  }
+
+  /**
+   * Apre un file creato durante una raffica (azione della snackbar riassuntiva):
+   * espande il tree fino al file, lo seleziona e naviga al documento —
+   * gli stessi STEP 7-10 di handleNewMarkdownFileCreated nel caso singolo.
+   */
+  private openStormCreatedFile(change: any): void {
+    const mdFileForNavigation: MdFile = {
+      name: change.name,
+      path: change.path,
+      relativePath: change.relativePath,
+      fullPath: change.fullPath,
+      fullDirectoryPath: this.getParentDirPath(change.fullPath),
+      type: 'mdFile',
+      level: change.level ?? 0,
+      expandable: false,
+      isLoading: false,
+      childrens: [],
+      index: 0,
+      isIndexed: true,
+      indexingStatus: 'completed'
+    };
+
+    this.mdFileService.setSelectedMdFileFromServer(mdFileForNavigation);
+    this.activeNode = mdFileForNavigation;
+    this.selectedNode = mdFileForNavigation;
+    this.changeDetectorRef.markForCheck();
+    this.mdFileService.setSelectedMdFileFromSideNav(mdFileForNavigation);
+    this.navService.setNewNavigation(mdFileForNavigation);
+    this.router.navigate(['/main/navigation/document']);
   }
 
   // ── SignalR event handlers ──
 
-  // Gestisce la creazione di un nuovo file markdown
-  private handleNewMarkdownFileCreated(fileData: any): void {
+  // Gestisce la creazione di un nuovo file markdown.
+  // suppressNavigation=true (batch storm): il file viene solo aggiunto al tree,
+  // senza navigare al documento né mostrare la snackbar per-file.
+  private handleNewMarkdownFileCreated(fileData: any, suppressNavigation: boolean = false): void {
     // Skip if this event is from our own DnD move (FSW buffered event leak)
     if (this.dndMovingPaths && fileData.fullPath?.toLowerCase() === this.dndMovingPaths.newPath?.toLowerCase()) {
       console.log('[DnD] Suppressing FSW-leaked markdownFileCreated for:', fileData.fullPath);
@@ -1798,6 +1917,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // STEP 6: Forza change detection per aggiornare il tree
     this.changeDetectorRef.detectChanges();
+
+    if (suppressNavigation) {
+      return;
+    }
 
     // STEP 7: Crea un MdFile valido per la navigazione
     const mdFileForNavigation: MdFile = {

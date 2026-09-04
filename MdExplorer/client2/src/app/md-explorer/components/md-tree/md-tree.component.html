@@ -54,11 +54,11 @@
     </button>
 
     <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="deleteFile(item)">
-      <mat-icon style="color: #ef5350;">delete</mat-icon>
+      <mat-icon class="menu-icon-danger">delete</mat-icon>
       <span>{{ 'MD_TREE.DELETE_DOCUMENT' | translate }}</span>
     </button>
     <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="pasteFromClipboard(item)">
-      <mat-icon style="color: #ef5350;">archive</mat-icon>
+      <mat-icon class="menu-icon-danger">archive</mat-icon>
       <span>{{ 'MD_TREE.PASTE_CLIPBOARD' | translate }}</span>
     </button>
     <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="getLinkFromNode(item)">
@@ -73,6 +73,11 @@
       <mat-icon>settings</mat-icon>
       <span>{{ 'MD_TREE.DOC_SETTINGS' | translate }}</span>
     </button>
+    <!-- Schedulazione agente: solo per i file *.agent.md -->
+    <button *ngIf="item.isAgentFile" mat-menu-item (click)="openAgentScheduling(item)">
+      <mat-icon>schedule</mat-icon>
+      <span>{{ 'MD_TREE.AGENT_SCHEDULING' | translate }}</span>
+    </button>
     <button *ngIf="item.type==='mdFile' || item.type==='mdFileTimer'" mat-menu-item (click)="moveDocument(item)">
       <mat-icon>open_with</mat-icon>
       <span>{{ 'MD_TREE.MOVE' | translate }}</span>
@@ -85,7 +90,7 @@
     </button>
 
     <button *ngIf="item.type==='folder' || item.name==='root'" mat-menu-item (click)="openFolderOn(item)">
-      <mat-icon>folder_open</mat-icon>
+      <mat-icon class="gold-icon">folder_open</mat-icon>
       <span>{{ 'MD_TREE.OPEN_EXPLORER' | translate }}</span>
     </button>
     <button *ngIf="item.type==='folder'" mat-menu-item (click)="openTocDirectory(item)">
@@ -104,7 +109,7 @@
     <!-- RAG Indexing - Directory -->
     <button *ngIf="item.type==='folder' && isRagEnabled"
             mat-menu-item (click)="indexDirectoryForRag(item)"
-            style="color: #7c4dff;">
+            class="menu-item-rag">
       <mat-icon>memory</mat-icon>
       <span>{{ 'MD_TREE.INDEX_DIR_RAG' | translate }}</span>
     </button>
@@ -118,7 +123,7 @@
     <!-- RAG Indexing - File -->
     <button *ngIf="(item.type==='mdFile' || item.type==='mdFileTimer') && isRagEnabled"
             mat-menu-item (click)="indexFileForRag(item)"
-            style="color: #7c4dff;">
+            class="menu-item-rag">
       <mat-icon>memory</mat-icon>
       <span>{{ 'MD_TREE.INDEX_RAG' | translate }}</span>
     </button>
@@ -133,14 +138,14 @@
     <button *ngIf="(item.type==='mdFile' || item.type==='mdFileTimer') && isP2PAvailable"
             mat-menu-item
             (click)="addFileToShareViaP2P(item)"
-            style="color: #11998e;">
+            class="menu-item-p2p">
       <mat-icon>add_circle</mat-icon>
       <span><b>{{ 'MD_TREE.SHARE_P2P' | translate }}</b></span>
     </button>
     <button *ngIf="isFileWaiting(item)" 
             mat-menu-item 
             (click)="forceOpenFile(item)"
-            style="color: orange;">
+            class="menu-item-force-open">
       <mat-icon>warning</mat-icon>
       <b>{{ 'MD_TREE.FORCE_OPEN' | translate }}</b>
     </button>
@@ -213,6 +218,13 @@
          class="node-text">
        {{node.name}}
     </div>
+    <!-- Icona agente: visibile solo sui file *.agent.md.
+         Click → apre la maschera di preparazione/lancio del prompt (stopPropagation
+         per non aprire il documento). -->
+    <mat-icon *ngIf="node.isAgentFile"
+              class="agent-indicator"
+              [matTooltip]="'MD_TREE.LAUNCH_AGENT' | translate"
+              (click)="openAgentLaunchDialog(node, $event)">smart_toy</mat-icon>
   </mat-tree-node>
 
   <!-- Non-markdown file revealed via a folder's "eye" (reveal content).
@@ -246,7 +258,10 @@
                    'selected': isNodeSelected(node),
                    'drag-over': dragOverNode === node
                  }">
-    <button mat-icon-button matTreeNodeToggle
+    <!-- NO matTreeNodeToggle here: the directive stops propagation and only toggles, so the
+         click would never reach the row's onFolderClick (which also drills into green revealed
+         folders). Letting it bubble makes icon-click and name-click behave identically. -->
+    <button mat-icon-button
             [attr.aria-label]="'Toggle ' + node.name"
             [ngClass]="{
               'indexing': node.indexingStatus === 'indexing'
@@ -257,6 +272,12 @@
            alt="GitHub Copilot"
            class="custom-folder-icon github-icon"
            style="width: 24px; height: 24px; margin: 12px;" />
+      <!-- Icona per cartella .opencode (harness opencode) -->
+      <img *ngIf="node.name=='.opencode' && node.indexingStatus !== 'indexing'"
+           src="/assets/opencode.svg"
+           alt="opencode"
+           class="custom-folder-icon opencode-icon"
+           style="width: 24px; height: 24px; margin: 12px;" />
       <!-- Icona per cartella promptlab -->
       <img *ngIf="node.name==='promptlab' && node.indexingStatus !== 'indexing'"
            src="/assets/promptlab-flask.svg"
@@ -264,13 +285,13 @@
            class="custom-folder-icon"
            style="width: 24px; height: 24px; margin: 12px;" />
       <!-- Icona per cartelle con tag "program" -->
-      <mat-icon *ngIf="isProgramFolder(node) && node.name!='.github' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
+      <mat-icon *ngIf="isProgramFolder(node) && node.name!='.github' && node.name!='.opencode' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
                 color="primary"
                 class="mat-icon-rtl-mirror terminal-icon">
         terminal
       </mat-icon>
       <!-- Icona per cartelle normali (verde se cartella rivelata via "occhio") -->
-      <mat-icon *ngIf="!isProgramFolder(node) && node.name!='mdPublish' && node.name!='.github' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
+      <mat-icon *ngIf="!isProgramFolder(node) && node.name!='mdPublish' && node.name!='.github' && node.name!='.opencode' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
                 class="gold-icon mat-icon-rtl-mirror folder-icon"
                 [class.extra-revealed]="node.isExtra">
         {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}
@@ -354,11 +375,11 @@
                  [ngClass]="{ 'selected': isNodeSelected(node) }"
                  (click)="getNode(node)"
                  [matTooltip]="'MD_TREE.NOT_INSTALLED_CLICK' | translate">
-    <button mat-icon-button style="cursor:pointer; color: #9e9e9e;">
+    <button mat-icon-button class="not-installed-muted" style="cursor:pointer">
       <img *ngIf="isImageIcon(node.appIcon)" [src]="node.appIcon" class="app-icon-img" style="opacity: 0.5; filter: grayscale(100%);" />
       <mat-icon *ngIf="!isImageIcon(node.appIcon)">{{ node.appIcon || 'cloud_download' }}</mat-icon>
     </button>
-    <div class="node-text" style="cursor:pointer; padding: 2px; color: #9e9e9e;">{{ node.name }}</div>
+    <div class="node-text not-installed-muted" style="cursor:pointer; padding: 2px;">{{ node.name }}</div>
   </mat-tree-node>
 
   <mat-tree-node *matTreeNodeDef="let node;when: isEmptyRoot" style="cursor:pointer" matTreeNodePadding (contextmenu)="onRightClick($event, node)">

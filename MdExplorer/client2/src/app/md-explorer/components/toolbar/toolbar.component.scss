@@ -26,25 +26,14 @@ mat-toolbar {
     max-height: 48px !important;
   }
 
-  // Fix per Angular Material 15 Legacy - rimuove sfondo bianco dai bottoni
-  button.mat-mdc-icon-button,
-  button[mat-icon-button] {
-    background-color: transparent !important;
-    color: white !important;
+  // Colori dei bottoni: il tema nativo li fa ereditare dal chrome della
+  // toolbar (legacy: .mat-button/.mat-icon-button { color: inherit }) e lo
+  // sfondo trasparente è imposto globalmente in styles.scss.
+  // Restano solo le eccezioni semantiche.
 
-    .mat-mdc-button-persistent-ripple,
-    .mat-mdc-focus-indicator {
-      background-color: transparent !important;
-    }
-
-    mat-icon, .mat-icon {
-      color: white !important;
-    }
-
-    // Eccezione per icona warning - giallo chiaro
-    mat-icon.warning-icon, .mat-icon.warning-icon {
-      color: #FFEB3B !important;
-    }
+  // Icona warning - giallo chiaro, uguale in ogni tema
+  mat-icon.warning-icon, .mat-icon.warning-icon {
+    color: #FFEB3B;
   }
 
   // Colori tematici per i pulsanti della toolbar
@@ -58,41 +47,37 @@ mat-toolbar {
 
   button.btn-menu mat-icon,
   button.btn-menu .mat-icon {
-    color: #ffcc80 !important; // Arancio - toggle menu
+    color: #ffcc80; // Arancio - toggle menu
   }
 
-  // Fix per bottoni mat-button nella toolbar
-  button.mat-mdc-button,
-  button[mat-button] {
-    background-color: transparent !important;
-    color: white !important;
-
-    .mat-mdc-button-persistent-ripple {
-      background-color: transparent !important;
-    }
-
-    mat-icon, .mat-icon {
-      color: white !important;
-    }
+  // Icona "configura credenziali git" (era color inline nel template)
+  mat-icon.git-missing-icon, .mat-icon.git-missing-icon {
+    color: orange;
   }
 }
 
+// Trigger "Git" per progetti non-git: testo bianco come il resto del chrome
+// (era style inline). La doppia classe batte il colore dei mat-button del
+// tema scuro (body.dark-theme .mat-button) senza !important.
+.mat-toolbar button.git-menu-btn,
+mat-toolbar button.git-menu-btn {
+  color: white;
+}
+
+// Header del menù "auth failed": arancione per-tema (pieno in light,
+// pastello sui fondi scuri) — era #f57c00 inline nel template.
+.auth-failed-header {
+  color: var(--mde-icon-accent-orange);
+}
+
+// Stato del branch git: verde = pulito, bianco = modifiche da committare.
+// (sfondo trasparente: nativo del tema per i mat-button)
 .branchGood {
   color: greenyellow !important;
-  background-color: transparent !important;
-
-  .mat-mdc-button-persistent-ripple {
-    background-color: transparent !important;
-  }
 }
 
 .branchToCommit {
   color: white !important;
-  background-color: transparent !important;
-
-  .mat-mdc-button-persistent-ripple {
-    background-color: transparent !important;
-  }
 }
 
 .sidenav-toggle {
@@ -126,14 +111,9 @@ mat-toolbar {
 }
 
 
-#projectcss {
-  ::ng-deep.mat-tooltip {
-    /* your own custom styles here */
-    /* e.g. */
-    color: white;
-    background-color: blue;
-  }
-}
+// (rimosso: #projectcss ::ng-deep .mat-tooltip — nessun #projectcss in questo
+// template e il tooltip vive nell'overlay cdk: regola morta; i tooltip sono
+// colorati dal tema nativo)
 
 #toPull span {
   background-color: white;
@@ -243,10 +223,10 @@ mat-toolbar {
   text-transform: uppercase;
   white-space: nowrap;
 
-  &.modified { color: #ff9800; }
-  &.added, &.untracked { color: #4caf50; }
-  &.deleted { color: #f44336; }
-  &.unversioned { color: #9e9e9e; cursor: help; }
+  &.modified { color: var(--mde-warning-fg); }
+  &.added, &.untracked { color: var(--mde-success-fg); }
+  &.deleted { color: var(--mde-error-fg); }
+  &.unversioned { color: var(--mde-disabled-text); cursor: help; }
 }
 
 .file-name {
@@ -281,8 +261,154 @@ mat-toolbar {
   }
 
   &:hover {
-    background-color: #ffcdd2;
-    border-color: #f44336;
-    color: #f44336;
+    background-color: var(--mde-error-bg);
+    border-color: var(--mde-error-fg);
+    color: var(--mde-error-fg);
   }
+}
+
+/* Impersonazione utente (test città) */
+.identity-banner {
+  background: #b71c1c;
+  color: #fff;
+  min-height: 34px;
+  height: 34px;
+  font-size: 13px;
+  gap: 8px;
+  mat-icon { color: #fff; }
+  button { color: #fff; border-color: rgba(255,255,255,.6); }
+}
+.btn-identity.identity-impersonating mat-icon { color: #ffca28; }
+.identity-menu {
+  padding: 8px 12px;
+  min-width: 240px;
+  .identity-current { font-size: 13px; margin-bottom: 6px; }
+  .identity-badge { margin-left: 6px; color: #b71c1c; font-weight: 600; }
+  .identity-testmode { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+  .identity-hint { font-size: 12px; opacity: .7; margin: 8px 0 4px; }
+  // Il nome occupa lo spazio, il pallino di presenza va a filo destro della riga.
+  .identity-user-name { flex: 1 1 auto; }
+  .presence-dot {
+    flex: 0 0 auto;
+    width: 8px; height: 8px; border-radius: 50%;
+    margin-left: 8px;
+    &.online  { background: #2e7d32; box-shadow: 0 0 0 2px rgba(46,125,50,.25); }   // città accesa sulla stanza
+    &.offline { background: #bdbdbd; }                                             // padrone non connesso ora
+  }
+}
+
+/* Gli aggregati al posto della lista: quattro numeri, non venti righe da leggere.
+   La lista sta nel tab, dove si vede il diff prima di scartare. */
+
+.commit-menu-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 10px 10px;
+}
+
+.commit-menu-header .ctx-icon {
+  font-size: 15px;
+  width: 15px;
+  height: 15px;
+  vertical-align: middle;
+  margin-right: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+}
+
+// Una riga per repository: e' l'unita' in cui si committa.
+.commit-repos {
+  padding: 2px 0 6px;
+}
+
+.commit-repo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  white-space: nowrap;
+
+  .r-icon { font-size: 15px; width: 15px; height: 15px; opacity: .65; }
+  .r-label { font-weight: 600; }
+
+  .r-branch {
+    font-family: monospace;
+    font-size: 10.5px;
+    opacity: .7;
+
+    // Senza ramo un commit resta orfano: si vede subito che qui c'e' un problema.
+    &.r-detached {
+      color: var(--mde-error-fg);
+      opacity: 1;
+      font-weight: 600;
+      animation: mde-detached-pulse 1.1s ease-in-out infinite;
+    }
+  }
+
+  .r-badge {
+    padding: 1px 6px;
+    border-radius: 9px;
+    font-size: 10px;
+    background: var(--mde-bg-tertiary);
+    color: var(--mde-accent-secondary);
+  }
+
+  .r-commit {
+    min-width: 0;
+    height: 24px;
+    padding: 0 8px;
+    line-height: 24px;
+    font-size: 11px;
+
+    mat-icon { font-size: 14px; width: 14px; height: 14px; margin-right: 2px; }
+
+    // Disabilitato ma leggibile: il motivo sta nel tooltip, e va invogliato a cercarlo.
+    &[disabled] { opacity: .45; }
+  }
+
+  .r-counts {
+    display: inline-flex;
+    gap: 6px;
+    font-family: monospace;
+    font-size: 11.5px;
+
+    .agg-added { color: var(--mde-success-fg); }
+    .agg-modified { color: var(--mde-warning-fg); }
+    .agg-deleted { color: var(--mde-error-fg); }
+    .agg-renamed { color: var(--mde-accent-secondary); }
+  }
+}
+
+// L'unico avviso che si legge PRIMA di fare il danno: non si nasconde e non si richiude.
+.commit-push-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 8px 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--mde-warning-bg);
+  border-left: 3px solid var(--mde-warning-fg);
+  font-size: 11.5px;
+  white-space: normal;
+
+  mat-icon { color: var(--mde-warning-fg); font-size: 16px; width: 16px; height: 16px; flex: 0 0 auto; }
+}
+
+
+// L'HEAD staccato non e' uno stato fra gli altri: da li' un commit resta orfano, e prima di
+// questa vista la cosa era muta per mesi. Pulsa perche' va notato, non perche' e' carino.
+@keyframes mde-detached-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .28; }
+}
+
+// Chi ha chiesto al sistema meno animazioni ha spesso un motivo serio: resta il rosso, che
+// l'informazione la da' lo stesso.
+@media (prefers-reduced-motion: reduce) {
+  .branch.detached,
+  .repo-header .branch.detached,
+  .commit-repo .r-branch.r-detached { animation: none !important; }
 }

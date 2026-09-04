@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 
@@ -62,6 +63,81 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                 if (File.Exists(Path.Combine(dir, "copilot.ps1"))) return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Risolve il CLI nella forma che vuole l'SDK ufficiale: un eseguibile lanciabile
+        /// direttamente più gli argomenti che devono precedere quelli dell'SDK
+        /// (<c>RuntimeConnection.ForStdio(path, prefixArgs)</c> — verificato il 04/09/2026:
+        /// quegli argomenti sono un <b>prefisso</b>, l'SDK accoda i propri).
+        ///
+        /// <para>
+        /// Esiste separata da <see cref="BuildStartInfo"/> perché l'SDK non accetta una
+        /// riga di comando ma una coppia percorso + argomenti; la <i>logica di ricerca</i>
+        /// però è la stessa e resta qui, in un posto solo. Su Windows npm non installa un
+        /// <c>copilot.exe</c> ma degli shim, e uno shim non si lancia direttamente: per
+        /// quelli si passa da <c>cmd.exe /c</c> o da PowerShell, esattamente come fa
+        /// <see cref="BuildStartInfo"/>.
+        /// </para>
+        ///
+        /// <para>
+        /// Volutamente <b>non</b> si ripiega sul CLI incluso nel pacchetto NuGet dell'SDK:
+        /// MdExplorer ha sempre usato l'installazione dell'utente, che porta con sé la sua
+        /// autenticazione. Usarne un'altra vorrebbe dire chiedergli di rifare il login per
+        /// una funzione che prima andava.
+        /// </para>
+        /// </summary>
+        /// <exception cref="InvalidOperationException">Se il CLI non si trova nel PATH.</exception>
+        public static (string Path, List<string> PrefixArgs) ResolveStdioTarget()
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                // POSIX: "copilot" nel PATH è un eseguibile vero (loader npm con shebang).
+                // Si verifica che ci sia davvero, invece di restituirlo alla cieca: così
+                // l'errore dice "installalo" invece di un "No such file or directory" che
+                // costringe chi legge a indovinare di cosa si parla.
+                var posixPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+                foreach (var raw in posixPath.Split(Path.PathSeparator))
+                {
+                    if (string.IsNullOrWhiteSpace(raw)) continue;
+                    var candidate = Path.Combine(raw.Trim(), "copilot");
+                    if (File.Exists(candidate)) return (candidate, new List<string>());
+                }
+                throw new InvalidOperationException(
+                    "Copilot CLI non trovato nel PATH. Installalo con 'npm install -g @github/copilot'.");
+            }
+
+            string exeMatch = null, cmdMatch = null, ps1Match = null;
+            var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+            foreach (var raw in pathEnv.Split(Path.PathSeparator))
+            {
+                if (string.IsNullOrWhiteSpace(raw)) continue;
+                var dir = raw.Trim().Trim('"');
+                if (dir.Length == 0) continue;
+                if (exeMatch == null && File.Exists(Path.Combine(dir, "copilot.exe"))) exeMatch = Path.Combine(dir, "copilot.exe");
+                if (cmdMatch == null && File.Exists(Path.Combine(dir, "copilot.cmd"))) cmdMatch = Path.Combine(dir, "copilot.cmd");
+                if (ps1Match == null && File.Exists(Path.Combine(dir, "copilot.ps1"))) ps1Match = Path.Combine(dir, "copilot.ps1");
+                if (exeMatch != null) break; // l'eseguibile vero vince
+            }
+
+            if (exeMatch != null) return (exeMatch, new List<string>());
+
+            if (cmdMatch != null)
+            {
+                var comspec = Environment.GetEnvironmentVariable("ComSpec");
+                if (string.IsNullOrEmpty(comspec)) comspec = "cmd.exe";
+                return (comspec, new List<string> { "/d", "/s", "/c", cmdMatch });
+            }
+
+            if (ps1Match != null)
+            {
+                return ("powershell.exe",
+                    new List<string> { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1Match });
+            }
+
+            throw new InvalidOperationException(
+                "Copilot CLI executable not found in PATH. Install it via 'winget install GitHub.Copilot' " +
+                "or 'npm install -g @github/copilot'. Looked for copilot.exe, copilot.cmd, copilot.ps1.");
         }
 
         /// <summary>

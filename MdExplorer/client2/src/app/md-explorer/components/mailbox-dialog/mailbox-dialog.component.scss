@@ -1,0 +1,268 @@
+.title-icon {
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.unread-pill {
+  display: inline-block;
+  margin-left: 8px;
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: #d32f2f;
+  color: #fff;
+  font-size: 12px;
+  line-height: 20px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.subtitle {
+  margin: 0 0 12px;
+  opacity: 0.75;
+  font-size: 13px;
+}
+
+.mailbox-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  background: rgba(211, 47, 47, 0.12);
+  color: #d32f2f;
+}
+
+.mailbox-loading,
+.mailbox-empty {
+  padding: 24px;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.mailbox-empty mat-icon {
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.msg-card {
+  margin-bottom: 12px;
+  border-left: 3px solid transparent;
+
+  &.msg-unread {
+    border-left-color: #1976d2;
+    background: rgba(25, 118, 210, 0.05);
+  }
+}
+
+.msg-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.msg-from {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.from-icon {
+  font-size: 20px;
+  height: 20px;
+  width: 20px;
+}
+
+.new-chip {
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #1976d2;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.msg-time {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.msg-project {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0;
+  font-size: 12px;
+  opacity: 0.75;
+
+  mat-icon {
+    font-size: 16px;
+    height: 16px;
+    width: 16px;
+  }
+}
+
+.msg-topics {
+  margin: 6px 0;
+}
+
+.msg-body {
+  margin: 8px 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.reply-box {
+  margin-top: 8px;
+}
+
+.reply-field {
+  width: 100%;
+}
+
+.tab-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 8px 0 4px;
+}
+
+.flexExpand {
+  flex: 1 1 auto;
+}
+
+/* ---- Tab conversazioni ---- */
+.conv-card {
+  margin: 12px 0;
+}
+
+.conv-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.conv-status {
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #fff;
+
+  &.status-active { background: #2e7d32; }
+  &.status-exhausted { background: #ef6c00; }
+  &.status-killed { background: #c62828; }
+  &.status-completed { background: #546e7a; }
+  &.status-unknown { background: #9e9e9e; }
+}
+
+.conv-hops {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  opacity: 0.8;
+
+  mat-icon { font-size: 16px; height: 16px; width: 16px; }
+}
+
+// Delega interna: stessa forma del badge federato ma tinta diversa — e' un parente,
+// non un gemello: stessa mappa di ownership, ma il lavoro non ha lasciato la macchina.
+.conv-scope {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #00695c;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+
+  mat-icon { font-size: 14px; height: 14px; width: 14px; }
+}
+
+.conv-federated {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: #5e35b1;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+
+  mat-icon { font-size: 14px; height: 14px; width: 14px; }
+}
+
+.conv-time {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.conv-participants {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 4px;
+
+  mat-icon { font-size: 18px; height: 18px; width: 18px; opacity: 0.7; }
+
+  .participant {
+    padding: 1px 8px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.08);
+    font-size: 12px;
+  }
+}
+
+.conv-meta {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.thread-detail {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.thread-msg {
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+.thread-route {
+  font-weight: 600;
+  font-size: 12px;
+  margin-right: 8px;
+}
+
+.thread-state {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.08);
+
+  &.state-failed { background: rgba(198, 40, 40, 0.15); color: #c62828; }
+  &.state-processed { background: rgba(46, 125, 50, 0.15); color: #2e7d32; }
+}
+
+.thread-body {
+  margin-top: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 13px;
+}
+
+.thread-error {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #c62828;
+}

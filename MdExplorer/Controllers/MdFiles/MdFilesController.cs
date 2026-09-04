@@ -31,6 +31,7 @@ using MdExplorer.Service.Controllers.MdFiles.Models;
 using MdExplorer.Service.Controllers.MdFiles.ModelsDto;
 using MdExplorer.Service.Models;
 using MdExplorer.Service.Utilities;
+using MdExplorer.Utilities;
 using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -101,6 +102,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         private readonly IMarkdownChunkingService _chunkingService;
         private readonly IVectorSearchService _vectorSearchService;
         private readonly IIndexingPipelineService _indexingPipelineService;
+        private readonly ITextIndexingService _textIndexingService;
 
 
         public MdFilesController(
@@ -130,7 +132,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         IEmbeddingService embeddingService = null,
         IMarkdownChunkingService chunkingService = null,
         IVectorSearchService vectorSearchService = null,
-        IIndexingPipelineService indexingPipelineService = null
+        IIndexingPipelineService indexingPipelineService = null,
+        ITextIndexingService textIndexingService = null
             ) : base(logger, options, hubContext, userSettingsDB, engineDB, commandRunner, getModifiers, helper, databaseManager, fileSystemWatcherManager)
         {
 
@@ -150,6 +153,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _chunkingService = chunkingService;
             _vectorSearchService = vectorSearchService;
             _indexingPipelineService = indexingPipelineService;
+            _textIndexingService = textIndexingService;
         }
 
         [HttpGet]
@@ -1672,6 +1676,74 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
         }
 
+        /// <summary>
+        /// Reads the per-project text-indexing settings (IndexAllTextFiles flag +
+        /// effective extension allow-list) for the current project. Defaults to OFF
+        /// when the project cannot be resolved: the separate text index is strictly opt-in.
+        /// </summary>
+        private (bool enabled, System.Collections.Generic.HashSet<string> extensions) GetTextIndexingSettings()
+        {
+            try
+            {
+                var currentPath = GetProjectPath();
+                if (string.IsNullOrEmpty(currentPath))
+                {
+                    return (false, null);
+                }
+
+                _userSettingsDB.Clear();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList().FirstOrDefault(p => p.Path == currentPath)
+                    ?? projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, currentPath, StringComparison.OrdinalIgnoreCase));
+
+                if (project == null || !project.IndexAllTextFiles)
+                {
+                    return (false, null);
+                }
+
+                var extensions = MdExplorer.Abstractions.Services.TextFileClassifier
+                    .GetEffectiveExtensions(project.TextFileExtensions);
+                return (true, extensions);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[GetTextIndexingSettings] Could not read text-indexing settings, defaulting to OFF");
+                return (false, null);
+            }
+        }
+
+        /// <summary>
+        /// Chains the SEPARATE text-file indexing after the markdown pipeline finishes,
+        /// only when the project opted in. Runs after markdown so it never steals I/O
+        /// from the (fast) markdown indexing. Never throws into the caller.
+        /// </summary>
+        private void ChainTextIndexingAfter(System.Threading.Tasks.Task markdownRun, string connectionId, string currentPath, bool force)
+        {
+            if (_textIndexingService == null || markdownRun == null)
+            {
+                return;
+            }
+            var (enabled, extensions) = GetTextIndexingSettings();
+            if (!enabled || extensions == null || extensions.Count == 0)
+            {
+                return;
+            }
+
+            _ = markdownRun.ContinueWith(_ =>
+            {
+                try
+                {
+                    return _textIndexingService.RunAsync(connectionId, currentPath, extensions, forceFullReindex: force);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[ChainTextIndexingAfter] Text indexing failed to start for '{Path}'", currentPath);
+                    return System.Threading.Tasks.Task.CompletedTask;
+                }
+            }, System.Threading.Tasks.TaskScheduler.Default);
+        }
+
 
         /// <summary>
         /// Forza una reindicizzazione COMPLETA del progetto (ignora i fingerprint
@@ -1693,7 +1765,37 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
             _logger.LogInformation("[ReindexProject] Forced full reindex requested for '{Path}'", currentPath);
             SetFileSystemWatcherEnabled(false); // la pipeline lo riabilita nel suo finally
-            _ = _indexingPipelineService.RunAsync(connectionId, currentPath, IsLinkIndexingEnabled(), forceFullReindex: true);
+            var reindexRun = _indexingPipelineService.RunAsync(connectionId, currentPath, IsLinkIndexingEnabled(), forceFullReindex: true);
+            ChainTextIndexingAfter(reindexRun, connectionId, currentPath, force: true);
+            return Ok(new { started = true });
+        }
+
+        /// <summary>
+        /// Forces a full rebuild of the SEPARATE text-file index only (leaves the
+        /// markdown index untouched). Useful after changing the allow-list. No-op
+        /// with 409 when the project has IndexAllTextFiles OFF.
+        /// </summary>
+        [HttpPost]
+        public IActionResult ReindexTextFiles(string connectionId)
+        {
+            var currentPath = GetProjectPath();
+            if (string.IsNullOrEmpty(currentPath) || currentPath == AppDomain.CurrentDomain.BaseDirectory)
+            {
+                return BadRequest(new { error = "Nessun progetto aperto per questa connessione" });
+            }
+            if (_textIndexingService == null)
+            {
+                return StatusCode(503, new { error = "Text indexing non disponibile" });
+            }
+
+            var (enabled, extensions) = GetTextIndexingSettings();
+            if (!enabled || extensions == null || extensions.Count == 0)
+            {
+                return Conflict(new { error = "L'indicizzazione dei file di testo è disattivata per questo progetto (IndexAllTextFiles OFF)." });
+            }
+
+            _logger.LogInformation("[ReindexTextFiles] Forced text reindex requested for '{Path}'", currentPath);
+            _ = _textIndexingService.RunAsync(connectionId, currentPath, extensions, forceFullReindex: true);
             return Ok(new { started = true });
         }
 
@@ -1745,7 +1847,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var scanOverallTimer = System.Diagnostics.Stopwatch.StartNew();
 
             // Carica solo primo livello di cartelle che contengono file markdown
-            // Ordina: .github primo, poi folder "program", poi alfabetico
+            // Ordina: cartella harness (.github/.opencode) prima, poi folder "program", poi alfabetico
             var sortedFolders = SortFoldersWithPriority(
                 Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")),
                 isRootLevel: true,
@@ -1999,7 +2101,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // Fire-and-forget — la pipeline gira sotto IsolatedEngineDB e re-abilita FSW alla fine.
             if (_indexingPipelineService != null)
             {
-                _ = _indexingPipelineService.RunAsync(connectionId, currentPath, linkIndexingEnabled);
+                var markdownRun = _indexingPipelineService.RunAsync(connectionId, currentPath, linkIndexingEnabled);
+                ChainTextIndexingAfter(markdownRun, connectionId, currentPath, force: false);
                 pipelineStarted = true;
             }
             else
@@ -2507,7 +2610,69 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 ).ToList();
             _userSettingsDB.Commit();
 
-            return Ok(bookmarkList);
+            // Labels are resolved live (title → file name) so they never go stale;
+            // duplicates get the parent folder appended, VS Code tab style.
+            var resolved = bookmarkList
+                .Select(_ => new
+                {
+                    _.Id,
+                    _.Name,
+                    _.FullPath,
+                    _.SortOrder,
+                    _.ProjectId,
+                    DisplayName = ResolveBookmarkTitle(_.FullPath) ?? _.Name
+                }).ToList();
+
+            var duplicatedLabels = resolved
+                .GroupBy(_ => _.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var response = resolved.Select(_ => new
+            {
+                _.Id,
+                _.Name,
+                _.FullPath,
+                _.SortOrder,
+                _.ProjectId,
+                DisplayName = duplicatedLabels.Contains(_.DisplayName)
+                    ? $"{_.DisplayName} — {GetBookmarkParentFolderName(_.FullPath)}"
+                    : _.DisplayName
+            }).ToList();
+
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Reads the head of the bookmarked file and extracts its document title
+        /// (front matter "title:" or first H1). Null when the file is missing,
+        /// unreadable or has no title — the caller falls back to the stored name.
+        /// </summary>
+        private static string ResolveBookmarkTitle(string fullPath)
+        {
+            const int headChars = 8 * 1024;
+            try
+            {
+                if (string.IsNullOrEmpty(fullPath) || !System.IO.File.Exists(fullPath)) return null;
+                using var reader = new StreamReader(fullPath);
+                var buffer = new char[headChars];
+                var read = reader.Read(buffer, 0, headChars);
+                return MarkdownTitleExtractor.ExtractTitle(new string(buffer, 0, read));
+            }
+            catch (IOException)
+            {
+                return null;
+            }
+        }
+
+        // Last directory segment of the path, tolerant of both separators
+        // (bookmarks created on Windows may carry '\' even when read elsewhere).
+        private static string GetBookmarkParentFolderName(string fullPath)
+        {
+            if (string.IsNullOrEmpty(fullPath)) return string.Empty;
+            var segments = fullPath.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+            return segments.Length >= 2 ? segments[segments.Length - 2] : string.Empty;
         }
 
         [HttpPost]
@@ -2951,7 +3116,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
         /// <summary>
-        /// Ordina i folder: .github primo (solo root), poi folder "program", poi alfabetico
+        /// Ordina i folder: la cartella dell'harness (.github / .opencode) prima (solo root),
+        /// poi folder "program", poi alfabetico
         /// </summary>
         private List<string> SortFoldersWithPriority(IEnumerable<string> folders, bool isRootLevel, string projectRoot)
         {
@@ -2964,8 +3130,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             var folderName = Path.GetFileName(folderPath);
 
-            // .github sempre primo (solo a livello root)
-            if (isRootLevel && folderName.Equals(".github", StringComparison.OrdinalIgnoreCase))
+            // Cartella di un harness (.github, .opencode) sempre prima, solo a livello root.
+            // L'elenco arriva da HarnessLayout.All: aggiungere un harness non deve
+            // richiedere un altro literal qui dentro.
+            if (isRootLevel && HarnessLayout.All.Any(_ => folderName.Equals(_.RootFolder, StringComparison.OrdinalIgnoreCase)))
                 return 0;
 
             // Folder con tag "program"

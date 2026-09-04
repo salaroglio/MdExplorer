@@ -21,6 +21,27 @@
     <button mat-icon-button [matTooltip]="'TOOLBAR.DETACH_DOCUMENT' | translate" [disabled]="!relativePath" (click)="detachDocument()" class="toolbar-btn btn-detach">
       <mat-icon>open_in_new</mat-icon>
     </button>
+    <!-- Comandi della città degli agenti: visibili solo dove il progetto ha
+         agentCity.enabled acceso (.development.yml). -->
+    <button *ngIf="cityEnabled" mat-icon-button [matTooltip]="'TOOLBAR.AGENT_REGISTRY' | translate" (click)="openAgentRegistry()" class="toolbar-btn btn-agents">
+      <mat-icon>groups</mat-icon>
+    </button>
+    <!-- Impersonazione utente (test città): selettore identità. Resta visibile mentre
+         un'impersonazione è in corso anche a città spenta, altrimenti si toglierebbe
+         la via d'uscita a chi ha spento il flag da impersonato. -->
+    <button *ngIf="cityEnabled || identity?.impersonated"
+            mat-icon-button [matTooltip]="'IDENTITY.MENU' | translate" [matMenuTriggerFor]="identityMenu"
+            (menuOpened)="loadIdentity(); loadCityUsers()" class="toolbar-btn btn-identity"
+            [ngClass]="{ 'identity-impersonating': identity?.impersonated }">
+      <mat-icon>{{ identity?.impersonated ? 'switch_account' : 'account_circle' }}</mat-icon>
+    </button>
+    <button *ngIf="cityEnabled" mat-icon-button [matTooltip]="'TOOLBAR.AGENT_MEMORY' | translate" (click)="openAgentMemory()" class="toolbar-btn btn-agent-memory">
+      <mat-icon>psychology</mat-icon>
+    </button>
+    <button *ngIf="cityEnabled" mat-icon-button [matTooltip]="'TOOLBAR.AGENT_MAILBOX' | translate" (click)="openMailbox()" class="toolbar-btn btn-mailbox"
+            [matBadge]="mailboxUnread" [matBadgeHidden]="mailboxUnread === 0" matBadgeColor="warn" matBadgeSize="small">
+      <mat-icon>forum</mat-icon>
+    </button>
     <button *ngIf="isTocDirectoryFile()" mat-icon-button [matTooltip]="'TOOLBAR.REFRESH_TOC_AI' | translate" (click)="refreshTocDirectory()" class="toolbar-btn btn-ai">
       <mat-icon>refresh</mat-icon>
     </button>
@@ -37,7 +58,7 @@
             mat-icon-button
             [matTooltip]="'TOOLBAR.GIT_NOT_CONFIGURED' | translate"
             (click)="openManageRemote()">
-      <mat-icon style="color: orange">person_add</mat-icon>
+      <mat-icon class="git-missing-icon">person_add</mat-icon>
     </button>
     <!-- Auth Failed (VPN/network): show warning with menu -->
     <button *ngIf="isGitRepository && authenticationFailed && !authenticationMissing && !isCheckingConnection"
@@ -57,7 +78,7 @@
 
     <!-- Git button for NON-Git projects -->
     <span *ngIf="!isGitRepository" style="display:flex; flex-direction:row">
-      <button mat-button [matMenuTriggerFor]="gitInitMenu" style="color: white;">
+      <button mat-button [matMenuTriggerFor]="gitInitMenu" class="git-menu-btn">
         <mat-icon>settings</mat-icon>
         Git <img src="/assets/gitlogo.png" style="height: 16px; margin-left: 4px;" />
       </button>
@@ -70,36 +91,75 @@
           <button class="smallMessagesToCommit"
                   (click)="commit()"
                   (mouseenter)="showCommitMenu=true; loadChangedFiles()">
-            {{ 'TOOLBAR.FILES_TO_COMMIT' | translate:{ count: howManyFilesAreToCommit } }}
+            {{ toCommitLabel() }}
           </button>
           <div class="commit-menu"
                *ngIf="showCommitMenu"
                (mouseleave)="showCommitMenu=false">
-            <div class="commit-menu-header">{{ 'TOOLBAR.TO_COMMIT' | translate }}</div>
+            <!-- L'intestazione dice di CHI e' il lavoro: in revisione i numeri e il commit
+                 sono quelli dell'agente, non i tuoi. -->
+            <div class="commit-menu-header">
+              <mat-icon *ngIf="reviewAgent" class="ctx-icon">smart_toy</mat-icon>
+              {{ reviewAgent
+                 ? ('TOOLBAR.TO_COMMIT_AGENT' | translate:{ agent: reviewAgent })
+                 : ('TOOLBAR.TO_COMMIT' | translate) }}
+            </div>
             <div *ngIf="isLoadingChangedFiles" class="commit-menu-loading">
               {{ 'COMMON.LOADING' | translate }}
             </div>
-            <div *ngIf="!isLoadingChangedFiles && changedFiles.length > 0" class="commit-files-list">
-              <div *ngFor="let file of changedFiles" class="commit-file-row">
-                <span class="file-status" [ngClass]="file.status.toLowerCase()"
-                      [matTooltip]="file.status === 'Unversioned' ? ('TOOLBAR.UNVERSIONED_TOOLTIP' | translate) : ''">
-                  {{file.status}}
+
+            <!-- Una riga per repository, perche' e' l'unita' in cui si committa: un totale
+                 unico direbbe che basta un commit, e non e' vero. La lista dei file sta nel
+                 tab, dove si vede il diff prima di scartare. -->
+            <div *ngIf="!isLoadingChangedFiles && changesView && !changesView.problem" class="commit-repos">
+              <div class="commit-repo" *ngFor="let r of reposToCommit; trackBy: trackByRepo">
+                <mat-icon class="r-icon">{{ r.depth === 0 ? 'folder_special' : 'account_tree' }}</mat-icon>
+                <span class="r-label">{{ r.label }}</span>
+                <span class="r-branch" *ngIf="r.branch">{{ r.branch }}</span>
+                <span class="r-branch r-detached" *ngIf="r.detached">{{ 'CHANGES.DETACHED' | translate }}</span>
+                <span class="flexExpand"></span>
+                <span class="r-badge" *ngIf="r.pointerMoved">{{ 'CHANGES.POINTER_MOVED' | translate }}</span>
+                <span class="r-counts">
+                  <span class="agg-added" *ngIf="countIn(r, 'added') || countIn(r, 'untracked')">+{{ countIn(r, 'added') + countIn(r, 'untracked') }}</span>
+                  <span class="agg-modified" *ngIf="countIn(r, 'modified')">~{{ countIn(r, 'modified') }}</span>
+                  <span class="agg-deleted" *ngIf="countIn(r, 'deleted')">&minus;{{ countIn(r, 'deleted') }}</span>
+                  <span class="agg-renamed" *ngIf="countIn(r, 'renamed')">&rarr;{{ countIn(r, 'renamed') }}</span>
                 </span>
-                <span class="file-name" [title]="file.relativePath">
-                  {{file.fileName}}
-                </span>
-                <span class="file-action">
-                  <button mat-icon-button
-                          class="rollback-btn"
-                          (click)="discardFile(file); $event.stopPropagation()"
-                          [matTooltip]="file.isNew ? ('TOOLBAR.REMOVE_FROM_STAGING' | translate) : ('TOOLBAR.DISCARD_CHANGES' | translate)">
-                    <mat-icon>{{file.isNew ? 'remove_circle_outline' : 'undo'}}</mat-icon>
-                  </button>
-                </span>
+
+                <!-- Un commit per repository, perche' e' li' che il commit va a finire. Mai
+                     disabilitato in silenzio: il motivo sta nel tooltip. -->
+                <button mat-stroked-button class="r-commit"
+                        [disabled]="!!r.commitBlocker"
+                        [matTooltip]="r.commitBlocker || ('TOOLBAR.COMMIT_HERE_TIP' | translate:{ repo: r.label })"
+                        matTooltipPosition="left"
+                        (click)="commitRepo(r, $event)">
+                  <mat-icon>{{ r.commitBlocker ? 'block' : 'check' }}</mat-icon>
+                  {{ 'TOOLBAR.COMMIT_HERE' | translate }}
+                </button>
               </div>
             </div>
-            <div *ngIf="!isLoadingChangedFiles && changedFiles.length === 0" class="commit-menu-empty">
+
+            <!-- Perche' pushare adesso romperebbe il repository per gli altri: si legge PRIMA. -->
+            <div class="commit-push-warn"
+                 *ngIf="!isLoadingChangedFiles && changesView?.repos?.length && changesView.repos[0].pushWarnings?.length">
+              <mat-icon>warning</mat-icon>
+              <span>{{ changesView.repos[0].pushWarnings[0] }}</span>
+            </div>
+
+            <div *ngIf="!isLoadingChangedFiles && changesView?.problem" class="commit-menu-empty">
+              {{ changesView?.problem }}
+            </div>
+
+            <div *ngIf="!isLoadingChangedFiles && changesView && !changesView.problem && reposToCommit.length === 0"
+                 class="commit-menu-empty">
               {{ 'TOOLBAR.NO_MODIFIED_FILES' | translate }}
+            </div>
+
+            <div class="commit-menu-actions" *ngIf="!isLoadingChangedFiles && reposToCommit.length">
+              <button mat-stroked-button (click)="seeTheDifferences(); $event.stopPropagation()">
+                <mat-icon>difference</mat-icon>
+                {{ 'TOOLBAR.SEE_DIFFERENCES' | translate }}
+              </button>
             </div>
           </div>
         </div>
@@ -117,16 +177,57 @@
               </table>
           </div>
         </div>
-        <button class="smallMessagesToPush" (click)="push()" *ngIf="somethingIsToPush">{{ 'TOOLBAR.TO_PUSH' | translate:{ count: howManyCommitAreToPush } }}</button>
+        <!-- Pubblica il progetto E i suoi submodule, nell'ordine che non puo' rompere niente:
+             i figli prima, il padre per ultimo. -->
+        <button class="smallMessagesToPush" (click)="pushEverything()" *ngIf="somethingIsToPush"
+                [matTooltip]="'TOOLBAR.PUSH_ALL_TIP' | translate">
+          {{ 'TOOLBAR.TO_PUSH' | translate:{ count: howManyCommitAreToPush } }}
+        </button>
       </div>
       <button mat-button [matMenuTriggerFor]="tagsAndBranches" #branchMenuTrigger="matMenuTrigger"
+              (menuOpened)="loadWorktrees()"
               [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">
         [{{currentBranch}}] <img src="/assets/gitlogo.png" />
       </button>
     </span>
 
   </mat-toolbar-row>
+
+  <!-- Banner impersonazione: sempre visibile mentre agisci come un altro utente -->
+  <mat-toolbar-row *ngIf="identity?.impersonated" class="identity-banner">
+    <mat-icon>warning</mat-icon>
+    <span>{{ 'IDENTITY.BANNER' | translate:{ email: identity?.email } }}</span>
+    <span class="flexExpand"></span>
+    <button mat-stroked-button (click)="backToMe()">{{ 'IDENTITY.BACK_TO_ME' | translate }}</button>
+  </mat-toolbar-row>
 </mat-toolbar>
+
+<!-- Menu selettore identità (test città) -->
+<mat-menu #identityMenu="matMenu">
+  <div class="identity-menu" (click)="$event.stopPropagation()">
+    <div class="identity-current">
+      {{ 'IDENTITY.YOU_ARE' | translate }} <strong>{{ identity?.email || '?' }}</strong>
+      <span *ngIf="identity?.impersonated" class="identity-badge">{{ 'IDENTITY.IMPERSONATING' | translate }}</span>
+    </div>
+    <label class="identity-testmode">
+      <input type="checkbox" [checked]="identity?.testMode" (change)="toggleTestMode($any($event.target).checked)" />
+      {{ 'IDENTITY.TEST_MODE' | translate }}
+    </label>
+    <div *ngIf="identity?.testMode" class="identity-users">
+      <div class="identity-hint">{{ 'IDENTITY.PICK_HINT' | translate }}</div>
+      <button mat-menu-item *ngFor="let u of cityUsers" (click)="actAs(u.email)" [disabled]="u.isMe">
+        <mat-icon>{{ u.isMe ? 'person' : 'person_outline' }}</mat-icon>
+        <span class="identity-user-name">{{ u.displayName }}</span>
+        <span class="presence-dot" [class.online]="u.online" [class.offline]="!u.online"
+              [matTooltip]="(u.online ? 'IDENTITY.ONLINE' : 'IDENTITY.OFFLINE') | translate"></span>
+      </button>
+      <button mat-menu-item *ngIf="identity?.impersonated" (click)="backToMe()">
+        <mat-icon>undo</mat-icon> {{ 'IDENTITY.BACK_TO_ME' | translate }}
+      </button>
+    </div>
+  </div>
+</mat-menu>
+
 <!--[matMenuTriggerFor]="FileAndAutorsToPull"
 #menuTrigger="matMenuTrigger"
  (mouseenter)="openMenu(menuTrigger)"
@@ -169,6 +270,15 @@
         <mat-icon style="text-align:right" class="branch-icon">account_tree</mat-icon>
       </button>
     </div>
+    <!-- Fase 7h: review read-only dei worktree degli agenti -->
+    <div [matMenuTriggerFor]="agentWorktrees"
+         class="container"
+         mat-menu-item>
+      <span>{{ 'TOOLBAR.WORKTREE' | translate }}</span><span class="flexExpand"></span>
+      <button mat-icon-button>
+        <mat-icon style="text-align:right" class="worktree-icon">folder_open</mat-icon>
+      </button>
+    </div>
     <div (click)="openAddSubmoduleDialog()"
          class="container"
          mat-menu-item (click)="$event.stopPropagation()">
@@ -178,6 +288,17 @@
       </button>
     </div>
   </div>
+</mat-menu>
+
+<!-- Fase 7h: sottomenu dei worktree degli agenti (review read-only) -->
+<mat-menu #agentWorktrees="matMenu">
+  <button mat-menu-item disabled *ngIf="worktreeList.length === 0">
+    {{ 'TOOLBAR.WORKTREE_EMPTY' | translate }}
+  </button>
+  <button mat-menu-item *ngFor="let wt of worktreeList" (click)="openWorktree(wt.agent)">
+    <mat-icon>folder_open</mat-icon>
+    <span>{{ wt.agent }}</span>
+  </button>
 </mat-menu>
 
 <!-- Git Init Menu for non-Git projects -->
@@ -196,7 +317,7 @@
 
 <!-- Auth Failed Menu -->
 <mat-menu #authFailedMenu="matMenu">
-  <div class="auth-failed-header" style="padding: 8px 16px; color: #f57c00; font-size: 12px;">
+  <div class="auth-failed-header" style="padding: 8px 16px; font-size: 12px;">
     <mat-icon style="vertical-align: middle; font-size: 16px; margin-right: 4px;">warning</mat-icon>
     {{ authenticationFailureReason || ('TOOLBAR.AUTH_FAILED' | translate) }}
   </div>

@@ -21,3 +21,38 @@ mat-form-field {
 mat-icon {
   vertical-align: middle;
 }
+
+// Classi per i colori spostati dagli stili inline del template
+.wizard-hint-text {
+  color: var(--mde-text-secondary);
+}
+
+.template-preview-box {
+  background: var(--mde-bg-tertiary);
+}
+
+.preview-info-icon {
+  color: var(--mde-icon-color);
+}
+
+.preview-title {
+  color: var(--mde-text-primary);
+}
+
+.preview-list {
+  color: var(--mde-text-secondary);
+}
+
+.success-icon,
+.success-title {
+  color: var(--mde-success-fg);
+}
+
+.next-step-box {
+  background: var(--mde-accent-light);
+  border-left: 4px solid var(--mde-accent-primary);
+}
+
+.next-step-icon {
+  color: var(--mde-icon-accent-blue);
+}

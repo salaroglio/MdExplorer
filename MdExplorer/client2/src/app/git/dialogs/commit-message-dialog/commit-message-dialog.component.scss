@@ -19,3 +19,8 @@ mat-dialog-actions {
   margin-top: 16px;
   padding: 0;
 }
+
+// Colore spostato dallo stile inline del template
+.ai-error-message {
+  color: var(--mde-error-fg);
+}

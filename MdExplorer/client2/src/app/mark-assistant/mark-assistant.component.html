@@ -35,8 +35,30 @@
      [class.has-custom-position]="position !== null"
      [style.left.px]="position?.left"
      [style.top.px]="position?.top"
+     [style.width.px]="size?.width"
+     [class.resizing]="isResizing"
      (mousedown)="onDragStart($event)"
      (click)="onDialogClick()">
+
+  <!-- Fumetto del pensiero. Esce dalla box e vive fuori: dentro ci va solo la
+       risposta ufficiale, qui il come ci si e' arrivati. Sparisce da solo qualche
+       secondo dopo la risposta, ma resta se qualcosa e' andato storto — l'ultima
+       riga dice a che punto si e' fermato. -->
+  <div class="think-bubble"
+       *ngIf="(thinking$ | async) as steps"
+       [class.on]="steps.length > 0"
+       [class.below]="thinkBelow">
+    <div class="think-body">
+      <div class="think-line"
+           *ngFor="let step of steps; let last = last"
+           [class.current]="last">
+        <span class="think-mark">{{ last ? '▸' : '✓' }}</span>{{ step }}
+      </div>
+    </div>
+    <span class="think-tail think-tail-1"></span>
+    <span class="think-tail think-tail-2"></span>
+    <span class="think-tail think-tail-3"></span>
+  </div>
 
   <div class="antenna"></div>
 
@@ -53,6 +75,14 @@
     <div class="rivet rivet-tr"></div>
     <div class="rivet rivet-bl"></div>
     <div class="rivet rivet-br"></div>
+
+    <!-- Maniglia di ridimensionamento. Sta nell'angolo opposto all'ancoraggio
+         (vedi onResizeStart); doppio click riporta alla dimensione di default. -->
+    <div class="resize-handle"
+         *ngIf="(state$ | async) === 'playing'"
+         [title]="'Trascina per ridimensionare — doppio click per la dimensione originale'"
+         (pointerdown)="onResizeStart($event)"
+         (dblclick)="onResizeReset($event)"></div>
 
     <div class="led-area">
       <div class="led"></div>
@@ -72,7 +102,13 @@
       <img class="face-portrait" src="/assets/mark.png" alt="Mark" draggable="false">
       <div class="dialog-text-area">
         <div class="dialog-name">MARK</div>
-        <div class="dialog-text" [class.static]="(staticMode$ | async)">{{ text$ | async }}<span class="cursor" *ngIf="(continueArrow$ | async) === false && (text$ | async)?.length > 0"></span></div>
+        <div #textRef
+             class="dialog-text"
+             [class.static]="(staticMode$ | async)"
+             [style.height.px]="size?.textHeight"
+             [style.maxHeight]="size ? 'none' : null">
+          <div class="dialog-text-body" [innerHTML]="renderedText$ | async"></div><span class="cursor" *ngIf="(continueArrow$ | async) === false && (text$ | async)?.length > 0"></span>
+        </div>
       </div>
     </div>
 

@@ -1,0 +1,130 @@
+<div class="changes-panel">
+
+  <!-- L'intestazione dice sempre DI CHI e' il lavoro: e' l'unica cosa che distingue
+       "quello che ho scritto io" da "quello che ha prodotto un agente". -->
+  <div class="changes-header" [class.agent-context]="agent">
+    <mat-icon>{{ agent ? 'smart_toy' : 'person' }}</mat-icon>
+    <span class="context-label">
+      {{ agent ? agent : ('CHANGES.YOUR_WORK' | translate) }}
+    </span>
+    <span class="branch" *ngIf="view?.branch" [matTooltip]="'CHANGES.BRANCH_TOOLTIP' | translate">
+      <mat-icon>alt_route</mat-icon>{{ view?.branch }}
+    </span>
+    <span class="flexExpand"></span>
+    <button mat-icon-button *ngIf="agent" (click)="backToMyWork()"
+            [matTooltip]="'CHANGES.BACK_TO_MINE' | translate">
+      <mat-icon>keyboard_return</mat-icon>
+    </button>
+    <button mat-icon-button (click)="refresh()" [matTooltip]="'CHANGES.REFRESH' | translate">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
+
+  <div *ngIf="loading" class="changes-empty">
+    <mat-spinner diameter="24"></mat-spinner>
+  </div>
+
+  <!-- Una condizione che l'utente puo' risolvere, non un errore da nascondere. -->
+  <div *ngIf="!loading && view?.problem" class="changes-empty problem">
+    <mat-icon>info</mat-icon>
+    <p>{{ view?.problem }}</p>
+  </div>
+
+  <!-- Senza git non c'e' un "prima" con cui confrontarsi: dirlo, invece di far credere
+       che non sia cambiato niente. -->
+  <div *ngIf="!loading && view?.notAGitRepository" class="changes-empty problem">
+    <mat-icon>help_outline</mat-icon>
+    <p>{{ 'CHANGES.NO_GIT' | translate }}</p>
+  </div>
+
+  <div *ngIf="!loading && view && !view.problem && !view.notAGitRepository">
+
+    <!-- Perche' pushare adesso romperebbe il repository per gli altri: si dice PRIMA, non
+         come errore di chi clona giorni dopo. -->
+    <div class="push-warnings" *ngIf="view.repos?.length && view.repos[0].pushWarnings?.length">
+      <mat-icon>warning</mat-icon>
+      <ul>
+        <li *ngFor="let w of view.repos[0].pushWarnings">{{ w }}</li>
+      </ul>
+    </div>
+
+    <!-- Un gruppo per repository: e' l'unita' in cui si committa, quindi e' l'unita' di cui
+         si parla. Un elenco unico metterebbe vicine due righe che finiscono in posti diversi. -->
+    <div class="repo" *ngFor="let r of view.repos; trackBy: trackByRepo"
+         [class.repo-nested]="r.depth > 0" [class.repo-quiet]="!hasSomething(r)">
+
+      <div class="repo-header" (click)="toggle(r)" [style.paddingLeft.px]="8 + r.depth * 14">
+        <mat-icon class="chevron">{{ isCollapsed(r) ? 'chevron_right' : 'expand_more' }}</mat-icon>
+        <mat-icon class="repo-icon">{{ r.depth === 0 ? 'folder_special' : 'account_tree' }}</mat-icon>
+        <span class="repo-label">{{ r.label }}</span>
+
+        <span class="branch" *ngIf="r.branch">
+          <mat-icon>alt_route</mat-icon>{{ r.branch }}
+        </span>
+        <span class="branch detached" *ngIf="r.detached" [matTooltip]="r.commitBlocker || ''">
+          <mat-icon>link_off</mat-icon>{{ 'CHANGES.DETACHED' | translate }}
+        </span>
+
+        <span class="badge b-pointer" *ngIf="r.pointerMoved"
+              [matTooltip]="'CHANGES.POINTER_MOVED_TIP' | translate">
+          {{ 'CHANGES.POINTER_MOVED' | translate }}
+        </span>
+        <span class="badge b-missing" *ngIf="r.notInitialized"
+              [matTooltip]="r.commitBlocker || ''">
+          {{ 'CHANGES.NOT_INITIALIZED' | translate }}
+        </span>
+        <span class="badge b-ahead" *ngIf="r.ahead > 0"
+              [matTooltip]="'CHANGES.AHEAD_TIP' | translate">
+          {{ 'CHANGES.AHEAD' | translate:{ count: r.ahead } }}
+        </span>
+        <!-- Anche il ritardo e' per repository: il pull del progetto non dice quanto sono
+             indietro i submodule, e ognuno ha il suo remoto. -->
+        <span class="badge b-behind" *ngIf="r.behind > 0"
+              [matTooltip]="'CHANGES.BEHIND_TIP' | translate">
+          {{ 'CHANGES.BEHIND' | translate:{ count: r.behind } }}
+        </span>
+
+        <span class="flexExpand"></span>
+
+        <span class="counts">
+          <span class="c-added" *ngIf="countIn(r, 'added') || countIn(r, 'untracked')">
+            +{{ countIn(r, 'added') + countIn(r, 'untracked') }}
+          </span>
+          <span class="c-modified" *ngIf="countIn(r, 'modified')">~{{ countIn(r, 'modified') }}</span>
+          <span class="c-deleted" *ngIf="countIn(r, 'deleted')">&minus;{{ countIn(r, 'deleted') }}</span>
+          <span class="c-renamed" *ngIf="countIn(r, 'renamed')">&rarr;{{ countIn(r, 'renamed') }}</span>
+        </span>
+      </div>
+
+      <div class="repo-body" *ngIf="!isCollapsed(r)">
+
+        <!-- Il puntatore spostato NON e' un file di questo repository: e' lavoro del padre.
+             Dirlo qui, dove si guarda il submodule, evita di cercarlo dove non c'e'. -->
+        <div class="repo-note" *ngIf="r.pointerMoved">
+          {{ 'CHANGES.POINTER_MOVED_NOTE' | translate }}
+        </div>
+
+        <div class="repo-note" *ngIf="r.files.length === 0 && !r.notInitialized">
+          {{ 'CHANGES.NOTHING' | translate:{ base: r.baseBranch || '—' } }}
+        </div>
+
+        <ul class="files" *ngIf="r.files.length > 0">
+          <ng-container *ngFor="let f of r.files; trackBy: trackByPath">
+            <li [ngClass]="'f-' + f.change"
+                [class.opened]="openedPath === f.path && openedRepo === r.path"
+                (click)="open(r, f)" [title]="f.oldPath ? (f.oldPath + ' → ' + f.path) : f.path">
+              <mat-icon class="change-icon">{{ iconFor(f.change) }}</mat-icon>
+              <span class="file-path">{{ f.path }}</span>
+              <span class="flexExpand"></span>
+              <button mat-icon-button class="discard" (click)="discard(r, f, $event)"
+                      [matTooltip]="'CHANGES.DISCARD' | translate">
+                <mat-icon>undo</mat-icon>
+              </button>
+            </li>
+
+          </ng-container>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>

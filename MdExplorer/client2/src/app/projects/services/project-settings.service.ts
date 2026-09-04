@@ -2,6 +2,40 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
+/** Da dove viene un valore risolto del relay (catena: progetto → .development.yml → globale). */
+export type RelaySettingSource = 'None' | 'Project' | 'DevelopmentYml' | 'Global';
+
+export interface RelaySettings {
+  relayUrl: string;
+  relayUrlSource: RelaySettingSource;
+  /** La chiave non viaggia mai verso il client: si sa solo se c'è. */
+  hasApiKey: boolean;
+  apiKeySource: RelaySettingSource;
+  lastTestedAt: string | null;
+  lastTestSuccess: boolean | null;
+}
+
+/**
+ * Harness agentico del progetto: dove MdExplorer installa skill, agent e prompt.
+ * Vive in .development.yml, quindi è una scelta del repository condivisa dal team.
+ */
+export type HarnessTarget = 'copilot' | 'opencode' | 'none';
+
+export interface HarnessSetting {
+  target: HarnessTarget;
+  /**
+   * false = il progetto non dichiara ancora l'harness (creato prima che la scelta esistesse):
+   * `target` è quello dedotto dalle cartelle presenti sul disco.
+   */
+  declared: boolean;
+}
+
+export interface RelayTestResult {
+  success: boolean;
+  statusCode: number | null;
+  message: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -67,14 +101,68 @@ export class ProjectSettingsService {
     return this.http.post<any>(url, { enabled, projectPath });
   }
 
-  getExcludeSubmodulesSetting(projectPath: string): Observable<{enabled: boolean}> {
-    const url = '../api/ProjectSettings/GetExcludeSubmodulesSetting';
+  /**
+   * Selezione automatica di Claude Code. Gemella di quella Copilot, ma il default lato
+   * backend è OFF: un progetto che non ha mai visto questa opzione non deve cambiare
+   * motore della chat da solo.
+   */
+  getClaudeCodeAutoSelectSetting(projectPath: string): Observable<{enabled: boolean}> {
+    const url = '../api/ProjectSettings/GetClaudeCodeAutoSelectSetting';
     return this.http.get<{enabled: boolean}>(url, { params: { projectPath } });
   }
 
-  setExcludeSubmodulesSetting(enabled: boolean, projectPath: string): Observable<any> {
-    const url = '../api/ProjectSettings/SetExcludeSubmodulesSetting';
+  setClaudeCodeAutoSelectSetting(enabled: boolean, projectPath: string): Observable<any> {
+    const url = '../api/ProjectSettings/SetClaudeCodeAutoSelectSetting';
     return this.http.post<any>(url, { enabled, projectPath });
+  }
+
+  /**
+   * Isolamento worktree: preferenza di QUESTA macchina (UserDB), non del repo — costa spazio
+   * disco locale, quindi non si impone al team via git come le altre opzioni della città.
+   */
+  getAgentWorktreesSetting(projectPath: string): Observable<{
+    enabled: boolean; isExplicit: boolean; defaultValue: boolean;
+    /** Posti di lavoro del pool: quanti agenti possono lavorare insieme su questa macchina. */
+    slots: number; defaultSlots: number; maxSlots: number;
+  }> {
+    return this.http.get<any>('../api/ProjectSettings/GetAgentWorktreesSetting', { params: { projectPath } });
+  }
+
+  /** `slots` assente = lascia il numero com'è; `null` = torna al default. */
+  setAgentWorktreesSetting(enabled: boolean | null, projectPath: string, slots?: number | null): Observable<any> {
+    return this.http.post<any>('../api/ProjectSettings/SetAgentWorktreesSetting',
+      { enabled, projectPath, slots });
+  }
+
+
+  getTextIndexingSetting(projectPath: string): Observable<{enabled: boolean, extensions: string, defaultExtensions: string}> {
+    const url = '../api/ProjectSettings/GetTextIndexingSetting';
+    return this.http.get<{enabled: boolean, extensions: string, defaultExtensions: string}>(url, { params: { projectPath } });
+  }
+
+  setTextIndexingSetting(enabled: boolean, extensions: string, projectPath: string): Observable<any> {
+    const url = '../api/ProjectSettings/SetTextIndexingSetting';
+    return this.http.post<any>(url, { enabled, extensions, projectPath });
+  }
+
+  getHarness(projectPath: string): Observable<HarnessSetting> {
+    return this.http.get<HarnessSetting>('../api/ProjectSettings/GetHarness', { params: { projectPath } });
+  }
+
+  /**
+   * Cambia l'harness e installa subito i file dove il nuovo harness li vuole.
+   * Non rimuove quelli del precedente: sono file in un repository, possibilmente
+   * personalizzati — la pulizia resta una scelta esplicita dell'utente.
+   */
+  setHarness(target: HarnessTarget, projectPath: string): Observable<{ target: HarnessTarget }> {
+    return this.http.post<{ target: HarnessTarget }>('../api/ProjectSettings/SetHarness',
+      { target, projectPath });
+  }
+
+  /** Forces a full rebuild of the separate text index only (POST api/mdfiles/ReindexTextFiles). */
+  reindexTextFiles(connectionId: string): Observable<any> {
+    const url = '../api/mdfiles/ReindexTextFiles?connectionId=' + encodeURIComponent(connectionId || '');
+    return this.http.post<any>(url, {});
   }
 
   // RAG Settings
@@ -117,6 +205,34 @@ export class ProjectSettingsService {
   indexRagDirectory(directoryPath: string, projectPath: string, forceReindex = false): Observable<any> {
     const url = '../api/Rag/index-directory';
     return this.http.post<any>(url, { directoryPath, projectPath, forceReindex });
+  }
+
+  // ============================================================
+  //   Agent City / Federation activation (.development.yml, §12.4)
+  // ============================================================
+  getAgentCity(projectPath: string): Observable<{ enabled: boolean; ownershipDoc: string | null; relayUrl: string | null; hasRoomSecret: boolean; useAgentWorktrees: boolean; autoMergeAgentDeliverables: boolean }> {
+    return this.http.get<any>('../api/MdProjects/AgentCity', { params: { path: projectPath } });
+  }
+
+  setAgentCity(projectPath: string, body: { enabled: boolean; ownershipDoc?: string; relayUrl?: string; useAgentWorktrees?: boolean; autoMergeAgentDeliverables?: boolean }): Observable<any> {
+    return this.http.post<any>('../api/MdProjects/SetAgentCity', body, { params: { path: projectPath } });
+  }
+
+  // ------------------------------------------------------------
+  //   Relay della federazione: indirizzo + API key, PER PROGETTO.
+  //   La chiave non attraversa mai il filo in uscita dal server:
+  //   il GET dice solo se c'è e da dove arriva.
+  // ------------------------------------------------------------
+  getRelaySettings(projectPath: string): Observable<RelaySettings> {
+    return this.http.get<RelaySettings>('../api/MdProjects/RelaySettings', { params: { path: projectPath } });
+  }
+
+  setRelaySettings(projectPath: string, body: { relayUrl?: string; apiKey?: string; clearApiKey?: boolean }): Observable<RelaySettings> {
+    return this.http.post<RelaySettings>('../api/MdProjects/SetRelaySettings', body, { params: { path: projectPath } });
+  }
+
+  testRelaySettings(projectPath: string): Observable<RelayTestResult> {
+    return this.http.post<RelayTestResult>('../api/MdProjects/TestRelaySettings', {}, { params: { path: projectPath } });
   }
 
   // ============================================================

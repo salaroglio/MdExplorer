@@ -3,7 +3,7 @@ name: mde-readme
 description: Write README sections that include runnable script examples MdExplorer can execute interactively. Use whenever you document a CLI tool, build/deploy script, dev task, or any command-line invocation in a README, sprint note, or how-to doc. Each example must declare its parameters in a way MdExplorer's runner can detect, so the user can fill them in a dialog and click ▶ Run.
 mde:
   origin: mdexplorer
-  version: 6
+  version: 8
   updatePolicy: replace
 ---
 
@@ -49,7 +49,7 @@ Use comments natural to the shell:
 The grammar for each parameter line is:
 
 ```
-<comment-prefix> @param <NAME> [— description]  [default: <value>]  [secret]  [type: file|dir|out-file]
+<comment-prefix> @param <NAME> [— description]  [<val> | <val> | …]  [default: <value>]  [secret]  [type: file|dir|out-file]
 ```
 
 Rules:
@@ -58,6 +58,16 @@ Rules:
   after the name on the same line is the description.
 - `default: <value>` (anywhere on the line, in parentheses or after the description) sets the
   default value pre-filled in the dialog.
+- **A list of admissible values, written as an alternation, renders a dropdown** instead of a free
+  text field — the user picks, they cannot mistype. Two accepted forms:
+  - the description **is** the list: `# @param DIALECT — cobol | pli (default: pli)`
+  - the list is labelled inside a longer description: `# @param ENV — target environment, options: dev|staging|prod`
+    (`options`, `values`, `choices`, `one of` are all accepted).
+
+  Each value must be a **single word** (letters, digits, `.` `_` `-` `+` `/`) and there must be at
+  least two of them — a pipe inside ordinary prose is left alone, so a description like
+  `command to pipe into grep | wc` stays free text. Declare the `default:` as one of the listed
+  values so the dropdown opens on it.
 - `secret` (or the name containing `KEY`/`TOKEN`/`SECRET`/`PASSWORD`/`PWD`) renders the field as
   a password input.
 - `type: file` renders a **path-picker button** that opens MdExplorer's file browser **rooted at
@@ -73,23 +83,52 @@ Rules:
   Windows, macOS and Linux.
 
 The same `<NAME>` is then referenced inside the script body as `<name>` (lower-cased and with
-underscores allowed) — case-insensitive match. Placeholders **never quoted by you**; the runner
-quotes them safely per shell.
+underscores allowed) — case-insensitive match.
 
-This bites hardest in **variable assignments**, where the quoting habit is strongest. Leave the
-placeholder bare:
+## Quoting — YOU own the delimiters
 
-| Correct (bare)       | Wrong (quoted)          |
-| -------------------- | ----------------------- |
-| `$fuseki = <FUSEKI>` | `$fuseki = "<FUSEKI>"`  |
-| `DEST=<target_dir>`  | `DEST="<target_dir>"`   |
+The runner substitutes a placeholder with the value **exactly as the user typed it**, verbatim.
+It adds **no quotes and no escaping**. A `<TOKEN>` stands for *text*, not for a shell word — so
+whatever you write around the token in the markdown is exactly what the shell will see.
 
-The runner substitutes `<FUSEKI>` with an **already shell-quoted** value (e.g.
-`'http://localhost:3030'`). If you also quote it, the two stack up — `"<FUSEKI>"` →
-`"'http://localhost:3030'"` — and the variable ends up holding **literal quote characters**,
-producing failures like *"Invalid URI: hostname could not be parsed"*. The only exception is the
-legacy `export VAR="<x>"` form (Example 3), where the runner rewrites the entire right-hand side,
-quotes included.
+The practical consequence: **if the value could contain spaces or shell metacharacters, you must
+quote the placeholder yourself.**
+
+| Situation                                | Write this                        |
+| ---------------------------------------- | --------------------------------- |
+| Value may contain spaces (paths, titles) | `$dest = "<target_dir>"`          |
+| Command argument, free text              | `./deploy.sh --msg "<message>"`   |
+| Token spliced inside a longer literal    | `$uri = "http://host:3030/<dataset>/query"` |
+| Numeric / boolean / known-safe token     | `--port <port>`                   |
+| Value that must NOT be interpolated (pwsh) | `$raw = '<literal_text>'`       |
+
+Pick the delimiter that suits the shell and the value:
+
+- **PowerShell** — `"<X>"` interpolates (`$`, backtick are live); `'<X>'` is literal.
+- **bash / sh** — `"<X>"` interpolates (`$`, backtick, `\`); `'<X>'` is fully literal.
+- **cmd** — `"<X>"`; note cmd has no escape for an embedded `"`.
+
+Two consequences worth internalising:
+
+1. **Never double-quote by habit and by template.** Because the runner no longer quotes, writing
+   `"<X>"` is now *correct*, not a bug — this is the opposite of the pre-v7 convention. If you are
+   updating an older README written against v6, the bare `$fuseki = <FUSEKI>` forms still work for
+   single-token values with no spaces, but should be re-quoted as `"<FUSEKI>"` to stay safe.
+2. **A value containing the delimiter still breaks the script.** `'<TITLE>'` with a value of
+   `l'analisi` produces broken PowerShell. When the value is free-form prose, prefer the
+   `export VAR="<x>"` / `param()` default forms below, which the runner rewrites *whole* — quotes
+   and escaping included.
+
+### The two forms the runner still quotes for you
+
+`export VAR="default"` (bash) and `[string]$Var = 'default'` inside a PowerShell `param()` block
+are **not** placeholder substitution: the runner replaces the entire right-hand side of the
+assignment, adding correct quoting and escaping itself. Use these when the value is untrusted
+free text — they are the escape-proof path.
+
+```bash
+export GREETING="hello"      # runner rewrites the whole RHS, quotes included
+```
 
 ## Working directory — every command runs from the PROJECT ROOT
 
@@ -166,25 +205,34 @@ project root** (see the previous section) and use `/`.
 ### 1. Bash — deploy script
 
 ```bash
-# @param ENV       — target environment (default: staging)
+# @param ENV       — dev | staging | prod (default: staging)
 # @param VERSION   — git tag or branch to deploy
 # @param API_KEY   — deployment API key (secret)
-./deploy.sh --env <env> --version <version> --key <api_key>
+./deploy.sh --env <env> --version "<version>" --key "<api_key>"
 ```
+
+`<env>` is picked from a dropdown (the three declared values), so it is a short safe token and can
+stay bare. `<version>` and `<api_key>` are quoted because the user could paste anything into them
+— the runner will not quote for you.
 
 ### 2. PowerShell — local build
 
 ```powershell
-# @param Configuration — Debug or Release (default: Release)
-# @param Runtime       — RID like win-x64, linux-x64 (default: win-x64)
+# @param Configuration — Debug | Release (default: Release)
+# @param Runtime       — target RID, options: win-x64|linux-x64|osx-arm64 (default: win-x64)
 dotnet publish src/MyApp.csproj -c <Configuration> -r <Runtime> --self-contained
 ```
 
+Both parameters have a closed set of values, so they render as dropdowns: the user picks
+`Release` or `Debug` instead of typing it. `Configuration` uses the bare form (the description is
+the list), `Runtime` the labelled one (prose plus `options:`).
+
 ### 3. Bash with env-export style (also detected, legacy)
 
-**Special case:** the quotes around `"<greeting>"` are correct *only* here — the `export VAR=...`
-form makes the runner rewrite the whole right-hand side. Everywhere else (plain `$var = <x>`
-assignments, command arguments) keep placeholders **bare**.
+**Use this form for untrusted free text.** The `export VAR=...` form makes the runner rewrite the
+whole right-hand side, so it adds correct quoting *and* escaping — a value containing quotes or
+`$` cannot break out. Plain placeholder substitution elsewhere is verbatim, so there you carry the
+quoting burden yourself.
 
 ```bash
 # @param GREETING — message to print (default: Hello)
@@ -259,10 +307,12 @@ When you are asked to write or update a README that documents a runnable script:
   exist.
 - ❌ Don't use angle brackets for anything other than parameter placeholders inside runnable
   blocks; the parser treats `<word>` as a parameter.
-- ❌ Don't quote a placeholder in an assignment or argument — `$x = "<param>"`, `--key "<key>"`.
-  The runner already shell-quotes substituted values, so your quotes stack and inject literal
-  quote characters. Keep them bare: `$x = <param>`, `--key <key>`. (Sole exception: the legacy
-  `export VAR="<x>"` form.)
+- ❌ Don't leave a placeholder bare when its value can contain spaces or shell metacharacters —
+  `$dest = <target_dir>`, `--msg <message>`. Substitution is verbatim, so a value like
+  `My Documents` splits into two words and the command breaks. Quote it: `$dest = "<target_dir>"`.
+- ❌ Don't rely on the runner to escape a value that contains your own delimiter (an apostrophe
+  inside `'<X>'`). For free-form prose use the `export VAR="<x>"` / `param()` default forms, which
+  the runner rewrites whole.
 - ❌ Don't mix shells in a single fence (e.g. `bash` fence with PowerShell syntax inside).
 - ❌ Don't write a script path relative to the README's folder (`python main.py` when `main.py`
   lives beside the README in a subfolder). The block runs from the **project root**, so it fails
@@ -279,7 +329,10 @@ When you are asked to write or update a README that documents a runnable script:
 - [ ] Every placeholder `<name>` in the call has a matching `@param NAME` line above.
 - [ ] Every relative path (the invoked script, helper/config/output files) is written **relative to the project root**, not to the README's folder — the block runs from the project root.
 - [ ] Every path uses **forward slashes `/`**, never backslashes `\`, and no absolute root / drive letter — so the same document runs on both Windows and Linux/macOS.
-- [ ] Placeholders are **bare** (`$x = <name>`, `--key <name>`), never self-quoted — the runner quotes them.
+- [ ] Every placeholder whose value could contain spaces or metacharacters is **quoted by you**
+      (`$x = "<name>"`, `--key "<key>"`) — substitution is verbatim, the runner adds nothing.
+- [ ] Every parameter with a closed set of values declares it as an alternation (`cobol | pli`,
+      `options: dev|staging|prod`) so the user gets a dropdown instead of a free-text field.
 - [ ] Sensitive parameters are marked `secret` (or named with a secret-like suffix).
 - [ ] Defaults are provided for non-secret parameters where a sensible default exists.
 - [ ] Prose above the block explains the side effects.

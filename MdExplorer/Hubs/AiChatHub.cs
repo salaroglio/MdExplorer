@@ -4,6 +4,7 @@ using MdExplorer.Features.Services;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -13,6 +14,7 @@ using MdExplorer.Abstractions.Services;
 using MdExplorer.bll.Services.AI;
 using MdExplorer.bll.Models.AI;
 using MdExplorer.Features.Services.AI;
+using MdExplorer.Features.Services.AI.ClaudeCode;
 using MdExplorer.Features.Services.AI.CopilotAcp;
 using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Services.FileSystemWatcherManager;
@@ -32,6 +34,7 @@ namespace MdExplorer.Hubs
         private readonly IFileSystemWatcherManager _watcherManager;
         private readonly Features.Services.AI.LocalLlamaProvider _localProvider;
         private readonly CopilotAcpSessionPool _copilotAcpPool;
+        private readonly ClaudeCodeSessionPool _claudeCodePool;
 
         // Static dictionary to store chat mode per connection
         private static readonly ConcurrentDictionary<string, ChatModeInfo> _connectionChatModes =
@@ -80,7 +83,8 @@ namespace MdExplorer.Hubs
             IDatabaseManager databaseManager,
             IFileSystemWatcherManager watcherManager,
             Features.Services.AI.LocalLlamaProvider localProvider,
-            CopilotAcpSessionPool copilotAcpPool)
+            CopilotAcpSessionPool copilotAcpPool,
+            ClaudeCodeSessionPool claudeCodePool)
         {
             _aiChatService = aiChatService;
             _downloadService = downloadService;
@@ -93,6 +97,7 @@ namespace MdExplorer.Hubs
             _watcherManager = watcherManager;
             _localProvider = localProvider;
             _copilotAcpPool = copilotAcpPool;
+            _claudeCodePool = claudeCodePool;
         }
 
         /// <summary>
@@ -124,14 +129,153 @@ namespace MdExplorer.Hubs
         /// Copilot agent to stop (session/cancel); the caller's SendMessage then completes the
         /// turn normally, so whatever was already streamed stays visible.
         /// </summary>
-        public Task CancelPrompt()
+        public Task<bool> CancelPrompt()
         {
-            _copilotAcpPool?.CancelActivePrompt(Context.ConnectionId);
-            return Task.CompletedTask;
+            // Si interroga ogni motore: il turno in volo appartiene a uno solo di loro, ma
+            // chiedere a entrambi costa nulla ed evita che lo Stop funzioni su un provider e
+            // resti muto sull'altro.
+            var cancelledCopilot = _copilotAcpPool?.CancelActivePrompt(Context.ConnectionId) ?? false;
+            var cancelledClaude = _claudeCodePool?.CancelActivePrompt(Context.ConnectionId) ?? false;
+            var cancelled = cancelledCopilot || cancelledClaude;
+            if (!cancelled)
+            {
+                // Niente in volo per questa connessione. Dirlo al client conta: prima si
+                // restituiva sempre "fatto" e la UI spegneva l'indicatore, dando l'impressione
+                // di aver fermato qualcosa che invece continuava.
+                _logger.LogInformation("[AiChatHub] CancelPrompt: nessun turno in volo per {ConnectionId}", Context.ConnectionId);
+            }
+            return Task.FromResult(cancelled);
+        }
+
+        /// <summary>
+        /// Provider/model-unavailable warnings must reach the caller on the SAME path it
+        /// listens on. The main chat panel shows system messages (ReceiveMessage), but
+        /// private-channel consumers (mark-search, promptlab, ai-selection) only listen to
+        /// channel events: without a ReceiveError they would wait forever.
+        /// </summary>
+        private Task NotifyUnavailableAsync(string channelId, string warning)
+        {
+            if (channelId == "default")
+            {
+                return Clients.Caller.SendAsync("ReceiveMessage", "system", warning);
+            }
+            return Clients.Caller.SendAsync("ReceiveError", warning, channelId);
+        }
+
+        // Per-file cap so a huge document can't blow up the model context; the cut is
+        // explicit in the injected text, never silent. Mirrors the old client-side limit.
+        private const int ContextFileCharLimit = 30000;
+
+        // Central default text allow-list, used to gate non-markdown context files
+        // injected into the AI prompt (see BuildContextBlock). Computed once.
+        private static readonly System.Collections.Generic.HashSet<string> _defaultTextExtensions =
+            MdExplorer.Abstractions.Services.TextFileClassifier.GetEffectiveExtensions(null);
+
+        /// <summary>
+        /// Like <see cref="SendMessage"/> but the caller passes the PATHS of project files to
+        /// inject as context instead of their content. The hub reads each file fresh from disk
+        /// (the server already has them — no client round-trip, no oversized SignalR payload)
+        /// and prepends a context block to the prompt. Used by the Mark Search tab's checkbox
+        /// feature. Paths are project-root-relative; the same traversal guard as
+        /// MarkSearchController applies. A file that cannot be read fails the whole send with an
+        /// actionable channel error (no silent partial context).
+        /// </summary>
+        public async Task SendMessageWithContext(string message, string channelId, string[] contextFiles)
+        {
+            channelId = string.IsNullOrEmpty(channelId) ? "default" : channelId;
+            if (contextFiles == null || contextFiles.Length == 0)
+            {
+                await SendMessage(message, channelId);
+                return;
+            }
+
+            string contextBlock;
+            try
+            {
+                contextBlock = BuildContextBlock(contextFiles);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[SendMessageWithContext] Failed to read context files");
+                await Clients.Caller.SendAsync("ReceiveError",
+                    "Lettura dei file di contesto fallita: " + ex.Message, channelId);
+                return;
+            }
+
+            await SendMessage(contextBlock + "\n\n" + message, channelId);
+        }
+
+        /// <summary>
+        /// Reads the given project files fresh from disk and formats them as a context block.
+        /// Traversal guard identical to MarkSearchController.GetFileContent: must be inside the
+        /// current project and a .md file. Throws on any unreadable/invalid path.
+        /// </summary>
+        private string BuildContextBlock(string[] contextFiles)
+        {
+            var projectPath = GetProjectPath();
+            if (string.IsNullOrWhiteSpace(projectPath))
+            {
+                throw new InvalidOperationException("Nessun progetto aperto per questa connessione.");
+            }
+            var normalizedProject = Path.GetFullPath(projectPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+            var parts = new List<string>();
+            foreach (var rawPath in contextFiles)
+            {
+                if (string.IsNullOrWhiteSpace(rawPath))
+                {
+                    continue;
+                }
+                var candidate = rawPath.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+                if (!Path.IsPathRooted(candidate))
+                {
+                    candidate = Path.Combine(projectPath, candidate.TrimStart(Path.DirectorySeparatorChar));
+                }
+                candidate = Path.GetFullPath(candidate);
+
+                if (!candidate.StartsWith(normalizedProject, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException($"path fuori dal progetto: {rawPath}");
+                }
+                // Allow markdown OR any eligible non-markdown text file (separate text
+                // index). Uses the central default allow-list so the hub stays decoupled
+                // from the user DB; anything else still fails loud (no silent fallback).
+                var isMarkdown = candidate.EndsWith(".md", StringComparison.OrdinalIgnoreCase);
+                if (!isMarkdown && !MdExplorer.Abstractions.Services.TextFileClassifier
+                        .IsEligibleTextFile(candidate, _defaultTextExtensions))
+                {
+                    throw new InvalidOperationException($"path non è un file markdown né un file di testo indicizzabile: {rawPath}");
+                }
+                if (!System.IO.File.Exists(candidate))
+                {
+                    throw new FileNotFoundException($"file non trovato: {rawPath}");
+                }
+
+                var relative = candidate.Substring(normalizedProject.Length).Replace(Path.DirectorySeparatorChar, '/');
+                var content = System.IO.File.ReadAllText(candidate);
+                if (content.Length > ContextFileCharLimit)
+                {
+                    content = content.Substring(0, ContextFileCharLimit)
+                        + $"\n[...TRONCATO: il file è di {content.Length} caratteri, sono mostrati i primi {ContextFileCharLimit}]";
+                }
+                parts.Add($"<<<FILE {relative}>>>\n{content}\n<<<END FILE>>>");
+            }
+
+            var header = "Contesto fornito dall'utente: contenuto INTEGRALE dei file selezionati "
+                + "(path relativi alla radice del progetto). Usa questi file come fonte primaria per rispondere alla richiesta.";
+            return header + "\n\n" + string.Join("\n", parts);
         }
 
         public async Task SendMessage(string message, string channelId = "default")
         {
+            // ANNULLAMENTO: un solo punto, fuori dal try così è visibile anche al finally.
+            // Prima esisteva solo dentro il ramo Copilot ACP: su OpenAI/Gemini/locale il
+            // pulsante Stop non trovava nulla da cancellare e restituiva 'false' a nessuno,
+            // mentre il backend continuava a generare.
+            using var turnCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
+            _copilotAcpPool?.RegisterActivePrompt(Context.ConnectionId, turnCts);
+            _claudeCodePool?.RegisterActivePrompt(Context.ConnectionId, turnCts);
+
             try
             {
                 channelId = string.IsNullOrEmpty(channelId) ? "default" : channelId;
@@ -139,6 +283,7 @@ namespace MdExplorer.Hubs
 
                 // Get chat mode for this connection
                 var chatMode = GetChatMode();
+
                 
                 // Check if using external AI provider (Gemini or OpenAI)
                 if (chatMode.ProviderType.HasValue)
@@ -151,18 +296,14 @@ namespace MdExplorer.Hubs
                     if (provider == null)
                     {
                         _logger.LogWarning($"[SendMessage] Provider {chatMode.ProviderType} not found!");
-                        await Clients.Caller.SendAsync("ReceiveMessage",
-                            "system",
-                            $"⚠️ {chatMode.ProviderType} provider is not available.");
+                        await NotifyUnavailableAsync(channelId, $"⚠️ {chatMode.ProviderType} provider is not available.");
                         return;
                     }
 
                     if (!provider.IsAvailable())
                     {
                         _logger.LogWarning($"[SendMessage] Provider {chatMode.ProviderType} is not configured!");
-                        await Clients.Caller.SendAsync("ReceiveMessage",
-                            "system",
-                            $"⚠️ {chatMode.ProviderType} is not configured. Please configure it in Settings.");
+                        await NotifyUnavailableAsync(channelId, $"⚠️ {chatMode.ProviderType} is not configured. Please configure it in Settings.");
                         return;
                     }
 
@@ -209,6 +350,32 @@ namespace MdExplorer.Hubs
                         }
                         _logger.LogInformation($"[SendMessage] CopilotCli streaming complete, response length: {response?.Length ?? 0}");
                     }
+                    else if (chatMode.ProviderType == Abstractions.Models.AI.ProviderType.ClaudeCode)
+                    {
+                        // Claude Code: sessione persistente col protocollo nativo stream-json.
+                        // Nessun fallback su un percorso legacy — non ne esiste uno: se fallisce,
+                        // l'utente deve vedere perché, non una risposta arrivata per altra via.
+                        string response;
+                        try
+                        {
+                            response = await StreamClaudeCodeResponseAsync(message, chatMode.ModelId, currentDoc, history, channelId);
+                        }
+                        catch (ClaudeCodeMidStreamException midEx)
+                        {
+                            _logger.LogError(midEx, "[SendMessage] Claude Code interrotto a metà stream");
+                            await Clients.Caller.SendAsync("ReceiveError",
+                                "Stream di Claude Code interrotto: " + (midEx.InnerException?.Message ?? midEx.Message), channelId);
+                            response = string.Empty;
+                        }
+                        catch (Exception ccEx)
+                        {
+                            _logger.LogError(ccEx, "[SendMessage] Claude Code fallito prima dello streaming");
+                            await Clients.Caller.SendAsync("ReceiveError",
+                                "Claude Code non è partito: " + ccEx.Message, channelId);
+                            response = string.Empty;
+                        }
+                        _logger.LogInformation($"[SendMessage] Claude Code streaming completato, lunghezza risposta: {response?.Length ?? 0}");
+                    }
                     else
                     {
                         // Other providers: use ChatWithToolsAsync (with tool calling)
@@ -229,7 +396,8 @@ namespace MdExplorer.Hubs
                             toolExecutorFunc,
                             chatMode.ModelId,
                             currentDoc,
-                            conversationHistory);
+                            conversationHistory,
+                            turnCts.Token);
 
                         _logger.LogInformation($"[SendMessage] Received response from {provider.GetName()}: {response?.Substring(0, Math.Min(response?.Length ?? 0, 100))}...");
 
@@ -247,9 +415,7 @@ namespace MdExplorer.Hubs
                     // Use local model
                     if (!_aiChatService.IsModelLoaded())
                     {
-                        await Clients.Caller.SendAsync("ReceiveMessage",
-                            "system",
-                            "⚠️ No AI model loaded. Please download and select a model from Settings.");
+                        await NotifyUnavailableAsync(channelId, "⚠️ No AI model loaded. Please download and select a model from Settings.");
                         return;
                     }
 
@@ -297,10 +463,25 @@ namespace MdExplorer.Hubs
 
                 await Clients.Caller.SendAsync("StreamComplete", channelId);
             }
+            catch (OperationCanceledException)
+            {
+                // Stop premuto dall'utente: il turno finisce PULITO. Mostrarlo come errore
+                // rosso in chat sarebbe sbagliato — l'utente ha ottenuto ciò che ha chiesto.
+                // Ciò che era già arrivato resta visibile.
+                _logger.LogInformation("[AiChatHub] turno annullato dall'utente (channel={Channel})", channelId);
+                await Clients.Caller.SendAsync("StreamComplete", channelId);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing chat message");
                 await Clients.Caller.SendAsync("ReceiveError", ex.Message, channelId);
+            }
+            finally
+            {
+                // Il turno non è più in volo: toglilo dal registro, altrimenti uno Stop
+                // successivo cancellerebbe un token morto e riferirebbe "fatto" a vuoto.
+                _copilotAcpPool?.UnregisterActivePrompt(Context.ConnectionId, turnCts);
+                _claudeCodePool?.UnregisterActivePrompt(Context.ConnectionId, turnCts);
             }
         }
 
@@ -405,6 +586,13 @@ namespace MdExplorer.Hubs
                 try { await _copilotAcpPool.ReleaseAsync(Context.ConnectionId); }
                 catch (Exception ex) { _logger.LogWarning(ex, "ACP pool release failed for {ConnectionId}", Context.ConnectionId); }
             }
+            // Idem per il processo Claude Code: se resta vivo dopo la disconnessione diventa
+            // un orfano che nessuno raccoglie più.
+            if (_claudeCodePool != null)
+            {
+                try { await _claudeCodePool.ReleaseAsync(Context.ConnectionId); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Rilascio del pool Claude Code fallito per {ConnectionId}", Context.ConnectionId); }
+            }
             await base.OnDisconnectedAsync(exception);
         }
         
@@ -425,6 +613,14 @@ namespace MdExplorer.Hubs
                 {
                     try { await _copilotAcpPool.ReleaseAsync(Context.ConnectionId); }
                     catch (Exception ex) { _logger.LogWarning(ex, "[ClearHistory] ACP pool release failed for {ConnectionId}", Context.ConnectionId); }
+                }
+
+                // Stessa ragione per Claude Code: anche il suo processo tiene la memoria della
+                // conversazione, quindi una "chat nuova" deve ripartire da un processo nuovo.
+                if (_claudeCodePool != null)
+                {
+                    try { await _claudeCodePool.ReleaseAsync(Context.ConnectionId); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "[ClearHistory] rilascio del pool Claude Code fallito per {ConnectionId}", Context.ConnectionId); }
                 }
             }
             else
@@ -458,7 +654,12 @@ namespace MdExplorer.Hubs
                     break;
                 case "copilotcli":
                     chatMode.ProviderType = Abstractions.Models.AI.ProviderType.CopilotCli;
-                    chatMode.ModelId = modelId ?? "claude-sonnet-4.6";
+                    chatMode.ModelId = modelId ?? "claude-sonnet-5";
+                    break;
+                case "claudecode":
+                    chatMode.ProviderType = Abstractions.Models.AI.ProviderType.ClaudeCode;
+                    // Alias, non nome pieno: punta sempre all'ultimo Sonnet e non invecchia.
+                    chatMode.ModelId = modelId ?? "sonnet";
                     break;
                 default:
                     chatMode.ProviderType = null; // Local model
@@ -545,6 +746,147 @@ namespace MdExplorer.Hubs
             public CopilotAcpMidStreamException(Exception inner) : base("ACP stream failed after first chunk", inner) { }
         }
 
+        /// <summary>
+        /// Sollevata dallo streamer di Claude Code quando almeno un frammento è già arrivato al
+        /// client. Il chiamante NON deve ritentare per altra strada: il client vedrebbe una
+        /// risposta doppia.
+        /// </summary>
+        private sealed class ClaudeCodeMidStreamException : Exception
+        {
+            public ClaudeCodeMidStreamException(Exception inner)
+                : base("Lo stream di Claude Code è fallito dopo il primo frammento", inner) { }
+        }
+
+        /// <summary>
+        /// Turno di chat servito da <b>Claude Code CLI</b> col suo protocollo nativo
+        /// (NDJSON su stdin/stdout), attraverso la sessione persistente del
+        /// <see cref="ClaudeCodeSessionPool"/>.
+        ///
+        /// <para>Gemello di <see cref="StreamCopilotCliAcpResponseAsync"/> e volutamente
+        /// separato: parla gli <b>stessi eventi SignalR</b>, così il frontend non cambia di una
+        /// riga, ma non condivide codice col percorso Copilot — che resta intatto.</para>
+        ///
+        /// <para>In più rispetto a Copilot, e solo perché il protocollo lo espone: al termine
+        /// del turno manda al client <c>ReceiveClaudeUsage</c> con costo, token e stato delle
+        /// finestre di consumo. È un evento nuovo: il client oggi lo ignora senza danno, ed è
+        /// il gancio pronto per l'indicatore consumi (F5 del piano).</para>
+        /// </summary>
+        private async Task<string> StreamClaudeCodeResponseAsync(
+            string userMessage,
+            string modelId,
+            string currentDoc,
+            ConversationHistory history,
+            string channelId = "default")
+        {
+            if (_claudeCodePool == null)
+            {
+                throw new InvalidOperationException("ClaudeCodeSessionPool non registrato");
+            }
+
+            var projectPath = GetProjectPath();
+            if (string.IsNullOrEmpty(projectPath))
+            {
+                throw new InvalidOperationException(
+                    "Path del progetto sconosciuto: Claude Code va lanciato dentro il progetto, non altrove.");
+            }
+
+            var effectiveModel = string.IsNullOrEmpty(modelId) ? "sonnet" : modelId;
+            var session = await _claudeCodePool.GetOrCreateAsync(
+                Context.ConnectionId, projectPath, effectiveModel);
+
+            await Clients.Caller.SendAsync("ReceiveStreamMeta",
+                new { providerType = "claudecode", modelId = effectiveModel, transport = "stream-json" }, channelId);
+
+            var promptText = string.IsNullOrEmpty(currentDoc)
+                ? userMessage
+                : $"[Documento corrente: {currentDoc}]\n\n{userMessage}";
+
+            var responseText = new StringBuilder();
+            int chunksSent = 0;
+
+            var promptCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
+            _claudeCodePool.RegisterActivePrompt(Context.ConnectionId, promptCts);
+            try
+            {
+                await foreach (var chunk in session.PromptAsync(promptText, promptCts.Token))
+                {
+                    if (chunk.Kind == ClaudeCodeChunk.KindMessage)
+                    {
+                        await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk.Text, channelId);
+                        responseText.Append(chunk.Text);
+                        chunksSent++;
+                    }
+                    else if (chunk.Kind == ClaudeCodeChunk.KindThinking)
+                    {
+                        await Clients.Caller.SendAsync("ReceiveThinking", chunk.Text, channelId);
+                    }
+                    else if (chunk.Kind == ClaudeCodeChunk.KindTool)
+                    {
+                        // Attività sui tool: è una riga di stato, non la risposta, e non entra
+                        // nel testo finale. Sul lato Copilot questa informazione non esiste
+                        // proprio, ed è il motivo per cui là la chat sembra ferma mentre
+                        // l'agente lavora.
+                        await Clients.Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (promptCts.IsCancellationRequested)
+            {
+                // Stop premuto dall'utente (o connessione caduta): quello che è già arrivato
+                // resta, il turno finisce pulito.
+                _logger.LogInformation("[AiChatHub] Turno Claude Code annullato dall'utente (frammenti={ChunksSent})", chunksSent);
+            }
+            catch (Exception ex) when (chunksSent > 0)
+            {
+                throw new ClaudeCodeMidStreamException(ex);
+            }
+            finally
+            {
+                _claudeCodePool.UnregisterActivePrompt(Context.ConnectionId, promptCts);
+                promptCts.Dispose();
+            }
+
+            // Consuntivo del turno: il dato che su Copilot ACP non esiste.
+            try
+            {
+                var usage = session.LastTurnUsage;
+                var rate = session.LastRateLimit;
+                if (usage != null || rate != null)
+                {
+                    await Clients.Caller.SendAsync("ReceiveClaudeUsage", new
+                    {
+                        // Due numeri diversi, tenuti distinti apposta: `total_cost_usd` del
+                        // protocollo è il cumulato della sessione, non il costo del turno.
+                        turnCostUsd = usage?.TurnCostUsd,
+                        sessionCostUsd = usage?.SessionCostUsd,
+                        inputTokens = usage?.InputTokens,
+                        outputTokens = usage?.OutputTokens,
+                        thinkingTokens = usage?.ThinkingTokens,
+                        cacheReadTokens = usage?.CacheReadInputTokens,
+                        durationMs = usage?.DurationMs,
+                        model = usage?.Model ?? session.EffectiveModel,
+                        fiveHourUtilization = rate?.FiveHourUtilization,
+                        fiveHourResetsAt = rate?.FiveHourResetsAt,
+                        sevenDayUtilization = rate?.SevenDayUtilization,
+                        sevenDayResetsAt = rate?.SevenDayResetsAt
+                    }, channelId);
+                }
+            }
+            catch (Exception ex)
+            {
+                // La telemetria non deve mai far fallire un turno andato a buon fine.
+                _logger.LogWarning(ex, "[AiChatHub] invio del consuntivo Claude Code fallito");
+            }
+
+            var finalResponse = responseText.ToString().TrimEnd();
+            history.Messages.Add(new bll.Models.AI.ConversationMessage
+            {
+                Role = "model",
+                Content = finalResponse
+            });
+            return finalResponse;
+        }
+
         private async Task<string> StreamCopilotCliAcpResponseAsync(
             string userMessage,
             string modelId,
@@ -563,7 +905,7 @@ namespace MdExplorer.Hubs
                 throw new InvalidOperationException("Project path is unknown; cannot start Copilot ACP session");
             }
 
-            var effectiveModel = string.IsNullOrEmpty(modelId) ? "claude-sonnet-4.6" : modelId;
+            var effectiveModel = string.IsNullOrEmpty(modelId) ? "claude-sonnet-5" : modelId;
             var session = await _copilotAcpPool.GetOrCreateAsync(
                 Context.ConnectionId, projectPath, effectiveModel);
 
@@ -1069,6 +1411,25 @@ namespace MdExplorer.Hubs
                             _logger.LogError(acpEx, "[RegenerateAiResponse] ACP path failed before streaming");
                             await Clients.Caller.SendAsync("ReceiveError",
                                 "Copilot ACP failed: " + acpEx.Message, channelId);
+                        }
+                    }
+                    else if (chatMode.ProviderType == Abstractions.Models.AI.ProviderType.ClaudeCode)
+                    {
+                        try
+                        {
+                            await StreamClaudeCodeResponseAsync(lastUserMessage, chatMode.ModelId, currentDoc, history, channelId);
+                        }
+                        catch (ClaudeCodeMidStreamException midEx)
+                        {
+                            _logger.LogError(midEx, "[RegenerateAiResponse] Claude Code interrotto a metà stream");
+                            await Clients.Caller.SendAsync("ReceiveError",
+                                "Stream di Claude Code interrotto: " + (midEx.InnerException?.Message ?? midEx.Message), channelId);
+                        }
+                        catch (Exception ccEx)
+                        {
+                            _logger.LogError(ccEx, "[RegenerateAiResponse] Claude Code fallito prima dello streaming");
+                            await Clients.Caller.SendAsync("ReceiveError",
+                                "Claude Code non è partito: " + ccEx.Message, channelId);
                         }
                     }
                     else

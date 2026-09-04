@@ -6,7 +6,7 @@
 
     <span class="spacer"></span>
 
-    <div class="model-status" *ngIf="!compactMode || isModelLoaded || currentDocument || copilotCliAutoSelected">
+    <div class="model-status" *ngIf="!compactMode || isModelLoaded || currentDocument || copilotCliAutoSelected || claudeCodeAutoSelected">
       <mat-chip-list>
         <mat-chip *ngIf="isModelLoaded" [color]="compactMode ? 'primary' : 'accent'" selected>
           <mat-icon *ngIf="!compactMode">check_circle</mat-icon>
@@ -27,6 +27,16 @@
                   [disabled]="isConfiguringProvider"
                   [color]="selectedCopilotModel === opt.id ? 'accent' : undefined"
                   (click)="selectCopilotModel(opt.id)"
+                  [matTooltip]="opt.id">
+          {{ opt.label }}
+        </mat-chip>
+      </mat-chip-list>
+      <mat-chip-list *ngIf="claudeCodeAutoSelected" class="copilot-model-picker" aria-label="Claude Code model">
+        <mat-chip *ngFor="let opt of claudeCodeModelOptions"
+                  [selected]="selectedClaudeCodeModel === opt.id"
+                  [disabled]="isConfiguringProvider"
+                  [color]="selectedClaudeCodeModel === opt.id ? 'accent' : undefined"
+                  (click)="selectClaudeCodeModel(opt.id)"
                   [matTooltip]="opt.id">
           {{ opt.label }}
         </mat-chip>
@@ -54,7 +64,7 @@
   </div>
 
   <!-- Chat Messages -->
-  <div class="chat-messages" #scrollContainer>
+  <div class="chat-messages" #scrollContainer (scroll)="onChatScroll()">
     <div *ngIf="messages.length === 0" class="no-messages">
       <mat-icon>chat_bubble_outline</mat-icon>
       <p>{{ 'AI_CHAT.START_CONVERSATION' | translate }}</p>
@@ -150,6 +160,45 @@
       <mat-icon>settings</mat-icon>
       {{ 'AI_CHAT.MODEL_MANAGER' | translate }}
     </button>
+  </div>
+
+  <!-- Claude Code non installato: stesso trattamento del gemello Copilot -->
+  <div *ngIf="claudeCodeUnavailable" class="copilot-cli-unavailable-banner">
+    <mat-icon>warning</mat-icon>
+    <div class="banner-text">
+      <strong>{{ 'AI_CHAT.CLAUDE_CODE_UNAVAILABLE' | translate }}</strong>
+      <span class="banner-hint">{{ 'AI_CHAT.CLAUDE_CODE_UNAVAILABLE_HINT' | translate }}</span>
+    </div>
+    <button mat-stroked-button (click)="toggleModelManager()">
+      <mat-icon>settings</mat-icon>
+      {{ 'AI_CHAT.MODEL_MANAGER' | translate }}
+    </button>
+  </div>
+
+  <!-- Consuntivo dell'ultimo turno di Claude Code. Compare solo quando c'è: con gli altri
+       provider questo dato non esiste proprio. -->
+  <div *ngIf="claudeUsage" class="claude-usage-row">
+    <mat-icon class="usage-icon">savings</mat-icon>
+    <span class="usage-item" [matTooltip]="'AI_CHAT.USAGE_TURN_TOOLTIP' | translate">
+      {{ 'AI_CHAT.USAGE_TURN' | translate }} <strong>{{ formatUsd(claudeUsage.turnCostUsd) }}</strong>
+    </span>
+    <span class="usage-sep">·</span>
+    <span class="usage-item" [matTooltip]="'AI_CHAT.USAGE_SESSION_TOOLTIP' | translate">
+      {{ 'AI_CHAT.USAGE_SESSION' | translate }} <strong>{{ formatUsd(claudeUsage.sessionCostUsd) }}</strong>
+    </span>
+    <span class="usage-sep" *ngIf="claudeUsage.outputTokens != null">·</span>
+    <span class="usage-item" *ngIf="claudeUsage.outputTokens != null">
+      {{ claudeUsage.outputTokens }} tok
+    </span>
+    <span class="usage-spacer"></span>
+    <span class="usage-item usage-window" *ngIf="claudeUsage.fiveHourUtilization != null"
+          [matTooltip]="'AI_CHAT.USAGE_WINDOW_TOOLTIP' | translate">
+      5h <strong>{{ formatPercent(claudeUsage.fiveHourUtilization) }}</strong>
+    </span>
+    <span class="usage-item usage-window" *ngIf="claudeUsage.sevenDayUtilization != null"
+          [matTooltip]="'AI_CHAT.USAGE_WINDOW_TOOLTIP' | translate">
+      7g <strong>{{ formatPercent(claudeUsage.sevenDayUtilization) }}</strong>
+    </span>
   </div>
 
   <!-- Input Area -->

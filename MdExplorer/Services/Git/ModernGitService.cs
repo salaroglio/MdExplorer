@@ -29,13 +29,66 @@ namespace MdExplorer.Services.Git
             ILogger<ModernGitService> logger,
             IUserSettingsDB userSettingsDB,
             IOptions<GitAuthenticationOptions> authOptions = null,
-            IOptions<GitOperationOptions> operationOptions = null)
+            IOptions<GitOperationOptions> operationOptions = null,
+            IProjectSubmoduleInitializer submodules = null,
+            ISubmoduleBranchAttacher attacher = null)
         {
             _credentialResolvers = credentialResolvers?.OrderBy(r => r.GetPriority()) ?? throw new ArgumentNullException(nameof(credentialResolvers));
             _logger = logger;
             _userSettingsDB = userSettingsDB;
             _authOptions = authOptions?.Value ?? new GitAuthenticationOptions();
             _operationOptions = operationOptions?.Value ?? new GitOperationOptions();
+            _submodules = submodules;
+            _attacher = attacher;
+        }
+
+        /// <summary>
+        /// Chi popola i submodule. Clone e pull passano di qui invece di farlo per conto loro,
+        /// così esiste un solo posto che sa come si popolano e un solo posto che racconta com'è
+        /// andata: prima il fallimento finiva appeso al messaggio di successo del clone, il clone
+        /// risultava riuscito, la cartella restava vuota e nessuno leggeva quel pezzo di frase.
+        /// Opzionale perché il servizio git viene costruito anche fuori dal grafo completo.
+        /// </summary>
+        private readonly IProjectSubmoduleInitializer _submodules;
+
+        /// <summary>
+        /// Chi rimette i submodule sul loro ramo dopo un aggiornamento. Condiviso con l'apertura
+        /// del progetto: senza, il riaggancio sarebbe solo su clone e pull, e chi apre una cartella
+        /// clonata da fuori se li ritroverebbe staccati per sempre.
+        /// </summary>
+        private readonly ISubmoduleBranchAttacher _attacher;
+
+        /// <summary>Un riaggancio non riuscito non invalida l'operazione: i file sono gia' quelli giusti.</summary>
+        private async Task AttachSafely(string repositoryPath)
+        {
+            try { await _attacher.AttachAsync(repositoryPath); }
+            catch (Exception ex) { _logger.LogWarning(ex, "[Submodule] riaggancio non riuscito in '{Path}'.", repositoryPath); }
+        }
+
+        /// <summary>
+        /// Popola i submodule tramite l'inizializzatore condiviso; senza di lui (costruzione
+        /// isolata) ripiega sul comando diretto, che fa la stessa cosa ma senza notifica.
+        /// </summary>
+        private async Task<GitOperationResult> EnsureSubmodulesAsync(string repositoryPath)
+        {
+            // L'inizializzatore popola i submodule VUOTI, con le sue notifiche. Non basta dopo un
+            // pull: se il submodule c'e' gia' ma sta a un commit vecchio, lui dice «gia' tutti
+            // popolati» e non tocca niente — e il codice resta indietro rispetto alla
+            // documentazione appena tirata giu'. Verificato con un test: pull fast-forward
+            // riuscito, contenuto del submodule ancora quello di prima.
+            if (_submodules != null)
+            {
+                var ensured = await _submodules.EnsureAsync(repositoryPath);
+                if (!ensured.Success)
+                    return new GitOperationResult { Success = false, ErrorMessage = ensured.Error };
+                if (ensured.NothingToDo && !File.Exists(Path.Combine(repositoryPath, ".gitmodules")))
+                    return new GitOperationResult { Success = true, Message = "No submodules" };
+            }
+
+            // E poi si allinea davvero ai commit registrati: e' un no-op quando sono gia' li'.
+            var updated = await UpdateSubmodulesAsync(repositoryPath);
+            if (updated.Success && _attacher != null) await AttachSafely(repositoryPath);
+            return updated;
         }
 
         /// <summary>
@@ -98,38 +151,21 @@ namespace MdExplorer.Services.Git
         }
 
         /// <summary>
-        /// Builds the <see cref="StatusOptions"/> used for every working-directory status query,
-        /// honoring the per-project "ExcludeSubmodulesFromGitStatus" flag (default ON, applied
-        /// globally when no project row is found). When enabled, LibGit2Sharp omits submodule
-        /// entries from the status, so a dirty submodule — or one whose recorded commit moved —
-        /// no longer marks the parent repository as changed (which would otherwise keep the
-        /// toolbar commit button perpetually lit).
+        /// Le opzioni di ogni lettura dello stato: i submodule restano <b>fuori</b>.
+        /// <para>
+        /// Non è più configurabile per progetto (colonna rimossa il 18/08/2026). La manopola
+        /// esisteva perché un submodule sporco teneva acceso per sempre il pulsante Commit della
+        /// toolbar; quel pulsante ora legge la vista per repository, che dice <i>cosa</i> c'è e
+        /// <i>dove</i>, quindi non c'era più niente da tarare.
+        /// </para>
+        /// <para>
+        /// L'esclusione resta perché serve a chi legge ancora questo stato — l'avviso prima del
+        /// cambio di ramo — e lì è la risposta giusta: cambiare ramo nel progetto non tocca il
+        /// contenuto dei submodule, quindi un submodule sporco non è un motivo per fermarti.
+        /// </para>
         /// </summary>
-        private StatusOptions BuildStatusOptions(string repositoryPath)
-        {
-            bool excludeSubmodules = true; // global default: keep submodules out of the change indicator
-            try
-            {
-                var normalizedPath = NormalizeRepositoryPath(repositoryPath);
-                // Match the read pattern used by ProjectSettingsController: clear the session
-                // cache first so a freshly toggled per-project value is picked up immediately.
-                _userSettingsDB.Clear();
-                var project = _userSettingsDB.GetDal<Project>().GetList().ToList()
-                    .FirstOrDefault(p => !string.IsNullOrEmpty(p.Path) &&
-                        NormalizeRepositoryPath(p.Path).Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
-                if (project != null)
-                {
-                    excludeSubmodules = project.ExcludeSubmodulesFromGitStatus;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex,
-                    "[GitStatus] Could not read ExcludeSubmodulesFromGitStatus for {RepoPath}; defaulting to exclude submodules",
-                    repositoryPath);
-            }
-            return new StatusOptions { ExcludeSubmodules = excludeSubmodules };
-        }
+        private static StatusOptions BuildStatusOptions(string repositoryPath)
+            => new StatusOptions { ExcludeSubmodules = true };
 
         /// <summary>
         /// Full-path normalization tolerant of a trailing directory separator, so that a
@@ -213,7 +249,7 @@ namespace MdExplorer.Services.Git
                 ClearCredentialCallHistory();
 
                 // Populate/refresh submodules after pull (native git; no-op when .gitmodules absent)
-                var submoduleResult = await UpdateSubmodulesAsync(repositoryPath);
+                var submoduleResult = await EnsureSubmodulesAsync(repositoryPath);
                 if (!submoduleResult.Success)
                 {
                     message += $" (warning: submodule update failed: {submoduleResult.ErrorMessage})";
@@ -533,7 +569,7 @@ namespace MdExplorer.Services.Git
                     if (nativeResult.Success)
                     {
                         // Populate submodules after clone (native git; no-op when .gitmodules absent)
-                        var nativeSubmoduleResult = await UpdateSubmodulesAsync(localPath);
+                        var nativeSubmoduleResult = await EnsureSubmodulesAsync(localPath);
                         if (!nativeSubmoduleResult.Success)
                         {
                             nativeResult.Message += $" (warning: submodule update failed: {nativeSubmoduleResult.ErrorMessage})";
@@ -868,7 +904,7 @@ namespace MdExplorer.Services.Git
 
                 // Populate submodules after clone (native git; no-op when .gitmodules absent)
                 var cloneMessage = $"Successfully cloned repository to {clonedRepoPath}";
-                var submoduleUpdateResult = await UpdateSubmodulesAsync(localPath);
+                var submoduleUpdateResult = await EnsureSubmodulesAsync(localPath);
                 if (!submoduleUpdateResult.Success)
                 {
                     cloneMessage += $" (warning: submodule update failed: {submoduleUpdateResult.ErrorMessage})";
@@ -1251,7 +1287,7 @@ namespace MdExplorer.Services.Git
 
                 // Populate nested submodules; a failure here is a visible warning — the add itself succeeded
                 var message = $"Submodule '{submoduleName}' added and committed.";
-                var nestedResult = await UpdateSubmodulesAsync(repositoryPath);
+                var nestedResult = await EnsureSubmodulesAsync(repositoryPath);
                 if (!nestedResult.Success)
                 {
                     message += $" Warning: nested submodule init failed: {nestedResult.ErrorMessage}";

@@ -4,6 +4,7 @@ import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
 import { MdFileService } from '../../services/md-file.service';
+import { FederationService, CityUser, ImpersonationStatus } from '../../services/federation.service';
 import { RulesComponent } from '../../../signalR/dialogs/rules/rules.component';
 import { MdFile } from '../../models/md-file';
 import { GITService } from '../../../git/services/gitservice.service';
@@ -13,11 +14,17 @@ import { IBranch } from '../../../git/models/branch';
 import { MatLegacyTabGroup as MatTabGroup } from '@angular/material/legacy-tabs';
 import { ITag } from '../../../git/models/Tag';
 import { ProjectsService } from '../../services/projects.service';
+import { ReviewContextService } from '../../services/review-context.service';
+import { ChangeKind, RepoChanges, SafePushResult, WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
 import { Router } from '@angular/router';
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
 import { GitMessagesComponent } from '../../../git/components/git-messages/git-messages.component';
 import { CommitMessageDialogComponent } from '../../../git/dialogs/commit-message-dialog/commit-message-dialog.component';
+import { AgentRegistryDialogComponent } from '../agent-registry-dialog/agent-registry-dialog.component';
+import { AgentMemoryDialogComponent } from '../agent-memory-dialog/agent-memory-dialog.component';
+import { AgentMailboxNotificationService } from '../../../services/agent-mailbox-notification.service';
+import { AgentCityStateService } from '../../services/agent-city-state.service';
 import { GitHistoryDialogComponent } from '../../../git/dialogs/git-history-dialog/git-history-dialog.component';
 import { GitBranchDialogComponent } from '../../../git/dialogs/git-branch-dialog/git-branch-dialog.component';
 import { GitSetupRemoteGenericDialogComponent } from '../../../git/dialogs/git-setup-remote-generic-dialog/git-setup-remote-generic-dialog.component';
@@ -33,7 +40,6 @@ import { FileNameAndAuthor } from '../../../git/models/DataToPull';
 import { TocGenerationService } from '../../services/toc-generation.service';
 import { TocProgressService } from '../../services/toc-progress.service';
 import { ThemeService } from '../../../services/theme.service';
-import { GitChangedFile } from '../../../git/models/modern-git-models';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../../commons/components/confirm-dialog/confirm-dialog.component';
 import { TranslateService } from '@ngx-translate/core';
 import _ from 'lodash';
@@ -64,6 +70,14 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   howManyCommitAreToPush: number;
   howManyFilesAreToPull: number;
   branches: IBranch[];
+  // Fase 7h: worktree degli agenti del progetto, per il sottomenu "Worktree".
+  worktreeList: { agent: string; path: string }[] = [];
+  // Impersonazione utente (test città): identità effettiva + lista padroni.
+  identity: ImpersonationStatus | null = null;
+  cityUsers: CityUser[] = [];
+  /** Master switch del progetto: governa la visibilità dei comandi della città. */
+  cityEnabled: boolean = false;
+  private citySubscriptions = new Subscription();
   taglist: ITag[];
   currentMdFile: MdFile
   public connectionIsActive: boolean = true;
@@ -72,7 +86,18 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   subscriptionserverSelectedMdFile: Subscription;
   public showMenu: boolean = false;
   public showCommitMenu: boolean = false;
-  public changedFiles: GitChangedFile[] = [];
+
+  /**
+   * Gli aggregati della finestrella, e di CHI sono.
+   *
+   * In revisione i numeri sono quelli dell'agente e il commit agisce nel suo posto di lavoro:
+   * altrimenti guarderesti il lavoro di uno e committeresti quello di un altro. La lista dei
+   * file non sta piu' qui — sta nel tab, dove si puo' vedere il diff prima di decidere.
+   */
+  public reviewAgent: string | null = null;
+  public changesView: WorkingChangesView | null = null;
+  /** I repository che hanno davvero qualcosa da committare: le righe del pannello. */
+  public reposToCommit: RepoChanges[] = [];
   public isLoadingChangedFiles: boolean = false;
   public hasRemoteConfigured: boolean = true; // Default true to hide menu initially
   public currentRemoteUrl: string = '';
@@ -93,6 +118,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private gitservice: GITService,
     private appSettings: AppCurrentMetadataService,
     private projectService: ProjectsService,
+    private reviewContext: ReviewContextService,
+    private workingChanges: WorkingChangesService,
+    private federationService: FederationService,
     private router: Router,
     private waitingDialogService: WaitingDialogService,
     private bookmarksService: BookmarksService,
@@ -101,14 +129,59 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private tocProgressService: TocProgressService,
     private translate: TranslateService,
     private themeService: ThemeService,
-    private documentRefreshService: DocumentRefreshService
+    private documentRefreshService: DocumentRefreshService,
+    private mailboxNotifications: AgentMailboxNotificationService,
+    private agentCityState: AgentCityStateService
 
   ) {
     this.TitleToShow = "MdExplorer";
     this.connectionIsActive = true;
   }
 
+  /** Non-letti della inbox dell'umano (§13 Fase 4a): badge sulla campanella. */
+  public mailboxUnread: number = 0;
+
+  /** Apre la "città degli agenti" del progetto corrente (registry + trust, §6). */
+  openAgentRegistry(): void {
+    const projectPath = this.projectService.currentProjects$.value?.path || '';
+    this.dialog.open(AgentRegistryDialogComponent, {
+      width: '720px',
+      maxHeight: '80vh',
+      data: { projectPath },
+    });
+  }
+
+  /** Apre la vista/curatela della memoria degli agenti del progetto (§11 Fase 5d). */
+  openAgentMemory(): void {
+    const projectPath = this.projectService.currentProjects$.value?.path || '';
+    this.dialog.open(AgentMemoryDialogComponent, {
+      width: '720px',
+      maxHeight: '80vh',
+      data: { projectPath },
+    });
+  }
+
+  /** Apre il centro notifiche (messaggi degli agenti verso l'umano, §13 Fase 4a). */
+  openMailbox(): void {
+    this.mailboxNotifications.open();
+  }
+
   ngOnInit(): void {
+    // Entrare o uscire dalla revisione cambia di chi sono i numeri della finestrella.
+    this.reviewContext.agent$.subscribe(agent => {
+      this.reviewAgent = agent;
+      this.changesView = null;
+    });
+
+    // I comandi della città esistono solo dove la città è accesa: seguiamo il progetto
+    // aperto (BehaviorSubject, quindi il valore corrente arriva subito) e lo stato
+    // condiviso, che le impostazioni aggiornano senza bisogno di ricaricare la toolbar.
+    this.citySubscriptions.add(
+      this.projectService.currentProjects$.subscribe(project =>
+        this.agentCityState.refresh(project?.path || '')));
+    this.citySubscriptions.add(
+      this.agentCityState.enabled$.subscribe(enabled => this.cityEnabled = enabled));
+
     // Get connectionId from SignalR service for export notifications
     this.connectionId = this.monitorMDService.connectionId;
     // If connectionId is not yet available, get it when ready
@@ -125,10 +198,17 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     // get current branch name and if the branch has something to commit
     this.gitservice.currentBranch$.subscribe(branch => {
       this.currentBranch = branch.name;
-      this.somethingIsChangedInTheBranch = branch.somethingIsChangedInTheBranch;
-      this.howManyFilesAreToCommit = branch.howManyFilesAreChanged;
       this.howManyCommitAreToPush = branch.howManyCommitAreToPush;
       this.connectionIsActive = true;
+      // Se c'e' qualcosa da committare NON lo decide piu' questo conteggio: escludeva i
+      // submodule, quindi con del lavoro non salvato dentro uno di essi il pulsante restava
+      // spento. Lo decide la vista per repository, che e' anche cio' che il pannello mostra:
+      // una fonte sola, e i due numeri non possono piu' contraddirsi.
+      this.loadChangedFiles();
+      // Quanti commit restano da pubblicare lo dicono i ref LOCALI (AheadBy): dopo un commit
+      // il pulsante deve comparire subito. Aspettare il fetch dal remoto lo teneva nascosto
+      // proprio nel momento in cui serviva.
+      this.somethingIsToPush = branch.howManyCommitAreToPush > 0;
     });
 
     this.gitservice.commmitsToPull$.subscribe(_ => {
@@ -141,12 +221,16 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.filesAndAuthors = _.whatFilesWillBeChanged;
     });
     
+    // Mailbox non-letti (§13 Fase 4a): il badge segue il conteggio autoritativo.
+    this.mailboxNotifications.unread$.subscribe(n => this.mailboxUnread = n);
+
     // Set initial project path if available
     const currentProject = this.projectService.currentProjects$.value;
     if (currentProject && currentProject.path) {
       this.gitservice.setProjectPath(currentProject.path);
+      this.mailboxNotifications.setProject(currentProject.path);
     }
-    
+
     // Subscribe to project changes to update Git service
     this.projectService.currentProjects$.subscribe((project: any) => {
       if (project && project.path) {
@@ -154,6 +238,10 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         this.resetGitState();
         // Then set new project path and trigger poll
         this.gitservice.setProjectPath(project.path);
+        // Ricarica il badge non-letti per il nuovo progetto
+        this.mailboxNotifications.setProject(project.path);
+        // Identità effettiva (banner impersonazione)
+        this.loadIdentity();
 
         // Check if manual credentials are needed (auto-detection failed)
         // Only show dialog for non-OAuth providers - OAuth providers (GitHub, GitLab, Azure, Bitbucket)
@@ -224,6 +312,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     console.log("ngOnDestroy toolbar");
     this.subscriptionserverSelectedMdFile.unsubscribe();
+    this.citySubscriptions.unsubscribe();
   }
 
 
@@ -633,9 +722,34 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Prima i numeri LOCALI, poi il remoto. Se si aggiornassero solo dentro checkConnection()
+    // resterebbero appesi alla rete (probe di autenticazione + fetch da origin): dopo un commit
+    // il contatore «da committare» continuerebbe a mostrare i file appena salvati finche' il
+    // remoto non risponde, o fino al giro di polling successivo — 60 secondi.
+    this.refreshLocalGitCounters();
+
     // Always refresh connection status after successful operations
     // Tree refresh is handled via SignalR gitPullRefreshed event in md-file.service + md-tree
     this.checkConnection();
+  }
+
+  /**
+   * Rilegge i contatori che stanno gia' sul disco: `git status` e i ref locali. Nessuna
+   * chiamata al remoto, quindi risponde subito e non puo' restare in attesa di una rete lenta
+   * o assente. Cio' che dipende davvero dal remoto (quanto c'e' da scaricare) lo aggiorna
+   * checkConnection() per conto suo, quando arriva.
+   */
+  private refreshLocalGitCounters(): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+
+    this.gitservice.modernGetBranchStatus(projectPath).subscribe(
+      // La sottoscrizione a currentBranch$ ricarica anche la vista per repository: una fonte
+      // sola, cosi' il numero sul pulsante e le righe del pannello non si contraddicono.
+      branch => this.gitservice.currentBranch$.next(branch),
+      // Stato locale non disponibile: almeno i file da committare si rileggono lo stesso.
+      () => this.loadChangedFiles()
+    );
   }
 
   /**
@@ -659,9 +773,11 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   commit(): void {
-    const projectPath = this.getProjectPath();
+    // In revisione il commit agisce nel posto di lavoro dell'agente: e' li' che hai
+    // modificato i file, e committare nel progetto non salverebbe nulla di quel lavoro.
+    const projectPath = this.commitRootPath();
     if (!projectPath) return;
-    
+
     // Ask user for commit message using Material Dialog
     const dialogRef = this.dialog.open(CommitMessageDialogComponent, {
       width: '500px',
@@ -807,6 +923,76 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.projectService.setNewFolderProject(_.fullPath);
 
     });
+    this.matMenuTrigger?.closeMenu();
+  }
+
+  // ---- Impersonazione utente (test città) ----
+
+  private showError(err: any): void {
+    const msg = err?.error?.error || err?.message || 'Operazione fallita.';
+    this._snackBar.open(`⚠️ ${msg}`, 'OK', { duration: 8000, verticalPosition: 'top' });
+  }
+
+  private get currentProjectPath(): string {
+    return this.projectService.currentProjects$.value?.path || '';
+  }
+
+  loadIdentity(): void {
+    const p = this.currentProjectPath;
+    if (!p) { this.identity = null; return; }
+    this.federationService.impersonationStatus(p).subscribe({
+      next: (s) => this.identity = s,
+      error: () => this.identity = null,
+    });
+  }
+
+  loadCityUsers(): void {
+    const p = this.currentProjectPath;
+    if (!p) { this.cityUsers = []; return; }
+    this.federationService.cityUsers(p).subscribe({
+      next: (r) => this.cityUsers = r.users || [],
+      error: () => this.cityUsers = [],
+    });
+  }
+
+  toggleTestMode(enabled: boolean): void {
+    this.federationService.setTestMode(enabled).subscribe({
+      next: () => this.loadIdentity(),
+      error: (err) => this.showError(err),
+    });
+  }
+
+  actAs(email: string): void {
+    const p = this.currentProjectPath;
+    if (!p) { return; }
+    this.federationService.impersonate(p, email).subscribe({
+      next: (s) => { this.identity = s; this.matMenuTrigger?.closeMenu(); },
+      error: (err) => this.showError(err),
+    });
+  }
+
+  backToMe(): void {
+    const p = this.currentProjectPath;
+    if (!p) { return; }
+    this.federationService.stopImpersonation(p).subscribe({
+      next: (s) => this.identity = s,
+      error: (err) => this.showError(err),
+    });
+  }
+
+  // Fase 7h — carica i worktree degli agenti quando il menu branch si apre.
+  loadWorktrees(): void {
+    const cid = this.connectionId || this.monitorMDService.connectionId;
+    if (!cid) { this.worktreeList = []; return; }
+    this.mdFileService.getAgentWorktrees(cid).subscribe({
+      next: list => this.worktreeList = list,
+      error: () => this.worktreeList = []
+    });
+  }
+
+  // Fase 7h — mostra il documento corrente dal worktree dell'agente (review read-only).
+  openWorktree(agent: string): void {
+    this.mdFileService.viewWorktree(agent);
     this.matMenuTrigger?.closeMenu();
   }
 
@@ -1043,122 +1229,180 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     if (!projectPath) return;
 
     this.isLoadingChangedFiles = true;
-    this.gitservice.getChangedFiles(projectPath).subscribe(
-      response => {
-        this.changedFiles = response.files || [];
+    // Stessa fonte del tab — git — cosi' i numeri della finestrella e la lista che vedi
+    // cliccando «vedi le differenze» non possono raccontare due storie diverse.
+    this.workingChanges.list(projectPath, this.reviewAgent).subscribe({
+      next: view => {
+        this.changesView = view;
+        this.applyChangeSummary(view);
         this.isLoadingChangedFiles = false;
       },
-      error => {
-        console.error('Error loading changed files:', error);
-        this.changedFiles = [];
+      error: err => {
+        this.changesView = err?.error?.problem ? err.error : null;
+        this.applyChangeSummary(this.changesView);
         this.isLoadingChangedFiles = false;
-      }
-    );
+      },
+    });
   }
 
   /**
-   * Discard changes to a file (restore from HEAD) or delete new files from disk
+   * Il pulsante si accende se ALMENO UN repository ha qualcosa — la radice o un submodule,
+   * indifferentemente: un commit e' comunque un lavoro che ti resta da fare.
    */
-  discardFile(file: GitChangedFile): void {
+  private applyChangeSummary(view: WorkingChangesView | null): void {
+    const repos = view?.repos || [];
+    this.reposToCommit = repos.filter(r => this.repoHasWork(r));
+    this.howManyFilesAreToCommit = this.reposToCommit.reduce((n, r) => n + r.files.length, 0);
+    this.somethingIsChangedInTheBranch = this.reposToCommit.length > 0;
+  }
+
+  /** Qualcosa da fare QUI: file da salvare, oppure un riferimento a submodule da registrare. */
+  repoHasWork(repo: RepoChanges): boolean {
+    return repo.files.length > 0 || repo.pointerMoved;
+  }
+
+  /** Quanti file di un tipo in un repository: i numeri della riga. */
+  countIn(repo: RepoChanges, change: ChangeKind): number {
+    return repo.files.filter(f => f.change === change).length;
+  }
+
+  /**
+   * Cosa scrivere sul pulsante. Il numero da solo mentirebbe quando il lavoro e' sparso: quei
+   * file non si chiudono con un commit, ma con uno per repository. Il numero di repository e'
+   * l'informazione che manca, quindi si dice.
+   */
+  toCommitLabel(): string {
+    const spread = this.reposToCommit.length;
+    return spread > 1
+      ? this.translate.instant('TOOLBAR.TO_COMMIT_SPREAD', { count: this.howManyFilesAreToCommit, repos: spread })
+      : this.translate.instant('TOOLBAR.TO_COMMIT_HERE', { count: this.howManyFilesAreToCommit });
+  }
+
+  trackByRepo = (_: number, r: RepoChanges) => r.path;
+
+  /**
+   * Pubblica tutto, in un ordine che non puo' rompere il repository per gli altri: i submodule
+   * prima, il progetto per ultimo. Se un submodule non e' pubblicabile ci si ferma PRIMA di
+   * toccare qualsiasi remoto, e si dice perche'.
+   */
+  pushEverything(): void {
     const projectPath = this.getProjectPath();
     if (!projectPath) return;
 
-    if (file.isNew) {
-      // For new files, show dialog to confirm DELETE from disk
-      const dialogData: ConfirmDialogData = {
-        title: 'Elimina file',
-        message: `Vuoi eliminare definitivamente il file "${file.fileName}"? Questa azione non può essere annullata.`,
-        confirmText: 'Elimina',
-        cancelText: 'Annulla'
-      };
+    const info = new WaitingDialogInfo();
+    info.message = this.translate.instant('TOOLBAR.PUSHING_ALL');
+    this.waitingDialogService.showMessageBox(info);
 
-      const dialogRef = this.dialog.open(ConfirmDialogComponent, {
-        width: '400px',
-        data: dialogData
-      });
-
-      dialogRef.afterClosed().subscribe(confirmed => {
-        if (confirmed) {
-          this.gitservice.deleteFile(projectPath, file.relativePath).subscribe(
-            response => {
-              if (response.success) {
-                this.changedFiles = this.changedFiles.filter(f => f.relativePath !== file.relativePath);
-                this.checkConnection();
-                this._snackBar.open(this.translate.instant('TOOLBAR.FILE_DELETED', { name: file.fileName }), 'OK', {
-                  duration: 3000,
-                  horizontalPosition: 'right',
-                  verticalPosition: 'bottom'
-                });
-              } else {
-                this._snackBar.open(`Errore: ${response.errorMessage}`, 'OK', {
-                  duration: 5000,
-                  horizontalPosition: 'right',
-                  verticalPosition: 'bottom',
-                  panelClass: ['error-snackbar']
-                });
-              }
-            },
-            error => {
-              console.error('Error deleting file:', error);
-              this._snackBar.open(`Errore: ${error.message}`, 'OK', {
-                duration: 5000,
-                horizontalPosition: 'right',
-                verticalPosition: 'bottom',
-                panelClass: ['error-snackbar']
-              });
-            }
-          );
-        }
-      });
-    } else {
-      // For modified files, show dialog to confirm discard changes
-      const dialogData: ConfirmDialogData = {
-        title: 'Scarta modifiche',
-        message: `Vuoi scartare le modifiche a "${file.fileName}"? Questa azione non può essere annullata.`,
-        confirmText: 'Scarta',
-        cancelText: 'Annulla'
-      };
-
-      const dialogRef = this.dialog.open(ConfirmDialogComponent, {
-        width: '400px',
-        data: dialogData
-      });
-
-      dialogRef.afterClosed().subscribe(confirmed => {
-        if (confirmed) {
-          this.gitservice.discardFile(projectPath, file.relativePath, false).subscribe(
-            response => {
-              if (response.success) {
-                this.changedFiles = this.changedFiles.filter(f => f.relativePath !== file.relativePath);
-                this.checkConnection();
-                this._snackBar.open(this.translate.instant('TOOLBAR.FILE_RESTORED', { name: file.fileName }), 'OK', {
-                  duration: 3000,
-                  horizontalPosition: 'right',
-                  verticalPosition: 'bottom'
-                });
-              } else {
-                this._snackBar.open(`Errore: ${response.errorMessage}`, 'OK', {
-                  duration: 5000,
-                  horizontalPosition: 'right',
-                  verticalPosition: 'bottom',
-                  panelClass: ['error-snackbar']
-                });
-              }
-            },
-            error => {
-              console.error('Error discarding file:', error);
-              this._snackBar.open(`Errore: ${error.message}`, 'OK', {
-                duration: 5000,
-                horizontalPosition: 'right',
-                verticalPosition: 'bottom',
-                panelClass: ['error-snackbar']
-              });
-            }
-          );
-        }
-      });
-    }
+    this.workingChanges.pushAll(projectPath, this.reviewAgent).subscribe({
+      next: result => {
+        this.waitingDialogService.closeMessageBox();
+        this.reportPush(result);
+        this.loadChangedFiles();
+      },
+      error: err => {
+        this.waitingDialogService.closeMessageBox();
+        const result: SafePushResult = err?.error?.refused !== undefined ? err.error : null;
+        if (result) { this.reportPush(result); this.loadChangedFiles(); return; }
+        this._snackBar.open(
+          this.translate.instant('TOOLBAR.PUSH_FAILED', { error: err?.message || '' }), 'OK',
+          { duration: 8000, verticalPosition: 'top', panelClass: ['error-snackbar'] });
+      },
+    });
   }
+
+  /**
+   * Cosa dire dopo. Un rifiuto NON e' un errore da nascondere: e' una condizione che l'utente puo'
+   * risolvere, e il messaggio dice gia' come.
+   */
+  private reportPush(result: SafePushResult): void {
+    if (result.refused) {
+      this._snackBar.open(result.refused, 'OK', { duration: 12000, verticalPosition: 'top' });
+      return;
+    }
+    if (!result.success) {
+      const failed = (result.steps || []).find(s => !s.ok);
+      this._snackBar.open(
+        this.translate.instant('TOOLBAR.PUSH_STOPPED', { repo: failed?.label || '?', why: failed?.outcome || '' }),
+        'OK', { duration: 12000, verticalPosition: 'top', panelClass: ['error-snackbar'] });
+      return;
+    }
+    // Cio' che resta indietro non e' un errore: e' roba non committata, che pubblicare non
+    // porterebbe via. Ma senza dirlo si crede di aver pubblicato tutto.
+    const left = result.leftBehind || [];
+    const message = left.length
+      ? this.translate.instant('TOOLBAR.PUSH_DONE_LEFT', { count: result.steps.length, left: left.join(', ') })
+      : this.translate.instant('TOOLBAR.PUSH_DONE', { count: result.steps.length });
+    this._snackBar.open(message, 'OK', { duration: 8000, verticalPosition: 'top' });
+  }
+
+  /** Dove sta questo repository sul disco: la radice del contesto, piu' il suo percorso. */
+  repoAbsolutePath(repo: RepoChanges): string {
+    const root = this.changesView?.rootPath || '';
+    if (!repo.path) return root;
+    const sep = root.includes('\\') ? '\\' : '/';
+    return root.replace(/[\\/]+$/, '') + sep + repo.path.replace(/\//g, sep);
+  }
+
+  /**
+   * Committa in QUESTO repository. Nessun endpoint nuovo: `CommitAsync` prende un percorso e
+   * committa li', e un submodule e' un repository git a tutti gli effetti.
+   *
+   * Dopo, la vista si rilegge — e il progetto padre si accende da solo, perche' committare nel
+   * figlio ne sposta il puntatore. Non e' un effetto collaterale da nascondere: e' il lavoro
+   * nuovo che si e' appena creato, ed e' il modo in cui si impara come funziona git.
+   */
+  commitRepo(repo: RepoChanges, event: MouseEvent): void {
+    event.stopPropagation();
+    if (repo.commitBlocker) return;   // il pulsante e' gia' disabilitato: qui e' solo una rete
+
+    const target = this.repoAbsolutePath(repo);
+    if (!target) return;
+
+    const dialogRef = this.dialog.open(CommitMessageDialogComponent, {
+      width: '500px',
+      data: { defaultMessage: 'Update from MdExplorer', projectPath: target },
+    });
+
+    dialogRef.afterClosed().subscribe(commitMessage => {
+      if (commitMessage === null || commitMessage === undefined) return;
+
+      const info = new WaitingDialogInfo();
+      info.message = 'Please wait... committing changes';
+      this.waitingDialogService.showMessageBox(info);
+
+      this.gitservice.modernCommit(target, commitMessage).subscribe(
+        response => {
+          // La ricarica della vista la fa gia' handleGitResponse (refreshLocalGitCounters).
+          this.handleGitResponse(response, 'commit');
+          this.waitingDialogService.closeMessageBox();
+        },
+        error => {
+          this.waitingDialogService.closeMessageBox();
+          const errorMessage = error.error?.errorMessage || error.message || '';
+          this._snackBar.open(this.translate.instant('TOOLBAR.COMMIT_FAILED', { error: errorMessage }), 'OK', {
+            duration: 5000, verticalPosition: 'top', panelClass: ['error-snackbar'],
+          });
+        }
+      );
+    });
+  }
+
+  /** Porta al tab delle differenze, dove si guarda file per file e si scarta. */
+  seeTheDifferences(): void {
+    this.showCommitMenu = false;
+    this.reviewContext.showChanges();
+  }
+
+  /**
+   * Dove agisce il commit: il progetto, o il posto di lavoro dell'agente quando sei in
+   * revisione. Senza questo committeresti nel tuo progetto delle modifiche che hai fatto
+   * dentro il worktree di un altro — cioe' non committeresti niente.
+   */
+  private commitRootPath(): string | null {
+    if (this.reviewAgent && this.changesView?.rootPath) return this.changesView.rootPath;
+    return this.getProjectPath();
+  }
+
 
   isTocDirectoryFile(): boolean {
     return this.currentMdFile?.name?.endsWith('.md.directory') || false;

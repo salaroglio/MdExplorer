@@ -28,6 +28,16 @@
   font-size: 14px;
 }
 
+/* Icona a filo di testo dentro una .setting-description (nota informativa). */
+.inline-warn-icon {
+  font-size: 16px;
+  height: 16px;
+  width: 16px;
+  vertical-align: text-bottom;
+  margin-right: 4px;
+  color: var(--mde-text-secondary);
+}
+
 .loading-container {
   display: flex;
   align-items: center;
@@ -384,5 +394,15 @@
     margin: 6px 0 0;
     padding-left: 20px;
     color: var(--mde-text-secondary);
+  }
+}
+/* Il numero dei posti: piccolo, accanto alla sua etichetta, non un campo a tutta larghezza
+   per una cifra sola. */
+.setting-inline {
+  margin-top: 10px;
+
+  .slots-field {
+    width: 90px;
+    margin-left: 8px;
   }
 }

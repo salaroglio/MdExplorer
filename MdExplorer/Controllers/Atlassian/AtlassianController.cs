@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using Ad.Tools.Dal.Abstractions.Interfaces;
 using Ad.Tools.Dal.Extensions;
@@ -266,7 +268,8 @@ namespace MdExplorer.Service.Controllers.Atlassian
         //   GET /api/atlassian/jira/my-issues?projectId=&maxResults=
         // ============================================================
         [HttpGet("jira/my-issues")]
-        public async Task<IActionResult> MyIssues([FromQuery] Guid projectId, [FromQuery] int maxResults = 10)
+        public async Task<IActionResult> MyIssues([FromQuery] Guid projectId, [FromQuery] int maxResults = 10,
+            [FromQuery] string customFields = null)
         {
             var ctx = BuildContext(projectId);
             if (ctx.ErrorResult != null) return ctx.ErrorResult;
@@ -274,7 +277,7 @@ namespace MdExplorer.Service.Controllers.Atlassian
             var jql = JqlBuilder.MyOpenIssuesByUrgency(ctx.ProjectKeys);
             try
             {
-                var issues = await _jiraClient.SearchAsync(ctx.Connection, jql, maxResults);
+                var issues = await _jiraClient.SearchAsync(ctx.Connection, jql, maxResults, ParseCustomFieldSelect(customFields));
                 return Ok(new
                 {
                     projectId,
@@ -299,14 +302,15 @@ namespace MdExplorer.Service.Controllers.Atlassian
         //   Free-form JQL search (read-only) for arbitrary filters.
         // ============================================================
         [HttpGet("jira/search")]
-        public async Task<IActionResult> Search([FromQuery] Guid projectId, [FromQuery] string jql, [FromQuery] int maxResults = 20)
+        public async Task<IActionResult> Search([FromQuery] Guid projectId, [FromQuery] string jql, [FromQuery] int maxResults = 20,
+            [FromQuery] string customFields = null)
         {
             if (string.IsNullOrWhiteSpace(jql)) return BadRequest(new { error = "jql query param required" });
             var ctx = BuildContext(projectId);
             if (ctx.ErrorResult != null) return ctx.ErrorResult;
             try
             {
-                var issues = await _jiraClient.SearchAsync(ctx.Connection, jql, maxResults);
+                var issues = await _jiraClient.SearchAsync(ctx.Connection, jql, maxResults, ParseCustomFieldSelect(customFields));
                 return Ok(new { projectId, jql, count = issues.Count, issues });
             }
             catch (AtlassianApiException ex)
@@ -318,6 +322,15 @@ namespace MdExplorer.Service.Controllers.Atlassian
                 _logger.LogError(ex, "[AtlassianController] Search failed for {ProjectId}", projectId);
                 return StatusCode(500, new { error = ex.Message });
             }
+        }
+
+        // Comma-separated custom-field selector ("Story Points,Severity") → list, or null
+        // when unset (which makes the search return all populated custom fields).
+        private static IReadOnlyList<string> ParseCustomFieldSelect(string customFields)
+        {
+            if (string.IsNullOrWhiteSpace(customFields)) return null;
+            var list = customFields.Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+            return list.Count == 0 ? null : list;
         }
 
         // ============================================================
@@ -370,6 +383,86 @@ namespace MdExplorer.Service.Controllers.Atlassian
             }
         }
 
+        // ============================================================
+        //   GET /api/atlassian/jira/fields?projectId=&customOnly=&nameFilter=
+        //   Field discovery: the exact name, the customfield_ id and the value
+        //   shape to pass on create/update. Without this a caller can only learn
+        //   a custom field's name by guessing it wrong.
+        // ============================================================
+        [HttpGet("jira/fields")]
+        public async Task<IActionResult> Fields(
+            [FromQuery] Guid projectId,
+            [FromQuery] bool customOnly = true,
+            [FromQuery] string nameFilter = null)
+        {
+            var ctx = BuildContext(projectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            try
+            {
+                var fields = await _jiraClient.ListFieldsAsync(ctx.Connection, customOnly, nameFilter);
+                return Ok(new { projectId, count = fields.Count, fields });
+            }
+            catch (AtlassianApiException ex)
+            {
+                return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AtlassianController] Fields failed for {ProjectId}", projectId);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        // ============================================================
+        //   GET /api/atlassian/jira/createfields?projectId=&projectKey=&issueType=
+        //   Create-screen discovery. jira/fields answers "does this field exist on
+        //   the site"; this answers "can I set it while creating THIS issue type in
+        //   THIS project" — the question a 400 "not on the appropriate screen"
+        //   answers too late.
+        // ============================================================
+        [HttpGet("jira/createfields")]
+        public async Task<IActionResult> CreateFields(
+            [FromQuery] Guid projectId,
+            [FromQuery] string issueType,
+            [FromQuery] string projectKey = null)
+        {
+            var ctx = BuildContext(projectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            var key = string.IsNullOrWhiteSpace(projectKey) ? ctx.ProjectKeys.FirstOrDefault() : projectKey.Trim();
+            if (string.IsNullOrWhiteSpace(key))
+                return BadRequest(new { error = "No Jira project key: set one in Project Settings → Atlassian or pass projectKey." });
+            if (string.IsNullOrWhiteSpace(issueType))
+                return BadRequest(new { error = "issueType required (e.g. 'Task', 'Epic')." });
+            try
+            {
+                var screen = await _jiraClient.GetCreateFieldsAsync(ctx.Connection, key, issueType);
+                return Ok(new { projectId, count = screen.Fields.Count, screen });
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] CreateFields failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
+        // ============================================================
+        //   GET /api/atlassian/jira/versions?projectId=&projectKey=
+        //   The versions a fixVersions field will accept in this project.
+        // ============================================================
+        [HttpGet("jira/versions")]
+        public async Task<IActionResult> Versions([FromQuery] Guid projectId, [FromQuery] string projectKey = null)
+        {
+            var ctx = BuildContext(projectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+            var key = string.IsNullOrWhiteSpace(projectKey) ? ctx.ProjectKeys.FirstOrDefault() : projectKey.Trim();
+            if (string.IsNullOrWhiteSpace(key))
+                return BadRequest(new { error = "No Jira project key: set one in Project Settings → Atlassian or pass projectKey." });
+            try
+            {
+                var versions = await _jiraClient.GetProjectVersionsAsync(ctx.Connection, key);
+                return Ok(new { projectId, projectKey = key, count = versions.Count, versions });
+            }
+            catch (AtlassianApiException ex) { return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure }); }
+            catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] Versions failed"); return StatusCode(500, new { error = ex.Message }); }
+        }
+
         public class CreateIssueRequest
         {
             public Guid ProjectId { get; set; }
@@ -382,7 +475,11 @@ namespace MdExplorer.Service.Controllers.Atlassian
             public string? Priority { get; set; }
             public string? DueDate { get; set; }
             public string? ProjectKey { get; set; }   // optional; default = first configured key
+            public string? Assignee { get; set; }     // name/email to resolve; overrides AssignToSelf
+            public string? AssigneeAccountId { get; set; }  // already resolved (after disambiguation)
             public bool AssignToSelf { get; set; } = true;
+            public string? ParentKey { get; set; }         // optional; epic/parent link
+            public JsonObject? CustomFields { get; set; }  // optional; name/id -> value
         }
 
         // ============================================================
@@ -403,6 +500,44 @@ namespace MdExplorer.Service.Controllers.Atlassian
 
             try
             {
+                // Resolve the assignee BEFORE creating anything. A name that is unknown
+                // or ambiguous must not leave a half-done issue behind: the caller would
+                // have to retry the create and would duplicate it. Nothing is written
+                // until we know who it goes to.
+                string assigneeAccountId = req.AssigneeAccountId?.Trim();
+                object assigneeEcho = null;
+                if (string.IsNullOrWhiteSpace(assigneeAccountId) && !string.IsNullOrWhiteSpace(req.Assignee))
+                {
+                    var candidates = await _jiraClient.ResolveUsersAsync(ctx.Connection, req.Assignee);
+                    if (candidates.Count == 0)
+                        return Ok(new
+                        {
+                            ok = false,
+                            notFound = true,
+                            created = (object)null,
+                            query = req.Assignee,
+                            message = $"No Jira user matches '{req.Assignee}' — NOTHING was created. " +
+                                      "Try a different spelling, just the surname, or an email; or pass assigneeAccountId; " +
+                                      "or drop the assignee to create the issue unassigned."
+                        });
+
+                    if (candidates.Count > 1)
+                        return Ok(new
+                        {
+                            ok = false,
+                            ambiguous = true,
+                            created = (object)null,
+                            query = req.Assignee,
+                            candidates = candidates.Select(u => new { u.AccountId, u.DisplayName, u.EmailAddress }).ToList(),
+                            message = $"{candidates.Count} users match '{req.Assignee}' — NOTHING was created. " +
+                                      "Ask the user which one, then call JiraCreateIssue again passing that assigneeAccountId."
+                        });
+
+                    var only = candidates[0];
+                    assigneeAccountId = only.AccountId;
+                    assigneeEcho = new { only.AccountId, only.DisplayName, only.EmailAddress };
+                }
+
                 var created = await _jiraClient.CreateIssueAsync(ctx.Connection, new JiraCreateIssueRequest
                 {
                     ProjectKey = key,
@@ -411,9 +546,20 @@ namespace MdExplorer.Service.Controllers.Atlassian
                     IssueType = req.IssueType,
                     Priority = req.Priority,
                     DueDate = req.DueDate,
-                    AssignToSelf = req.AssignToSelf
+                    AssignToSelf = req.AssignToSelf,
+                    AssigneeAccountId = assigneeAccountId,
+                    ParentKey = req.ParentKey,
+                    CustomFields = req.CustomFields
                 });
-                return Ok(new { projectId = req.ProjectId, created });
+                return Ok(new
+                {
+                    ok = true,
+                    projectId = req.ProjectId,
+                    created,
+                    assignee = assigneeEcho ?? (string.IsNullOrWhiteSpace(assigneeAccountId)
+                        ? null
+                        : (object)new { accountId = assigneeAccountId })
+                });
             }
             catch (AtlassianApiException ex)
             {
@@ -447,6 +593,62 @@ namespace MdExplorer.Service.Controllers.Atlassian
             catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] Statuses failed"); return StatusCode(500, new { error = ex.Message }); }
         }
 
+        public class AttachFileRequest
+        {
+            public Guid ProjectId { get; set; }
+            /// <summary>Percorso del file: assoluto, oppure relativo alla root del progetto.</summary>
+            public string FilePath { get; set; }
+            /// <summary>Nome con cui allegarlo; assente → il nome del file sul disco.</summary>
+            public string? FileName { get; set; }
+        }
+
+        // ============================================================
+        //   POST /api/atlassian/jira/issue/{key}/attachment
+        //   Allega un file dell'AREA DI PROGETTO a una issue.
+        // ============================================================
+        [HttpPost("jira/issue/{key}/attachment")]
+        public async Task<IActionResult> AttachFile(string key, [FromBody] AttachFileRequest req)
+        {
+            if (req == null) return BadRequest(new { error = "body required" });
+            if (string.IsNullOrWhiteSpace(key)) return BadRequest(new { error = "issue key required" });
+
+            var ctx = BuildContext(req.ProjectId);
+            if (ctx.ErrorResult != null) return ctx.ErrorResult;
+
+            // Percorso assoluto, o relativo alla root del progetto. Nessun vincolo di
+            // posizione: la scelta di cosa allegare è dell'utente.
+            if (!AttachmentPathResolver.TryResolve(ctx.ProjectPath, req.FilePath, out var fullPath, out var fileError))
+                return BadRequest(new { error = fileError });
+
+            var name = string.IsNullOrWhiteSpace(req.FileName)
+                ? Path.GetFileName(fullPath)
+                : Path.GetFileName(req.FileName.Trim());   // solo il nome: niente path nel nome allegato
+
+            try
+            {
+                using var stream = System.IO.File.OpenRead(fullPath);
+                var attached = await _jiraClient.AttachFileAsync(ctx.Connection, key.Trim(), stream, name);
+                return Ok(new { issueKey = key, count = attached.Count, attachments = attached });
+            }
+            catch (AtlassianApiException ex)
+            {
+                return BadRequest(new { error = ex.Message, authFailure = ex.IsAuthFailure });
+            }
+            catch (IOException ex)
+            {
+                return BadRequest(new { error = $"Cannot read '{req.FilePath}': {ex.Message}" });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return BadRequest(new { error = $"Cannot read '{req.FilePath}': {ex.Message}" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[AtlassianController] AttachFile failed for {Key}", key);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         public class CommentRequest
         {
             public Guid ProjectId { get; set; }
@@ -476,6 +678,8 @@ namespace MdExplorer.Service.Controllers.Atlassian
             public string? Description { get; set; }
             public string? Priority { get; set; }
             public string? DueDate { get; set; }
+            public string? ParentKey { get; set; }         // optional; epic/parent link
+            public JsonObject? CustomFields { get; set; }  // optional; name/id -> value
         }
 
         // PUT /api/atlassian/jira/issue/{key}   (edit fields)
@@ -492,7 +696,9 @@ namespace MdExplorer.Service.Controllers.Atlassian
                     Summary = req.Summary,
                     Description = req.Description,
                     Priority = req.Priority,
-                    DueDate = req.DueDate
+                    DueDate = req.DueDate,
+                    ParentKey = req.ParentKey,
+                    CustomFields = req.CustomFields
                 });
                 return Ok(new { ok = true });
             }
@@ -578,7 +784,7 @@ namespace MdExplorer.Service.Controllers.Atlassian
                 if (string.IsNullOrWhiteSpace(req.Query))
                     return BadRequest(new { error = "Provide accountId, query (the assignee's name/email), or unassign=true." });
 
-                var candidates = await ResolveAssignableUsersAsync(ctx.Connection, req.Query);
+                var candidates = await _jiraClient.ResolveUsersAsync(ctx.Connection, req.Query);
                 if (candidates.Count == 0)
                     return Ok(new
                     {
@@ -606,46 +812,6 @@ namespace MdExplorer.Service.Controllers.Atlassian
             catch (Exception ex) { _logger.LogError(ex, "[AtlassianController] AssignIssue failed"); return StatusCode(500, new { error = ex.Message }); }
         }
 
-        /// <summary>
-        /// Resolves a free-text name/email to assignable Jira users. Tries the literal
-        /// query first; only if that finds nothing does it fall back to the individual
-        /// name tokens and the reversed order (handles "Mario Rossi" vs "Rossi Mario",
-        /// partials, comma forms). Keeps only active, real ("atlassian") accounts and
-        /// de-duplicates by accountId.
-        /// </summary>
-        private async Task<List<JiraUser>> ResolveAssignableUsersAsync(JiraConnection conn, string query)
-        {
-            var seen = new Dictionary<string, JiraUser>(StringComparer.OrdinalIgnoreCase);
-
-            async Task AddMatches(string q)
-            {
-                if (string.IsNullOrWhiteSpace(q)) return;
-                var found = await _jiraClient.SearchUsersAsync(conn, q.Trim(), 20);
-                foreach (var u in found)
-                {
-                    if (string.IsNullOrEmpty(u.AccountId) || !u.Active) continue;
-                    if (!string.IsNullOrEmpty(u.AccountType) &&
-                        !string.Equals(u.AccountType, "atlassian", StringComparison.OrdinalIgnoreCase)) continue;
-                    if (!seen.ContainsKey(u.AccountId)) seen[u.AccountId] = u;
-                }
-            }
-
-            var norm = System.Text.RegularExpressions.Regex.Replace(query.Trim(), @"\s+", " ");
-            await AddMatches(norm);
-
-            if (seen.Count == 0)
-            {
-                var tokens = norm.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (tokens.Length > 1)
-                {
-                    await AddMatches(tokens[tokens.Length - 1]);          // surname
-                    await AddMatches(tokens[0]);                          // first name
-                    await AddMatches(string.Join(" ", tokens.Reverse())); // reversed order
-                }
-            }
-
-            return seen.Values.ToList();
-        }
 
         // ============================================================
         //   Confluence (read-only) endpoints
@@ -777,6 +943,8 @@ namespace MdExplorer.Service.Controllers.Atlassian
             public IActionResult ErrorResult { get; set; }
             public JiraConnection Connection { get; set; }
             public List<string> ProjectKeys { get; set; } = new List<string>();
+            /// <summary>Cartella del progetto: confine per i file che si possono allegare.</summary>
+            public string ProjectPath { get; set; }
         }
 
         private AtlassianContext BuildContext(Guid projectId)
@@ -820,6 +988,7 @@ namespace MdExplorer.Service.Controllers.Atlassian
                     ApiToken = _passwordProtector.Unprotect(settings.ApiTokenEncrypted)
                 };
                 ctx.ProjectKeys = cfg.JiraProjectKeys ?? new List<string>();
+                ctx.ProjectPath = project.Path;
                 return ctx;
             }
             catch (Exception ex)

@@ -33,12 +33,19 @@ namespace MdExplorer.Features.Services.AI
         private const int PROCESS_TIMEOUT_MS = 300000; // 5 minutes
         private const int AVAILABILITY_CHECK_TIMEOUT_MS = 5000;
         private const string SYSTEM_PROMPT_SETTING = "CopilotCli_SystemPrompt";
-        private const string DEFAULT_MODEL = "claude-sonnet-4.6";
+        // No default model constant: when the caller does not specify a model we omit
+        // the --model flag entirely and let the CLI pick its own default. Hardcoding a
+        // model id here breaks on CLI versions where that id does not exist (the CLI
+        // exits 1 with "Model ... is not available").
         private const int MAX_COMMAND_LINE_CHARS = 30000;
 
         /// <summary>
-        /// Working directory for the copilot process.
-        /// Should be set to the current MdExplorer project path before each call.
+        /// Working directory <b>ambientale</b> per i chiamanti legacy (chat interattiva, commit
+        /// message, ecc.) che non portano identità: la impostano prima di una chiamata a
+        /// <see cref="ChatAsync"/>. <b>NON usarla per i run degli agenti</b>: è stato condiviso
+        /// sul singleton e non è sicura sotto concorrenza. Il path degli agenti passa la working
+        /// dir (e l'ambiente col RunToken) per-chiamata via <see cref="RunHeadlessAsync"/> +
+        /// <see cref="CopilotInvocation"/>, dove l'isolamento è garantito per costruzione.
         /// </summary>
         public string WorkingDirectory { get; set; }
 
@@ -131,16 +138,81 @@ namespace MdExplorer.Features.Services.AI
                 throw new InvalidOperationException("Copilot CLI is not available. Make sure it is installed and authenticated.");
             }
 
-            var model = modelId ?? DEFAULT_MODEL;
-            var output = await RunCopilotProcessAsync(prompt, model, streaming: false, ct: ct);
+            var output = await RunCopilotProcessAsync(prompt, modelId, streaming: false, ct: ct);
 
             return StripUsageMetrics(output);
         }
 
-        public async IAsyncEnumerable<string> StreamChatAsync(
+        /// <summary>
+        /// Esegue un turno headless <b>stateless</b>: working directory e ambiente (canale del
+        /// RunToken, R2) arrivano nell'<paramref name="invocation"/> e vengono usati SOLO da
+        /// questa chiamata — nessuna scrittura su stato condiviso del provider. È il punto
+        /// d'ingresso della "città degli agenti": due run concorrenti non possono contaminarsi
+        /// l'identità perché non esiste un campo su cui competere. Fail-loud se l'invocation
+        /// manca (senza contesto non c'è isolamento da garantire).
+        /// </summary>
+        public async Task<string> RunHeadlessAsync(string prompt, CopilotInvocation invocation, string modelId = null, CancellationToken ct = default)
+        {
+            if (invocation == null)
+                throw new ArgumentNullException(nameof(invocation),
+                    "CopilotInvocation obbligatoria: un run headless deve portare il proprio contesto (working dir + ambiente), mai ereditarlo dallo stato condiviso.");
+
+            _logger.LogInformation("[CopilotCliProvider.RunHeadlessAsync] Starting with prompt length: {Length}", prompt?.Length ?? 0);
+
+            if (!IsAvailable())
+                throw new InvalidOperationException("Copilot CLI is not available. Make sure it is installed and authenticated.");
+
+            var output = await RunCopilotProcessAsync(prompt, modelId, streaming: false, ct: ct, invocation: invocation);
+            return StripUsageMetrics(output);
+        }
+
+        /// <summary>
+        /// Turno headless con l'esito <b>completo</b>: testo, codice d'uscita e stderr. A
+        /// differenza di <see cref="RunHeadlessAsync"/> non solleva sull'uscita non-zero — la
+        /// decisione spetta al chiamante. Esiste per il runner degli agenti: lì un'uscita
+        /// non-zero con stderr vuoto passava per successo, e faceva partire la pubblicazione del
+        /// deliverable, l'auto-merge e un verdetto federato di successo su un lavoro fallito.
+        /// </summary>
+        public async Task<CopilotRunResult> RunHeadlessDetailedAsync(string prompt, CopilotInvocation invocation, string modelId = null, CancellationToken ct = default)
+        {
+            if (invocation == null)
+                throw new ArgumentNullException(nameof(invocation),
+                    "CopilotInvocation obbligatoria: un run headless deve portare il proprio contesto (working dir + ambiente), mai ereditarlo dallo stato condiviso.");
+
+            if (!IsAvailable())
+                throw new InvalidOperationException("Copilot CLI is not available. Make sure it is installed and authenticated.");
+
+            var run = await RunCopilotProcessCoreAsync(prompt, modelId, streaming: false, ct: ct, invocation: invocation);
+            return new CopilotRunResult(StripUsageMetrics(run.Text), run.ExitCode, run.Error);
+        }
+
+        /// <summary>
+        /// Come <see cref="StreamChatAsync(string, string, CancellationToken)"/>, ma dentro
+        /// una <b>sessione del CLI</b>: passando lo stesso <paramref name="sessionId"/> a
+        /// chiamate successive, il modello ricorda lo scambio precedente.
+        /// </summary>
+        public IAsyncEnumerable<string> StreamChatInSessionAsync(
+            string prompt,
+            string modelId,
+            string sessionId,
+            CancellationToken ct = default)
+            => StreamChatAsync(prompt, modelId, ct, new CopilotInvocation(WorkingDirectory, null, sessionId));
+
+        /// <summary>
+        /// Implementazione di <see cref="IAiProvider"/>: nessuna sessione, ogni chiamata
+        /// e' un discorso a se'. Delega all'overload che accetta il contesto per-chiamata.
+        /// </summary>
+        public IAsyncEnumerable<string> StreamChatAsync(
             string prompt,
             string modelId = null,
-            [EnumeratorCancellation] CancellationToken ct = default)
+            CancellationToken ct = default)
+            => StreamChatAsync(prompt, modelId, ct, invocation: null);
+
+        public async IAsyncEnumerable<string> StreamChatAsync(
+            string prompt,
+            string modelId,
+            [EnumeratorCancellation] CancellationToken ct,
+            CopilotInvocation invocation)
         {
             _logger.LogInformation("[CopilotCliProvider.StreamChatAsync] Starting with prompt length: {Length}", prompt?.Length ?? 0);
 
@@ -149,9 +221,7 @@ namespace MdExplorer.Features.Services.AI
                 throw new InvalidOperationException("Copilot CLI is not available. Make sure it is installed and authenticated.");
             }
 
-            var model = modelId ?? DEFAULT_MODEL;
-
-            var psi = CreateProcessStartInfo(prompt, model, streaming: true);
+            var psi = CreateProcessStartInfo(prompt, modelId, streaming: true, invocation: invocation);
             using var process = new Process { StartInfo = psi };
 
             process.Start();
@@ -401,11 +471,88 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             }
         }
 
+        /// <summary>
+        /// Like <see cref="ChatAsync"/> but returns the assistant's message text with
+        /// byte-for-byte fidelity. The default text output mode renders markdown for the
+        /// terminal (headings lose their <c>#</c>, fenced blocks lose their fences, and
+        /// tool-activity traces pollute stdout), which destroys any answer that must be
+        /// parsed afterwards. This method runs the CLI with <c>--output-format json</c>
+        /// (JSONL) and extracts the raw <c>content</c> of the last <c>assistant.message</c>
+        /// event instead.
+        /// </summary>
+        public async Task<string> ChatRawAsync(string prompt, string modelId = null, CancellationToken ct = default)
+        {
+            _logger.LogInformation("[CopilotCliProvider.ChatRawAsync] Starting with prompt length: {Length}", prompt?.Length ?? 0);
+
+            if (!IsAvailable())
+            {
+                throw new InvalidOperationException("Copilot CLI is not available. Make sure it is installed and authenticated.");
+            }
+
+            var jsonl = await RunCopilotProcessAsync(prompt, modelId, streaming: false, ct: ct, outputFormatJson: true);
+
+            string lastMessage = null;
+            foreach (var line in jsonl.Split('\n'))
+            {
+                var trimmed = line.Trim();
+                if (!trimmed.StartsWith("{")) continue;
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(trimmed);
+                    if (doc.RootElement.TryGetProperty("type", out var type)
+                        && type.GetString() == "assistant.message"
+                        && doc.RootElement.TryGetProperty("data", out var data)
+                        && data.TryGetProperty("content", out var content))
+                    {
+                        var text = content.GetString();
+                        if (!string.IsNullOrWhiteSpace(text))
+                        {
+                            lastMessage = text;
+                        }
+                    }
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    // Not a JSON line (stray CLI noise) — skip it.
+                }
+            }
+
+            if (lastMessage == null)
+            {
+                throw new InvalidOperationException(
+                    "Copilot CLI produced no assistant.message event in JSON output — cannot extract the response.");
+            }
+
+            return lastMessage;
+        }
+
         #region Private helpers
 
-        private async Task<string> RunCopilotProcessAsync(string prompt, string model, bool streaming, CancellationToken ct)
+        /// <summary>
+        /// Percorso legacy: ritorna il solo testo e solleva quando l'uscita è non-zero <b>e</b>
+        /// stderr non è vuoto. Comportamento invariato per chat, commit message e affini.
+        /// </summary>
+        private async Task<string> RunCopilotProcessAsync(string prompt, string model, bool streaming, CancellationToken ct, bool outputFormatJson = false, CopilotInvocation invocation = null)
         {
-            var psi = CreateProcessStartInfo(prompt, model, streaming);
+            var run = await RunCopilotProcessCoreAsync(prompt, model, streaming, ct, outputFormatJson, invocation);
+
+            if (run.ExitCode != 0 && !string.IsNullOrWhiteSpace(run.Error))
+            {
+                _logger.LogError("[CopilotCliProvider] Process exited with code {ExitCode}: {Error}", run.ExitCode, run.Error);
+                throw new Exception($"Copilot CLI error (exit code {run.ExitCode}): {run.Error}");
+            }
+
+            return run.Text;
+        }
+
+        /// <summary>
+        /// Esecuzione nuda: restituisce testo, codice d'uscita e stderr <b>senza decidere</b> se
+        /// sia un errore. Nessuno stato sull'istanza — il risultato è per-chiamata, come
+        /// <see cref="CopilotInvocation"/>: due run concorrenti non possono contaminarsi.
+        /// </summary>
+        private async Task<CopilotRunResult> RunCopilotProcessCoreAsync(string prompt, string model, bool streaming, CancellationToken ct, bool outputFormatJson = false, CopilotInvocation invocation = null)
+        {
+            var psi = CreateProcessStartInfo(prompt, model, streaming, outputFormatJson, invocation);
             using var process = new Process { StartInfo = psi };
 
             process.Start();
@@ -434,16 +581,10 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             var output = await outputTask;
             var error = await errorTask;
 
-            if (process.ExitCode != 0 && !string.IsNullOrWhiteSpace(error))
-            {
-                _logger.LogError("[CopilotCliProvider] Process exited with code {ExitCode}: {Error}", process.ExitCode, error);
-                throw new Exception($"Copilot CLI error (exit code {process.ExitCode}): {error}");
-            }
-
-            return output;
+            return new CopilotRunResult(output, process.ExitCode, error);
         }
 
-        private ProcessStartInfo CreateProcessStartInfo(string prompt, string model, bool streaming)
+        private ProcessStartInfo CreateProcessStartInfo(string prompt, string model, bool streaming, bool outputFormatJson = false, CopilotInvocation invocation = null)
         {
             var useStdin = ShouldUseStdin(prompt);
 
@@ -452,7 +593,16 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             var args = new StringBuilder();
             if (useStdin)
             {
-                args.Append("-p - "); // Read prompt from stdin
+                // NIENTE -p: senza quel flag il CLI legge il prompt da stdin ed esce a
+                // risposta finita, che e' esattamente quel che serve.
+                //
+                // Prima qui c'era "-p -", nella convinzione che il trattino significasse
+                // "leggi da stdin". Non e' cosi': il CLI prende "-" come TESTO del prompt,
+                // risponde "I don't see a concrete task in your message" e termina. Il
+                // chiamante intanto scriveva decine di KB nella pipe di un processo gia'
+                // finito, e l'errore che ne usciva era "the pipe is being closed" — che
+                // non nomina ne' il prompt ne' il flag, quindi non porta a questa riga.
+                // Verificato su Copilot CLI 1.0.82 il 04/09/2026, anche con 43 KB.
             }
             else
             {
@@ -460,12 +610,31 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                 args.Append($"-p \"{escapedPrompt}\" ");
             }
             args.Append("--no-color ");
-            args.Append("--screen-reader ");
-            args.Append("--allow-all-tools ");
-            args.Append($"--model {model}");
-            if (!streaming)
+            if (outputFormatJson)
+            {
+                // JSONL events on stdout; no --screen-reader (it renders markdown to
+                // plain text) and no --stream off (irrelevant for the event stream).
+                args.Append("--output-format json ");
+            }
+            else
+            {
+                args.Append("--screen-reader ");
+            }
+            args.Append("--allow-all-tools");
+            if (!string.IsNullOrWhiteSpace(model))
+            {
+                args.Append($" --model {model}");
+            }
+            if (!streaming && !outputFormatJson)
             {
                 args.Append(" --stream off");
+            }
+            if (!string.IsNullOrWhiteSpace(invocation?.SessionId))
+            {
+                // Stesso id = stessa conversazione: il CLI ricarica lo scambio precedente.
+                // Verificato il 04/09/2026 su 1.0.82 — due invocazioni separate con lo stesso
+                // --session-id e la seconda ricorda quel che le aveva detto la prima.
+                args.Append($" --session-id {invocation.SessionId}");
             }
 
             var psi = CopilotProcessLauncher.BuildStartInfo(args.ToString());
@@ -480,13 +649,43 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                 psi.RedirectStandardInput = true;
             }
 
-            if (!string.IsNullOrEmpty(WorkingDirectory) && System.IO.Directory.Exists(WorkingDirectory))
+            // Working directory: quella per-chiamata (run degli agenti) vince; in sua assenza,
+            // il fallback ambientale per i chiamanti legacy. L'ambiente (RunToken) invece NON
+            // ha fallback ambientale — vedi sotto.
+            var workingDirectory = invocation?.WorkingDirectory;
+            if (string.IsNullOrEmpty(workingDirectory))
+                workingDirectory = WorkingDirectory;
+            if (!string.IsNullOrEmpty(workingDirectory) && System.IO.Directory.Exists(workingDirectory))
             {
-                psi.WorkingDirectory = WorkingDirectory;
-                _logger.LogInformation("[CopilotCliProvider] Working directory set to: {WorkingDir}", WorkingDirectory);
+                psi.WorkingDirectory = workingDirectory;
+                _logger.LogInformation("[CopilotCliProvider] Working directory set to: {WorkingDir}", workingDirectory);
             }
 
+            // Inietta il RunToken (e le sue claim d'identità) nell'ambiente del figlio. Env preso
+            // ESCLUSIVAMENTE dall'invocation per-chiamata: MAI da stato condiviso del provider —
+            // è questa l'invariante che rende impossibile lo scambio d'identità tra run concorrenti.
+            // psi.Environment è pre-caricato dal padre (UseShellExecute=false): il figlio eredita
+            // tutto e noi sovrascriviamo solo queste chiavi. Mai loggato.
+            ApplyEnvironmentOverrides(psi.Environment, invocation);
+
             return psi;
+        }
+
+        /// <summary>
+        /// Applica gli override d'ambiente di un <see cref="CopilotInvocation"/> al set di
+        /// variabili del processo da spawnare. Puro e testabile: l'ambiente proviene SOLO
+        /// dall'invocation (mai da stato condiviso), garanzia strutturale dell'isolamento
+        /// d'identità tra run concorrenti. Null/vuoto = nessun override.
+        /// </summary>
+        internal static void ApplyEnvironmentOverrides(IDictionary<string, string> target, CopilotInvocation invocation)
+        {
+            var overrides = invocation?.EnvironmentOverrides;
+            if (target == null || overrides == null) return;
+            foreach (var kv in overrides)
+            {
+                if (string.IsNullOrEmpty(kv.Key)) continue;
+                target[kv.Key] = kv.Value ?? string.Empty;
+            }
         }
 
         private bool ShouldUseStdin(string prompt)
@@ -496,8 +695,23 @@ Always provide clear, concise, and well-formatted responses using proper markdow
 
         private async Task WritePromptToStdinAsync(Process process, string prompt)
         {
-            await process.StandardInput.WriteAsync(prompt);
-            process.StandardInput.Close();
+            try
+            {
+                await process.StandardInput.WriteAsync(prompt);
+                process.StandardInput.Close();
+            }
+            catch (System.IO.IOException ex)
+            {
+                // "The pipe is being closed": il CLI e' morto prima di leggere il prompt.
+                // Da solo quel messaggio non dice nulla a chi lo legge, quindi si aggiunge
+                // cio' che serve per capire — se il processo e' uscito e con quale codice.
+                var exited = process.HasExited;
+                var code = exited ? process.ExitCode.ToString() : "n/d";
+                throw new InvalidOperationException(
+                    $"Copilot CLI ha chiuso l'ingresso prima di ricevere il prompt " +
+                    $"({prompt?.Length ?? 0} caratteri; processo terminato: {exited}, exit code: {code}). " +
+                    "Di solito significa che il CLI ha rifiutato gli argomenti e si e' fermato subito.", ex);
+            }
         }
 
         private string StripUsageMetrics(string output)

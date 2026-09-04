@@ -1,5 +1,6 @@
-using MdExplorer.Hubs;
+﻿using MdExplorer.Hubs;
 using MdExplorer.Service.Models;
+using Microsoft.AspNetCore.DataProtection;
 using Ad.Tools.Dal;
 using Ad.Tools.Dal.Concrete;
 using MDExplorer.DataAccess.Mapping;
@@ -67,6 +68,7 @@ namespace MdExplorer
 
             // Project-level metadata stored in .development.yml (shared across users)
             services.AddSingleton<Services.IProjectMetadataService, Services.ProjectMetadataService>();
+            services.AddSingleton<Services.IProjectOwnershipService, Services.ProjectOwnershipService>();
 
             // Git authors discovery for MdE Team participants
             services.AddSingleton<Services.Git.IGitAuthorsService, Services.Git.GitAuthorsService>();
@@ -83,8 +85,126 @@ namespace MdExplorer
             // Pipeline asincrona di indicizzazione (vedi docs-internal/md-tree-evolution2/passo-async-indexing.md)
             services.AddSingleton<Services.IndexingPipeline.IIndexingPipelineService, Services.IndexingPipeline.IndexingPipelineService>();
 
+            // Pipeline SEPARATA per i file di testo non-markdown (additiva, spegnibile per progetto).
+            // Gira dopo la pipeline markdown per non rubarle I/O; scrive solo su TextFile + FTS text side-car.
+            services.AddSingleton<Services.IndexingPipeline.ITextIndexingService, Services.IndexingPipeline.TextIndexingService>();
+
             // Mark folder-summarizer job (azione ibrida algoritmo + LLM evocata da Mark)
             services.AddSingleton<Services.MarkActions.IMarkFolderJobService, Services.MarkActions.MarkFolderJobService>();
+            services.AddSingleton<Services.MarkDiagram.IMarkDiagramExplainService, Services.MarkDiagram.MarkDiagramExplainService>();
+
+            // Esecuzione headless degli agenti *.agent.md (lancio manuale, schedule, hook)
+            services.AddSingleton<Services.AgentRun.IAgentRunJobService, Services.AgentRun.AgentRunJobService>();
+            // Hook a eventi delle schedule agenti (commit via FSW su .git/logs/HEAD,
+            // apertura progetto). I trigger cron appartengono SOLO al satellite scheduler.
+            services.AddSingleton<Services.AgentRun.IAgentScheduleEventService, Services.AgentRun.AgentScheduleEventService>();
+            services.AddSingleton<MdExplorer.Abstractions.Services.IProjectOpenedEventHandler>(
+                sp => (Services.AgentRun.AgentScheduleEventService)sp.GetRequiredService<Services.AgentRun.IAgentScheduleEventService>());
+
+            // Registry dei cittadini della città degli agenti (§6 Agent-Harness-A2A):
+            // le "Pagine Gialle" del progetto. Singleton + fan-out project-open per
+            // (ri)scansionare i .agent.md e riconciliare AgentIdentity.
+            services.AddSingleton<Services.AgentRegistry.IAgentRegistryService, Services.AgentRegistry.AgentRegistryService>();
+            services.AddSingleton<MdExplorer.Abstractions.Services.IProjectOpenedEventHandler>(
+                sp => (Services.AgentRegistry.AgentRegistryService)sp.GetRequiredService<Services.AgentRegistry.IAgentRegistryService>());
+
+            // Mailbox + dispatcher della città degli agenti (§8): unico punto di accodamento
+            // (guardrail hop/dedup) e consegna at-least-once dei messaggi (hosted service).
+            services.AddSingleton<Services.AgentRun.IAgentMailbox, Services.AgentRun.AgentMailbox>();
+            // Cancello del run LLM (§12.5): tetto istanze Copilot concorrenti → coda differita
+            // (deferred:resources) invece di saturare la macchina. Capacità per-installazione.
+            // Il tetto dei run insieme non e' piu' un numero suo: sono i posti di lavoro del
+            // progetto. Una manopola sola per una domanda sola.
+            services.AddSingleton<Services.AgentRun.IAgentRunGate, Services.AgentRun.CopilotResourceGate>();
+            // Politica di disponibilità (§12.5): manutenzione (git) / pausa utente (UserDB) →
+            // deferred:maintenance / deferred:user, valutata prima del tetto risorse.
+            services.AddSingleton<Services.AgentRun.IAgentAvailabilityPolicy, Services.AgentRun.AgentAvailabilityPolicy>();
+            // Isolamento d'esecuzione per-agente (Fase 7c): worktree git persistente per agente,
+            // opt-in via agentCity.useAgentWorktrees. Il reaper pota i worktree orfani.
+            // Sessione d'intervento manuale sul worktree: apre/chiude, mette in coda l'agente
+            // e — su annullamento — rimette il lavoro in coda invece di perderlo.
+            // Popola i submodule all'APERTURA del progetto, non solo su clone e pull: chi apre
+            // una cartella clonata da fuori MdExplorer non li vedeva popolare mai.
+            services.AddSingleton<Services.Git.IProjectSubmoduleInitializer, Services.Git.ProjectSubmoduleInitializer>();
+            services.AddSingleton<MdExplorer.Abstractions.Services.IProjectOpenedEventHandler>(
+                sp => (Services.Git.ProjectSubmoduleInitializer)sp.GetRequiredService<Services.Git.IProjectSubmoduleInitializer>());
+
+            // git di sistema: worktree, submodule e diff testuali, che LibGit2Sharp non copre.
+            services.AddSingleton<Services.Git.INativeGitRunner, Services.Git.NativeGitRunner>();
+
+            // Rimette i submodule sul loro ramo dopo un aggiornamento. Condiviso fra il pull/clone
+            // e l'apertura del progetto: chi apre una cartella clonata da fuori li trovava
+            // popolati ma con HEAD staccato, quindi inservibili per committare.
+            services.AddSingleton<Services.Git.ISubmoduleBranchAttacher, Services.Git.SubmoduleBranchAttacher>();
+            // La vista delle differenze del tab: interroga git, non il FileSystemWatcher.
+            services.AddSingleton<Services.AgentRun.IWorkingChangesService, Services.AgentRun.WorkingChangesService>();
+            // Scoped e non singleton: dipende da IModernGitService, che e' scoped (le credenziali
+            // si risolvono per richiesta).
+            services.AddScoped<Services.Git.ISafePushService, Services.Git.SafePushService>();
+            services.AddSingleton<Services.AgentRun.IAgentWorktreeHoldService, Services.AgentRun.AgentWorktreeHoldService>();
+            services.AddSingleton<Services.AgentRun.IAgentWorktreeManager, Services.AgentRun.AgentWorktreeManager>();
+            // Isolamento worktree: scelta della MACCHINA (UserDB), non della squadra (git).
+            services.AddSingleton<Services.AgentRun.IAgentWorktreePreference, Services.AgentRun.AgentWorktreePreference>();
+            services.AddHostedService<Services.AgentRun.AgentWorktreeReaper>();
+            // Gate del push umano per il codice (Fase 7e): un agente tocca il submodule → awareness
+            // + dispatch differito finché l'umano non committa (release token = sha del submodule).
+            services.AddSingleton<Services.AgentRun.ISubmoduleGateService, Services.AgentRun.SubmoduleGateService>();
+            // Cancello meccanico del merge dei deliverable-doc (Fase 7g): default auto-approva;
+            // un client CI o un agente-revisore rimpiazza questo seam senza toccare il dispatcher.
+            services.AddSingleton<Services.AgentRun.IDeliverableMergeGate, Services.AgentRun.AutoApproveMergeGate>();
+            // Il "si" del gate non fonde piu': apre una richiesta che decide l'umano.
+            services.AddSingleton<Services.AgentRun.IAgentMergeRequestService, Services.AgentRun.AgentMergeRequestService>();
+            services.AddHostedService<Services.AgentRun.AgentMessageDispatcher>();
+
+            // Memoria semantica degli agenti (Fase 5b, §11): assert/query su Fuseki, grafo
+            // per-agente forzato server-side. Braccio verso Fuseki (il controller fa l'enforcement).
+            services.AddSingleton<Services.AgentMemory.IAgentMemoryService, Services.AgentMemory.AgentMemoryService>();
+            services.AddSingleton<Services.AgentMemory.IFusekiConnectionResolver, Services.AgentMemory.FusekiConnectionResolver>();
+            // Consolidamento (Fase 7f): gesto umano che promuove i fatti durevoli nel .agent.md e
+            // decade il resto (promozione + decadimento in un solo atto per-conversazione).
+            services.AddSingleton<Services.AgentMemory.IMemoryConsolidationService, Services.AgentMemory.MemoryConsolidationService>();
+            // Istanza Fuseki gestita (addon on-demand): avvio/stop di proprietà del Service.
+            services.AddSingleton<Services.AgentMemory.IFusekiProcessManager, Services.AgentMemory.FusekiProcessManager>();
+
+            // Federazione (Fase 6b): assemblaggio annuncio cifrato + presidio lato Service.
+            // Il FederationRelayService è DORMIENTE finché nessun progetto abilita la città;
+            // il collegamento reale al relay è un seam rimandato (nessuna connessione oggi).
+            // Indirizzo relay + API key PER PROGETTO (UserDB, chiave cifrata): la chiave non sta in
+            // git — a differenza del room secret — perché apre il relay intero, non una sola stanza.
+            // Data Protection con chiavi persistite nella cartella dati di MDE: DEVE sopravvivere
+            // ai riavvii, altrimenti le API key salvate diventerebbero indecifrabili. Nome
+            // applicazione fissato per non dipendere dal nome dell'eseguibile.
+            services.AddDataProtection()
+                .SetApplicationName("MdExplorer")
+                .PersistKeysToFileSystem(new System.IO.DirectoryInfo(
+                    System.IO.Path.Combine(Utilities.CrossPlatformPath.GetAppDataPath(), "dataprotection-keys")));
+            services.AddSingleton<Services.Federation.IRelayKeyProtector, Services.Federation.RelayKeyProtector>();
+            services.AddSingleton<Services.Federation.IProjectRelaySettingsService, Services.Federation.ProjectRelaySettingsService>();
+            services.AddSingleton<Services.Federation.IFederationPresenceService, Services.Federation.FederationPresenceService>();
+            services.AddSingleton<Services.Federation.IHeadlessProjectActivator, Services.Federation.HeadlessProjectActivator>();
+            // Seam identità-padrone (test impersonazione): unico punto che risolve email→ownerId,
+            // con override impersonato per-progetto (solo in modalità test). Default = git email reale.
+            services.AddSingleton<Services.Federation.IEffectiveOwnerIdentity, Services.Federation.EffectiveOwnerIdentity>();
+            services.AddSingleton<Services.Federation.IFederatedRequestReceiver, Services.Federation.FederatedRequestReceiver>();
+            services.AddSingleton<Services.Federation.IFederatedResultReceiver, Services.Federation.FederatedResultReceiver>();
+            services.AddSingleton<Services.Federation.FederationRelayService>();
+            services.AddSingleton<Services.Federation.IFederationState>(sp => sp.GetRequiredService<Services.Federation.FederationRelayService>());
+            services.AddSingleton<Services.Federation.IFederationSender>(sp => sp.GetRequiredService<Services.Federation.FederationRelayService>());
+            services.AddHostedService(sp => sp.GetRequiredService<Services.Federation.FederationRelayService>());
+
+            // RunToken store (R2, §10): identità del mittente per i messaggi in uscita.
+            // Il token è generato al risveglio e passato nell'ambiente del processo agente.
+            services.AddSingleton<MdExplorer.Features.Agents.IRunTokenStore, MdExplorer.Features.Agents.RunTokenStore>();
+
+            // Seam provider-agnostico del run LLM headless (§7) + risveglio da messaggio (R1+R2):
+            // il runner reale lancia Copilot; il waker conia il RunToken, compone il prompt di
+            // risveglio (messaggio come DATO fra delimitatori) e revoca il token a fine run.
+            services.AddSingleton<MdExplorer.Features.Agents.IAgentTurnRunner, Services.AgentRun.CopilotTurnRunner>();
+            // Ponte verso il nostro stesso server MCP: i tool della citta' arrivano da li',
+            // filtrati dal catalogo (manifesto tools: x trust). Una sola definizione, quella
+            // che serve anche Copilot.
+            services.AddSingleton<Services.AgentRun.IAgentMcpToolProvider, Services.AgentRun.AgentMcpToolProvider>();
+            services.AddSingleton<MdExplorer.Features.Agents.ILlmAgentWaker, MdExplorer.Features.Agents.LlmAgentWaker>();
 
             // Shell execution for fenced code blocks (bash/sh/powershell/pwsh/cmd)
             services.AddSingleton<Services.Execution.ShellRegistry>();
@@ -139,14 +259,32 @@ namespace MdExplorer
             services.AddSingleton<IAiProvider, OpenAiProvider>();
             services.AddSingleton<IAiProvider, GeminiProvider>();
             services.AddSingleton<IAiProvider, CopilotCliProvider>();
+            services.AddSingleton<IAiProvider, ClaudeCodeProvider>();
+
+            // Agenti algoritmici (città degli agenti, §6 Agent-Harness-A2A): cittadini
+            // C# deterministici, stessa cittadinanza degli agenti .agent.md. Ogni
+            // IAlgorithmicAgent registrato qui viene arruolato automaticamente dal
+            // registry (iniettato come IEnumerable<IAlgorithmicAgent>, come i provider AI).
+            // Candidati futuri: reindicizzazione, sync KG/Fuseki, pipeline COBOL/PL1.
+            services.AddSingleton<IAlgorithmicAgent, Services.AgentRegistry.PingAlgorithmicAgent>();
 
             // Long-lived Copilot CLI ACP sessions (one persistent process per SignalR connection)
             services.AddSingleton<MdExplorer.Features.Services.AI.CopilotAcp.CopilotAcpSessionPool>();
 
+            // Sessioni Claude Code di lunga durata (un processo `claude -p` per connessione
+            // SignalR, protocollo nativo stream-json). Pool separato da quello di Copilot:
+            // stessa politica, CLI e protocollo diversi.
+            services.AddSingleton<MdExplorer.Features.Services.AI.ClaudeCode.ClaudeCodeSessionPool>();
+
+            // Source map md→HTML per la feature "Usa AI" su selezione
+            services.AddSingleton<MdExplorer.Features.Services.SourceMapping.MarkdownSourceMapService>();
+
             // Model discovery per ogni provider
             services.AddSingleton<IModelDiscoveryProvider, OpenAiModelDiscovery>();
             services.AddSingleton<IModelDiscoveryProvider, GeminiModelDiscovery>();
+            services.AddSingleton<MdExplorer.Features.Services.AI.CopilotSdkModelSource>();
             services.AddSingleton<IModelDiscoveryProvider, CopilotCliModelDiscovery>();
+            services.AddSingleton<IModelDiscoveryProvider, ClaudeCodeModelDiscovery>();
 
             // Add AI Tool Calling services
             // PathValidator is now created dynamically by ToolExecutor with the current workspace root
@@ -165,7 +303,19 @@ namespace MdExplorer
             services.AddScoped<Features.Services.ITocGenerationService, Services.TocGenerationHubService>();
 
             // Knowledge Graph (Neo4j) ingest pipeline
-            services.AddSingleton<Features.Services.KnowledgeGraph.IPasswordProtector, Features.Services.KnowledgeGraph.DpapiPasswordProtector>();
+            // Protettore dei segreti (token Atlassian, password Neo4j/Fuseki) SCELTO PER OS:
+            // - Windows: DPAPI, invariato. Cambiarlo renderebbe illeggibili i segreti gia' salvati.
+            // - Linux/macOS/Docker: DPAPI non esiste e lancerebbe PlatformNotSupportedException su
+            //   ogni Protect/Unprotect (Jira/Confluence via MCP inutilizzabili headless) -> Data
+            //   Protection, cross-platform, con le chiavi persistite piu' sopra in questo metodo.
+            if (OperatingSystem.IsWindows())
+            {
+                services.AddSingleton<Features.Services.KnowledgeGraph.IPasswordProtector, Features.Services.KnowledgeGraph.DpapiPasswordProtector>();
+            }
+            else
+            {
+                services.AddSingleton<Features.Services.KnowledgeGraph.IPasswordProtector, Services.Security.DataProtectionPasswordProtector>();
+            }
             services.AddSingleton<Features.Services.KnowledgeGraph.INeo4jConnectionPool, Features.Services.KnowledgeGraph.Neo4jConnectionPool>();
             services.AddSingleton<Features.Services.KnowledgeGraph.IKgIngestService, Features.Services.KnowledgeGraph.KgIngestService>();
             services.AddScoped<Features.Services.KnowledgeGraph.IFolderKgConfigResolver, Features.Services.KnowledgeGraph.FolderKgConfigResolver>();
@@ -337,6 +487,9 @@ namespace MdExplorer
 
             // app.UseHttpsRedirection(); // Commented out to prevent warning when HTTPS is not configured for Kestrel
 
+            // Guardia degli endpoint A2A (R12): Host/Origin loopback contro CSRF / DNS-rebinding.
+            app.UseMiddleware<MdExplorer.Middleware.A2AGuardMiddleware>();
+
             app.UseRouting();
             
             app.UseStaticFiles();
@@ -436,17 +589,36 @@ namespace MdExplorer
             // Do something with the addresses
             foreach (var addresses in addressFeature.Addresses)
             {
+                int port;
+                try { port = new Uri(addresses).Port; }
+                catch (UriFormatException ex)
+                {
+                    logger.LogWarning(ex, "[Startup] Address '{Address}' is not a URI; skipped", addresses);
+                    continue;
+                }
+
+                // Port 0 means no real port: that is what a test host reports, because it never
+                // binds a socket. Announcing it would tell whoever looks for MdExplorer to connect
+                // to nothing, and opening a browser on it opens a page that cannot answer.
+                // Seen live: 'dotnet test' with MdExplorer running overwrote the real port.txt
+                // with 0 - breaking MCP discovery - and opened a browser tab per test.
+                if (port == 0)
+                {
+                    logger.LogInformation(
+                        "[Startup] Address '{Address}' has no real port: no browser, no discovery file.", addresses);
+                    continue;
+                }
+
                 OpenUrl($"{addresses}/client2/index.html", logger);
 
                 // Save port for MCP server discovery
                 try
                 {
-                    var uri = new Uri(addresses);
                     var portDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MdExplorer");
                     Directory.CreateDirectory(portDir);
                     var portFile = Path.Combine(portDir, "port.txt");
-                    System.IO.File.WriteAllText(portFile, uri.Port.ToString());
-                    logger.LogInformation("[Startup] MCP port file written: {PortFile} = {Port}", portFile, uri.Port);
+                    System.IO.File.WriteAllText(portFile, port.ToString());
+                    logger.LogInformation("[Startup] MCP port file written: {PortFile} = {Port}", portFile, port);
                 }
                 catch (Exception ex)
                 {

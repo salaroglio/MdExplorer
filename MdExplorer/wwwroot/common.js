@@ -125,6 +125,10 @@ if (window.commonJsLoaded) {
         // SEARCH: Full-text search with highlighting
         loadScriptOnce('/javascripts/jqueryForFirstPage/search/search-functionality.js');
 
+        // AI SELECTION: floating "Usa AI" button on text selection
+        document.write("<link href='/javascripts/jqueryForFirstPage/ai-selection/ai-selection.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/ai-selection/ai-selection.js');
+
         // CLIPBOARD: Ctrl+V interception for Screenshot Annotation Wizard
         loadScriptOnce('/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.js');
 
@@ -166,6 +170,8 @@ if (window.commonJsLoaded) {
         // INTERACTIVE-SVG: Click-to-highlight for PlantUML diagrams
         document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg.js');
+        document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/mark-diagram-context.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/mark-diagram-context.js');
         document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-sequence.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-sequence.js');
 
@@ -177,10 +183,16 @@ if (window.commonJsLoaded) {
         document.write("<link href='/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-yaml.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/interactive-svg/interactive-svg-yaml.js');
 
+        // TABLES: narrow columns (numbers + short sigle) — wrap their long header, keep column small
+        loadScriptOnce('/javascripts/jqueryForFirstPage/tables/table-narrow-cols.js');
+        // TABLES: floating "find in table" button on hover (like the SVG diagram search)
+        document.write("<link href='/javascripts/jqueryForFirstPage/tables/table-find.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/tables/table-find.js');
+
         // CORE: Initialization coordinator (MUST BE LAST)
         loadScriptOnce('/javascripts/jqueryForFirstPage/core/init.js');
 
-        console.log('=== MODULAR FILES LOADED (24 files) ===');
+        console.log('=== MODULAR FILES LOADED (26 files) ===');
     } else {
         console.log('=== LOADING MONOLITHIC jqueryForFirstPage.js ===');
         loadScriptOnce('/javascripts/jqueryForFirstPage.js');

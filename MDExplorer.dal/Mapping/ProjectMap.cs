@@ -22,8 +22,12 @@ namespace MDExplorer.DataAccess.Mapping
             Map(_ => _.LinkIndexingEnabled).Not.Nullable().Default("1");
             Map(_ => _.PlantUmlKeepOriginalColorsInDarkMode).Not.Nullable().Default("0");
             Map(_ => _.UseCopilotCliAsDefault).Not.Nullable().Default("1");
+            Map(_ => _.UseClaudeCodeAsDefault).Not.Nullable().Default("0");
             Map(_ => _.ExecutionTrusted).Not.Nullable().Default("0");
-            Map(_ => _.ExcludeSubmodulesFromGitStatus).Not.Nullable().Default("1");
+            Map(_ => _.UseAgentWorktrees).Nullable();
+            Map(_ => _.AgentWorktreeSlots).Nullable();
+            Map(_ => _.IndexAllTextFiles).Not.Nullable().Default("0");
+            Map(_ => _.TextFileExtensions).Length(int.MaxValue).Nullable();
             HasMany(x => x.Bookmarks).LazyLoad().Cascade.SaveUpdate();
         }
     }

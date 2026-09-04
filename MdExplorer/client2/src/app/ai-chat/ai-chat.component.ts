@@ -31,14 +31,41 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   copilotCliUnavailable = false;
   isStreaming = false;
 
-  // Copilot CLI auto-select: when active, expose a Sonnet 4.6 / Opus 4.7 picker
+  // Copilot CLI auto-select: when active, expose a Sonnet 5 / Opus 4.7 picker
   // next to the injected-file chip. Hidden for every other provider.
   copilotCliAutoSelected = false;
   selectedCopilotModel: string | null = null;
   readonly copilotModelOptions: ReadonlyArray<{ id: string; label: string }> = [
-    { id: 'claude-sonnet-4.6', label: 'Sonnet 4.6' },
+    { id: 'claude-sonnet-5', label: 'Sonnet 5' },
     { id: 'claude-opus-4.7', label: 'Opus 4.7' }
   ];
+
+  // Claude Code auto-select: stessa idea, picker sugli alias del CLI. Alias e non nomi
+  // pieni con la data, così puntano sempre all'ultimo modello di quella famiglia e non
+  // invecchiano a ogni rilascio.
+  claudeCodeUnavailable = false;
+  claudeCodeAutoSelected = false;
+  selectedClaudeCodeModel: string | null = null;
+  readonly claudeCodeModelOptions: ReadonlyArray<{ id: string; label: string }> = [
+    { id: 'sonnet', label: 'Sonnet' },
+    { id: 'opus', label: 'Opus' },
+    { id: 'haiku', label: 'Haiku' }
+  ];
+
+  /**
+   * Consuntivo dell'ultimo turno di Claude Code: costo del turno, cumulato della sessione,
+   * token e quanta parte delle finestre a 5 ore e 7 giorni è già bruciata.
+   *
+   * È il dato che con Copilot ACP semplicemente non esiste — là il risultato del prompt
+   * porta solo "end_turn" — ed è il motivo per cui l'indicatore consumi era stato
+   * accantonato. Qui arriva da solo a fine turno.
+   */
+  claudeUsage: {
+    turnCostUsd: number | null; sessionCostUsd: number | null;
+    inputTokens: number | null; outputTokens: number | null; thinkingTokens: number | null;
+    durationMs: number | null; model: string | null;
+    fiveHourUtilization: number | null; sevenDayUtilization: number | null;
+  } | null = null;
 
   // Edit message state
   editingMessageId: string | null = null;
@@ -52,6 +79,12 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   private destroy$ = new Subject<void>();
   private shouldScrollToBottom = false;
+  // Pixels from the bottom under which the list counts as "at the bottom".
+  private static readonly SCROLL_BOTTOM_THRESHOLD = 40;
+  // Set on the first messages$ emission after (re)creation: the tab was just
+  // (re)opened, so restore the last scroll position instead of snapping down.
+  private shouldRestoreScroll = false;
+  private isFirstMessagesEmission = true;
 
   constructor(
     private aiService: AiChatService,
@@ -69,7 +102,16 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       .pipe(takeUntil(this.destroy$))
       .subscribe(messages => {
         this.messages = messages;
-        this.shouldScrollToBottom = true;
+        if (this.isFirstMessagesEmission) {
+          // Component just (re)created for this tab: restore where the user
+          // left off. If they were parked at the bottom, restoring lands there
+          // anyway, so the last-message-visible behavior is preserved.
+          this.isFirstMessagesEmission = false;
+          this.shouldRestoreScroll = true;
+        } else {
+          // A genuine new/updated message during this session: keep following it.
+          this.shouldScrollToBottom = true;
+        }
       });
 
     // Track streaming state to toggle the Send/Stop button.
@@ -141,7 +183,7 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           return;
         }
         if (config.autoSelect && config.available) {
-          const model = config.defaultModel || 'claude-sonnet-4.6';
+          const model = config.defaultModel || 'claude-sonnet-5';
           console.log('[AiChatComponent] Auto-selecting Copilot CLI with model:', model);
           this.copilotCliUnavailable = false;
           this.copilotCliAutoSelected = true;
@@ -160,13 +202,82 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.selectedCopilotModel = null;
         }
       });
+
+    // Stessa manopola, per Claude Code. Il backend garantisce che al massimo UNO dei due
+    // auto-select arrivi acceso, quindi queste due sottoscrizioni non si contendono la chat.
+    this.projectsService.claudeCodeAutoConfig$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(config => {
+        if (!config) {
+          this.claudeCodeUnavailable = false;
+          this.claudeCodeAutoSelected = false;
+          this.selectedClaudeCodeModel = null;
+          return;
+        }
+        if (config.autoSelect && config.available) {
+          const model = config.defaultModel || 'sonnet';
+          console.log('[AiChatComponent] Auto-selecting Claude Code with model:', model);
+          this.claudeCodeUnavailable = false;
+          this.claudeCodeAutoSelected = true;
+          this.selectedClaudeCodeModel = model;
+          this.aiService.setProvider('claudecode', model);
+          this.aiService.notifyClaudeCodeConnected(model);
+        } else if (config.autoSelect && !config.available) {
+          console.log('[AiChatComponent] Claude Code auto-select acceso ma CLI non disponibile — chat bloccata');
+          this.claudeCodeUnavailable = true;
+          this.claudeCodeAutoSelected = false;
+          this.selectedClaudeCodeModel = null;
+          this.aiService.notifyClaudeCodeDisconnected();
+        } else {
+          this.claudeCodeUnavailable = false;
+          this.claudeCodeAutoSelected = false;
+          this.selectedClaudeCodeModel = null;
+        }
+      });
+
+    // Consuntivo di fine turno. Arriva solo da Claude Code: con gli altri provider resta
+    // null e la riga non compare.
+    this.aiService.claudeUsage$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(usage => { this.claudeUsage = usage; });
   }
 
   ngAfterViewChecked(): void {
+    if (this.shouldRestoreScroll && this.scrollContainer) {
+      // Restore the position captured before the tab was left. Restore wins
+      // over the initial shouldScrollToBottom so reopening the tab no longer
+      // jumps the conversation to the top.
+      this.shouldRestoreScroll = false;
+      this.shouldScrollToBottom = false;
+      this.restoreScrollPosition();
+      return;
+    }
     if (this.shouldScrollToBottom) {
       this.scrollToBottom();
       this.shouldScrollToBottom = false;
     }
+  }
+
+  /** Persist the current scroll position so it survives a tab switch. */
+  onChatScroll(): void {
+    const el = this.scrollContainer?.nativeElement;
+    // offsetParent is null while the tab body is detached/hidden; ignore those
+    // spurious scroll(0) events so we don't overwrite the saved position.
+    if (!el || el.offsetParent === null) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    this.aiService.savedScrollTop = el.scrollTop;
+    this.aiService.savedAtBottom = distanceFromBottom <= AiChatComponent.SCROLL_BOTTOM_THRESHOLD;
+  }
+
+  private restoreScrollPosition(): void {
+    try {
+      const el = this.scrollContainer.nativeElement;
+      if (this.aiService.savedAtBottom) {
+        el.scrollTop = el.scrollHeight;
+      } else {
+        el.scrollTop = this.aiService.savedScrollTop;
+      }
+    } catch (err) {}
   }
 
   ngOnDestroy(): void {
@@ -176,6 +287,11 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   sendMessage(): void {
     if (!this.inputMessage.trim() || !this.isModelLoaded || this.isConfiguringProvider) return;
+    // A prompt is already streaming: refuse to fire a second turn. Sending now would
+    // reassign currentStreamingMessageId (corrupting the in-flight bubble) and start a
+    // second session/prompt on top of the live one — killing any running sub-agent.
+    // To interrupt, the user must press Stop, which cancels gracefully.
+    if (this.isStreaming) return;
 
     this.aiService.sendMessage(this.inputMessage);
     this.inputMessage = '';
@@ -214,6 +330,36 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     } catch (err) {
       console.error('[AiChatComponent] Failed to switch Copilot model:', err);
     }
+  }
+
+  async selectClaudeCodeModel(modelId: string): Promise<void> {
+    if (!this.claudeCodeAutoSelected) return;
+    if (this.selectedClaudeCodeModel === modelId) return;
+    if (this.isConfiguringProvider) return;
+    console.log('[AiChatComponent] Modello Claude Code cambiato in:', modelId);
+    this.selectedClaudeCodeModel = modelId;
+    try {
+      await this.aiService.setProviderAsync('claudecode', modelId);
+      this.aiService.notifyClaudeCodeConnected(modelId);
+      // Il consuntivo precedente si riferisce a un'altra sessione: il cambio modello ne
+      // apre una nuova. Tenerlo a video vorrebbe dire attribuire quei costi al modello
+      // sbagliato.
+      this.claudeUsage = null;
+    } catch (err) {
+      console.error('[AiChatComponent] Cambio di modello Claude Code fallito:', err);
+    }
+  }
+
+  /** Costo in dollari, con abbastanza decimali da non diventare "0,00" su un turno breve. */
+  formatUsd(value: number | null): string {
+    if (value == null) return '—';
+    return '$' + value.toFixed(value < 0.01 ? 4 : 2);
+  }
+
+  /** Frazione 0..1 → percentuale intera. */
+  formatPercent(value: number | null): string {
+    if (value == null) return '—';
+    return Math.round(value * 100) + '%';
   }
 
   toggleModelManager(): void {

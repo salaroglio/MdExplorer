@@ -43,6 +43,114 @@ namespace MdExplorer.Service.Models
         /// per-user API token is NEVER stored here — it lives encrypted in UserDB.
         /// </summary>
         public AtlassianConfig Atlassian { get; set; }
+
+        /// <summary>
+        /// Federation activation of the agent city (§12.4 Agent-Harness-A2A). Null/absent
+        /// or <c>Enabled=false</c> → the city and federation stay OFF (full retrocompat).
+        /// Travels with the repo via git so the whole team shares the same activation and
+        /// the same room secret. MUST live in this typed model: a section not modelled here
+        /// would be WIPED on the next participants/description write (they go through the
+        /// typed round-trip).
+        /// </summary>
+        public AgentCityConfig AgentCity { get; set; }
+
+        /// <summary>
+        /// Harness agentico per cui MdExplorer installa skill, agent e prompt
+        /// (vedi docs-internal/Sprints/2026-08-31-Opencode-Harness-Support.md).
+        /// Null/assente = progetto creato prima che la scelta esistesse: la prima apertura la
+        /// deduce dal disco una volta sola e la scrive qui. Da lì in poi questa è l'unica fonte
+        /// di verità.
+        /// <para>DEVE stare in questo modello tipizzato: una sezione non modellata qui viene
+        /// CANCELLATA al primo salvataggio che passa dal round-trip (vedi la nota su
+        /// <see cref="AgentCity"/>).</para>
+        /// </summary>
+        public HarnessConfig Harness { get; set; }
+    }
+
+    /// <summary>
+    /// Sezione <c>harness:</c> di <c>.development.yml</c>. Committata col repository: la scelta
+    /// dell'harness è una caratteristica del progetto condivisa dal team, non una preferenza
+    /// della singola macchina.
+    /// </summary>
+    public class HarnessConfig
+    {
+        /// <summary>
+        /// <c>copilot</c>, <c>opencode</c> oppure <c>none</c>. Resta uno scalare: la scelta è
+        /// esclusiva, e modellarla come lista prima che serva davvero sarebbe prematuro.
+        /// </summary>
+        public string Target { get; set; }
+    }
+
+    /// <summary>
+    /// Per-project federation activation, committed in <c>.development.yml</c> (§12.4).
+    /// Shared across the team via git; the room secret is a shared credential (room key +
+    /// payload-encryption key), NOT the common MdChat API key.
+    /// </summary>
+    public class AgentCityConfig
+    {
+        /// <summary>Master switch: when false/absent, the city and federation are OFF.</summary>
+        public bool Enabled { get; set; }
+
+        /// <summary>
+        /// Relative path (from project root) of the ownership markdown doc
+        /// (<c>mde_type: ownership</c>) — routing hint "who owns which scope, with which
+        /// agents". Optional: absent → no ownership table injected.
+        /// </summary>
+        public string OwnershipDoc { get; set; }
+
+        /// <summary>
+        /// Per-project room secret, generated on first activation. Doubles as the relay
+        /// room credential and the seed of the payload-encryption key (HKDF, §12.6/6b).
+        /// Shared via git so every city on the same repo derives the same key.
+        /// </summary>
+        public string RoomSecret { get; set; }
+
+        /// <summary>
+        /// Optional override of the federation relay URL. Null → the built-in default
+        /// (errantia.net) is used. Kept here so a team can point at a self-hosted relay.
+        /// </summary>
+        public string RelayUrl { get; set; }
+
+        /// <summary>
+        /// Agenti in <b>manutenzione (WIP)</b>, per <c>a2a.name</c> (§12.5 coda differita). È
+        /// una condizione da segnalare a TUTTO il team, quindi vive qui (git) e NON nel blocco
+        /// <c>a2a:</c> del file agente — modificarlo lì cambierebbe l'A2ABlockHash e farebbe
+        /// decadere il trust (R3). Un agente in questa lista → le richieste per lui sono
+        /// <c>deferred:maintenance</c> (parcheggiate, non fallite) finché non esce dalla lista.
+        /// </summary>
+        public List<string> Maintenance { get; set; }
+
+        /// <summary>
+        /// Isolamento d'esecuzione per-agente (Fase 7c): quando <c>true</c>, ogni risveglio LLM
+        /// gira in un <b>worktree git persistente</b> fuori dal progetto (branch fresco per
+        /// attività, reset "prepara-prima-di-eseguire"), invece che nella working tree dell'umano.
+        /// <b>Opt-in, default false</b>: assente/false → comportamento storico (cwd = progetto).
+        /// Richiede che il progetto sia un repo git con remote <c>origin</c>.
+        /// </summary>
+        /// <summary>
+        /// <c>null</c> = <b>non deciso</b>: si applica il default, che è <c>true</c> quando il
+        /// progetto è un repo git (l'isolamento serve, e può funzionare) e <c>false</c> quando
+        /// non lo è (senza git non esistono worktree). Distinguere "assente" da "false" è ciò
+        /// che permette di avere un default sensato senza impedire di spegnerlo a mano.
+        /// </summary>
+        public bool? UseAgentWorktrees { get; set; }
+
+        /// <summary>
+        /// Auto-merge dei deliverable-doc degli agenti (Fase 7g): quando <c>true</c>, a un deliverable
+        /// pushato (7d.2) che NON tocca il submodule-codice, un gate meccanico fonde il branch
+        /// d'attività nel default e pusha (doc-CI leggera/assente → auto). <b>Opt-in, default false</b>:
+        /// il merge in main resta manuale. Richiede <see cref="UseAgentWorktrees"/>. Il merge del
+        /// CODICE resta umano (§7e). Conflitto → not-ready (l'agente rilavora).
+        /// </summary>
+        /// <summary>
+        /// ⚠️ <b>RITIRATO (2026-08-02)</b>: non è più letto da nessuno. Il merge automatico dei
+        /// deliverable-doc è stato sostituito dalla <b>richiesta di merge</b> — il gate meccanico
+        /// resta ma propone invece di fondere, e decide l'umano. La proprietà sopravvive solo
+        /// perché i <c>.development.yml</c> esistenti la contengono e la deserializzazione non
+        /// deve rompersi; la spunta corrispondente è stata tolta dalla UI, perché un campo di
+        /// configurazione che il backend non consuma è una bugia verso chi lo spunta.
+        /// </summary>
+        public bool? AutoMergeAgentDeliverables { get; set; }
     }
 
     /// <summary>

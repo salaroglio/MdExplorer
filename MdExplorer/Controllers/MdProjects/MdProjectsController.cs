@@ -49,6 +49,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
         private readonly FoldersIgnoreService _foldersIgnoreService;
         private readonly IProjectMetadataService _projectMetadataService;
         private readonly IGitAuthorsService _gitAuthorsService;
+        private readonly MdExplorer.Services.Federation.IProjectRelaySettingsService _relaySettings;
         private readonly IEnumerable<IAiProvider> _aiProviders;
 
         public MdProjectsController(IUserSettingsDB userSettingsDB,
@@ -62,8 +63,10 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 FoldersIgnoreService foldersIgnoreService,
                 IProjectMetadataService projectMetadataService,
                 IGitAuthorsService gitAuthorsService,
+                MdExplorer.Services.Federation.IProjectRelaySettingsService relaySettings,
                 IEnumerable<IAiProvider> aiProviders)
         {
+            _relaySettings = relaySettings;
             _userSettingsDB = userSettingsDB;
             _services = services;
             _processUtil = processUtil;
@@ -198,6 +201,172 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 logger?.LogError(ex, "Failed to save participants for {Path}", path);
                 return StatusCode(500, new { message = "Failed to save participants", error = ex.Message });
             }
+        }
+
+        /// <summary>
+        /// Stato di attivazione della città degli agenti (§12.4). Il room secret NON è
+        /// esposto (credenziale, vive nel .development.yml condiviso via git): il client
+        /// sa solo se esiste.
+        /// </summary>
+        [HttpGet]
+        public IActionResult AgentCity([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+
+            var cfg = _projectMetadataService.GetAgentCity(path);
+            return Ok(ToAgentCityDto(cfg, path));
+        }
+
+        /// <summary>Attiva/disattiva la città e imposta il doc di ownership (§12.4).</summary>
+        [HttpPost]
+        public IActionResult SetAgentCity([FromQuery] string path, [FromBody] AgentCityRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+            if (request == null)
+                return BadRequest(new { message = "request body is required" });
+
+            try
+            {
+                // I flag opt-in (worktree, auto-merge) sono booleani: non possono distinguere
+                // "non inviato" da "false". La UI oggi manda solo enabled+ownershipDoc, quindi
+                // senza questa preservazione il primo salvataggio dalle impostazioni li
+                // SPEGNEREBBE in silenzio — stessa forma del difetto gia' chiuso su RelayUrl e
+                // RoomSecret. Nullable nel DTO: null = lascia com'e'.
+                var current = _projectMetadataService.GetAgentCity(path);
+
+                var saved = _projectMetadataService.SetAgentCity(path, new AgentCityConfig
+                {
+                    Enabled = request.Enabled,
+                    OwnershipDoc = request.OwnershipDoc,
+                    RelayUrl = request.RelayUrl,
+                    UseAgentWorktrees = request.UseAgentWorktrees ?? current?.UseAgentWorktrees ?? false,
+                    AutoMergeAgentDeliverables = request.AutoMergeAgentDeliverables ?? current?.AutoMergeAgentDeliverables ?? false,
+                });
+                return Ok(ToAgentCityDto(saved, path));
+            }
+            catch (Exception ex)
+            {
+                var logger = HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>();
+                logger?.LogError(ex, "Failed to save agentCity for {Path}", path);
+                return StatusCode(500, new { message = "Failed to save agent city activation", error = ex.Message });
+            }
+        }
+
+        private static object ToAgentCityDto(AgentCityConfig cfg, string projectPath) => new
+        {
+            enabled = cfg?.Enabled ?? false,
+            ownershipDoc = cfg?.OwnershipDoc,
+            relayUrl = cfg?.RelayUrl,
+            hasRoomSecret = !string.IsNullOrWhiteSpace(cfg?.RoomSecret),
+            useAgentWorktrees = cfg?.UseAgentWorktrees ?? false,
+            autoMergeAgentDeliverables = cfg?.AutoMergeAgentDeliverables ?? false,
+            // Senza git non esistono né worktree né merge: la UI disabilita le due opzioni
+            // invece di lasciarle spuntabili e poi inerti.
+            isGitRepository = !string.IsNullOrWhiteSpace(projectPath)
+                              && (Directory.Exists(Path.Combine(projectPath, ".git"))
+                                  || System.IO.File.Exists(Path.Combine(projectPath, ".git"))),
+        };
+
+        /// <summary>
+        /// Campi nullable di proposito (memoria <c>dto_nullable_implicit_required</c>): la UI
+        /// invia solo enabled+ownershipDoc — con reference type non-nullable la validazione
+        /// automatica di <c>[ApiController]</c> risponderebbe 400 "RelayUrl is required" prima
+        /// di entrare nell'action, rendendo l'attivazione città impossibile dalla UI.
+        /// </summary>
+        public class AgentCityRequest
+        {
+            public bool Enabled { get; set; }
+            public string? OwnershipDoc { get; set; }
+            public string? RelayUrl { get; set; }
+
+            /// <summary>Opt-in isolamento worktree (Fase 7c). <c>null</c> = non toccare.</summary>
+            public bool? UseAgentWorktrees { get; set; }
+
+            /// <summary>Opt-in auto-merge dei deliverable-doc (Fase 7g). <c>null</c> = non toccare.</summary>
+            public bool? AutoMergeAgentDeliverables { get; set; }
+        }
+
+        /// <summary>
+        /// Impostazioni del relay per QUESTO progetto: indirizzo e presenza della chiave. La
+        /// chiave non esce mai dal server — il client sa solo se c'è e da dove arriva.
+        /// </summary>
+        [HttpGet]
+        public IActionResult RelaySettings([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+
+            var cfg = _projectMetadataService.GetAgentCity(path);
+            var view = _relaySettings.Get(path, cfg?.RelayUrl);
+            return Ok(ToRelayDto(view));
+        }
+
+        /// <summary>Salva indirizzo e/o chiave del relay per questo progetto.</summary>
+        [HttpPost]
+        public IActionResult SetRelaySettings([FromQuery] string path, [FromBody] RelaySettingsRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+            if (request == null)
+                return BadRequest(new { message = "request body is required" });
+
+            try
+            {
+                _relaySettings.Save(path, request.RelayUrl, request.ApiKey, request.ClearApiKey);
+
+                var cfg = _projectMetadataService.GetAgentCity(path);
+                return Ok(ToRelayDto(_relaySettings.Get(path, cfg?.RelayUrl)));
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Precondizione non soddisfatta (progetto non registrato): messaggio azionabile,
+                // non un 500 generico.
+                return UnprocessableEntity(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                var logger = HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>();
+                logger?.LogError(ex, "Failed to save relay settings for {Path}", path);
+                return StatusCode(500, new { message = "Failed to save relay settings", error = ex.Message });
+            }
+        }
+
+        /// <summary>Bussa al relay con la chiave configurata e riporta cosa ha risposto.</summary>
+        [HttpPost]
+        public async Task<IActionResult> TestRelaySettings([FromQuery] string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+                return BadRequest(new { message = "path is required" });
+
+            var cfg = _projectMetadataService.GetAgentCity(path);
+            var result = await _relaySettings.TestAsync(path, cfg?.RelayUrl, HttpContext.RequestAborted);
+            return Ok(new { success = result.Success, statusCode = result.StatusCode, message = result.Message });
+        }
+
+        private static object ToRelayDto(MdExplorer.Services.Federation.RelaySettingsView view) => new
+        {
+            relayUrl = view.RelayUrl,
+            relayUrlSource = view.RelayUrlSource.ToString(),
+            hasApiKey = view.HasApiKey,
+            apiKeySource = view.ApiKeySource.ToString(),
+            lastTestedAt = view.LastTestedAt,
+            lastTestSuccess = view.LastTestSuccess,
+        };
+
+        /// <summary>
+        /// Nullable di proposito, come <see cref="AgentCityRequest"/>: la UI manda solo i campi
+        /// che cambia, e un reference type non-nullable farebbe scattare il 400 automatico di
+        /// <c>[ApiController]</c> prima di entrare nell'action (memoria dto_nullable_implicit_required).
+        /// </summary>
+        public class RelaySettingsRequest
+        {
+            public string? RelayUrl { get; set; }
+            /// <summary>Vuoto/assente ⇒ chiave invariata (la UI non rimanda mai quella salvata).</summary>
+            public string? ApiKey { get; set; }
+            /// <summary>Richiesta esplicita di rimuovere la chiave salvata.</summary>
+            public bool ClearApiKey { get; set; }
         }
 
         [HttpGet]
@@ -510,6 +679,27 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 __perfPhase.Restart();
             };
 
+            // La scelta dell'harness arriva SOLO dalla finestra di creazione. Su una riapertura
+            // la richiesta non la porta, e allora comanda il progetto: e' cosi' che una scelta
+            // "nessun harness" smette di essere riscritta a Copilot a ogni apertura.
+            HarnessTarget? requestedHarness;
+            if (!string.IsNullOrWhiteSpace(request.Harness))
+            {
+                if (!HarnessLayout.TryParseId(request.Harness, out var parsed))
+                {
+                    return BadRequest(new { error = $"Unknown harness '{request.Harness}'. Allowed values: {HarnessLayout.AllowedIds}." });
+                }
+                requestedHarness = parsed;
+            }
+            else if (request.AddCopilotInstructions.HasValue)
+            {
+                requestedHarness = request.AddCopilotInstructions.Value ? HarnessTarget.Copilot : HarnessTarget.None;
+            }
+            else
+            {
+                requestedHarness = null;
+            }
+
             try
             {
                 // Invalidate FoldersIgnore cache to pick up any changes to .mdFoldersIgnore
@@ -518,7 +708,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
                 // IMPORTANT: Run migrations FIRST, before opening database sessions
                 // This prevents "database is locked" errors because NHibernate holds the file open
-                bool gitInitialized = ProjectsManager.SetNewProject(_services, request.Path, request.InitializeGit ?? false, request.AddCopilotInstructions ?? true);
+                bool gitInitialized = ProjectsManager.SetNewProject(_services, request.Path, request.InitializeGit ?? false, requestedHarness);
                 logger?.LogInformation($"✅ Database migrations completed for project: {request.Path}");
                 logPhase("ProjectsManager.SetNewProject (migrations+init)");
 
@@ -558,6 +748,23 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 _userSettingsDB.Commit();
                 logger?.LogInformation($"📝 Project saved. LinkIndexingEnabled={project.LinkIndexingEnabled}");
                 logPhase("UserSettingsDB Project upsert");
+
+                // Hook "project opened" (es. schedule di agenti .agent.md con trigger
+                // projectOpen). Ogni handler è isolato: un hook rotto non deve mai
+                // impedire l'apertura del progetto.
+                foreach (var projectOpenedHandler in HttpContext.RequestServices
+                             .GetServices<MdExplorer.Abstractions.Services.IProjectOpenedEventHandler>())
+                {
+                    try
+                    {
+                        projectOpenedHandler.OnProjectOpened(request.Path);
+                    }
+                    catch (Exception hookEx)
+                    {
+                        logger?.LogError(hookEx, "Project-opened hook {Handler} failed",
+                            projectOpenedHandler.GetType().Name);
+                    }
+                }
 
                 // Log Git initialization status
                 if (gitInitialized)
@@ -681,13 +888,54 @@ namespace MdExplorer.Service.Controllers.MdProjects
                             "Check Startup.cs IAiProvider registrations.");
                     }
                     copilotProvider.WorkingDirectory = request.Path;
-                    copilotCliDefaultModel = "claude-sonnet-4.6";
+                    copilotCliDefaultModel = "claude-sonnet-5";
                     copilotCliAvailable = copilotProvider.IsAvailable();
                     logger?.LogInformation(
                         "🤖 CopilotCli auto-select: available={Available}, model={Model}, cwd={Cwd}",
                         copilotCliAvailable, copilotCliDefaultModel, request.Path);
                 }
                 logPhase("CopilotCli availability (sync probe)");
+
+                // Claude Code auto-select: stesso probe deterministico, provider diverso.
+                // Qui il controllo di installazione è una scansione del PATH, quindi costa
+                // millisecondi e non ha nemmeno il problema del cold start di Copilot.
+                bool claudeCodeAutoSelect = project.UseClaudeCodeAsDefault;
+                bool claudeCodeAvailable = false;
+                string claudeCodeDefaultModel = null;
+                if (claudeCodeAutoSelect)
+                {
+                    var claudeProvider = _aiProviders?
+                        .FirstOrDefault(p => p.GetProviderType() == ProviderType.ClaudeCode) as ClaudeCodeProvider;
+                    if (claudeProvider == null)
+                    {
+                        throw new InvalidOperationException(
+                            "Il progetto ha UseClaudeCodeAsDefault=true ma ClaudeCodeProvider non è stato risolto dalla DI. " +
+                            "Controlla le registrazioni IAiProvider in Startup.cs.");
+                    }
+                    claudeProvider.WorkingDirectory = request.Path;
+                    // Alias, non nome pieno: punta sempre all'ultimo Sonnet e non invecchia.
+                    claudeCodeDefaultModel = "sonnet";
+                    claudeCodeAvailable = claudeProvider.IsAvailable();
+                    logger?.LogInformation(
+                        "🤖 ClaudeCode auto-select: available={Available}, model={Model}, cwd={Cwd}",
+                        claudeCodeAvailable, claudeCodeDefaultModel, request.Path);
+                }
+                logPhase("ClaudeCode availability (sync probe)");
+
+                // Precedenza quando sono accesi entrambi: vince Claude Code. Il suo flag nasce
+                // OFF, quindi trovarlo acceso è una scelta deliberata; quello di Copilot nasce
+                // ON e potrebbe essere solo il default mai toccato. La scelta esplicita batte
+                // il default — e il client riceve UN solo auto-select acceso, così non deve
+                // arbitrare da solo (due sottoscrizioni che si contendono la chat sarebbero
+                // una corsa, non una regola).
+                if (claudeCodeAutoSelect && claudeCodeAvailable && copilotCliAutoSelect)
+                {
+                    logger?.LogInformation(
+                        "🤖 Auto-select: accesi sia ClaudeCode sia CopilotCli → vince ClaudeCode (scelta esplicita sul default)");
+                    copilotCliAutoSelect = false;
+                    copilotCliAvailable = false;
+                    copilotCliDefaultModel = null;
+                }
 
                 __perfTotal.Stop();
                 logger?.LogWarning("⏱️ [SetFolderProject PERF] TOTAL: {Ms} ms", __perfTotal.ElapsedMilliseconds);
@@ -706,7 +954,10 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     detectedProvider = detectedProvider,
                     copilotCliAutoSelect = copilotCliAutoSelect,
                     copilotCliAvailable = copilotCliAvailable,
-                    copilotCliDefaultModel = copilotCliDefaultModel
+                    copilotCliDefaultModel = copilotCliDefaultModel,
+                    claudeCodeAutoSelect = claudeCodeAutoSelect,
+                    claudeCodeAvailable = claudeCodeAvailable,
+                    claudeCodeDefaultModel = claudeCodeDefaultModel
                 });
             }
             catch (Exception ex)
@@ -871,6 +1122,25 @@ namespace MdExplorer.Service.Controllers.MdProjects
     {
         public string Path { get; set; }
         public bool? InitializeGit { get; set; }
+
+        /// <summary>
+        /// Harness scelto dalla finestra di creazione: <c>copilot</c>, <c>opencode</c> o
+        /// <c>none</c>. Assente alla RIAPERTURA di un progetto: in quel caso decide il
+        /// progetto stesso, che se lo porta scritto in .development.yml.
+        /// <para>
+        /// ⚠️ DEVE restare <c>string?</c>. Il progetto compila con
+        /// <c>&lt;Nullable&gt;annotations&lt;/Nullable&gt;</c>, e una <c>string</c> non nullable in
+        /// un DTO diventa un <c>[Required]</c> implicito: l'apertura di un progetto manda solo
+        /// <c>path</c>, quindi il binding fallirebbe e <c>[ApiController]</c> risponderebbe 400
+        /// PRIMA di entrare nel metodo — senza che nessuno possa intercettarlo.
+        /// </para>
+        /// </summary>
+        public string? Harness { get; set; }
+
+        /// <summary>
+        /// Forma precedente della stessa scelta, quando l'unico harness era Copilot.
+        /// Mantenuta per i client non ancora aggiornati; <see cref="Harness"/> ha la precedenza.
+        /// </summary>
         public bool? AddCopilotInstructions { get; set; }
     }
 }

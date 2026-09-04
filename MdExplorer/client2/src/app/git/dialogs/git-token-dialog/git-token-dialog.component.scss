@@ -11,23 +11,23 @@
   display: flex;
   gap: 12px;
   padding: 16px;
-  background-color: #e3f2fd;
+  background-color: var(--mde-accent-light);
   border-radius: 4px;
   margin-bottom: 24px;
 
   mat-icon {
-    color: #1976d2;
+    color: var(--mde-icon-accent-blue);
     margin-top: 2px;
   }
 
   p {
     margin: 0 0 8px 0;
-    color: #424242;
+    color: var(--mde-text-primary);
     line-height: 1.5;
 
     &.small-text {
       font-size: 0.9em;
-      color: #666;
+      color: var(--mde-text-secondary);
       margin: 0;
     }
   }
@@ -38,17 +38,17 @@
   align-items: center;
   gap: 12px;
   padding: 12px;
-  background-color: #f5f5f5;
+  background-color: var(--mde-bg-secondary);
   border-radius: 8px;
   margin-bottom: 20px;
 
   > mat-icon {
     &.valid {
-      color: #4caf50;
+      color: var(--mde-success-fg);
     }
 
     &.invalid {
-      color: #f44336;
+      color: var(--mde-error-fg);
     }
   }
 
@@ -66,21 +66,21 @@
         font-size: 18px;
         width: 18px;
         height: 18px;
-        color: #666;
+        color: var(--mde-icon-color);
       }
     }
 
     .token-details {
       font-size: 0.9em;
-      color: #666;
+      color: var(--mde-text-secondary);
 
       .status {
         &.valid {
-          color: #4caf50;
+          color: var(--mde-success-fg);
         }
 
         &.invalid {
-          color: #f44336;
+          color: var(--mde-error-fg);
         }
       }
     }
@@ -95,7 +95,7 @@
 .instructions-panel {
   margin: 20px 0;
   box-shadow: none;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--mde-border-color);
 
   mat-panel-title {
     display: flex;
@@ -129,18 +129,18 @@
   display: flex;
   gap: 12px;
   padding: 12px;
-  background-color: #fff3cd;
-  border: 1px solid #ffc107;
+  background-color: var(--mde-warning-bg);
+  border: 1px solid var(--mde-warning-fg);
   border-radius: 4px;
   margin-top: 16px;
 
   mat-icon {
-    color: #ff9800;
+    color: var(--mde-icon-accent-orange);
   }
 
   p {
     margin: 0;
-    color: #424242;
+    color: var(--mde-text-primary);
     font-size: 0.9em;
   }
 }

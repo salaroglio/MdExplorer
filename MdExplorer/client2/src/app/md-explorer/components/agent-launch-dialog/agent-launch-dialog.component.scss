@@ -1,0 +1,162 @@
+:host {
+  display: block;
+  min-width: 560px;
+  max-width: 760px;
+}
+
+h2[mat-dialog-title] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .title-icon {
+    color: var(--mde-icon-accent-blue);
+  }
+}
+
+.full-width {
+  width: 100%;
+}
+
+// Explicit label above every field (MDC floating labels are unreadable in dark mode)
+.field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  opacity: 0.85;
+
+  .param-description {
+    font-weight: 400;
+    opacity: 0.75;
+  }
+}
+
+.normalize-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 16px 0;
+
+  button mat-icon {
+    margin-right: 4px;
+  }
+}
+
+.params-section {
+  margin-top: 8px;
+
+  .params-header {
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+}
+
+.param-row {
+  margin-bottom: 4px;
+}
+
+.param-input-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+
+  .param-field {
+    flex: 1;
+  }
+
+  .picker-button {
+    margin-top: 4px;
+    min-width: 44px;
+    padding: 0 8px;
+  }
+}
+
+.ai-error-message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--mde-warn, #e53935);
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+// Split "Save" button: primary action (shared template) + dropdown for "only for me".
+.save-combo {
+  display: inline-flex;
+  align-items: stretch;
+
+  .save-combo__main {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  .save-combo__toggle {
+    min-width: 0;
+    padding: 0 4px;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: none;
+
+    mat-icon {
+      margin: 0;
+    }
+  }
+}
+
+/* Coda di lavoro dell'agente (Fase 6d) */
+.agent-queue {
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.04);
+  border-left: 3px solid #ef6c00;
+}
+.agent-queue-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+
+  mat-icon { font-size: 18px; height: 18px; width: 18px; }
+}
+.agent-queue-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 2px 0;
+
+  .q-from { font-weight: 600; }
+  .q-deferred {
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: rgba(239, 108, 0, 0.18);
+    color: #ef6c00;
+    &.fed { background: rgba(94, 53, 177, 0.18); color: #5e35b1; }
+  }
+  .q-preview { opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
+  .q-hub { font-size: 16px; height: 16px; width: 16px; color: #5e35b1; }
+  .flexExpand { flex: 1 1 auto; }
+}
+
+/* La scelta di dove lavora sta appena sopra i pulsanti: e' l'ultima cosa che guardi
+   prima di lanciare, ed e' quella che decide se l'agente tocca il tuo ramo. */
+.isolation-choice {
+  padding: 4px 24px 0;
+
+  .isolation-hint {
+    margin: 4px 0 0 32px;
+    font-size: 11px;
+    opacity: .7;
+    line-height: 1.35;
+  }
+}
