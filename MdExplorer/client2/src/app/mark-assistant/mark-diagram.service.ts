@@ -50,6 +50,10 @@ export class MarkDiagramService {
     private serverMessages: MdServerMessagesService,
   ) {
     this.setupIframeListener();
+    // Si registra come inoltratore delle domande di seguito: è questo servizio a
+    // conoscere MarkAssistantService, non il contrario — vedi il commento su
+    // registerDiagramFollowUpSender.
+    this.mark.registerDiagramFollowUpSender(q => this.askFollowUp(q));
   }
 
   private setupIframeListener(): void {
@@ -86,6 +90,31 @@ export class MarkDiagramService {
           context.box.name,
           err?.error || 'Non sono riuscito ad avviare la spiegazione.',
         );
+      },
+    });
+  }
+
+  /**
+   * Domanda di seguito sullo stesso box. La risposta arriva sullo stesso canale
+   * SignalR della spiegazione, quindi qui non si aspetta nulla.
+   */
+  askFollowUp(question: string): void {
+    const connectionId = this.serverMessages.connectionId;
+    if (!connectionId) {
+      this.mark.showDiagramError('', 'Non sono connesso al servizio: riapri il documento e riprova.');
+      return;
+    }
+
+    this.mark.beginDiagramFollowUp();
+
+    this.http.post(`${this.baseUrl}/follow-up`, { connectionId, question }).subscribe({
+      error: (err) => {
+        // 409 = nessuna conversazione aperta. Dirlo è più utile che tacere:
+        // significa che l'utente ha scritto senza aver prima chiesto di un box.
+        const message = err?.status === 409
+          ? 'Non stiamo parlando di nessun box: fai prima tasto destro su un elemento del diagramma.'
+          : (err?.error?.message || 'Non sono riuscito a inoltrare la domanda.');
+        this.mark.showDiagramError('', message);
       },
     });
   }

@@ -186,10 +186,33 @@ namespace MdExplorer.Features.Services.AI
             return new CopilotRunResult(StripUsageMetrics(run.Text), run.ExitCode, run.Error);
         }
 
-        public async IAsyncEnumerable<string> StreamChatAsync(
+        /// <summary>
+        /// Come <see cref="StreamChatAsync(string, string, CancellationToken)"/>, ma dentro
+        /// una <b>sessione del CLI</b>: passando lo stesso <paramref name="sessionId"/> a
+        /// chiamate successive, il modello ricorda lo scambio precedente.
+        /// </summary>
+        public IAsyncEnumerable<string> StreamChatInSessionAsync(
+            string prompt,
+            string modelId,
+            string sessionId,
+            CancellationToken ct = default)
+            => StreamChatAsync(prompt, modelId, ct, new CopilotInvocation(WorkingDirectory, null, sessionId));
+
+        /// <summary>
+        /// Implementazione di <see cref="IAiProvider"/>: nessuna sessione, ogni chiamata
+        /// e' un discorso a se'. Delega all'overload che accetta il contesto per-chiamata.
+        /// </summary>
+        public IAsyncEnumerable<string> StreamChatAsync(
             string prompt,
             string modelId = null,
-            [EnumeratorCancellation] CancellationToken ct = default)
+            CancellationToken ct = default)
+            => StreamChatAsync(prompt, modelId, ct, invocation: null);
+
+        public async IAsyncEnumerable<string> StreamChatAsync(
+            string prompt,
+            string modelId,
+            [EnumeratorCancellation] CancellationToken ct,
+            CopilotInvocation invocation)
         {
             _logger.LogInformation("[CopilotCliProvider.StreamChatAsync] Starting with prompt length: {Length}", prompt?.Length ?? 0);
 
@@ -198,7 +221,7 @@ namespace MdExplorer.Features.Services.AI
                 throw new InvalidOperationException("Copilot CLI is not available. Make sure it is installed and authenticated.");
             }
 
-            var psi = CreateProcessStartInfo(prompt, modelId, streaming: true);
+            var psi = CreateProcessStartInfo(prompt, modelId, streaming: true, invocation: invocation);
             using var process = new Process { StartInfo = psi };
 
             process.Start();
@@ -605,6 +628,13 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             if (!streaming && !outputFormatJson)
             {
                 args.Append(" --stream off");
+            }
+            if (!string.IsNullOrWhiteSpace(invocation?.SessionId))
+            {
+                // Stesso id = stessa conversazione: il CLI ricarica lo scambio precedente.
+                // Verificato il 04/09/2026 su 1.0.82 — due invocazioni separate con lo stesso
+                // --session-id e la seconda ricorda quel che le aveva detto la prima.
+                args.Append($" --session-id {invocation.SessionId}");
             }
 
             var psi = CopilotProcessLauncher.BuildStartInfo(args.ToString());

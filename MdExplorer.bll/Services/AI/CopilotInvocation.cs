@@ -26,10 +26,28 @@ namespace MdExplorer.Features.Services.AI
         /// </summary>
         public IReadOnlyDictionary<string, string> EnvironmentOverrides { get; }
 
-        public CopilotInvocation(string workingDirectory, IReadOnlyDictionary<string, string> environmentOverrides = null)
+        /// <summary>
+        /// Identificativo della sessione del CLI (<c>--session-id</c>). Passando lo stesso id
+        /// a chiamate successive il CLI <b>ricorda lo scambio precedente</b>: è ciò che rende
+        /// una domanda di seguito una vera continuazione invece di un discorso che ricomincia.
+        /// <para>
+        /// Sta qui, e non in un campo del provider, per la stessa ragione della working
+        /// directory: il provider è un singleton, e due conversazioni parallele che si
+        /// scambiassero l'id finirebbero l'una nel filo dell'altra. Come argomento, non può
+        /// succedere.
+        /// </para>
+        /// <para>Null = sessione nuova a ogni chiamata, come prima.</para>
+        /// </summary>
+        public string SessionId { get; }
+
+        public CopilotInvocation(
+            string workingDirectory,
+            IReadOnlyDictionary<string, string> environmentOverrides = null,
+            string sessionId = null)
         {
             WorkingDirectory = workingDirectory;
             EnvironmentOverrides = environmentOverrides;
+            SessionId = sessionId;
         }
 
         /// <summary>Contesto vuoto: nessuna working dir esplicita, nessun override d'ambiente.</summary>

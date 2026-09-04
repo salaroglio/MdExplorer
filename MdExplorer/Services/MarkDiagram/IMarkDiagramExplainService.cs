@@ -20,5 +20,19 @@ namespace MdExplorer.Services.MarkDiagram
             MarkDiagramContextDto context,
             string projectPath,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Domanda di seguito sullo stesso box, <b>nella stessa sessione del CLI</b>: il
+        /// modello ha ancora davanti il diagramma, il documento e la spiegazione appena data,
+        /// quindi si manda solo la domanda.
+        /// </summary>
+        /// <returns>
+        /// <c>false</c> se per questa connessione non c'è nessuna conversazione aperta —
+        /// il chiamante deve dirlo invece di far finta di aver chiesto.
+        /// </returns>
+        Task<bool> AskFollowUpAsync(
+            string connectionId,
+            string question,
+            CancellationToken ct = default);
     }
 }

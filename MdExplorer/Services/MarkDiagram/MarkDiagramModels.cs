@@ -61,4 +61,10 @@ namespace MdExplorer.Services.MarkDiagram
         public string? ConnectionId { get; set; }
         public MarkDiagramContextDto? Context { get; set; }
     }
+
+    public class MarkDiagramFollowUpRequest
+    {
+        public string? ConnectionId { get; set; }
+        public string? Question { get; set; }
+    }
 }

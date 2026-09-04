@@ -10196,6 +10196,12 @@ class MarkAssistantService {
   get isUndocked() {
     return this._isUndocked.getValue();
   }
+  get hasDiagramConversation() {
+    return this.diagramConversation !== null;
+  }
+  registerDiagramFollowUpSender(send) {
+    this.diagramFollowUpSender = send;
+  }
   constructor(translate, projectsService, router, injector, serverMessages, markActions) {
     this.translate = translate;
     this.projectsService = projectsService;
@@ -10278,6 +10284,24 @@ class MarkAssistantService {
     this.diagramAnswerStarted = false;
     /** Timer che dissolve il fumetto dopo la risposta. */
     this.thinkingTimer = null;
+    /**
+     * Conversazione su un box aperta: documento e nome del box. Finché c'è, quello
+     * che l'utente scrive nella casella è una domanda di seguito su QUEL box, non
+     * un input per gli handler delle lezioni.
+     */
+    this.diagramConversation = null;
+    /**
+     * Chi inoltra le domande di seguito. Lo registra MarkDiagramService alla sua
+     * costruzione, invece di essere questo servizio a cercarselo.
+     *
+     * La dipendenza è invertita apposta: MarkDiagramService ha già bisogno di
+     * MarkAssistantService, e se anche l'inverso fosse vero i due file si
+     * importerebbero a vicenda. Un ciclo di import fa sì che uno dei due, durante
+     * la valutazione dei decoratori, veda l'altro come `undefined` — e Angular si
+     * ritroverebbe un tipo indefinito nei metadati del costruttore. Con la
+     * registrazione il ciclo non esiste proprio.
+     */
+    this.diagramFollowUpSender = null;
     this.scheduleSpotlightRecompute = () => {
       if (this.rafScheduled) return;
       if (!this.currentSpotlightSelector) return;
@@ -10508,6 +10532,14 @@ class MarkAssistantService {
         console.warn('[Mark] Unknown lesson id:', lessonId);
         return;
       }
+      // Mark passa a un altro compito: la conversazione sul box e' chiusa. Senza
+      // questo, cio' che l'utente scrive durante una lezione verrebbe inoltrato
+      // come domanda su un diagramma che non sta piu' guardando.
+      _this2.diagramConversation = null;
+      _this2.diagramSub?.unsubscribe();
+      _this2.diagramSub = null;
+      _this2.clearThinkingTimer();
+      _this2._thinking.next([]);
       // Abort any in-flight run
       _this2.abortFlag = true;
       yield _this2.sleep(80);
@@ -10780,6 +10812,10 @@ class MarkAssistantService {
   beginDiagramExplanation(context) {
     const key = this.diagramKey(context.documentPath, context.box.name);
     const cached = this.diagramAnswers.get(key);
+    this.diagramConversation = {
+      documentPath: context.documentPath,
+      boxName: context.box.name
+    };
     this.takeOverDialog();
     if (cached) {
       // Re-shown instantly: the point of the cache is that a box you already
@@ -10791,6 +10827,10 @@ class MarkAssistantService {
       this._continueArrow.next(true);
       return;
     }
+    this.diagramConversation = {
+      documentPath: context.documentPath,
+      boxName: context.box.name
+    };
     this.diagramBoxInFlight = context.box.name;
     this.diagramAnswerStarted = false;
     this.clearThinkingTimer();
@@ -10801,6 +10841,24 @@ class MarkAssistantService {
     this.diagramSub?.unsubscribe();
     this.diagramSub = this.serverMessages.markDiagramExplain$.subscribe(evt => {
       this.onDiagramEvent(context.documentPath, evt);
+    });
+  }
+  /**
+   * Prepara la box per una domanda di seguito. La risposta precedente resta a
+   * schermo finché non arriva la prima parola della nuova: così non si guarda il
+   * vuoto mentre il modello pensa, e il fumetto intanto racconta.
+   */
+  beginDiagramFollowUp() {
+    if (!this.diagramConversation) return;
+    this.takeOverDialog();
+    this.clearThinkingTimer();
+    this._thinking.next([]);
+    this.diagramAnswerStarted = false;
+    this.diagramBoxInFlight = this.diagramConversation.boxName;
+    this.diagramSub?.unsubscribe();
+    const documentPath = this.diagramConversation.documentPath;
+    this.diagramSub = this.serverMessages.markDiagramExplain$.subscribe(evt => {
+      this.onDiagramEvent(documentPath, evt);
     });
   }
   /** Shows a failure in Mark's dialog — the user asked, they deserve to know why not. */
@@ -10849,7 +10907,11 @@ class MarkAssistantService {
           const answer = (evt.text || streamed).trim() || 'Il modello non ha risposto nulla su questo box.';
           this._text.next(answer);
           this._continueArrow.next(true);
-          if (evt.box) this.diagramAnswers.set(this.diagramKey(documentPath, evt.box), answer);
+          // La cache conserva la SINTESI INIZIALE, il punto fermo a cui si torna
+          // riselezionando il box. Una digressione non deve prenderne il posto.
+          if (evt.box && !evt.followUp) {
+            this.diagramAnswers.set(this.diagramKey(documentPath, evt.box), answer);
+          }
           this.diagramBoxInFlight = null;
           this.diagramAnswerStarted = false;
           this.diagramSub?.unsubscribe();
@@ -11001,6 +11063,7 @@ class MarkAssistantService {
   }
   /** Hide Mark completely (also wired to context-mismatch route changes). */
   hide() {
+    this.diagramConversation = null;
     this.abortFlag = true;
     this.currentSpotlightSelector = null;
     this._state.next('hidden');
@@ -11024,6 +11087,15 @@ class MarkAssistantService {
       const trimmed = (text ?? '').trim();
       if (!trimmed) return;
       if (_this9._isResponding.getValue()) return; // ignore re-entry while responding
+      // Se c'è una conversazione aperta su un box, quello che l'utente scrive è una
+      // domanda di seguito su QUEL box. Non passa dalla catena degli handler: quel
+      // contratto restituisce UNA risposta completa (`firstValueFrom`), mentre qui
+      // la risposta arriva in streaming da SignalR — infilarcela dentro vorrebbe
+      // dire aspettare il primo pezzo e buttare via il resto.
+      if (_this9.hasDiagramConversation && _this9.diagramFollowUpSender) {
+        _this9.diagramFollowUpSender(trimmed);
+        return;
+      }
       const ctx = {
         routeUrl: _this9.router.url,
         activeLessonId: _this9.currentLesson?.id ?? null
@@ -11131,6 +11203,10 @@ class MarkDiagramService {
     this.serverMessages = serverMessages;
     this.baseUrl = '../api/markdiagram';
     this.setupIframeListener();
+    // Si registra come inoltratore delle domande di seguito: è questo servizio a
+    // conoscere MarkAssistantService, non il contrario — vedi il commento su
+    // registerDiagramFollowUpSender.
+    this.mark.registerDiagramFollowUpSender(q => this.askFollowUp(q));
   }
   setupIframeListener() {
     window.addEventListener('message', event => {
@@ -11157,6 +11233,29 @@ class MarkDiagramService {
       error: err => {
         console.warn('[MarkDiagram] explain-box request failed', err);
         this.mark.showDiagramError(context.box.name, err?.error || 'Non sono riuscito ad avviare la spiegazione.');
+      }
+    });
+  }
+  /**
+   * Domanda di seguito sullo stesso box. La risposta arriva sullo stesso canale
+   * SignalR della spiegazione, quindi qui non si aspetta nulla.
+   */
+  askFollowUp(question) {
+    const connectionId = this.serverMessages.connectionId;
+    if (!connectionId) {
+      this.mark.showDiagramError('', 'Non sono connesso al servizio: riapri il documento e riprova.');
+      return;
+    }
+    this.mark.beginDiagramFollowUp();
+    this.http.post(`${this.baseUrl}/follow-up`, {
+      connectionId,
+      question
+    }).subscribe({
+      error: err => {
+        // 409 = nessuna conversazione aperta. Dirlo è più utile che tacere:
+        // significa che l'utente ha scritto senza aver prima chiesto di un box.
+        const message = err?.status === 409 ? 'Non stiamo parlando di nessun box: fai prima tasto destro su un elemento del diagramma.' : err?.error?.message || 'Non sono riuscito a inoltrare la domanda.';
+        this.mark.showDiagramError('', message);
       }
     });
   }
@@ -18197,8 +18296,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.04.9',
-  buildTime: '2026.09.04 15:48:59'
+  version: '2026.09.04.12',
+  buildTime: '2026.09.04 16:01:33'
 };
 
 /***/ }),
@@ -18232,4 +18331,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.85053c033236e1ad.js.map
+//# sourceMappingURL=main.dd82fb3710e62e41.js.map

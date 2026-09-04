@@ -50,6 +50,7 @@ export class MdServerMessagesService {
     text?: string,
     sentences?: number,
     message?: string,
+    followUp?: boolean,
   }>();
 
   // Observable for *.agent.md headless runs (AgentRunJobService): started/completed/failed

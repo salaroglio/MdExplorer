@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Hubs;
 using MdExplorer.Service.Controllers;
@@ -53,6 +54,28 @@ namespace MdExplorer.Controllers.MarkDiagram
             // Fire-and-forget: the answer travels over SignalR, not in this response.
             _ = _explainService.ExplainBoxAsync(
                 request.ConnectionId, request.Context, projectPath, CancellationToken.None);
+
+            return Ok(new { started = true });
+        }
+
+        /// <summary>
+        /// Domanda di seguito sullo stesso box, nella stessa sessione del CLI.
+        /// Se per questa connessione non c'è una conversazione aperta risponde 409: il
+        /// client deve dirlo all'utente, non fingere di aver chiesto.
+        /// </summary>
+        [HttpPost("follow-up")]
+        public async Task<IActionResult> FollowUp([FromBody] MarkDiagramFollowUpRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.ConnectionId))
+                return BadRequest("connectionId is required");
+            if (string.IsNullOrWhiteSpace(request.Question))
+                return BadRequest("question is required");
+
+            var accepted = await _explainService.AskFollowUpAsync(
+                request.ConnectionId, request.Question, CancellationToken.None);
+
+            if (!accepted)
+                return Conflict(new { message = "Nessuna conversazione aperta su un box del diagramma." });
 
             return Ok(new { started = true });
         }

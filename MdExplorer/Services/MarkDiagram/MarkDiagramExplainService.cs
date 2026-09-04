@@ -39,6 +39,19 @@ namespace MdExplorer.Services.MarkDiagram
         /// <summary>One explanation in flight per connection: a new box supersedes the old one.</summary>
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
 
+        /// <summary>
+        /// Conversazione aperta per connessione: quale box, quale sessione del CLI.
+        /// Un box nuovo apre una sessione nuova — la spiegazione riparte da zero, come
+        /// deciso; le domande di seguito invece restano dentro quella sessione.
+        /// Volatile come il resto: chiuso il documento, non resta niente.
+        /// </summary>
+        private readonly ConcurrentDictionary<string, DiagramConversation> _conversations = new();
+
+        private sealed record DiagramConversation(
+            MarkDiagramContextDto Context,
+            string ProjectPath,
+            string SessionId);
+
         public MarkDiagramExplainService(
             ILogger<MarkDiagramExplainService> logger,
             IHubContext<MonitorMDHub> hubContext,
@@ -68,6 +81,10 @@ namespace MdExplorer.Services.MarkDiagram
             _running[connectionId] = cts;
 
             var boxName = context?.Box?.Name;
+
+            // Sessione nuova per ogni box: le spiegazioni non si contaminano fra loro.
+            var sessionId = Guid.NewGuid().ToString();
+            _conversations[connectionId] = new DiagramConversation(context, projectPath, sessionId);
 
             try
             {
@@ -118,7 +135,7 @@ namespace MdExplorer.Services.MarkDiagram
                     $"({relationCount} relazioni, {documentText.Length / 1000} KB di documento)...");
 
                 var answer = new StringBuilder();
-                await foreach (var chunk in provider.StreamChatAsync(userPrompt, modelId, cts.Token))
+                await foreach (var chunk in StreamAsync(provider, userPrompt, modelId, sessionId, cts.Token))
                 {
                     if (cts.Token.IsCancellationRequested) return;
                     if (string.IsNullOrEmpty(chunk)) continue;
@@ -157,6 +174,120 @@ namespace MdExplorer.Services.MarkDiagram
                     _running.TryRemove(connectionId, out _);
                 cts.Dispose();
             }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        //  Domande di seguito
+        // ─────────────────────────────────────────────────────────────────────
+
+        public async Task<bool> AskFollowUpAsync(string connectionId, string question, CancellationToken ct = default)
+        {
+            if (!_conversations.TryGetValue(connectionId, out var conversation))
+                return false;
+
+            var boxName = conversation.Context?.Box?.Name;
+
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            if (_running.TryRemove(connectionId, out var previous))
+            {
+                try { previous.Cancel(); } catch { /* già finita */ }
+                previous.Dispose();
+            }
+            _running[connectionId] = cts;
+
+            try
+            {
+                await SendAsync(connectionId, new { phase = "start", box = boxName });
+                await SendStatusAsync(connectionId, boxName, "Riprendo il filo del discorso...");
+
+                var provider = ResolveConfiguredProvider(conversation.ProjectPath, out var modelId, out var whyNot);
+                if (provider == null)
+                {
+                    await SendAsync(connectionId, new { phase = "error", box = boxName, message = whyNot });
+                    return true;
+                }
+
+                var engineLabel = string.IsNullOrWhiteSpace(modelId) ? provider.GetName() : $"{provider.GetName()} ({modelId})";
+                await SendStatusAsync(connectionId, boxName, $"Chiedo a {engineLabel}...");
+
+                // Nella sessione il modello ha ancora davanti diagramma, documento e
+                // spiegazione appena data: si manda solo la domanda, non di nuovo tutto.
+                // Il promemoria del limite invece va ripetuto — è la regola che il modello
+                // dimentica per prima quando la conversazione si allunga.
+                var followUpPrompt =
+                    $"{question}\n\n" +
+                    $"(Ricorda: stiamo parlando del box \"{boxName}\" del diagramma. " +
+                    $"Rispondi in non più di {MarkDiagramPromptBuilder.MaxSentences} frasi, " +
+                    "senza inventare ciò che il documento non dice.)";
+
+                var answer = new StringBuilder();
+                await foreach (var chunk in StreamAsync(provider, followUpPrompt, modelId, conversation.SessionId, cts.Token))
+                {
+                    if (cts.Token.IsCancellationRequested) return true;
+                    if (string.IsNullOrEmpty(chunk)) continue;
+                    answer.Append(chunk);
+                    await SendAsync(connectionId, new { phase = "chunk", box = boxName, text = chunk });
+                }
+
+                var full = answer.ToString().Trim();
+                var sentences = MarkDiagramPromptBuilder.CountSentences(full);
+                if (sentences > MarkDiagramPromptBuilder.MaxSentences)
+                {
+                    _logger.LogWarning(
+                        "[MarkDiagram] Follow-up su '{Box}': {Count} frasi, limite {Max}",
+                        boxName, sentences, MarkDiagramPromptBuilder.MaxSentences);
+                }
+
+                // NOTA: la risposta a una domanda di seguito non entra nella cache dei box.
+                // La cache conserva la sintesi iniziale, il punto fermo a cui si torna
+                // riselezionando il box; sovrascriverla con l'esito di una digressione
+                // farebbe perdere proprio quel punto fermo.
+                await SendAsync(connectionId, new { phase = "done", box = boxName, text = full, sentences, followUp = true });
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("[MarkDiagram] Domanda di seguito su '{Box}' annullata", boxName);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[MarkDiagram] Domanda di seguito su '{Box}' fallita", boxName);
+                await SendAsync(connectionId, new { phase = "error", box = boxName, message = ex.Message });
+                return true;
+            }
+            finally
+            {
+                if (_running.TryGetValue(connectionId, out var mine) && mine == cts)
+                    _running.TryRemove(connectionId, out _);
+                cts.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Stream della risposta, dentro una sessione del CLI quando il provider ne ha una.
+        ///
+        /// <para>
+        /// Non tutti i provider hanno il concetto di sessione: Copilot CLI e Claude Code sì
+        /// (<c>--session-id</c>), le API di Gemini e OpenAI no. Dove manca, la domanda di
+        /// seguito parte comunque, ma <b>senza il filo del discorso</b> — e questo viene
+        /// scritto nel log, perché è una differenza che si sente nelle risposte e chi
+        /// legge un comportamento strano deve poterne trovare la ragione.
+        /// </para>
+        /// </summary>
+        private IAsyncEnumerable<string> StreamAsync(
+            IAiProvider provider, string prompt, string modelId, string sessionId, CancellationToken ct)
+        {
+            if (provider is CopilotCliProvider copilot && !string.IsNullOrWhiteSpace(sessionId))
+                return copilot.StreamChatInSessionAsync(prompt, modelId, sessionId, ct);
+
+            if (!string.IsNullOrWhiteSpace(sessionId))
+            {
+                _logger.LogInformation(
+                    "[MarkDiagram] Il provider '{Provider}' non ha sessioni: le domande di seguito " +
+                    "partiranno senza il filo del discorso precedente.", provider.GetName());
+            }
+            return provider.StreamChatAsync(prompt, modelId, ct);
         }
 
         // ─────────────────────────────────────────────────────────────────────
