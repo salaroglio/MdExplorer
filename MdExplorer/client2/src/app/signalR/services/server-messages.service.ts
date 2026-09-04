@@ -45,7 +45,7 @@ export class MdServerMessagesService {
   // Observable for the "Ask to MarkAgent" diagram explanation stream
   // (MarkDiagramController). Phases: start | chunk | done | error.
   public markDiagramExplain$ = new Subject<{
-    phase: 'start' | 'chunk' | 'done' | 'error',
+    phase: 'start' | 'status' | 'chunk' | 'done' | 'error',
     box?: string,
     text?: string,
     sentences?: number,

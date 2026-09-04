@@ -73,6 +73,8 @@ namespace MdExplorer.Services.MarkDiagram
             {
                 await SendAsync(connectionId, new { phase = "start", box = boxName });
 
+                await SendStatusAsync(connectionId, boxName, "Cerco il motore AI configurato...");
+
                 var provider = ResolveConfiguredProvider(projectPath, out var modelId, out var whyNot);
                 if (provider == null)
                 {
@@ -81,6 +83,16 @@ namespace MdExplorer.Services.MarkDiagram
                     await SendAsync(connectionId, new { phase = "error", box = boxName, message = whyNot });
                     return;
                 }
+
+                var engineLabel = string.IsNullOrWhiteSpace(modelId)
+                    ? provider.GetName()
+                    : $"{provider.GetName()} ({modelId})";
+
+                var documentName = System.IO.Path.GetFileName(context?.DocumentPath ?? string.Empty);
+                await SendStatusAsync(connectionId, boxName,
+                    string.IsNullOrWhiteSpace(documentName)
+                        ? "Leggo il documento..."
+                        : $"Leggo {documentName}...");
 
                 var documentText = ReadDocument(context, projectPath, out var truncated);
 
@@ -99,6 +111,11 @@ namespace MdExplorer.Services.MarkDiagram
                         provider.GetName());
                     userPrompt = systemPrompt + "\n\n" + userPrompt;
                 }
+
+                var relationCount = context?.Relations?.Count ?? 0;
+                await SendStatusAsync(connectionId, boxName,
+                    $"Chiedo a {engineLabel} di spiegare \"{boxName}\" " +
+                    $"({relationCount} relazioni, {documentText.Length / 1000} KB di documento)...");
 
                 var answer = new StringBuilder();
                 await foreach (var chunk in provider.StreamChatAsync(userPrompt, modelId, cts.Token))
@@ -406,6 +423,16 @@ namespace MdExplorer.Services.MarkDiagram
                 return (null, null);
             }
         }
+
+        /// <summary>
+        /// Racconta all'utente cosa sta succedendo mentre aspetta.
+        /// L'attesa senza spiegazione fa sembrare rotto ciò che sta solo lavorando: qui il
+        /// primo token può tardare parecchi secondi, perché prima si legge il documento e
+        /// poi si avvia un CLI. Ogni riga viene sostituita dalla successiva, e tutte quante
+        /// dalla risposta vera.
+        /// </summary>
+        private Task SendStatusAsync(string connectionId, string box, string message)
+            => SendAsync(connectionId, new { phase = "status", box, message });
 
         private Task SendAsync(string connectionId, object payload)
             => _hubContext.Clients.Client(connectionId).SendAsync(StreamEvent, payload);

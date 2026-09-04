@@ -570,7 +570,16 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             var args = new StringBuilder();
             if (useStdin)
             {
-                args.Append("-p - "); // Read prompt from stdin
+                // NIENTE -p: senza quel flag il CLI legge il prompt da stdin ed esce a
+                // risposta finita, che e' esattamente quel che serve.
+                //
+                // Prima qui c'era "-p -", nella convinzione che il trattino significasse
+                // "leggi da stdin". Non e' cosi': il CLI prende "-" come TESTO del prompt,
+                // risponde "I don't see a concrete task in your message" e termina. Il
+                // chiamante intanto scriveva decine di KB nella pipe di un processo gia'
+                // finito, e l'errore che ne usciva era "the pipe is being closed" — che
+                // non nomina ne' il prompt ne' il flag, quindi non porta a questa riga.
+                // Verificato su Copilot CLI 1.0.82 il 04/09/2026, anche con 43 KB.
             }
             else
             {
@@ -656,8 +665,23 @@ Always provide clear, concise, and well-formatted responses using proper markdow
 
         private async Task WritePromptToStdinAsync(Process process, string prompt)
         {
-            await process.StandardInput.WriteAsync(prompt);
-            process.StandardInput.Close();
+            try
+            {
+                await process.StandardInput.WriteAsync(prompt);
+                process.StandardInput.Close();
+            }
+            catch (System.IO.IOException ex)
+            {
+                // "The pipe is being closed": il CLI e' morto prima di leggere il prompt.
+                // Da solo quel messaggio non dice nulla a chi lo legge, quindi si aggiunge
+                // cio' che serve per capire — se il processo e' uscito e con quale codice.
+                var exited = process.HasExited;
+                var code = exited ? process.ExitCode.ToString() : "n/d";
+                throw new InvalidOperationException(
+                    $"Copilot CLI ha chiuso l'ingresso prima di ricevere il prompt " +
+                    $"({prompt?.Length ?? 0} caratteri; processo terminato: {exited}, exit code: {code}). " +
+                    "Di solito significa che il CLI ha rifiutato gli argomenti e si e' fermato subito.", ex);
+            }
         }
 
         private string StripUsageMetrics(string output)

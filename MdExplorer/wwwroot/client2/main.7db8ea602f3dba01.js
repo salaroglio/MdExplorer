@@ -10040,6 +10040,12 @@ class MarkAssistantService {
     this.diagramAnswers = new Map();
     /** Box currently being explained — chunks arriving for any other box are ignored. */
     this.diagramBoxInFlight = null;
+    /**
+     * True once the model has started answering. Until then the dialog shows the
+     * running commentary ("leggo il documento…", "chiedo a…"); after the first word
+     * of the real answer the commentary must never overwrite it again.
+     */
+    this.diagramAnswerStarted = false;
     this.scheduleSpotlightRecompute = () => {
       if (this.rafScheduled) return;
       if (!this.currentSpotlightSelector) return;
@@ -10552,6 +10558,7 @@ class MarkAssistantService {
       return;
     }
     this.diagramBoxInFlight = context.box.name;
+    this.diagramAnswerStarted = false;
     this._text.next(this.translate.instant('MARK.DIAGRAM.THINKING', {
       box: context.box.name
     }));
@@ -10564,6 +10571,7 @@ class MarkAssistantService {
   showDiagramError(boxName, message) {
     this.takeOverDialog();
     this.diagramBoxInFlight = null;
+    this.diagramAnswerStarted = false;
     this.diagramSub?.unsubscribe();
     this.diagramSub = null;
     this._text.next(message);
@@ -10577,19 +10585,32 @@ class MarkAssistantService {
     if (evt.box && this.diagramBoxInFlight && evt.box !== this.diagramBoxInFlight) return;
     switch (evt.phase) {
       case 'start':
-        this._text.next('');
+        this.diagramAnswerStarted = false;
         this._continueArrow.next(false);
         break;
+      case 'status':
+        // Cronaca dell'attesa: sostituisce la riga precedente, mai la risposta.
+        if (!this.diagramAnswerStarted) this._text.next(evt.message || '');
+        break;
       case 'chunk':
+        // Il primo pezzo di risposta spazza via la cronaca.
+        if (!this.diagramAnswerStarted) {
+          this.diagramAnswerStarted = true;
+          this._text.next('');
+        }
         this._text.next((this._text.getValue() || '') + (evt.text || ''));
         break;
       case 'done':
         {
-          const answer = (evt.text || this._text.getValue() || '').trim();
+          // Se non è mai partita una risposta, quello che c'è a schermo è la cronaca
+          // dell'attesa: spacciarla per risposta sarebbe peggio che ammettere il vuoto.
+          const streamed = this.diagramAnswerStarted ? this._text.getValue() || '' : '';
+          const answer = (evt.text || streamed).trim() || 'Il modello non ha risposto nulla su questo box.';
           this._text.next(answer);
           this._continueArrow.next(true);
           if (evt.box) this.diagramAnswers.set(this.diagramKey(documentPath, evt.box), answer);
           this.diagramBoxInFlight = null;
+          this.diagramAnswerStarted = false;
           this.diagramSub?.unsubscribe();
           this.diagramSub = null;
           break;
@@ -17918,8 +17939,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.04.1',
-  buildTime: '2026.09.04 11:17:11'
+  version: '2026.09.04.3',
+  buildTime: '2026.09.04 15:20:32'
 };
 
 /***/ }),
@@ -17953,4 +17974,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.c428f78f4f88d54d.js.map
+//# sourceMappingURL=main.7db8ea602f3dba01.js.map

@@ -121,6 +121,13 @@ export class MarkAssistantService {
   /** Box currently being explained — chunks arriving for any other box are ignored. */
   private diagramBoxInFlight: string | null = null;
 
+  /**
+   * True once the model has started answering. Until then the dialog shows the
+   * running commentary ("leggo il documento…", "chiedo a…"); after the first word
+   * of the real answer the commentary must never overwrite it again.
+   */
+  private diagramAnswerStarted = false;
+
   constructor(
     private translate: TranslateService,
     private projectsService: ProjectsService,
@@ -678,6 +685,7 @@ export class MarkAssistantService {
     }
 
     this.diagramBoxInFlight = context.box.name;
+    this.diagramAnswerStarted = false;
     this._text.next(
       this.translate.instant('MARK.DIAGRAM.THINKING', { box: context.box.name })
     );
@@ -692,6 +700,7 @@ export class MarkAssistantService {
   showDiagramError(boxName: string, message: string): void {
     this.takeOverDialog();
     this.diagramBoxInFlight = null;
+    this.diagramAnswerStarted = false;
     this.diagramSub?.unsubscribe();
     this.diagramSub = null;
     this._text.next(message);
@@ -707,20 +716,35 @@ export class MarkAssistantService {
 
     switch (evt.phase) {
       case 'start':
-        this._text.next('');
+        this.diagramAnswerStarted = false;
         this._continueArrow.next(false);
         break;
 
+      case 'status':
+        // Cronaca dell'attesa: sostituisce la riga precedente, mai la risposta.
+        if (!this.diagramAnswerStarted) this._text.next(evt.message || '');
+        break;
+
       case 'chunk':
+        // Il primo pezzo di risposta spazza via la cronaca.
+        if (!this.diagramAnswerStarted) {
+          this.diagramAnswerStarted = true;
+          this._text.next('');
+        }
         this._text.next((this._text.getValue() || '') + (evt.text || ''));
         break;
 
       case 'done': {
-        const answer = (evt.text || this._text.getValue() || '').trim();
+        // Se non è mai partita una risposta, quello che c'è a schermo è la cronaca
+        // dell'attesa: spacciarla per risposta sarebbe peggio che ammettere il vuoto.
+        const streamed = this.diagramAnswerStarted ? (this._text.getValue() || '') : '';
+        const answer = (evt.text || streamed).trim()
+          || 'Il modello non ha risposto nulla su questo box.';
         this._text.next(answer);
         this._continueArrow.next(true);
         if (evt.box) this.diagramAnswers.set(this.diagramKey(documentPath, evt.box), answer);
         this.diagramBoxInFlight = null;
+        this.diagramAnswerStarted = false;
         this.diagramSub?.unsubscribe();
         this.diagramSub = null;
         break;
