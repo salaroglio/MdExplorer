@@ -634,8 +634,13 @@
 // ── Maniglia di ridimensionamento ────────────────────────────────────────────
 .resize-handle {
   position: absolute;
-  width: 18px;
-  height: 18px;
+  // Area di presa più generosa del disegno: la maniglia si vede piccola ma si
+  // afferra facile. Con la cattura del puntatore, una volta presa non si molla
+  // più — ma prenderla dev'essere comodo lo stesso.
+  width: 26px;
+  height: 26px;
+  padding: 4px;
+  touch-action: none;   // il browser non deve interpretare il trascinamento come scroll
   z-index: 3;
   cursor: nwse-resize;
   // Tre tacche diagonali, nello stile dei rivetti già presenti sulla scocca.
@@ -643,10 +648,20 @@
     linear-gradient(135deg, transparent 0 42%, var(--mrk-accent-fg) 42% 52%, transparent 52%),
     linear-gradient(135deg, transparent 0 62%, var(--mrk-accent-fg) 62% 72%, transparent 72%),
     linear-gradient(135deg, transparent 0 82%, var(--mrk-accent-fg) 82% 92%, transparent 92%);
+  background-origin: content-box;
+  background-clip: content-box;
   opacity: .45;
   transition: opacity .15s ease;
 
   &:hover { opacity: 1; }
+}
+
+// Durante il ridimensionamento il cursore resta quello giusto su TUTTA la pagina
+// e nulla viene selezionato: senza, passando sopra il testo il cursore cambiava
+// e sembrava che il trascinamento fosse finito.
+:host-context(body.mark-resizing) * {
+  cursor: nwse-resize !important;
+  user-select: none !important;
 }
 
 // La maniglia prende il posto del rivetto d'angolo invece di coprirlo: l'angolo

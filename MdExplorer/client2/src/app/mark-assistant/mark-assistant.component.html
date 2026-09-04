@@ -81,7 +81,7 @@
     <div class="resize-handle"
          *ngIf="(state$ | async) === 'playing'"
          [title]="'Trascina per ridimensionare — doppio click per la dimensione originale'"
-         (mousedown)="onResizeStart($event)"
+         (pointerdown)="onResizeStart($event)"
          (dblclick)="onResizeReset($event)"></div>
 
     <div class="led-area">
@@ -105,7 +105,8 @@
         <div #textRef
              class="dialog-text"
              [class.static]="(staticMode$ | async)"
-             [style.maxHeight.px]="size?.textHeight">
+             [style.height.px]="size?.textHeight"
+             [style.maxHeight]="size ? 'none' : null">
           <div class="dialog-text-body" [innerHTML]="renderedText$ | async"></div><span class="cursor" *ngIf="(continueArrow$ | async) === false && (text$ | async)?.length > 0"></span>
         </div>
       </div>

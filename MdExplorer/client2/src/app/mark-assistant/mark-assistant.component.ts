@@ -68,6 +68,7 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
   private resizeStartY = 0;
   private resizeStartWidth = 0;
   private resizeStartTextHeight = 0;
+  private resizePointerId: number | null = null;
   private textSub: Subscription | null = null;
 
   /** Drag state. */
@@ -122,8 +123,10 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     document.removeEventListener('mousemove', this.onDragMove);
     document.removeEventListener('mouseup', this.onDragEnd);
-    document.removeEventListener('mousemove', this.onResizeMove);
-    document.removeEventListener('mouseup', this.onResizeEnd);
+    document.removeEventListener('pointermove', this.onResizeMove);
+    document.removeEventListener('pointerup', this.onResizeEnd);
+    document.removeEventListener('pointercancel', this.onResizeEnd);
+    document.body.classList.remove('mark-resizing');
     this.textSub?.unsubscribe();
     this.thinkSub?.unsubscribe();
   }
@@ -249,7 +252,7 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
    * Il segno del delta si inverte di conseguenza: senza questo, in una delle
    * due modalità la box scapperebbe dalla direzione del mouse.
    */
-  onResizeStart(event: MouseEvent): void {
+  onResizeStart(event: PointerEvent): void {
     if (event.button !== 0) return;
     const wrap = this.wrapRef?.nativeElement;
     const text = this.textRef?.nativeElement;
@@ -261,13 +264,26 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
     this.resizeStartWidth = wrap.offsetWidth;
     this.resizeStartTextHeight = text.clientHeight;
 
-    document.addEventListener('mousemove', this.onResizeMove);
-    document.addEventListener('mouseup', this.onResizeEnd);
+    // Cattura del puntatore: da qui in poi OGNI pointermove/pointerup arriva a
+    // questa maniglia, anche quando il cursore ne è uscito da un pezzo o è finito
+    // fuori dalla finestra. Con i vecchi eventi mouse su document il trascinamento
+    // si perdeva appena il puntatore usciva dall'area, ed era il motivo per cui
+    // ridimensionare sembrava scattoso: bastava andare un po' più veloci del bordo.
+    this.resizePointerId = event.pointerId;
+    try { (event.target as HTMLElement).setPointerCapture(event.pointerId); } catch { /* non supportato */ }
+
+    document.addEventListener('pointermove', this.onResizeMove);
+    document.addEventListener('pointerup', this.onResizeEnd);
+    document.addEventListener('pointercancel', this.onResizeEnd);
+    // Il cursore resta quello del ridimensionamento su tutta la pagina, e niente
+    // testo viene selezionato per sbaglio mentre si trascina.
+    document.body.classList.add('mark-resizing');
+
     event.preventDefault();
     event.stopPropagation();
   }
 
-  private onResizeMove = (event: MouseEvent): void => {
+  private onResizeMove = (event: PointerEvent): void => {
     if (!this.isResizing) return;
     // -1 quando la maniglia è in alto a sinistra: allontanarsi (dx negativo)
     // deve ingrandire.
@@ -287,8 +303,11 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
   private onResizeEnd = (): void => {
     if (!this.isResizing) return;
     this.isResizing = false;
-    document.removeEventListener('mousemove', this.onResizeMove);
-    document.removeEventListener('mouseup', this.onResizeEnd);
+    document.removeEventListener('pointermove', this.onResizeMove);
+    document.removeEventListener('pointerup', this.onResizeEnd);
+    document.removeEventListener('pointercancel', this.onResizeEnd);
+    document.body.classList.remove('mark-resizing');
+    this.resizePointerId = null;
     this.saveSize();
     // Ingrandendo, la box potrebbe ora sporgere dallo schermo.
     if (this.position) {
