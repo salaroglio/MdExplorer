@@ -14,7 +14,10 @@ details {
    Le tabelle basse (< 75vh) NON diventano riquadro: max-height non scatta.
    Scoped a .table (Markdig/UseBootstrap): jspreadsheet usa .jexcel → intatto.
    Nota: lo sticky è relativo al riquadro (la tabella stessa è lo scroll
-   container), quindi .mdeItemMainPageCenter resta invariato. */
+   container), quindi .mdeItemMainPageCenter resta invariato.
+   Attenzione se si tocca max-height: arrivare in fondo al riquadro con la
+   rotella lascerebbe il documento fermo (latching di Chrome). A rimetterlo in
+   moto è tables/table-scroll-chaining.js, che si aspetta questo riquadro. */
 .mdeItemMainPageCenter table.table {
     display: block;
     max-width: 100%;

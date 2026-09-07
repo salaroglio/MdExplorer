@@ -188,11 +188,14 @@ if (window.commonJsLoaded) {
         // TABLES: floating "find in table" button on hover (like the SVG diagram search)
         document.write("<link href='/javascripts/jqueryForFirstPage/tables/table-find.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/tables/table-find.js');
+        // TABLES: a wheel that reaches the end of a table's scroll box carries on
+        // scrolling the document (Chrome latches it to the table otherwise)
+        loadScriptOnce('/javascripts/jqueryForFirstPage/tables/table-scroll-chaining.js');
 
         // CORE: Initialization coordinator (MUST BE LAST)
         loadScriptOnce('/javascripts/jqueryForFirstPage/core/init.js');
 
-        console.log('=== MODULAR FILES LOADED (26 files) ===');
+        console.log('=== MODULAR FILES LOADED (27 files) ===');
     } else {
         console.log('=== LOADING MONOLITHIC jqueryForFirstPage.js ===');
         loadScriptOnce('/javascripts/jqueryForFirstPage.js');
