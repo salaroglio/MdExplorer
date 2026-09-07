@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using MdExplorer.Features.Services.AI;
 using MdExplorer.Features.Services.AI.CopilotAcp;
 using Microsoft.Extensions.Logging;
 
@@ -57,6 +58,8 @@ public class CopilotRunner
         if (useStdin)
         {
             psi.RedirectStandardInput = true;
+            // Senza, su Windows gli accenti del prompt arrivano al CLI come U+FFFD.
+            psi.StandardInputEncoding = AiCliEncoding.PromptStdin;
         }
 
         using var process = new Process { StartInfo = psi };

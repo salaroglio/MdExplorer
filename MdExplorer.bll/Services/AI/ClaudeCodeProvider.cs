@@ -131,6 +131,8 @@ namespace MdExplorer.Features.Services.AI
             psi.CreateNoWindow = true;
             psi.StandardOutputEncoding = Encoding.UTF8;
             psi.StandardErrorEncoding = Encoding.UTF8;
+            // Senza, su Windows gli accenti del prompt arrivano al CLI come U+FFFD.
+            psi.StandardInputEncoding = AiCliEncoding.PromptStdin;
             if (!string.IsNullOrEmpty(WorkingDirectory) && System.IO.Directory.Exists(WorkingDirectory))
             {
                 psi.WorkingDirectory = WorkingDirectory;

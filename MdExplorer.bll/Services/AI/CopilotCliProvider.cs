@@ -647,6 +647,9 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             if (useStdin)
             {
                 psi.RedirectStandardInput = true;
+                // Esplicita, altrimenti su Windows il prompt parte nel code page della
+                // console e gli accenti arrivano al CLI come U+FFFD — vedi AiCliEncoding.
+                psi.StandardInputEncoding = AiCliEncoding.PromptStdin;
             }
 
             // Working directory: quella per-chiamata (run degli agenti) vince; in sua assenza,

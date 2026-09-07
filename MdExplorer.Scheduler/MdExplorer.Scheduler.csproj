@@ -26,6 +26,7 @@
          .cmd/.ps1 shim wrapping) — LINKED, not referenced: pulling MdExplorer.bll
          would drag NHibernate and the whole service closure into the satellite. -->
     <Compile Include="..\MdExplorer.bll\Services\AI\CopilotAcp\CopilotProcessLauncher.cs" Link="CopilotProcessLauncher.cs" />
+    <Compile Include="..\MdExplorer.bll\Services\AI\AiCliEncoding.cs" Link="AiCliEncoding.cs" />
   </ItemGroup>
 
 </Project>
