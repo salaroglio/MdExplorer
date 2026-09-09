@@ -55,6 +55,11 @@ export interface ChatMessage {
 export class AiChatService {
   private hubConnection: HubConnection;
   private baseUrl = '/api/AiModels';
+
+  // Ultimo connectionId noto di MonitorMDHub: e' cosi' che il backend risale al progetto.
+  // Va conservato perche' i due hub si connettono in ordine imprevedibile, e chi arriva
+  // secondo deve poter (ri)mandare il valore senza dipendere da un timer.
+  private _projectConnId: string | null = null;
   
   private _messages$ = new BehaviorSubject<ChatMessage[]>([]);
   public messages$ = this._messages$.asObservable();
@@ -254,6 +259,9 @@ export class AiChatService {
       }
     });
 
+    // Follow the project connectionId from now on (see watchProjectConnectionId).
+    this.watchProjectConnectionId();
+
     // Start connection
     this.startConnection();
   }
@@ -289,26 +297,43 @@ export class AiChatService {
   }
 
   /**
+   * Follows the MonitorMDHub connectionId instead of taking a snapshot of it.
+   *
+   * `connectionId$` is a ReplaySubject(1) that emits when the monitor connects AND on
+   * every reconnection, so this covers both ways the link used to break: the chat
+   * connecting before the monitor (a single 2s retry lost that race and then gave up
+   * for good), and the monitor reconnecting with a NEW id while the chat kept pointing
+   * at the dead one. Without this id the backend cannot tell which project the chat is
+   * in, and every prompt dies before any CLI is even started.
+   */
+  private watchProjectConnectionId(): void {
+    this.serverMessages?.connectionId$?.subscribe(connId => {
+      if (!connId) return;
+      this._projectConnId = connId;
+      this.sendProjectConnectionId();
+    });
+  }
+
+  /**
    * Sends the MonitorMDHub connectionId to AiChatHub so it can
    * look up the project path via WatcherManager.
+   *
+   * A no-op while the chat hub is not connected: the value is kept and sent again on
+   * connect and on reconnect, because the backend forgets it for the old connectionId.
    */
   private sendProjectConnectionId(): void {
-    const projectConnId = this.serverMessages?.connectionId;
-    if (projectConnId && this.hubConnection.state === 'Connected') {
-      this.hubConnection.invoke('SetProjectConnectionId', projectConnId)
-        .then(() => console.log('[AiChatService] Sent project connectionId:', projectConnId))
-        .catch(err => console.error('[AiChatService] Error sending project connectionId:', err));
-    } else {
-      // MonitorMDHub might not be connected yet — retry after a short delay
-      setTimeout(() => {
-        const connId = this.serverMessages?.connectionId;
-        if (connId && this.hubConnection.state === 'Connected') {
-          this.hubConnection.invoke('SetProjectConnectionId', connId)
-            .then(() => console.log('[AiChatService] Sent project connectionId (retry):', connId))
-            .catch(err => console.error('[AiChatService] Error sending project connectionId:', err));
-        }
-      }, 2000);
+    const projectConnId = this._projectConnId;
+    if (!projectConnId) {
+      console.log('[AiChatService] Project connectionId not known yet \u2014 will send as soon as it is');
+      return;
     }
+    if (this.hubConnection.state !== 'Connected') {
+      console.log('[AiChatService] Chat hub not connected yet \u2014 project connectionId will be sent on connect');
+      return;
+    }
+    this.hubConnection.invoke('SetProjectConnectionId', projectConnId)
+      .then(() => console.log('[AiChatService] Sent project connectionId:', projectConnId))
+      .catch(err => console.error('[AiChatService] Error sending project connectionId:', err));
   }
 
   // Model Management

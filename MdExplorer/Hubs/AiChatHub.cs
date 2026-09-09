@@ -107,19 +107,38 @@ namespace MdExplorer.Hubs
         /// Gets the project path using the MonitorMDHub connectionId
         /// that was sent by the frontend via SetProjectConnectionId.
         /// </summary>
-        private string GetProjectPath()
+        private string GetProjectPath() => GetProjectPath(out _);
+
+        /// <summary>
+        /// Project path of this chat connection, plus the reason when there is none.
+        ///
+        /// Two links have to be closed and they break differently, so saying only "path
+        /// unknown" costs an hour of guessing every time: either the client never told us
+        /// which project connection it belongs to, or it told us one that no open project
+        /// answers for (typically a MonitorMDHub id that has since been replaced by a
+        /// reconnection). <paramref name="whyNot"/> says which.
+        /// </summary>
+        private string GetProjectPath(out string whyNot)
         {
+            whyNot = null;
+
             // Use the MonitorMDHub connectionId (sent by frontend) to find the project path
-            if (_connectionProjectConnectionIds.TryGetValue(Context.ConnectionId, out var projectConnId)
-                && !string.IsNullOrEmpty(projectConnId))
+            var hasProjectConnId = _connectionProjectConnectionIds.TryGetValue(Context.ConnectionId, out var projectConnId)
+                                   && !string.IsNullOrEmpty(projectConnId);
+            if (hasProjectConnId)
             {
                 var projectPath = _watcherManager.GetProjectPath(projectConnId);
                 if (!string.IsNullOrEmpty(projectPath))
                     return projectPath;
             }
 
-            _logger.LogWarning("⚠️ Unable to get project path. AiChat connectionId={AiChatConnId}, projectConnId={ProjectConnId}",
-                Context?.ConnectionId, _connectionProjectConnectionIds.TryGetValue(Context?.ConnectionId ?? "", out var pid) ? pid : "not set");
+            whyNot = hasProjectConnId
+                ? $"la chat è legata alla connessione di progetto '{projectConnId}', che non corrisponde a nessun progetto aperto "
+                  + "(di solito perché quella connessione è stata sostituita da una riconnessione)"
+                : "la chat non ha ancora ricevuto quale progetto sta guardando";
+
+            _logger.LogWarning("⚠️ Unable to get project path ({WhyNot}). AiChat connectionId={AiChatConnId}, projectConnId={ProjectConnId}",
+                whyNot, Context?.ConnectionId, hasProjectConnId ? projectConnId : "not set");
             return string.Empty;
         }
 
@@ -783,11 +802,12 @@ namespace MdExplorer.Hubs
                 throw new InvalidOperationException("ClaudeCodeSessionPool non registrato");
             }
 
-            var projectPath = GetProjectPath();
+            var projectPath = GetProjectPath(out var whyNoProject);
             if (string.IsNullOrEmpty(projectPath))
             {
                 throw new InvalidOperationException(
-                    "Path del progetto sconosciuto: Claude Code va lanciato dentro il progetto, non altrove.");
+                    "Non so in quale progetto lavorare, e Claude Code va lanciato dentro il progetto, non altrove: "
+                    + $"{whyNoProject}. Riapri il progetto.");
             }
 
             var effectiveModel = string.IsNullOrEmpty(modelId) ? "sonnet" : modelId;
@@ -899,10 +919,11 @@ namespace MdExplorer.Hubs
                 throw new InvalidOperationException("CopilotAcpSessionPool not registered");
             }
 
-            var projectPath = GetProjectPath();
+            var projectPath = GetProjectPath(out var whyNoProject);
             if (string.IsNullOrEmpty(projectPath))
             {
-                throw new InvalidOperationException("Project path is unknown; cannot start Copilot ACP session");
+                throw new InvalidOperationException(
+                    $"Non so in quale progetto lavorare, quindi non avvio Copilot: {whyNoProject}. Riapri il progetto.");
             }
 
             var effectiveModel = string.IsNullOrEmpty(modelId) ? "claude-sonnet-5" : modelId;
