@@ -197,77 +197,28 @@ namespace MdExplorer.Features.Commands
         }
 
         /// <summary>
-        /// Same path semantics as <see cref="FromTextCodeBlockToPreview"/>: relative (./, ../)
-        /// and plain names resolve against the folder of the .md being rendered, a leading /
-        /// resolves against the PROJECT root, and anything landing outside the project is refused.
-        ///
-        /// The collapsing of . and .. is left to <see cref="Path.GetFullPath(string)"/> rather
-        /// than to IHelper.NormalizePath, which rejoins the segments with a hardcoded backslash
-        /// and therefore only resolves on Windows.
-        ///
-        /// Returns null and fills <paramref name="error"/> when the file cannot be used.
+        /// Path resolution and sandboxing live in <see cref="ExternalFileResolver"/>, shared with
+        /// ```text(path) and ```html(path). Returns null and fills <paramref name="error"/> with
+        /// the reason to show to the author.
         /// </summary>
         private string ReadExternalFile(string fileName, RequestInfo requestInfo, out string absoluteFilePath, out string error)
         {
-            absoluteFilePath = null;
-            error = null;
             try
             {
-                // Documents get written on Windows and read on Linux (and the other way round),
-                // so accept both separators in the declared path.
-                var declaredPath = fileName.Replace('\\', '/').Trim();
+                var content = ExternalFileResolver.ReadInsideProject(
+                    fileName, requestInfo, MaxExternalFileSizeBytes, out absoluteFilePath, out error);
 
-                string relativePath;
-                if (declaredPath.StartsWith("/"))
+                if (content == null)
                 {
-                    relativePath = declaredPath.TrimStart('/');
-                }
-                else
-                {
-                    // Folder of the .md currently being rendered, relative to the project root.
-                    var currentFolder = Path.GetDirectoryName(requestInfo.CurrentQueryRequest) ?? string.Empty;
-                    relativePath = Path.Combine(currentFolder, declaredPath.Replace('/', Path.DirectorySeparatorChar));
+                    _logger.LogWarning("[FromExternalDataToPlantuml] {Reason} ({FileName})", error, fileName);
                 }
 
-                relativePath = relativePath.Replace('/', Path.DirectorySeparatorChar);
-
-                var projectRoot = Path.GetFullPath(requestInfo.CurrentRoot);
-                var absolutePath = Path.GetFullPath(Path.Combine(projectRoot, relativePath));
-
-                // Trailing separator on the root, so that a sibling folder whose name merely
-                // starts with the root's name is not mistaken for something inside the project.
-                var rootWithSeparator = projectRoot.EndsWith(Path.DirectorySeparatorChar)
-                    ? projectRoot
-                    : projectRoot + Path.DirectorySeparatorChar;
-
-                if (!absolutePath.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.LogWarning("[FromExternalDataToPlantuml] Path traversal blocked: {Path}", fileName);
-                    error = "il percorso esce dalla cartella del progetto";
-                    return null;
-                }
-
-                if (!File.Exists(absolutePath))
-                {
-                    _logger.LogWarning("[FromExternalDataToPlantuml] External file not found: {Path}", absolutePath);
-                    error = $"file non trovato — cercato in {absolutePath}";
-                    return null;
-                }
-
-                var fileInfo = new FileInfo(absolutePath);
-                if (fileInfo.Length > MaxExternalFileSizeBytes)
-                {
-                    _logger.LogWarning("[FromExternalDataToPlantuml] External file too large ({Size} bytes): {Path}", fileInfo.Length, absolutePath);
-                    error = $"file troppo grande ({fileInfo.Length / 1024} KB): il limite è {MaxExternalFileSizeBytes / 1024} KB";
-                    return null;
-                }
-
-                absoluteFilePath = absolutePath;
-                return File.ReadAllText(absolutePath, Encoding.UTF8);
+                return content;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[FromExternalDataToPlantuml] Error reading external file: {FileName}", fileName);
+                absoluteFilePath = null;
                 error = $"errore leggendo il file: {ex.Message}";
                 return null;
             }

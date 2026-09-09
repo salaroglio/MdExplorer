@@ -184,74 +184,28 @@ namespace MdExplorer.Features.Commands
         }
 
         /// <summary>
-        /// Mirrors the path-resolution + sandbox logic of <see cref="FromHtmlCodeBlockToPreview"/>.
-        /// Supports relative (./, ../), project-root absolute (/), and plain-name paths.
-        /// Returns null when the file is not found, too large, or escapes the project root.
+        /// Path resolution and sandboxing live in <see cref="ExternalFileResolver"/>, shared with
+        /// the other include commands. Returns null when the file is not found, too large, or
+        /// escapes the project root.
         /// </summary>
         private string ReadExternalFile(string fileName, RequestInfo requestInfo, out string absoluteFilePath)
         {
-            absoluteFilePath = null;
             try
             {
-                string resolvedPath;
+                var content = ExternalFileResolver.ReadInsideProject(
+                    fileName, requestInfo, MaxExternalFileSizeBytes, out absoluteFilePath, out var error);
 
-                if (fileName.StartsWith("../") || fileName.StartsWith("./"))
+                if (content == null)
                 {
-                    var listOfItem = requestInfo.CurrentQueryRequest
-                        .Split(Path.DirectorySeparatorChar, options: StringSplitOptions.RemoveEmptyEntries)
-                        .ToList();
-                    listOfItem.RemoveAt(listOfItem.Count - 1); // drop the .md filename
-
-                    var currentFolder = string.Join(Path.DirectorySeparatorChar, listOfItem.ToArray());
-                    var relativePath = fileName.Replace('/', Path.DirectorySeparatorChar);
-                    resolvedPath = Path.Combine(currentFolder, relativePath);
-                    resolvedPath = _helper.NormalizePath(resolvedPath);
-                }
-                else if (fileName.StartsWith("/"))
-                {
-                    resolvedPath = fileName.Remove(0, 1).Replace('/', Path.DirectorySeparatorChar);
-                }
-                else
-                {
-                    var listOfItem = requestInfo.CurrentQueryRequest
-                        .Split(Path.DirectorySeparatorChar, options: StringSplitOptions.RemoveEmptyEntries)
-                        .ToList();
-                    listOfItem.RemoveAt(listOfItem.Count - 1);
-
-                    var currentFolder = string.Join(Path.DirectorySeparatorChar, listOfItem.ToArray());
-                    resolvedPath = Path.Combine(currentFolder, fileName.Replace('/', Path.DirectorySeparatorChar));
-                    resolvedPath = _helper.NormalizePath(resolvedPath);
+                    _logger.LogWarning("[FromTextCodeBlockToPreview] {Reason} ({FileName})", error, fileName);
                 }
 
-                var absolutePath = Path.Combine(requestInfo.CurrentRoot, resolvedPath);
-                absolutePath = Path.GetFullPath(absolutePath);
-
-                var projectRoot = Path.GetFullPath(requestInfo.CurrentRoot);
-                if (!absolutePath.StartsWith(projectRoot, StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.LogWarning("[FromTextCodeBlockToPreview] Path traversal blocked: {Path}", fileName);
-                    return null;
-                }
-
-                if (!File.Exists(absolutePath))
-                {
-                    _logger.LogWarning("[FromTextCodeBlockToPreview] External file not found: {Path}", absolutePath);
-                    return null;
-                }
-
-                var fileInfo = new FileInfo(absolutePath);
-                if (fileInfo.Length > MaxExternalFileSizeBytes)
-                {
-                    _logger.LogWarning("[FromTextCodeBlockToPreview] External file too large ({Size} bytes): {Path}", fileInfo.Length, absolutePath);
-                    return null;
-                }
-
-                absoluteFilePath = absolutePath;
-                return File.ReadAllText(absolutePath, Encoding.UTF8);
+                return content;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[FromTextCodeBlockToPreview] Error reading external file: {FileName}", fileName);
+                absoluteFilePath = null;
                 return null;
             }
         }
