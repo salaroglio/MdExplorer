@@ -6,6 +6,7 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Commands;
 using MdExplorer.Features.Interfaces;
+using MdExplorer.Features.Services.SourceMapping;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Hubs;
 using MdExplorer.Models;
@@ -56,19 +57,19 @@ namespace MdExplorer.Service.Controllers.AiSelection
             }
 
             var text = System.IO.File.ReadAllText(fullPath);
-            var lines = SplitKeepingNoEol(text);
-            if (startLine < 1 || endLine < startLine || endLine > lines.Length)
+            var lines = MarkdownFileEditor.SplitLines(text);
+            if (!MarkdownFileEditor.IsValidRange(lines, startLine, endLine))
             {
-                return BadRequest(new { error = $"Invalid line range {startLine}-{endLine}: the file has {lines.Length} lines" });
+                return BadRequest(new { error = MarkdownFileEditor.InvalidRangeMessage(startLine, endLine, lines.Length) });
             }
 
             return Ok(new GetMarkdownFragmentResponse
             {
-                Fragment = string.Join("\n", lines.Skip(startLine - 1).Take(endLine - startLine + 1)),
+                Fragment = MarkdownFileEditor.Fragment(lines, startLine, endLine),
                 StartLine = startLine,
                 EndLine = endLine,
                 TotalLines = lines.Length,
-                LineEnding = text.Contains("\r\n") ? "crlf" : "lf"
+                LineEnding = MarkdownFileEditor.LineEnding(text) == "\r\n" ? "crlf" : "lf"
             });
         }
 
@@ -89,51 +90,32 @@ namespace MdExplorer.Service.Controllers.AiSelection
                 return validationError;
             }
 
-            // Re-read the file NOW: the dialog may have been open for a while.
+            // Re-read the file NOW: the dialog may have been open for a while. The line surgery
+            // itself (conflict check, line ending, final newline) lives in MarkdownFileEditor,
+            // shared with the image paste that inserts at a point of the document.
             var text = System.IO.File.ReadAllText(fullPath);
-            var lines = SplitKeepingNoEol(text);
-            if (dto.StartLine < 1 || dto.EndLine < dto.StartLine || dto.EndLine > lines.Length)
+            var edit = MarkdownFileEditor.ReplaceLines(text, dto.StartLine, dto.EndLine, dto.ExpectedOriginalText, dto.NewText);
+            if (edit.Status == MarkdownEditStatus.InvalidRange)
             {
-                return BadRequest(new { error = $"Invalid line range {dto.StartLine}-{dto.EndLine}: the file has {lines.Length} lines" });
+                return BadRequest(new { error = edit.Error });
             }
-
-            var currentFragment = string.Join("\n", lines.Skip(dto.StartLine - 1).Take(dto.EndLine - dto.StartLine + 1));
-            var expected = dto.ExpectedOriginalText.Replace("\r\n", "\n");
-            if (!string.Equals(currentFragment, expected, StringComparison.Ordinal))
+            if (edit.Status == MarkdownEditStatus.Conflict)
             {
                 _logger.LogWarning("[AiSelection] Replace rejected for {File}: lines {Start}-{End} changed on disk since the fragment was read", fullPath, dto.StartLine, dto.EndLine);
-                return Conflict(new { error = "content-changed", currentFragment });
+                return Conflict(new { error = "content-changed", currentFragment = edit.CurrentFragment });
             }
 
-            var eol = text.Contains("\r\n") ? "\r\n" : "\n";
-            var endsWithNewline = text.EndsWith("\n");
-            var newLines = dto.NewText.Replace("\r\n", "\n").Split('\n');
-            if (dto.NewText.Length == 0)
-            {
-                newLines = Array.Empty<string>(); // "" = delete the selected lines, not "one empty line"
-            }
-
-            var resultLines = lines.Take(dto.StartLine - 1)
-                .Concat(newLines)
-                .Concat(lines.Skip(dto.EndLine))
-                .ToArray();
-            var newContent = string.Join(eol, resultLines);
-            if (endsWithNewline && !newContent.EndsWith(eol))
-            {
-                newContent += eol;
-            }
-
-            var hasUtf8Bom = HasUtf8Bom(fullPath);
+            var hasUtf8Bom = MarkdownFileEditor.HasUtf8Bom(fullPath);
             SetFileSystemWatcherEnabled(false);
             try
             {
-                await System.IO.File.WriteAllTextAsync(fullPath, newContent, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: hasUtf8Bom));
+                await MarkdownFileEditor.WriteAsync(fullPath, edit.NewContent, hasUtf8Bom);
             }
             finally
             {
                 SetFileSystemWatcherEnabled(true);
             }
-            _logger.LogInformation("[AiSelection] Replaced lines {Start}-{End} of {File} ({NewCount} new lines)", dto.StartLine, dto.EndLine, fullPath, newLines.Length);
+            _logger.LogInformation("[AiSelection] Replaced lines {Start}-{End} of {File} ({NewCount} new lines)", dto.StartLine, dto.EndLine, fullPath, edit.LastLine - edit.FirstLine + 1);
 
             if (!string.IsNullOrEmpty(dto.ConnectionId))
             {
@@ -149,7 +131,7 @@ namespace MdExplorer.Service.Controllers.AiSelection
                 await _hubContext.Clients.Client(connectionId: dto.ConnectionId).SendAsync("markdownfileischanged", monitoredMd);
             }
 
-            return Ok(new { newEndLine = dto.StartLine + newLines.Length - 1 });
+            return Ok(new { newEndLine = edit.LastLine });
         }
 
         /// <summary>
@@ -190,27 +172,6 @@ namespace MdExplorer.Service.Controllers.AiSelection
             }
             fullPath = candidate;
             return null;
-        }
-
-        private static bool HasUtf8Bom(string filePath)
-        {
-            using var stream = System.IO.File.OpenRead(filePath);
-            Span<byte> bom = stackalloc byte[3];
-            return stream.Read(bom) == 3 && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF;
-        }
-
-        private static string[] SplitKeepingNoEol(string text)
-        {
-            var lines = text.Split('\n');
-            for (var i = 0; i < lines.Length; i++)
-            {
-                var line = lines[i];
-                if (line.Length > 0 && line[line.Length - 1] == '\r')
-                {
-                    lines[i] = line.Substring(0, line.Length - 1);
-                }
-            }
-            return lines;
         }
     }
 }
