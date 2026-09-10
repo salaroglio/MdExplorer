@@ -53,6 +53,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using MdExplorer.Features.Services.SourceMapping;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -718,30 +719,18 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     var sanitizedName = ruleReg.Replace(baseName, "-").Replace(" ", "-");
                     var timestamp = DateTime.Now.ToString("yyyyMMddHHmmss");
 
-                    // Create assets directory next to the document
+                    // Paths first, writes later: the markdown block needs the image path, and the
+                    // document edit must be decided (and possibly refused) BEFORE anything is
+                    // written — a conflict found after the images are saved would leave them
+                    // orphaned in assets/.
                     var assetsDirectory = Path.Combine(
                         Path.GetDirectoryName(request.DocumentPath),
                         "assets"
                     );
-                    Directory.CreateDirectory(assetsDirectory);
-
-                    // Save original image (for rollback)
                     var originalFileName = $"{sanitizedName}_original_{timestamp}.png";
                     var originalImagePath = Path.Combine(assetsDirectory, originalFileName);
-                    using (var stream = new FileStream(originalImagePath, FileMode.Create))
-                    {
-                        await request.OriginalImage.CopyToAsync(stream);
-                    }
-
-                    // Save annotated image
                     var annotatedFileName = $"{sanitizedName}_annotated_{timestamp}.png";
                     var annotatedImagePath = Path.Combine(assetsDirectory, annotatedFileName);
-                    using (var stream = new FileStream(annotatedImagePath, FileMode.Create))
-                    {
-                        await request.AnnotatedImage.CopyToAsync(stream);
-                    }
-
-                    _logger.LogInformation("SaveAnnotatedScreenshot: Saved images to {AssetsDir}", assetsDirectory);
 
                     // Calculate path relative to project root (with leading slash for absolute reference)
                     var projectPath = GetProjectPath();
@@ -767,12 +756,63 @@ namespace MdExplorer.Service.Controllers.MdFiles
 
                     var insertedMarkdown = markdownBuilder.ToString();
 
-                    // Append markdown to document
-                    var currentContent = await System.IO.File.ReadAllTextAsync(request.DocumentPath);
-                    var newContent = currentContent + insertedMarkdown;
-                    await System.IO.File.WriteAllTextAsync(request.DocumentPath, newContent);
+                    // Where the block goes. With an anchor (right-click, or Ctrl+V with the pointer on
+                    // a block) it goes before or after that block, refused if the block changed while
+                    // the wizard was open; without one it goes at the end. Both through
+                    // MarkdownFileEditor: the file keeps its line ending and its BOM — the old
+                    // append lost the BOM and wrote the machine's newline into any file.
+                    var currentContent = MarkdownFileEditor.ReadText(request.DocumentPath);
+                    MarkdownEdit edit;
+                    if (request.AnchorStartLine.HasValue)
+                    {
+                        if (!request.AnchorEndLine.HasValue || request.AnchorExpectedText == null
+                            || !TryParseBlockPosition(request.AnchorPosition, out var anchorPosition))
+                        {
+                            return BadRequest(new SaveAnnotatedScreenshotResponse
+                            {
+                                Success = false,
+                                ErrorMessage = "Ancora incompleta: servono AnchorStartLine, AnchorEndLine, AnchorPosition (before|after) e AnchorExpectedText"
+                            });
+                        }
+                        edit = MarkdownFileEditor.InsertBlock(currentContent, request.AnchorStartLine.Value, request.AnchorEndLine.Value,
+                            anchorPosition, request.AnchorExpectedText, insertedMarkdown);
+                    }
+                    else
+                    {
+                        edit = MarkdownFileEditor.AppendBlock(currentContent, insertedMarkdown);
+                    }
 
-                    _logger.LogInformation("SaveAnnotatedScreenshot: Updated markdown document");
+                    if (edit.Status == MarkdownEditStatus.Conflict)
+                    {
+                        _logger.LogWarning("SaveAnnotatedScreenshot: anchor {Start}-{End} of {Doc} changed while the wizard was open — nothing written",
+                            request.AnchorStartLine, request.AnchorEndLine, request.DocumentPath);
+                        return Conflict(new SaveAnnotatedScreenshotResponse
+                        {
+                            Success = false,
+                            ErrorMessage = "Il punto scelto nel documento è cambiato mentre annotavi: l'immagine non è stata inserita. Ricarica il documento e riprova."
+                        });
+                    }
+                    if (edit.Status == MarkdownEditStatus.InvalidRange)
+                    {
+                        return BadRequest(new SaveAnnotatedScreenshotResponse { Success = false, ErrorMessage = edit.Error });
+                    }
+
+                    // The edit is decided: now the writes.
+                    Directory.CreateDirectory(assetsDirectory);
+                    using (var stream = new FileStream(originalImagePath, FileMode.Create))
+                    {
+                        await request.OriginalImage.CopyToAsync(stream);
+                    }
+                    using (var stream = new FileStream(annotatedImagePath, FileMode.Create))
+                    {
+                        await request.AnnotatedImage.CopyToAsync(stream);
+                    }
+                    _logger.LogInformation("SaveAnnotatedScreenshot: Saved images to {AssetsDir}", assetsDirectory);
+
+                    var hasUtf8Bom = MarkdownFileEditor.HasUtf8Bom(request.DocumentPath);
+                    await MarkdownFileEditor.WriteAsync(request.DocumentPath, edit.NewContent, hasUtf8Bom);
+
+                    _logger.LogInformation("SaveAnnotatedScreenshot: Updated markdown document, block at lines {First}-{Last}", edit.FirstLine, edit.LastLine);
 
                     // Send SignalR notification to refresh the document (only the requesting client)
                     try
@@ -3524,6 +3564,18 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 return BadRequest(new { error = "ConnectionId is required" });
             }
 
+            // L'ancora si verifica PRIMA della clipboard: se la pagina è vecchia non ha senso aprire
+            // il wizard, e l'utente annoterebbe un'immagine destinata a un punto che non esiste più.
+            PasteAnchorDto anchor = null;
+            if (request.AnchorStartLine.HasValue)
+            {
+                var anchorError = ResolvePasteAnchor(request, out anchor);
+                if (anchorError != null)
+                {
+                    return anchorError;
+                }
+            }
+
             try
             {
                 // Read image from system clipboard using CrossPlatformClipboard
@@ -3556,16 +3608,129 @@ namespace MdExplorer.Service.Controllers.MdFiles
                         success = true,
                         imageBase64 = imageBase64,
                         mimeType = "image/png",
-                        documentPath = request.DocumentPath
+                        documentPath = request.DocumentPath,
+                        // null = in fondo al documento (Ctrl+V fuori da un blocco): il wizard lo dice
+                        anchor
                     });
 
-                return Ok(new { success = true, message = "Image sent via SignalR" });
+                return Ok(new { success = true, message = "Image sent via SignalR", anchor });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[TriggerPasteWizard] Error processing clipboard");
                 return StatusCode(500, new { error = "Error processing clipboard", details = ex.Message });
             }
+        }
+
+        /// <summary>
+        /// Verifica l'ancora di un incolla e ne cattura le righe. Restituisce l'errore da mandare al
+        /// client, o null se l'ancora è buona.
+        /// <para>
+        /// 409 <c>document-changed</c> quando il file non è più quello da cui la pagina è stata
+        /// costruita: le righe della pagina punterebbero nel posto sbagliato, e inserire lì sarebbe
+        /// esattamente il guasto che questa funzionalità non deve avere. Si rifiuta, non si indovina.
+        /// </para>
+        /// </summary>
+        private IActionResult ResolvePasteAnchor(TriggerPasteWizardRequest request, out PasteAnchorDto anchor)
+        {
+            anchor = null;
+
+            if (!request.AnchorEndLine.HasValue || string.IsNullOrWhiteSpace(request.AnchorPosition)
+                || string.IsNullOrWhiteSpace(request.SourceHash))
+            {
+                return BadRequest(new { error = "Ancora incompleta: servono AnchorStartLine, AnchorEndLine, AnchorPosition e SourceHash" });
+            }
+            if (!TryParseBlockPosition(request.AnchorPosition, out var position))
+            {
+                return BadRequest(new { error = $"AnchorPosition '{request.AnchorPosition}' non valida: 'before' oppure 'after'" });
+            }
+
+            var pathError = ValidateProjectMarkdownPath(request.DocumentPath, request.ConnectionId, out var fullPath);
+            if (pathError != null)
+            {
+                return pathError;
+            }
+
+            var text = MarkdownFileEditor.ReadText(fullPath);
+            if (!string.Equals(MarkdownFileEditor.SourceHash(text), request.SourceHash, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("[TriggerPasteWizard] Ancora rifiutata per {File}: il file è cambiato dopo il caricamento della pagina", fullPath);
+                return Conflict(new
+                {
+                    error = "document-changed",
+                    message = "Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova."
+                });
+            }
+
+            var lines = MarkdownFileEditor.SplitLines(text);
+            var start = request.AnchorStartLine.Value;
+            var end = request.AnchorEndLine.Value;
+            if (!MarkdownFileEditor.IsValidRange(lines, start, end))
+            {
+                return BadRequest(new { error = MarkdownFileEditor.InvalidRangeMessage(start, end, lines.Length) });
+            }
+
+            anchor = new PasteAnchorDto
+            {
+                StartLine = start,
+                EndLine = end,
+                Position = position == BlockPosition.Before ? "before" : "after",
+                ExpectedText = MarkdownFileEditor.Fragment(lines, start, end),
+                Label = AnchorLabel(lines[start - 1])
+            };
+            return null;
+        }
+
+        private static bool TryParseBlockPosition(string value, out BlockPosition position)
+        {
+            switch ((value ?? string.Empty).Trim().ToLowerInvariant())
+            {
+                case "before": position = BlockPosition.Before; return true;
+                case "after": position = BlockPosition.After; return true;
+                default: position = BlockPosition.After; return false;
+            }
+        }
+
+        /// <summary>La prima riga del blocco, con gli spazi compattati e al massimo 60 caratteri.</summary>
+        private static string AnchorLabel(string firstLine)
+        {
+            var label = Regex.Replace(firstLine ?? string.Empty, @"\s+", " ").Trim();
+            return label.Length <= 60 ? label : label.Substring(0, 60) + "…";
+        }
+
+        /// <summary>
+        /// Un .md esistente DENTRO il progetto aperto. Serve dove il percorso arriva dal client e il
+        /// file viene letto e rimandato indietro: senza, si leggerebbe qualunque file del disco.
+        /// <para>
+        /// Il progetto si risolve dal <paramref name="connectionId"/> della RICHIESTA, non dalla query
+        /// string: la pagina (clipboard-paste.js) manda il connectionId nel corpo JSON, e
+        /// <c>GetProjectPath()</c> senza argomenti lo cerca solo nella query — ogni incolla con
+        /// l'ancora avrebbe risposto "nessun progetto aperto". Trovato provando sull'app vera.
+        /// </para>
+        /// </summary>
+        private IActionResult ValidateProjectMarkdownPath(string path, string connectionId, out string fullPath)
+        {
+            fullPath = null;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return BadRequest(new { error = "DocumentPath è obbligatorio con un'ancora" });
+            }
+            var projectPath = GetProjectPath(connectionId);
+            if (string.IsNullOrWhiteSpace(projectPath))
+            {
+                return BadRequest(new { error = "Nessun progetto aperto" });
+            }
+
+            var candidate = Path.GetFullPath(path);
+            var projectRoot = Path.GetFullPath(projectPath).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (!candidate.StartsWith(projectRoot, StringComparison.OrdinalIgnoreCase)
+                || !candidate.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+                || !System.IO.File.Exists(candidate))
+            {
+                return BadRequest(new { error = "Il documento deve essere un .md esistente dentro il progetto aperto" });
+            }
+            fullPath = candidate;
+            return null;
         }
 
         /// <summary>
@@ -3603,6 +3768,41 @@ public class TriggerPasteWizardRequest
 {
     public string ConnectionId { get; set; }
     public string? DocumentPath { get; set; }
+
+    // L'ancora: il blocco di primo livello su cui si è fatto tasto destro (o sotto il puntatore al
+    // Ctrl+V), con le righe della source map, e l'impronta del file da cui la pagina è stata
+    // costruita. Tutti facoltativi e tutti nullable: il Ctrl+V fuori da un blocco non li manda, e
+    // un campo non nullable in un progetto con Nullable annotations è un [Required] implicito —
+    // ogni incolla di sempre tornerebbe 400 prima di entrare nel metodo.
+    public int? AnchorStartLine { get; set; }
+    public int? AnchorEndLine { get; set; }
+
+    /// <summary><c>before</c> | <c>after</c>.</summary>
+    public string? AnchorPosition { get; set; }
+
+    /// <summary>Il <c>data-mde-source-hash</c> della pagina.</summary>
+    public string? SourceHash { get; set; }
+}
+
+/// <summary>
+/// Il punto del documento in cui va il blocco immagine, come lo capiscono il wizard e il salvataggio.
+/// </summary>
+public class PasteAnchorDto
+{
+    public int StartLine { get; set; }
+    public int EndLine { get; set; }
+
+    /// <summary><c>before</c> | <c>after</c>.</summary>
+    public string Position { get; set; }
+
+    /// <summary>
+    /// Le righe del blocco com'erano al tasto destro: riconfrontate al salvataggio, perché il wizard
+    /// può restare aperto per minuti mentre il file cambia altrove.
+    /// </summary>
+    public string ExpectedText { get; set; }
+
+    /// <summary>La prima riga del blocco, accorciata: per dire all'utente dove andrà l'immagine.</summary>
+    public string Label { get; set; }
 }
 
 

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -193,6 +194,30 @@ namespace MdExplorer.Features.Services.SourceMapping
             var lines = SplitLines(text);
             var lastContent = Array.FindLastIndex(lines, line => !IsBlank(line));
             return InsertAt(text, lines, lastContent + 1, block);
+        }
+
+        /// <summary>
+        /// Reads the file exactly as the document view does (<c>MdExplorerController</c>: shared
+        /// read, UTF-8, BOM dropped). It has to be the same read: <see cref="SourceHash"/> of this
+        /// text is compared with the hash the page was rendered from, and any difference in how the
+        /// two sides read the file would make them never match.
+        /// </summary>
+        public static string ReadText(string filePath)
+        {
+            using var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var reader = new StreamReader(fs, Encoding.UTF8);
+            return reader.ReadToEnd();
+        }
+
+        /// <summary>
+        /// Fingerprint of the file text a page was rendered from. The page carries it, so that an
+        /// action pointing at "line N" can be refused when the file is no longer the one whose
+        /// lines the page shows — the line numbers would point at the wrong place.
+        /// </summary>
+        public static string SourceHash(string text)
+        {
+            var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(text ?? string.Empty));
+            return Convert.ToHexString(bytes).ToLowerInvariant();
         }
 
         public static bool HasUtf8Bom(string filePath)

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using MdExplorer.Features.Services.SourceMapping;
@@ -205,6 +206,43 @@ namespace MdExplorer.Features.Tests.SourceMapping
         public void AppendWithTheFileLineEnding()
         {
             Assert.AreEqual("testo\r\n\r\n![x](/y.png)\r\n", Applied(MarkdownFileEditor.AppendBlock("testo\r\n", "![x](/y.png)")).NewContent);
+        }
+
+        // ── The page's fingerprint of the file ──────────────────────────────────────────
+
+        [TestMethod]
+        public void GiveTheSameFingerprintToTheSameTextAndADifferentOneToAnyChange()
+        {
+            Assert.AreEqual(MarkdownFileEditor.SourceHash(Lf), MarkdownFileEditor.SourceHash(Lf));
+            Assert.AreNotEqual(MarkdownFileEditor.SourceHash(Lf), MarkdownFileEditor.SourceHash(Lf + " "));
+            Assert.AreEqual(64, MarkdownFileEditor.SourceHash(Lf).Length, "SHA-256 in hex");
+        }
+
+        [TestMethod]
+        public void ReadTheFileAsTheDocumentViewDoes()
+        {
+            // The view reads with StreamReader(UTF-8), which drops the BOM: the page's fingerprint
+            // is taken on that text. Reading it any other way here would make them never match —
+            // every paste on a file with a BOM would be refused as "document changed".
+            var path = Path.Combine(Path.GetTempPath(), "mde-editor-" + Guid.NewGuid().ToString("N") + ".md");
+            try
+            {
+                File.WriteAllBytes(path, new byte[] { 0xEF, 0xBB, 0xBF }.Concat(Encoding.UTF8.GetBytes("# è\r\nx")).ToArray());
+
+                string asTheViewReadsIt;
+                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var sr = new StreamReader(fs, Encoding.UTF8))
+                {
+                    asTheViewReadsIt = sr.ReadToEnd();
+                }
+
+                Assert.AreEqual(asTheViewReadsIt, MarkdownFileEditor.ReadText(path));
+                Assert.AreEqual("# è\r\nx", MarkdownFileEditor.ReadText(path), "BOM dropped, CRLF kept");
+            }
+            finally
+            {
+                File.Delete(path);
+            }
         }
 
         // ── BOM ─────────────────────────────────────────────────────────────────────────

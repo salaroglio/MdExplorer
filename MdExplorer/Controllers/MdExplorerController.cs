@@ -548,6 +548,11 @@ namespace MdExplorer.Controllers
                 string explicitRoot = null,
                 bool readOnly = false)
         {
+            // Impronta del file COM'È su disco, prima di qualunque trasformazione: la pagina la porta
+            // (data-mde-source-hash), e un'azione che punta a "riga N" viene rifiutata se il file non
+            // è più quello da cui la pagina è stata costruita — le righe punterebbero altrove.
+            var sourceHash = MarkdownFileEditor.SourceHash(readText);
+
             // Root unica per tutto il metodo: il progetto aperto (normale) o il worktree (readonly).
             var root = string.IsNullOrEmpty(explicitRoot) ? GetProjectPath() : explicitRoot;
             var requestInfo = new RequestInfo()
@@ -743,7 +748,7 @@ namespace MdExplorer.Controllers
                      
                     ";
             XmlDocument doc1 = new XmlDocument();
-            CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId, root, theme);
+            CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId, root, theme, sourceHash);
 
             try
             {
@@ -788,7 +793,7 @@ namespace MdExplorer.Controllers
             }
         }
 
-        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId, string projectPath = "", string theme = "light")
+        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId, string projectPath = "", string theme = "light", string sourceHash = "")
         {
             var isDark = theme == "dark" || theme == "milan";
             var html = doc1.CreateElement("html");
@@ -816,16 +821,19 @@ namespace MdExplorer.Controllers
             var ConnectionId = doc1.CreateAttribute("ConnectionId");
             var DocumentPath = doc1.CreateAttribute("DocumentPath");
             var ProjectPath = doc1.CreateAttribute("ProjectPath");
+            var SourceHash = doc1.CreateAttribute("data-mde-source-hash");
             var bodyStyle = doc1.CreateAttribute("style");
             bodyStyle.Value = "overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;";
             BodyId.Value = "MdBody";
             ConnectionId.Value = connectionId;
             DocumentPath.Value = filePathSystem1;
             ProjectPath.Value = projectPath ?? "";
+            SourceHash.Value = sourceHash ?? "";
             body.Attributes.Append(BodyId);
             body.Attributes.Append(ConnectionId);
             body.Attributes.Append(DocumentPath);
             body.Attributes.Append(ProjectPath);
+            body.Attributes.Append(SourceHash);
             body.Attributes.Append(bodyStyle);
             if (isDark)
             {
@@ -862,7 +870,7 @@ namespace MdExplorer.Controllers
     {darkLink}
     <script src=""/common.js""></script>
 </head>
-<body Id=""MdBody"" ConnectionId=""{connectionId}"" DocumentPath=""{filePathSystem1}"" ProjectPath=""{projectPath}""{darkClass} style=""overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;"">
+<body Id=""MdBody"" ConnectionId=""{connectionId}"" DocumentPath=""{filePathSystem1}"" ProjectPath=""{projectPath}"" data-mde-source-hash=""{sourceHash}""{darkClass} style=""overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;"">
 {resultToParse}
 </body>
 </html>";
