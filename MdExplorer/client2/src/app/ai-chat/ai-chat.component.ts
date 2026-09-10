@@ -38,10 +38,12 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   // next to the injected-file chip. Hidden for every other provider.
   copilotCliAutoSelected = false;
   selectedCopilotModel: string | null = null;
-  readonly copilotModelOptions: ReadonlyArray<{ id: string; label: string }> = [
-    { id: 'claude-sonnet-5', label: 'Sonnet 5' },
-    { id: 'claude-opus-4.7', label: 'Opus 4.7' }
-  ];
+  // I modelli che QUESTA installazione ha davvero, da models.list (tabella AvailableModel).
+  // Prima qui c'erano due modelli scritti a mano, 'claude-sonnet-5' e 'claude-opus-4.7': su
+  // un'installazione che non li ha, il CLI risponde con un altro modello senza dirlo.
+  copilotModels: { id: string; name: string }[] = [];
+  copilotModelsLoading = false;
+  copilotModelsError: string | null = null;
 
   // Claude Code auto-select: stessa idea, picker sugli alias del CLI. Alias e non nomi
   // pieni con la data, così puntano sempre all'ultimo modello di quella famiglia e non
@@ -201,6 +203,7 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.selectedCopilotModel = model;
           this.aiService.setProvider('copilotcli', model);
           this.aiService.notifyCopilotCliConnected(model);
+          this.loadCopilotModels();
         } else if (config.autoSelect && !config.available) {
           console.log('[AiChatComponent] Copilot CLI auto-select enabled but CLI not available — locking chat');
           this.copilotCliUnavailable = true;
@@ -327,6 +330,61 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   toggleFullScreen(): void {
     this.layoutService.setChatFullScreen(!this.isChatFullScreen);
+  }
+
+  /**
+   * Le voci della combobox. Se il modello salvato per il progetto non e' piu' nell'elenco (tolto
+   * dall'abbonamento, o scelto su un'altra installazione) resta visibile e segnalato: sparire in
+   * silenzio lascerebbe la combobox vuota proprio mentre il CLI risponde con qualcos'altro.
+   */
+  get copilotModelChoices(): { id: string; name: string; unavailable: boolean }[] {
+    const choices = this.copilotModels.map(m => ({ ...m, unavailable: false }));
+    if (this.selectedCopilotModel && !choices.some(c => c.id === this.selectedCopilotModel)) {
+      choices.unshift({ id: this.selectedCopilotModel, name: this.selectedCopilotModel, unavailable: true });
+    }
+    return choices;
+  }
+
+  /**
+   * Legge i modelli salvati (istantaneo). Se non ce n'e' nessuno, e' la prima volta su questa
+   * installazione: li scopre chiedendoli al CLI.
+   */
+  loadCopilotModels(): void {
+    this.copilotModelsLoading = true;
+    this.copilotModelsError = null;
+    this.aiService.getCopilotChatModels().subscribe({
+      next: models => {
+        if (models.length) {
+          this.copilotModels = models;
+          this.copilotModelsLoading = false;
+        } else {
+          this.refreshCopilotModels();
+        }
+      },
+      error: err => this.failCopilotModels(err)
+    });
+  }
+
+  /** Chiede l'elenco al CLI (models.list, ~2 s, nessun credito) e lo salva. */
+  refreshCopilotModels(): void {
+    this.copilotModelsLoading = true;
+    this.copilotModelsError = null;
+    this.aiService.refreshCopilotCliModels().subscribe({
+      next: () => this.aiService.getCopilotChatModels().subscribe({
+        next: models => {
+          this.copilotModels = models;
+          this.copilotModelsLoading = false;
+        },
+        error: err => this.failCopilotModels(err)
+      }),
+      error: err => this.failCopilotModels(err)
+    });
+  }
+
+  private failCopilotModels(err: any): void {
+    this.copilotModelsLoading = false;
+    this.copilotModelsError = err?.error?.error || err?.message || String(err);
+    console.error('[AiChatComponent] Elenco modelli Copilot non disponibile:', this.copilotModelsError);
   }
 
   async selectCopilotModel(modelId: string): Promise<void> {

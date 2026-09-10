@@ -783,3 +783,66 @@
     min-width: 0;
   }
 }
+
+// Riga della scelta del modello Copilot, sotto la testata. Sfondo normale e token del tema,
+// non la toolbar colorata; il campo Material viene compattato perché è una riga di servizio.
+.copilot-model-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 12px;
+  border-bottom: 1px solid var(--mde-border-color);
+  background: var(--mde-bg-primary);
+  min-width: 0;
+
+  .copilot-model-label {
+    font-size: 12px;
+    color: var(--mde-text-hint);
+    white-space: nowrap;
+  }
+
+  .copilot-model-field {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 320px;
+    font-size: 13px;
+
+    ::ng-deep .mat-form-field-wrapper { padding-bottom: 0; margin: 0; }
+    ::ng-deep .mat-form-field-infix { padding: 6px 0; border-top: 0; width: auto; }
+    ::ng-deep .mat-form-field-outline { top: 0; }
+    ::ng-deep .mat-form-field-subscript-wrapper { display: none; }
+  }
+
+  .copilot-model-refresh .spinning {
+    animation: copilot-model-spin 1s linear infinite;
+  }
+
+  .copilot-model-hint {
+    font-size: 12px;
+    font-style: italic;
+    color: var(--mde-text-hint);
+    white-space: nowrap;
+  }
+
+  .copilot-model-error {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--mde-warning-fg);
+    white-space: nowrap;
+
+    mat-icon { font-size: 16px; width: 16px; height: 16px; }
+  }
+}
+
+.model-unavailable {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+@keyframes copilot-model-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

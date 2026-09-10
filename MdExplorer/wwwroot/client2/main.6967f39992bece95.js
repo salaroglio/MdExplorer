@@ -15376,6 +15376,22 @@ class AiChatService {
     }));
   }
   /**
+   * I modelli Copilot salvati (tabella AvailableModel, solo provider CopilotCli): istantaneo,
+   * nessuna chiamata al CLI. Niente cache in memoria: la tabella e' gia' il posto veloce, e una
+   * copia qui dovrebbe essere invalidata a ogni aggiornamento. Un errore arriva come errore, non
+   * come lista vuota: "nessun modello" e "non riesco a leggere i modelli" sono cose diverse.
+   */
+  getCopilotChatModels() {
+    return this.http.get('/api/aimodels/cached', {
+      params: {
+        provider: 'CopilotCli'
+      }
+    }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(response => (response?.models || []).map(m => ({
+      id: m.id,
+      name: m.name || m.id
+    }))));
+  }
+  /**
    * Refresh models via Copilot CLI discovery (slow, ~5s).
    * Deduplicates concurrent calls. Updates DB cache on the backend.
    */
@@ -18459,8 +18475,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.10.2',
-  buildTime: '2026.09.10 14:42:28'
+  version: '2026.09.10.3',
+  buildTime: '2026.09.10 15:14:25'
 };
 
 /***/ }),
@@ -18494,4 +18510,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.69cd93bd0f805c2e.js.map
+//# sourceMappingURL=main.6967f39992bece95.js.map

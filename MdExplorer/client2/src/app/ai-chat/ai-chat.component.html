@@ -21,16 +21,6 @@
           {{ compactMode ? getCurrentDocumentName().substring(0, 12) : getCurrentDocumentName() }}
         </mat-chip>
       </mat-chip-list>
-      <mat-chip-list *ngIf="copilotCliAutoSelected" class="copilot-model-picker" aria-label="Copilot model">
-        <mat-chip *ngFor="let opt of copilotModelOptions"
-                  [selected]="selectedCopilotModel === opt.id"
-                  [disabled]="isConfiguringProvider"
-                  [color]="selectedCopilotModel === opt.id ? 'accent' : undefined"
-                  (click)="selectCopilotModel(opt.id)"
-                  [matTooltip]="opt.id">
-          {{ opt.label }}
-        </mat-chip>
-      </mat-chip-list>
       <mat-chip-list *ngIf="claudeCodeAutoSelected" class="copilot-model-picker" aria-label="Claude Code model">
         <mat-chip *ngFor="let opt of claudeCodeModelOptions"
                   [selected]="selectedClaudeCodeModel === opt.id"
@@ -57,6 +47,34 @@
       <mat-icon>settings</mat-icon>
     </button>
   </mat-toolbar>
+
+  <!-- Modello Copilot: l'elenco è quello che questa installazione ha davvero (models.list),
+       non una lista scritta nel codice. Una riga a sé sotto la testata, e non dentro la
+       toolbar: lì un campo Material combatte con altezza e colori del tema. -->
+  <div class="copilot-model-bar" *ngIf="copilotCliAutoSelected">
+    <label class="copilot-model-label" for="copilot-model-select">{{ 'AI_CHAT.COPILOT_MODEL_LABEL' | translate }}</label>
+    <mat-form-field appearance="outline" class="copilot-model-field">
+      <mat-select id="copilot-model-select"
+                  [value]="selectedCopilotModel"
+                  [placeholder]="'AI_CHAT.COPILOT_MODEL_CLI_CHOOSES' | translate"
+                  [disabled]="isConfiguringProvider || copilotModelsLoading"
+                  (selectionChange)="selectCopilotModel($event.value)">
+        <mat-option *ngFor="let m of copilotModelChoices" [value]="m.id" [disabled]="m.unavailable">
+          {{ m.name }}<span *ngIf="m.unavailable" class="model-unavailable"> — {{ 'AI_CHAT.COPILOT_MODEL_UNAVAILABLE' | translate }}</span>
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+    <button mat-icon-button class="copilot-model-refresh"
+            (click)="refreshCopilotModels()"
+            [disabled]="copilotModelsLoading"
+            [matTooltip]="'AI_CHAT.COPILOT_MODEL_REFRESH' | translate">
+      <mat-icon [class.spinning]="copilotModelsLoading">refresh</mat-icon>
+    </button>
+    <span class="copilot-model-hint" *ngIf="copilotModelsLoading">{{ 'AI_CHAT.COPILOT_MODELS_LOADING' | translate }}</span>
+    <span class="copilot-model-error" *ngIf="copilotModelsError && !copilotModelsLoading" [matTooltip]="copilotModelsError">
+      <mat-icon>error_outline</mat-icon>{{ 'AI_CHAT.COPILOT_MODELS_ERROR' | translate }}
+    </span>
+  </div>
 
   <!-- Model Manager Panel -->
   <div class="model-manager-panel" *ngIf="showModelManager" #modelManagerPanel>

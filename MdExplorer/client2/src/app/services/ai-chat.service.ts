@@ -911,6 +911,18 @@ export class AiChatService {
   }
 
   /**
+   * I modelli Copilot salvati (tabella AvailableModel, solo provider CopilotCli): istantaneo,
+   * nessuna chiamata al CLI. Niente cache in memoria: la tabella e' gia' il posto veloce, e una
+   * copia qui dovrebbe essere invalidata a ogni aggiornamento. Un errore arriva come errore, non
+   * come lista vuota: "nessun modello" e "non riesco a leggere i modelli" sono cose diverse.
+   */
+  getCopilotChatModels(): Observable<{ id: string; name: string }[]> {
+    return this.http.get<any>('/api/aimodels/cached', { params: { provider: 'CopilotCli' } }).pipe(
+      map(response => (response?.models || []).map((m: any) => ({ id: m.id, name: m.name || m.id })))
+    );
+  }
+
+  /**
    * Refresh models via Copilot CLI discovery (slow, ~5s).
    * Deduplicates concurrent calls. Updates DB cache on the backend.
    */
