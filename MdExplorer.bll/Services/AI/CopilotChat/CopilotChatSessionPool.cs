@@ -4,25 +4,42 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using MdExplorer.Features.Services.AI.CopilotAcp;
+using MdExplorer.Features.Services.AI.CopilotSdk;
 using Microsoft.Extensions.Logging;
 
-namespace MdExplorer.Features.Services.AI.CopilotAcp
+namespace MdExplorer.Features.Services.AI.CopilotChat
 {
     /// <summary>
-    /// Maintains one long-lived <see cref="CopilotAcpSession"/> per connection key
-    /// (typically the SignalR connection id) so that subsequent prompts on the same
-    /// channel reuse the already-warm Copilot CLI process.
+    /// Maintains one long-lived Copilot conversation per connection key (typically the SignalR
+    /// connection id) so that subsequent prompts on the same channel reuse the already-warm
+    /// Copilot CLI process.
+    ///
+    /// <para>
+    /// Transport-agnostic: the pool holds <see cref="ICopilotChatSession"/> and asks
+    /// <see cref="ICopilotChatTransportSource"/> which one to build — the SDK normally, ACP when the
+    /// setting says so. It used to be <c>CopilotAcpSessionPool</c>; the only line that knew the
+    /// transport was the <c>new</c>, so one pool is enough, where two twins would have been the
+    /// same 270 lines twice, drifting apart at the first fix made to only one of them.
+    /// </para>
+    ///
+    /// <para>
+    /// The transport is part of what a session must match to be reused: flip the setting and the
+    /// next prompt gets a fresh session on the new transport, instead of the old one lingering
+    /// until the chat is closed.
+    /// </para>
     ///
     /// Registered as a DI singleton. Disposes all sessions on host shutdown.
     /// </summary>
-    public sealed class CopilotAcpSessionPool : IAsyncDisposable
+    public sealed class CopilotChatSessionPool : IAsyncDisposable
     {
         private static readonly TimeSpan DefaultIdleTimeout = TimeSpan.FromMinutes(30);
         private static readonly TimeSpan SweepInterval = TimeSpan.FromMinutes(2);
         private const int DefaultMaxSessions = 16;
 
         private readonly ILoggerFactory _loggerFactory;
-        private readonly ILogger<CopilotAcpSessionPool> _logger;
+        private readonly ILogger<CopilotChatSessionPool> _logger;
+        private readonly ICopilotChatTransportSource _transportSource;
         private readonly ConcurrentDictionary<string, Entry> _sessions =
             new ConcurrentDictionary<string, Entry>(StringComparer.Ordinal);
         // Per-connection serialization gate. Prevents two concurrent GetOrCreateAsync
@@ -43,33 +60,40 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
 
         private volatile bool _disposed;
 
-        public CopilotAcpSessionPool(ILoggerFactory loggerFactory, ILogger<CopilotAcpSessionPool> logger)
+        public CopilotChatSessionPool(
+            ILoggerFactory loggerFactory,
+            ILogger<CopilotChatSessionPool> logger,
+            ICopilotChatTransportSource transportSource)
         {
             _loggerFactory = loggerFactory;
             _logger = logger;
+            _transportSource = transportSource;
             _idleTimeout = DefaultIdleTimeout;
             _maxSessions = DefaultMaxSessions;
             _sweepTimer = new Timer(_ => SweepIdleSessions(), null, SweepInterval, SweepInterval);
         }
 
         /// <summary>
-        /// Returns the existing session for <paramref name="connectionId"/> if it
-        /// matches the requested <paramref name="workingDirectory"/> and
-        /// <paramref name="modelId"/>, otherwise tears it down and starts a fresh one.
+        /// Returns the existing session for <paramref name="connectionId"/> if it matches the
+        /// requested <paramref name="workingDirectory"/>, <paramref name="modelId"/> and the
+        /// transport currently configured, otherwise tears it down and starts a fresh one.
         /// </summary>
-        public async Task<CopilotAcpSession> GetOrCreateAsync(
+        public async Task<ICopilotChatSession> GetOrCreateAsync(
             string connectionId,
             string workingDirectory,
             string modelId,
             CancellationToken ct = default)
         {
-            if (_disposed) throw new ObjectDisposedException(nameof(CopilotAcpSessionPool));
+            if (_disposed) throw new ObjectDisposedException(nameof(CopilotChatSessionPool));
             if (string.IsNullOrEmpty(connectionId)) throw new ArgumentException("connectionId required", nameof(connectionId));
 
+            // Read once per request: the answer decides both whether the cached session still
+            // fits and, if not, what to build in its place.
+            var transport = _transportSource.Current();
+
             // Lock-free fast path: matching session already in cache.
-            if (_sessions.TryGetValue(connectionId, out var existingFast) && existingFast.Session.IsAlive &&
-                string.Equals(existingFast.Session.WorkingDirectory, workingDirectory, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(existingFast.Session.ModelId, modelId, StringComparison.Ordinal))
+            if (_sessions.TryGetValue(connectionId, out var existingFast) &&
+                Matches(existingFast.Session, workingDirectory, modelId, transport))
             {
                 return existingFast.Session;
             }
@@ -83,13 +107,12 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                 // Re-check under the gate.
                 if (_sessions.TryGetValue(connectionId, out var existing))
                 {
-                    if (existing.Session.IsAlive &&
-                        string.Equals(existing.Session.WorkingDirectory, workingDirectory, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(existing.Session.ModelId, modelId, StringComparison.Ordinal))
+                    if (Matches(existing.Session, workingDirectory, modelId, transport))
                     {
                         return existing.Session;
                     }
-                    _logger.LogInformation("[CopilotAcpSessionPool] Replacing stale session for {ConnectionId}", connectionId);
+                    _logger.LogInformation("[CopilotChatSessionPool] Replacing stale session for {ConnectionId} ({OldTransport} -> {NewTransport})",
+                        connectionId, existing.Session.Transport, transport);
                     await ReleaseAsync(connectionId).ConfigureAwait(false);
                 }
 
@@ -98,8 +121,7 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                     EvictOldest();
                 }
 
-                var sessionLogger = _loggerFactory.CreateLogger<CopilotAcpSession>();
-                var session = new CopilotAcpSession(sessionLogger, workingDirectory, modelId);
+                var session = CreateSession(transport, workingDirectory, modelId);
                 try
                 {
                     await session.StartAsync(ct).ConfigureAwait(false);
@@ -119,8 +141,8 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                     throw new InvalidOperationException("Failed to register session and no winner found");
                 }
 
-                _logger.LogInformation("[CopilotAcpSessionPool] Created session for {ConnectionId} (total={Total})",
-                    connectionId, _sessions.Count);
+                _logger.LogInformation("[CopilotChatSessionPool] Created {Transport} session for {ConnectionId} (total={Total})",
+                    transport, connectionId, _sessions.Count);
                 return session;
             }
             finally
@@ -128,6 +150,22 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                 gate.Release();
             }
         }
+
+        private static bool Matches(ICopilotChatSession session, string workingDirectory, string modelId, CopilotChatTransport transport)
+            => session.IsAlive &&
+               session.Transport == transport &&
+               string.Equals(session.WorkingDirectory, workingDirectory, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(session.ModelId, modelId, StringComparison.Ordinal);
+
+        private ICopilotChatSession CreateSession(CopilotChatTransport transport, string workingDirectory, string modelId)
+            => transport switch
+            {
+                CopilotChatTransport.Sdk => new CopilotSdkSession(
+                    _loggerFactory.CreateLogger<CopilotSdkSession>(), workingDirectory, modelId),
+                CopilotChatTransport.Acp => new CopilotAcpChatSession(
+                    _loggerFactory.CreateLogger<CopilotAcpSession>(), workingDirectory, modelId),
+                _ => throw new InvalidOperationException($"Trasporto Copilot sconosciuto: {transport}")
+            };
 
         /// <summary>
         /// Registers the cancellation source of the prompt now streaming for
@@ -178,7 +216,7 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
             if (string.IsNullOrEmpty(connectionId)) return;
             if (_sessions.TryRemove(connectionId, out var entry))
             {
-                _logger.LogInformation("[CopilotAcpSessionPool] Releasing session for {ConnectionId} (remaining={Remaining})",
+                _logger.LogInformation("[CopilotChatSessionPool] Releasing session for {ConnectionId} (remaining={Remaining})",
                     connectionId, _sessions.Count);
                 await entry.Session.DisposeAsync().ConfigureAwait(false);
             }
@@ -201,14 +239,14 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                     .FirstOrDefault();
                 if (oldest.Key != null)
                 {
-                    _logger.LogInformation("[CopilotAcpSessionPool] Evicting oldest session {ConnectionId} (cap={Cap})",
+                    _logger.LogInformation("[CopilotChatSessionPool] Evicting oldest session {ConnectionId} (cap={Cap})",
                         oldest.Key, _maxSessions);
                     TrackRelease(oldest.Key);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "[CopilotAcpSessionPool] Evict failed");
+                _logger.LogWarning(ex, "[CopilotChatSessionPool] Evict failed");
             }
         }
 
@@ -232,14 +270,14 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                 {
                     foreach (var id in toRelease)
                     {
-                        _logger.LogInformation("[CopilotAcpSessionPool] Sweeping idle/dead session {ConnectionId}", id);
+                        _logger.LogInformation("[CopilotChatSessionPool] Sweeping idle/dead session {ConnectionId}", id);
                         TrackRelease(id);
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "[CopilotAcpSessionPool] Sweep failed");
+                _logger.LogWarning(ex, "[CopilotChatSessionPool] Sweep failed");
             }
         }
 
@@ -267,8 +305,8 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
 
         private sealed class Entry
         {
-            public CopilotAcpSession Session { get; }
-            public Entry(CopilotAcpSession session) { Session = session; }
+            public ICopilotChatSession Session { get; }
+            public Entry(ICopilotChatSession session) { Session = session; }
         }
     }
 }

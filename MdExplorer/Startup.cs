@@ -268,8 +268,12 @@ namespace MdExplorer
             // Candidati futuri: reindicizzazione, sync KG/Fuseki, pipeline COBOL/PL1.
             services.AddSingleton<IAlgorithmicAgent, Services.AgentRegistry.PingAlgorithmicAgent>();
 
-            // Long-lived Copilot CLI ACP sessions (one persistent process per SignalR connection)
-            services.AddSingleton<MdExplorer.Features.Services.AI.CopilotAcp.CopilotAcpSessionPool>();
+            // Sessioni Copilot di lunga durata (un processo persistente per connessione SignalR).
+            // Il trasporto lo decide l'impostazione 'CopilotChatTransport': l'SDK .NET di norma,
+            // l'ACP scritto a mano come strada di riserva — vedi CopilotChatTransportSetting.
+            services.AddSingleton<MdExplorer.Features.Services.AI.CopilotChat.ICopilotChatTransportSource,
+                                  MdExplorer.Features.Services.AI.CopilotChat.CopilotChatTransportSetting>();
+            services.AddSingleton<MdExplorer.Features.Services.AI.CopilotChat.CopilotChatSessionPool>();
 
             // Sessioni Claude Code di lunga durata (un processo `claude -p` per connessione
             // SignalR, protocollo nativo stream-json). Pool separato da quello di Copilot:
