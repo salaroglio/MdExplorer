@@ -848,9 +848,8 @@ namespace MdExplorer.Hubs
                     else if (chunk.Kind == ClaudeCodeChunk.KindTool)
                     {
                         // Attività sui tool: è una riga di stato, non la risposta, e non entra
-                        // nel testo finale. Sul lato Copilot questa informazione non esiste
-                        // proprio, ed è il motivo per cui là la chat sembra ferma mentre
-                        // l'agente lavora.
+                        // nel testo finale. Copilot la manda sullo stesso canale, ma solo col
+                        // trasporto SDK: sull'ACP questa informazione non esiste.
                         await Clients.Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
                     }
                 }
@@ -965,6 +964,13 @@ namespace MdExplorer.Hubs
                     else if (chunk.Kind == CopilotChatChunk.KindThinking)
                     {
                         await Clients.Caller.SendAsync("ReceiveThinking", chunk.Text, channelId);
+                    }
+                    else if (chunk.Kind == CopilotChatChunk.KindTool)
+                    {
+                        // Same channel Claude Code already uses: a status line, not the answer,
+                        // and it never enters the final text. On the SDK transport Copilot now
+                        // reports its steps; on ACP this never arrives.
+                        await Clients.Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
                     }
                 }
             }

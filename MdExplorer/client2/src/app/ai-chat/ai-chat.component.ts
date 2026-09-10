@@ -31,6 +31,8 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   isChatFullScreen = false;
   copilotCliUnavailable = false;
   isStreaming = false;
+  // Cosa sta facendo l'agente adesso, mentre risponde. null fuori da un turno.
+  toolActivity: string | null = null;
 
   // Copilot CLI auto-select: when active, expose a Sonnet 5 / Opus 4.7 picker
   // next to the injected-file chip. Hidden for every other provider.
@@ -117,6 +119,10 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       });
 
     // Track streaming state to toggle the Send/Stop button.
+    this.aiService.toolActivity$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(activity => this.toolActivity = activity);
+
     this.aiService.isStreaming$
       .pipe(takeUntil(this.destroy$))
       .subscribe(streaming => this.isStreaming = streaming);

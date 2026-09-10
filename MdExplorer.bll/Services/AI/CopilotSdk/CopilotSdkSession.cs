@@ -298,6 +298,33 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     Write(turn.Channel, CopilotChatChunk.KindThinking, reasoning.Data?.DeltaContent);
                     break;
 
+                // What the agent is doing, as status lines apart from the answer. Before F4 these
+                // were all dropped, and the chat stood still while Copilot read files or ran a
+                // sub-agent — nothing told "working" from "stuck".
+                case AssistantIntentEvent intent:
+                    Write(turn.Channel, CopilotChatChunk.KindTool, intent.Data?.Intent);
+                    break;
+
+                case ToolExecutionStartEvent tool:
+                    Write(turn.Channel, CopilotChatChunk.KindTool, CopilotSdkActivityDescriber.DescribeTool(
+                        tool.Data?.ToolName, tool.Data?.Arguments, tool.Data?.McpServerName, tool.Data?.McpToolName,
+                        _workingDirectory));
+                    break;
+
+                case ToolExecutionProgressEvent progress:
+                    Write(turn.Channel, CopilotChatChunk.KindTool, progress.Data?.ProgressMessage);
+                    break;
+
+                case SubagentStartedEvent subagent:
+                    Write(turn.Channel, CopilotChatChunk.KindTool, CopilotSdkActivityDescriber.DescribeSubagentStarted(
+                        subagent.Data?.AgentDisplayName ?? subagent.Data?.AgentName, subagent.Data?.AgentDescription));
+                    break;
+
+                case SubagentFailedEvent failed:
+                    Write(turn.Channel, CopilotChatChunk.KindTool, CopilotSdkActivityDescriber.DescribeSubagentFailed(
+                        failed.Data?.AgentDisplayName ?? failed.Data?.AgentName, failed.Data?.Error));
+                    break;
+
                 case AssistantMessageEvent completed:
                     // The complete message, after its deltas: the one place the model that really
                     // answered is written down.
@@ -338,10 +365,8 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                         _session?.SessionId, failure.Data?.ErrorMessage);
                     break;
 
-                    // Every other event (tool_call, plan, sub-agents, usage…) is ignored HERE and
-                    // becomes visible activity in F4. Ignoring them is what makes the chat look
-                    // frozen while Copilot works, and it is the next thing to fix — not a
-                    // decision that these events do not matter.
+                    // Still ignored: usage, session housekeeping, and plan mode (ExitPlanMode*), which
+                    // is not a status to show but an interactive flow asking the user to approve.
             }
         }
 

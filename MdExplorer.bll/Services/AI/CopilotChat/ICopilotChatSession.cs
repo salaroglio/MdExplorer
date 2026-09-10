@@ -34,6 +34,12 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
 
         /// <summary>Reasoning: shown apart, and never mixed into the answer.</summary>
         public const string KindThinking = "thinking";
+
+        /// <summary>
+        /// What the agent is doing — reading a file, running a command, a sub-agent at work. A
+        /// status line, not part of the answer: it is what tells "working" from "stuck".
+        /// </summary>
+        public const string KindTool = "tool";
     }
 
     /// <summary>

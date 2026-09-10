@@ -764,3 +764,22 @@
     }
   }
 }
+
+// Riga di stato mentre l'agente risponde: spinner + l'attività in corso. In tono minore
+// (--mde-text-hint), perché non è la risposta: è il segno che il lavoro prosegue.
+.streaming-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+
+  .tool-activity {
+    font-size: 12px;
+    font-style: italic;
+    color: var(--mde-text-hint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+}

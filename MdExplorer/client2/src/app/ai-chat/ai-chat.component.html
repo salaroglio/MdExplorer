@@ -140,11 +140,15 @@
           </div>
         </div>
 
-        <mat-progress-spinner
-          *ngIf="message.isStreaming"
-          [diameter]="compactMode ? 16 : 20"
-          mode="indeterminate">
-        </mat-progress-spinner>
+        <!-- Mentre risponde: lo spinner, e cosa sta facendo l'agente (legge un file, esegue un
+             comando, un sub-agente al lavoro). È ciò che distingue "lavora" da "è bloccata". -->
+        <div class="streaming-status" *ngIf="message.isStreaming">
+          <mat-progress-spinner
+            [diameter]="compactMode ? 16 : 20"
+            mode="indeterminate">
+          </mat-progress-spinner>
+          <span class="tool-activity" *ngIf="toolActivity" [matTooltip]="toolActivity">{{ toolActivity }}</span>
+        </div>
       </div>
     </div>
   </div>
