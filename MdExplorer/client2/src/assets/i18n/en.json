@@ -949,6 +949,9 @@
     "PROCESSING": "Processing..."
   },
   "SCREENSHOT": {
+    "DEST_BEFORE": "The image will go before «{{label}}»",
+    "DEST_AFTER": "The image will go after «{{label}}»",
+    "DEST_END": "The image will go at the end of the document",
     "TITLE": "Annotate Screenshot",
     "STEP_OF": "Step {{step}} of 2",
     "STEP1_DESC": "Click on the image to place numbered markers. You can choose the color from the palette.",

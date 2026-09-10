@@ -130,6 +130,7 @@ if (window.commonJsLoaded) {
         loadScriptOnce('/javascripts/jqueryForFirstPage/ai-selection/ai-selection.js');
 
         // CLIPBOARD: Ctrl+V interception for Screenshot Annotation Wizard
+        document.write("<link href='/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.js');
 
         // PANELS: TOC, knowledge graph, and resize functionality

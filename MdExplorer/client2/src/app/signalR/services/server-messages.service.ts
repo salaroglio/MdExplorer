@@ -1,4 +1,5 @@
 import { Injectable, Injector } from '@angular/core';
+import { PasteAnchor } from '../../md-explorer/models/paste-anchor';
 import * as signalR from "@microsoft/signalr";
 import { GITService } from '../../git/services/gitservice.service';
 import { ConnectionLostProvider } from '../../signalR/dialogs/connection-lost/connection-lost.provider';
@@ -150,7 +151,9 @@ export class MdServerMessagesService {
     mimeType?: string,
     documentPath?: string,
     errorMessage?: string,
-    platformHint?: string
+    platformHint?: string,
+    // Where the image goes; null/absent = at the end of the document.
+    anchor?: PasteAnchor | null
   }>();
 
   // Observable streams for runnable fenced code blocks (MdExecutionController)

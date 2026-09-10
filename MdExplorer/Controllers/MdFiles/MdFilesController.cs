@@ -3601,6 +3601,19 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 var imageBase64 = Convert.ToBase64String(clipboardResult.ImageData);
                 _logger.LogInformation($"[TriggerPasteWizard] Image found - Size: {clipboardResult.ImageData.Length} bytes, sending via SignalR");
 
+                // The anchor with its property names spelled out, like the rest of this payload:
+                // the client must not depend on the hub's JSON naming policy to find startLine
+                // rather than StartLine — a wrong guess there would silently drop the anchor and
+                // put the image at the end.
+                var anchorPayload = anchor == null ? null : new
+                {
+                    startLine = anchor.StartLine,
+                    endLine = anchor.EndLine,
+                    position = anchor.Position,
+                    expectedText = anchor.ExpectedText,
+                    label = anchor.Label
+                };
+
                 // Send to Angular via SignalR
                 await _hubContext.Clients.Client(request.ConnectionId)
                     .SendAsync("openScreenshotAnnotationWizard", new
@@ -3610,10 +3623,10 @@ namespace MdExplorer.Service.Controllers.MdFiles
                         mimeType = "image/png",
                         documentPath = request.DocumentPath,
                         // null = in fondo al documento (Ctrl+V fuori da un blocco): il wizard lo dice
-                        anchor
+                        anchor = anchorPayload
                     });
 
-                return Ok(new { success = true, message = "Image sent via SignalR", anchor });
+                return Ok(new { success = true, message = "Image sent via SignalR", anchor = anchorPayload });
             }
             catch (Exception ex)
             {

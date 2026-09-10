@@ -949,6 +949,9 @@
     "PROCESSING": "Elaborazione..."
   },
   "SCREENSHOT": {
+    "DEST_BEFORE": "L'immagine andrà prima di «{{label}}»",
+    "DEST_AFTER": "L'immagine andrà dopo «{{label}}»",
+    "DEST_END": "L'immagine andrà in fondo al documento",
     "TITLE": "Annota Screenshot",
     "STEP_OF": "Step {{step}} di 2",
     "STEP1_DESC": "Clicca sull'immagine per posizionare i marcatori numerati. Puoi scegliere il colore dalla palette.",
