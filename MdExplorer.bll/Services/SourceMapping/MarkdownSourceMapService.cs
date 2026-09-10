@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Markdig;
 using Markdig.Extensions.Tables;
 using Markdig.Extensions.Yaml;
@@ -212,8 +213,128 @@ namespace MdExplorer.Features.Services.SourceMapping
             {
                 map[pair.Value] = pair.Key; // Key = original index, Value = transformed index
             }
+            PairStandaloneImages(map, originalLines, transformedLines);
             PairModifiedRuns(map, n);
             return map;
+        }
+
+        // An image alone on its line, as ToolbarImagesHtml finds it: plain or with {attributes}.
+        private static readonly Regex StandaloneImageLine = new Regex(@"^!\[([^\]]*)\]\(([^)]+)\)(\{[^}]*\})?[ \t]*$", RegexOptions.Compiled);
+        private static readonly Regex ImageAtLineStart = new Regex(@"^!\[([^\]]*)\]\(([^)]+)\)", RegexOptions.Compiled);
+
+        /// <summary>
+        /// Whether a transformed image line shows the file's image. Same alt text, and the file's
+        /// path inside the transformed one: ManageLinkAbsolutePath rewrites <c>/assets/a.png</c> as
+        /// <c>/api/mdexplorer/assets/a.png?connectionId=…</c> (the fragment after the query).
+        /// </summary>
+        private static bool SameImage(Match original, Match transformed)
+        {
+            var path = original.Groups[2].Value;
+            var hash = path.IndexOf('#');
+            if (hash >= 0) path = path.Substring(0, hash);
+            return original.Groups[1].Value == transformed.Groups[1].Value
+                && transformed.Groups[2].Value.Contains(path);
+        }
+
+        /// <summary>
+        /// Images. <c>ToolbarImagesHtml</c> turns one image line into an HTML block of about ten
+        /// lines, blank lines included, and the diff pairs the file's blank lines with those blank
+        /// lines inside the block, at random (measured 10/09/2026): the image line never gets a
+        /// number, so an image could not be selected, nor used as the place to paste another one.
+        ///
+        /// <para>
+        /// The image itself survives at the start of one transformed line, <c>![alt](path){…}</c>,
+        /// with the same alt text and its path perhaps rewritten (<see cref="SameImage"/>). Between
+        /// two non-blank lines the diff matched exactly, when the file
+        /// holds nothing but blank lines and images standing alone (column 0, a blank line or the
+        /// edge of the file above and below), and the transformed text shows the same images in
+        /// the same order, each image line is paired with its own. Anything else in between — an
+        /// image in a sentence, two images on consecutive lines, any other line — leaves the
+        /// stretch as it was: unmapped, never guessed.
+        /// </para>
+        ///
+        /// <para>
+        /// Inside a stretch that is paired, the blank lines the diff matched are unpaired: they
+        /// belong to the HTML around the images, and keeping them would make the map go backwards.
+        /// Runs before <see cref="PairModifiedRuns"/>, which positionally paired a line of that HTML
+        /// with the next line of the file when the lengths happened to agree.
+        /// </para>
+        /// </summary>
+        private static void PairStandaloneImages(int[] map, string[] originalLines, string[] transformedLines)
+        {
+            var transformedOf = new int[originalLines.Length];
+            for (var i = 0; i < transformedOf.Length; i++) transformedOf[i] = -1;
+            for (var j = 0; j < map.Length; j++)
+            {
+                if (map[j] >= 0) transformedOf[map[j]] = j;
+            }
+
+            var previousAnchor = -1;
+            for (var i = 0; i <= originalLines.Length; i++)
+            {
+                var isAnchor = i == originalLines.Length
+                    || (transformedOf[i] >= 0 && !string.IsNullOrWhiteSpace(originalLines[i]));
+                if (!isAnchor)
+                {
+                    continue;
+                }
+                PairImagesBetween(map, originalLines, transformedLines, transformedOf, previousAnchor, i);
+                previousAnchor = i;
+            }
+        }
+
+        /// <param name="first">Original index of the anchor before the stretch, or -1.</param>
+        /// <param name="last">Original index of the anchor after the stretch, or the line count.</param>
+        private static void PairImagesBetween(int[] map, string[] originalLines, string[] transformedLines, int[] transformedOf, int first, int last)
+        {
+            var images = new List<KeyValuePair<int, Match>>();
+            for (var i = first + 1; i < last; i++)
+            {
+                if (string.IsNullOrWhiteSpace(originalLines[i]))
+                {
+                    continue;
+                }
+                var match = StandaloneImageLine.Match(originalLines[i]);
+                var blankAbove = i == 0 || string.IsNullOrWhiteSpace(originalLines[i - 1]);
+                var blankBelow = i == originalLines.Length - 1 || string.IsNullOrWhiteSpace(originalLines[i + 1]);
+                if (!match.Success || !blankAbove || !blankBelow)
+                {
+                    return;
+                }
+                images.Add(new KeyValuePair<int, Match>(i, match));
+            }
+            if (images.Count == 0)
+            {
+                return;
+            }
+
+            var from = first < 0 ? 0 : transformedOf[first] + 1;
+            var to = last >= originalLines.Length ? transformedLines.Length : transformedOf[last];
+            var rendered = new List<int>();
+            for (var j = from; j < to; j++)
+            {
+                if (ImageAtLineStart.IsMatch(transformedLines[j])) rendered.Add(j);
+            }
+            if (rendered.Count != images.Count)
+            {
+                return;
+            }
+            for (var k = 0; k < images.Count; k++)
+            {
+                if (!SameImage(images[k].Value, ImageAtLineStart.Match(transformedLines[rendered[k]])))
+                {
+                    return;
+                }
+            }
+
+            for (var j = from; j < to; j++)
+            {
+                map[j] = -1;
+            }
+            for (var k = 0; k < images.Count; k++)
+            {
+                map[rendered[k]] = images[k].Key;
+            }
         }
 
         /// <summary>
