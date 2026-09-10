@@ -40,6 +40,7 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<CopilotChatSessionPool> _logger;
         private readonly ICopilotChatTransportSource _transportSource;
+        private readonly Func<CopilotChatTransport, string, string, ICopilotChatSession> _sessionFactory;
         private readonly ConcurrentDictionary<string, Entry> _sessions =
             new ConcurrentDictionary<string, Entry>(StringComparer.Ordinal);
         // Per-connection serialization gate. Prevents two concurrent GetOrCreateAsync
@@ -64,10 +65,25 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
             ILoggerFactory loggerFactory,
             ILogger<CopilotChatSessionPool> logger,
             ICopilotChatTransportSource transportSource)
+            : this(loggerFactory, logger, transportSource, sessionFactory: null)
+        {
+        }
+
+        /// <summary>
+        /// With a session factory of one's own: what the tests use to check which situations keep
+        /// the conversation and which throw it away, without starting a CLI. Not public, so DI
+        /// always takes the constructor above.
+        /// </summary>
+        internal CopilotChatSessionPool(
+            ILoggerFactory loggerFactory,
+            ILogger<CopilotChatSessionPool> logger,
+            ICopilotChatTransportSource transportSource,
+            Func<CopilotChatTransport, string, string, ICopilotChatSession> sessionFactory)
         {
             _loggerFactory = loggerFactory;
             _logger = logger;
             _transportSource = transportSource;
+            _sessionFactory = sessionFactory ?? CreateSession;
             _idleTimeout = DefaultIdleTimeout;
             _maxSessions = DefaultMaxSessions;
             _sweepTimer = new Timer(_ => SweepIdleSessions(), null, SweepInterval, SweepInterval);
@@ -111,6 +127,19 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
                     {
                         return existing.Session;
                     }
+
+                    // Only the model differs: change it in place and keep the conversation. Before,
+                    // any difference meant a new session — picking another model in the chat
+                    // header silently threw away everything said so far.
+                    if (CanSwitchModelInPlace(existing.Session, workingDirectory, modelId, transport))
+                    {
+                        var previous = existing.Session.ModelId;
+                        await existing.Session.SetModelAsync(modelId, ct).ConfigureAwait(false);
+                        _logger.LogInformation("[CopilotChatSessionPool] Model switched live for {ConnectionId}: {Previous} -> {Model} (conversation kept)",
+                            connectionId, previous ?? "(CLI default)", modelId);
+                        return existing.Session;
+                    }
+
                     _logger.LogInformation("[CopilotChatSessionPool] Replacing stale session for {ConnectionId} ({OldTransport} -> {NewTransport})",
                         connectionId, existing.Session.Transport, transport);
                     await ReleaseAsync(connectionId).ConfigureAwait(false);
@@ -121,7 +150,7 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
                     EvictOldest();
                 }
 
-                var session = CreateSession(transport, workingDirectory, modelId);
+                var session = _sessionFactory(transport, workingDirectory, modelId);
                 try
                 {
                     await session.StartAsync(ct).ConfigureAwait(false);
@@ -156,6 +185,18 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
                session.Transport == transport &&
                string.Equals(session.WorkingDirectory, workingDirectory, StringComparison.OrdinalIgnoreCase) &&
                string.Equals(session.ModelId, modelId, StringComparison.Ordinal);
+
+        /// <summary>
+        /// Same session in every respect but the model, on a transport that can change model
+        /// without starting over. A null target is excluded on purpose: "let the CLI choose" has
+        /// no id to hand to <c>SetModelAsync</c>, so it takes a new session.
+        /// </summary>
+        private static bool CanSwitchModelInPlace(ICopilotChatSession session, string workingDirectory, string modelId, CopilotChatTransport transport)
+            => session.IsAlive &&
+               session.CanSwitchModelLive &&
+               session.Transport == transport &&
+               !string.IsNullOrWhiteSpace(modelId) &&
+               string.Equals(session.WorkingDirectory, workingDirectory, StringComparison.OrdinalIgnoreCase);
 
         private ICopilotChatSession CreateSession(CopilotChatTransport transport, string workingDirectory, string modelId)
             => transport switch

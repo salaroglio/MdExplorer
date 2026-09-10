@@ -56,6 +56,12 @@ export class AiChatService {
   private hubConnection: HubConnection;
   private baseUrl = '/api/AiModels';
 
+  // Il modello che ha RISPOSTO all'ultimo turno della chat principale, come lo riporta Copilot.
+  // Puo' essere diverso da quello scelto: un modello che l'installazione non ha non da' errore,
+  // il CLI lo sostituisce in silenzio. E' l'unico nome onesto da mostrare.
+  private _answeredModel$ = new BehaviorSubject<{ requestedModel: string | null; answeredModel: string } | null>(null);
+  public answeredModel$ = this._answeredModel$.asObservable();
+
   // Ultimo connectionId noto di MonitorMDHub: e' cosi' che il backend risale al progetto.
   // Va conservato perche' i due hub si connettono in ordine imprevedibile, e chi arriva
   // secondo deve poter (ri)mandare il valore senza dipendere da un timer.
@@ -183,6 +189,18 @@ export class AiChatService {
     this.hubConnection.on('ReceiveMessage', (role: string, content: string) => {
       this.addMessage(role as 'system' | 'assistant', content);
     });
+
+    this.hubConnection.on('ReceiveAnsweredModel',
+      (info: { requestedModel: string | null; answeredModel: string }, channelId?: string) => {
+        // Solo la chat principale ha una testata da correggere: i canali privati (mark-search,
+        // promptlab, ai-selection) usano lo stesso hub ma non mostrano il modello.
+        if ((channelId || 'default') !== 'default' || !info?.answeredModel) return;
+        this._answeredModel$.next(info);
+        this._currentModel$.next(`CopilotCli: ${info.answeredModel}`);
+        if (info.requestedModel && info.requestedModel.toLowerCase() !== info.answeredModel.toLowerCase()) {
+          console.warn('[AiChatService] Chiesto', info.requestedModel, 'ma ha risposto', info.answeredModel);
+        }
+      });
 
     this.hubConnection.on('ReceiveStreamMeta', (meta: { providerType: string }) => {
       this.currentStreamingProviderType = meta.providerType;
@@ -916,10 +934,11 @@ export class AiChatService {
     return this._refreshInFlight;
   }
 
-  notifyCopilotCliConnected(modelId: string): void {
+  notifyCopilotCliConnected(modelId: string | null): void {
     console.log('[AiChatService] notifyCopilotCliConnected called with modelId:', modelId);
     this._isModelLoaded$.next(true);
-    this._currentModel$.next(`CopilotCli: ${modelId}`);
+    // null = il modello lo sceglie il CLI: dirlo, invece di stampare "null".
+    this._currentModel$.next(`CopilotCli: ${modelId || 'auto'}`);
     console.log('[AiChatService] CopilotCli connected:', modelId);
   }
 

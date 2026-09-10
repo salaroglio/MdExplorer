@@ -50,7 +50,32 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         bool IsAlive { get; }
         DateTime LastUsedUtc { get; }
 
+        /// <summary>
+        /// The model that ACTUALLY answered the last turn, as the agent reports it; <c>null</c>
+        /// until a turn has answered, or when the transport cannot tell.
+        /// <para>
+        /// Not the same thing as <see cref="ModelId"/>, which is only what was asked for: a model
+        /// the installation does not have is NOT an error — the CLI silently answers with another
+        /// one (measured 10/09/2026: <c>claude-sonnet-5</c> requested, <c>gpt-5.6-luna</c> answered).
+        /// This is the only honest value to show the user.
+        /// </para>
+        /// </summary>
+        string AnsweredModel { get; }
+
+        /// <summary>
+        /// Whether <see cref="SetModelAsync"/> changes the model of the live conversation, keeping
+        /// its memory. When false, the only way to change model is a new session — and the
+        /// conversation goes with the old one.
+        /// </summary>
+        bool CanSwitchModelLive { get; }
+
         Task StartAsync(CancellationToken ct = default);
+
+        /// <summary>
+        /// Changes the model without losing the conversation. Only valid when
+        /// <see cref="CanSwitchModelLive"/> is true.
+        /// </summary>
+        Task SetModelAsync(string modelId, CancellationToken ct = default);
 
         /// <summary>Sends the prompt and yields the answer as it arrives.</summary>
         IAsyncEnumerable<CopilotChatChunk> PromptAsync(string text, CancellationToken ct = default);

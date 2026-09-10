@@ -888,7 +888,9 @@ namespace MdExplorer.Service.Controllers.MdProjects
                             "Check Startup.cs IAiProvider registrations.");
                     }
                     copilotProvider.WorkingDirectory = request.Path;
-                    copilotCliDefaultModel = "claude-sonnet-5";
+                    // Il modello scelto per questo progetto; null = lo sceglie il CLI. Letto
+                    // dall'entita' gia' in memoria: nessuna query in piu' sulla sessione condivisa.
+                    copilotCliDefaultModel = project.CopilotChatModel;
                     copilotCliAvailable = copilotProvider.IsAvailable();
                     logger?.LogInformation(
                         "🤖 CopilotCli auto-select: available={Available}, model={Model}, cwd={Cwd}",

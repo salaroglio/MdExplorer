@@ -102,6 +102,14 @@ export class ProjectSettingsService {
   }
 
   /**
+   * Modello Copilot della chat per questo progetto. null = lo sceglie il CLI.
+   */
+  setCopilotChatModelSetting(modelId: string | null, projectPath: string): Observable<{ modelId: string | null }> {
+    const url = '../api/ProjectSettings/SetCopilotChatModelSetting';
+    return this.http.post<{ modelId: string | null }>(url, { modelId, projectPath });
+  }
+
+  /**
    * Selezione automatica di Claude Code. Gemella di quella Copilot, ma il default lato
    * backend è OFF: un progetto che non ha mai visto questa opzione non deve cambiare
    * motore della chat da solo.

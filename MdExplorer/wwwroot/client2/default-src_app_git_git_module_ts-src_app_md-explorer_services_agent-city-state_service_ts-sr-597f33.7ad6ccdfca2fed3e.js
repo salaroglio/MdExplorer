@@ -5940,6 +5940,16 @@ class ProjectSettingsService {
     });
   }
   /**
+   * Modello Copilot della chat per questo progetto. null = lo sceglie il CLI.
+   */
+  setCopilotChatModelSetting(modelId, projectPath) {
+    const url = '../api/ProjectSettings/SetCopilotChatModelSetting';
+    return this.http.post(url, {
+      modelId,
+      projectPath
+    });
+  }
+  /**
    * Selezione automatica di Claude Code. Gemella di quella Copilot, ma il default lato
    * backend è OFF: un progetto che non ha mai visto questa opzione non deve cambiare
    * motore della chat da solo.
@@ -10589,4 +10599,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_git_git_module_ts-src_app_md-explorer_services_agent-city-state_service_ts-sr-597f33.1f90f29c13d43eaa.js.map
+//# sourceMappingURL=default-src_app_git_git_module_ts-src_app_md-explorer_services_agent-city-state_service_ts-sr-597f33.7ad6ccdfca2fed3e.js.map

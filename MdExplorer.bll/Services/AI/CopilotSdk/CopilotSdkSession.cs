@@ -87,6 +87,14 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         public bool IsAlive => _session != null && !_disposed;
         public DateTime LastUsedUtc { get; private set; } = DateTime.UtcNow;
 
+        /// <summary>
+        /// Taken from <c>AssistantMessage.Data.Model</c>. Not from <c>AssistantTurnStart</c>, where
+        /// the SDK has a field with the same name that stays EMPTY — measured on 1.0.82.
+        /// </summary>
+        public string AnsweredModel { get; private set; }
+
+        public bool CanSwitchModelLive => true;
+
         public CopilotSdkSession(ILogger logger, string workingDirectory, string modelId)
         {
             _logger = logger;
@@ -276,6 +284,15 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
 
                 case AssistantReasoningDeltaEvent reasoning:
                     Write(turn.Channel, CopilotChatChunk.KindThinking, reasoning.Data?.DeltaContent);
+                    break;
+
+                case AssistantMessageEvent completed:
+                    // The complete message, after its deltas: the one place the model that really
+                    // answered is written down.
+                    if (!string.IsNullOrWhiteSpace(completed.Data?.Model))
+                    {
+                        AnsweredModel = completed.Data.Model;
+                    }
                     break;
 
                 case AssistantTurnEndEvent:

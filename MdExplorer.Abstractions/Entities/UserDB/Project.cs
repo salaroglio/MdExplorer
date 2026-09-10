@@ -36,6 +36,18 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// </para>
         /// </summary>
         public virtual bool UseClaudeCodeAsDefault { get; set; } = false;
+
+        /// <summary>
+        /// Il modello con cui la chat parla a Copilot in questo progetto. <c>null</c> = lo sceglie
+        /// il CLI (<c>auto</c>).
+        /// <para>
+        /// Per progetto, come i due flag qui sopra: su un progetto grosso si tiene il modello
+        /// forte, su uno piccolo quello economico. Nessun default scritto nel codice: quali
+        /// modelli esistano è una proprietà dell'installazione, e un nome che l'installazione
+        /// non ha non dà errore — il CLI lo rimpiazza in silenzio con un altro.
+        /// </para>
+        /// </summary>
+        public virtual string CopilotChatModel { get; set; }
         public virtual bool ExecutionTrusted { get; set; } = false;
 
         /// <summary>

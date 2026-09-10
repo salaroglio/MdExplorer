@@ -515,7 +515,10 @@ namespace MdExplorer.Hubs
                 return new
                 {
                     isModelLoaded = true,
-                    currentModel = $"{chatMode.ProviderType}: {chatMode.ModelId}",
+                    // Copilot without a model = the CLI chooses; say so rather than print nothing.
+                    currentModel = chatMode.ProviderType == Abstractions.Models.AI.ProviderType.CopilotCli && string.IsNullOrWhiteSpace(chatMode.ModelId)
+                        ? $"{chatMode.ProviderType}: auto"
+                        : $"{chatMode.ProviderType}: {chatMode.ModelId}",
                     availableModels = availableModels
                 };
             }
@@ -673,7 +676,8 @@ namespace MdExplorer.Hubs
                     break;
                 case "copilotcli":
                     chatMode.ProviderType = Abstractions.Models.AI.ProviderType.CopilotCli;
-                    chatMode.ModelId = modelId ?? "claude-sonnet-5";
+                    // Null stays null: the CLI chooses (see StreamCopilotCliSessionResponseAsync).
+                    chatMode.ModelId = string.IsNullOrWhiteSpace(modelId) ? null : modelId;
                     break;
                 case "claudecode":
                     chatMode.ProviderType = Abstractions.Models.AI.ProviderType.ClaudeCode;
@@ -927,12 +931,16 @@ namespace MdExplorer.Hubs
                     $"Non so in quale progetto lavorare, quindi non avvio Copilot: {whyNoProject}. Riapri il progetto.");
             }
 
-            var effectiveModel = string.IsNullOrEmpty(modelId) ? "claude-sonnet-5" : modelId;
+            // No model = the CLI chooses. There used to be "claude-sonnet-5" here, one of four
+            // copies of the same invented default along the way; on an installation that does
+            // not have it the CLI answers with another model and says nothing, so the name was
+            // not a choice, only a label that could be false.
+            var requestedModel = string.IsNullOrWhiteSpace(modelId) ? null : modelId;
             var session = await _copilotChatPool.GetOrCreateAsync(
-                Context.ConnectionId, projectPath, effectiveModel);
+                Context.ConnectionId, projectPath, requestedModel);
 
             await Clients.Caller.SendAsync("ReceiveStreamMeta",
-                new { providerType = "copilotcli", modelId = effectiveModel, transport = session.Transport.ToString().ToLowerInvariant() }, channelId);
+                new { providerType = "copilotcli", modelId = requestedModel, transport = session.Transport.ToString().ToLowerInvariant() }, channelId);
 
             var promptText = string.IsNullOrEmpty(currentDoc)
                 ? userMessage
@@ -976,6 +984,21 @@ namespace MdExplorer.Hubs
             {
                 _copilotChatPool.UnregisterActivePrompt(Context.ConnectionId, promptCts);
                 promptCts.Dispose();
+            }
+
+            // Which model really answered. Sent apart from ReceiveStreamMeta because it is only
+            // known at the end of the turn, and because it can differ from what was asked: the
+            // CLI replaces a model it does not have without saying so. What the user sees must be
+            // this, not the name they picked.
+            if (!string.IsNullOrWhiteSpace(session.AnsweredModel))
+            {
+                if (requestedModel != null && !string.Equals(requestedModel, session.AnsweredModel, StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("[AiChatHub] Copilot: chiesto {Requested}, ha risposto {Answered}",
+                        requestedModel, session.AnsweredModel);
+                }
+                await Clients.Caller.SendAsync("ReceiveAnsweredModel",
+                    new { requestedModel, answeredModel = session.AnsweredModel }, channelId);
             }
 
             var finalResponse = responseText.ToString().TrimEnd();

@@ -31,7 +31,20 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         public bool IsAlive => _inner.IsAlive;
         public DateTime LastUsedUtc => _inner.LastUsedUtc;
 
+        /// <summary>ACP does not report which model answered.</summary>
+        public string AnsweredModel => null;
+
+        /// <summary>
+        /// ACP applies the model only when the session starts — and even then by sending
+        /// <c>/model &lt;id&gt;</c> as the text of a prompt. Changing model means a new session.
+        /// </summary>
+        public bool CanSwitchModelLive => false;
+
         public Task StartAsync(CancellationToken ct = default) => _inner.StartAsync(ct);
+
+        public Task SetModelAsync(string modelId, CancellationToken ct = default)
+            => throw new NotSupportedException(
+                "Il trasporto ACP non sa cambiare modello a conversazione aperta: serve una sessione nuova.");
 
         public async IAsyncEnumerable<CopilotChatChunk> PromptAsync(
             string text,

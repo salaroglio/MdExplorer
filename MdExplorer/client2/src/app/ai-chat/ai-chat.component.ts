@@ -8,6 +8,7 @@ import { marked } from 'marked';
 import { LayoutService } from '../md-explorer/services/layout.service';
 import { TranslateService } from '@ngx-translate/core';
 import { ProjectsService } from '../md-explorer/services/projects.service';
+import { ProjectSettingsService } from '../projects/services/project-settings.service';
 
 @Component({
   selector: 'app-ai-chat',
@@ -92,7 +93,8 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     private sanitizer: DomSanitizer,
     private layoutService: LayoutService,
     private translate: TranslateService,
-    private projectsService: ProjectsService
+    private projectsService: ProjectsService,
+    private projectSettingsService: ProjectSettingsService
   ) {}
 
   ngOnInit(): void {
@@ -183,7 +185,10 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           return;
         }
         if (config.autoSelect && config.available) {
-          const model = config.defaultModel || 'claude-sonnet-5';
+          // Il modello scelto per il progetto; null = lo sceglie il CLI. Qui c'era un
+          // "|| 'claude-sonnet-5'", uno dei quattro default inventati lungo la strada: su
+          // un'installazione che non ha quel modello il CLI ne usa un altro senza dirlo.
+          const model = config.defaultModel || null;
           console.log('[AiChatComponent] Auto-selecting Copilot CLI with model:', model);
           this.copilotCliUnavailable = false;
           this.copilotCliAutoSelected = true;
@@ -329,7 +334,21 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.aiService.notifyCopilotCliConnected(modelId);
     } catch (err) {
       console.error('[AiChatComponent] Failed to switch Copilot model:', err);
+      return;
     }
+
+    // La scelta vale per il progetto: alla prossima apertura la chat riparte da questo modello.
+    // Il cambio vero avviene alla domanda successiva, sulla sessione viva e senza perdere la
+    // conversazione (SetModelAsync, lato backend).
+    const projectPath = this.projectsService.currentProjects$.getValue()?.path;
+    if (!projectPath) {
+      console.warn('[AiChatComponent] Nessun progetto aperto: il modello scelto non viene ricordato');
+      return;
+    }
+    this.projectSettingsService.setCopilotChatModelSetting(modelId, projectPath).subscribe({
+      next: () => console.log('[AiChatComponent] Modello Copilot salvato per il progetto:', modelId),
+      error: err => console.error('[AiChatComponent] Salvataggio del modello per il progetto fallito:', err)
+    });
   }
 
   async selectClaudeCodeModel(modelId: string): Promise<void> {
