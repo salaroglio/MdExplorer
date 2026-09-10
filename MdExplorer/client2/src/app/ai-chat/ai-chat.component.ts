@@ -10,6 +10,8 @@ import { TranslateService } from '@ngx-translate/core';
 import { ProjectsService } from '../md-explorer/services/projects.service';
 import { ProjectSettingsService } from '../projects/services/project-settings.service';
 
+type CopilotModelChoice = { id: string; name: string; unavailable: boolean };
+
 @Component({
   selector: 'app-ai-chat',
   templateUrl: './ai-chat.component.html',
@@ -42,6 +44,11 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   // Prima qui c'erano due modelli scritti a mano, 'claude-sonnet-5' e 'claude-opus-4.7': su
   // un'installazione che non li ha, il CLI risponde con un altro modello senza dirlo.
   copilotModels: { id: string; name: string }[] = [];
+  private copilotModelChoicesCache: {
+    models: { id: string; name: string }[];
+    selected: string | null;
+    choices: CopilotModelChoice[];
+  } | null = null;
   copilotModelsLoading = false;
   copilotModelsError: string | null = null;
 
@@ -336,13 +343,27 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
    * Le voci della combobox. Se il modello salvato per il progetto non e' piu' nell'elenco (tolto
    * dall'abbonamento, o scelto su un'altra installazione) resta visibile e segnalato: sparire in
    * silenzio lascerebbe la combobox vuota proprio mentre il CLI risponde con qualcos'altro.
+   *
+   * Lo stesso array finche' elenco e scelta non cambiano. Un array nuovo a ogni lettura faceva
+   * ricreare a *ngFor tutte le mat-option a ogni change detection; mat-select, vedendo cambiare
+   * le sue opzioni, ne programmava un'altra, e cosi' via: pagina bloccata appena aperto un
+   * progetto con Copilot CLI (visto il 10/09/26 in Chrome, stack su questo template).
    */
-  get copilotModelChoices(): { id: string; name: string; unavailable: boolean }[] {
-    const choices = this.copilotModels.map(m => ({ ...m, unavailable: false }));
+  get copilotModelChoices(): CopilotModelChoice[] {
+    const cache = this.copilotModelChoicesCache;
+    if (cache && cache.models === this.copilotModels && cache.selected === this.selectedCopilotModel) {
+      return cache.choices;
+    }
+    const choices: CopilotModelChoice[] = this.copilotModels.map(m => ({ ...m, unavailable: false }));
     if (this.selectedCopilotModel && !choices.some(c => c.id === this.selectedCopilotModel)) {
       choices.unshift({ id: this.selectedCopilotModel, name: this.selectedCopilotModel, unavailable: true });
     }
+    this.copilotModelChoicesCache = { models: this.copilotModels, selected: this.selectedCopilotModel, choices };
     return choices;
+  }
+
+  trackCopilotModel(_: number, choice: CopilotModelChoice): string {
+    return choice.id;
   }
 
   /**

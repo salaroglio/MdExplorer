@@ -59,7 +59,7 @@
                   [placeholder]="'AI_CHAT.COPILOT_MODEL_CLI_CHOOSES' | translate"
                   [disabled]="isConfiguringProvider || copilotModelsLoading"
                   (selectionChange)="selectCopilotModel($event.value)">
-        <mat-option *ngFor="let m of copilotModelChoices" [value]="m.id" [disabled]="m.unavailable">
+        <mat-option *ngFor="let m of copilotModelChoices; trackBy: trackCopilotModel" [value]="m.id" [disabled]="m.unavailable">
           {{ m.name }}<span *ngIf="m.unavailable" class="model-unavailable"> — {{ 'AI_CHAT.COPILOT_MODEL_UNAVAILABLE' | translate }}</span>
         </mat-option>
       </mat-select>
