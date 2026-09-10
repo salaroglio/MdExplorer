@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using GitHub.Copilot;
+using GitHub.Copilot.Rpc;
 using MdExplorer.Features.Services.AI.CopilotChat;
 using Microsoft.Extensions.Logging;
 
@@ -59,16 +60,24 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         private TurnState _activeTurn;
 
         /// <summary>
-        /// A turn, and whether the agent has told us it STARTED it.
+        /// One answer to one prompt, and whether the agent has told us it STARTED it.
         ///
-        /// That flag is not bookkeeping, it is the fix for a one-millisecond race: the agent ends
-        /// a turn with AssistantTurnEnd and then, about 1 ms later, AssistantIdle. Two prompts
-        /// back to back — which is exactly what a conversation is — put the second turn's channel
-        /// in place inside that gap, and the LEFTOVER idle of the previous turn closed it before a
-        /// single character had arrived. The answer came back empty, instantly, with no error.
-        /// Measured on Copilot CLI 1.0.82, 09/09/2026.
+        /// <para>
+        /// An answer is NOT one agent turn. As soon as Copilot uses a tool the answer is several
+        /// turns in a row — <c>TurnStart 0</c>, tool calls, <c>TurnEnd 0</c> (with no text at
+        /// all), <c>TurnStart 1</c>, the text, <c>TurnEnd 1</c> — and only then
+        /// <c>AssistantIdle</c>. Measured 10/09/2026. The first version closed the answer at the
+        /// first <c>TurnEnd</c>: any question that made Copilot read a file came back EMPTY. So the
+        /// end of an answer is <c>AssistantIdle</c>, and <c>TurnEnd</c> is only a boundary between
+        /// the rounds of the same answer.
+        /// </para>
         ///
-        /// So a turn accepts no ending before it has seen its OWN beginning.
+        /// <para>
+        /// The Started flag guards the beginning: an ending may only close the answer that has seen
+        /// its own start. It was introduced for a one-millisecond race (the idle of the previous
+        /// answer landing on the channel of the next one); with idle as the only terminator that
+        /// leftover no longer exists, and the flag stays as the guarantee that it cannot come back.
+        /// </para>
         /// </summary>
         private sealed class TurnState
         {
@@ -127,6 +136,9 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 WorkingDirectory = _workingDirectory,
                 Streaming = true,
                 OnEvent = HandleEvent,
+                // Without this the SDK refuses every tool call, and Copilot cannot even read a
+                // file of the project it is working in. See CopilotSdkPermissionPolicy.
+                OnPermissionRequest = DecidePermissionAsync,
             };
 
             // No model = the CLI picks its own. Deliberate: which models exist is a property of
@@ -295,18 +307,35 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     }
                     break;
 
-                case AssistantTurnEndEvent:
-                    EndTurn(turn);
-                    break;
+                // AssistantTurnEnd is NOT the end of the answer: it separates the rounds of one
+                // answer, and the first round of a question that uses a tool carries no text at
+                // all. Closing here gave empty answers (see TurnState).
 
                 case AssistantIdleEvent idle:
-                    // Idle closes the turn as well: an aborted turn produces no TurnEnd, and
-                    // without this the caller would wait for an end that is never coming.
+                    // The agent has nothing left to do: this is the end of the answer.
                     if (idle.Data?.Aborted == true && turn.Started)
                     {
                         _logger.LogInformation("[CopilotSdkSession] turno interrotto su session={SessionId}", _session?.SessionId);
                     }
                     EndTurn(turn);
+                    break;
+
+                case SessionErrorEvent error:
+                    // Fatal for the answer, and Idle is not guaranteed to follow: without this the
+                    // caller would sit on the idle timeout for five minutes before learning why.
+                    FailTurn(turn, "Copilot ha segnalato un errore: " + (error.Data?.Message ?? error.Data?.ErrorType ?? "(senza messaggio)"));
+                    break;
+
+                case SessionShutdownEvent shutdown:
+                    FailTurn(turn, "La sessione Copilot si è chiusa durante la risposta"
+                        + (string.IsNullOrWhiteSpace(shutdown.Data?.ErrorReason) ? "" : ": " + shutdown.Data.ErrorReason));
+                    break;
+
+                case ModelCallFailureEvent failure:
+                    // Not fatal by itself: the agent may retry the call (AssistantTurnRetry). Worth
+                    // a line in the log, because it explains a slow answer.
+                    _logger.LogWarning("[CopilotSdkSession] chiamata al modello fallita su session={SessionId}: {Error}",
+                        _session?.SessionId, failure.Data?.ErrorMessage);
                     break;
 
                     // Every other event (tool_call, plan, sub-agents, usage…) is ignored HERE and
@@ -326,6 +355,36 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             turn.Channel.Writer.TryComplete();
             Interlocked.CompareExchange(ref _activeTurn, null, turn);
         }
+
+        /// <summary>
+        /// Closes the answer with an error. Unlike <see cref="EndTurn"/> this does not wait for the
+        /// start: an error before the beginning is still an error the caller must see.
+        /// </summary>
+        private void FailTurn(TurnState turn, string message)
+        {
+            _logger.LogWarning("[CopilotSdkSession] session={SessionId}: {Message}", _session?.SessionId, message);
+            turn.Channel.Writer.TryComplete(new InvalidOperationException(message));
+            Interlocked.CompareExchange(ref _activeTurn, null, turn);
+        }
+
+        // GHCP001: the SDK marks PermissionDecision "for evaluation purposes only". It is also the
+        // only way to approve a tool — OnPermissionRequest must return it — so the diagnostic is
+        // suppressed here and nowhere else. If a future SDK changes it, this is the method that
+        // breaks at compile time, and CopilotChatTransport=acp is the way around it meanwhile.
+#pragma warning disable GHCP001
+        private Task<PermissionDecision> DecidePermissionAsync(PermissionRequest request, PermissionInvocation invocation)
+        {
+            var verdict = CopilotSdkPermissionPolicy.Decide(request, _workingDirectory);
+            if (verdict.Approved)
+            {
+                _logger.LogInformation("[CopilotSdkSession] permesso concesso: {What}", verdict.What);
+                return Task.FromResult(PermissionDecision.ApproveOnce());
+            }
+
+            _logger.LogWarning("[CopilotSdkSession] permesso negato: {What} — {Reason}", verdict.What, verdict.Reason);
+            return Task.FromResult(PermissionDecision.Reject(verdict.Reason));
+        }
+#pragma warning restore GHCP001
 
         private static void Write(Channel<CopilotChatChunk> channel, string kind, string text)
         {
