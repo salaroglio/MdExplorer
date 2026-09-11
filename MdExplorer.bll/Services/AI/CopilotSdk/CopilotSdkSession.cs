@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using GitHub.Copilot;
 using GitHub.Copilot.Rpc;
+using MdExplorer.Features.Diagrams;
 using MdExplorer.Features.Services.AI.CopilotChat;
 using Microsoft.Extensions.Logging;
 
@@ -42,8 +45,15 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         private const int PROMPT_HARD_TIMEOUT_MS = 1800000;  // 30 min absolute
         private const int START_TIMEOUT_MS = 120000;         // the first session pays Copilot's bootstrap
 
+        /// <summary>
+        /// Rounds of "fix your diagrams" per answer. Past this the answer ends and the chat says
+        /// what is left: an agent that cannot fix a diagram in two rounds will not in ten.
+        /// </summary>
+        private const int MAX_DIAGRAM_CORRECTION_ROUNDS = 2;
+
         private readonly ILogger _logger;
         private readonly string _workingDirectory;
+        private readonly PlantumlBlockVerifier _plantumlVerifier;
         private string _modelId;
 
         private CopilotClient _client;
@@ -84,6 +94,13 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             public TurnState(Channel<CopilotChatChunk> channel) { Channel = channel; }
             public Channel<CopilotChatChunk> Channel { get; }
             public bool Started;
+
+            // Diagram check (see OnPostToolUseAsync / OnAgentStopAsync). Hooks run on SDK threads:
+            // touched under lock(this).
+            public readonly HashSet<string> WrittenMarkdown = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            public readonly List<string> UncheckedAnswers = new List<string>();
+            public int CorrectionRounds;
+            public bool ProblemsHandedBack;
         }
 
         /// <summary>Reset by every event of the turn in flight, so "idle" means really idle.</summary>
@@ -104,11 +121,16 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
 
         public bool CanSwitchModelLive => true;
 
-        public CopilotSdkSession(ILogger logger, string workingDirectory, string modelId)
+        /// <param name="plantumlVerifier">
+        /// Checks the diagrams the agent writes — always, not when the model remembers to call the
+        /// check tool. Sprint: docs-internal/Sprints/2026-09-11-MarkAgent-Verifica-PlantUML.md.
+        /// </param>
+        public CopilotSdkSession(ILogger logger, string workingDirectory, string modelId, PlantumlBlockVerifier plantumlVerifier)
         {
             _logger = logger;
             _workingDirectory = workingDirectory;
             _modelId = modelId;
+            _plantumlVerifier = plantumlVerifier ?? throw new ArgumentNullException(nameof(plantumlVerifier));
         }
 
         /// <summary>
@@ -139,6 +161,11 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 // Without this the SDK refuses every tool call, and Copilot cannot even read a
                 // file of the project it is working in. See CopilotSdkPermissionPolicy.
                 OnPermissionRequest = DecidePermissionAsync,
+                Hooks = new SessionHooks
+                {
+                    OnPostToolUse = OnPostToolUseAsync,
+                    OnAgentStop = OnAgentStopAsync,
+                },
             };
 
             // No model = the CLI picks its own. Deliberate: which models exist is a property of
@@ -332,6 +359,11 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     {
                         AnsweredModel = completed.Data.Model;
                     }
+                    // Diagrams written in the chat are checked too, when the agent wants to stop.
+                    if (!string.IsNullOrWhiteSpace(completed.Data?.Content))
+                    {
+                        lock (turn) turn.UncheckedAnswers.Add(completed.Data.Content);
+                    }
                     break;
 
                 // AssistantTurnEnd is NOT the end of the answer: it separates the rounds of one
@@ -391,6 +423,137 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             turn.Channel.Writer.TryComplete(new InvalidOperationException(message));
             Interlocked.CompareExchange(ref _activeTurn, null, turn);
         }
+
+        /// <summary>
+        /// After every tool: if it wrote markdown files of the project, their diagrams are checked
+        /// at once and the problems go back to the model in the same breath (measured 11/09/2026:
+        /// the model reads <c>AdditionalContext</c> and fixes the file with its next tool call).
+        /// </summary>
+        private async Task<PostToolUseHookOutput> OnPostToolUseAsync(PostToolUseHookInput input, HookInvocation invocation)
+        {
+            var turn = _activeTurn;
+            if (turn == null) return null;
+
+            try
+            {
+                var files = AgentWrittenMarkdown.Paths(input.ToolArgs, _workingDirectory);
+                if (files.Count == 0) return null;
+                lock (turn) foreach (var f in files) turn.WrittenMarkdown.Add(f);
+
+                var result = await _plantumlVerifier.VerifyAsync(files.Select(f => (Relative(f), ReadShared(f)))).ConfigureAwait(false);
+                if (result.Diagrams == 0) return null;
+
+                var names = string.Join(", ", files.Select(Relative));
+                if (result.ToolUnavailable != null)
+                {
+                    Write(turn.Channel, CopilotChatChunk.KindTool, "Diagrammi di " + names + " NON verificati: " + result.ToolUnavailable);
+                    return null;
+                }
+                if (!result.HasProblems)
+                {
+                    Write(turn.Channel, CopilotChatChunk.KindTool, $"MdExplorer: diagrammi di {names} verificati ✓");
+                    return null;
+                }
+
+                lock (turn) turn.ProblemsHandedBack = true;
+                _logger.LogInformation("[CopilotSdkSession] {Count} problemi nei diagrammi di {Files}, rimandati al modello", result.Problems.Count, names);
+                Write(turn.Channel, CopilotChatChunk.KindTool, $"MdExplorer: {Problems(result)} nei diagrammi di {names}, rimandati a Copilot");
+                return new PostToolUseHookOutput { AdditionalContext = result.ForModel() };
+            }
+            catch (Exception ex)
+            {
+                // A failing check must not stop the agent's work — but it is said, not swallowed.
+                _logger.LogWarning(ex, "[CopilotSdkSession] verifica dei diagrammi dopo {Tool} fallita", input.ToolName);
+                Write(turn.Channel, CopilotChatChunk.KindTool, "Verifica dei diagrammi non riuscita: " + ex.Message);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// When the agent wants to end its answer: every markdown file it wrote in this answer and
+        /// every new chat message is checked. Problems keep it working (<c>block</c>), up to
+        /// <see cref="MAX_DIAGRAM_CORRECTION_ROUNDS"/> rounds; past that the answer ends and the
+        /// user reads what is still wrong. A broken diagram never passes in silence.
+        /// <para>
+        /// A block does not end the answer: <c>AssistantIdle</c>, where the answer closes, comes only
+        /// after the stop that is let through (measured 11/09/2026).
+        /// </para>
+        /// </summary>
+        private async Task<AgentStopHookOutput> OnAgentStopAsync(AgentStopHookInput input, HookInvocation invocation)
+        {
+            var turn = _activeTurn;
+            if (turn == null) return null;
+
+            try
+            {
+                List<(string Where, string Markdown)> texts;
+                lock (turn)
+                {
+                    texts = turn.WrittenMarkdown.Where(File.Exists).Select(f => (Relative(f), ReadShared(f))).ToList();
+                    // Only the messages since the last check: after a block the old message with the
+                    // wrong diagram stays in the chat, and the corrected one is a new message.
+                    texts.AddRange(turn.UncheckedAnswers.Select(a => ("la tua risposta", a)));
+                    turn.UncheckedAnswers.Clear();
+                }
+                if (texts.Count == 0) return null;
+
+                var result = await _plantumlVerifier.VerifyAsync(texts).ConfigureAwait(false);
+                if (result.Diagrams == 0) return null;
+
+                if (result.ToolUnavailable != null)
+                {
+                    Write(turn.Channel, CopilotChatChunk.KindMessage, "\n\n⚠️ MdExplorer non ha potuto verificare i diagrammi PlantUML: " + result.ToolUnavailable);
+                    return null;
+                }
+
+                int round;
+                bool handedBack;
+                lock (turn) { round = turn.CorrectionRounds; handedBack = turn.ProblemsHandedBack; }
+
+                if (!result.HasProblems)
+                {
+                    Write(turn.Channel, CopilotChatChunk.KindMessage,
+                        $"\n\n✓ MdExplorer ha verificato {Diagrams(result.Diagrams)} PlantUML" +
+                        (handedBack || round > 0 ? ", corretti da Copilot dopo la verifica." : "."));
+                    return null;
+                }
+
+                if (round < MAX_DIAGRAM_CORRECTION_ROUNDS)
+                {
+                    lock (turn) { turn.CorrectionRounds++; turn.ProblemsHandedBack = true; }
+                    _logger.LogInformation("[CopilotSdkSession] {Count} problemi nei diagrammi alla chiusura, giro {Round}", result.Problems.Count, round + 1);
+                    Write(turn.Channel, CopilotChatChunk.KindTool,
+                        $"MdExplorer: {Problems(result)} nei diagrammi, Copilot li corregge (giro {round + 1} di {MAX_DIAGRAM_CORRECTION_ROUNDS})");
+                    return new AgentStopHookOutput { Decision = "block", Reason = result.ForModel() };
+                }
+
+                _logger.LogWarning("[CopilotSdkSession] diagrammi ancora con problemi dopo {Rounds} giri", MAX_DIAGRAM_CORRECTION_ROUNDS);
+                Write(turn.Channel, CopilotChatChunk.KindMessage,
+                    $"\n\n⚠️ MdExplorer: dopo {MAX_DIAGRAM_CORRECTION_ROUNDS} giri di correzione restano problemi nei diagrammi PlantUML:" + result.ForUser());
+                return null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[CopilotSdkSession] verifica dei diagrammi alla chiusura fallita");
+                Write(turn.Channel, CopilotChatChunk.KindMessage, "\n\n⚠️ Verifica dei diagrammi PlantUML non riuscita: " + ex.Message);
+                return null;
+            }
+        }
+
+        private string Relative(string fullPath) => Path.GetRelativePath(_workingDirectory, fullPath);
+
+        // The agent may still hold the file, and MdExplorer's own watcher reads it too.
+        private static string ReadShared(string path)
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
+
+        private static string Problems(PlantumlVerification result)
+            => result.Problems.Count == 1 ? "1 problema" : result.Problems.Count + " problemi";
+
+        private static string Diagrams(int count) => count == 1 ? "1 diagramma" : count + " diagrammi";
 
         // GHCP001: the SDK marks PermissionDecision "for evaluation purposes only". It is also the
         // only way to approve a tool — OnPermissionRequest must return it — so the diagnostic is

@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using MdExplorer.Features.Services.AI.CopilotAcp;
 using MdExplorer.Features.Services.AI.CopilotSdk;
+using MdExplorer.Features.Commands;
+using MdExplorer.Features.Diagrams;
 using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Features.Services.AI.CopilotChat
@@ -40,6 +42,8 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<CopilotChatSessionPool> _logger;
         private readonly ICopilotChatTransportSource _transportSource;
+        // Checks the diagrams the agent writes (SDK sessions): one verifier per session, see CreateSession.
+        private readonly PlantumlServer _plantumlServer;
         private readonly Func<CopilotChatTransport, string, string, ICopilotChatSession> _sessionFactory;
         private readonly ConcurrentDictionary<string, Entry> _sessions =
             new ConcurrentDictionary<string, Entry>(StringComparer.Ordinal);
@@ -64,9 +68,11 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         public CopilotChatSessionPool(
             ILoggerFactory loggerFactory,
             ILogger<CopilotChatSessionPool> logger,
-            ICopilotChatTransportSource transportSource)
+            ICopilotChatTransportSource transportSource,
+            PlantumlServer plantumlServer)
             : this(loggerFactory, logger, transportSource, sessionFactory: null)
         {
+            _plantumlServer = plantumlServer ?? throw new ArgumentNullException(nameof(plantumlServer));
         }
 
         /// <summary>
@@ -201,8 +207,10 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         private ICopilotChatSession CreateSession(CopilotChatTransport transport, string workingDirectory, string modelId)
             => transport switch
             {
+                // One verifier per session: it remembers the diagrams already checked in this conversation.
                 CopilotChatTransport.Sdk => new CopilotSdkSession(
-                    _loggerFactory.CreateLogger<CopilotSdkSession>(), workingDirectory, modelId),
+                    _loggerFactory.CreateLogger<CopilotSdkSession>(), workingDirectory, modelId,
+                    new PlantumlBlockVerifier(_plantumlServer.CheckAsync)),
                 CopilotChatTransport.Acp => new CopilotAcpChatSession(
                     _loggerFactory.CreateLogger<CopilotAcpSession>(), workingDirectory, modelId),
                 _ => throw new InvalidOperationException($"Trasporto Copilot sconosciuto: {transport}")

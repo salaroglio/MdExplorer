@@ -85,6 +85,19 @@ namespace MdExplorer.Features.Diagrams
             sb.Append("\n\nCorreggi dove hai scritto il diagramma. MdExplorer lo ricontrolla da solo.");
             return sb.ToString();
         }
+
+        /// <summary>What the user reads when problems are left: where, and what they mean.</summary>
+        public string ForUser()
+        {
+            var sb = new StringBuilder();
+            foreach (var p in Problems)
+            {
+                sb.Append("\n- ").Append(p.Where);
+                if (p.FileLine > 0) sb.Append(", riga ").Append(p.FileLine);
+                sb.Append(": ").Append(p.Meaning);
+            }
+            return sb.ToString();
+        }
     }
 
     /// <summary>
