@@ -133,6 +133,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       hasExtraContent: node.hasExtraContent,
       extraLoaded: node.extraLoaded,
       isExtra: node.isExtra,
+      isTextFile: node.isTextFile,
       // Compact folder properties
       isCompacted: node.isCompacted,
       compactedPath: node.compactedPath,

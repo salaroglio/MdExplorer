@@ -1408,6 +1408,15 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     return this.currentMdFile?.name?.endsWith('.md.directory') || false;
   }
 
+  /**
+   * The panel shows a text file clicked in the md-tree (a .json, a .cs, …), not a markdown
+   * document: Word export and the markdown editor do not apply to it.
+   */
+  isTextFileShown(): boolean {
+    const name = this.currentMdFile?.name?.toLowerCase();
+    return !!name && !name.endsWith('.md') && !name.endsWith('.md.directory');
+  }
+
   refreshTocDirectory(): void {
     if (!this.currentMdFile || !this.isTocDirectoryFile()) {
       return;

@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -112,6 +113,18 @@ namespace MdExplorer.Controllers
             bool isDetached = source == "detached";
 
             _logger.LogInformation($"🔍 [MdExplorer] Navigation source: {(isIframeLinkClick ? "iframe link click" : "Angular navigation")}");
+
+            // A text file opened as the document (a click in the md-tree, a detached window):
+            // colored source, not raw bytes. What a page asks for — an image, a link to a .json —
+            // comes without "source" and stays raw, as always.
+            if (!isIframeLinkClick)
+            {
+                var textFile = TextFileToShow(rootPathSystem, relativePathFile, relativePathExtension);
+                if (textFile != null)
+                {
+                    return await ShowTextFile(textFile, rootPathSystem, connectionId, theme, isDetached);
+                }
+            }
 
             if (relativePathExtension != "" && relativePathExtension != ".md" && !relativePathFile.EndsWith(".md.directory"))
             {
@@ -479,6 +492,82 @@ namespace MdExplorer.Controllers
             return fullPathFile;
         }
 
+        // Shown as the browser renders them, never as source: an HTML page opened from a link
+        // comes back through the navigation history (source=angular) and must stay a page.
+        private static readonly HashSet<string> RenderedByTheBrowser =
+            new(StringComparer.OrdinalIgnoreCase) { ".html", ".htm", ".svg" };
+
+        /// <summary>
+        /// The full path of the text file to show as colored source, or null when the request is
+        /// for something else: a markdown document (also asked without ".md"), a page or image the
+        /// browser renders, a binary file, a path outside the project.
+        /// </summary>
+        private string TextFileToShow(string rootPathSystem, string relativePathFile, string extension)
+        {
+            if (extension == ".md" || relativePathFile.EndsWith(".md.directory") || RenderedByTheBrowser.Contains(extension))
+            {
+                return null;
+            }
+
+            var fullPath = Path.GetFullPath(Path.Combine(rootPathSystem, relativePathFile.TrimStart(Path.DirectorySeparatorChar, '/', '\\')));
+            var root = Path.GetFullPath(rootPathSystem);
+            if (!fullPath.StartsWith(root, StringComparison.Ordinal))
+            {
+                return null;
+            }
+            // Without extension the app asks for "doc" meaning "doc.md": the document wins.
+            if (extension == "" && System.IO.File.Exists(fullPath + ".md"))
+            {
+                return null;
+            }
+            if (!System.IO.File.Exists(fullPath))
+            {
+                return null;
+            }
+            return TextFileView.IsText(fullPath) ? fullPath : null;
+        }
+
+        /// <summary>
+        /// The document page for a text file: the same box as <c>```text(path)</c>, colored by
+        /// Prism, with the app's theme. Read-only: nothing is cached, indexed or written.
+        /// </summary>
+        private async Task<IActionResult> ShowTextFile(string fullPath, string rootPathSystem, string connectionId, string theme, bool isDetached)
+        {
+            var size = new FileInfo(fullPath).Length;
+            string body;
+            if (size > TextFileView.MaxBytes)
+            {
+                body = $@"<div class=""mde-text-file-view""><p class=""mde-text-file-too-big"">{System.Web.HttpUtility.HtmlEncode(Path.GetFileName(fullPath))}: " +
+                       $@"{size / 1024:N0} KB, troppo grande per mostrarlo qui (limite {TextFileView.MaxBytes / 1024} KB). Aprilo con l'editor esterno (matita nella barra).</p></div>";
+            }
+            else
+            {
+                var content = TextFileView.ReadText(fullPath);
+                body = $@"<div class=""mde-text-file-view"">{TextFileView.ContainerHtml(Guid.NewGuid().ToString("N"), fullPath, TextFileView.LanguageFor(fullPath), content)}</div>";
+            }
+
+            var monitoredMd = new MonitoredMDModel
+            {
+                Path = fullPath,
+                Name = Path.GetFileName(fullPath),
+                RelativePath = Path.GetRelativePath(rootPathSystem, fullPath),
+                FullPath = fullPath,
+                FullDirectoryPath = Path.GetDirectoryName(fullPath)
+            };
+            // The document toolbar acts on the file the panel shows, whatever its kind.
+            if (!isDetached)
+            {
+                await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("markdownfileisprocessed", monitoredMd);
+            }
+
+            var doc1 = new XmlDocument();
+            CreateHTMLBody(body, doc1, fullPath, connectionId, GetProjectPath(), theme, sourceHash: "", viewKind: "text");
+            var htmlContent = doc1.DocumentElement != null && doc1.DocumentElement.GetAttribute("_html_fallback") == "true"
+                ? doc1.DocumentElement.InnerText
+                : doc1.InnerXml;
+            return new ContentResult { ContentType = "text/html; charset=utf-8", Content = htmlContent };
+        }
+
         private FileContentResult CreateAResponseForNotMdFile(string rootPathSystem, string relativePathFile, string relativePathExtension)
         {
             // Rimuovi separatori iniziali per evitare che Path.Combine ignori il rootPath
@@ -793,7 +882,9 @@ namespace MdExplorer.Controllers
             }
         }
 
-        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId, string projectPath = "", string theme = "light", string sourceHash = "")
+        /// <param name="viewKind">"text" for a text file shown as source: the page scripts that edit a
+        /// markdown document (paste an image, …) stay off there.</param>
+        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId, string projectPath = "", string theme = "light", string sourceHash = "", string viewKind = null)
         {
             var isDark = theme == "dark" || theme == "milan";
             var html = doc1.CreateElement("html");
@@ -834,6 +925,12 @@ namespace MdExplorer.Controllers
             body.Attributes.Append(DocumentPath);
             body.Attributes.Append(ProjectPath);
             body.Attributes.Append(SourceHash);
+            if (!string.IsNullOrEmpty(viewKind))
+            {
+                var view = doc1.CreateAttribute("data-mde-view");
+                view.Value = viewKind;
+                body.Attributes.Append(view);
+            }
             body.Attributes.Append(bodyStyle);
             if (isDark)
             {
@@ -862,6 +959,7 @@ namespace MdExplorer.Controllers
 
                 // Build complete HTML document as string
                 var darkClass = isDark ? @" class=""dark-theme""" : "";
+                var viewAttribute = string.IsNullOrEmpty(viewKind) ? "" : $@" data-mde-view=""{viewKind}""";
                 var darkLink = isDark ? @"<link rel=""stylesheet"" href=""/dark-theme.css"" />" : "";
                 var htmlString = $@"<html style=""overflow: auto; height: auto; min-height: 100%;"">
 <head>
@@ -870,7 +968,7 @@ namespace MdExplorer.Controllers
     {darkLink}
     <script src=""/common.js""></script>
 </head>
-<body Id=""MdBody"" ConnectionId=""{connectionId}"" DocumentPath=""{filePathSystem1}"" ProjectPath=""{projectPath}"" data-mde-source-hash=""{sourceHash}""{darkClass} style=""overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;"">
+<body Id=""MdBody"" ConnectionId=""{connectionId}"" DocumentPath=""{filePathSystem1}"" ProjectPath=""{projectPath}"" data-mde-source-hash=""{sourceHash}""{viewAttribute}{darkClass} style=""overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;"">
 {resultToParse}
 </body>
 </html>";

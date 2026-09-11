@@ -35,6 +35,8 @@ export class MdFile implements IFileInfoNode {
   hasExtraContent?: boolean;
   extraLoaded?: boolean;
   isExtra?: boolean;
+  // A revealed non-markdown file whose content is text: clickable, shown colored in the panel.
+  isTextFile?: boolean;
 
   // Compact folder properties (VS Code-style)
   isCompacted?: boolean;

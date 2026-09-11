@@ -692,6 +692,20 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     });
                 }
 
+                // What is written is markdown (image + list of annotations). Since a text file can
+                // be the document shown in the panel, a paste there would have appended markdown
+                // to a .json or a .cs.
+                if (!request.DocumentPath.EndsWith(".md", StringComparison.OrdinalIgnoreCase)
+                    && !request.DocumentPath.EndsWith(".md.directory", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogWarning("SaveAnnotatedScreenshot: not a markdown document: {DocumentPath}", request.DocumentPath);
+                    return BadRequest(new SaveAnnotatedScreenshotResponse
+                    {
+                        Success = false,
+                        ErrorMessage = "Lo screenshot si incolla solo in un documento markdown (.md): il file aperto non lo è."
+                    });
+                }
+
                 // Parse marker descriptions
                 var descriptions = new List<MarkerDescriptionDto>();
                 if (!string.IsNullOrEmpty(request.DescriptionsJson))
@@ -2267,6 +2281,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                         Path = relative,
                         RelativePath = relative,
                         Type = "genericFile",
+                        IsTextFile = IsReadableTextFile(itemFile),
                         Expandable = false
                     });
                 }
@@ -2280,6 +2295,24 @@ namespace MdExplorer.Service.Controllers.MdFiles
         /// non-ignored markdown file, any non-markdown file (excluding the TOC sidecar), or any
         /// non-ignored direct subfolder. Keeps a revealed subfolder's eye truthful.
         /// </summary>
+        /// <summary>
+        /// Whether a revealed file can be shown as text (<see cref="TextFileView.IsText(string)"/>).
+        /// A file that cannot be read now (locked, gone) is not offered: the click would only
+        /// fail. It is logged, not hidden.
+        /// </summary>
+        private bool IsReadableTextFile(string path)
+        {
+            try
+            {
+                return TextFileView.IsText(path);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                _logger.LogWarning(ex, "[GetFolderExtraContent] Cannot read {Path} to tell whether it is text", path);
+                return false;
+            }
+        }
+
         private bool FolderHasRevealableContent(string folder, string projectPath)
         {
             try

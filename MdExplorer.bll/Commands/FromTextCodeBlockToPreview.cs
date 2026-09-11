@@ -24,27 +24,7 @@ namespace MdExplorer.Features.Commands
         protected readonly ILogger<FromTextCodeBlockToPreview> _logger;
         protected readonly IHelper _helper;
 
-        private const int MaxExternalFileSizeBytes = 512_000; // 500 KB — same as HTML preview
-
-        // File extension → Prism language identifier. Unknown extensions fall through
-        // to plain <pre><code> without a language class (Prism will leave it untouched).
-        private static readonly Dictionary<string, string> ExtensionToLanguage =
-            new(StringComparer.OrdinalIgnoreCase)
-            {
-                [".ttl"] = "turtle",     [".nt"] = "turtle",      [".n3"] = "turtle",     [".nq"] = "turtle",
-                [".rdf"] = "markup",     [".owl"] = "markup",
-                [".json"] = "json",      [".jsonld"] = "json",
-                [".yaml"] = "yaml",      [".yml"] = "yaml",
-                [".xml"] = "markup",     [".xsd"] = "markup",     [".xslt"] = "markup",
-                [".sql"] = "sql",        [".cypher"] = "cypher",  [".sparql"] = "sparql",
-                [".cs"] = "csharp",      [".ts"] = "typescript",  [".js"] = "javascript",
-                [".java"] = "java",      [".kt"] = "kotlin",
-                [".py"] = "python",
-                [".sh"] = "bash",        [".bash"] = "bash",      [".ps1"] = "powershell",
-                [".css"] = "css",        [".scss"] = "scss",
-                [".md"] = "markdown",
-                [".cob"] = "cobol",      [".cbl"] = "cobol",      [".cpy"] = "cobol",
-            };
+        private const int MaxExternalFileSizeBytes = TextFileView.MaxBytes;
 
         public bool Enabled { get; set; } = true;
         public int Priority { get; set; } = 16; // right after FromHtmlCodeBlockToPreview (15)
@@ -76,9 +56,16 @@ namespace MdExplorer.Features.Commands
             var matches = GetMatches(markdown);
             if (matches.Count == 0) return markdown;
 
+            var regions = MarkdownCodeRegions.Of(markdown);
             var currentIncrement = 0;
             foreach (Match match in matches)
             {
+                // The syntax shown as an example inside a ```` block is text, not a file to embed.
+                if (regions.IsCode(match.Index))
+                {
+                    continue;
+                }
+
                 try
                 {
                     var externalFile = match.Groups[1].Value;
@@ -91,7 +78,7 @@ namespace MdExplorer.Features.Commands
 
                     var guid = Guid.NewGuid().ToString("N");
 
-                    var language = LanguageFromExtension(resolvedFilePath);
+                    var language = TextFileView.LanguageFor(resolvedFilePath);
                     var base64Content = Convert.ToBase64String(Encoding.UTF8.GetBytes(fileContent));
                     var base64Path = Convert.ToBase64String(Encoding.UTF8.GetBytes(resolvedFilePath));
 
@@ -135,7 +122,7 @@ namespace MdExplorer.Features.Commands
                     var language = Encoding.UTF8.GetString(Convert.FromBase64String(parts[1]));
                     var content  = Encoding.UTF8.GetString(Convert.FromBase64String(parts[2]));
 
-                    var rendered = BuildContainerHtml(guid, filePath, language, content);
+                    var rendered = TextFileView.ContainerHtml(guid, filePath, language, content);
                     html = html.Replace(match.Value, rendered);
                 }
                 catch (Exception ex)
@@ -150,37 +137,6 @@ namespace MdExplorer.Features.Commands
         public string PrepareMetadataBasedOnMD(string markdown, RequestInfo requestInfo)
         {
             return markdown;
-        }
-
-        private string BuildContainerHtml(string guid, string filePath, string language, string content)
-        {
-            var encodedContent = HttpUtility.HtmlEncode(content);
-            var encodedPath    = HttpUtility.HtmlAttributeEncode(filePath);
-            var encodedFileNameForHeader = HttpUtility.HtmlEncode(Path.GetFileName(filePath));
-
-            var languageClass = string.IsNullOrEmpty(language) ? "" : $" class=\"language-{language}\"";
-
-            // SVG icons (kept inline to avoid extra HTTP requests and to match html-preview style)
-            var copyIcon       = @"<svg xmlns=""http://www.w3.org/2000/svg"" width=""14"" height=""14"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round""><rect x=""9"" y=""9"" width=""13"" height=""13"" rx=""2"" ry=""2""></rect><path d=""M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1""></path></svg>";
-            var fullscreenIcon = @"<svg xmlns=""http://www.w3.org/2000/svg"" width=""14"" height=""14"" viewBox=""0 0 24 24"" fill=""none"" stroke=""currentColor"" stroke-width=""2"" stroke-linecap=""round"" stroke-linejoin=""round""><polyline points=""15 3 21 3 21 9""></polyline><polyline points=""9 21 3 21 3 15""></polyline><line x1=""21"" y1=""3"" x2=""14"" y2=""10""></line><line x1=""3"" y1=""21"" x2=""10"" y2=""14""></line></svg>";
-
-            return $@"<div class=""mde-text-include-container"" data-id=""{guid}"">
-  <div class=""mde-text-include-header"">
-    <span class=""mde-text-include-filename"">{encodedFileNameForHeader}</span>
-    <span class=""mde-text-include-toolbar"">
-      <a class=""mde-text-include-btn mde-copy-path-btn"" href=""#"" title=""{encodedPath}"" data-filepath=""{encodedPath}"">{copyIcon}</a>
-      <a class=""mde-text-include-btn mde-text-include-fullscreen-btn"" href=""#"" title=""Fullscreen"">{fullscreenIcon}</a>
-    </span>
-  </div>
-  <pre class=""mde-text-include-pre""><code{languageClass}>{encodedContent}</code></pre>
-</div>";
-        }
-
-        private static string LanguageFromExtension(string absolutePath)
-        {
-            if (string.IsNullOrEmpty(absolutePath)) return string.Empty;
-            var ext = Path.GetExtension(absolutePath);
-            return ExtensionToLanguage.TryGetValue(ext, out var lang) ? lang : string.Empty;
         }
 
         /// <summary>

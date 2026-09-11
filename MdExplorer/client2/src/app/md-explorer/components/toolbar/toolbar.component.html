@@ -6,13 +6,13 @@
     <button mat-icon-button [matTooltip]="'TOOLBAR.EDIT_DOCUMENT' | translate" (click)="OpenEditor()" class="toolbar-btn btn-edit">
       <mat-icon>edit</mat-icon>
     </button>
-    <button mat-icon-button [matTooltip]="'TOOLBAR.EXPORT_WORD' | translate" (click)="Export()" class="toolbar-btn btn-export">
+    <button mat-icon-button [matTooltip]="'TOOLBAR.EXPORT_WORD' | translate" [disabled]="isTextFileShown()" (click)="Export()" class="toolbar-btn btn-export">
       <mat-icon>directions</mat-icon>
     </button>
     <button mat-icon-button [matTooltip]="'TOOLBAR.BOOKMARKS' | translate" (click)="bookmarkToggle()" class="toolbar-btn btn-bookmark">
       <mat-icon>bookmark</mat-icon>
     </button>
-    <button mat-icon-button [matTooltip]="'TOOLBAR.OPEN_REACT_EDITOR' | translate" (click)="openReactEditor()" class="toolbar-btn btn-editor">
+    <button mat-icon-button [matTooltip]="'TOOLBAR.OPEN_REACT_EDITOR' | translate" [disabled]="isTextFileShown()" (click)="openReactEditor()" class="toolbar-btn btn-editor">
       <mat-icon>article</mat-icon>
     </button>
     <button mat-icon-button [matTooltip]="'TOOLBAR.REFRESH_DOCUMENT' | translate" [disabled]="!relativePath" (click)="refreshDocument()" class="toolbar-btn btn-refresh">

@@ -52,6 +52,14 @@
      * Get the SignalR connection ID from the body attribute
      * @returns {string|null} Connection ID or null if not found
      */
+    /**
+     * The page shows a markdown document. A text file shown as source (body data-mde-view="text",
+     * a click on a .json in the md-tree) is not one: pasting there would append markdown to it.
+     */
+    function isMarkdownPage() {
+        return !document.body.hasAttribute('data-mde-view');
+    }
+
     function getConnectionId() {
         const connectionId = document.body.getAttribute('ConnectionId');
         if (!connectionId) {
@@ -330,6 +338,10 @@
 
         console.log('[clipboard-paste.js] Ctrl+V detected');
 
+        if (!isMarkdownPage()) {
+            return;
+        }
+
         // Skip if user is in an editable element (allow normal paste)
         if (isInEditableElement()) {
             console.log('[clipboard-paste.js] Skipping - focus is on editable element');
@@ -370,7 +382,7 @@
      * — and always with Shift — the browser's menu, untouched.
      */
     function handleContextMenu(event) {
-        if (event.shiftKey) return;
+        if (event.shiftKey || !isMarkdownPage()) return;
         closeMenu();
 
         var target = event.target;

@@ -105,6 +105,20 @@ namespace MdExplorer.Features.Tests.Commands
         }
 
         [TestMethod]
+        public void ATextIncludeShownAsAnExampleIsNotEmbedded()
+        {
+            Directory.CreateDirectory(Root);
+            File.WriteAllText(Path.Combine(Root, "dati.json"), "{ \"a\": 1 }");
+            var command = new FromTextCodeBlockToPreview(NullLogger<FromTextCodeBlockToPreview>.Instance, new Helper(NullLogger<Helper>.Instance));
+            var example = "````markdown\n```text(./dati.json)\n```\n````\n";
+
+            var result = command.TransformInNewMDFromMD(example + "\n```text(./dati.json)\n```\n", Request());
+
+            StringAssert.StartsWith(result, example);
+            Assert.AreEqual(1, Count(result, "mde-text-include-placeholder"), "the real ```text(path) block is still embedded");
+        }
+
+        [TestMethod]
         public void APlantumlBlockShownAsAnExampleIsNotDrawn()
         {
             // Read-only render: no jar, no disk; a block to draw becomes a placeholder note.

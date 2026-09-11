@@ -228,18 +228,19 @@
   </mat-tree-node>
 
   <!-- Non-markdown file revealed via a folder's "eye" (reveal content).
-       Click does nothing for now (it is not a markdown document); right-click opens the
-       context menu whose only action is "Copy path" (relative to the project root).
-       Muted styling to set it apart from real .md documents. -->
+       A text file (isTextFile, decided by its content) opens on click in the document panel,
+       colored; a binary file does nothing. Right-click: "Copy path" (relative to the project root).
+       Green styling to set it apart from real .md documents. -->
   <mat-tree-node *matTreeNodeDef="let node;when: isGenericFile"
                  matTreeNodePadding
                  (contextmenu)="onRightClick($event, node)"
+                 (click)="node.isTextFile && getNode(node)"
                  [attr.data-fullpath]="node.fullPath"
-                 [ngClass]="{ 'generic-file': true, 'selected': isNodeSelected(node) }">
-    <button mat-icon-button color="basic" style="cursor:default">
-      <mat-icon class="mat-icon-rtl-mirror generic-file-icon">insert_drive_file</mat-icon>
+                 [ngClass]="{ 'generic-file': true, 'generic-text-file': node.isTextFile, 'selected': isNodeSelected(node) }">
+    <button mat-icon-button color="basic" [style.cursor]="node.isTextFile ? 'pointer' : 'default'">
+      <mat-icon class="mat-icon-rtl-mirror generic-file-icon">{{ node.isTextFile ? 'description' : 'insert_drive_file' }}</mat-icon>
     </button>
-    <div class="node-text generic-file-name" style="padding: 2px;">{{node.name}}</div>
+    <div class="node-text generic-file-name" [style.cursor]="node.isTextFile ? 'pointer' : 'default'" style="padding: 2px;">{{node.name}}</div>
   </mat-tree-node>
 
   <!-- This is the tree node template for expandable nodes -->
