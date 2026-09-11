@@ -101,7 +101,20 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             public readonly List<string> UncheckedAnswers = new List<string>();
             public int CorrectionRounds;
             public bool ProblemsHandedBack;
+
+            // One answer can hold several messages (one per round of tool use, one per correction):
+            // their deltas were glued together — "…del diagramma.Creato il file…". A blank line goes
+            // between a finished message and the next one's first delta.
+            public bool MessageFinished;
         }
+
+        /// <summary>
+        /// Said once per session when Copilot works without MdExplorer's MCP server (see
+        /// <see cref="CopilotMcpDiagnostics"/>). The servers load around session start, often
+        /// before the first prompt: then the notice waits for the first answer.
+        /// </summary>
+        private string _pendingMcpNotice;
+        private bool _mcpNoticeGiven;
 
         /// <summary>Reset by every event of the turn in flight, so "idle" means really idle.</summary>
         private CancellationTokenSource _activePromptIdleCts;
@@ -218,6 +231,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             });
             var turn = new TurnState(channel);
             _activeTurn = turn;
+            GiveMcpNotice(turn);
 
             // Idle resets on every event of this turn (see HandleEvent); the hard cap is the
             // ceiling regardless of activity.
@@ -303,6 +317,12 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         /// </summary>
         private void HandleEvent(SessionEvent evt)
         {
+            // Session-level, not answer-level: it may arrive before any prompt.
+            if (evt is SessionMcpServersLoadedEvent mcp)
+            {
+                OnMcpServersLoaded(mcp);
+            }
+
             var turn = _activeTurn;
             if (turn == null) return;
 
@@ -318,6 +338,11 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     break;
 
                 case AssistantMessageDeltaEvent message:
+                    if (turn.MessageFinished && !string.IsNullOrEmpty(message.Data?.DeltaContent))
+                    {
+                        turn.MessageFinished = false;
+                        Write(turn.Channel, CopilotChatChunk.KindMessage, "\n\n");
+                    }
                     Write(turn.Channel, CopilotChatChunk.KindMessage, message.Data?.DeltaContent);
                     break;
 
@@ -363,6 +388,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     if (!string.IsNullOrWhiteSpace(completed.Data?.Content))
                     {
                         lock (turn) turn.UncheckedAnswers.Add(completed.Data.Content);
+                        turn.MessageFinished = true;
                     }
                     break;
 
@@ -514,7 +540,9 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 {
                     Write(turn.Channel, CopilotChatChunk.KindMessage,
                         $"\n\n✓ MdExplorer ha verificato {Diagrams(result.Diagrams)} PlantUML" +
-                        (handedBack || round > 0 ? ", corretti da Copilot dopo la verifica." : "."));
+                        (handedBack || round > 0
+                            ? (result.Diagrams == 1 ? ", corretto" : ", corretti") + " da Copilot dopo la verifica."
+                            : "."));
                     return null;
                 }
 
@@ -538,6 +566,33 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 Write(turn.Channel, CopilotChatChunk.KindMessage, "\n\n⚠️ Verifica dei diagrammi PlantUML non riuscita: " + ex.Message);
                 return null;
             }
+        }
+
+        private void OnMcpServersLoaded(SessionMcpServersLoadedEvent evt)
+        {
+            var servers = (evt.Data?.Servers ?? Array.Empty<McpServersLoadedServer>())
+                .Select(s => (s.Name, s.Status.Value, s.Error))
+                .ToList();
+            foreach (var (name, status, error) in servers)
+            {
+                _logger.LogInformation("[CopilotSdkSession] MCP {Server}: {Status}{Error}", name, status,
+                    string.IsNullOrWhiteSpace(error) ? "" : " — " + error);
+            }
+
+            var notice = CopilotMcpDiagnostics.NoticeFor(servers);
+            if (notice == null) return;
+            _logger.LogWarning("[CopilotSdkSession] {Notice}", notice);
+            _pendingMcpNotice = notice;
+            var turn = _activeTurn;
+            if (turn != null) GiveMcpNotice(turn);
+        }
+
+        private void GiveMcpNotice(TurnState turn)
+        {
+            var notice = _pendingMcpNotice;
+            if (notice == null || _mcpNoticeGiven) return;
+            _mcpNoticeGiven = true;
+            Write(turn.Channel, CopilotChatChunk.KindMessage, notice + "\n\n");
         }
 
         private string Relative(string fullPath) => Path.GetRelativePath(_workingDirectory, fullPath);
