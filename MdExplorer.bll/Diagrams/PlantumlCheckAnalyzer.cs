@@ -29,9 +29,9 @@ namespace MdExplorer.Features.Diagrams
         /// </summary>
         public const int MaxProblems = 10;
 
-        private const string Error = "error";
-        private const string Warning = "warning";
-        private const string Hint = "hint";
+        public const string Error = "error";
+        public const string Warning = "warning";
+        public const string Hint = "hint";
 
         // "ERROR\n<riga>\n<messaggio>" — formato misurato sul jar 1.2026.1 in -checkonly.
         private static readonly Regex AssumedTypeRegex =
