@@ -228,8 +228,17 @@ namespace MdExplorer.Features.Commands
             Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.AbsolutePathFile));
 
             var matches = GetMatches(markdown);
+            var regions = MarkdownCodeRegions.Of(markdown);
+            var increment = 0;
             foreach (Match item in matches)
             {
+                // A ```plantuml block written as an example inside a ```` block is text, not a
+                // diagram to draw.
+                if (regions.IsCode(item.Index))
+                {
+                    continue;
+                }
+
                 var referenceUrl = "<code>error</code>";
                 try
                 {
@@ -266,7 +275,7 @@ namespace MdExplorer.Features.Commands
                 }
 
 
-                markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
+                (markdown, increment) = ReplaceAt(markdown, increment, item, referenceUrl);
             }
             Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.CurrentRoot));
             return markdown;
@@ -283,8 +292,15 @@ namespace MdExplorer.Features.Commands
             var cacheDir = requestInfo.CurrentRoot + $"{Path.DirectorySeparatorChar}.md";
             string backPath = _helper.GetBackPath(requestInfo);
             var matches = GetMatches(markdown);
+            var regions = MarkdownCodeRegions.Of(markdown);
+            var increment = 0;
             foreach (Match item in matches)
             {
+                if (regions.IsCode(item.Index))
+                {
+                    continue;
+                }
+
                 string referenceUrl;
                 try
                 {
@@ -310,9 +326,20 @@ namespace MdExplorer.Features.Commands
                 {
                     referenceUrl = $"<code>{ex.Message}</code>";
                 }
-                markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
+                (markdown, increment) = ReplaceAt(markdown, increment, item, referenceUrl);
             }
             return markdown;
+        }
+
+        /// <summary>
+        /// Replaces the match where it is. A Replace of its text would also rewrite the same
+        /// diagram written as an example in a code block.
+        /// </summary>
+        private static (string, int) ReplaceAt(string markdown, int increment, Match item, string replacement)
+        {
+            var at = item.Index + increment;
+            markdown = markdown.Remove(at, item.Length).Insert(at, replacement);
+            return (markdown, increment + replacement.Length - item.Length);
         }
 
         protected MatchCollection GetMetaDataMatches(string markDown)

@@ -43,14 +43,33 @@ namespace MdExplorer.Features.Commands.html
             return matches;
         }
 
+        /// <summary>
+        /// Images that keep their markdown as written, without the toolbar wrapper.
+        /// <list type="bullet">
+        /// <item>In code: an image written as an example must show as text.</item>
+        /// <item>In a table: the wrapper is a block of several lines, and a table row is one line —
+        /// the row broke, the image fell out of the table followed by the rest of the cell. Markdig
+        /// renders the image in its cell, responsive like the others (Bootstrap's img-fluid).</item>
+        /// </list>
+        /// </summary>
+        private static bool KeepAsWritten(MarkdownCodeRegions regions, Match image)
+            => regions.IsCode(image.Index) || regions.IsInTable(image.Index);
+
         public override string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
             var imgMatches = GetLinkWithCurlyBracketsMatches(markdown);
-            
+            var regions = MarkdownCodeRegions.Of(markdown);
+            var increment = 0;
+
             var matches = GetMatches(markdown);
-            // i should remove the CSS extra            
+            // i should remove the CSS extra
             foreach (Match itemImg in imgMatches)
             {
+                if (KeepAsWritten(regions, itemImg))
+                {
+                    continue;
+                }
+
                 var curlyBrackets = itemImg.Groups[3].Value;
                 var metadataMatch = GetMetaDataMatches(curlyBrackets);
 
@@ -154,14 +173,22 @@ namespace MdExplorer.Features.Commands.html
                                                     endDivForToolbar,
                                                     divContainsImage,
                                                 endDivContainer);
-                markdown = markdown.Replace(itemImg.Groups[0].Value, divContainsImage);
+                // By position: a Replace would also rewrite the same image written in a code block.
+                (markdown, increment) = ManageReplaceOnMD(markdown, increment, itemImg, divContainsImage);
 
             }
 
             // Process simple images without curly brackets: ![alt](path)
             var simpleImgMatches = GetSimpleImageMatches(markdown);
+            regions = MarkdownCodeRegions.Of(markdown);
+            increment = 0;
             foreach (Match simpleImg in simpleImgMatches)
             {
+                if (KeepAsWritten(regions, simpleImg))
+                {
+                    continue;
+                }
+
                 var altText = simpleImg.Groups[1].Value;
                 var imagePath = simpleImg.Groups[2].Value;
 
@@ -172,7 +199,6 @@ namespace MdExplorer.Features.Commands.html
                 var prepareCurrentQueryRequest = requestInfo.CurrentQueryRequest.Replace(@"\", @"\\");
 
                 // Build the wrapped image HTML
-                var originalImageMarkdown = simpleImg.Groups[0].Value;
                 var imageWithClass = $"![{altText}]({imagePath}){{.simpleImgFluid data-md-hash=\"empty\"}}";
 
                 var divContainsImage = $"<div id=\"{imageHash}\" " +
@@ -207,7 +233,7 @@ namespace MdExplorer.Features.Commands.html
                                                     divContainsImage,
                                                 endDivContainer);
 
-                markdown = markdown.Replace(originalImageMarkdown, divContainsImage);
+                (markdown, increment) = ManageReplaceOnMD(markdown, increment, simpleImg, divContainsImage);
             }
 
             return markdown;

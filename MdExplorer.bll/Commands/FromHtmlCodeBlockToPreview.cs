@@ -53,9 +53,16 @@ namespace MdExplorer.Features.Commands
             var matches = GetMatches(markdown);
             if (matches.Count == 0) return markdown;
 
+            var regions = MarkdownCodeRegions.Of(markdown);
             var currentIncrement = 0;
             foreach (Match match in matches)
             {
+                // A ```html block written as an example inside a ```` block is text, not a page to preview.
+                if (regions.IsCode(match.Index))
+                {
+                    continue;
+                }
+
                 try
                 {
                     var externalFile = match.Groups[1].Value; // filename from ```html(file.html)

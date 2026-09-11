@@ -1,6 +1,7 @@
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Configuration.Models;
 using MdExplorer.Features.Interfaces;
+using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -72,9 +73,17 @@ namespace MdExplorer.Features.Commands
             var matches = GetMatches(markdown);
             if (matches.Count == 0) return markdown;
 
+            var regions = MarkdownCodeRegions.Of(markdown);
             var currentIncrement = 0;
             foreach (Match match in matches)
             {
+                // The syntax shown as an example inside a ```` block (as the skill that documents
+                // it does) is text: expanding it drew an error box, or a diagram, inside the example.
+                if (regions.IsCode(match.Index))
+                {
+                    continue;
+                }
+
                 string replacement;
                 try
                 {
