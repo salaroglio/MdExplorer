@@ -16,6 +16,7 @@
     justify-content: center;
     width: 26px;
     height: 26px;
+    margin: 0; /* the page gives every button 3.2px: it sat lower than the copy button next to it */
     padding: 0;
     border: 1px solid rgba(0, 0, 0, 0.15);
     border-radius: 6px;
@@ -118,6 +119,7 @@
 /* dark mode */
 body.dark-theme .mde-tfind-btn { background: rgba(45, 45, 45, 0.96); border-color: #555; }
 body.dark-theme .mde-tfind-btn:hover { background: #3a3a3a; }
+body.dark-theme .mde-tfind-btn img { filter: invert(0.87); } /* the magnifier svg is black */
 body.dark-theme .mde-tfind-box { background: #2d2d2d; border-color: #555; color: #ccc; }
 body.dark-theme .mde-tfind-box input { background: #1e1e1e; color: #ccc; border-color: #555; }
 body.dark-theme .mde-tfind-cols-panel { background: #2d2d2d; border-color: #555; color: #90caf9; }
@@ -136,3 +138,74 @@ body.dark-theme .mdeItemMainPageCenter table.table th.mde-tfind-current {
     background: #ff9800 !important;
     color: #000 !important;
 }
+
+/* ----------------------------------------------------------------------------
+ * Copy table: [⧉▾] next to the magnifier. ⧉ copies everything, ▾ opens the
+ * column choice (same "Colonne (n/tot) ▾" panel as the search).
+ * ------------------------------------------------------------------------- */
+.mde-tcopy-group {
+    position: fixed;
+    z-index: 1016;
+    display: none; /* -> flex when shown by JS */
+    height: 26px;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+}
+/* The page styles every button (margin 3.2px, radius 30px, a background in dark mode):
+   here that turned the two halves into pills taller than the group. Reset explicitly. */
+.mde-tcopy-group button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    opacity: 1;
+    background: transparent;
+    color: #444;
+    cursor: pointer;
+}
+.mde-tcopy-group .mde-tcopy-btn { width: 26px; }
+.mde-tcopy-group .mde-tcopy-menu {
+    width: 16px;
+    font-size: 11px;
+    border-left: 1px solid rgba(0, 0, 0, 0.12);
+}
+.mde-tcopy-group button:hover { background: #ececec; }
+
+.mde-tcopy-box .mde-tcopy-do {
+    font-weight: bold;
+}
+.mde-tcopy-box .mde-tcopy-do:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+/* what was copied, for a moment */
+.mde-tcopy-toast {
+    position: fixed;
+    z-index: 1019;
+    display: none;
+    padding: 5px 10px;
+    border-radius: 6px;
+    background: #2e7d32;
+    color: #fff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+.mde-tcopy-toast.mde-tcopy-toast-error { background: #c62828; }
+
+body.dark-theme .mde-tcopy-group { background: rgba(45, 45, 45, 0.96); border-color: #555; }
+body.dark-theme .mde-tcopy-group button { color: #ddd; background: transparent; }
+body.dark-theme .mde-tcopy-group .mde-tcopy-menu { border-left-color: #555; }
+body.dark-theme .mde-tcopy-group button:hover { background: #3a3a3a; }
