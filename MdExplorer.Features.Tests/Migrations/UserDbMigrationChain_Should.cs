@@ -78,6 +78,14 @@ namespace MdExplorer.Features.Tests.Migrations
                     Assert.AreEqual(1L, (long)cmd.ExecuteScalar(),
                         "La migrazione M2026_07_15_002 (mailbox) deve risultare applicata.");
                 }
+
+                // Scelta del modello di Claude Code (M2026_09_13_001): le due colonne nullable esistono.
+                foreach (var (table, column) in new[] { ("Project", "ClaudeCodeChatModel"), ("AvailableModel", "Description") })
+                {
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = '{column}' AND \"notnull\" = 0";
+                    Assert.AreEqual(1L, (long)cmd.ExecuteScalar(), $"La colonna nullable {table}.{column} deve esistere.");
+                }
             }
             finally
             {

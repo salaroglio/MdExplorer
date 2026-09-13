@@ -48,6 +48,13 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// </para>
         /// </summary>
         public virtual string CopilotChatModel { get; set; }
+
+        /// <summary>
+        /// Il modello con cui MarkAgent parla a Claude Code in questo progetto: un <c>value</c> dell'elenco che
+        /// il CLI dichiara (<c>sonnet</c>, <c>opus[1m]</c>, <c>default</c>…). <c>null</c> = mai scelto, e la chat
+        /// usa <c>sonnet</c> come faceva prima che la scelta esistesse — non un modello più caro in silenzio.
+        /// </summary>
+        public virtual string ClaudeCodeChatModel { get; set; }
         public virtual bool ExecutionTrusted { get; set; } = false;
 
         /// <summary>

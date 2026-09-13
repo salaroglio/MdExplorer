@@ -86,6 +86,7 @@ namespace MdExplorer.Features.Services.AI
                 {
                     Id = m.ModelId,
                     Name = m.Name,
+                    Description = m.Description,
                     Provider = ProviderType.ClaudeCode,
                     CreatedAt = m.DiscoveredAt,
                 })
@@ -109,6 +110,8 @@ namespace MdExplorer.Features.Services.AI
                     var record = existing.FirstOrDefault(e => e.ModelId == model.Id)
                                  ?? new AvailableModel { ModelId = model.Id, Provider = ProviderKey };
                     record.Name = model.Name;
+                    // Troncata alla colonna: una descrizione più lunga del previsto non deve far fallire il salvataggio.
+                    record.Description = model.Description?.Length > 1000 ? model.Description.Substring(0, 1000) : model.Description;
                     record.DiscoveredAt = now;
                     dal.Save(record);
                 }

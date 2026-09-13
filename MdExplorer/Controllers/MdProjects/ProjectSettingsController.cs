@@ -418,6 +418,49 @@ namespace MdExplorer.Service.Controllers.MdProjects
         }
 
         /// <summary>
+        /// Salva il modello di Claude Code per MarkAgent in un progetto: un <c>value</c> dell'elenco che il CLI
+        /// dichiara. <c>ModelId</c> null o vuoto = torna a «mai scelto» (la chat usa <c>sonnet</c>). Gemello di
+        /// <see cref="SetCopilotChatModelSetting"/>, con la stessa transazione propria.
+        /// </summary>
+        [HttpPost]
+        public IActionResult SetClaudeCodeChatModelSetting([FromBody] SetClaudeCodeChatModelRequest request)
+        {
+            try
+            {
+                _userSettingsDB.Clear();
+                _userSettingsDB.BeginTransaction();
+                var projectDal = _userSettingsDB.GetDal<Project>();
+                var project = projectDal.GetList()
+                    .FirstOrDefault(p => p.Path == request.ProjectPath);
+
+                if (project == null)
+                {
+                    project = projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, request.ProjectPath, StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (project == null)
+                {
+                    _userSettingsDB.Rollback();
+                    _logger.LogWarning("[SetClaudeCodeChatModelSetting] Project not found for path: '{Path}'", request.ProjectPath);
+                    return NotFound(new { error = "Project not found" });
+                }
+
+                project.ClaudeCodeChatModel = string.IsNullOrWhiteSpace(request.ModelId) ? null : request.ModelId.Trim();
+                projectDal.Save(project);
+                _userSettingsDB.Commit();
+
+                return Ok(new { modelId = project.ClaudeCodeChatModel });
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                _logger.LogError(ex, "Error saving ClaudeCodeChatModel setting");
+                return StatusCode(500, new { error = "Failed to save ClaudeCodeChatModel setting" });
+            }
+        }
+
+        /// <summary>
         /// Manopola gemella per Claude Code. ⚠️ Il default di lettura è <c>false</c> — opposto a
         /// quello di Copilot — perché un progetto che non ha mai visto questa impostazione non
         /// deve cambiare motore della chat da solo.
@@ -730,6 +773,14 @@ namespace MdExplorer.Service.Controllers.MdProjects
         /// non nullable di un DTO e' un [Required] implicito, e "lascia scegliere il CLI" (null)
         /// verrebbe respinto con un 400 opaco prima di entrare nel metodo.
         /// </summary>
+        public string? ModelId { get; set; }
+    }
+
+    public class SetClaudeCodeChatModelRequest
+    {
+        public string ProjectPath { get; set; }
+
+        /// <summary><c>string?</c> per la stessa ragione di <see cref="SetCopilotChatModelRequest.ModelId"/>: null è un valore valido.</summary>
         public string? ModelId { get; set; }
     }
 

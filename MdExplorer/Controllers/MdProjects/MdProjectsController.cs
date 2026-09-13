@@ -915,8 +915,11 @@ namespace MdExplorer.Service.Controllers.MdProjects
                             "Controlla le registrazioni IAiProvider in Startup.cs.");
                     }
                     claudeProvider.WorkingDirectory = request.Path;
-                    // Alias, non nome pieno: punta sempre all'ultimo Sonnet e non invecchia.
-                    claudeCodeDefaultModel = "sonnet";
+                    // Il modello scelto per questo progetto. Mai scelto = `sonnet`, come prima che la scelta
+                    // esistesse: un progetto che c'è già non deve passare in silenzio a un modello più caro.
+                    claudeCodeDefaultModel = string.IsNullOrWhiteSpace(project.ClaudeCodeChatModel)
+                        ? "sonnet"
+                        : project.ClaudeCodeChatModel;
                     claudeCodeAvailable = claudeProvider.IsAvailable();
                     logger?.LogInformation(
                         "🤖 ClaudeCode auto-select: available={Available}, model={Model}, cwd={Cwd}",

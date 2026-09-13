@@ -80,7 +80,7 @@ namespace MdExplorer.Controllers.AI
                                 || string.Equals(m.Provider, provider, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(m => m.Provider)
                     .ThenBy(m => m.Name)
-                    .Select(m => new { id = m.ModelId, name = m.Name, provider = m.Provider })
+                    .Select(m => new { id = m.ModelId, name = m.Name, provider = m.Provider, description = m.Description })
                     .ToList();
                 return Ok(new { models });
             }
