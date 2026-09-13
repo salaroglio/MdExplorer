@@ -940,6 +940,8 @@ namespace MdExplorer.Hubs
 
             await Clients.Caller.SendAsync("ReceiveStreamMeta",
                 new { providerType = "copilotcli", modelId = requestedModel, transport = session.Transport.ToString().ToLowerInvariant() }, channelId);
+            // Before the answer too: a new session shows the quota straight away.
+            await SendCopilotUsageAsync(session, channelId);
 
             var promptText = string.IsNullOrEmpty(currentDoc)
                 ? userMessage
@@ -1007,6 +1009,8 @@ namespace MdExplorer.Hubs
                     new { requestedModel, answeredModel = session.AnsweredModel }, channelId);
             }
 
+            await SendCopilotUsageAsync(session, channelId);
+
             var finalResponse = responseText.ToString().TrimEnd();
             history.Messages.Add(new bll.Models.AI.ConversationMessage
             {
@@ -1014,6 +1018,38 @@ namespace MdExplorer.Hubs
                 Content = finalResponse
             });
             return finalResponse;
+        }
+
+        /// <summary>
+        /// Quota of the account, the share this conversation took and how full its context is, for
+        /// the bar next to MarkAgent's model choice. Names in camelCase on purpose: the client reads
+        /// them as they are. A failure here only costs the numbers, never the answer.
+        /// </summary>
+        private async Task SendCopilotUsageAsync(ICopilotChatSession session, string channelId)
+        {
+            try
+            {
+                var usage = await session.GetUsageAsync(Context.ConnectionAborted);
+                if (usage == null) return;
+                await Clients.Caller.SendAsync("ReceiveCopilotUsage", new
+                {
+                    quotaType = usage.QuotaType,
+                    quotaUnlimited = usage.QuotaUnlimited,
+                    quotaUsedPercent = usage.QuotaUsedPercent,
+                    quotaUsed = usage.QuotaUsed,
+                    quotaEntitlement = usage.QuotaEntitlement,
+                    quotaResetDate = usage.QuotaResetDate,
+                    sessionRequests = usage.SessionRequests,
+                    sessionPercent = usage.SessionPercent,
+                    contextTokens = usage.ContextTokens,
+                    contextLimit = usage.ContextLimit,
+                    contextPercent = usage.ContextPercent
+                }, channelId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[AiChatHub] consumi di Copilot non letti");
+            }
         }
 
         private async Task<string> StreamCopilotCliResponseAsync(

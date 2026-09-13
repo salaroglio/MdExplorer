@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -116,6 +117,14 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         private string _pendingMcpNotice;
         private bool _mcpNoticeGiven;
 
+        // Usage for the bar next to the model (GetUsageAsync). Replaced whole, never mutated: the
+        // SDK raises events from more than one thread.
+        private IReadOnlyList<CopilotQuotaBucket> _quotaBuckets = Array.Empty<CopilotQuotaBucket>();
+        private DateTimeOffset? _quotaAsOf;
+        private long? _contextTokens;
+        private long? _contextLimit;
+        private bool _quotaSnapshotMissingLogged;
+
         /// <summary>Reset by every event of the turn in flight, so "idle" means really idle.</summary>
         private CancellationTokenSource _activePromptIdleCts;
 
@@ -190,6 +199,8 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             }
 
             _session = await _client.CreateSessionAsync(config, timeout.Token).ConfigureAwait(false);
+
+            await ReadStartQuotaAsync(timeout.Token).ConfigureAwait(false);
 
             _logger.LogInformation("[CopilotSdkSession] session={SessionId} cwd={Cwd} model={Model}",
                 _session.SessionId, _workingDirectory, string.IsNullOrWhiteSpace(_modelId) ? "(CLI default)" : _modelId);
@@ -317,10 +328,19 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         /// </summary>
         private void HandleEvent(SessionEvent evt)
         {
-            // Session-level, not answer-level: it may arrive before any prompt.
-            if (evt is SessionMcpServersLoadedEvent mcp)
+            // Session-level, not answer-level: they may arrive before any prompt.
+            switch (evt)
             {
-                OnMcpServersLoaded(mcp);
+                case SessionMcpServersLoadedEvent mcp:
+                    OnMcpServersLoaded(mcp);
+                    break;
+                case SessionUsageInfoEvent info when info.Data != null:
+                    _contextTokens = info.Data.CurrentTokens;
+                    _contextLimit = info.Data.TokenLimit;
+                    break;
+                case AssistantUsageEvent usage:
+                    CaptureQuota(usage);
+                    break;
             }
 
             var turn = _activeTurn;
@@ -565,6 +585,84 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 _logger.LogWarning(ex, "[CopilotSdkSession] verifica dei diagrammi alla chiusura fallita");
                 Write(turn.Channel, CopilotChatChunk.KindMessage, "\n\n⚠️ Verifica dei diagrammi PlantUML non riuscita: " + ex.Message);
                 return null;
+            }
+        }
+
+        // GHCP001: the SDK marks AccountQuotaSnapshot "for evaluation purposes only", as it does
+        // PermissionDecision below. Suppressed here and nowhere else: if a future SDK changes it, this
+        // method breaks at compile time, and the bar still gets the quota from the first answer.
+#pragma warning disable GHCP001
+        /// <summary>
+        /// The quota before the first answer. Only as a starting value: account.getQuota lags —
+        /// measured 13/09/2026, after two requests it still said 20 used, 30 seconds later — while
+        /// every model call brings a fresh one (see <see cref="CaptureQuota"/>).
+        /// </summary>
+        private async Task ReadStartQuotaAsync(CancellationToken ct)
+        {
+            try
+            {
+                var quota = await _client.Rpc.Account.GetQuotaAsync(null, ct).ConfigureAwait(false);
+                if (quota?.QuotaSnapshots == null) return;
+                _quotaBuckets = quota.QuotaSnapshots
+                    .Select(kv => new CopilotQuotaBucket
+                    {
+                        Type = kv.Key,
+                        Entitlement = kv.Value.EntitlementRequests,
+                        Used = kv.Value.UsedRequests,
+                        RemainingPercent = kv.Value.RemainingPercentage,
+                        Unlimited = kv.Value.IsUnlimitedEntitlement,
+                        ResetDate = kv.Value.ResetDate,
+                    })
+                    .ToList();
+                _quotaAsOf = DateTimeOffset.UtcNow;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[CopilotSdkSession] quota dell'account non letta all'avvio: comparirà dopo la prima risposta");
+            }
+        }
+#pragma warning restore GHCP001
+
+        /// <summary>
+        /// Account quota, the share this conversation took, context fill. The session's requests
+        /// come from the SDK's metrics: only the requests that count against the quota (measured
+        /// 13/09/2026: a model call the agent makes by itself after a tool costs nothing).
+        /// </summary>
+        public async Task<CopilotUsageSnapshot> GetUsageAsync(CancellationToken ct = default)
+        {
+            var session = _session;
+            if (session == null || _disposed) return null;
+
+            var metrics = await session.Rpc.Usage.GetMetricsAsync(ct).ConfigureAwait(false);
+            return CopilotUsage.Build(_quotaBuckets, _quotaAsOf, metrics?.TotalPremiumRequestCost ?? 0, _contextTokens, _contextLimit);
+        }
+
+        /// <summary>
+        /// The fresh quota that comes with every model call. <c>QuotaSnapshots</c> is internal in SDK
+        /// 1.0.11 (reflection, 13/09/2026) but it is serialized with the event, so it is read from
+        /// the JSON. If a future SDK stops sending it, the bar keeps the quota read at start, and
+        /// the log says why it no longer moves.
+        /// </summary>
+        private void CaptureQuota(AssistantUsageEvent usage)
+        {
+            if (usage.Data == null) return;
+            try
+            {
+                var json = JsonSerializer.SerializeToElement(usage.Data);
+                if (json.TryGetProperty("quotaSnapshots", out var snapshots) && snapshots.ValueKind == JsonValueKind.Object)
+                {
+                    _quotaBuckets = CopilotUsage.BucketsFromJson(snapshots);
+                    _quotaAsOf = DateTimeOffset.UtcNow;
+                }
+                else if (!_quotaSnapshotMissingLogged)
+                {
+                    _quotaSnapshotMissingLogged = true;
+                    _logger.LogWarning("[CopilotSdkSession] l'evento assistant.usage non porta la quota: resta quella letta all'avvio della sessione");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[CopilotSdkSession] quota dell'evento assistant.usage non letta");
             }
         }
 

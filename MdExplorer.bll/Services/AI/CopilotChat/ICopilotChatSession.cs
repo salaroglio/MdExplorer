@@ -75,6 +75,12 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         /// </summary>
         bool CanSwitchModelLive { get; }
 
+        /// <summary>
+        /// Account quota, the share this conversation took, how full the context is — for the bar
+        /// next to the model choice. <c>null</c> when the transport cannot tell (ACP).
+        /// </summary>
+        Task<CopilotUsageSnapshot> GetUsageAsync(CancellationToken ct = default);
+
         Task StartAsync(CancellationToken ct = default);
 
         /// <summary>

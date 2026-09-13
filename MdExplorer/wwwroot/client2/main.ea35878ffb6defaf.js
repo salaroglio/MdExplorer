@@ -14655,6 +14655,12 @@ class AiChatService {
      */
     this._claudeUsage$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
     this.claudeUsage$ = this._claudeUsage$.asObservable();
+    /**
+     * Consumi di Copilot (evento SignalR `ReceiveCopilotUsage`): quota del periodo, parte presa da
+     * questa conversazione, riempimento del contesto. Null finché il backend non li manda.
+     */
+    this._copilotUsage$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
+    this.copilotUsage$ = this._copilotUsage$.asObservable();
     /** Ultima attività sui tool osservata nel turno in corso (riga di stato, non risposta). */
     this._toolActivity$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.BehaviorSubject(null);
     this.toolActivity$ = this._toolActivity$.asObservable();
@@ -14757,6 +14763,13 @@ class AiChatService {
     this.hubConnection.on('ReceiveClaudeUsage', (usage, channelId) => {
       if ((channelId || 'default') === 'default') {
         this._claudeUsage$.next(usage ?? null);
+      }
+    });
+    // Consumi di Copilot: prima della risposta (quota) e dopo (sessione e contesto). Come sopra,
+    // conta solo la chat: gli altri canali non hanno dove mostrarli.
+    this.hubConnection.on('ReceiveCopilotUsage', (usage, channelId) => {
+      if ((channelId || 'default') === 'default') {
+        this._copilotUsage$.next(usage ?? null);
       }
     });
     // Attività sui tool: "sta leggendo X", "sta eseguendo Y". È una riga di stato, non la
@@ -18475,8 +18488,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.11.1',
-  buildTime: '2026.09.11 15:17:22'
+  version: '2026.09.13.4',
+  buildTime: '2026.09.13 16:42:54'
 };
 
 /***/ }),
@@ -18510,4 +18523,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.342a30edc0179da6.js.map
+//# sourceMappingURL=main.ea35878ffb6defaf.js.map

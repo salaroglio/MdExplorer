@@ -105,6 +105,13 @@ export class AiChatService {
   private _claudeUsage$ = new BehaviorSubject<any | null>(null);
   public claudeUsage$ = this._claudeUsage$.asObservable();
 
+  /**
+   * Consumi di Copilot (evento SignalR `ReceiveCopilotUsage`): quota del periodo, parte presa da
+   * questa conversazione, riempimento del contesto. Null finché il backend non li manda.
+   */
+  private _copilotUsage$ = new BehaviorSubject<any | null>(null);
+  public copilotUsage$ = this._copilotUsage$.asObservable();
+
   /** Ultima attività sui tool osservata nel turno in corso (riga di stato, non risposta). */
   private _toolActivity$ = new BehaviorSubject<string | null>(null);
   public toolActivity$ = this._toolActivity$.asObservable();
@@ -228,6 +235,14 @@ export class AiChatService {
     this.hubConnection.on('ReceiveClaudeUsage', (usage: any, channelId?: string) => {
       if ((channelId || 'default') === 'default') {
         this._claudeUsage$.next(usage ?? null);
+      }
+    });
+
+    // Consumi di Copilot: prima della risposta (quota) e dopo (sessione e contesto). Come sopra,
+    // conta solo la chat: gli altri canali non hanno dove mostrarli.
+    this.hubConnection.on('ReceiveCopilotUsage', (usage: any, channelId?: string) => {
+      if ((channelId || 'default') === 'default') {
+        this._copilotUsage$.next(usage ?? null);
       }
     });
 

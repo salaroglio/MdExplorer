@@ -789,6 +789,13 @@
 .copilot-model-bar {
   flex-shrink: 0;
   display: flex;
+  // In the side panel (~240px) the usage figures do not fit next to the model choice: they
+  // squeezed the combobox to its arrow and the last figure ended under the document. The row
+  // wraps; in a narrow row the figures take a line of their own (container query below), in
+  // the wide chat they stay beside the model choice.
+  flex-wrap: wrap;
+  row-gap: 0;
+  container-type: inline-size;
   align-items: center;
   gap: 8px;
   padding: 2px 12px;
@@ -803,8 +810,10 @@
   }
 
   .copilot-model-field {
-    flex: 1 1 auto;
-    min-width: 0;
+    // Base 0, not auto: with auto the field took the whole row and pushed ⟳ onto a line of its
+    // own in the side panel (measured 13/09/2026). It still grows up to max-width.
+    flex: 1 1 0;
+    min-width: 110px; // never squeezed to its arrow, and ⟳ still fits beside it in the side panel
     max-width: 320px;
     font-size: 13px;
 
@@ -812,6 +821,13 @@
     ::ng-deep .mat-form-field-infix { padding: 6px 0; border-top: 0; width: auto; }
     ::ng-deep .mat-form-field-outline { top: 0; }
     ::ng-deep .mat-form-field-subscript-wrapper { display: none; }
+  }
+
+  .copilot-model-refresh {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    flex-shrink: 0;
   }
 
   .copilot-model-refresh .spinning {
@@ -834,6 +850,34 @@
     white-space: nowrap;
 
     mat-icon { font-size: 16px; width: 16px; height: 16px; }
+  }
+
+  // Consumi a destra della riga: informativi, non un avviso, finché non si avvicinano al pieno.
+  .copilot-usage {
+    margin-left: auto;
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 6px;
+    padding-bottom: 2px;
+    font-size: 11px;
+    color: var(--mde-text-hint);
+
+    .usage-item { white-space: nowrap; }
+
+    .usage-item strong { font-weight: 600; }
+    .usage-sep { opacity: 0.5; }
+    .usage-high strong { color: var(--mde-warning-fg); }
+  }
+
+  // Narrow row (the side panel): the figures on their own line, from the left, all together.
+  @container (max-width: 420px) {
+    .copilot-usage {
+      flex-basis: 100%;
+      margin-left: 0;
+      flex-wrap: nowrap;
+      gap: 4px;
+    }
   }
 }
 

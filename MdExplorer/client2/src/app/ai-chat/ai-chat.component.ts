@@ -12,6 +12,14 @@ import { ProjectSettingsService } from '../projects/services/project-settings.se
 
 type CopilotModelChoice = { id: string; name: string; unavailable: boolean };
 
+/** Consumi di Copilot, come li manda `ReceiveCopilotUsage`. */
+type CopilotUsage = {
+  quotaType: string | null; quotaUnlimited: boolean;
+  quotaUsedPercent: number | null; quotaUsed: number | null; quotaEntitlement: number | null; quotaResetDate: string | null;
+  sessionRequests: number; sessionPercent: number | null;
+  contextTokens: number | null; contextLimit: number | null; contextPercent: number | null;
+};
+
 @Component({
   selector: 'app-ai-chat',
   templateUrl: './ai-chat.component.html',
@@ -78,6 +86,9 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     durationMs: number | null; model: string | null;
     fiveHourUtilization: number | null; sevenDayUtilization: number | null;
   } | null = null;
+
+  /** Consumi di Copilot accanto alla combo del modello; null finché il backend non li manda. */
+  copilotUsage: CopilotUsage | null = null;
 
   // Edit message state
   editingMessageId: string | null = null;
@@ -261,6 +272,10 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.aiService.claudeUsage$
       .pipe(takeUntil(this.destroy$))
       .subscribe(usage => { this.claudeUsage = usage; });
+
+    this.aiService.copilotUsage$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(usage => { this.copilotUsage = usage; });
   }
 
   ngAfterViewChecked(): void {
@@ -458,6 +473,20 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   formatUsd(value: number | null): string {
     if (value == null) return '—';
     return '$' + value.toFixed(value < 0.01 ? 4 : 2);
+  }
+
+  /** Percentuale già in 0..100, con i separatori della lingua del browser ("9,8%"). */
+  formatCopilotPercent(value: number | null, decimals = 1): string {
+    if (value == null) return '—';
+    return value.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }) + '%';
+  }
+
+  formatCount(value: number | null): string {
+    return value == null ? '—' : value.toLocaleString();
+  }
+
+  formatDay(iso: string | null): string {
+    return iso ? new Date(iso).toLocaleDateString() : '—';
   }
 
   /** Frazione 0..1 → percentuale intera. */

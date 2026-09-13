@@ -40,6 +40,7 @@ namespace MdExplorer.Features.Tests.Agents
             public bool IsAlive { get; private set; } = true;
             public DateTime LastUsedUtc => DateTime.UtcNow;
             public string AnsweredModel => null;
+            public Task<CopilotUsageSnapshot> GetUsageAsync(CancellationToken ct = default) => Task.FromResult<CopilotUsageSnapshot>(null);
             public bool CanSwitchModelLive { get; }
             public List<string> ModelSwitches { get; } = new List<string>();
 

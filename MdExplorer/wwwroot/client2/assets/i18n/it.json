@@ -1177,7 +1177,15 @@
     "USAGE_TURN_TOOLTIP": "Costo del turno appena concluso, calcolato per differenza dal totale precedente della sessione.",
     "USAGE_SESSION": "sessione",
     "USAGE_SESSION_TOOLTIP": "Costo complessivo di questa sessione di chat da quando è partito il processo. Una chat nuova lo azzera.",
-    "USAGE_WINDOW_TOOLTIP": "Quanta parte delle finestre a 5 ore e 7 giorni del tuo piano Claude è già consumata."
+    "USAGE_WINDOW_TOOLTIP": "Quanta parte delle finestre a 5 ore e 7 giorni del tuo piano Claude è già consumata.",
+    "COPILOT_USAGE_QUOTA": "Quota",
+    "COPILOT_USAGE_SESSION": "Sessione",
+    "COPILOT_USAGE_CONTEXT": "Contesto",
+    "COPILOT_USAGE_UNLIMITED": "illimitata",
+    "COPILOT_USAGE_QUOTA_TOOLTIP": "Richieste usate in questo periodo: {{used}} su {{total}}. Si rinnova il {{reset}}. Dato di GitHub, aggiornato a ogni risposta.",
+    "COPILOT_USAGE_QUOTA_UNLIMITED_TOOLTIP": "Il tuo piano Copilot non ha un limite di richieste.",
+    "COPILOT_USAGE_SESSION_TOOLTIP": "Richieste consumate da questa conversazione: {{requests}}, qui in percentuale sulla quota del periodo. Le chiamate che l'agente fa da solo dopo uno strumento non contano.",
+    "COPILOT_USAGE_CONTEXT_TOOLTIP": "{{tokens}} token su {{limit}} nel contesto della conversazione. Quando si riempie, Copilot la riassume da solo."
   },
   "MODEL_MANAGER": {
     "TITLE": "Gestione Modelli AI",

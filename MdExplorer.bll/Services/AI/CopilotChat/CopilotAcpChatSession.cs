@@ -34,6 +34,9 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         /// <summary>ACP does not report which model answered.</summary>
         public string AnsweredModel => null;
 
+        /// <summary>ACP reports no usage.</summary>
+        public Task<CopilotUsageSnapshot> GetUsageAsync(CancellationToken ct = default) => Task.FromResult<CopilotUsageSnapshot>(null);
+
         /// <summary>
         /// ACP applies the model only when the session starts — and even then by sending
         /// <c>/model &lt;id&gt;</c> as the text of a prompt. Changing model means a new session.
