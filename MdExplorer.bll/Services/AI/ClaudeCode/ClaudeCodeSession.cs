@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -153,6 +154,17 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                 // personali dell'utente ai nostri.
                 sb.Append(" --mcp-config ").Append(Quote(options.McpConfigPath));
                 sb.Append(" --strict-mcp-config");
+
+                // I server che dichiariamo noi sono da usare, non solo da vedere: in dontAsk uno
+                // strumento MCP non autorizzato viene negato in silenzio.
+                var allowed = (options.AllowedMcpServers ?? Array.Empty<string>())
+                    .Where(name => !string.IsNullOrWhiteSpace(name))
+                    .Select(name => "mcp__" + name.Trim())
+                    .ToArray();
+                if (allowed.Length > 0)
+                {
+                    sb.Append(" --allowedTools ").Append(string.Join(",", allowed));
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(options.ResumeSessionId))

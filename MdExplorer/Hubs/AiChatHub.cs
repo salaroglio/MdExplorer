@@ -821,7 +821,9 @@ namespace MdExplorer.Hubs
             // executable cannot be found: the session starts without it, and the log says why.
             var options = new ClaudeCodeSessionOptions
             {
-                McpConfigPath = MdExplorer.Utilities.ClaudeCodeMcp.WriteSessionConfig()
+                McpConfigPath = MdExplorer.Utilities.ClaudeCodeMcp.WriteSessionConfig(),
+                // Connected is not usable: in dontAsk an MCP tool nobody authorized is denied.
+                AllowedMcpServers = new[] { MdExplorer.Utilities.ClaudeCodeMcp.ServerName },
             };
             var session = await _claudeCodePool.GetOrCreateAsync(
                 Context.ConnectionId, projectPath, effectiveModel, options);

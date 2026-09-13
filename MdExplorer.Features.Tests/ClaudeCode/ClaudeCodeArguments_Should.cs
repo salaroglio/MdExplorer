@@ -107,6 +107,33 @@ namespace MdExplorer.Features.Tests.ClaudeCode
             StringAssert.Contains(args, "--strict-mcp-config");
         }
 
+        /// <summary>
+        /// In <c>dontAsk</c> un server MCP connesso non basta: senza <c>--allowedTools mcp__nome</c>
+        /// ogni chiamata finisce in <c>permission_denials</c> e il modello risponde che l'uso è negato
+        /// (visto in MarkAgent il 13/09/2026; con l'autorizzazione lo strumento gira).
+        /// </summary>
+        [TestMethod]
+        public void Autorizzare_gli_strumenti_dei_server_mcp_che_dichiariamo()
+        {
+            var args = ClaudeCodeSession.BuildArguments("sonnet", new ClaudeCodeSessionOptions
+            {
+                McpConfigPath = "/tmp/mde-mcp.json",
+                AllowedMcpServers = new[] { "mdexplorer", " altro ", "" },
+            });
+
+            StringAssert.Contains(args, "--allowedTools mcp__mdexplorer,mcp__altro");
+        }
+
+        [TestMethod]
+        public void Non_autorizzare_server_mcp_senza_il_loro_file()
+        {
+            var args = ClaudeCodeSession.BuildArguments("sonnet",
+                new ClaudeCodeSessionOptions { AllowedMcpServers = new[] { "mdexplorer" } });
+
+            Assert.IsFalse(args.Contains("--allowedTools"),
+                "senza --mcp-config il server non esiste: autorizzarlo non ha senso");
+        }
+
         [TestMethod]
         public void Non_nominare_mcp_quando_non_ce_nessun_file()
         {

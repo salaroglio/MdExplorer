@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace MdExplorer.Features.Services.AI.ClaudeCode
 {
@@ -148,6 +149,15 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         /// (verificato: senza, nell'init comparivano i server MCP personali).
         /// </summary>
         public string McpConfigPath { get; init; }
+
+        /// <summary>
+        /// Server di <see cref="McpConfigPath"/> i cui strumenti la sessione può usare: ognuno diventa
+        /// <c>--allowedTools mcp__&lt;nome&gt;</c>. Senza, in <c>dontAsk</c> il server risulta
+        /// <c>connected</c> nell'init ma ogni chiamata finisce in <c>permission_denials</c> (verificato
+        /// il 13/09/2026 su claude 2.1.270: il modello risponde che l'uso è stato negato). Ignorato se
+        /// <see cref="McpConfigPath"/> è vuoto.
+        /// </summary>
+        public IReadOnlyList<string> AllowedMcpServers { get; init; }
 
         /// <summary>
         /// Id di sessione da riprendere (<c>--resume</c>). Quando valorizzato, la
