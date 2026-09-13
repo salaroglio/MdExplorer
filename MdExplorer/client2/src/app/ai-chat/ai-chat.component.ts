@@ -11,6 +11,8 @@ import { ProjectsService } from '../md-explorer/services/projects.service';
 import { ProjectSettingsService } from '../projects/services/project-settings.service';
 
 type CopilotModelChoice = { id: string; name: string; unavailable: boolean };
+type ClaudeModel = { id: string; name: string; description: string | null };
+type ClaudeModelChoice = ClaudeModel & { unavailable: boolean };
 
 /** Consumi di Copilot, come li manda `ReceiveCopilotUsage`. */
 type CopilotUsage = {
@@ -60,17 +62,20 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   copilotModelsLoading = false;
   copilotModelsError: string | null = null;
 
-  // Claude Code auto-select: stessa idea, picker sugli alias del CLI. Alias e non nomi
-  // pieni con la data, così puntano sempre all'ultimo modello di quella famiglia e non
-  // invecchiano a ogni rilascio.
+  // Claude Code auto-select: stessa riga del modello di Copilot. L'elenco è quello che il CLI
+  // dichiara per questo account (initialize, salvato in AvailableModel): prima qui c'erano tre
+  // chip scritte a mano, e mancavano Default e Fable.
   claudeCodeUnavailable = false;
   claudeCodeAutoSelected = false;
   selectedClaudeCodeModel: string | null = null;
-  readonly claudeCodeModelOptions: ReadonlyArray<{ id: string; label: string }> = [
-    { id: 'sonnet', label: 'Sonnet' },
-    { id: 'opus', label: 'Opus' },
-    { id: 'haiku', label: 'Haiku' }
-  ];
+  claudeModels: ClaudeModel[] = [];
+  private claudeModelChoicesCache: {
+    models: ClaudeModel[];
+    selected: string | null;
+    choices: ClaudeModelChoice[];
+  } | null = null;
+  claudeModelsLoading = false;
+  claudeModelsError: string | null = null;
 
   /**
    * Consuntivo dell'ultimo turno di Claude Code: costo del turno, cumulato della sessione,
@@ -254,6 +259,7 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.selectedClaudeCodeModel = model;
           this.aiService.setProvider('claudecode', model);
           this.aiService.notifyClaudeCodeConnected(model);
+          this.loadClaudeModels();
         } else if (config.autoSelect && !config.available) {
           console.log('[AiChatComponent] Claude Code auto-select acceso ma CLI non disponibile — chat bloccata');
           this.claudeCodeUnavailable = true;
@@ -451,6 +457,73 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     });
   }
 
+  /**
+   * Le voci della combo di Claude Code. Stesse regole di copilotModelChoices: stesso array finché
+   * elenco e scelta non cambiano (un array nuovo a ogni lettura blocca mat-select), e il modello
+   * salvato che non è più nell'elenco resta visibile e segnalato. Segnalato solo quando l'elenco
+   * c'è: mentre si carica, «non più disponibile» sarebbe falso.
+   */
+  get claudeModelChoices(): ClaudeModelChoice[] {
+    const cache = this.claudeModelChoicesCache;
+    if (cache && cache.models === this.claudeModels && cache.selected === this.selectedClaudeCodeModel) {
+      return cache.choices;
+    }
+    const choices: ClaudeModelChoice[] = this.claudeModels.map(m => ({ ...m, unavailable: false }));
+    const selected = this.selectedClaudeCodeModel;
+    if (selected && !choices.some(c => c.id === selected)) {
+      choices.unshift({ id: selected, name: selected, description: null, unavailable: this.claudeModels.length > 0 });
+    }
+    this.claudeModelChoicesCache = { models: this.claudeModels, selected, choices };
+    return choices;
+  }
+
+  trackClaudeModel(_: number, choice: ClaudeModelChoice): string {
+    return choice.id;
+  }
+
+  /** Descrizione del modello scelto (quale modello c'è dietro «Default»), per il tooltip della combo. */
+  get selectedClaudeModelDescription(): string {
+    return this.claudeModels.find(m => m.id === this.selectedClaudeCodeModel)?.description || '';
+  }
+
+  /** Modelli salvati (istantaneo); se non ce ne sono, li chiede al CLI (initialize, ~1 s, nessun token). */
+  loadClaudeModels(): void {
+    this.claudeModelsLoading = true;
+    this.claudeModelsError = null;
+    this.aiService.getClaudeCodeChatModels().subscribe({
+      next: models => {
+        if (models.length) {
+          this.claudeModels = models;
+          this.claudeModelsLoading = false;
+        } else {
+          this.refreshClaudeModels();
+        }
+      },
+      error: err => this.failClaudeModels(err)
+    });
+  }
+
+  refreshClaudeModels(): void {
+    this.claudeModelsLoading = true;
+    this.claudeModelsError = null;
+    this.aiService.refreshClaudeCodeModels().subscribe({
+      next: () => this.aiService.getClaudeCodeChatModels().subscribe({
+        next: models => {
+          this.claudeModels = models;
+          this.claudeModelsLoading = false;
+        },
+        error: err => this.failClaudeModels(err)
+      }),
+      error: err => this.failClaudeModels(err)
+    });
+  }
+
+  private failClaudeModels(err: any): void {
+    this.claudeModelsLoading = false;
+    this.claudeModelsError = err?.error?.error || err?.message || String(err);
+    console.error('[AiChatComponent] Elenco modelli Claude Code non disponibile:', this.claudeModelsError);
+  }
+
   async selectClaudeCodeModel(modelId: string): Promise<void> {
     if (!this.claudeCodeAutoSelected) return;
     if (this.selectedClaudeCodeModel === modelId) return;
@@ -458,15 +531,25 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     console.log('[AiChatComponent] Modello Claude Code cambiato in:', modelId);
     this.selectedClaudeCodeModel = modelId;
     try {
+      // Il cambio vero avviene alla domanda successiva, sulla sessione viva (set_model): la
+      // conversazione resta, e con lei il consuntivo della sessione, che quindi non si azzera.
       await this.aiService.setProviderAsync('claudecode', modelId);
       this.aiService.notifyClaudeCodeConnected(modelId);
-      // Il consuntivo precedente si riferisce a un'altra sessione: il cambio modello ne
-      // apre una nuova. Tenerlo a video vorrebbe dire attribuire quei costi al modello
-      // sbagliato.
-      this.claudeUsage = null;
     } catch (err) {
       console.error('[AiChatComponent] Cambio di modello Claude Code fallito:', err);
+      return;
     }
+
+    // La scelta vale per il progetto: alla prossima apertura MarkAgent riparte da questo modello.
+    const projectPath = this.projectsService.currentProjects$.getValue()?.path;
+    if (!projectPath) {
+      console.warn('[AiChatComponent] Nessun progetto aperto: il modello scelto non viene ricordato');
+      return;
+    }
+    this.projectSettingsService.setClaudeCodeChatModelSetting(modelId, projectPath).subscribe({
+      next: () => console.log('[AiChatComponent] Modello Claude Code salvato per il progetto:', modelId),
+      error: err => console.error('[AiChatComponent] Salvataggio del modello Claude Code per il progetto fallito:', err)
+    });
   }
 
   /** Costo in dollari, con abbastanza decimali da non diventare "0,00" su un turno breve. */

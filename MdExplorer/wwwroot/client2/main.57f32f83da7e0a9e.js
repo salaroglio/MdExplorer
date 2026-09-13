@@ -14692,6 +14692,7 @@ class AiChatService {
     /** Cached models from DB — populated by getCachedModels() */
     this._cachedModels = null;
     this._refreshInFlight = null;
+    this._claudeRefreshInFlight = null;
     this.initializeSignalR();
   }
   initializeSignalR() {
@@ -15424,6 +15425,31 @@ class AiChatService {
       this._refreshInFlight = null;
     }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.shareReplay)(1));
     return this._refreshInFlight;
+  }
+  /**
+   * I modelli di Claude Code salvati (AvailableModel, provider ClaudeCode), con la descrizione che il
+   * CLI dà a ciascuno. Istantaneo. Come per Copilot, un errore arriva come errore e non come lista vuota.
+   */
+  getClaudeCodeChatModels() {
+    return this.http.get('/api/aimodels/cached', {
+      params: {
+        provider: 'ClaudeCode'
+      }
+    }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(response => (response?.models || []).map(m => ({
+      id: m.id,
+      name: m.name || m.id,
+      description: m.description || null
+    }))));
+  }
+  /** Chiede al CLI i modelli di questo account (initialize, nessun token) e li salva. Chiamate concorrenti condivise. */
+  refreshClaudeCodeModels() {
+    if (this._claudeRefreshInFlight) {
+      return this._claudeRefreshInFlight;
+    }
+    this._claudeRefreshInFlight = this.http.post('/api/claudecode/refresh-models', {}).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.finalize)(() => {
+      this._claudeRefreshInFlight = null;
+    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.shareReplay)(1));
+    return this._claudeRefreshInFlight;
   }
   notifyCopilotCliConnected(modelId) {
     console.log('[AiChatService] notifyCopilotCliConnected called with modelId:', modelId);
@@ -18488,8 +18514,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.13.6',
-  buildTime: '2026.09.13 17:40:34'
+  version: '2026.09.13.7',
+  buildTime: '2026.09.13 19:30:54'
 };
 
 /***/ }),
@@ -18523,4 +18549,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.f481c6308496855b.js.map
+//# sourceMappingURL=main.57f32f83da7e0a9e.js.map

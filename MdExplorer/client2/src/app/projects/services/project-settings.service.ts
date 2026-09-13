@@ -125,6 +125,15 @@ export class ProjectSettingsService {
   }
 
   /**
+   * Modello di Claude Code per MarkAgent in questo progetto: un id dell'elenco del CLI.
+   * null = mai scelto (la chat usa sonnet).
+   */
+  setClaudeCodeChatModelSetting(modelId: string | null, projectPath: string): Observable<{ modelId: string | null }> {
+    const url = '../api/ProjectSettings/SetClaudeCodeChatModelSetting';
+    return this.http.post<{ modelId: string | null }>(url, { modelId, projectPath });
+  }
+
+  /**
    * Isolamento worktree: preferenza di QUESTA macchina (UserDB), non del repo — costa spazio
    * disco locale, quindi non si impone al team via git come le altre opzioni della città.
    */

@@ -961,6 +961,32 @@ export class AiChatService {
     return this._refreshInFlight;
   }
 
+  /**
+   * I modelli di Claude Code salvati (AvailableModel, provider ClaudeCode), con la descrizione che il
+   * CLI dà a ciascuno. Istantaneo. Come per Copilot, un errore arriva come errore e non come lista vuota.
+   */
+  getClaudeCodeChatModels(): Observable<{ id: string; name: string; description: string | null }[]> {
+    return this.http.get<any>('/api/aimodels/cached', { params: { provider: 'ClaudeCode' } }).pipe(
+      map(response => (response?.models || []).map((m: any) => ({
+        id: m.id, name: m.name || m.id, description: m.description || null
+      })))
+    );
+  }
+
+  private _claudeRefreshInFlight: Observable<any> | null = null;
+
+  /** Chiede al CLI i modelli di questo account (initialize, nessun token) e li salva. Chiamate concorrenti condivise. */
+  refreshClaudeCodeModels(): Observable<any> {
+    if (this._claudeRefreshInFlight) {
+      return this._claudeRefreshInFlight;
+    }
+    this._claudeRefreshInFlight = this.http.post('/api/claudecode/refresh-models', {}).pipe(
+      finalize(() => { this._claudeRefreshInFlight = null; }),
+      shareReplay(1)
+    );
+    return this._claudeRefreshInFlight;
+  }
+
   notifyCopilotCliConnected(modelId: string | null): void {
     console.log('[AiChatService] notifyCopilotCliConnected called with modelId:', modelId);
     this._isModelLoaded$.next(true);

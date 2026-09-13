@@ -21,16 +21,6 @@
           {{ compactMode ? getCurrentDocumentName().substring(0, 12) : getCurrentDocumentName() }}
         </mat-chip>
       </mat-chip-list>
-      <mat-chip-list *ngIf="claudeCodeAutoSelected" class="copilot-model-picker" aria-label="Claude Code model">
-        <mat-chip *ngFor="let opt of claudeCodeModelOptions"
-                  [selected]="selectedClaudeCodeModel === opt.id"
-                  [disabled]="isConfiguringProvider"
-                  [color]="selectedClaudeCodeModel === opt.id ? 'accent' : undefined"
-                  (click)="selectClaudeCodeModel(opt.id)"
-                  [matTooltip]="opt.id">
-          {{ opt.label }}
-        </mat-chip>
-      </mat-chip-list>
     </div>
 
     <button mat-icon-button (click)="toggleFullScreen()"
@@ -100,6 +90,35 @@
           <strong>{{ formatCopilotPercent(copilotUsage.contextPercent, 0) }}</strong>
         </span>
       </ng-container>
+    </span>
+  </div>
+
+  <!-- Modello Claude Code: la stessa riga di Copilot. L'elenco è quello che il CLI dichiara per
+       questo account (initialize), la descrizione del CLI sta nel tooltip, la scelta vale per il
+       progetto e il cambio non cancella la conversazione (set_model sulla sessione viva). -->
+  <div class="copilot-model-bar claude-model-bar" *ngIf="claudeCodeAutoSelected">
+    <label class="copilot-model-label" for="claude-model-select">{{ 'AI_CHAT.COPILOT_MODEL_LABEL' | translate }}</label>
+    <mat-form-field appearance="outline" class="copilot-model-field"
+                    [matTooltip]="selectedClaudeModelDescription" [matTooltipDisabled]="!selectedClaudeModelDescription">
+      <mat-select id="claude-model-select"
+                  [value]="selectedClaudeCodeModel"
+                  [disabled]="isConfiguringProvider || claudeModelsLoading"
+                  (selectionChange)="selectClaudeCodeModel($event.value)">
+        <mat-option *ngFor="let m of claudeModelChoices; trackBy: trackClaudeModel" [value]="m.id" [disabled]="m.unavailable"
+                    [matTooltip]="m.description || ''" [matTooltipDisabled]="!m.description" matTooltipPosition="right">
+          {{ m.name }}<span *ngIf="m.unavailable" class="model-unavailable"> — {{ 'AI_CHAT.COPILOT_MODEL_UNAVAILABLE' | translate }}</span>
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+    <button mat-icon-button class="copilot-model-refresh"
+            (click)="refreshClaudeModels()"
+            [disabled]="claudeModelsLoading"
+            [matTooltip]="'AI_CHAT.COPILOT_MODEL_REFRESH' | translate">
+      <mat-icon [class.spinning]="claudeModelsLoading">refresh</mat-icon>
+    </button>
+    <span class="copilot-model-hint" *ngIf="claudeModelsLoading">{{ 'AI_CHAT.COPILOT_MODELS_LOADING' | translate }}</span>
+    <span class="copilot-model-error" *ngIf="claudeModelsError && !claudeModelsLoading" [matTooltip]="claudeModelsError">
+      <mat-icon>error_outline</mat-icon>{{ 'AI_CHAT.COPILOT_MODELS_ERROR' | translate }}
     </span>
   </div>
 

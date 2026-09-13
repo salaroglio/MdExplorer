@@ -6055,6 +6055,17 @@ class ProjectSettingsService {
     });
   }
   /**
+   * Modello di Claude Code per MarkAgent in questo progetto: un id dell'elenco del CLI.
+   * null = mai scelto (la chat usa sonnet).
+   */
+  setClaudeCodeChatModelSetting(modelId, projectPath) {
+    const url = '../api/ProjectSettings/SetClaudeCodeChatModelSetting';
+    return this.http.post(url, {
+      modelId,
+      projectPath
+    });
+  }
+  /**
    * Isolamento worktree: preferenza di QUESTA macchina (UserDB), non del repo — costa spazio
    * disco locale, quindi non si impone al team via git come le altre opzioni della città.
    */
@@ -10684,4 +10695,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.221900534d816f03.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.30a85cd9150134f0.js.map
