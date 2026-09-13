@@ -2,6 +2,7 @@ import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
 import { MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialogRef as MatDialogRef, MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { Subscription } from 'rxjs';
 import { HarnessTarget, ProjectSettingsService } from '../services/project-settings.service';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../commons/components/confirm-dialog/confirm-dialog.component';
 import { CompatibilityModeService } from '../../services/compatibility-mode.service';
 import { IdeConfigurationService } from '../services/ide-configuration.service';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
@@ -27,6 +28,8 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   // Gemella della precedente. Default false: rispecchia il backend, dove un progetto che non
   // ha mai visto l'opzione non deve cambiare motore della chat da solo.
   claudeCodeAutoSelectEnabled: boolean = false;
+  /** Both engine flags arrived: until then the defaults above would show a coherence warning that is not real. */
+  engineSettingsLoaded: boolean = false;
 
   // Agent City / Federation (§12.4) — activation lives in .development.yml (shared via git).
   agentCityEnabled: boolean = false;
@@ -289,11 +292,13 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       next: (response) => {
         this.copilotCliAutoSelectEnabled = response.enabled;
         copilotCliAutoSelectLoaded = true;
+        this.engineSettingsLoaded = copilotCliAutoSelectLoaded && claudeCodeAutoSelectLoaded;
         checkIfDone();
       },
       error: (error) => {
         console.error('Error loading Copilot CLI Auto-Select setting:', error);
         copilotCliAutoSelectLoaded = true;
+        this.engineSettingsLoaded = copilotCliAutoSelectLoaded && claudeCodeAutoSelectLoaded;
         checkIfDone();
       }
     });
@@ -303,11 +308,13 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       next: (response) => {
         this.claudeCodeAutoSelectEnabled = response.enabled;
         claudeCodeAutoSelectLoaded = true;
+        this.engineSettingsLoaded = copilotCliAutoSelectLoaded && claudeCodeAutoSelectLoaded;
         checkIfDone();
       },
       error: (error) => {
         console.error('Error loading Claude Code Auto-Select setting:', error);
         claudeCodeAutoSelectLoaded = true;
+        this.engineSettingsLoaded = copilotCliAutoSelectLoaded && claudeCodeAutoSelectLoaded;
         checkIfDone();
       }
     });
@@ -543,6 +550,78 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       return;
     }
     this.saveAgentWorktrees();
+  }
+
+  /**
+   * Quali harness il motore di MarkAgent legge PER INTERO (istruzioni, skill, agenti, comandi).
+   * Misurato il 13/09/2026: Claude Code 2.1.270 legge solo .claude/ e CLAUDE.md; Copilot CLI 1.0.82
+   * cerca skill in .github/, .agents/ e .claude/, agenti in .github/ e .claude/, e di opencode legge
+   * solo AGENTS.md. Sprint: docs-internal/Sprints/2026-09-13-Harness-Claude-Code.md.
+   */
+  private static readonly HARNESS_READ_BY: Record<'claude' | 'copilot', HarnessTarget[]> = {
+    claude: ['claude'],
+    copilot: ['copilot', 'claude'],
+  };
+
+  /** Motore di MarkAgent, con la precedenza del backend: Claude Code vince su Copilot CLI. */
+  get markAgentEngine(): 'claude' | 'copilot' | null {
+    if (!this.engineSettingsLoaded) return null;
+    if (this.claudeCodeAutoSelectEnabled) return 'claude';
+    if (this.copilotCliAutoSelectEnabled) return 'copilot';
+    return null;
+  }
+
+  /**
+   * Chiave del motivo per cui una voce di harness è disattivata, o null. "Nessuno" resta sempre
+   * possibile: è una scelta esplicita, non un harness che il motore non legge.
+   */
+  harnessDisabledReason(target: HarnessTarget): string | null {
+    const engine = this.markAgentEngine;
+    if (!engine || target === 'none') return null;
+    if (ProjectSettingsComponent.HARNESS_READ_BY[engine].includes(target)) return null;
+    return engine === 'claude'
+      ? 'PROJECT_SETTINGS.HARNESS_NOT_READ_BY_CLAUDE'
+      : 'PROJECT_SETTINGS.HARNESS_NOT_READ_BY_COPILOT';
+  }
+
+  /** Il repository dichiara un harness che il motore di MarkAgent non legge. */
+  get harnessMismatch(): boolean {
+    return this.harness !== 'none' && this.harnessDisabledReason(this.harness) !== null;
+  }
+
+  harnessLabelKey(target: HarnessTarget): string {
+    switch (target) {
+      case 'copilot': return 'PROJECT_SETTINGS.HARNESS_COPILOT';
+      case 'opencode': return 'PROJECT_SETTINGS.HARNESS_OPENCODE';
+      case 'claude': return 'PROJECT_SETTINGS.HARNESS_CLAUDE';
+      default: return 'PROJECT_SETTINGS.HARNESS_NONE';
+    }
+  }
+
+  /**
+   * "Passa a …": l'harness nativo del motore. Chiede conferma perché .development.yml è
+   * committato — il cambio vale per tutto il team, non solo per questa macchina.
+   */
+  switchToEngineHarness(): void {
+    const engine = this.markAgentEngine;
+    if (!engine) return;
+    const target: HarnessTarget = engine;
+    const data: ConfirmDialogData = {
+      title: this.translate.instant('PROJECT_SETTINGS.HARNESS_SWITCH_CONFIRM_TITLE'),
+      message: this.translate.instant(engine === 'claude'
+        ? 'PROJECT_SETTINGS.HARNESS_SWITCH_CONFIRM_MESSAGE'
+        : 'PROJECT_SETTINGS.HARNESS_SWITCH_CONFIRM_MESSAGE_COPILOT'),
+      confirmText: this.translate.instant(engine === 'claude'
+        ? 'PROJECT_SETTINGS.HARNESS_SWITCH_TO_CLAUDE'
+        : 'PROJECT_SETTINGS.HARNESS_SWITCH_TO_COPILOT'),
+    };
+    this.dialog.open(ConfirmDialogComponent, { width: '480px', data })
+      .afterClosed()
+      .subscribe(confirmed => {
+        if (!confirmed) return;
+        this.harness = target;
+        this.onHarnessChange();
+      });
   }
 
   loadHarness(): void {

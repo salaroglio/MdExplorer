@@ -19,7 +19,7 @@ export interface RelaySettings {
  * Harness agentico del progetto: dove MdExplorer installa skill, agent e prompt.
  * Vive in .development.yml, quindi è una scelta del repository condivisa dal team.
  */
-export type HarnessTarget = 'copilot' | 'opencode' | 'none';
+export type HarnessTarget = 'copilot' | 'opencode' | 'claude' | 'none';
 
 export interface HarnessSetting {
   target: HarnessTarget;

@@ -104,6 +104,45 @@
   &.copilot-color {
     color: #6E40C9; // GitHub Copilot purple
   }
+
+  &.claude-color {
+    color: #D97757; // Claude orange, as the .claude folder in md-tree
+  }
+}
+
+/* Why an option is off: written next to it, a tooltip would not open on a disabled radio. */
+.harness-reason {
+  display: block;
+  margin-left: 28px;
+  font-size: 12px;
+  color: var(--mde-text-secondary);
+  white-space: normal;
+}
+
+/* The repository declares a harness MarkAgent's engine does not read. */
+.harness-mismatch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background-color: var(--mde-warning-bg);
+  color: var(--mde-warning-fg);
+  font-size: 14px;
+
+  .harness-mismatch-icon {
+    flex: 0 0 auto;
+  }
+
+  .harness-mismatch-text {
+    flex: 1 1 240px;
+  }
+
+  .harness-mismatch-action {
+    flex: 0 0 auto;
+  }
 }
 
 // IDE paths styling removed - now shown in Projects component main page

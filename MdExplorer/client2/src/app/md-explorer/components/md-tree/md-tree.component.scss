@@ -24,6 +24,11 @@
   filter: invert(1);
 }
 
+// Cartella .claude: il colore arancio di Claude Code, leggibile su fondo chiaro e scuro.
+.claude-icon {
+  color: #d97757;
+}
+
 // ==================== Sticky Scroll Panel ====================
 // Overlay assoluto: fuori dal flusso scroll, nessun feedback loop
 .sticky-ancestors-panel {

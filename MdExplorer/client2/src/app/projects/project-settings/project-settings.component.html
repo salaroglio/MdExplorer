@@ -397,21 +397,45 @@
                 {{ 'PROJECT_SETTINGS.HARNESS_NOT_DECLARED' | translate }}
               </div>
 
+              <!-- Coerenza con il motore di MarkAgent: l'harness sta nel repository (vale per il team),
+                   il motore è una scelta di questa macchina. Si avvisa e si propone, non si cambia da soli. -->
+              <div class="harness-mismatch" *ngIf="harnessMismatch">
+                <mat-icon class="harness-mismatch-icon">warning</mat-icon>
+                <span class="harness-mismatch-text">
+                  {{ (markAgentEngine === 'claude' ? 'PROJECT_SETTINGS.HARNESS_MISMATCH_CLAUDE' : 'PROJECT_SETTINGS.HARNESS_MISMATCH_COPILOT')
+                     | translate:{ harness: (harnessLabelKey(harness) | translate) } }}
+                </span>
+                <button mat-stroked-button color="primary" class="harness-mismatch-action"
+                        (click)="switchToEngineHarness()" [disabled]="savingHarness">
+                  {{ (markAgentEngine === 'claude' ? 'PROJECT_SETTINGS.HARNESS_SWITCH_TO_CLAUDE' : 'PROJECT_SETTINGS.HARNESS_SWITCH_TO_COPILOT') | translate }}
+                </button>
+              </div>
+
               <mat-radio-group
                 [(ngModel)]="harness"
                 (change)="onHarnessChange()"
                 [disabled]="savingHarness">
-                <mat-radio-button value="copilot" class="ide-radio">
+                <mat-radio-button value="copilot" class="ide-radio" [disabled]="!!harnessDisabledReason('copilot')">
                   <span class="ide-label">
                     <mat-icon class="ide-icon-inline copilot-color">smart_toy</mat-icon>
                     {{ 'PROJECT_SETTINGS.HARNESS_COPILOT' | translate }}
                   </span>
+                  <!-- Il motivo scritto accanto: un tooltip su una voce disattivata non si aprirebbe. -->
+                  <span class="harness-reason" *ngIf="harnessDisabledReason('copilot') as reason">{{ reason | translate }}</span>
                 </mat-radio-button>
-                <mat-radio-button value="opencode" class="ide-radio">
+                <mat-radio-button value="opencode" class="ide-radio" [disabled]="!!harnessDisabledReason('opencode')">
                   <span class="ide-label">
                     <mat-icon class="ide-icon-inline">terminal</mat-icon>
                     {{ 'PROJECT_SETTINGS.HARNESS_OPENCODE' | translate }}
                   </span>
+                  <span class="harness-reason" *ngIf="harnessDisabledReason('opencode') as reason">{{ reason | translate }}</span>
+                </mat-radio-button>
+                <mat-radio-button value="claude" class="ide-radio" [disabled]="!!harnessDisabledReason('claude')">
+                  <span class="ide-label">
+                    <mat-icon class="ide-icon-inline claude-color">psychology</mat-icon>
+                    {{ 'PROJECT_SETTINGS.HARNESS_CLAUDE' | translate }}
+                  </span>
+                  <span class="harness-reason" *ngIf="harnessDisabledReason('claude') as reason">{{ reason | translate }}</span>
                 </mat-radio-button>
                 <mat-radio-button value="none" class="ide-radio">
                   <span class="ide-label">

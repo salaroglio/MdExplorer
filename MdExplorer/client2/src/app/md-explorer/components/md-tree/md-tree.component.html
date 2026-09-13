@@ -279,6 +279,12 @@
            alt="opencode"
            class="custom-folder-icon opencode-icon"
            style="width: 24px; height: 24px; margin: 12px;" />
+      <!-- Icona per cartella .claude (harness Claude Code). Un'icona Material, non il marchio:
+           nessun logo da scaricare e mantenere, e regge da sola tema chiaro e scuro. -->
+      <mat-icon *ngIf="node.name=='.claude' && node.indexingStatus !== 'indexing'"
+                class="mat-icon-rtl-mirror claude-icon">
+        psychology
+      </mat-icon>
       <!-- Icona per cartella promptlab -->
       <img *ngIf="node.name==='promptlab' && node.indexingStatus !== 'indexing'"
            src="/assets/promptlab-flask.svg"
@@ -286,13 +292,13 @@
            class="custom-folder-icon"
            style="width: 24px; height: 24px; margin: 12px;" />
       <!-- Icona per cartelle con tag "program" -->
-      <mat-icon *ngIf="isProgramFolder(node) && node.name!='.github' && node.name!='.opencode' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
+      <mat-icon *ngIf="isProgramFolder(node) && node.name!='.github' && node.name!='.opencode' && node.name!='.claude' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
                 color="primary"
                 class="mat-icon-rtl-mirror terminal-icon">
         terminal
       </mat-icon>
       <!-- Icona per cartelle normali (verde se cartella rivelata via "occhio") -->
-      <mat-icon *ngIf="!isProgramFolder(node) && node.name!='mdPublish' && node.name!='.github' && node.name!='.opencode' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
+      <mat-icon *ngIf="!isProgramFolder(node) && node.name!='mdPublish' && node.name!='.github' && node.name!='.opencode' && node.name!='.claude' && node.name!=='promptlab' && node.indexingStatus !== 'indexing'"
                 class="gold-icon mat-icon-rtl-mirror folder-icon"
                 [class.extra-revealed]="node.isExtra">
         {{treeControl.isExpanded(node) ? 'folder_open' : 'folder'}}

@@ -30,6 +30,7 @@ export class ProjectCreateConfigDialogComponent implements OnInit {
   readonly harnessOptions: { value: HarnessTarget; icon: string; labelKey: string; descKey: string }[] = [
     { value: 'copilot', icon: 'smart_toy', labelKey: 'PROJECT_CONFIG.HARNESS_COPILOT', descKey: 'PROJECT_CONFIG.HARNESS_COPILOT_DESC' },
     { value: 'opencode', icon: 'terminal', labelKey: 'PROJECT_CONFIG.HARNESS_OPENCODE', descKey: 'PROJECT_CONFIG.HARNESS_OPENCODE_DESC' },
+    { value: 'claude', icon: 'psychology', labelKey: 'PROJECT_CONFIG.HARNESS_CLAUDE', descKey: 'PROJECT_CONFIG.HARNESS_CLAUDE_DESC' },
     { value: 'none', icon: 'block', labelKey: 'PROJECT_CONFIG.HARNESS_NONE', descKey: 'PROJECT_CONFIG.HARNESS_NONE_DESC' }
   ];
 

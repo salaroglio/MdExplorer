@@ -4,7 +4,7 @@
  * scritta in .development.yml, che è committato: viaggia col repository invece di essere
  * ridomandata a ogni macchina.
  */
-export type HarnessTarget = 'copilot' | 'opencode' | 'none';
+export type HarnessTarget = 'copilot' | 'opencode' | 'claude' | 'none';
 
 export interface ProjectCreateConfigOptions {
     projectPath: string;
