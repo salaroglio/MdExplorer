@@ -504,9 +504,9 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     break;
 
                 case HarnessTarget.Claude:
-                    // Its own case, not the "none" branch: that would say this project has no harness.
-                    Console.WriteLine("[ProjectsManager] harness.target = claude: MCP registration for Claude Code " +
-                                      "not implemented yet (docs-internal/Sprints/2026-09-13-Harness-Claude-Code.md, F2).");
+                    // User scope through Claude Code's own CLI: same reasoning as Copilot and opencode (the
+                    // entry holds THIS installation's executable path, so it does not belong in the project).
+                    ClaudeCodeMcp.RegisterForUser();
                     break;
 
                 default:

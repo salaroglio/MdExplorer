@@ -16,17 +16,25 @@ namespace MdExplorer.IntegrationTests
     public class ClaudeHarness_Should
     {
         private string _root;
+        private string _previousClaudeConfigDir;
 
         [TestInitialize]
         public void Setup()
         {
             _root = Path.Combine(Path.GetTempPath(), "mde-claude-harness", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(_root);
+            // ConfigTemplates with the Claude harness registers the MCP server through `claude mcp add
+            // --scope user`: without this it would write into the ~/.claude.json of whoever runs the tests.
+            _previousClaudeConfigDir = Environment.GetEnvironmentVariable(ClaudeCodeMcp.ConfigDirVariable);
+            var configDir = Path.Combine(_root, "claude-config");
+            Directory.CreateDirectory(configDir);
+            Environment.SetEnvironmentVariable(ClaudeCodeMcp.ConfigDirVariable, configDir);
         }
 
         [TestCleanup]
         public void Cleanup()
         {
+            Environment.SetEnvironmentVariable(ClaudeCodeMcp.ConfigDirVariable, _previousClaudeConfigDir);
             try { if (Directory.Exists(_root)) Directory.Delete(_root, true); }
             catch (IOException) { }
         }

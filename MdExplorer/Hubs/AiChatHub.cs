@@ -816,8 +816,15 @@ namespace MdExplorer.Hubs
             }
 
             var effectiveModel = string.IsNullOrEmpty(modelId) ? "sonnet" : modelId;
+            // MdExplorer's own MCP server, whatever harness the project declares: before, the Claude
+            // Code chat never had MdExplorer's tools (McpConfigPath was never set). Null when the MCP
+            // executable cannot be found: the session starts without it, and the log says why.
+            var options = new ClaudeCodeSessionOptions
+            {
+                McpConfigPath = MdExplorer.Utilities.ClaudeCodeMcp.WriteSessionConfig()
+            };
             var session = await _claudeCodePool.GetOrCreateAsync(
-                Context.ConnectionId, projectPath, effectiveModel);
+                Context.ConnectionId, projectPath, effectiveModel, options);
 
             await Clients.Caller.SendAsync("ReceiveStreamMeta",
                 new { providerType = "claudecode", modelId = effectiveModel, transport = "stream-json" }, channelId);
