@@ -61,8 +61,11 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         }
 
         /// <summary>
-        /// Restituisce la sessione della connessione se combacia per working directory e
-        /// modello, altrimenti la sostituisce con una nuova.
+        /// Restituisce la sessione della connessione se combacia per working directory e modello.
+        /// Se cambia solo il modello, lo cambia sulla sessione viva (<see cref="ClaudeCodeSession.SetModelAsync"/>)
+        /// e la conversazione resta; se cambia la cartella, o la sessione è morta, la sostituisce con una nuova.
+        /// Un cambio di modello rifiutato dal CLI arriva al chiamante come eccezione: sostituire la sessione
+        /// al suo posto cancellerebbe la conversazione senza dirlo.
         /// </summary>
         public async Task<ClaudeCodeSession> GetOrCreateAsync(
             string connectionId,
@@ -87,6 +90,14 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                 if (_sessions.TryGetValue(connectionId, out var existing))
                 {
                     if (Matches(existing, workingDirectory, modelId)) return existing;
+                    if (OnlyModelDiffers(existing, workingDirectory, modelId))
+                    {
+                        await existing.SetModelAsync(modelId, ct).ConfigureAwait(false);
+                        _logger.LogInformation(
+                            "[ClaudeCodeSessionPool] Modello cambiato sulla sessione viva di {ConnectionId}: conversazione conservata",
+                            connectionId);
+                        return existing;
+                    }
                     _logger.LogInformation("[ClaudeCodeSessionPool] Sostituisco la sessione di {ConnectionId}", connectionId);
                     await ReleaseAsync(connectionId).ConfigureAwait(false);
                 }
@@ -122,6 +133,11 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                 gate.Release();
             }
         }
+
+        private static bool OnlyModelDiffers(ClaudeCodeSession session, string workingDirectory, string modelId) =>
+            session.IsAlive &&
+            !string.IsNullOrWhiteSpace(modelId) &&
+            string.Equals(session.WorkingDirectory, workingDirectory, StringComparison.OrdinalIgnoreCase);
 
         private static bool Matches(ClaudeCodeSession session, string workingDirectory, string modelId) =>
             session.IsAlive &&

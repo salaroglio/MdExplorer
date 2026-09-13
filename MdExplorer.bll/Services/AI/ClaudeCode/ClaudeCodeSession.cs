@@ -61,7 +61,8 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
 
         private readonly ILogger _logger;
         private readonly string _workingDirectory;
-        private readonly string _modelId;
+        // Non readonly: SetModelAsync lo cambia sulla sessione viva (set_model), senza perdere la conversazione.
+        private volatile string _modelId;
         private readonly ClaudeCodeSessionOptions _options;
 
         private Process _process;
@@ -69,6 +70,11 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         private Task _stderrTask;
         private CancellationTokenSource _readerCts;
         private int _nextControlId;
+        // control_request mandate da noi che aspettano la loro control_response: valore null = success,
+        // altrimenti il motivo dell'errore dato dal CLI.
+        private readonly ConcurrentDictionary<string, TaskCompletionSource<string>> _pendingControl =
+            new ConcurrentDictionary<string, TaskCompletionSource<string>>(StringComparer.Ordinal);
+        private const int CONTROL_TIMEOUT_MS = 30000;
 
         // Turno attivo (uno per volta, come sul lato Copilot).
         private Channel<ClaudeCodeChunk> _activeStreamChannel;
@@ -403,6 +409,71 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             }
         }
 
+        /// <summary>
+        /// Cambia il modello della sessione viva con il <c>control_request</c> <c>set_model</c>: stesso processo,
+        /// stessa <c>session_id</c>, la conversazione resta (verificato il 13/09/2026 su claude 2.1.270: il turno
+        /// dopo gira sul modello nuovo e cita il messaggio precedente). Prima il pool chiudeva la sessione e ne
+        /// apriva un'altra, e la conversazione ricominciava da zero.
+        /// <para>Tra un turno e l'altro, mai a metà: aspetta il gate del turno. Un id che il CLI non conosce torna
+        /// come errore (<c>Model '…' not found</c>) e il modello resta quello di prima.</para>
+        /// </summary>
+        public async Task SetModelAsync(string modelId, CancellationToken ct = default)
+        {
+            if (_disposed) throw new ObjectDisposedException(nameof(ClaudeCodeSession));
+            if (_process == null || _processExited) throw new InvalidOperationException("Sessione non avviata o già terminata");
+            if (string.IsNullOrWhiteSpace(modelId)) throw new ArgumentException("Il modello è obbligatorio", nameof(modelId));
+            if (string.Equals(modelId, _modelId, StringComparison.Ordinal)) return;
+
+            await _promptGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                var requestId = "mde-set-model-" + Interlocked.Increment(ref _nextControlId);
+                var reply = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+                _pendingControl[requestId] = reply;
+                string error;
+                try
+                {
+                    await SendRawAsync(new
+                    {
+                        type = "control_request",
+                        request_id = requestId,
+                        request = new { subtype = "set_model", model = modelId }
+                    }, ct).ConfigureAwait(false);
+
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    timeout.CancelAfter(CONTROL_TIMEOUT_MS);
+                    try
+                    {
+                        error = await reply.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                    {
+                        throw new TimeoutException(
+                            $"Claude Code non ha confermato il cambio di modello a '{modelId}' entro {CONTROL_TIMEOUT_MS / 1000} secondi.");
+                    }
+                }
+                finally
+                {
+                    _pendingControl.TryRemove(requestId, out _);
+                }
+
+                if (error != null)
+                {
+                    throw new InvalidOperationException($"Claude Code non ha cambiato modello a '{modelId}': {error}");
+                }
+
+                var previous = _modelId;
+                _modelId = modelId;
+                LastUsedUtc = DateTime.UtcNow;
+                _logger.LogInformation("[ClaudeCodeSession] modello cambiato sulla sessione viva: {From} → {To} (session={SessionId})",
+                    previous, modelId, SessionId);
+            }
+            finally
+            {
+                _promptGate.Release();
+            }
+        }
+
         private Task SendUserMessageAsync(string text, CancellationToken ct) =>
             SendRawAsync(new
             {
@@ -505,6 +576,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                     break;
                 case "control_response":
                     _logger.LogDebug("[ClaudeCodeSession] control_response: {Raw}", Truncate(root.GetRawText(), 300));
+                    CompletePendingControl(root);
                     break;
                 case "control_request":
                     // Il CLI in `-p` non chiede approvazioni (verificato: nessun can_use_tool).
@@ -514,6 +586,25 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                         Truncate(root.GetRawText(), 1000));
                     break;
             }
+        }
+
+        /// <summary>Consegna una <c>control_response</c> a chi la aspetta (per <c>request_id</c>); le altre si ignorano.</summary>
+        private void CompletePendingControl(JsonElement root)
+        {
+            if (!root.TryGetProperty("response", out var response) || response.ValueKind != JsonValueKind.Object) return;
+            if (!response.TryGetProperty("request_id", out var id) || id.ValueKind != JsonValueKind.String) return;
+            if (!_pendingControl.TryRemove(id.GetString(), out var reply)) return;
+
+            var isError = response.TryGetProperty("subtype", out var subtype) && subtype.GetString() == "error";
+            if (!isError)
+            {
+                reply.TrySetResult(null);
+                return;
+            }
+            var reason = response.TryGetProperty("error", out var err) && err.ValueKind == JsonValueKind.String
+                ? err.GetString()
+                : "errore senza motivo";
+            reply.TrySetResult(reason);
         }
 
         private void HandleSystem(JsonElement root)
@@ -752,6 +843,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                 $"Il processo Claude Code è terminato (exit code {exitCode?.ToString() ?? "?"})." + DescribeStderr());
             _activeTurnCompletion?.TrySetException(ex);
             _activeStreamChannel?.Writer.TryComplete(ex);
+            foreach (var pending in _pendingControl.Values) pending.TrySetException(ex);
         }
 
         public async ValueTask DisposeAsync()
@@ -783,6 +875,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
 
             var disposedEx = new ObjectDisposedException(nameof(ClaudeCodeSession));
             _activeTurnCompletion?.TrySetException(disposedEx);
+            foreach (var pending in _pendingControl.Values) pending.TrySetException(disposedEx);
             _activeStreamChannel?.Writer.TryComplete();
         }
 
