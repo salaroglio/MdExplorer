@@ -1,6 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using Ad.Tools.Dal.Abstractions.Interfaces;
+using Ad.Tools.Dal.Extensions;
+using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Models.AI;
 using MdExplorer.Abstractions.Services;
 using MdExplorer.Features.Services.AI.ClaudeCode;
@@ -9,112 +14,118 @@ using Microsoft.Extensions.Logging;
 namespace MdExplorer.Features.Services.AI
 {
     /// <summary>
-    /// Elenco dei modelli selezionabili per Claude Code CLI.
+    /// Modelli selezionabili per Claude Code: quelli che il CLI dichiara per questo account
+    /// (<see cref="ClaudeCodeModelSource"/>, <c>initialize</c> sullo stream-json), salvati nella tabella
+    /// <c>AvailableModel</c> con provider <see cref="ProviderKey"/> — la stessa che la combo di Copilot legge da
+    /// <c>/api/aimodels/cached</c>.
     ///
-    /// <para><b>Perché una lista dichiarata e non un discovery.</b> Il CLI non espone un
-    /// comando per elencare i modelli disponibili sull'abbonamento: inventarne uno
-    /// significherebbe parsare output pensato per gli umani e sbagliare in silenzio alla prima
-    /// riformulazione. <see cref="SupportsDiscovery"/> risponde quindi <c>false</c>, che è la
-    /// verità, invece di far finta di interrogare qualcosa.</para>
+    /// <para><b>Prima</b> qui c'era una lista scritta a mano (sonnet/opus/haiku/fable) con
+    /// <c>SupportsDiscovery() = false</c> e il commento «il CLI non espone un elenco»: era vero allora, non lo è
+    /// più (verificato il 13/09/2026 su claude 2.1.270), e la lista era già sbagliata — mancava <c>default</c>,
+    /// e l'Opus dell'account è <c>opus[1m]</c>.</para>
     ///
-    /// <para><b>Perché gli alias.</b> Gli id qui sono gli alias del CLI (<c>opus</c>,
-    /// <c>sonnet</c>, <c>haiku</c>, <c>fable</c>), non i nomi pieni con la data: l'alias punta
-    /// sempre all'ultima versione di quella famiglia e non invecchia a ogni rilascio. Il nome
-    /// pieno resta accettato dal CLI per chi lo scrive a mano.</para>
+    /// <para>Nessun ripiego. Un CLI assente dà una lista vuota, perché è la verità: su questa macchina non
+    /// ci sono modelli Claude Code. Un CLI presente che non risponde è un'eccezione col motivo.</para>
     ///
-    /// <para>⚠️ Da verificare (Q4 del piano): su Copilot un <c>--model</c> non disponibile viene
-    /// <b>ignorato in silenzio</b> in modalità ACP. Su Claude Code non è stato provato; se si
-    /// comportasse allo stesso modo, il modello davvero in uso è quello che
-    /// <see cref="ClaudeCodeSession.EffectiveModel"/> legge dall'<c>init</c> — è lì che si
-    /// vedrebbe la differenza tra ciò che si è chiesto e ciò che si è ottenuto.</para>
+    /// <para>Sprint: docs-internal/Sprints/2026-09-13-MarkAgent-Modello-Claude-Code.md, fase F1.</para>
     /// </summary>
     public class ClaudeCodeModelDiscovery : IModelDiscoveryProvider
     {
+        /// <summary>Valore della colonna <c>AvailableModel.Provider</c> (è anche il nome dell'enum).</summary>
+        public const string ProviderKey = nameof(ProviderType.ClaudeCode);
+
         private readonly ILogger<ClaudeCodeModelDiscovery> _logger;
+        private readonly ClaudeCodeModelSource _source;
+        private readonly IDALFactory<IUserSettingsDB> _dalFactory;
 
         public ProviderType ProviderType => ProviderType.ClaudeCode;
 
-        public ClaudeCodeModelDiscovery(ILogger<ClaudeCodeModelDiscovery> logger)
+        public ClaudeCodeModelDiscovery(
+            ILogger<ClaudeCodeModelDiscovery> logger,
+            ClaudeCodeModelSource source,
+            IDALFactory<IUserSettingsDB> dalFactory)
         {
             _logger = logger;
+            _source = source;
+            _dalFactory = dalFactory;
         }
 
-        /// <summary>Il CLI non offre un elenco interrogabile: qui non si scopre nulla, si dichiara.</summary>
-        public bool SupportsDiscovery() => false;
+        public bool SupportsDiscovery() => true;
 
-        public Task<List<AiProviderModel>> GetModelsAsync()
+        /// <summary>L'elenco salvato; se non ce n'è ancora uno, lo chiede al CLI (0,6 s, una volta sola).</summary>
+        public async Task<List<AiProviderModel>> GetModelsAsync()
         {
+            var cached = ReadCached();
+            if (cached.Count > 0) return cached;
+
             if (!ClaudeCodeProcessLauncher.IsResolvable())
             {
-                _logger.LogInformation(
-                    "[ClaudeCodeModelDiscovery] `claude` non è nel PATH: nessun modello da offrire");
-                return Task.FromResult(new List<AiProviderModel>());
+                _logger.LogInformation("[ClaudeCodeModelDiscovery] `claude` non è nel PATH: nessun modello da offrire");
+                return new List<AiProviderModel>();
             }
-
-            return Task.FromResult(new List<AiProviderModel>(_models));
+            return await RefreshModelsAsync().ConfigureAwait(false);
         }
 
-        private static ProviderCapabilities Caps(int maxInput, int maxOutput) => new ProviderCapabilities
+        /// <summary>Chiede l'elenco al CLI e sostituisce quello salvato. Fallisce forte, col motivo.</summary>
+        public async Task<List<AiProviderModel>> RefreshModelsAsync()
         {
-            SupportsStreaming = true,
-            // I tool li porta e li esegue Claude Code: non sono i tool di MDE.
-            SupportsFunctionCalling = false,
-            SupportsEmbeddings = false,
-            SupportsVision = true,
-            MaxInputTokens = maxInput,
-            MaxOutputTokens = maxOutput
-        };
+            var models = await _source.ListModelsAsync().ConfigureAwait(false);
+            Persist(models);
+            return models;
+        }
 
-        private static readonly List<AiProviderModel> _models = new List<AiProviderModel>
+        private List<AiProviderModel> ReadCached()
         {
-            new AiProviderModel
+            // Sessione ISOLATA: una lettura sulla sessione condivisa fuori transazione rompe il Commit successivo.
+            using var session = _dalFactory.OpenSession();
+            return session.GetDal<AvailableModel>()
+                .GetList()
+                .ToList()
+                .Where(m => m.Provider == ProviderKey)
+                .Select(m => new AiProviderModel
+                {
+                    Id = m.ModelId,
+                    Name = m.Name,
+                    Provider = ProviderType.ClaudeCode,
+                    CreatedAt = m.DiscoveredAt,
+                })
+                .ToList();
+        }
+
+        /// <summary>Inserisce i modelli nuovi, aggiorna i presenti, toglie quelli che il CLI non dichiara più.</summary>
+        private void Persist(IReadOnlyCollection<AiProviderModel> models)
+        {
+            using var session = _dalFactory.OpenSession();
+            var dal = session.GetDal<AvailableModel>();
+            session.BeginTransaction();
+            try
             {
-                Id = "sonnet",
-                Name = "Claude Sonnet (ultimo)",
-                Description = "Equilibrio fra qualità e velocità. Alias: punta sempre all'ultimo Sonnet.",
-                Provider = ProviderType.ClaudeCode,
-                InputTokenLimit = 200000,
-                OutputTokenLimit = 64000,
-                IsDeprecated = false,
-                CreatedAt = new DateTime(2026, 1, 1),
-                Capabilities = Caps(200000, 64000)
-            },
-            new AiProviderModel
-            {
-                Id = "opus",
-                Name = "Claude Opus (ultimo)",
-                Description = "Il più capace, il più caro. Alias: punta sempre all'ultimo Opus.",
-                Provider = ProviderType.ClaudeCode,
-                InputTokenLimit = 200000,
-                OutputTokenLimit = 64000,
-                IsDeprecated = false,
-                CreatedAt = new DateTime(2026, 1, 1),
-                Capabilities = Caps(200000, 64000)
-            },
-            new AiProviderModel
-            {
-                Id = "haiku",
-                Name = "Claude Haiku (ultimo)",
-                Description = "Il più rapido ed economico: adatto ai turni brevi e alle bozze.",
-                Provider = ProviderType.ClaudeCode,
-                InputTokenLimit = 200000,
-                OutputTokenLimit = 32000,
-                IsDeprecated = false,
-                CreatedAt = new DateTime(2026, 1, 1),
-                Capabilities = Caps(200000, 32000)
-            },
-            new AiProviderModel
-            {
-                Id = "fable",
-                Name = "Claude Fable (ultimo)",
-                Description = "Alias della famiglia Fable.",
-                Provider = ProviderType.ClaudeCode,
-                InputTokenLimit = 200000,
-                OutputTokenLimit = 64000,
-                IsDeprecated = false,
-                CreatedAt = new DateTime(2026, 1, 1),
-                Capabilities = Caps(200000, 64000)
+                var existing = dal.GetList().ToList().Where(m => m.Provider == ProviderKey).ToList();
+                var now = DateTime.UtcNow;
+                var ids = new HashSet<string>(models.Select(m => m.Id));
+
+                foreach (var model in models)
+                {
+                    var record = existing.FirstOrDefault(e => e.ModelId == model.Id)
+                                 ?? new AvailableModel { ModelId = model.Id, Provider = ProviderKey };
+                    record.Name = model.Name;
+                    record.DiscoveredAt = now;
+                    dal.Save(record);
+                }
+
+                foreach (var stale in existing.Where(e => !ids.Contains(e.ModelId)))
+                {
+                    dal.Delete(stale);
+                }
+
+                session.Commit();
+                _logger.LogInformation("[ClaudeCodeModelDiscovery] {Count} modelli salvati in AvailableModel", ids.Count);
             }
-        };
+            catch
+            {
+                session.Rollback();
+                throw;
+            }
+        }
     }
 }

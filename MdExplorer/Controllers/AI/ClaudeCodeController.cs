@@ -20,15 +20,54 @@ namespace MdExplorer.Controllers.AI
     public class ClaudeCodeController : ControllerBase
     {
         private readonly ClaudeCodeProvider _provider;
+        private readonly ClaudeCodeModelDiscovery _modelDiscovery;
         private readonly ILogger<ClaudeCodeController> _logger;
 
         public ClaudeCodeController(
             IEnumerable<IAiProvider> providers,
+            IEnumerable<IModelDiscoveryProvider> discoveryProviders,
             ILogger<ClaudeCodeController> logger)
         {
             _provider = providers
                 .FirstOrDefault(p => p.GetProviderType() == ProviderType.ClaudeCode) as ClaudeCodeProvider;
+            _modelDiscovery = discoveryProviders
+                .FirstOrDefault(d => d.ProviderType == ProviderType.ClaudeCode) as ClaudeCodeModelDiscovery;
             _logger = logger;
+        }
+
+        /// <summary>
+        /// Richiede al CLI i modelli di questo account (<c>initialize</c>, nessun token) e li salva in
+        /// <c>AvailableModel</c>, da dove li legge la combo di MarkAgent. Gemello di
+        /// <c>POST api/copilotcli/refresh-models</c>. Un errore torna col suo motivo: una lista vuota
+        /// sembrerebbe «nessun modello» e non direbbe perché.
+        /// </summary>
+        [HttpPost("refresh-models")]
+        public async Task<IActionResult> RefreshModels()
+        {
+            if (_modelDiscovery == null)
+            {
+                return StatusCode(500, new { error = "ClaudeCodeModelDiscovery non registrato: controlla Startup.cs" });
+            }
+            try
+            {
+                var models = await _modelDiscovery.RefreshModelsAsync();
+                return Ok(new
+                {
+                    success = true,
+                    count = models.Count,
+                    models = models.Select(m => new { id = m.Id, name = m.Name, description = m.Description }),
+                });
+            }
+            catch (TimeoutException ex)
+            {
+                _logger.LogWarning(ex, "Elenco dei modelli di Claude Code: nessuna risposta in tempo");
+                return StatusCode(408, new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Elenco dei modelli di Claude Code non disponibile");
+                return StatusCode(500, new { error = ex.Message });
+            }
         }
 
         /// <summary>

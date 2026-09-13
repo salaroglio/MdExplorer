@@ -288,6 +288,7 @@ namespace MdExplorer
             services.AddSingleton<IModelDiscoveryProvider, GeminiModelDiscovery>();
             services.AddSingleton<MdExplorer.Features.Services.AI.CopilotSdkModelSource>();
             services.AddSingleton<IModelDiscoveryProvider, CopilotCliModelDiscovery>();
+            services.AddSingleton<MdExplorer.Features.Services.AI.ClaudeCode.ClaudeCodeModelSource>();
             services.AddSingleton<IModelDiscoveryProvider, ClaudeCodeModelDiscovery>();
 
             // Add AI Tool Calling services
