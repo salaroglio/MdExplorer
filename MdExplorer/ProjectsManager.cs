@@ -503,6 +503,12 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     CreateOpenCodeMcpConfig();
                     break;
 
+                case HarnessTarget.Claude:
+                    // Its own case, not the "none" branch: that would say this project has no harness.
+                    Console.WriteLine("[ProjectsManager] harness.target = claude: MCP registration for Claude Code " +
+                                      "not implemented yet (docs-internal/Sprints/2026-09-13-Harness-Claude-Code.md, F2).");
+                    break;
+
                 default:
                     Console.WriteLine("[ProjectsManager] harness.target = none: no MCP server registration.");
                     break;

@@ -176,6 +176,13 @@ namespace MdExplorer.Utilities
         /// a Copilot project someone has since moved to opencode, and <c>.github</c> also exists
         /// in repositories for reasons that have nothing to do with agents (workflows, issue
         /// templates), so its presence is the weaker signal.
+        /// <para>
+        /// <c>.claude</c> is deliberately NOT a signal. This migration is for projects created before
+        /// the harness setting existed, and none of those can hold a Claude Code harness installed by
+        /// MdExplorer (it came later, with the setting already there); meanwhile <c>.claude/</c> sits
+        /// in many repositories for reasons of its own (<c>settings.local.json</c>). The Claude
+        /// harness is only ever an explicit choice.
+        /// </para>
         /// </summary>
         public static HarnessTarget DetectFromDisk(string projectPath)
         {

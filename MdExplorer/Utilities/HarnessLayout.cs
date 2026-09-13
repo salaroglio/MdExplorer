@@ -19,6 +19,9 @@ namespace MdExplorer.Utilities
 
         /// <summary>opencode — the <c>.opencode/</c> layout.</summary>
         OpenCode = 2,
+
+        /// <summary>Claude Code — the <c>.claude/</c> layout, with <c>CLAUDE.md</c> at the root.</summary>
+        Claude = 3,
     }
 
     /// <summary>
@@ -153,8 +156,32 @@ namespace MdExplorer.Utilities
             instructionsResource: "MdExplorer.Service.AGENTS.md",
             gitignorePatterns: new[] { ".opencode/**/mde-*" });
 
+        /// <summary>
+        /// Claude Code layout. Verified with a functional probe on Claude Code 2.1.270 (13/09/2026,
+        /// the <c>init</c> event of <c>claude -p --output-format stream-json</c>): it reads
+        /// <c>CLAUDE.md</c>, skills in <c>.claude/skills/&lt;name&gt;/SKILL.md</c>, agents and commands as
+        /// flat <c>&lt;name&gt;.md</c> files, and accepts the <c>mde:</c> block in their frontmatter.
+        /// It does NOT read <c>AGENTS.md</c>, <c>.github/</c> or <c>.opencode/</c>.
+        /// Sprint: docs-internal/Sprints/2026-09-13-Harness-Claude-Code.md.
+        /// </summary>
+        public static readonly HarnessLayout Claude = new(
+            target: HarnessTarget.Claude,
+            id: "claude",
+            rootFolder: ".claude",
+            skillsFolder: ".claude/skills",
+            agentsFolder: ".claude/agents",
+            promptsFolder: ".claude/commands",
+            agentFileSuffix: ".md",
+            promptFileSuffix: ".md",
+            instructionsFile: "CLAUDE.md",
+            // Not "CLAUDE.md" in the repository: Claude Code loads the CLAUDE.md of a subfolder by
+            // itself while working on its files, and MdExplorer's own template would end up in the
+            // sessions of whoever develops MdExplorer. It becomes CLAUDE.md only in the project.
+            instructionsResource: "MdExplorer.Service.claude-instructions.md",
+            gitignorePatterns: new[] { ".claude/**/mde-*" });
+
         /// <summary>Every layout that actually installs files (<see cref="HarnessTarget.None"/> excluded).</summary>
-        public static IReadOnlyList<HarnessLayout> All { get; } = new[] { Copilot, OpenCode };
+        public static IReadOnlyList<HarnessLayout> All { get; } = new[] { Copilot, OpenCode, Claude };
 
         /// <summary>
         /// Layout for a target. Throws for <see cref="HarnessTarget.None"/>: "no harness" is a
@@ -166,6 +193,7 @@ namespace MdExplorer.Utilities
             {
                 case HarnessTarget.Copilot: return Copilot;
                 case HarnessTarget.OpenCode: return OpenCode;
+                case HarnessTarget.Claude: return Claude;
                 case HarnessTarget.None:
                     throw new InvalidOperationException(
                         "HarnessTarget.None has no layout: a project with no harness installs nothing. " +
@@ -203,7 +231,7 @@ namespace MdExplorer.Utilities
         }
 
         /// <summary>Allowed <c>harness.target</c> values, for error messages.</summary>
-        public static string AllowedIds => "copilot, opencode, none";
+        public static string AllowedIds => "copilot, opencode, claude, none";
 
         public override string ToString() => Id;
     }

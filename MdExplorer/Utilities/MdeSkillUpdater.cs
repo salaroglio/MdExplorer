@@ -9,7 +9,8 @@ namespace MdExplorer.Utilities
     /// <summary>
     /// Installs and upgrades the skills, agents and prompts that MdExplorer distributes with
     /// itself. WHERE they land is not decided here: it comes from the <see cref="HarnessLayout"/>
-    /// of the harness the project targets (Copilot's <c>.github/</c>, opencode's <c>.opencode/</c>).
+    /// of the harness the project targets (Copilot's <c>.github/</c>, opencode's <c>.opencode/</c>,
+    /// Claude Code's <c>.claude/</c>).
     /// <para>
     /// Each MdE asset is marked in its frontmatter with:
     /// </para>
@@ -31,8 +32,9 @@ namespace MdExplorer.Utilities
     /// <item><description>If it exists at the same or higher version → leave alone.</description></item>
     /// </list>
     /// <para>
-    /// The <c>mde:</c> block survives in both layouts: opencode ignores frontmatter keys it does
-    /// not recognise, so the version marker keeps working there too.
+    /// The <c>mde:</c> block survives in every layout: opencode and Claude Code ignore frontmatter
+    /// keys they do not recognise (for Claude Code verified 13/09/2026: skills, agents and commands
+    /// carrying the block are still listed), so the version marker keeps working there too.
     /// </para>
     /// </summary>
     public static class MdeSkillUpdater
@@ -133,6 +135,7 @@ namespace MdExplorer.Utilities
             {
                 [HarnessTarget.Copilot] = source,
                 [HarnessTarget.OpenCode] = source,
+                [HarnessTarget.Claude] = source,
             };
         }
 
@@ -173,12 +176,15 @@ namespace MdExplorer.Utilities
                     [HarnessTarget.OpenCode] = AssetSource.Composed(
                         "MdExplorer.Service.skills.mde_skillcreator.agent.opencode.yml",
                         "MdExplorer.Service.skills.mde_skillcreator.agent.body.md"),
+                    [HarnessTarget.Claude] = AssetSource.Composed(
+                        "MdExplorer.Service.skills.mde_skillcreator.agent.claude.yml",
+                        "MdExplorer.Service.skills.mde_skillcreator.agent.body.md"),
                 }),
         };
 
         /// <summary>
-        /// Built-in prompt catalog, installed at the layout's prompts folder (in opencode these
-        /// are <em>commands</em>). Add an entry here when you add a new MdE-managed prompt.
+        /// Built-in prompt catalog, installed at the layout's prompts folder (in opencode and Claude
+        /// Code these are <em>commands</em>). Add an entry here when you add a new MdE-managed prompt.
         /// </summary>
         private static readonly CatalogEntry[] BuiltInPrompts = new[]
         {

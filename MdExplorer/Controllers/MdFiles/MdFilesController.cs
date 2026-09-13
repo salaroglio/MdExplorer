@@ -1901,7 +1901,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             var scanOverallTimer = System.Diagnostics.Stopwatch.StartNew();
 
             // Carica solo primo livello di cartelle che contengono file markdown
-            // Ordina: cartella harness (.github/.opencode) prima, poi folder "program", poi alfabetico
+            // Ordina: cartella harness (.github/.opencode/.claude) prima, poi folder "program", poi alfabetico
             var sortedFolders = SortFoldersWithPriority(
                 Directory.GetDirectories(currentPath).Where(_ => !_.Contains(".md")),
                 isRootLevel: true,
@@ -3189,7 +3189,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
         /// <summary>
-        /// Ordina i folder: la cartella dell'harness (.github / .opencode) prima (solo root),
+        /// Ordina i folder: la cartella dell'harness (.github / .opencode / .claude) prima (solo root),
         /// poi folder "program", poi alfabetico
         /// </summary>
         private List<string> SortFoldersWithPriority(IEnumerable<string> folders, bool isRootLevel, string projectRoot)
@@ -3203,7 +3203,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         {
             var folderName = Path.GetFileName(folderPath);
 
-            // Cartella di un harness (.github, .opencode) sempre prima, solo a livello root.
+            // Cartella di un harness (.github, .opencode, .claude) sempre prima, solo a livello root.
             // L'elenco arriva da HarnessLayout.All: aggiungere un harness non deve
             // richiedere un altro literal qui dentro.
             if (isRootLevel && HarnessLayout.All.Any(_ => folderName.Equals(_.RootFolder, StringComparison.OrdinalIgnoreCase)))
