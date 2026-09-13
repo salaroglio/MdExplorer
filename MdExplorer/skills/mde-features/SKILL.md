@@ -3,7 +3,7 @@ name: mde-features
 description: Reference of MdExplorer-specific markdown extensions beyond CommonMark — text() file include, html() preview, runnable code blocks (bash/sh/pwsh/cmd), and PlantUML interactive SVG. Consult this skill when writing or editing any `.md` document in an MDE project to know which rendering features you can leverage. Triggers on "embed a file in markdown", "include source file inline", "show file content in doc", "make a script runnable in docs", "preview HTML in markdown", "draw a diagram in markdown".
 mde:
   origin: mdexplorer
-  version: 1
+  version: 2
   updatePolicy: replace
 ---
 
@@ -241,15 +241,13 @@ The PlantUML source is rendered to SVG. The SVG is **interactive**:
 
 ### Caveats / conservative syntax
 
-- **Avoid the `;line:#color` extension** on rectangles — not supported by all PlantUML versions and breaks rendering
-- **Avoid escaped quotes** inside rectangle labels (`"\"...\""`) — same reason
-- **Keep `\`\`\`plantuml` minimal**: prefer fills (`#color`) over fancy borders, use simple `-->` arrows, basic shapes (`rectangle`, `class`, `usecase`)
-- Soft pastel palettes work well for "garbatamente colorate" diagrams:
-  - `#D6EAF8` (azzurro)
-  - `#D5F5E3` (verde)
-  - `#FEF9E7` (giallo tenue)
-  - `#FAE5D3` (arancio)
-  - `#EAD9F7` (viola)
+- **No backticks inside a `plantuml` block** — the block ends at the first backtick and the diagram silently disappears
+- **Avoid escaped quotes** inside labels (`"\"...\""`) — PlantUML does not unescape them: the backslashes are drawn literally
+- **`#fill;line:color` works on `class`, `entity` and `rectangle`, but NOT on a sequence `participant`**: there it fails with "No such color" — color a participant's border through a stereotype
+- **Keep `\`\`\`plantuml` minimal**: simple `-->` arrows, basic shapes (`rectangle`, `class`, `usecase`), and color only what carries meaning
+- **In dark theme MdExplorer inverts the SVG** (`invert(0.88) hue-rotate(180deg)`): hue survives, lightness flips — encode meaning in hue, never use `#FFFFFF`
+
+**Colors, palette, per-diagram conventions and mind maps**: see the **`mde-plantuml`** skill. It holds the palette already computed against the dark theme, the color syntax verified per diagram type, the `<style>` block for mind maps, and the `CheckPlantuml` MCP tool to validate a diagram before writing it.
 
 ### When to use
 
@@ -271,7 +269,8 @@ Il flusso di sincronizzazione del KG è questo:
 \`\`\`plantuml
 @startuml
 !theme plain
-skinparam backgroundColor #F8F9FA
+skinparam ParticipantBackgroundColor #F1F3F4
+skinparam ParticipantBorderColor #5F6368
 
 actor User
 participant Controller
