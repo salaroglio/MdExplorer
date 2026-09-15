@@ -3669,6 +3669,145 @@ namespace MdExplorer.Service.Controllers.MdFiles
         }
 
         /// <summary>
+        /// Una correzione del testo fatta sulla pagina (tasto destro → "Modifica testo"): la pagina
+        /// manda i run del blocco prima e dopo, il file cambia solo nei caratteri toccati
+        /// (<see cref="RenderedTextEditor"/>).
+        /// <para>
+        /// 409 <c>document-changed</c> se il file non è più quello da cui la pagina è stata costruita;
+        /// 422 <c>refused</c>, con il motivo, quando la correzione non si può fare in modo sicuro. In
+        /// entrambi i casi non si scrive nulla.
+        /// </para>
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> EditRenderedText([FromBody] EditRenderedTextRequest request)
+        {
+            if (string.IsNullOrEmpty(request.ConnectionId))
+            {
+                return BadRequest(new { error = "ConnectionId is required" });
+            }
+            if (string.IsNullOrWhiteSpace(request.SourceHash))
+            {
+                return BadRequest(new { error = "SourceHash is required" });
+            }
+            if (request.Line < 1)
+            {
+                return BadRequest(new { error = "Line must be the data-mde-line-start of the block (1 or more)" });
+            }
+            if (request.Row.HasValue != request.Column.HasValue)
+            {
+                return BadRequest(new { error = "A cell needs both Row and Column" });
+            }
+            if (request.Before == null || request.After == null)
+            {
+                return BadRequest(new { error = "Before and After are required" });
+            }
+
+            var pathError = ValidateProjectMarkdownPath(request.DocumentPath, request.ConnectionId, out var fullPath);
+            if (pathError != null)
+            {
+                return pathError;
+            }
+
+            var text = MarkdownFileEditor.ReadText(fullPath);
+            if (!string.Equals(MarkdownFileEditor.SourceHash(text), request.SourceHash, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogWarning("[EditRenderedText] Rifiutata per {File}: il file è cambiato dopo il caricamento della pagina", fullPath);
+                return Conflict(new
+                {
+                    error = "document-changed",
+                    message = "Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova."
+                });
+            }
+
+            var edit = RenderedTextEditor.Apply(
+                text,
+                BuildDocumentViewPipeline(),
+                new RenderedTextTarget { Line = request.Line, Row = request.Row, Column = request.Column },
+                ToRenderedRuns(request.Before),
+                ToRenderedRuns(request.After));
+
+            if (edit.Status == RenderedTextEditStatus.NoChange)
+            {
+                return Ok(new { status = "no-change", sourceHash = request.SourceHash });
+            }
+            if (edit.Status == RenderedTextEditStatus.Refused)
+            {
+                _logger.LogWarning("[EditRenderedText] Rifiutata per {File}, riga {Line}: {Refusal} — {Detail}", fullPath, request.Line, edit.Refusal, edit.Detail);
+                return UnprocessableEntity(new
+                {
+                    error = "refused",
+                    refusal = edit.Refusal.ToString(),
+                    detail = edit.Detail,
+                    message = RenderedTextRefusalMessage(edit.Refusal)
+                });
+            }
+
+            var hasUtf8Bom = MarkdownFileEditor.HasUtf8Bom(fullPath);
+            SetFileSystemWatcherEnabled(false, request.ConnectionId);
+            try
+            {
+                await MarkdownFileEditor.WriteAsync(fullPath, edit.NewContent, hasUtf8Bom);
+            }
+            finally
+            {
+                SetFileSystemWatcherEnabled(true, request.ConnectionId);
+            }
+            _logger.LogInformation("[EditRenderedText] Corretto il blocco alla riga {Line} di {File}", request.Line, fullPath);
+
+            try
+            {
+                var projectPath = GetProjectPath(request.ConnectionId);
+                var relativePath = fullPath
+                    .Replace(projectPath, string.Empty)
+                    .TrimStart(Path.DirectorySeparatorChar)
+                    .Replace("\\", "/");
+                await _hubContext.Clients.Client(request.ConnectionId).SendAsync("markdownfileischanged", new MonitoredMDModel
+                {
+                    Path = relativePath,
+                    Name = Path.GetFileName(fullPath),
+                    RelativePath = relativePath,
+                    FullPath = fullPath,
+                    FullDirectoryPath = Path.GetDirectoryName(fullPath)
+                });
+            }
+            catch (Exception signalrEx)
+            {
+                // The file is written: the page just does not reload by itself.
+                _logger.LogWarning(signalrEx, "[EditRenderedText] Notifica markdownfileischanged non inviata per {File}", fullPath);
+            }
+
+            return Ok(new { status = "applied", sourceHash = MarkdownFileEditor.SourceHash(edit.NewContent) });
+        }
+
+        private static List<RenderedRun> ToRenderedRuns(IEnumerable<RenderedRunDto> runs)
+            => runs.Select(run => new RenderedRun { Text = run.Text, Object = run.Object, Path = run.Path }).ToList();
+
+        /// <summary>
+        /// Perché la correzione non è stata salvata, detto a chi l'ha scritta. La pagina lascia il
+        /// blocco in modifica con il suo testo: il messaggio dice che cosa cambiare.
+        /// </summary>
+        private static string RenderedTextRefusalMessage(RenderedTextRefusal refusal) => refusal switch
+        {
+            RenderedTextRefusal.BlockNotFound =>
+                "Non trovo più questo blocco nel file: ricarica la pagina e riprova.",
+            RenderedTextRefusal.UnsupportedContent =>
+                "Questo blocco contiene elementi che non si correggono dalla pagina (formule, note…): correggilo nel file.",
+            RenderedTextRefusal.RenderedTextMismatch =>
+                "La pagina mostra questo blocco diversamente da com'è scritto nel file (per esempio con emoji interattive): correggilo nel file.",
+            RenderedTextRefusal.LineBreakNotAllowed =>
+                "Dalla pagina si corregge solo il testo: gli a capo non si aggiungono né si tolgono.",
+            RenderedTextRefusal.ProtectedContentTouched =>
+                "Emoji, immagini, caselle e indirizzi dei link non si cambiano dalla pagina: correggi solo il testo intorno.",
+            RenderedTextRefusal.FormattingNotAllowed =>
+                "Il testo scritto ha una formattazione (grassetto, corsivo, link) che lì non c'è: dalla pagina non si aggiunge formattazione.",
+            RenderedTextRefusal.EditTooLarge =>
+                "La correzione cambia troppo testo in una volta: falla in più passi.",
+            RenderedTextRefusal.VerificationFailed =>
+                "Quello che hai scritto verrebbe letto come Markdown (un link, un'emoji, un simbolo) e la pagina non lo mostrerebbe così: cambialo e riprova.",
+            _ => throw new ArgumentOutOfRangeException(nameof(refusal), refusal, "Motivo di rifiuto senza messaggio")
+        };
+
+        /// <summary>
         /// Verifica l'ancora di un incolla e ne cattura le righe. Restituisce l'errore da mandare al
         /// client, o null se l'ancora è buona.
         /// <para>
@@ -3849,6 +3988,40 @@ public class PasteAnchorDto
 
     /// <summary>La prima riga del blocco, accorciata: per dire all'utente dove andrà l'immagine.</summary>
     public string Label { get; set; }
+}
+
+/// <summary>
+/// <c>POST api/mdfiles/EditRenderedText</c>: una correzione del testo fatta sulla pagina. Tutto
+/// nullable: un campo non nullable in un progetto con Nullable annotations è un [Required]
+/// implicito, e un run di testo non ha <c>Object</c> (né un oggetto ha <c>Text</c>).
+/// </summary>
+public class EditRenderedTextRequest
+{
+    public string? ConnectionId { get; set; }
+    public string? DocumentPath { get; set; }
+
+    /// <summary>Il <c>data-mde-source-hash</c> della pagina.</summary>
+    public string? SourceHash { get; set; }
+
+    /// <summary>Il <c>data-mde-line-start</c> del blocco; per una cella, quello della tabella.</summary>
+    public int Line { get; set; }
+
+    /// <summary>Per una cella: riga (intestazione = 0) e colonna, contate da 0.</summary>
+    public int? Row { get; set; }
+    public int? Column { get; set; }
+
+    public List<RenderedRunDto>? Before { get; set; }
+    public List<RenderedRunDto>? After { get; set; }
+}
+
+/// <summary>Un nodo di testo del blocco o un elemento senza testo (<c>img</c>, <c>br</c>, <c>input</c>).</summary>
+public class RenderedRunDto
+{
+    public string? Text { get; set; }
+    public string? Object { get; set; }
+
+    /// <summary>I tag fra il blocco e il nodo, dal più esterno.</summary>
+    public string[]? Path { get; set; }
 }
 
 

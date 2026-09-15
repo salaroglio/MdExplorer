@@ -732,27 +732,8 @@ namespace MdExplorer.Controllers
                 _logger.LogInformation($"⏭️ [MdExplorer] Skipping Rule #1 check for .md.directory file: {fullPathFile}");
             }
 
-            var settingDal = _userSettingsDB.GetDal<Setting>();
-            var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
-            var jiraEnabled = settingDal.GetList().Where(_ => _.Name == "JiraEnabled").FirstOrDefault()?.ValueInt == 1;
-
-            var pipelineBuilder = new MarkdownPipelineBuilder()
-                .UseAdvancedExtensions()
-                .UseDiagrams()
-                .UsePipeTables()
-                .UsePreciseSourceLocation()
-                .UseBootstrap();
-
-            if (jiraEnabled && !string.IsNullOrWhiteSpace(jiraUrl))
-            {
-                pipelineBuilder.UseJiraLinks(new JiraLinkOptions(jiraUrl));
-            }
-
-            var pipeline = pipelineBuilder
-                .UseEmojiAndSmiley()
-                .UseYamlFrontMatter()
-                .UseGenericAttributes()
-                .Build();
+            // Shared with the corrections made on the page, which must read the file as it is rendered here.
+            var pipeline = BuildDocumentViewPipeline();
 
             string result;
             try
