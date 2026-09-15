@@ -266,29 +266,37 @@
         removeGuideLine();
     }
 
-    function openMenu(x, y, anchor, onPaste) {
+    function menuItem(icon, label, onClick) {
+        var item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'mde-paste-menu-item';
+        item.innerHTML = '<span class="mde-paste-menu-icon">' + icon + '</span>' + label;
+        item.addEventListener('click', function () {
+            closeMenu();
+            onClick();
+        });
+        return item;
+    }
+
+    /**
+     * onPaste and onEdit are optional, not both absent: pasting needs an anchor between blocks,
+     * correcting the text needs a block that inline-edit.js can address.
+     */
+    function openMenu(x, y, anchor, onPaste, onEdit) {
         closeMenu();
-        showGuideLine(anchor);
+        if (anchor) showGuideLine(anchor);
 
         var menu = document.createElement('div');
         menu.id = MENU_ID;
         menu.className = 'mde-paste-menu';
-
-        var item = document.createElement('button');
-        item.type = 'button';
-        item.className = 'mde-paste-menu-item';
-        item.innerHTML = '<span class="mde-paste-menu-icon">📋</span>Incolla immagine qui';
-        item.addEventListener('click', function () {
-            closeMenu();
-            onPaste();
-        });
 
         // The browser's menu is one key away: say so, since this one replaced it.
         var hint = document.createElement('div');
         hint.className = 'mde-paste-menu-hint';
         hint.textContent = 'Shift + tasto destro: menu del browser';
 
-        menu.appendChild(item);
+        if (onPaste) menu.appendChild(menuItem('📋', 'Incolla immagine qui', onPaste));
+        if (onEdit) menu.appendChild(menuItem('✏️', 'Modifica testo', onEdit));
         menu.appendChild(hint);
         document.body.appendChild(menu);
 
@@ -392,12 +400,18 @@
         if (!connectionId) return;
 
         var anchor = anchorAt(target, event.clientY);
-        if (!anchor) return;
+        // The other gesture of this menu (inline-edit.js): correct the text of the block under the
+        // pointer — the cell, the list item, not the whole table or list the anchor points at.
+        var inlineEdit = window.mdeInlineEdit;
+        var editable = inlineEdit ? inlineEdit.blockAt(target) : null;
+        if (!anchor && !editable) return;
 
         event.preventDefault();
-        openMenu(event.clientX, event.clientY, anchor, function () {
-            triggerPasteWizard(connectionId, getDocumentPath(), anchor);
-        });
+        var x = event.clientX;
+        var y = event.clientY;
+        openMenu(x, y, anchor,
+            anchor ? function () { triggerPasteWizard(connectionId, getDocumentPath(), anchor); } : null,
+            editable ? function () { inlineEdit.start(editable, x, y); } : null);
     }
 
     // Register the listeners

@@ -133,6 +133,10 @@ if (window.commonJsLoaded) {
         document.write("<link href='/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.js');
 
+        // INLINE EDIT: "Modifica testo" in the right-click menu — correct the text of a block on the page
+        document.write("<link href='/javascripts/jqueryForFirstPage/inline-edit/inline-edit.css' rel='stylesheet' />");
+        loadScriptOnce('/javascripts/jqueryForFirstPage/inline-edit/inline-edit.js');
+
         // PANELS: TOC, knowledge graph, and resize functionality
         document.write("<link href='/javascripts/jqueryForFirstPage/panels/kg-manager.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/lib/three.min.js');

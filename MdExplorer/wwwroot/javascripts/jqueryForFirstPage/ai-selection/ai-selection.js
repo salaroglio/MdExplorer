@@ -100,6 +100,12 @@
     }
 
     function updateButton() {
+        // While a block is corrected on the page (inline-edit.js), selecting text is part of the
+        // typing, not a request for AI.
+        if (document.body.hasAttribute('data-mde-inline-editing')) {
+            hideButton();
+            return;
+        }
         var resolved = resolveSelectionRange(window.getSelection());
         if (!resolved) {
             hideButton();
