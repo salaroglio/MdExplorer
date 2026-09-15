@@ -1,0 +1,78 @@
+/**
+ * MdExplorer - Correct the text of a block on the rendered page
+ * =============================================================
+ * The block being corrected, the hint above it, the notice for a refused correction. Same
+ * palette as the paste menu (clipboard-paste.css); `body.dark-theme` toggles the dark one.
+ */
+
+.mde-inline-editing {
+    outline: 2px dashed #1976d2;
+    outline-offset: 3px;
+    border-radius: 2px;
+    background: rgba(25, 118, 210, 0.05);
+    cursor: text;
+}
+
+/* Inside a table the outline would spill over the neighbouring cells. */
+td.mde-inline-editing,
+th.mde-inline-editing {
+    outline-offset: -2px;
+}
+
+.mde-inline-saving {
+    opacity: 0.6;
+    outline-color: #9e9e9e;
+    cursor: progress;
+}
+
+/* Fixed at the bottom of the window: never over the text being corrected. */
+.mde-inline-edit-hint {
+    position: fixed;
+    z-index: 9999;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    padding: 4px 14px;
+    border-radius: 14px;
+    background: #1976d2;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    font-family: Roboto, "Segoe UI", Arial, sans-serif;
+    font-size: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.mde-inline-edit-toast {
+    position: fixed;
+    z-index: 10001;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    max-width: 80%;
+    padding: 10px 16px;
+    border-radius: 6px;
+    background: #323232;
+    color: #ffffff;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    font-family: Roboto, "Segoe UI", Arial, sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* ── Dark theme ────────────────────────────────────────────────────────── */
+
+body.dark-theme .mde-inline-editing {
+    outline-color: #90caf9;
+    background: rgba(144, 202, 249, 0.08);
+}
+
+body.dark-theme .mde-inline-edit-hint {
+    background: #90caf9;
+    color: #1a1a1a;
+}
+
+body.dark-theme .mde-inline-edit-toast {
+    background: #e0e0e0;
+    color: #1a1a1a;
+}

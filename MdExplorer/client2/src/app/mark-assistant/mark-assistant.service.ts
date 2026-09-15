@@ -1,6 +1,8 @@
-import { Injectable, Injector } from '@angular/core';
+import { Injectable, Injector, SecurityContext } from '@angular/core';
+import { DomSanitizer } from '@angular/platform-browser';
+import { marked } from 'marked';
 import { NavigationEnd, Router } from '@angular/router';
-import { BehaviorSubject, Observable, Subscription, combineLatest, firstValueFrom } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, combineLatest, firstValueFrom, map } from 'rxjs';
 import { filter, skip, take } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
 import { ProjectsService } from '../md-explorer/services/projects.service';
@@ -52,6 +54,15 @@ export class MarkAssistantService {
   private readonly _text = new BehaviorSubject<string>('');
   readonly text$: Observable<string> = this._text.asObservable();
 
+  /**
+   * Il testo di Mark reso in HTML. Vive qui e non nel componente perché le finestre
+   * che lo mostrano sono DUE: quella agganciata e quella staccata in un BrowserWindow
+   * a sé. Con due conversioni separate le due finestre finirebbero per divergere —
+   * ed è già successo: la finestra staccata mostrava markdown grezzo mentre l'altra
+   * lo rendeva.
+   */
+  readonly renderedText$: Observable<string> = this._text.pipe(map(t => this.renderMarkdown(t)));
+
   private readonly _staticMode = new BehaviorSubject<boolean>(false);
   readonly staticMode$: Observable<boolean> = this._staticMode.asObservable();
 
@@ -67,6 +78,16 @@ export class MarkAssistantService {
   /** True while waiting for an input handler's response (typewriter still going). */
   private readonly _isResponding = new BehaviorSubject<boolean>(false);
   readonly isResponding$: Observable<boolean> = this._isResponding.asObservable();
+
+  /**
+   * Cronaca di cosa Mark sta facendo mentre non ha ancora una risposta.
+   * Vive in un fumetto separato, FUORI dalla box: dentro ci va solo la risposta
+   * ufficiale. Tenerli separati evita che il processo si confonda col risultato —
+   * finché stavano nello stesso posto, l'ultima riga di cronaca poteva essere
+   * scambiata per una risposta.
+   */
+  private readonly _thinking = new BehaviorSubject<string[]>([]);
+  readonly thinking$: Observable<string[]> = this._thinking.asObservable();
 
   /**
    * Action buttons for the current step (when set, the lesson loop is paused
@@ -107,6 +128,65 @@ export class MarkAssistantService {
   /** Subscription to the SignalR folder-summarizer progress stream (active during a job). */
   private folderProgressSub: Subscription | null = null;
 
+  /** Subscription to the SignalR diagram-explanation stream (active while explaining a box). */
+  private diagramSub: Subscription | null = null;
+
+  /**
+   * Volatile per-session cache of the explanations already produced, keyed by
+   * document + box. Nothing is written to disk: close the document and it is gone,
+   * which also means there is no staleness to invalidate. Re-selecting a box
+   * re-shows the answer instead of paying for it twice.
+   */
+  private readonly diagramAnswers = new Map<string, string>();
+
+  /** Box currently being explained — chunks arriving for any other box are ignored. */
+  private diagramBoxInFlight: string | null = null;
+
+  /**
+   * True once the model has started answering. Until then the dialog shows the
+   * running commentary ("leggo il documento…", "chiedo a…"); after the first word
+   * of the real answer the commentary must never overwrite it again.
+   */
+  private diagramAnswerStarted = false;
+
+  /** Timer che dissolve il fumetto dopo la risposta. */
+  private thinkingTimer: any = null;
+
+  /**
+   * Conversazione su un box aperta: documento e nome del box. Finché c'è, quello
+   * che l'utente scrive nella casella è una domanda di seguito su QUEL box, non
+   * un input per gli handler delle lezioni.
+   */
+  private diagramConversation: { documentPath: string; boxName: string } | null = null;
+
+  get hasDiagramConversation(): boolean { return this.diagramConversation !== null; }
+
+  /**
+   * Chi inoltra le domande di seguito. Lo registra MarkDiagramService alla sua
+   * costruzione, invece di essere questo servizio a cercarselo.
+   *
+   * La dipendenza è invertita apposta: MarkDiagramService ha già bisogno di
+   * MarkAssistantService, e se anche l'inverso fosse vero i due file si
+   * importerebbero a vicenda. Un ciclo di import fa sì che uno dei due, durante
+   * la valutazione dei decoratori, veda l'altro come `undefined` — e Angular si
+   * ritroverebbe un tipo indefinito nei metadati del costruttore. Con la
+   * registrazione il ciclo non esiste proprio.
+   */
+  private diagramFollowUpSender: ((question: string) => void) | null = null;
+
+  registerDiagramFollowUpSender(send: (question: string) => void): void {
+    this.diagramFollowUpSender = send;
+  }
+
+  /** Registrate dallo stesso servizio, per la stessa ragione: niente ciclo di import. */
+  private diagramApplyEdit: (() => void) | null = null;
+  private diagramDiscardEdit: (() => void) | null = null;
+
+  registerDiagramEditActions(apply: () => void, discard: () => void): void {
+    this.diagramApplyEdit = apply;
+    this.diagramDiscardEdit = discard;
+  }
+
   constructor(
     private translate: TranslateService,
     private projectsService: ProjectsService,
@@ -114,6 +194,7 @@ export class MarkAssistantService {
     private injector: Injector,
     private serverMessages: MdServerMessagesService,
     private markActions: MarkActionsService,
+    private sanitizer: DomSanitizer,
   ) {
     this.lessonRegistry = buildLessonRegistry({
       launch: (id: string) => this.launch(id),
@@ -161,6 +242,9 @@ export class MarkAssistantService {
       this.actions$,
       this.continueArrow$,
       this.state$,
+      // Senza questo, la cronaca del pensiero resterebbe ferma alla prima riga
+      // nella finestra staccata: e' li' che l'attesa sembra un guasto.
+      this.thinking$,
     ]).subscribe(() => {
       api.pushState(this.snapshotState());
     });
@@ -220,6 +304,8 @@ export class MarkAssistantService {
     actions: { label: string; icon?: string }[] | null;
     transmittingLabel: string;
     inputPlaceholder: string;
+    html: string;
+    thinking: string[];
   } {
     const rawActions = this._actions.getValue();
     const actions = rawActions
@@ -237,6 +323,10 @@ export class MarkAssistantService {
       actions,
       transmittingLabel: this.translate.instant('MARK.TRANSMITTING'),
       inputPlaceholder: this.translate.instant('MARK.INPUT.PLACEHOLDER'),
+      // La finestra staccata riceve l'HTML gia' pronto e gia' sanificato: non deve
+      // avere una propria copia di marked, e non puo' divergere da quella agganciata.
+      html: this.renderMarkdown(this._text.getValue()),
+      thinking: this._thinking.getValue(),
     };
   }
 
@@ -378,6 +468,15 @@ export class MarkAssistantService {
       console.warn('[Mark] Unknown lesson id:', lessonId);
       return;
     }
+
+    // Mark passa a un altro compito: la conversazione sul box e' chiusa. Senza
+    // questo, cio' che l'utente scrive durante una lezione verrebbe inoltrato
+    // come domanda su un diagramma che non sta piu' guardando.
+    this.diagramConversation = null;
+    this.diagramSub?.unsubscribe();
+    this.diagramSub = null;
+    this.clearThinkingTimer();
+    this._thinking.next([]);
 
     // Abort any in-flight run
     this.abortFlag = true;
@@ -634,6 +733,262 @@ export class MarkAssistantService {
     }
   }
 
+  // ──────────────────────────────────────────────────────────────────────
+  //  "Ask to MarkAgent" on a PlantUML diagram box
+  // ──────────────────────────────────────────────────────────────────────
+
+  /**
+   * Takes over Mark's dialog to explain one diagram box.
+   *
+   * Mark's window is a view on the present, not a chat log: every new box (and
+   * every follow-up question) REPLACES what was on screen. The user's attention
+   * is the scarce resource here — the long document already wasted it once.
+   *
+   * An already-explained box is re-shown from the volatile cache without asking
+   * the model again.
+   */
+  beginDiagramExplanation(context: { documentPath: string; box: { name: string } }): void {
+    const key = this.diagramKey(context.documentPath, context.box.name);
+    const cached = this.diagramAnswers.get(key);
+    this.diagramConversation = { documentPath: context.documentPath, boxName: context.box.name };
+
+    this.takeOverDialog();
+
+    if (cached) {
+      // Re-shown instantly: the point of the cache is that a box you already
+      // asked about never costs a second wait.
+      this.clearThinkingTimer();
+      this._thinking.next([]);
+      this.diagramBoxInFlight = null;
+      this._text.next(cached);
+      this._continueArrow.next(true);
+      return;
+    }
+
+    this.diagramConversation = { documentPath: context.documentPath, boxName: context.box.name };
+    this.diagramBoxInFlight = context.box.name;
+    this.diagramAnswerStarted = false;
+    this.clearThinkingTimer();
+    this._thinking.next([]);
+    this._text.next(
+      this.translate.instant('MARK.DIAGRAM.THINKING', { box: context.box.name })
+    );
+
+    this.diagramSub?.unsubscribe();
+    this.diagramSub = this.serverMessages.markDiagramExplain$.subscribe(evt => {
+      this.onDiagramEvent(context.documentPath, evt);
+    });
+  }
+
+  /**
+   * Prepara la box per una domanda di seguito. La risposta precedente resta a
+   * schermo finché non arriva la prima parola della nuova: così non si guarda il
+   * vuoto mentre il modello pensa, e il fumetto intanto racconta.
+   */
+  beginDiagramFollowUp(): void {
+    if (!this.diagramConversation) return;
+
+    this.takeOverDialog();
+    this.clearThinkingTimer();
+    this._thinking.next([]);
+    this.diagramAnswerStarted = false;
+    this.diagramBoxInFlight = this.diagramConversation.boxName;
+
+    this.diagramSub?.unsubscribe();
+    const documentPath = this.diagramConversation.documentPath;
+    this.diagramSub = this.serverMessages.markDiagramExplain$.subscribe(evt => {
+      this.onDiagramEvent(documentPath, evt);
+    });
+  }
+
+  /** Shows a failure in Mark's dialog — the user asked, they deserve to know why not. */
+  showDiagramError(boxName: string, message: string): void {
+    // Il fumetto NON viene svuotato: l'ultima riga rimasta dice a che punto si
+    // e' fermato, ed e' l'informazione piu' utile quando qualcosa va storto.
+    this.clearThinkingTimer();
+    this.takeOverDialog();
+    this.diagramBoxInFlight = null;
+    this.diagramAnswerStarted = false;
+    this.diagramSub?.unsubscribe();
+    this.diagramSub = null;
+    this._text.next(message);
+    this._continueArrow.next(true);
+  }
+
+  /** Accumulates the streamed answer. The model's own pace is the typewriter. */
+  private onDiagramEvent(documentPath: string, evt: any): void {
+    if (!evt) return;
+    // A late chunk from the box the user has already moved on from must not
+    // overwrite the answer now on screen.
+    if (evt.box && this.diagramBoxInFlight && evt.box !== this.diagramBoxInFlight) return;
+
+    switch (evt.phase) {
+      case 'start':
+        this.diagramAnswerStarted = false;
+        this._continueArrow.next(false);
+        break;
+
+      case 'status':
+        // Il pensiero si accumula nel fumetto: la box resta alla risposta.
+        if (!this.diagramAnswerStarted && evt.message) {
+          this._thinking.next([...this._thinking.getValue(), evt.message]);
+        }
+        break;
+
+      case 'chunk':
+        // Il primo pezzo di risposta spazza via la cronaca.
+        if (!this.diagramAnswerStarted) {
+          this.diagramAnswerStarted = true;
+          this._text.next('');
+        }
+        this._text.next((this._text.getValue() || '') + (evt.text || ''));
+        break;
+
+      case 'proposal': {
+        // MarkAgent propone una modifica al documento. Non si applica nulla: si
+        // mostra cosa cambierebbe e si aspetta. La scrittura e' l'unica azione
+        // di MarkAgent che lascia tracce, ed e' l'unica che passa da un pulsante.
+        this.diagramAnswerStarted = true;   // il fumetto non deve piu' scrivere qui
+        this._text.next(this.formatProposal(evt));
+        this._continueArrow.next(false);
+        this.clearThinkingTimer();
+        this._thinking.next([]);
+        this._actions.next([
+          {
+            labelKey: 'MARK.DIAGRAM.APPLY',
+            icon: '\u2713',
+            handler: () => { this._actions.next(null); this.diagramApplyEdit?.(); },
+          },
+          {
+            labelKey: 'MARK.DIAGRAM.DISCARD',
+            icon: '\u2715',
+            handler: () => {
+              this._actions.next(null);
+              this.diagramDiscardEdit?.();
+              this._text.next(this.translate.instant('MARK.DIAGRAM.DISCARDED'));
+              this._continueArrow.next(true);
+            },
+          },
+        ]);
+        this.diagramBoxInFlight = null;
+        this.diagramSub?.unsubscribe();
+        this.diagramSub = null;
+        break;
+      }
+
+      case 'done': {
+        // Se non è mai partita una risposta, quello che c'è a schermo è la cronaca
+        // dell'attesa: spacciarla per risposta sarebbe peggio che ammettere il vuoto.
+        const streamed = this.diagramAnswerStarted ? (this._text.getValue() || '') : '';
+        const answer = (evt.text || streamed).trim()
+          || 'Il modello non ha risposto nulla su questo box.';
+        this._text.next(answer);
+        this._continueArrow.next(true);
+        // La cache conserva la SINTESI INIZIALE, il punto fermo a cui si torna
+        // riselezionando il box. Una digressione non deve prenderne il posto.
+        if (evt.box && !evt.followUp) {
+          this.diagramAnswers.set(this.diagramKey(documentPath, evt.box), answer);
+        }
+        this.diagramBoxInFlight = null;
+        this.diagramAnswerStarted = false;
+        this.diagramSub?.unsubscribe();
+        this.diagramSub = null;
+        // Il pensiero ha esaurito il suo compito: si dissolve da solo, così non
+        // resta a ingombrare accanto alla risposta.
+        this.fadeThinkingAway();
+        break;
+      }
+
+      case 'error':
+        this.showDiagramError(evt.box, evt.message || 'Non sono riuscito a spiegare questo box.');
+        break;
+    }
+  }
+
+  /** Svuota il fumetto dopo qualche secondo dalla risposta. */
+  private fadeThinkingAway(): void {
+    this.clearThinkingTimer();
+    this.thinkingTimer = setTimeout(() => {
+      this._thinking.next([]);
+      this.thinkingTimer = null;
+    }, 4000);
+  }
+
+  private clearThinkingTimer(): void {
+    if (this.thinkingTimer) {
+      clearTimeout(this.thinkingTimer);
+      this.thinkingTimer = null;
+    }
+  }
+
+  /**
+   * Rende la proposta in markdown. Mostra QUANTO cambia prima di COSA: chi deve
+   * dare un ok vuole prima sapere l'ampiezza dell'intervento.
+   */
+  private formatProposal(evt: any): string {
+    const righe: string[] = [];
+    const pezzi: string[] = [];
+    if (evt.changesDiagram) pezzi.push('il diagramma');
+    if (evt.textEdits > 0) pezzi.push(evt.textEdits === 1 ? '1 punto del testo' : `${evt.textEdits} punti del testo`);
+
+    righe.push(`**Proposta di modifica** — cambierebbe ${pezzi.join(' e ') || 'nulla'}.`);
+    righe.push('');
+    if (evt.summary) righe.push(evt.summary);
+
+    if (evt.otherDocuments?.length) {
+      righe.push('');
+      const elenco = evt.otherDocuments.map((d: string) => `- ${d}`).join('\n');
+      righe.push(`⚠️ Anche questi documenti nominano la stessa entità, e **non li tocco**:\n${elenco}`);
+    }
+    return righe.join('\n');
+  }
+
+  /**
+   * Markdown → HTML, poi sanificato con il sanitizer di Angular.
+   *
+   * La sanificazione qui non è ridondante: nella finestra agganciata ci penserebbe
+   * `[innerHTML]`, ma questo stesso HTML viene spedito per IPC alla finestra
+   * staccata, che lo assegna a `innerHTML` a mano e non ha nessuna rete sotto.
+   * Sanificando una volta sola, alla sorgente, entrambe le finestre ricevono
+   * qualcosa di già sicuro.
+   */
+  renderMarkdown(text: string | null): string {
+    if (!text) return '';
+    let html: string;
+    try {
+      html = marked.parse(text, { async: false, gfm: true, breaks: true }) as string;
+    } catch {
+      // Meglio un testo spoglio che una box vuota.
+      html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br>');
+    }
+    return this.sanitizer.sanitize(SecurityContext.HTML, html) ?? '';
+  }
+
+  private diagramKey(documentPath: string, boxName: string): string {
+    return `${documentPath}::${boxName}`;
+  }
+
+  /**
+   * Clears whatever lesson or answer owned the dialog and makes Mark visible.
+   * Same manual takeover startFolderSummarize does, so a lesson running to its
+   * natural end cannot minimize Mark while an explanation is on screen.
+   */
+  private takeOverDialog(): void {
+    this.abortFlag = true;
+    setTimeout(() => { this.abortFlag = false; }, 60);
+
+    this.currentLesson = null;
+    this.currentSpotlightSelector = null;
+    this._spotlight.next(null);
+    this._dim.next(false);
+    this._staticMode.next(false);
+    this._actions.next(null);
+    this._continueArrow.next(false);
+    this._isResponding.next(false);
+    this.resolveAction(null);
+    this._state.next('playing');
+  }
+
   /**
    * Plays the "next" applicable micro-tip in the queue.
    *
@@ -737,6 +1092,7 @@ export class MarkAssistantService {
 
   /** Hide Mark completely (also wired to context-mismatch route changes). */
   hide(): void {
+    this.diagramConversation = null;
     this.abortFlag = true;
     this.currentSpotlightSelector = null;
     this._state.next('hidden');
@@ -759,6 +1115,16 @@ export class MarkAssistantService {
     const trimmed = (text ?? '').trim();
     if (!trimmed) return;
     if (this._isResponding.getValue()) return; // ignore re-entry while responding
+
+    // Se c'è una conversazione aperta su un box, quello che l'utente scrive è una
+    // domanda di seguito su QUEL box. Non passa dalla catena degli handler: quel
+    // contratto restituisce UNA risposta completa (`firstValueFrom`), mentre qui
+    // la risposta arriva in streaming da SignalR — infilarcela dentro vorrebbe
+    // dire aspettare il primo pezzo e buttare via il resto.
+    if (this.hasDiagramConversation && this.diagramFollowUpSender) {
+      this.diagramFollowUpSender(trimmed);
+      return;
+    }
 
     const ctx: MarkInputContext = {
       routeUrl: this.router.url,

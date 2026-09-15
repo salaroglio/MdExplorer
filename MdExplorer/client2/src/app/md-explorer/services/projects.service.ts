@@ -31,6 +31,12 @@ export class ProjectsService {
   // or to disable the chat with a "not installed" banner.
   copilotCliAutoConfig$ = new BehaviorSubject<{ autoSelect: boolean; available: boolean; defaultModel: string | null } | null>(null);
 
+  // Stessa cosa per Claude Code. Sono due flussi separati ma il backend garantisce che
+  // ne arrivi acceso al massimo UNO: la precedenza (quando entrambi i flag sono attivi
+  // vince Claude Code) è decisa là, in un punto solo, non contesa qui fra due
+  // sottoscrizioni che scriverebbero a turno sullo stesso stato della chat.
+  claudeCodeAutoConfig$ = new BehaviorSubject<{ autoSelect: boolean; available: boolean; defaultModel: string | null } | null>(null);
+
   // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
   private projectChangingSubject = new Subject<void>();
   projectChanging$ = this.projectChangingSubject.asObservable();
@@ -41,6 +47,9 @@ export class ProjectsService {
 
   // Retry handle for the Copilot CLI availability re-check (see emitCopilotCliAutoConfig).
   private copilotCliRetryTimer: any = null;
+
+  // Idem per Claude Code (vedi emitClaudeCodeAutoConfig).
+  private claudeCodeRetryTimer: any = null;
 
   get mdProjects() {
     return this._mdProjects.asObservable();
@@ -98,6 +107,7 @@ export class ProjectsService {
 
       // Emit Copilot CLI auto-select hint for ai-chat to consume
       this.emitCopilotCliAutoConfig(response);
+      this.emitClaudeCodeAutoConfig(response);
 
       // Update compatibility mode from response
       if (response.compatibilityMode) {
@@ -124,7 +134,9 @@ export class ProjectsService {
     const request = {
       path: config.projectPath,
       initializeGit: config.initializeGit,
-      addCopilotInstructions: config.addCopilotInstructions
+      // La scelta dell'harness viaggia SOLO alla creazione. Alla riapertura non si manda:
+      // decide il progetto, che se la porta scritta in .development.yml.
+      harness: config.harness
     };
 
     this.http.post<any>('../api/MdProjects/SetFolderProject', request).subscribe(async response => {
@@ -144,6 +156,7 @@ export class ProjectsService {
 
       // Emit Copilot CLI auto-select hint for ai-chat to consume
       this.emitCopilotCliAutoConfig(response);
+      this.emitClaudeCodeAutoConfig(response);
 
       // Update compatibility mode from response
       if (response.compatibilityMode) {
@@ -309,6 +322,47 @@ export class ProjectsService {
             }
           },
           error: () => { /* silent — leave provisional unavailable state */ }
+        });
+      }, 2000);
+    }
+  }
+
+  /**
+   * Gemella di emitCopilotCliAutoConfig per Claude Code.
+   *
+   * La ri-verifica qui è meno probabile che serva — la disponibilità di Claude Code è una
+   * scansione del PATH, non un processo da avviare, quindi non ha una cache fredda da
+   * scaldare — ma resta per simmetria e non costa nulla quando la prima risposta è già
+   * "disponibile".
+   */
+  private emitClaudeCodeAutoConfig(response: any): void {
+    if (this.claudeCodeRetryTimer) {
+      clearTimeout(this.claudeCodeRetryTimer);
+      this.claudeCodeRetryTimer = null;
+    }
+
+    if (response == null) return;
+    if (typeof response.claudeCodeAutoSelect !== 'boolean') {
+      this.claudeCodeAutoConfig$.next(null);
+      return;
+    }
+
+    const autoSelect = response.claudeCodeAutoSelect === true;
+    const available = response.claudeCodeAvailable === true;
+    const defaultModel = response.claudeCodeDefaultModel ?? null;
+
+    this.claudeCodeAutoConfig$.next({ autoSelect, available, defaultModel });
+
+    if (autoSelect && !available) {
+      this.claudeCodeRetryTimer = setTimeout(() => {
+        this.claudeCodeRetryTimer = null;
+        this.http.get<{ configured: boolean }>('../api/ClaudeCode/configured').subscribe({
+          next: r => {
+            if (r?.configured === true) {
+              this.claudeCodeAutoConfig$.next({ autoSelect: true, available: true, defaultModel });
+            }
+          },
+          error: () => { /* silenzio — resta lo stato provvisorio "non disponibile" */ }
         });
       }, 2000);
     }

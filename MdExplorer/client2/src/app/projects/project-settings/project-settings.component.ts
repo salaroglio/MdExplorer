@@ -1,7 +1,8 @@
 import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
 import { MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialogRef as MatDialogRef, MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { Subscription } from 'rxjs';
-import { ProjectSettingsService } from '../services/project-settings.service';
+import { HarnessTarget, ProjectSettingsService } from '../services/project-settings.service';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../commons/components/confirm-dialog/confirm-dialog.component';
 import { CompatibilityModeService } from '../../services/compatibility-mode.service';
 import { IdeConfigurationService } from '../services/ide-configuration.service';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
@@ -12,6 +13,7 @@ import { MdFileService } from '../../md-explorer/services/md-file.service';
 import { CatalogPickerDialogComponent } from '../dialogs/catalog-picker/catalog-picker.component';
 import { StoreCatalogApp } from '../../md-explorer/models/app-store.models';
 import { TranslateService } from '@ngx-translate/core';
+import { AgentCityStateService } from '../../md-explorer/services/agent-city-state.service';
 
 @Component({
   selector: 'app-project-settings',
@@ -23,11 +25,50 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   linkIndexingEnabled: boolean = true;
   plantUmlKeepOriginalColorsEnabled: boolean = false;
   copilotCliAutoSelectEnabled: boolean = true;
-  excludeSubmodulesEnabled: boolean = true;
+  // Gemella della precedente. Default false: rispecchia il backend, dove un progetto che non
+  // ha mai visto l'opzione non deve cambiare motore della chat da solo.
+  claudeCodeAutoSelectEnabled: boolean = false;
+  /** Both engine flags arrived: until then the defaults above would show a coherence warning that is not real. */
+  engineSettingsLoaded: boolean = false;
+
+  // Agent City / Federation (§12.4) — activation lives in .development.yml (shared via git).
+  agentCityEnabled: boolean = false;
+  agentCityOwnershipDoc: string = '';
+  agentCityHasRoomSecret: boolean = false;
+  agentUseWorktrees: boolean = false;
+  /** Posti di lavoro del pool: quanti agenti possono lavorare insieme su questa macchina. */
+  agentWorktreeSlots: number = 2;
+  agentWorktreeDefaultSlots: number = 2;
+  agentWorktreeMaxSlots: number = 8;
+  agentAutoMergeDeliverables: boolean = false;
+  /** Senza git non esistono worktree né merge: le due opzioni restano spente e non toccabili. */
+  projectIsGit: boolean = false;
+
+  // Relay della federazione (per progetto). La chiave non arriva mai dal server:
+  // relayApiKey è solo il campo di INSERIMENTO, vuoto se non si sta cambiando nulla.
+  relayUrl: string = '';
+  relayUrlSource: string = 'None';
+  relayHasApiKey: boolean = false;
+  relayApiKeySource: string = 'None';
+  relayApiKey: string = '';
+  relayTesting: boolean = false;
+  relayTestMessage: string = '';
+  relayTestSuccess: boolean | null = null;
+  indexAllTextFilesEnabled: boolean = false;
+  textFileExtensions: string = '';
+  textFileExtensionsDefault: string = '';
+  reindexingText: boolean = false;
   githubModeEnabled: boolean = false;
   stickyScrollEnabled: boolean = true;
   selectedIde: string = 'vscode';
   private lastSavedIde: string = 'vscode';
+
+  // Harness agentico (.development.yml). `harnessDeclared` a false = progetto creato prima che
+  // la scelta esistesse: quello mostrato è dedotto dalle cartelle sul disco, non ancora scritto.
+  harness: HarnessTarget = 'none';
+  harnessDeclared: boolean = true;
+  private lastSavedHarness: HarnessTarget = 'none';
+  savingHarness: boolean = false;
   vscodePath: string = '';
   intellijPath: string = '';
   projectId: string;
@@ -131,7 +172,8 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     private externalAppsService: ExternalAppsService,
     private mdFileService: MdFileService,
     private dialog: MatDialog,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private agentCityState: AgentCityStateService
   ) {
     this.projectId = data.projectId;
     this.projectName = data.projectName;
@@ -144,6 +186,8 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.loadKgSettings();
     this.loadFusekiSettings();
     this.loadAtlassianSettings();
+    this.loadAgentCity();
+    this.loadHarness();
 
     this.ragProgressSub = this.serverMessages.ragIndexingProgress$.subscribe(data => {
       this.ragProcessed = data.processed;
@@ -192,10 +236,11 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     let stickyScrollLoaded = false;
     let plantUmlKeepOriginalColorsLoaded = false;
     let copilotCliAutoSelectLoaded = false;
-    let excludeSubmodulesLoaded = false;
+    let claudeCodeAutoSelectLoaded = false;
+    let textIndexingLoaded = false;
 
     const checkIfDone = () => {
-      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded && stickyScrollLoaded && plantUmlKeepOriginalColorsLoaded && copilotCliAutoSelectLoaded && excludeSubmodulesLoaded) {
+      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded && stickyScrollLoaded && plantUmlKeepOriginalColorsLoaded && copilotCliAutoSelectLoaded && claudeCodeAutoSelectLoaded && textIndexingLoaded) {
         this.loading = false;
       }
     };
@@ -247,25 +292,46 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       next: (response) => {
         this.copilotCliAutoSelectEnabled = response.enabled;
         copilotCliAutoSelectLoaded = true;
+        this.engineSettingsLoaded = copilotCliAutoSelectLoaded && claudeCodeAutoSelectLoaded;
         checkIfDone();
       },
       error: (error) => {
         console.error('Error loading Copilot CLI Auto-Select setting:', error);
         copilotCliAutoSelectLoaded = true;
+        this.engineSettingsLoaded = copilotCliAutoSelectLoaded && claudeCodeAutoSelectLoaded;
         checkIfDone();
       }
     });
 
-    // Load Exclude Git Submodules setting
-    this.projectSettingsService.getExcludeSubmodulesSetting(this.projectPath).subscribe({
+    // Load Claude Code Auto-Select setting
+    this.projectSettingsService.getClaudeCodeAutoSelectSetting(this.projectPath).subscribe({
       next: (response) => {
-        this.excludeSubmodulesEnabled = response.enabled;
-        excludeSubmodulesLoaded = true;
+        this.claudeCodeAutoSelectEnabled = response.enabled;
+        claudeCodeAutoSelectLoaded = true;
+        this.engineSettingsLoaded = copilotCliAutoSelectLoaded && claudeCodeAutoSelectLoaded;
         checkIfDone();
       },
       error: (error) => {
-        console.error('Error loading Exclude Submodules setting:', error);
-        excludeSubmodulesLoaded = true;
+        console.error('Error loading Claude Code Auto-Select setting:', error);
+        claudeCodeAutoSelectLoaded = true;
+        this.engineSettingsLoaded = copilotCliAutoSelectLoaded && claudeCodeAutoSelectLoaded;
+        checkIfDone();
+      }
+    });
+
+
+    // Load Text Indexing (non-markdown text files) setting
+    this.projectSettingsService.getTextIndexingSetting(this.projectPath).subscribe({
+      next: (response) => {
+        this.indexAllTextFilesEnabled = response.enabled;
+        this.textFileExtensions = response.extensions || '';
+        this.textFileExtensionsDefault = response.defaultExtensions || '';
+        textIndexingLoaded = true;
+        checkIfDone();
+      },
+      error: (error) => {
+        console.error('Error loading Text Indexing setting:', error);
+        textIndexingLoaded = true;
         checkIfDone();
       }
     });
@@ -421,16 +487,338 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     });
   }
 
-  onExcludeSubmodulesChange(): void {
+  onClaudeCodeAutoSelectChange(): void {
     this.saving = true;
-    this.projectSettingsService.setExcludeSubmodulesSetting(this.excludeSubmodulesEnabled, this.projectPath).subscribe({
+    this.projectSettingsService.setClaudeCodeAutoSelectSetting(this.claudeCodeAutoSelectEnabled, this.projectPath).subscribe({
       next: () => {
         this.saving = false;
       },
       error: (error) => {
-        console.error('Error saving Exclude Submodules setting:', error);
+        console.error('Error saving Claude Code Auto-Select setting:', error);
         this.saving = false;
-        this.excludeSubmodulesEnabled = !this.excludeSubmodulesEnabled;
+        // Rimetti la casella com'era: mostrarla spuntata quando il salvataggio è fallito
+        // vorrebbe dire mentire sullo stato del progetto.
+        this.claudeCodeAutoSelectEnabled = !this.claudeCodeAutoSelectEnabled;
+      }
+    });
+  }
+
+
+  loadAgentCity(): void {
+    if (!this.projectPath) return;
+    this.projectSettingsService.getAgentCity(this.projectPath).subscribe({
+      next: (res) => {
+        this.agentCityEnabled = !!res?.enabled;
+        this.agentCityOwnershipDoc = res?.ownershipDoc || '';
+        this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
+        this.agentAutoMergeDeliverables = !!res?.autoMergeAgentDeliverables;
+        this.projectIsGit = !!(res as any)?.isGitRepository;
+      },
+      error: (err) => console.error('Error loading Agent City settings:', err)
+    });
+    this.loadRelaySettings();
+    this.loadAgentWorktrees();
+  }
+
+  /** Preferenza locale di isolamento: UserDB, non .development.yml. */
+  loadAgentWorktrees(): void {
+    if (!this.projectPath) return;
+    this.projectSettingsService.getAgentWorktreesSetting(this.projectPath).subscribe({
+      next: (res) => {
+        this.agentUseWorktrees = !!res?.enabled;
+        if (res?.slots) this.agentWorktreeSlots = res.slots;
+        if (res?.defaultSlots) this.agentWorktreeDefaultSlots = res.defaultSlots;
+        if (res?.maxSlots) this.agentWorktreeMaxSlots = res.maxSlots;
+      },
+      error: (err) => console.error('Error loading agent worktrees setting:', err)
+    });
+  }
+
+  onAgentWorktreesChange(): void {
+    this.saveAgentWorktrees();
+  }
+
+  /**
+   * Quanti posti di lavoro. È anche il tetto degli agenti che girano insieme: sono la stessa
+   * domanda, e per questo qui c'è un numero solo.
+   */
+  onAgentWorktreeSlotsChange(): void {
+    const n = Number(this.agentWorktreeSlots);
+    if (!Number.isInteger(n) || n < 1 || n > this.agentWorktreeMaxSlots) {
+      // Un numero fuori scala non si manda al server: si rimette quello vero.
+      this.loadAgentWorktrees();
+      return;
+    }
+    this.saveAgentWorktrees();
+  }
+
+  /**
+   * Quali harness il motore di MarkAgent legge PER INTERO (istruzioni, skill, agenti, comandi).
+   * Misurato il 13/09/2026: Claude Code 2.1.270 legge solo .claude/ e CLAUDE.md; Copilot CLI 1.0.82
+   * cerca skill in .github/, .agents/ e .claude/, agenti in .github/ e .claude/, e di opencode legge
+   * solo AGENTS.md. Sprint: docs-internal/Sprints/2026-09-13-Harness-Claude-Code.md.
+   */
+  private static readonly HARNESS_READ_BY: Record<'claude' | 'copilot', HarnessTarget[]> = {
+    claude: ['claude'],
+    copilot: ['copilot', 'claude'],
+  };
+
+  /** Motore di MarkAgent, con la precedenza del backend: Claude Code vince su Copilot CLI. */
+  get markAgentEngine(): 'claude' | 'copilot' | null {
+    if (!this.engineSettingsLoaded) return null;
+    if (this.claudeCodeAutoSelectEnabled) return 'claude';
+    if (this.copilotCliAutoSelectEnabled) return 'copilot';
+    return null;
+  }
+
+  /**
+   * Chiave del motivo per cui una voce di harness è disattivata, o null. "Nessuno" resta sempre
+   * possibile: è una scelta esplicita, non un harness che il motore non legge.
+   */
+  harnessDisabledReason(target: HarnessTarget): string | null {
+    const engine = this.markAgentEngine;
+    if (!engine || target === 'none') return null;
+    if (ProjectSettingsComponent.HARNESS_READ_BY[engine].includes(target)) return null;
+    return engine === 'claude'
+      ? 'PROJECT_SETTINGS.HARNESS_NOT_READ_BY_CLAUDE'
+      : 'PROJECT_SETTINGS.HARNESS_NOT_READ_BY_COPILOT';
+  }
+
+  /** Il repository dichiara un harness che il motore di MarkAgent non legge. */
+  get harnessMismatch(): boolean {
+    return this.harness !== 'none' && this.harnessDisabledReason(this.harness) !== null;
+  }
+
+  harnessLabelKey(target: HarnessTarget): string {
+    switch (target) {
+      case 'copilot': return 'PROJECT_SETTINGS.HARNESS_COPILOT';
+      case 'opencode': return 'PROJECT_SETTINGS.HARNESS_OPENCODE';
+      case 'claude': return 'PROJECT_SETTINGS.HARNESS_CLAUDE';
+      default: return 'PROJECT_SETTINGS.HARNESS_NONE';
+    }
+  }
+
+  /**
+   * "Passa a …": l'harness nativo del motore. Chiede conferma perché .development.yml è
+   * committato — il cambio vale per tutto il team, non solo per questa macchina.
+   */
+  switchToEngineHarness(): void {
+    const engine = this.markAgentEngine;
+    if (!engine) return;
+    const target: HarnessTarget = engine;
+    const data: ConfirmDialogData = {
+      title: this.translate.instant('PROJECT_SETTINGS.HARNESS_SWITCH_CONFIRM_TITLE'),
+      message: this.translate.instant(engine === 'claude'
+        ? 'PROJECT_SETTINGS.HARNESS_SWITCH_CONFIRM_MESSAGE'
+        : 'PROJECT_SETTINGS.HARNESS_SWITCH_CONFIRM_MESSAGE_COPILOT'),
+      confirmText: this.translate.instant(engine === 'claude'
+        ? 'PROJECT_SETTINGS.HARNESS_SWITCH_TO_CLAUDE'
+        : 'PROJECT_SETTINGS.HARNESS_SWITCH_TO_COPILOT'),
+    };
+    this.dialog.open(ConfirmDialogComponent, { width: '480px', data })
+      .afterClosed()
+      .subscribe(confirmed => {
+        if (!confirmed) return;
+        this.harness = target;
+        this.onHarnessChange();
+      });
+  }
+
+  loadHarness(): void {
+    if (!this.projectPath) return;
+    this.projectSettingsService.getHarness(this.projectPath).subscribe({
+      next: (res) => {
+        this.harness = res?.target || 'none';
+        this.harnessDeclared = !!res?.declared;
+        this.lastSavedHarness = this.harness;
+      },
+      error: (err) => {
+        console.error('Error loading harness setting:', err);
+      }
+    });
+  }
+
+  /**
+   * Cambiare harness installa subito i file dove il nuovo harness li vuole, ma NON rimuove
+   * quelli del precedente: sono file che stanno in un repository, magari personalizzati o già
+   * committati, e cancellarli per un cambio di impostazione sarebbe un danno che nessuno ha
+   * chiesto. La UI lo dice, così la cartella rimasta non sembra un errore.
+   */
+  onHarnessChange(): void {
+    if (this.harness === this.lastSavedHarness) return;
+
+    this.savingHarness = true;
+    this.projectSettingsService.setHarness(this.harness, this.projectPath).subscribe({
+      next: (res) => {
+        this.harness = res?.target || this.harness;
+        this.harnessDeclared = true;
+        this.lastSavedHarness = this.harness;
+        this.savingHarness = false;
+      },
+      error: (err) => {
+        console.error('Error saving harness setting:', err);
+        this.savingHarness = false;
+        this.loadHarness();   // riallinea allo stato persistito
+      }
+    });
+  }
+
+  private saveAgentWorktrees(): void {
+    this.saving = true;
+    this.projectSettingsService
+      .setAgentWorktreesSetting(this.agentUseWorktrees, this.projectPath, this.agentWorktreeSlots)
+      .subscribe({
+        next: () => { this.saving = false; },
+        error: (err) => {
+          console.error('Error saving agent worktrees setting:', err);
+          this.saving = false;
+          this.loadAgentWorktrees();   // riallinea allo stato persistito
+        }
+      });
+  }
+
+  loadRelaySettings(): void {
+    if (!this.projectPath) return;
+    this.projectSettingsService.getRelaySettings(this.projectPath).subscribe({
+      next: (res) => {
+        this.relayUrl = res?.relayUrl || '';
+        this.relayUrlSource = res?.relayUrlSource || 'None';
+        this.relayHasApiKey = !!res?.hasApiKey;
+        this.relayApiKeySource = res?.apiKeySource || 'None';
+        this.relayTestSuccess = res?.lastTestSuccess ?? null;
+      },
+      error: (err) => console.error('Error loading relay settings:', err)
+    });
+  }
+
+  onRelaySettingsChange(): void {
+    if (!this.projectPath) return;
+    this.saving = true;
+    this.projectSettingsService.setRelaySettings(this.projectPath, {
+      relayUrl: this.relayUrl?.trim() || undefined,
+      // Campo vuoto = "non sto cambiando la chiave": il server la lascia com'è.
+      apiKey: this.relayApiKey?.trim() || undefined,
+    }).subscribe({
+      next: (res) => {
+        this.saving = false;
+        this.relayApiKey = '';            // mai tenere il segreto nel campo dopo il salvataggio
+        this.relayUrl = res?.relayUrl || '';
+        this.relayUrlSource = res?.relayUrlSource || 'None';
+        this.relayHasApiKey = !!res?.hasApiKey;
+        this.relayApiKeySource = res?.apiKeySource || 'None';
+        this.relayTestMessage = '';
+        this.relayTestSuccess = null;
+      },
+      error: (err) => {
+        console.error('Error saving relay settings:', err);
+        this.saving = false;
+        this.relayTestSuccess = false;
+        this.relayTestMessage = err?.error?.message || 'Salvataggio fallito.';
+        this.loadRelaySettings();          // riallinea allo stato persistito
+      }
+    });
+  }
+
+  clearRelayApiKey(): void {
+    if (!this.projectPath) return;
+    this.saving = true;
+    this.projectSettingsService.setRelaySettings(this.projectPath, {
+      relayUrl: this.relayUrl?.trim() || undefined,
+      clearApiKey: true,
+    }).subscribe({
+      next: (res) => {
+        this.saving = false;
+        this.relayApiKey = '';
+        this.relayHasApiKey = !!res?.hasApiKey;
+        this.relayApiKeySource = res?.apiKeySource || 'None';
+        this.relayTestMessage = '';
+        this.relayTestSuccess = null;
+      },
+      error: (err) => {
+        console.error('Error clearing relay api key:', err);
+        this.saving = false;
+        this.loadRelaySettings();
+      }
+    });
+  }
+
+  testRelay(): void {
+    if (!this.projectPath) return;
+    this.relayTesting = true;
+    this.relayTestMessage = '';
+    this.projectSettingsService.testRelaySettings(this.projectPath).subscribe({
+      next: (res) => {
+        this.relayTesting = false;
+        this.relayTestSuccess = !!res?.success;
+        this.relayTestMessage = res?.message || '';
+      },
+      error: (err) => {
+        this.relayTesting = false;
+        this.relayTestSuccess = false;
+        this.relayTestMessage = err?.error?.message || 'Verifica fallita.';
+      }
+    });
+  }
+
+  onAgentCityChange(): void {
+    this.saving = true;
+    this.projectSettingsService.setAgentCity(this.projectPath, {
+      enabled: this.agentCityEnabled,
+      ownershipDoc: this.agentCityOwnershipDoc?.trim() || undefined,
+      // Inviato sempre esplicito: il server preserva i valori solo quando il campo è assente,
+      // quindi mandarlo evita ambiguità fra "non deciso" e "spento apposta". Il worktree NON
+      // passa di qui: è una preferenza di macchina, ha il suo endpoint.
+      autoMergeAgentDeliverables: this.agentAutoMergeDeliverables,
+    }).subscribe({
+      next: (res) => {
+        this.saving = false;
+        this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
+        this.agentCityOwnershipDoc = res?.ownershipDoc || '';
+        this.agentAutoMergeDeliverables = !!res?.autoMergeAgentDeliverables;
+        // La toolbar mostra i comandi della città in base a questo flag: allineala
+        // subito, altrimenti resterebbe ferma fino alla riapertura del progetto.
+        // Il service ignora il salvataggio se riguarda un progetto non aperto.
+        this.agentCityState.set(this.projectPath, !!res?.enabled);
+      },
+      error: (err) => {
+        console.error('Error saving Agent City settings:', err);
+        this.saving = false;
+        // Il salvataggio è fallito: riallinea la UI allo stato PERSISTITO rileggendolo
+        // dal server. Niente inversione cieca del checkbox: questo handler è agganciato
+        // anche al blur del campo ownership-doc, e lì il toggle non è stato toccato.
+        this.loadAgentCity();
+      }
+    });
+  }
+
+  onTextIndexingChange(): void {
+    this.saving = true;
+    this.projectSettingsService.setTextIndexingSetting(
+      this.indexAllTextFilesEnabled,
+      this.textFileExtensions,
+      this.projectPath
+    ).subscribe({
+      next: () => {
+        this.saving = false;
+      },
+      error: (error) => {
+        console.error('Error saving Text Indexing setting:', error);
+        this.saving = false;
+        this.indexAllTextFilesEnabled = !this.indexAllTextFilesEnabled;
+      }
+    });
+  }
+
+  onReindexTextFiles(): void {
+    this.reindexingText = true;
+    this.projectSettingsService.reindexTextFiles(this.serverMessages.connectionId ?? '').subscribe({
+      next: () => {
+        // Fire-and-forget on the backend; the index rebuilds in the background.
+        setTimeout(() => { this.reindexingText = false; }, 1500);
+      },
+      error: (error) => {
+        console.error('Error triggering text reindex:', error);
+        this.reindexingText = false;
       }
     });
   }

@@ -20,8 +20,8 @@
              [disabled]="isSetting">
       <mat-icon matSuffix *ngIf="!isValidating && !urlInfo">link</mat-icon>
       <mat-spinner matSuffix *ngIf="isValidating" diameter="20"></mat-spinner>
-      <mat-icon matSuffix *ngIf="urlInfo?.isValid" style="color: #4caf50;">check_circle</mat-icon>
-      <mat-icon matSuffix *ngIf="urlInfo && !urlInfo.isValid" style="color: #f44336;">error</mat-icon>
+      <mat-icon matSuffix *ngIf="urlInfo?.isValid" class="suffix-icon-valid">check_circle</mat-icon>
+      <mat-icon matSuffix *ngIf="urlInfo && !urlInfo.isValid" class="suffix-icon-invalid">error</mat-icon>
       <mat-hint>{{ 'GIT_REMOTE.REMOTE_URL_HINT' | translate }}</mat-hint>
     </mat-form-field>
 
@@ -94,7 +94,7 @@
       <mat-icon color="warn">warning</mat-icon>
       <span>
         <strong>{{ 'GIT_REMOTE.GITHUB_PAT_NOTE' | translate }}</strong>
-        <a (click)="openTokenCreationUrl()" style="cursor: pointer; color: #1976d2; text-decoration: underline;">
+        <a (click)="openTokenCreationUrl()" class="link-accent" style="cursor: pointer; text-decoration: underline;">
           {{ 'GIT_REMOTE.CREATE_TOKEN_HERE' | translate }}
         </a>
       </span>
@@ -113,7 +113,7 @@
         <mat-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</mat-icon>
       </button>
       <mat-hint *ngIf="urlInfo?.tokenCreationUrl">
-        <a (click)="openTokenCreationUrl()" style="cursor: pointer; color: #1976d2;">
+        <a (click)="openTokenCreationUrl()" class="link-accent" style="cursor: pointer;">
           {{ 'GIT_REMOTE.CREATE_NEW_TOKEN' | translate }}
         </a>
       </mat-hint>

@@ -218,13 +218,27 @@ namespace MdExplorer.Features.Commands
         /// <returns></returns>
         public virtual string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
+            // Fase 7h — render read-only (worktree): NIENTE scrittura su disco né cambio di cwd.
+            // Referenzia la cache SVG solo se già esiste; altrimenti lascia un placeholder.
+            if (requestInfo.ReadOnly)
+                return TransformReadOnly(markdown, requestInfo);
+
             var directoryInfo = Directory.CreateDirectory(requestInfo.CurrentRoot + $"{Path.DirectorySeparatorChar}.md");
             string backPath = _helper.GetBackPath(requestInfo);
             Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.AbsolutePathFile));
 
             var matches = GetMatches(markdown);
+            var regions = MarkdownCodeRegions.Of(markdown);
+            var increment = 0;
             foreach (Match item in matches)
             {
+                // A ```plantuml block written as an example inside a ```` block is text, not a
+                // diagram to draw.
+                if (regions.IsCode(item.Index))
+                {
+                    continue;
+                }
+
                 var referenceUrl = "<code>error</code>";
                 try
                 {
@@ -261,10 +275,71 @@ namespace MdExplorer.Features.Commands
                 }
 
 
-                markdown = markdown.Replace(item.Groups[0].Value, referenceUrl);
+                (markdown, increment) = ReplaceAt(markdown, increment, item, referenceUrl);
             }
             Directory.SetCurrentDirectory(Path.GetDirectoryName(requestInfo.CurrentRoot));
             return markdown;
+        }
+
+        /// <summary>
+        /// Variante read-only (Fase 7h): referenzia il SVG solo se GIÀ in cache — nessuna
+        /// <c>Directory.CreateDirectory</c>, nessun <c>SetCurrentDirectory</c>, nessun
+        /// <c>File.WriteAllBytes</c> (la root è il worktree di un agente). Diagramma non ancora
+        /// cachato → placeholder invece di renderizzarlo/scriverlo.
+        /// </summary>
+        private string TransformReadOnly(string markdown, RequestInfo requestInfo)
+        {
+            var cacheDir = requestInfo.CurrentRoot + $"{Path.DirectorySeparatorChar}.md";
+            string backPath = _helper.GetBackPath(requestInfo);
+            var matches = GetMatches(markdown);
+            var regions = MarkdownCodeRegions.Of(markdown);
+            var increment = 0;
+            foreach (Match item in matches)
+            {
+                if (regions.IsCode(item.Index))
+                {
+                    continue;
+                }
+
+                string referenceUrl;
+                try
+                {
+                    var text = item.Groups[1].Value;
+                    var textHash = _helper.GetHashString(text, Encoding.UTF8);
+                    var filePathSvg = $"{cacheDir}{Path.DirectorySeparatorChar}{textHash}.svg";
+                    if (File.Exists(filePathSvg))
+                    {
+                        var classes = item.Groups[2].Value;
+                        var markdownFilePath = $"{backPath}{Path.DirectorySeparatorChar}{textHash}.svg";
+                        referenceUrl = $@"![]({markdownFilePath.Replace(Path.DirectorySeparatorChar, '/')})";
+                        var linkHasClass = item.Groups[2]?.Value != null && item.Groups[2].Value != string.Empty ? "true" : "false";
+                        var linkClassHasCSS = LinkClassHasCSS(markdown, item.Groups[2]?.Value) ? "true" : "false";
+                        var isDynamicPlantuml = IsDynamicPlantuml(text) ? "true" : "false";
+                        referenceUrl = string.Concat(referenceUrl, "{", classes, " ", $"md-plantuml=\"dynamic:{isDynamicPlantuml};copy:true;linkHasClass:{linkHasClass};linkClassHasCSS:{linkClassHasCSS};\"", "}");
+                    }
+                    else
+                    {
+                        referenceUrl = "<pre class=\"mde-readonly-note\">(diagramma PlantUML non renderizzato nell'anteprima read-only del worktree)</pre>";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    referenceUrl = $"<code>{ex.Message}</code>";
+                }
+                (markdown, increment) = ReplaceAt(markdown, increment, item, referenceUrl);
+            }
+            return markdown;
+        }
+
+        /// <summary>
+        /// Replaces the match where it is. A Replace of its text would also rewrite the same
+        /// diagram written as an example in a code block.
+        /// </summary>
+        private static (string, int) ReplaceAt(string markdown, int increment, Match item, string replacement)
+        {
+            var at = item.Index + increment;
+            markdown = markdown.Remove(at, item.Length).Insert(at, replacement);
+            return (markdown, increment + replacement.Length - item.Length);
         }
 
         protected MatchCollection GetMetaDataMatches(string markDown)

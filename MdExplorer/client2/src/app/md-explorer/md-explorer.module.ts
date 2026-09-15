@@ -18,6 +18,8 @@ import { RulesComponent } from '../signalR/dialogs/rules/rules.component';
 import { NewMarkdownComponent } from './components/dialogs/new-markdown/new-markdown.component';
 import { NewDirectoryComponent } from './components/dialogs/new-directory/new-directory.component';
 import { MdTreeComponent } from './components/md-tree/md-tree.component';
+import { AgentReviewComponent } from './components/agent-review/agent-review.component';
+import { WorkingChangesComponent } from './components/working-changes/working-changes.component';
 import { ConnectionLostComponent } from '../signalR/dialogs/connection-lost/connection-lost.component';
 import { ParsingProjectComponent } from '../signalR/dialogs/parsing-project/parsing-project.component';
 import { ChangeDirectoryComponent } from './components/dialogs/change-directory/change-directory.component';
@@ -50,6 +52,13 @@ import { InstallWizardDialogComponent } from './components/dialogs/install-wizar
 import { BulkExportProgressDialogComponent } from './components/dialogs/bulk-export-progress/bulk-export-progress-dialog.component';
 import { AppShowComponent } from './components/app-show/app-show.component';
 import { IndexingProgressSnackComponent } from './components/indexing-progress-snack/indexing-progress-snack.component';
+import { AiSelectionDialogComponent } from './components/dialogs/ai-selection-dialog/ai-selection-dialog.component';
+import { MarkSearchComponent } from './components/mark-search/mark-search.component';
+import { AgentLaunchDialogComponent } from './components/agent-launch-dialog/agent-launch-dialog.component';
+import { AgentScheduleDialogComponent } from './components/agent-schedule-dialog/agent-schedule-dialog.component';
+import { AgentRegistryDialogComponent } from './components/agent-registry-dialog/agent-registry-dialog.component';
+import { AgentMemoryDialogComponent } from './components/agent-memory-dialog/agent-memory-dialog.component';
+import { MailboxDialogComponent } from './components/mailbox-dialog/mailbox-dialog.component';
 
 
 const routes: Routes = [
@@ -83,6 +92,8 @@ const routes: Routes = [
 
 @NgModule({
   declarations: [
+    AgentReviewComponent,
+    WorkingChangesComponent,
     SidenavComponent,
     ToolbarComponent,
     SafePipe,
@@ -117,7 +128,14 @@ const routes: Routes = [
     InstallWizardDialogComponent,
     BulkExportProgressDialogComponent,
     AppShowComponent,
-    IndexingProgressSnackComponent
+    IndexingProgressSnackComponent,
+    AiSelectionDialogComponent,
+    MarkSearchComponent,
+    AgentLaunchDialogComponent,
+    AgentScheduleDialogComponent,
+    AgentRegistryDialogComponent,
+    AgentMemoryDialogComponent,
+    MailboxDialogComponent
   ],
   imports: [
     CommonModule,

@@ -57,32 +57,33 @@ namespace MdExplorer.Features.Tests
             var match = command.GetMatches(textToPars);
             var stringMatched0 = match[0].Groups[1].Value;
             var stringMatched1 = match[1].Groups[1].Value;
-            Assert.AreEqual(stringMatched0, @" 
-                                    @startuml 
-                            @enduml ");
+            // Due blocchi plantuml distinti: il gruppo cattura l'intero contenuto di ciascuno.
+            Assert.AreEqual(2, match.Count);
+            StringAssert.Contains(stringMatched0, "@startuml");
+            StringAssert.Contains(stringMatched0, "testo 1");
+            StringAssert.Contains(stringMatched1, "daje");
         }
 
 
         [TestMethod]
         public void Should_Get_Link_To_Reset_BackPath_Coming_from_Transform_In_PNG()
         {
-            var textToParse = $@"# Oggi facciamo un esperimento per capire che cosa succede con determinati link
+            // GetMatchesAfterConversion opera sull'HTML DOPO la conversione (vedi
+            // FromLinkToApplication.TransformAfterConversion): intercetta i <img src="....md/<nome>.png">
+            // per riscriverne il back-path. Group[1] è il nome file tra ".md/" e ".png".
+            var htmlAfterConversion = $@"# Titolo
+                            <img src=""../../../../.md/-12344455.png"">
 
-                            ![](..\..\..\..\.md\-12344455.md)
+                            testo di mezzo
 
-
-                            davvero è una noia mortale perché devo intercettare parecchi esempi
-
-                            ![](..\..\..\..\.md\3333.md)
-
-                            ![testo](caricamento.md)";
+                            <img src=""../../../../.md/3333.png"">";
 
             var command = new FromPlantumlToPng("", null, null, null, null);
-            var match = command.GetMatchesAfterConversion(textToParse);
-            var stringMatched0 = match[0].Groups[2].Value;
-            
-            Assert.AreEqual(stringMatched0, @"-12344455");
-            Assert.AreEqual(match.Count, 2);
+            var match = command.GetMatchesAfterConversion(htmlAfterConversion);
+
+            Assert.AreEqual(2, match.Count);
+            Assert.AreEqual("-12344455", match[0].Groups[1].Value);
+            Assert.AreEqual("3333", match[1].Groups[1].Value);
         }
 
 
@@ -97,10 +98,11 @@ namespace MdExplorer.Features.Tests
                 ";
             var command = new ManageEmojiAsImages( null, null);
             var match = command.GetMatches(textToParse);
-            var stringMatched0 = match[0].Groups[2].Value;
+            // Regex: !\[alt text\]\(([^"]*)  -> Group[1] = il path fino alla virgoletta del titolo.
+            var stringMatched0 = match[0].Groups[1].Value;
 
-            Assert.AreEqual(stringMatched0, @"-12344455");
-            Assert.AreEqual(match.Count, 2);
+            Assert.AreEqual(2, match.Count);
+            StringAssert.Contains(stringMatched0, "plus.png");
         }
 
     }

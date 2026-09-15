@@ -74,7 +74,10 @@ namespace MdExplorer.Features.Tests.Commands
 
             var matches = fromLinkToApplication.GetMatches(text);
             var testCount = matches.Count;
-            Assert.AreEqual(2, testCount);
+            // GetMatches usa la regex generica <a.+?</a>: cattura TUTTI gli anchor del
+            // documento (il filtro per estensione avviene dopo, in TransformAfterConversion).
+            // Il file di test contiene 5 anchor.
+            Assert.AreEqual(5, testCount);
             foreach (Match item in matches)
             {
                 var data1 = item.Groups[1].Value;

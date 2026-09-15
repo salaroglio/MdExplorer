@@ -13,7 +13,14 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual Project Project { get; set; }
         public virtual bool Enabled { get; set; } = false;
 
-        /// <summary>Base URL del server Fuseki (es. http://localhost:3030).</summary>
+        /// <summary>
+        /// Se true, MDE usa un'istanza Fuseki <b>gestita</b> (addon on-demand): il Service la
+        /// avvia su porta loopback random e <see cref="Uri"/> è ignorato. Se false (default,
+        /// retrocompat), usa il Fuseki <b>esterno</b> configurato in <see cref="Uri"/>.
+        /// </summary>
+        public virtual bool Managed { get; set; } = false;
+
+        /// <summary>Base URL del server Fuseki ESTERNO (es. http://localhost:3030). Ignorato se <see cref="Managed"/>.</summary>
         public virtual string Uri { get; set; } = "http://localhost:3030";
 
         /// <summary>Nome del dataset dedicato a questo progetto sul server Fuseki.

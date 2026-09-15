@@ -33,6 +33,10 @@ namespace MdExplorer.Abstractions.Interfaces
         // Drives the "eye" reveal toggle on the folder node.
         bool HasExtraContent { get; set; }
 
+        // For a revealed non-markdown file (Type "genericFile"): its content is text, so a click
+        // shows it colored in the document panel. Binary files stay not clickable.
+        bool IsTextFile { get; set; }
+
         // External app embedding
         string AppId { get; set; }
         string AppExecutable { get; set; }

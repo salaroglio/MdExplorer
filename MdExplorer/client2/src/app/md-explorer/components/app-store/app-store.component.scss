@@ -1,7 +1,7 @@
 :host {
   display: flex;
   justify-content: center;
-  background-color: #fff;
+  background-color: var(--mde-bg-primary);
   height: calc(100vh - 40px);
   overflow-y: auto;
 }
@@ -11,8 +11,8 @@
   padding-bottom: 64px;
   width: 100%;
   max-width: 800px;
-  background-color: #fff;
-  color: #212121;
+  background-color: var(--mde-bg-primary);
+  color: var(--mde-text-primary);
 }
 
 .section-header {
@@ -25,7 +25,7 @@
     margin: 0;
     font-size: 16px;
     font-weight: 500;
-    color: #212121;
+    color: var(--mde-text-primary);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -47,7 +47,7 @@
 
 .settings-card {
   margin-bottom: 16px;
-  background-color: #fff !important;
+  background-color: var(--mde-bg-secondary) !important;
 }
 
 .form-grid {
@@ -61,44 +61,8 @@
   }
 }
 
-// Explicit form field overrides scoped to this component
-::ng-deep .app-store-container {
-  .mat-form-field-appearance-outline {
-    .mat-form-field-outline {
-      background-color: #fff !important;
-      border-radius: 4px;
-    }
-    .mat-form-field-outline-start,
-    .mat-form-field-outline-end {
-      border-color: rgba(0, 0, 0, 0.38) !important;
-    }
-    .mat-form-field-outline-gap {
-      border-color: rgba(0, 0, 0, 0.38) !important;
-      background-color: transparent !important;
-    }
-    &.mat-focused {
-      .mat-form-field-outline-start,
-      .mat-form-field-outline-gap,
-      .mat-form-field-outline-end {
-        border-color: #1976d2 !important;
-        border-width: 2px !important;
-      }
-    }
-  }
-
-  .mat-form-field-label {
-    color: rgba(0, 0, 0, 0.6) !important;
-  }
-
-  .mat-input-element {
-    color: #212121 !important;
-    caret-color: #1976d2 !important;
-  }
-
-  .mat-hint {
-    color: rgba(0, 0, 0, 0.54) !important;
-  }
-}
+// NOTE: i form field (outline, label, input, hint) sono colorati nativamente
+// dal tema Material triplo — rimosso l'override ::ng-deep locale.
 
 // ── Search ───────────────────────────────────────────
 .search-field {
@@ -113,8 +77,8 @@
   gap: 16px;
   margin-bottom: 16px;
   padding: 12px 16px;
-  background: rgba(25, 118, 210, 0.04);
-  border: 1px solid rgba(25, 118, 210, 0.12);
+  background: var(--mde-accent-light);
+  border: 1px solid var(--mde-outline-color);
   border-radius: 8px;
 }
 
@@ -132,31 +96,31 @@
   margin: 0 0 2px 0;
   font-size: 18px;
   font-weight: 600;
-  color: #212121;
+  color: var(--mde-text-primary);
 }
 
 .repo-company {
   font-size: 13px;
-  color: #1976d2;
+  color: var(--mde-accent-primary);
   font-weight: 500;
 }
 
 .repo-description {
   font-size: 13px;
-  color: #757575;
+  color: var(--mde-text-secondary);
   margin: 4px 0 0 0;
 }
 
 .repo-header-error {
-  background: rgba(211, 47, 47, 0.06);
-  border-color: rgba(211, 47, 47, 0.2);
+  background: var(--mde-error-bg);
+  border-color: var(--mde-error-fg);
 
   .repo-name {
-    color: #c62828;
+    color: var(--mde-error-fg);
   }
 
   .repo-description {
-    color: #616161;
+    color: var(--mde-text-secondary);
   }
 }
 
@@ -164,7 +128,7 @@
   font-size: 36px;
   width: 36px;
   height: 36px;
-  color: #d32f2f;
+  color: var(--mde-error-fg);
   flex-shrink: 0;
 }
 
@@ -182,7 +146,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #757575;
+  color: var(--mde-text-secondary);
   padding: 16px 0;
 }
 
@@ -190,7 +154,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #757575;
+  color: var(--mde-text-secondary);
   font-size: 13px;
   padding: 16px 0;
 
@@ -206,11 +170,11 @@
 }
 
 .catalog-item {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid var(--mde-border-color);
   height: auto !important;
   padding: 8px 0;
-  background-color: #fff !important;
-  color: #212121 !important;
+  background-color: var(--mde-bg-secondary) !important;
+  color: var(--mde-text-primary) !important;
 }
 
 // ── Catalog card layout ─────────────────────────────
@@ -219,7 +183,7 @@
   align-items: flex-start;
   gap: 12px;
   padding: 12px 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid var(--mde-border-color);
 
   &:last-child {
     border-bottom: none;
@@ -243,7 +207,7 @@
 .catalog-card-title {
   font-size: 14px;
   font-weight: 500;
-  color: #212121;
+  color: var(--mde-text-primary);
   line-height: 1.4;
 }
 
@@ -256,19 +220,19 @@
 
 .app-desc {
   font-size: 12px;
-  color: #757575;
+  color: var(--mde-text-secondary);
   font-style: italic;
 }
 
 .app-changelog {
   font-size: 11px;
-  color: #9e9e9e;
+  color: var(--mde-text-hint);
 }
 
 .version-chip {
   font-size: 11px;
-  color: #757575;
-  background: rgba(0, 0, 0, 0.08);
+  color: var(--mde-text-secondary);
+  background: var(--mde-chip-bg);
   border-radius: 8px;
   padding: 1px 6px;
   margin-left: 6px;
@@ -283,49 +247,42 @@
   font-weight: 500;
 
   &.installed {
-    background: rgba(76, 175, 80, 0.15);
-    color: #2e7d32;
+    background: var(--mde-success-bg);
+    color: var(--mde-success-fg);
   }
 
   &.update {
-    background: rgba(255, 152, 0, 0.15);
-    color: #e65100;
+    background: var(--mde-warning-bg);
+    color: var(--mde-warning-fg);
   }
 
   &.repo-badge {
+    // viola identitario (nessun token dedicato)
     background: rgba(156, 39, 176, 0.1);
     color: #7b1fa2;
   }
 
   &.platform {
-    background: rgba(0, 0, 0, 0.06);
-    color: #757575;
+    background: var(--mde-chip-bg);
+    color: var(--mde-text-secondary);
     display: inline-flex;
     align-items: center;
     gap: 2px;
 
     &.current-platform {
-      background: rgba(25, 118, 210, 0.12);
-      color: #1565c0;
+      background: var(--mde-accent-light);
+      color: var(--mde-accent-hover);
     }
   }
 }
 
 // ── Tabs ──────────────────────────────────────────────
+// I colori delle tab (label, label attiva, ink bar) sono nativi del tema.
 .store-tabs {
   ::ng-deep .mat-tab-label {
     min-width: 100px;
     font-size: 13px;
     font-weight: 500;
-    color: #424242;
-  }
-
-  ::ng-deep .mat-tab-label-active {
-    color: #1976d2;
-  }
-
-  ::ng-deep .mat-ink-bar {
-    background-color: #1976d2;
   }
 }
 
@@ -343,14 +300,14 @@
     margin: 0;
     font-size: 14px;
     font-weight: 500;
-    color: #212121;
+    color: var(--mde-text-primary);
   }
 }
 
 .repos-count {
   font-size: 11px;
-  color: #757575;
-  background: rgba(0, 0, 0, 0.06);
+  color: var(--mde-text-secondary);
+  background: var(--mde-chip-bg);
   border-radius: 8px;
   padding: 2px 8px;
 }
@@ -369,13 +326,13 @@
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #424242;
+  color: var(--mde-text-primary);
 
   mat-icon {
     font-size: 18px;
     width: 18px;
     height: 18px;
-    color: #1976d2;
+    color: var(--mde-icon-accent-blue);
   }
 }
 
@@ -386,10 +343,10 @@
   gap: 8px;
   padding: 12px 16px;
   margin-bottom: 16px;
-  background: rgba(255, 152, 0, 0.1);
-  border: 1px solid rgba(255, 152, 0, 0.3);
+  background: var(--mde-warning-bg);
+  border: 1px solid var(--mde-warning-fg);
   border-radius: 4px;
-  color: #e65100;
+  color: var(--mde-warning-fg);
   font-size: 13px;
 
   > mat-icon {
@@ -410,11 +367,11 @@
 // ── Publish hint ─────────────────────────────────────
 .publish-hint {
   font-size: 13px;
-  color: #757575;
+  color: var(--mde-text-secondary);
   margin-bottom: 12px;
 
   code {
-    background: rgba(0, 0, 0, 0.06);
+    background: var(--mde-hover-overlay);
     padding: 1px 4px;
     border-radius: 3px;
     font-size: 12px;
@@ -425,7 +382,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #d32f2f;
+  color: var(--mde-error-fg);
   font-size: 12px;
   margin-top: 4px;
   width: 100%;
@@ -451,13 +408,13 @@
 
 .publish-progress-phase {
   font-size: 12px;
-  color: #757575;
+  color: var(--mde-text-secondary);
 }
 
 .publish-progress-pct {
   font-size: 12px;
   font-weight: 500;
-  color: #1976d2;
+  color: var(--mde-accent-primary);
 }
 
 // ── Publish button spinner ─────────────────────────────
@@ -471,7 +428,7 @@
 .publish-metadata {
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-top: 1px solid var(--mde-border-color);
 }
 
 // ── Icon picker ──────────────────────────────────────
@@ -481,7 +438,7 @@
 
 .icon-label {
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.6);
+  color: var(--mde-text-secondary);
   margin-bottom: 6px;
   display: block;
 }
@@ -495,12 +452,12 @@
 .icon-preview-area {
   width: 40px;
   height: 40px;
-  border: 1px dashed rgba(0, 0, 0, 0.2);
+  border: 1px dashed var(--mde-border-strong);
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.02);
+  background: var(--mde-hover-overlay);
 }
 
 .icon-preview-img {
@@ -513,12 +470,12 @@
   font-size: 24px;
   width: 24px;
   height: 24px;
-  color: rgba(0, 0, 0, 0.25);
+  color: var(--mde-text-hint);
 }
 
 .icon-hint {
   font-size: 11px;
-  color: rgba(0, 0, 0, 0.54);
+  color: var(--mde-text-secondary);
   margin-top: 4px;
   display: block;
 }
@@ -538,14 +495,14 @@
 
 .platform-selector-label {
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.6);
+  color: var(--mde-text-secondary);
   margin-bottom: 6px;
   display: block;
 }
 
 .not-available-hint {
   font-size: 12px;
-  color: #9e9e9e;
+  color: var(--mde-text-hint);
   font-style: italic;
 }
 
@@ -559,7 +516,7 @@
 }
 
 .manage-list-item {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid var(--mde-border-color);
 }
 
 .edit-card {
@@ -570,7 +527,7 @@
 .update-installer-section {
   margin-top: 16px;
   padding-top: 16px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-top: 1px solid var(--mde-border-color);
 }
 
 // ── App icon img (catalog/installed lists) ───────────
@@ -581,146 +538,5 @@
   border-radius: 2px;
 }
 
-// ═══════════════════════════════════════════════════════
-//   DARK-BASED THEME OVERRIDES (dark + milan)
-// ═══════════════════════════════════════════════════════
-:host-context(body.dark-theme),
-:host-context(body.milan-theme) {
-  background-color: var(--mde-bg-primary);
-
-  .app-store-container {
-    background-color: var(--mde-bg-primary);
-    color: var(--mde-text-primary);
-  }
-
-  .settings-card {
-    background-color: var(--mde-bg-secondary) !important;
-    color: var(--mde-text-primary);
-  }
-
-  .section-header h3,
-  .section-header h4,
-  .store-actions h4,
-  .catalog-card-title,
-  .repo-name {
-    color: var(--mde-text-primary);
-  }
-
-  .repo-company {
-    color: var(--mde-accent-primary);
-  }
-
-  .repo-description,
-  .app-desc,
-  .app-changelog,
-  .loading-row,
-  .empty-state,
-  .publish-hint,
-  .publish-progress-phase,
-  .not-available-hint {
-    color: var(--mde-text-secondary);
-  }
-
-  .catalog-item {
-    background-color: var(--mde-bg-secondary) !important;
-    color: var(--mde-text-primary) !important;
-    border-bottom-color: var(--mde-border-color);
-  }
-
-  .catalog-card,
-  .manage-list-item,
-  .publish-metadata,
-  .update-installer-section {
-    border-bottom-color: var(--mde-border-color);
-    border-top-color: var(--mde-border-color);
-  }
-
-  .repo-header {
-    background: var(--mde-accent-light);
-    border-color: var(--mde-border-color);
-  }
-
-  .file-name {
-    color: var(--mde-text-secondary);
-
-    mat-icon {
-      color: var(--mde-accent-primary);
-    }
-  }
-
-  .publish-progress-pct {
-    color: var(--mde-accent-primary);
-  }
-
-  .version-chip,
-  .repos-count {
-    background: var(--mde-chip-bg);
-    color: var(--mde-text-secondary);
-  }
-
-  .publish-hint code {
-    background: var(--mde-hover-overlay);
-  }
-
-  .icon-placeholder {
-    color: var(--mde-text-hint);
-  }
-
-  .icon-label,
-  .icon-hint,
-  .platform-selector-label {
-    color: var(--mde-text-secondary);
-  }
-
-  .icon-preview-area {
-    border-color: var(--mde-border-color);
-    background: var(--mde-hover-overlay);
-  }
-
-  // Form field overrides in dark
-  ::ng-deep .app-store-container {
-    .mat-form-field-appearance-outline {
-      .mat-form-field-outline {
-        background-color: var(--mde-bg-secondary) !important;
-      }
-      .mat-form-field-outline-start,
-      .mat-form-field-outline-end,
-      .mat-form-field-outline-gap {
-        border-color: var(--mde-input-border) !important;
-      }
-      &.mat-focused {
-        .mat-form-field-outline-start,
-        .mat-form-field-outline-gap,
-        .mat-form-field-outline-end {
-          border-color: var(--mde-accent-primary) !important;
-        }
-      }
-    }
-
-    .mat-form-field-label {
-      color: var(--mde-text-secondary) !important;
-    }
-
-    .mat-input-element {
-      color: var(--mde-text-primary) !important;
-      caret-color: var(--mde-accent-primary) !important;
-    }
-
-    .mat-hint {
-      color: var(--mde-text-hint) !important;
-    }
-  }
-
-  // Tabs
-  .store-tabs {
-    ::ng-deep .mat-tab-label {
-      color: var(--mde-text-secondary);
-    }
-    ::ng-deep .mat-tab-label-active {
-      color: var(--mde-accent-primary);
-    }
-    ::ng-deep .mat-ink-bar {
-      background-color: var(--mde-accent-primary);
-    }
-  }
-}
+// NOTE: nessun blocco override dark/milan — tutte le superfici, i testi e i
+// bordi usano i token globali e i form field/tab sono temati nativamente.

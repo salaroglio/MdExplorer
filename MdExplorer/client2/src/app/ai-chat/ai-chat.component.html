@@ -6,7 +6,7 @@
 
     <span class="spacer"></span>
 
-    <div class="model-status" *ngIf="!compactMode || isModelLoaded || currentDocument || copilotCliAutoSelected">
+    <div class="model-status" *ngIf="!compactMode || isModelLoaded || currentDocument || copilotCliAutoSelected || claudeCodeAutoSelected">
       <mat-chip-list>
         <mat-chip *ngIf="isModelLoaded" [color]="compactMode ? 'primary' : 'accent'" selected>
           <mat-icon *ngIf="!compactMode">check_circle</mat-icon>
@@ -19,16 +19,6 @@
         <mat-chip *ngIf="currentDocument" color="primary">
           <mat-icon *ngIf="!compactMode">description</mat-icon>
           {{ compactMode ? getCurrentDocumentName().substring(0, 12) : getCurrentDocumentName() }}
-        </mat-chip>
-      </mat-chip-list>
-      <mat-chip-list *ngIf="copilotCliAutoSelected" class="copilot-model-picker" aria-label="Copilot model">
-        <mat-chip *ngFor="let opt of copilotModelOptions"
-                  [selected]="selectedCopilotModel === opt.id"
-                  [disabled]="isConfiguringProvider"
-                  [color]="selectedCopilotModel === opt.id ? 'accent' : undefined"
-                  (click)="selectCopilotModel(opt.id)"
-                  [matTooltip]="opt.id">
-          {{ opt.label }}
         </mat-chip>
       </mat-chip-list>
     </div>
@@ -48,13 +38,97 @@
     </button>
   </mat-toolbar>
 
+  <!-- Modello Copilot: l'elenco è quello che questa installazione ha davvero (models.list),
+       non una lista scritta nel codice. Una riga a sé sotto la testata, e non dentro la
+       toolbar: lì un campo Material combatte con altezza e colori del tema. -->
+  <div class="copilot-model-bar" *ngIf="copilotCliAutoSelected">
+    <label class="copilot-model-label" for="copilot-model-select">{{ 'AI_CHAT.COPILOT_MODEL_LABEL' | translate }}</label>
+    <mat-form-field appearance="outline" class="copilot-model-field">
+      <mat-select id="copilot-model-select"
+                  [value]="selectedCopilotModel"
+                  [placeholder]="'AI_CHAT.COPILOT_MODEL_CLI_CHOOSES' | translate"
+                  [disabled]="isConfiguringProvider || copilotModelsLoading"
+                  (selectionChange)="selectCopilotModel($event.value)">
+        <mat-option *ngFor="let m of copilotModelChoices; trackBy: trackCopilotModel" [value]="m.id" [disabled]="m.unavailable">
+          {{ m.name }}<span *ngIf="m.unavailable" class="model-unavailable"> — {{ 'AI_CHAT.COPILOT_MODEL_UNAVAILABLE' | translate }}</span>
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+    <button mat-icon-button class="copilot-model-refresh"
+            (click)="refreshCopilotModels()"
+            [disabled]="copilotModelsLoading"
+            [matTooltip]="'AI_CHAT.COPILOT_MODEL_REFRESH' | translate">
+      <mat-icon [class.spinning]="copilotModelsLoading">refresh</mat-icon>
+    </button>
+    <span class="copilot-model-hint" *ngIf="copilotModelsLoading">{{ 'AI_CHAT.COPILOT_MODELS_LOADING' | translate }}</span>
+    <span class="copilot-model-error" *ngIf="copilotModelsError && !copilotModelsLoading" [matTooltip]="copilotModelsError">
+      <mat-icon>error_outline</mat-icon>{{ 'AI_CHAT.COPILOT_MODELS_ERROR' | translate }}
+    </span>
+    <!-- Consumi: quota del periodo (Copilot la conta in richieste), parte presa da questa
+         conversazione, riempimento del contesto. I numeri esatti stanno nei tooltip. -->
+    <span class="copilot-usage" *ngIf="copilotUsage">
+      <ng-container *ngIf="copilotUsage.quotaType">
+        <span class="usage-item" [class.usage-high]="(copilotUsage.quotaUsedPercent || 0) >= 80"
+              [matTooltip]="copilotUsage.quotaUnlimited
+                ? ('AI_CHAT.COPILOT_USAGE_QUOTA_UNLIMITED_TOOLTIP' | translate)
+                : ('AI_CHAT.COPILOT_USAGE_QUOTA_TOOLTIP' | translate:{ used: formatCount(copilotUsage.quotaUsed), total: formatCount(copilotUsage.quotaEntitlement), reset: formatDay(copilotUsage.quotaResetDate) })">
+          {{ 'AI_CHAT.COPILOT_USAGE_QUOTA' | translate }}
+          <strong>{{ copilotUsage.quotaUnlimited ? ('AI_CHAT.COPILOT_USAGE_UNLIMITED' | translate) : formatCopilotPercent(copilotUsage.quotaUsedPercent) }}</strong>
+        </span>
+        <span class="usage-sep">·</span>
+      </ng-container>
+      <span class="usage-item"
+            [matTooltip]="'AI_CHAT.COPILOT_USAGE_SESSION_TOOLTIP' | translate:{ requests: formatCount(copilotUsage.sessionRequests) }">
+        {{ 'AI_CHAT.COPILOT_USAGE_SESSION' | translate }}
+        <strong>{{ copilotUsage.sessionPercent != null ? formatCopilotPercent(copilotUsage.sessionPercent) : formatCount(copilotUsage.sessionRequests) }}</strong>
+      </span>
+      <ng-container *ngIf="copilotUsage.contextPercent != null">
+        <span class="usage-sep">·</span>
+        <span class="usage-item" [class.usage-high]="(copilotUsage.contextPercent || 0) >= 80"
+              [matTooltip]="'AI_CHAT.COPILOT_USAGE_CONTEXT_TOOLTIP' | translate:{ tokens: formatCount(copilotUsage.contextTokens), limit: formatCount(copilotUsage.contextLimit) }">
+          {{ 'AI_CHAT.COPILOT_USAGE_CONTEXT' | translate }}
+          <strong>{{ formatCopilotPercent(copilotUsage.contextPercent, 0) }}</strong>
+        </span>
+      </ng-container>
+    </span>
+  </div>
+
+  <!-- Modello Claude Code: la stessa riga di Copilot. L'elenco è quello che il CLI dichiara per
+       questo account (initialize), la descrizione del CLI sta nel tooltip, la scelta vale per il
+       progetto e il cambio non cancella la conversazione (set_model sulla sessione viva). -->
+  <div class="copilot-model-bar claude-model-bar" *ngIf="claudeCodeAutoSelected">
+    <label class="copilot-model-label" for="claude-model-select">{{ 'AI_CHAT.COPILOT_MODEL_LABEL' | translate }}</label>
+    <mat-form-field appearance="outline" class="copilot-model-field"
+                    [matTooltip]="selectedClaudeModelDescription" [matTooltipDisabled]="!selectedClaudeModelDescription">
+      <mat-select id="claude-model-select"
+                  [value]="selectedClaudeCodeModel"
+                  [disabled]="isConfiguringProvider || claudeModelsLoading"
+                  (selectionChange)="selectClaudeCodeModel($event.value)">
+        <mat-option *ngFor="let m of claudeModelChoices; trackBy: trackClaudeModel" [value]="m.id" [disabled]="m.unavailable"
+                    [matTooltip]="m.description || ''" [matTooltipDisabled]="!m.description" matTooltipPosition="right">
+          {{ m.name }}<span *ngIf="m.unavailable" class="model-unavailable"> — {{ 'AI_CHAT.COPILOT_MODEL_UNAVAILABLE' | translate }}</span>
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+    <button mat-icon-button class="copilot-model-refresh"
+            (click)="refreshClaudeModels()"
+            [disabled]="claudeModelsLoading"
+            [matTooltip]="'AI_CHAT.COPILOT_MODEL_REFRESH' | translate">
+      <mat-icon [class.spinning]="claudeModelsLoading">refresh</mat-icon>
+    </button>
+    <span class="copilot-model-hint" *ngIf="claudeModelsLoading">{{ 'AI_CHAT.COPILOT_MODELS_LOADING' | translate }}</span>
+    <span class="copilot-model-error" *ngIf="claudeModelsError && !claudeModelsLoading" [matTooltip]="claudeModelsError">
+      <mat-icon>error_outline</mat-icon>{{ 'AI_CHAT.COPILOT_MODELS_ERROR' | translate }}
+    </span>
+  </div>
+
   <!-- Model Manager Panel -->
   <div class="model-manager-panel" *ngIf="showModelManager" #modelManagerPanel>
     <app-model-manager (contentChanged)="onModelManagerContentChanged()"></app-model-manager>
   </div>
 
   <!-- Chat Messages -->
-  <div class="chat-messages" #scrollContainer>
+  <div class="chat-messages" #scrollContainer (scroll)="onChatScroll()">
     <div *ngIf="messages.length === 0" class="no-messages">
       <mat-icon>chat_bubble_outline</mat-icon>
       <p>{{ 'AI_CHAT.START_CONVERSATION' | translate }}</p>
@@ -130,11 +204,15 @@
           </div>
         </div>
 
-        <mat-progress-spinner
-          *ngIf="message.isStreaming"
-          [diameter]="compactMode ? 16 : 20"
-          mode="indeterminate">
-        </mat-progress-spinner>
+        <!-- Mentre risponde: lo spinner, e cosa sta facendo l'agente (legge un file, esegue un
+             comando, un sub-agente al lavoro). È ciò che distingue "lavora" da "è bloccata". -->
+        <div class="streaming-status" *ngIf="message.isStreaming">
+          <mat-progress-spinner
+            [diameter]="compactMode ? 16 : 20"
+            mode="indeterminate">
+          </mat-progress-spinner>
+          <span class="tool-activity" *ngIf="toolActivity" [matTooltip]="toolActivity">{{ toolActivity }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -150,6 +228,45 @@
       <mat-icon>settings</mat-icon>
       {{ 'AI_CHAT.MODEL_MANAGER' | translate }}
     </button>
+  </div>
+
+  <!-- Claude Code non installato: stesso trattamento del gemello Copilot -->
+  <div *ngIf="claudeCodeUnavailable" class="copilot-cli-unavailable-banner">
+    <mat-icon>warning</mat-icon>
+    <div class="banner-text">
+      <strong>{{ 'AI_CHAT.CLAUDE_CODE_UNAVAILABLE' | translate }}</strong>
+      <span class="banner-hint">{{ 'AI_CHAT.CLAUDE_CODE_UNAVAILABLE_HINT' | translate }}</span>
+    </div>
+    <button mat-stroked-button (click)="toggleModelManager()">
+      <mat-icon>settings</mat-icon>
+      {{ 'AI_CHAT.MODEL_MANAGER' | translate }}
+    </button>
+  </div>
+
+  <!-- Consuntivo dell'ultimo turno di Claude Code. Compare solo quando c'è: con gli altri
+       provider questo dato non esiste proprio. -->
+  <div *ngIf="claudeUsage" class="claude-usage-row">
+    <mat-icon class="usage-icon">savings</mat-icon>
+    <span class="usage-item" [matTooltip]="'AI_CHAT.USAGE_TURN_TOOLTIP' | translate">
+      {{ 'AI_CHAT.USAGE_TURN' | translate }} <strong>{{ formatUsd(claudeUsage.turnCostUsd) }}</strong>
+    </span>
+    <span class="usage-sep">·</span>
+    <span class="usage-item" [matTooltip]="'AI_CHAT.USAGE_SESSION_TOOLTIP' | translate">
+      {{ 'AI_CHAT.USAGE_SESSION' | translate }} <strong>{{ formatUsd(claudeUsage.sessionCostUsd) }}</strong>
+    </span>
+    <span class="usage-sep" *ngIf="claudeUsage.outputTokens != null">·</span>
+    <span class="usage-item" *ngIf="claudeUsage.outputTokens != null">
+      {{ claudeUsage.outputTokens }} tok
+    </span>
+    <span class="usage-spacer"></span>
+    <span class="usage-item usage-window" *ngIf="claudeUsage.fiveHourUtilization != null"
+          [matTooltip]="'AI_CHAT.USAGE_WINDOW_TOOLTIP' | translate">
+      5h <strong>{{ formatPercent(claudeUsage.fiveHourUtilization) }}</strong>
+    </span>
+    <span class="usage-item usage-window" *ngIf="claudeUsage.sevenDayUtilization != null"
+          [matTooltip]="'AI_CHAT.USAGE_WINDOW_TOOLTIP' | translate">
+      7g <strong>{{ formatPercent(claudeUsage.sevenDayUtilization) }}</strong>
+    </span>
   </div>
 
   <!-- Input Area -->

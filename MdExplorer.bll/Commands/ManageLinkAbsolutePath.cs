@@ -1,5 +1,6 @@
 ﻿using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Commands.html;
+using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -50,9 +51,17 @@ namespace MdExplorer.Features.Commands
         public string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
             var links = GetMatches(markdown);
+            var regions = MarkdownCodeRegions.Of(markdown);
+            var increment = 0;
             foreach (Match link in links)
             {
                 var linkValue = link.Groups[2].Value;
+
+                // A link in code is text: it shows as written, without "?connectionId=…".
+                if (regions.IsCode(link.Index))
+                {
+                    continue;
+                }
 
                 // Skip external links, anchors, and non-markdown files
                 if (linkValue.StartsWith("http://") ||
@@ -95,7 +104,10 @@ namespace MdExplorer.Features.Commands
                     // Build new link preserving original text: [originalText](newUrl)
                     var linkText = link.Groups[1].Value;
                     var newFullLink = $"[{linkText}]({newlink})";
-                    markdown = markdown.Replace(link.Groups[0].Value, newFullLink);
+                    // By position: a Replace would also rewrite the same link written in code.
+                    var at = link.Index + increment;
+                    markdown = markdown.Remove(at, link.Length).Insert(at, newFullLink);
+                    increment += newFullLink.Length - link.Length;
                 }
             }
             return markdown;

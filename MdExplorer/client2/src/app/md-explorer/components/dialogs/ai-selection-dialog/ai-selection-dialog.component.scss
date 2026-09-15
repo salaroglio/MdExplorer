@@ -1,0 +1,115 @@
+.ai-selection-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+
+  .file-info {
+    font-size: 13px;
+    font-weight: normal;
+    opacity: 0.7;
+  }
+}
+
+.ai-selection-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 560px;
+  max-width: 900px;
+}
+
+.panes {
+  display: flex;
+  gap: 12px;
+
+  .pane {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pane-header {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    opacity: 0.7;
+    margin-bottom: 4px;
+
+    .warn-badge {
+      cursor: help;
+    }
+  }
+}
+
+pre.fragment {
+  margin: 0;
+  padding: 8px;
+  max-height: 260px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 4px;
+
+  &.proposal {
+    border-color: rgba(124, 77, 255, 0.6);
+  }
+}
+
+.thinking {
+  font-size: 12px;
+  opacity: 0.75;
+
+  pre {
+    max-height: 120px;
+    overflow: auto;
+    white-space: pre-wrap;
+    font-size: 11px;
+  }
+}
+
+.streaming {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+
+  .streaming-text {
+    margin: 0;
+    max-height: 140px;
+    overflow: auto;
+    white-space: pre-wrap;
+    font-size: 12px;
+    flex: 1;
+  }
+}
+
+.banner {
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  &.error {
+    background: rgba(244, 67, 54, 0.12);
+    border: 1px solid rgba(244, 67, 54, 0.5);
+  }
+
+  &.warn {
+    background: rgba(255, 152, 0, 0.12);
+    border: 1px solid rgba(255, 152, 0, 0.5);
+  }
+}
+
+.instruction-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+
+  .instruction-field {
+    flex: 1;
+    margin-bottom: -1.25em; // compensa lo spazio hint del form field
+  }
+}

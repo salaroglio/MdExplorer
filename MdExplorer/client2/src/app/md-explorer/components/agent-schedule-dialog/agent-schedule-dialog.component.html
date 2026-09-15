@@ -1,0 +1,128 @@
+<h2 mat-dialog-title>
+  <mat-icon class="title-icon">schedule</mat-icon>
+  {{ 'AGENT_SCHEDULE.TITLE' | translate }} — {{ data.agentName }}
+</h2>
+
+<mat-dialog-content>
+
+  <!-- Existing schedules -->
+  <div class="schedules-list" *ngIf="schedules.length > 0">
+    <label class="field-label">{{ 'AGENT_SCHEDULE.EXISTING' | translate }}</label>
+    <div class="schedule-row" *ngFor="let s of schedules" [class.disabled-row]="!s.enabled">
+      <div class="schedule-main">
+        <span class="schedule-name">{{ s.name }}</span>
+        <span class="schedule-trigger">
+          {{ triggerLabel(s.triggerType) }}<ng-container *ngIf="s.triggerType === 'cron'"> · <code>{{ s.cronExpression }}</code></ng-container>
+        </span>
+        <span class="schedule-lastrun" *ngIf="s.lastRunAt">
+          {{ 'AGENT_SCHEDULE.LAST_RUN' | translate }}: {{ s.lastRunAt | date:'short' }} ({{ s.lastRunStatus }})
+        </span>
+        <span class="schedule-disabled-reason" *ngIf="s.disabledReason">
+          <mat-icon>warning</mat-icon> {{ s.disabledReason }}
+        </span>
+      </div>
+      <div class="schedule-actions">
+        <mat-slide-toggle
+          [checked]="s.enabled"
+          (change)="toggleEnabled(s)"
+          [matTooltip]="'AGENT_SCHEDULE.TOGGLE_TOOLTIP' | translate">
+        </mat-slide-toggle>
+        <button mat-icon-button (click)="edit(s)" [matTooltip]="'AGENT_SCHEDULE.EDIT' | translate">
+          <mat-icon>edit</mat-icon>
+        </button>
+        <button mat-icon-button color="warn" (click)="remove(s)" [matTooltip]="'AGENT_SCHEDULE.DELETE' | translate">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Editor -->
+  <div class="editor-section">
+    <label class="field-label editor-header">
+      {{ (editingId ? 'AGENT_SCHEDULE.EDIT_HEADER' : 'AGENT_SCHEDULE.NEW_HEADER') | translate }}
+    </label>
+
+    <label class="field-label" for="schedule-name">{{ 'AGENT_SCHEDULE.NAME_LABEL' | translate }}</label>
+    <mat-form-field appearance="outline" class="full-width">
+      <input id="schedule-name" matInput [(ngModel)]="name" [disabled]="isSaving" />
+    </mat-form-field>
+
+    <label class="field-label" for="schedule-prompt">
+      {{ 'AGENT_SCHEDULE.PROMPT_LABEL' | translate }}
+      <button mat-icon-button class="prompt-edit-toggle"
+              (click)="promptReadonly = !promptReadonly"
+              [matTooltip]="'AGENT_SCHEDULE.PROMPT_EDIT_TOGGLE' | translate">
+        <mat-icon>{{ promptReadonly ? 'lock' : 'lock_open' }}</mat-icon>
+      </button>
+    </label>
+    <mat-form-field appearance="outline" class="full-width">
+      <textarea id="schedule-prompt" matInput rows="6"
+                [(ngModel)]="preparedPrompt"
+                [readonly]="promptReadonly"
+                [disabled]="isSaving"
+                [placeholder]="'AGENT_SCHEDULE.PROMPT_PLACEHOLDER' | translate"></textarea>
+      <mat-hint>{{ 'AGENT_SCHEDULE.PROMPT_HINT' | translate }}</mat-hint>
+    </mat-form-field>
+
+    <label class="field-label" for="schedule-trigger">{{ 'AGENT_SCHEDULE.TRIGGER_LABEL' | translate }}</label>
+    <mat-form-field appearance="outline" class="full-width">
+      <mat-select id="schedule-trigger" [(ngModel)]="triggerType" [disabled]="isSaving">
+        <mat-option value="cron">{{ 'AGENT_SCHEDULE.TRIGGER_CRON' | translate }}</mat-option>
+        <mat-option value="commit">{{ 'AGENT_SCHEDULE.TRIGGER_COMMIT' | translate }}</mat-option>
+        <mat-option value="projectOpen">{{ 'AGENT_SCHEDULE.TRIGGER_PROJECTOPEN' | translate }}</mat-option>
+      </mat-select>
+    </mat-form-field>
+
+    <ng-container *ngIf="triggerType === 'cron'">
+      <label class="field-label" for="schedule-cron">{{ 'AGENT_SCHEDULE.CRON_LABEL' | translate }}</label>
+      <mat-form-field appearance="outline" class="full-width">
+        <input id="schedule-cron" matInput [(ngModel)]="cronExpression"
+               placeholder="0 7 * * 1-5" [disabled]="isSaving" />
+        <mat-hint>{{ 'AGENT_SCHEDULE.CRON_HINT' | translate }}</mat-hint>
+      </mat-form-field>
+    </ng-container>
+
+    <div class="enabled-row">
+      <mat-slide-toggle [(ngModel)]="enabled" [disabled]="isSaving">
+        {{ 'AGENT_SCHEDULE.ENABLED_LABEL' | translate }}
+      </mat-slide-toggle>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="error" class="ai-error-message">
+    <mat-icon>warning</mat-icon>
+    {{ error }}
+  </div>
+
+  <!-- Executions history -->
+  <div class="executions-section">
+    <button mat-button class="executions-toggle" (click)="showExecutions = !showExecutions">
+      <mat-icon>{{ showExecutions ? 'expand_less' : 'expand_more' }}</mat-icon>
+      {{ 'AGENT_SCHEDULE.EXECUTIONS' | translate }} ({{ executions.length }})
+    </button>
+    <div *ngIf="showExecutions" class="executions-list">
+      <div class="execution-row" *ngFor="let e of executions">
+        <span class="exec-status" [ngClass]="'status-' + e.status">{{ e.status }}</span>
+        <span class="exec-when">{{ e.startedAt | date:'short' }}</span>
+        <span class="exec-trigger">{{ e.triggerSource }} · {{ e.executedBy }}</span>
+        <span class="exec-error" *ngIf="e.error" [matTooltip]="e.error">{{ e.error }}</span>
+      </div>
+      <div *ngIf="executions.length === 0" class="no-executions">
+        {{ 'AGENT_SCHEDULE.NO_EXECUTIONS' | translate }}
+      </div>
+    </div>
+  </div>
+
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button *ngIf="editingId" (click)="newSchedule()">
+    {{ 'AGENT_SCHEDULE.NEW_BUTTON' | translate }}
+  </button>
+  <button mat-button (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
+  <button mat-raised-button color="primary" (click)="save()" [disabled]="!canSave()">
+    {{ (editingId ? 'AGENT_SCHEDULE.UPDATE_BUTTON' : 'AGENT_SCHEDULE.SAVE_BUTTON') | translate }}
+  </button>
+</mat-dialog-actions>
