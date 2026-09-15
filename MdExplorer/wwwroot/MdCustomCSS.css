@@ -194,6 +194,12 @@ img.simpleImgFluid {
     display: block;
 }
 
+/* PlantUML: the SVG is inline inside a full-width .defaultImg, centered like the pasted images.
+   When zoomed wider than the page, the overflow starts from the left and the viewport scrolls. */
+.defaultImg.mdePlantuml {
+    text-align: center;
+}
+
 .s1 {
     height: auto;
     border: 1px dotted blue;

@@ -130,6 +130,10 @@ namespace MdExplorer.Features.Commands.html
                 
                 var prepareCurrentQueryRequest = requestInfo.CurrentQueryRequest.Replace(@"\",@"\\");
                 
+                // The PlantUML SVG is inlined inside this div: without this class it stays on the left,
+                // while a pasted image (simpleImgContainer) is centered.
+                var plantumlClass = plantumlInfo != null ? "mdePlantuml" : string.Empty;
+
                 var mathTostring = GetHashFromLink(itemImg.Groups[2].Value);
                 var stringMatchedHash = mathTostring.Count >0 ? mathTostring[0].Groups[1].Value:string.Empty;
                 var guidToDisplayToolbar = Guid.NewGuid().ToString("D");
@@ -138,7 +142,7 @@ namespace MdExplorer.Features.Commands.html
 
                 var metadataToReplaceString = metadataString.Substring(0, metadataString.Length) + dataMdHash;
                 var divContainsImage = itemImg.Groups[0].Value.Replace(metadataString, metadataToReplaceString);
-                divContainsImage = $"<div id=\"{stringMatchedHash}\" onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\"  md-path-file=\"{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}\" md-css-hash=\"{cssHash}\" md-CurrentQueryRequest=\"{prepareCurrentQueryRequest}\" md-link-hash=\"{linkHash}\" style=\"width:{divWidth}; height:{divHeight};\" class=\"defaultImg \" onmouseup=\"resizeImage(this)\">" +
+                divContainsImage = $"<div id=\"{stringMatchedHash}\" onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\"  md-path-file=\"{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}\" md-css-hash=\"{cssHash}\" md-CurrentQueryRequest=\"{prepareCurrentQueryRequest}\" md-link-hash=\"{linkHash}\" style=\"width:{divWidth}; height:{divHeight};\" class=\"defaultImg {plantumlClass}\" onmouseup=\"resizeImage(this)\">" +
                     $"{System.Environment.NewLine}{System.Environment.NewLine}" +
                     $"{divContainsImage}" +
                     $"{System.Environment.NewLine}{System.Environment.NewLine}" +
