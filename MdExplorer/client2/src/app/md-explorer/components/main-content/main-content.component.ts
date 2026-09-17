@@ -13,6 +13,7 @@ import { DocumentRefreshService } from '../../services/document-refresh.service'
 import { P2PService, PeerStatus, P2PFileInfo } from '../../../services/p2p.service';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { ProjectsService } from '../../services/projects.service';
+import { MdNavigationService } from '../../services/md-navigation.service';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
 import { DiffRequest, DiffViewerService } from '../../services/diff-viewer.service';
@@ -109,7 +110,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     private translate: TranslateService,
     private themeService: ThemeService,
     private diffViewer: DiffViewerService,
-    private workingChanges: WorkingChangesService
+    private workingChanges: WorkingChangesService,
+    private navService: MdNavigationService
   ) {
     
     // Initialize observables from state
@@ -845,12 +847,21 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    * Handle navigation request from iframe (YAML links in PlantUML diagrams).
    * Loads the document once via Angular, avoiding the double-load caused by window.location.href.
    */
-  private handleMdNavigate(data: { relativePath: string; name: string }): void {
+  /**
+   * A page asks to open a file (the Knowledge Graph, the links of the YAML diagrams). As a click
+   * in the tree does, the file first enters the title-bar history, then it opens: before, it was
+   * only loaded, and ← → skipped it (measured 17/09/2026). Through here a text file opens as
+   * colored source, as from the tree.
+   */
+  private handleMdNavigate(data: { relativePath: string; name: string; fullPath?: string }): void {
+    const relativePath = (data.relativePath || '').replace(/\\/g, '/').replace(/^\/+/, '');
     const mdFile: MdFile = {
       name: data.name,
-      path: data.relativePath,
-      relativePath: data.relativePath,
-      fullPath: '',
+      path: relativePath,
+      relativePath: relativePath,
+      // The history tells one entry from the next by fullPath: an empty one would make two
+      // different files look like the same and drop the second.
+      fullPath: data.fullPath || this.fullPathInProject(relativePath),
       fullDirectoryPath: '',
       level: 0,
       expandable: false,
@@ -859,7 +870,19 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       isLoading: false,
       childrens: []
     };
+    this.navService.setNewNavigation(mdFile);
     this.loadMarkdownFile(mdFile);
+  }
+
+  /** The file's path in the open project, with the project's own separator. */
+  private fullPathInProject(relativePath: string): string {
+    const projectPath: string = (this.projectsService.currentProjects$.getValue() as any)?.path || '';
+    if (!projectPath) {
+      // No project known here: the relative path still tells files apart in the history.
+      return relativePath;
+    }
+    const separator = projectPath.includes('\\') ? '\\' : '/';
+    return projectPath.replace(/[\\/]+$/, '') + separator + relativePath.split('/').join(separator);
   }
 
   /**
