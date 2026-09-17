@@ -260,6 +260,254 @@
         return 6 + Math.min(8, (node.inDegree || 0) + (node.outDegree || 0));
     }
 
+    // ---- File boxes (2D "Files" view) ------------------------------------------
+    // Each file node is an HTML box laid over the canvas: ▸, the icon of its type and its
+    // name, with the TL;DR below when opened. The canvas keeps positions, links, zoom and
+    // pan; the boxes follow their node every frame and scale with the zoom, so the layout
+    // is the same at any zoom (the collision force works in unscaled box pixels).
+
+    const TEXT_EXTENSIONS = ['yaml', 'yml', 'xml', 'xsd', 'xslt', 'ttl', 'nt', 'n3', 'nq', 'rdf', 'owl',
+        'sql', 'cypher', 'sparql', 'cs', 'ts', 'js', 'java', 'kt', 'py', 'sh', 'bash', 'ps1',
+        'css', 'scss', 'txt', 'csv', 'log', 'html', 'htm', 'cob', 'cbl', 'cpy'];
+
+    /** The file name, not the path: the last segment on "/" or "\" (Windows paths on any OS). */
+    function displayName(node) {
+        if (node.isExternal) return node.label || node.externalUrl || node.id || '';
+        const src = node.relativePath || node.fullPath || node.label || node.id || '';
+        const parts = String(src).split(/[\\/]/).filter(function (p) { return p.length > 0; });
+        return parts.length ? parts[parts.length - 1] : String(src);
+    }
+
+    function extensionOf(name) {
+        const m = /\.([A-Za-z0-9]+)$/.exec(name || '');
+        return m ? m[1].toLowerCase() : '';
+    }
+
+    /** The kind of file, for its icon. The backend's node.kind wins when present. */
+    function fileKind(node) {
+        if (node.kind) return node.kind;
+        if (node.isExternal) return 'web';
+        const ext = extensionOf(displayName(node));
+        switch (ext) {
+            case 'md': return 'markdown';
+            case 'json': case 'jsonld': return 'json';
+            case 'doc': case 'docx': return 'word';
+            case 'ppt': case 'pptx': return 'powerpoint';
+            case 'xls': case 'xlsx': return 'excel';
+            case 'pdf': return 'pdf';
+            case 'png': case 'jpg': case 'jpeg': case 'gif': case 'svg': case 'webp': case 'bmp': return 'image';
+            default: return TEXT_EXTENSIONS.indexOf(ext) >= 0 ? 'text' : 'other';
+        }
+    }
+
+    function fileIconHtml(node) {
+        const kind = fileKind(node);
+        const ext = extensionOf(displayName(node));
+        const glyphs = {
+            markdown: 'M↓', json: '{ }', word: 'W', powerpoint: 'P', excel: 'X', pdf: 'PDF',
+            image: '🖼', web: '🌐', other: '📄'
+        };
+        const glyph = glyphs[kind] || (ext ? ext.toUpperCase().slice(0, 4) : '📄');
+        const title = kind === 'text' && ext ? ext.toUpperCase() : kind;
+        return '<span class="kgFileIcon kgFileIcon-' + escapeHtml(kind) + '" title="' + escapeHtml(title) + '">' + escapeHtml(glyph) + '</span>';
+    }
+
+    function buildBoxLayer(container, data, g) {
+        const layer = document.createElement('div');
+        layer.className = 'kgBoxLayer';
+        container.appendChild(layer);
+        data.nodes.forEach(function (node) {
+            const el = buildBox(node, container, g);
+            layer.appendChild(el);
+            node._box = el;
+            measureBox(node);
+        });
+        // The boxes cover the canvas: a wheel over a box still zooms the graph.
+        layer.addEventListener('wheel', function (e) {
+            const canvas = container.querySelector('canvas');
+            if (!canvas) return;
+            e.preventDefault();
+            canvas.dispatchEvent(new WheelEvent('wheel', e));
+        }, { passive: false });
+        positionBoxes(g);
+    }
+
+    function buildBox(node, container, g) {
+        const el = document.createElement('div');
+        const missing = node.exists === false;
+        el.className = 'kgBox' + (node.isCenter ? ' kgBoxCenter' : '') + (missing ? ' kgBoxMissing' : '');
+        el.style.setProperty('--kg-accent', nodeColor(node));
+        const name = displayName(node);
+        const hasTldr = !!(node.tldr && String(node.tldr).trim());
+        const nameTitle = missing
+            ? 'File non trovato: ' + (node.relativePath || name)
+            : (node.relativePath || node.externalUrl || name);
+        el.innerHTML =
+            '<div class="kgBoxHead">' +
+                '<button type="button" class="kgBoxToggle" aria-expanded="false"' +
+                    (hasTldr ? ' title="TL;DR"' : ' disabled title="Nessun TL;DR"') + '>▸</button>' +
+                fileIconHtml(node) +
+                '<span class="kgBoxName" title="' + escapeHtml(nameTitle) + '">' + escapeHtml(name) + '</span>' +
+            '</div>' +
+            (hasTldr ? '<div class="kgBoxBody">' + renderTldrHtml(node.tldr) + '</div>' : '');
+
+        const toggle = el.querySelector('.kgBoxToggle');
+        toggle.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (toggle.disabled) return;
+            const open = el.classList.toggle('kgBoxOpen');
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            measureBox(node);
+            positionBoxes(g);
+            // The box changed size: let the collision force make room for it.
+            try { g.d3ReheatSimulation(); } catch (err) { /* noop */ }
+        });
+        el.querySelectorAll('.kgFileIcon, .kgBoxName').forEach(function (target) {
+            target.addEventListener('click', function (e) {
+                e.stopPropagation();
+                handleNodeClick(node);
+            });
+        });
+        el.querySelector('.kgBoxHead').addEventListener('mousedown', function (e) {
+            if (e.button !== 0 || e.target.closest('.kgBoxToggle, .kgFileIcon, .kgBoxName')) return;
+            startBoxDrag(e, node, container, g);
+        });
+        return el;
+    }
+
+    /** Box size in unscaled pixels (offsetWidth ignores the zoom transform). */
+    function measureBox(node) {
+        const el = node._box;
+        if (!el) return;
+        node._boxW = el.offsetWidth;
+        node._boxH = el.offsetHeight;
+        const head = el.querySelector('.kgBoxHead');
+        node._boxHeadH = head ? head.offsetHeight : el.offsetHeight;
+    }
+
+    /** Head centered on the node; the TL;DR opens downward. */
+    function positionBoxes(g) {
+        if (!_data) return;
+        const k = g.zoom();
+        _data.nodes.forEach(function (node) {
+            const el = node._box;
+            if (!el || !isFinite(node.x) || !isFinite(node.y)) return;
+            const p = g.graph2ScreenCoords(node.x, node.y);
+            el.style.transform = 'translate(' + p.x + 'px,' + p.y + 'px) scale(' + k + ') translate(-50%,' + (-(node._boxHeadH || 0) / 2) + 'px)';
+        });
+    }
+
+    /** A dragged box stays where it is dropped (pinned), so boxes can be arranged by hand. */
+    function startBoxDrag(e, node, container, g) {
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = container.getBoundingClientRect();
+        const start = g.screen2GraphCoords(e.clientX - rect.left, e.clientY - rect.top);
+        const offX = (node.x || 0) - start.x;
+        const offY = (node.y || 0) - start.y;
+        node._box.classList.add('kgBoxDragging');
+        function move(ev) {
+            const p = g.screen2GraphCoords(ev.clientX - rect.left, ev.clientY - rect.top);
+            node.fx = p.x + offX;
+            node.fy = p.y + offY;
+            try { g.d3ReheatSimulation(); } catch (err) { /* noop */ }
+        }
+        function up() {
+            document.removeEventListener('mousemove', move);
+            document.removeEventListener('mouseup', up);
+            if (node._box) node._box.classList.remove('kgBoxDragging');
+        }
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', up);
+    }
+
+    function boxCenterOffsetY(n) { return ((n._boxH || 0) - (n._boxHeadH || 0)) / 2; }
+
+    /** Boxes must not overlap: two overlapping boxes are pushed apart along the axis where they overlap least. */
+    function boxCollideForce2D() {
+        if (!_data) return;
+        const nodes = _data.nodes;
+        const pad = 16, strength = 1.0;
+        for (let i = 0; i < nodes.length; i++) {
+            const a = nodes[i];
+            if (!a._boxW || typeof a.x !== 'number') continue;
+            for (let j = i + 1; j < nodes.length; j++) {
+                const b = nodes[j];
+                if (!b._boxW || typeof b.x !== 'number') continue;
+                const dx = b.x - a.x;
+                const dy = (b.y + boxCenterOffsetY(b)) - (a.y + boxCenterOffsetY(a));
+                const ox = (a._boxW + b._boxW) / 2 + pad - Math.abs(dx);
+                const oy = (a._boxH + b._boxH) / 2 + pad - Math.abs(dy);
+                if (ox <= 0 || oy <= 0) continue;
+                if (ox < oy) {
+                    const s = (dx >= 0 ? 1 : -1) * ox * strength / 2;
+                    a.vx = (a.vx || 0) - s;
+                    b.vx = (b.vx || 0) + s;
+                } else {
+                    const s = (dy >= 0 ? 1 : -1) * oy * strength / 2;
+                    a.vy = (a.vy || 0) - s;
+                    b.vy = (b.vy || 0) + s;
+                }
+            }
+        }
+    }
+
+    /**
+     * When the simulation stops the forces may still leave boxes overlapping (the cluster pull
+     * wins over the collision): move the boxes themselves until none overlaps. A pinned box
+     * (dragged by hand) stays where it is and the other one moves.
+     */
+    function settleBoxes() {
+        if (!_data) return;
+        const nodes = _data.nodes.filter(function (n) { return n._boxW && isFinite(n.x) && isFinite(n.y); });
+        const pad = 16;
+        for (let iter = 0; iter < 80; iter++) {
+            let moved = false;
+            for (let i = 0; i < nodes.length; i++) {
+                const a = nodes[i];
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const b = nodes[j];
+                    const dx = b.x - a.x;
+                    const dy = (b.y + boxCenterOffsetY(b)) - (a.y + boxCenterOffsetY(a));
+                    const ox = (a._boxW + b._boxW) / 2 + pad - Math.abs(dx);
+                    const oy = (a._boxH + b._boxH) / 2 + pad - Math.abs(dy);
+                    if (ox <= 0 || oy <= 0) continue;
+                    const aPinned = a.fx != null, bPinned = b.fx != null;
+                    if (aPinned && bPinned) continue;
+                    const horizontal = ox < oy;
+                    const push = (horizontal ? ox : oy) + 0.5;
+                    const sign = (horizontal ? dx : dy) >= 0 ? 1 : -1;
+                    const shareA = aPinned ? 0 : (bPinned ? 1 : 0.5);
+                    const shareB = 1 - shareA;
+                    if (horizontal) {
+                        a.x -= sign * push * shareA;
+                        b.x += sign * push * shareB;
+                    } else {
+                        a.y -= sign * push * shareA;
+                        b.y += sign * push * shareB;
+                    }
+                    moved = true;
+                }
+            }
+            if (!moved) break;
+        }
+    }
+
+    /** The arrow tip on the edge of the target box, not at its hidden center. */
+    function boxArrowRelPos(link) {
+        const s = link.source, t = link.target;
+        if (!s || !t || typeof s.x !== 'number' || typeof t.x !== 'number' || !t._boxW) return 0.92;
+        const dx = t.x - s.x, dy = t.y - s.y;
+        if (Math.hypot(dx, dy) < 1) return 1;
+        const halfW = t._boxW / 2 + 3;
+        const above = (t._boxHeadH || 0) / 2 + 3;
+        const below = t._boxH - (t._boxHeadH || 0) / 2 + 3;
+        const halfH = dy > 0 ? above : below;   // coming from above → top edge
+        const fx = dx !== 0 ? halfW / Math.abs(dx) : Infinity;
+        const fy = dy !== 0 ? halfH / Math.abs(dy) : Infinity;
+        return Math.max(0, Math.min(1, 1 - Math.min(fx, fy)));
+    }
+
     // ---- Helpers ------------------------------------------------------------
     function getDocumentPath() {
         const anchor = document.getElementById('KGAnchor');
@@ -275,45 +523,86 @@
         return /^[a-z][a-z0-9+\-.]*:(\/\/|[^\\/])/i.test(s) && !/^[a-zA-Z]:[\\/]/.test(s);
     }
 
-    function navigateToNode(node) {
+    // ---- Opening a file node ---------------------------------------------------
+    // What a click does is decided by the backend (node.openWith, KnowledgeGraphFiles), with
+    // the rules of the page: a .md or a text file opens in the page, the project's
+    // application extensions (.mdapplicationtoopen) with their application, a URL in the
+    // system browser, a missing file nowhere.
+    //
+    // "In the page" goes through Angular, as a click in the tree: the md-navigate message
+    // (MainContentComponent.handleMdNavigate). Navigating the iframe itself, as this graph
+    // used to, showed a .json as raw bytes (the colored view needs source=angular) and left it
+    // out of the title-bar arrows; through Angular the page is colored and the arrows get the
+    // entry (markdownfileisprocessed). Application and browser change no page: no entry.
+
+    function openFileNode(node) {
         if (!node || node.isCenter) return;
+        switch (node.openWith) {
+            case 'page':        openInPage(node); return;
+            case 'application': openWithApplication(node); return;
+            case 'browser':     openInSystemBrowser(node); return;
+            case 'none':        showNotice('File non trovato: ' + (node.relativePath || displayName(node))); return;
+            default:
+                console.error('[KG] node without a valid openWith — page and backend out of step:', node.openWith, node);
+        }
+    }
 
-        // External link: open in default browser / new window
-        if (node.isExternal && node.externalUrl) {
-            try {
-                const w = window.open(node.externalUrl, '_blank', 'noopener,noreferrer');
-                if (!w) {
-                    // popup blocked: fallback to anchor click
-                    const a = document.createElement('a');
-                    a.href = node.externalUrl;
-                    a.target = '_blank';
-                    a.rel = 'noopener noreferrer';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                }
-            } catch (e) {
-                console.error('[KG] failed to open external URL', e);
-            }
+    function openInPage(node) {
+        const rel = node.relativePath;
+        if (!rel) {
+            console.error('[KG] openWith=page without a relative path:', node);
             return;
         }
-
-        let rel = node.relativePath || '';
-        if (!rel) return;
-        if (isExternalUrl(rel) || isExternalUrl(node.fullPath)) {
-            console.warn('[KG] node points to an external URL but is not flagged as external:', rel);
-            return;
-        }
-        if (/^[a-zA-Z]:[\\/]/.test(rel) || rel.startsWith('/') || rel.startsWith('\\')) {
-            console.warn('[KG] refusing to navigate to non-relative path:', rel);
-            return;
-        }
-        rel = rel.replace(/^\.\/+/, '').replace(/\\/g, '/');
-        const conn = $('#MdBody').attr('connectionid');
-        let url = '/api/mdexplorer/' + rel;
-        if (conn) url += '?connectionid=' + encodeURIComponent(conn);
         closeOverlay();
-        window.location.href = url;
+        if (window.parent && window.parent !== window) {
+            // fullPath: the title-bar history tells entries apart by it.
+            window.parent.postMessage({ type: 'md-navigate', relativePath: rel, name: displayName(node), fullPath: node.fullPath }, '*');
+            return;
+        }
+        // A detached window has no Angular around it: it opens the file itself, as a detached
+        // window (same parameters, so the backend still skips the main window's side effects).
+        const current = new URLSearchParams(window.location.search);
+        const params = new URLSearchParams();
+        ['ConnectionId', 'connectionId', 'theme'].forEach(function (k) { if (current.get(k)) params.set(k, current.get(k)); });
+        params.set('time', String(Date.now() / 1000));
+        params.set('source', 'detached');
+        params.set('detached', 'true');
+        window.location.href = '/api/mdexplorer/' + rel.split('/').map(encodeURIComponent).join('/') + '?' + params.toString();
+    }
+
+    function openWithApplication(node) {
+        if (typeof openApplication !== 'function') {
+            console.error('[KG] openApplication (core/utilities.js) is not loaded');
+            return;
+        }
+        openApplication(node.fullPath);
+    }
+
+    function openInSystemBrowser(node) {
+        $.ajax({
+            url: '/api/MdFiles/OpenUrlInBrowser',
+            type: 'POST',
+            data: JSON.stringify({ url: node.externalUrl, connectionId: $('#MdBody').attr('connectionid') }),
+            contentType: 'application/json; charset=utf-8',
+            dataType: 'json'
+        }).fail(function (xhr) {
+            showNotice('Impossibile aprire il link (HTTP ' + (xhr ? xhr.status : '?') + ')');
+        });
+    }
+
+    /** A short notice inside the graph panel. */
+    function showNotice(message) {
+        if (!_overlay) return;
+        let notice = _overlay.querySelector('.kgNotice');
+        if (!notice) {
+            notice = document.createElement('div');
+            notice.className = 'kgNotice';
+            _overlay.appendChild(notice);
+        }
+        notice.textContent = message;
+        notice.classList.add('kgNoticeShown');
+        clearTimeout(notice._timer);
+        notice._timer = setTimeout(function () { notice.classList.remove('kgNoticeShown'); }, 4000);
     }
 
     function normalize(raw) {
@@ -331,6 +620,9 @@
                     isExternal: !!n.isExternal,
                     externalUrl: n.externalUrl,
                     tldr: n.tldr,
+                    kind: n.kind || '',          // icon (backend: KnowledgeGraphFiles)
+                    openWith: n.openWith || '',  // page | application | browser | none
+                    exists: n.exists !== false,
                     inDegree: n.inDegree || 0,
                     outDegree: n.outDegree || 0
                 };
@@ -456,16 +748,19 @@
         const rect = container.getBoundingClientRect();
         const w = Math.max(rect.width, 400);
         const h = Math.max(rect.height, 400);
+        // Files view: nodes are HTML boxes (buildBoxLayer). Concepts keep the drawn circles.
+        const useBoxes = _source === 'files';
 
         const g = ForceGraph()(container)
             .width(w).height(h)
             .backgroundColor('rgba(0,0,0,0)') // transparent over our CSS gradient
             .nodeRelSize(6)
-            .nodeLabel(buildNodeTooltip)
+            .nodeLabel(useBoxes ? null : buildNodeTooltip)
             .nodeColor(nodeColor)
             .nodeVal(function (n) { return n.isCenter ? 14 : 3 + Math.min(10, (n.inDegree || 0) + (n.outDegree || 0)); })
             .nodeCanvasObjectMode(function () { return 'replace'; })
             .nodeCanvasObject(function (node, ctx, globalScale) {
+                if (useBoxes) return;   // the box is the node
                 const r = nodeRadius(node);
                 const isCenter = !!node.isCenter;
                 const color = nodeColor(node);
@@ -520,6 +815,7 @@
                 ctx.fillText(text, node.x, pillY + padY);
             })
             .nodePointerAreaPaint(function (node, color, ctx) {
+                if (useBoxes) return;   // the box handles its own pointer
                 const r = nodeRadius(node);
                 ctx.beginPath();
                 ctx.arc(node.x, node.y, r + 2, 0, 2 * Math.PI);
@@ -531,7 +827,7 @@
             .linkWidth(function (l) { return 1.4; })
             .linkCurvature(0.08)
             .linkDirectionalArrowLength(5)
-            .linkDirectionalArrowRelPos(0.92)
+            .linkDirectionalArrowRelPos(useBoxes ? boxArrowRelPos : 0.92)
             .linkDirectionalArrowColor(linkColor)
             .linkDirectionalParticles(2)
             .linkDirectionalParticleSpeed(0.006)
@@ -543,20 +839,30 @@
             .onRenderFramePre(function (ctx, globalScale) {
                 drawClusterHalos2D(ctx, globalScale);
             })
+            .onRenderFramePost(function () {
+                if (useBoxes) positionBoxes(g);
+            })
             .graphData(data);
 
         try {
             if (g.d3Force) {
                 const charge = g.d3Force('charge'); if (charge) charge.strength(-280);
-                const linkF  = g.d3Force('link');   if (linkF)  linkF.distance(80);
+                const linkF  = g.d3Force('link');   if (linkF)  linkF.distance(useBoxes ? 170 : 80);
                 g.d3Force('cluster', clusterForce2D);
+                if (useBoxes) g.d3Force('boxCollide', boxCollideForce2D);
             }
         } catch (e) { /* noop */ }
 
-        // Auto-fit on first stabilization
+        // Auto-fit on first stabilization. With boxes only the first time: opening or dragging
+        // a box reheats the simulation, and refitting then would move the view under the mouse.
+        let fitted = false;
         g.onEngineStop(function () {
-            try { g.zoomToFit(400, 50); } catch (e) {}
+            if (useBoxes) settleBoxes();
+            if (useBoxes && fitted) return;
+            fitted = true;
+            try { g.zoomToFit(400, useBoxes ? 90 : 50); } catch (e) {}
         });
+        if (useBoxes) buildBoxLayer(container, data, g);
         return g;
     }
 
@@ -582,7 +888,8 @@
             for (let j = 0; j < members.length; j++) {
                 const n = members[j];
                 const dx = n.x - cx, dy = n.y - cy;
-                const d = Math.sqrt(dx * dx + dy * dy) + nodeRadius(n) + 16;
+                const extent = n._boxW ? Math.hypot(n._boxW / 2, n._boxH / 2) : nodeRadius(n);
+                const d = Math.sqrt(dx * dx + dy * dy) + extent + 16;
                 if (d > maxR) maxR = d;
             }
             if (maxR < 36) maxR = 36;
@@ -733,7 +1040,9 @@
             const sourceLbl = _source === 'concepts' ? 'concepts' : 'files';
             hint.textContent = _mode === '3d'
                 ? 'drag to orbit • scroll to zoom • click a node — viewing ' + sourceLbl
-                : 'drag to pan • scroll to zoom • click a node — viewing ' + sourceLbl;
+                : (_source === 'files'
+                    ? 'drag the background to pan • scroll to zoom • ▸ TL;DR • click a name to open • drag a box to move it'
+                    : 'drag to pan • scroll to zoom • click a node — viewing ' + sourceLbl);
         }
         const nsPicker = _overlay.querySelector('.kgNsPicker');
         if (nsPicker) nsPicker.style.display = _source === 'concepts' ? '' : 'none';
@@ -1136,7 +1445,7 @@
 
     function handleNodeClick(node) {
         if (_source === 'concepts') { focusOnNode(node); return; }
-        navigateToNode(node);
+        openFileNode(node);
     }
 
     function computeFocusSet(focusId, dir, maxDepth) {
