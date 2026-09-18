@@ -1,0 +1,80 @@
+<div class="review-panel">
+
+  <div class="review-header">
+    <span class="review-title">{{ 'AGENT_REVIEW.TITLE' | translate }}</span>
+    <span class="flexExpand"></span>
+    <button mat-icon-button (click)="refresh()" [matTooltip]="'AGENT_REVIEW.REFRESH' | translate">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
+
+  <div *ngIf="loading" class="review-empty">
+    <mat-spinner diameter="24"></mat-spinner>
+  </div>
+
+  <!-- Nessuna richiesta non è un vuoto da riempire: è la condizione normale. -->
+  <div *ngIf="!loading && requests.length === 0" class="review-empty">
+    <mat-icon>done_all</mat-icon>
+    <p>{{ 'AGENT_REVIEW.EMPTY' | translate }}</p>
+  </div>
+
+  <div *ngFor="let r of requests; trackBy: trackById" class="review-card">
+
+    <div class="review-card-head">
+      <mat-icon class="agent-icon">smart_toy</mat-icon>
+      <span class="agent-name">{{ r.agentName }}</span>
+      <span class="flexExpand"></span>
+      <span class="when" [title]="r.createdAt">{{ r.createdAt | date:'short' }}</span>
+    </div>
+
+    <!-- Il nome del branch racconta il lavoro: padrone, agente, data, cosa ha toccato. -->
+    <div class="branch" [matTooltip]="'AGENT_REVIEW.BRANCH_TOOLTIP' | translate">
+      <mat-icon>alt_route</mat-icon> {{ r.branch }}
+    </div>
+
+    <div class="counts">
+      <span class="c-added" *ngIf="countOf(r, 'added')">
+        +{{ countOf(r, 'added') }} {{ 'AGENT_REVIEW.ADDED' | translate }}
+      </span>
+      <span class="c-modified" *ngIf="countOf(r, 'modified')">
+        ~{{ countOf(r, 'modified') }} {{ 'AGENT_REVIEW.MODIFIED' | translate }}
+      </span>
+      <span class="c-deleted" *ngIf="countOf(r, 'deleted')">
+        −{{ countOf(r, 'deleted') }} {{ 'AGENT_REVIEW.DELETED' | translate }}
+      </span>
+    </div>
+
+    <ul class="files">
+      <li *ngFor="let f of r.files" [ngClass]="'f-' + f.change" [title]="f.path">
+        <mat-icon>{{ iconFor(f.change) }}</mat-icon>
+        <span class="file-path">{{ f.path }}</span>
+      </li>
+    </ul>
+
+    <!-- Sessione aperta: ci stai già lavorando, quindi le scelte sono altre. -->
+    <div class="actions" *ngIf="!r.sessionOpen">
+      <button mat-stroked-button color="primary" [disabled]="busyId === r.id" (click)="approve(r)">
+        <mat-icon>merge</mat-icon> {{ 'AGENT_REVIEW.APPROVE' | translate }}
+      </button>
+      <button mat-stroked-button [disabled]="busyId === r.id" (click)="take(r)"
+              [matTooltip]="'AGENT_REVIEW.TAKE_TOOLTIP' | translate">
+        <mat-icon>build</mat-icon> {{ 'AGENT_REVIEW.TAKE' | translate }}
+      </button>
+      <button mat-stroked-button color="warn" [disabled]="busyId === r.id" (click)="reject(r)">
+        <mat-icon>block</mat-icon> {{ 'AGENT_REVIEW.REJECT' | translate }}
+      </button>
+    </div>
+
+    <div class="actions session" *ngIf="r.sessionOpen">
+      <p class="session-note">⚙️ {{ 'AGENT_REVIEW.SESSION_OPEN' | translate }}</p>
+      <button mat-stroked-button color="primary" [disabled]="busyId === r.id" (click)="release(r, false)">
+        <mat-icon>check</mat-icon> {{ 'AGENT_REVIEW.CONCLUDE' | translate }}
+      </button>
+      <button mat-stroked-button color="warn" [disabled]="busyId === r.id" (click)="release(r, true)"
+              [matTooltip]="'AGENT_REVIEW.DISCARD_TOOLTIP' | translate">
+        <mat-icon>undo</mat-icon> {{ 'AGENT_REVIEW.DISCARD' | translate }}
+      </button>
+    </div>
+
+  </div>
+</div>

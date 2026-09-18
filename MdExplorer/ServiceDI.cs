@@ -21,6 +21,9 @@ namespace MdExplorer.Service
             services.AddSingleton<IMarkdownFtsService>(sp => new MarkdownFtsService(
                 MdExplorer.Utilities.CrossPlatformPath.GetAppDataPath(),
                 sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<MarkdownFtsService>>()));
+            services.AddSingleton<ITextFtsService>(sp => new TextFtsService(
+                MdExplorer.Utilities.CrossPlatformPath.GetAppDataPath(),
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TextFtsService>>()));
             return services;
         }
     }

@@ -1,7 +1,8 @@
 /**
- * MdExplorer - Interactive SVG for PlantUML YAML Tree Diagrams
- * =============================================================
- * Makes PlantUML-generated @startyaml tree diagram SVGs interactive with click-to-highlight.
+ * MdExplorer - Interactive SVG for PlantUML YAML/JSON Tree Diagrams
+ * ==================================================================
+ * Makes PlantUML-generated @startyaml AND @startjson tree diagram SVGs
+ * interactive with click-to-highlight (both produce the same tree layout).
  *
  * Features:
  * - Click on any box to highlight its full path (ancestors + descendants)
@@ -16,8 +17,9 @@
  * - ESC key: first clears highlight, then expands all if no highlight
  * - Coexists with InteractiveSvgYamlLinks (clickable url/link/href values)
  *
- * PlantUML @startyaml SVG Structure:
+ * PlantUML @startyaml / @startjson SVG Structure:
  * - Boxes: single <rect fill="#F1F1F1" rx="5" ry="5" style="stroke:#F1F1F1;stroke-width:1.5;">
+ *   (the fill is the DEFAULT colour: a <style>/skinparam block changes it)
  * - Text: <text> elements inside boxes (bold keys, regular values)
  * - Separators: <line> elements inside boxes
  * - Connections: groups of 3 SVG elements:
@@ -53,18 +55,67 @@ var InteractiveSvgYaml = (function() {
     }
 
     /**
-     * Check if an SVG is a YAML tree diagram
+     * The tree layout this module understands is emitted by BOTH @startyaml and
+     * @startjson: same rounded boxes, same dashed connectors, same origin dots.
+     * PlantUML v1.2026.1+ tells which one it is in data-diagram-type.
+     */
+    var TREE_DIAGRAM_TYPES = { YAML: true, JSON: true };
+
+    /**
+     * The node background rects of the diagram.
+     *
+     * PlantUML draws every node as TWO stacked rects: a filled one with rx="5"
+     * (the background) and a fill="none" one with a black stroke (the border).
+     * The background colour is #F1F1F1 only BY DEFAULT: a <style> or skinparam
+     * block inside the diagram changes it, so match on the shape, never on the
+     * colour. The rects this module injects itself (toggle, tooltip, controls,
+     * row highlight) are named in INJECTED_RECT_CLASSES and are left out.
+     *
+     * @param {SVGElement} svg
+     * @returns {Array} Array of <rect> elements
+     */
+    var INJECTED_RECT_CLASSES = ['yaml-toggle-bg', 'yaml-tooltip-bg',
+                                 'yaml-collapse-ctrl-bg', 'yaml-row-highlight-bg'];
+
+    function getBoxRects(svg) {
+        return Array.prototype.slice.call(svg.querySelectorAll('rect[rx="5"]'))
+            .filter(function(r) {
+                var fill = r.getAttribute('fill');
+                if (!fill || fill === 'none') return false;
+                for (var i = 0; i < INJECTED_RECT_CLASSES.length; i++) {
+                    if (r.classList.contains(INJECTED_RECT_CLASSES[i])) return false;
+                }
+                return true;
+            });
+    }
+
+    /**
+     * Tag every box background rect with the BOX_RECT_CLASS marker, so the CSS can
+     * style the boxes without knowing their colour (see interactive-svg-yaml.css).
+     * Mirrors the marker-class pattern of interactive-svg.js.
+     * @param {Array} boxRects
+     */
+    var BOX_RECT_CLASS = 'yaml-box-rect';
+
+    function applyBoxRectMarker(boxRects) {
+        boxRects.forEach(function(r) { r.classList.add(BOX_RECT_CLASS); });
+    }
+
+    /**
+     * Check if an SVG is a YAML or JSON tree diagram
      * @param {SVGElement} svg
      * @returns {boolean}
      */
     function isYamlDiagram(svg) {
+        var declaredType = svg.getAttribute('data-diagram-type');
+
         // Must NOT be a component/class diagram (legacy or new format)
         if (svg.querySelector('g[id^="elem_"], g[id^="cluster_"], g[id^="link_"], g.entity, g.cluster, g.link')) {
             return false;
         }
 
         // Must NOT be a sequence diagram (legacy or new format)
-        if (svg.getAttribute('data-diagram-type') === 'SEQUENCE') return false;
+        if (declaredType === 'SEQUENCE') return false;
         if (svg.querySelector('g.participant-lifeline')) return false;
         var seqBoxes = svg.querySelectorAll('rect[fill="#E2E2F0"]');
         var seqLifelines = svg.querySelectorAll('line[style*="stroke-dasharray"]');
@@ -72,11 +123,16 @@ var InteractiveSvgYaml = (function() {
             return false;
         }
 
-        // Must HAVE YAML tree characteristics:
-        // - F1F1F1 rects with rounded corners (rx="5")
-        var boxRects = svg.querySelectorAll('rect[fill="#F1F1F1"][rx="5"]');
-        if (boxRects.length === 0) return false;
+        // Must HAVE at least one node box
+        if (getBoxRects(svg).length === 0) return false;
 
+        // New format (v1.2026.1+) states the type outright: trust it. This also
+        // covers the flat tree of a single node, which has no connector to be
+        // recognised by.
+        if (declaredType) return TREE_DIAGRAM_TYPES[declaredType] === true;
+
+        // Legacy format carries no type attribute, so recognise the tree by its
+        // connectors:
         // - Dashed paths (connections)
         // PlantUML versions may emit "3.0,3.0" or "3,3" (no decimals)
         var paths = svg.querySelectorAll('path');
@@ -100,18 +156,19 @@ var InteractiveSvgYaml = (function() {
 
     /**
      * Parse all boxes from the SVG.
-     * Each box is a single <rect fill="#F1F1F1" rx="5" ry="5">.
+     * Each box is a single background <rect rx="5" ry="5"> (see getBoxRects).
      * @param {SVGElement} svg
      * @returns {Array} Array of box objects
      */
     function parseBoxes(svg) {
         var boxes = [];
-        var boxRects = svg.querySelectorAll('rect[fill="#F1F1F1"][rx="5"]');
+        var boxRects = getBoxRects(svg);
+        applyBoxRectMarker(boxRects);
         var allTexts = Array.prototype.slice.call(svg.querySelectorAll('text'));
         var allLines = Array.prototype.slice.call(svg.querySelectorAll('line'));
 
         // PlantUML generates TWO rects per box:
-        // 1. fill="#F1F1F1" rx="5" - the background rect
+        // 1. rx="5" with a fill - the background rect
         // 2. fill="none" stroke:#000000 - the outline/border rect (no rx)
         // We need to track BOTH to properly hide boxes.
         var outlineRects = Array.prototype.slice.call(
@@ -528,23 +585,24 @@ var InteractiveSvgYaml = (function() {
 
         // POST-APPLY diagnostic: verify hiding actually worked
         var allRects = svg.querySelectorAll('rect');
-        var f1Rects = svg.querySelectorAll('rect[fill="#F1F1F1"][rx="5"]');
+        var f1Rects = getBoxRects(svg);
         var hiddenF1 = 0, visibleF1 = 0;
         f1Rects.forEach(function(r) {
             if (isElementHidden(r)) hiddenF1++;
             else visibleF1++;
         });
         var otherRectsCount = allRects.length - f1Rects.length;
-        console.log('[Collapse POST-APPLY] F1F1F1 rects:', f1Rects.length,
+        console.log('[Collapse POST-APPLY] box rects:', f1Rects.length,
             '| hidden:', hiddenF1, '| visible:', visibleF1,
             '| should-hide:', hidden.hiddenBoxes.size,
             '| other rects in SVG:', otherRectsCount);
 
-        // Check for ghost rects (non-F1F1F1 rects that may look like borders)
+        // Check for ghost rects (rects that are not box backgrounds but may look like borders)
         if (otherRectsCount > 0) {
             var ghostInfo = [];
+            var boxRectSet = f1Rects;
             allRects.forEach(function(r) {
-                if (r.getAttribute('fill') !== '#F1F1F1' || r.getAttribute('rx') !== '5') {
+                if (boxRectSet.indexOf(r) === -1) {
                     if (!r.classList.contains('yaml-toggle-bg') &&
                         !r.classList.contains('yaml-tooltip-bg') &&
                         !r.classList.contains('yaml-collapse-ctrl-bg')) {
@@ -1835,7 +1893,8 @@ var InteractiveSvgYaml = (function() {
 
         options = options || {};
 
-        console.log('[InteractiveSvgYaml] Parsing YAML tree diagram...');
+        console.log('[InteractiveSvgYaml] Parsing ' +
+            (svg.getAttribute('data-diagram-type') || 'YAML/JSON') + ' tree diagram...');
 
         // Parse diagram structure
         var boxes = parseBoxes(svg);
@@ -1900,9 +1959,13 @@ var InteractiveSvgYaml = (function() {
             }
         });
 
-        // Create collapse/expand toggle buttons and controls
+        // Create collapse/expand toggle buttons and controls. A flat tree (a JSON
+        // object with no nested value) has no collapsible box: no toggles, so no
+        // Collapse All / Expand All either.
         createToggleButtons(svg, boxes, graph);
-        createCollapseControls(svg);
+        if (svg.querySelectorAll('.yaml-collapse-toggle').length > 0) {
+            createCollapseControls(svg);
+        }
 
         // ESC key to clear (priority: highlight first, then collapse)
         var escHandler = function(e) {
@@ -1984,6 +2047,9 @@ var InteractiveSvgYaml = (function() {
         }
 
         clearSelection(svg);
+        svg.querySelectorAll('.' + BOX_RECT_CLASS).forEach(function(r) {
+            r.classList.remove(BOX_RECT_CLASS);
+        });
         svg.classList.remove('interactive-svg-yaml');
         delete svg._yamlData;
         initializedSvgs.delete(svg);

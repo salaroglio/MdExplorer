@@ -13,9 +13,13 @@ import { DocumentRefreshService } from '../../services/document-refresh.service'
 import { P2PService, PeerStatus, P2PFileInfo } from '../../../services/p2p.service';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { ProjectsService } from '../../services/projects.service';
+import { MdNavigationService } from '../../services/md-navigation.service';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
+import { DiffRequest, DiffViewerService } from '../../services/diff-viewer.service';
+import { WorkingChangesService } from '../../services/working-changes.service';
 import { ThemeService } from '../../../services/theme.service';
+import { AiSelectionDialogComponent } from '../dialogs/ai-selection-dialog/ai-selection-dialog.component';
 
 // Content state interface for managing loading, error, and success states
 interface ContentState {
@@ -42,6 +46,31 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   mdFile: MdFile;
   html: string;
   htmlSource: string = '../welcome.html';
+
+  // ---- la differenza di un file, mostrata QUI e non nella barra laterale ----
+
+  /** Cosa si sta guardando. `null` = si torna al documento. */
+  diffRequest: DiffRequest | null = null;
+  diffText = '';
+  diffLoading = false;
+  diffError = '';
+
+  /** Le righe del diff, per colorarle senza una libreria. */
+  diffLines(): { text: string; kind: string }[] {
+    return (this.diffText || '').split('\n').map(text => ({
+      text,
+      kind: text.startsWith('+++') || text.startsWith('---') ? 'meta'
+          : text.startsWith('@@') ? 'hunk'
+          : text.startsWith('+') ? 'add'
+          : text.startsWith('-') ? 'del'
+          : text.startsWith('diff ') || text.startsWith('index ') ? 'meta'
+          : 'ctx',
+    }));
+  }
+
+  closeDiff(): void {
+    this.diffViewer.close();
+  }
   public _HideIFrame = false;
 
   // New state management properties
@@ -79,7 +108,10 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     private projectsService: ProjectsService,
     private http: HttpClient,
     private translate: TranslateService,
-    private themeService: ThemeService
+    private themeService: ThemeService,
+    private diffViewer: DiffViewerService,
+    private workingChanges: WorkingChangesService,
+    private navService: MdNavigationService
   ) {
     
     // Initialize observables from state
@@ -120,6 +152,27 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     // Initialize P2P message listener for iframe communication
     this.setupP2PMessageListener();
 
+    // La differenza di un file si guarda QUI, dove si guarda il documento: nella barra laterale
+    // stava in una colonna stretta e spingeva giu' il resto dell'elenco, facendo perdere il posto
+    // proprio mentre si confrontava.
+    this.diffViewer.opened$.pipe(takeUntil(this.destroy$)).subscribe(request => {
+      this.diffRequest = request;
+      this.diffText = '';
+      this.diffError = '';
+      if (!request) { this.ref.detectChanges(); return; }
+
+      this.diffLoading = true;
+      this.ref.detectChanges();
+      this.workingChanges.diff(request.projectPath, request.agent, request.path, request.repo, request.oldPath).subscribe({
+        next: r => { this.diffText = r.diff || ''; this.diffLoading = false; this.ref.detectChanges(); },
+        error: err => {
+          this.diffLoading = false;
+          this.diffError = err?.error?.error || this.translate.instant('CHANGES.DIFF_FAILED');
+          this.ref.detectChanges();
+        },
+      });
+    });
+
     // Reload iframe when theme changes
     this.themeService.currentTheme$.pipe(
       takeUntil(this.destroy$),
@@ -131,6 +184,17 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
         const cleanPath = this.cleanRelativePath(currentState.currentPath);
         this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
       }
+    });
+
+    // Fase 7h — review read-only: mostra il documento CORRENTE dal worktree dell'agente scelto.
+    this.service.viewWorktree$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(agent => {
+      const currentPath = this.contentState$.value.currentPath;
+      if (!currentPath || !agent) { return; }
+      const cleanPath = this.cleanRelativePath(currentPath);
+      const dateTime = new Date().getTime() / 1000;
+      this.htmlSource = `../api/MdExplorerWorktree/render/${cleanPath}?agent=${encodeURIComponent(agent)}&time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&theme=${this.themeService.getResolvedTheme()}`;
     });
 
     // Enhanced subscription with loading state management
@@ -208,6 +272,28 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(data => this.reloadOpenDocumentIfChanged(data?.changedFiles, 'branch switch'));
 
+    // Submodule popolati all'apertura del progetto. Il fallimento va DETTO: prima finiva
+    // appeso al messaggio di successo del clone e l'unico modo di accorgersene era aprire la
+    // cartella del codice e trovarla vuota.
+    this.monitorMDService.submoduleInit$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(e => {
+      if (e.phase === 'started') {
+        this.snackBar.open(
+          this.translate.instant('SUBMODULE.FETCHING', { list: (e.submodules || []).join(', ') }),
+          undefined, { duration: 4000 });
+      } else if (e.phase === 'completed') {
+        this.snackBar.open(
+          this.translate.instant('SUBMODULE.READY', { list: (e.submodules || []).join(', ') }),
+          'OK', { duration: 5000 });
+      } else {
+        // Niente scadenza: un codice che manca cambia quello che leggi nella documentazione,
+        // e va chiuso da te, non da un timer.
+        this.snackBar.open(e.error || this.translate.instant('SUBMODULE.FAILED'), 'OK',
+          { panelClass: ['error-snackbar'] });
+      }
+    });
+
     // Manual refresh requested from the toolbar (app-bar) refresh button.
     this.documentRefreshService.refresh$.pipe(
       takeUntil(this.destroy$)
@@ -281,7 +367,11 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    
+
+    // Si apre un documento: la differenza che era qui non c'entra piu' e va via da sola. Due cose
+    // non possono stare nello stesso riquadro, e lasciarla sarebbe peggio che chiuderla.
+    this.diffViewer.close();
+
     // Update state to loading
     this.loadingStartTime = new Date();
     this.updateState({
@@ -691,6 +781,33 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
         case 'md-navigate':
           this.handleMdNavigate(event.data);
           break;
+        case 'mde-ai-selection':
+          this.handleAiSelection(event.data);
+          break;
+      }
+    });
+  }
+
+  /**
+   * Opens the "Usa AI" dialog for a text selection made inside the iframe.
+   * The line range refers to the source .md file on disk (1-based), resolved
+   * server-side via the data-mde-line-* attributes.
+   */
+  private handleAiSelection(data: { startLine: number; endLine: number; selectedText: string; documentPath: string; connectionId: string }): void {
+    if (!data.documentPath || !data.startLine || !data.endLine) {
+      console.error('[AiSelection] Incomplete selection payload from iframe:', data);
+      this.snackBar.open(this.translate.instant('AI_SELECTION.INCOMPLETE_SELECTION'), 'OK', { duration: 4000 });
+      return;
+    }
+    this.dialog.open(AiSelectionDialogComponent, {
+      width: '860px',
+      maxWidth: '95vw',
+      data: {
+        documentPath: data.documentPath,
+        startLine: data.startLine,
+        endLine: data.endLine,
+        selectedText: data.selectedText || '',
+        connectionId: data.connectionId || this.monitorMDService.connectionId
       }
     });
   }
@@ -730,12 +847,21 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    * Handle navigation request from iframe (YAML links in PlantUML diagrams).
    * Loads the document once via Angular, avoiding the double-load caused by window.location.href.
    */
-  private handleMdNavigate(data: { relativePath: string; name: string }): void {
+  /**
+   * A page asks to open a file (the Knowledge Graph, the links of the YAML diagrams). As a click
+   * in the tree does, the file first enters the title-bar history, then it opens: before, it was
+   * only loaded, and ← → skipped it (measured 17/09/2026). Through here a text file opens as
+   * colored source, as from the tree.
+   */
+  private handleMdNavigate(data: { relativePath: string; name: string; fullPath?: string }): void {
+    const relativePath = (data.relativePath || '').replace(/\\/g, '/').replace(/^\/+/, '');
     const mdFile: MdFile = {
       name: data.name,
-      path: data.relativePath,
-      relativePath: data.relativePath,
-      fullPath: '',
+      path: relativePath,
+      relativePath: relativePath,
+      // The history tells one entry from the next by fullPath: an empty one would make two
+      // different files look like the same and drop the second.
+      fullPath: data.fullPath || this.fullPathInProject(relativePath),
       fullDirectoryPath: '',
       level: 0,
       expandable: false,
@@ -744,7 +870,19 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       isLoading: false,
       childrens: []
     };
+    this.navService.setNewNavigation(mdFile);
     this.loadMarkdownFile(mdFile);
+  }
+
+  /** The file's path in the open project, with the project's own separator. */
+  private fullPathInProject(relativePath: string): string {
+    const projectPath: string = (this.projectsService.currentProjects$.getValue() as any)?.path || '';
+    if (!projectPath) {
+      // No project known here: the relative path still tells files apart in the history.
+      return relativePath;
+    }
+    const separator = projectPath.includes('\\') ? '\\' : '/';
+    return projectPath.replace(/[\\/]+$/, '') + separator + relativePath.split('/').join(separator);
   }
 
   /**

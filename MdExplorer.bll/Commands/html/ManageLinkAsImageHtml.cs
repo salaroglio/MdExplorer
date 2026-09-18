@@ -21,9 +21,17 @@ namespace MdExplorer.Features.Commands.html
         public override string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
             var matches = GetMatches(markdown);
+            var regions = MarkdownCodeRegions.Of(markdown);
+            var increment = 0;
 
             foreach (Match item in matches)
             {
+                // An image in code is text: its path stays as written.
+                if (regions.IsCode(item.Index))
+                {
+                    continue;
+                }
+
                 var originalImagePath = item.Groups[2].Value;
 
                 // Skip absolute paths (ManageLinkAbsolutePath handles them)
@@ -52,9 +60,11 @@ namespace MdExplorer.Features.Commands.html
                 // Normalize: resolve ../ segments
                 absolutePath = NormalizePath(absolutePath);
 
-                // Replace in markdown
+                // Replace in markdown, by position: a Replace would also rewrite the same image written in code.
                 var allElementToReplace = item.Groups[0].Value.Replace(originalImagePath, absolutePath);
-                markdown = markdown.Replace(item.Groups[0].Value, allElementToReplace);
+                var at = item.Index + increment;
+                markdown = markdown.Remove(at, item.Length).Insert(at, allElementToReplace);
+                increment += allElementToReplace.Length - item.Length;
             }
 
             return markdown;

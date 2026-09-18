@@ -10,6 +10,7 @@ import { FileChangeNotificationService } from './services/file-change-notificati
 import { LanguageService } from './services/language.service';
 import { ThemeService } from './services/theme.service';
 import { ExecutionService } from './services/execution.service';
+import { MarkDiagramService } from './mark-assistant/mark-diagram.service';
 import { MdServerMessagesService } from './signalR/services/server-messages.service';
 
 @Component({
@@ -42,6 +43,9 @@ export class AppComponent {
     private languageService: LanguageService,
     private themeService: ThemeService,
     private executionService: ExecutionService,
+    // Instantiated for its side effect: it installs the "Ask to MarkAgent"
+    // postMessage listener before any document can be opened.
+    private markDiagramService: MarkDiagramService,
     private serverMessages: MdServerMessagesService,
     private snackBar: MatSnackBar) {
 
@@ -67,6 +71,20 @@ export class AppComponent {
         'OK',
         { duration: 6000, panelClass: ['kg-stale-snack'] }
       );
+    });
+
+    // Esito dei run degli agenti *.agent.md (lancio manuale, schedule, hook):
+    // toast globale così l'esito arriva anche se il dialog di lancio è chiuso.
+    this.serverMessages.agentJobProgress$.subscribe(evt => {
+      if (evt.phase === 'completed') {
+        this.snackBar.open(`🤖 Agente "${evt.agentName}" completato.`, 'OK', { duration: 5000 });
+      } else if (evt.phase === 'failed') {
+        this.snackBar.open(
+          `🤖 Agente "${evt.agentName}" fallito: ${evt.error || 'errore sconosciuto'}`,
+          'OK',
+          { duration: 10000, panelClass: ['kg-stale-snack'] }
+        );
+      }
     });
   }
 }

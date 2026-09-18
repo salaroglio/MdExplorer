@@ -14,7 +14,9 @@
     <PackageReference Include="MSTest.TestAdapter" Version="2.2.3" />
     <PackageReference Include="MSTest.TestFramework" Version="2.2.3" />
     <PackageReference Include="coverlet.collector" Version="3.0.2" />
-    <PackageReference Include="System.Data.SQLite" Version="1.0.114.4" />
+    <!-- Allineato a 1.0.113.1: 1.0.114.4 regredisce PRAGMA table_info e rompe
+         ColumnExists di FluentMigrator (vedi MdExplorer.Service.csproj). -->
+    <PackageReference Include="System.Data.SQLite" Version="1.0.113.1" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,0 +1,99 @@
+<h2 mat-dialog-title>
+  <mat-icon class="title-icon">groups</mat-icon>
+  {{ 'AGENT_REGISTRY.TITLE' | translate }}
+</h2>
+
+<mat-dialog-content>
+  <p class="subtitle">{{ 'AGENT_REGISTRY.SUBTITLE' | translate }}</p>
+
+  <div *ngIf="error" class="registry-error">
+    <mat-icon>error_outline</mat-icon> {{ error }}
+  </div>
+
+  <div *ngIf="loading" class="registry-loading">
+    {{ 'AGENT_REGISTRY.LOADING' | translate }}
+  </div>
+
+  <div *ngIf="!loading && !agents.length && !error" class="registry-empty">
+    {{ 'AGENT_REGISTRY.EMPTY' | translate }}
+  </div>
+
+  <!-- Cittadini -->
+  <mat-card *ngFor="let agent of citizens" class="agent-card">
+    <mat-card-content>
+      <div class="agent-header">
+        <div class="agent-name">
+          <mat-icon class="kind-icon">{{ agent.kind === 'algorithmic' ? 'memory' : 'smart_toy' }}</mat-icon>
+          <span class="name">{{ agent.name }}</span>
+          <span class="kind-badge">{{ ('AGENT_REGISTRY.KIND_' + (agent.kind | uppercase)) | translate }}</span>
+        </div>
+        <div class="trust-state">
+          <span *ngIf="agent.trusted" class="badge trusted">
+            <mat-icon>verified_user</mat-icon> {{ 'AGENT_REGISTRY.TRUSTED' | translate }}
+          </span>
+          <span *ngIf="!agent.trusted && agent.trustDecayed" class="badge decayed">
+            <mat-icon>gpp_maybe</mat-icon> {{ 'AGENT_REGISTRY.TRUST_DECAYED' | translate }}
+          </span>
+          <span *ngIf="!agent.trusted && !agent.trustDecayed" class="badge untrusted">
+            {{ 'AGENT_REGISTRY.NOT_TRUSTED' | translate }}
+          </span>
+        </div>
+      </div>
+
+      <div *ngIf="agent.role" class="agent-role">{{ agent.role }}</div>
+
+      <div *ngIf="agent.skills?.length" class="agent-section">
+        <span class="section-label">{{ 'AGENT_REGISTRY.SKILLS' | translate }}:</span>
+        <mat-chip-list>
+          <mat-chip *ngFor="let s of agent.skills" [title]="s.description">{{ s.id }}</mat-chip>
+        </mat-chip-list>
+      </div>
+
+      <div *ngIf="agent.tools?.length" class="agent-section">
+        <span class="section-label">{{ 'AGENT_REGISTRY.TOOLS' | translate }}:</span>
+        <mat-chip-list>
+          <mat-chip *ngFor="let t of agent.tools" [color]="isDangerous(t) ? 'warn' : ''" [selected]="isDangerous(t)">
+            {{ t }}<span *ngIf="isDangerous(t)"> ⚠</span>
+          </mat-chip>
+        </mat-chip-list>
+      </div>
+
+      <div *ngIf="agent.trustDecayed" class="decay-warning">
+        <mat-icon>gpp_maybe</mat-icon> {{ 'AGENT_REGISTRY.DECAY_HINT' | translate }}
+      </div>
+    </mat-card-content>
+
+    <mat-card-actions align="end">
+      <button *ngIf="!agent.trusted" mat-raised-button color="primary" (click)="trust(agent)" [disabled]="loading">
+        {{ 'AGENT_REGISTRY.TRUST_BUTTON' | translate }}
+      </button>
+      <button *ngIf="agent.trusted" mat-stroked-button (click)="untrust(agent)" [disabled]="loading">
+        {{ 'AGENT_REGISTRY.UNTRUST_BUTTON' | translate }}
+      </button>
+    </mat-card-actions>
+  </mat-card>
+
+  <!-- Voci escluse (fail-loud) -->
+  <div *ngIf="excluded.length" class="excluded-section">
+    <h3>{{ 'AGENT_REGISTRY.EXCLUDED_TITLE' | translate }}</h3>
+    <mat-card *ngFor="let agent of excluded" class="agent-card excluded">
+      <mat-card-content>
+        <div class="agent-header">
+          <div class="agent-name">
+            <mat-icon class="kind-icon warn">block</mat-icon>
+            <span class="name">{{ agent.name || agent.agentFilePath }}</span>
+          </div>
+        </div>
+        <div class="registration-error">
+          <mat-icon>error_outline</mat-icon> {{ agent.registrationError }}
+        </div>
+        <div *ngIf="agent.agentFilePath" class="agent-file">{{ agent.agentFilePath }}</div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="reload()" [disabled]="loading">{{ 'AGENT_REGISTRY.REFRESH' | translate }}</button>
+  <button mat-button (click)="close()">{{ 'AGENT_REGISTRY.CLOSE' | translate }}</button>
+</mat-dialog-actions>

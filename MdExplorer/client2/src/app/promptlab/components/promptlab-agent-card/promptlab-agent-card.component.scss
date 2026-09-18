@@ -2,11 +2,28 @@
   display: block;
   padding: 0 16px;
   flex-shrink: 0;
+
+  /* ── Accenti componente — valori LIGHT ── */
+  --pac-panel-bg: #f7f8fa;
+  --pac-purple-fg: #7b1fa2;
+  --pac-tool-bg: #ede7f6;
+  --pac-tool-border: #7e57c2;
+  --pac-tool-fg: #5e35b1;
+}
+
+:host-context(body.dark-theme),
+:host-context(body.milan-theme) {
+  /* ── Valori DARK originali, invariati ── */
+  --pac-panel-bg: #1a1d21;
+  --pac-purple-fg: #c792ea;
+  --pac-tool-bg: #2d1f3d;
+  --pac-tool-border: #7c4dff;
+  --pac-tool-fg: #b39ddb;
 }
 
 .agent-card {
-  background: #1a1d21;
-  border: 2px solid #c792ea;
+  background: var(--pac-panel-bg);
+  border: 2px solid var(--pac-purple-fg);
   border-radius: 8px;
   margin: 16px 0;
   overflow: hidden;
@@ -17,17 +34,17 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: #252526;
-  border-bottom: 1px solid #3c3c3c;
+  background: var(--mde-bg-secondary);
+  border-bottom: 1px solid var(--mde-border-color);
 }
 
 .agent-icon {
-  color: #c792ea;
+  color: var(--pac-purple-fg);
   font-size: 16px;
 }
 
 .agent-title {
-  color: #fff;
+  color: var(--mde-text-primary);
   font-size: 13px;
   font-weight: 600;
 }
@@ -39,7 +56,7 @@
 .collapse-btn {
   background: none;
   border: none;
-  color: #888;
+  color: var(--mde-text-hint);
   font-size: 14px;
   cursor: pointer;
   padding: 2px 6px;
@@ -47,8 +64,8 @@
   transition: transform 0.2s;
 
   &:hover {
-    color: #fff;
-    background: #3c3c3c;
+    color: var(--mde-text-primary);
+    background: var(--mde-bg-hover);
   }
 }
 
@@ -72,7 +89,7 @@
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #c792ea;
+  color: var(--pac-purple-fg);
   margin-bottom: 4px;
 }
 
@@ -80,10 +97,10 @@
   display: block;
   width: 100%;
   font-size: 12px;
-  color: #e0e0e0;
+  color: var(--mde-text-primary);
   line-height: 1.6;
-  background: #252526;
-  border: 1px solid #3c3c3c;
+  background: var(--mde-bg-secondary);
+  border: 1px solid var(--mde-border-color);
   border-radius: 4px;
   padding: 8px 12px;
   outline: none;
@@ -91,11 +108,11 @@
   font-family: 'Segoe UI', sans-serif;
 
   &:focus {
-    box-shadow: 0 0 0 1px #c792ea inset;
+    box-shadow: 0 0 0 1px var(--pac-purple-fg) inset;
   }
 
   &::placeholder {
-    color: #555;
+    color: var(--mde-text-hint);
   }
 }
 
@@ -107,9 +124,9 @@
 }
 
 .agent-tool {
-  background: #2d1f3d;
-  border: 1px solid #7c4dff;
-  color: #b39ddb;
+  background: var(--pac-tool-bg);
+  border: 1px solid var(--pac-tool-border);
+  color: var(--pac-tool-fg);
   font-size: 10px;
   padding: 3px 8px;
   border-radius: 10px;

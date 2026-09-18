@@ -116,8 +116,49 @@ namespace MdExplorer.Service.Services
         /// <param name="folderPath">Full path to the folder to check</param>
         /// <param name="projectPath">Project root path</param>
         /// <returns>True if folder should be ignored</returns>
+        /// <summary>
+        /// Cartelle escluse SEMPRE, senza bisogno che qualcuno le configuri. Oggi ce n'è una:
+        /// i posti di lavoro degli agenti. Vivono dentro il progetto (scelta del 2026-08-02) e
+        /// ognuno contiene una <b>copia intera della documentazione</b>: senza questa esclusione
+        /// l'indice conterrebbe lo stesso documento tante volte quanti sono i worktree, la
+        /// ricerca sarebbe piena di doppioni e l'albero mostrerebbe
+        /// <c>.worktrees/…/llm-wiki/log.md</c> come se fosse un tuo file.
+        /// </summary>
+        public const string AgentWorktreesFolder = ".worktrees";
+
+        /// <summary>
+        /// True quando <paramref name="fullPath"/> sta dentro i posti di lavoro degli agenti.
+        /// <para>
+        /// Serve dove il controllo per cartella non arriva: un file markdown non attraversa la
+        /// catena delle cartelle ignorate, quindi senza questo un <c>.agent.md</c> copiato dentro
+        /// un worktree verrebbe registrato come un agente in più — un gemello dell'originale, con
+        /// lo stesso nome, che risponderebbe alle stesse convocazioni.
+        /// </para>
+        /// </summary>
+        public static bool IsInsideAgentWorktrees(string fullPath, string projectPath)
+        {
+            if (string.IsNullOrEmpty(fullPath) || string.IsNullOrEmpty(projectPath))
+            {
+                return false;
+            }
+
+            var root = Path.Combine(projectPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                AgentWorktreesFolder);
+
+            return fullPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || fullPath.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(fullPath, root, StringComparison.OrdinalIgnoreCase);
+        }
+
         public bool ShouldIgnoreFolderForProject(string folderPath, string projectPath)
         {
+            // Regola incorporata: vale anche quando il progetto non ha (ancora) una
+            // configurazione, che è precisamente il caso di un progetto appena aperto.
+            if (string.Equals(Path.GetFileName(folderPath), AgentWorktreesFolder, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
             var configuration = GetConfiguration(projectPath);
 
             if (configuration == null)

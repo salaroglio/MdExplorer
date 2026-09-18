@@ -52,6 +52,43 @@ public class MdExplorerTools
     }
 
     [McpServerTool, Description(
+        "Check a PlantUML diagram BEFORE writing it into a document, and get back what to fix. " +
+        "Call this every time you produce or edit a PlantUML diagram: it is cheap, it does not render anything, " +
+        "and it catches mistakes you cannot see otherwise. " +
+        "It reports three kinds of finding. 'error' means the diagram will NOT be displayed at all — fix it and check again. " +
+        "'warning' means it will be displayed but wrong inside MdExplorer, typically a colour that vanishes in dark theme. " +
+        "'hint' is style only, and is reported just when there are no errors. " +
+        "Each finding carries the line, the line itself, what it means and ONE concrete fix: apply the fix, then call this again. " +
+        "If the answer contains 'toolUnavailable', the diagram was NOT judged — something is missing on the machine, " +
+        "so do NOT change your diagram: report what is missing to the user.")]
+    public async Task<string> CheckPlantuml(
+        [Description("The diagram source, from @startuml to @enduml, without the markdown fence.")] string source)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+
+        try
+        {
+            var payload = new StringContent(
+                JsonSerializer.Serialize(new { source }),
+                System.Text.Encoding.UTF8,
+                "application/json");
+
+            var response = await client.PostAsync("/api/Plantuml/Check", payload);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return $"Error: MdExplorer API returned {response.StatusCode}. The diagram was NOT checked — do not change it because of this.";
+            }
+
+            return await response.Content.ReadAsStringAsync();
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}. The diagram was NOT checked — do not change it because of this.";
+        }
+    }
+
+    [McpServerTool, Description(
         "List all MdExplorer projects with their names and paths. " +
         "Use this FIRST to discover available projects before calling SearchDocuments. " +
         "The project name from the results must be passed to SearchDocuments via the 'project' parameter.")]
@@ -118,6 +155,218 @@ public class MdExplorerTools
     }
 
     // ============================================================
+    //   Agent-to-agent messaging (città degli agenti, §7)
+    // ============================================================
+
+    // Il RunToken viaggia NELL'AMBIENTE del processo (mai nel prompt): il Service lo
+    // conia al risveglio, lo mette nell'env del processo Copilot, che lo eredita a questo
+    // MCP. Presentandolo, il Service certifica l'identità del mittente (anti-spoofing R2).
+    private const string RunTokenEnvVar = "MDE_RUN_TOKEN";
+    private const string RunTokenHeader = "X-MDE-Run-Token";
+
+    private static string? RunToken()
+    {
+        var t = Environment.GetEnvironmentVariable(RunTokenEnvVar);
+        return string.IsNullOrWhiteSpace(t) ? null : t;
+    }
+
+    [McpServerTool, Description(
+        "Request the intervention of an agent that belongs to ANOTHER member's city (federation). " +
+        "You give a SCOPE (an area from the project's ownership document) and a message; the harness " +
+        "deterministically resolves who owns that scope and which agent should act, then routes the " +
+        "request to that member's machine — where THEIR human must explicitly authorize it before any " +
+        "agent runs. Only available to an agent woken by a message (identity from the run token). This " +
+        "does NOT return an answer: it returns a routing receipt. Use only when the work belongs to a " +
+        "different owner (see the '# Ownership del progetto' section of your prompt).")]
+    public async Task<string> RequestIntervention(
+        [Description("The ownership scope the work belongs to (exact name from the ownership table).")] string scope,
+        [Description("The request body for the remote agent. Plain text; state clearly what you need.")] string message,
+        [Description("Optional preferred agent name (must be one listed for that scope).")] string preferredAgent = null,
+        [Description("Optional topics/tags, comma-separated (context only).")] string topics = null)
+    {
+        var token = RunToken();
+        if (token == null)
+            return "Error: RequestIntervention is only available to an agent woken by a message (no run token in the environment).";
+        if (string.IsNullOrWhiteSpace(scope)) return "Error: scope is required.";
+        if (string.IsNullOrWhiteSpace(message)) return "Error: message is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new
+            {
+                scope = scope.Trim(),
+                message,
+                preferredAgent = string.IsNullOrWhiteSpace(preferredAgent) ? null : preferredAgent.Trim(),
+                topics = string.IsNullOrWhiteSpace(topics)
+                    ? new List<string>()
+                    : topics.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0).ToList(),
+            };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/api/A2A/messages/request-intervention") { Content = content };
+            req.Headers.Add(RunTokenHeader, token);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Request refused ({(int)resp.StatusCode}): {body}";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Send a message to ANOTHER agent that lives in the same MdExplorer project (the " +
+        "'city of agents'). Only available to an agent that was itself woken by a message: " +
+        "your identity as the sender is taken from the run environment and cannot be forged. " +
+        "Use ListAgents first to see who you may contact. The recipient must trust you " +
+        "(its 'accepts_messages_from' must include your name or '*'). Delivery is asynchronous: " +
+        "the message is queued and the recipient is woken by the harness. This does NOT return " +
+        "the recipient's answer — it returns a queue receipt (taskId).")]
+    public async Task<string> SendAgentMessage(
+        [Description("The recipient agent's name (kebab-case), as shown by ListAgents.")] string toAgent,
+        [Description("The message body. Plain text; state your intent clearly.")] string message,
+        [Description("Optional topics/tags describing the message, comma-separated (context only).")] string topics = null)
+    {
+        var token = RunToken();
+        if (token == null)
+            return "Error: SendAgentMessage is only available to an agent woken by a message (no run token in the environment).";
+        if (string.IsNullOrWhiteSpace(toAgent)) return "Error: toAgent is required.";
+        if (string.IsNullOrWhiteSpace(message)) return "Error: message is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new
+            {
+                toAgent = toAgent.Trim(),
+                message,
+                topics = string.IsNullOrWhiteSpace(topics)
+                    ? new List<string>()
+                    : topics.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0).ToList(),
+            };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/api/A2A/messages/send") { Content = content };
+            req.Headers.Add(RunTokenHeader, token);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Send refused ({(int)resp.StatusCode}): {body}";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Remember a fact you learned, so your FUTURE selves recall it across wake-ups (semantic " +
+        "memory). Only available to an agent woken by a message: the fact is stored in YOUR private " +
+        "memory graph, keyed to your stable identity from the run environment — you cannot write to " +
+        "another agent's memory. Admit ONLY facts that are specific, verifiable and operational " +
+        "(e.g. 'the payments batch runs at 02:00 UTC'), never chit-chat or restatements of the " +
+        "prompt. Give 'about' tags that match the topics of the conversation so retrieval finds it " +
+        "later. Provenance (which run, which conversation) is recorded automatically.")]
+    public async Task<string> AssertLearnedFact(
+        [Description("The fact, as a short declarative statement. Specific, verifiable, operational.")] string statement,
+        [Description("Topic tags this fact is about, comma-separated (align them with the message topics).")] string about = null,
+        [Description("Confidence 0..1 (default 0.7). Use ~1.0 only for facts a human confirmed.")] double confidence = 0.7)
+    {
+        var token = RunToken();
+        if (token == null)
+            return "Error: AssertLearnedFact is only available to an agent woken by a message (no run token in the environment).";
+        if (string.IsNullOrWhiteSpace(statement)) return "Error: statement is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new { statement = statement.Trim(), about, confidence };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/api/A2A/memory/assert") { Content = content };
+            req.Headers.Add(RunTokenHeader, token);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Assert refused ({(int)resp.StatusCode}): {body}";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Recall what you (and the shared city memory) already know about some topics, before you " +
+        "start working. Only available to an agent woken by a message: you see ONLY your own memory " +
+        "graph plus the shared one — never another agent's. Pass the topics you care about; you get " +
+        "back the relevant facts with their confidence. Use this to avoid re-deriving what a past " +
+        "run already established.")]
+    public async Task<string> QueryAgentMemory(
+        [Description("Topics/tags to recall facts about, comma-separated. Empty = your most confident facts.")] string topics = null,
+        [Description("Max facts to return (default 20).")] int limit = 20)
+    {
+        var token = RunToken();
+        if (token == null)
+            return "Error: QueryAgentMemory is only available to an agent woken by a message (no run token in the environment).";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var payload = new
+            {
+                topics = string.IsNullOrWhiteSpace(topics)
+                    ? new List<string>()
+                    : topics.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0).ToList(),
+                limit,
+            };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/api/A2A/memory/query") { Content = content };
+            req.Headers.Add(RunTokenHeader, token);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Query refused ({(int)resp.StatusCode}): {body}";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "List the other trusted agents you may contact in your MdExplorer project (name, role, " +
+        "skills), plus whether each currently accepts messages from you. Only available to an " +
+        "agent woken by a message: the project and your identity come from the run environment. " +
+        "Call this before SendAgentMessage.")]
+    public async Task<string> ListAgents()
+    {
+        var token = RunToken();
+        if (token == null)
+            return "Error: ListAgents is only available to an agent woken by a message (no run token in the environment).";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Get, "/api/A2A/messages/roster");
+            req.Headers.Add(RunTokenHeader, token);
+            var resp = await client.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Error ({(int)resp.StatusCode}): {body}";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    // ============================================================
     //   Knowledge Graph (Neo4j) tools
     // ============================================================
 
@@ -140,6 +389,33 @@ public class MdExplorerTools
         }
         catch { }
         return null;
+    }
+
+    /// <summary>
+    /// Parses the optional customFields JSON-object argument. Empty → success with a null
+    /// node (nothing sent). A non-object or invalid JSON → failure with an actionable message.
+    /// </summary>
+    private static bool TryParseCustomFields(string json, out JsonElement? node, out string error)
+    {
+        node = null;
+        error = null;
+        if (string.IsNullOrWhiteSpace(json)) return true;
+        try
+        {
+            var el = JsonSerializer.Deserialize<JsonElement>(json);
+            if (el.ValueKind != JsonValueKind.Object)
+            {
+                error = "customFields must be a JSON object, e.g. {\"Story Points\": 5}.";
+                return false;
+            }
+            node = el;
+            return true;
+        }
+        catch (JsonException)
+        {
+            error = "customFields is not valid JSON. Pass a JSON object, e.g. {\"Story Points\": 5}.";
+            return false;
+        }
     }
 
     [McpServerTool, Description(
@@ -294,7 +570,9 @@ public class MdExplorerTools
         "configured in MdExplorer (Project Settings → Atlassian).")]
     public async Task<string> JiraFindMyIssues(
         [Description("Project name. Use GetProjects first to discover available project names.")] string project,
-        [Description("Max issues to return (default 10, cap 50).")] int? maxResults = null)
+        [Description("Max issues to return (default 10, cap 50).")] int? maxResults = null,
+        [Description("Custom fields to include per issue, comma-separated field names or customfield_ ids " +
+                     "(optional), e.g. 'Story Points,Severity'. Omit to include all populated custom fields.")] string customFields = null)
     {
         var client = _httpClientFactory.CreateClient("MdExplorer");
         var pid = await ResolveProjectIdAsync(client, project);
@@ -302,7 +580,9 @@ public class MdExplorerTools
         var k = maxResults ?? 10;
         try
         {
-            var resp = await client.GetAsync($"/api/atlassian/jira/my-issues?projectId={pid}&maxResults={k}");
+            var url = $"/api/atlassian/jira/my-issues?projectId={pid}&maxResults={k}";
+            if (!string.IsNullOrWhiteSpace(customFields)) url += $"&customFields={Uri.EscapeDataString(customFields.Trim())}";
+            var resp = await client.GetAsync(url);
             var body = await resp.Content.ReadAsStringAsync();
             await LogToolCall("JiraFindMyIssues", project, $"maxResults={k}", body);
             return body;
@@ -328,7 +608,9 @@ public class MdExplorerTools
     public async Task<string> JiraSearch(
         [Description("Project name. Use GetProjects first to discover available project names.")] string project,
         [Description("The JQL query, e.g. 'assignee = currentUser() AND duedate <= endOfDay()'.")] string jql,
-        [Description("Max results (default 20, cap 50).")] int? maxResults = null)
+        [Description("Max results (default 20, cap 50).")] int? maxResults = null,
+        [Description("Custom fields to include per issue, comma-separated field names or customfield_ ids " +
+                     "(optional), e.g. 'Story Points,Severity'. Omit to include all populated custom fields.")] string customFields = null)
     {
         var client = _httpClientFactory.CreateClient("MdExplorer");
         var pid = await ResolveProjectIdAsync(client, project);
@@ -337,7 +619,9 @@ public class MdExplorerTools
         var k = maxResults ?? 20;
         try
         {
-            var resp = await client.GetAsync($"/api/atlassian/jira/search?projectId={pid}&jql={Uri.EscapeDataString(jql)}&maxResults={k}");
+            var url = $"/api/atlassian/jira/search?projectId={pid}&jql={Uri.EscapeDataString(jql)}&maxResults={k}";
+            if (!string.IsNullOrWhiteSpace(customFields)) url += $"&customFields={Uri.EscapeDataString(customFields.Trim())}";
+            var resp = await client.GetAsync(url);
             var body = await resp.Content.ReadAsStringAsync();
             await LogToolCall("JiraSearch", project, $"jql={jql}", body);
             return body;
@@ -375,24 +659,57 @@ public class MdExplorerTools
     }
 
     [McpServerTool, Description(
-        "Creates a Jira issue and assigns it to the current user. This is a WRITE " +
+        "Creates a Jira issue. By default it is assigned to the current user; pass " +
+        "'assignee' (a name or email) to assign it to someone else in the same call — " +
+        "the tool resolves the person to their Jira accountId itself. Read the JSON 'ok' " +
+        "field: ok=true -> created (the issue key, URL and resolved assignee are echoed " +
+        "back). notFound=true or ambiguous=true -> NOTHING WAS CREATED, because the " +
+        "assignee could not be pinned down; for ambiguous, 'candidates' lists each " +
+        "accountId + name + email — show them to the user, get the choice, then call this " +
+        "tool again with that exact 'assigneeAccountId'. Do NOT retry blindly: a second " +
+        "call after a successful create makes a duplicate issue. This is a WRITE " +
         "operation — only use it when the user explicitly asks to create/open an " +
         "issue (e.g. to seed test issues). Returns the created issue key and URL. " +
         "projectKey defaults to the project's configured key; issueType defaults to " +
-        "'Task'. priority (e.g. 'High') and dueDate ('yyyy-MM-dd') are optional.")]
+        "'Task'. priority (e.g. 'High') and dueDate ('yyyy-MM-dd') are optional. " +
+        "Any other field — including system fields with no argument here, such as " +
+        "fixVersions, components, labels or reporter — goes in 'customFields'. " +
+        "priority takes the name Jira stores (usually English: 'Low', not 'Bassa'). " +
+        "Setting anything beyond summary/description? Call JiraGetCreateFields first: " +
+        "it lists what this project + issue type actually accepts on creation.")]
     public async Task<string> JiraCreateIssue(
         [Description("Project name. Use GetProjects first to discover available project names.")] string project,
         [Description("Issue summary (title).")] string summary,
         [Description("Issue description in plain text (optional).")] string description = null,
         [Description("Issue type, default 'Task'.")] string issueType = null,
-        [Description("Priority name, e.g. 'Highest'/'High'/'Medium'/'Low' (optional).")] string priority = null,
+        [Description("Priority name, e.g. 'Highest'/'High'/'Medium'/'Low' (optional). Must be the name " +
+                     "Jira stores, which stays English on a localised site; a wrong one is rejected with " +
+                     "the list of valid names, and nothing is created.")] string priority = null,
         [Description("Due date 'yyyy-MM-dd' (optional).")] string dueDate = null,
-        [Description("Jira project key, e.g. 'BCO' (optional — defaults to the configured key).")] string projectKey = null)
+        [Description("Jira project key, e.g. 'BCO' (optional — defaults to the configured key).")] string projectKey = null,
+        [Description("Who to assign the new issue to: a person's name or email, resolved to an accountId " +
+                     "by the tool (optional — omitted means assign to the current user).")] string assignee = null,
+        [Description("The exact Jira accountId of the assignee, when already known (e.g. after " +
+                     "disambiguating an 'ambiguous' result). Skips the name lookup.")] string assigneeAccountId = null,
+        [Description("Parent issue key to link this issue to — typically the EPIC a story belongs to " +
+                     "(the 'Parent'/'Principale' field), e.g. 'BCE-1694' (optional).")] string parentKey = null,
+        [Description("Any other field to set, as a JSON object keyed by field id or exact field name " +
+                     "(optional). Takes custom fields AND system fields with no argument of their own, e.g. " +
+                     "{\"Story Points\": 5, \"fixVersions\": \"REL. Q4 2026\", \"reporter\": \"Enrico Torrelli\"}. " +
+                     "User fields (reporter, and any custom people field) take a name or an email and are " +
+                     "resolved to the accountId for you; if the name matches nobody or several people, " +
+                     "NOTHING is written and the error lists the candidates. " +
+                     "Ids are language-independent, names are localised per site — prefer the id, and call " +
+                     "JiraListFields with customOnly=false to discover both. Scalars are shaped from the field's " +
+                     "schema; pass a structured JSON value for types that need one. If Jira answers that a field " +
+                     "'cannot be set / is not on the appropriate screen', it is missing from the CREATE screen: " +
+                     "create the issue without it, then set it with JiraUpdateIssue.")] string customFields = null)
     {
         var client = _httpClientFactory.CreateClient("MdExplorer");
         var pid = await ResolveProjectIdAsync(client, project);
         if (pid == null) return $"Project '{project}' not found.";
         if (string.IsNullOrWhiteSpace(summary)) return "summary is required.";
+        if (!TryParseCustomFields(customFields, out var customFieldsNode, out var cfError)) return cfError;
         try
         {
             var payload = new
@@ -404,12 +721,18 @@ public class MdExplorerTools
                 priority,
                 dueDate,
                 projectKey,
-                assignToSelf = true
+                // Assign-to-self only when no one else was named: an explicit assignee
+                // takes over, and saying both would be contradictory.
+                assignToSelf = string.IsNullOrWhiteSpace(assignee) && string.IsNullOrWhiteSpace(assigneeAccountId),
+                assignee,
+                assigneeAccountId,
+                parentKey,
+                customFields = customFieldsNode
             };
             var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
             var resp = await client.PostAsync("/api/atlassian/jira/issue", content);
             var body = await resp.Content.ReadAsStringAsync();
-            await LogToolCall("JiraCreateIssue", project, $"summary={summary}", body);
+            await LogToolCall("JiraCreateIssue", project, $"summary={summary}, assignee={assignee}, assigneeAccountId={assigneeAccountId}", body);
             return body;
         }
         catch (HttpRequestException ex)
@@ -433,6 +756,140 @@ public class MdExplorerTools
             var resp = await client.GetAsync($"/api/atlassian/jira/projects?projectId={pid}");
             var body = await resp.Content.ReadAsStringAsync();
             await LogToolCall("JiraListProjects", project, "", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Attaches a file to a Jira issue. This is a WRITE operation that uploads the file's " +
+        "contents to Jira, where everyone with access to the issue can read them — only use " +
+        "it on a file the user asked you to attach. The path may be absolute (e.g. " +
+        "'/var/log/app.log') or relative to the MdExplorer project root (e.g. " +
+        "'docs/report.pdf'). Use it for a document, a log or a rendered image (a chart cannot " +
+        "be interactive on an issue: render it to an image first, then attach it).")]
+    public async Task<string> JiraAttachFile(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("The Jira issue key, e.g. 'BCO-123'.")] string issueKey,
+        [Description("Path of the file to attach: absolute, or relative to the project root.")] string filePath,
+        [Description("Name to give the attachment in Jira (optional — defaults to the file's own name).")] string fileName = null)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        if (string.IsNullOrWhiteSpace(issueKey)) return "issueKey is required.";
+        if (string.IsNullOrWhiteSpace(filePath)) return "filePath is required.";
+        try
+        {
+            var payload = new { projectId = pid, filePath, fileName };
+            var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var resp = await client.PostAsync(
+                $"/api/atlassian/jira/issue/{Uri.EscapeDataString(issueKey.Trim())}/attachment", content);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraAttachFile", project, $"issueKey={issueKey},filePath={filePath}", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Lists the Jira fields available on the site, with the exact field name, its id " +
+        "(a system id such as 'fixVersions', or 'customfield_XXXXX'), the schema type and " +
+        "— in valueHint — the value shape to pass. Call this BEFORE setting fields on " +
+        "JiraCreateIssue/JiraUpdateIssue: names must match Jira exactly and are localised " +
+        "per site, so a wrong or ambiguous name is rejected rather than guessed. Pass " +
+        "customOnly=false whenever the field might be a built-in one (fix version, " +
+        "component, reporter, labels…) — with the default true you only see custom fields " +
+        "and risk picking a same-named custom field instead of the system one. Use " +
+        "nameFilter to look up a single field (e.g. 'points', 'version').")]
+    public async Task<string> JiraListFields(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("Return only custom fields (default true). Pass false to include system fields too.")] bool customOnly = true,
+        [Description("Case-insensitive substring to filter by field name or id (optional).")] string nameFilter = null)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        try
+        {
+            var url = $"/api/atlassian/jira/fields?projectId={pid}&customOnly={(customOnly ? "true" : "false")}";
+            if (!string.IsNullOrWhiteSpace(nameFilter))
+                url += $"&nameFilter={Uri.EscapeDataString(nameFilter.Trim())}";
+            var resp = await client.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraListFields", project, $"customOnly={customOnly},nameFilter={nameFilter}", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Lists the fields you can actually set while CREATING a given issue type in a " +
+        "given Jira project — the create screen — with each field's id, name, whether it " +
+        "is required, its schema and, in valueHint, the value shape to pass; allowedValues " +
+        "lists the accepted labels when the field has a closed set. This is NOT the same " +
+        "as JiraListFields: that one lists every field defined on the site, and a field can " +
+        "exist there and still be absent from this screen, in which case Jira rejects the " +
+        "create with 'cannot be set. It is not on the appropriate screen, or unknown'. Call " +
+        "this BEFORE JiraCreateIssue whenever you intend to set anything beyond summary/" +
+        "description, and pick field ids from what it returns. A field you need that is " +
+        "missing here may still be editable after creation — create the issue, then set it " +
+        "with JiraUpdateIssue.")]
+    public async Task<string> JiraGetCreateFields(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("Issue type to create, e.g. 'Task', 'Bug', 'Epic'. The localised name works too.")] string issueType,
+        [Description("Jira project key, e.g. 'BCE' (optional — defaults to the configured key).")] string projectKey = null)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        if (string.IsNullOrWhiteSpace(issueType)) return "issueType is required (e.g. 'Task', 'Epic').";
+        try
+        {
+            var url = $"/api/atlassian/jira/createfields?projectId={pid}&issueType={Uri.EscapeDataString(issueType.Trim())}";
+            if (!string.IsNullOrWhiteSpace(projectKey))
+                url += $"&projectKey={Uri.EscapeDataString(projectKey.Trim())}";
+            var resp = await client.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraGetCreateFields", project, $"issueType={issueType},projectKey={projectKey}", body);
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
+    }
+
+    [McpServerTool, Description(
+        "Lists a Jira project's versions (releases) — name, id, released/archived and " +
+        "release date. These are the only values a fix-version field accepts: check the " +
+        "release name here before passing it to JiraCreateIssue/JiraUpdateIssue, e.g. " +
+        "{\"fixVersions\": \"REL. Q4 2026\"}, rather than discovering from a 400 that it " +
+        "is spelled differently or does not exist in this project.")]
+    public async Task<string> JiraGetProjectVersions(
+        [Description("Project name. Use GetProjects first to discover available project names.")] string project,
+        [Description("Jira project key, e.g. 'BCE' (optional — defaults to the configured key).")] string projectKey = null)
+    {
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        var pid = await ResolveProjectIdAsync(client, project);
+        if (pid == null) return $"Project '{project}' not found.";
+        try
+        {
+            var url = $"/api/atlassian/jira/versions?projectId={pid}";
+            if (!string.IsNullOrWhiteSpace(projectKey))
+                url += $"&projectKey={Uri.EscapeDataString(projectKey.Trim())}";
+            var resp = await client.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("JiraGetProjectVersions", project, $"projectKey={projectKey}", body);
             return body;
         }
         catch (HttpRequestException ex)
@@ -499,23 +956,36 @@ public class MdExplorerTools
 
     [McpServerTool, Description(
         "Edits fields of an existing Jira issue (WRITE): summary, description, " +
-        "priority and/or due date. Only the arguments you pass are changed. Use only " +
-        "when the user explicitly asks to modify an issue.")]
+        "priority and/or due date — and, via 'customFields', any other field, custom or " +
+        "system (fixVersions, components, labels, reporter…). Only the arguments you " +
+        "pass are changed. Use only when the user explicitly asks to modify an issue. " +
+        "Also the way to set a field that JiraCreateIssue could not, because it is on " +
+        "the edit screen but not the create screen.")]
     public async Task<string> JiraUpdateIssue(
         [Description("Project name.")] string project,
         [Description("Issue key, e.g. 'SCRUM-5'.")] string issueKey,
         [Description("New summary (optional).")] string summary = null,
         [Description("New description, plain text (optional).")] string description = null,
         [Description("New priority, e.g. 'High' (optional).")] string priority = null,
-        [Description("New due date 'yyyy-MM-dd' (optional).")] string dueDate = null)
+        [Description("New due date 'yyyy-MM-dd' (optional).")] string dueDate = null,
+        [Description("Parent issue key — link this issue to an EPIC or parent (the 'Parent'/'Principale' " +
+                     "field), e.g. 'BCE-1694' (optional).")] string parentKey = null,
+        [Description("Any other field to change, as a JSON object keyed by field id or exact field name " +
+                     "(optional). Takes custom fields AND system fields with no argument of their own, e.g. " +
+                     "{\"Story Points\": 8, \"fixVersions\": \"REL. Q4 2026\", \"reporter\": \"Enrico Torrelli\"}. " +
+                     "User fields take a name or email and are resolved to the accountId for you. " +
+                     "Ids are language-independent, " +
+                     "names are localised per site — prefer the id (JiraListFields with customOnly=false lists " +
+                     "both). A JSON null clears a field.")] string customFields = null)
     {
         var client = _httpClientFactory.CreateClient("MdExplorer");
         var pid = await ResolveProjectIdAsync(client, project);
         if (pid == null) return $"Project '{project}' not found.";
         if (string.IsNullOrWhiteSpace(issueKey)) return "issueKey is required.";
+        if (!TryParseCustomFields(customFields, out var customFieldsNode, out var cfError)) return cfError;
         try
         {
-            var payload = new { projectId = pid, summary, description, priority, dueDate };
+            var payload = new { projectId = pid, summary, description, priority, dueDate, parentKey, customFields = customFieldsNode };
             var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
             var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Put,
                 $"/api/atlassian/jira/issue/{Uri.EscapeDataString(issueKey.Trim())}") { Content = content };

@@ -1,0 +1,128 @@
+.title-icon {
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.subtitle {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.registry-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #c62828;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.registry-loading,
+.registry-empty {
+  font-size: 13px;
+  opacity: 0.7;
+  padding: 8px 0;
+}
+
+.agent-card {
+  margin-bottom: 12px;
+
+  &.excluded {
+    border-left: 3px solid #c62828;
+  }
+}
+
+.agent-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .name {
+    font-weight: 600;
+    font-size: 15px;
+  }
+
+  .kind-icon {
+    opacity: 0.7;
+    &.warn { color: #c62828; }
+  }
+
+  .kind-badge {
+    font-size: 11px;
+    text-transform: uppercase;
+    opacity: 0.6;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+}
+
+.trust-state .badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  &.trusted { color: #2e7d32; }
+  &.decayed { color: #f9a825; }
+  &.untrusted { opacity: 0.6; }
+}
+
+.agent-role {
+  margin: 6px 0;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.agent-section {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+
+  .section-label {
+    font-size: 12px;
+    opacity: 0.6;
+  }
+}
+
+.decay-warning,
+.registration-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.decay-warning { color: #f9a825; }
+.registration-error { color: #c62828; }
+
+.agent-file {
+  font-size: 11px;
+  opacity: 0.55;
+  margin-top: 4px;
+  word-break: break-all;
+}
+
+.excluded-section h3 {
+  margin: 16px 0 8px 0;
+  font-size: 14px;
+  opacity: 0.8;
+}

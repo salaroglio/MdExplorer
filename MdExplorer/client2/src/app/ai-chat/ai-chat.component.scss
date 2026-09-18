@@ -3,13 +3,13 @@
   flex-direction: column;
   height: calc(100% - 20px);
   margin: 10px;
-  background: #ffffff;
+  background: var(--mde-bg-primary);
   border-radius: 8px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--mde-border-color);
 
   .chat-header {
     flex-shrink: 0;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--mde-border-color);
     z-index: 10;
 
     .header-title {
@@ -28,26 +28,6 @@
       gap: 6px;
       flex-wrap: wrap;
 
-      .copilot-model-picker {
-        mat-chip {
-          cursor: pointer;
-          font-size: 0.75em;
-          min-height: 24px;
-          padding: 4px 10px;
-          opacity: 0.65;
-          transition: opacity 0.15s ease, background-color 0.15s ease;
-
-          &.mat-chip-selected,
-          &.mat-mdc-chip-selected {
-            opacity: 1;
-            font-weight: 500;
-          }
-
-          &:hover:not(.mat-chip-disabled) {
-            opacity: 1;
-          }
-        }
-      }
     }
   }
 
@@ -57,8 +37,8 @@
     height: 70vh !important;
     overflow-y: auto !important;
     overflow-x: hidden;
-    border-bottom: 1px solid #e0e0e0;
-    background: white;
+    border-bottom: 1px solid var(--mde-border-color);
+    background: var(--mde-bg-primary);
     box-sizing: border-box;
 
     &::-webkit-scrollbar {
@@ -67,16 +47,16 @@
     }
 
     &::-webkit-scrollbar-track {
-      background: #f1f1f1;
+      background: var(--mde-scrollbar-track);
     }
 
     &::-webkit-scrollbar-thumb {
-      background: #888;
+      background: var(--mde-scrollbar-thumb);
       border-radius: 4px;
     }
 
     &::-webkit-scrollbar-thumb:hover {
-      background: #555;
+      background: var(--mde-scrollbar-hover);
     }
 
     app-model-manager {
@@ -89,7 +69,7 @@
     flex: 1;
     overflow-y: auto;
     padding: 12px 0;
-    background: #ffffff;
+    background: var(--mde-bg-primary);
 
     .no-messages {
       display: flex;
@@ -97,7 +77,7 @@
       align-items: center;
       justify-content: center;
       height: 100%;
-      color: #999;
+      color: var(--mde-text-hint);
       text-align: center;
 
       mat-icon {
@@ -114,7 +94,7 @@
 
       .hint {
         font-size: 0.9em;
-        color: #ff9800;
+        color: var(--mde-warning-fg);
         margin-top: 10px;
       }
     }
@@ -128,7 +108,7 @@
       transition: background-color 0.15s ease;
 
       &:hover {
-        background-color: #f5f5f5;
+        background-color: var(--mde-hover-overlay);
       }
 
       .message-content {
@@ -169,7 +149,7 @@
           }
 
           .message-time {
-            color: #999;
+            color: var(--mde-text-hint);
           }
         }
 
@@ -205,7 +185,7 @@
 
           // Inline code
           code {
-            background: #f0f0f0;
+            background: var(--mde-bg-tertiary);
             padding: 2px 6px;
             border-radius: 3px;
             font-family: 'Courier New', Consolas, monospace;
@@ -232,22 +212,22 @@
             font-size: 0.9em;
 
             th, td {
-              border: 1px solid #ddd;
+              border: 1px solid var(--mde-border-color);
               padding: 8px 12px;
               text-align: left;
             }
 
             th {
-              background: #f5f5f5;
+              background: var(--mde-bg-tertiary);
               font-weight: 600;
             }
 
             tr:nth-child(even) {
-              background: #fafafa;
+              background: var(--mde-bg-secondary);
             }
 
             tr:hover {
-              background: #f0f0f0;
+              background: var(--mde-bg-hover);
             }
           }
 
@@ -268,11 +248,11 @@
 
           // Blockquotes
           blockquote {
-            border-left: 4px solid #3f51b5;
+            border-left: 4px solid var(--mde-accent-secondary);
             margin: 10px 0;
             padding: 8px 16px;
-            background: #f5f7ff;
-            color: #555;
+            background: var(--mde-bg-tertiary);
+            color: var(--mde-text-secondary);
 
             p {
               margin: 0;
@@ -281,7 +261,7 @@
 
           // Links
           a {
-            color: #1976d2;
+            color: var(--mde-accent-primary);
             text-decoration: none;
             &:hover {
               text-decoration: underline;
@@ -291,7 +271,7 @@
           // Horizontal rules
           hr {
             border: none;
-            border-top: 1px solid #e0e0e0;
+            border-top: 1px solid var(--mde-border-color);
             margin: 16px 0;
           }
 
@@ -405,11 +385,11 @@
       }
 
       &.message-user {
-        border-left-color: #3f51b5;
-        background-color: #f5f7ff;
+        border-left-color: var(--mde-accent-secondary);
+        background-color: #f5f7ff; // tinta indaco identitaria (override nei temi scuri)
 
         .message-content .message-header .message-role {
-          color: #3f51b5;
+          color: var(--mde-accent-secondary);
         }
 
         &:hover {
@@ -418,26 +398,67 @@
       }
 
       &.message-assistant {
-        border-left-color: #4caf50;
-        background-color: #ffffff;
+        border-left-color: var(--mde-success-fg);
+        background-color: var(--mde-bg-primary);
 
         .message-content .message-header .message-role {
-          color: #4caf50;
+          color: var(--mde-success-fg);
         }
 
         &:hover {
-          background-color: #f5f5f5;
+          background-color: var(--mde-hover-overlay);
         }
       }
 
       &.message-system {
-        border-left-color: #ff9800;
-        background-color: #fff8e1;
+        border-left-color: var(--mde-warning-fg);
+        background-color: var(--mde-warning-bg);
 
         .message-content .message-header .message-role {
-          color: #ff9800;
+          color: var(--mde-warning-fg);
         }
       }
+    }
+  }
+
+  /* Riga del consuntivo di Claude Code: informativa, non un avviso — deve leggersi
+     senza rubare l'occhio alla conversazione. Token del tema, così regge chiaro e scuro
+     (i colori del contenuto non stanno negli .scss del viewer, ma questa è chat, non viewer). */
+  .claude-usage-row {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 16px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--mde-text-secondary, rgba(0, 0, 0, 0.6));
+    background: var(--mde-surface-2, rgba(0, 0, 0, 0.03));
+    border-top: 1px solid var(--mde-divider, rgba(0, 0, 0, 0.08));
+
+    .usage-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      opacity: 0.7;
+    }
+
+    .usage-item strong {
+      font-weight: 600;
+    }
+
+    .usage-sep {
+      opacity: 0.4;
+    }
+
+    /* Spinge le finestre di consumo a destra: sono un dato di contesto, non del turno. */
+    .usage-spacer {
+      flex: 1;
+    }
+
+    .usage-window {
+      opacity: 0.8;
+      white-space: nowrap;
     }
   }
 
@@ -447,10 +468,10 @@
     align-items: center;
     gap: 12px;
     padding: 10px 16px;
-    background: #fff3e0;
-    border-top: 1px solid #ffcc80;
-    border-bottom: 1px solid #ffcc80;
-    color: #e65100;
+    background: var(--mde-warning-bg);
+    border-top: 1px solid var(--mde-warning-fg);
+    border-bottom: 1px solid var(--mde-warning-fg);
+    color: var(--mde-warning-fg);
 
     mat-icon {
       flex-shrink: 0;
@@ -482,8 +503,8 @@
     display: flex;
     flex-wrap: wrap;
     padding: 16px;
-    background: #e8eaf6;
-    border-top: 2px solid #c5cae9;
+    background: var(--mde-bg-secondary);
+    border-top: 2px solid var(--mde-border-color);
     gap: 10px;
     align-items: flex-end;
 
@@ -493,11 +514,11 @@
       align-items: center;
       gap: 10px;
       padding: 6px 12px;
-      background: rgba(63, 81, 181, 0.08);
-      border: 1px solid rgba(63, 81, 181, 0.2);
+      background: var(--mde-accent-light);
+      border: 1px solid var(--mde-outline-color);
       border-radius: 4px;
       font-size: 12px;
-      color: #3f51b5;
+      color: var(--mde-accent-secondary);
 
       mat-progress-spinner {
         flex-shrink: 0;
@@ -512,7 +533,7 @@
       }
 
       ::ng-deep textarea {
-        background: #ffffff;
+        background: var(--mde-bg-primary);
         border-radius: 4px;
         // Let the user drag the prompt box taller for long inputs.
         resize: vertical;
@@ -539,12 +560,12 @@
 }
 
 // === DARK-BASED THEME OVERRIDES (dark + milan) ===
+// Ridotto al minimo: le superfici/testi/bordi ora usano i token globali nella
+// sezione base. Restano solo la toolbar (non coperta dal tema nativo) e le
+// tinte identitarie (thinking viola, bolla utente indaco) senza token dedicato.
 :host-context(body.dark-theme),
 :host-context(body.milan-theme) {
   .ai-chat-container {
-    background: var(--mde-bg-primary);
-    border-color: var(--mde-border-color);
-
     .chat-header {
       // .chat-header IS the mat-toolbar element. In light mode Material paints it
       // with color="primary"/"accent" (dark blue). In dark mode that stays dark
@@ -588,138 +609,31 @@
       }
     }
 
-    .model-manager-panel {
-      background: var(--mde-bg-primary);
-      border-bottom-color: var(--mde-border-color);
+    .chat-messages .message {
+      .message-content .thinking-section {
+        .thinking-header {
+          background: rgba(156, 39, 176, 0.18);
+          color: #ce93d8;
 
-      &::-webkit-scrollbar-track {
-        background: var(--mde-scrollbar-track);
-      }
-      &::-webkit-scrollbar-thumb {
-        background: var(--mde-scrollbar-thumb);
-      }
-      &::-webkit-scrollbar-thumb:hover {
-        background: var(--mde-scrollbar-hover);
-      }
-    }
+          &:hover {
+            background: rgba(156, 39, 176, 0.28);
+          }
+        }
 
-    .chat-messages {
-      background: var(--mde-bg-primary);
-
-      .no-messages {
-        color: var(--mde-text-hint);
+        .thinking-body {
+          background: rgba(156, 39, 176, 0.08);
+          border-left-color: rgba(206, 147, 216, 0.5);
+          color: var(--mde-text-secondary);
+        }
       }
 
-      .message {
+      &.message-user {
+        background-color: rgba(121, 134, 203, 0.15);
+
         &:hover {
-          background-color: var(--mde-bg-hover);
-        }
-
-        .message-content {
-          .message-header .message-time {
-            color: var(--mde-text-hint);
-          }
-
-          .message-text {
-            color: var(--mde-text-primary);
-
-            code {
-              background: var(--mde-bg-tertiary);
-              color: var(--mde-text-primary);
-            }
-
-            table {
-              th, td {
-                border-color: var(--mde-border-color);
-              }
-              th {
-                background: var(--mde-bg-tertiary);
-              }
-              tr:nth-child(even) {
-                background: var(--mde-bg-secondary);
-              }
-              tr:hover {
-                background: var(--mde-bg-hover);
-              }
-            }
-
-            blockquote {
-              background: var(--mde-bg-tertiary);
-              color: var(--mde-text-secondary);
-              border-left-color: var(--mde-accent-secondary);
-            }
-
-            hr {
-              border-top-color: var(--mde-border-color);
-            }
-
-            a {
-              color: var(--mde-accent-primary);
-            }
-          }
-
-          .thinking-section {
-            .thinking-header {
-              background: rgba(156, 39, 176, 0.18);
-              color: #ce93d8;
-
-              &:hover {
-                background: rgba(156, 39, 176, 0.28);
-              }
-            }
-
-            .thinking-body {
-              background: rgba(156, 39, 176, 0.08);
-              border-left-color: rgba(206, 147, 216, 0.5);
-              color: var(--mde-text-secondary);
-            }
-          }
-        }
-
-        &.message-user {
-          background-color: rgba(121, 134, 203, 0.15);
-
-          &:hover {
-            background-color: rgba(121, 134, 203, 0.25);
-          }
-        }
-
-        &.message-assistant {
-          background-color: var(--mde-bg-primary);
-
-          &:hover {
-            background-color: var(--mde-bg-hover);
-          }
-        }
-
-        &.message-system {
-          background-color: rgba(255, 152, 0, 0.12);
+          background-color: rgba(121, 134, 203, 0.25);
         }
       }
-    }
-
-    .chat-input-container {
-      background: var(--mde-bg-secondary);
-      border-top-color: var(--mde-border-color);
-
-      .configuring-provider-banner {
-        background: rgba(79, 195, 247, 0.1);
-        border-color: rgba(79, 195, 247, 0.3);
-        color: var(--mde-accent-primary);
-      }
-
-      .chat-input {
-        ::ng-deep textarea {
-          background: var(--mde-bg-tertiary);
-          color: var(--mde-text-primary);
-        }
-      }
-    }
-  }
-
-  .ai-chat-container.compact-mode {
-    .chat-messages {
-      background: var(--mde-bg-secondary);
     }
   }
 }
@@ -760,7 +674,7 @@
 
   .chat-messages {
     padding: 8px 0;
-    background: #fafafa;
+    background: var(--mde-bg-secondary);
 
     .no-messages {
       mat-icon {
@@ -829,4 +743,130 @@
       }
     }
   }
+}
+
+// Riga di stato mentre l'agente risponde: spinner + l'attività in corso. In tono minore
+// (--mde-text-hint), perché non è la risposta: è il segno che il lavoro prosegue.
+.streaming-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+
+  .tool-activity {
+    font-size: 12px;
+    font-style: italic;
+    color: var(--mde-text-hint);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+}
+
+// Riga della scelta del modello Copilot, sotto la testata. Sfondo normale e token del tema,
+// non la toolbar colorata; il campo Material viene compattato perché è una riga di servizio.
+.copilot-model-bar {
+  flex-shrink: 0;
+  display: flex;
+  // In the side panel (~240px) the usage figures do not fit next to the model choice: they
+  // squeezed the combobox to its arrow and the last figure ended under the document. The row
+  // wraps; in a narrow row the figures take a line of their own (container query below), in
+  // the wide chat they stay beside the model choice.
+  flex-wrap: wrap;
+  row-gap: 0;
+  container-type: inline-size;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 12px;
+  border-bottom: 1px solid var(--mde-border-color);
+  background: var(--mde-bg-primary);
+  min-width: 0;
+
+  .copilot-model-label {
+    font-size: 12px;
+    color: var(--mde-text-hint);
+    white-space: nowrap;
+  }
+
+  .copilot-model-field {
+    // Base 0, not auto: with auto the field took the whole row and pushed ⟳ onto a line of its
+    // own in the side panel (measured 13/09/2026). It still grows up to max-width.
+    flex: 1 1 0;
+    min-width: 110px; // never squeezed to its arrow, and ⟳ still fits beside it in the side panel
+    max-width: 320px;
+    font-size: 13px;
+
+    ::ng-deep .mat-form-field-wrapper { padding-bottom: 0; margin: 0; }
+    ::ng-deep .mat-form-field-infix { padding: 6px 0; border-top: 0; width: auto; }
+    ::ng-deep .mat-form-field-outline { top: 0; }
+    ::ng-deep .mat-form-field-subscript-wrapper { display: none; }
+  }
+
+  .copilot-model-refresh {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    flex-shrink: 0;
+  }
+
+  .copilot-model-refresh .spinning {
+    animation: copilot-model-spin 1s linear infinite;
+  }
+
+  .copilot-model-hint {
+    font-size: 12px;
+    font-style: italic;
+    color: var(--mde-text-hint);
+    white-space: nowrap;
+  }
+
+  .copilot-model-error {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--mde-warning-fg);
+    white-space: nowrap;
+
+    mat-icon { font-size: 16px; width: 16px; height: 16px; }
+  }
+
+  // Consumi a destra della riga: informativi, non un avviso, finché non si avvicinano al pieno.
+  .copilot-usage {
+    margin-left: auto;
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 6px;
+    padding-bottom: 2px;
+    font-size: 11px;
+    color: var(--mde-text-hint);
+
+    .usage-item { white-space: nowrap; }
+
+    .usage-item strong { font-weight: 600; }
+    .usage-sep { opacity: 0.5; }
+    .usage-high strong { color: var(--mde-warning-fg); }
+  }
+
+  // Narrow row (the side panel): the figures on their own line, from the left, all together.
+  @container (max-width: 420px) {
+    .copilot-usage {
+      flex-basis: 100%;
+      margin-left: 0;
+      flex-wrap: nowrap;
+      gap: 4px;
+    }
+  }
+}
+
+.model-unavailable {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+@keyframes copilot-model-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }

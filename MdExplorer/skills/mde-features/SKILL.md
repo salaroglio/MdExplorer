@@ -3,7 +3,7 @@ name: mde-features
 description: Reference of MdExplorer-specific markdown extensions beyond CommonMark — text() file include, html() preview, runnable code blocks (bash/sh/pwsh/cmd), and PlantUML interactive SVG. Consult this skill when writing or editing any `.md` document in an MDE project to know which rendering features you can leverage. Triggers on "embed a file in markdown", "include source file inline", "show file content in doc", "make a script runnable in docs", "preview HTML in markdown", "draw a diagram in markdown".
 mde:
   origin: mdexplorer
-  version: 1
+  version: 2
   updatePolicy: replace
 ---
 
@@ -37,6 +37,7 @@ Use this reference whenever you author or edit `.md` files in an MDE project and
 | `\`\`\`html` (inline content, no path) | Same tabbed UI but for HTML written inline in the markdown | One-off small HTML snippets, e.g. a fragment of UI in a design note |
 | `\`\`\`bash` / `sh` / `shell` / `pwsh` / `powershell` / `ps1` / `cmd` / `bat` / `batch` | Adds a ▶ Run button — the script can be executed from the document, output streamed below | Documenting setup/troubleshooting steps where executing is faster than copy-pasting elsewhere |
 | `\`\`\`plantuml` | Renders the PlantUML source as an interactive SVG (click nodes to highlight relations) | Architecture diagrams, class diagrams, sequence diagrams, ER, mind maps |
+| `\`\`\`plantuml(@json, path)` / `(@yaml, path)` | Renders an external .json/.yaml file AS a PlantUML tree diagram — the data stays in its own file | Config, payloads, ontology fixtures: the document shows the diagram, the file stays the single source of truth |
 
 The rest of this skill goes feature by feature with details, examples, and caveats.
 
@@ -240,15 +241,13 @@ The PlantUML source is rendered to SVG. The SVG is **interactive**:
 
 ### Caveats / conservative syntax
 
-- **Avoid the `;line:#color` extension** on rectangles — not supported by all PlantUML versions and breaks rendering
-- **Avoid escaped quotes** inside rectangle labels (`"\"...\""`) — same reason
-- **Keep `\`\`\`plantuml` minimal**: prefer fills (`#color`) over fancy borders, use simple `-->` arrows, basic shapes (`rectangle`, `class`, `usecase`)
-- Soft pastel palettes work well for "garbatamente colorate" diagrams:
-  - `#D6EAF8` (azzurro)
-  - `#D5F5E3` (verde)
-  - `#FEF9E7` (giallo tenue)
-  - `#FAE5D3` (arancio)
-  - `#EAD9F7` (viola)
+- **No backticks inside a `plantuml` block** — the block ends at the first backtick and the diagram silently disappears
+- **Avoid escaped quotes** inside labels (`"\"...\""`) — PlantUML does not unescape them: the backslashes are drawn literally
+- **`#fill;line:color` works on `class`, `entity` and `rectangle`, but NOT on a sequence `participant`**: there it fails with "No such color" — color a participant's border through a stereotype
+- **Keep `\`\`\`plantuml` minimal**: simple `-->` arrows, basic shapes (`rectangle`, `class`, `usecase`), and color only what carries meaning
+- **In dark theme MdExplorer inverts the SVG** (`invert(0.88) hue-rotate(180deg)`): hue survives, lightness flips — encode meaning in hue, never use `#FFFFFF`
+
+**Colors, palette, per-diagram conventions and mind maps**: see the **`mde-plantuml`** skill. It holds the palette already computed against the dark theme, the color syntax verified per diagram type, the `<style>` block for mind maps, and the `CheckPlantuml` MCP tool to validate a diagram before writing it.
 
 ### When to use
 
@@ -270,7 +269,8 @@ Il flusso di sincronizzazione del KG è questo:
 \`\`\`plantuml
 @startuml
 !theme plain
-skinparam backgroundColor #F8F9FA
+skinparam ParticipantBackgroundColor #F1F3F4
+skinparam ParticipantBorderColor #5F6368
 
 actor User
 participant Controller
@@ -284,6 +284,89 @@ Neo4j --> Orchestrator : ack
 Orchestrator --> Controller : outcome
 Controller --> User : 200 OK
 @enduml
+\`\`\`
+```
+
+---
+
+## 4-bis. `plantuml(@json, path)` / `plantuml(@yaml, path)` — an external data file AS a diagram
+
+Same idea as `text(path)`, but the file is not shown as source: it is **rendered as a PlantUML
+tree diagram**. The data lives in its own `.json`/`.yaml` file — versioned, diffable, used by the
+code — and the document shows the picture, always in sync.
+
+### Syntax
+
+````
+```plantuml(@json, ./config/servizi.json)
+```
+````
+
+The block may carry a body, which is injected into the diagram **before** the data. That is where
+the reading of the data belongs — highlights, styles, title — so the file stays pure data:
+
+````
+```plantuml(@json, ./config/servizi.json)
+#highlight "servizi" / "db"
+<style>
+  jsonDiagram { node { BackGroundColor lightblue } }
+</style>
+```
+````
+
+becomes, before rendering:
+
+```
+@startjson
+#highlight "servizi" / "db"
+<style>
+  jsonDiagram { node { BackGroundColor lightblue } }
+</style>
+{ ...content of servizi.json... }
+@endjson
+```
+
+`@yaml` works the same way through `@startyaml`.
+
+### Path resolution
+
+Identical to `text(path)`: `./file.json` and `file.json` relative to the `.md`, `../file.json` the
+parent folder, `/file.json` from the **project root**. Paths escaping the project are refused, and
+so are files above 500 KB.
+
+### Rendering
+
+An ordinary interactive PlantUML diagram: click a box to highlight the boxes upstream (red) and
+downstream (green) with their connections (orange), Ctrl+wheel to zoom, drag to pan, collapse and
+expand of the sub-trees. The SVG cache is keyed on the diagram source, which now includes the file
+content: **change the .json, and the diagram is regenerated on its own.**
+
+### When it does NOT render
+
+The block never stays as it is: when something is wrong you get a bordered message saying what,
+instead of a broken diagram —  file not found (with the path that was looked up), path outside the
+project, file too large, unknown directive, invalid JSON (with the parser message), or content
+holding a backtick (which would close the fence early).
+
+### When to use
+
+- A config, a payload, an API response you already keep as a file and want to *show* the shape of
+- Ontology/dataset fixtures next to the document that describes them
+- Anything where copying the JSON into the document would drift from the real file
+
+### When NOT to use
+
+- The file is huge: a 500-node tree renders as an unreadable wall. Extract the interesting part
+  into a smaller file
+- You want to READ the data, not see its shape — that is `text(path)`
+
+### Example
+
+```markdown
+La configurazione dei servizi, letta direttamente dal file che usa il deploy:
+
+\`\`\`plantuml(@json, ./deploy/servizi.json)
+#highlight "servizi" / "db"
 \`\`\`
 ```
 

@@ -1,0 +1,35 @@
+/* MdExplorer - AI Selection: floating "Usa AI" button near the text selection */
+
+#mdeAiSelectionButton {
+    position: fixed;
+    display: none;
+    z-index: 10050; /* above search bar and image overlays */
+    padding: 4px 12px;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 16px;
+    background: #ffffff;
+    color: #333333;
+    font-size: 13px;
+    font-family: inherit;
+    line-height: 20px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    user-select: none;
+}
+
+#mdeAiSelectionButton:hover {
+    background: #f0e7ff;
+    border-color: #7c4dff;
+}
+
+body.dark-theme #mdeAiSelectionButton {
+    background: #2d2d2d;
+    color: #e0e0e0;
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+body.dark-theme #mdeAiSelectionButton:hover {
+    background: #3a2d55;
+    border-color: #9575ff;
+}

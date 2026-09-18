@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, Injector } from '@angular/core';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
-import { tap, catchError } from 'rxjs/operators';
+import { tap, catchError, map } from 'rxjs/operators';
 import { MdFile } from '../models/md-file';
 import { IDocumentSettings } from './Types/IDocumentSettings';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
@@ -22,6 +22,8 @@ export class MdFileService {
   private _selectedMdFileFromSideNav: BehaviorSubject<MdFile>;
   private _selectedDirectoryFromNewDirectory: BehaviorSubject<MdFile>;
   private _revealInTree = new Subject<MdFile>();
+  // Fase 7h: richiesta di review read-only del documento corrente dal worktree di un agente.
+  private _viewWorktree = new Subject<string>();
 
   private dataStore: {
     mdFiles: MdFile[]
@@ -125,6 +127,24 @@ export class MdFileService {
 
   requestRevealInTree(file: MdFile): void {
     this._revealInTree.next(file);
+  }
+
+  // ---- Worktree review read-only (Fase 7h) ----
+
+  /** Emette l'agente di cui mostrare il worktree (il main-content ripunta l'iframe read-only). */
+  get viewWorktree$(): Observable<string> {
+    return this._viewWorktree.asObservable();
+  }
+
+  viewWorktree(agentName: string): void {
+    this._viewWorktree.next(agentName);
+  }
+
+  /** Elenco dei worktree degli agenti del progetto aperto (agente → path). */
+  getAgentWorktrees(connectionId: string): Observable<{ agent: string; path: string }[]> {
+    return this.http
+      .get<{ worktrees: { agent: string; path: string }[] }>(`../api/MdExplorerWorktree/list?connectionId=${connectionId}`)
+      .pipe(map(r => r?.worktrees ?? []));
   }
 
   get selectedDirectoryFromNewDirectory(): Observable<MdFile> {

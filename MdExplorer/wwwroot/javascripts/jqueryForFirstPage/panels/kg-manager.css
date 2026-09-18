@@ -362,3 +362,158 @@
 .kgSanityLoading, .kgSanityErr { padding: 16px; color: #64748b; font-style: italic; }
 .kgSanityErr { color: #b91c1c; }
 .kgDark .kgSanityErr { color: #fca5a5; }
+
+/* ---- File boxes (2D "Files" view) -----------------------------------------
+   HTML boxes laid over the canvas, one per file node. kg-manager.js positions and
+   scales them every frame (transform-origin 0 0: the zoom scale comes from the JS). */
+.kgBoxLayer {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    overflow: hidden;
+    pointer-events: none;
+}
+.kgBox {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform-origin: 0 0;
+    will-change: transform;
+    pointer-events: auto;
+    min-width: 110px;
+    max-width: 280px;
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid rgba(15,23,42,0.12);
+    border-left: 4px solid var(--kg-accent, #0ea5e9);
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(15,23,42,0.12), 0 1px 3px rgba(15,23,42,0.06);
+    font: 12.5px/1.4 -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+    user-select: none;
+}
+.kgBoxOpen { width: 260px; }
+.kgBoxCenter {
+    background: #fffbeb;
+    border-color: #b45309;
+    border-left-color: #b45309;
+    box-shadow: 0 0 0 3px rgba(250,204,21,0.55), 0 6px 18px rgba(180,83,9,0.22);
+}
+.kgBoxDragging { box-shadow: 0 10px 28px rgba(15,23,42,0.28); cursor: grabbing; }
+.kgBoxHead {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px 5px 4px;
+    white-space: nowrap;
+    cursor: grab;
+}
+.kgBoxToggle {
+    appearance: none;
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: #64748b;
+    font-size: 11px;
+    line-height: 20px;
+    cursor: pointer;
+    transition: transform 120ms ease-out, background 120ms ease-out;
+}
+.kgBoxToggle:hover { background: rgba(15,23,42,0.07); color: #0f172a; }
+.kgBoxOpen .kgBoxToggle { transform: rotate(90deg); }
+.kgBoxToggle[disabled] { opacity: 0.25; cursor: default; background: transparent; }
+.kgBoxName {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 210px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.kgBoxName:hover { text-decoration: underline; }
+.kgBoxBody {
+    padding: 7px 11px 9px;
+    border-top: 1px solid rgba(15,23,42,0.08);
+    color: #334155;
+    font-size: 12px;
+    white-space: normal;
+    user-select: text;
+    cursor: default;
+    display: none;
+}
+.kgBoxOpen .kgBoxBody { display: block; }
+.kgBoxBody p { margin: 0 0 6px; }
+.kgBoxBody p:last-child { margin-bottom: 0; }
+.kgBoxBody ul { margin: 4px 0 0; padding-left: 18px; }
+.kgBoxBody li { margin: 2px 0; }
+
+/* Type icons: small colored tiles, recognisable at a glance (Office-like colors). */
+.kgFileIcon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 4px;
+    background: #64748b;
+    color: #ffffff;
+    font: 700 10px/1 -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+    letter-spacing: 0.2px;
+    cursor: pointer;
+}
+.kgFileIcon-markdown   { background: #0284c7; }
+.kgFileIcon-json       { background: #475569; font-family: ui-monospace, Consolas, monospace; }
+.kgFileIcon-text       { background: #64748b; font-size: 9px; }
+.kgFileIcon-word       { background: #2b579a; }
+.kgFileIcon-powerpoint { background: #c43e1c; }
+.kgFileIcon-excel      { background: #217346; }
+.kgFileIcon-pdf        { background: #d93025; font-size: 9px; }
+.kgFileIcon-image,
+.kgFileIcon-web,
+.kgFileIcon-other      { background: transparent; color: inherit; font-size: 14px; padding: 0; }
+
+/* Dark theme */
+.kgDark .kgBox {
+    background: #111827;
+    color: #e6edf3;
+    border-color: rgba(255,255,255,0.12);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.3);
+}
+.kgDark .kgBoxCenter {
+    background: #292211;
+    border-color: #facc15;
+    border-left-color: #facc15;
+    box-shadow: 0 0 0 3px rgba(250,204,21,0.35), 0 6px 18px rgba(0,0,0,0.5);
+}
+.kgDark .kgBoxToggle { color: #94a3b8; }
+.kgDark .kgBoxToggle:hover { background: rgba(255,255,255,0.08); color: #e6edf3; }
+.kgDark .kgBoxBody { color: #cbd5e1; border-top-color: rgba(255,255,255,0.10); }
+
+/* A link to a file that is not on disk: shown, but it does not open. */
+.kgBoxMissing { opacity: 0.6; border-style: dashed; }
+.kgBoxMissing .kgBoxName { text-decoration: line-through; cursor: not-allowed; }
+.kgBoxMissing .kgBoxName:hover { text-decoration: line-through; }
+.kgBoxMissing .kgFileIcon { cursor: not-allowed; }
+
+/* Short notice inside the graph panel (e.g. a missing file). */
+.kgNotice {
+    position: absolute;
+    left: 50%;
+    bottom: 70px;
+    z-index: 20;
+    transform: translate(-50%, 12px);
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: #323232;
+    color: #ffffff;
+    font: 13px -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease-out, transform 160ms ease-out;
+}
+.kgNotice.kgNoticeShown { opacity: 1; transform: translate(-50%, 0); }
+.kgDark .kgNotice { background: #e0e0e0; color: #1a1a1a; }
