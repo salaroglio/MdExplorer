@@ -112,6 +112,8 @@ if (window.commonJsLoaded) {
         console.log('🔍 [COMMON.JS] Emoji modules loading queued');
 
         // IMAGES: Readability, magnifier, transform (move/resize)
+        // La barra dei pulsanti sopra un'immagine: una barra sola, spostabile col mouse.
+        document.write("<link href='/javascripts/jqueryForFirstPage/images/image-toolbar.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/images/image-readability.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/images/image-magnifier.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/images/image-transform.js');

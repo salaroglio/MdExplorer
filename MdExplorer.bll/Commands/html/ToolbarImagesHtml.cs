@@ -148,7 +148,7 @@ namespace MdExplorer.Features.Commands.html
                     $"{System.Environment.NewLine}{System.Environment.NewLine}" +
                     $"</div>";
                 var newDivContainer = $"\r\n<div {classForDivContainer} {styleTopDivContainer} >";
-                var newDivToolbar = $"\r\n<div id=\"{guidToDisplayToolbar}\" onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\" style=\" display:none;\">"; 
+                var newDivToolbar = $"\r\n<div id=\"{guidToDisplayToolbar}\" class=\"mde-img-toolbar\" onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\" style=\" display:none;\">"; 
                 var newButtonForResize = linkHash != null ?  $"\r\n<button onclick =\"activateResize('{linkHash}')\" class=\"btn btn-md btn-primary-outline\"><img src=\"/assets/resize.png\"/></button>"
                     :string.Empty;
                 var newButtonForMove = linkHash !=null? $"\r\n<button onclick=\"activateMove(this,'{linkHash}','{guidToDisplayToolbar}')\"  class=\"btn btn-md btn-primary-outline\"><img src=\"/assets/move.png\"/></button>"
@@ -162,7 +162,7 @@ namespace MdExplorer.Features.Commands.html
                 var newButtonForImageCopy = (!isPlantumlCopy && !string.IsNullOrEmpty(imageLinkPath)) ?
                     $@"<button alt=""copy into clipboard"" onclick=""copyImageToClipboard('{imageLinkPath}')""><img src=""/assets/clipboard.png""/></button>" : string.Empty;
                 var newButtonEyes = $@"<button alt=""see original size"" onclick=""toggleSeeMe('{stringMatchedHash}')""><img src = ""/assets/eyes.png""/></button>";
-                var newButtonMagnifier = isSvgImage ? $@"<button alt=""search text"" onclick=""toggleMagnifier('{stringMatchedHash}')""><img src = ""/assets/magnifier.svg"" style=""width: 16px; height: 16px;""/></button>" : string.Empty;
+                var newButtonMagnifier = isSvgImage ? $@"<button alt=""search text"" onclick=""toggleMagnifier('{stringMatchedHash}')""><img src = ""/assets/magnifier.svg""/></button>" : string.Empty;
                 var endDivForToolbar = "</div>";
                 var endDivContainer = $"</div>";
                 divContainsImage = string.Concat(newDivContainer,
@@ -221,6 +221,7 @@ namespace MdExplorer.Features.Commands.html
                 // Build toolbar (eyes and copy for simple images — no magnifier, text search makes no sense on raster images)
                 var newDivContainer = $"\r\n<div>";
                 var newDivToolbar = $"\r\n<div id=\"{guidToDisplayToolbar}\" " +
+                    $"class=\"mde-img-toolbar\" " +
                     $"onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" " +
                     $"onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\" " +
                     $"style=\"display:none;\">";

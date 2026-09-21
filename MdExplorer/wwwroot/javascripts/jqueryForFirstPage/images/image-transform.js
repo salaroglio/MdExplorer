@@ -64,6 +64,52 @@ var _idleHideTimers = {};
 var _idleMouseMoveListeners = {};
 var _toolbarIdleHidden = {};
 
+// Spostamento della barra: di quanto l'utente l'ha tirata via dal suo angolo
+// (per barra), e se la sta trascinando proprio adesso.
+var _toolbarOffsets = {};
+var _toolbarDragging = {};
+
+/**
+ * L'angolo "di casa" della barra: in alto a sinistra dell'area visibile del
+ * contenitore. È da qui che si parte, e a cui si somma lo spostamento scelto.
+ *
+ * @param {string} referenceId - ID of toolbar element
+ * @returns {{top:number,left:number}|null}
+ */
+function _toolbarAnchor(referenceId) {
+    var $toolbar = $('#' + referenceId);
+    var parent = $toolbar.parent()[0];
+    if (!parent) return null;
+
+    var rect = parent.getBoundingClientRect();
+    return { top: Math.max(0, rect.top) + 20, left: Math.max(0, rect.left) };
+}
+
+/**
+ * Dove va disegnata la barra: l'angolo più lo spostamento dell'utente, il tutto
+ * tenuto dentro la finestra — una barra trascinata fuori non si recupererebbe più.
+ *
+ * @param {string} referenceId - ID of toolbar element
+ * @returns {{top:number,left:number}|null}
+ */
+function _toolbarPlacement(referenceId) {
+    var anchor = _toolbarAnchor(referenceId);
+    if (!anchor) return null;
+
+    var offset = _toolbarOffsets[referenceId] || { dx: 0, dy: 0 };
+    var el = document.getElementById(referenceId);
+    var width = el ? el.offsetWidth : 0;
+    var height = el ? el.offsetHeight : 0;
+
+    var maxLeft = Math.max(0, window.innerWidth - width);
+    var maxTop = Math.max(0, window.innerHeight - height);
+
+    return {
+        top: Math.min(Math.max(0, anchor.top + offset.dy), maxTop),
+        left: Math.min(Math.max(0, anchor.left + offset.dx), maxLeft)
+    };
+}
+
 /**
  * Recalculate and apply position:fixed coordinates for the toolbar,
  * clamping to the container's visible top-left corner in the viewport.
@@ -74,11 +120,109 @@ function _updateToolbarPosition(referenceId) {
     var $toolbar = $('#' + referenceId);
     if (!$toolbar.length || $toolbar.css('display') === 'none') return;
 
-    var rect = $toolbar.parent()[0].getBoundingClientRect();
-    var top = Math.max(0, rect.top) + 20;
-    var left = Math.max(0, rect.left);
+    var placement = _toolbarPlacement(referenceId);
+    if (!placement) return;
 
-    $toolbar.css({ top: top + 'px', left: left + 'px' });
+    $toolbar.css({ top: placement.top + 'px', left: placement.left + 'px' });
+}
+
+/**
+ * La maniglia per spostare la barra, aggiunta una volta sola.
+ * <p>Si trascina SOLO da lì: se si potesse trascinare da tutta la barra, un clic
+ * un po' mosso su un pulsante diventerebbe uno spostamento invece di un comando.</p>
+ *
+ * @param {string} referenceId - ID of toolbar element
+ */
+function _ensureToolbarGrip(referenceId) {
+    var $toolbar = $('#' + referenceId);
+    if (!$toolbar.length) return;
+
+    $toolbar.addClass('mde-img-toolbar');
+    if ($toolbar.data('grip-added')) return;
+
+    var $grip = $('<span class="mde-img-toolbar-grip" title="Trascina la barra">\u2807</span>');
+    $grip.on('mousedown', function (ev) { _startToolbarDrag(referenceId, ev); });
+    $toolbar.prepend($grip);
+    $toolbar.data('grip-added', true);
+}
+
+/**
+ * Trascinamento della barra. Finché dura: niente auto-nascondi (il puntatore
+ * esce dalla barra in continuazione) e la casella di ricerca del diagramma
+ * segue, perché si posiziona a partire dalla barra.
+ *
+ * @param {string} referenceId - ID of toolbar element
+ * @param {MouseEvent} ev - mousedown sulla maniglia
+ */
+function _startToolbarDrag(referenceId, ev) {
+    if (ev.button !== 0) return;   // solo il tasto sinistro
+    ev.preventDefault();           // senza, il browser inizia a selezionare il testo sotto
+
+    var el = document.getElementById(referenceId);
+    if (!el) return;
+
+    var rect = el.getBoundingClientRect();
+    var startX = ev.clientX;
+    var startY = ev.clientY;
+    var startTop = rect.top;
+    var startLeft = rect.left;
+
+    _toolbarDragging[referenceId] = true;
+    $(el).addClass('mde-img-toolbar-dragging');
+
+    // L'auto-nascondi si ferma qui e riparte al rilascio.
+    if (_idleHideTimers[referenceId]) {
+        clearTimeout(_idleHideTimers[referenceId]);
+        delete _idleHideTimers[referenceId];
+    }
+
+    var onMove = function (moveEv) {
+        var width = el.offsetWidth;
+        var height = el.offsetHeight;
+        var top = Math.min(Math.max(0, startTop + (moveEv.clientY - startY)), Math.max(0, window.innerHeight - height));
+        var left = Math.min(Math.max(0, startLeft + (moveEv.clientX - startX)), Math.max(0, window.innerWidth - width));
+
+        el.style.top = top + 'px';
+        el.style.left = left + 'px';
+
+        // Lo spostamento si ricorda rispetto all'angolo, non come coordinata
+        // assoluta: così scorrendo la pagina la barra resta dove l'utente l'ha
+        // messa RISPETTO all'immagine, e non ferma a metà schermo.
+        var anchor = _toolbarAnchor(referenceId);
+        if (anchor) {
+            _toolbarOffsets[referenceId] = { dx: left - anchor.left, dy: top - anchor.top };
+        }
+
+        _updateSearchBoxForToolbar(referenceId);
+    };
+
+    var onUp = function () {
+        document.removeEventListener('mousemove', onMove, true);
+        document.removeEventListener('mouseup', onUp, true);
+        delete _toolbarDragging[referenceId];
+        $(el).removeClass('mde-img-toolbar-dragging');
+        _updateSearchBoxForToolbar(referenceId);
+        // Ripreso il movimento normale: l'auto-nascondi torna a contare.
+        _startIdleHideTimer(referenceId);
+    };
+
+    document.addEventListener('mousemove', onMove, true);
+    document.addEventListener('mouseup', onUp, true);
+}
+
+/**
+ * La casella "cerca nel diagramma" si posiziona a partire dalla barra: se la
+ * barra si sposta, va rimessa anche lei, altrimenti resta indietro.
+ *
+ * @param {string} referenceId - ID of toolbar element
+ */
+function _updateSearchBoxForToolbar(referenceId) {
+    if (typeof _toolbarToHashMap === 'undefined' || !_toolbarToHashMap[referenceId]) return;
+    if (typeof _updateSearchBoxPosition !== 'function') return;
+
+    var hash = _toolbarToHashMap[referenceId];
+    var $box = $('#' + referenceId).next();
+    if ($box.length) _updateSearchBoxPosition(hash, $box);
 }
 
 /**
@@ -92,6 +236,9 @@ function _startIdleHideTimer(referenceId) {
     if (_idleHideTimers[referenceId]) {
         clearTimeout(_idleHideTimers[referenceId]);
     }
+
+    // Mentre si trascina non si nasconde niente: il conto riparte al rilascio.
+    if (_toolbarDragging[referenceId]) return;
 
     _idleHideTimers[referenceId] = setTimeout(function () {
         // Don't idle-hide if search box is open for this toolbar's image
@@ -152,12 +299,16 @@ function showImageToolbar(referenceId) {
     _toolbarIdleHidden[referenceId] = false;
 
     var $element = $('#' + referenceId);
-    var rect = $element.parent()[0].getBoundingClientRect();
-    var top = Math.max(0, rect.top) + 20;
-    var left = Math.max(0, rect.left);
 
-    $element.attr("style",
-        "display:block; position:fixed; top:" + top + "px; left:" + left + "px; z-index:100;");
+    // Prima si mostra (una barra con display:none misura zero, e lo spostamento
+    // va calcolato sulla sua larghezza vera), poi si mette al posto giusto.
+    $element.attr("style", "display:block; position:fixed; z-index:100;");
+    _ensureToolbarGrip(referenceId);
+
+    var placement = _toolbarPlacement(referenceId);
+    if (placement) {
+        $element.css({ top: placement.top + 'px', left: placement.left + 'px' });
+    }
 
     // Dark mode: inject light-mode toggle button for SVG diagrams
     if (document.body.classList.contains('dark-theme') && !$element.data('light-toggle-added')) {
@@ -176,9 +327,11 @@ function showImageToolbar(referenceId) {
             var initialTitle = filterActive
                 ? 'Turn on the light (view in light mode)'
                 : 'Turn off the light (back to dark mode)';
+            // Solo lo STATO (accesa/spenta) sta qui: la misura la decide il CSS della
+            // barra, altrimenti questa lampadina resterebbe più grande delle altre icone.
             var iconStyle = filterActive
-                ? 'font-size:18px;line-height:1;display:inline-block;filter:grayscale(1) brightness(0.6);opacity:0.5;'
-                : 'font-size:18px;line-height:1;display:inline-block;';
+                ? 'filter:grayscale(1) brightness(0.6);opacity:0.5;'
+                : '';
             var $btn = $('<button alt="light mode" title="' + initialTitle + '" onclick="toggleSvgLightMode(this)">' +
                 '<span class="svg-light-toggle-icon" style="' + iconStyle + '">💡</span>' +
                 '</button>');
@@ -216,6 +369,10 @@ function showImageToolbar(referenceId) {
  * @param {string} referenceId - ID of toolbar element
  */
 function hideImageToolbar(referenceId) {
+    // Trascinando, il puntatore esce di continuo dalla barra: nascondersi ora
+    // vorrebbe dire sparire in mano all'utente.
+    if (_toolbarDragging[referenceId]) return;
+
     // Immediately cancel idle timer to prevent it firing during the 150ms delay
     if (_idleHideTimers[referenceId]) {
         clearTimeout(_idleHideTimers[referenceId]);
