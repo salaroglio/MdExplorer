@@ -1,7 +1,7 @@
 import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
 import { MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialogRef as MatDialogRef, MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { Subscription } from 'rxjs';
-import { HarnessTarget, ProjectSettingsService } from '../services/project-settings.service';
+import { HarnessTarget, MarkAgentEngineId, ProjectSettingsService } from '../services/project-settings.service';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../commons/components/confirm-dialog/confirm-dialog.component';
 import { CompatibilityModeService } from '../../services/compatibility-mode.service';
 import { IdeConfigurationService } from '../services/ide-configuration.service';
@@ -24,11 +24,13 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   rule1Enabled: boolean = false;
   linkIndexingEnabled: boolean = true;
   plantUmlKeepOriginalColorsEnabled: boolean = false;
-  copilotCliAutoSelectEnabled: boolean = true;
-  // Gemella della precedente. Default false: rispecchia il backend, dove un progetto che non
-  // ha mai visto l'opzione non deve cambiare motore della chat da solo.
-  claudeCodeAutoSelectEnabled: boolean = false;
-  /** Both engine flags arrived: until then the defaults above would show a coherence warning that is not real. */
+  // Motore di MarkAgent. `markAgentEngine` è quello IN VIGORE, `engineChoice` è quello che si
+  // vede nel pannello avanzate: 'linked' = segue l'ambiente (la colonna a NULL nel DB).
+  markAgentEngine: MarkAgentEngineId = 'none';
+  engineChoice: MarkAgentEngineId | 'linked' = 'linked';
+  savingEngine: boolean = false;
+  showAdvancedEngine: boolean = false;
+  /** Finché la risposta non arriva, un avviso di scollegamento sarebbe inventato. */
   engineSettingsLoaded: boolean = false;
 
   // Agent City / Federation (§12.4) — activation lives in .development.yml (shared via git).
@@ -235,12 +237,11 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     let ragLoaded = false;
     let stickyScrollLoaded = false;
     let plantUmlKeepOriginalColorsLoaded = false;
-    let copilotCliAutoSelectLoaded = false;
-    let claudeCodeAutoSelectLoaded = false;
+    let markAgentEngineLoaded = false;
     let textIndexingLoaded = false;
 
     const checkIfDone = () => {
-      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded && stickyScrollLoaded && plantUmlKeepOriginalColorsLoaded && copilotCliAutoSelectLoaded && claudeCodeAutoSelectLoaded && textIndexingLoaded) {
+      if (rule1Loaded && linkIndexingLoaded && compatibilityLoaded && ideConfigLoaded && ragLoaded && stickyScrollLoaded && plantUmlKeepOriginalColorsLoaded && markAgentEngineLoaded && textIndexingLoaded) {
         this.loading = false;
       }
     };
@@ -287,34 +288,19 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       }
     });
 
-    // Load Copilot CLI Auto-Select setting
-    this.projectSettingsService.getCopilotCliAutoSelectSetting(this.projectPath).subscribe({
+    // Motore di MarkAgent: una chiamata sola, che dice anche se segue l'ambiente.
+    this.projectSettingsService.getMarkAgentEngine(this.projectPath).subscribe({
       next: (response) => {
-        this.copilotCliAutoSelectEnabled = response.enabled;
-        copilotCliAutoSelectLoaded = true;
-        this.engineSettingsLoaded = copilotCliAutoSelectLoaded && claudeCodeAutoSelectLoaded;
+        this.applyEngineResponse(response.engine, response.linked);
+        this.engineSettingsLoaded = true;
+        markAgentEngineLoaded = true;
         checkIfDone();
       },
       error: (error) => {
-        console.error('Error loading Copilot CLI Auto-Select setting:', error);
-        copilotCliAutoSelectLoaded = true;
-        this.engineSettingsLoaded = copilotCliAutoSelectLoaded && claudeCodeAutoSelectLoaded;
-        checkIfDone();
-      }
-    });
-
-    // Load Claude Code Auto-Select setting
-    this.projectSettingsService.getClaudeCodeAutoSelectSetting(this.projectPath).subscribe({
-      next: (response) => {
-        this.claudeCodeAutoSelectEnabled = response.enabled;
-        claudeCodeAutoSelectLoaded = true;
-        this.engineSettingsLoaded = copilotCliAutoSelectLoaded && claudeCodeAutoSelectLoaded;
-        checkIfDone();
-      },
-      error: (error) => {
-        console.error('Error loading Claude Code Auto-Select setting:', error);
-        claudeCodeAutoSelectLoaded = true;
-        this.engineSettingsLoaded = copilotCliAutoSelectLoaded && claudeCodeAutoSelectLoaded;
+        console.error('Error loading the MarkAgent engine:', error);
+        // engineSettingsLoaded resta false: senza risposta non si disegna né un motore né un
+        // avviso di scollegamento, che sarebbero inventati.
+        markAgentEngineLoaded = true;
         checkIfDone();
       }
     });
@@ -473,36 +459,60 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     });
   }
 
-  onCopilotCliAutoSelectChange(): void {
-    this.saving = true;
-    this.projectSettingsService.setCopilotCliAutoSelectSetting(this.copilotCliAutoSelectEnabled, this.projectPath).subscribe({
-      next: () => {
-        this.saving = false;
+  /** Allinea i campi della UI alla risposta del server. */
+  private applyEngineResponse(engine: MarkAgentEngineId, linked: boolean): void {
+    this.markAgentEngine = engine;
+    this.engineChoice = linked ? 'linked' : engine;
+  }
+
+  /**
+   * Il motore scelto a mano non è quello dell'ambiente: la chat leggerà cartelle che l'harness
+   * del repository non riempie. È l'unico modo in cui il disaccoppiamento può nascere, ed è
+   * esplicito — per questo qui si avvisa invece di impedirlo.
+   */
+  get engineDecoupled(): boolean {
+    return this.engineSettingsLoaded && this.engineChoice !== 'linked';
+  }
+
+  /** Il motore in vigore legge PER INTERO le cartelle dell'ambiente dichiarato? */
+  get engineReadsHarness(): boolean {
+    if (this.harness === 'none') return true;
+    const read = ProjectSettingsComponent.HARNESS_READ_BY[this.markAgentEngine];
+    return !!read && read.includes(this.harness);
+  }
+
+  onEngineChange(): void {
+    const wanted: MarkAgentEngineId | null = this.engineChoice === 'linked' ? null : this.engineChoice;
+    this.savingEngine = true;
+    this.projectSettingsService.setMarkAgentEngine(wanted, this.projectPath).subscribe({
+      next: (res) => {
+        this.applyEngineResponse(res.engine, res.linked);
+        this.savingEngine = false;
       },
-      error: (error) => {
-        console.error('Error saving Copilot CLI Auto-Select setting:', error);
-        this.saving = false;
-        this.copilotCliAutoSelectEnabled = !this.copilotCliAutoSelectEnabled;
+      error: (err) => {
+        console.error('Error saving the MarkAgent engine:', err);
+        this.savingEngine = false;
+        this.loadMarkAgentEngine();   // riallinea allo stato persistito
       }
     });
   }
 
-  onClaudeCodeAutoSelectChange(): void {
-    this.saving = true;
-    this.projectSettingsService.setClaudeCodeAutoSelectSetting(this.claudeCodeAutoSelectEnabled, this.projectPath).subscribe({
-      next: () => {
-        this.saving = false;
-      },
-      error: (error) => {
-        console.error('Error saving Claude Code Auto-Select setting:', error);
-        this.saving = false;
-        // Rimetti la casella com'era: mostrarla spuntata quando il salvataggio è fallito
-        // vorrebbe dire mentire sullo stato del progetto.
-        this.claudeCodeAutoSelectEnabled = !this.claudeCodeAutoSelectEnabled;
-      }
-    });
+  /** "Ricollega": il motore torna a essere quello dell'ambiente. */
+  relinkEngine(): void {
+    this.engineChoice = 'linked';
+    this.onEngineChange();
   }
 
+  loadMarkAgentEngine(): void {
+    if (!this.projectPath) return;
+    this.projectSettingsService.getMarkAgentEngine(this.projectPath).subscribe({
+      next: (res) => {
+        this.applyEngineResponse(res.engine, res.linked);
+        this.engineSettingsLoaded = true;
+      },
+      error: (err) => console.error('Error loading the MarkAgent engine:', err)
+    });
+  }
 
   loadAgentCity(): void {
     if (!this.projectPath) return;
@@ -553,40 +563,28 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Quali harness il motore di MarkAgent legge PER INTERO (istruzioni, skill, agenti, comandi).
-   * Misurato il 13/09/2026: Claude Code 2.1.270 legge solo .claude/ e CLAUDE.md; Copilot CLI 1.0.82
-   * cerca skill in .github/, .agents/ e .claude/, agenti in .github/ e .claude/, e di opencode legge
-   * solo AGENTS.md. Sprint: docs-internal/Sprints/2026-09-13-Harness-Claude-Code.md.
+   * Quali cartelle un motore legge PER INTERO (istruzioni, skill, agenti, comandi).
+   * Misurato il 13/09/2026: Claude Code 2.1.270 legge solo .claude/ e CLAUDE.md; Copilot CLI
+   * 1.0.82 cerca skill in .github/, .agents/ e .claude/, agenti in .github/ e .claude/, e di
+   * opencode legge solo AGENTS.md; opencode 1.18.30 legge tutto .opencode/, di .claude solo le
+   * skill e di .github niente.
+   * <br>Sprint: docs-internal/Sprints/2026-09-13-MarkAgent-Motore-OpenCode.md.
    */
-  private static readonly HARNESS_READ_BY: Record<'claude' | 'copilot', HarnessTarget[]> = {
+  private static readonly HARNESS_READ_BY: Record<MarkAgentEngineId, HarnessTarget[]> = {
     claude: ['claude'],
     copilot: ['copilot', 'claude'],
+    opencode: ['opencode'],
+    none: [],
   };
 
-  /** Motore di MarkAgent, con la precedenza del backend: Claude Code vince su Copilot CLI. */
-  get markAgentEngine(): 'claude' | 'copilot' | null {
-    if (!this.engineSettingsLoaded) return null;
-    if (this.claudeCodeAutoSelectEnabled) return 'claude';
-    if (this.copilotCliAutoSelectEnabled) return 'copilot';
-    return null;
-  }
-
-  /**
-   * Chiave del motivo per cui una voce di harness è disattivata, o null. "Nessuno" resta sempre
-   * possibile: è una scelta esplicita, non un harness che il motore non legge.
-   */
-  harnessDisabledReason(target: HarnessTarget): string | null {
-    const engine = this.markAgentEngine;
-    if (!engine || target === 'none') return null;
-    if (ProjectSettingsComponent.HARNESS_READ_BY[engine].includes(target)) return null;
-    return engine === 'claude'
-      ? 'PROJECT_SETTINGS.HARNESS_NOT_READ_BY_CLAUDE'
-      : 'PROJECT_SETTINGS.HARNESS_NOT_READ_BY_COPILOT';
-  }
-
-  /** Il repository dichiara un harness che il motore di MarkAgent non legge. */
-  get harnessMismatch(): boolean {
-    return this.harness !== 'none' && this.harnessDisabledReason(this.harness) !== null;
+  /** Il nome del CLI, senza le cartelle: quelle appartengono all'ambiente, non al motore. */
+  engineLabelKey(engine: MarkAgentEngineId): string {
+    switch (engine) {
+      case 'copilot': return 'PROJECT_SETTINGS.ENGINE_COPILOT';
+      case 'opencode': return 'PROJECT_SETTINGS.ENGINE_OPENCODE';
+      case 'claude': return 'PROJECT_SETTINGS.ENGINE_CLAUDE';
+      default: return 'PROJECT_SETTINGS.ENGINE_NONE';
+    }
   }
 
   harnessLabelKey(target: HarnessTarget): string {
@@ -596,32 +594,6 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       case 'claude': return 'PROJECT_SETTINGS.HARNESS_CLAUDE';
       default: return 'PROJECT_SETTINGS.HARNESS_NONE';
     }
-  }
-
-  /**
-   * "Passa a …": l'harness nativo del motore. Chiede conferma perché .development.yml è
-   * committato — il cambio vale per tutto il team, non solo per questa macchina.
-   */
-  switchToEngineHarness(): void {
-    const engine = this.markAgentEngine;
-    if (!engine) return;
-    const target: HarnessTarget = engine;
-    const data: ConfirmDialogData = {
-      title: this.translate.instant('PROJECT_SETTINGS.HARNESS_SWITCH_CONFIRM_TITLE'),
-      message: this.translate.instant(engine === 'claude'
-        ? 'PROJECT_SETTINGS.HARNESS_SWITCH_CONFIRM_MESSAGE'
-        : 'PROJECT_SETTINGS.HARNESS_SWITCH_CONFIRM_MESSAGE_COPILOT'),
-      confirmText: this.translate.instant(engine === 'claude'
-        ? 'PROJECT_SETTINGS.HARNESS_SWITCH_TO_CLAUDE'
-        : 'PROJECT_SETTINGS.HARNESS_SWITCH_TO_COPILOT'),
-    };
-    this.dialog.open(ConfirmDialogComponent, { width: '480px', data })
-      .afterClosed()
-      .subscribe(confirmed => {
-        if (!confirmed) return;
-        this.harness = target;
-        this.onHarnessChange();
-      });
   }
 
   loadHarness(): void {
@@ -647,6 +619,29 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   onHarnessChange(): void {
     if (this.harness === this.lastSavedHarness) return;
 
+    // .development.yml è committato: cambiare ambiente non riguarda solo questa macchina.
+    // Si chiede conferma PRIMA di scrivere, e un "no" rimette la scelta com'era.
+    const wanted = this.harness;
+    const data: ConfirmDialogData = {
+      title: this.translate.instant('PROJECT_SETTINGS.HARNESS_SWITCH_CONFIRM_TITLE'),
+      message: this.translate.instant('PROJECT_SETTINGS.HARNESS_SWITCH_CONFIRM_MESSAGE', {
+        harness: this.translate.instant(this.harnessLabelKey(wanted))
+      }),
+      confirmText: this.translate.instant('COMMON.CONFIRM'),
+    };
+    this.dialog.open(ConfirmDialogComponent, { width: '480px', data })
+      .afterClosed()
+      .subscribe(confirmed => {
+        if (!confirmed) {
+          this.harness = this.lastSavedHarness;
+          return;
+        }
+        this.saveHarness(wanted);
+      });
+  }
+
+  private saveHarness(wanted: HarnessTarget): void {
+    this.harness = wanted;
     this.savingHarness = true;
     this.projectSettingsService.setHarness(this.harness, this.projectPath).subscribe({
       next: (res) => {
@@ -654,6 +649,8 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.harnessDeclared = true;
         this.lastSavedHarness = this.harness;
         this.savingHarness = false;
+        // Se il motore segue l'ambiente, ora è un altro: si rilegge invece di indovinarlo.
+        this.loadMarkAgentEngine();
       },
       error: (err) => {
         console.error('Error saving harness setting:', err);

@@ -381,15 +381,18 @@
     <mat-tab [label]="'PROJECT_SETTINGS.AI_RAG' | translate">
       <div class="tab-content">
 
+        <!-- Ambiente agentico: UNA domanda per una decisione sola. Le cartelle (.github/, .claude/,
+             .opencode/) e il CLI che le legge sono la stessa scelta; scollegarli si può, ma dalle
+             avanzate e sapendolo. -->
         <mat-card class="settings-section">
           <mat-card-header>
-            <mat-card-title>{{ 'PROJECT_SETTINGS.HARNESS_TITLE' | translate }}</mat-card-title>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.AI_ENV_TITLE' | translate }}</mat-card-title>
           </mat-card-header>
 
           <mat-card-content>
             <div class="setting-item">
               <p class="setting-description">
-                {{ 'PROJECT_SETTINGS.HARNESS_DESC' | translate }}
+                {{ 'PROJECT_SETTINGS.AI_ENV_DESC' | translate }}
               </p>
 
               <div class="setting-description" *ngIf="!harnessDeclared">
@@ -397,17 +400,23 @@
                 {{ 'PROJECT_SETTINGS.HARNESS_NOT_DECLARED' | translate }}
               </div>
 
-              <!-- Coerenza con il motore di MarkAgent: l'harness sta nel repository (vale per il team),
-                   il motore è una scelta di questa macchina. Si avvisa e si propone, non si cambia da soli. -->
-              <div class="harness-mismatch" *ngIf="harnessMismatch">
+              <!-- L'avviso compare SOLO se qualcuno ha scollegato il motore dalle avanzate:
+                   è l'unico modo in cui i due possono divergere. -->
+              <div class="harness-mismatch" *ngIf="engineDecoupled">
                 <mat-icon class="harness-mismatch-icon">warning</mat-icon>
                 <span class="harness-mismatch-text">
-                  {{ (markAgentEngine === 'claude' ? 'PROJECT_SETTINGS.HARNESS_MISMATCH_CLAUDE' : 'PROJECT_SETTINGS.HARNESS_MISMATCH_COPILOT')
-                     | translate:{ harness: (harnessLabelKey(harness) | translate) } }}
+                  {{ 'PROJECT_SETTINGS.ENGINE_DECOUPLED' | translate:{
+                       engine: (engineLabelKey(markAgentEngine) | translate),
+                       harness: (harnessLabelKey(harness) | translate) } }}
+                  <ng-container *ngIf="!engineReadsHarness">
+                    {{ 'PROJECT_SETTINGS.ENGINE_NOT_READ' | translate:{
+                         engine: (engineLabelKey(markAgentEngine) | translate),
+                         harness: (harnessLabelKey(harness) | translate) } }}
+                  </ng-container>
                 </span>
                 <button mat-stroked-button color="primary" class="harness-mismatch-action"
-                        (click)="switchToEngineHarness()" [disabled]="savingHarness">
-                  {{ (markAgentEngine === 'claude' ? 'PROJECT_SETTINGS.HARNESS_SWITCH_TO_CLAUDE' : 'PROJECT_SETTINGS.HARNESS_SWITCH_TO_COPILOT') | translate }}
+                        (click)="relinkEngine()" [disabled]="savingEngine">
+                  {{ 'PROJECT_SETTINGS.ENGINE_RELINK' | translate }}
                 </button>
               </div>
 
@@ -415,33 +424,33 @@
                 [(ngModel)]="harness"
                 (change)="onHarnessChange()"
                 [disabled]="savingHarness">
-                <mat-radio-button value="copilot" class="ide-radio" [disabled]="!!harnessDisabledReason('copilot')">
+                <mat-radio-button value="copilot" class="ide-radio">
                   <span class="ide-label">
                     <mat-icon class="ide-icon-inline copilot-color">smart_toy</mat-icon>
                     {{ 'PROJECT_SETTINGS.HARNESS_COPILOT' | translate }}
                   </span>
-                  <!-- Il motivo scritto accanto: un tooltip su una voce disattivata non si aprirebbe. -->
-                  <span class="harness-reason" *ngIf="harnessDisabledReason('copilot') as reason">{{ reason | translate }}</span>
+                  <span class="harness-reason">{{ 'PROJECT_SETTINGS.AI_ENV_HINT_COPILOT' | translate }}</span>
                 </mat-radio-button>
-                <mat-radio-button value="opencode" class="ide-radio" [disabled]="!!harnessDisabledReason('opencode')">
+                <mat-radio-button value="opencode" class="ide-radio">
                   <span class="ide-label">
                     <mat-icon class="ide-icon-inline">terminal</mat-icon>
                     {{ 'PROJECT_SETTINGS.HARNESS_OPENCODE' | translate }}
                   </span>
-                  <span class="harness-reason" *ngIf="harnessDisabledReason('opencode') as reason">{{ reason | translate }}</span>
+                  <span class="harness-reason">{{ 'PROJECT_SETTINGS.AI_ENV_HINT_OPENCODE' | translate }}</span>
                 </mat-radio-button>
-                <mat-radio-button value="claude" class="ide-radio" [disabled]="!!harnessDisabledReason('claude')">
+                <mat-radio-button value="claude" class="ide-radio">
                   <span class="ide-label">
                     <mat-icon class="ide-icon-inline claude-color">psychology</mat-icon>
                     {{ 'PROJECT_SETTINGS.HARNESS_CLAUDE' | translate }}
                   </span>
-                  <span class="harness-reason" *ngIf="harnessDisabledReason('claude') as reason">{{ reason | translate }}</span>
+                  <span class="harness-reason">{{ 'PROJECT_SETTINGS.AI_ENV_HINT_CLAUDE' | translate }}</span>
                 </mat-radio-button>
                 <mat-radio-button value="none" class="ide-radio">
                   <span class="ide-label">
                     <mat-icon class="ide-icon-inline">block</mat-icon>
                     {{ 'PROJECT_SETTINGS.HARNESS_NONE' | translate }}
                   </span>
+                  <span class="harness-reason">{{ 'PROJECT_SETTINGS.AI_ENV_HINT_NONE' | translate }}</span>
                 </mat-radio-button>
               </mat-radio-group>
 
@@ -450,54 +459,54 @@
               </p>
             </div>
 
-            <div *ngIf="savingHarness" class="saving-indicator">
+            <!-- Avanzate: il caso in cui il team ha scelto un ambiente e su questa macchina c'è
+                 un altro CLI. Chiuso di default, perché non è la strada normale. -->
+            <div class="setting-item">
+              <button mat-button type="button" class="advanced-engine-toggle"
+                      (click)="showAdvancedEngine = !showAdvancedEngine">
+                <mat-icon>{{ showAdvancedEngine ? 'expand_less' : 'expand_more' }}</mat-icon>
+                {{ 'PROJECT_SETTINGS.ENGINE_ADVANCED' | translate }}
+              </button>
+
+              <div *ngIf="showAdvancedEngine" class="advanced-engine-body">
+                <p class="setting-description">
+                  {{ 'PROJECT_SETTINGS.ENGINE_ADVANCED_DESC' | translate }}
+                </p>
+
+                <label class="setting-label" for="markAgentEngineGroup">
+                  {{ 'PROJECT_SETTINGS.ENGINE_LABEL' | translate }}
+                </label>
+                <mat-radio-group
+                  id="markAgentEngineGroup"
+                  [(ngModel)]="engineChoice"
+                  (change)="onEngineChange()"
+                  [disabled]="savingEngine || !engineSettingsLoaded">
+                  <mat-radio-button value="linked" class="ide-radio">
+                    <span class="ide-label">
+                      <mat-icon class="ide-icon-inline">link</mat-icon>
+                      {{ 'PROJECT_SETTINGS.ENGINE_FOLLOWS' | translate:{
+                           engine: (engineLabelKey(markAgentEngine) | translate) } }}
+                    </span>
+                  </mat-radio-button>
+                  <mat-radio-button value="copilot" class="ide-radio">
+                    <span class="ide-label">{{ 'PROJECT_SETTINGS.ENGINE_COPILOT' | translate }}</span>
+                  </mat-radio-button>
+                  <mat-radio-button value="opencode" class="ide-radio">
+                    <span class="ide-label">{{ 'PROJECT_SETTINGS.ENGINE_OPENCODE' | translate }}</span>
+                  </mat-radio-button>
+                  <mat-radio-button value="claude" class="ide-radio">
+                    <span class="ide-label">{{ 'PROJECT_SETTINGS.ENGINE_CLAUDE' | translate }}</span>
+                  </mat-radio-button>
+                  <mat-radio-button value="none" class="ide-radio">
+                    <span class="ide-label">{{ 'PROJECT_SETTINGS.ENGINE_NONE' | translate }}</span>
+                  </mat-radio-button>
+                </mat-radio-group>
+              </div>
+            </div>
+
+            <div *ngIf="savingHarness || savingEngine" class="saving-indicator">
               <mat-spinner diameter="20"></mat-spinner>
               <span>{{ 'COMMON.SAVING' | translate }}</span>
-            </div>
-          </mat-card-content>
-        </mat-card>
-
-        <mat-card class="settings-section">
-          <mat-card-header>
-            <mat-card-title>{{ 'PROJECT_SETTINGS.COPILOT_CLI_TITLE' | translate }}</mat-card-title>
-          </mat-card-header>
-
-          <mat-card-content>
-            <div class="setting-item" *ngIf="!loading">
-              <mat-checkbox
-                [(ngModel)]="copilotCliAutoSelectEnabled"
-                (change)="onCopilotCliAutoSelectChange()"
-                [disabled]="saving">
-                <span class="setting-label">{{ 'PROJECT_SETTINGS.COPILOT_CLI_AUTO_SELECT' | translate }}</span>
-              </mat-checkbox>
-              <p class="setting-description">
-                {{ 'PROJECT_SETTINGS.COPILOT_CLI_AUTO_SELECT_DESC' | translate }}
-              </p>
-            </div>
-          </mat-card-content>
-        </mat-card>
-
-        <mat-card class="settings-section">
-          <mat-card-header>
-            <mat-card-title>{{ 'PROJECT_SETTINGS.CLAUDE_CODE_TITLE' | translate }}</mat-card-title>
-          </mat-card-header>
-
-          <mat-card-content>
-            <div class="setting-item" *ngIf="!loading">
-              <mat-checkbox
-                [(ngModel)]="claudeCodeAutoSelectEnabled"
-                (change)="onClaudeCodeAutoSelectChange()"
-                [disabled]="saving">
-                <span class="setting-label">{{ 'PROJECT_SETTINGS.CLAUDE_CODE_AUTO_SELECT' | translate }}</span>
-              </mat-checkbox>
-              <p class="setting-description">
-                {{ 'PROJECT_SETTINGS.CLAUDE_CODE_AUTO_SELECT_DESC' | translate }}
-              </p>
-              <!-- La regola di precedenza va detta dove si accende l'interruttore: scoprirla
-                   dal comportamento sarebbe un mistero. -->
-              <p class="setting-description" *ngIf="claudeCodeAutoSelectEnabled && copilotCliAutoSelectEnabled">
-                {{ 'PROJECT_SETTINGS.CLAUDE_CODE_WINS_OVER_COPILOT' | translate }}
-              </p>
             </div>
           </mat-card-content>
         </mat-card>

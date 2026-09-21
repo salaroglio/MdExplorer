@@ -30,6 +30,25 @@ export interface HarnessSetting {
   declared: boolean;
 }
 
+/**
+ * Il CLI con cui MarkAgent parla in questo progetto. Stessi nomi dell'harness, e non è un caso:
+ * sono la stessa decisione vista da due lati — l'harness dice dove stanno skill, agenti e prompt,
+ * il motore chi li legge.
+ */
+export type MarkAgentEngineId = 'copilot' | 'opencode' | 'claude' | 'none';
+
+export interface MarkAgentEngineSetting {
+  engine: MarkAgentEngineId;
+  /**
+   * true = il motore SEGUE l'ambiente agentico del repository (il caso normale). false = questa
+   * macchina ha scelto un CLI diverso da quello dell'harness, dalla modalità avanzata.
+   */
+  linked: boolean;
+  /** L'harness del repository, che arriva nella stessa risposta per non doverlo richiedere. */
+  harness: HarnessTarget;
+  declared: boolean;
+}
+
 export interface RelayTestResult {
   success: boolean;
   statusCode: number | null;
@@ -91,14 +110,19 @@ export class ProjectSettingsService {
     return this.http.post<any>(url, { enabled, projectPath });
   }
 
-  getCopilotCliAutoSelectSetting(projectPath: string): Observable<{enabled: boolean}> {
-    const url = '../api/ProjectSettings/GetCopilotCliAutoSelectSetting';
-    return this.http.get<{enabled: boolean}>(url, { params: { projectPath } });
+  /** Il motore di MarkAgent per questo progetto, e se segue l'ambiente o no. */
+  getMarkAgentEngine(projectPath: string): Observable<MarkAgentEngineSetting> {
+    const url = '../api/ProjectSettings/GetMarkAgentEngine';
+    return this.http.get<MarkAgentEngineSetting>(url, { params: { projectPath } });
   }
 
-  setCopilotCliAutoSelectSetting(enabled: boolean, projectPath: string): Observable<any> {
-    const url = '../api/ProjectSettings/SetCopilotCliAutoSelectSetting';
-    return this.http.post<any>(url, { enabled, projectPath });
+  /**
+   * Scollega il motore dall'ambiente, o lo ricollega passando null. Non tocca il
+   * .development.yml: cambiare l'ambiente è `setHarness`, perché quel file è committato.
+   */
+  setMarkAgentEngine(engine: MarkAgentEngineId | null, projectPath: string): Observable<{ engine: MarkAgentEngineId; linked: boolean }> {
+    const url = '../api/ProjectSettings/SetMarkAgentEngine';
+    return this.http.post<{ engine: MarkAgentEngineId; linked: boolean }>(url, { engine, projectPath });
   }
 
   /**
@@ -107,21 +131,6 @@ export class ProjectSettingsService {
   setCopilotChatModelSetting(modelId: string | null, projectPath: string): Observable<{ modelId: string | null }> {
     const url = '../api/ProjectSettings/SetCopilotChatModelSetting';
     return this.http.post<{ modelId: string | null }>(url, { modelId, projectPath });
-  }
-
-  /**
-   * Selezione automatica di Claude Code. Gemella di quella Copilot, ma il default lato
-   * backend è OFF: un progetto che non ha mai visto questa opzione non deve cambiare
-   * motore della chat da solo.
-   */
-  getClaudeCodeAutoSelectSetting(projectPath: string): Observable<{enabled: boolean}> {
-    const url = '../api/ProjectSettings/GetClaudeCodeAutoSelectSetting';
-    return this.http.get<{enabled: boolean}>(url, { params: { projectPath } });
-  }
-
-  setClaudeCodeAutoSelectSetting(enabled: boolean, projectPath: string): Observable<any> {
-    const url = '../api/ProjectSettings/SetClaudeCodeAutoSelectSetting';
-    return this.http.post<any>(url, { enabled, projectPath });
   }
 
   /**

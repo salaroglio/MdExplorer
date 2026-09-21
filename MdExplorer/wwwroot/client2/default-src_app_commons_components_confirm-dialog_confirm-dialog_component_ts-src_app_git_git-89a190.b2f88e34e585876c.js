@@ -6009,18 +6009,23 @@ class ProjectSettingsService {
       projectPath
     });
   }
-  getCopilotCliAutoSelectSetting(projectPath) {
-    const url = '../api/ProjectSettings/GetCopilotCliAutoSelectSetting';
+  /** Il motore di MarkAgent per questo progetto, e se segue l'ambiente o no. */
+  getMarkAgentEngine(projectPath) {
+    const url = '../api/ProjectSettings/GetMarkAgentEngine';
     return this.http.get(url, {
       params: {
         projectPath
       }
     });
   }
-  setCopilotCliAutoSelectSetting(enabled, projectPath) {
-    const url = '../api/ProjectSettings/SetCopilotCliAutoSelectSetting';
+  /**
+   * Scollega il motore dall'ambiente, o lo ricollega passando null. Non tocca il
+   * .development.yml: cambiare l'ambiente è `setHarness`, perché quel file è committato.
+   */
+  setMarkAgentEngine(engine, projectPath) {
+    const url = '../api/ProjectSettings/SetMarkAgentEngine';
     return this.http.post(url, {
-      enabled,
+      engine,
       projectPath
     });
   }
@@ -6031,26 +6036,6 @@ class ProjectSettingsService {
     const url = '../api/ProjectSettings/SetCopilotChatModelSetting';
     return this.http.post(url, {
       modelId,
-      projectPath
-    });
-  }
-  /**
-   * Selezione automatica di Claude Code. Gemella di quella Copilot, ma il default lato
-   * backend è OFF: un progetto che non ha mai visto questa opzione non deve cambiare
-   * motore della chat da solo.
-   */
-  getClaudeCodeAutoSelectSetting(projectPath) {
-    const url = '../api/ProjectSettings/GetClaudeCodeAutoSelectSetting';
-    return this.http.get(url, {
-      params: {
-        projectPath
-      }
-    });
-  }
-  setClaudeCodeAutoSelectSetting(enabled, projectPath) {
-    const url = '../api/ProjectSettings/SetClaudeCodeAutoSelectSetting';
-    return this.http.post(url, {
-      enabled,
       projectPath
     });
   }
@@ -10695,4 +10680,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.30a85cd9150134f0.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.b2f88e34e585876c.js.map
