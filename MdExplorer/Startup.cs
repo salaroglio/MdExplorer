@@ -280,6 +280,12 @@ namespace MdExplorer
             // stessa politica, CLI e protocollo diversi.
             services.AddSingleton<MdExplorer.Features.Services.AI.ClaudeCode.ClaudeCodeSessionPool>();
 
+            // Il server di opencode: uno per istanza di MdExplorer, acceso alla prima richiesta e
+            // spento con l'applicazione (da qui l'AddHostedService, che e' cio' che garantisce lo
+            // spegnimento: un server lasciato acceso dopo l'uscita e' gia' successo con l'MCP).
+            services.AddSingleton<MdExplorer.Features.Services.AI.OpenCode.OpenCodeServer>();
+            services.AddHostedService(sp => sp.GetRequiredService<MdExplorer.Features.Services.AI.OpenCode.OpenCodeServer>());
+
             // Source map md→HTML per la feature "Usa AI" su selezione
             services.AddSingleton<MdExplorer.Features.Services.SourceMapping.MarkdownSourceMapService>();
 
