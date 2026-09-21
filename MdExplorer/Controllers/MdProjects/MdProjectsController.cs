@@ -869,12 +869,44 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     }
                 }
 
-                // Copilot CLI auto-select probe: synchronous, deterministic. If the project prefers
-                // Copilot CLI as default AI, we MUST return a real availability — no provisional
-                // values, no fire-and-forget warm-up. Worst case is one `copilot --version` spawn
-                // (~1-2s on Windows) at the first open after a restart; subsequent opens hit the
-                // 5-minute availability cache inside the provider.
-                bool copilotCliAutoSelect = project.UseCopilotCliAsDefault;
+                // Il motore di MarkAgent: UNA scelta, risolta in un posto solo. NULL in
+                // Project.MarkAgentEngine vuol dire "segue l'ambiente agentico del repository"
+                // (.development.yml), un valore vuol dire che questa macchina ha scelto altro.
+                // Prima erano due booleani indipendenti con la regola "se sono accesi entrambi
+                // vince Claude", ripetuta qui e in MarkDiagramExplainService: due posti che
+                // potevano rispondere diversamente alla stessa domanda.
+                var markAgentEngine = MdExplorer.Utilities.MarkAgentEngines.Resolve(
+                    project.MarkAgentEngine, request.Path, out var markAgentEngineLinked);
+                logger?.LogInformation("🤖 Motore di MarkAgent: {Engine} (collegato all'harness={Linked})",
+                    MdExplorer.Utilities.MarkAgentEngines.IdOf(markAgentEngine), markAgentEngineLinked);
+
+                // Il valore esplicito che coincide con l'harness e' un residuo della migrazione dai
+                // due booleani: si riporta a NULL, cosi' il progetto torna a SEGUIRE l'ambiente e chi
+                // domani cambia harness non si ritrova un motore rimasto indietro. Nessun cambio di
+                // comportamento: il motore risolto e' lo stesso, prima e dopo.
+                if (!markAgentEngineLinked
+                    && markAgentEngine == MdExplorer.Utilities.MarkAgentEngines.FromHarness(
+                        MdExplorer.Utilities.MarkAgentEngines.HarnessOf(request.Path)))
+                {
+                    logger?.LogInformation(
+                        "🤖 Motore {Engine} uguale a quello dell'harness: torna a seguire l'ambiente",
+                        MdExplorer.Utilities.MarkAgentEngines.IdOf(markAgentEngine));
+                    // Transazione propria: quella dell'inizio di SetFolderProject e' gia' stata
+                    // chiusa, e una scrittura fuori transazione sulla sessione condivisa del DB
+                    // utente rompe il Commit successivo di chiunque altro.
+                    _userSettingsDB.BeginTransaction();
+                    project.MarkAgentEngine = null;
+                    projectDal.Save(project);
+                    _userSettingsDB.Commit();
+                    markAgentEngineLinked = true;
+                }
+
+                // Sonda di disponibilita': sincrona e deterministica. Se il progetto ha un motore,
+                // il client deve ricevere una disponibilita' VERA — niente valori provvisori, niente
+                // riscaldamento fire-and-forget. Nel caso peggiore un `copilot --version` (~1-2 s su
+                // Windows) alla prima apertura dopo un riavvio; poi vale la cache di 5 minuti dentro
+                // il provider. Per Claude Code e' una scansione del PATH, quindi millisecondi.
+                bool copilotCliAutoSelect = markAgentEngine == MdExplorer.Utilities.MarkAgentEngine.Copilot;
                 bool copilotCliAvailable = false;
                 string copilotCliDefaultModel = null;
                 if (copilotCliAutoSelect)
@@ -884,8 +916,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     if (copilotProvider == null)
                     {
                         throw new InvalidOperationException(
-                            "Project has UseCopilotCliAsDefault=true but CopilotCliProvider was not resolved from DI. " +
-                            "Check Startup.cs IAiProvider registrations.");
+                            "Il progetto ha come motore di MarkAgent Copilot CLI ma CopilotCliProvider non è stato " +
+                            "risolto dalla DI. Controlla le registrazioni IAiProvider in Startup.cs.");
                     }
                     copilotProvider.WorkingDirectory = request.Path;
                     // Il modello scelto per questo progetto; null = lo sceglie il CLI. Letto
@@ -893,15 +925,12 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     copilotCliDefaultModel = project.CopilotChatModel;
                     copilotCliAvailable = copilotProvider.IsAvailable();
                     logger?.LogInformation(
-                        "🤖 CopilotCli auto-select: available={Available}, model={Model}, cwd={Cwd}",
+                        "🤖 CopilotCli: available={Available}, model={Model}, cwd={Cwd}",
                         copilotCliAvailable, copilotCliDefaultModel, request.Path);
                 }
                 logPhase("CopilotCli availability (sync probe)");
 
-                // Claude Code auto-select: stesso probe deterministico, provider diverso.
-                // Qui il controllo di installazione è una scansione del PATH, quindi costa
-                // millisecondi e non ha nemmeno il problema del cold start di Copilot.
-                bool claudeCodeAutoSelect = project.UseClaudeCodeAsDefault;
+                bool claudeCodeAutoSelect = markAgentEngine == MdExplorer.Utilities.MarkAgentEngine.Claude;
                 bool claudeCodeAvailable = false;
                 string claudeCodeDefaultModel = null;
                 if (claudeCodeAutoSelect)
@@ -911,8 +940,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     if (claudeProvider == null)
                     {
                         throw new InvalidOperationException(
-                            "Il progetto ha UseClaudeCodeAsDefault=true ma ClaudeCodeProvider non è stato risolto dalla DI. " +
-                            "Controlla le registrazioni IAiProvider in Startup.cs.");
+                            "Il progetto ha come motore di MarkAgent Claude Code ma ClaudeCodeProvider non è stato " +
+                            "risolto dalla DI. Controlla le registrazioni IAiProvider in Startup.cs.");
                     }
                     claudeProvider.WorkingDirectory = request.Path;
                     // Il modello scelto per questo progetto. Mai scelto = `sonnet`, come prima che la scelta
@@ -922,25 +951,10 @@ namespace MdExplorer.Service.Controllers.MdProjects
                         : project.ClaudeCodeChatModel;
                     claudeCodeAvailable = claudeProvider.IsAvailable();
                     logger?.LogInformation(
-                        "🤖 ClaudeCode auto-select: available={Available}, model={Model}, cwd={Cwd}",
+                        "🤖 ClaudeCode: available={Available}, model={Model}, cwd={Cwd}",
                         claudeCodeAvailable, claudeCodeDefaultModel, request.Path);
                 }
                 logPhase("ClaudeCode availability (sync probe)");
-
-                // Precedenza quando sono accesi entrambi: vince Claude Code. Il suo flag nasce
-                // OFF, quindi trovarlo acceso è una scelta deliberata; quello di Copilot nasce
-                // ON e potrebbe essere solo il default mai toccato. La scelta esplicita batte
-                // il default — e il client riceve UN solo auto-select acceso, così non deve
-                // arbitrare da solo (due sottoscrizioni che si contendono la chat sarebbero
-                // una corsa, non una regola).
-                if (claudeCodeAutoSelect && claudeCodeAvailable && copilotCliAutoSelect)
-                {
-                    logger?.LogInformation(
-                        "🤖 Auto-select: accesi sia ClaudeCode sia CopilotCli → vince ClaudeCode (scelta esplicita sul default)");
-                    copilotCliAutoSelect = false;
-                    copilotCliAvailable = false;
-                    copilotCliDefaultModel = null;
-                }
 
                 __perfTotal.Stop();
                 logger?.LogWarning("⏱️ [SetFolderProject PERF] TOTAL: {Ms} ms", __perfTotal.ElapsedMilliseconds);
@@ -962,7 +976,9 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     copilotCliDefaultModel = copilotCliDefaultModel,
                     claudeCodeAutoSelect = claudeCodeAutoSelect,
                     claudeCodeAvailable = claudeCodeAvailable,
-                    claudeCodeDefaultModel = claudeCodeDefaultModel
+                    claudeCodeDefaultModel = claudeCodeDefaultModel,
+                    markAgentEngine = MdExplorer.Utilities.MarkAgentEngines.IdOf(markAgentEngine),
+                    markAgentEngineLinked = markAgentEngineLinked
                 });
             }
             catch (Exception ex)

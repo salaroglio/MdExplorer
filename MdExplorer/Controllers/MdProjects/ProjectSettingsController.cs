@@ -1,4 +1,4 @@
-using Ad.Tools.Dal;
+﻿using Ad.Tools.Dal;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.ProjectDB;
@@ -304,70 +304,123 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
         }
 
+        /// <summary>
+        /// Il motore di MarkAgent per un progetto, e da dove viene.
+        /// <para>
+        /// Una risposta sola perché la domanda è una sola: qual è l'ambiente agentico di questo
+        /// progetto. <c>linked</c> dice che il motore lo detta l'harness del repository (il caso
+        /// normale); <c>harness</c> lo riporta comunque, così la UI non deve fare una seconda
+        /// chiamata per disegnare la stessa riga.
+        /// </para>
+        /// </summary>
         [HttpGet]
-        public IActionResult GetCopilotCliAutoSelectSetting([FromQuery] string projectPath)
+        public IActionResult GetMarkAgentEngine([FromQuery] string projectPath)
         {
             try
             {
-                _userSettingsDB.Clear();
-                var projectDal = _userSettingsDB.GetDal<Project>();
-                var project = projectDal.GetList()
-                    .FirstOrDefault(p => p.Path == projectPath);
+                if (string.IsNullOrWhiteSpace(projectPath))
+                    return BadRequest(new { error = "projectPath is required" });
 
-                if (project == null)
-                {
-                    project = projectDal.GetList().ToList()
-                        .FirstOrDefault(p => string.Equals(p.Path, projectPath, StringComparison.OrdinalIgnoreCase));
-                }
+                _userSettingsDB.Clear();
+                var project = FindProject(projectPath);
+
+                var harness = MdExplorer.Utilities.MarkAgentEngines.HarnessOf(projectPath);
+                var engine = MdExplorer.Utilities.MarkAgentEngines.Resolve(
+                    project?.MarkAgentEngine, projectPath, out var linked);
 
                 return Ok(new
                 {
-                    enabled = project?.UseCopilotCliAsDefault ?? true
+                    engine = MdExplorer.Utilities.MarkAgentEngines.IdOf(engine),
+                    linked,
+                    harness = MdExplorer.Utilities.HarnessSettings.IdOf(harness),
+                    declared = MdExplorer.Utilities.HarnessSettings.Read(projectPath).HasValue
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Motore o harness scritti a mano con un valore che non esiste: si dice qual e'.
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetMarkAgentEngine] fallito per {ProjectPath}", projectPath);
+                return StatusCode(500, new { error = "Failed to read the MarkAgent engine" });
+            }
+        }
+
+        /// <summary>
+        /// Scollega il motore dall'harness, o lo ricollega.
+        /// <para>
+        /// <c>Engine</c> null o vuoto = <b>collegato</b>: la colonna torna NULL e il motore ridiventa
+        /// quello dell'ambiente. Un valore = scelta di QUESTA macchina, che vince sull'harness. Non si
+        /// tocca il <c>.development.yml</c>: cambiare l'ambiente e' un'altra chiamata (SetHarness),
+        /// perche' quel file e' committato e vale per tutto il team.
+        /// </para>
+        /// </summary>
+        [HttpPost]
+        public IActionResult SetMarkAgentEngine([FromBody] SetMarkAgentEngineRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath))
+                    return BadRequest(new { error = "projectPath is required" });
+
+                string stored = null;
+                if (!string.IsNullOrWhiteSpace(request.Engine))
+                {
+                    if (!MdExplorer.Utilities.MarkAgentEngines.TryParseId(request.Engine, out var parsed))
+                    {
+                        return BadRequest(new
+                        {
+                            error = $"Unknown MarkAgent engine '{request.Engine}'. Allowed values: {MdExplorer.Utilities.MarkAgentEngines.AllowedIds}."
+                        });
+                    }
+                    stored = MdExplorer.Utilities.MarkAgentEngines.IdOf(parsed);
+                }
+
+                _userSettingsDB.Clear();
+                _userSettingsDB.BeginTransaction();
+                var project = FindProject(request.ProjectPath);
+                if (project == null)
+                {
+                    _userSettingsDB.Rollback();
+                    _logger.LogWarning("[SetMarkAgentEngine] Project not found for path: '{ProjectPath}'", request.ProjectPath);
+                    return NotFound(new { error = "Project not found" });
+                }
+
+                project.MarkAgentEngine = stored;
+                _userSettingsDB.GetDal<Project>().Save(project);
+                _userSettingsDB.Commit();
+
+                var engine = MdExplorer.Utilities.MarkAgentEngines.Resolve(stored, request.ProjectPath, out var linked);
+                _logger.LogInformation("[SetMarkAgentEngine] {ProjectPath} → {Engine} (linked={Linked})",
+                    request.ProjectPath, MdExplorer.Utilities.MarkAgentEngines.IdOf(engine), linked);
+
+                return Ok(new
+                {
+                    engine = MdExplorer.Utilities.MarkAgentEngines.IdOf(engine),
+                    linked
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error getting CopilotCliAutoSelect setting");
-                return StatusCode(500, new { error = "Failed to get CopilotCliAutoSelect setting" });
+                _userSettingsDB.Rollback();
+                _logger.LogError(ex, "[SetMarkAgentEngine] fallito per {ProjectPath}", request?.ProjectPath);
+                return StatusCode(500, new { error = ex.Message });
             }
         }
 
-        [HttpPost]
-        public IActionResult SetCopilotCliAutoSelectSetting([FromBody] SetCopilotCliAutoSelectRequest request)
+        /// <summary>
+        /// Il progetto con questo percorso. Due passaggi come altrove in questo controller: prima il
+        /// confronto che il DB sa fare, poi quello che ignora le maiuscole, perche' su Windows lo
+        /// stesso progetto puo' essere stato registrato con un'altra grafia del percorso.
+        /// </summary>
+        private Project FindProject(string projectPath)
         {
-            try
-            {
-                _userSettingsDB.Clear();
-                _userSettingsDB.BeginTransaction();
-                var projectDal = _userSettingsDB.GetDal<Project>();
-                var project = projectDal.GetList()
-                    .FirstOrDefault(p => p.Path == request.ProjectPath);
-
-                if (project == null)
-                {
-                    project = projectDal.GetList().ToList()
-                        .FirstOrDefault(p => string.Equals(p.Path, request.ProjectPath, StringComparison.OrdinalIgnoreCase));
-                }
-
-                if (project == null)
-                {
-                    _userSettingsDB.Rollback();
-                    _logger.LogWarning($"[SetCopilotCliAutoSelectSetting] Project not found for path: '{request.ProjectPath}'");
-                    return NotFound(new { error = "Project not found" });
-                }
-
-                project.UseCopilotCliAsDefault = request.Enabled;
-                projectDal.Save(project);
-                _userSettingsDB.Commit();
-
-                return Ok(new { message = "CopilotCliAutoSelect setting saved successfully" });
-            }
-            catch (Exception ex)
-            {
-                _userSettingsDB.Rollback();
-                _logger.LogError(ex, "Error saving CopilotCliAutoSelect setting");
-                return StatusCode(500, new { error = "Failed to save CopilotCliAutoSelect setting" });
-            }
+            var projectDal = _userSettingsDB.GetDal<Project>();
+            return projectDal.GetList().FirstOrDefault(p => p.Path == projectPath)
+                ?? projectDal.GetList().ToList()
+                    .FirstOrDefault(p => string.Equals(p.Path, projectPath, StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>
@@ -457,77 +510,6 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 _userSettingsDB.Rollback();
                 _logger.LogError(ex, "Error saving ClaudeCodeChatModel setting");
                 return StatusCode(500, new { error = "Failed to save ClaudeCodeChatModel setting" });
-            }
-        }
-
-        /// <summary>
-        /// Manopola gemella per Claude Code. ⚠️ Il default di lettura è <c>false</c> — opposto a
-        /// quello di Copilot — perché un progetto che non ha mai visto questa impostazione non
-        /// deve cambiare motore della chat da solo.
-        /// </summary>
-        [HttpGet]
-        public IActionResult GetClaudeCodeAutoSelectSetting([FromQuery] string projectPath)
-        {
-            try
-            {
-                _userSettingsDB.Clear();
-                var projectDal = _userSettingsDB.GetDal<Project>();
-                var project = projectDal.GetList()
-                    .FirstOrDefault(p => p.Path == projectPath);
-
-                if (project == null)
-                {
-                    project = projectDal.GetList().ToList()
-                        .FirstOrDefault(p => string.Equals(p.Path, projectPath, StringComparison.OrdinalIgnoreCase));
-                }
-
-                return Ok(new
-                {
-                    enabled = project?.UseClaudeCodeAsDefault ?? false
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting ClaudeCodeAutoSelect setting");
-                return StatusCode(500, new { error = "Failed to get ClaudeCodeAutoSelect setting" });
-            }
-        }
-
-        [HttpPost]
-        public IActionResult SetClaudeCodeAutoSelectSetting([FromBody] SetClaudeCodeAutoSelectRequest request)
-        {
-            try
-            {
-                _userSettingsDB.Clear();
-                _userSettingsDB.BeginTransaction();
-                var projectDal = _userSettingsDB.GetDal<Project>();
-                var project = projectDal.GetList()
-                    .FirstOrDefault(p => p.Path == request.ProjectPath);
-
-                if (project == null)
-                {
-                    project = projectDal.GetList().ToList()
-                        .FirstOrDefault(p => string.Equals(p.Path, request.ProjectPath, StringComparison.OrdinalIgnoreCase));
-                }
-
-                if (project == null)
-                {
-                    _userSettingsDB.Rollback();
-                    _logger.LogWarning($"[SetClaudeCodeAutoSelectSetting] Project not found for path: '{request.ProjectPath}'");
-                    return NotFound(new { error = "Project not found" });
-                }
-
-                project.UseClaudeCodeAsDefault = request.Enabled;
-                projectDal.Save(project);
-                _userSettingsDB.Commit();
-
-                return Ok(new { message = "ClaudeCodeAutoSelect setting saved successfully" });
-            }
-            catch (Exception ex)
-            {
-                _userSettingsDB.Rollback();
-                _logger.LogError(ex, "Error saving ClaudeCodeAutoSelect setting");
-                return StatusCode(500, new { error = "Failed to save ClaudeCodeAutoSelect setting" });
             }
         }
 
@@ -784,16 +766,17 @@ namespace MdExplorer.Service.Controllers.MdProjects
         public string? ModelId { get; set; }
     }
 
-    public class SetCopilotCliAutoSelectRequest
+    /// <summary>
+    /// <c>Engine</c> nullable per due ragioni: null e' un valore valido (= il motore torna a seguire
+    /// l'harness) e, con &lt;Nullable&gt;annotations&lt;/Nullable&gt;, una string non nullable sarebbe un
+    /// [Required] implicito che risponderebbe 400 proprio al caso normale.
+    /// </summary>
+    public class SetMarkAgentEngineRequest
     {
-        public bool Enabled { get; set; }
-        public string ProjectPath { get; set; }
-    }
+        public string? ProjectPath { get; set; }
 
-    public class SetClaudeCodeAutoSelectRequest
-    {
-        public bool Enabled { get; set; }
-        public string ProjectPath { get; set; }
+        /// <summary><c>copilot</c>, <c>opencode</c>, <c>claude</c>, <c>none</c>, oppure null = collegato all'harness.</summary>
+        public string? Engine { get; set; }
     }
 
     public class SetTextIndexingRequest

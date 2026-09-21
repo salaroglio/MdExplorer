@@ -17,31 +17,31 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual string SelectedIde { get; set; }
         public virtual bool LinkIndexingEnabled { get; set; } = true;
         public virtual bool PlantUmlKeepOriginalColorsInDarkMode { get; set; } = false;
-        public virtual bool UseCopilotCliAsDefault { get; set; } = true;
-
         /// <summary>
-        /// Selezione automatica di <b>Claude Code CLI</b> come motore della chat, quando il CLI
-        /// è installato su questa macchina. Gemello di <see cref="UseCopilotCliAsDefault"/>.
+        /// Il CLI agentico con cui MarkAgent parla in questo progetto: <c>copilot</c>,
+        /// <c>opencode</c>, <c>claude</c> oppure <c>none</c>.
         /// <para>
-        /// Default <c>false</c>, e non è una svista: <see cref="UseCopilotCliAsDefault"/> nasce
-        /// <c>true</c>, quindi accenderli entrambi di serie significherebbe che ogni progetto
-        /// esistente cambia motore da solo al primo aggiornamento. Chi vuole Claude Code lo
-        /// dice.
+        /// <c>null</c> = <b>collegato all'ambiente agentico</b>: vale il motore dell'harness
+        /// dichiarato dal repository (<c>.development.yml</c>). È lo stato normale, ed è il motivo
+        /// per cui la colonna è nullable: un progetto ha UNA scelta, l'ambiente, e il motore la segue.
+        /// Un valore scritto qui vuol dire «su questa macchina no, uso quest'altro CLI» — la modalità
+        /// avanzata delle impostazioni.
         /// </para>
         /// <para>
-        /// <b>Quando sono accesi tutti e due</b> vince Claude Code: il suo flag è OFF di
-        /// fabbrica, quindi trovarlo acceso è una scelta deliberata dell'utente, mentre quello
-        /// di Copilot potrebbe essere semplicemente il default mai toccato. La regola è "la
-        /// scelta esplicita batte il default".
+        /// Sostituisce i due booleani <c>UseCopilotCliAsDefault</c>/<c>UseClaudeCodeAsDefault</c> e la
+        /// loro precedenza («se sono accesi entrambi vince Claude»): due interruttori indipendenti per
+        /// una scelta esclusiva. Le colonne vecchie restano nel DB perché su SQLite non si cancellano
+        /// (vedi la migrazione M2026_09_21_001), ma non le legge più nessuno.
         /// </para>
+        /// <para>Si risolve con <c>MarkAgentEngines.Resolve</c>, mai a mano.</para>
         /// </summary>
-        public virtual bool UseClaudeCodeAsDefault { get; set; } = false;
+        public virtual string MarkAgentEngine { get; set; }
 
         /// <summary>
         /// Il modello con cui la chat parla a Copilot in questo progetto. <c>null</c> = lo sceglie
         /// il CLI (<c>auto</c>).
         /// <para>
-        /// Per progetto, come i due flag qui sopra: su un progetto grosso si tiene il modello
+        /// Per progetto, come il motore qui sopra: su un progetto grosso si tiene il modello
         /// forte, su uno piccolo quello economico. Nessun default scritto nel codice: quali
         /// modelli esistano è una proprietà dell'installazione, e un nome che l'installazione
         /// non ha non dà errore — il CLI lo rimpiazza in silenzio con un altro.

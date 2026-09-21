@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -13,6 +13,7 @@ using MdExplorer.Abstractions.Models.AI;
 using MdExplorer.Abstractions.Services;
 using MdExplorer.Features.Services.AI;
 using MdExplorer.Hubs;
+using MdExplorer.Utilities;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -621,17 +622,15 @@ namespace MdExplorer.Services.MarkDiagram
         ///
         ///   1. <c>Setting.AI_DefaultProvider</c> / <c>AI_DefaultModel</c> — global, set
         ///      explicitly from the AI preferences. Wins when present.
-        ///   2. <c>Project.UseClaudeCodeAsDefault</c> / <c>UseCopilotCliAsDefault</c> —
-        ///      per project, "use this CLI automatically when it is installed".
+        ///   2. <c>Project.MarkAgentEngine</c> — il motore del progetto, che quando vale NULL
+        ///      è quello dell'ambiente agentico dichiarato dal repository.
         ///
-        /// Reading only the first one was a bug: <c>UseCopilotCliAsDefault</c> is born
-        /// <c>true</c>, so a user who never opened the AI preferences still has a working
-        /// engine everywhere else in the app — and MarkAgent alone claimed there was none.
+        /// Leggere solo la prima era un bug: un progetto ha un motore anche senza che nessuno
+        /// abbia mai aperto le preferenze AI — e MarkAgent era l'unico posto a dire di no.
         ///
-        /// When both per-project flags are on, Claude Code wins. Its flag is born OFF, so
-        /// finding it on is a deliberate choice, while Copilot's may simply be the default
-        /// nobody touched: the explicit choice beats the default. Same rule as
-        /// MdProjectsController, on purpose — two places must not arbitrate differently.
+        /// La risoluzione del motore sta tutta in <c>MarkAgentEngines.Resolve</c>, la stessa che
+        /// usa MdProjectsController: due posti non devono arbitrare diversamente. Prima erano due
+        /// booleani con la regola «accesi entrambi → vince Claude» ricopiata qui.
         ///
         /// What this method still refuses to do is walk a chain of substitutes: if the
         /// chosen engine is missing or unavailable, MarkAgent says so instead of answering
@@ -671,19 +670,35 @@ namespace MdExplorer.Services.MarkDiagram
                 return chosen;
             }
 
-            // 2 ─ Auto-select per progetto, con la precedenza di MdProjectsController.
-            var (useClaudeCode, useCopilotCli) = ReadProjectAutoSelect(projectPath);
+            // 2 ─ Il motore del progetto, risolto una volta sola.
+            var engine = ReadProjectEngine(projectPath);
 
-            if (useClaudeCode &&
-                byKey.TryGetValue("claudecode", out var claude) &&
-                IsUsable(claude, projectPath, out _))
+            if (engine == MarkAgentEngine.Claude)
             {
+                if (!byKey.TryGetValue("claudecode", out var claude))
+                {
+                    whyNot = "Il progetto usa Claude Code, ma il provider non risulta registrato in questa installazione.";
+                    return null;
+                }
+                if (!IsUsable(claude, projectPath, out var whyClaude))
+                {
+                    whyNot = whyClaude;
+                    return null;
+                }
                 // Alias, non nome pieno: punta sempre all'ultimo Sonnet e non invecchia.
                 modelId = "sonnet";
                 return claude;
             }
 
-            if (useCopilotCli && byKey.TryGetValue("copilotcli", out var copilot))
+            if (engine == MarkAgentEngine.OpenCode)
+            {
+                // Motore scelto, canale non ancora scritto (fase F4 dello sprint). Si dice, invece
+                // di rispondere in silenzio con un altro CLI che l'utente non ha scelto.
+                whyNot = "Il progetto usa opencode come motore, che «spiega il diagramma» non sa ancora pilotare.";
+                return null;
+            }
+
+            if (engine == MarkAgentEngine.Copilot && byKey.TryGetValue("copilotcli", out var copilot))
             {
                 if (IsUsable(copilot, projectPath, out var whyCopilot))
                 {
@@ -711,7 +726,7 @@ namespace MdExplorer.Services.MarkDiagram
             }
 
             whyNot = "Non ho un LLM di riferimento configurato. Impostalo nelle preferenze AI, "
-                   + "oppure attiva un CLI nelle impostazioni del progetto.";
+                   + "oppure scegli un ambiente agentico nelle impostazioni del progetto.";
             return null;
         }
 
@@ -746,18 +761,18 @@ namespace MdExplorer.Services.MarkDiagram
         }
 
         /// <summary>
-        /// Per-project auto-select flags. A project row that cannot be found is treated as
-        /// "nothing chosen here" rather than as the entity defaults: the defaults describe a
-        /// project that exists, and inventing one would resurrect the silent fallback.
+        /// Il motore del progetto. Una riga che non si trova vale <see cref="MarkAgentEngine.None"/>
+        /// e non il default dell'entità: il default descrive un progetto che esiste, e inventarne uno
+        /// farebbe rinascere il fallback silenzioso.
         /// </summary>
-        private (bool useClaudeCode, bool useCopilotCli) ReadProjectAutoSelect(string projectPath)
+        private MarkAgentEngine ReadProjectEngine(string projectPath)
         {
-            if (string.IsNullOrWhiteSpace(projectPath)) return (false, false);
+            if (string.IsNullOrWhiteSpace(projectPath)) return MarkAgentEngine.None;
             try
             {
                 using var scope = _scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetService<IUserSettingsDB>();
-                if (db == null) return (false, false);
+                if (db == null) return MarkAgentEngine.None;
 
                 db.BeginTransaction();
                 var projects = db.GetDal<Project>().GetList().ToList();
@@ -769,15 +784,15 @@ namespace MdExplorer.Services.MarkDiagram
                 if (project == null)
                 {
                     _logger.LogWarning("[MarkDiagram] No Project row for path {Path}", projectPath);
-                    return (false, false);
+                    return MarkAgentEngine.None;
                 }
 
-                return (project.UseClaudeCodeAsDefault, project.UseCopilotCliAsDefault);
+                return MarkAgentEngines.Resolve(project.MarkAgentEngine, projectPath, out _);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "[MarkDiagram] Could not read the per-project AI auto-select flags");
-                return (false, false);
+                _logger.LogWarning(ex, "[MarkDiagram] Could not read the project MarkAgent engine");
+                return MarkAgentEngine.None;
             }
         }
 
