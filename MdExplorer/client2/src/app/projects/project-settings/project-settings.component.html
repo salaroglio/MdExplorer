@@ -344,10 +344,22 @@
                     {{ 'PROJECT_SETTINGS.INTELLIJ' | translate }}
                   </span>
                 </mat-radio-button>
-                <mat-radio-button value="copilot" class="ide-radio">
+                <!-- Non un CLI fisso: quello dell'ambiente agentico del progetto (tab AI & RAG).
+                     Prima qui c'era "GitHub Copilot", e su un progetto Claude o opencode la matita
+                     apriva il CLI sbagliato. -->
+                <mat-radio-button value="agent-cli" class="ide-radio"
+                                  [disabled]="!engineSettingsLoaded || markAgentEngine === 'none'">
                   <span class="ide-label">
                     <mat-icon class="ide-icon-inline copilot-color">smart_toy</mat-icon>
-                    {{ 'PROJECT_SETTINGS.COPILOT' | translate }}
+                    {{ 'PROJECT_SETTINGS.AGENT_CLI' | translate }}
+                  </span>
+                  <span class="harness-reason" *ngIf="engineSettingsLoaded">
+                    <ng-container *ngIf="markAgentEngine !== 'none'">
+                      {{ 'PROJECT_SETTINGS.AGENT_CLI_HINT' | translate:{ engine: (engineLabelKey(markAgentEngine) | translate) } }}
+                    </ng-container>
+                    <ng-container *ngIf="markAgentEngine === 'none'">
+                      {{ 'PROJECT_SETTINGS.AGENT_CLI_NONE' | translate }}
+                    </ng-container>
                   </span>
                 </mat-radio-button>
               </mat-radio-group>

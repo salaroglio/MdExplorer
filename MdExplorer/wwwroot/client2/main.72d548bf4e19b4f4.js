@@ -18576,8 +18576,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.21.7',
-  buildTime: '2026.09.21 12:45:56'
+  version: '2026.09.21.8',
+  buildTime: '2026.09.21 14:56:41'
 };
 
 /***/ }),
@@ -18611,4 +18611,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.068827e9281b6227.js.map
+//# sourceMappingURL=main.72d548bf4e19b4f4.js.map

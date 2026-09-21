@@ -112,6 +112,24 @@ namespace MdExplorer.Utilities
         }
 
         /// <summary>
+        /// Il comando da digitare in un terminale per parlare con questo motore: è anche il nome
+        /// dell'eseguibile nel PATH. Serve a chi apre il CLI dell'ambiente dalla toolbar.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// <see cref="MarkAgentEngine.None"/> non ha un comando: non c'è niente da aprire, e
+        /// restituire una stringa vuota farebbe lanciare un processo senza nome.
+        /// </exception>
+        public static string CommandOf(MarkAgentEngine engine) => engine switch
+        {
+            MarkAgentEngine.Copilot => "copilot",
+            MarkAgentEngine.OpenCode => "opencode",
+            MarkAgentEngine.Claude => "claude",
+            MarkAgentEngine.None => throw new InvalidOperationException(
+                "Questo progetto non ha un ambiente agentico: non c'è nessun CLI da aprire."),
+            _ => throw new ArgumentOutOfRangeException(nameof(engine), engine, "Motore di MarkAgent sconosciuto."),
+        };
+
+        /// <summary>
         /// L'harness del progetto: quello dichiarato nel <c>.development.yml</c> o, per un progetto
         /// nato prima che l'impostazione esistesse, quello che si vede sul disco. Stessa coppia di
         /// letture di <c>GetHarness</c>, perché due posti non devono rispondere diversamente.

@@ -341,7 +341,11 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.ideConfigService.getIdeConfiguration(this.projectPath).subscribe({
       next: (response) => {
         console.log('IDE configuration loaded for project:', this.projectPath, response);
-        this.selectedIde = response.selectedIde || 'vscode';
+        // 'copilot' è il valore storico della voce, quando era un CLI fisso: la migrazione
+        // M2026_09_21_003 lo converte, ma un DB non ancora migrato lo manderebbe ancora, e il
+        // radio resterebbe senza nessuna voce selezionata.
+        const ide = response.selectedIde || 'vscode';
+        this.selectedIde = ide === 'copilot' ? 'agent-cli' : ide;
         this.lastSavedIde = this.selectedIde;
         this.vscodePath = response.vscodePath || '';
         this.intellijPath = response.intellijPath || '';

@@ -28727,16 +28727,29 @@ class ToolbarComponent {
   }
   OpenEditor() {
     const url = '../api/AppSettings/OpenFile?path=' + this.absolutePath;
-    this.http.get(url).subscribe(data => {
-      // Docker mode: backend can't spawn the host's editor process, so it
-      // returns a "vscode://file/..." (or jetbrains://) URL. Hand it to the
-      // browser, which forwards it to the OS, which launches the editor on
-      // the host. On native Windows/Linux this branch is never taken.
-      if (data && data.openUrl) {
-        window.location.href = data.openUrl;
-        return;
+    this.http.get(url).subscribe({
+      next: data => {
+        // Docker mode: backend can't spawn the host's editor process, so it
+        // returns a "vscode://file/..." (or jetbrains://) URL. Hand it to the
+        // browser, which forwards it to the OS, which launches the editor on
+        // the host. On native Windows/Linux this branch is never taken.
+        if (data && data.openUrl) {
+          window.location.href = data.openUrl;
+          return;
+        }
+        console.log(data);
+      },
+      error: err => {
+        // Il backend sa PERCHÉ non ha aperto niente («quel CLI non è installato», «questo
+        // progetto non ha un ambiente agentico»): senza questo ramo il messaggio finiva nella
+        // console e la matita sembrava semplicemente rotta.
+        const message = err?.error?.error || err?.message || String(err);
+        console.error('[Toolbar] apertura nell\'editor fallita:', message);
+        this._snackBar.open(message, 'OK', {
+          duration: 8000,
+          verticalPosition: 'top'
+        });
       }
-      console.log(data);
     });
   }
   Export() {
@@ -37449,4 +37462,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.dac97ada0d086edd.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.5a8c02e8655058fd.js.map
