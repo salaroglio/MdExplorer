@@ -37,6 +37,13 @@ export class ProjectsService {
   // sottoscrizioni che scriverebbero a turno sullo stesso stato della chat.
   claudeCodeAutoConfig$ = new BehaviorSubject<{ autoSelect: boolean; available: boolean; defaultModel: string | null } | null>(null);
 
+  /**
+   * Terza gemella, per opencode. `available` qui è la sola presenza del CLI nel PATH: il
+   * server vero nasce al primo messaggio della chat, e accenderlo solo per rispondere
+   * «c'è» sarebbe un processo a vuoto.
+   */
+  openCodeAutoConfig$ = new BehaviorSubject<{ autoSelect: boolean; available: boolean; defaultModel: string | null } | null>(null);
+
   // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
   private projectChangingSubject = new Subject<void>();
   projectChanging$ = this.projectChangingSubject.asObservable();
@@ -108,6 +115,7 @@ export class ProjectsService {
       // Emit Copilot CLI auto-select hint for ai-chat to consume
       this.emitCopilotCliAutoConfig(response);
       this.emitClaudeCodeAutoConfig(response);
+      this.emitOpenCodeAutoConfig(response);
 
       // Update compatibility mode from response
       if (response.compatibilityMode) {
@@ -157,6 +165,7 @@ export class ProjectsService {
       // Emit Copilot CLI auto-select hint for ai-chat to consume
       this.emitCopilotCliAutoConfig(response);
       this.emitClaudeCodeAutoConfig(response);
+      this.emitOpenCodeAutoConfig(response);
 
       // Update compatibility mode from response
       if (response.compatibilityMode) {
@@ -335,6 +344,24 @@ export class ProjectsService {
    * scaldare — ma resta per simmetria e non costa nulla quando la prima risposta è già
    * "disponibile".
    */
+  /**
+   * Gemella delle due precedenti per opencode, senza la ri-verifica: la disponibilità è una
+   * scansione del PATH fatta dal backend, non una cache che si scalda.
+   */
+  private emitOpenCodeAutoConfig(response: any): void {
+    if (response == null) return;
+    if (typeof response.openCodeAutoSelect !== 'boolean') {
+      this.openCodeAutoConfig$.next(null);
+      return;
+    }
+    this.openCodeAutoConfig$.next({
+      autoSelect: response.openCodeAutoSelect === true,
+      available: response.openCodeAvailable === true,
+      // null = mai scelto: lo decide il server. Non si inventa un nome qui.
+      defaultModel: response.openCodeDefaultModel ?? null
+    });
+  }
+
   private emitClaudeCodeAutoConfig(response: any): void {
     if (this.claudeCodeRetryTimer) {
       clearTimeout(this.claudeCodeRetryTimer);

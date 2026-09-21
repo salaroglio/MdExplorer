@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Features.Services;
 using System;
@@ -15,6 +15,7 @@ using MdExplorer.bll.Services.AI;
 using MdExplorer.bll.Models.AI;
 using MdExplorer.Features.Services.AI;
 using MdExplorer.Features.Services.AI.ClaudeCode;
+using MdExplorer.Features.Services.AI.OpenCode;
 using MdExplorer.Features.Services.AI.CopilotChat;
 using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Services.FileSystemWatcherManager;
@@ -35,6 +36,7 @@ namespace MdExplorer.Hubs
         private readonly Features.Services.AI.LocalLlamaProvider _localProvider;
         private readonly CopilotChatSessionPool _copilotChatPool;
         private readonly ClaudeCodeSessionPool _claudeCodePool;
+        private readonly OpenCodeSessionPool _openCodePool;
 
         // Static dictionary to store chat mode per connection
         private static readonly ConcurrentDictionary<string, ChatModeInfo> _connectionChatModes =
@@ -84,7 +86,8 @@ namespace MdExplorer.Hubs
             IFileSystemWatcherManager watcherManager,
             Features.Services.AI.LocalLlamaProvider localProvider,
             CopilotChatSessionPool copilotChatPool,
-            ClaudeCodeSessionPool claudeCodePool)
+            ClaudeCodeSessionPool claudeCodePool,
+            OpenCodeSessionPool openCodePool)
         {
             _aiChatService = aiChatService;
             _downloadService = downloadService;
@@ -98,6 +101,7 @@ namespace MdExplorer.Hubs
             _localProvider = localProvider;
             _copilotChatPool = copilotChatPool;
             _claudeCodePool = claudeCodePool;
+            _openCodePool = openCodePool;
         }
 
         /// <summary>
@@ -155,7 +159,8 @@ namespace MdExplorer.Hubs
             // resti muto sull'altro.
             var cancelledCopilot = _copilotChatPool?.CancelActivePrompt(Context.ConnectionId) ?? false;
             var cancelledClaude = _claudeCodePool?.CancelActivePrompt(Context.ConnectionId) ?? false;
-            var cancelled = cancelledCopilot || cancelledClaude;
+            var cancelledOpenCode = _openCodePool?.CancelActivePrompt(Context.ConnectionId) ?? false;
+            var cancelled = cancelledCopilot || cancelledClaude || cancelledOpenCode;
             if (!cancelled)
             {
                 // Niente in volo per questa connessione. Dirlo al client conta: prima si
@@ -394,6 +399,31 @@ namespace MdExplorer.Hubs
                             response = string.Empty;
                         }
                         _logger.LogInformation($"[SendMessage] Claude Code streaming completato, lunghezza risposta: {response?.Length ?? 0}");
+                    }
+                    else if (chatMode.ProviderType == Abstractions.Models.AI.ProviderType.OpenCode)
+                    {
+                        // opencode: sessione sul server condiviso, streaming dagli eventi SSE.
+                        // Nessun ripiego su un altro motore: se fallisce, l'utente vede perché.
+                        string response;
+                        try
+                        {
+                            response = await StreamOpenCodeResponseAsync(message, chatMode.ModelId, currentDoc, history, channelId);
+                        }
+                        catch (OpenCodeMidStreamException midEx)
+                        {
+                            _logger.LogError(midEx, "[SendMessage] opencode interrotto a metà stream");
+                            await Clients.Caller.SendAsync("ReceiveError",
+                                "Stream di opencode interrotto: " + (midEx.InnerException?.Message ?? midEx.Message), channelId);
+                            response = string.Empty;
+                        }
+                        catch (Exception ocEx)
+                        {
+                            _logger.LogError(ocEx, "[SendMessage] opencode fallito prima dello streaming");
+                            await Clients.Caller.SendAsync("ReceiveError",
+                                "opencode non è partito: " + ocEx.Message, channelId);
+                            response = string.Empty;
+                        }
+                        _logger.LogInformation($"[SendMessage] opencode streaming completato, lunghezza risposta: {response?.Length ?? 0}");
                     }
                     else
                     {
@@ -644,6 +674,14 @@ namespace MdExplorer.Hubs
                     try { await _claudeCodePool.ReleaseAsync(Context.ConnectionId); }
                     catch (Exception ex) { _logger.LogWarning(ex, "[ClearHistory] rilascio del pool Claude Code fallito per {ConnectionId}", Context.ConnectionId); }
                 }
+
+                // E per opencode: la memoria del turno sta nella sessione sul server, quindi una
+                // "chat nuova" ha bisogno di una sessione nuova.
+                if (_openCodePool != null)
+                {
+                    try { await _openCodePool.ReleaseAsync(Context.ConnectionId); }
+                    catch (Exception ex) { _logger.LogWarning(ex, "[ClearHistory] rilascio del pool opencode fallito per {ConnectionId}", Context.ConnectionId); }
+                }
             }
             else
             {
@@ -683,6 +721,13 @@ namespace MdExplorer.Hubs
                     chatMode.ProviderType = Abstractions.Models.AI.ProviderType.ClaudeCode;
                     // Alias, non nome pieno: punta sempre all'ultimo Sonnet e non invecchia.
                     chatMode.ModelId = modelId ?? "sonnet";
+                    break;
+                case "opencode":
+                    chatMode.ProviderType = Abstractions.Models.AI.ProviderType.OpenCode;
+                    // Null resta null: lo sceglie il server (il suo default e' dichiarato in
+                    // /config/providers). Un nome inventato qui sarebbe sbagliato su meta' delle
+                    // installazioni, perche' i modelli dipendono dai provider collegati.
+                    chatMode.ModelId = string.IsNullOrWhiteSpace(modelId) ? null : modelId;
                     break;
                 default:
                     chatMode.ProviderType = null; // Local model
@@ -780,6 +825,13 @@ namespace MdExplorer.Hubs
             public ClaudeCodeMidStreamException(Exception inner)
                 : base("Lo stream di Claude Code è fallito dopo il primo frammento", inner) { }
         }
+
+        private sealed class OpenCodeMidStreamException : Exception
+        {
+            public OpenCodeMidStreamException(Exception inner)
+                : base("Lo stream di opencode è fallito dopo il primo frammento", inner) { }
+        }
+
 
         /// <summary>
         /// Turno di chat servito da <b>Claude Code CLI</b> col suo protocollo nativo
@@ -912,6 +964,135 @@ namespace MdExplorer.Hubs
             }
 
             var finalResponse = responseText.ToString().TrimEnd();
+            history.Messages.Add(new bll.Models.AI.ConversationMessage
+            {
+                Role = "model",
+                Content = finalResponse
+            });
+            return finalResponse;
+        }
+
+        /// <summary>
+        /// Turno di chat servito da <b>opencode</b>, attraverso la sessione del
+        /// <see cref="OpenCodeSessionPool"/> sul server gestito da MdExplorer.
+        ///
+        /// <para>Gemello di <see cref="StreamClaudeCodeResponseAsync"/>: parla gli <b>stessi
+        /// eventi SignalR</b>, così il frontend non cambia di una riga.</para>
+        ///
+        /// <para>Una differenza vera, che viene dal protocollo: il testo che finisce in
+        /// cronologia è quello <b>dichiarato dal server</b> a fine turno, non la somma dei
+        /// frammenti. I frammenti servono a far vedere la risposta mentre nasce; se lo stream
+        /// SSE ne perdesse uno, la cronologia resterebbe monca senza che nessuno lo sappia.
+        /// Quando le due cose non coincidono, il log lo dice.</para>
+        /// </summary>
+        private async Task<string> StreamOpenCodeResponseAsync(
+            string userMessage,
+            string modelId,
+            string currentDoc,
+            ConversationHistory history,
+            string channelId = "default")
+        {
+            if (_openCodePool == null)
+            {
+                throw new InvalidOperationException("OpenCodeSessionPool non registrato");
+            }
+
+            var projectPath = GetProjectPath(out var whyNoProject);
+            if (string.IsNullOrEmpty(projectPath))
+            {
+                throw new InvalidOperationException(
+                    "Non so in quale progetto lavorare, e opencode va eseguito dentro il progetto, non altrove: "
+                    + $"{whyNoProject}. Riapri il progetto.");
+            }
+
+            var session = await _openCodePool.GetOrCreateAsync(Context.ConnectionId, projectPath, modelId);
+
+            await Clients.Caller.SendAsync("ReceiveStreamMeta",
+                new { providerType = "opencode", modelId = modelId, transport = "serve-sse" }, channelId);
+
+            var promptText = string.IsNullOrEmpty(currentDoc)
+                ? userMessage
+                : $"[Documento corrente: {currentDoc}]\n\n{userMessage}";
+
+            var streamed = new StringBuilder();
+            int chunksSent = 0;
+
+            var promptCts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
+            _openCodePool.RegisterActivePrompt(Context.ConnectionId, promptCts);
+            try
+            {
+                await foreach (var chunk in session.PromptAsync(promptText, promptCts.Token))
+                {
+                    if (chunk.Kind == OpenCodeChunk.KindMessage)
+                    {
+                        await Clients.Caller.SendAsync("ReceiveStreamChunk", chunk.Text, channelId);
+                        streamed.Append(chunk.Text);
+                        chunksSent++;
+                    }
+                    else if (chunk.Kind == OpenCodeChunk.KindThinking)
+                    {
+                        await Clients.Caller.SendAsync("ReceiveThinking", chunk.Text, channelId);
+                    }
+                    else if (chunk.Kind == OpenCodeChunk.KindTool)
+                    {
+                        await Clients.Caller.SendAsync("ReceiveToolActivity", chunk.Text, channelId);
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (promptCts.IsCancellationRequested)
+            {
+                // Stop premuto dall'utente (o connessione caduta): quello che è già arrivato
+                // resta, il turno finisce pulito.
+                _logger.LogInformation("[AiChatHub] Turno opencode annullato dall'utente (frammenti={ChunksSent})", chunksSent);
+            }
+            catch (Exception ex) when (chunksSent > 0)
+            {
+                throw new OpenCodeMidStreamException(ex);
+            }
+            finally
+            {
+                _openCodePool.UnregisterActivePrompt(Context.ConnectionId, promptCts);
+                promptCts.Dispose();
+            }
+
+            // Consuntivo del turno: token e costo, come per Claude Code. Evento diverso perché
+            // i campi sono diversi: qui non esistono le finestre di consumo.
+            try
+            {
+                var usage = session.LastTurnUsage;
+                if (usage != null)
+                {
+                    await Clients.Caller.SendAsync("ReceiveOpenCodeUsage", new
+                    {
+                        providerId = usage.ProviderId,
+                        modelId = usage.ModelId,
+                        inputTokens = usage.InputTokens,
+                        outputTokens = usage.OutputTokens,
+                        reasoningTokens = usage.ReasoningTokens,
+                        cacheReadTokens = usage.CacheReadTokens,
+                        totalTokens = usage.TotalTokens,
+                        costUsd = usage.CostUsd,
+                        durationMs = usage.DurationMs
+                    }, channelId);
+                }
+            }
+            catch (Exception ex)
+            {
+                // La telemetria non deve mai far fallire un turno andato a buon fine.
+                _logger.LogWarning(ex, "[AiChatHub] invio del consuntivo opencode fallito");
+            }
+
+            var streamedText = streamed.ToString().TrimEnd();
+            var authoritative = (session.LastTurnText ?? string.Empty).TrimEnd();
+            var finalResponse = string.IsNullOrEmpty(authoritative) ? streamedText : authoritative;
+            if (!string.IsNullOrEmpty(authoritative) && authoritative != streamedText && chunksSent > 0)
+            {
+                _logger.LogWarning(
+                    "[AiChatHub] opencode: i frammenti mostrati ({Streamed} caratteri) non coincidono con la risposta "
+                    + "dichiarata dal server ({Authoritative}): in cronologia va quella del server",
+                    streamedText.Length, authoritative.Length);
+            }
+
             history.Messages.Add(new bll.Models.AI.ConversationMessage
             {
                 Role = "model",
@@ -1526,6 +1707,25 @@ namespace MdExplorer.Hubs
                             _logger.LogError(ccEx, "[RegenerateAiResponse] Claude Code fallito prima dello streaming");
                             await Clients.Caller.SendAsync("ReceiveError",
                                 "Claude Code non è partito: " + ccEx.Message, channelId);
+                        }
+                    }
+                    else if (chatMode.ProviderType == Abstractions.Models.AI.ProviderType.OpenCode)
+                    {
+                        try
+                        {
+                            await StreamOpenCodeResponseAsync(lastUserMessage, chatMode.ModelId, currentDoc, history, channelId);
+                        }
+                        catch (OpenCodeMidStreamException midEx)
+                        {
+                            _logger.LogError(midEx, "[RegenerateAiResponse] opencode interrotto a metà stream");
+                            await Clients.Caller.SendAsync("ReceiveError",
+                                "Stream di opencode interrotto: " + (midEx.InnerException?.Message ?? midEx.Message), channelId);
+                        }
+                        catch (Exception ocEx)
+                        {
+                            _logger.LogError(ocEx, "[RegenerateAiResponse] opencode fallito prima dello streaming");
+                            await Clients.Caller.SendAsync("ReceiveError",
+                                "opencode non è partito: " + ocEx.Message, channelId);
                         }
                     }
                     else

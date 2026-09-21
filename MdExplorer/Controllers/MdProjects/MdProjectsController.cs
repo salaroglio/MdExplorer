@@ -956,6 +956,25 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 }
                 logPhase("ClaudeCode availability (sync probe)");
 
+                // opencode: la disponibilita' e' una scansione del PATH, come per Claude Code.
+                // Il server vero (`opencode serve`) non si accende qui: nasce al primo messaggio
+                // della chat, e accenderlo solo per dire "c'e'" sarebbe un processo a vuoto.
+                bool openCodeAutoSelect = markAgentEngine == MdExplorer.Utilities.MarkAgentEngine.OpenCode;
+                bool openCodeAvailable = false;
+                string openCodeDefaultModel = null;
+                if (openCodeAutoSelect)
+                {
+                    openCodeAvailable = MdExplorer.Features.Services.AI.OpenCode.OpenCodeProcessLauncher.IsResolvable();
+                    // Mai scelto = null: lo decide il server, che dichiara il proprio default in
+                    // /config/providers. Un nome scritto qui sarebbe sbagliato su meta' delle
+                    // installazioni, perche' i modelli dipendono dai provider collegati.
+                    openCodeDefaultModel = project.OpenCodeChatModel;
+                    logger?.LogInformation(
+                        "🤖 opencode: available={Available}, model={Model}, cwd={Cwd}",
+                        openCodeAvailable, openCodeDefaultModel ?? "(default del server)", request.Path);
+                }
+                logPhase("opencode availability (PATH scan)");
+
                 __perfTotal.Stop();
                 logger?.LogWarning("⏱️ [SetFolderProject PERF] TOTAL: {Ms} ms", __perfTotal.ElapsedMilliseconds);
 
@@ -977,6 +996,9 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     claudeCodeAutoSelect = claudeCodeAutoSelect,
                     claudeCodeAvailable = claudeCodeAvailable,
                     claudeCodeDefaultModel = claudeCodeDefaultModel,
+                    openCodeAutoSelect = openCodeAutoSelect,
+                    openCodeAvailable = openCodeAvailable,
+                    openCodeDefaultModel = openCodeDefaultModel,
                     markAgentEngine = MdExplorer.Utilities.MarkAgentEngines.IdOf(markAgentEngine),
                     markAgentEngineLinked = markAgentEngineLinked
                 });

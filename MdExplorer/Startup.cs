@@ -260,6 +260,7 @@ namespace MdExplorer
             services.AddSingleton<IAiProvider, GeminiProvider>();
             services.AddSingleton<IAiProvider, CopilotCliProvider>();
             services.AddSingleton<IAiProvider, ClaudeCodeProvider>();
+            services.AddSingleton<IAiProvider, OpenCodeProvider>();
 
             // Agenti algoritmici (città degli agenti, §6 Agent-Harness-A2A): cittadini
             // C# deterministici, stessa cittadinanza degli agenti .agent.md. Ogni
@@ -285,6 +286,7 @@ namespace MdExplorer
             // spegnimento: un server lasciato acceso dopo l'uscita e' gia' successo con l'MCP).
             services.AddSingleton<MdExplorer.Features.Services.AI.OpenCode.OpenCodeServer>();
             services.AddHostedService(sp => sp.GetRequiredService<MdExplorer.Features.Services.AI.OpenCode.OpenCodeServer>());
+            services.AddSingleton<MdExplorer.Features.Services.AI.OpenCode.OpenCodeSessionPool>();
 
             // Source map md→HTML per la feature "Usa AI" su selezione
             services.AddSingleton<MdExplorer.Features.Services.SourceMapping.MarkdownSourceMapService>();

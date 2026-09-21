@@ -67,6 +67,11 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   // chip scritte a mano, e mancavano Default e Fable.
   claudeCodeUnavailable = false;
   claudeCodeAutoSelected = false;
+  /** opencode è il motore di questo progetto e il CLI c'è. */
+  openCodeAutoSelected = false;
+  /** …è il motore, ma opencode non è installato su questa macchina: la chat resta bloccata. */
+  openCodeUnavailable = false;
+  selectedOpenCodeModel: string | null = null;
   selectedClaudeCodeModel: string | null = null;
   claudeModels: ClaudeModel[] = [];
   private claudeModelChoicesCache: {
@@ -237,6 +242,40 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.copilotCliUnavailable = false;
           this.copilotCliAutoSelected = false;
           this.selectedCopilotModel = null;
+        }
+      });
+
+    // Terza gemella, per opencode. Il backend garantisce che al massimo UNO dei tre
+    // auto-select arrivi acceso — il motore del progetto è uno solo — quindi queste
+    // sottoscrizioni non si contendono la chat.
+    this.projectsService.openCodeAutoConfig$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(config => {
+        if (!config) {
+          this.openCodeUnavailable = false;
+          this.openCodeAutoSelected = false;
+          this.selectedOpenCodeModel = null;
+          return;
+        }
+        if (config.autoSelect && config.available) {
+          // null = lo sceglie il server: nessun nome inventato qui.
+          const model = config.defaultModel || null;
+          console.log('[AiChatComponent] opencode come motore, modello:', model ?? '(default del server)');
+          this.openCodeUnavailable = false;
+          this.openCodeAutoSelected = true;
+          this.selectedOpenCodeModel = model;
+          this.aiService.setProvider('opencode', model);
+          this.aiService.notifyOpenCodeConnected(model);
+        } else if (config.autoSelect && !config.available) {
+          console.log('[AiChatComponent] opencode è il motore del progetto ma non è installato — chat bloccata');
+          this.openCodeUnavailable = true;
+          this.openCodeAutoSelected = false;
+          this.selectedOpenCodeModel = null;
+          this.aiService.notifyOpenCodeDisconnected();
+        } else {
+          this.openCodeUnavailable = false;
+          this.openCodeAutoSelected = false;
+          this.selectedOpenCodeModel = null;
         }
       });
 

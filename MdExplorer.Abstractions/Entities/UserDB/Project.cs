@@ -55,6 +55,17 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// usa <c>sonnet</c> come faceva prima che la scelta esistesse — non un modello più caro in silenzio.
         /// </summary>
         public virtual string ClaudeCodeChatModel { get; set; }
+
+        /// <summary>
+        /// Il modello con cui MarkAgent parla a opencode in questo progetto, scritto
+        /// <c>provider/modello</c> (es. <c>opencode/big-pickle</c>). <c>null</c> = mai scelto, e
+        /// decide il <b>server</b>, che dichiara il proprio default in <c>/config/providers</c>.
+        /// <para>
+        /// Nessun default scritto nel codice, per la stessa ragione di Copilot: quali modelli
+        /// esistano dipende dai provider collegati a quella installazione di opencode.
+        /// </para>
+        /// </summary>
+        public virtual string OpenCodeChatModel { get; set; }
         public virtual bool ExecutionTrusted { get; set; } = false;
 
         /// <summary>

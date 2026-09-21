@@ -1007,6 +1007,19 @@ export class AiChatService {
     this._currentModel$.next(`ClaudeCode: ${modelId}`);
   }
 
+  notifyOpenCodeConnected(modelId: string | null): void {
+    console.log('[AiChatService] notifyOpenCodeConnected con modelId:', modelId);
+    this._isModelLoaded$.next(true);
+    // null = lo sceglie il server: dirlo, invece di stampare "null".
+    this._currentModel$.next(`opencode: ${modelId || 'default del server'}`);
+  }
+
+  notifyOpenCodeDisconnected(): void {
+    this._isModelLoaded$.next(false);
+    this._currentModel$.next(null);
+    console.log('[AiChatService] opencode disconnesso');
+  }
+
   notifyClaudeCodeDisconnected(): void {
     this._isModelLoaded$.next(false);
     this._currentModel$.next(null);

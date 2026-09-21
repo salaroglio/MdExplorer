@@ -12999,6 +12999,12 @@ class ProjectsService {
     // vince Claude Code) è decisa là, in un punto solo, non contesa qui fra due
     // sottoscrizioni che scriverebbero a turno sullo stesso stato della chat.
     this.claudeCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(null);
+    /**
+     * Terza gemella, per opencode. `available` qui è la sola presenza del CLI nel PATH: il
+     * server vero nasce al primo messaggio della chat, e accenderlo solo per rispondere
+     * «c'è» sarebbe un processo a vuoto.
+     */
+    this.openCodeAutoConfig$ = new rxjs__WEBPACK_IMPORTED_MODULE_2__.BehaviorSubject(null);
     // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
     this.projectChangingSubject = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
     this.projectChanging$ = this.projectChangingSubject.asObservable();
@@ -13051,6 +13057,7 @@ class ProjectsService {
         // Emit Copilot CLI auto-select hint for ai-chat to consume
         _this2.emitCopilotCliAutoConfig(response);
         _this2.emitClaudeCodeAutoConfig(response);
+        _this2.emitOpenCodeAutoConfig(response);
         // Update compatibility mode from response
         if (response.compatibilityMode) {
           const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.GitHub : response.compatibilityMode === 'commonmark' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.CommonMark : _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.MdExplorer;
@@ -13094,6 +13101,7 @@ class ProjectsService {
         // Emit Copilot CLI auto-select hint for ai-chat to consume
         _this3.emitCopilotCliAutoConfig(response);
         _this3.emitClaudeCodeAutoConfig(response);
+        _this3.emitOpenCodeAutoConfig(response);
         // Update compatibility mode from response
         if (response.compatibilityMode) {
           const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.GitHub : response.compatibilityMode === 'commonmark' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.CommonMark : _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.MdExplorer;
@@ -13275,6 +13283,23 @@ class ProjectsService {
    * scaldare — ma resta per simmetria e non costa nulla quando la prima risposta è già
    * "disponibile".
    */
+  /**
+   * Gemella delle due precedenti per opencode, senza la ri-verifica: la disponibilità è una
+   * scansione del PATH fatta dal backend, non una cache che si scalda.
+   */
+  emitOpenCodeAutoConfig(response) {
+    if (response == null) return;
+    if (typeof response.openCodeAutoSelect !== 'boolean') {
+      this.openCodeAutoConfig$.next(null);
+      return;
+    }
+    this.openCodeAutoConfig$.next({
+      autoSelect: response.openCodeAutoSelect === true,
+      available: response.openCodeAvailable === true,
+      // null = mai scelto: lo decide il server. Non si inventa un nome qui.
+      defaultModel: response.openCodeDefaultModel ?? null
+    });
+  }
   emitClaudeCodeAutoConfig(response) {
     if (this.claudeCodeRetryTimer) {
       clearTimeout(this.claudeCodeRetryTimer);
@@ -15467,6 +15492,17 @@ class AiChatService {
     console.log('[AiChatService] notifyClaudeCodeConnected con modelId:', modelId);
     this._isModelLoaded$.next(true);
     this._currentModel$.next(`ClaudeCode: ${modelId}`);
+  }
+  notifyOpenCodeConnected(modelId) {
+    console.log('[AiChatService] notifyOpenCodeConnected con modelId:', modelId);
+    this._isModelLoaded$.next(true);
+    // null = lo sceglie il server: dirlo, invece di stampare "null".
+    this._currentModel$.next(`opencode: ${modelId || 'default del server'}`);
+  }
+  notifyOpenCodeDisconnected() {
+    this._isModelLoaded$.next(false);
+    this._currentModel$.next(null);
+    console.log('[AiChatService] opencode disconnesso');
   }
   notifyClaudeCodeDisconnected() {
     this._isModelLoaded$.next(false);
@@ -18514,8 +18550,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.21.3',
-  buildTime: '2026.09.21 11:51:41'
+  version: '2026.09.21.4',
+  buildTime: '2026.09.21 12:13:18'
 };
 
 /***/ }),
@@ -18549,4 +18585,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.982e2bf16a73a0f4.js.map
+//# sourceMappingURL=main.138fcaec57bd27a6.js.map
