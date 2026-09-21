@@ -122,6 +122,40 @@
     </span>
   </div>
 
+  <!-- Modello di opencode: la stessa riga degli altri due. L'elenco è quello dei provider
+       collegati a questa installazione (/config/providers), l'id è `provider/modello`, la scelta
+       vale per il progetto e il cambio non tocca la conversazione (il modello viaggia in ogni
+       messaggio). -->
+  <div class="copilot-model-bar opencode-model-bar" *ngIf="openCodeAutoSelected">
+    <label class="copilot-model-label" for="opencode-model-select">{{ 'AI_CHAT.COPILOT_MODEL_LABEL' | translate }}</label>
+    <mat-form-field appearance="outline" class="copilot-model-field"
+                    [matTooltip]="selectedOpenCodeModelDescription" [matTooltipDisabled]="!selectedOpenCodeModelDescription">
+      <!-- Valore '' e non null per la voce di default: mat-select con un valore null non disegna
+           nessuna etichetta, e la combo sembrerebbe rotta invece che "non ho scelto". -->
+      <mat-select id="opencode-model-select"
+                  [value]="selectedOpenCodeModel || ''"
+                  [disabled]="isConfiguringProvider || openCodeModelsLoading"
+                  (selectionChange)="selectOpenCodeModel($event.value)">
+        <!-- Nessuna scelta = decide il server. Dirlo, invece di mostrare una combo vuota. -->
+        <mat-option [value]="''">{{ 'AI_CHAT.OPENCODE_SERVER_DEFAULT' | translate }}</mat-option>
+        <mat-option *ngFor="let m of openCodeModelChoices; trackBy: trackClaudeModel" [value]="m.id" [disabled]="m.unavailable"
+                    [matTooltip]="m.description || ''" [matTooltipDisabled]="!m.description" matTooltipPosition="right">
+          {{ m.name }}<span *ngIf="m.unavailable" class="model-unavailable"> — {{ 'AI_CHAT.COPILOT_MODEL_UNAVAILABLE' | translate }}</span>
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+    <button mat-icon-button class="copilot-model-refresh"
+            (click)="refreshOpenCodeModels()"
+            [disabled]="openCodeModelsLoading"
+            [matTooltip]="'AI_CHAT.COPILOT_MODEL_REFRESH' | translate">
+      <mat-icon [class.spinning]="openCodeModelsLoading">refresh</mat-icon>
+    </button>
+    <span class="copilot-model-hint" *ngIf="openCodeModelsLoading">{{ 'AI_CHAT.COPILOT_MODELS_LOADING' | translate }}</span>
+    <span class="copilot-model-error" *ngIf="openCodeModelsError && !openCodeModelsLoading" [matTooltip]="openCodeModelsError">
+      <mat-icon>error_outline</mat-icon>{{ 'AI_CHAT.COPILOT_MODELS_ERROR' | translate }}
+    </span>
+  </div>
+
   <!-- Model Manager Panel -->
   <div class="model-manager-panel" *ngIf="showModelManager" #modelManagerPanel>
     <app-model-manager (contentChanged)="onModelManagerContentChanged()"></app-model-manager>

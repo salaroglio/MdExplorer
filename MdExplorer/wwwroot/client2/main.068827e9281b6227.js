@@ -14718,6 +14718,7 @@ class AiChatService {
     this._cachedModels = null;
     this._refreshInFlight = null;
     this._claudeRefreshInFlight = null;
+    this._openCodeRefreshInFlight = null;
     this.initializeSignalR();
   }
   initializeSignalR() {
@@ -15475,6 +15476,31 @@ class AiChatService {
       this._claudeRefreshInFlight = null;
     }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.shareReplay)(1));
     return this._claudeRefreshInFlight;
+  }
+  /**
+   * I modelli di opencode salvati (AvailableModel, provider OpenCode). Istantaneo: se la tabella
+   * è vuota tocca al refresh, che accende il server.
+   */
+  getOpenCodeChatModels() {
+    return this.http.get('/api/aimodels/cached', {
+      params: {
+        provider: 'OpenCode'
+      }
+    }).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.map)(response => (response?.models || []).map(m => ({
+      id: m.id,
+      name: m.name || m.id,
+      description: m.description || null
+    }))));
+  }
+  /** Chiede al server i modelli dei provider collegati e li salva. Chiamate concorrenti condivise. */
+  refreshOpenCodeModels() {
+    if (this._openCodeRefreshInFlight) {
+      return this._openCodeRefreshInFlight;
+    }
+    this._openCodeRefreshInFlight = this.http.post('/api/opencode/refresh-models', {}).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.finalize)(() => {
+      this._openCodeRefreshInFlight = null;
+    }), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.shareReplay)(1));
+    return this._openCodeRefreshInFlight;
   }
   notifyCopilotCliConnected(modelId) {
     console.log('[AiChatService] notifyCopilotCliConnected called with modelId:', modelId);
@@ -18550,8 +18576,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.21.4',
-  buildTime: '2026.09.21 12:13:18'
+  version: '2026.09.21.7',
+  buildTime: '2026.09.21 12:45:56'
 };
 
 /***/ }),
@@ -18585,4 +18611,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.138fcaec57bd27a6.js.map
+//# sourceMappingURL=main.068827e9281b6227.js.map

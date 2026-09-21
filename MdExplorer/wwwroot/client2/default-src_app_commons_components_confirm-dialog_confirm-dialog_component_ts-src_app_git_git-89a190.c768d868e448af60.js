@@ -6077,6 +6077,17 @@ class ProjectSettingsService {
       }
     });
   }
+  /**
+   * Modello di opencode per MarkAgent in questo progetto, scritto `provider/modello`.
+   * null = mai scelto, decide il server.
+   */
+  setOpenCodeChatModelSetting(modelId, projectPath) {
+    const url = '../api/ProjectSettings/SetOpenCodeChatModelSetting';
+    return this.http.post(url, {
+      modelId,
+      projectPath
+    });
+  }
   setTextIndexingSetting(enabled, extensions, projectPath) {
     const url = '../api/ProjectSettings/SetTextIndexingSetting';
     return this.http.post(url, {
@@ -10680,4 +10691,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.b2f88e34e585876c.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.c768d868e448af60.js.map

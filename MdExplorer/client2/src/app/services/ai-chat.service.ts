@@ -987,6 +987,32 @@ export class AiChatService {
     return this._claudeRefreshInFlight;
   }
 
+  /**
+   * I modelli di opencode salvati (AvailableModel, provider OpenCode). Istantaneo: se la tabella
+   * è vuota tocca al refresh, che accende il server.
+   */
+  getOpenCodeChatModels(): Observable<{ id: string; name: string; description: string | null }[]> {
+    return this.http.get<any>('/api/aimodels/cached', { params: { provider: 'OpenCode' } }).pipe(
+      map(response => (response?.models || []).map((m: any) => ({
+        id: m.id, name: m.name || m.id, description: m.description || null
+      })))
+    );
+  }
+
+  private _openCodeRefreshInFlight: Observable<any> | null = null;
+
+  /** Chiede al server i modelli dei provider collegati e li salva. Chiamate concorrenti condivise. */
+  refreshOpenCodeModels(): Observable<any> {
+    if (this._openCodeRefreshInFlight) {
+      return this._openCodeRefreshInFlight;
+    }
+    this._openCodeRefreshInFlight = this.http.post('/api/opencode/refresh-models', {}).pipe(
+      finalize(() => { this._openCodeRefreshInFlight = null; }),
+      shareReplay(1)
+    );
+    return this._openCodeRefreshInFlight;
+  }
+
   notifyCopilotCliConnected(modelId: string | null): void {
     console.log('[AiChatService] notifyCopilotCliConnected called with modelId:', modelId);
     this._isModelLoaded$.next(true);

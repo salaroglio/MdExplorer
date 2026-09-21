@@ -1156,6 +1156,7 @@
     "PUBLISH_ERROR": "Errore durante la pubblicazione."
   },
   "AI_CHAT": {
+    "OPENCODE_SERVER_DEFAULT": "Default del server",
     "TITLE": "Assistente AI",
     "READY": "Pronto",
     "MODEL_LOADED": "Modello Caricato",

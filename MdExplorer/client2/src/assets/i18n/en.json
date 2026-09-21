@@ -1156,6 +1156,7 @@
     "PUBLISH_ERROR": "Error during publishing."
   },
   "AI_CHAT": {
+    "OPENCODE_SERVER_DEFAULT": "Server default",
     "TITLE": "AI Assistant",
     "READY": "Ready",
     "MODEL_LOADED": "Model Loaded",

@@ -298,6 +298,8 @@ namespace MdExplorer
             services.AddSingleton<IModelDiscoveryProvider, CopilotCliModelDiscovery>();
             services.AddSingleton<MdExplorer.Features.Services.AI.ClaudeCode.ClaudeCodeModelSource>();
             services.AddSingleton<IModelDiscoveryProvider, ClaudeCodeModelDiscovery>();
+            services.AddSingleton<MdExplorer.Features.Services.AI.OpenCode.OpenCodeModelSource>();
+            services.AddSingleton<IModelDiscoveryProvider, OpenCodeModelDiscovery>();
 
             // Add AI Tool Calling services
             // PathValidator is now created dynamically by ToolExecutor with the current workspace root

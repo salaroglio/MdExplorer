@@ -166,6 +166,15 @@ export class ProjectSettingsService {
     return this.http.get<{enabled: boolean, extensions: string, defaultExtensions: string}>(url, { params: { projectPath } });
   }
 
+  /**
+   * Modello di opencode per MarkAgent in questo progetto, scritto `provider/modello`.
+   * null = mai scelto, decide il server.
+   */
+  setOpenCodeChatModelSetting(modelId: string | null, projectPath: string): Observable<{ modelId: string | null }> {
+    const url = '../api/ProjectSettings/SetOpenCodeChatModelSetting';
+    return this.http.post<{ modelId: string | null }>(url, { modelId, projectPath });
+  }
+
   setTextIndexingSetting(enabled: boolean, extensions: string, projectPath: string): Observable<any> {
     const url = '../api/ProjectSettings/SetTextIndexingSetting';
     return this.http.post<any>(url, { enabled, extensions, projectPath });

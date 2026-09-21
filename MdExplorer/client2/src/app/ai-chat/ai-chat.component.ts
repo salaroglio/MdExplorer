@@ -82,6 +82,17 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   claudeModelsLoading = false;
   claudeModelsError: string | null = null;
 
+  // Modelli di opencode: stessa forma dei due precedenti. L'id è `provider/modello`, perché è
+  // la coppia che viaggia in ogni messaggio.
+  openCodeModels: ClaudeModel[] = [];
+  private openCodeModelChoicesCache: {
+    models: ClaudeModel[];
+    selected: string | null;
+    choices: ClaudeModelChoice[];
+  } | null = null;
+  openCodeModelsLoading = false;
+  openCodeModelsError: string | null = null;
+
   /**
    * Consuntivo dell'ultimo turno di Claude Code: costo del turno, cumulato della sessione,
    * token e quanta parte delle finestre a 5 ore e 7 giorni è già bruciata.
@@ -266,6 +277,7 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.selectedOpenCodeModel = model;
           this.aiService.setProvider('opencode', model);
           this.aiService.notifyOpenCodeConnected(model);
+          this.loadOpenCodeModels();
         } else if (config.autoSelect && !config.available) {
           console.log('[AiChatComponent] opencode è il motore del progetto ma non è installato — chat bloccata');
           this.openCodeUnavailable = true;
@@ -523,6 +535,98 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   /** Descrizione del modello scelto (quale modello c'è dietro «Default»), per il tooltip della combo. */
   get selectedClaudeModelDescription(): string {
     return this.claudeModels.find(m => m.id === this.selectedClaudeCodeModel)?.description || '';
+  }
+
+  /**
+   * Le voci della combo di opencode. Stesse regole delle altre due: stesso array finché elenco e
+   * scelta non cambiano (un array nuovo a ogni lettura blocca mat-select), e un modello salvato
+   * che non è più nell'elenco resta visibile e segnalato.
+   */
+  get openCodeModelChoices(): ClaudeModelChoice[] {
+    const cache = this.openCodeModelChoicesCache;
+    if (cache && cache.models === this.openCodeModels && cache.selected === this.selectedOpenCodeModel) {
+      return cache.choices;
+    }
+    const choices: ClaudeModelChoice[] = this.openCodeModels.map(m => ({ ...m, unavailable: false }));
+    const selected = this.selectedOpenCodeModel;
+    if (selected && !choices.some(c => c.id === selected)) {
+      choices.unshift({ id: selected, name: selected, description: null, unavailable: this.openCodeModels.length > 0 });
+    }
+    this.openCodeModelChoicesCache = { models: this.openCodeModels, selected, choices };
+    return choices;
+  }
+
+  /** Da quale provider arriva il modello scelto: con più provider collegati i nomi si ripetono. */
+  get selectedOpenCodeModelDescription(): string {
+    return this.openCodeModels.find(m => m.id === this.selectedOpenCodeModel)?.description || '';
+  }
+
+  /** Modelli salvati (istantaneo); se non ce ne sono, li chiede al server — che per questo si accende. */
+  loadOpenCodeModels(): void {
+    this.openCodeModelsLoading = true;
+    this.openCodeModelsError = null;
+    this.aiService.getOpenCodeChatModels().subscribe({
+      next: models => {
+        if (models.length) {
+          this.openCodeModels = models;
+          this.openCodeModelsLoading = false;
+        } else {
+          this.refreshOpenCodeModels();
+        }
+      },
+      error: err => this.failOpenCodeModels(err)
+    });
+  }
+
+  refreshOpenCodeModels(): void {
+    this.openCodeModelsLoading = true;
+    this.openCodeModelsError = null;
+    this.aiService.refreshOpenCodeModels().subscribe({
+      next: () => this.aiService.getOpenCodeChatModels().subscribe({
+        next: models => {
+          this.openCodeModels = models;
+          this.openCodeModelsLoading = false;
+        },
+        error: err => this.failOpenCodeModels(err)
+      }),
+      error: err => this.failOpenCodeModels(err)
+    });
+  }
+
+  private failOpenCodeModels(err: any): void {
+    this.openCodeModelsLoading = false;
+    this.openCodeModelsError = err?.error?.error || err?.message || String(err);
+    console.error('[AiChatComponent] Elenco modelli opencode non disponibile:', this.openCodeModelsError);
+  }
+
+  async selectOpenCodeModel(modelId: string | null): Promise<void> {
+    if (!this.openCodeAutoSelected) return;
+    // La voce "default del server" vale null: la scelta torna a "mai scelto", non a un modello
+    // chiamato stringa vuota.
+    const wanted = modelId ? modelId : null;
+    if (this.selectedOpenCodeModel === wanted) return;
+    if (this.isConfiguringProvider) return;
+    console.log('[AiChatComponent] Modello opencode cambiato in:', wanted ?? '(default del server)');
+    this.selectedOpenCodeModel = wanted;
+    try {
+      // Il modello viaggia in ogni messaggio: il cambio vale dalla domanda successiva e la
+      // conversazione resta dov'è (verificato sul server).
+      await this.aiService.setProviderAsync('opencode', wanted);
+      this.aiService.notifyOpenCodeConnected(wanted);
+    } catch (err) {
+      console.error('[AiChatComponent] Cambio di modello opencode fallito:', err);
+      return;
+    }
+
+    const projectPath = this.projectsService.currentProjects$.getValue()?.path;
+    if (!projectPath) {
+      console.warn('[AiChatComponent] Nessun progetto aperto: il modello scelto non viene ricordato');
+      return;
+    }
+    this.projectSettingsService.setOpenCodeChatModelSetting(wanted, projectPath).subscribe({
+      next: () => console.log('[AiChatComponent] Modello opencode salvato per il progetto:', wanted ?? '(default)'),
+      error: err => console.error('[AiChatComponent] Salvataggio del modello opencode per il progetto fallito:', err)
+    });
   }
 
   /** Modelli salvati (istantaneo); se non ce ne sono, li chiede al CLI (initialize, ~1 s, nessun token). */
