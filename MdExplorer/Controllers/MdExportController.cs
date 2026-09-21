@@ -553,6 +553,38 @@ namespace MdExplorer.Service.Controllers
                     {
                         _logger.LogError($"Pandoc error: {error}");
                     }
+
+                    // Pandoc scrive l'immagine in un paragrafo senza allineamento, che eredita
+                    // quello del corpo del testo: a sinistra. Qui il documento è già finito
+                    // (leggere stdout e stderr fino in fondo vuol dire aspettarne la fine),
+                    // quindi si può correggere.
+                    if (_createPandocCommand.Extension == "docx")
+                    {
+                        CenterImages(currentFilePdfPath);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Mette al centro le immagini del documento appena prodotto. Un errore qui non fa
+            /// fallire l'export: il documento c'è ed è valido, solo con le immagini a sinistra —
+            /// e il motivo finisce nel log invece che in faccia all'utente.
+            /// </summary>
+            private void CenterImages(string docxPath)
+            {
+                try
+                {
+                    if (!System.IO.File.Exists(docxPath))
+                    {
+                        _logger.LogWarning("[MdExport] {Path} non c'è: immagini non centrate", docxPath);
+                        return;
+                    }
+                    var quante = MdExplorer.Features.Exports.WordImageLayout.CenterStandaloneImages(docxPath);
+                    _logger.LogInformation("[MdExport] {Count} immagini centrate in {Path}", quante, docxPath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[MdExport] non sono riuscito a centrare le immagini di {Path}", docxPath);
                 }
             }
             
