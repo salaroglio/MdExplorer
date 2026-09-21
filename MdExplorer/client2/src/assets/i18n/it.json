@@ -233,7 +233,7 @@
     "HARNESS_OPENCODE": "opencode (.opencode/ e AGENTS.md)",
     "HARNESS_NONE": "Nessuno",
     "HARNESS_NOT_DECLARED": "Questo progetto non dichiara ancora un harness: quello mostrato \u00e8 dedotto dalle cartelle presenti. Verr\u00e0 scritto in .development.yml al primo salvataggio.",
-    "HARNESS_SWITCH_NOTE": "Cambiando harness i file vengono installati subito dove il nuovo harness li vuole. Quelli del precedente restano dove sono: potrebbero essere personalizzati o gi\u00e0 committati, quindi la loro rimozione resta una tua scelta.",
+    "HARNESS_SWITCH_NOTE": "Cambiando ambiente i file vengono installati subito dove il nuovo ambiente li vuole. Quelli del precedente restano dove sono: potrebbero essere personalizzati o già committati, quindi la loro rimozione resta una tua scelta.",
     "AI_ENV_TITLE": "Ambiente agentico",
     "AI_ENV_DESC": "Una scelta sola: dove MdExplorer installa skill, agent e prompt, e quale CLI usa MarkAgent per leggerli. Le cartelle vivono in .development.yml, un file committato, quindi l'ambiente viaggia col repository e vale per tutto il team.",
     "AI_ENV_HINT_COPILOT": "Cartelle .github/ · MarkAgent parla con Copilot CLI",

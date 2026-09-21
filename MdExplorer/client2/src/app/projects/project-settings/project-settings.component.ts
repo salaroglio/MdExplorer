@@ -466,12 +466,17 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Il motore scelto a mano non è quello dell'ambiente: la chat leggerà cartelle che l'harness
-   * del repository non riempie. È l'unico modo in cui il disaccoppiamento può nascere, ed è
-   * esplicito — per questo qui si avvisa invece di impedirlo.
+   * Il motore in vigore è DAVVERO un altro rispetto all'ambiente del repository.
+   * <br>Non basta che sia stato fissato a mano: fissare «Copilot CLI» su un progetto il cui
+   * ambiente è già Copilot non è un disaccoppiamento, e dirlo sarebbe una bugia (l'apertura del
+   * progetto riporta anzi quel valore a «segue l'ambiente»). Gli identificativi dell'ambiente e
+   * del motore coincidono — 'copilot', 'opencode', 'claude', 'none' — perché sono la stessa
+   * scelta vista da due lati, quindi il confronto è diretto.
    */
   get engineDecoupled(): boolean {
-    return this.engineSettingsLoaded && this.engineChoice !== 'linked';
+    return this.engineSettingsLoaded
+      && this.engineChoice !== 'linked'
+      && this.markAgentEngine !== (this.harness as string);
   }
 
   /** Il motore in vigore legge PER INTERO le cartelle dell'ambiente dichiarato? */

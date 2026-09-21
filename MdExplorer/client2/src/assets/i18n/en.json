@@ -233,7 +233,7 @@
     "HARNESS_OPENCODE": "opencode (.opencode/ and AGENTS.md)",
     "HARNESS_NONE": "None",
     "HARNESS_NOT_DECLARED": "This project does not declare a harness yet: the one shown is inferred from the folders present. It will be written to .development.yml on the first save.",
-    "HARNESS_SWITCH_NOTE": "Switching harness installs the files where the new harness expects them right away. The previous harness files stay where they are: they may be customised or already committed, so removing them is your call.",
+    "HARNESS_SWITCH_NOTE": "Switching environment installs the files where the new environment expects them right away. The previous ones stay where they are: they may be customised or already committed, so removing them is your call.",
     "AI_ENV_TITLE": "Agent environment",
     "AI_ENV_DESC": "One choice: where MdExplorer installs skills, agents and prompts, and which CLI MarkAgent uses to read them. The folders live in .development.yml, a committed file, so the environment travels with the repository and applies to the whole team.",
     "AI_ENV_HINT_COPILOT": ".github/ folders · MarkAgent talks to Copilot CLI",
