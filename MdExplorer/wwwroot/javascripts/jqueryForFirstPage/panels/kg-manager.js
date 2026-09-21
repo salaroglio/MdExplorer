@@ -496,7 +496,7 @@
     /** The arrow tip on the edge of the target box, not at its hidden center. */
     function boxArrowRelPos(link) {
         const s = link.source, t = link.target;
-        if (!s || !t || typeof s.x !== 'number' || typeof t.x !== 'number' || !t._boxW) return 0.92;
+        if (!s || !t || !isFinite(s.x) || !isFinite(s.y) || !isFinite(t.x) || !isFinite(t.y) || !t._boxW) return 0.92;
         const dx = t.x - s.x, dy = t.y - s.y;
         if (Math.hypot(dx, dy) < 1) return 1;
         const halfW = t._boxW / 2 + 3;
@@ -761,6 +761,12 @@
             .nodeCanvasObjectMode(function () { return 'replace'; })
             .nodeCanvasObject(function (node, ctx, globalScale) {
                 if (useBoxes) return;   // the box is the node
+                // force-graph can draw the first frame before the simulation has placed the
+                // nodes (x/y undefined, measured 17/09/2026 on a slowed CPU). createRadialGradient
+                // throws on them, and the exception stops force-graph's render loop for good: the
+                // empty panel of the first K.G. after start. A node not placed yet is not drawn;
+                // the next frame has its position.
+                if (!isFinite(node.x) || !isFinite(node.y)) return;
                 const r = nodeRadius(node);
                 const isCenter = !!node.isCenter;
                 const color = nodeColor(node);
@@ -816,6 +822,7 @@
             })
             .nodePointerAreaPaint(function (node, color, ctx) {
                 if (useBoxes) return;   // the box handles its own pointer
+                if (!isFinite(node.x) || !isFinite(node.y)) return;   // not placed yet (see nodeCanvasObject)
                 const r = nodeRadius(node);
                 ctx.beginPath();
                 ctx.arc(node.x, node.y, r + 2, 0, 2 * Math.PI);
@@ -878,7 +885,7 @@
                 const n = _data.nodes[j];
                 if (n.isCenter) continue;
                 if (bucketFor(n) !== b) continue;
-                if (typeof n.x !== 'number' || typeof n.y !== 'number') continue;
+                if (!isFinite(n.x) || !isFinite(n.y)) continue;   // not placed yet; typeof let NaN through
                 cx += n.x; cy += n.y; count++;
                 members.push(n);
             }
