@@ -32,6 +32,10 @@
     <PackageReference Include="dotNetRDF" Version="3.5.2" />
     <PackageReference Include="GitHub.Copilot.SDK" Version="1.0.11" />
     <PackageReference Include="LLamaSharp" Version="0.26.0" />
+    <!-- Dettatura: Whisper.net e i suoi binari nativi (MIT). Il runtime porta gia' win/linux/macOS,
+         quindi non serve il download a richiesta che llama.cpp invece pretende. -->
+    <PackageReference Include="Whisper.net" Version="1.9.1" />
+    <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <PackageReference Include="System.Management" Version="8.0.0" />

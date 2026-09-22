@@ -243,6 +243,9 @@ namespace MdExplorer
             // Add AI services
             services.AddHttpClient();
             services.AddSingleton<Features.Services.IModelDownloadService, Features.Services.ModelDownloadService>();
+            // Dettatura: singleton perche' tiene in memoria il modello Whisper fra una frase e l'altra
+            // (e lo scarica da solo dopo qualche minuto di inattivita').
+            services.AddSingleton<Features.Services.Speech.ISpeechToTextService, Features.Services.Speech.SpeechToTextService>();
             services.AddSingleton<Features.Services.IAiConfigurationService, Features.Services.AiConfigurationService>();
             services.AddSingleton<Features.Services.IGpuDetectionService, Features.Services.GpuDetectionService>();
             services.AddSingleton<Features.Services.ILlamaBackendService, Features.Services.LlamaBackendService>();
