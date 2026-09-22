@@ -599,6 +599,25 @@ namespace MdExplorer.Service.Controllers
             }
         }
 
+        /// <summary>
+        /// Il dialetto markdown che si dà a Pandoc, uno solo per Word e PDF.
+        /// <para>
+        /// <c>lists_without_preceding_blankline</c> c'è perché MdExplorer mostra i documenti con
+        /// Markdig, che segue <b>CommonMark</b>: lì un elenco che comincia subito sotto una riga di
+        /// testo — il caso tipico del TL;DR, «…nel modo giusto:» e sotto i trattini — è un elenco.
+        /// Il dialetto <c>markdown</c> di Pandoc invece pretende una riga vuota, e senza quella si
+        /// mangia i trattini dentro il paragrafo: nel .docx uscivano 0 voci di elenco vere
+        /// (nessun <c>w:numPr</c>), tutto appiattito in una riga sola. Misurato il 22/09/2026 su
+        /// pandoc 2.9.2.1; con l'estensione il risultato torna identico a quello del visualizzatore.
+        /// </para>
+        /// <para>
+        /// Vale anche per gli elenchi numerati, e vale anche per il PDF: è lo stesso sorgente,
+        /// mostrato dallo stesso visualizzatore, e non ha senso che i due export lo leggano
+        /// in due modi diversi.
+        /// </para>
+        /// </summary>
+        private const string PandocMarkdownDialect = "markdown+implicit_figures+lists_without_preceding_blankline";
+
         private interface ICreatePandocCommand<R, P>
         {
             string Extension { get; }
@@ -630,7 +649,7 @@ namespace MdExplorer.Service.Controllers
                     Path.DirectorySeparatorChar}templates{
                     Path.DirectorySeparatorChar}pdf{
                     Path.DirectorySeparatorChar}eisvogel.tex";
-                var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from markdown+implicit_figures {setPdf}";
+                var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from {PandocMarkdownDialect} {setPdf}";
                 return processCommand;
             }
         }
@@ -678,7 +697,7 @@ namespace MdExplorer.Service.Controllers
                     throw new FileNotFoundException($"Template Word non trovato: {absoluteTemplatePath}. Percorso relativo: {currentReferencePath}");
                 }
                   
-                var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from markdown+implicit_figures {createTocScriptCommand} --reference-doc ""{currentReferencePath}""";
+                var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from {PandocMarkdownDialect} {createTocScriptCommand} --reference-doc ""{currentReferencePath}""";
                 return processCommand;
             }
         }
