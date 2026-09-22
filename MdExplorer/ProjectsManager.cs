@@ -113,13 +113,10 @@ namespace MdExplorer.Service
                 var db = serviceProvider.GetService<IUserSettingsDB>();
                 if (db == null) return false;
 
-                var normalized = projectPath.TrimEnd('/', '\\');
                 db.BeginTransaction();
                 try
                 {
-                    var project = db.GetDal<Project>().GetList()
-                        .FirstOrDefault(p => p.Path != null &&
-                            string.Equals(p.Path.TrimEnd('/', '\\'), normalized, StringComparison.OrdinalIgnoreCase));
+                    var project = FindProjectByPath(db, projectPath);
                     if (project == null) return false;
 
                     var settings = db.GetDal<ProjectFusekiSettings>().GetList()
@@ -133,9 +130,47 @@ namespace MdExplorer.Service
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ProjectsManager] IsFusekiEnabled check failed: {ex.Message}");
+                // Un progetto senza riga di impostazioni torna `false` dal percorso normale, qui
+                // sopra: se si arriva in questo catch è andato storto qualcosa che nessuno aveva
+                // previsto. Per questo il messaggio dice la CONSEGUENZA e non solo l'errore: dal
+                // 04/06/2026 al 22/09/2026 un "check failed" scarno ha nascosto una query che non
+                // si traduceva in SQL, e nel frattempo le skill Fuseki non le aggiornava nessuno.
+                // Non si solleva: aprire un progetto non deve fallire per la scelta di installare
+                // tre skill — ma non deve nemmeno succedere di nascosto.
+                Console.WriteLine($"[ProjectsManager] ⚠️ Non si è potuto sapere se Fuseki è attivo per " +
+                                  $"{projectPath}: {ex.Message}. Le skill Fuseki/Jena (TBox/ABox/SHACL) NON " +
+                                  "verranno installate né aggiornate per questo progetto.");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Il progetto con questo percorso, o null.
+        /// <para>
+        /// ⚠️ <b>Due passaggi, e il secondo dopo <c>.ToList()</c></b>: <c>GetList()</c> è un
+        /// <c>IQueryable</c>, quindi quello che gli si scrive dentro deve diventare SQL, e NHibernate
+        /// <b>non traduce</b> né <c>string.Equals(a, b, StringComparison)</c> né <c>TrimEnd</c> —
+        /// solleva <c>NotSupportedException</c>. Prima l'uguaglianza esatta, che il database sa fare
+        /// e che risolve il caso normale senza leggere la tabella; poi, solo se non ha trovato nulla,
+        /// il confronto tollerante in memoria (la tabella dei progetti è di poche righe).
+        /// </para>
+        /// <para>
+        /// Sta qui, in un posto solo, perché la stessa riga scritta a mano una quarta volta
+        /// rifarebbe lo stesso errore: è successo per davvero (22/09/2026).
+        /// </para>
+        /// </summary>
+        private static Project FindProjectByPath(IUserSettingsDB db, string projectPath)
+        {
+            if (db == null || string.IsNullOrWhiteSpace(projectPath)) return null;
+
+            var dal = db.GetDal<Project>();
+            var exact = dal.GetList().FirstOrDefault(p => p.Path == projectPath);
+            if (exact != null) return exact;
+
+            var normalized = projectPath.TrimEnd('/', '\\');
+            return dal.GetList().ToList()
+                .FirstOrDefault(p => p.Path != null &&
+                    string.Equals(p.Path.TrimEnd('/', '\\'), normalized, StringComparison.OrdinalIgnoreCase));
         }
 
         /// <summary>
@@ -539,16 +574,10 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
             try
             {
-                var normalized = projectPath.TrimEnd('/', '\\');
                 db.BeginTransaction();
                 try
                 {
-                    // ⚠️ `.ToList()` prima del confronto: string.Equals con StringComparison e TrimEnd
-                    // non si traducono in SQL e NHibernate solleva. È lo stesso inciampo che fa fallire
-                    // IsFusekiEnabled qui sopra (visto nei log il 22/09/2026).
-                    var project = db.GetDal<Project>().GetList().ToList()
-                        .FirstOrDefault(p => p.Path != null &&
-                            string.Equals(p.Path.TrimEnd('/', '\\'), normalized, StringComparison.OrdinalIgnoreCase));
+                    var project = FindProjectByPath(db, projectPath);
                     if (project == null) return null;
 
                     var groups = McpToolGroupsSettings.Resolve(project, db, out _);
