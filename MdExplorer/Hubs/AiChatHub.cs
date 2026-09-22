@@ -1237,8 +1237,6 @@ namespace MdExplorer.Hubs
                     quotaUsed = usage.QuotaUsed,
                     quotaEntitlement = usage.QuotaEntitlement,
                     quotaResetDate = usage.QuotaResetDate,
-                    sessionRequests = usage.SessionRequests,
-                    sessionPercent = usage.SessionPercent,
                     contextTokens = usage.ContextTokens,
                     contextLimit = usage.ContextLimit,
                     contextPercent = usage.ContextPercent

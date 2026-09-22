@@ -64,26 +64,19 @@
     <span class="copilot-model-error" *ngIf="copilotModelsError && !copilotModelsLoading" [matTooltip]="copilotModelsError">
       <mat-icon>error_outline</mat-icon>{{ 'AI_CHAT.COPILOT_MODELS_ERROR' | translate }}
     </span>
-    <!-- Consumi: quota del periodo (Copilot la conta in richieste), parte presa da questa
-         conversazione, riempimento del contesto. I numeri esatti stanno nei tooltip. -->
+    <!-- Consumi: quota del periodo (Copilot la conta in richieste) e riempimento del contesto.
+         I numeri esatti stanno nei tooltip. -->
     <span class="copilot-usage" *ngIf="copilotUsage">
-      <ng-container *ngIf="copilotUsage.quotaType">
-        <span class="usage-item" [class.usage-high]="(copilotUsage.quotaUsedPercent || 0) >= 80"
-              [matTooltip]="copilotUsage.quotaUnlimited
-                ? ('AI_CHAT.COPILOT_USAGE_QUOTA_UNLIMITED_TOOLTIP' | translate)
-                : ('AI_CHAT.COPILOT_USAGE_QUOTA_TOOLTIP' | translate:{ used: formatCount(copilotUsage.quotaUsed), total: formatCount(copilotUsage.quotaEntitlement), reset: formatDay(copilotUsage.quotaResetDate) })">
-          {{ 'AI_CHAT.COPILOT_USAGE_QUOTA' | translate }}
-          <strong>{{ copilotUsage.quotaUnlimited ? ('AI_CHAT.COPILOT_USAGE_UNLIMITED' | translate) : formatCopilotPercent(copilotUsage.quotaUsedPercent) }}</strong>
-        </span>
-        <span class="usage-sep">·</span>
-      </ng-container>
-      <span class="usage-item"
-            [matTooltip]="'AI_CHAT.COPILOT_USAGE_SESSION_TOOLTIP' | translate:{ requests: formatCount(copilotUsage.sessionRequests) }">
-        {{ 'AI_CHAT.COPILOT_USAGE_SESSION' | translate }}
-        <strong>{{ copilotUsage.sessionPercent != null ? formatCopilotPercent(copilotUsage.sessionPercent) : formatCount(copilotUsage.sessionRequests) }}</strong>
+      <span class="usage-item" *ngIf="copilotUsage.quotaType"
+            [class.usage-high]="(copilotUsage.quotaUsedPercent || 0) >= 80"
+            [matTooltip]="copilotUsage.quotaUnlimited
+              ? ('AI_CHAT.COPILOT_USAGE_QUOTA_UNLIMITED_TOOLTIP' | translate)
+              : ('AI_CHAT.COPILOT_USAGE_QUOTA_TOOLTIP' | translate:{ used: formatCount(copilotUsage.quotaUsed), total: formatCount(copilotUsage.quotaEntitlement), reset: formatDay(copilotUsage.quotaResetDate) })">
+        {{ 'AI_CHAT.COPILOT_USAGE_QUOTA' | translate }}
+        <strong>{{ copilotUsage.quotaUnlimited ? ('AI_CHAT.COPILOT_USAGE_UNLIMITED' | translate) : formatCopilotPercent(copilotUsage.quotaUsedPercent) }}</strong>
       </span>
       <ng-container *ngIf="copilotUsage.contextPercent != null">
-        <span class="usage-sep">·</span>
+        <span class="usage-sep" *ngIf="copilotUsage.quotaType">·</span>
         <span class="usage-item" [class.usage-high]="(copilotUsage.contextPercent || 0) >= 80"
               [matTooltip]="'AI_CHAT.COPILOT_USAGE_CONTEXT_TOOLTIP' | translate:{ tokens: formatCount(copilotUsage.contextTokens), limit: formatCount(copilotUsage.contextLimit) }">
           {{ 'AI_CHAT.COPILOT_USAGE_CONTEXT' | translate }}

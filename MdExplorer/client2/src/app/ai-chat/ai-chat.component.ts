@@ -19,7 +19,6 @@ type ClaudeModelChoice = ClaudeModel & { unavailable: boolean };
 type CopilotUsage = {
   quotaType: string | null; quotaUnlimited: boolean;
   quotaUsedPercent: number | null; quotaUsed: number | null; quotaEntitlement: number | null; quotaResetDate: string | null;
-  sessionRequests: number; sessionPercent: number | null;
   contextTokens: number | null; contextLimit: number | null; contextPercent: number | null;
 };
 

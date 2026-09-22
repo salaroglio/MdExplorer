@@ -46,33 +46,30 @@ namespace MdExplorer.Features.Tests.Agents
         }
 
         [TestMethod]
-        public void ComputeTheThreePercentages()
+        public void ComputeTheTwoPercentages()
         {
-            var usage = CopilotUsage.Build(Parse(FreePlan), null, sessionRequests: 2, contextTokens: 26277, contextLimit: 128000);
+            var usage = CopilotUsage.Build(Parse(FreePlan), null, contextTokens: 26277, contextLimit: 128000);
 
             Assert.AreEqual(10.3, usage.QuotaUsedPercent, "100 - GitHub's 89.7, not 21/200");
             Assert.AreEqual(21L, usage.QuotaUsed);
             Assert.AreEqual(200L, usage.QuotaEntitlement);
-            Assert.AreEqual(1.0, usage.SessionPercent, "2 requests of 200");
             Assert.AreEqual(21, usage.ContextPercent, "26,277 of 128,000 = 20.5%");
         }
 
         [TestMethod]
         public void ShowNoPercentageOfAnUnlimitedQuota()
         {
-            var usage = CopilotUsage.Build(Parse(@"{ ""chat"": { ""isUnlimitedEntitlement"": true, ""entitlementRequests"": -1 } }"), null, 5, null, null);
+            var usage = CopilotUsage.Build(Parse(@"{ ""chat"": { ""isUnlimitedEntitlement"": true, ""entitlementRequests"": -1 } }"), null, null, null);
 
             Assert.IsTrue(usage.QuotaUnlimited);
             Assert.IsNull(usage.QuotaUsedPercent);
-            Assert.IsNull(usage.SessionPercent);
-            Assert.AreEqual(5, usage.SessionRequests, "the requests are still counted");
             Assert.IsNull(usage.ContextPercent, "no context known yet");
         }
 
         [TestMethod]
         public void KeepTheContextWhenGitHubReportedNoQuota()
         {
-            var usage = CopilotUsage.Build(Enumerable.Empty<CopilotQuotaBucket>(), null, 1, 64000, 128000);
+            var usage = CopilotUsage.Build(Enumerable.Empty<CopilotQuotaBucket>(), null, 64000, 128000);
 
             Assert.IsNull(usage.QuotaType);
             Assert.AreEqual(50, usage.ContextPercent);

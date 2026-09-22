@@ -623,18 +623,13 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         }
 #pragma warning restore GHCP001
 
-        /// <summary>
-        /// Account quota, the share this conversation took, context fill. The session's requests
-        /// come from the SDK's metrics: only the requests that count against the quota (measured
-        /// 13/09/2026: a model call the agent makes by itself after a tool costs nothing).
-        /// </summary>
-        public async Task<CopilotUsageSnapshot> GetUsageAsync(CancellationToken ct = default)
+        /// <summary>Account quota and context fill, as the bar next to the model choice shows them.</summary>
+        public Task<CopilotUsageSnapshot> GetUsageAsync(CancellationToken ct = default)
         {
             var session = _session;
-            if (session == null || _disposed) return null;
+            if (session == null || _disposed) return Task.FromResult<CopilotUsageSnapshot>(null);
 
-            var metrics = await session.Rpc.Usage.GetMetricsAsync(ct).ConfigureAwait(false);
-            return CopilotUsage.Build(_quotaBuckets, _quotaAsOf, metrics?.TotalPremiumRequestCost ?? 0, _contextTokens, _contextLimit);
+            return Task.FromResult(CopilotUsage.Build(_quotaBuckets, _quotaAsOf, _contextTokens, _contextLimit));
         }
 
         /// <summary>

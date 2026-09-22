@@ -19,7 +19,7 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
 
     /// <summary>
     /// What the bar next to MarkAgent's model choice shows: how much of the account's quota is
-    /// used, how much of it this conversation took, how full the conversation's context is.
+    /// used and how full the conversation's context is.
     /// </summary>
     public sealed class CopilotUsageSnapshot
     {
@@ -32,11 +32,6 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         public long? QuotaEntitlement { get; set; }
         public DateTimeOffset? QuotaResetDate { get; set; }
         public DateTimeOffset? QuotaAsOf { get; set; }
-
-        /// <summary>Requests this conversation counted against the quota.</summary>
-        public double SessionRequests { get; set; }
-        /// <summary><see cref="SessionRequests"/> over the quota's entitlement, one decimal; null when unlimited or unknown.</summary>
-        public double? SessionPercent { get; set; }
 
         public long? ContextTokens { get; set; }
         public long? ContextLimit { get; set; }
@@ -80,11 +75,10 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         public static CopilotUsageSnapshot Build(
             IEnumerable<CopilotQuotaBucket> buckets,
             DateTimeOffset? quotaAsOf,
-            double sessionRequests,
             long? contextTokens,
             long? contextLimit)
         {
-            var snapshot = new CopilotUsageSnapshot { SessionRequests = sessionRequests };
+            var snapshot = new CopilotUsageSnapshot();
 
             var bucket = ChooseBucket(buckets);
             if (bucket != null)
@@ -100,7 +94,6 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
                     // GitHub's own figure, not Used/Entitlement: the two differ slightly (measured
                     // 21/200 with 89.7% remaining), and the number must match what GitHub shows.
                     snapshot.QuotaUsedPercent = Round1(Math.Clamp(100 - bucket.RemainingPercent, 0, 100));
-                    snapshot.SessionPercent = Round1(sessionRequests / bucket.Entitlement * 100);
                 }
             }
 
