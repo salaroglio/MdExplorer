@@ -22,7 +22,8 @@ namespace MdExplorer.Services.Git
     public interface INativeGitRunner
     {
         Task<GitResult> RunAsync(string workingDirectory, string[] args, CancellationToken ct = default,
-            IReadOnlyDictionary<string, string> extraEnv = null, int timeoutMs = NativeGitRunner.DefaultTimeoutMs);
+            IReadOnlyDictionary<string, string> extraEnv = null, int timeoutMs = NativeGitRunner.DefaultTimeoutMs,
+            string stdin = null);
     }
 
     public readonly struct GitResult
@@ -55,8 +56,10 @@ namespace MdExplorer.Services.Git
 
         public NativeGitRunner(ILogger<NativeGitRunner> logger) => _logger = logger;
 
+        /// <param name="stdin">Testo da passare sullo standard input (per <c>git credential approve|reject|fill</c>); null = nessuno.</param>
         public async Task<GitResult> RunAsync(string workingDirectory, string[] args, CancellationToken ct = default,
-            IReadOnlyDictionary<string, string> extraEnv = null, int timeoutMs = DefaultTimeoutMs)
+            IReadOnlyDictionary<string, string> extraEnv = null, int timeoutMs = DefaultTimeoutMs,
+            string stdin = null)
         {
             var pretty = string.Join(" ", args);
             _logger.LogDebug("[git] -C {Dir}: git {Args}", workingDirectory, pretty);
@@ -70,6 +73,7 @@ namespace MdExplorer.Services.Git
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
+                    RedirectStandardInput = stdin != null,
                     CreateNoWindow = true,
                 }
             };
@@ -94,6 +98,13 @@ namespace MdExplorer.Services.Git
                 }
                 _logger.LogError(ex, "[git] non trovato nel PATH");
                 return new GitResult { ExitCode = GitNotFoundExit, Stdout = string.Empty, Stderr = ex.Message };
+            }
+
+            if (stdin != null)
+            {
+                // Senza BOM e senza newline finale spurio: git legge coppie chiave=valore fino a EOF.
+                await process.StandardInput.WriteAsync(stdin);
+                process.StandardInput.Close();
             }
 
             // Leggere PRIMA di attendere: leggere dopo WaitForExit può deadlockare col buffer pieno.

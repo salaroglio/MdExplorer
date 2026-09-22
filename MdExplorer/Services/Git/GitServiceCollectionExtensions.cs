@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using MdExplorer.Services.Git.Interfaces;
 using System.Runtime.InteropServices;
 
@@ -20,6 +21,8 @@ namespace MdExplorer.Services.Git
         {
             // Register core Git service as SCOPED (not Singleton due to dependencies on scoped services)
             // The credential cache is managed internally with a static/shared cache
+            services.TryAddSingleton<INativeGitRunner, NativeGitRunner>();
+            services.AddScoped<INativeGitTransport, NativeGitTransport>();
             services.AddScoped<IModernGitService, ModernGitService>();
 
             // Register GitHub service for repository management
@@ -75,6 +78,8 @@ namespace MdExplorer.Services.Git
         {
             // Register core services as SCOPED (not Singleton due to dependencies)
             // The credential cache is managed with a static/shared cache
+            services.TryAddSingleton<INativeGitRunner, NativeGitRunner>();
+            services.AddScoped<INativeGitTransport, NativeGitTransport>();
             services.AddScoped<IModernGitService, ModernGitService>();
             services.AddScoped<IGitHubService, GitHubService>();
             services.AddScoped<IGitConfigHelper, GitConfigHelper>();
