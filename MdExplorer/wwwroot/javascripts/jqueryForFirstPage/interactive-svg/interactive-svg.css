@@ -121,6 +121,24 @@ svg.interactive-svg g.destination-note  ellipse {
     filter: drop-shadow(0 0 8px #FFC107) drop-shadow(0 0 16px #FFC107) !important;
 }
 
+svg.interactive-svg g.destination-note > path {
+    fill: #FFEB3B !important;
+}
+
+/* Dark theme: dark-theme.css inverts the whole <svg>, and under that filter a bright
+   yellow does not exist (#FFEB3B comes out #4A3B00). While a note is lit, the filter
+   moves from the <svg> onto each of its elements except the lit notes. Same picture,
+   bright notes. Not applied when the project keeps original colours or the diagram's
+   light bulb is on (image-transform.js). */
+body.dark-theme:not(.plantuml-keep-original) svg.interactive-svg.interactive-svg-note-lit:not(.svg-light-on) {
+    filter: none !important;
+    background-color: #1F1F1F !important;   /* white under invert(0.88) */
+}
+
+body.dark-theme:not(.plantuml-keep-original) svg.interactive-svg.interactive-svg-note-lit:not(.svg-light-on) > g > *:not(.destination-note) {
+    filter: invert(0.88) hue-rotate(180deg);
+}
+
 /* === HIGHLIGHTED LINKS - ORANGE === */
 
 svg.interactive-svg g.link-highlighted path:not(.hit-area) {

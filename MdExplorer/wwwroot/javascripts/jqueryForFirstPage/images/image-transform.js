@@ -23,6 +23,21 @@
 var _toolbarScrollListeners = {};
 
 /**
+ * Is the dark-mode invert filter acting on this SVG? Usually it sits on the <svg> itself;
+ * while a PlantUML note is lit (interactive-svg.css, .interactive-svg-note-lit) it moves
+ * onto the SVG's elements and the <svg> reports filter:none, so the computed filter alone
+ * would mistake a dark diagram for a lit one.
+ */
+function _svgIsDarkFiltered(svg) {
+    if (svg.classList.contains('svg-light-on')) return false;
+    var computed = window.getComputedStyle(svg).filter;
+    if (computed && computed !== 'none') return true;
+    return svg.classList.contains('interactive-svg-note-lit') &&
+           document.body.classList.contains('dark-theme') &&
+           !document.body.classList.contains('plantuml-keep-original');
+}
+
+/**
  * Toggle SVG light mode: removes/restores the CSS invert filter on the SVG
  * sibling of the toolbar, so the user can see original colors in dark mode.
  */
@@ -34,10 +49,11 @@ function toggleSvgLightMode(btnElement) {
     if (!$svg.length) return;
 
     var $icon = $(btnElement).find('.svg-light-toggle-icon');
-    var current = $svg.css('filter');
-    if (current && current !== 'none') {
+    if (_svgIsDarkFiltered($svg[0])) {
         // Turn ON the light: remove filter, light mode (yellow bulb)
-        $svg.data('original-filter', current);
+        var current = $svg.css('filter');
+        $svg.data('original-filter', current && current !== 'none' ? current : null);
+        $svg.addClass('svg-light-on');
         $svg.css('filter', 'none');
         $icon.css({
             'filter': 'none',
@@ -47,6 +63,7 @@ function toggleSvgLightMode(btnElement) {
     } else {
         // Turn OFF the light: restore filter, dark mode (faded/grayscale bulb)
         var original = $svg.data('original-filter') || 'invert(0.88) hue-rotate(180deg)';
+        $svg.removeClass('svg-light-on');
         $svg.css('filter', original);
         $icon.css({
             'filter': 'grayscale(1) brightness(0.6)',
@@ -319,11 +336,7 @@ function showImageToolbar(referenceId) {
             // project setting PlantUmlKeepOriginalColorsInDarkMode (body.plantuml-keep-original).
             var $svg = $sibling.find('svg').first();
             if (!$svg.length) $svg = $sibling.filter('svg');
-            var filterActive = false;
-            if ($svg.length) {
-                var computed = window.getComputedStyle($svg[0]).filter;
-                filterActive = !!computed && computed !== 'none';
-            }
+            var filterActive = $svg.length ? _svgIsDarkFiltered($svg[0]) : false;
             var initialTitle = filterActive
                 ? 'Turn on the light (view in light mode)'
                 : 'Turn off the light (back to dark mode)';

@@ -557,7 +557,16 @@ var InteractiveSvg = (function() {
             el.removeAttribute('data-orig-style');
         });
 
-        svg.classList.remove('has-selection', 'interactive-svg-active');
+        svg.classList.remove('has-selection', 'interactive-svg-active', 'interactive-svg-note-lit');
+    }
+
+    /**
+     * Flag the SVG while at least one note is lit. In dark theme the CSS then moves the
+     * invert filter from the <svg> onto its elements, sparing the lit notes: under the
+     * root filter a bright yellow does not exist (it comes out #4A3B00).
+     */
+    function markLitNotes(svg) {
+        svg.classList.toggle('interactive-svg-note-lit', !!svg.querySelector('.destination-note'));
     }
 
     /**
@@ -745,6 +754,8 @@ var InteractiveSvg = (function() {
             }
         });
 
+        markLitNotes(svg);
+
         if (onSelect && typeof onSelect === 'function') {
             onSelect({
                 type: 'cluster',
@@ -824,6 +835,8 @@ var InteractiveSvg = (function() {
         });
 
         // Call callback if provided
+        markLitNotes(svg);
+
         if (onSelect && typeof onSelect === 'function') {
             onSelect({
                 element: boxElement,
