@@ -14,7 +14,7 @@
  *   .destination-outgoing    : a box the selected one points TO (receiver)        — GREEN
  *   .destination-note        : a note connected to the selected one               — YELLOW
  *   .destination             : legacy alias kept for back-compat (treated like incoming)
- *   .link-highlighted        : a link connected to the selection                  — ORANGE
+ *   .link-highlighted        : a link connected to the selection — colour by UML kind (.link-type-*), default ORANGE
  *   .has-selection           : on the <svg> while a selection is active           (drives dimming)
  *   .interactive-svg-active  : on the <svg> while a selection is active           (enables ESC)
  *
@@ -23,7 +23,7 @@
  *   RED    #f44336  incoming (sender)
  *   GREEN  #4CAF50  outgoing (receiver)
  *   YELLOW #FFC107  note
- *   ORANGE #FF9800  highlighted link
+ *   ORANGE #FF9800  highlighted link (default; per UML kind see .link-type-*)
  */
 
 /* === BASE === */
@@ -139,19 +139,34 @@ body.dark-theme:not(.plantuml-keep-original) svg.interactive-svg.interactive-svg
     filter: invert(0.88) hue-rotate(180deg);
 }
 
-/* === HIGHLIGHTED LINKS - ORANGE === */
+/* === HIGHLIGHTED LINKS - colour from --link-hl (UML kind below), default ORANGE === */
 
 svg.interactive-svg g.link-highlighted path:not(.hit-area) {
-    stroke: #FF9800 !important;
+    stroke: var(--link-hl, #FF9800) !important;
     stroke-width: 4 !important;
-    filter: drop-shadow(0 0 6px #FF9800) drop-shadow(0 0 12px #FF9800) !important;
+    filter: drop-shadow(0 0 6px var(--link-hl, #FF9800)) drop-shadow(0 0 12px var(--link-hl, #FF9800)) !important;
 }
 
+/* Hollow heads (inheritance triangle, aggregation diamond) stay hollow: the empty
+   shape IS the UML meaning. Only the outline takes the colour. */
 svg.interactive-svg g.link-highlighted polygon {
-    fill: #FF9800 !important;
-    stroke: #FF9800 !important;
-    filter: drop-shadow(0 0 6px #FF9800) !important;
+    stroke: var(--link-hl, #FF9800) !important;
+    filter: drop-shadow(0 0 6px var(--link-hl, #FF9800)) !important;
 }
+
+svg.interactive-svg g.link-highlighted polygon:not([fill="none"]) {
+    fill: var(--link-hl, #FF9800) !important;
+}
+
+/* === HIGHLIGHTED LINKS BY UML KIND (data-link-type, new format only) ===
+   Kinds without a colour here (nested, crowfoot, untyped, legacy SVGs) stay ORANGE.
+   Note: PlantUML tags every open-arrow line as "dependency", solid --> included. */
+
+svg.interactive-svg g.link-type-extension   { --link-hl: #9C27B0; }  /* <|-- and <|..  VIOLET */
+svg.interactive-svg g.link-type-composition { --link-hl: #FF9800; }  /* *--             ORANGE */
+svg.interactive-svg g.link-type-aggregation { --link-hl: #03A9F4; }  /* o--             LIGHT BLUE */
+svg.interactive-svg g.link-type-dependency  { --link-hl: #607D8B; }  /* --> and ..>     BLUE GREY */
+svg.interactive-svg g.link-type-association { --link-hl: #FFB300; }  /* -- and ..       AMBER */
 
 /* === DIM NON-RELATED ELEMENTS === */
 

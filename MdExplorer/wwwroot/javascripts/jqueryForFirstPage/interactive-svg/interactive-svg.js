@@ -85,6 +85,9 @@ var InteractiveSvg = (function() {
         });
         svg.querySelectorAll(SEL_LINKS).forEach(function(link) {
             link.classList.add('interactive-svg-link');
+            // New format only: the UML kind drives the highlight colour (CSS .link-type-*)
+            var type = link.getAttribute('data-link-type');
+            if (type) link.classList.add('link-type-' + type);
         });
     }
 
@@ -226,6 +229,8 @@ var InteractiveSvg = (function() {
         svg.querySelectorAll('.interactive-svg-box, .interactive-svg-link, .interactive-svg-note')
            .forEach(function(el) {
                el.classList.remove('interactive-svg-box', 'interactive-svg-link', 'interactive-svg-note');
+               var type = el.getAttribute('data-link-type');
+               if (type) el.classList.remove('link-type-' + type);
            });
     }
 
