@@ -165,8 +165,8 @@ svg.interactive-svg g.link-highlighted polygon:not([fill="none"]) {
 svg.interactive-svg g.link-type-extension   { --link-hl: #9C27B0; }  /* <|-- and <|..  VIOLET */
 svg.interactive-svg g.link-type-composition { --link-hl: #FF9800; }  /* *--             ORANGE */
 svg.interactive-svg g.link-type-aggregation { --link-hl: #03A9F4; }  /* o--             LIGHT BLUE */
-svg.interactive-svg g.link-type-dependency  { --link-hl: #607D8B; }  /* --> and ..>     BLUE GREY */
-svg.interactive-svg g.link-type-association { --link-hl: #FFB300; }  /* -- and ..       AMBER */
+svg.interactive-svg g.link-type-dependency  { --link-hl: #E91E63; }  /* --> and ..>     MAGENTA */
+svg.interactive-svg g.link-type-association { --link-hl: #009688; }  /* -- and ..       TEAL */
 
 /* === DIM NON-RELATED ELEMENTS === */
 
