@@ -37,6 +37,66 @@ function _svgIsDarkFiltered(svg) {
            !document.body.classList.contains('plantuml-keep-original');
 }
 
+// Le scritte della barra nella lingua dell'app. La pagina del diagramma è servita
+// dallo stesso indirizzo di client2, quindi legge la stessa chiave che vi scrive
+// LanguageService (language.service.ts); se manca, la stessa regola di ripiego:
+// italiano se il sistema è in italiano, altrimenti inglese. Letta a ogni uso, così
+// un cambio di lingua nelle Impostazioni vale dalla volta dopo, senza ricaricare.
+var TOOLBAR_TEXTS = {
+    en: {
+        lightOn: 'Turn on the light (view in light mode)',
+        lightOff: 'Turn off the light (back to dark mode)',
+        legendShow: 'Show colour legend',
+        legendHide: 'Hide colour legend',
+        boxes: 'Boxes',
+        arrows: 'Arrows',
+        selected: 'Selected',
+        incoming: 'Points to the selected one',
+        outgoing: 'Receives from the selected one',
+        note: 'Note',
+        cluster: 'Inside the selected package',
+        extension: 'Inheritance / realization',
+        composition: 'Composition',
+        aggregation: 'Aggregation',
+        dependency: 'Dependency / directed (-->)',
+        association: 'Association',
+        other: 'Other relation',
+        relation: 'Relation'
+    },
+    it: {
+        lightOn: 'Accendi la luce (vedi il diagramma a colori chiari)',
+        lightOff: 'Spegni la luce (torna al tema scuro)',
+        legendShow: 'Mostra la legenda dei colori',
+        legendHide: 'Nascondi la legenda dei colori',
+        boxes: 'Box',
+        arrows: 'Frecce',
+        selected: 'Selezionato',
+        incoming: 'Punta verso il selezionato',
+        outgoing: 'Riceve dal selezionato',
+        note: 'Nota',
+        cluster: 'Dentro il package selezionato',
+        extension: 'Ereditarietà / realizzazione',
+        composition: 'Composizione',
+        aggregation: 'Aggregazione',
+        dependency: 'Dipendenza / freccia (-->)',
+        association: 'Associazione',
+        other: 'Altra relazione',
+        relation: 'Relazione'
+    }
+};
+
+function _toolbarLang() {
+    var saved = null;
+    try { saved = window.localStorage.getItem('mdexplorer_language'); } catch (e) { /* storage negato */ }
+    if (saved && TOOLBAR_TEXTS[saved]) return saved;
+    return (navigator.language || '').indexOf('it') === 0 ? 'it' : 'en';
+}
+
+function _toolbarText(key) {
+    var texts = TOOLBAR_TEXTS[_toolbarLang()];
+    return texts[key] || TOOLBAR_TEXTS.en[key] || key;
+}
+
 // Legenda dei colori dei diagrammi interattivi (F7): aperta o chiusa, uguale per
 // tutti i diagrammi e ricordata dal browser. Se il browser non concede lo storage,
 // parte chiusa.
@@ -83,12 +143,12 @@ function _renderSvgLegend($toolbar) {
             if (dark && item.key !== 'note') $swatch.css('filter', 'invert(0.88) hue-rotate(180deg)');
             $content.append($('<div class="mde-svg-legend-row"></div>')
                 .append($swatch)
-                .append($('<span></span>').text(item.label)));
+                .append($('<span></span>').text(_toolbarText(item.key))));
         });
     }
 
-    section('Boxes', legend.boxes, 'box');
-    section('Arrows', legend.links, 'line');
+    section(_toolbarText('boxes'), legend.boxes, 'box');
+    section(_toolbarText('arrows'), legend.links, 'line');
     $panel.empty().append($content.children());
 }
 
@@ -96,7 +156,7 @@ function toggleSvgLegend(btnElement) {
     var $toolbar = $(btnElement).closest('.mde-img-toolbar');
     var open = !$toolbar.hasClass('mde-svg-legend-open');
     $toolbar.toggleClass('mde-svg-legend-open', open);
-    $(btnElement).attr('title', open ? 'Hide colour legend' : 'Show colour legend');
+    $(btnElement).attr('title', _toolbarText(open ? 'legendHide' : 'legendShow'));
     if (open) _renderSvgLegend($toolbar);
     _rememberSvgLegend(open);
     // Richiusa, la barra torna a sparire da sola dopo un po' di mouse fermo.
@@ -125,7 +185,7 @@ function toggleSvgLightMode(btnElement) {
             'filter': 'none',
             'opacity': '1'
         });
-        $(btnElement).attr('title', 'Turn off the light (back to dark mode)');
+        $(btnElement).attr('title', _toolbarText('lightOff'));
     } else {
         // Turn OFF the light: restore filter, dark mode (faded/grayscale bulb)
         var original = $svg.data('original-filter') || 'invert(0.88) hue-rotate(180deg)';
@@ -135,7 +195,7 @@ function toggleSvgLightMode(btnElement) {
             'filter': 'grayscale(1) brightness(0.6)',
             'opacity': '0.5'
         });
-        $(btnElement).attr('title', 'Turn on the light (view in light mode)');
+        $(btnElement).attr('title', _toolbarText('lightOn'));
     }
     // I campioni della legenda seguono il filtro: acceso o spento, vanno ridipinti.
     if ($toolbar.hasClass('mde-svg-legend-open')) _renderSvgLegend($toolbar);
@@ -407,9 +467,7 @@ function showImageToolbar(referenceId) {
             var $svg = $sibling.find('svg').first();
             if (!$svg.length) $svg = $sibling.filter('svg');
             var filterActive = $svg.length ? _svgIsDarkFiltered($svg[0]) : false;
-            var initialTitle = filterActive
-                ? 'Turn on the light (view in light mode)'
-                : 'Turn off the light (back to dark mode)';
+            var initialTitle = _toolbarText(filterActive ? 'lightOn' : 'lightOff');
             // Solo lo STATO (accesa/spenta) sta qui: la misura la decide il CSS della
             // barra, altrimenti questa lampadina resterebbe più grande delle altre icone.
             var iconStyle = filterActive
@@ -422,6 +480,11 @@ function showImageToolbar(referenceId) {
             $element.data('light-toggle-added', true);
         }
     }
+
+    // Il tooltip della lampadina si riscrive a ogni comparsa: la lingua può essere cambiata.
+    var $bulb = $element.find('button[alt="light mode"]');
+    var bulbSvg = $bulb.length ? _svgOfToolbar($element) : null;
+    if (bulbSvg) $bulb.attr('title', _toolbarText(_svgIsDarkFiltered(bulbSvg) ? 'lightOn' : 'lightOff'));
 
     // Legenda dei colori, solo per i diagrammi resi interattivi da InteractiveSvg (F7)
     if (!$element.data('legend-added') && typeof InteractiveSvg !== 'undefined') {
@@ -436,7 +499,7 @@ function showImageToolbar(referenceId) {
     if ($element.data('legend-added')) {
         var legendOpen = _svgLegendRemembered();
         $element.toggleClass('mde-svg-legend-open', legendOpen);
-        $element.find('.mde-svg-legend-toggle').attr('title', legendOpen ? 'Hide colour legend' : 'Show colour legend');
+        $element.find('.mde-svg-legend-toggle').attr('title', _toolbarText(legendOpen ? 'legendHide' : 'legendShow'));
         if (legendOpen) _renderSvgLegend($element);
     }
 

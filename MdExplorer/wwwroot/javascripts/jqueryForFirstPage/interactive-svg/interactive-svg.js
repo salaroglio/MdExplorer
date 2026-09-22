@@ -1155,7 +1155,10 @@ var InteractiveSvg = (function() {
         var order = Object.keys(LEGEND_LINK_LABELS);
         links.sort(function(a, b) { return order.indexOf(a.key) - order.indexOf(b.key); });
         if (hasOther) {
-            links.push({ key: 'other', color: LINK_DEFAULT_COLOR, label: links.length ? 'Other relation' : 'Relation' });
+            // 'other' next to typed arrows, plain 'relation' when no arrow has a type (legacy SVG)
+            links.push(links.length
+                ? { key: 'other',    color: LINK_DEFAULT_COLOR, label: 'Other relation' }
+                : { key: 'relation', color: LINK_DEFAULT_COLOR, label: 'Relation' });
         }
         return { boxes: boxes, links: links };
     }
