@@ -45,42 +45,6 @@
                 {{ showCredentialForm ? ('CLONE.USE_AUTO_AUTH' | translate) : ('CLONE.ENTER_MANUAL' | translate) }}
               </button>
 
-              <!-- GitHub Token Management (only for GitHub when saved token exists) -->
-              <div class="saved-token-option" *ngIf="isGitHubRepo && hasGitHubToken && !showCredentialForm">
-                <div class="token-header">
-                  <mat-checkbox [(ngModel)]="useSavedToken">
-                    {{ 'CLONE.USE_SAVED_TOKEN' | translate }}
-                  </mat-checkbox>
-                </div>
-
-                <div class="token-info" *ngIf="useSavedToken">
-                  <mat-icon [class.valid]="tokenValid" [class.invalid]="!tokenValid">
-                    {{ tokenValid ? 'check_circle' : 'error' }}
-                  </mat-icon>
-                  <div class="token-details">
-                    <span class="username" *ngIf="tokenUsername">
-                      <mat-icon>person</mat-icon>
-                      <strong>{{ tokenUsername }}</strong>
-                    </span>
-                    <span class="token-mask">{{ tokenStatus }}</span>
-                    <span class="status" [class.valid]="tokenValid" [class.invalid]="!tokenValid">
-                      ({{ tokenValid ? ('CLONE.TOKEN_VALID' | translate) : ('CLONE.TOKEN_INVALID' | translate) }})
-                    </span>
-                  </div>
-                  <button mat-icon-button
-                          color="warn"
-                          (click)="deleteToken()"
-                          [disabled]="isDeleting"
-                          [matTooltip]="'CLONE.DELETE_TOKEN' | translate">
-                    <mat-icon>delete</mat-icon>
-                  </button>
-                </div>
-
-                <div class="token-warning" *ngIf="useSavedToken && !tokenValid">
-                  <mat-icon color="warn">warning</mat-icon>
-                  <span>{{ 'CLONE.TOKEN_INVALID_WARNING' | translate }}</span>
-                </div>
-              </div>
             </div>
 
             <!-- Basic Auth Providers (SCM-Manager, Gitea, Generic) OR Manual Override -->
@@ -90,36 +54,11 @@
                 <span>{{ 'CLONE.REQUIRES_MANUAL_AUTH' | translate:{ provider: getProviderDisplayName() } }}</span>
               </div>
 
-              <!-- Username with autocomplete for saved accounts -->
               <mat-form-field appearance="outline" class="full-width">
                 <mat-label>{{ 'CLONE.USERNAME' | translate }}</mat-label>
                 <input matInput
                        [(ngModel)]="manualCredentials.username"
-                       (ngModelChange)="filterAccounts($event)"
-                       [matAutocomplete]="accountAutocomplete"
-                       [placeholder]="'CLONE.SELECT_OR_ENTER' | translate">
-                <mat-spinner matSuffix *ngIf="isLoadingAccounts" diameter="20"></mat-spinner>
-                <mat-autocomplete #accountAutocomplete="matAutocomplete"
-                                  [displayWith]="displayAccountFn"
-                                  (optionSelected)="selectAccount($event.option.value)">
-                  <mat-option *ngFor="let account of filteredAccounts" [value]="account.username">
-                    <div class="account-option">
-                      <span class="account-username">{{ account.username }}</span>
-                      <button mat-icon-button
-                              class="delete-account-btn"
-                              (click)="deleteAccount(account, $event)"
-                              [matTooltip]="'CLONE.DELETE_ACCOUNT' | translate">
-                        <mat-icon>delete</mat-icon>
-                      </button>
-                    </div>
-                  </mat-option>
-                  <mat-option *ngIf="filteredAccounts.length === 0 && manualCredentials.username && !isLoadingAccounts" disabled>
-                    <em>{{ 'CLONE.NEW_ACCOUNT' | translate:{ username: manualCredentials.username } }}</em>
-                  </mat-option>
-                </mat-autocomplete>
-                <mat-hint *ngIf="availableAccounts.length > 0">
-                  {{ 'CLONE.SAVED_ACCOUNTS' | translate:{ count: availableAccounts.length } }}
-                </mat-hint>
+                       [placeholder]="'CLONE.USERNAME_PLACEHOLDER' | translate">
               </mat-form-field>
               <mat-form-field appearance="outline" class="full-width">
                 <mat-label>{{ 'CLONE.PASSWORD_TOKEN' | translate }}</mat-label>

@@ -53,12 +53,12 @@
     <!-- P2P Status Widget -->
     <app-p2p-status-widget></app-p2p-status-widget>
 
-    <!-- Git Account Missing: show button to configure credentials -->
+    <!-- git non ha una credenziale per questo remoto: si apre «Collega a un repository remoto» -->
     <button *ngIf="isGitRepository && authenticationMissing && !isCheckingConnection"
             mat-icon-button
             [matTooltip]="'TOOLBAR.GIT_NOT_CONFIGURED' | translate"
-            (click)="openManageRemote()">
-      <mat-icon class="git-missing-icon">person_add</mat-icon>
+            (click)="openSetupRemote()">
+      <mat-icon class="git-missing-icon">vpn_key</mat-icon>
     </button>
     <!-- Auth Failed (VPN/network): show warning with menu -->
     <button *ngIf="isGitRepository && authenticationFailed && !authenticationMissing && !isCheckingConnection"
@@ -244,15 +244,6 @@
       <span>{{ 'TOOLBAR.SETUP_GITHUB_REMOTE' | translate }}</span><span class="flexExpand"></span>
       <button mat-icon-button>
         <mat-icon style="text-align:right" color="warn">cloud_upload</mat-icon>
-      </button>
-    </div>
-    <!-- Show "Manage Remote" ONLY when using app-stored credentials (NOT when using native Git) -->
-    <div *ngIf="needsRemoteManagement && !isUsingNativeGit" (click)="openManageRemote()"
-         class="container manage-remote"
-         mat-menu-item (click)="$event.stopPropagation()">
-      <span>{{ 'TOOLBAR.MANAGE_REMOTE' | translate }}</span><span class="flexExpand"></span>
-      <button mat-icon-button>
-        <mat-icon style="text-align:right" class="manage-remote-icon">settings</mat-icon>
       </button>
     </div>
     <div (click)="openHistory()" class="container"

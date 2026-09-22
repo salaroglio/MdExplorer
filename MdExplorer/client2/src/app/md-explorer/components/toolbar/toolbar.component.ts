@@ -28,7 +28,6 @@ import { AgentCityStateService } from '../../services/agent-city-state.service';
 import { GitHistoryDialogComponent } from '../../../git/dialogs/git-history-dialog/git-history-dialog.component';
 import { GitBranchDialogComponent } from '../../../git/dialogs/git-branch-dialog/git-branch-dialog.component';
 import { GitSetupRemoteGenericDialogComponent } from '../../../git/dialogs/git-setup-remote-generic-dialog/git-setup-remote-generic-dialog.component';
-import { GitAccountManagementDialogComponent } from '../../../git/dialogs/git-account-management-dialog/git-account-management-dialog.component';
 import { GitAddSubmoduleDialogComponent } from '../../../git/dialogs/git-add-submodule-dialog/git-add-submodule-dialog.component';
 import { BookmarksService } from '../../services/bookmarks.service';
 import { DocumentRefreshService } from '../../services/document-refresh.service';
@@ -101,8 +100,6 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   public isLoadingChangedFiles: boolean = false;
   public hasRemoteConfigured: boolean = true; // Default true to hide menu initially
   public currentRemoteUrl: string = '';
-  public isUsingNativeGit: boolean = false; // True when Git native credentials are working
-  public needsRemoteManagement: boolean = false; // True when using app-stored credentials
   public isGitRepository: boolean = true; // False for non-Git projects (hides Git UI elements)
   public authenticationMissing: boolean = false; // True when no credentials are configured
   public authenticationFailed: boolean = false; // True when credentials exist but auth failed (VPN, token expired)
@@ -243,23 +240,11 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         // Identità effettiva (banner impersonazione)
         this.loadIdentity();
 
-        // Check if manual credentials are needed (auto-detection failed)
-        // Only show dialog for non-OAuth providers - OAuth providers (GitHub, GitLab, Azure, Bitbucket)
-        // are handled by GCM which opens browser for authentication
-        const oauthProviders = ['github', 'gitlab', 'azure', 'bitbucket'];
-        const isOAuthProvider = oauthProviders.includes(project.detectedProvider?.toLowerCase() || '');
-
-        if (project.needsManualCredentials && project.remoteUrl && !isOAuthProvider) {
-          console.log('[Toolbar] Manual credentials needed for:', project.remoteUrl, 'provider:', project.detectedProvider);
-          // Open the credential setup dialog
-          this.openCredentialSetupDialog(project.path, project.remoteUrl);
-        } else if (project.needsManualCredentials && isOAuthProvider) {
-          console.log('[Toolbar] OAuth provider detected, GCM will handle authentication via browser:', project.detectedProvider);
-        }
       }
     });
-    
+
     this.checkConnection();
+    this.reportCredentialMove();
 
     // manage resize fullscreen
     document.onfullscreenchange = (event) => {
@@ -378,8 +363,6 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     // Reset remote configuration flags
     this.hasRemoteConfigured = false;  // Will show "checking..." until poll completes
     this.currentRemoteUrl = '';
-    this.isUsingNativeGit = false;
-    this.needsRemoteManagement = false;
     this.authenticationMissing = false;
     this.authenticationFailed = false;
     this.authenticationFailureReason = '';
@@ -414,19 +397,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         this.authenticationFailed = remoteStatus.authenticationFailed || false;
         this.authenticationFailureReason = remoteStatus.authenticationFailureReason || '';
 
-        // Remote is considered configured if it exists AND authentication works
-        // IMPORTANT: Hide menu when native Git authentication is working
-        // Native Git methods: 'Default', 'GitCredentialHelper', 'SystemCredentialStore'
-        // Three states:
-        // 1. No remote OR auth failed → Show "Setup Remote" (hasRemoteConfigured=false)
-        // 2. Native Git working → Hide all menus (isUsingNativeGit=true, hasRemoteConfigured=true)
-        // 3. App credentials working → Show "Manage Remote" (needsRemoteManagement=true)
-        const nativeGitMethods = ['Default', 'GitCredentialHelper', 'SystemCredentialStore'];
-        this.isUsingNativeGit = remoteStatus.authenticationMethod &&
-                                nativeGitMethods.includes(remoteStatus.authenticationMethod);
-        const needsRemoteSetup = !remoteStatus.hasRemote || !remoteStatus.canAuthenticate;
-        this.needsRemoteManagement = remoteStatus.hasRemote && remoteStatus.canAuthenticate && !this.isUsingNativeGit;
-
+        // Dallo sprint «un solo meccanismo»: l'unica via è il git nativo col suo credential
+        // manager. O il remoto c'è e git si autentica, o si apre «Collega a un repository remoto».
         // Set hasRemoteConfigured to control "Setup Remote" visibility
         // false = show "Setup Remote", true = hide "Setup Remote"
         this.hasRemoteConfigured = remoteStatus.hasRemote && remoteStatus.canAuthenticate;
@@ -456,12 +428,6 @@ export class ToolbarComponent implements OnInit, OnDestroy {
           this.authenticationFailureReason = '';
           this.connectionIsActive = true;
 
-          if (this.isUsingNativeGit) {
-            console.log('🎯 Native Git credentials working - hiding remote setup menu');
-          } else {
-            console.log('🔧 App-stored credentials active - showing "Manage Remote" menu');
-          }
-          console.log('🔑 Credentials are now cached - subsequent calls will not require authentication');
 
           // Authentication successful - credentials are now cached
           // Now fetch Git data (will use cached credentials, no auth request)
@@ -1103,69 +1069,18 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Opens the credential setup dialog when auto-detection fails.
-   * Called automatically when a project is opened and needs manual credentials.
+   * Il trasloco delle credenziali dal DB di MdExplorer al credential manager di git: se
+   * qualcosa non si è potuto spostare, l'utente lo deve sapere, una volta, con il perché.
    */
-  openCredentialSetupDialog(projectPath: string, remoteUrl: string): void {
-    const projectName = projectPath.split(/[/\\]/).pop() || 'repository';
-
-    // Small delay to let the UI settle after project open
-    setTimeout(() => {
-      const dialogRef = this.dialog.open(GitSetupRemoteGenericDialogComponent, {
-        width: '650px',
-        data: {
-          projectPath: projectPath,
-          projectName: projectName,
-          prefilledRemoteUrl: remoteUrl,
-          isCredentialRecovery: true  // Flag to indicate this is a credential recovery flow
-        }
-      });
-
-      dialogRef.afterClosed().subscribe(result => {
-        if (result === true) {
-          // Credentials were successfully configured
-          console.log('[Toolbar] Credentials configured successfully');
-          this.checkConnection();
-          this._snackBar.open(this.translate.instant('TOOLBAR.CREDENTIALS_OK'), 'OK', {
-            duration: 3000,
-            verticalPosition: 'top'
-          });
-        } else {
-          // User cancelled - show warning
-          this._snackBar.open(this.translate.instant('TOOLBAR.CREDENTIALS_NOT_CONFIGURED'), 'OK', {
-            duration: 5000,
-            verticalPosition: 'top',
-            panelClass: ['warning-snackbar']
-          });
-        }
-      });
-    }, 500);
-  }
-
-  openManageRemote(): void {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return;
-
-    const currentProject = this.projectService.currentProjects$.value;
-    const projectName = currentProject?.name || 'Current Project';
-
-    const dialogRef = this.dialog.open(GitAccountManagementDialogComponent, {
-      width: '600px',
-      data: {
-        repositoryPath: projectPath,
-        repositoryName: projectName
-      }
+  private reportCredentialMove(): void {
+    this.gitservice.getCredentialMoveReport().subscribe(report => {
+      if (!report || report.failed === 0) { return; }
+      const first = report.entries.find(e => !e.moved);
+      console.warn('[Toolbar] credenziali git non spostate nel credential manager:', report.entries.filter(e => !e.moved));
+      this._snackBar.open(
+        this.translate.instant('TOOLBAR.CREDENTIAL_MOVE_FAILED', { count: report.failed, reason: first?.reason || '' }),
+        'OK', { duration: 15000, verticalPosition: 'top', panelClass: ['warning-snackbar'] });
     });
-
-    dialogRef.afterClosed().subscribe(accountConfigured => {
-      if (accountConfigured === true) {
-        // Account was successfully configured or updated
-        this.checkConnection();
-      }
-      console.log('Git account management dialog closed');
-    });
-
-    this.matMenuTrigger?.closeMenu();
   }
 
   openGitInitWizard(): void {
