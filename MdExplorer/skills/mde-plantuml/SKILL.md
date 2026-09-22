@@ -3,7 +3,7 @@ name: mde-plantuml
 description: "Disegna diagrammi PlantUML in MdExplorer con colore sobrio e le convenzioni proprie di ogni tipo di diagramma. Use when: blocco plantuml, diagramma di flusso, workflow, activity diagram, sequence diagram, diagramma di sequenza, class diagram, diagramma delle classi, schema del database, ER, entity relationship, mindmap, mappa mentale, colorare un diagramma, palette, skinparam, style, colore di una freccia, colore di un nodo, il diagramma non si vede in tema scuro."
 mde:
   origin: mdexplorer
-  version: 3
+  version: 4
   updatePolicy: replace
 ---
 
@@ -261,6 +261,23 @@ Regole:
 5. **Etichetta il verso della relazione** (`: contiene >`) quando il nome dell'associazione non è ovvio.
 6. `skinparam classAttributeIconSize 0` toglie le icone colorate di visibilità, che rubano l'attenzione ai nomi.
 7. **Colora per categoria con uno stereotipo** (nuovo, deprecato, esterno), non classe per classe: l'etichetta «Nuovo» spiega il colore senza legenda.
+
+### Cosa colora MdExplorer da solo, al clic
+
+Cliccando una classe, MdExplorer evidenzia le relazioni con un colore **per tipo**, letto dalla freccia che hai scritto, e la legenda sta nella barra del diagramma (🎨). Il colore non lo scegli tu: scegli la freccia giusta.
+
+| scrivi | tipo | colore al clic |
+|---|---|---|
+| `<\|--`, `<\|..` | ereditarietà, realizzazione | viola |
+| `*--` | composizione | arancione |
+| `o--` | aggregazione | azzurro |
+| `--`, `..` | associazione | verde acqua |
+| `..>` **e anche `-->`** | dipendenza | magenta |
+
+- **Scegli la freccia per quello che significa**, non per come appare: una composizione scritta `-->` si accende come dipendenza.
+- ⚠️ **`-->` per PlantUML è una dipendenza**, non un'associazione con verso. Se intendi un'associazione, scrivi `--` e metti il verso nell'etichetta (`: contiene >`).
+- **Aggancia ogni nota alla sua classe**: `note right of Classe : …`, oppure `note as N` più `N .. Classe`. Al clic la nota agganciata si accende in giallo; una nota senza legame resta spenta.
+- **Non usare di tuo viola, arancione, azzurro, verde acqua o magenta sulle frecce** con un altro significato: la legenda direbbe il falso.
 
 ```plantuml
 @startuml
