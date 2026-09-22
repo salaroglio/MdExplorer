@@ -523,6 +523,57 @@
           </mat-card-content>
         </mat-card>
 
+        <!-- Strumenti MCP nel contesto. Ogni gruppo acceso entra in tools/list, e quindi nel
+             contesto della chat, prima ancora che l'utente scriva: qui si sceglie cosa pagare.
+             L'elenco e i pesi arrivano dal server MCP (--list-groups), non da una copia qui. -->
+        <mat-card class="settings-section">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.MCP_GROUPS_TITLE' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="setting-item">
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.MCP_GROUPS_DESC' | translate }}
+              </p>
+
+              <div class="setting-description" *ngIf="mcpGroupsLoaded && !mcpGroupsError && !mcpGroupsChosen">
+                <mat-icon class="inline-warn-icon">info</mat-icon>
+                {{ 'PROJECT_SETTINGS.MCP_GROUPS_PROPOSED' | translate }}
+              </div>
+
+              <div class="harness-mismatch" *ngIf="mcpGroupsError">
+                <mat-icon class="harness-mismatch-icon">warning</mat-icon>
+                <span class="harness-mismatch-text">{{ mcpGroupsError }}</span>
+              </div>
+
+              <div class="mcp-group-row" *ngFor="let group of mcpGroups">
+                <mat-checkbox
+                  [(ngModel)]="group.enabled"
+                  (change)="onMcpGroupChange()"
+                  [disabled]="group.mandatory || savingMcpGroups || !mcpGroupsLoaded">
+                  <span class="setting-label">{{ 'PROJECT_SETTINGS.MCP_GROUP_' + (group.id | uppercase) | translate }}</span>
+                </mat-checkbox>
+                <span class="mcp-group-weight">
+                  {{ 'PROJECT_SETTINGS.MCP_GROUP_WEIGHT' | translate:{ tools: group.toolCount, tokens: group.approxTokens } }}
+                </span>
+                <p class="setting-description mcp-group-summary">{{ group.summary }}</p>
+              </div>
+
+              <p class="setting-description mcp-groups-total" *ngIf="mcpGroupsLoaded && !mcpGroupsError">
+                {{ 'PROJECT_SETTINGS.MCP_GROUPS_TOTAL' | translate:{ selected: mcpTokensSelected, all: mcpTokensAll } }}
+                <br>
+                {{ 'PROJECT_SETTINGS.MCP_GROUPS_NEXT_SESSION' | translate }}
+              </p>
+            </div>
+
+            <div *ngIf="savingMcpGroups" class="saving-indicator">
+              <mat-spinner diameter="20"></mat-spinner>
+              <span>{{ 'COMMON.SAVING' | translate }}</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
         <mat-card class="settings-section">
           <mat-card-header>
             <mat-card-title>{{ 'PROJECT_SETTINGS.RAG_TITLE' | translate }}</mat-card-title>

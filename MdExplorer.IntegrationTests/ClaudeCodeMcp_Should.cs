@@ -70,6 +70,22 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(0, servers.GetProperty("mdexplorer").GetProperty("args").GetArrayLength());
         }
 
+        /// <summary>
+        /// I gruppi di funzionalità scelti per il progetto devono arrivare alla sessione: sono la
+        /// differenza fra una chat che parte con ~8.000 token di strumenti e una che ne paga 563.
+        /// </summary>
+        [TestMethod]
+        public void Carry_the_chosen_tool_groups_into_the_session_config()
+        {
+            var path = ClaudeCodeMcp.WriteSessionConfig("/opt/mde/MdExplorer.Mcp", _root, "core,plantuml");
+
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            var args = doc.RootElement.GetProperty("mcpServers").GetProperty("mdexplorer").GetProperty("args");
+            CollectionAssert.AreEqual(
+                new[] { "--groups", "core,plantuml" },
+                args.EnumerateArray().Select(a => a.GetString()).ToArray());
+        }
+
         [TestMethod]
         public void Refuse_to_register_without_an_mcp_executable()
         {

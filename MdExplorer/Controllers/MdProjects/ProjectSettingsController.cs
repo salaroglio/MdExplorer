@@ -3,6 +3,7 @@ using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.ProjectDB;
 using MdExplorer.Abstractions.Entities.UserDB;
+using MdExplorer.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -415,6 +416,132 @@ namespace MdExplorer.Service.Controllers.MdProjects
         /// confronto che il DB sa fare, poi quello che ignora le maiuscole, perche' su Windows lo
         /// stesso progetto puo' essere stato registrato con un'altra grafia del percorso.
         /// </summary>
+
+        /// <summary>
+        /// I gruppi di funzionalità MCP di un progetto: quali esistono, quanto pesano, quali sono accesi.
+        /// <para>
+        /// L'elenco non è scritto qui: lo dichiara il server MCP (<c>--list-groups</c>), pesi compresi,
+        /// così la UI resta allineata da sola quando nasce un tool nuovo. <c>chosen</c> distingue
+        /// «l'utente ha scelto» da «proposta in base alle integrazioni configurate».
+        /// </para>
+        /// </summary>
+        [HttpGet]
+        public IActionResult GetMcpToolGroups([FromQuery] string projectPath)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(projectPath))
+                    return BadRequest(new { error = "projectPath is required" });
+
+                _userSettingsDB.Clear();
+                var project = FindProject(projectPath);
+                if (project == null)
+                    return NotFound(new { error = "Project not found" });
+
+                var catalog = McpToolGroupsSettings.Catalog();
+                var enabled = McpToolGroupsSettings.Resolve(project, _userSettingsDB, out var chosen);
+
+                return Ok(new
+                {
+                    chosen,
+                    groups = catalog.Select(g => new
+                    {
+                        id = g.Id,
+                        mandatory = g.Mandatory,
+                        summary = g.Summary,
+                        toolCount = g.Tools.Length,
+                        approxTokens = g.ApproxTokens,
+                        enabled = enabled.Contains(g.Id)
+                    })
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Il server MCP non c'è o non risponde: si dice, invece di disegnare zero gruppi.
+                _logger.LogError(ex, "[GetMcpToolGroups] catalogo non disponibile per {ProjectPath}", projectPath);
+                return StatusCode(503, new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[GetMcpToolGroups] fallito per {ProjectPath}", projectPath);
+                return StatusCode(500, new { error = "Failed to read the MCP tool groups" });
+            }
+        }
+
+        /// <summary>
+        /// Salva i gruppi MCP accesi per un progetto e riscrive subito le configurazioni degli
+        /// ambienti agentici, altrimenti la scelta resterebbe nel database senza arrivare a nessuno.
+        /// <para>
+        /// Vale dalla <b>prossima</b> sessione di chat: i tool di una sessione già aperta sono già
+        /// nel suo contesto. La UI lo dice.
+        /// </para>
+        /// </summary>
+        [HttpPost]
+        public IActionResult SetMcpToolGroups([FromBody] SetMcpToolGroupsRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath))
+                    return BadRequest(new { error = "projectPath is required" });
+
+                var catalog = McpToolGroupsSettings.Catalog();
+                var wanted = (request.Groups ?? Array.Empty<string>())
+                    .Where(g => !string.IsNullOrWhiteSpace(g))
+                    .Select(g => g.Trim().ToLowerInvariant())
+                    .Distinct()
+                    .ToList();
+
+                var unknown = wanted.Where(w => !catalog.Any(g => g.Id == w)).ToList();
+                if (unknown.Count > 0)
+                {
+                    return BadRequest(new
+                    {
+                        error = $"Gruppo sconosciuto '{string.Join("', '", unknown)}'. " +
+                                $"Gli id validi sono: {string.Join(", ", catalog.Select(g => g.Id))}."
+                    });
+                }
+
+                // I gruppi obbligatori si salvano comunque: la stringa dice per intero cosa è acceso,
+                // così chi la legge non deve conoscere un'altra regola per interpretarla.
+                var stored = string.Join(",", catalog
+                    .Where(g => g.Mandatory || wanted.Contains(g.Id))
+                    .Select(g => g.Id));
+
+                _userSettingsDB.Clear();
+                _userSettingsDB.BeginTransaction();
+                var project = FindProject(request.ProjectPath);
+                if (project == null)
+                {
+                    _userSettingsDB.Rollback();
+                    return NotFound(new { error = "Project not found" });
+                }
+
+                project.McpToolGroups = stored;
+                _userSettingsDB.GetDal<Project>().Save(project);
+                _userSettingsDB.Commit();
+
+                // La scelta deve arrivare dove la leggono gli ambienti agentici, non restare nel DB.
+                ProjectsManager.RefreshMcpRegistration(
+                    request.ProjectPath,
+                    McpToolGroupsSettings.ToArgument(
+                        McpToolGroupsSettings.Resolve(project, _userSettingsDB, out _)));
+
+                _logger.LogInformation("[SetMcpToolGroups] {ProjectPath} → {Groups}", request.ProjectPath, stored);
+                return Ok(new { groups = stored.Split(','), chosen = true });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "[SetMcpToolGroups] catalogo non disponibile");
+                return StatusCode(503, new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _userSettingsDB.Rollback();
+                _logger.LogError(ex, "[SetMcpToolGroups] fallito per {ProjectPath}", request?.ProjectPath);
+                return StatusCode(500, new { error = "Failed to save the MCP tool groups" });
+            }
+        }
+
         private Project FindProject(string projectPath)
         {
             var projectDal = _userSettingsDB.GetDal<Project>();
@@ -847,6 +974,17 @@ namespace MdExplorer.Service.Controllers.MdProjects
     /// e' un [Required] implicito, e un campo mancante darebbe un 400 opaco invece del messaggio
     /// esplicito che l'endpoint sa produrre.
     /// </summary>
+    public class SetMcpToolGroupsRequest
+    {
+        public string? ProjectPath { get; set; }
+
+        /// <summary>
+        /// Gli id dei gruppi accesi (<c>jira</c>, <c>confluence</c>, <c>kg</c>, <c>agents</c>,
+        /// <c>plantuml</c>…). I gruppi obbligatori si aggiungono da soli.
+        /// </summary>
+        public string[]? Groups { get; set; }
+    }
+
     public class SetHarnessRequest
     {
         public string? ProjectPath { get; set; }

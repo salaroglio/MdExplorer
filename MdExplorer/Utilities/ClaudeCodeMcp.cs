@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -25,7 +26,7 @@ namespace MdExplorer.Utilities
     /// <summary>
     /// MdExplorer's MCP server for Claude Code, in the two places it is needed.
     /// <list type="bullet">
-    /// <item><description><see cref="RegisterForUser()"/> — for a project whose harness is Claude Code: the
+    /// <item><description><see cref="RegisterInstallationForUser"/> — for a project whose harness is Claude Code: the
     /// server in the user's own Claude Code configuration, so <c>claude</c> in a terminal has MdExplorer's
     /// tools. User scope and not the project's <c>.mcp.json</c>, for the reason Copilot and opencode are
     /// registered globally: the entry holds the absolute path of THIS installation's executable, noise or a
@@ -67,10 +68,24 @@ namespace MdExplorer.Utilities
         /// <summary>Command of the <c>mdexplorer</c> entry in the user configuration, or null when there is none.</summary>
         public static string RegisteredCommand() => ReadRegisteredEntry().Command;
 
-        /// <summary>Registers this installation's MCP executable for the user, and logs the outcome.</summary>
-        public static ClaudeMcpRegistrationResult RegisterForUser()
+        /// <summary>
+        /// Registers this installation's MCP executable for the user, and logs the outcome.
+        /// <para>
+        /// Nome diverso da <see cref="RegisterForUser(string, string)"/> e non un overload: due metodi
+        /// <c>(string)</c> che vogliono cose diverse — un eseguibile e un elenco di gruppi — si
+        /// scambiano in silenzio al primo chiamante distratto (successo per davvero, il 22/09/2026,
+        /// finché i test non l'hanno detto).
+        /// </para>
+        /// </summary>
+        /// <param name="mcpGroupsArgument">
+        /// I gruppi di funzionalità da esporre (<c>--groups</c>), o null per tutti. ⚠️ Questa è una
+        /// registrazione <b>utente</b>, non di progetto: porta i gruppi dell'ultimo progetto aperto,
+        /// ed è quello che vede un <c>claude</c> lanciato a mano in un terminale.
+        /// </param>
+        public static ClaudeMcpRegistrationResult RegisterInstallationForUser(string mcpGroupsArgument = null)
         {
-            var result = RegisterForUser(ProjectsManager.ResolveMcpExecutable(AppDomain.CurrentDomain.BaseDirectory));
+            var result = RegisterForUser(ProjectsManager.ResolveMcpExecutable(AppDomain.CurrentDomain.BaseDirectory),
+                                         mcpGroupsArgument);
             Console.WriteLine($"[ClaudeCodeMcp] {result.Outcome}: {result.Message}");
             return result;
         }
@@ -79,7 +94,7 @@ namespace MdExplorer.Utilities
         /// Absolute path of <c>MdExplorer.Mcp</c>. Only a direct executable: the <c>dotnet run</c> form is not
         /// offered, for the reasons given on <c>ProjectsManager.ResolveMcpExecutable</c>.
         /// </param>
-        public static ClaudeMcpRegistrationResult RegisterForUser(string mcpExecutable)
+        public static ClaudeMcpRegistrationResult RegisterForUser(string mcpExecutable, string mcpGroupsArgument = null)
         {
             if (string.IsNullOrWhiteSpace(mcpExecutable))
             {
@@ -95,8 +110,16 @@ namespace MdExplorer.Utilities
             }
 
             var configPath = UserConfigFilePath();
+            var wantedArguments = string.IsNullOrWhiteSpace(mcpGroupsArgument)
+                ? Array.Empty<string>()
+                : new[] { "--groups", mcpGroupsArgument };
+
             var existing = ReadRegisteredEntry();
-            if (existing.Command != null && SamePath(existing.Command, mcpExecutable) && existing.ArgumentCount == 0)
+            // Gli argomenti fanno parte di cosa è registrato: una voce giusta ma con gruppi vecchi
+            // NON è "già registrata", altrimenti la scelta dei gruppi non arriverebbe mai a chi ha
+            // già la voce nel suo file.
+            if (existing.Command != null && SamePath(existing.Command, mcpExecutable)
+                && existing.Arguments.SequenceEqual(wantedArguments, StringComparer.Ordinal))
             {
                 return new(ClaudeMcpRegistrationOutcome.AlreadyRegistered, $"'{ServerName}' già registrato in {configPath}.");
             }
@@ -112,7 +135,10 @@ namespace MdExplorer.Utilities
                 }
             }
 
-            var add = RunClaude($"mcp add --scope user {ServerName} -- {Quote(mcpExecutable)}");
+            var addArguments = wantedArguments.Length == 0
+                ? Quote(mcpExecutable)
+                : $"{Quote(mcpExecutable)} {string.Join(" ", wantedArguments.Select(Quote))}";
+            var add = RunClaude($"mcp add --scope user {ServerName} -- {addArguments}");
             if (add.ExitCode != 0)
             {
                 return new(ClaudeMcpRegistrationOutcome.Failed,
@@ -137,7 +163,7 @@ namespace MdExplorer.Utilities
         /// (never in the project). Null — and said — when the MCP executable cannot be found: the session
         /// then starts without MdExplorer's tools.
         /// </summary>
-        public static string WriteSessionConfig()
+        public static string WriteSessionConfig(string mcpGroupsArgument = null)
         {
             var mcpExecutable = ProjectsManager.ResolveMcpExecutable(AppDomain.CurrentDomain.BaseDirectory);
             if (mcpExecutable == null)
@@ -155,11 +181,11 @@ namespace MdExplorer.Utilities
                 return null;
             }
 
-            return WriteSessionConfig(mcpExecutable, Path.Combine(appData, "MdExplorer"));
+            return WriteSessionConfig(mcpExecutable, Path.Combine(appData, "MdExplorer"), mcpGroupsArgument);
         }
 
         /// <summary>Writes <c>{ "mcpServers": { "mdexplorer": … } }</c> in <paramref name="directory"/>; returns its path.</summary>
-        public static string WriteSessionConfig(string mcpExecutable, string directory)
+        public static string WriteSessionConfig(string mcpExecutable, string directory, string mcpGroupsArgument = null)
         {
             Directory.CreateDirectory(directory);
             var path = Path.Combine(directory, SessionConfigFileName);
@@ -172,7 +198,11 @@ namespace MdExplorer.Utilities
                     {
                         ["type"] = "stdio",
                         ["command"] = mcpExecutable,
-                        ["args"] = new JsonArray(),
+                        // I gruppi di funzionalita' MCP di QUESTO progetto: il file si riscrive a
+                        // ogni sessione di chat, quindi la scelta vale dalla prossima in poi.
+                        ["args"] = string.IsNullOrWhiteSpace(mcpGroupsArgument)
+                            ? new JsonArray()
+                            : new JsonArray("--groups", mcpGroupsArgument),
                     },
                 },
             };
@@ -184,24 +214,26 @@ namespace MdExplorer.Utilities
             return path;
         }
 
-        private static (string Command, int ArgumentCount) ReadRegisteredEntry()
+        private static (string Command, string[] Arguments) ReadRegisteredEntry()
         {
             var path = UserConfigFilePath();
-            if (!File.Exists(path)) return (null, 0);
+            if (!File.Exists(path)) return (null, Array.Empty<string>());
             try
             {
                 // Shared read: a running Claude Code may be writing its own file right now.
                 using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
                 using var reader = new StreamReader(stream);
                 var entry = JsonNode.Parse(reader.ReadToEnd())?["mcpServers"]?[ServerName];
-                if (entry == null) return (null, 0);
-                return (entry["command"]?.GetValue<string>(), (entry["args"] as JsonArray)?.Count ?? 0);
+                if (entry == null) return (null, Array.Empty<string>());
+                var arguments = (entry["args"] as JsonArray)?
+                    .Select(a => a?.GetValue<string>() ?? string.Empty).ToArray() ?? Array.Empty<string>();
+                return (entry["command"]?.GetValue<string>(), arguments);
             }
             catch (Exception ex) when (ex is JsonException || ex is IOException || ex is InvalidOperationException)
             {
                 // Unreadable: it is not ours to repair. Registering again through the CLI is safe either way.
                 Console.WriteLine($"[ClaudeCodeMcp] {path} non leggibile ({ex.Message}): lo considero senza '{ServerName}'.");
-                return (null, 0);
+                return (null, Array.Empty<string>());
             }
         }
 

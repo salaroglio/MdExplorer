@@ -41,7 +41,11 @@ namespace MdExplorer.Service
         {
             // Fuseki/Jena skills are deployed only for projects configured for Fuseki.
             var fusekiEnabled = IsFusekiEnabled(serviceProvider, pathFromParameter);
-            ConfigTemplates(pathFromParameter, null, requestedHarness, fusekiEnabled);
+            // I gruppi di funzionalita' MCP accesi per questo progetto: finiscono nelle
+            // configurazioni degli ambienti agentici come `--groups`, e da li' nel contesto
+            // della chat. Vedi McpToolGroupsSettings.
+            var mcpGroups = McpGroupsArgument(serviceProvider, pathFromParameter);
+            ConfigTemplates(pathFromParameter, null, requestedHarness, fusekiEnabled, mcpGroups);
 
             // Initialize Git repository only if requested
             bool gitInitialized = false;
@@ -261,7 +265,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
     return effectivePath; // Return the path that was actually used.
 }
 
-        public static void ConfigTemplates(string mdPath, IServiceCollection services = null, HarnessTarget? requestedHarness = null, bool fusekiEnabled = false)
+        public static void ConfigTemplates(string mdPath, IServiceCollection services = null, HarnessTarget? requestedHarness = null, bool fusekiEnabled = false, string mcpGroupsArgument = null)
         {
             //var directory = $"{Path.GetDirectoryName(mdPath)}{Path.DirectorySeparatorChar}.md";
             var directory = $"{mdPath}{Path.DirectorySeparatorChar}.md";
@@ -271,7 +275,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             Directory.CreateDirectory(directoryEmoji);
 
             // Copy configuration files to project root if they don't exist
-            CopyConfigurationFilesToProject(mdPath, requestedHarness, fusekiEnabled);
+            CopyConfigurationFilesToProject(mdPath, requestedHarness, fusekiEnabled, mcpGroupsArgument);
 
             var assembly = Assembly.GetExecutingAssembly();
             var embeddedSubfolder = "MdExplorer.Service.EmojiForPandoc.";
@@ -367,7 +371,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             }
         }
         
-        private static void CopyConfigurationFilesToProject(string projectPath, HarnessTarget? requestedHarness = null, bool fusekiEnabled = false)
+        private static void CopyConfigurationFilesToProject(string projectPath, HarnessTarget? requestedHarness = null, bool fusekiEnabled = false, string mcpGroupsArgument = null)
         {
             try
             {
@@ -379,7 +383,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 var harness = HarnessSettings.Resolve(projectPath, requestedHarness);
                 InstallHarnessAssets(projectPath, harness, fusekiEnabled);
 
-                RegisterMcpServerForHarness(projectPath, harness);
+                RegisterMcpServerForHarness(projectPath, harness, mcpGroupsArgument);
             }
             catch (Exception ex)
             {
@@ -410,7 +414,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
 
             var fusekiEnabled = IsFusekiEnabled(serviceProvider, projectPath);
             InstallHarnessAssets(projectPath, harness, fusekiEnabled);
-            RegisterMcpServerForHarness(projectPath, harness);
+            RegisterMcpServerForHarness(projectPath, harness, McpGroupsArgument(serviceProvider, projectPath));
             EnsureGitignoreEntries(projectPath);
         }
 
@@ -482,31 +486,125 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             MdeSkillUpdater.EnsureCatalogsInstalled(projectPath, layout, fusekiEnabled);
         }
 
+
+        /// <summary>
+        /// Gli argomenti che portano i gruppi di funzionalità al server MCP, o <c>null</c> quando
+        /// non c'è niente da restringere (tutti i gruppi accesi: la riga di comando resta quella
+        /// di sempre).
+        /// </summary>
+        private static System.Text.Json.Nodes.JsonArray McpGroupsArgs(string mcpGroupsArgument)
+            => string.IsNullOrWhiteSpace(mcpGroupsArgument)
+                ? null
+                : new System.Text.Json.Nodes.JsonArray("--groups", mcpGroupsArgument);
+
+        /// <summary>L'argv di opencode (eseguibile + argomenti), che vuole un array unico.</summary>
+        private static System.Text.Json.Nodes.JsonArray McpArgv(string mcpExePath, string mcpGroupsArgument)
+            => string.IsNullOrWhiteSpace(mcpGroupsArgument)
+                ? new System.Text.Json.Nodes.JsonArray(mcpExePath)
+                : new System.Text.Json.Nodes.JsonArray(mcpExePath, "--groups", mcpGroupsArgument);
+
+        /// <summary>
+        /// Gli argomenti della forma <c>dotnet run</c> (solo dev box). Il <c>--</c> separa gli
+        /// argomenti di <c>dotnet run</c> da quelli del programma: senza, <c>--groups</c> lo
+        /// mangerebbe <c>dotnet</c>.
+        /// </summary>
+        private static System.Text.Json.Nodes.JsonArray McpDotnetRunArgs(string mcpProjectPath, string mcpGroupsArgument)
+            => string.IsNullOrWhiteSpace(mcpGroupsArgument)
+                ? new System.Text.Json.Nodes.JsonArray("run", "--project", mcpProjectPath)
+                : new System.Text.Json.Nodes.JsonArray("run", "--project", mcpProjectPath, "--", "--groups", mcpGroupsArgument);
+
+        private static System.Text.Json.Nodes.JsonArray McpDotnetRunArgv(string mcpProjectPath, string mcpGroupsArgument)
+            => string.IsNullOrWhiteSpace(mcpGroupsArgument)
+                ? new System.Text.Json.Nodes.JsonArray("dotnet", "run", "--project", mcpProjectPath)
+                : new System.Text.Json.Nodes.JsonArray("dotnet", "run", "--project", mcpProjectPath, "--", "--groups", mcpGroupsArgument);
+
+        /// <summary>
+        /// I gruppi di funzionalità MCP del progetto, pronti per <c>--groups</c>. <c>null</c> = non
+        /// restringere niente.
+        /// <para>
+        /// Se il catalogo dei gruppi non si riesce a leggere (il server MCP non c'è, o non risponde)
+        /// <b>non si indovina</b>: si scrive perché in console e si lascia la configurazione senza
+        /// <c>--groups</c>, cioè con tutti i tool — il comportamento di sempre. Spegnerne a caso
+        /// sarebbe peggio: l'AI non saprebbe di avere strumenti che invece esistono.
+        /// </para>
+        /// </summary>
+        internal static string McpGroupsArgument(IServiceProvider serviceProvider, string projectPath)
+            => McpGroupsArgument(serviceProvider?.GetService<IUserSettingsDB>(), projectPath);
+
+        /// <inheritdoc cref="McpGroupsArgument(IServiceProvider, string)"/>
+        internal static string McpGroupsArgument(IUserSettingsDB db, string projectPath)
+        {
+            if (db == null || string.IsNullOrWhiteSpace(projectPath))
+                return null;
+
+            try
+            {
+                var normalized = projectPath.TrimEnd('/', '\\');
+                db.BeginTransaction();
+                try
+                {
+                    // ⚠️ `.ToList()` prima del confronto: string.Equals con StringComparison e TrimEnd
+                    // non si traducono in SQL e NHibernate solleva. È lo stesso inciampo che fa fallire
+                    // IsFusekiEnabled qui sopra (visto nei log il 22/09/2026).
+                    var project = db.GetDal<Project>().GetList().ToList()
+                        .FirstOrDefault(p => p.Path != null &&
+                            string.Equals(p.Path.TrimEnd('/', '\\'), normalized, StringComparison.OrdinalIgnoreCase));
+                    if (project == null) return null;
+
+                    var groups = McpToolGroupsSettings.Resolve(project, db, out _);
+                    return McpToolGroupsSettings.ToArgument(groups);
+                }
+                finally
+                {
+                    db.Commit();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ProjectsManager] gruppi MCP non determinati per {projectPath}: {ex.Message}. " +
+                                  "La configurazione resta con tutti i tool.");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Riscrive la registrazione del server MCP per il progetto, con i gruppi dati.
+        /// <para>
+        /// Serve quando i gruppi cambiano dalle impostazioni: senza, la scelta resterebbe nel
+        /// database e nessun ambiente agentico la vedrebbe. Vale dalla sessione di chat successiva.
+        /// </para>
+        /// </summary>
+        public static void RefreshMcpRegistration(string projectPath, string mcpGroupsArgument)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath)) return;
+            RegisterMcpServerForHarness(projectPath, MarkAgentEngines.HarnessOf(projectPath), mcpGroupsArgument);
+        }
+
         /// <summary>
         /// Registers the MdExplorer MCP server where the project's harness looks for it.
         /// Copilot reads <c>.vscode/mcp.json</c> and <c>~/.copilot/mcp-config.json</c>; opencode
         /// reads its own config. A project with no harness gets no registration: the choice is
         /// exclusive, so we do not scatter configuration for a tool this project does not use.
         /// </summary>
-        private static void RegisterMcpServerForHarness(string projectPath, HarnessTarget harness)
+        private static void RegisterMcpServerForHarness(string projectPath, HarnessTarget harness, string mcpGroupsArgument = null)
         {
             switch (harness)
             {
                 case HarnessTarget.Copilot:
                     // Create .vscode folder with MCP server configuration
-                    CreateVsCodeMcpConfig(projectPath);
+                    CreateVsCodeMcpConfig(projectPath, mcpGroupsArgument);
                     // Create .copilot folder with MCP server configuration (for Copilot CLI)
-                    CreateCopilotCliMcpConfig(projectPath);
+                    CreateCopilotCliMcpConfig(projectPath, mcpGroupsArgument);
                     break;
 
                 case HarnessTarget.OpenCode:
-                    CreateOpenCodeMcpConfig();
+                    CreateOpenCodeMcpConfig(mcpGroupsArgument);
                     break;
 
                 case HarnessTarget.Claude:
                     // User scope through Claude Code's own CLI: same reasoning as Copilot and opencode (the
                     // entry holds THIS installation's executable path, so it does not belong in the project).
-                    ClaudeCodeMcp.RegisterForUser();
+                    ClaudeCodeMcp.RegisterInstallationForUser(mcpGroupsArgument);
                     break;
 
                 default:
@@ -529,7 +627,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         /// so a user's own opencode configuration survives untouched.
         /// </para>
         /// </summary>
-        private static void CreateOpenCodeMcpConfig()
+        private static void CreateOpenCodeMcpConfig(string mcpGroupsArgument = null)
         {
             try
             {
@@ -550,7 +648,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     serverEntry = new System.Text.Json.Nodes.JsonObject
                     {
                         ["type"] = "local",
-                        ["command"] = new System.Text.Json.Nodes.JsonArray(mcpExePath),
+                        ["command"] = McpArgv(mcpExePath, mcpGroupsArgument),
                         ["enabled"] = true
                     };
                 }
@@ -562,7 +660,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     serverEntry = new System.Text.Json.Nodes.JsonObject
                     {
                         ["type"] = "local",
-                        ["command"] = new System.Text.Json.Nodes.JsonArray("dotnet", "run", "--project", mcpProjectPath),
+                        ["command"] = McpDotnetRunArgv(mcpProjectPath, mcpGroupsArgument),
                         ["enabled"] = true
                     };
                 }
@@ -592,7 +690,16 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                 var entryMissing = !servers.ContainsKey(serverKey);
                 var entryBroken = servers[serverKey] is System.Text.Json.Nodes.JsonObject existing
                                   && OpenCodeMcpEntryLaunchTargetMissing(existing);
-                if (entryMissing || (mcpExePath != null && entryBroken))
+                // Stessa ragione del writer di Copilot: la nostra voce con gruppi vecchi va riscritta.
+                var entryGroupsStale = mcpExePath != null
+                                  && servers[serverKey] is System.Text.Json.Nodes.JsonObject groupsEntry
+                                  && groupsEntry["command"] is System.Text.Json.Nodes.JsonArray argv
+                                  && argv.Count > 0
+                                  && McpEntryGroupsStale(argv[0]?.GetValue<string>(),
+                                                         new System.Text.Json.Nodes.JsonArray(
+                                                             argv.Skip(1).Select(n => (System.Text.Json.Nodes.JsonNode)n.GetValue<string>()).ToArray()),
+                                                         mcpExePath, mcpGroupsArgument);
+                if (entryMissing || (mcpExePath != null && (entryBroken || entryGroupsStale)))
                 {
                     servers[serverKey] = serverEntry;
                 }
@@ -629,7 +736,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             return !File.Exists(head);
         }
 
-        private static void CreateVsCodeMcpConfig(string projectPath)
+        private static void CreateVsCodeMcpConfig(string projectPath, string mcpGroupsArgument = null)
         {
             try
             {
@@ -655,6 +762,8 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                         ["type"] = "stdio",
                         ["command"] = mcpExePath
                     };
+                    if (McpGroupsArgs(mcpGroupsArgument) is { } vsCodeArgs)
+                        serverEntry["args"] = vsCodeArgs;
                 }
                 else
                 {
@@ -665,7 +774,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     {
                         ["type"] = "stdio",
                         ["command"] = "dotnet",
-                        ["args"] = new System.Text.Json.Nodes.JsonArray("run", "--project", mcpProjectPath)
+                        ["args"] = McpDotnetRunArgs(mcpProjectPath, mcpGroupsArgument)
                     };
                 }
 
@@ -713,7 +822,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         /// for the given project. Copilot CLI only supports user-level config (not per-project).
         /// Server key includes project name to avoid conflicts between projects.
         /// </summary>
-        private static void CreateCopilotCliMcpConfig(string projectPath)
+        private static void CreateCopilotCliMcpConfig(string projectPath, string mcpGroupsArgument = null)
         {
             try
             {
@@ -744,6 +853,8 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                         ["command"] = mcpExePath,
                         ["tools"] = new System.Text.Json.Nodes.JsonArray("*")
                     };
+                    if (McpGroupsArgs(mcpGroupsArgument) is { } copilotArgs)
+                        serverEntry["args"] = copilotArgs;
                 }
                 else
                 {
@@ -753,7 +864,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                     serverEntry = new System.Text.Json.Nodes.JsonObject
                     {
                         ["command"] = "dotnet",
-                        ["args"] = new System.Text.Json.Nodes.JsonArray("run", "--project", mcpProjectPath),
+                        ["args"] = McpDotnetRunArgs(mcpProjectPath, mcpGroupsArgument),
                         ["tools"] = new System.Text.Json.Nodes.JsonArray("*")
                     };
                 }
@@ -789,7 +900,16 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                                        && McpEntryLaunchTargetMissing(existingEntry);
                     bool entryIsDotnetRun = servers[serverKey] is System.Text.Json.Nodes.JsonObject dotnetRunEntry
                                        && IsDotnetRunEntry(dotnetRunEntry);
-                    if (entryMissing || (haveRealExe && (entryBroken || entryIsDotnetRun)))
+                    // ...e quando la voce e' la NOSTRA (stesso eseguibile) ma porta gruppi diversi da
+                    // quelli scelti adesso: altrimenti su un'installazione che ha gia' la voce la
+                    // scelta dei gruppi non arriverebbe mai. Una voce che punta altrove resta com'e':
+                    // quella e' una personalizzazione dell'utente.
+                    bool entryGroupsStale = haveRealExe
+                                       && servers[serverKey] is System.Text.Json.Nodes.JsonObject groupsEntry
+                                       && McpEntryGroupsStale(groupsEntry["command"]?.GetValue<string>(),
+                                                              groupsEntry["args"] as System.Text.Json.Nodes.JsonArray,
+                                                              mcpExePath, mcpGroupsArgument);
+                    if (entryMissing || (haveRealExe && (entryBroken || entryIsDotnetRun || entryGroupsStale)))
                     {
                         servers[serverKey] = serverEntry;
                     }
@@ -813,6 +933,36 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             {
                 Console.WriteLine($"Error creating Copilot CLI MCP configuration: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// True quando la voce è la NOSTRA (punta all'eseguibile di questa installazione) ma i
+        /// gruppi che porta non sono quelli che il progetto vuole adesso: va riscritta.
+        /// <para>
+        /// Una voce che punta altrove non si tocca: è una personalizzazione dell'utente, e i suoi
+        /// gruppi sono affari suoi.
+        /// </para>
+        /// </summary>
+        private static bool McpEntryGroupsStale(string command, System.Text.Json.Nodes.JsonArray args,
+                                                string mcpExePath, string mcpGroupsArgument)
+        {
+            if (string.IsNullOrWhiteSpace(command) || !string.Equals(command, mcpExePath, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            string current = null;
+            if (args != null)
+            {
+                for (var i = 0; i < args.Count - 1; i++)
+                {
+                    if (args[i]?.GetValue<string>() == "--groups")
+                    {
+                        current = args[i + 1]?.GetValue<string>();
+                        break;
+                    }
+                }
+            }
+
+            return !string.Equals(current ?? string.Empty, mcpGroupsArgument ?? string.Empty, StringComparison.Ordinal);
         }
 
         /// <summary>

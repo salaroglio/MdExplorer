@@ -37,6 +37,8 @@ namespace MdExplorer.Hubs
         private readonly CopilotChatSessionPool _copilotChatPool;
         private readonly ClaudeCodeSessionPool _claudeCodePool;
         private readonly OpenCodeSessionPool _openCodePool;
+        /// <summary>Serve per una cosa sola: sapere quali gruppi di funzionalità MCP accendere per il progetto.</summary>
+        private readonly Abstractions.DB.IUserSettingsDB _userSettingsDB;
 
         // Static dictionary to store chat mode per connection
         private static readonly ConcurrentDictionary<string, ChatModeInfo> _connectionChatModes =
@@ -87,7 +89,8 @@ namespace MdExplorer.Hubs
             Features.Services.AI.LocalLlamaProvider localProvider,
             CopilotChatSessionPool copilotChatPool,
             ClaudeCodeSessionPool claudeCodePool,
-            OpenCodeSessionPool openCodePool)
+            OpenCodeSessionPool openCodePool,
+            Abstractions.DB.IUserSettingsDB userSettingsDB)
         {
             _aiChatService = aiChatService;
             _downloadService = downloadService;
@@ -102,6 +105,7 @@ namespace MdExplorer.Hubs
             _copilotChatPool = copilotChatPool;
             _claudeCodePool = claudeCodePool;
             _openCodePool = openCodePool;
+            _userSettingsDB = userSettingsDB;
         }
 
         /// <summary>
@@ -873,7 +877,11 @@ namespace MdExplorer.Hubs
             // executable cannot be found: the session starts without it, and the log says why.
             var options = new ClaudeCodeSessionOptions
             {
-                McpConfigPath = MdExplorer.Utilities.ClaudeCodeMcp.WriteSessionConfig(),
+                // I gruppi di funzionalita' MCP scelti per QUESTO progetto: i tool dei gruppi spenti
+                // non entrano nel contesto della sessione. Il file si riscrive a ogni sessione, quindi
+                // un cambio nelle impostazioni vale dalla prossima chat.
+                McpConfigPath = MdExplorer.Utilities.ClaudeCodeMcp.WriteSessionConfig(
+                    MdExplorer.Service.ProjectsManager.McpGroupsArgument(_userSettingsDB, projectPath)),
                 // Connected is not usable: in dontAsk an MCP tool nobody authorized is denied.
                 AllowedMcpServers = new[] { MdExplorer.Utilities.ClaudeCodeMcp.ServerName },
             };

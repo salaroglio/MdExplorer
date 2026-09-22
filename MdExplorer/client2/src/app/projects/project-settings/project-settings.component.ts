@@ -1,7 +1,7 @@
 import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
 import { MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA, MatLegacyDialogRef as MatDialogRef, MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { Subscription } from 'rxjs';
-import { HarnessTarget, MarkAgentEngineId, ProjectSettingsService } from '../services/project-settings.service';
+import { HarnessTarget, MarkAgentEngineId, McpToolGroup, ProjectSettingsService } from '../services/project-settings.service';
 import { ConfirmDialogComponent, ConfirmDialogData } from '../../commons/components/confirm-dialog/confirm-dialog.component';
 import { CompatibilityModeService } from '../../services/compatibility-mode.service';
 import { IdeConfigurationService } from '../services/ide-configuration.service';
@@ -32,6 +32,16 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   showAdvancedEngine: boolean = false;
   /** Finché la risposta non arriva, un avviso di scollegamento sarebbe inventato. */
   engineSettingsLoaded: boolean = false;
+
+  // Gruppi di funzionalità MCP: quali strumenti MdExplorer mette nel contesto della chat.
+  // L'elenco e i pesi arrivano dal server MCP, qui non se ne tiene una copia.
+  mcpGroups: McpToolGroup[] = [];
+  /** false = nessuno ha ancora scelto, le caselle sono una proposta letta dalle integrazioni. */
+  mcpGroupsChosen: boolean = false;
+  mcpGroupsLoaded: boolean = false;
+  savingMcpGroups: boolean = false;
+  /** Il server MCP non c'è o non risponde: si dice, invece di mostrare zero gruppi. */
+  mcpGroupsError: string | null = null;
 
   // Agent City / Federation (§12.4) — activation lives in .development.yml (shared via git).
   agentCityEnabled: boolean = false;
@@ -190,6 +200,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.loadAtlassianSettings();
     this.loadAgentCity();
     this.loadHarness();
+    this.loadMcpToolGroups();
 
     this.ragProgressSub = this.serverMessages.ragIndexingProgress$.subscribe(data => {
       this.ragProcessed = data.processed;
@@ -488,6 +499,50 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     if (this.harness === 'none') return true;
     const read = ProjectSettingsComponent.HARNESS_READ_BY[this.markAgentEngine];
     return !!read && read.includes(this.harness);
+  }
+
+  /** Quanti token di strumenti entrano nel contesto con le caselle spuntate adesso. */
+  get mcpTokensSelected(): number {
+    return this.mcpGroups.filter(g => g.enabled).reduce((sum, g) => sum + g.approxTokens, 0);
+  }
+
+  /** Quanti ne entrerebbero con tutti i gruppi accesi: il termine di paragone. */
+  get mcpTokensAll(): number {
+    return this.mcpGroups.reduce((sum, g) => sum + g.approxTokens, 0);
+  }
+
+  loadMcpToolGroups(): void {
+    if (!this.projectPath) return;
+    this.projectSettingsService.getMcpToolGroups(this.projectPath).subscribe({
+      next: (res) => {
+        this.mcpGroups = res.groups;
+        this.mcpGroupsChosen = res.chosen;
+        this.mcpGroupsError = null;
+        this.mcpGroupsLoaded = true;
+      },
+      error: (err) => {
+        console.error('Error loading the MCP tool groups:', err);
+        this.mcpGroups = [];
+        this.mcpGroupsError = err?.error?.error ?? this.translate.instant('PROJECT_SETTINGS.MCP_GROUPS_UNAVAILABLE');
+        this.mcpGroupsLoaded = true;
+      }
+    });
+  }
+
+  onMcpGroupChange(): void {
+    this.savingMcpGroups = true;
+    const enabled = this.mcpGroups.filter(g => g.enabled).map(g => g.id);
+    this.projectSettingsService.setMcpToolGroups(enabled, this.projectPath).subscribe({
+      next: () => {
+        this.mcpGroupsChosen = true;
+        this.savingMcpGroups = false;
+      },
+      error: (err) => {
+        console.error('Error saving the MCP tool groups:', err);
+        this.savingMcpGroups = false;
+        this.loadMcpToolGroups();   // riallinea allo stato persistito
+      }
+    });
   }
 
   onEngineChange(): void {

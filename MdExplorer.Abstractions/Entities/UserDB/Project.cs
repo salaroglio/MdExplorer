@@ -38,6 +38,23 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual string MarkAgentEngine { get; set; }
 
         /// <summary>
+        /// I gruppi di funzionalità del server MCP accesi in questo progetto, come id separati da
+        /// virgola (<c>core,plantuml,jira</c>). Viaggiano fino al server come <c>--groups</c>.
+        /// <para>
+        /// Esistono per il contesto: ogni tool registrato entra in <c>tools/list</c> e quindi nel
+        /// contesto della chat <b>prima</b> che l'utente scriva qualcosa — ~8.000 token per tutti e
+        /// 33, di cui ~4.350 di solo Jira (misurati il 22/09/2026). Su un progetto senza Jira sono
+        /// token comprati e mai usati.
+        /// </para>
+        /// <para>
+        /// <c>null</c> = <b>mai scelto</b>: valgono i gruppi che corrispondono alle integrazioni
+        /// davvero configurate nel progetto. Si risolve con <c>McpToolGroupsSettings.Resolve</c>,
+        /// mai leggendo la stringa a mano.
+        /// </para>
+        /// </summary>
+        public virtual string McpToolGroups { get; set; }
+
+        /// <summary>
         /// Il modello con cui la chat parla a Copilot in questo progetto. <c>null</c> = lo sceglie
         /// il CLI (<c>auto</c>).
         /// <para>

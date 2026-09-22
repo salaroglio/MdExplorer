@@ -6009,6 +6009,23 @@ class ProjectSettingsService {
       projectPath
     });
   }
+  /** Gruppi di funzionalità MCP del progetto: quali esistono, quanto pesano, quali sono accesi. */
+  getMcpToolGroups(projectPath) {
+    const url = '../api/ProjectSettings/GetMcpToolGroups';
+    return this.http.get(url, {
+      params: {
+        projectPath
+      }
+    });
+  }
+  /** Salva i gruppi accesi. Quelli obbligatori li aggiunge il backend. */
+  setMcpToolGroups(groups, projectPath) {
+    const url = '../api/ProjectSettings/SetMcpToolGroups';
+    return this.http.post(url, {
+      groups,
+      projectPath
+    });
+  }
   /** Il motore di MarkAgent per questo progetto, e se segue l'ambiente o no. */
   getMarkAgentEngine(projectPath) {
     const url = '../api/ProjectSettings/GetMarkAgentEngine';
@@ -10691,4 +10708,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.c768d868e448af60.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.b0ea741b7baf2cca.js.map

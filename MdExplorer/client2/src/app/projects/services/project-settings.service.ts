@@ -37,6 +37,25 @@ export interface HarnessSetting {
  */
 export type MarkAgentEngineId = 'copilot' | 'opencode' | 'claude' | 'none';
 
+/**
+ * Un gruppo di funzionalità del server MCP. L'elenco arriva dal server stesso
+ * (`MdExplorer.Mcp --list-groups`), pesi compresi: qui non se ne tiene una copia.
+ */
+export interface McpToolGroup {
+  id: string;
+  mandatory: boolean;
+  summary: string;
+  toolCount: number;
+  approxTokens: number;
+  enabled: boolean;
+}
+
+export interface McpToolGroupsSetting {
+  /** true = l'utente ha scelto; false = proposta in base alle integrazioni configurate. */
+  chosen: boolean;
+  groups: McpToolGroup[];
+}
+
 export interface MarkAgentEngineSetting {
   engine: MarkAgentEngineId;
   /**
@@ -108,6 +127,18 @@ export class ProjectSettingsService {
   setPlantUmlKeepOriginalColorsSetting(enabled: boolean, projectPath: string): Observable<any> {
     const url = '../api/ProjectSettings/SetPlantUmlKeepOriginalColorsSetting';
     return this.http.post<any>(url, { enabled, projectPath });
+  }
+
+  /** Gruppi di funzionalità MCP del progetto: quali esistono, quanto pesano, quali sono accesi. */
+  getMcpToolGroups(projectPath: string): Observable<McpToolGroupsSetting> {
+    const url = '../api/ProjectSettings/GetMcpToolGroups';
+    return this.http.get<McpToolGroupsSetting>(url, { params: { projectPath } });
+  }
+
+  /** Salva i gruppi accesi. Quelli obbligatori li aggiunge il backend. */
+  setMcpToolGroups(groups: string[], projectPath: string): Observable<{ groups: string[]; chosen: boolean }> {
+    const url = '../api/ProjectSettings/SetMcpToolGroups';
+    return this.http.post<{ groups: string[]; chosen: boolean }>(url, { groups, projectPath });
   }
 
   /** Il motore di MarkAgent per questo progetto, e se segue l'ambiente o no. */

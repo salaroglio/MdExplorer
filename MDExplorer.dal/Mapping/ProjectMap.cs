@@ -34,6 +34,9 @@ namespace MDExplorer.DataAccess.Mapping
             Map(_ => _.AgentWorktreeSlots).Nullable();
             Map(_ => _.IndexAllTextFiles).Not.Nullable().Default("0");
             Map(_ => _.TextFileExtensions).Length(int.MaxValue).Nullable();
+            // Gruppi di funzionalita' MCP: NULL = mai scelto, li decidono le integrazioni
+            // configurate nel progetto (McpToolGroupsSettings.Resolve).
+            Map(_ => _.McpToolGroups).Length(200).Nullable();
             HasMany(x => x.Bookmarks).LazyLoad().Cascade.SaveUpdate();
         }
     }
