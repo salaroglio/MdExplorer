@@ -189,12 +189,6 @@ namespace MdExplorer.Services.Git.Interfaces
         /// <returns>Result of the remove remote operation</returns>
         Task<GitOperationResult> RemoveRemoteAsync(string repositoryPath, string remoteName = "origin");
 
-        /// <summary>
-        /// Clears all cached credentials for a specific repository
-        /// Useful when changing credentials for a project
-        /// </summary>
-        /// <param name="repositoryPath">Path to the local repository</param>
-        void ClearProjectCache(string repositoryPath);
 
         /// <summary>
         /// Discards changes to a specific file (equivalent to git restore/checkout -- file)

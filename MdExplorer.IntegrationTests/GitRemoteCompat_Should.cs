@@ -1,12 +1,12 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
 using MdExplorer.IntegrationTests.Infrastructure;
-using MdExplorer.Services.Git.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -119,12 +119,9 @@ namespace MdExplorer.IntegrationTests
             var url = server.CreateBareRepository("solo-db");
             var path = SeedLinkedProject(ctx, url, "solo-db");
 
-            using (var scope = ctx.Factory.Services.CreateScope())
-            {
-                var accounts = scope.ServiceProvider.GetRequiredService<IGitAccountService>();
-                await accounts.CreateAccountWithCredentialAsync(path, "Generic", "Server di prova", User,
-                    httpsPassword: Password, preferredAuthMethod: "username_password");
-            }
+            // Le righe come le lasciava la versione precedente (entità non più mappate: SQL diretto,
+            // Guid come BLOB di 16 byte, che è come le scriveva NHibernate).
+            SeedLegacyDbCredential(ctx, path, User, Password);
 
             // Il trasloco: all'avvio della versione nuova (qui a chiamata, perché il test spegne
             // l'hosted service) MdExplorer consegna il segreto a git e verifica che git lo ritrovi.
@@ -298,6 +295,32 @@ namespace MdExplorer.IntegrationTests
             File.WriteAllText(Path.Combine(work, file), $"# {name}\n");
             Git(work, "add", "-A"); Git(work, "commit", "-qm", "contenuto");
             Git(work, "-c", "credential.helper=", "push", "-q", "-u", "origin", "main");
+        }
+
+        /// <summary>Un account con password salvata SOLO nel DB di MdExplorer, come faceva il dialogo account fino allo sprint.</summary>
+        private static void SeedLegacyDbCredential(AgentCityContext ctx, string repositoryPath, string user, string password)
+        {
+            var dbPath = Directory.GetFiles(ctx.Factory.DataDir, "MdExplorer.db", SearchOption.AllDirectories).Single();
+            using var db = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}");
+            db.Open();
+            var credId = Guid.NewGuid().ToByteArray();
+            var now = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+            using (var cmd = db.CreateCommand())
+            {
+                cmd.CommandText = @"INSERT INTO GitCredential (Id, AccountName, AccountType, AuthUsername, HttpsPassword, IsActive, CreatedAt, UpdatedAt)
+                                    VALUES ($id, 'Server di prova', 'Generic', $user, $pwd, 1, $now, $now)";
+                cmd.Parameters.AddWithValue("$id", credId); cmd.Parameters.AddWithValue("$user", user);
+                cmd.Parameters.AddWithValue("$pwd", password); cmd.Parameters.AddWithValue("$now", now);
+                cmd.ExecuteNonQuery();
+            }
+            using (var cmd = db.CreateCommand())
+            {
+                cmd.CommandText = @"INSERT INTO GitRepositoryAccount (Id, RepositoryPath, CredentialId, PreferredAuthMethod, IsActive, CreatedAt, UpdatedAt)
+                                    VALUES ($id, $path, $cred, 'username_password', 1, $now, $now)";
+                cmd.Parameters.AddWithValue("$id", Guid.NewGuid().ToByteArray()); cmd.Parameters.AddWithValue("$path", repositoryPath);
+                cmd.Parameters.AddWithValue("$cred", credId); cmd.Parameters.AddWithValue("$now", now);
+                cmd.ExecuteNonQuery();
+            }
         }
 
         private sealed record Outcome(bool Success, string Error, string Raw);

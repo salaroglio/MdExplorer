@@ -44,8 +44,6 @@ namespace MdExplorer.Service.Controllers.MdProjects
         private readonly IMapper _mapper;
         private readonly IDatabaseManager _databaseManager;
         private readonly IFileSystemWatcherManager _fileSystemWatcherManager;
-        private readonly IGitAccountService _gitAccountService;
-        private readonly GitCredentialHelperResolver _gitCredentialHelper;
         private readonly FoldersIgnoreService _foldersIgnoreService;
         private readonly IProjectMetadataService _projectMetadataService;
         private readonly IGitAuthorsService _gitAuthorsService;
@@ -58,8 +56,6 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 IMapper mapper,
                 IDatabaseManager databaseManager,
                 IFileSystemWatcherManager fileSystemWatcherManager,
-                IGitAccountService gitAccountService,
-                GitCredentialHelperResolver gitCredentialHelper,
                 FoldersIgnoreService foldersIgnoreService,
                 IProjectMetadataService projectMetadataService,
                 IGitAuthorsService gitAuthorsService,
@@ -73,8 +69,6 @@ namespace MdExplorer.Service.Controllers.MdProjects
             _mapper = mapper;
             _databaseManager = databaseManager;
             _fileSystemWatcherManager = fileSystemWatcherManager;
-            _gitAccountService = gitAccountService;
-            _gitCredentialHelper = gitCredentialHelper;
             _foldersIgnoreService = foldersIgnoreService;
             _projectMetadataService = projectMetadataService;
             _gitAuthorsService = gitAuthorsService;
@@ -811,62 +805,25 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 }
                 logPhase("CompatibilityMode YAML parse");
 
-                // Check if it's a Git repository and if it has an account configured
+                // Repository git? Il remote e il provider servono alla UI; le credenziali no: le ha git.
                 var isGitRepository = Directory.Exists(Path.Combine(request.Path, ".git"));
-                var hasGitAccount = false;
                 string detectedRemoteUrl = null;
                 string detectedProvider = null;
-                bool needsManualCredentials = false;
-
                 if (isGitRepository)
                 {
                     try
                     {
-                        hasGitAccount = _gitAccountService.HasAccountForRepositoryAsync(request.Path).GetAwaiter().GetResult();
-                        logger?.LogInformation($"🔐 Git account check for {request.Path}: hasAccount={hasGitAccount}");
+                        detectedRemoteUrl = GetRemoteUrlFromRepository(request.Path);
+                        if (!string.IsNullOrEmpty(detectedRemoteUrl))
+                        {
+                            detectedProvider = DetectProviderFromUrl(detectedRemoteUrl);
+                        }
                     }
                     catch (Exception ex)
                     {
-                        logger?.LogWarning(ex, "Could not check Git account status");
+                        logger?.LogWarning(ex, "Lettura del remote origin fallita (non fatale)");
                     }
-                    logPhase("HasAccountForRepositoryAsync");
-
-                    // Auto-detect credentials from Git Credential Manager if no account configured
-                    if (!hasGitAccount)
-                    {
-                        try
-                        {
-                            detectedRemoteUrl = GetRemoteUrlFromRepository(request.Path);
-                            if (!string.IsNullOrEmpty(detectedRemoteUrl))
-                            {
-                                // Detect provider type
-                                detectedProvider = DetectProviderFromUrl(detectedRemoteUrl);
-                                logger?.LogInformation($"🔍 [CredentialAutoDetect] Attempting auto-detection for {request.Path}, remote: {detectedRemoteUrl}, provider: {detectedProvider}");
-
-                                hasGitAccount = _gitCredentialHelper.DetectAndSaveCredentialsForRepository(request.Path, detectedRemoteUrl).GetAwaiter().GetResult();
-                                if (hasGitAccount)
-                                {
-                                    logger?.LogInformation($"✅ [CredentialAutoDetect] Credentials auto-detected and saved for {request.Path}");
-                                }
-                                else
-                                {
-                                    logger?.LogInformation($"⚠️ [CredentialAutoDetect] No credentials found in Git Credential Manager for {detectedRemoteUrl}");
-                                    // Signal frontend that manual credentials are needed
-                                    needsManualCredentials = true;
-                                }
-                            }
-                            else
-                            {
-                                logger?.LogInformation($"ℹ️ [CredentialAutoDetect] No remote URL configured for {request.Path}");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            logger?.LogWarning(ex, "[CredentialAutoDetect] Auto-credential detection failed (non-fatal)");
-                            needsManualCredentials = !string.IsNullOrEmpty(detectedRemoteUrl);
-                        }
-                        logPhase("DetectAndSaveCredentialsForRepository (GCM subprocess)");
-                    }
+                    logPhase("GetRemoteUrlFromRepository");
                 }
 
                 // Il motore di MarkAgent: UNA scelta, risolta in un posto solo. NULL in
@@ -986,8 +943,6 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     gitInitialized = gitInitialized,
                     compatibilityMode = compatibilityMode,
                     isGitRepository = isGitRepository,
-                    hasGitAccount = hasGitAccount,
-                    needsManualCredentials = needsManualCredentials,
                     remoteUrl = detectedRemoteUrl,
                     detectedProvider = detectedProvider,
                     copilotCliAutoSelect = copilotCliAutoSelect,

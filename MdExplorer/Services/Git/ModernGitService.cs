@@ -18,7 +18,6 @@ namespace MdExplorer.Services.Git
 {
     public class ModernGitService : IModernGitService
     {
-        private readonly IEnumerable<ICredentialResolver> _credentialResolvers;
         private readonly ILogger<ModernGitService> _logger;
         private readonly GitAuthenticationOptions _authOptions;
         private readonly GitOperationOptions _operationOptions;
@@ -28,7 +27,6 @@ namespace MdExplorer.Services.Git
         private readonly INativeGitTransport _transport;
 
         public ModernGitService(
-            IEnumerable<ICredentialResolver> credentialResolvers,
             ILogger<ModernGitService> logger,
             IUserSettingsDB userSettingsDB,
             INativeGitTransport transport,
@@ -37,7 +35,6 @@ namespace MdExplorer.Services.Git
             IProjectSubmoduleInitializer submodules = null,
             ISubmoduleBranchAttacher attacher = null)
         {
-            _credentialResolvers = credentialResolvers?.OrderBy(r => r.GetPriority()) ?? throw new ArgumentNullException(nameof(credentialResolvers));
             _transport = transport ?? throw new ArgumentNullException(nameof(transport), "INativeGitTransport non registrato: push, pull, fetch e clone passano di lì");
             _logger = logger;
             _userSettingsDB = userSettingsDB;
@@ -95,66 +92,6 @@ namespace MdExplorer.Services.Git
             if (updated.Success && _attacher != null) await AttachSafely(repositoryPath);
             return updated;
         }
-
-        /// <summary>
-        /// Sets the Git execution context with repository path and known username.
-        /// This allows credential resolvers to use the correct account without prompting.
-        /// </summary>
-        private void SetGitExecutionContext(string repositoryPath)
-        {
-            GitExecutionContext.CurrentRepositoryPath = repositoryPath;
-            GitExecutionContext.CurrentUsername = null; // Reset first
-
-            try
-            {
-                // Look up saved account for this repository
-                var normalizedPath = Path.GetFullPath(repositoryPath);
-                using var tx = _userSettingsDB.BeginTransaction();
-                var accountDal = _userSettingsDB.GetDal<GitRepositoryAccount>();
-                var credentialDal = _userSettingsDB.GetDal<GitCredential>();
-
-                // Fetch all active accounts first, then filter in memory
-                // (Path.GetFullPath cannot be translated to SQL by NHibernate)
-                var allAccounts = accountDal.GetList().Where(a => a.IsActive).ToList();
-                var account = allAccounts.FirstOrDefault(a =>
-                    !string.IsNullOrEmpty(a.RepositoryPath) &&
-                    Path.GetFullPath(a.RepositoryPath).Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
-
-                if (account != null)
-                {
-                    // Load the associated GitCredential explicitly (NHibernate lazy loading doesn't work with convenience properties)
-                    if (account.CredentialId.HasValue)
-                    {
-                        account.Credential = credentialDal.GetList()
-                            .FirstOrDefault(c => c.Id == account.CredentialId.Value);
-
-                        _logger.LogDebug("[GitContext] Loaded credential {CredentialId} for {RepoPath}",
-                            account.CredentialId, repositoryPath);
-                    }
-
-                    // Now AuthUsername will work correctly (reads from Credential.AuthUsername)
-                    if (!string.IsNullOrEmpty(account.AuthUsername))
-                    {
-                        GitExecutionContext.CurrentUsername = account.AuthUsername;
-                        _logger.LogInformation("[GitContext] Set username for {RepoPath}: {Username}",
-                            repositoryPath, account.AuthUsername);
-                    }
-                    else
-                    {
-                        _logger.LogDebug("[GitContext] Account found but no AuthUsername for {RepoPath}", repositoryPath);
-                    }
-                }
-                else
-                {
-                    _logger.LogDebug("[GitContext] No saved account for {RepoPath}", repositoryPath);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[GitContext] Failed to lookup account for {RepoPath}", repositoryPath);
-            }
-        }
-
         /// <summary>
         /// Le opzioni di ogni lettura dello stato: i submodule restano <b>fuori</b>.
         /// <para>
@@ -611,8 +548,6 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
             return Count();
         }
 
-
-
         /// <summary>
         /// Checks if the error message indicates an authentication failure
         /// </summary>
@@ -916,8 +851,6 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
 
         #endregion
 
-
-
         public async Task<GitBranchInfo> GetCurrentBranchAsync(string repositoryPath)
         {
             try
@@ -980,9 +913,6 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
             {
                 _logger.LogInformation("Starting checkout operation for repository: {RepositoryPath}, Branch: {Branch}",
                     repositoryPath, branchName);
-
-                // Set repository path and username in execution context for credential resolvers
-                SetGitExecutionContext(repositoryPath);
 
                 using var repo = new Repository(repositoryPath);
 
@@ -1177,191 +1107,6 @@ public async Task<GitOperationResult> FetchAsync(string repositoryPath, string r
 
         private AuthenticationMethod _lastUsedAuthMethod = AuthenticationMethod.UserPrompt;
 
-        // STATIC cache shared across all instances - per-project and permanent until application close
-        // Key format: "repositoryPath|url|username|types"
-        private static readonly Dictionary<string, CachedCredential> _credentialCache = new Dictionary<string, CachedCredential>();
-        private static readonly Dictionary<string, int> _credentialCallHistory = new Dictionary<string, int>();
-        private static readonly Dictionary<string, SemaphoreSlim> _credentialResolutionLocks = new Dictionary<string, SemaphoreSlim>();
-        private static readonly object _cacheLock = new object(); // Thread safety for cache access
-        private static readonly object _lockDictionaryLock = new object(); // Thread safety for lock dictionary
-
-        private const int MaxAuthenticationAttempts = 3;
-
-        private class CachedCredential
-        {
-            public Credentials Credentials { get; set; }
-            public DateTime CachedAt { get; set; }
-            public AuthenticationMethod AuthMethod { get; set; }
-            public string RepositoryPath { get; set; }
-        }
-
-        private async Task<Credentials> ResolveCredentials(string url, string usernameFromUrl, SupportedCredentialTypes types)
-        {
-            var resolverCallId = Guid.NewGuid().ToString("N")[..8];
-
-            // Get repository path from execution context for per-project caching
-            var repositoryPath = GitExecutionContext.CurrentRepositoryPath ?? "global";
-
-            // Create per-project cache key
-            var cacheKey = $"{repositoryPath}|{url}|{usernameFromUrl}|{types}";
-
-            // IMPORTANT: Check cache FIRST before doing anything else - with thread safety
-            // Cache is PERMANENT (no timeout) - credentials persist until application close
-            lock (_cacheLock)
-            {
-                if (_credentialCache.ContainsKey(cacheKey))
-                {
-                    var cached = _credentialCache[cacheKey];
-                    var age = DateTime.UtcNow - cached.CachedAt;
-
-                    _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Using CACHED credentials for {Url} in project {Project} (age: {Age:F1} seconds)",
-                        resolverCallId, url, repositoryPath, age.TotalSeconds);
-                    _lastUsedAuthMethod = cached.AuthMethod;
-                    return cached.Credentials;
-                }
-            }
-
-            // Get or create a semaphore for this specific cache key to prevent concurrent resolution
-            SemaphoreSlim resolutionLock;
-            lock (_lockDictionaryLock)
-            {
-                if (!_credentialResolutionLocks.ContainsKey(cacheKey))
-                {
-                    _credentialResolutionLocks[cacheKey] = new SemaphoreSlim(1, 1);
-                }
-                resolutionLock = _credentialResolutionLocks[cacheKey];
-            }
-
-            // Wait for any ongoing credential resolution for this cache key
-            _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Waiting for resolution lock for {Url}", resolverCallId, url);
-            await resolutionLock.WaitAsync();
-
-            try
-            {
-                // Double-check cache after acquiring lock (another thread might have resolved it)
-                lock (_cacheLock)
-                {
-                    if (_credentialCache.ContainsKey(cacheKey))
-                    {
-                        var cached = _credentialCache[cacheKey];
-                        var age = DateTime.UtcNow - cached.CachedAt;
-
-                        _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Using CACHED credentials (found after lock wait) for {Url} in project {Project} (age: {Age:F1} seconds)",
-                            resolverCallId, url, repositoryPath, age.TotalSeconds);
-                        _lastUsedAuthMethod = cached.AuthMethod;
-                        return cached.Credentials;
-                    }
-
-                    // Track call history for this URL
-                    if (_credentialCallHistory.ContainsKey(cacheKey))
-                    {
-                        _credentialCallHistory[cacheKey]++;
-                    }
-                    else
-                    {
-                        _credentialCallHistory[cacheKey] = 1;
-                    }
-                }
-
-                var callCount = _credentialCallHistory[cacheKey];
-            
-            _logger.LogInformation("CREDENTIAL RESOLUTION CALL [{CallId}] - URL: {Url}, User: {User}, Types: {Types}, CallCount: {CallCount}", 
-                resolverCallId, url, usernameFromUrl, types, callCount);
-                
-            // Log warning if this is a repeated call
-            if (callCount > 1)
-            {
-                _logger.LogWarning("CREDENTIAL RESOLUTION [{CallId}] - REPEATED CALL #{Count} for same URL/user/types combination", 
-                    resolverCallId, callCount);
-                    
-                // If we've been called too many times, fail fast to prevent infinite loops
-                if (callCount > MaxAuthenticationAttempts)
-                {
-                    _logger.LogError("CREDENTIAL RESOLUTION [{CallId}] - EXCEEDED MAX ATTEMPTS ({Count}/{Max}) - Failing to prevent infinite loop", 
-                        resolverCallId, callCount, MaxAuthenticationAttempts);
-                    return null;
-                }
-            }
-
-            var resolverIndex = 0;
-            foreach (var resolver in _credentialResolvers)
-            {
-                resolverIndex++;
-                try
-                {
-                    _logger.LogDebug("CREDENTIAL RESOLUTION [{CallId}] - Checking resolver #{Index}: {ResolverType}, Priority: {Priority}", 
-                        resolverCallId, resolverIndex, resolver.GetType().Name, resolver.GetPriority());
-
-                    if (resolver.CanResolveCredentials(url, types))
-                    {
-                        _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Trying resolver #{Index}: {ResolverType}", 
-                            resolverCallId, resolverIndex, resolver.GetType().Name);
-                        
-                        var credentials = await resolver.ResolveCredentialsAsync(url, usernameFromUrl, types);
-                        if (credentials != null)
-                        {
-                            _lastUsedAuthMethod = resolver.GetAuthenticationMethod();
-                            
-                            // Log detailed credential type information
-                            var credType = credentials.GetType().Name;
-                            var isSSH = url.StartsWith("git@") || url.StartsWith("ssh://");
-                            var isHTTPS = url.StartsWith("https://");
-                            
-                            _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - SUCCESS using {ResolverType}: {AuthMethod}, CredType: {CredType}, SSH: {IsSSH}, HTTPS: {IsHTTPS}",
-                                resolverCallId, resolver.GetType().Name, _lastUsedAuthMethod, credType, isSSH, isHTTPS);
-
-                            // Cache the successful credential for future use - with thread safety
-                            // Credentials are cached per-project and persist until application close
-                            lock (_cacheLock)
-                            {
-                                _credentialCache[cacheKey] = new CachedCredential
-                                {
-                                    Credentials = credentials,
-                                    CachedAt = DateTime.UtcNow,
-                                    AuthMethod = _lastUsedAuthMethod,
-                                    RepositoryPath = repositoryPath
-                                };
-
-                                _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Credentials CACHED PERMANENTLY for {Url} in project {Project} (valid until application close)",
-                                    resolverCallId, url, repositoryPath);
-
-                                // Reset call history on success
-                                _credentialCallHistory[cacheKey] = 0;
-                            }
-                            
-                            return credentials;
-                        }
-                        else
-                        {
-                            _logger.LogWarning("CREDENTIAL RESOLUTION [{CallId}] - FAILED {ResolverType} returned null", 
-                                resolverCallId, resolver.GetType().Name);
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogDebug("CREDENTIAL RESOLUTION [{CallId}] - SKIPPED {ResolverType}: cannot handle URL/types", 
-                            resolverCallId, resolver.GetType().Name);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "CREDENTIAL RESOLUTION [{CallId}] - ERROR in {ResolverType}: {Error}", 
-                        resolverCallId, resolver.GetType().Name, ex.Message);
-                }
-            }
-
-                _logger.LogError("CREDENTIAL RESOLUTION [{CallId}] - FAILED: No resolver could provide credentials for URL: {Url}",
-                    resolverCallId, url);
-                return null;
-            }
-            finally
-            {
-                // Always release the semaphore
-                resolutionLock.Release();
-                _logger.LogDebug("CREDENTIAL RESOLUTION [{CallId}] - Released resolution lock for {Url}", resolverCallId, url);
-            }
-        }
-
         private Signature GetGitSignature(Repository repo)
         {
             try
@@ -1469,42 +1214,6 @@ public async Task<GitOperationResult> FetchAsync(string repositoryPath, string r
                 return new string[0];
             }
         }
-
-        private void ClearCredentialCallHistory()
-        {
-            // Clear the call history to prevent false positives on next operation - with thread safety
-            lock (_cacheLock)
-            {
-                _credentialCallHistory.Clear();
-                _logger.LogDebug("Credential call history cleared after successful operation");
-            }
-        }
-
-        /// <summary>
-        /// Clears all cached credentials for a specific repository
-        /// Useful when changing credentials for a project
-        /// </summary>
-        public void ClearProjectCache(string repositoryPath)
-        {
-            lock (_cacheLock)
-            {
-                var keysToRemove = _credentialCache
-                    .Where(kvp => kvp.Value.RepositoryPath == repositoryPath)
-                    .Select(kvp => kvp.Key)
-                    .ToList();
-
-                foreach (var key in keysToRemove)
-                {
-                    _credentialCache.Remove(key);
-                }
-
-                if (keysToRemove.Any())
-                {
-                    _logger.LogInformation("Cleared {Count} cached credentials for project: {RepositoryPath}", keysToRemove.Count, repositoryPath);
-                }
-            }
-        }
-
         #endregion
 
         public async Task<GitPullPushData> GetPullPushDataAsync(string repositoryPath)
@@ -2586,9 +2295,6 @@ public async Task<RemoteUrlValidationResult> ValidateRemoteUrlAsync(string url)
                     or NativeGitFailureKind.NotFound
             };
         }
-
-
-
 
     }
 }

@@ -28,39 +28,25 @@ namespace MdExplorer.Services.Git
             services.AddScoped<IModernGitService, ModernGitService>();
 
             // Register GitHub service for repository management
-            services.AddScoped<IGitHubService, GitHubService>();
 
             // Register generic remote services for multi-provider support
             services.AddScoped<IGitRemoteUrlParser, GitRemoteUrlParser>();
             services.AddScoped<IGenericRemoteService, GenericRemoteService>();
 
             // Register Git config helper for managing .git/config files
-            services.AddScoped<IGitConfigHelper, GitConfigHelper>();
 
             // Register Git credential management service (shared credentials)
-            services.AddScoped<IGitCredentialService, GitCredentialService>();
 
             // Register Git account management service (per-repository configuration)
-            services.AddScoped<IGitAccountService, GitAccountService>();
 
             // Register SSH key manager
-            services.AddScoped<ISSHKeyManager, SSHKeyManager>();
 
             // Register credential resolvers as SCOPED (they depend on scoped services like IUserSettingsDB)
             // Repository-specific resolver has highest priority for multi-account support
-            services.AddScoped<ICredentialResolver, RepositorySpecificCredentialResolver>();
-            services.AddScoped<ICredentialResolver, SSHKeyCredentialResolver>();
-            services.AddScoped<ICredentialResolver, GitHubTokenCredentialResolver>();
-            services.AddScoped<ICredentialResolver, GitCredentialHelperResolver>();
-
-            // Register GitCredentialHelperResolver as itself for direct injection (used by MdProjectsController for auto-detection)
-            services.AddScoped<GitCredentialHelperResolver>();
 
             // Add platform-specific credential stores
-            AddPlatformSpecificServices(services);
 
             // System credential resolver - lowest priority fallback (delegates to OS/Git)
-            services.AddScoped<ICredentialResolver, SystemCredentialResolver>();
             
             // Configure options from appsettings.json
             services.Configure<GitAuthenticationOptions>(configuration.GetSection("Git:Authentication"));
@@ -85,11 +71,6 @@ namespace MdExplorer.Services.Git
             services.TryAddSingleton<GitCredentialMoveReportHolder>();
             services.AddScoped<IGitCredentialMoveService, GitCredentialMoveService>();
             services.AddScoped<IModernGitService, ModernGitService>();
-            services.AddScoped<IGitHubService, GitHubService>();
-            services.AddScoped<IGitConfigHelper, GitConfigHelper>();
-            services.AddScoped<IGitCredentialService, GitCredentialService>();
-            services.AddScoped<IGitAccountService, GitAccountService>();
-            services.AddScoped<ISSHKeyManager, SSHKeyManager>();
 
             // Register generic remote services for multi-provider support
             services.AddScoped<IGitRemoteUrlParser, GitRemoteUrlParser>();
@@ -97,19 +78,10 @@ namespace MdExplorer.Services.Git
 
             // Register credential resolvers as SCOPED
             // Repository-specific resolver has highest priority for multi-account support
-            services.AddScoped<ICredentialResolver, RepositorySpecificCredentialResolver>();
-            services.AddScoped<ICredentialResolver, SSHKeyCredentialResolver>();
-            services.AddScoped<ICredentialResolver, GitHubTokenCredentialResolver>();
-            services.AddScoped<ICredentialResolver, GitCredentialHelperResolver>();
-
-            // Register GitCredentialHelperResolver as itself for direct injection (used by MdProjectsController for auto-detection)
-            services.AddScoped<GitCredentialHelperResolver>();
 
             // Add platform-specific services
-            AddPlatformSpecificServices(services);
 
             // System credential resolver - lowest priority fallback (delegates to OS/Git)
-            services.AddScoped<ICredentialResolver, SystemCredentialResolver>();
 
             // Configure options
             if (configureOptions != null)
@@ -120,29 +92,6 @@ namespace MdExplorer.Services.Git
             return services;
         }
 
-        private static void AddPlatformSpecificServices(IServiceCollection services)
-        {
-            // Platform-specific credential resolvers are DISABLED
-            // SystemCredentialResolver with DefaultCredentials works better because it
-            // delegates to Git Credential Manager (same as git.exe and VS Code)
-            // This avoids "too many redirects" and "could not find appropriate mechanism" errors
-
-            // COMMENTED OUT - Use SystemCredentialResolver instead
-            /*
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                services.AddScoped<ICredentialResolver, CredentialStores.WindowsCredentialStoreResolver>();
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-                services.AddScoped<ICredentialResolver, CredentialStores.MacOSKeychainResolver>();
-            }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                services.AddScoped<ICredentialResolver, CredentialStores.LinuxSecretServiceResolver>();
-            }
-            */
-        }
     }
 
     /// <summary>

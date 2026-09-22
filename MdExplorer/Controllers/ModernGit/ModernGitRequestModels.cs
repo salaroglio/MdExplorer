@@ -158,59 +158,6 @@ namespace MdExplorer.Controllers.ModernGit
         public int? MaxCommits { get; set; } = 50;
     }
 
-    /// <summary>
-    /// Request model for saving organization
-    /// </summary>
-    public class OrganizationRequest
-    {
-        public string Organization { get; set; }
-    }
-
-    /// <summary>
-    /// Request model for setting GitHub token
-    /// </summary>
-    public class TokenRequest
-    {
-        [Required]
-        [StringLength(500, MinimumLength = 1, ErrorMessage = "Token must be between 1 and 500 characters")]
-        public string Token { get; set; }
-    }
-
-    /// <summary>
-    /// Request model for setting up a remote repository (GitHub-specific, legacy)
-    /// </summary>
-    public class SetupRemoteRequest : GitOperationRequest
-    {
-        [Required]
-        [StringLength(100, MinimumLength = 1, ErrorMessage = "Organization must be between 1 and 100 characters")]
-        public string Organization { get; set; }
-
-        [Required]
-        [StringLength(100, MinimumLength = 1, ErrorMessage = "Repository name must be between 1 and 100 characters")]
-        public string RepositoryName { get; set; }
-
-        /// <summary>
-        /// Description for the GitHub repository (optional)
-        /// </summary>
-        [StringLength(500, ErrorMessage = "Repository description cannot exceed 500 characters")]
-        public string RepositoryDescription { get; set; }
-
-        /// <summary>
-        /// Whether the repository should be private (default: true)
-        /// </summary>
-        public bool? IsPrivate { get; set; } = true;
-
-        /// <summary>
-        /// Whether to save the organization for future use
-        /// </summary>
-        public bool SaveOrganization { get; set; } = true;
-
-        /// <summary>
-        /// Whether to push existing commits after adding the remote
-        /// </summary>
-        public bool PushAfterAdd { get; set; } = true;
-    }
-
     #region Generic Remote Setup Models
 
     /// <summary>
@@ -263,10 +210,6 @@ namespace MdExplorer.Controllers.ModernGit
         /// </summary>
         public bool SupportsAutoCreate { get; set; }
 
-        /// <summary>
-        /// URL for creating a new token for this provider
-        /// </summary>
-        public string TokenCreationUrl { get; set; }
 
         /// <summary>
         /// Error message if URL is invalid
@@ -275,149 +218,20 @@ namespace MdExplorer.Controllers.ModernGit
     }
 
     /// <summary>
-    /// Request model for validating remote with credentials
-    /// </summary>
-    public class ValidateRemoteAuthRequest
-    {
-        [Required]
-        [StringLength(500, MinimumLength = 5, ErrorMessage = "URL must be between 5 and 500 characters")]
-        public string RemoteUrl { get; set; }
-
-        /// <summary>
-        /// Username for authentication
-        /// </summary>
-        [StringLength(100)]
-        public string Username { get; set; }
-
-        /// <summary>
-        /// Password or token for authentication
-        /// </summary>
-        [StringLength(500)]
-        public string Password { get; set; }
-
-        /// <summary>
-        /// Authentication method: username_password, pat, ssh
-        /// </summary>
-        [StringLength(50)]
-        public string AuthMethod { get; set; } = "username_password";
-    }
-
-    /// <summary>
-    /// Response model for remote validation
-    /// </summary>
-    public class ValidateRemoteAuthResponse
-    {
-        /// <summary>
-        /// Whether the remote is reachable
-        /// </summary>
-        public bool IsReachable { get; set; }
-
-        /// <summary>
-        /// Whether the remote requires authentication
-        /// </summary>
-        public bool RequiresAuth { get; set; }
-
-        /// <summary>
-        /// Whether the provided credentials are valid
-        /// </summary>
-        public bool CredentialsValid { get; set; }
-
-        /// <summary>
-        /// Whether the repository exists on the remote
-        /// </summary>
-        public bool RepositoryExists { get; set; }
-
-        /// <summary>
-        /// Detected provider from URL
-        /// </summary>
-        public string Provider { get; set; }
-
-        /// <summary>
-        /// Error message if validation failed
-        /// </summary>
-        public string Error { get; set; }
-    }
-
-    /// <summary>
-    /// Request model for setting up a generic remote (any Git provider)
+    /// «Collega a un repository remoto» dalla maschera: solo l'URL, l'account per quell'host e se
+    /// fare subito il primo push. Nessuna credenziale: la gestisce il git di sistema.
     /// </summary>
     public class GenericSetupRemoteRequest : GitOperationRequest
     {
-        /// <summary>
-        /// Remote URL (any Git provider)
-        /// </summary>
-        [Required]
-        [StringLength(500, MinimumLength = 5, ErrorMessage = "Remote URL must be between 5 and 500 characters")]
+        [Required(ErrorMessage = "Remote URL is required")]
         public string RemoteUrl { get; set; }
 
-        /// <summary>
-        /// Remote name (default: origin)
-        /// </summary>
-        [StringLength(50)]
         public string? RemoteName { get; set; } = "origin";
 
-        /// <summary>
-        /// Authentication method: username_password, pat, ssh
-        /// </summary>
-        [StringLength(50)]
-        public string? AuthMethod { get; set; } = "username_password";
+        /// <summary>L'account git per l'host del remoto (con più account sullo stesso host). Vuoto = niente.</summary>
+        public string? AccountUsername { get; set; }
 
-        /// <summary>
-        /// Username for authentication
-        /// </summary>
-        [StringLength(100)]
-        public string? Username { get; set; }
-
-        /// <summary>
-        /// Password for authentication (for username/password method)
-        /// </summary>
-        [StringLength(500)]
-        public string? Password { get; set; }
-
-        /// <summary>
-        /// Personal Access Token (for PAT method)
-        /// </summary>
-        [StringLength(500)]
-        public string? Token { get; set; }
-
-        /// <summary>
-        /// Whether to save credentials for future use
-        /// </summary>
-        public bool SaveCredentials { get; set; } = true;
-
-        /// <summary>
-        /// Whether to push existing commits after adding the remote
-        /// </summary>
         public bool PushAfterAdd { get; set; } = true;
-
-        /// <summary>
-        /// Whether to create the remote repository automatically (if supported by provider)
-        /// </summary>
-        public bool CreateRemoteRepo { get; set; } = false;
-
-        /// <summary>
-        /// Repository description (for auto-creation)
-        /// </summary>
-        [StringLength(500)]
-        public string? RepoDescription { get; set; }
-
-        /// <summary>
-        /// Whether repository should be private (for auto-creation)
-        /// </summary>
-        public bool IsPrivate { get; set; } = true;
-
-        /// <summary>
-        /// Whether to use the saved GitHub token instead of provided credentials
-        /// </summary>
-        public bool UseSavedToken { get; set; } = false;
-
-        /// <summary>
-        /// ID of an existing GitCredential to use for authentication.
-        /// When set, credentials will be loaded from the specified credential.
-        /// Optional: nullable so the implicit [Required] (from &lt;Nullable&gt; enabled)
-        /// does not reject requests that omit it (e.g. credential-recovery flow).
-        /// </summary>
-        public string? CopyFromCredentialId { get; set; }
     }
 
     /// <summary>
@@ -443,7 +257,8 @@ namespace MdExplorer.Controllers.ModernGit
         /// <summary>
         /// Whether the repository was created automatically
         /// </summary>
-        public bool RepositoryCreated { get; set; }
+        public bool PushAttempted { get; set; }
+        public bool PushSucceeded { get; set; }
 
         /// <summary>
         /// Final remote URL
