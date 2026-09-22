@@ -37,6 +37,72 @@ function _svgIsDarkFiltered(svg) {
            !document.body.classList.contains('plantuml-keep-original');
 }
 
+// Legenda dei colori dei diagrammi interattivi (F7): aperta o chiusa, uguale per
+// tutti i diagrammi e ricordata dal browser. Se il browser non concede lo storage,
+// parte chiusa.
+var SVG_LEGEND_STORAGE_KEY = 'mde.svgLegendOpen';
+
+function _svgLegendRemembered() {
+    try { return window.localStorage.getItem(SVG_LEGEND_STORAGE_KEY) === '1'; } catch (e) { return false; }
+}
+
+function _rememberSvgLegend(open) {
+    try { window.localStorage.setItem(SVG_LEGEND_STORAGE_KEY, open ? '1' : '0'); } catch (e) { /* solo comodità */ }
+}
+
+/** L'<svg> del diagramma a cui appartiene la barra (è il blocco subito dopo). */
+function _svgOfToolbar($toolbar) {
+    var $sibling = $toolbar.next();
+    var $svg = $sibling.find('svg').first();
+    if (!$svg.length) $svg = $sibling.filter('svg');
+    return $svg[0] || null;
+}
+
+/**
+ * Riempie il pannello con i colori di QUESTO diagramma (InteractiveSvg.getLegend).
+ * La legenda è HTML fuori dall'SVG, quindi il filtro scuro non la tocca: quando il
+ * diagramma è filtrato, ai campioni si applica lo stesso filtro, così mostrano il
+ * colore che si vede davvero. Non alla nota, che resta gialla vera (F3).
+ */
+function _renderSvgLegend($toolbar) {
+    var svg = _svgOfToolbar($toolbar);
+    var $panel = $toolbar.find('.mde-svg-legend');
+    if (!svg || !$panel.length) return;
+
+    var legend = InteractiveSvg.getLegend(svg);
+    var dark = _svgIsDarkFiltered(svg);
+    var $content = $('<div></div>');
+
+    function section(title, items, shape) {
+        if (!items.length) return;
+        $content.append($('<div class="mde-svg-legend-title"></div>').text(title));
+        items.forEach(function (item) {
+            var $swatch = $('<span class="mde-svg-legend-swatch"></span>').addClass('mde-svg-legend-' + shape);
+            $swatch.css(shape === 'box' ? { 'border-color': item.color, 'box-shadow': '0 0 4px ' + item.color } : { background: item.color });
+            if (item.key === 'note') $swatch.css('background', item.color);
+            if (dark && item.key !== 'note') $swatch.css('filter', 'invert(0.88) hue-rotate(180deg)');
+            $content.append($('<div class="mde-svg-legend-row"></div>')
+                .append($swatch)
+                .append($('<span></span>').text(item.label)));
+        });
+    }
+
+    section('Boxes', legend.boxes, 'box');
+    section('Arrows', legend.links, 'line');
+    $panel.empty().append($content.children());
+}
+
+function toggleSvgLegend(btnElement) {
+    var $toolbar = $(btnElement).closest('.mde-img-toolbar');
+    var open = !$toolbar.hasClass('mde-svg-legend-open');
+    $toolbar.toggleClass('mde-svg-legend-open', open);
+    $(btnElement).attr('title', open ? 'Hide colour legend' : 'Show colour legend');
+    if (open) _renderSvgLegend($toolbar);
+    _rememberSvgLegend(open);
+    // Richiusa, la barra torna a sparire da sola dopo un po' di mouse fermo.
+    if (!open) _startIdleHideTimer($toolbar.attr('id'));
+}
+
 /**
  * Toggle SVG light mode: removes/restores the CSS invert filter on the SVG
  * sibling of the toolbar, so the user can see original colors in dark mode.
@@ -71,6 +137,8 @@ function toggleSvgLightMode(btnElement) {
         });
         $(btnElement).attr('title', 'Turn on the light (view in light mode)');
     }
+    // I campioni della legenda seguono il filtro: acceso o spento, vanno ridipinti.
+    if ($toolbar.hasClass('mde-svg-legend-open')) _renderSvgLegend($toolbar);
 }
 
 // Pending hide timers keyed by referenceId (allows mouseenter on search box to cancel)
@@ -267,6 +335,8 @@ function _startIdleHideTimer(referenceId) {
         }
 
         var $toolbar = $('#' + referenceId);
+        // Con la legenda aperta si sta leggendo, col mouse fermo: niente auto-nascondi.
+        if ($toolbar.hasClass('mde-svg-legend-open')) return;
         $toolbar.attr("style", "display:none;");
         _toolbarIdleHidden[referenceId] = true;
     }, 2000);
@@ -351,6 +421,23 @@ function showImageToolbar(referenceId) {
             $element.append($btn);
             $element.data('light-toggle-added', true);
         }
+    }
+
+    // Legenda dei colori, solo per i diagrammi resi interattivi da InteractiveSvg (F7)
+    if (!$element.data('legend-added') && typeof InteractiveSvg !== 'undefined') {
+        var legendSvg = _svgOfToolbar($element);
+        if (legendSvg && legendSvg.classList.contains('interactive-svg')) {
+            $element.append('<button alt="colour legend" class="mde-svg-legend-toggle" onclick="toggleSvgLegend(this)">' +
+                '<span class="svg-legend-toggle-icon">🎨</span></button>');
+            $element.append('<div class="mde-svg-legend"></div>');
+            $element.data('legend-added', true);
+        }
+    }
+    if ($element.data('legend-added')) {
+        var legendOpen = _svgLegendRemembered();
+        $element.toggleClass('mde-svg-legend-open', legendOpen);
+        $element.find('.mde-svg-legend-toggle').attr('title', legendOpen ? 'Hide colour legend' : 'Show colour legend');
+        if (legendOpen) _renderSvgLegend($element);
     }
 
     // Guard against double-adding the scroll listener

@@ -85,8 +85,9 @@
     display: block;
 }
 
-/* La lampadina è un'emoji, non un'immagine: si pareggia col font-size. */
-.mde-img-toolbar button .svg-light-toggle-icon {
+/* La lampadina e la tavolozza della legenda sono emoji, non immagini: si pareggiano col font-size. */
+.mde-img-toolbar button .svg-light-toggle-icon,
+.mde-img-toolbar button .svg-legend-toggle-icon {
     font-size: 17px;
     line-height: 1;
     display: inline-block;
@@ -137,4 +138,81 @@ body.dark-theme .mde-img-toolbar button:not([alt]):hover {
    con le altre immagini di interfaccia. */
 body.dark-theme .mde-img-toolbar button > img {
     filter: invert(0.85) hue-rotate(180deg);
+}
+
+/* === Legenda dei colori (diagrammi interattivi, F7) ===
+   Un pannello dentro la barra, sotto i pulsanti; lo riempie _renderSvgLegend in
+   image-transform.js con i soli colori che il diagramma può mostrare. */
+.mde-img-toolbar .mde-svg-legend {
+    display: none;
+    margin: 4px 2px 2px;
+    padding: 6px 6px 2px;
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+    font: 12px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #333;
+    cursor: default;
+}
+
+.mde-img-toolbar.mde-svg-legend-open .mde-svg-legend {
+    display: block;
+}
+
+.mde-img-toolbar.mde-svg-legend-open button.mde-svg-legend-toggle {
+    background: rgba(0, 0, 0, 0.12);
+}
+
+.mde-svg-legend .mde-svg-legend-title {
+    margin: 2px 0 4px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(0, 0, 0, 0.55);
+}
+
+/* Spazio tra la sezione dei box e quella delle frecce. */
+.mde-svg-legend .mde-svg-legend-row + .mde-svg-legend-title {
+    margin-top: 8px;
+}
+
+.mde-svg-legend .mde-svg-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 3px 0;
+    white-space: nowrap;
+}
+
+.mde-svg-legend .mde-svg-legend-swatch {
+    flex: none;
+    box-sizing: border-box;
+}
+
+/* Box: il bordo colorato con l'alone, com'è sul diagramma. */
+.mde-svg-legend .mde-svg-legend-box {
+    width: 16px;
+    height: 12px;
+    border: 2px solid;
+    border-radius: 3px;
+    background: #fff;
+}
+
+/* Freccia: un tratto spesso del colore della linea evidenziata. */
+.mde-svg-legend .mde-svg-legend-line {
+    width: 18px;
+    height: 4px;
+    border-radius: 2px;
+}
+
+body.dark-theme .mde-img-toolbar .mde-svg-legend {
+    border-top-color: rgba(255, 255, 255, 0.14);
+    color: #e4e4e4;
+}
+
+body.dark-theme .mde-svg-legend .mde-svg-legend-title {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+body.dark-theme .mde-img-toolbar.mde-svg-legend-open button.mde-svg-legend-toggle {
+    background: rgba(255, 255, 255, 0.16) !important;
 }

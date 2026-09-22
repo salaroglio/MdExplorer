@@ -1108,12 +1108,65 @@ var InteractiveSvg = (function() {
     }
 
     // Public API
+    // Box colours as painted by interactive-svg.css (stroke/glow of the state classes).
+    // ⚠️ Keep in step with the CSS: box colours are literals there, not variables.
+    var LEGEND_BOXES = [
+        { key: 'selected', color: '#2196F3', label: 'Selected' },
+        { key: 'incoming', color: '#f44336', label: 'Points to the selected one' },
+        { key: 'outgoing', color: '#4CAF50', label: 'Receives from the selected one' },
+        { key: 'note',     color: '#FFEB3B', label: 'Note' },
+        { key: 'cluster',  color: '#64B5F6', label: 'Inside the selected package' }
+    ];
+
+    var LEGEND_LINK_LABELS = {
+        extension:   'Inheritance / realization',
+        composition: 'Composition',
+        aggregation: 'Aggregation',
+        dependency:  'Dependency / directed (-->)',
+        association: 'Association'
+    };
+
+    var LINK_DEFAULT_COLOR = '#FF9800';
+
+    /**
+     * What the colours mean in THIS diagram: the box states it can show and only the
+     * relation kinds it contains. Link colours are read from --link-hl on the real
+     * elements, so the CSS stays the single source for them.
+     *
+     * @returns {{boxes: Array<{key,color,label}>, links: Array<{key,color,label}>}}
+     */
+    function getLegend(svg) {
+        var hasLinks = !!svg.querySelector('.interactive-svg-link');
+        var boxes = LEGEND_BOXES.filter(function(b) {
+            if (b.key === 'note') return !!svg.querySelector('.interactive-svg-note');
+            if (b.key === 'cluster') return !!svg.querySelector('g.cluster, g[id^="cluster_"]');
+            return hasLinks;
+        });
+
+        var links = [], seen = {}, hasOther = false;
+        svg.querySelectorAll('.interactive-svg-link').forEach(function(link) {
+            var type = link.getAttribute('data-link-type');
+            if (!type || !LEGEND_LINK_LABELS[type]) { hasOther = true; return; }
+            if (seen[type]) return;
+            seen[type] = true;
+            var color = getComputedStyle(link).getPropertyValue('--link-hl').trim();
+            links.push({ key: type, color: color || LINK_DEFAULT_COLOR, label: LEGEND_LINK_LABELS[type] });
+        });
+        var order = Object.keys(LEGEND_LINK_LABELS);
+        links.sort(function(a, b) { return order.indexOf(a.key) - order.indexOf(b.key); });
+        if (hasOther) {
+            links.push({ key: 'other', color: LINK_DEFAULT_COLOR, label: links.length ? 'Other relation' : 'Relation' });
+        }
+        return { boxes: boxes, links: links };
+    }
+
     return {
         init: init,
         initAll: initAll,
         destroy: destroy,
         selectElement: selectElement,
-        clear: clear
+        clear: clear,
+        getLegend: getLegend
     };
 
 })();
