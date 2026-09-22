@@ -309,6 +309,14 @@
       <mat-progress-spinner diameter="16" mode="indeterminate"></mat-progress-spinner>
       <span>{{ 'AI_CHAT.CONFIGURING_PROVIDER' | translate }}</span>
     </div>
+    <div *ngIf="dictationError" class="dictation-error">
+      <mat-icon class="dictation-error-icon">mic_off</mat-icon>
+      <span>{{ dictationError }}</span>
+      <button mat-icon-button (click)="dictationError = null" [attr.aria-label]="'COMMON.CLOSE' | translate">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
     <mat-form-field [appearance]="compactMode ? 'fill' : 'outline'" class="chat-input">
       <textarea
         matInput
@@ -321,6 +329,41 @@
       </textarea>
       <mat-hint *ngIf="!isModelLoaded && !isConfiguringProvider && !compactMode">{{ 'AI_CHAT.LOAD_MODEL_TO_CHAT' | translate }}</mat-hint>
     </mat-form-field>
+
+    <!-- Microfono: compare solo se il Service ha un modello di dettatura. Un clic registra, il
+         clic dopo trascrive. Il testo finisce nella casella e lo invia l'utente, non noi. -->
+    <button
+      *ngIf="dictationAvailable && !isStreaming && !compactMode"
+      mat-fab
+      [color]="dictationState === 'recording' ? 'warn' : 'accent'"
+      class="dictation-button"
+      [class.dictation-recording]="dictationState === 'recording'"
+      (click)="toggleDictation()"
+      [disabled]="!isModelLoaded || isConfiguringProvider || dictationState === 'transcribing'"
+      [matTooltip]="(dictationState === 'recording' ? 'AI_CHAT.DICTATION_STOP' :
+                     dictationState === 'transcribing' ? 'AI_CHAT.DICTATION_WORKING' :
+                     'AI_CHAT.DICTATION_START') | translate">
+      <mat-spinner *ngIf="dictationState === 'transcribing'" diameter="20"></mat-spinner>
+      <mat-icon *ngIf="dictationState !== 'transcribing'">
+        {{ dictationState === 'recording' ? 'stop' : 'mic' }}
+      </mat-icon>
+    </button>
+    <button
+      *ngIf="dictationAvailable && !isStreaming && compactMode"
+      mat-mini-fab
+      [color]="dictationState === 'recording' ? 'warn' : 'accent'"
+      class="dictation-button"
+      [class.dictation-recording]="dictationState === 'recording'"
+      (click)="toggleDictation()"
+      [disabled]="!isModelLoaded || isConfiguringProvider || dictationState === 'transcribing'"
+      [matTooltip]="(dictationState === 'recording' ? 'AI_CHAT.DICTATION_STOP' :
+                     dictationState === 'transcribing' ? 'AI_CHAT.DICTATION_WORKING' :
+                     'AI_CHAT.DICTATION_START') | translate">
+      <mat-spinner *ngIf="dictationState === 'transcribing'" diameter="20"></mat-spinner>
+      <mat-icon *ngIf="dictationState !== 'transcribing'">
+        {{ dictationState === 'recording' ? 'stop' : 'mic' }}
+      </mat-icon>
+    </button>
 
     <!-- Send (hidden while a response is streaming) -->
     <button

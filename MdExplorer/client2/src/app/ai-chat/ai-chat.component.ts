@@ -9,6 +9,7 @@ import { LayoutService } from '../md-explorer/services/layout.service';
 import { TranslateService } from '@ngx-translate/core';
 import { ProjectsService } from '../md-explorer/services/projects.service';
 import { ProjectSettingsService } from '../projects/services/project-settings.service';
+import { SpeechService, VoiceRecording } from '../services/speech.service';
 
 type CopilotModelChoice = { id: string; name: string; unavailable: boolean };
 type ClaudeModel = { id: string; name: string; description: string | null };
@@ -35,6 +36,12 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   
   messages: ChatMessage[] = [];
   inputMessage = '';
+
+  // Dettatura. `dictationState` è quello che disegna il pulsante: fermo, registra, trascrive.
+  dictationState: 'idle' | 'recording' | 'transcribing' = 'idle';
+  dictationAvailable = false;
+  dictationError: string | null = null;
+  private recording: VoiceRecording | null = null;
   isModelLoaded = false;
   isConfiguringProvider = false;
   currentModel: string | null = null;
@@ -137,11 +144,14 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     private layoutService: LayoutService,
     private translate: TranslateService,
     private projectsService: ProjectsService,
-    private projectSettingsService: ProjectSettingsService
+    private projectSettingsService: ProjectSettingsService,
+    private speech: SpeechService
   ) {}
 
   ngOnInit(): void {
-    
+    // Il microfono compare solo se il Service ha un modello di dettatura installato.
+    this.loadDictationAvailability();
+
     // Subscribe to messages
     this.aiService.messages$
       .pipe(takeUntil(this.destroy$))
@@ -374,8 +384,86 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   ngOnDestroy(): void {
+    // Un microfono lasciato aperto resta acceso (e la spia pure) anche dopo che la chat è sparita.
+    this.recording?.discard();
+    this.recording = null;
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /**
+   * Il microfono: un clic registra, il clic dopo ferma e manda al Service, che risponde col testo.
+   *
+   * Non si invia da soli il messaggio trascritto: chi detta rilegge e decide. Whisper sbaglia una
+   * parola ogni tanto, e un invio automatico farebbe partire una risposta su una domanda sbagliata.
+   */
+  async toggleDictation(): Promise<void> {
+    if (this.dictationState === 'transcribing') { return; }
+
+    if (this.dictationState === 'recording') {
+      await this.finishDictation();
+      return;
+    }
+
+    this.dictationError = null;
+    try {
+      this.recording = await this.speech.record();
+      this.dictationState = 'recording';
+    } catch (err: any) {
+      // Microfono negato o assente: il nome dell'errore del browser non dice niente all'utente.
+      this.dictationState = 'idle';
+      this.dictationError = err?.name === 'NotAllowedError'
+        ? this.translate.instant('AI_CHAT.DICTATION_DENIED')
+        : this.translate.instant('AI_CHAT.DICTATION_NO_MIC');
+      console.error('Microfono non disponibile:', err);
+    }
+  }
+
+  private async finishDictation(): Promise<void> {
+    const registrazione = this.recording;
+    this.recording = null;
+    if (!registrazione) { this.dictationState = 'idle'; return; }
+
+    const wav = await registrazione.stop();
+    // Un clic partito per sbaglio non deve far aspettare tre secondi per avere niente.
+    if (registrazione.seconds < 0.4) { this.dictationState = 'idle'; return; }
+
+    this.dictationState = 'transcribing';
+    this.speech.transcribe(wav).subscribe({
+      next: (res) => {
+        this.dictationState = 'idle';
+        if (!res.text) { return; }
+        // Si aggiunge a quello che c'è già: si può scrivere un pezzo e dettare il resto.
+        this.inputMessage = this.inputMessage
+          ? `${this.inputMessage.trimEnd()} ${res.text}`
+          : res.text;
+        setTimeout(() => this.messageInput?.nativeElement?.focus(), 0);
+      },
+      error: (err) => {
+        this.dictationState = 'idle';
+        // Il Service distingue «manca il modello» (409) dal resto, e lo dice in italiano: si mostra
+        // la sua frase invece di inventarne una generica.
+        this.dictationError = err?.error?.error ?? this.translate.instant('AI_CHAT.DICTATION_FAILED');
+        console.error('Trascrizione fallita:', err);
+      }
+    });
+  }
+
+  /** Annulla la registrazione in corso senza trascrivere niente. */
+  async cancelDictation(): Promise<void> {
+    const registrazione = this.recording;
+    this.recording = null;
+    this.dictationState = 'idle';
+    await registrazione?.discard();
+  }
+
+  private loadDictationAvailability(): void {
+    this.speech.status().subscribe({
+      next: (s) => { this.dictationAvailable = s.available; },
+      // Se lo stato non si sa, il microfono resta spento: meglio un pulsante che non c'è di uno
+      // che promette qualcosa e poi dà errore.
+      error: () => { this.dictationAvailable = false; }
+    });
   }
 
   sendMessage(): void {

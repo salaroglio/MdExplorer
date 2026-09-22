@@ -870,3 +870,44 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* Dettatura: il microfono sta accanto al Send e pulsa mentre registra, cosi' si vede a colpo
+   d'occhio che il microfono e' aperto. */
+.dictation-button {
+  margin-right: 8px;
+  flex: 0 0 auto;
+
+  &.dictation-recording {
+    animation: dictation-pulse 1.4s ease-in-out infinite;
+  }
+
+  mat-spinner {
+    margin: 0 auto;
+  }
+}
+
+@keyframes dictation-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
+}
+
+/* Il motivo per cui il microfono non ha funzionato, sopra la casella: la stessa posizione del
+   banner "sto configurando il provider", cosi' l'occhio lo trova dove si aspetta le notizie. */
+.dictation-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(244, 67, 54, 0.12);
+  font-size: 13px;
+
+  .dictation-error-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+
+  span { flex: 1; }
+}

@@ -12,31 +12,33 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "AiChatComponent": () => (/* binding */ AiChatComponent)
 /* harmony export */ });
 /* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs */ 228);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs/operators */ 8951);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs */ 228);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs/operators */ 8951);
 /* harmony import */ var marked__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! marked */ 4611);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _services_ai_chat_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../services/ai-chat.service */ 9109);
-/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/router */ 124);
-/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/platform-browser */ 4497);
+/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/router */ 124);
+/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/platform-browser */ 4497);
 /* harmony import */ var _md_explorer_services_layout_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../md-explorer/services/layout.service */ 7269);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
 /* harmony import */ var _md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../md-explorer/services/projects.service */ 9753);
 /* harmony import */ var _projects_services_project_settings_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../projects/services/project-settings.service */ 5450);
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/forms */ 2508);
-/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
-/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @angular/material/icon */ 7822);
-/* harmony import */ var _angular_material_toolbar__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! @angular/material/toolbar */ 2543);
-/* harmony import */ var _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! @angular/material/legacy-progress-spinner */ 7578);
-/* harmony import */ var _angular_material_legacy_chips__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! @angular/material/legacy-chips */ 9257);
-/* harmony import */ var _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! @angular/material/legacy-form-field */ 1204);
-/* harmony import */ var _angular_material_legacy_select__WEBPACK_IMPORTED_MODULE_21__ = __webpack_require__(/*! @angular/material/legacy-select */ 6002);
-/* harmony import */ var _angular_material_legacy_core__WEBPACK_IMPORTED_MODULE_22__ = __webpack_require__(/*! @angular/material/legacy-core */ 7090);
-/* harmony import */ var _angular_cdk_text_field__WEBPACK_IMPORTED_MODULE_23__ = __webpack_require__(/*! @angular/cdk/text-field */ 5804);
-/* harmony import */ var _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_24__ = __webpack_require__(/*! @angular/material/legacy-input */ 2044);
-/* harmony import */ var _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_25__ = __webpack_require__(/*! @angular/material/legacy-tooltip */ 3370);
-/* harmony import */ var _model_manager_component__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./model-manager.component */ 7450);
+/* harmony import */ var _services_speech_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../services/speech.service */ 1359);
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/common */ 4666);
+/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/forms */ 2508);
+/* harmony import */ var _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @angular/material/legacy-button */ 9159);
+/* harmony import */ var _angular_material_icon__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! @angular/material/icon */ 7822);
+/* harmony import */ var _angular_material_toolbar__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! @angular/material/toolbar */ 2543);
+/* harmony import */ var _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! @angular/material/legacy-progress-spinner */ 7578);
+/* harmony import */ var _angular_material_legacy_chips__WEBPACK_IMPORTED_MODULE_20__ = __webpack_require__(/*! @angular/material/legacy-chips */ 9257);
+/* harmony import */ var _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_21__ = __webpack_require__(/*! @angular/material/legacy-form-field */ 1204);
+/* harmony import */ var _angular_material_legacy_select__WEBPACK_IMPORTED_MODULE_22__ = __webpack_require__(/*! @angular/material/legacy-select */ 6002);
+/* harmony import */ var _angular_material_legacy_core__WEBPACK_IMPORTED_MODULE_23__ = __webpack_require__(/*! @angular/material/legacy-core */ 7090);
+/* harmony import */ var _angular_cdk_text_field__WEBPACK_IMPORTED_MODULE_24__ = __webpack_require__(/*! @angular/cdk/text-field */ 5804);
+/* harmony import */ var _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_25__ = __webpack_require__(/*! @angular/material/legacy-input */ 2044);
+/* harmony import */ var _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_26__ = __webpack_require__(/*! @angular/material/legacy-tooltip */ 3370);
+/* harmony import */ var _model_manager_component__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./model-manager.component */ 7450);
+
 
 
 
@@ -68,178 +70,178 @@ const _c1 = ["messageInput"];
 const _c2 = ["modelManagerPanel"];
 function AiChatComponent_mat_icon_2_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1, "smart_toy");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1, "smart_toy");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
 }
 function AiChatComponent_span_3_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 27);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 30);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](2, 1, "AI_CHAT.TITLE"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](2, 1, "AI_CHAT.TITLE"));
   }
 }
 function AiChatComponent_div_5_mat_chip_2_mat_icon_1_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1, "check_circle");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1, "check_circle");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
 }
 function AiChatComponent_div_5_mat_chip_2_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "mat-chip", 32);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](1, AiChatComponent_div_5_mat_chip_2_mat_icon_1_Template, 2, 0, "mat-icon", 2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](3, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](4, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "mat-chip", 35);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](1, AiChatComponent_div_5_mat_chip_2_mat_icon_1_Template, 2, 0, "mat-icon", 2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](3, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](4, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r21 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("color", ctx_r21.compactMode ? "primary" : "accent");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", !ctx_r21.compactMode);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", ctx_r21.compactMode ? (ctx_r21.currentModel || _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](3, 3, "AI_CHAT.READY")).substring(0, 15) : ctx_r21.currentModel || _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](4, 5, "AI_CHAT.MODEL_LOADED"), " ");
+    const ctx_r24 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("color", ctx_r24.compactMode ? "primary" : "accent");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", !ctx_r24.compactMode);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", ctx_r24.compactMode ? (ctx_r24.currentModel || _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](3, 3, "AI_CHAT.READY")).substring(0, 15) : ctx_r24.currentModel || _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](4, 5, "AI_CHAT.MODEL_LOADED"), " ");
   }
 }
 function AiChatComponent_div_5_mat_chip_3_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "mat-chip", 33)(1, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2, "warning");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](4, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "mat-chip", 36)(1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "warning");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](4, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](4, 1, "AI_CHAT.NO_MODEL"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](4, 1, "AI_CHAT.NO_MODEL"), " ");
   }
 }
 function AiChatComponent_div_5_mat_chip_4_mat_icon_1_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1, "description");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1, "description");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
 }
 function AiChatComponent_div_5_mat_chip_4_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "mat-chip", 34);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](1, AiChatComponent_div_5_mat_chip_4_mat_icon_1_Template, 2, 0, "mat-icon", 2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "mat-chip", 37);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](1, AiChatComponent_div_5_mat_chip_4_mat_icon_1_Template, 2, 0, "mat-icon", 2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r23 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", !ctx_r23.compactMode);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", ctx_r23.compactMode ? ctx_r23.getCurrentDocumentName().substring(0, 12) : ctx_r23.getCurrentDocumentName(), " ");
+    const ctx_r26 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", !ctx_r26.compactMode);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", ctx_r26.compactMode ? ctx_r26.getCurrentDocumentName().substring(0, 12) : ctx_r26.getCurrentDocumentName(), " ");
   }
 }
 function AiChatComponent_div_5_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 28)(1, "mat-chip-list");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](2, AiChatComponent_div_5_mat_chip_2_Template, 5, 7, "mat-chip", 29);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](3, AiChatComponent_div_5_mat_chip_3_Template, 5, 3, "mat-chip", 30);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](4, AiChatComponent_div_5_mat_chip_4_Template, 3, 2, "mat-chip", 31);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 31)(1, "mat-chip-list");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](2, AiChatComponent_div_5_mat_chip_2_Template, 5, 7, "mat-chip", 32);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](3, AiChatComponent_div_5_mat_chip_3_Template, 5, 3, "mat-chip", 33);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](4, AiChatComponent_div_5_mat_chip_4_Template, 3, 2, "mat-chip", 34);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    const ctx_r2 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r2.isModelLoaded);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", !ctx_r2.isModelLoaded && !ctx_r2.compactMode);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r2.currentDocument);
+    const ctx_r2 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r2.isModelLoaded);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", !ctx_r2.isModelLoaded && !ctx_r2.compactMode);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r2.currentDocument);
   }
 }
 function AiChatComponent_button_6_Template(rf, ctx) {
   if (rf & 1) {
-    const _r27 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "button", 7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_button_6_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r27);
-      const ctx_r26 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r26.toggleFullScreen());
+    const _r30 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 7);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_button_6_Template_button_click_0_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r30);
+      const ctx_r29 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r29.toggleFullScreen());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](1, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](3, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](1, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](3, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", ctx_r3.isChatFullScreen ? _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](1, 2, "AI_CHAT.EXIT_FULLSCREEN") : _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](2, 4, "AI_CHAT.FULLSCREEN"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx_r3.isChatFullScreen ? "fullscreen_exit" : "fullscreen");
+    const ctx_r3 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", ctx_r3.isChatFullScreen ? _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](1, 2, "AI_CHAT.EXIT_FULLSCREEN") : _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](2, 4, "AI_CHAT.FULLSCREEN"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](ctx_r3.isChatFullScreen ? "fullscreen_exit" : "fullscreen");
   }
 }
 function AiChatComponent_div_15_mat_option_7_span_2_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 46);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 49);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" \u2014 ", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](2, 1, "AI_CHAT.COPILOT_MODEL_UNAVAILABLE"), "");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" \u2014 ", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](2, 1, "AI_CHAT.COPILOT_MODEL_UNAVAILABLE"), "");
   }
 }
 function AiChatComponent_div_15_mat_option_7_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "mat-option", 44);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](2, AiChatComponent_div_15_mat_option_7_span_2_Template, 3, 3, "span", 45);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "mat-option", 47);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](2, AiChatComponent_div_15_mat_option_7_span_2_Template, 3, 3, "span", 48);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const m_r32 = ctx.$implicit;
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("value", m_r32.id)("disabled", m_r32.unavailable);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", m_r32.name, "");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", m_r32.unavailable);
+    const m_r35 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("value", m_r35.id)("disabled", m_r35.unavailable);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", m_r35.name, "");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", m_r35.unavailable);
   }
 }
 function AiChatComponent_div_15_span_12_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 47);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 50);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](2, 1, "AI_CHAT.COPILOT_MODELS_LOADING"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](2, 1, "AI_CHAT.COPILOT_MODELS_LOADING"));
   }
 }
 function AiChatComponent_div_15_span_13_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 48)(1, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2, "error_outline");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](4, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 51)(1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "error_outline");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](4, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r30 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", ctx_r30.copilotModelsError);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"]("", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](4, 2, "AI_CHAT.COPILOT_MODELS_ERROR"), " ");
+    const ctx_r33 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", ctx_r33.copilotModelsError);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"]("", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](4, 2, "AI_CHAT.COPILOT_MODELS_ERROR"), " ");
   }
 }
 const _c3 = function (a0, a1, a2) {
@@ -251,30 +253,30 @@ const _c3 = function (a0, a1, a2) {
 };
 function AiChatComponent_div_15_span_14_ng_container_1_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementContainerStart"](0);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](1, "span", 50);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](3, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](5, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](6, "strong");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](8, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](9, "span", 51);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](10, "\u00B7");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementContainerEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementContainerStart"](0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](1, "span", 53);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](3, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](5, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](6, "strong");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](7);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](8, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](9, "span", 54);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](10, "\u00B7");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementContainerEnd"]();
   }
   if (rf & 2) {
-    const ctx_r34 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵclassProp"]("usage-high", (ctx_r34.copilotUsage.quotaUsedPercent || 0) >= 80);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", ctx_r34.copilotUsage.quotaUnlimited ? _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](2, 5, "AI_CHAT.COPILOT_USAGE_QUOTA_UNLIMITED_TOOLTIP") : _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind2"](3, 7, "AI_CHAT.COPILOT_USAGE_QUOTA_TOOLTIP", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpureFunction3"](14, _c3, ctx_r34.formatCount(ctx_r34.copilotUsage.quotaUsed), ctx_r34.formatCount(ctx_r34.copilotUsage.quotaEntitlement), ctx_r34.formatDay(ctx_r34.copilotUsage.quotaResetDate))));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](5, 10, "AI_CHAT.COPILOT_USAGE_QUOTA"), " ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx_r34.copilotUsage.quotaUnlimited ? _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](8, 12, "AI_CHAT.COPILOT_USAGE_UNLIMITED") : ctx_r34.formatCopilotPercent(ctx_r34.copilotUsage.quotaUsedPercent));
+    const ctx_r37 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵclassProp"]("usage-high", (ctx_r37.copilotUsage.quotaUsedPercent || 0) >= 80);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", ctx_r37.copilotUsage.quotaUnlimited ? _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](2, 5, "AI_CHAT.COPILOT_USAGE_QUOTA_UNLIMITED_TOOLTIP") : _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind2"](3, 7, "AI_CHAT.COPILOT_USAGE_QUOTA_TOOLTIP", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpureFunction3"](14, _c3, ctx_r37.formatCount(ctx_r37.copilotUsage.quotaUsed), ctx_r37.formatCount(ctx_r37.copilotUsage.quotaEntitlement), ctx_r37.formatDay(ctx_r37.copilotUsage.quotaResetDate))));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](5, 10, "AI_CHAT.COPILOT_USAGE_QUOTA"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](ctx_r37.copilotUsage.quotaUnlimited ? _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](8, 12, "AI_CHAT.COPILOT_USAGE_UNLIMITED") : ctx_r37.formatCopilotPercent(ctx_r37.copilotUsage.quotaUsedPercent));
   }
 }
 const _c4 = function (a0, a1) {
@@ -285,28 +287,28 @@ const _c4 = function (a0, a1) {
 };
 function AiChatComponent_div_15_span_14_ng_container_8_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementContainerStart"](0);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](1, "span", 51);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2, "\u00B7");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](3, "span", 50);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](4, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](6, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](7, "strong");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](8);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementContainerEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementContainerStart"](0);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](1, "span", 54);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "\u00B7");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](3, "span", 53);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](4, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](6, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](7, "strong");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](8);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementContainerEnd"]();
   }
   if (rf & 2) {
-    const ctx_r35 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵclassProp"]("usage-high", (ctx_r35.copilotUsage.contextPercent || 0) >= 80);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind2"](4, 5, "AI_CHAT.COPILOT_USAGE_CONTEXT_TOOLTIP", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpureFunction2"](10, _c4, ctx_r35.formatCount(ctx_r35.copilotUsage.contextTokens), ctx_r35.formatCount(ctx_r35.copilotUsage.contextLimit))));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](6, 8, "AI_CHAT.COPILOT_USAGE_CONTEXT"), " ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx_r35.formatCopilotPercent(ctx_r35.copilotUsage.contextPercent, 0));
+    const ctx_r38 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵclassProp"]("usage-high", (ctx_r38.copilotUsage.contextPercent || 0) >= 80);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind2"](4, 5, "AI_CHAT.COPILOT_USAGE_CONTEXT_TOOLTIP", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpureFunction2"](10, _c4, ctx_r38.formatCount(ctx_r38.copilotUsage.contextTokens), ctx_r38.formatCount(ctx_r38.copilotUsage.contextLimit))));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](6, 8, "AI_CHAT.COPILOT_USAGE_CONTEXT"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](ctx_r38.formatCopilotPercent(ctx_r38.copilotUsage.contextPercent, 0));
   }
 }
 const _c5 = function (a0) {
@@ -316,852 +318,962 @@ const _c5 = function (a0) {
 };
 function AiChatComponent_div_15_span_14_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 49);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](1, AiChatComponent_div_15_span_14_ng_container_1_Template, 11, 18, "ng-container", 2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](2, "span", 50);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](3, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](5, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](6, "strong");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](8, AiChatComponent_div_15_span_14_ng_container_8_Template, 9, 13, "ng-container", 2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 52);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](1, AiChatComponent_div_15_span_14_ng_container_1_Template, 11, 18, "ng-container", 2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](2, "span", 53);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](3, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](5, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](6, "strong");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](7);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](8, AiChatComponent_div_15_span_14_ng_container_8_Template, 9, 13, "ng-container", 2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r31 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r31.copilotUsage.quotaType);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind2"](3, 5, "AI_CHAT.COPILOT_USAGE_SESSION_TOOLTIP", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpureFunction1"](10, _c5, ctx_r31.formatCount(ctx_r31.copilotUsage.sessionRequests))));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](5, 8, "AI_CHAT.COPILOT_USAGE_SESSION"), " ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx_r31.copilotUsage.sessionPercent != null ? ctx_r31.formatCopilotPercent(ctx_r31.copilotUsage.sessionPercent) : ctx_r31.formatCount(ctx_r31.copilotUsage.sessionRequests));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r31.copilotUsage.contextPercent != null);
+    const ctx_r34 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r34.copilotUsage.quotaType);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind2"](3, 5, "AI_CHAT.COPILOT_USAGE_SESSION_TOOLTIP", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpureFunction1"](10, _c5, ctx_r34.formatCount(ctx_r34.copilotUsage.sessionRequests))));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](5, 8, "AI_CHAT.COPILOT_USAGE_SESSION"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](ctx_r34.copilotUsage.sessionPercent != null ? ctx_r34.formatCopilotPercent(ctx_r34.copilotUsage.sessionPercent) : ctx_r34.formatCount(ctx_r34.copilotUsage.sessionRequests));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r34.copilotUsage.contextPercent != null);
   }
 }
 function AiChatComponent_div_15_Template(rf, ctx) {
   if (rf & 1) {
-    const _r37 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 35)(1, "label", 36);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](3, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](4, "mat-form-field", 37)(5, "mat-select", 38);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("selectionChange", function AiChatComponent_div_15_Template_mat_select_selectionChange_5_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r37);
-      const ctx_r36 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r36.selectCopilotModel($event.value));
+    const _r40 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 38)(1, "label", 39);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](3, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](4, "mat-form-field", 40)(5, "mat-select", 41);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("selectionChange", function AiChatComponent_div_15_Template_mat_select_selectionChange_5_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r40);
+      const ctx_r39 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r39.selectCopilotModel($event.value));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](6, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](7, AiChatComponent_div_15_mat_option_7_Template, 3, 4, "mat-option", 39);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](8, "button", 40);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_div_15_Template_button_click_8_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r37);
-      const ctx_r38 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r38.refreshCopilotModels());
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](6, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](7, AiChatComponent_div_15_mat_option_7_Template, 3, 4, "mat-option", 42);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](8, "button", 43);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_div_15_Template_button_click_8_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r40);
+      const ctx_r41 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r41.refreshCopilotModels());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](9, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](10, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](11, "refresh");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](12, AiChatComponent_div_15_span_12_Template, 3, 3, "span", 41);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](13, AiChatComponent_div_15_span_13_Template, 5, 4, "span", 42);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](14, AiChatComponent_div_15_span_14_Template, 9, 12, "span", 43);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](9, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](10, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](11, "refresh");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](12, AiChatComponent_div_15_span_12_Template, 3, 3, "span", 44);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](13, AiChatComponent_div_15_span_13_Template, 5, 4, "span", 45);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](14, AiChatComponent_div_15_span_14_Template, 9, 12, "span", 46);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](3, 13, "AI_CHAT.COPILOT_MODEL_LABEL"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("value", ctx_r4.selectedCopilotModel)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](6, 15, "AI_CHAT.COPILOT_MODEL_CLI_CHOOSES"))("disabled", ctx_r4.isConfiguringProvider || ctx_r4.copilotModelsLoading);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngForOf", ctx_r4.copilotModelChoices)("ngForTrackBy", ctx_r4.trackCopilotModel);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("disabled", ctx_r4.copilotModelsLoading)("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](9, 17, "AI_CHAT.COPILOT_MODEL_REFRESH"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵclassProp"]("spinning", ctx_r4.copilotModelsLoading);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r4.copilotModelsLoading);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r4.copilotModelsError && !ctx_r4.copilotModelsLoading);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r4.copilotUsage);
+    const ctx_r4 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](3, 13, "AI_CHAT.COPILOT_MODEL_LABEL"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("value", ctx_r4.selectedCopilotModel)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](6, 15, "AI_CHAT.COPILOT_MODEL_CLI_CHOOSES"))("disabled", ctx_r4.isConfiguringProvider || ctx_r4.copilotModelsLoading);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngForOf", ctx_r4.copilotModelChoices)("ngForTrackBy", ctx_r4.trackCopilotModel);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("disabled", ctx_r4.copilotModelsLoading)("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](9, 17, "AI_CHAT.COPILOT_MODEL_REFRESH"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵclassProp"]("spinning", ctx_r4.copilotModelsLoading);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r4.copilotModelsLoading);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r4.copilotModelsError && !ctx_r4.copilotModelsLoading);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r4.copilotUsage);
   }
 }
 function AiChatComponent_div_16_mat_option_6_span_2_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 46);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 49);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" \u2014 ", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](2, 1, "AI_CHAT.COPILOT_MODEL_UNAVAILABLE"), "");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" \u2014 ", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](2, 1, "AI_CHAT.COPILOT_MODEL_UNAVAILABLE"), "");
   }
 }
 function AiChatComponent_div_16_mat_option_6_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "mat-option", 57);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](2, AiChatComponent_div_16_mat_option_6_span_2_Template, 3, 3, "span", 45);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "mat-option", 60);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](2, AiChatComponent_div_16_mat_option_6_span_2_Template, 3, 3, "span", 48);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const m_r42 = ctx.$implicit;
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("value", m_r42.id)("disabled", m_r42.unavailable)("matTooltip", m_r42.description || "")("matTooltipDisabled", !m_r42.description);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", m_r42.name, "");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", m_r42.unavailable);
+    const m_r45 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("value", m_r45.id)("disabled", m_r45.unavailable)("matTooltip", m_r45.description || "")("matTooltipDisabled", !m_r45.description);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", m_r45.name, "");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", m_r45.unavailable);
   }
 }
 function AiChatComponent_div_16_span_11_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 47);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 50);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](2, 1, "AI_CHAT.COPILOT_MODELS_LOADING"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](2, 1, "AI_CHAT.COPILOT_MODELS_LOADING"));
   }
 }
 function AiChatComponent_div_16_span_12_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 48)(1, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2, "error_outline");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](4, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 51)(1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "error_outline");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](4, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r41 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", ctx_r41.claudeModelsError);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"]("", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](4, 2, "AI_CHAT.COPILOT_MODELS_ERROR"), " ");
+    const ctx_r44 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", ctx_r44.claudeModelsError);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"]("", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](4, 2, "AI_CHAT.COPILOT_MODELS_ERROR"), " ");
   }
 }
 function AiChatComponent_div_16_Template(rf, ctx) {
   if (rf & 1) {
-    const _r45 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 52)(1, "label", 53);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](3, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](4, "mat-form-field", 54)(5, "mat-select", 55);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("selectionChange", function AiChatComponent_div_16_Template_mat_select_selectionChange_5_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r45);
-      const ctx_r44 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r44.selectClaudeCodeModel($event.value));
+    const _r48 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 55)(1, "label", 56);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](3, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](4, "mat-form-field", 57)(5, "mat-select", 58);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("selectionChange", function AiChatComponent_div_16_Template_mat_select_selectionChange_5_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r48);
+      const ctx_r47 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r47.selectClaudeCodeModel($event.value));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](6, AiChatComponent_div_16_mat_option_6_Template, 3, 6, "mat-option", 56);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](7, "button", 40);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_div_16_Template_button_click_7_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r45);
-      const ctx_r46 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r46.refreshClaudeModels());
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](6, AiChatComponent_div_16_mat_option_6_Template, 3, 6, "mat-option", 59);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](7, "button", 43);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_div_16_Template_button_click_7_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r48);
+      const ctx_r49 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r49.refreshClaudeModels());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](8, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](9, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](10, "refresh");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](11, AiChatComponent_div_16_span_11_Template, 3, 3, "span", 41);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](12, AiChatComponent_div_16_span_12_Template, 5, 4, "span", 42);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](8, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](9, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](10, "refresh");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](11, AiChatComponent_div_16_span_11_Template, 3, 3, "span", 44);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](12, AiChatComponent_div_16_span_12_Template, 5, 4, "span", 45);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](3, 13, "AI_CHAT.COPILOT_MODEL_LABEL"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", ctx_r5.selectedClaudeModelDescription)("matTooltipDisabled", !ctx_r5.selectedClaudeModelDescription);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("value", ctx_r5.selectedClaudeCodeModel)("disabled", ctx_r5.isConfiguringProvider || ctx_r5.claudeModelsLoading);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngForOf", ctx_r5.claudeModelChoices)("ngForTrackBy", ctx_r5.trackClaudeModel);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("disabled", ctx_r5.claudeModelsLoading)("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](8, 15, "AI_CHAT.COPILOT_MODEL_REFRESH"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵclassProp"]("spinning", ctx_r5.claudeModelsLoading);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r5.claudeModelsLoading);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r5.claudeModelsError && !ctx_r5.claudeModelsLoading);
+    const ctx_r5 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](3, 13, "AI_CHAT.COPILOT_MODEL_LABEL"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", ctx_r5.selectedClaudeModelDescription)("matTooltipDisabled", !ctx_r5.selectedClaudeModelDescription);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("value", ctx_r5.selectedClaudeCodeModel)("disabled", ctx_r5.isConfiguringProvider || ctx_r5.claudeModelsLoading);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngForOf", ctx_r5.claudeModelChoices)("ngForTrackBy", ctx_r5.trackClaudeModel);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("disabled", ctx_r5.claudeModelsLoading)("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](8, 15, "AI_CHAT.COPILOT_MODEL_REFRESH"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵclassProp"]("spinning", ctx_r5.claudeModelsLoading);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r5.claudeModelsLoading);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r5.claudeModelsError && !ctx_r5.claudeModelsLoading);
   }
 }
 function AiChatComponent_div_17_mat_option_9_span_2_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 46);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 49);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" \u2014 ", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](2, 1, "AI_CHAT.COPILOT_MODEL_UNAVAILABLE"), "");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" \u2014 ", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](2, 1, "AI_CHAT.COPILOT_MODEL_UNAVAILABLE"), "");
   }
 }
 function AiChatComponent_div_17_mat_option_9_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "mat-option", 57);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](2, AiChatComponent_div_17_mat_option_9_span_2_Template, 3, 3, "span", 45);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "mat-option", 60);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](2, AiChatComponent_div_17_mat_option_9_span_2_Template, 3, 3, "span", 48);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const m_r50 = ctx.$implicit;
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("value", m_r50.id)("disabled", m_r50.unavailable)("matTooltip", m_r50.description || "")("matTooltipDisabled", !m_r50.description);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", m_r50.name, "");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", m_r50.unavailable);
+    const m_r53 = ctx.$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("value", m_r53.id)("disabled", m_r53.unavailable)("matTooltip", m_r53.description || "")("matTooltipDisabled", !m_r53.description);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", m_r53.name, "");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", m_r53.unavailable);
   }
 }
 function AiChatComponent_div_17_span_14_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 47);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 50);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](2, 1, "AI_CHAT.COPILOT_MODELS_LOADING"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](2, 1, "AI_CHAT.COPILOT_MODELS_LOADING"));
   }
 }
 function AiChatComponent_div_17_span_15_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 48)(1, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2, "error_outline");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](4, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 51)(1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "error_outline");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](4, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r49 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", ctx_r49.openCodeModelsError);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"]("", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](4, 2, "AI_CHAT.COPILOT_MODELS_ERROR"), " ");
+    const ctx_r52 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", ctx_r52.openCodeModelsError);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"]("", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](4, 2, "AI_CHAT.COPILOT_MODELS_ERROR"), " ");
   }
 }
 function AiChatComponent_div_17_Template(rf, ctx) {
   if (rf & 1) {
-    const _r53 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 58)(1, "label", 59);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](3, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](4, "mat-form-field", 54)(5, "mat-select", 60);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("selectionChange", function AiChatComponent_div_17_Template_mat_select_selectionChange_5_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r53);
-      const ctx_r52 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r52.selectOpenCodeModel($event.value));
+    const _r56 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 61)(1, "label", 62);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](3, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](4, "mat-form-field", 57)(5, "mat-select", 63);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("selectionChange", function AiChatComponent_div_17_Template_mat_select_selectionChange_5_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r56);
+      const ctx_r55 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r55.selectOpenCodeModel($event.value));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](6, "mat-option", 61);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](8, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](9, AiChatComponent_div_17_mat_option_9_Template, 3, 6, "mat-option", 56);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](10, "button", 40);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_div_17_Template_button_click_10_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r53);
-      const ctx_r54 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r54.refreshOpenCodeModels());
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](6, "mat-option", 64);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](7);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](8, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](9, AiChatComponent_div_17_mat_option_9_Template, 3, 6, "mat-option", 59);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](10, "button", 43);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_div_17_Template_button_click_10_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r56);
+      const ctx_r57 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r57.refreshOpenCodeModels());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](11, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](12, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](13, "refresh");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](14, AiChatComponent_div_17_span_14_Template, 3, 3, "span", 41);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](15, AiChatComponent_div_17_span_15_Template, 5, 4, "span", 42);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](11, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](12, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](13, "refresh");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](14, AiChatComponent_div_17_span_14_Template, 3, 3, "span", 44);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](15, AiChatComponent_div_17_span_15_Template, 5, 4, "span", 45);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r6 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](3, 15, "AI_CHAT.COPILOT_MODEL_LABEL"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", ctx_r6.selectedOpenCodeModelDescription)("matTooltipDisabled", !ctx_r6.selectedOpenCodeModelDescription);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("value", ctx_r6.selectedOpenCodeModel || "")("disabled", ctx_r6.isConfiguringProvider || ctx_r6.openCodeModelsLoading);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("value", "");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](8, 17, "AI_CHAT.OPENCODE_SERVER_DEFAULT"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngForOf", ctx_r6.openCodeModelChoices)("ngForTrackBy", ctx_r6.trackClaudeModel);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("disabled", ctx_r6.openCodeModelsLoading)("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](11, 19, "AI_CHAT.COPILOT_MODEL_REFRESH"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵclassProp"]("spinning", ctx_r6.openCodeModelsLoading);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r6.openCodeModelsLoading);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r6.openCodeModelsError && !ctx_r6.openCodeModelsLoading);
+    const ctx_r6 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](3, 15, "AI_CHAT.COPILOT_MODEL_LABEL"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", ctx_r6.selectedOpenCodeModelDescription)("matTooltipDisabled", !ctx_r6.selectedOpenCodeModelDescription);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("value", ctx_r6.selectedOpenCodeModel || "")("disabled", ctx_r6.isConfiguringProvider || ctx_r6.openCodeModelsLoading);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("value", "");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](8, 17, "AI_CHAT.OPENCODE_SERVER_DEFAULT"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngForOf", ctx_r6.openCodeModelChoices)("ngForTrackBy", ctx_r6.trackClaudeModel);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("disabled", ctx_r6.openCodeModelsLoading)("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](11, 19, "AI_CHAT.COPILOT_MODEL_REFRESH"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵclassProp"]("spinning", ctx_r6.openCodeModelsLoading);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r6.openCodeModelsLoading);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r6.openCodeModelsError && !ctx_r6.openCodeModelsLoading);
   }
 }
 function AiChatComponent_div_18_Template(rf, ctx) {
   if (rf & 1) {
-    const _r57 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 62, 63)(2, "app-model-manager", 64);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("contentChanged", function AiChatComponent_div_18_Template_app_model_manager_contentChanged_2_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r57);
-      const ctx_r56 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r56.onModelManagerContentChanged());
+    const _r60 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 65, 66)(2, "app-model-manager", 67);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("contentChanged", function AiChatComponent_div_18_Template_app_model_manager_contentChanged_2_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r60);
+      const ctx_r59 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r59.onModelManagerContentChanged());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
   }
 }
 function AiChatComponent_div_21_p_6_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "p", 67);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "p", 70);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](2, 1, "AI_CHAT.LOAD_MODEL_HINT"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](2, 1, "AI_CHAT.LOAD_MODEL_HINT"), " ");
   }
 }
 function AiChatComponent_div_21_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 65)(1, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2, "chat_bubble_outline");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](3, "p");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](5, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](6, AiChatComponent_div_21_p_6_Template, 3, 3, "p", 66);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 68)(1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "chat_bubble_outline");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](3, "p");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](5, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](6, AiChatComponent_div_21_p_6_Template, 3, 3, "p", 69);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r9 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](5, 2, "AI_CHAT.START_CONVERSATION"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", !ctx_r9.isModelLoaded);
+    const ctx_r9 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](5, 2, "AI_CHAT.START_CONVERSATION"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", !ctx_r9.isModelLoaded);
   }
 }
 function AiChatComponent_div_22_div_8_button_1_Template(rf, ctx) {
   if (rf & 1) {
-    const _r69 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "button", 80);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_div_22_div_8_button_1_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r69);
-      const message_r59 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2).$implicit;
-      const ctx_r67 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r67.startEditMessage(message_r59));
+    const _r72 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 83);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_div_22_div_8_button_1_Template_button_click_0_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r72);
+      const message_r62 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2).$implicit;
+      const ctx_r70 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r70.startEditMessage(message_r62));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](1, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](2, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](3, "edit");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](1, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](2, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](3, "edit");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](1, 1, "AI_CHAT.EDIT_MESSAGE"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](1, 1, "AI_CHAT.EDIT_MESSAGE"));
   }
 }
 function AiChatComponent_div_22_div_8_button_2_Template(rf, ctx) {
   if (rf & 1) {
-    const _r72 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "button", 80);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_div_22_div_8_button_2_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r72);
-      const message_r59 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2).$implicit;
-      const ctx_r70 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r70.copyMessageContent(message_r59));
+    const _r75 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 83);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_div_22_div_8_button_2_Template_button_click_0_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r75);
+      const message_r62 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2).$implicit;
+      const ctx_r73 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r73.copyMessageContent(message_r62));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](1, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](3, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](1, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](3, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    const message_r59 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2).$implicit;
-    const ctx_r66 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", ctx_r66.copiedMessageId === message_r59.id ? _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](1, 2, "AI_CHAT.COPIED") : _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](2, 4, "AI_CHAT.COPY"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx_r66.copiedMessageId === message_r59.id ? "check" : "content_copy");
+    const message_r62 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2).$implicit;
+    const ctx_r69 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", ctx_r69.copiedMessageId === message_r62.id ? _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](1, 2, "AI_CHAT.COPIED") : _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](2, 4, "AI_CHAT.COPY"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](ctx_r69.copiedMessageId === message_r62.id ? "check" : "content_copy");
   }
 }
 function AiChatComponent_div_22_div_8_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 78);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](1, AiChatComponent_div_22_div_8_button_1_Template, 4, 3, "button", 79);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](2, AiChatComponent_div_22_div_8_button_2_Template, 5, 6, "button", 79);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 81);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](1, AiChatComponent_div_22_div_8_button_1_Template, 4, 3, "button", 82);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](2, AiChatComponent_div_22_div_8_button_2_Template, 5, 6, "button", 82);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const message_r59 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]().$implicit;
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", message_r59.role === "user");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", message_r59.role === "assistant" && message_r59.content);
+    const message_r62 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]().$implicit;
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", message_r62.role === "user");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", message_r62.role === "assistant" && message_r62.content);
   }
 }
 function AiChatComponent_div_22_div_12_mat_progress_spinner_9_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelement"](0, "mat-progress-spinner", 88);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelement"](0, "mat-progress-spinner", 91);
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("diameter", 14);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("diameter", 14);
   }
 }
 function AiChatComponent_div_22_div_12_div_10_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelement"](0, "div", 89);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelement"](0, "div", 92);
   }
   if (rf & 2) {
-    const message_r59 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2).$implicit;
-    const ctx_r76 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("innerHTML", ctx_r76.formatMessageContent(message_r59.thinkingContent), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵsanitizeHtml"]);
+    const message_r62 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2).$implicit;
+    const ctx_r79 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("innerHTML", ctx_r79.formatMessageContent(message_r62.thinkingContent), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵsanitizeHtml"]);
   }
 }
 function AiChatComponent_div_22_div_12_Template(rf, ctx) {
   if (rf & 1) {
-    const _r80 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 81)(1, "div", 82);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_div_22_div_12_Template_div_click_1_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r80);
-      const message_r59 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]().$implicit;
-      const ctx_r78 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r78.toggleThinking(message_r59.id));
+    const _r83 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 84)(1, "div", 85);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_div_22_div_12_Template_div_click_1_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r83);
+      const message_r62 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]().$implicit;
+      const ctx_r81 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r81.toggleThinking(message_r62.id));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](2, "mat-icon", 83);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](3, "psychology");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](4, "span", 84);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](6, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](7, "mat-icon", 85);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](8);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](9, AiChatComponent_div_22_div_12_mat_progress_spinner_9_Template, 1, 1, "mat-progress-spinner", 86);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](10, AiChatComponent_div_22_div_12_div_10_Template, 1, 1, "div", 87);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](2, "mat-icon", 86);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](3, "psychology");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](4, "span", 87);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](6, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](7, "mat-icon", 88);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](8);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](9, AiChatComponent_div_22_div_12_mat_progress_spinner_9_Template, 1, 1, "mat-progress-spinner", 89);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](10, AiChatComponent_div_22_div_12_div_10_Template, 1, 1, "div", 90);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const message_r59 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]().$implicit;
-    const ctx_r61 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](6, 4, "AI_CHAT.THINKING"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", ctx_r61.isThinkingCollapsed(message_r59.id) ? "expand_more" : "expand_less", " ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", message_r59.isStreaming && !message_r59.content);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", !ctx_r61.isThinkingCollapsed(message_r59.id));
+    const message_r62 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]().$implicit;
+    const ctx_r64 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](6, 4, "AI_CHAT.THINKING"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", ctx_r64.isThinkingCollapsed(message_r62.id) ? "expand_more" : "expand_less", " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", message_r62.isStreaming && !message_r62.content);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", !ctx_r64.isThinkingCollapsed(message_r62.id));
   }
 }
 function AiChatComponent_div_22_div_13_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelement"](0, "div", 90);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelement"](0, "div", 93);
   }
   if (rf & 2) {
-    const message_r59 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]().$implicit;
-    const ctx_r62 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("innerHTML", ctx_r62.formatMessageContent(message_r59.content), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵsanitizeHtml"]);
+    const message_r62 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]().$implicit;
+    const ctx_r65 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("innerHTML", ctx_r65.formatMessageContent(message_r62.content), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵsanitizeHtml"]);
   }
 }
 function AiChatComponent_div_22_div_14_Template(rf, ctx) {
   if (rf & 1) {
-    const _r85 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 91)(1, "mat-form-field", 92)(2, "textarea", 93, 94);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("ngModelChange", function AiChatComponent_div_22_div_14_Template_textarea_ngModelChange_2_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r85);
-      const ctx_r84 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r84.editedContent = $event);
+    const _r88 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 94)(1, "mat-form-field", 95)(2, "textarea", 96, 97);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("ngModelChange", function AiChatComponent_div_22_div_14_Template_textarea_ngModelChange_2_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r88);
+      const ctx_r87 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r87.editedContent = $event);
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](4, "            ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](5, "div", 95)(6, "button", 96);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_div_22_div_14_Template_button_click_6_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r85);
-      const ctx_r86 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r86.cancelEditMessage());
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](4, "            ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](5, "div", 98)(6, "button", 99);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_div_22_div_14_Template_button_click_6_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r88);
+      const ctx_r89 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r89.cancelEditMessage());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](7);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](8, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](9, "button", 97);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_div_22_div_14_Template_button_click_9_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r85);
-      const message_r59 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]().$implicit;
-      const ctx_r87 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r87.saveEditedMessage(message_r59));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](7);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](8, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](9, "button", 100);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_div_22_div_14_Template_button_click_9_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r88);
+      const message_r62 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]().$implicit;
+      const ctx_r90 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r90.saveEditedMessage(message_r62));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](10, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](11, "check");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](12);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](13, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](10, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](11, "check");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](12);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](13, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()()();
   }
   if (rf & 2) {
-    const ctx_r63 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngModel", ctx_r63.editedContent)("rows", ctx_r63.compactMode ? 3 : 4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](8, 4, "COMMON.CANCEL"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](13, 6, "AI_CHAT.SAVE_REGENERATE"), " ");
+    const ctx_r66 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngModel", ctx_r66.editedContent)("rows", ctx_r66.compactMode ? 3 : 4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](8, 4, "COMMON.CANCEL"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](13, 6, "AI_CHAT.SAVE_REGENERATE"), " ");
   }
 }
 function AiChatComponent_div_22_div_15_span_2_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 101);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 104);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r89 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", ctx_r89.toolActivity);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx_r89.toolActivity);
+    const ctx_r92 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", ctx_r92.toolActivity);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](ctx_r92.toolActivity);
   }
 }
 function AiChatComponent_div_22_div_15_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 98);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelement"](1, "mat-progress-spinner", 99);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](2, AiChatComponent_div_22_div_15_span_2_Template, 2, 2, "span", 100);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 101);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelement"](1, "mat-progress-spinner", 102);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](2, AiChatComponent_div_22_div_15_span_2_Template, 2, 2, "span", 103);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r64 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("diameter", ctx_r64.compactMode ? 16 : 20);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r64.toolActivity);
+    const ctx_r67 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("diameter", ctx_r67.compactMode ? 16 : 20);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r67.toolActivity);
   }
 }
 function AiChatComponent_div_22_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 68)(1, "div", 69)(2, "div", 70)(3, "span", 71);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](5, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](6, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](7, "titlecase");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](8, AiChatComponent_div_22_div_8_Template, 3, 2, "div", 72);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](9, "span", 73);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](10);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](11, "date");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](12, AiChatComponent_div_22_div_12_Template, 11, 6, "div", 74);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](13, AiChatComponent_div_22_div_13_Template, 1, 1, "div", 75);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](14, AiChatComponent_div_22_div_14_Template, 14, 8, "div", 76);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](15, AiChatComponent_div_22_div_15_Template, 3, 2, "div", 77);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 71)(1, "div", 72)(2, "div", 73)(3, "span", 74);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](5, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](6, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](7, "titlecase");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](8, AiChatComponent_div_22_div_8_Template, 3, 2, "div", 75);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](9, "span", 76);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](10);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](11, "date");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](12, AiChatComponent_div_22_div_12_Template, 11, 6, "div", 77);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](13, AiChatComponent_div_22_div_13_Template, 1, 1, "div", 78);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](14, AiChatComponent_div_22_div_14_Template, 14, 8, "div", 79);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](15, AiChatComponent_div_22_div_15_Template, 3, 2, "div", 80);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    const message_r59 = ctx.$implicit;
-    const ctx_r10 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngClass", ctx_r10.getMessageClass(message_r59));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx_r10.compactMode ? message_r59.role === "user" ? _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](5, 8, "AI_CHAT.YOU") : _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](6, 10, "AI_CHAT.AI") : _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](7, 12, message_r59.role));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", !message_r59.isStreaming && ctx_r10.editingMessageId !== message_r59.id);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind2"](11, 14, message_r59.timestamp, "short"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r10.hasThinking(message_r59) && message_r59.role === "assistant");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r10.editingMessageId !== message_r59.id);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r10.editingMessageId === message_r59.id);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", message_r59.isStreaming);
+    const message_r62 = ctx.$implicit;
+    const ctx_r10 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngClass", ctx_r10.getMessageClass(message_r62));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](ctx_r10.compactMode ? message_r62.role === "user" ? _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](5, 8, "AI_CHAT.YOU") : _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](6, 10, "AI_CHAT.AI") : _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](7, 12, message_r62.role));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", !message_r62.isStreaming && ctx_r10.editingMessageId !== message_r62.id);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind2"](11, 14, message_r62.timestamp, "short"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r10.hasThinking(message_r62) && message_r62.role === "assistant");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r10.editingMessageId !== message_r62.id);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r10.editingMessageId === message_r62.id);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", message_r62.isStreaming);
   }
 }
 function AiChatComponent_div_23_Template(rf, ctx) {
   if (rf & 1) {
-    const _r91 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 102)(1, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2, "warning");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](3, "div", 103)(4, "strong");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](6, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](7, "span", 104);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](8);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](9, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](10, "button", 105);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_div_23_Template_button_click_10_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r91);
-      const ctx_r90 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r90.toggleModelManager());
+    const _r94 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 105)(1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "warning");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](3, "div", 106)(4, "strong");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](6, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](7, "span", 107);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](8);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](9, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](10, "button", 108);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_div_23_Template_button_click_10_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r94);
+      const ctx_r93 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r93.toggleModelManager());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](11, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](12, "settings");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](13);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](14, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](11, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](12, "settings");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](13);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](14, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](6, 3, "AI_CHAT.COPILOT_CLI_UNAVAILABLE"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](9, 5, "AI_CHAT.COPILOT_CLI_UNAVAILABLE_HINT"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](14, 7, "AI_CHAT.MODEL_MANAGER"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](6, 3, "AI_CHAT.COPILOT_CLI_UNAVAILABLE"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](9, 5, "AI_CHAT.COPILOT_CLI_UNAVAILABLE_HINT"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](14, 7, "AI_CHAT.MODEL_MANAGER"), " ");
   }
 }
 function AiChatComponent_div_24_Template(rf, ctx) {
   if (rf & 1) {
-    const _r93 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 102)(1, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2, "warning");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](3, "div", 103)(4, "strong");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](6, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](7, "span", 104);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](8);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](9, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](10, "button", 105);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_div_24_Template_button_click_10_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r93);
-      const ctx_r92 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r92.toggleModelManager());
+    const _r96 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 105)(1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "warning");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](3, "div", 106)(4, "strong");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](6, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](7, "span", 107);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](8);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](9, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](10, "button", 108);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_div_24_Template_button_click_10_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r96);
+      const ctx_r95 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r95.toggleModelManager());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](11, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](12, "settings");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](13);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](14, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](11, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](12, "settings");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](13);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](14, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](6, 3, "AI_CHAT.CLAUDE_CODE_UNAVAILABLE"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](9, 5, "AI_CHAT.CLAUDE_CODE_UNAVAILABLE_HINT"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](14, 7, "AI_CHAT.MODEL_MANAGER"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](6, 3, "AI_CHAT.CLAUDE_CODE_UNAVAILABLE"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](9, 5, "AI_CHAT.CLAUDE_CODE_UNAVAILABLE_HINT"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](14, 7, "AI_CHAT.MODEL_MANAGER"), " ");
   }
 }
 function AiChatComponent_div_25_span_17_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 51);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1, "\u00B7");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 54);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1, "\u00B7");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
 }
 function AiChatComponent_div_25_span_18_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 112);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 115);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r95 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", ctx_r95.claudeUsage.outputTokens, " tok ");
+    const ctx_r98 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", ctx_r98.claudeUsage.outputTokens, " tok ");
   }
 }
 function AiChatComponent_div_25_span_20_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 113);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](1, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2, " 5h ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](3, "strong");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 116);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](1, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, " 5h ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](3, "strong");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    const ctx_r96 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](1, 2, "AI_CHAT.USAGE_WINDOW_TOOLTIP"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx_r96.formatPercent(ctx_r96.claudeUsage.fiveHourUtilization));
+    const ctx_r99 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](1, 2, "AI_CHAT.USAGE_WINDOW_TOOLTIP"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](ctx_r99.formatPercent(ctx_r99.claudeUsage.fiveHourUtilization));
   }
 }
 function AiChatComponent_div_25_span_21_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "span", 113);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](1, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2, " 7g ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](3, "strong");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "span", 116);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](1, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, " 7g ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](3, "strong");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    const ctx_r97 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](1, 2, "AI_CHAT.USAGE_WINDOW_TOOLTIP"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](4);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx_r97.formatPercent(ctx_r97.claudeUsage.sevenDayUtilization));
+    const ctx_r100 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](1, 2, "AI_CHAT.USAGE_WINDOW_TOOLTIP"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](ctx_r100.formatPercent(ctx_r100.claudeUsage.sevenDayUtilization));
   }
 }
 function AiChatComponent_div_25_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 106)(1, "mat-icon", 107);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2, "savings");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](3, "span", 50);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](4, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](5);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](6, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](7, "strong");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](8);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](9, "span", 51);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](10, "\u00B7");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](11, "span", 50);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](12, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](13);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](14, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](15, "strong");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](16);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](17, AiChatComponent_div_25_span_17_Template, 2, 0, "span", 108);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](18, AiChatComponent_div_25_span_18_Template, 2, 1, "span", 109);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelement"](19, "span", 110);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](20, AiChatComponent_div_25_span_20_Template, 5, 4, "span", 111);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](21, AiChatComponent_div_25_span_21_Template, 5, 4, "span", 111);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 109)(1, "mat-icon", 110);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "savings");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](3, "span", 53);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](4, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](5);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](6, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](7, "strong");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](8);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](9, "span", 54);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](10, "\u00B7");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](11, "span", 53);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](12, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](13);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](14, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](15, "strong");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](16);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](17, AiChatComponent_div_25_span_17_Template, 2, 0, "span", 111);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](18, AiChatComponent_div_25_span_18_Template, 2, 1, "span", 112);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelement"](19, "span", 113);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](20, AiChatComponent_div_25_span_20_Template, 5, 4, "span", 114);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](21, AiChatComponent_div_25_span_21_Template, 5, 4, "span", 114);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](4, 10, "AI_CHAT.USAGE_TURN_TOOLTIP"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](6, 12, "AI_CHAT.USAGE_TURN"), " ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx_r13.formatUsd(ctx_r13.claudeUsage.turnCostUsd));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](12, 14, "AI_CHAT.USAGE_SESSION_TOOLTIP"));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](14, 16, "AI_CHAT.USAGE_SESSION"), " ");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](ctx_r13.formatUsd(ctx_r13.claudeUsage.sessionCostUsd));
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r13.claudeUsage.outputTokens != null);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r13.claudeUsage.outputTokens != null);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r13.claudeUsage.fiveHourUtilization != null);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r13.claudeUsage.sevenDayUtilization != null);
+    const ctx_r13 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](4, 10, "AI_CHAT.USAGE_TURN_TOOLTIP"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](6, 12, "AI_CHAT.USAGE_TURN"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](ctx_r13.formatUsd(ctx_r13.claudeUsage.turnCostUsd));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](12, 14, "AI_CHAT.USAGE_SESSION_TOOLTIP"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](14, 16, "AI_CHAT.USAGE_SESSION"), " ");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](ctx_r13.formatUsd(ctx_r13.claudeUsage.sessionCostUsd));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r13.claudeUsage.outputTokens != null);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r13.claudeUsage.outputTokens != null);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r13.claudeUsage.fiveHourUtilization != null);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r13.claudeUsage.sevenDayUtilization != null);
   }
 }
 function AiChatComponent_div_27_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 114);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelement"](1, "mat-progress-spinner", 115);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](2, "span");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](4, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 117);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelement"](1, "mat-progress-spinner", 118);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](2, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](4, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](4, 1, "AI_CHAT.CONFIGURING_PROVIDER"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](4, 1, "AI_CHAT.CONFIGURING_PROVIDER"));
   }
 }
-function AiChatComponent_mat_hint_34_Template(rf, ctx) {
+function AiChatComponent_div_28_Template(rf, ctx) {
   if (rf & 1) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "mat-hint");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](2, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-  }
-  if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](2, 1, "AI_CHAT.LOAD_MODEL_TO_CHAT"));
-  }
-}
-function AiChatComponent_button_35_Template(rf, ctx) {
-  if (rf & 1) {
-    const _r99 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "button", 116);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_button_35_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r99);
-      const ctx_r98 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r98.sendMessage());
+    const _r102 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 119)(1, "mat-icon", 120);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "mic_off");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](3, "span");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](5, "button", 121);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_div_28_Template_button_click_5_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r102);
+      const ctx_r101 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r101.dictationError = null);
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](1, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2, "send");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](6, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](7, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](8, "close");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()()();
   }
   if (rf & 2) {
-    const ctx_r17 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("disabled", !ctx_r17.inputMessage.trim() || !ctx_r17.isModelLoaded || ctx_r17.isConfiguringProvider);
+    const ctx_r15 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](ctx_r15.dictationError);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵattribute"]("aria-label", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](6, 2, "COMMON.CLOSE"));
+  }
+}
+function AiChatComponent_mat_hint_35_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "mat-hint");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](2, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](2, 1, "AI_CHAT.LOAD_MODEL_TO_CHAT"));
+  }
+}
+function AiChatComponent_button_36_mat_spinner_2_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelement"](0, "mat-spinner", 124);
+  }
+}
+function AiChatComponent_button_36_mat_icon_3_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const ctx_r104 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", ctx_r104.dictationState === "recording" ? "stop" : "mic", " ");
   }
 }
 function AiChatComponent_button_36_Template(rf, ctx) {
   if (rf & 1) {
-    const _r101 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "button", 117);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_button_36_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r101);
-      const ctx_r100 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r100.sendMessage());
+    const _r106 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 122);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_button_36_Template_button_click_0_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r106);
+      const ctx_r105 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r105.toggleDictation());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](1, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](2, "send");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](1, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](2, AiChatComponent_button_36_mat_spinner_2_Template, 1, 0, "mat-spinner", 123);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](3, AiChatComponent_button_36_mat_icon_3_Template, 2, 1, "mat-icon", 2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    const ctx_r18 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("disabled", !ctx_r18.inputMessage.trim() || !ctx_r18.isModelLoaded || ctx_r18.isConfiguringProvider);
+    const ctx_r18 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵclassProp"]("dictation-recording", ctx_r18.dictationState === "recording");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("color", ctx_r18.dictationState === "recording" ? "warn" : "accent")("disabled", !ctx_r18.isModelLoaded || ctx_r18.isConfiguringProvider || ctx_r18.dictationState === "transcribing")("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](1, 7, ctx_r18.dictationState === "recording" ? "AI_CHAT.DICTATION_STOP" : ctx_r18.dictationState === "transcribing" ? "AI_CHAT.DICTATION_WORKING" : "AI_CHAT.DICTATION_START"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r18.dictationState === "transcribing");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r18.dictationState !== "transcribing");
+  }
+}
+function AiChatComponent_button_37_mat_spinner_2_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelement"](0, "mat-spinner", 124);
+  }
+}
+function AiChatComponent_button_37_mat_icon_3_Template(rf, ctx) {
+  if (rf & 1) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+  }
+  if (rf & 2) {
+    const ctx_r108 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate1"](" ", ctx_r108.dictationState === "recording" ? "stop" : "mic", " ");
   }
 }
 function AiChatComponent_button_37_Template(rf, ctx) {
   if (rf & 1) {
-    const _r103 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "button", 118);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_button_37_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r103);
-      const ctx_r102 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r102.stopStreaming());
+    const _r110 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 125);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_button_37_Template_button_click_0_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r110);
+      const ctx_r109 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r109.toggleDictation());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](1, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](2, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](3, "stop");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](1, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](2, AiChatComponent_button_37_mat_spinner_2_Template, 1, 0, "mat-spinner", 123);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](3, AiChatComponent_button_37_mat_icon_3_Template, 2, 1, "mat-icon", 2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("title", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](1, 1, "AI_CHAT.STOP"));
+    const ctx_r19 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵclassProp"]("dictation-recording", ctx_r19.dictationState === "recording");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("color", ctx_r19.dictationState === "recording" ? "warn" : "accent")("disabled", !ctx_r19.isModelLoaded || ctx_r19.isConfiguringProvider || ctx_r19.dictationState === "transcribing")("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](1, 7, ctx_r19.dictationState === "recording" ? "AI_CHAT.DICTATION_STOP" : ctx_r19.dictationState === "transcribing" ? "AI_CHAT.DICTATION_WORKING" : "AI_CHAT.DICTATION_START"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r19.dictationState === "transcribing");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r19.dictationState !== "transcribing");
   }
 }
 function AiChatComponent_button_38_Template(rf, ctx) {
   if (rf & 1) {
-    const _r105 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵgetCurrentView"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "button", 119);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_button_38_Template_button_click_0_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵrestoreView"](_r105);
-      const ctx_r104 = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵresetView"](ctx_r104.stopStreaming());
+    const _r112 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 126);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_button_38_Template_button_click_0_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r112);
+      const ctx_r111 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r111.sendMessage());
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](1, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](2, "mat-icon");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](3, "stop");
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "send");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("title", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](1, 1, "AI_CHAT.STOP"));
+    const ctx_r20 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("disabled", !ctx_r20.inputMessage.trim() || !ctx_r20.isModelLoaded || ctx_r20.isConfiguringProvider);
+  }
+}
+function AiChatComponent_button_39_Template(rf, ctx) {
+  if (rf & 1) {
+    const _r114 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 127);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_button_39_Template_button_click_0_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r114);
+      const ctx_r113 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r113.sendMessage());
+    });
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](1, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](2, "send");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+  }
+  if (rf & 2) {
+    const ctx_r21 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("disabled", !ctx_r21.inputMessage.trim() || !ctx_r21.isModelLoaded || ctx_r21.isConfiguringProvider);
+  }
+}
+function AiChatComponent_button_40_Template(rf, ctx) {
+  if (rf & 1) {
+    const _r116 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 128);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_button_40_Template_button_click_0_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r116);
+      const ctx_r115 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r115.stopStreaming());
+    });
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](1, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](2, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](3, "stop");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+  }
+  if (rf & 2) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("title", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](1, 1, "AI_CHAT.STOP"));
+  }
+}
+function AiChatComponent_button_41_Template(rf, ctx) {
+  if (rf & 1) {
+    const _r118 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵgetCurrentView"]();
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "button", 129);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_button_41_Template_button_click_0_listener() {
+      _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵrestoreView"](_r118);
+      const ctx_r117 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵresetView"](ctx_r117.stopStreaming());
+    });
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](1, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](2, "mat-icon");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](3, "stop");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+  }
+  if (rf & 2) {
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("title", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](1, 1, "AI_CHAT.STOP"));
   }
 }
 const _c6 = function (a0) {
@@ -1174,7 +1286,7 @@ class AiChatComponent {
   static {
     this.SCROLL_BOTTOM_THRESHOLD = 40;
   }
-  constructor(aiService, router, sanitizer, layoutService, translate, projectsService, projectSettingsService) {
+  constructor(aiService, router, sanitizer, layoutService, translate, projectsService, projectSettingsService, speech) {
     this.aiService = aiService;
     this.router = router;
     this.sanitizer = sanitizer;
@@ -1182,9 +1294,15 @@ class AiChatComponent {
     this.translate = translate;
     this.projectsService = projectsService;
     this.projectSettingsService = projectSettingsService;
+    this.speech = speech;
     this.compactMode = false;
     this.messages = [];
     this.inputMessage = '';
+    // Dettatura. `dictationState` è quello che disegna il pulsante: fermo, registra, trascrive.
+    this.dictationState = 'idle';
+    this.dictationAvailable = false;
+    this.dictationError = null;
+    this.recording = null;
     this.isModelLoaded = false;
     this.isConfiguringProvider = false;
     this.currentModel = null;
@@ -1245,7 +1363,7 @@ class AiChatComponent {
     this.copiedMessageId = null;
     // Thinking section collapse state (per message id)
     this.collapsedThinking = new Set();
-    this.destroy$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.Subject();
+    this.destroy$ = new rxjs__WEBPACK_IMPORTED_MODULE_9__.Subject();
     this.shouldScrollToBottom = false;
     // Set on the first messages$ emission after (re)creation: the tab was just
     // (re)opened, so restore the last scroll position instead of snapping down.
@@ -1253,8 +1371,10 @@ class AiChatComponent {
     this.isFirstMessagesEmission = true;
   }
   ngOnInit() {
+    // Il microfono compare solo se il Service ha un modello di dettatura installato.
+    this.loadDictationAvailability();
     // Subscribe to messages
-    this.aiService.messages$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe(messages => {
+    this.aiService.messages$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$)).subscribe(messages => {
       this.messages = messages;
       if (this.isFirstMessagesEmission) {
         // Component just (re)created for this tab: restore where the user
@@ -1268,10 +1388,10 @@ class AiChatComponent {
       }
     });
     // Track streaming state to toggle the Send/Stop button.
-    this.aiService.toolActivity$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe(activity => this.toolActivity = activity);
-    this.aiService.isStreaming$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe(streaming => this.isStreaming = streaming);
+    this.aiService.toolActivity$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$)).subscribe(activity => this.toolActivity = activity);
+    this.aiService.isStreaming$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$)).subscribe(streaming => this.isStreaming = streaming);
     // Subscribe to model status
-    this.aiService.isModelLoaded$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe(loaded => {
+    this.aiService.isModelLoaded$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$)).subscribe(loaded => {
       console.log('[AiChatComponent] Model loaded status changed:', loaded);
       this.isModelLoaded = loaded;
       // Focus input when model is loaded
@@ -1280,21 +1400,21 @@ class AiChatComponent {
       }
     });
     // Subscribe to current model
-    this.aiService.currentModel$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe(model => {
+    this.aiService.currentModel$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$)).subscribe(model => {
       console.log('[AiChatComponent] Current model changed:', model);
       this.currentModel = model;
     });
     // Subscribe to provider configuration state (spinner while SetChatMode is in flight)
-    this.aiService.isConfiguringProvider$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe(configuring => {
+    this.aiService.isConfiguringProvider$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$)).subscribe(configuring => {
       this.isConfiguringProvider = configuring;
     });
     // Subscribe to current document
-    this.aiService.currentDocument$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe(doc => {
+    this.aiService.currentDocument$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$)).subscribe(doc => {
       console.log('[AiChatComponent] Current document changed:', doc);
       this.currentDocument = doc;
     });
     // Subscribe to fullscreen state
-    this.layoutService.chatFullScreen$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe(isFullScreen => {
+    this.layoutService.chatFullScreen$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$)).subscribe(isFullScreen => {
       this.isChatFullScreen = isFullScreen;
     });
     // Listen for TruncateMessagesAfter event from backend
@@ -1308,7 +1428,7 @@ class AiChatComponent {
     // right after SetFolderProject returns. When the flag is ON and the CLI is installed,
     // silently switch the chat to Copilot CLI. When the flag is ON but the CLI is missing,
     // lock the chat and surface a banner so the user can pick a different model.
-    this.projectsService.copilotCliAutoConfig$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe(config => {
+    this.projectsService.copilotCliAutoConfig$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$)).subscribe(config => {
       if (!config) {
         this.copilotCliUnavailable = false;
         this.copilotCliAutoSelected = false;
@@ -1342,7 +1462,7 @@ class AiChatComponent {
     // Terza gemella, per opencode. Il backend garantisce che al massimo UNO dei tre
     // auto-select arrivi acceso — il motore del progetto è uno solo — quindi queste
     // sottoscrizioni non si contendono la chat.
-    this.projectsService.openCodeAutoConfig$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe(config => {
+    this.projectsService.openCodeAutoConfig$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$)).subscribe(config => {
       if (!config) {
         this.openCodeUnavailable = false;
         this.openCodeAutoSelected = false;
@@ -1373,7 +1493,7 @@ class AiChatComponent {
     });
     // Stessa manopola, per Claude Code. Il backend garantisce che al massimo UNO dei due
     // auto-select arrivi acceso, quindi queste due sottoscrizioni non si contendono la chat.
-    this.projectsService.claudeCodeAutoConfig$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe(config => {
+    this.projectsService.claudeCodeAutoConfig$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$)).subscribe(config => {
       if (!config) {
         this.claudeCodeUnavailable = false;
         this.claudeCodeAutoSelected = false;
@@ -1403,10 +1523,10 @@ class AiChatComponent {
     });
     // Consuntivo di fine turno. Arriva solo da Claude Code: con gli altri provider resta
     // null e la riga non compare.
-    this.aiService.claudeUsage$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe(usage => {
+    this.aiService.claudeUsage$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$)).subscribe(usage => {
       this.claudeUsage = usage;
     });
-    this.aiService.copilotUsage$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_9__.takeUntil)(this.destroy$)).subscribe(usage => {
+    this.aiService.copilotUsage$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_10__.takeUntil)(this.destroy$)).subscribe(usage => {
       this.copilotUsage = usage;
     });
   }
@@ -1446,8 +1566,97 @@ class AiChatComponent {
     } catch (err) {}
   }
   ngOnDestroy() {
+    // Un microfono lasciato aperto resta acceso (e la spia pure) anche dopo che la chat è sparita.
+    this.recording?.discard();
+    this.recording = null;
     this.destroy$.next();
     this.destroy$.complete();
+  }
+  /**
+   * Il microfono: un clic registra, il clic dopo ferma e manda al Service, che risponde col testo.
+   *
+   * Non si invia da soli il messaggio trascritto: chi detta rilegge e decide. Whisper sbaglia una
+   * parola ogni tanto, e un invio automatico farebbe partire una risposta su una domanda sbagliata.
+   */
+  toggleDictation() {
+    var _this = this;
+    return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      if (_this.dictationState === 'transcribing') {
+        return;
+      }
+      if (_this.dictationState === 'recording') {
+        yield _this.finishDictation();
+        return;
+      }
+      _this.dictationError = null;
+      try {
+        _this.recording = yield _this.speech.record();
+        _this.dictationState = 'recording';
+      } catch (err) {
+        // Microfono negato o assente: il nome dell'errore del browser non dice niente all'utente.
+        _this.dictationState = 'idle';
+        _this.dictationError = err?.name === 'NotAllowedError' ? _this.translate.instant('AI_CHAT.DICTATION_DENIED') : _this.translate.instant('AI_CHAT.DICTATION_NO_MIC');
+        console.error('Microfono non disponibile:', err);
+      }
+    })();
+  }
+  finishDictation() {
+    var _this2 = this;
+    return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      const registrazione = _this2.recording;
+      _this2.recording = null;
+      if (!registrazione) {
+        _this2.dictationState = 'idle';
+        return;
+      }
+      const wav = yield registrazione.stop();
+      // Un clic partito per sbaglio non deve far aspettare tre secondi per avere niente.
+      if (registrazione.seconds < 0.4) {
+        _this2.dictationState = 'idle';
+        return;
+      }
+      _this2.dictationState = 'transcribing';
+      _this2.speech.transcribe(wav).subscribe({
+        next: res => {
+          _this2.dictationState = 'idle';
+          if (!res.text) {
+            return;
+          }
+          // Si aggiunge a quello che c'è già: si può scrivere un pezzo e dettare il resto.
+          _this2.inputMessage = _this2.inputMessage ? `${_this2.inputMessage.trimEnd()} ${res.text}` : res.text;
+          setTimeout(() => _this2.messageInput?.nativeElement?.focus(), 0);
+        },
+        error: err => {
+          _this2.dictationState = 'idle';
+          // Il Service distingue «manca il modello» (409) dal resto, e lo dice in italiano: si mostra
+          // la sua frase invece di inventarne una generica.
+          _this2.dictationError = err?.error?.error ?? _this2.translate.instant('AI_CHAT.DICTATION_FAILED');
+          console.error('Trascrizione fallita:', err);
+        }
+      });
+    })();
+  }
+  /** Annulla la registrazione in corso senza trascrivere niente. */
+  cancelDictation() {
+    var _this3 = this;
+    return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      const registrazione = _this3.recording;
+      _this3.recording = null;
+      _this3.dictationState = 'idle';
+      yield registrazione?.discard();
+    })();
+  }
+  loadDictationAvailability() {
+    this.speech.status().subscribe({
+      next: s => {
+        this.dictationAvailable = s.available;
+      },
+      // Se lo stato non si sa, il microfono resta spento: meglio un pulsante che non c'è di uno
+      // che promette qualcosa e poi dà errore.
+      error: () => {
+        this.dictationAvailable = false;
+      }
+    });
   }
   sendMessage() {
     if (!this.inputMessage.trim() || !this.isModelLoaded || this.isConfiguringProvider) return;
@@ -1552,16 +1761,16 @@ class AiChatComponent {
     console.error('[AiChatComponent] Elenco modelli Copilot non disponibile:', this.copilotModelsError);
   }
   selectCopilotModel(modelId) {
-    var _this = this;
+    var _this4 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-      if (!_this.copilotCliAutoSelected) return;
-      if (_this.selectedCopilotModel === modelId) return;
-      if (_this.isConfiguringProvider) return;
+      if (!_this4.copilotCliAutoSelected) return;
+      if (_this4.selectedCopilotModel === modelId) return;
+      if (_this4.isConfiguringProvider) return;
       console.log('[AiChatComponent] User switched Copilot model to:', modelId);
-      _this.selectedCopilotModel = modelId;
+      _this4.selectedCopilotModel = modelId;
       try {
-        yield _this.aiService.setProviderAsync('copilotcli', modelId);
-        _this.aiService.notifyCopilotCliConnected(modelId);
+        yield _this4.aiService.setProviderAsync('copilotcli', modelId);
+        _this4.aiService.notifyCopilotCliConnected(modelId);
       } catch (err) {
         console.error('[AiChatComponent] Failed to switch Copilot model:', err);
         return;
@@ -1569,12 +1778,12 @@ class AiChatComponent {
       // La scelta vale per il progetto: alla prossima apertura la chat riparte da questo modello.
       // Il cambio vero avviene alla domanda successiva, sulla sessione viva e senza perdere la
       // conversazione (SetModelAsync, lato backend).
-      const projectPath = _this.projectsService.currentProjects$.getValue()?.path;
+      const projectPath = _this4.projectsService.currentProjects$.getValue()?.path;
       if (!projectPath) {
         console.warn('[AiChatComponent] Nessun progetto aperto: il modello scelto non viene ricordato');
         return;
       }
-      _this.projectSettingsService.setCopilotChatModelSetting(modelId, projectPath).subscribe({
+      _this4.projectSettingsService.setCopilotChatModelSetting(modelId, projectPath).subscribe({
         next: () => console.log('[AiChatComponent] Modello Copilot salvato per il progetto:', modelId),
         error: err => console.error('[AiChatComponent] Salvataggio del modello per il progetto fallito:', err)
       });
@@ -1688,31 +1897,31 @@ class AiChatComponent {
     console.error('[AiChatComponent] Elenco modelli opencode non disponibile:', this.openCodeModelsError);
   }
   selectOpenCodeModel(modelId) {
-    var _this2 = this;
+    var _this5 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-      if (!_this2.openCodeAutoSelected) return;
+      if (!_this5.openCodeAutoSelected) return;
       // La voce "default del server" vale null: la scelta torna a "mai scelto", non a un modello
       // chiamato stringa vuota.
       const wanted = modelId ? modelId : null;
-      if (_this2.selectedOpenCodeModel === wanted) return;
-      if (_this2.isConfiguringProvider) return;
+      if (_this5.selectedOpenCodeModel === wanted) return;
+      if (_this5.isConfiguringProvider) return;
       console.log('[AiChatComponent] Modello opencode cambiato in:', wanted ?? '(default del server)');
-      _this2.selectedOpenCodeModel = wanted;
+      _this5.selectedOpenCodeModel = wanted;
       try {
         // Il modello viaggia in ogni messaggio: il cambio vale dalla domanda successiva e la
         // conversazione resta dov'è (verificato sul server).
-        yield _this2.aiService.setProviderAsync('opencode', wanted);
-        _this2.aiService.notifyOpenCodeConnected(wanted);
+        yield _this5.aiService.setProviderAsync('opencode', wanted);
+        _this5.aiService.notifyOpenCodeConnected(wanted);
       } catch (err) {
         console.error('[AiChatComponent] Cambio di modello opencode fallito:', err);
         return;
       }
-      const projectPath = _this2.projectsService.currentProjects$.getValue()?.path;
+      const projectPath = _this5.projectsService.currentProjects$.getValue()?.path;
       if (!projectPath) {
         console.warn('[AiChatComponent] Nessun progetto aperto: il modello scelto non viene ricordato');
         return;
       }
-      _this2.projectSettingsService.setOpenCodeChatModelSetting(wanted, projectPath).subscribe({
+      _this5.projectSettingsService.setOpenCodeChatModelSetting(wanted, projectPath).subscribe({
         next: () => console.log('[AiChatComponent] Modello opencode salvato per il progetto:', wanted ?? '(default)'),
         error: err => console.error('[AiChatComponent] Salvataggio del modello opencode per il progetto fallito:', err)
       });
@@ -1754,29 +1963,29 @@ class AiChatComponent {
     console.error('[AiChatComponent] Elenco modelli Claude Code non disponibile:', this.claudeModelsError);
   }
   selectClaudeCodeModel(modelId) {
-    var _this3 = this;
+    var _this6 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-      if (!_this3.claudeCodeAutoSelected) return;
-      if (_this3.selectedClaudeCodeModel === modelId) return;
-      if (_this3.isConfiguringProvider) return;
+      if (!_this6.claudeCodeAutoSelected) return;
+      if (_this6.selectedClaudeCodeModel === modelId) return;
+      if (_this6.isConfiguringProvider) return;
       console.log('[AiChatComponent] Modello Claude Code cambiato in:', modelId);
-      _this3.selectedClaudeCodeModel = modelId;
+      _this6.selectedClaudeCodeModel = modelId;
       try {
         // Il cambio vero avviene alla domanda successiva, sulla sessione viva (set_model): la
         // conversazione resta, e con lei il consuntivo della sessione, che quindi non si azzera.
-        yield _this3.aiService.setProviderAsync('claudecode', modelId);
-        _this3.aiService.notifyClaudeCodeConnected(modelId);
+        yield _this6.aiService.setProviderAsync('claudecode', modelId);
+        _this6.aiService.notifyClaudeCodeConnected(modelId);
       } catch (err) {
         console.error('[AiChatComponent] Cambio di modello Claude Code fallito:', err);
         return;
       }
       // La scelta vale per il progetto: alla prossima apertura MarkAgent riparte da questo modello.
-      const projectPath = _this3.projectsService.currentProjects$.getValue()?.path;
+      const projectPath = _this6.projectsService.currentProjects$.getValue()?.path;
       if (!projectPath) {
         console.warn('[AiChatComponent] Nessun progetto aperto: il modello scelto non viene ricordato');
         return;
       }
-      _this3.projectSettingsService.setClaudeCodeChatModelSetting(modelId, projectPath).subscribe({
+      _this6.projectSettingsService.setClaudeCodeChatModelSetting(modelId, projectPath).subscribe({
         next: () => console.log('[AiChatComponent] Modello Claude Code salvato per il progetto:', modelId),
         error: err => console.error('[AiChatComponent] Salvataggio del modello Claude Code per il progetto fallito:', err)
       });
@@ -1926,144 +2135,153 @@ class AiChatComponent {
   }
   static {
     this.ɵfac = function AiChatComponent_Factory(t) {
-      return new (t || AiChatComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_services_ai_chat_service__WEBPACK_IMPORTED_MODULE_2__.AiChatService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_10__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_11__.DomSanitizer), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_md_explorer_services_layout_service__WEBPACK_IMPORTED_MODULE_3__.LayoutService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_12__.TranslateService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_4__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdirectiveInject"](_projects_services_project_settings_service__WEBPACK_IMPORTED_MODULE_5__.ProjectSettingsService));
+      return new (t || AiChatComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdirectiveInject"](_services_ai_chat_service__WEBPACK_IMPORTED_MODULE_2__.AiChatService), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_11__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_12__.DomSanitizer), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdirectiveInject"](_md_explorer_services_layout_service__WEBPACK_IMPORTED_MODULE_3__.LayoutService), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdirectiveInject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_13__.TranslateService), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdirectiveInject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_4__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdirectiveInject"](_projects_services_project_settings_service__WEBPACK_IMPORTED_MODULE_5__.ProjectSettingsService), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdirectiveInject"](_services_speech_service__WEBPACK_IMPORTED_MODULE_6__.SpeechService));
     };
   }
   static {
-    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineComponent"]({
+    this.ɵcmp = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdefineComponent"]({
       type: AiChatComponent,
       selectors: [["app-ai-chat"]],
       viewQuery: function AiChatComponent_Query(rf, ctx) {
         if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵviewQuery"](_c0, 5);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵviewQuery"](_c1, 5);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵviewQuery"](_c2, 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵviewQuery"](_c0, 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵviewQuery"](_c1, 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵviewQuery"](_c2, 5);
         }
         if (rf & 2) {
           let _t;
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵloadQuery"]()) && (ctx.scrollContainer = _t.first);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵloadQuery"]()) && (ctx.messageInput = _t.first);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵloadQuery"]()) && (ctx.modelManagerPanel = _t.first);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵloadQuery"]()) && (ctx.scrollContainer = _t.first);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵloadQuery"]()) && (ctx.messageInput = _t.first);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵloadQuery"]()) && (ctx.modelManagerPanel = _t.first);
         }
       },
       inputs: {
         compactMode: "compactMode"
       },
-      decls: 39,
-      vars: 38,
-      consts: [[1, "ai-chat-container", 3, "ngClass"], [1, "chat-header", 3, "color"], [4, "ngIf"], ["class", "header-title", 4, "ngIf"], [1, "spacer"], ["class", "model-status", 4, "ngIf"], ["mat-icon-button", "", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", 3, "matTooltip", "click"], ["class", "copilot-model-bar", 4, "ngIf"], ["class", "copilot-model-bar claude-model-bar", 4, "ngIf"], ["class", "copilot-model-bar opencode-model-bar", 4, "ngIf"], ["class", "model-manager-panel", 4, "ngIf"], [1, "chat-messages", 3, "scroll"], ["scrollContainer", ""], ["class", "no-messages", 4, "ngIf"], [3, "ngClass", 4, "ngFor", "ngForOf"], ["class", "copilot-cli-unavailable-banner", 4, "ngIf"], ["class", "claude-usage-row", 4, "ngIf"], [1, "chat-input-container"], ["class", "configuring-provider-banner", 4, "ngIf"], [1, "chat-input", 3, "appearance"], ["matInput", "", 3, "ngModel", "placeholder", "rows", "disabled", "ngModelChange", "keydown"], ["messageInput", ""], ["mat-fab", "", "color", "primary", "class", "send-button", 3, "disabled", "click", 4, "ngIf"], ["mat-mini-fab", "", "color", "primary", "class", "send-button", 3, "disabled", "click", 4, "ngIf"], ["mat-fab", "", "color", "warn", "class", "send-button stop-button", 3, "title", "click", 4, "ngIf"], ["mat-mini-fab", "", "color", "warn", "class", "send-button stop-button", 3, "title", "click", 4, "ngIf"], [1, "header-title"], [1, "model-status"], ["selected", "", 3, "color", 4, "ngIf"], ["color", "warn", 4, "ngIf"], ["color", "primary", 4, "ngIf"], ["selected", "", 3, "color"], ["color", "warn"], ["color", "primary"], [1, "copilot-model-bar"], ["for", "copilot-model-select", 1, "copilot-model-label"], ["appearance", "outline", 1, "copilot-model-field"], ["id", "copilot-model-select", 3, "value", "placeholder", "disabled", "selectionChange"], [3, "value", "disabled", 4, "ngFor", "ngForOf", "ngForTrackBy"], ["mat-icon-button", "", 1, "copilot-model-refresh", 3, "disabled", "matTooltip", "click"], ["class", "copilot-model-hint", 4, "ngIf"], ["class", "copilot-model-error", 3, "matTooltip", 4, "ngIf"], ["class", "copilot-usage", 4, "ngIf"], [3, "value", "disabled"], ["class", "model-unavailable", 4, "ngIf"], [1, "model-unavailable"], [1, "copilot-model-hint"], [1, "copilot-model-error", 3, "matTooltip"], [1, "copilot-usage"], [1, "usage-item", 3, "matTooltip"], [1, "usage-sep"], [1, "copilot-model-bar", "claude-model-bar"], ["for", "claude-model-select", 1, "copilot-model-label"], ["appearance", "outline", 1, "copilot-model-field", 3, "matTooltip", "matTooltipDisabled"], ["id", "claude-model-select", 3, "value", "disabled", "selectionChange"], ["matTooltipPosition", "right", 3, "value", "disabled", "matTooltip", "matTooltipDisabled", 4, "ngFor", "ngForOf", "ngForTrackBy"], ["matTooltipPosition", "right", 3, "value", "disabled", "matTooltip", "matTooltipDisabled"], [1, "copilot-model-bar", "opencode-model-bar"], ["for", "opencode-model-select", 1, "copilot-model-label"], ["id", "opencode-model-select", 3, "value", "disabled", "selectionChange"], [3, "value"], [1, "model-manager-panel"], ["modelManagerPanel", ""], [3, "contentChanged"], [1, "no-messages"], ["class", "hint", 4, "ngIf"], [1, "hint"], [3, "ngClass"], [1, "message-content"], [1, "message-header"], [1, "message-role"], ["class", "message-actions", 4, "ngIf"], [1, "message-time"], ["class", "thinking-section", 4, "ngIf"], ["class", "message-text", 3, "innerHTML", 4, "ngIf"], ["class", "message-edit", 4, "ngIf"], ["class", "streaming-status", 4, "ngIf"], [1, "message-actions"], ["mat-icon-button", "", "class", "action-button", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", 1, "action-button", 3, "matTooltip", "click"], [1, "thinking-section"], [1, "thinking-header", 3, "click"], [1, "thinking-icon"], [1, "thinking-label"], [1, "thinking-toggle"], ["mode", "indeterminate", "class", "thinking-spinner", 3, "diameter", 4, "ngIf"], ["class", "thinking-body", 3, "innerHTML", 4, "ngIf"], ["mode", "indeterminate", 1, "thinking-spinner", 3, "diameter"], [1, "thinking-body", 3, "innerHTML"], [1, "message-text", 3, "innerHTML"], [1, "message-edit"], ["appearance", "outline", 1, "edit-textarea"], ["matInput", "", "autosize", "", "cdkTextareaAutosize", "", "cdkAutosizeMinRows", "2", "cdkAutosizeMaxRows", "10", 3, "ngModel", "rows", "ngModelChange"], ["autosize", "cdkTextareaAutosize"], [1, "edit-actions"], ["mat-button", "", 3, "click"], ["mat-raised-button", "", "color", "primary", 3, "click"], [1, "streaming-status"], ["mode", "indeterminate", 3, "diameter"], ["class", "tool-activity", 3, "matTooltip", 4, "ngIf"], [1, "tool-activity", 3, "matTooltip"], [1, "copilot-cli-unavailable-banner"], [1, "banner-text"], [1, "banner-hint"], ["mat-stroked-button", "", 3, "click"], [1, "claude-usage-row"], [1, "usage-icon"], ["class", "usage-sep", 4, "ngIf"], ["class", "usage-item", 4, "ngIf"], [1, "usage-spacer"], ["class", "usage-item usage-window", 3, "matTooltip", 4, "ngIf"], [1, "usage-item"], [1, "usage-item", "usage-window", 3, "matTooltip"], [1, "configuring-provider-banner"], ["diameter", "16", "mode", "indeterminate"], ["mat-fab", "", "color", "primary", 1, "send-button", 3, "disabled", "click"], ["mat-mini-fab", "", "color", "primary", 1, "send-button", 3, "disabled", "click"], ["mat-fab", "", "color", "warn", 1, "send-button", "stop-button", 3, "title", "click"], ["mat-mini-fab", "", "color", "warn", 1, "send-button", "stop-button", 3, "title", "click"]],
+      decls: 42,
+      vars: 41,
+      consts: [[1, "ai-chat-container", 3, "ngClass"], [1, "chat-header", 3, "color"], [4, "ngIf"], ["class", "header-title", 4, "ngIf"], [1, "spacer"], ["class", "model-status", 4, "ngIf"], ["mat-icon-button", "", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", 3, "matTooltip", "click"], ["class", "copilot-model-bar", 4, "ngIf"], ["class", "copilot-model-bar claude-model-bar", 4, "ngIf"], ["class", "copilot-model-bar opencode-model-bar", 4, "ngIf"], ["class", "model-manager-panel", 4, "ngIf"], [1, "chat-messages", 3, "scroll"], ["scrollContainer", ""], ["class", "no-messages", 4, "ngIf"], [3, "ngClass", 4, "ngFor", "ngForOf"], ["class", "copilot-cli-unavailable-banner", 4, "ngIf"], ["class", "claude-usage-row", 4, "ngIf"], [1, "chat-input-container"], ["class", "configuring-provider-banner", 4, "ngIf"], ["class", "dictation-error", 4, "ngIf"], [1, "chat-input", 3, "appearance"], ["matInput", "", 3, "ngModel", "placeholder", "rows", "disabled", "ngModelChange", "keydown"], ["messageInput", ""], ["mat-fab", "", "class", "dictation-button", 3, "color", "dictation-recording", "disabled", "matTooltip", "click", 4, "ngIf"], ["mat-mini-fab", "", "class", "dictation-button", 3, "color", "dictation-recording", "disabled", "matTooltip", "click", 4, "ngIf"], ["mat-fab", "", "color", "primary", "class", "send-button", 3, "disabled", "click", 4, "ngIf"], ["mat-mini-fab", "", "color", "primary", "class", "send-button", 3, "disabled", "click", 4, "ngIf"], ["mat-fab", "", "color", "warn", "class", "send-button stop-button", 3, "title", "click", 4, "ngIf"], ["mat-mini-fab", "", "color", "warn", "class", "send-button stop-button", 3, "title", "click", 4, "ngIf"], [1, "header-title"], [1, "model-status"], ["selected", "", 3, "color", 4, "ngIf"], ["color", "warn", 4, "ngIf"], ["color", "primary", 4, "ngIf"], ["selected", "", 3, "color"], ["color", "warn"], ["color", "primary"], [1, "copilot-model-bar"], ["for", "copilot-model-select", 1, "copilot-model-label"], ["appearance", "outline", 1, "copilot-model-field"], ["id", "copilot-model-select", 3, "value", "placeholder", "disabled", "selectionChange"], [3, "value", "disabled", 4, "ngFor", "ngForOf", "ngForTrackBy"], ["mat-icon-button", "", 1, "copilot-model-refresh", 3, "disabled", "matTooltip", "click"], ["class", "copilot-model-hint", 4, "ngIf"], ["class", "copilot-model-error", 3, "matTooltip", 4, "ngIf"], ["class", "copilot-usage", 4, "ngIf"], [3, "value", "disabled"], ["class", "model-unavailable", 4, "ngIf"], [1, "model-unavailable"], [1, "copilot-model-hint"], [1, "copilot-model-error", 3, "matTooltip"], [1, "copilot-usage"], [1, "usage-item", 3, "matTooltip"], [1, "usage-sep"], [1, "copilot-model-bar", "claude-model-bar"], ["for", "claude-model-select", 1, "copilot-model-label"], ["appearance", "outline", 1, "copilot-model-field", 3, "matTooltip", "matTooltipDisabled"], ["id", "claude-model-select", 3, "value", "disabled", "selectionChange"], ["matTooltipPosition", "right", 3, "value", "disabled", "matTooltip", "matTooltipDisabled", 4, "ngFor", "ngForOf", "ngForTrackBy"], ["matTooltipPosition", "right", 3, "value", "disabled", "matTooltip", "matTooltipDisabled"], [1, "copilot-model-bar", "opencode-model-bar"], ["for", "opencode-model-select", 1, "copilot-model-label"], ["id", "opencode-model-select", 3, "value", "disabled", "selectionChange"], [3, "value"], [1, "model-manager-panel"], ["modelManagerPanel", ""], [3, "contentChanged"], [1, "no-messages"], ["class", "hint", 4, "ngIf"], [1, "hint"], [3, "ngClass"], [1, "message-content"], [1, "message-header"], [1, "message-role"], ["class", "message-actions", 4, "ngIf"], [1, "message-time"], ["class", "thinking-section", 4, "ngIf"], ["class", "message-text", 3, "innerHTML", 4, "ngIf"], ["class", "message-edit", 4, "ngIf"], ["class", "streaming-status", 4, "ngIf"], [1, "message-actions"], ["mat-icon-button", "", "class", "action-button", 3, "matTooltip", "click", 4, "ngIf"], ["mat-icon-button", "", 1, "action-button", 3, "matTooltip", "click"], [1, "thinking-section"], [1, "thinking-header", 3, "click"], [1, "thinking-icon"], [1, "thinking-label"], [1, "thinking-toggle"], ["mode", "indeterminate", "class", "thinking-spinner", 3, "diameter", 4, "ngIf"], ["class", "thinking-body", 3, "innerHTML", 4, "ngIf"], ["mode", "indeterminate", 1, "thinking-spinner", 3, "diameter"], [1, "thinking-body", 3, "innerHTML"], [1, "message-text", 3, "innerHTML"], [1, "message-edit"], ["appearance", "outline", 1, "edit-textarea"], ["matInput", "", "autosize", "", "cdkTextareaAutosize", "", "cdkAutosizeMinRows", "2", "cdkAutosizeMaxRows", "10", 3, "ngModel", "rows", "ngModelChange"], ["autosize", "cdkTextareaAutosize"], [1, "edit-actions"], ["mat-button", "", 3, "click"], ["mat-raised-button", "", "color", "primary", 3, "click"], [1, "streaming-status"], ["mode", "indeterminate", 3, "diameter"], ["class", "tool-activity", 3, "matTooltip", 4, "ngIf"], [1, "tool-activity", 3, "matTooltip"], [1, "copilot-cli-unavailable-banner"], [1, "banner-text"], [1, "banner-hint"], ["mat-stroked-button", "", 3, "click"], [1, "claude-usage-row"], [1, "usage-icon"], ["class", "usage-sep", 4, "ngIf"], ["class", "usage-item", 4, "ngIf"], [1, "usage-spacer"], ["class", "usage-item usage-window", 3, "matTooltip", 4, "ngIf"], [1, "usage-item"], [1, "usage-item", "usage-window", 3, "matTooltip"], [1, "configuring-provider-banner"], ["diameter", "16", "mode", "indeterminate"], [1, "dictation-error"], [1, "dictation-error-icon"], ["mat-icon-button", "", 3, "click"], ["mat-fab", "", 1, "dictation-button", 3, "color", "disabled", "matTooltip", "click"], ["diameter", "20", 4, "ngIf"], ["diameter", "20"], ["mat-mini-fab", "", 1, "dictation-button", 3, "color", "disabled", "matTooltip", "click"], ["mat-fab", "", "color", "primary", 1, "send-button", 3, "disabled", "click"], ["mat-mini-fab", "", "color", "primary", 1, "send-button", 3, "disabled", "click"], ["mat-fab", "", "color", "warn", 1, "send-button", "stop-button", 3, "title", "click"], ["mat-mini-fab", "", "color", "warn", 1, "send-button", "stop-button", 3, "title", "click"]],
       template: function AiChatComponent_Template(rf, ctx) {
         if (rf & 1) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](0, "div", 0)(1, "mat-toolbar", 1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](2, AiChatComponent_mat_icon_2_Template, 2, 0, "mat-icon", 2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](3, AiChatComponent_span_3_Template, 3, 3, "span", 3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelement"](4, "span", 4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](5, AiChatComponent_div_5_Template, 5, 3, "div", 5);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](6, AiChatComponent_button_6_Template, 5, 6, "button", 6);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](7, "button", 7);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_Template_button_click_7_listener() {
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](0, "div", 0)(1, "mat-toolbar", 1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](2, AiChatComponent_mat_icon_2_Template, 2, 0, "mat-icon", 2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](3, AiChatComponent_span_3_Template, 3, 3, "span", 3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelement"](4, "span", 4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](5, AiChatComponent_div_5_Template, 5, 3, "div", 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](6, AiChatComponent_button_6_Template, 5, 6, "button", 6);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](7, "button", 7);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_Template_button_click_7_listener() {
             return ctx.newSession();
           });
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](8, "translate");
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](9, "mat-icon");
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](10, "add_comment");
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](11, "button", 7);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("click", function AiChatComponent_Template_button_click_11_listener() {
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](8, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](9, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](10, "add_comment");
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](11, "button", 7);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("click", function AiChatComponent_Template_button_click_11_listener() {
             return ctx.toggleModelManager();
           });
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](12, "translate");
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](13, "mat-icon");
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](14, "settings");
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()()();
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](15, AiChatComponent_div_15_Template, 15, 19, "div", 8);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](16, AiChatComponent_div_16_Template, 13, 17, "div", 9);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](17, AiChatComponent_div_17_Template, 16, 21, "div", 10);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](18, AiChatComponent_div_18_Template, 3, 0, "div", 11);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](19, "div", 12, 13);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("scroll", function AiChatComponent_Template_div_scroll_19_listener() {
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](12, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](13, "mat-icon");
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](14, "settings");
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](15, AiChatComponent_div_15_Template, 15, 19, "div", 8);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](16, AiChatComponent_div_16_Template, 13, 17, "div", 9);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](17, AiChatComponent_div_17_Template, 16, 21, "div", 10);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](18, AiChatComponent_div_18_Template, 3, 0, "div", 11);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](19, "div", 12, 13);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("scroll", function AiChatComponent_Template_div_scroll_19_listener() {
             return ctx.onChatScroll();
           });
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](21, AiChatComponent_div_21_Template, 7, 4, "div", 14);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](22, AiChatComponent_div_22_Template, 16, 17, "div", 15);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](23, AiChatComponent_div_23_Template, 15, 9, "div", 16);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](24, AiChatComponent_div_24_Template, 15, 9, "div", 16);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](25, AiChatComponent_div_25_Template, 22, 18, "div", 17);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](26, "div", 18);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](27, AiChatComponent_div_27_Template, 5, 3, "div", 19);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementStart"](28, "mat-form-field", 20)(29, "textarea", 21, 22);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵlistener"]("ngModelChange", function AiChatComponent_Template_textarea_ngModelChange_29_listener($event) {
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](21, AiChatComponent_div_21_Template, 7, 4, "div", 14);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](22, AiChatComponent_div_22_Template, 16, 17, "div", 15);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](23, AiChatComponent_div_23_Template, 15, 9, "div", 16);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](24, AiChatComponent_div_24_Template, 15, 9, "div", 16);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](25, AiChatComponent_div_25_Template, 22, 18, "div", 17);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](26, "div", 18);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](27, AiChatComponent_div_27_Template, 5, 3, "div", 19);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](28, AiChatComponent_div_28_Template, 9, 4, "div", 20);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementStart"](29, "mat-form-field", 21)(30, "textarea", 22, 23);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵlistener"]("ngModelChange", function AiChatComponent_Template_textarea_ngModelChange_30_listener($event) {
             return ctx.inputMessage = $event;
-          })("keydown", function AiChatComponent_Template_textarea_keydown_29_listener($event) {
+          })("keydown", function AiChatComponent_Template_textarea_keydown_30_listener($event) {
             return ctx.handleKeyDown($event);
           });
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](31, "translate");
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipe"](32, "translate");
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtext"](33, "      ");
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](34, AiChatComponent_mat_hint_34_Template, 3, 3, "mat-hint", 2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]();
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](35, AiChatComponent_button_35_Template, 3, 1, "button", 23);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](36, AiChatComponent_button_36_Template, 3, 1, "button", 24);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](37, AiChatComponent_button_37_Template, 4, 3, "button", 25);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵtemplate"](38, AiChatComponent_button_38_Template, 4, 3, "button", 26);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵelementEnd"]()();
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](32, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipe"](33, "translate");
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtext"](34, "      ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](35, AiChatComponent_mat_hint_35_Template, 3, 3, "mat-hint", 2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]();
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](36, AiChatComponent_button_36_Template, 4, 9, "button", 24);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](37, AiChatComponent_button_37_Template, 4, 9, "button", 25);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](38, AiChatComponent_button_38_Template, 3, 1, "button", 26);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](39, AiChatComponent_button_39_Template, 3, 1, "button", 27);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](40, AiChatComponent_button_40_Template, 4, 3, "button", 28);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtemplate"](41, AiChatComponent_button_41_Template, 4, 3, "button", 29);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵelementEnd"]()();
         }
         if (rf & 2) {
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngClass", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpureFunction1"](36, _c6, ctx.compactMode));
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("color", ctx.compactMode ? "accent" : "primary");
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", !ctx.compactMode);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", !ctx.compactMode);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", !ctx.compactMode || ctx.isModelLoaded || ctx.currentDocument || ctx.copilotCliAutoSelected || ctx.claudeCodeAutoSelected);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx.compactMode);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](8, 28, "AI_CHAT.NEW_SESSION"));
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](12, 30, "AI_CHAT.MODEL_MANAGER"));
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](4);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx.copilotCliAutoSelected);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx.claudeCodeAutoSelected);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx.openCodeAutoSelected);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx.showModelManager);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx.messages.length === 0);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngForOf", ctx.messages);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx.copilotCliUnavailable);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx.claudeCodeUnavailable);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx.claudeUsage);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx.isConfiguringProvider);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("appearance", ctx.compactMode ? "fill" : "outline");
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngModel", ctx.inputMessage)("placeholder", ctx.compactMode ? _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](31, 32, "AI_CHAT.PLACEHOLDER_COMPACT") : _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵpipeBind1"](32, 34, "AI_CHAT.PLACEHOLDER_FULL"))("rows", ctx.compactMode ? 2 : 3)("disabled", !ctx.isModelLoaded || ctx.isConfiguringProvider);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](5);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", !ctx.isModelLoaded && !ctx.isConfiguringProvider && !ctx.compactMode);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", !ctx.compactMode && !ctx.isStreaming);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx.compactMode && !ctx.isStreaming);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", !ctx.compactMode && ctx.isStreaming);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
-          _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx.compactMode && ctx.isStreaming);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngClass", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpureFunction1"](39, _c6, ctx.compactMode));
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("color", ctx.compactMode ? "accent" : "primary");
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", !ctx.compactMode);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", !ctx.compactMode);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", !ctx.compactMode || ctx.isModelLoaded || ctx.currentDocument || ctx.copilotCliAutoSelected || ctx.claudeCodeAutoSelected);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx.compactMode);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](8, 31, "AI_CHAT.NEW_SESSION"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("matTooltip", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](12, 33, "AI_CHAT.MODEL_MANAGER"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](4);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx.copilotCliAutoSelected);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx.claudeCodeAutoSelected);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx.openCodeAutoSelected);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx.showModelManager);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx.messages.length === 0);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngForOf", ctx.messages);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx.copilotCliUnavailable);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx.claudeCodeUnavailable);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx.claudeUsage);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx.isConfiguringProvider);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx.dictationError);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("appearance", ctx.compactMode ? "fill" : "outline");
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngModel", ctx.inputMessage)("placeholder", ctx.compactMode ? _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](32, 35, "AI_CHAT.PLACEHOLDER_COMPACT") : _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](33, 37, "AI_CHAT.PLACEHOLDER_FULL"))("rows", ctx.compactMode ? 2 : 3)("disabled", !ctx.isModelLoaded || ctx.isConfiguringProvider);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", !ctx.isModelLoaded && !ctx.isConfiguringProvider && !ctx.compactMode);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx.dictationAvailable && !ctx.isStreaming && !ctx.compactMode);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx.dictationAvailable && !ctx.isStreaming && ctx.compactMode);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", !ctx.compactMode && !ctx.isStreaming);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx.compactMode && !ctx.isStreaming);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", !ctx.compactMode && ctx.isStreaming);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx.compactMode && ctx.isStreaming);
         }
       },
-      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_13__.NgClass, _angular_common__WEBPACK_IMPORTED_MODULE_13__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_13__.NgIf, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_14__.NgModel, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_15__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_16__.MatIcon, _angular_material_toolbar__WEBPACK_IMPORTED_MODULE_17__.MatToolbar, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_18__.MatLegacyProgressSpinner, _angular_material_legacy_chips__WEBPACK_IMPORTED_MODULE_19__.MatLegacyChipList, _angular_material_legacy_chips__WEBPACK_IMPORTED_MODULE_19__.MatLegacyChip, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_20__.MatLegacyFormField, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_20__.MatLegacyHint, _angular_material_legacy_select__WEBPACK_IMPORTED_MODULE_21__.MatLegacySelect, _angular_material_legacy_core__WEBPACK_IMPORTED_MODULE_22__.MatLegacyOption, _angular_cdk_text_field__WEBPACK_IMPORTED_MODULE_23__.CdkTextareaAutosize, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_24__.MatLegacyInput, _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_25__.MatLegacyTooltip, _model_manager_component__WEBPACK_IMPORTED_MODULE_6__.ModelManagerComponent, _angular_common__WEBPACK_IMPORTED_MODULE_13__.TitleCasePipe, _angular_common__WEBPACK_IMPORTED_MODULE_13__.DatePipe, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_12__.TranslatePipe],
-      styles: ["@charset \"UTF-8\";\n.ai-chat-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  height: calc(100% - 20px);\n  margin: 10px;\n  background: var(--mde-bg-primary);\n  border-radius: 8px;\n  border: 1px solid var(--mde-border-color);\n  \n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n  border-bottom: 1px solid var(--mde-border-color);\n  z-index: 10;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .header-title[_ngcontent-%COMP%] {\n  margin-left: 10px;\n  font-size: 1.2em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .spacer[_ngcontent-%COMP%] {\n  flex: 1;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .model-status[_ngcontent-%COMP%] {\n  margin-right: 10px;\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  flex-wrap: wrap;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .model-manager-panel[_ngcontent-%COMP%] {\n  position: relative;\n  flex: 0 0 auto;\n  height: 70vh !important;\n  overflow-y: auto !important;\n  overflow-x: hidden;\n  border-bottom: 1px solid var(--mde-border-color);\n  background: var(--mde-bg-primary);\n  box-sizing: border-box;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .model-manager-panel[_ngcontent-%COMP%]::-webkit-scrollbar {\n  width: 8px;\n  display: block !important;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .model-manager-panel[_ngcontent-%COMP%]::-webkit-scrollbar-track {\n  background: var(--mde-scrollbar-track);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .model-manager-panel[_ngcontent-%COMP%]::-webkit-scrollbar-thumb {\n  background: var(--mde-scrollbar-thumb);\n  border-radius: 4px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .model-manager-panel[_ngcontent-%COMP%]::-webkit-scrollbar-thumb:hover {\n  background: var(--mde-scrollbar-hover);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .model-manager-panel[_ngcontent-%COMP%]   app-model-manager[_ngcontent-%COMP%] {\n  display: block;\n  min-height: min-content;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%] {\n  flex: 1;\n  overflow-y: auto;\n  padding: 12px 0;\n  background: var(--mde-bg-primary);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .no-messages[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  color: var(--mde-text-hint);\n  text-align: center;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .no-messages[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 64px;\n  width: 64px;\n  height: 64px;\n  opacity: 0.3;\n  margin-bottom: 20px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .no-messages[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 5px 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .no-messages[_ngcontent-%COMP%]   .hint[_ngcontent-%COMP%] {\n  font-size: 0.9em;\n  color: var(--mde-warning-fg);\n  margin-top: 10px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%] {\n  display: flex;\n  padding: 10px 16px;\n  border-left: 3px solid transparent;\n  margin-bottom: 2px;\n  animation: _ngcontent-%COMP%_slideIn 0.3s ease-out;\n  transition: background-color 0.15s ease;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]:hover {\n  background-color: var(--mde-hover-overlay);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%] {\n  flex: 1;\n  padding: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%] {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  margin-bottom: 6px;\n  font-size: 0.85em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-role[_ngcontent-%COMP%] {\n  font-weight: 600;\n  text-transform: capitalize;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-actions[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 4px;\n  margin: 0 8px;\n  opacity: 0;\n  transition: opacity 0.2s;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-actions[_ngcontent-%COMP%]   .action-button[_ngcontent-%COMP%] {\n  width: 32px;\n  height: 32px;\n  line-height: 32px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-actions[_ngcontent-%COMP%]   .action-button[_ngcontent-%COMP%]     .mat-icon {\n  font-size: 18px;\n  width: 18px;\n  height: 18px;\n  line-height: 18px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-time[_ngcontent-%COMP%] {\n  color: var(--mde-text-hint);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%] {\n  line-height: 1.5;\n  -webkit-user-select: text;\n          user-select: text;\n  word-wrap: break-word;\n  overflow-wrap: break-word;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 0 0 8px 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   p[_ngcontent-%COMP%]:last-child {\n  margin-bottom: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   pre[_ngcontent-%COMP%] {\n  background: #1e1e1e;\n  color: #d4d4d4;\n  padding: 12px 16px;\n  border-radius: 6px;\n  overflow-x: auto;\n  margin: 10px 0;\n  font-size: 0.9em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   pre[_ngcontent-%COMP%]   code[_ngcontent-%COMP%] {\n  background: none;\n  padding: 0;\n  border-radius: 0;\n  color: inherit;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   code[_ngcontent-%COMP%] {\n  background: var(--mde-bg-tertiary);\n  padding: 2px 6px;\n  border-radius: 3px;\n  font-family: \"Courier New\", Consolas, monospace;\n  font-size: 0.9em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h1[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h2[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h3[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h4[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h5[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h6[_ngcontent-%COMP%] {\n  margin: 16px 0 8px 0;\n  font-weight: 600;\n  line-height: 1.3;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h1[_ngcontent-%COMP%]:first-child, .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h2[_ngcontent-%COMP%]:first-child, .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h3[_ngcontent-%COMP%]:first-child, .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h4[_ngcontent-%COMP%]:first-child, .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h5[_ngcontent-%COMP%]:first-child, .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h6[_ngcontent-%COMP%]:first-child {\n  margin-top: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h1[_ngcontent-%COMP%] {\n  font-size: 1.4em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h2[_ngcontent-%COMP%] {\n  font-size: 1.25em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h3[_ngcontent-%COMP%] {\n  font-size: 1.1em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h4[_ngcontent-%COMP%] {\n  font-size: 1em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   table[_ngcontent-%COMP%] {\n  border-collapse: collapse;\n  width: 100%;\n  margin: 10px 0;\n  font-size: 0.9em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   table[_ngcontent-%COMP%]   th[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   table[_ngcontent-%COMP%]   td[_ngcontent-%COMP%] {\n  border: 1px solid var(--mde-border-color);\n  padding: 8px 12px;\n  text-align: left;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   table[_ngcontent-%COMP%]   th[_ngcontent-%COMP%] {\n  background: var(--mde-bg-tertiary);\n  font-weight: 600;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   table[_ngcontent-%COMP%]   tr[_ngcontent-%COMP%]:nth-child(even) {\n  background: var(--mde-bg-secondary);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   table[_ngcontent-%COMP%]   tr[_ngcontent-%COMP%]:hover {\n  background: var(--mde-bg-hover);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ul[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%] {\n  margin: 8px 0;\n  padding-left: 24px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ul[_ngcontent-%COMP%]   li[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%]   li[_ngcontent-%COMP%] {\n  margin-bottom: 4px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ul[_ngcontent-%COMP%]   ul[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ul[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%]   ul[_ngcontent-%COMP%] {\n  margin: 4px 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   blockquote[_ngcontent-%COMP%] {\n  border-left: 4px solid var(--mde-accent-secondary);\n  margin: 10px 0;\n  padding: 8px 16px;\n  background: var(--mde-bg-tertiary);\n  color: var(--mde-text-secondary);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   blockquote[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   a[_ngcontent-%COMP%] {\n  color: var(--mde-accent-primary);\n  text-decoration: none;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   a[_ngcontent-%COMP%]:hover {\n  text-decoration: underline;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   hr[_ngcontent-%COMP%] {\n  border: none;\n  border-top: 1px solid var(--mde-border-color);\n  margin: 16px 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   img[_ngcontent-%COMP%] {\n  max-width: 100%;\n  border-radius: 4px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%] {\n  margin-bottom: 8px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  cursor: pointer;\n  padding: 6px 10px;\n  background: #f3e5f5;\n  border-left: 3px solid #9c27b0;\n  border-radius: 4px;\n  font-size: 0.85em;\n  color: #7b1fa2;\n  -webkit-user-select: none;\n          user-select: none;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]:hover {\n  background: #e1bee7;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]   .thinking-icon[_ngcontent-%COMP%] {\n  font-size: 18px;\n  width: 18px;\n  height: 18px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]   .thinking-label[_ngcontent-%COMP%] {\n  font-weight: 500;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]   .thinking-toggle[_ngcontent-%COMP%] {\n  margin-left: auto;\n  font-size: 18px;\n  width: 18px;\n  height: 18px;\n  transition: transform 0.2s;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]   .thinking-spinner[_ngcontent-%COMP%] {\n  margin-left: 8px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-body[_ngcontent-%COMP%] {\n  padding: 8px 12px;\n  background: #faf5fc;\n  border-left: 3px solid #ce93d8;\n  border-radius: 0 0 4px 4px;\n  font-size: 0.9em;\n  color: #555;\n  max-height: 300px;\n  overflow-y: auto;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-body[_ngcontent-%COMP%]   pre[_ngcontent-%COMP%] {\n  background: #2d2d2d;\n  color: #ccc;\n  padding: 8px;\n  border-radius: 4px;\n  font-size: 0.85em;\n  overflow-x: auto;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-edit[_ngcontent-%COMP%] {\n  margin-top: 8px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-edit[_ngcontent-%COMP%]   .edit-textarea[_ngcontent-%COMP%] {\n  width: 100%;\n  margin-bottom: 8px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-edit[_ngcontent-%COMP%]   .edit-textarea[_ngcontent-%COMP%]     .mat-form-field-wrapper {\n  padding-bottom: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-edit[_ngcontent-%COMP%]   .edit-textarea[_ngcontent-%COMP%]     textarea {\n  resize: vertical;\n  font-family: inherit;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-edit[_ngcontent-%COMP%]   .edit-actions[_ngcontent-%COMP%] {\n  display: flex;\n  justify-content: flex-end;\n  gap: 8px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-edit[_ngcontent-%COMP%]   .edit-actions[_ngcontent-%COMP%]   button[_ngcontent-%COMP%] {\n  min-width: auto;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   mat-progress-spinner[_ngcontent-%COMP%] {\n  margin-top: 10px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]:hover   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-actions[_ngcontent-%COMP%] {\n  opacity: 1;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%] {\n  border-left-color: var(--mde-accent-secondary);\n  background-color: #f5f7ff;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-role[_ngcontent-%COMP%] {\n  color: var(--mde-accent-secondary);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%]:hover {\n  background-color: #ebeefb;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-assistant[_ngcontent-%COMP%] {\n  border-left-color: var(--mde-success-fg);\n  background-color: var(--mde-bg-primary);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-assistant[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-role[_ngcontent-%COMP%] {\n  color: var(--mde-success-fg);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-assistant[_ngcontent-%COMP%]:hover {\n  background-color: var(--mde-hover-overlay);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-system[_ngcontent-%COMP%] {\n  border-left-color: var(--mde-warning-fg);\n  background-color: var(--mde-warning-bg);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-system[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-role[_ngcontent-%COMP%] {\n  color: var(--mde-warning-fg);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .claude-usage-row[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 4px 16px;\n  font-size: 11px;\n  line-height: 1.4;\n  color: var(--mde-text-secondary, rgba(0, 0, 0, 0.6));\n  background: var(--mde-surface-2, rgba(0, 0, 0, 0.03));\n  border-top: 1px solid var(--mde-divider, rgba(0, 0, 0, 0.08));\n  \n}\n.ai-chat-container[_ngcontent-%COMP%]   .claude-usage-row[_ngcontent-%COMP%]   .usage-icon[_ngcontent-%COMP%] {\n  font-size: 14px;\n  width: 14px;\n  height: 14px;\n  opacity: 0.7;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .claude-usage-row[_ngcontent-%COMP%]   .usage-item[_ngcontent-%COMP%]   strong[_ngcontent-%COMP%] {\n  font-weight: 600;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .claude-usage-row[_ngcontent-%COMP%]   .usage-sep[_ngcontent-%COMP%] {\n  opacity: 0.4;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .claude-usage-row[_ngcontent-%COMP%]   .usage-spacer[_ngcontent-%COMP%] {\n  flex: 1;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .claude-usage-row[_ngcontent-%COMP%]   .usage-window[_ngcontent-%COMP%] {\n  opacity: 0.8;\n  white-space: nowrap;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .copilot-cli-unavailable-banner[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  padding: 10px 16px;\n  background: var(--mde-warning-bg);\n  border-top: 1px solid var(--mde-warning-fg);\n  border-bottom: 1px solid var(--mde-warning-fg);\n  color: var(--mde-warning-fg);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .copilot-cli-unavailable-banner[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .copilot-cli-unavailable-banner[_ngcontent-%COMP%]   .banner-text[_ngcontent-%COMP%] {\n  flex: 1;\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  font-size: 12px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .copilot-cli-unavailable-banner[_ngcontent-%COMP%]   .banner-text[_ngcontent-%COMP%]   strong[_ngcontent-%COMP%] {\n  font-size: 13px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .copilot-cli-unavailable-banner[_ngcontent-%COMP%]   .banner-text[_ngcontent-%COMP%]   .banner-hint[_ngcontent-%COMP%] {\n  opacity: 0.85;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .copilot-cli-unavailable-banner[_ngcontent-%COMP%]   button[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n  display: flex;\n  flex-wrap: wrap;\n  padding: 16px;\n  background: var(--mde-bg-secondary);\n  border-top: 2px solid var(--mde-border-color);\n  gap: 10px;\n  align-items: flex-end;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .configuring-provider-banner[_ngcontent-%COMP%] {\n  flex-basis: 100%;\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  padding: 6px 12px;\n  background: var(--mde-accent-light);\n  border: 1px solid var(--mde-outline-color);\n  border-radius: 4px;\n  font-size: 12px;\n  color: var(--mde-accent-secondary);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .configuring-provider-banner[_ngcontent-%COMP%]   mat-progress-spinner[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .chat-input[_ngcontent-%COMP%] {\n  flex: 1;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .chat-input[_ngcontent-%COMP%]     .mat-form-field-wrapper {\n  padding-bottom: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .chat-input[_ngcontent-%COMP%]     textarea {\n  background: var(--mde-bg-primary);\n  border-radius: 4px;\n  resize: vertical;\n  min-height: 48px;\n  max-height: 40vh;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .send-button[_ngcontent-%COMP%] {\n  margin-bottom: 4px;\n}\n\n@keyframes _ngcontent-%COMP%_slideIn {\n  from {\n    opacity: 0;\n    transform: translateY(10px);\n  }\n  to {\n    opacity: 1;\n    transform: translateY(0);\n  }\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%] {\n  background-color: var(--mde-bg-secondary) !important;\n  color: var(--mde-text-primary) !important;\n  border-bottom-color: var(--mde-border-color);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .header-title[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .header-title[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .header-title[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .header-title[_ngcontent-%COMP%] {\n  color: var(--mde-text-primary);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%] {\n  color: var(--mde-text-primary);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: var(--mde-text-primary);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]:hover, body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]:hover, body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]:hover, body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]:hover, body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]:hover, body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]:hover, body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]:hover, body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]:hover {\n  background-color: var(--mde-bg-hover);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%] {\n  color: var(--mde-text-hint);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: var(--mde-text-hint);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]    > mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]    > mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]    > mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]    > mat-icon[_ngcontent-%COMP%] {\n  color: var(--mde-text-primary);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%] {\n  background: rgba(156, 39, 176, 0.18);\n  color: #ce93d8;\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]:hover, body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]:hover, body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]:hover, body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]:hover {\n  background: rgba(156, 39, 176, 0.28);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-body[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-body[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-body[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-body[_ngcontent-%COMP%] {\n  background: rgba(156, 39, 176, 0.08);\n  border-left-color: rgba(206, 147, 216, 0.5);\n  color: var(--mde-text-secondary);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%] {\n  background-color: rgba(121, 134, 203, 0.15);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%]:hover, body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%]:hover, body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%]:hover, body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%]:hover {\n  background-color: rgba(121, 134, 203, 0.25);\n}\n\n.ai-chat-container.compact-mode[_ngcontent-%COMP%] {\n  margin: 0;\n  height: 100%;\n  border-radius: 0;\n  border: none;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%] {\n  min-height: 48px;\n  padding: 0 8px;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .header-title[_ngcontent-%COMP%] {\n  display: none;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .model-status[_ngcontent-%COMP%] {\n  margin-right: 4px;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .model-status[_ngcontent-%COMP%]     .mat-chip-list .mat-chip {\n  min-height: 24px;\n  padding: 4px 8px;\n  font-size: 0.75rem;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .model-status[_ngcontent-%COMP%]     .mat-chip-list .mat-chip mat-icon {\n  font-size: 16px;\n  width: 16px;\n  height: 16px;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%] {\n  padding: 8px 0;\n  background: var(--mde-bg-secondary);\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .no-messages[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 48px;\n  width: 48px;\n  height: 48px;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .no-messages[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  font-size: 0.9em;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%] {\n  padding: 8px 12px;\n  margin-bottom: 1px;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%] {\n  margin-bottom: 4px;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-role[_ngcontent-%COMP%] {\n  font-size: 0.75em;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-time[_ngcontent-%COMP%] {\n  font-size: 0.7em;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%] {\n  font-size: 0.9em;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   pre[_ngcontent-%COMP%] {\n  padding: 6px;\n  font-size: 0.85em;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%] {\n  padding: 10px;\n  gap: 8px;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .chat-input[_ngcontent-%COMP%]     .mat-form-field-infix {\n  padding: 8px 0;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .chat-input[_ngcontent-%COMP%]     textarea {\n  font-size: 0.9em;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .send-button[_ngcontent-%COMP%]     .mat-button-wrapper {\n  padding: 0;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .send-button[_ngcontent-%COMP%]     .mat-button-wrapper mat-icon {\n  font-size: 18px;\n}\n\n.streaming-status[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  min-width: 0;\n}\n.streaming-status[_ngcontent-%COMP%]   .tool-activity[_ngcontent-%COMP%] {\n  font-size: 12px;\n  font-style: italic;\n  color: var(--mde-text-hint);\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  min-width: 0;\n}\n\n.copilot-model-bar[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n  display: flex;\n  flex-wrap: wrap;\n  row-gap: 0;\n  container-type: inline-size;\n  align-items: center;\n  gap: 8px;\n  padding: 2px 12px;\n  border-bottom: 1px solid var(--mde-border-color);\n  background: var(--mde-bg-primary);\n  min-width: 0;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-label[_ngcontent-%COMP%] {\n  font-size: 12px;\n  color: var(--mde-text-hint);\n  white-space: nowrap;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-field[_ngcontent-%COMP%] {\n  flex: 1 1 0;\n  min-width: 110px;\n  max-width: 320px;\n  font-size: 13px;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-field[_ngcontent-%COMP%]     .mat-form-field-wrapper {\n  padding-bottom: 0;\n  margin: 0;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-field[_ngcontent-%COMP%]     .mat-form-field-infix {\n  padding: 6px 0;\n  border-top: 0;\n  width: auto;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-field[_ngcontent-%COMP%]     .mat-form-field-outline {\n  top: 0;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-field[_ngcontent-%COMP%]     .mat-form-field-subscript-wrapper {\n  display: none;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-refresh[_ngcontent-%COMP%] {\n  width: 32px;\n  height: 32px;\n  line-height: 32px;\n  flex-shrink: 0;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-refresh[_ngcontent-%COMP%]   .spinning[_ngcontent-%COMP%] {\n  animation: _ngcontent-%COMP%_copilot-model-spin 1s linear infinite;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-hint[_ngcontent-%COMP%] {\n  font-size: 12px;\n  font-style: italic;\n  color: var(--mde-text-hint);\n  white-space: nowrap;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-error[_ngcontent-%COMP%] {\n  display: inline-flex;\n  align-items: center;\n  gap: 4px;\n  font-size: 12px;\n  color: var(--mde-warning-fg);\n  white-space: nowrap;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-error[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 16px;\n  width: 16px;\n  height: 16px;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-usage[_ngcontent-%COMP%] {\n  margin-left: auto;\n  display: inline-flex;\n  flex-wrap: wrap;\n  align-items: center;\n  gap: 2px 6px;\n  padding-bottom: 2px;\n  font-size: 11px;\n  color: var(--mde-text-hint);\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-usage[_ngcontent-%COMP%]   .usage-item[_ngcontent-%COMP%] {\n  white-space: nowrap;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-usage[_ngcontent-%COMP%]   .usage-item[_ngcontent-%COMP%]   strong[_ngcontent-%COMP%] {\n  font-weight: 600;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-usage[_ngcontent-%COMP%]   .usage-sep[_ngcontent-%COMP%] {\n  opacity: 0.5;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-usage[_ngcontent-%COMP%]   .usage-high[_ngcontent-%COMP%]   strong[_ngcontent-%COMP%] {\n  color: var(--mde-warning-fg);\n}\n@container (max-width: 420px) {\n  .copilot-model-bar[_ngcontent-%COMP%]   .copilot-usage[_ngcontent-%COMP%] {\n    flex-basis: 100%;\n    margin-left: 0;\n    flex-wrap: nowrap;\n    gap: 4px;\n  }\n}\n\n.model-unavailable[_ngcontent-%COMP%] {\n  font-style: italic;\n  opacity: 0.7;\n}\n\n@keyframes _ngcontent-%COMP%_copilot-model-spin {\n  from {\n    transform: rotate(0deg);\n  }\n  to {\n    transform: rotate(360deg);\n  }\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvYWktY2hhdC9haS1jaGF0LmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGdCQUFnQjtBQUFoQjtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLHlCQUFBO0VBQ0EsWUFBQTtFQUNBLGlDQUFBO0VBQ0Esa0JBQUE7RUFDQSx5Q0FBQTtFQWdhQTs7Z0dBQUE7QUEzWkY7QUFIRTtFQUNFLGNBQUE7RUFDQSxnREFBQTtFQUNBLFdBQUE7QUFLSjtBQUhJO0VBQ0UsaUJBQUE7RUFDQSxnQkFBQTtBQUtOO0FBRkk7RUFDRSxPQUFBO0FBSU47QUFESTtFQUNFLGtCQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGVBQUE7QUFHTjtBQUVFO0VBQ0Usa0JBQUE7RUFDQSxjQUFBO0VBQ0EsdUJBQUE7RUFDQSwyQkFBQTtFQUNBLGtCQUFBO0VBQ0EsZ0RBQUE7RUFDQSxpQ0FBQTtFQUNBLHNCQUFBO0FBQUo7QUFFSTtFQUNFLFVBQUE7RUFDQSx5QkFBQTtBQUFOO0FBR0k7RUFDRSxzQ0FBQTtBQUROO0FBSUk7RUFDRSxzQ0FBQTtFQUNBLGtCQUFBO0FBRk47QUFLSTtFQUNFLHNDQUFBO0FBSE47QUFNSTtFQUNFLGNBQUE7RUFDQSx1QkFBQTtBQUpOO0FBUUU7RUFDRSxPQUFBO0VBQ0EsZ0JBQUE7RUFDQSxlQUFBO0VBQ0EsaUNBQUE7QUFOSjtBQVFJO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLFlBQUE7RUFDQSwyQkFBQTtFQUNBLGtCQUFBO0FBTk47QUFRTTtFQUNFLGVBQUE7RUFDQSxXQUFBO0VBQ0EsWUFBQTtFQUNBLFlBQUE7RUFDQSxtQkFBQTtBQU5SO0FBU007RUFDRSxhQUFBO0FBUFI7QUFVTTtFQUNFLGdCQUFBO0VBQ0EsNEJBQUE7RUFDQSxnQkFBQTtBQVJSO0FBWUk7RUFDRSxhQUFBO0VBQ0Esa0JBQUE7RUFDQSxrQ0FBQTtFQUNBLGtCQUFBO0VBQ0EsZ0NBQUE7RUFDQSx1Q0FBQTtBQVZOO0FBWU07RUFDRSwwQ0FBQTtBQVZSO0FBYU07RUFDRSxPQUFBO0VBQ0EsVUFBQTtBQVhSO0FBYVE7RUFDRSxhQUFBO0VBQ0EsOEJBQUE7RUFDQSxtQkFBQTtFQUNBLGtCQUFBO0VBQ0EsaUJBQUE7QUFYVjtBQWFVO0VBQ0UsZ0JBQUE7RUFDQSwwQkFBQTtBQVhaO0FBY1U7RUFDRSxhQUFBO0VBQ0EsUUFBQTtFQUNBLGFBQUE7RUFDQSxVQUFBO0VBQ0Esd0JBQUE7QUFaWjtBQWNZO0VBQ0UsV0FBQTtFQUNBLFlBQUE7RUFDQSxpQkFBQTtBQVpkO0FBY2M7RUFDRSxlQUFBO0VBQ0EsV0FBQTtFQUNBLFlBQUE7RUFDQSxpQkFBQTtBQVpoQjtBQWlCVTtFQUNFLDJCQUFBO0FBZlo7QUFtQlE7RUFDRSxnQkFBQTtFQUNBLHlCQUFBO1VBQUEsaUJBQUE7RUFDQSxxQkFBQTtFQUNBLHlCQUFBO0FBakJWO0FBb0JVO0VBQ0UsaUJBQUE7QUFsQlo7QUFtQlk7RUFBZSxnQkFBQTtBQWhCM0I7QUFvQlU7RUFDRSxtQkFBQTtFQUNBLGNBQUE7RUFDQSxrQkFBQTtFQUNBLGtCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxjQUFBO0VBQ0EsZ0JBQUE7QUFsQlo7QUFvQlk7RUFDRSxnQkFBQTtFQUNBLFVBQUE7RUFDQSxnQkFBQTtFQUNBLGNBQUE7QUFsQmQ7QUF1QlU7RUFDRSxrQ0FBQTtFQUNBLGdCQUFBO0VBQ0Esa0JBQUE7RUFDQSwrQ0FBQTtFQUNBLGdCQUFBO0FBckJaO0FBeUJVO0VBQ0Usb0JBQUE7RUFDQSxnQkFBQTtFQUNBLGdCQUFBO0FBdkJaO0FBd0JZO0VBQWdCLGFBQUE7QUFyQjVCO0FBdUJVO0VBQUssZ0JBQUE7QUFwQmY7QUFxQlU7RUFBSyxpQkFBQTtBQWxCZjtBQW1CVTtFQUFLLGdCQUFBO0FBaEJmO0FBaUJVO0VBQUssY0FBQTtBQWRmO0FBaUJVO0VBQ0UseUJBQUE7RUFDQSxXQUFBO0VBQ0EsY0FBQTtFQUNBLGdCQUFBO0FBZlo7QUFpQlk7RUFDRSx5Q0FBQTtFQUNBLGlCQUFBO0VBQ0EsZ0JBQUE7QUFmZDtBQWtCWTtFQUNFLGtDQUFBO0VBQ0EsZ0JBQUE7QUFoQmQ7QUFtQlk7RUFDRSxtQ0FBQTtBQWpCZDtBQW9CWTtFQUNFLCtCQUFBO0FBbEJkO0FBdUJVO0VBQ0UsYUFBQTtFQUNBLGtCQUFBO0FBckJaO0FBdUJZO0VBQ0Usa0JBQUE7QUFyQmQ7QUEwQlU7RUFDRSxhQUFBO0FBeEJaO0FBNEJVO0VBQ0Usa0RBQUE7RUFDQSxjQUFBO0VBQ0EsaUJBQUE7RUFDQSxrQ0FBQTtFQUNBLGdDQUFBO0FBMUJaO0FBNEJZO0VBQ0UsU0FBQTtBQTFCZDtBQStCVTtFQUNFLGdDQUFBO0VBQ0EscUJBQUE7QUE3Qlo7QUE4Qlk7RUFDRSwwQkFBQTtBQTVCZDtBQWlDVTtFQUNFLFlBQUE7RUFDQSw2Q0FBQTtFQUNBLGNBQUE7QUEvQlo7QUFtQ1U7RUFDRSxlQUFBO0VBQ0Esa0JBQUE7QUFqQ1o7QUFxQ1E7RUFDRSxrQkFBQTtBQW5DVjtBQXFDVTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxlQUFBO0VBQ0EsaUJBQUE7RUFDQSxtQkFBQTtFQUNBLDhCQUFBO0VBQ0Esa0JBQUE7RUFDQSxpQkFBQTtFQUNBLGNBQUE7RUFDQSx5QkFBQTtVQUFBLGlCQUFBO0FBbkNaO0FBcUNZO0VBQ0UsbUJBQUE7QUFuQ2Q7QUFzQ1k7RUFDRSxlQUFBO0VBQ0EsV0FBQTtFQUNBLFlBQUE7QUFwQ2Q7QUF1Q1k7RUFDRSxnQkFBQTtBQXJDZDtBQXdDWTtFQUNFLGlCQUFBO0VBQ0EsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0VBQ0EsMEJBQUE7QUF0Q2Q7QUF5Q1k7RUFDRSxnQkFBQTtBQXZDZDtBQTJDVTtFQUNFLGlCQUFBO0VBQ0EsbUJBQUE7RUFDQSw4QkFBQTtFQUNBLDBCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxXQUFBO0VBQ0EsaUJBQUE7RUFDQSxnQkFBQTtBQXpDWjtBQTJDWTtFQUNFLG1CQUFBO0VBQ0EsV0FBQTtFQUNBLFlBQUE7RUFDQSxrQkFBQTtFQUNBLGlCQUFBO0VBQ0EsZ0JBQUE7QUF6Q2Q7QUE4Q1E7RUFDRSxlQUFBO0FBNUNWO0FBOENVO0VBQ0UsV0FBQTtFQUNBLGtCQUFBO0FBNUNaO0FBOENZO0VBQ0UsaUJBQUE7QUE1Q2Q7QUErQ1k7RUFDRSxnQkFBQTtFQUNBLG9CQUFBO0FBN0NkO0FBaURVO0VBQ0UsYUFBQTtFQUNBLHlCQUFBO0VBQ0EsUUFBQTtBQS9DWjtBQWlEWTtFQUNFLGVBQUE7QUEvQ2Q7QUFvRFE7RUFDRSxnQkFBQTtBQWxEVjtBQXVETTtFQUNFLFVBQUE7QUFyRFI7QUF3RE07RUFDRSw4Q0FBQTtFQUNBLHlCQUFBO0FBdERSO0FBd0RRO0VBQ0Usa0NBQUE7QUF0RFY7QUF5RFE7RUFDRSx5QkFBQTtBQXZEVjtBQTJETTtFQUNFLHdDQUFBO0VBQ0EsdUNBQUE7QUF6RFI7QUEyRFE7RUFDRSw0QkFBQTtBQXpEVjtBQTREUTtFQUNFLDBDQUFBO0FBMURWO0FBOERNO0VBQ0Usd0NBQUE7RUFDQSx1Q0FBQTtBQTVEUjtBQThEUTtFQUNFLDRCQUFBO0FBNURWO0FBcUVFO0VBQ0UsY0FBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxpQkFBQTtFQUNBLGVBQUE7RUFDQSxnQkFBQTtFQUNBLG9EQUFBO0VBQ0EscURBQUE7RUFDQSw2REFBQTtFQWlCQSxxRkFBQTtBQW5GSjtBQW9FSTtFQUNFLGVBQUE7RUFDQSxXQUFBO0VBQ0EsWUFBQTtFQUNBLFlBQUE7QUFsRU47QUFxRUk7RUFDRSxnQkFBQTtBQW5FTjtBQXNFSTtFQUNFLFlBQUE7QUFwRU47QUF3RUk7RUFDRSxPQUFBO0FBdEVOO0FBeUVJO0VBQ0UsWUFBQTtFQUNBLG1CQUFBO0FBdkVOO0FBMkVFO0VBQ0UsY0FBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFNBQUE7RUFDQSxrQkFBQTtFQUNBLGlDQUFBO0VBQ0EsMkNBQUE7RUFDQSw4Q0FBQTtFQUNBLDRCQUFBO0FBekVKO0FBMkVJO0VBQ0UsY0FBQTtBQXpFTjtBQTRFSTtFQUNFLE9BQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxRQUFBO0VBQ0EsZUFBQTtBQTFFTjtBQTRFTTtFQUNFLGVBQUE7QUExRVI7QUE2RU07RUFDRSxhQUFBO0FBM0VSO0FBK0VJO0VBQ0UsY0FBQTtBQTdFTjtBQWlGRTtFQUNFLGNBQUE7RUFDQSxhQUFBO0VBQ0EsZUFBQTtFQUNBLGFBQUE7RUFDQSxtQ0FBQTtFQUNBLDZDQUFBO0VBQ0EsU0FBQTtFQUNBLHFCQUFBO0FBL0VKO0FBaUZJO0VBQ0UsZ0JBQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxTQUFBO0VBQ0EsaUJBQUE7RUFDQSxtQ0FBQTtFQUNBLDBDQUFBO0VBQ0Esa0JBQUE7RUFDQSxlQUFBO0VBQ0Esa0NBQUE7QUEvRU47QUFpRk07RUFDRSxjQUFBO0FBL0VSO0FBbUZJO0VBQ0UsT0FBQTtBQWpGTjtBQW1GTTtFQUNFLGlCQUFBO0FBakZSO0FBb0ZNO0VBQ0UsaUNBQUE7RUFDQSxrQkFBQTtFQUVBLGdCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxnQkFBQTtBQW5GUjtBQXVGSTtFQUNFLGtCQUFBO0FBckZOOztBQTBGQTtFQUNFO0lBQ0UsVUFBQTtJQUNBLDJCQUFBO0VBdkZGO0VBeUZBO0lBQ0UsVUFBQTtJQUNBLHdCQUFBO0VBdkZGO0FBQ0Y7QUFpR0k7O0VBT0Usb0RBQUE7RUFDQSx5Q0FBQTtFQUNBLDRDQUFBO0FBcEdOO0FBc0dNOztFQUNFLDhCQUFBO0FBbkdSO0FBc0dNOzs7O0VBRUUsOEJBQUE7QUFsR1I7QUFvR1E7Ozs7RUFDRSw4QkFBQTtBQS9GVjtBQWtHUTs7OztFQUNFLHFDQUFBO0FBN0ZWO0FBZ0dROzs7Ozs7O0VBRUUsMkJBQUE7QUF6RlY7QUEyRlU7Ozs7Ozs7RUFDRSwyQkFBQTtBQW5GWjtBQXlGTTs7RUFDRSw4QkFBQTtBQXRGUjtBQTRGUTs7RUFDRSxvQ0FBQTtFQUNBLGNBQUE7QUF6RlY7QUEyRlU7O0VBQ0Usb0NBQUE7QUF4Rlo7QUE0RlE7O0VBQ0Usb0NBQUE7RUFDQSwyQ0FBQTtFQUNBLGdDQUFBO0FBekZWO0FBNkZNOztFQUNFLDJDQUFBO0FBMUZSO0FBNEZROztFQUNFLDJDQUFBO0FBekZWOztBQWlHQTtFQUNFLFNBQUE7RUFDQSxZQUFBO0VBQ0EsZ0JBQUE7RUFDQSxZQUFBO0FBOUZGO0FBZ0dFO0VBQ0UsZ0JBQUE7RUFDQSxjQUFBO0FBOUZKO0FBZ0dJO0VBQ0UsYUFBQTtBQTlGTjtBQWlHSTtFQUNFLGlCQUFBO0FBL0ZOO0FBa0dRO0VBQ0UsZ0JBQUE7RUFDQSxnQkFBQTtFQUNBLGtCQUFBO0FBaEdWO0FBa0dVO0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0FBaEdaO0FBdUdFO0VBQ0UsY0FBQTtFQUNBLG1DQUFBO0FBckdKO0FBd0dNO0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0FBdEdSO0FBeUdNO0VBQ0UsZ0JBQUE7QUF2R1I7QUEyR0k7RUFDRSxpQkFBQTtFQUNBLGtCQUFBO0FBekdOO0FBNEdRO0VBQ0Usa0JBQUE7QUExR1Y7QUE0R1U7RUFDRSxpQkFBQTtBQTFHWjtBQTZHVTtFQUNFLGdCQUFBO0FBM0daO0FBK0dRO0VBQ0UsZ0JBQUE7QUE3R1Y7QUErR1U7RUFDRSxZQUFBO0VBQ0EsaUJBQUE7QUE3R1o7QUFvSEU7RUFDRSxhQUFBO0VBQ0EsUUFBQTtBQWxISjtBQXNIUTtFQUNFLGNBQUE7QUFwSFY7QUF1SFE7RUFDRSxnQkFBQTtBQXJIVjtBQTJITTtFQUNFLFVBQUE7QUF6SFI7QUEySFE7RUFDRSxlQUFBO0FBekhWOztBQWtJQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxZQUFBO0FBL0hGO0FBaUlFO0VBQ0UsZUFBQTtFQUNBLGtCQUFBO0VBQ0EsMkJBQUE7RUFDQSxtQkFBQTtFQUNBLGdCQUFBO0VBQ0EsdUJBQUE7RUFDQSxZQUFBO0FBL0hKOztBQXFJQTtFQUNFLGNBQUE7RUFDQSxhQUFBO0VBS0EsZUFBQTtFQUNBLFVBQUE7RUFDQSwyQkFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGlCQUFBO0VBQ0EsZ0RBQUE7RUFDQSxpQ0FBQTtFQUNBLFlBQUE7QUF0SUY7QUF3SUU7RUFDRSxlQUFBO0VBQ0EsMkJBQUE7RUFDQSxtQkFBQTtBQXRJSjtBQXlJRTtFQUdFLFdBQUE7RUFDQSxnQkFBQTtFQUNBLGdCQUFBO0VBQ0EsZUFBQTtBQXpJSjtBQTJJSTtFQUFvQyxpQkFBQTtFQUFtQixTQUFBO0FBdkkzRDtBQXdJSTtFQUFrQyxjQUFBO0VBQWdCLGFBQUE7RUFBZSxXQUFBO0FBbklyRTtBQW9JSTtFQUFvQyxNQUFBO0FBakl4QztBQWtJSTtFQUE4QyxhQUFBO0FBL0hsRDtBQWtJRTtFQUNFLFdBQUE7RUFDQSxZQUFBO0VBQ0EsaUJBQUE7RUFDQSxjQUFBO0FBaElKO0FBbUlFO0VBQ0UsZ0RBQUE7QUFqSUo7QUFvSUU7RUFDRSxlQUFBO0VBQ0Esa0JBQUE7RUFDQSwyQkFBQTtFQUNBLG1CQUFBO0FBbElKO0FBcUlFO0VBQ0Usb0JBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxlQUFBO0VBQ0EsNEJBQUE7RUFDQSxtQkFBQTtBQW5JSjtBQXFJSTtFQUFXLGVBQUE7RUFBaUIsV0FBQTtFQUFhLFlBQUE7QUFoSTdDO0FBb0lFO0VBQ0UsaUJBQUE7RUFDQSxvQkFBQTtFQUNBLGVBQUE7RUFDQSxtQkFBQTtFQUNBLFlBQUE7RUFDQSxtQkFBQTtFQUNBLGVBQUE7RUFDQSwyQkFBQTtBQWxJSjtBQW9JSTtFQUFjLG1CQUFBO0FBaklsQjtBQW1JSTtFQUFxQixnQkFBQTtBQWhJekI7QUFpSUk7RUFBYSxZQUFBO0FBOUhqQjtBQStISTtFQUFxQiw0QkFBQTtBQTVIekI7QUFnSUU7RUFDRTtJQUNFLGdCQUFBO0lBQ0EsY0FBQTtJQUNBLGlCQUFBO0lBQ0EsUUFBQTtFQTlISjtBQUNGOztBQWtJQTtFQUNFLGtCQUFBO0VBQ0EsWUFBQTtBQS9IRjs7QUFrSUE7RUFDRTtJQUFPLHVCQUFBO0VBOUhQO0VBK0hBO0lBQUsseUJBQUE7RUE1SEw7QUFDRiIsInNvdXJjZXNDb250ZW50IjpbIi5haS1jaGF0LWNvbnRhaW5lciB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XG4gIGhlaWdodDogY2FsYygxMDAlIC0gMjBweCk7XG4gIG1hcmdpbjogMTBweDtcbiAgYmFja2dyb3VuZDogdmFyKC0tbWRlLWJnLXByaW1hcnkpO1xuICBib3JkZXItcmFkaXVzOiA4cHg7XG4gIGJvcmRlcjogMXB4IHNvbGlkIHZhcigtLW1kZS1ib3JkZXItY29sb3IpO1xuXG4gIC5jaGF0LWhlYWRlciB7XG4gICAgZmxleC1zaHJpbms6IDA7XG4gICAgYm9yZGVyLWJvdHRvbTogMXB4IHNvbGlkIHZhcigtLW1kZS1ib3JkZXItY29sb3IpO1xuICAgIHotaW5kZXg6IDEwO1xuXG4gICAgLmhlYWRlci10aXRsZSB7XG4gICAgICBtYXJnaW4tbGVmdDogMTBweDtcbiAgICAgIGZvbnQtc2l6ZTogMS4yZW07XG4gICAgfVxuXG4gICAgLnNwYWNlciB7XG4gICAgICBmbGV4OiAxO1xuICAgIH1cblxuICAgIC5tb2RlbC1zdGF0dXMge1xuICAgICAgbWFyZ2luLXJpZ2h0OiAxMHB4O1xuICAgICAgZGlzcGxheTogZmxleDtcbiAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gICAgICBnYXA6IDZweDtcbiAgICAgIGZsZXgtd3JhcDogd3JhcDtcblxuICAgIH1cbiAgfVxuXG4gIC5tb2RlbC1tYW5hZ2VyLXBhbmVsIHtcbiAgICBwb3NpdGlvbjogcmVsYXRpdmU7XG4gICAgZmxleDogMCAwIGF1dG87XG4gICAgaGVpZ2h0OiA3MHZoICFpbXBvcnRhbnQ7XG4gICAgb3ZlcmZsb3cteTogYXV0byAhaW1wb3J0YW50O1xuICAgIG92ZXJmbG93LXg6IGhpZGRlbjtcbiAgICBib3JkZXItYm90dG9tOiAxcHggc29saWQgdmFyKC0tbWRlLWJvcmRlci1jb2xvcik7XG4gICAgYmFja2dyb3VuZDogdmFyKC0tbWRlLWJnLXByaW1hcnkpO1xuICAgIGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cbiAgICAmOjotd2Via2l0LXNjcm9sbGJhciB7XG4gICAgICB3aWR0aDogOHB4O1xuICAgICAgZGlzcGxheTogYmxvY2sgIWltcG9ydGFudDtcbiAgICB9XG5cbiAgICAmOjotd2Via2l0LXNjcm9sbGJhci10cmFjayB7XG4gICAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtc2Nyb2xsYmFyLXRyYWNrKTtcbiAgICB9XG5cbiAgICAmOjotd2Via2l0LXNjcm9sbGJhci10aHVtYiB7XG4gICAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtc2Nyb2xsYmFyLXRodW1iKTtcbiAgICAgIGJvcmRlci1yYWRpdXM6IDRweDtcbiAgICB9XG5cbiAgICAmOjotd2Via2l0LXNjcm9sbGJhci10aHVtYjpob3ZlciB7XG4gICAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtc2Nyb2xsYmFyLWhvdmVyKTtcbiAgICB9XG5cbiAgICBhcHAtbW9kZWwtbWFuYWdlciB7XG4gICAgICBkaXNwbGF5OiBibG9jaztcbiAgICAgIG1pbi1oZWlnaHQ6IG1pbi1jb250ZW50O1xuICAgIH1cbiAgfVxuXG4gIC5jaGF0LW1lc3NhZ2VzIHtcbiAgICBmbGV4OiAxO1xuICAgIG92ZXJmbG93LXk6IGF1dG87XG4gICAgcGFkZGluZzogMTJweCAwO1xuICAgIGJhY2tncm91bmQ6IHZhcigtLW1kZS1iZy1wcmltYXJ5KTtcblxuICAgIC5uby1tZXNzYWdlcyB7XG4gICAgICBkaXNwbGF5OiBmbGV4O1xuICAgICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcbiAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gICAgICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcbiAgICAgIGhlaWdodDogMTAwJTtcbiAgICAgIGNvbG9yOiB2YXIoLS1tZGUtdGV4dC1oaW50KTtcbiAgICAgIHRleHQtYWxpZ246IGNlbnRlcjtcblxuICAgICAgbWF0LWljb24ge1xuICAgICAgICBmb250LXNpemU6IDY0cHg7XG4gICAgICAgIHdpZHRoOiA2NHB4O1xuICAgICAgICBoZWlnaHQ6IDY0cHg7XG4gICAgICAgIG9wYWNpdHk6IDAuMztcbiAgICAgICAgbWFyZ2luLWJvdHRvbTogMjBweDtcbiAgICAgIH1cblxuICAgICAgcCB7XG4gICAgICAgIG1hcmdpbjogNXB4IDA7XG4gICAgICB9XG5cbiAgICAgIC5oaW50IHtcbiAgICAgICAgZm9udC1zaXplOiAwLjllbTtcbiAgICAgICAgY29sb3I6IHZhcigtLW1kZS13YXJuaW5nLWZnKTtcbiAgICAgICAgbWFyZ2luLXRvcDogMTBweDtcbiAgICAgIH1cbiAgICB9XG5cbiAgICAubWVzc2FnZSB7XG4gICAgICBkaXNwbGF5OiBmbGV4O1xuICAgICAgcGFkZGluZzogMTBweCAxNnB4O1xuICAgICAgYm9yZGVyLWxlZnQ6IDNweCBzb2xpZCB0cmFuc3BhcmVudDtcbiAgICAgIG1hcmdpbi1ib3R0b206IDJweDtcbiAgICAgIGFuaW1hdGlvbjogc2xpZGVJbiAwLjNzIGVhc2Utb3V0O1xuICAgICAgdHJhbnNpdGlvbjogYmFja2dyb3VuZC1jb2xvciAwLjE1cyBlYXNlO1xuXG4gICAgICAmOmhvdmVyIHtcbiAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogdmFyKC0tbWRlLWhvdmVyLW92ZXJsYXkpO1xuICAgICAgfVxuXG4gICAgICAubWVzc2FnZS1jb250ZW50IHtcbiAgICAgICAgZmxleDogMTtcbiAgICAgICAgcGFkZGluZzogMDtcblxuICAgICAgICAubWVzc2FnZS1oZWFkZXIge1xuICAgICAgICAgIGRpc3BsYXk6IGZsZXg7XG4gICAgICAgICAganVzdGlmeS1jb250ZW50OiBzcGFjZS1iZXR3ZWVuO1xuICAgICAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gICAgICAgICAgbWFyZ2luLWJvdHRvbTogNnB4O1xuICAgICAgICAgIGZvbnQtc2l6ZTogMC44NWVtO1xuXG4gICAgICAgICAgLm1lc3NhZ2Utcm9sZSB7XG4gICAgICAgICAgICBmb250LXdlaWdodDogNjAwO1xuICAgICAgICAgICAgdGV4dC10cmFuc2Zvcm06IGNhcGl0YWxpemU7XG4gICAgICAgICAgfVxuXG4gICAgICAgICAgLm1lc3NhZ2UtYWN0aW9ucyB7XG4gICAgICAgICAgICBkaXNwbGF5OiBmbGV4O1xuICAgICAgICAgICAgZ2FwOiA0cHg7XG4gICAgICAgICAgICBtYXJnaW46IDAgOHB4O1xuICAgICAgICAgICAgb3BhY2l0eTogMDtcbiAgICAgICAgICAgIHRyYW5zaXRpb246IG9wYWNpdHkgMC4ycztcblxuICAgICAgICAgICAgLmFjdGlvbi1idXR0b24ge1xuICAgICAgICAgICAgICB3aWR0aDogMzJweDtcbiAgICAgICAgICAgICAgaGVpZ2h0OiAzMnB4O1xuICAgICAgICAgICAgICBsaW5lLWhlaWdodDogMzJweDtcblxuICAgICAgICAgICAgICA6Om5nLWRlZXAgLm1hdC1pY29uIHtcbiAgICAgICAgICAgICAgICBmb250LXNpemU6IDE4cHg7XG4gICAgICAgICAgICAgICAgd2lkdGg6IDE4cHg7XG4gICAgICAgICAgICAgICAgaGVpZ2h0OiAxOHB4O1xuICAgICAgICAgICAgICAgIGxpbmUtaGVpZ2h0OiAxOHB4O1xuICAgICAgICAgICAgICB9XG4gICAgICAgICAgICB9XG4gICAgICAgICAgfVxuXG4gICAgICAgICAgLm1lc3NhZ2UtdGltZSB7XG4gICAgICAgICAgICBjb2xvcjogdmFyKC0tbWRlLXRleHQtaGludCk7XG4gICAgICAgICAgfVxuICAgICAgICB9XG5cbiAgICAgICAgLm1lc3NhZ2UtdGV4dCB7XG4gICAgICAgICAgbGluZS1oZWlnaHQ6IDEuNTtcbiAgICAgICAgICB1c2VyLXNlbGVjdDogdGV4dDtcbiAgICAgICAgICB3b3JkLXdyYXA6IGJyZWFrLXdvcmQ7XG4gICAgICAgICAgb3ZlcmZsb3ctd3JhcDogYnJlYWstd29yZDtcblxuICAgICAgICAgIC8vIFBhcmFncmFwaHNcbiAgICAgICAgICBwIHtcbiAgICAgICAgICAgIG1hcmdpbjogMCAwIDhweCAwO1xuICAgICAgICAgICAgJjpsYXN0LWNoaWxkIHsgbWFyZ2luLWJvdHRvbTogMDsgfVxuICAgICAgICAgIH1cblxuICAgICAgICAgIC8vIENvZGUgYmxvY2tzXG4gICAgICAgICAgcHJlIHtcbiAgICAgICAgICAgIGJhY2tncm91bmQ6ICMxZTFlMWU7XG4gICAgICAgICAgICBjb2xvcjogI2Q0ZDRkNDtcbiAgICAgICAgICAgIHBhZGRpbmc6IDEycHggMTZweDtcbiAgICAgICAgICAgIGJvcmRlci1yYWRpdXM6IDZweDtcbiAgICAgICAgICAgIG92ZXJmbG93LXg6IGF1dG87XG4gICAgICAgICAgICBtYXJnaW46IDEwcHggMDtcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMC45ZW07XG5cbiAgICAgICAgICAgIGNvZGUge1xuICAgICAgICAgICAgICBiYWNrZ3JvdW5kOiBub25lO1xuICAgICAgICAgICAgICBwYWRkaW5nOiAwO1xuICAgICAgICAgICAgICBib3JkZXItcmFkaXVzOiAwO1xuICAgICAgICAgICAgICBjb2xvcjogaW5oZXJpdDtcbiAgICAgICAgICAgIH1cbiAgICAgICAgICB9XG5cbiAgICAgICAgICAvLyBJbmxpbmUgY29kZVxuICAgICAgICAgIGNvZGUge1xuICAgICAgICAgICAgYmFja2dyb3VuZDogdmFyKC0tbWRlLWJnLXRlcnRpYXJ5KTtcbiAgICAgICAgICAgIHBhZGRpbmc6IDJweCA2cHg7XG4gICAgICAgICAgICBib3JkZXItcmFkaXVzOiAzcHg7XG4gICAgICAgICAgICBmb250LWZhbWlseTogJ0NvdXJpZXIgTmV3JywgQ29uc29sYXMsIG1vbm9zcGFjZTtcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMC45ZW07XG4gICAgICAgICAgfVxuXG4gICAgICAgICAgLy8gSGVhZGVyc1xuICAgICAgICAgIGgxLCBoMiwgaDMsIGg0LCBoNSwgaDYge1xuICAgICAgICAgICAgbWFyZ2luOiAxNnB4IDAgOHB4IDA7XG4gICAgICAgICAgICBmb250LXdlaWdodDogNjAwO1xuICAgICAgICAgICAgbGluZS1oZWlnaHQ6IDEuMztcbiAgICAgICAgICAgICY6Zmlyc3QtY2hpbGQgeyBtYXJnaW4tdG9wOiAwOyB9XG4gICAgICAgICAgfVxuICAgICAgICAgIGgxIHsgZm9udC1zaXplOiAxLjRlbTsgfVxuICAgICAgICAgIGgyIHsgZm9udC1zaXplOiAxLjI1ZW07IH1cbiAgICAgICAgICBoMyB7IGZvbnQtc2l6ZTogMS4xZW07IH1cbiAgICAgICAgICBoNCB7IGZvbnQtc2l6ZTogMWVtOyB9XG5cbiAgICAgICAgICAvLyBUYWJsZXNcbiAgICAgICAgICB0YWJsZSB7XG4gICAgICAgICAgICBib3JkZXItY29sbGFwc2U6IGNvbGxhcHNlO1xuICAgICAgICAgICAgd2lkdGg6IDEwMCU7XG4gICAgICAgICAgICBtYXJnaW46IDEwcHggMDtcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMC45ZW07XG5cbiAgICAgICAgICAgIHRoLCB0ZCB7XG4gICAgICAgICAgICAgIGJvcmRlcjogMXB4IHNvbGlkIHZhcigtLW1kZS1ib3JkZXItY29sb3IpO1xuICAgICAgICAgICAgICBwYWRkaW5nOiA4cHggMTJweDtcbiAgICAgICAgICAgICAgdGV4dC1hbGlnbjogbGVmdDtcbiAgICAgICAgICAgIH1cblxuICAgICAgICAgICAgdGgge1xuICAgICAgICAgICAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtYmctdGVydGlhcnkpO1xuICAgICAgICAgICAgICBmb250LXdlaWdodDogNjAwO1xuICAgICAgICAgICAgfVxuXG4gICAgICAgICAgICB0cjpudGgtY2hpbGQoZXZlbikge1xuICAgICAgICAgICAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtYmctc2Vjb25kYXJ5KTtcbiAgICAgICAgICAgIH1cblxuICAgICAgICAgICAgdHI6aG92ZXIge1xuICAgICAgICAgICAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtYmctaG92ZXIpO1xuICAgICAgICAgICAgfVxuICAgICAgICAgIH1cblxuICAgICAgICAgIC8vIExpc3RzXG4gICAgICAgICAgdWwsIG9sIHtcbiAgICAgICAgICAgIG1hcmdpbjogOHB4IDA7XG4gICAgICAgICAgICBwYWRkaW5nLWxlZnQ6IDI0cHg7XG5cbiAgICAgICAgICAgIGxpIHtcbiAgICAgICAgICAgICAgbWFyZ2luLWJvdHRvbTogNHB4O1xuICAgICAgICAgICAgfVxuICAgICAgICAgIH1cblxuICAgICAgICAgIC8vIE5lc3RlZCBsaXN0c1xuICAgICAgICAgIHVsIHVsLCBvbCBvbCwgdWwgb2wsIG9sIHVsIHtcbiAgICAgICAgICAgIG1hcmdpbjogNHB4IDA7XG4gICAgICAgICAgfVxuXG4gICAgICAgICAgLy8gQmxvY2txdW90ZXNcbiAgICAgICAgICBibG9ja3F1b3RlIHtcbiAgICAgICAgICAgIGJvcmRlci1sZWZ0OiA0cHggc29saWQgdmFyKC0tbWRlLWFjY2VudC1zZWNvbmRhcnkpO1xuICAgICAgICAgICAgbWFyZ2luOiAxMHB4IDA7XG4gICAgICAgICAgICBwYWRkaW5nOiA4cHggMTZweDtcbiAgICAgICAgICAgIGJhY2tncm91bmQ6IHZhcigtLW1kZS1iZy10ZXJ0aWFyeSk7XG4gICAgICAgICAgICBjb2xvcjogdmFyKC0tbWRlLXRleHQtc2Vjb25kYXJ5KTtcblxuICAgICAgICAgICAgcCB7XG4gICAgICAgICAgICAgIG1hcmdpbjogMDtcbiAgICAgICAgICAgIH1cbiAgICAgICAgICB9XG5cbiAgICAgICAgICAvLyBMaW5rc1xuICAgICAgICAgIGEge1xuICAgICAgICAgICAgY29sb3I6IHZhcigtLW1kZS1hY2NlbnQtcHJpbWFyeSk7XG4gICAgICAgICAgICB0ZXh0LWRlY29yYXRpb246IG5vbmU7XG4gICAgICAgICAgICAmOmhvdmVyIHtcbiAgICAgICAgICAgICAgdGV4dC1kZWNvcmF0aW9uOiB1bmRlcmxpbmU7XG4gICAgICAgICAgICB9XG4gICAgICAgICAgfVxuXG4gICAgICAgICAgLy8gSG9yaXpvbnRhbCBydWxlc1xuICAgICAgICAgIGhyIHtcbiAgICAgICAgICAgIGJvcmRlcjogbm9uZTtcbiAgICAgICAgICAgIGJvcmRlci10b3A6IDFweCBzb2xpZCB2YXIoLS1tZGUtYm9yZGVyLWNvbG9yKTtcbiAgICAgICAgICAgIG1hcmdpbjogMTZweCAwO1xuICAgICAgICAgIH1cblxuICAgICAgICAgIC8vIEltYWdlc1xuICAgICAgICAgIGltZyB7XG4gICAgICAgICAgICBtYXgtd2lkdGg6IDEwMCU7XG4gICAgICAgICAgICBib3JkZXItcmFkaXVzOiA0cHg7XG4gICAgICAgICAgfVxuICAgICAgICB9XG5cbiAgICAgICAgLnRoaW5raW5nLXNlY3Rpb24ge1xuICAgICAgICAgIG1hcmdpbi1ib3R0b206IDhweDtcblxuICAgICAgICAgIC50aGlua2luZy1oZWFkZXIge1xuICAgICAgICAgICAgZGlzcGxheTogZmxleDtcbiAgICAgICAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gICAgICAgICAgICBnYXA6IDZweDtcbiAgICAgICAgICAgIGN1cnNvcjogcG9pbnRlcjtcbiAgICAgICAgICAgIHBhZGRpbmc6IDZweCAxMHB4O1xuICAgICAgICAgICAgYmFja2dyb3VuZDogI2YzZTVmNTtcbiAgICAgICAgICAgIGJvcmRlci1sZWZ0OiAzcHggc29saWQgIzljMjdiMDtcbiAgICAgICAgICAgIGJvcmRlci1yYWRpdXM6IDRweDtcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMC44NWVtO1xuICAgICAgICAgICAgY29sb3I6ICM3YjFmYTI7XG4gICAgICAgICAgICB1c2VyLXNlbGVjdDogbm9uZTtcblxuICAgICAgICAgICAgJjpob3ZlciB7XG4gICAgICAgICAgICAgIGJhY2tncm91bmQ6ICNlMWJlZTc7XG4gICAgICAgICAgICB9XG5cbiAgICAgICAgICAgIC50aGlua2luZy1pY29uIHtcbiAgICAgICAgICAgICAgZm9udC1zaXplOiAxOHB4O1xuICAgICAgICAgICAgICB3aWR0aDogMThweDtcbiAgICAgICAgICAgICAgaGVpZ2h0OiAxOHB4O1xuICAgICAgICAgICAgfVxuXG4gICAgICAgICAgICAudGhpbmtpbmctbGFiZWwge1xuICAgICAgICAgICAgICBmb250LXdlaWdodDogNTAwO1xuICAgICAgICAgICAgfVxuXG4gICAgICAgICAgICAudGhpbmtpbmctdG9nZ2xlIHtcbiAgICAgICAgICAgICAgbWFyZ2luLWxlZnQ6IGF1dG87XG4gICAgICAgICAgICAgIGZvbnQtc2l6ZTogMThweDtcbiAgICAgICAgICAgICAgd2lkdGg6IDE4cHg7XG4gICAgICAgICAgICAgIGhlaWdodDogMThweDtcbiAgICAgICAgICAgICAgdHJhbnNpdGlvbjogdHJhbnNmb3JtIDAuMnM7XG4gICAgICAgICAgICB9XG5cbiAgICAgICAgICAgIC50aGlua2luZy1zcGlubmVyIHtcbiAgICAgICAgICAgICAgbWFyZ2luLWxlZnQ6IDhweDtcbiAgICAgICAgICAgIH1cbiAgICAgICAgICB9XG5cbiAgICAgICAgICAudGhpbmtpbmctYm9keSB7XG4gICAgICAgICAgICBwYWRkaW5nOiA4cHggMTJweDtcbiAgICAgICAgICAgIGJhY2tncm91bmQ6ICNmYWY1ZmM7XG4gICAgICAgICAgICBib3JkZXItbGVmdDogM3B4IHNvbGlkICNjZTkzZDg7XG4gICAgICAgICAgICBib3JkZXItcmFkaXVzOiAwIDAgNHB4IDRweDtcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMC45ZW07XG4gICAgICAgICAgICBjb2xvcjogIzU1NTtcbiAgICAgICAgICAgIG1heC1oZWlnaHQ6IDMwMHB4O1xuICAgICAgICAgICAgb3ZlcmZsb3cteTogYXV0bztcblxuICAgICAgICAgICAgcHJlIHtcbiAgICAgICAgICAgICAgYmFja2dyb3VuZDogIzJkMmQyZDtcbiAgICAgICAgICAgICAgY29sb3I6ICNjY2M7XG4gICAgICAgICAgICAgIHBhZGRpbmc6IDhweDtcbiAgICAgICAgICAgICAgYm9yZGVyLXJhZGl1czogNHB4O1xuICAgICAgICAgICAgICBmb250LXNpemU6IDAuODVlbTtcbiAgICAgICAgICAgICAgb3ZlcmZsb3cteDogYXV0bztcbiAgICAgICAgICAgIH1cbiAgICAgICAgICB9XG4gICAgICAgIH1cblxuICAgICAgICAubWVzc2FnZS1lZGl0IHtcbiAgICAgICAgICBtYXJnaW4tdG9wOiA4cHg7XG5cbiAgICAgICAgICAuZWRpdC10ZXh0YXJlYSB7XG4gICAgICAgICAgICB3aWR0aDogMTAwJTtcbiAgICAgICAgICAgIG1hcmdpbi1ib3R0b206IDhweDtcblxuICAgICAgICAgICAgOjpuZy1kZWVwIC5tYXQtZm9ybS1maWVsZC13cmFwcGVyIHtcbiAgICAgICAgICAgICAgcGFkZGluZy1ib3R0b206IDA7XG4gICAgICAgICAgICB9XG5cbiAgICAgICAgICAgIDo6bmctZGVlcCB0ZXh0YXJlYSB7XG4gICAgICAgICAgICAgIHJlc2l6ZTogdmVydGljYWw7XG4gICAgICAgICAgICAgIGZvbnQtZmFtaWx5OiBpbmhlcml0O1xuICAgICAgICAgICAgfVxuICAgICAgICAgIH1cblxuICAgICAgICAgIC5lZGl0LWFjdGlvbnMge1xuICAgICAgICAgICAgZGlzcGxheTogZmxleDtcbiAgICAgICAgICAgIGp1c3RpZnktY29udGVudDogZmxleC1lbmQ7XG4gICAgICAgICAgICBnYXA6IDhweDtcblxuICAgICAgICAgICAgYnV0dG9uIHtcbiAgICAgICAgICAgICAgbWluLXdpZHRoOiBhdXRvO1xuICAgICAgICAgICAgfVxuICAgICAgICAgIH1cbiAgICAgICAgfVxuXG4gICAgICAgIG1hdC1wcm9ncmVzcy1zcGlubmVyIHtcbiAgICAgICAgICBtYXJnaW4tdG9wOiAxMHB4O1xuICAgICAgICB9XG4gICAgICB9XG5cbiAgICAgIC8vIFNob3cgZWRpdCBidXR0b24gb24gaG92ZXJcbiAgICAgICY6aG92ZXIgLm1lc3NhZ2UtY29udGVudCAubWVzc2FnZS1oZWFkZXIgLm1lc3NhZ2UtYWN0aW9ucyB7XG4gICAgICAgIG9wYWNpdHk6IDE7XG4gICAgICB9XG5cbiAgICAgICYubWVzc2FnZS11c2VyIHtcbiAgICAgICAgYm9yZGVyLWxlZnQtY29sb3I6IHZhcigtLW1kZS1hY2NlbnQtc2Vjb25kYXJ5KTtcbiAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogI2Y1ZjdmZjsgLy8gdGludGEgaW5kYWNvIGlkZW50aXRhcmlhIChvdmVycmlkZSBuZWkgdGVtaSBzY3VyaSlcblxuICAgICAgICAubWVzc2FnZS1jb250ZW50IC5tZXNzYWdlLWhlYWRlciAubWVzc2FnZS1yb2xlIHtcbiAgICAgICAgICBjb2xvcjogdmFyKC0tbWRlLWFjY2VudC1zZWNvbmRhcnkpO1xuICAgICAgICB9XG5cbiAgICAgICAgJjpob3ZlciB7XG4gICAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogI2ViZWVmYjtcbiAgICAgICAgfVxuICAgICAgfVxuXG4gICAgICAmLm1lc3NhZ2UtYXNzaXN0YW50IHtcbiAgICAgICAgYm9yZGVyLWxlZnQtY29sb3I6IHZhcigtLW1kZS1zdWNjZXNzLWZnKTtcbiAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogdmFyKC0tbWRlLWJnLXByaW1hcnkpO1xuXG4gICAgICAgIC5tZXNzYWdlLWNvbnRlbnQgLm1lc3NhZ2UtaGVhZGVyIC5tZXNzYWdlLXJvbGUge1xuICAgICAgICAgIGNvbG9yOiB2YXIoLS1tZGUtc3VjY2Vzcy1mZyk7XG4gICAgICAgIH1cblxuICAgICAgICAmOmhvdmVyIHtcbiAgICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiB2YXIoLS1tZGUtaG92ZXItb3ZlcmxheSk7XG4gICAgICAgIH1cbiAgICAgIH1cblxuICAgICAgJi5tZXNzYWdlLXN5c3RlbSB7XG4gICAgICAgIGJvcmRlci1sZWZ0LWNvbG9yOiB2YXIoLS1tZGUtd2FybmluZy1mZyk7XG4gICAgICAgIGJhY2tncm91bmQtY29sb3I6IHZhcigtLW1kZS13YXJuaW5nLWJnKTtcblxuICAgICAgICAubWVzc2FnZS1jb250ZW50IC5tZXNzYWdlLWhlYWRlciAubWVzc2FnZS1yb2xlIHtcbiAgICAgICAgICBjb2xvcjogdmFyKC0tbWRlLXdhcm5pbmctZmcpO1xuICAgICAgICB9XG4gICAgICB9XG4gICAgfVxuICB9XG5cbiAgLyogUmlnYSBkZWwgY29uc3VudGl2byBkaSBDbGF1ZGUgQ29kZTogaW5mb3JtYXRpdmEsIG5vbiB1biBhdnZpc28gw6LCgMKUIGRldmUgbGVnZ2Vyc2lcbiAgICAgc2VuemEgcnViYXJlIGwnb2NjaGlvIGFsbGEgY29udmVyc2F6aW9uZS4gVG9rZW4gZGVsIHRlbWEsIGNvc8ODwqwgcmVnZ2UgY2hpYXJvIGUgc2N1cm9cbiAgICAgKGkgY29sb3JpIGRlbCBjb250ZW51dG8gbm9uIHN0YW5ubyBuZWdsaSAuc2NzcyBkZWwgdmlld2VyLCBtYSBxdWVzdGEgw4PCqCBjaGF0LCBub24gdmlld2VyKS4gKi9cbiAgLmNsYXVkZS11c2FnZS1yb3cge1xuICAgIGZsZXgtc2hyaW5rOiAwO1xuICAgIGRpc3BsYXk6IGZsZXg7XG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgICBnYXA6IDZweDtcbiAgICBwYWRkaW5nOiA0cHggMTZweDtcbiAgICBmb250LXNpemU6IDExcHg7XG4gICAgbGluZS1oZWlnaHQ6IDEuNDtcbiAgICBjb2xvcjogdmFyKC0tbWRlLXRleHQtc2Vjb25kYXJ5LCByZ2JhKDAsIDAsIDAsIDAuNikpO1xuICAgIGJhY2tncm91bmQ6IHZhcigtLW1kZS1zdXJmYWNlLTIsIHJnYmEoMCwgMCwgMCwgMC4wMykpO1xuICAgIGJvcmRlci10b3A6IDFweCBzb2xpZCB2YXIoLS1tZGUtZGl2aWRlciwgcmdiYSgwLCAwLCAwLCAwLjA4KSk7XG5cbiAgICAudXNhZ2UtaWNvbiB7XG4gICAgICBmb250LXNpemU6IDE0cHg7XG4gICAgICB3aWR0aDogMTRweDtcbiAgICAgIGhlaWdodDogMTRweDtcbiAgICAgIG9wYWNpdHk6IDAuNztcbiAgICB9XG5cbiAgICAudXNhZ2UtaXRlbSBzdHJvbmcge1xuICAgICAgZm9udC13ZWlnaHQ6IDYwMDtcbiAgICB9XG5cbiAgICAudXNhZ2Utc2VwIHtcbiAgICAgIG9wYWNpdHk6IDAuNDtcbiAgICB9XG5cbiAgICAvKiBTcGluZ2UgbGUgZmluZXN0cmUgZGkgY29uc3VtbyBhIGRlc3RyYTogc29ubyB1biBkYXRvIGRpIGNvbnRlc3RvLCBub24gZGVsIHR1cm5vLiAqL1xuICAgIC51c2FnZS1zcGFjZXIge1xuICAgICAgZmxleDogMTtcbiAgICB9XG5cbiAgICAudXNhZ2Utd2luZG93IHtcbiAgICAgIG9wYWNpdHk6IDAuODtcbiAgICAgIHdoaXRlLXNwYWNlOiBub3dyYXA7XG4gICAgfVxuICB9XG5cbiAgLmNvcGlsb3QtY2xpLXVuYXZhaWxhYmxlLWJhbm5lciB7XG4gICAgZmxleC1zaHJpbms6IDA7XG4gICAgZGlzcGxheTogZmxleDtcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xuICAgIGdhcDogMTJweDtcbiAgICBwYWRkaW5nOiAxMHB4IDE2cHg7XG4gICAgYmFja2dyb3VuZDogdmFyKC0tbWRlLXdhcm5pbmctYmcpO1xuICAgIGJvcmRlci10b3A6IDFweCBzb2xpZCB2YXIoLS1tZGUtd2FybmluZy1mZyk7XG4gICAgYm9yZGVyLWJvdHRvbTogMXB4IHNvbGlkIHZhcigtLW1kZS13YXJuaW5nLWZnKTtcbiAgICBjb2xvcjogdmFyKC0tbWRlLXdhcm5pbmctZmcpO1xuXG4gICAgbWF0LWljb24ge1xuICAgICAgZmxleC1zaHJpbms6IDA7XG4gICAgfVxuXG4gICAgLmJhbm5lci10ZXh0IHtcbiAgICAgIGZsZXg6IDE7XG4gICAgICBkaXNwbGF5OiBmbGV4O1xuICAgICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcbiAgICAgIGdhcDogMnB4O1xuICAgICAgZm9udC1zaXplOiAxMnB4O1xuXG4gICAgICBzdHJvbmcge1xuICAgICAgICBmb250LXNpemU6IDEzcHg7XG4gICAgICB9XG5cbiAgICAgIC5iYW5uZXItaGludCB7XG4gICAgICAgIG9wYWNpdHk6IDAuODU7XG4gICAgICB9XG4gICAgfVxuXG4gICAgYnV0dG9uIHtcbiAgICAgIGZsZXgtc2hyaW5rOiAwO1xuICAgIH1cbiAgfVxuXG4gIC5jaGF0LWlucHV0LWNvbnRhaW5lciB7XG4gICAgZmxleC1zaHJpbms6IDA7XG4gICAgZGlzcGxheTogZmxleDtcbiAgICBmbGV4LXdyYXA6IHdyYXA7XG4gICAgcGFkZGluZzogMTZweDtcbiAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtYmctc2Vjb25kYXJ5KTtcbiAgICBib3JkZXItdG9wOiAycHggc29saWQgdmFyKC0tbWRlLWJvcmRlci1jb2xvcik7XG4gICAgZ2FwOiAxMHB4O1xuICAgIGFsaWduLWl0ZW1zOiBmbGV4LWVuZDtcblxuICAgIC5jb25maWd1cmluZy1wcm92aWRlci1iYW5uZXIge1xuICAgICAgZmxleC1iYXNpczogMTAwJTtcbiAgICAgIGRpc3BsYXk6IGZsZXg7XG4gICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xuICAgICAgZ2FwOiAxMHB4O1xuICAgICAgcGFkZGluZzogNnB4IDEycHg7XG4gICAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtYWNjZW50LWxpZ2h0KTtcbiAgICAgIGJvcmRlcjogMXB4IHNvbGlkIHZhcigtLW1kZS1vdXRsaW5lLWNvbG9yKTtcbiAgICAgIGJvcmRlci1yYWRpdXM6IDRweDtcbiAgICAgIGZvbnQtc2l6ZTogMTJweDtcbiAgICAgIGNvbG9yOiB2YXIoLS1tZGUtYWNjZW50LXNlY29uZGFyeSk7XG5cbiAgICAgIG1hdC1wcm9ncmVzcy1zcGlubmVyIHtcbiAgICAgICAgZmxleC1zaHJpbms6IDA7XG4gICAgICB9XG4gICAgfVxuXG4gICAgLmNoYXQtaW5wdXQge1xuICAgICAgZmxleDogMTtcblxuICAgICAgOjpuZy1kZWVwIC5tYXQtZm9ybS1maWVsZC13cmFwcGVyIHtcbiAgICAgICAgcGFkZGluZy1ib3R0b206IDA7XG4gICAgICB9XG5cbiAgICAgIDo6bmctZGVlcCB0ZXh0YXJlYSB7XG4gICAgICAgIGJhY2tncm91bmQ6IHZhcigtLW1kZS1iZy1wcmltYXJ5KTtcbiAgICAgICAgYm9yZGVyLXJhZGl1czogNHB4O1xuICAgICAgICAvLyBMZXQgdGhlIHVzZXIgZHJhZyB0aGUgcHJvbXB0IGJveCB0YWxsZXIgZm9yIGxvbmcgaW5wdXRzLlxuICAgICAgICByZXNpemU6IHZlcnRpY2FsO1xuICAgICAgICBtaW4taGVpZ2h0OiA0OHB4O1xuICAgICAgICBtYXgtaGVpZ2h0OiA0MHZoO1xuICAgICAgfVxuICAgIH1cblxuICAgIC5zZW5kLWJ1dHRvbiB7XG4gICAgICBtYXJnaW4tYm90dG9tOiA0cHg7XG4gICAgfVxuICB9XG59XG5cbkBrZXlmcmFtZXMgc2xpZGVJbiB7XG4gIGZyb20ge1xuICAgIG9wYWNpdHk6IDA7XG4gICAgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDEwcHgpO1xuICB9XG4gIHRvIHtcbiAgICBvcGFjaXR5OiAxO1xuICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlWSgwKTtcbiAgfVxufVxuXG4vLyA9PT0gREFSSy1CQVNFRCBUSEVNRSBPVkVSUklERVMgKGRhcmsgKyBtaWxhbikgPT09XG4vLyBSaWRvdHRvIGFsIG1pbmltbzogbGUgc3VwZXJmaWNpL3Rlc3RpL2JvcmRpIG9yYSB1c2FubyBpIHRva2VuIGdsb2JhbGkgbmVsbGFcbi8vIHNlemlvbmUgYmFzZS4gUmVzdGFubyBzb2xvIGxhIHRvb2xiYXIgKG5vbiBjb3BlcnRhIGRhbCB0ZW1hIG5hdGl2bykgZSBsZVxuLy8gdGludGUgaWRlbnRpdGFyaWUgKHRoaW5raW5nIHZpb2xhLCBib2xsYSB1dGVudGUgaW5kYWNvKSBzZW56YSB0b2tlbiBkZWRpY2F0by5cbjpob3N0LWNvbnRleHQoYm9keS5kYXJrLXRoZW1lKSxcbjpob3N0LWNvbnRleHQoYm9keS5taWxhbi10aGVtZSkge1xuICAuYWktY2hhdC1jb250YWluZXIge1xuICAgIC5jaGF0LWhlYWRlciB7XG4gICAgICAvLyAuY2hhdC1oZWFkZXIgSVMgdGhlIG1hdC10b29sYmFyIGVsZW1lbnQuIEluIGxpZ2h0IG1vZGUgTWF0ZXJpYWwgcGFpbnRzIGl0XG4gICAgICAvLyB3aXRoIGNvbG9yPVwicHJpbWFyeVwiL1wiYWNjZW50XCIgKGRhcmsgYmx1ZSkuIEluIGRhcmsgbW9kZSB0aGF0IHN0YXlzIGRhcmtcbiAgICAgIC8vIGJsdWUgYW5kIHRoZSB3aGl0ZSBoZWFkZXIgdGl0bGUgKyBpY29ucyBsb29rIG9rLCBidXQgd2hlbiBDaHJvbWUgcmVuZGVyc1xuICAgICAgLy8gdGhlIE1EQyBidXR0b24gaWNvbnMgdGhleSBpbmhlcml0IHRoZSB0b29sYmFyJ3MgZm9yZWdyb3VuZCB0b2tlbiB3aGljaFxuICAgICAgLy8gZmFsbHMgYmFjayB0byBuZWFyLWJsYWNrIG9uIHRoZSBDREsgb3ZlcmxheSDDosKAwpQgaWNvbnMgZGlzYXBwZWFyLlxuICAgICAgLy8gRm9yY2UgdGhlIHRvb2xiYXIgdG8gdGhlIGFwcCdzIGRhcmsgc3VyZmFjZSArIHJlYWRhYmxlIGZvcmVncm91bmQuXG4gICAgICBiYWNrZ3JvdW5kLWNvbG9yOiB2YXIoLS1tZGUtYmctc2Vjb25kYXJ5KSAhaW1wb3J0YW50O1xuICAgICAgY29sb3I6IHZhcigtLW1kZS10ZXh0LXByaW1hcnkpICFpbXBvcnRhbnQ7XG4gICAgICBib3JkZXItYm90dG9tLWNvbG9yOiB2YXIoLS1tZGUtYm9yZGVyLWNvbG9yKTtcblxuICAgICAgLmhlYWRlci10aXRsZSB7XG4gICAgICAgIGNvbG9yOiB2YXIoLS1tZGUtdGV4dC1wcmltYXJ5KTtcbiAgICAgIH1cblxuICAgICAgYnV0dG9uLm1hdC1tZGMtaWNvbi1idXR0b24sXG4gICAgICAubWF0LW1kYy1pY29uLWJ1dHRvbiB7XG4gICAgICAgIGNvbG9yOiB2YXIoLS1tZGUtdGV4dC1wcmltYXJ5KTtcblxuICAgICAgICBtYXQtaWNvbiB7XG4gICAgICAgICAgY29sb3I6IHZhcigtLW1kZS10ZXh0LXByaW1hcnkpO1xuICAgICAgICB9XG5cbiAgICAgICAgJjpob3ZlciB7XG4gICAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogdmFyKC0tbWRlLWJnLWhvdmVyKTtcbiAgICAgICAgfVxuXG4gICAgICAgICZbZGlzYWJsZWRdLFxuICAgICAgICAmLm1hdC1tZGMtYnV0dG9uLWRpc2FibGVkIHtcbiAgICAgICAgICBjb2xvcjogdmFyKC0tbWRlLXRleHQtaGludCk7XG5cbiAgICAgICAgICBtYXQtaWNvbiB7XG4gICAgICAgICAgICBjb2xvcjogdmFyKC0tbWRlLXRleHQtaGludCk7XG4gICAgICAgICAgfVxuICAgICAgICB9XG4gICAgICB9XG5cbiAgICAgIC8vIFRoZSBsZWFkaW5nIFwic21hcnRfdG95XCIgaWNvbiAobm90IGEgYnV0dG9uKSBpbiB0aGUgZnVsbC1zaXplIGhlYWRlclxuICAgICAgPiBtYXQtaWNvbiB7XG4gICAgICAgIGNvbG9yOiB2YXIoLS1tZGUtdGV4dC1wcmltYXJ5KTtcbiAgICAgIH1cbiAgICB9XG5cbiAgICAuY2hhdC1tZXNzYWdlcyAubWVzc2FnZSB7XG4gICAgICAubWVzc2FnZS1jb250ZW50IC50aGlua2luZy1zZWN0aW9uIHtcbiAgICAgICAgLnRoaW5raW5nLWhlYWRlciB7XG4gICAgICAgICAgYmFja2dyb3VuZDogcmdiYSgxNTYsIDM5LCAxNzYsIDAuMTgpO1xuICAgICAgICAgIGNvbG9yOiAjY2U5M2Q4O1xuXG4gICAgICAgICAgJjpob3ZlciB7XG4gICAgICAgICAgICBiYWNrZ3JvdW5kOiByZ2JhKDE1NiwgMzksIDE3NiwgMC4yOCk7XG4gICAgICAgICAgfVxuICAgICAgICB9XG5cbiAgICAgICAgLnRoaW5raW5nLWJvZHkge1xuICAgICAgICAgIGJhY2tncm91bmQ6IHJnYmEoMTU2LCAzOSwgMTc2LCAwLjA4KTtcbiAgICAgICAgICBib3JkZXItbGVmdC1jb2xvcjogcmdiYSgyMDYsIDE0NywgMjE2LCAwLjUpO1xuICAgICAgICAgIGNvbG9yOiB2YXIoLS1tZGUtdGV4dC1zZWNvbmRhcnkpO1xuICAgICAgICB9XG4gICAgICB9XG5cbiAgICAgICYubWVzc2FnZS11c2VyIHtcbiAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogcmdiYSgxMjEsIDEzNCwgMjAzLCAwLjE1KTtcblxuICAgICAgICAmOmhvdmVyIHtcbiAgICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiByZ2JhKDEyMSwgMTM0LCAyMDMsIDAuMjUpO1xuICAgICAgICB9XG4gICAgICB9XG4gICAgfVxuICB9XG59XG5cbi8vIENvbXBhY3QgbW9kZSBzdHlsZXMgZm9yIHNpZGViYXJcbi5haS1jaGF0LWNvbnRhaW5lci5jb21wYWN0LW1vZGUge1xuICBtYXJnaW46IDA7XG4gIGhlaWdodDogMTAwJTtcbiAgYm9yZGVyLXJhZGl1czogMDtcbiAgYm9yZGVyOiBub25lO1xuXG4gIC5jaGF0LWhlYWRlciB7XG4gICAgbWluLWhlaWdodDogNDhweDtcbiAgICBwYWRkaW5nOiAwIDhweDtcblxuICAgIC5oZWFkZXItdGl0bGUge1xuICAgICAgZGlzcGxheTogbm9uZTtcbiAgICB9XG5cbiAgICAubW9kZWwtc3RhdHVzIHtcbiAgICAgIG1hcmdpbi1yaWdodDogNHB4O1xuXG4gICAgICA6Om5nLWRlZXAgLm1hdC1jaGlwLWxpc3Qge1xuICAgICAgICAubWF0LWNoaXAge1xuICAgICAgICAgIG1pbi1oZWlnaHQ6IDI0cHg7XG4gICAgICAgICAgcGFkZGluZzogNHB4IDhweDtcbiAgICAgICAgICBmb250LXNpemU6IDAuNzVyZW07XG5cbiAgICAgICAgICBtYXQtaWNvbiB7XG4gICAgICAgICAgICBmb250LXNpemU6IDE2cHg7XG4gICAgICAgICAgICB3aWR0aDogMTZweDtcbiAgICAgICAgICAgIGhlaWdodDogMTZweDtcbiAgICAgICAgICB9XG4gICAgICAgIH1cbiAgICAgIH1cbiAgICB9XG4gIH1cblxuICAuY2hhdC1tZXNzYWdlcyB7XG4gICAgcGFkZGluZzogOHB4IDA7XG4gICAgYmFja2dyb3VuZDogdmFyKC0tbWRlLWJnLXNlY29uZGFyeSk7XG5cbiAgICAubm8tbWVzc2FnZXMge1xuICAgICAgbWF0LWljb24ge1xuICAgICAgICBmb250LXNpemU6IDQ4cHg7XG4gICAgICAgIHdpZHRoOiA0OHB4O1xuICAgICAgICBoZWlnaHQ6IDQ4cHg7XG4gICAgICB9XG5cbiAgICAgIHAge1xuICAgICAgICBmb250LXNpemU6IDAuOWVtO1xuICAgICAgfVxuICAgIH1cblxuICAgIC5tZXNzYWdlIHtcbiAgICAgIHBhZGRpbmc6IDhweCAxMnB4O1xuICAgICAgbWFyZ2luLWJvdHRvbTogMXB4O1xuXG4gICAgICAubWVzc2FnZS1jb250ZW50IHtcbiAgICAgICAgLm1lc3NhZ2UtaGVhZGVyIHtcbiAgICAgICAgICBtYXJnaW4tYm90dG9tOiA0cHg7XG5cbiAgICAgICAgICAubWVzc2FnZS1yb2xlIHtcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMC43NWVtO1xuICAgICAgICAgIH1cblxuICAgICAgICAgIC5tZXNzYWdlLXRpbWUge1xuICAgICAgICAgICAgZm9udC1zaXplOiAwLjdlbTtcbiAgICAgICAgICB9XG4gICAgICAgIH1cblxuICAgICAgICAubWVzc2FnZS10ZXh0IHtcbiAgICAgICAgICBmb250LXNpemU6IDAuOWVtO1xuXG4gICAgICAgICAgcHJlIHtcbiAgICAgICAgICAgIHBhZGRpbmc6IDZweDtcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMC44NWVtO1xuICAgICAgICAgIH1cbiAgICAgICAgfVxuICAgICAgfVxuICAgIH1cbiAgfVxuXG4gIC5jaGF0LWlucHV0LWNvbnRhaW5lciB7XG4gICAgcGFkZGluZzogMTBweDtcbiAgICBnYXA6IDhweDtcblxuICAgIC5jaGF0LWlucHV0IHtcbiAgICAgIDo6bmctZGVlcCB7XG4gICAgICAgIC5tYXQtZm9ybS1maWVsZC1pbmZpeCB7XG4gICAgICAgICAgcGFkZGluZzogOHB4IDA7XG4gICAgICAgIH1cblxuICAgICAgICB0ZXh0YXJlYSB7XG4gICAgICAgICAgZm9udC1zaXplOiAwLjllbTtcbiAgICAgICAgfVxuICAgICAgfVxuICAgIH1cblxuICAgIC5zZW5kLWJ1dHRvbiB7XG4gICAgICA6Om5nLWRlZXAgLm1hdC1idXR0b24td3JhcHBlciB7XG4gICAgICAgIHBhZGRpbmc6IDA7XG5cbiAgICAgICAgbWF0LWljb24ge1xuICAgICAgICAgIGZvbnQtc2l6ZTogMThweDtcbiAgICAgICAgfVxuICAgICAgfVxuICAgIH1cbiAgfVxufVxuXG4vLyBSaWdhIGRpIHN0YXRvIG1lbnRyZSBsJ2FnZW50ZSByaXNwb25kZTogc3Bpbm5lciArIGwnYXR0aXZpdMODwqAgaW4gY29yc28uIEluIHRvbm8gbWlub3JlXG4vLyAoLS1tZGUtdGV4dC1oaW50KSwgcGVyY2jDg8KpIG5vbiDDg8KoIGxhIHJpc3Bvc3RhOiDDg8KoIGlsIHNlZ25vIGNoZSBpbCBsYXZvcm8gcHJvc2VndWUuXG4uc3RyZWFtaW5nLXN0YXR1cyB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gIGdhcDogOHB4O1xuICBtaW4td2lkdGg6IDA7XG5cbiAgLnRvb2wtYWN0aXZpdHkge1xuICAgIGZvbnQtc2l6ZTogMTJweDtcbiAgICBmb250LXN0eWxlOiBpdGFsaWM7XG4gICAgY29sb3I6IHZhcigtLW1kZS10ZXh0LWhpbnQpO1xuICAgIHdoaXRlLXNwYWNlOiBub3dyYXA7XG4gICAgb3ZlcmZsb3c6IGhpZGRlbjtcbiAgICB0ZXh0LW92ZXJmbG93OiBlbGxpcHNpcztcbiAgICBtaW4td2lkdGg6IDA7XG4gIH1cbn1cblxuLy8gUmlnYSBkZWxsYSBzY2VsdGEgZGVsIG1vZGVsbG8gQ29waWxvdCwgc290dG8gbGEgdGVzdGF0YS4gU2ZvbmRvIG5vcm1hbGUgZSB0b2tlbiBkZWwgdGVtYSxcbi8vIG5vbiBsYSB0b29sYmFyIGNvbG9yYXRhOyBpbCBjYW1wbyBNYXRlcmlhbCB2aWVuZSBjb21wYXR0YXRvIHBlcmNow4PCqSDDg8KoIHVuYSByaWdhIGRpIHNlcnZpemlvLlxuLmNvcGlsb3QtbW9kZWwtYmFyIHtcbiAgZmxleC1zaHJpbms6IDA7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIC8vIEluIHRoZSBzaWRlIHBhbmVsICh+MjQwcHgpIHRoZSB1c2FnZSBmaWd1cmVzIGRvIG5vdCBmaXQgbmV4dCB0byB0aGUgbW9kZWwgY2hvaWNlOiB0aGV5XG4gIC8vIHNxdWVlemVkIHRoZSBjb21ib2JveCB0byBpdHMgYXJyb3cgYW5kIHRoZSBsYXN0IGZpZ3VyZSBlbmRlZCB1bmRlciB0aGUgZG9jdW1lbnQuIFRoZSByb3dcbiAgLy8gd3JhcHM7IGluIGEgbmFycm93IHJvdyB0aGUgZmlndXJlcyB0YWtlIGEgbGluZSBvZiB0aGVpciBvd24gKGNvbnRhaW5lciBxdWVyeSBiZWxvdyksIGluXG4gIC8vIHRoZSB3aWRlIGNoYXQgdGhleSBzdGF5IGJlc2lkZSB0aGUgbW9kZWwgY2hvaWNlLlxuICBmbGV4LXdyYXA6IHdyYXA7XG4gIHJvdy1nYXA6IDA7XG4gIGNvbnRhaW5lci10eXBlOiBpbmxpbmUtc2l6ZTtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgZ2FwOiA4cHg7XG4gIHBhZGRpbmc6IDJweCAxMnB4O1xuICBib3JkZXItYm90dG9tOiAxcHggc29saWQgdmFyKC0tbWRlLWJvcmRlci1jb2xvcik7XG4gIGJhY2tncm91bmQ6IHZhcigtLW1kZS1iZy1wcmltYXJ5KTtcbiAgbWluLXdpZHRoOiAwO1xuXG4gIC5jb3BpbG90LW1vZGVsLWxhYmVsIHtcbiAgICBmb250LXNpemU6IDEycHg7XG4gICAgY29sb3I6IHZhcigtLW1kZS10ZXh0LWhpbnQpO1xuICAgIHdoaXRlLXNwYWNlOiBub3dyYXA7XG4gIH1cblxuICAuY29waWxvdC1tb2RlbC1maWVsZCB7XG4gICAgLy8gQmFzZSAwLCBub3QgYXV0bzogd2l0aCBhdXRvIHRoZSBmaWVsZCB0b29rIHRoZSB3aG9sZSByb3cgYW5kIHB1c2hlZCDDosKfwrMgb250byBhIGxpbmUgb2YgaXRzXG4gICAgLy8gb3duIGluIHRoZSBzaWRlIHBhbmVsIChtZWFzdXJlZCAxMy8wOS8yMDI2KS4gSXQgc3RpbGwgZ3Jvd3MgdXAgdG8gbWF4LXdpZHRoLlxuICAgIGZsZXg6IDEgMSAwO1xuICAgIG1pbi13aWR0aDogMTEwcHg7IC8vIG5ldmVyIHNxdWVlemVkIHRvIGl0cyBhcnJvdywgYW5kIMOiwp/CsyBzdGlsbCBmaXRzIGJlc2lkZSBpdCBpbiB0aGUgc2lkZSBwYW5lbFxuICAgIG1heC13aWR0aDogMzIwcHg7XG4gICAgZm9udC1zaXplOiAxM3B4O1xuXG4gICAgOjpuZy1kZWVwIC5tYXQtZm9ybS1maWVsZC13cmFwcGVyIHsgcGFkZGluZy1ib3R0b206IDA7IG1hcmdpbjogMDsgfVxuICAgIDo6bmctZGVlcCAubWF0LWZvcm0tZmllbGQtaW5maXggeyBwYWRkaW5nOiA2cHggMDsgYm9yZGVyLXRvcDogMDsgd2lkdGg6IGF1dG87IH1cbiAgICA6Om5nLWRlZXAgLm1hdC1mb3JtLWZpZWxkLW91dGxpbmUgeyB0b3A6IDA7IH1cbiAgICA6Om5nLWRlZXAgLm1hdC1mb3JtLWZpZWxkLXN1YnNjcmlwdC13cmFwcGVyIHsgZGlzcGxheTogbm9uZTsgfVxuICB9XG5cbiAgLmNvcGlsb3QtbW9kZWwtcmVmcmVzaCB7XG4gICAgd2lkdGg6IDMycHg7XG4gICAgaGVpZ2h0OiAzMnB4O1xuICAgIGxpbmUtaGVpZ2h0OiAzMnB4O1xuICAgIGZsZXgtc2hyaW5rOiAwO1xuICB9XG5cbiAgLmNvcGlsb3QtbW9kZWwtcmVmcmVzaCAuc3Bpbm5pbmcge1xuICAgIGFuaW1hdGlvbjogY29waWxvdC1tb2RlbC1zcGluIDFzIGxpbmVhciBpbmZpbml0ZTtcbiAgfVxuXG4gIC5jb3BpbG90LW1vZGVsLWhpbnQge1xuICAgIGZvbnQtc2l6ZTogMTJweDtcbiAgICBmb250LXN0eWxlOiBpdGFsaWM7XG4gICAgY29sb3I6IHZhcigtLW1kZS10ZXh0LWhpbnQpO1xuICAgIHdoaXRlLXNwYWNlOiBub3dyYXA7XG4gIH1cblxuICAuY29waWxvdC1tb2RlbC1lcnJvciB7XG4gICAgZGlzcGxheTogaW5saW5lLWZsZXg7XG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgICBnYXA6IDRweDtcbiAgICBmb250LXNpemU6IDEycHg7XG4gICAgY29sb3I6IHZhcigtLW1kZS13YXJuaW5nLWZnKTtcbiAgICB3aGl0ZS1zcGFjZTogbm93cmFwO1xuXG4gICAgbWF0LWljb24geyBmb250LXNpemU6IDE2cHg7IHdpZHRoOiAxNnB4OyBoZWlnaHQ6IDE2cHg7IH1cbiAgfVxuXG4gIC8vIENvbnN1bWkgYSBkZXN0cmEgZGVsbGEgcmlnYTogaW5mb3JtYXRpdmksIG5vbiB1biBhdnZpc28sIGZpbmNow4PCqSBub24gc2kgYXZ2aWNpbmFubyBhbCBwaWVuby5cbiAgLmNvcGlsb3QtdXNhZ2Uge1xuICAgIG1hcmdpbi1sZWZ0OiBhdXRvO1xuICAgIGRpc3BsYXk6IGlubGluZS1mbGV4O1xuICAgIGZsZXgtd3JhcDogd3JhcDtcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xuICAgIGdhcDogMnB4IDZweDtcbiAgICBwYWRkaW5nLWJvdHRvbTogMnB4O1xuICAgIGZvbnQtc2l6ZTogMTFweDtcbiAgICBjb2xvcjogdmFyKC0tbWRlLXRleHQtaGludCk7XG5cbiAgICAudXNhZ2UtaXRlbSB7IHdoaXRlLXNwYWNlOiBub3dyYXA7IH1cblxuICAgIC51c2FnZS1pdGVtIHN0cm9uZyB7IGZvbnQtd2VpZ2h0OiA2MDA7IH1cbiAgICAudXNhZ2Utc2VwIHsgb3BhY2l0eTogMC41OyB9XG4gICAgLnVzYWdlLWhpZ2ggc3Ryb25nIHsgY29sb3I6IHZhcigtLW1kZS13YXJuaW5nLWZnKTsgfVxuICB9XG5cbiAgLy8gTmFycm93IHJvdyAodGhlIHNpZGUgcGFuZWwpOiB0aGUgZmlndXJlcyBvbiB0aGVpciBvd24gbGluZSwgZnJvbSB0aGUgbGVmdCwgYWxsIHRvZ2V0aGVyLlxuICBAY29udGFpbmVyIChtYXgtd2lkdGg6IDQyMHB4KSB7XG4gICAgLmNvcGlsb3QtdXNhZ2Uge1xuICAgICAgZmxleC1iYXNpczogMTAwJTtcbiAgICAgIG1hcmdpbi1sZWZ0OiAwO1xuICAgICAgZmxleC13cmFwOiBub3dyYXA7XG4gICAgICBnYXA6IDRweDtcbiAgICB9XG4gIH1cbn1cblxuLm1vZGVsLXVuYXZhaWxhYmxlIHtcbiAgZm9udC1zdHlsZTogaXRhbGljO1xuICBvcGFjaXR5OiAwLjc7XG59XG5cbkBrZXlmcmFtZXMgY29waWxvdC1tb2RlbC1zcGluIHtcbiAgZnJvbSB7IHRyYW5zZm9ybTogcm90YXRlKDBkZWcpOyB9XG4gIHRvIHsgdHJhbnNmb3JtOiByb3RhdGUoMzYwZGVnKTsgfVxufVxuIl0sInNvdXJjZVJvb3QiOiIifQ== */"]
+      dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_14__.NgClass, _angular_common__WEBPACK_IMPORTED_MODULE_14__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_14__.NgIf, _angular_forms__WEBPACK_IMPORTED_MODULE_15__.DefaultValueAccessor, _angular_forms__WEBPACK_IMPORTED_MODULE_15__.NgControlStatus, _angular_forms__WEBPACK_IMPORTED_MODULE_15__.NgModel, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_16__.MatLegacyButton, _angular_material_icon__WEBPACK_IMPORTED_MODULE_17__.MatIcon, _angular_material_toolbar__WEBPACK_IMPORTED_MODULE_18__.MatToolbar, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_19__.MatLegacyProgressSpinner, _angular_material_legacy_chips__WEBPACK_IMPORTED_MODULE_20__.MatLegacyChipList, _angular_material_legacy_chips__WEBPACK_IMPORTED_MODULE_20__.MatLegacyChip, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_21__.MatLegacyFormField, _angular_material_legacy_form_field__WEBPACK_IMPORTED_MODULE_21__.MatLegacyHint, _angular_material_legacy_select__WEBPACK_IMPORTED_MODULE_22__.MatLegacySelect, _angular_material_legacy_core__WEBPACK_IMPORTED_MODULE_23__.MatLegacyOption, _angular_cdk_text_field__WEBPACK_IMPORTED_MODULE_24__.CdkTextareaAutosize, _angular_material_legacy_input__WEBPACK_IMPORTED_MODULE_25__.MatLegacyInput, _angular_material_legacy_tooltip__WEBPACK_IMPORTED_MODULE_26__.MatLegacyTooltip, _model_manager_component__WEBPACK_IMPORTED_MODULE_7__.ModelManagerComponent, _angular_common__WEBPACK_IMPORTED_MODULE_14__.TitleCasePipe, _angular_common__WEBPACK_IMPORTED_MODULE_14__.DatePipe, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_13__.TranslatePipe],
+      styles: ["@charset \"UTF-8\";\n.ai-chat-container[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  height: calc(100% - 20px);\n  margin: 10px;\n  background: var(--mde-bg-primary);\n  border-radius: 8px;\n  border: 1px solid var(--mde-border-color);\n  \n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n  border-bottom: 1px solid var(--mde-border-color);\n  z-index: 10;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .header-title[_ngcontent-%COMP%] {\n  margin-left: 10px;\n  font-size: 1.2em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .spacer[_ngcontent-%COMP%] {\n  flex: 1;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .model-status[_ngcontent-%COMP%] {\n  margin-right: 10px;\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  flex-wrap: wrap;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .model-manager-panel[_ngcontent-%COMP%] {\n  position: relative;\n  flex: 0 0 auto;\n  height: 70vh !important;\n  overflow-y: auto !important;\n  overflow-x: hidden;\n  border-bottom: 1px solid var(--mde-border-color);\n  background: var(--mde-bg-primary);\n  box-sizing: border-box;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .model-manager-panel[_ngcontent-%COMP%]::-webkit-scrollbar {\n  width: 8px;\n  display: block !important;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .model-manager-panel[_ngcontent-%COMP%]::-webkit-scrollbar-track {\n  background: var(--mde-scrollbar-track);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .model-manager-panel[_ngcontent-%COMP%]::-webkit-scrollbar-thumb {\n  background: var(--mde-scrollbar-thumb);\n  border-radius: 4px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .model-manager-panel[_ngcontent-%COMP%]::-webkit-scrollbar-thumb:hover {\n  background: var(--mde-scrollbar-hover);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .model-manager-panel[_ngcontent-%COMP%]   app-model-manager[_ngcontent-%COMP%] {\n  display: block;\n  min-height: min-content;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%] {\n  flex: 1;\n  overflow-y: auto;\n  padding: 12px 0;\n  background: var(--mde-bg-primary);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .no-messages[_ngcontent-%COMP%] {\n  display: flex;\n  flex-direction: column;\n  align-items: center;\n  justify-content: center;\n  height: 100%;\n  color: var(--mde-text-hint);\n  text-align: center;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .no-messages[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 64px;\n  width: 64px;\n  height: 64px;\n  opacity: 0.3;\n  margin-bottom: 20px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .no-messages[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 5px 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .no-messages[_ngcontent-%COMP%]   .hint[_ngcontent-%COMP%] {\n  font-size: 0.9em;\n  color: var(--mde-warning-fg);\n  margin-top: 10px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%] {\n  display: flex;\n  padding: 10px 16px;\n  border-left: 3px solid transparent;\n  margin-bottom: 2px;\n  animation: _ngcontent-%COMP%_slideIn 0.3s ease-out;\n  transition: background-color 0.15s ease;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]:hover {\n  background-color: var(--mde-hover-overlay);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%] {\n  flex: 1;\n  padding: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%] {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  margin-bottom: 6px;\n  font-size: 0.85em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-role[_ngcontent-%COMP%] {\n  font-weight: 600;\n  text-transform: capitalize;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-actions[_ngcontent-%COMP%] {\n  display: flex;\n  gap: 4px;\n  margin: 0 8px;\n  opacity: 0;\n  transition: opacity 0.2s;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-actions[_ngcontent-%COMP%]   .action-button[_ngcontent-%COMP%] {\n  width: 32px;\n  height: 32px;\n  line-height: 32px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-actions[_ngcontent-%COMP%]   .action-button[_ngcontent-%COMP%]     .mat-icon {\n  font-size: 18px;\n  width: 18px;\n  height: 18px;\n  line-height: 18px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-time[_ngcontent-%COMP%] {\n  color: var(--mde-text-hint);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%] {\n  line-height: 1.5;\n  -webkit-user-select: text;\n          user-select: text;\n  word-wrap: break-word;\n  overflow-wrap: break-word;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 0 0 8px 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   p[_ngcontent-%COMP%]:last-child {\n  margin-bottom: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   pre[_ngcontent-%COMP%] {\n  background: #1e1e1e;\n  color: #d4d4d4;\n  padding: 12px 16px;\n  border-radius: 6px;\n  overflow-x: auto;\n  margin: 10px 0;\n  font-size: 0.9em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   pre[_ngcontent-%COMP%]   code[_ngcontent-%COMP%] {\n  background: none;\n  padding: 0;\n  border-radius: 0;\n  color: inherit;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   code[_ngcontent-%COMP%] {\n  background: var(--mde-bg-tertiary);\n  padding: 2px 6px;\n  border-radius: 3px;\n  font-family: \"Courier New\", Consolas, monospace;\n  font-size: 0.9em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h1[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h2[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h3[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h4[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h5[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h6[_ngcontent-%COMP%] {\n  margin: 16px 0 8px 0;\n  font-weight: 600;\n  line-height: 1.3;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h1[_ngcontent-%COMP%]:first-child, .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h2[_ngcontent-%COMP%]:first-child, .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h3[_ngcontent-%COMP%]:first-child, .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h4[_ngcontent-%COMP%]:first-child, .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h5[_ngcontent-%COMP%]:first-child, .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h6[_ngcontent-%COMP%]:first-child {\n  margin-top: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h1[_ngcontent-%COMP%] {\n  font-size: 1.4em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h2[_ngcontent-%COMP%] {\n  font-size: 1.25em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h3[_ngcontent-%COMP%] {\n  font-size: 1.1em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   h4[_ngcontent-%COMP%] {\n  font-size: 1em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   table[_ngcontent-%COMP%] {\n  border-collapse: collapse;\n  width: 100%;\n  margin: 10px 0;\n  font-size: 0.9em;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   table[_ngcontent-%COMP%]   th[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   table[_ngcontent-%COMP%]   td[_ngcontent-%COMP%] {\n  border: 1px solid var(--mde-border-color);\n  padding: 8px 12px;\n  text-align: left;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   table[_ngcontent-%COMP%]   th[_ngcontent-%COMP%] {\n  background: var(--mde-bg-tertiary);\n  font-weight: 600;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   table[_ngcontent-%COMP%]   tr[_ngcontent-%COMP%]:nth-child(even) {\n  background: var(--mde-bg-secondary);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   table[_ngcontent-%COMP%]   tr[_ngcontent-%COMP%]:hover {\n  background: var(--mde-bg-hover);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ul[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%] {\n  margin: 8px 0;\n  padding-left: 24px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ul[_ngcontent-%COMP%]   li[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%]   li[_ngcontent-%COMP%] {\n  margin-bottom: 4px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ul[_ngcontent-%COMP%]   ul[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ul[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%], .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   ol[_ngcontent-%COMP%]   ul[_ngcontent-%COMP%] {\n  margin: 4px 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   blockquote[_ngcontent-%COMP%] {\n  border-left: 4px solid var(--mde-accent-secondary);\n  margin: 10px 0;\n  padding: 8px 16px;\n  background: var(--mde-bg-tertiary);\n  color: var(--mde-text-secondary);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   blockquote[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  margin: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   a[_ngcontent-%COMP%] {\n  color: var(--mde-accent-primary);\n  text-decoration: none;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   a[_ngcontent-%COMP%]:hover {\n  text-decoration: underline;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   hr[_ngcontent-%COMP%] {\n  border: none;\n  border-top: 1px solid var(--mde-border-color);\n  margin: 16px 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   img[_ngcontent-%COMP%] {\n  max-width: 100%;\n  border-radius: 4px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%] {\n  margin-bottom: 8px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  cursor: pointer;\n  padding: 6px 10px;\n  background: #f3e5f5;\n  border-left: 3px solid #9c27b0;\n  border-radius: 4px;\n  font-size: 0.85em;\n  color: #7b1fa2;\n  -webkit-user-select: none;\n          user-select: none;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]:hover {\n  background: #e1bee7;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]   .thinking-icon[_ngcontent-%COMP%] {\n  font-size: 18px;\n  width: 18px;\n  height: 18px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]   .thinking-label[_ngcontent-%COMP%] {\n  font-weight: 500;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]   .thinking-toggle[_ngcontent-%COMP%] {\n  margin-left: auto;\n  font-size: 18px;\n  width: 18px;\n  height: 18px;\n  transition: transform 0.2s;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]   .thinking-spinner[_ngcontent-%COMP%] {\n  margin-left: 8px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-body[_ngcontent-%COMP%] {\n  padding: 8px 12px;\n  background: #faf5fc;\n  border-left: 3px solid #ce93d8;\n  border-radius: 0 0 4px 4px;\n  font-size: 0.9em;\n  color: #555;\n  max-height: 300px;\n  overflow-y: auto;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-body[_ngcontent-%COMP%]   pre[_ngcontent-%COMP%] {\n  background: #2d2d2d;\n  color: #ccc;\n  padding: 8px;\n  border-radius: 4px;\n  font-size: 0.85em;\n  overflow-x: auto;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-edit[_ngcontent-%COMP%] {\n  margin-top: 8px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-edit[_ngcontent-%COMP%]   .edit-textarea[_ngcontent-%COMP%] {\n  width: 100%;\n  margin-bottom: 8px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-edit[_ngcontent-%COMP%]   .edit-textarea[_ngcontent-%COMP%]     .mat-form-field-wrapper {\n  padding-bottom: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-edit[_ngcontent-%COMP%]   .edit-textarea[_ngcontent-%COMP%]     textarea {\n  resize: vertical;\n  font-family: inherit;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-edit[_ngcontent-%COMP%]   .edit-actions[_ngcontent-%COMP%] {\n  display: flex;\n  justify-content: flex-end;\n  gap: 8px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-edit[_ngcontent-%COMP%]   .edit-actions[_ngcontent-%COMP%]   button[_ngcontent-%COMP%] {\n  min-width: auto;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   mat-progress-spinner[_ngcontent-%COMP%] {\n  margin-top: 10px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]:hover   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-actions[_ngcontent-%COMP%] {\n  opacity: 1;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%] {\n  border-left-color: var(--mde-accent-secondary);\n  background-color: #f5f7ff;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-role[_ngcontent-%COMP%] {\n  color: var(--mde-accent-secondary);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%]:hover {\n  background-color: #ebeefb;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-assistant[_ngcontent-%COMP%] {\n  border-left-color: var(--mde-success-fg);\n  background-color: var(--mde-bg-primary);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-assistant[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-role[_ngcontent-%COMP%] {\n  color: var(--mde-success-fg);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-assistant[_ngcontent-%COMP%]:hover {\n  background-color: var(--mde-hover-overlay);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-system[_ngcontent-%COMP%] {\n  border-left-color: var(--mde-warning-fg);\n  background-color: var(--mde-warning-bg);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-system[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-role[_ngcontent-%COMP%] {\n  color: var(--mde-warning-fg);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .claude-usage-row[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n  display: flex;\n  align-items: center;\n  gap: 6px;\n  padding: 4px 16px;\n  font-size: 11px;\n  line-height: 1.4;\n  color: var(--mde-text-secondary, rgba(0, 0, 0, 0.6));\n  background: var(--mde-surface-2, rgba(0, 0, 0, 0.03));\n  border-top: 1px solid var(--mde-divider, rgba(0, 0, 0, 0.08));\n  \n}\n.ai-chat-container[_ngcontent-%COMP%]   .claude-usage-row[_ngcontent-%COMP%]   .usage-icon[_ngcontent-%COMP%] {\n  font-size: 14px;\n  width: 14px;\n  height: 14px;\n  opacity: 0.7;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .claude-usage-row[_ngcontent-%COMP%]   .usage-item[_ngcontent-%COMP%]   strong[_ngcontent-%COMP%] {\n  font-weight: 600;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .claude-usage-row[_ngcontent-%COMP%]   .usage-sep[_ngcontent-%COMP%] {\n  opacity: 0.4;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .claude-usage-row[_ngcontent-%COMP%]   .usage-spacer[_ngcontent-%COMP%] {\n  flex: 1;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .claude-usage-row[_ngcontent-%COMP%]   .usage-window[_ngcontent-%COMP%] {\n  opacity: 0.8;\n  white-space: nowrap;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .copilot-cli-unavailable-banner[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n  display: flex;\n  align-items: center;\n  gap: 12px;\n  padding: 10px 16px;\n  background: var(--mde-warning-bg);\n  border-top: 1px solid var(--mde-warning-fg);\n  border-bottom: 1px solid var(--mde-warning-fg);\n  color: var(--mde-warning-fg);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .copilot-cli-unavailable-banner[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .copilot-cli-unavailable-banner[_ngcontent-%COMP%]   .banner-text[_ngcontent-%COMP%] {\n  flex: 1;\n  display: flex;\n  flex-direction: column;\n  gap: 2px;\n  font-size: 12px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .copilot-cli-unavailable-banner[_ngcontent-%COMP%]   .banner-text[_ngcontent-%COMP%]   strong[_ngcontent-%COMP%] {\n  font-size: 13px;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .copilot-cli-unavailable-banner[_ngcontent-%COMP%]   .banner-text[_ngcontent-%COMP%]   .banner-hint[_ngcontent-%COMP%] {\n  opacity: 0.85;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .copilot-cli-unavailable-banner[_ngcontent-%COMP%]   button[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n  display: flex;\n  flex-wrap: wrap;\n  padding: 16px;\n  background: var(--mde-bg-secondary);\n  border-top: 2px solid var(--mde-border-color);\n  gap: 10px;\n  align-items: flex-end;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .configuring-provider-banner[_ngcontent-%COMP%] {\n  flex-basis: 100%;\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  padding: 6px 12px;\n  background: var(--mde-accent-light);\n  border: 1px solid var(--mde-outline-color);\n  border-radius: 4px;\n  font-size: 12px;\n  color: var(--mde-accent-secondary);\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .configuring-provider-banner[_ngcontent-%COMP%]   mat-progress-spinner[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .chat-input[_ngcontent-%COMP%] {\n  flex: 1;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .chat-input[_ngcontent-%COMP%]     .mat-form-field-wrapper {\n  padding-bottom: 0;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .chat-input[_ngcontent-%COMP%]     textarea {\n  background: var(--mde-bg-primary);\n  border-radius: 4px;\n  resize: vertical;\n  min-height: 48px;\n  max-height: 40vh;\n}\n.ai-chat-container[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .send-button[_ngcontent-%COMP%] {\n  margin-bottom: 4px;\n}\n\n@keyframes _ngcontent-%COMP%_slideIn {\n  from {\n    opacity: 0;\n    transform: translateY(10px);\n  }\n  to {\n    opacity: 1;\n    transform: translateY(0);\n  }\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%] {\n  background-color: var(--mde-bg-secondary) !important;\n  color: var(--mde-text-primary) !important;\n  border-bottom-color: var(--mde-border-color);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .header-title[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .header-title[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .header-title[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .header-title[_ngcontent-%COMP%] {\n  color: var(--mde-text-primary);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%] {\n  color: var(--mde-text-primary);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: var(--mde-text-primary);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]:hover, body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]:hover, body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]:hover, body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]:hover, body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]:hover, body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[_ngcontent-%COMP%]:hover, body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]:hover, body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[_ngcontent-%COMP%]:hover {\n  background-color: var(--mde-bg-hover);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%] {\n  color: var(--mde-text-hint);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   button.mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button[disabled][_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .mat-mdc-icon-button.mat-mdc-button-disabled[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  color: var(--mde-text-hint);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]    > mat-icon[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]    > mat-icon[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]    > mat-icon[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]    > mat-icon[_ngcontent-%COMP%] {\n  color: var(--mde-text-primary);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%] {\n  background: rgba(156, 39, 176, 0.18);\n  color: #ce93d8;\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]:hover, body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]:hover, body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]:hover, body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-header[_ngcontent-%COMP%]:hover {\n  background: rgba(156, 39, 176, 0.28);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-body[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-body[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-body[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .thinking-section[_ngcontent-%COMP%]   .thinking-body[_ngcontent-%COMP%] {\n  background: rgba(156, 39, 176, 0.08);\n  border-left-color: rgba(206, 147, 216, 0.5);\n  color: var(--mde-text-secondary);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%], body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%], body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%], body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%] {\n  background-color: rgba(121, 134, 203, 0.15);\n}\nbody.dark-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%]:hover, body.dark-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%]:hover, body.milan-theme[_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%]:hover, body.milan-theme   [_nghost-%COMP%]   .ai-chat-container[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message.message-user[_ngcontent-%COMP%]:hover {\n  background-color: rgba(121, 134, 203, 0.25);\n}\n\n.ai-chat-container.compact-mode[_ngcontent-%COMP%] {\n  margin: 0;\n  height: 100%;\n  border-radius: 0;\n  border: none;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%] {\n  min-height: 48px;\n  padding: 0 8px;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .header-title[_ngcontent-%COMP%] {\n  display: none;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .model-status[_ngcontent-%COMP%] {\n  margin-right: 4px;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .model-status[_ngcontent-%COMP%]     .mat-chip-list .mat-chip {\n  min-height: 24px;\n  padding: 4px 8px;\n  font-size: 0.75rem;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-header[_ngcontent-%COMP%]   .model-status[_ngcontent-%COMP%]     .mat-chip-list .mat-chip mat-icon {\n  font-size: 16px;\n  width: 16px;\n  height: 16px;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%] {\n  padding: 8px 0;\n  background: var(--mde-bg-secondary);\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .no-messages[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 48px;\n  width: 48px;\n  height: 48px;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .no-messages[_ngcontent-%COMP%]   p[_ngcontent-%COMP%] {\n  font-size: 0.9em;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%] {\n  padding: 8px 12px;\n  margin-bottom: 1px;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%] {\n  margin-bottom: 4px;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-role[_ngcontent-%COMP%] {\n  font-size: 0.75em;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-header[_ngcontent-%COMP%]   .message-time[_ngcontent-%COMP%] {\n  font-size: 0.7em;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%] {\n  font-size: 0.9em;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-messages[_ngcontent-%COMP%]   .message[_ngcontent-%COMP%]   .message-content[_ngcontent-%COMP%]   .message-text[_ngcontent-%COMP%]   pre[_ngcontent-%COMP%] {\n  padding: 6px;\n  font-size: 0.85em;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%] {\n  padding: 10px;\n  gap: 8px;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .chat-input[_ngcontent-%COMP%]     .mat-form-field-infix {\n  padding: 8px 0;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .chat-input[_ngcontent-%COMP%]     textarea {\n  font-size: 0.9em;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .send-button[_ngcontent-%COMP%]     .mat-button-wrapper {\n  padding: 0;\n}\n.ai-chat-container.compact-mode[_ngcontent-%COMP%]   .chat-input-container[_ngcontent-%COMP%]   .send-button[_ngcontent-%COMP%]     .mat-button-wrapper mat-icon {\n  font-size: 18px;\n}\n\n.streaming-status[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  min-width: 0;\n}\n.streaming-status[_ngcontent-%COMP%]   .tool-activity[_ngcontent-%COMP%] {\n  font-size: 12px;\n  font-style: italic;\n  color: var(--mde-text-hint);\n  white-space: nowrap;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  min-width: 0;\n}\n\n.copilot-model-bar[_ngcontent-%COMP%] {\n  flex-shrink: 0;\n  display: flex;\n  flex-wrap: wrap;\n  row-gap: 0;\n  container-type: inline-size;\n  align-items: center;\n  gap: 8px;\n  padding: 2px 12px;\n  border-bottom: 1px solid var(--mde-border-color);\n  background: var(--mde-bg-primary);\n  min-width: 0;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-label[_ngcontent-%COMP%] {\n  font-size: 12px;\n  color: var(--mde-text-hint);\n  white-space: nowrap;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-field[_ngcontent-%COMP%] {\n  flex: 1 1 0;\n  min-width: 110px;\n  max-width: 320px;\n  font-size: 13px;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-field[_ngcontent-%COMP%]     .mat-form-field-wrapper {\n  padding-bottom: 0;\n  margin: 0;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-field[_ngcontent-%COMP%]     .mat-form-field-infix {\n  padding: 6px 0;\n  border-top: 0;\n  width: auto;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-field[_ngcontent-%COMP%]     .mat-form-field-outline {\n  top: 0;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-field[_ngcontent-%COMP%]     .mat-form-field-subscript-wrapper {\n  display: none;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-refresh[_ngcontent-%COMP%] {\n  width: 32px;\n  height: 32px;\n  line-height: 32px;\n  flex-shrink: 0;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-refresh[_ngcontent-%COMP%]   .spinning[_ngcontent-%COMP%] {\n  animation: _ngcontent-%COMP%_copilot-model-spin 1s linear infinite;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-hint[_ngcontent-%COMP%] {\n  font-size: 12px;\n  font-style: italic;\n  color: var(--mde-text-hint);\n  white-space: nowrap;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-error[_ngcontent-%COMP%] {\n  display: inline-flex;\n  align-items: center;\n  gap: 4px;\n  font-size: 12px;\n  color: var(--mde-warning-fg);\n  white-space: nowrap;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-model-error[_ngcontent-%COMP%]   mat-icon[_ngcontent-%COMP%] {\n  font-size: 16px;\n  width: 16px;\n  height: 16px;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-usage[_ngcontent-%COMP%] {\n  margin-left: auto;\n  display: inline-flex;\n  flex-wrap: wrap;\n  align-items: center;\n  gap: 2px 6px;\n  padding-bottom: 2px;\n  font-size: 11px;\n  color: var(--mde-text-hint);\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-usage[_ngcontent-%COMP%]   .usage-item[_ngcontent-%COMP%] {\n  white-space: nowrap;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-usage[_ngcontent-%COMP%]   .usage-item[_ngcontent-%COMP%]   strong[_ngcontent-%COMP%] {\n  font-weight: 600;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-usage[_ngcontent-%COMP%]   .usage-sep[_ngcontent-%COMP%] {\n  opacity: 0.5;\n}\n.copilot-model-bar[_ngcontent-%COMP%]   .copilot-usage[_ngcontent-%COMP%]   .usage-high[_ngcontent-%COMP%]   strong[_ngcontent-%COMP%] {\n  color: var(--mde-warning-fg);\n}\n@container (max-width: 420px) {\n  .copilot-model-bar[_ngcontent-%COMP%]   .copilot-usage[_ngcontent-%COMP%] {\n    flex-basis: 100%;\n    margin-left: 0;\n    flex-wrap: nowrap;\n    gap: 4px;\n  }\n}\n\n.model-unavailable[_ngcontent-%COMP%] {\n  font-style: italic;\n  opacity: 0.7;\n}\n\n@keyframes _ngcontent-%COMP%_copilot-model-spin {\n  from {\n    transform: rotate(0deg);\n  }\n  to {\n    transform: rotate(360deg);\n  }\n}\n\n.dictation-button[_ngcontent-%COMP%] {\n  margin-right: 8px;\n  flex: 0 0 auto;\n}\n.dictation-button.dictation-recording[_ngcontent-%COMP%] {\n  animation: _ngcontent-%COMP%_dictation-pulse 1.4s ease-in-out infinite;\n}\n.dictation-button[_ngcontent-%COMP%]   mat-spinner[_ngcontent-%COMP%] {\n  margin: 0 auto;\n}\n\n@keyframes _ngcontent-%COMP%_dictation-pulse {\n  0%, 100% {\n    transform: scale(1);\n  }\n  50% {\n    transform: scale(1.08);\n  }\n}\n\n.dictation-error[_ngcontent-%COMP%] {\n  display: flex;\n  align-items: center;\n  gap: 8px;\n  margin-bottom: 8px;\n  padding: 6px 8px;\n  border-radius: 4px;\n  background: rgba(244, 67, 54, 0.12);\n  font-size: 13px;\n}\n.dictation-error[_ngcontent-%COMP%]   .dictation-error-icon[_ngcontent-%COMP%] {\n  font-size: 18px;\n  width: 18px;\n  height: 18px;\n}\n.dictation-error[_ngcontent-%COMP%]   span[_ngcontent-%COMP%] {\n  flex: 1;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL3NyYy9hcHAvYWktY2hhdC9haS1jaGF0LmNvbXBvbmVudC5zY3NzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLGdCQUFnQjtBQUFoQjtFQUNFLGFBQUE7RUFDQSxzQkFBQTtFQUNBLHlCQUFBO0VBQ0EsWUFBQTtFQUNBLGlDQUFBO0VBQ0Esa0JBQUE7RUFDQSx5Q0FBQTtFQWdhQTs7Z0dBQUE7QUEzWkY7QUFIRTtFQUNFLGNBQUE7RUFDQSxnREFBQTtFQUNBLFdBQUE7QUFLSjtBQUhJO0VBQ0UsaUJBQUE7RUFDQSxnQkFBQTtBQUtOO0FBRkk7RUFDRSxPQUFBO0FBSU47QUFESTtFQUNFLGtCQUFBO0VBQ0EsYUFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGVBQUE7QUFHTjtBQUVFO0VBQ0Usa0JBQUE7RUFDQSxjQUFBO0VBQ0EsdUJBQUE7RUFDQSwyQkFBQTtFQUNBLGtCQUFBO0VBQ0EsZ0RBQUE7RUFDQSxpQ0FBQTtFQUNBLHNCQUFBO0FBQUo7QUFFSTtFQUNFLFVBQUE7RUFDQSx5QkFBQTtBQUFOO0FBR0k7RUFDRSxzQ0FBQTtBQUROO0FBSUk7RUFDRSxzQ0FBQTtFQUNBLGtCQUFBO0FBRk47QUFLSTtFQUNFLHNDQUFBO0FBSE47QUFNSTtFQUNFLGNBQUE7RUFDQSx1QkFBQTtBQUpOO0FBUUU7RUFDRSxPQUFBO0VBQ0EsZ0JBQUE7RUFDQSxlQUFBO0VBQ0EsaUNBQUE7QUFOSjtBQVFJO0VBQ0UsYUFBQTtFQUNBLHNCQUFBO0VBQ0EsbUJBQUE7RUFDQSx1QkFBQTtFQUNBLFlBQUE7RUFDQSwyQkFBQTtFQUNBLGtCQUFBO0FBTk47QUFRTTtFQUNFLGVBQUE7RUFDQSxXQUFBO0VBQ0EsWUFBQTtFQUNBLFlBQUE7RUFDQSxtQkFBQTtBQU5SO0FBU007RUFDRSxhQUFBO0FBUFI7QUFVTTtFQUNFLGdCQUFBO0VBQ0EsNEJBQUE7RUFDQSxnQkFBQTtBQVJSO0FBWUk7RUFDRSxhQUFBO0VBQ0Esa0JBQUE7RUFDQSxrQ0FBQTtFQUNBLGtCQUFBO0VBQ0EsZ0NBQUE7RUFDQSx1Q0FBQTtBQVZOO0FBWU07RUFDRSwwQ0FBQTtBQVZSO0FBYU07RUFDRSxPQUFBO0VBQ0EsVUFBQTtBQVhSO0FBYVE7RUFDRSxhQUFBO0VBQ0EsOEJBQUE7RUFDQSxtQkFBQTtFQUNBLGtCQUFBO0VBQ0EsaUJBQUE7QUFYVjtBQWFVO0VBQ0UsZ0JBQUE7RUFDQSwwQkFBQTtBQVhaO0FBY1U7RUFDRSxhQUFBO0VBQ0EsUUFBQTtFQUNBLGFBQUE7RUFDQSxVQUFBO0VBQ0Esd0JBQUE7QUFaWjtBQWNZO0VBQ0UsV0FBQTtFQUNBLFlBQUE7RUFDQSxpQkFBQTtBQVpkO0FBY2M7RUFDRSxlQUFBO0VBQ0EsV0FBQTtFQUNBLFlBQUE7RUFDQSxpQkFBQTtBQVpoQjtBQWlCVTtFQUNFLDJCQUFBO0FBZlo7QUFtQlE7RUFDRSxnQkFBQTtFQUNBLHlCQUFBO1VBQUEsaUJBQUE7RUFDQSxxQkFBQTtFQUNBLHlCQUFBO0FBakJWO0FBb0JVO0VBQ0UsaUJBQUE7QUFsQlo7QUFtQlk7RUFBZSxnQkFBQTtBQWhCM0I7QUFvQlU7RUFDRSxtQkFBQTtFQUNBLGNBQUE7RUFDQSxrQkFBQTtFQUNBLGtCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxjQUFBO0VBQ0EsZ0JBQUE7QUFsQlo7QUFvQlk7RUFDRSxnQkFBQTtFQUNBLFVBQUE7RUFDQSxnQkFBQTtFQUNBLGNBQUE7QUFsQmQ7QUF1QlU7RUFDRSxrQ0FBQTtFQUNBLGdCQUFBO0VBQ0Esa0JBQUE7RUFDQSwrQ0FBQTtFQUNBLGdCQUFBO0FBckJaO0FBeUJVO0VBQ0Usb0JBQUE7RUFDQSxnQkFBQTtFQUNBLGdCQUFBO0FBdkJaO0FBd0JZO0VBQWdCLGFBQUE7QUFyQjVCO0FBdUJVO0VBQUssZ0JBQUE7QUFwQmY7QUFxQlU7RUFBSyxpQkFBQTtBQWxCZjtBQW1CVTtFQUFLLGdCQUFBO0FBaEJmO0FBaUJVO0VBQUssY0FBQTtBQWRmO0FBaUJVO0VBQ0UseUJBQUE7RUFDQSxXQUFBO0VBQ0EsY0FBQTtFQUNBLGdCQUFBO0FBZlo7QUFpQlk7RUFDRSx5Q0FBQTtFQUNBLGlCQUFBO0VBQ0EsZ0JBQUE7QUFmZDtBQWtCWTtFQUNFLGtDQUFBO0VBQ0EsZ0JBQUE7QUFoQmQ7QUFtQlk7RUFDRSxtQ0FBQTtBQWpCZDtBQW9CWTtFQUNFLCtCQUFBO0FBbEJkO0FBdUJVO0VBQ0UsYUFBQTtFQUNBLGtCQUFBO0FBckJaO0FBdUJZO0VBQ0Usa0JBQUE7QUFyQmQ7QUEwQlU7RUFDRSxhQUFBO0FBeEJaO0FBNEJVO0VBQ0Usa0RBQUE7RUFDQSxjQUFBO0VBQ0EsaUJBQUE7RUFDQSxrQ0FBQTtFQUNBLGdDQUFBO0FBMUJaO0FBNEJZO0VBQ0UsU0FBQTtBQTFCZDtBQStCVTtFQUNFLGdDQUFBO0VBQ0EscUJBQUE7QUE3Qlo7QUE4Qlk7RUFDRSwwQkFBQTtBQTVCZDtBQWlDVTtFQUNFLFlBQUE7RUFDQSw2Q0FBQTtFQUNBLGNBQUE7QUEvQlo7QUFtQ1U7RUFDRSxlQUFBO0VBQ0Esa0JBQUE7QUFqQ1o7QUFxQ1E7RUFDRSxrQkFBQTtBQW5DVjtBQXFDVTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxlQUFBO0VBQ0EsaUJBQUE7RUFDQSxtQkFBQTtFQUNBLDhCQUFBO0VBQ0Esa0JBQUE7RUFDQSxpQkFBQTtFQUNBLGNBQUE7RUFDQSx5QkFBQTtVQUFBLGlCQUFBO0FBbkNaO0FBcUNZO0VBQ0UsbUJBQUE7QUFuQ2Q7QUFzQ1k7RUFDRSxlQUFBO0VBQ0EsV0FBQTtFQUNBLFlBQUE7QUFwQ2Q7QUF1Q1k7RUFDRSxnQkFBQTtBQXJDZDtBQXdDWTtFQUNFLGlCQUFBO0VBQ0EsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0VBQ0EsMEJBQUE7QUF0Q2Q7QUF5Q1k7RUFDRSxnQkFBQTtBQXZDZDtBQTJDVTtFQUNFLGlCQUFBO0VBQ0EsbUJBQUE7RUFDQSw4QkFBQTtFQUNBLDBCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxXQUFBO0VBQ0EsaUJBQUE7RUFDQSxnQkFBQTtBQXpDWjtBQTJDWTtFQUNFLG1CQUFBO0VBQ0EsV0FBQTtFQUNBLFlBQUE7RUFDQSxrQkFBQTtFQUNBLGlCQUFBO0VBQ0EsZ0JBQUE7QUF6Q2Q7QUE4Q1E7RUFDRSxlQUFBO0FBNUNWO0FBOENVO0VBQ0UsV0FBQTtFQUNBLGtCQUFBO0FBNUNaO0FBOENZO0VBQ0UsaUJBQUE7QUE1Q2Q7QUErQ1k7RUFDRSxnQkFBQTtFQUNBLG9CQUFBO0FBN0NkO0FBaURVO0VBQ0UsYUFBQTtFQUNBLHlCQUFBO0VBQ0EsUUFBQTtBQS9DWjtBQWlEWTtFQUNFLGVBQUE7QUEvQ2Q7QUFvRFE7RUFDRSxnQkFBQTtBQWxEVjtBQXVETTtFQUNFLFVBQUE7QUFyRFI7QUF3RE07RUFDRSw4Q0FBQTtFQUNBLHlCQUFBO0FBdERSO0FBd0RRO0VBQ0Usa0NBQUE7QUF0RFY7QUF5RFE7RUFDRSx5QkFBQTtBQXZEVjtBQTJETTtFQUNFLHdDQUFBO0VBQ0EsdUNBQUE7QUF6RFI7QUEyRFE7RUFDRSw0QkFBQTtBQXpEVjtBQTREUTtFQUNFLDBDQUFBO0FBMURWO0FBOERNO0VBQ0Usd0NBQUE7RUFDQSx1Q0FBQTtBQTVEUjtBQThEUTtFQUNFLDRCQUFBO0FBNURWO0FBcUVFO0VBQ0UsY0FBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxpQkFBQTtFQUNBLGVBQUE7RUFDQSxnQkFBQTtFQUNBLG9EQUFBO0VBQ0EscURBQUE7RUFDQSw2REFBQTtFQWlCQSxxRkFBQTtBQW5GSjtBQW9FSTtFQUNFLGVBQUE7RUFDQSxXQUFBO0VBQ0EsWUFBQTtFQUNBLFlBQUE7QUFsRU47QUFxRUk7RUFDRSxnQkFBQTtBQW5FTjtBQXNFSTtFQUNFLFlBQUE7QUFwRU47QUF3RUk7RUFDRSxPQUFBO0FBdEVOO0FBeUVJO0VBQ0UsWUFBQTtFQUNBLG1CQUFBO0FBdkVOO0FBMkVFO0VBQ0UsY0FBQTtFQUNBLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFNBQUE7RUFDQSxrQkFBQTtFQUNBLGlDQUFBO0VBQ0EsMkNBQUE7RUFDQSw4Q0FBQTtFQUNBLDRCQUFBO0FBekVKO0FBMkVJO0VBQ0UsY0FBQTtBQXpFTjtBQTRFSTtFQUNFLE9BQUE7RUFDQSxhQUFBO0VBQ0Esc0JBQUE7RUFDQSxRQUFBO0VBQ0EsZUFBQTtBQTFFTjtBQTRFTTtFQUNFLGVBQUE7QUExRVI7QUE2RU07RUFDRSxhQUFBO0FBM0VSO0FBK0VJO0VBQ0UsY0FBQTtBQTdFTjtBQWlGRTtFQUNFLGNBQUE7RUFDQSxhQUFBO0VBQ0EsZUFBQTtFQUNBLGFBQUE7RUFDQSxtQ0FBQTtFQUNBLDZDQUFBO0VBQ0EsU0FBQTtFQUNBLHFCQUFBO0FBL0VKO0FBaUZJO0VBQ0UsZ0JBQUE7RUFDQSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxTQUFBO0VBQ0EsaUJBQUE7RUFDQSxtQ0FBQTtFQUNBLDBDQUFBO0VBQ0Esa0JBQUE7RUFDQSxlQUFBO0VBQ0Esa0NBQUE7QUEvRU47QUFpRk07RUFDRSxjQUFBO0FBL0VSO0FBbUZJO0VBQ0UsT0FBQTtBQWpGTjtBQW1GTTtFQUNFLGlCQUFBO0FBakZSO0FBb0ZNO0VBQ0UsaUNBQUE7RUFDQSxrQkFBQTtFQUVBLGdCQUFBO0VBQ0EsZ0JBQUE7RUFDQSxnQkFBQTtBQW5GUjtBQXVGSTtFQUNFLGtCQUFBO0FBckZOOztBQTBGQTtFQUNFO0lBQ0UsVUFBQTtJQUNBLDJCQUFBO0VBdkZGO0VBeUZBO0lBQ0UsVUFBQTtJQUNBLHdCQUFBO0VBdkZGO0FBQ0Y7QUFpR0k7O0VBT0Usb0RBQUE7RUFDQSx5Q0FBQTtFQUNBLDRDQUFBO0FBcEdOO0FBc0dNOztFQUNFLDhCQUFBO0FBbkdSO0FBc0dNOzs7O0VBRUUsOEJBQUE7QUFsR1I7QUFvR1E7Ozs7RUFDRSw4QkFBQTtBQS9GVjtBQWtHUTs7OztFQUNFLHFDQUFBO0FBN0ZWO0FBZ0dROzs7Ozs7O0VBRUUsMkJBQUE7QUF6RlY7QUEyRlU7Ozs7Ozs7RUFDRSwyQkFBQTtBQW5GWjtBQXlGTTs7RUFDRSw4QkFBQTtBQXRGUjtBQTRGUTs7RUFDRSxvQ0FBQTtFQUNBLGNBQUE7QUF6RlY7QUEyRlU7O0VBQ0Usb0NBQUE7QUF4Rlo7QUE0RlE7O0VBQ0Usb0NBQUE7RUFDQSwyQ0FBQTtFQUNBLGdDQUFBO0FBekZWO0FBNkZNOztFQUNFLDJDQUFBO0FBMUZSO0FBNEZROztFQUNFLDJDQUFBO0FBekZWOztBQWlHQTtFQUNFLFNBQUE7RUFDQSxZQUFBO0VBQ0EsZ0JBQUE7RUFDQSxZQUFBO0FBOUZGO0FBZ0dFO0VBQ0UsZ0JBQUE7RUFDQSxjQUFBO0FBOUZKO0FBZ0dJO0VBQ0UsYUFBQTtBQTlGTjtBQWlHSTtFQUNFLGlCQUFBO0FBL0ZOO0FBa0dRO0VBQ0UsZ0JBQUE7RUFDQSxnQkFBQTtFQUNBLGtCQUFBO0FBaEdWO0FBa0dVO0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0FBaEdaO0FBdUdFO0VBQ0UsY0FBQTtFQUNBLG1DQUFBO0FBckdKO0FBd0dNO0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0FBdEdSO0FBeUdNO0VBQ0UsZ0JBQUE7QUF2R1I7QUEyR0k7RUFDRSxpQkFBQTtFQUNBLGtCQUFBO0FBekdOO0FBNEdRO0VBQ0Usa0JBQUE7QUExR1Y7QUE0R1U7RUFDRSxpQkFBQTtBQTFHWjtBQTZHVTtFQUNFLGdCQUFBO0FBM0daO0FBK0dRO0VBQ0UsZ0JBQUE7QUE3R1Y7QUErR1U7RUFDRSxZQUFBO0VBQ0EsaUJBQUE7QUE3R1o7QUFvSEU7RUFDRSxhQUFBO0VBQ0EsUUFBQTtBQWxISjtBQXNIUTtFQUNFLGNBQUE7QUFwSFY7QUF1SFE7RUFDRSxnQkFBQTtBQXJIVjtBQTJITTtFQUNFLFVBQUE7QUF6SFI7QUEySFE7RUFDRSxlQUFBO0FBekhWOztBQWtJQTtFQUNFLGFBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxZQUFBO0FBL0hGO0FBaUlFO0VBQ0UsZUFBQTtFQUNBLGtCQUFBO0VBQ0EsMkJBQUE7RUFDQSxtQkFBQTtFQUNBLGdCQUFBO0VBQ0EsdUJBQUE7RUFDQSxZQUFBO0FBL0hKOztBQXFJQTtFQUNFLGNBQUE7RUFDQSxhQUFBO0VBS0EsZUFBQTtFQUNBLFVBQUE7RUFDQSwyQkFBQTtFQUNBLG1CQUFBO0VBQ0EsUUFBQTtFQUNBLGlCQUFBO0VBQ0EsZ0RBQUE7RUFDQSxpQ0FBQTtFQUNBLFlBQUE7QUF0SUY7QUF3SUU7RUFDRSxlQUFBO0VBQ0EsMkJBQUE7RUFDQSxtQkFBQTtBQXRJSjtBQXlJRTtFQUdFLFdBQUE7RUFDQSxnQkFBQTtFQUNBLGdCQUFBO0VBQ0EsZUFBQTtBQXpJSjtBQTJJSTtFQUFvQyxpQkFBQTtFQUFtQixTQUFBO0FBdkkzRDtBQXdJSTtFQUFrQyxjQUFBO0VBQWdCLGFBQUE7RUFBZSxXQUFBO0FBbklyRTtBQW9JSTtFQUFvQyxNQUFBO0FBakl4QztBQWtJSTtFQUE4QyxhQUFBO0FBL0hsRDtBQWtJRTtFQUNFLFdBQUE7RUFDQSxZQUFBO0VBQ0EsaUJBQUE7RUFDQSxjQUFBO0FBaElKO0FBbUlFO0VBQ0UsZ0RBQUE7QUFqSUo7QUFvSUU7RUFDRSxlQUFBO0VBQ0Esa0JBQUE7RUFDQSwyQkFBQTtFQUNBLG1CQUFBO0FBbElKO0FBcUlFO0VBQ0Usb0JBQUE7RUFDQSxtQkFBQTtFQUNBLFFBQUE7RUFDQSxlQUFBO0VBQ0EsNEJBQUE7RUFDQSxtQkFBQTtBQW5JSjtBQXFJSTtFQUFXLGVBQUE7RUFBaUIsV0FBQTtFQUFhLFlBQUE7QUFoSTdDO0FBb0lFO0VBQ0UsaUJBQUE7RUFDQSxvQkFBQTtFQUNBLGVBQUE7RUFDQSxtQkFBQTtFQUNBLFlBQUE7RUFDQSxtQkFBQTtFQUNBLGVBQUE7RUFDQSwyQkFBQTtBQWxJSjtBQW9JSTtFQUFjLG1CQUFBO0FBaklsQjtBQW1JSTtFQUFxQixnQkFBQTtBQWhJekI7QUFpSUk7RUFBYSxZQUFBO0FBOUhqQjtBQStISTtFQUFxQiw0QkFBQTtBQTVIekI7QUFnSUU7RUFDRTtJQUNFLGdCQUFBO0lBQ0EsY0FBQTtJQUNBLGlCQUFBO0lBQ0EsUUFBQTtFQTlISjtBQUNGOztBQWtJQTtFQUNFLGtCQUFBO0VBQ0EsWUFBQTtBQS9IRjs7QUFrSUE7RUFDRTtJQUFPLHVCQUFBO0VBOUhQO0VBK0hBO0lBQUsseUJBQUE7RUE1SEw7QUFDRjtBQThIQTt5Q0FBQTtBQUVBO0VBQ0UsaUJBQUE7RUFDQSxjQUFBO0FBNUhGO0FBOEhFO0VBQ0Usb0RBQUE7QUE1SEo7QUErSEU7RUFDRSxjQUFBO0FBN0hKOztBQWlJQTtFQUNFO0lBQVcsbUJBQUE7RUE3SFg7RUE4SEE7SUFBVyxzQkFBQTtFQTNIWDtBQUNGO0FBNkhBOytGQUFBO0FBRUE7RUFDRSxhQUFBO0VBQ0EsbUJBQUE7RUFDQSxRQUFBO0VBQ0Esa0JBQUE7RUFDQSxnQkFBQTtFQUNBLGtCQUFBO0VBQ0EsbUNBQUE7RUFDQSxlQUFBO0FBM0hGO0FBNkhFO0VBQ0UsZUFBQTtFQUNBLFdBQUE7RUFDQSxZQUFBO0FBM0hKO0FBOEhFO0VBQU8sT0FBQTtBQTNIVCIsInNvdXJjZXNDb250ZW50IjpbIi5haS1jaGF0LWNvbnRhaW5lciB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XG4gIGhlaWdodDogY2FsYygxMDAlIC0gMjBweCk7XG4gIG1hcmdpbjogMTBweDtcbiAgYmFja2dyb3VuZDogdmFyKC0tbWRlLWJnLXByaW1hcnkpO1xuICBib3JkZXItcmFkaXVzOiA4cHg7XG4gIGJvcmRlcjogMXB4IHNvbGlkIHZhcigtLW1kZS1ib3JkZXItY29sb3IpO1xuXG4gIC5jaGF0LWhlYWRlciB7XG4gICAgZmxleC1zaHJpbms6IDA7XG4gICAgYm9yZGVyLWJvdHRvbTogMXB4IHNvbGlkIHZhcigtLW1kZS1ib3JkZXItY29sb3IpO1xuICAgIHotaW5kZXg6IDEwO1xuXG4gICAgLmhlYWRlci10aXRsZSB7XG4gICAgICBtYXJnaW4tbGVmdDogMTBweDtcbiAgICAgIGZvbnQtc2l6ZTogMS4yZW07XG4gICAgfVxuXG4gICAgLnNwYWNlciB7XG4gICAgICBmbGV4OiAxO1xuICAgIH1cblxuICAgIC5tb2RlbC1zdGF0dXMge1xuICAgICAgbWFyZ2luLXJpZ2h0OiAxMHB4O1xuICAgICAgZGlzcGxheTogZmxleDtcbiAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gICAgICBnYXA6IDZweDtcbiAgICAgIGZsZXgtd3JhcDogd3JhcDtcblxuICAgIH1cbiAgfVxuXG4gIC5tb2RlbC1tYW5hZ2VyLXBhbmVsIHtcbiAgICBwb3NpdGlvbjogcmVsYXRpdmU7XG4gICAgZmxleDogMCAwIGF1dG87XG4gICAgaGVpZ2h0OiA3MHZoICFpbXBvcnRhbnQ7XG4gICAgb3ZlcmZsb3cteTogYXV0byAhaW1wb3J0YW50O1xuICAgIG92ZXJmbG93LXg6IGhpZGRlbjtcbiAgICBib3JkZXItYm90dG9tOiAxcHggc29saWQgdmFyKC0tbWRlLWJvcmRlci1jb2xvcik7XG4gICAgYmFja2dyb3VuZDogdmFyKC0tbWRlLWJnLXByaW1hcnkpO1xuICAgIGJveC1zaXppbmc6IGJvcmRlci1ib3g7XG5cbiAgICAmOjotd2Via2l0LXNjcm9sbGJhciB7XG4gICAgICB3aWR0aDogOHB4O1xuICAgICAgZGlzcGxheTogYmxvY2sgIWltcG9ydGFudDtcbiAgICB9XG5cbiAgICAmOjotd2Via2l0LXNjcm9sbGJhci10cmFjayB7XG4gICAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtc2Nyb2xsYmFyLXRyYWNrKTtcbiAgICB9XG5cbiAgICAmOjotd2Via2l0LXNjcm9sbGJhci10aHVtYiB7XG4gICAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtc2Nyb2xsYmFyLXRodW1iKTtcbiAgICAgIGJvcmRlci1yYWRpdXM6IDRweDtcbiAgICB9XG5cbiAgICAmOjotd2Via2l0LXNjcm9sbGJhci10aHVtYjpob3ZlciB7XG4gICAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtc2Nyb2xsYmFyLWhvdmVyKTtcbiAgICB9XG5cbiAgICBhcHAtbW9kZWwtbWFuYWdlciB7XG4gICAgICBkaXNwbGF5OiBibG9jaztcbiAgICAgIG1pbi1oZWlnaHQ6IG1pbi1jb250ZW50O1xuICAgIH1cbiAgfVxuXG4gIC5jaGF0LW1lc3NhZ2VzIHtcbiAgICBmbGV4OiAxO1xuICAgIG92ZXJmbG93LXk6IGF1dG87XG4gICAgcGFkZGluZzogMTJweCAwO1xuICAgIGJhY2tncm91bmQ6IHZhcigtLW1kZS1iZy1wcmltYXJ5KTtcblxuICAgIC5uby1tZXNzYWdlcyB7XG4gICAgICBkaXNwbGF5OiBmbGV4O1xuICAgICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcbiAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gICAgICBqdXN0aWZ5LWNvbnRlbnQ6IGNlbnRlcjtcbiAgICAgIGhlaWdodDogMTAwJTtcbiAgICAgIGNvbG9yOiB2YXIoLS1tZGUtdGV4dC1oaW50KTtcbiAgICAgIHRleHQtYWxpZ246IGNlbnRlcjtcblxuICAgICAgbWF0LWljb24ge1xuICAgICAgICBmb250LXNpemU6IDY0cHg7XG4gICAgICAgIHdpZHRoOiA2NHB4O1xuICAgICAgICBoZWlnaHQ6IDY0cHg7XG4gICAgICAgIG9wYWNpdHk6IDAuMztcbiAgICAgICAgbWFyZ2luLWJvdHRvbTogMjBweDtcbiAgICAgIH1cblxuICAgICAgcCB7XG4gICAgICAgIG1hcmdpbjogNXB4IDA7XG4gICAgICB9XG5cbiAgICAgIC5oaW50IHtcbiAgICAgICAgZm9udC1zaXplOiAwLjllbTtcbiAgICAgICAgY29sb3I6IHZhcigtLW1kZS13YXJuaW5nLWZnKTtcbiAgICAgICAgbWFyZ2luLXRvcDogMTBweDtcbiAgICAgIH1cbiAgICB9XG5cbiAgICAubWVzc2FnZSB7XG4gICAgICBkaXNwbGF5OiBmbGV4O1xuICAgICAgcGFkZGluZzogMTBweCAxNnB4O1xuICAgICAgYm9yZGVyLWxlZnQ6IDNweCBzb2xpZCB0cmFuc3BhcmVudDtcbiAgICAgIG1hcmdpbi1ib3R0b206IDJweDtcbiAgICAgIGFuaW1hdGlvbjogc2xpZGVJbiAwLjNzIGVhc2Utb3V0O1xuICAgICAgdHJhbnNpdGlvbjogYmFja2dyb3VuZC1jb2xvciAwLjE1cyBlYXNlO1xuXG4gICAgICAmOmhvdmVyIHtcbiAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogdmFyKC0tbWRlLWhvdmVyLW92ZXJsYXkpO1xuICAgICAgfVxuXG4gICAgICAubWVzc2FnZS1jb250ZW50IHtcbiAgICAgICAgZmxleDogMTtcbiAgICAgICAgcGFkZGluZzogMDtcblxuICAgICAgICAubWVzc2FnZS1oZWFkZXIge1xuICAgICAgICAgIGRpc3BsYXk6IGZsZXg7XG4gICAgICAgICAganVzdGlmeS1jb250ZW50OiBzcGFjZS1iZXR3ZWVuO1xuICAgICAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gICAgICAgICAgbWFyZ2luLWJvdHRvbTogNnB4O1xuICAgICAgICAgIGZvbnQtc2l6ZTogMC44NWVtO1xuXG4gICAgICAgICAgLm1lc3NhZ2Utcm9sZSB7XG4gICAgICAgICAgICBmb250LXdlaWdodDogNjAwO1xuICAgICAgICAgICAgdGV4dC10cmFuc2Zvcm06IGNhcGl0YWxpemU7XG4gICAgICAgICAgfVxuXG4gICAgICAgICAgLm1lc3NhZ2UtYWN0aW9ucyB7XG4gICAgICAgICAgICBkaXNwbGF5OiBmbGV4O1xuICAgICAgICAgICAgZ2FwOiA0cHg7XG4gICAgICAgICAgICBtYXJnaW46IDAgOHB4O1xuICAgICAgICAgICAgb3BhY2l0eTogMDtcbiAgICAgICAgICAgIHRyYW5zaXRpb246IG9wYWNpdHkgMC4ycztcblxuICAgICAgICAgICAgLmFjdGlvbi1idXR0b24ge1xuICAgICAgICAgICAgICB3aWR0aDogMzJweDtcbiAgICAgICAgICAgICAgaGVpZ2h0OiAzMnB4O1xuICAgICAgICAgICAgICBsaW5lLWhlaWdodDogMzJweDtcblxuICAgICAgICAgICAgICA6Om5nLWRlZXAgLm1hdC1pY29uIHtcbiAgICAgICAgICAgICAgICBmb250LXNpemU6IDE4cHg7XG4gICAgICAgICAgICAgICAgd2lkdGg6IDE4cHg7XG4gICAgICAgICAgICAgICAgaGVpZ2h0OiAxOHB4O1xuICAgICAgICAgICAgICAgIGxpbmUtaGVpZ2h0OiAxOHB4O1xuICAgICAgICAgICAgICB9XG4gICAgICAgICAgICB9XG4gICAgICAgICAgfVxuXG4gICAgICAgICAgLm1lc3NhZ2UtdGltZSB7XG4gICAgICAgICAgICBjb2xvcjogdmFyKC0tbWRlLXRleHQtaGludCk7XG4gICAgICAgICAgfVxuICAgICAgICB9XG5cbiAgICAgICAgLm1lc3NhZ2UtdGV4dCB7XG4gICAgICAgICAgbGluZS1oZWlnaHQ6IDEuNTtcbiAgICAgICAgICB1c2VyLXNlbGVjdDogdGV4dDtcbiAgICAgICAgICB3b3JkLXdyYXA6IGJyZWFrLXdvcmQ7XG4gICAgICAgICAgb3ZlcmZsb3ctd3JhcDogYnJlYWstd29yZDtcblxuICAgICAgICAgIC8vIFBhcmFncmFwaHNcbiAgICAgICAgICBwIHtcbiAgICAgICAgICAgIG1hcmdpbjogMCAwIDhweCAwO1xuICAgICAgICAgICAgJjpsYXN0LWNoaWxkIHsgbWFyZ2luLWJvdHRvbTogMDsgfVxuICAgICAgICAgIH1cblxuICAgICAgICAgIC8vIENvZGUgYmxvY2tzXG4gICAgICAgICAgcHJlIHtcbiAgICAgICAgICAgIGJhY2tncm91bmQ6ICMxZTFlMWU7XG4gICAgICAgICAgICBjb2xvcjogI2Q0ZDRkNDtcbiAgICAgICAgICAgIHBhZGRpbmc6IDEycHggMTZweDtcbiAgICAgICAgICAgIGJvcmRlci1yYWRpdXM6IDZweDtcbiAgICAgICAgICAgIG92ZXJmbG93LXg6IGF1dG87XG4gICAgICAgICAgICBtYXJnaW46IDEwcHggMDtcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMC45ZW07XG5cbiAgICAgICAgICAgIGNvZGUge1xuICAgICAgICAgICAgICBiYWNrZ3JvdW5kOiBub25lO1xuICAgICAgICAgICAgICBwYWRkaW5nOiAwO1xuICAgICAgICAgICAgICBib3JkZXItcmFkaXVzOiAwO1xuICAgICAgICAgICAgICBjb2xvcjogaW5oZXJpdDtcbiAgICAgICAgICAgIH1cbiAgICAgICAgICB9XG5cbiAgICAgICAgICAvLyBJbmxpbmUgY29kZVxuICAgICAgICAgIGNvZGUge1xuICAgICAgICAgICAgYmFja2dyb3VuZDogdmFyKC0tbWRlLWJnLXRlcnRpYXJ5KTtcbiAgICAgICAgICAgIHBhZGRpbmc6IDJweCA2cHg7XG4gICAgICAgICAgICBib3JkZXItcmFkaXVzOiAzcHg7XG4gICAgICAgICAgICBmb250LWZhbWlseTogJ0NvdXJpZXIgTmV3JywgQ29uc29sYXMsIG1vbm9zcGFjZTtcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMC45ZW07XG4gICAgICAgICAgfVxuXG4gICAgICAgICAgLy8gSGVhZGVyc1xuICAgICAgICAgIGgxLCBoMiwgaDMsIGg0LCBoNSwgaDYge1xuICAgICAgICAgICAgbWFyZ2luOiAxNnB4IDAgOHB4IDA7XG4gICAgICAgICAgICBmb250LXdlaWdodDogNjAwO1xuICAgICAgICAgICAgbGluZS1oZWlnaHQ6IDEuMztcbiAgICAgICAgICAgICY6Zmlyc3QtY2hpbGQgeyBtYXJnaW4tdG9wOiAwOyB9XG4gICAgICAgICAgfVxuICAgICAgICAgIGgxIHsgZm9udC1zaXplOiAxLjRlbTsgfVxuICAgICAgICAgIGgyIHsgZm9udC1zaXplOiAxLjI1ZW07IH1cbiAgICAgICAgICBoMyB7IGZvbnQtc2l6ZTogMS4xZW07IH1cbiAgICAgICAgICBoNCB7IGZvbnQtc2l6ZTogMWVtOyB9XG5cbiAgICAgICAgICAvLyBUYWJsZXNcbiAgICAgICAgICB0YWJsZSB7XG4gICAgICAgICAgICBib3JkZXItY29sbGFwc2U6IGNvbGxhcHNlO1xuICAgICAgICAgICAgd2lkdGg6IDEwMCU7XG4gICAgICAgICAgICBtYXJnaW46IDEwcHggMDtcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMC45ZW07XG5cbiAgICAgICAgICAgIHRoLCB0ZCB7XG4gICAgICAgICAgICAgIGJvcmRlcjogMXB4IHNvbGlkIHZhcigtLW1kZS1ib3JkZXItY29sb3IpO1xuICAgICAgICAgICAgICBwYWRkaW5nOiA4cHggMTJweDtcbiAgICAgICAgICAgICAgdGV4dC1hbGlnbjogbGVmdDtcbiAgICAgICAgICAgIH1cblxuICAgICAgICAgICAgdGgge1xuICAgICAgICAgICAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtYmctdGVydGlhcnkpO1xuICAgICAgICAgICAgICBmb250LXdlaWdodDogNjAwO1xuICAgICAgICAgICAgfVxuXG4gICAgICAgICAgICB0cjpudGgtY2hpbGQoZXZlbikge1xuICAgICAgICAgICAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtYmctc2Vjb25kYXJ5KTtcbiAgICAgICAgICAgIH1cblxuICAgICAgICAgICAgdHI6aG92ZXIge1xuICAgICAgICAgICAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtYmctaG92ZXIpO1xuICAgICAgICAgICAgfVxuICAgICAgICAgIH1cblxuICAgICAgICAgIC8vIExpc3RzXG4gICAgICAgICAgdWwsIG9sIHtcbiAgICAgICAgICAgIG1hcmdpbjogOHB4IDA7XG4gICAgICAgICAgICBwYWRkaW5nLWxlZnQ6IDI0cHg7XG5cbiAgICAgICAgICAgIGxpIHtcbiAgICAgICAgICAgICAgbWFyZ2luLWJvdHRvbTogNHB4O1xuICAgICAgICAgICAgfVxuICAgICAgICAgIH1cblxuICAgICAgICAgIC8vIE5lc3RlZCBsaXN0c1xuICAgICAgICAgIHVsIHVsLCBvbCBvbCwgdWwgb2wsIG9sIHVsIHtcbiAgICAgICAgICAgIG1hcmdpbjogNHB4IDA7XG4gICAgICAgICAgfVxuXG4gICAgICAgICAgLy8gQmxvY2txdW90ZXNcbiAgICAgICAgICBibG9ja3F1b3RlIHtcbiAgICAgICAgICAgIGJvcmRlci1sZWZ0OiA0cHggc29saWQgdmFyKC0tbWRlLWFjY2VudC1zZWNvbmRhcnkpO1xuICAgICAgICAgICAgbWFyZ2luOiAxMHB4IDA7XG4gICAgICAgICAgICBwYWRkaW5nOiA4cHggMTZweDtcbiAgICAgICAgICAgIGJhY2tncm91bmQ6IHZhcigtLW1kZS1iZy10ZXJ0aWFyeSk7XG4gICAgICAgICAgICBjb2xvcjogdmFyKC0tbWRlLXRleHQtc2Vjb25kYXJ5KTtcblxuICAgICAgICAgICAgcCB7XG4gICAgICAgICAgICAgIG1hcmdpbjogMDtcbiAgICAgICAgICAgIH1cbiAgICAgICAgICB9XG5cbiAgICAgICAgICAvLyBMaW5rc1xuICAgICAgICAgIGEge1xuICAgICAgICAgICAgY29sb3I6IHZhcigtLW1kZS1hY2NlbnQtcHJpbWFyeSk7XG4gICAgICAgICAgICB0ZXh0LWRlY29yYXRpb246IG5vbmU7XG4gICAgICAgICAgICAmOmhvdmVyIHtcbiAgICAgICAgICAgICAgdGV4dC1kZWNvcmF0aW9uOiB1bmRlcmxpbmU7XG4gICAgICAgICAgICB9XG4gICAgICAgICAgfVxuXG4gICAgICAgICAgLy8gSG9yaXpvbnRhbCBydWxlc1xuICAgICAgICAgIGhyIHtcbiAgICAgICAgICAgIGJvcmRlcjogbm9uZTtcbiAgICAgICAgICAgIGJvcmRlci10b3A6IDFweCBzb2xpZCB2YXIoLS1tZGUtYm9yZGVyLWNvbG9yKTtcbiAgICAgICAgICAgIG1hcmdpbjogMTZweCAwO1xuICAgICAgICAgIH1cblxuICAgICAgICAgIC8vIEltYWdlc1xuICAgICAgICAgIGltZyB7XG4gICAgICAgICAgICBtYXgtd2lkdGg6IDEwMCU7XG4gICAgICAgICAgICBib3JkZXItcmFkaXVzOiA0cHg7XG4gICAgICAgICAgfVxuICAgICAgICB9XG5cbiAgICAgICAgLnRoaW5raW5nLXNlY3Rpb24ge1xuICAgICAgICAgIG1hcmdpbi1ib3R0b206IDhweDtcblxuICAgICAgICAgIC50aGlua2luZy1oZWFkZXIge1xuICAgICAgICAgICAgZGlzcGxheTogZmxleDtcbiAgICAgICAgICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gICAgICAgICAgICBnYXA6IDZweDtcbiAgICAgICAgICAgIGN1cnNvcjogcG9pbnRlcjtcbiAgICAgICAgICAgIHBhZGRpbmc6IDZweCAxMHB4O1xuICAgICAgICAgICAgYmFja2dyb3VuZDogI2YzZTVmNTtcbiAgICAgICAgICAgIGJvcmRlci1sZWZ0OiAzcHggc29saWQgIzljMjdiMDtcbiAgICAgICAgICAgIGJvcmRlci1yYWRpdXM6IDRweDtcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMC44NWVtO1xuICAgICAgICAgICAgY29sb3I6ICM3YjFmYTI7XG4gICAgICAgICAgICB1c2VyLXNlbGVjdDogbm9uZTtcblxuICAgICAgICAgICAgJjpob3ZlciB7XG4gICAgICAgICAgICAgIGJhY2tncm91bmQ6ICNlMWJlZTc7XG4gICAgICAgICAgICB9XG5cbiAgICAgICAgICAgIC50aGlua2luZy1pY29uIHtcbiAgICAgICAgICAgICAgZm9udC1zaXplOiAxOHB4O1xuICAgICAgICAgICAgICB3aWR0aDogMThweDtcbiAgICAgICAgICAgICAgaGVpZ2h0OiAxOHB4O1xuICAgICAgICAgICAgfVxuXG4gICAgICAgICAgICAudGhpbmtpbmctbGFiZWwge1xuICAgICAgICAgICAgICBmb250LXdlaWdodDogNTAwO1xuICAgICAgICAgICAgfVxuXG4gICAgICAgICAgICAudGhpbmtpbmctdG9nZ2xlIHtcbiAgICAgICAgICAgICAgbWFyZ2luLWxlZnQ6IGF1dG87XG4gICAgICAgICAgICAgIGZvbnQtc2l6ZTogMThweDtcbiAgICAgICAgICAgICAgd2lkdGg6IDE4cHg7XG4gICAgICAgICAgICAgIGhlaWdodDogMThweDtcbiAgICAgICAgICAgICAgdHJhbnNpdGlvbjogdHJhbnNmb3JtIDAuMnM7XG4gICAgICAgICAgICB9XG5cbiAgICAgICAgICAgIC50aGlua2luZy1zcGlubmVyIHtcbiAgICAgICAgICAgICAgbWFyZ2luLWxlZnQ6IDhweDtcbiAgICAgICAgICAgIH1cbiAgICAgICAgICB9XG5cbiAgICAgICAgICAudGhpbmtpbmctYm9keSB7XG4gICAgICAgICAgICBwYWRkaW5nOiA4cHggMTJweDtcbiAgICAgICAgICAgIGJhY2tncm91bmQ6ICNmYWY1ZmM7XG4gICAgICAgICAgICBib3JkZXItbGVmdDogM3B4IHNvbGlkICNjZTkzZDg7XG4gICAgICAgICAgICBib3JkZXItcmFkaXVzOiAwIDAgNHB4IDRweDtcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMC45ZW07XG4gICAgICAgICAgICBjb2xvcjogIzU1NTtcbiAgICAgICAgICAgIG1heC1oZWlnaHQ6IDMwMHB4O1xuICAgICAgICAgICAgb3ZlcmZsb3cteTogYXV0bztcblxuICAgICAgICAgICAgcHJlIHtcbiAgICAgICAgICAgICAgYmFja2dyb3VuZDogIzJkMmQyZDtcbiAgICAgICAgICAgICAgY29sb3I6ICNjY2M7XG4gICAgICAgICAgICAgIHBhZGRpbmc6IDhweDtcbiAgICAgICAgICAgICAgYm9yZGVyLXJhZGl1czogNHB4O1xuICAgICAgICAgICAgICBmb250LXNpemU6IDAuODVlbTtcbiAgICAgICAgICAgICAgb3ZlcmZsb3cteDogYXV0bztcbiAgICAgICAgICAgIH1cbiAgICAgICAgICB9XG4gICAgICAgIH1cblxuICAgICAgICAubWVzc2FnZS1lZGl0IHtcbiAgICAgICAgICBtYXJnaW4tdG9wOiA4cHg7XG5cbiAgICAgICAgICAuZWRpdC10ZXh0YXJlYSB7XG4gICAgICAgICAgICB3aWR0aDogMTAwJTtcbiAgICAgICAgICAgIG1hcmdpbi1ib3R0b206IDhweDtcblxuICAgICAgICAgICAgOjpuZy1kZWVwIC5tYXQtZm9ybS1maWVsZC13cmFwcGVyIHtcbiAgICAgICAgICAgICAgcGFkZGluZy1ib3R0b206IDA7XG4gICAgICAgICAgICB9XG5cbiAgICAgICAgICAgIDo6bmctZGVlcCB0ZXh0YXJlYSB7XG4gICAgICAgICAgICAgIHJlc2l6ZTogdmVydGljYWw7XG4gICAgICAgICAgICAgIGZvbnQtZmFtaWx5OiBpbmhlcml0O1xuICAgICAgICAgICAgfVxuICAgICAgICAgIH1cblxuICAgICAgICAgIC5lZGl0LWFjdGlvbnMge1xuICAgICAgICAgICAgZGlzcGxheTogZmxleDtcbiAgICAgICAgICAgIGp1c3RpZnktY29udGVudDogZmxleC1lbmQ7XG4gICAgICAgICAgICBnYXA6IDhweDtcblxuICAgICAgICAgICAgYnV0dG9uIHtcbiAgICAgICAgICAgICAgbWluLXdpZHRoOiBhdXRvO1xuICAgICAgICAgICAgfVxuICAgICAgICAgIH1cbiAgICAgICAgfVxuXG4gICAgICAgIG1hdC1wcm9ncmVzcy1zcGlubmVyIHtcbiAgICAgICAgICBtYXJnaW4tdG9wOiAxMHB4O1xuICAgICAgICB9XG4gICAgICB9XG5cbiAgICAgIC8vIFNob3cgZWRpdCBidXR0b24gb24gaG92ZXJcbiAgICAgICY6aG92ZXIgLm1lc3NhZ2UtY29udGVudCAubWVzc2FnZS1oZWFkZXIgLm1lc3NhZ2UtYWN0aW9ucyB7XG4gICAgICAgIG9wYWNpdHk6IDE7XG4gICAgICB9XG5cbiAgICAgICYubWVzc2FnZS11c2VyIHtcbiAgICAgICAgYm9yZGVyLWxlZnQtY29sb3I6IHZhcigtLW1kZS1hY2NlbnQtc2Vjb25kYXJ5KTtcbiAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogI2Y1ZjdmZjsgLy8gdGludGEgaW5kYWNvIGlkZW50aXRhcmlhIChvdmVycmlkZSBuZWkgdGVtaSBzY3VyaSlcblxuICAgICAgICAubWVzc2FnZS1jb250ZW50IC5tZXNzYWdlLWhlYWRlciAubWVzc2FnZS1yb2xlIHtcbiAgICAgICAgICBjb2xvcjogdmFyKC0tbWRlLWFjY2VudC1zZWNvbmRhcnkpO1xuICAgICAgICB9XG5cbiAgICAgICAgJjpob3ZlciB7XG4gICAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogI2ViZWVmYjtcbiAgICAgICAgfVxuICAgICAgfVxuXG4gICAgICAmLm1lc3NhZ2UtYXNzaXN0YW50IHtcbiAgICAgICAgYm9yZGVyLWxlZnQtY29sb3I6IHZhcigtLW1kZS1zdWNjZXNzLWZnKTtcbiAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogdmFyKC0tbWRlLWJnLXByaW1hcnkpO1xuXG4gICAgICAgIC5tZXNzYWdlLWNvbnRlbnQgLm1lc3NhZ2UtaGVhZGVyIC5tZXNzYWdlLXJvbGUge1xuICAgICAgICAgIGNvbG9yOiB2YXIoLS1tZGUtc3VjY2Vzcy1mZyk7XG4gICAgICAgIH1cblxuICAgICAgICAmOmhvdmVyIHtcbiAgICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiB2YXIoLS1tZGUtaG92ZXItb3ZlcmxheSk7XG4gICAgICAgIH1cbiAgICAgIH1cblxuICAgICAgJi5tZXNzYWdlLXN5c3RlbSB7XG4gICAgICAgIGJvcmRlci1sZWZ0LWNvbG9yOiB2YXIoLS1tZGUtd2FybmluZy1mZyk7XG4gICAgICAgIGJhY2tncm91bmQtY29sb3I6IHZhcigtLW1kZS13YXJuaW5nLWJnKTtcblxuICAgICAgICAubWVzc2FnZS1jb250ZW50IC5tZXNzYWdlLWhlYWRlciAubWVzc2FnZS1yb2xlIHtcbiAgICAgICAgICBjb2xvcjogdmFyKC0tbWRlLXdhcm5pbmctZmcpO1xuICAgICAgICB9XG4gICAgICB9XG4gICAgfVxuICB9XG5cbiAgLyogUmlnYSBkZWwgY29uc3VudGl2byBkaSBDbGF1ZGUgQ29kZTogaW5mb3JtYXRpdmEsIG5vbiB1biBhdnZpc28gw6LCgMKUIGRldmUgbGVnZ2Vyc2lcbiAgICAgc2VuemEgcnViYXJlIGwnb2NjaGlvIGFsbGEgY29udmVyc2F6aW9uZS4gVG9rZW4gZGVsIHRlbWEsIGNvc8ODwqwgcmVnZ2UgY2hpYXJvIGUgc2N1cm9cbiAgICAgKGkgY29sb3JpIGRlbCBjb250ZW51dG8gbm9uIHN0YW5ubyBuZWdsaSAuc2NzcyBkZWwgdmlld2VyLCBtYSBxdWVzdGEgw4PCqCBjaGF0LCBub24gdmlld2VyKS4gKi9cbiAgLmNsYXVkZS11c2FnZS1yb3cge1xuICAgIGZsZXgtc2hyaW5rOiAwO1xuICAgIGRpc3BsYXk6IGZsZXg7XG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgICBnYXA6IDZweDtcbiAgICBwYWRkaW5nOiA0cHggMTZweDtcbiAgICBmb250LXNpemU6IDExcHg7XG4gICAgbGluZS1oZWlnaHQ6IDEuNDtcbiAgICBjb2xvcjogdmFyKC0tbWRlLXRleHQtc2Vjb25kYXJ5LCByZ2JhKDAsIDAsIDAsIDAuNikpO1xuICAgIGJhY2tncm91bmQ6IHZhcigtLW1kZS1zdXJmYWNlLTIsIHJnYmEoMCwgMCwgMCwgMC4wMykpO1xuICAgIGJvcmRlci10b3A6IDFweCBzb2xpZCB2YXIoLS1tZGUtZGl2aWRlciwgcmdiYSgwLCAwLCAwLCAwLjA4KSk7XG5cbiAgICAudXNhZ2UtaWNvbiB7XG4gICAgICBmb250LXNpemU6IDE0cHg7XG4gICAgICB3aWR0aDogMTRweDtcbiAgICAgIGhlaWdodDogMTRweDtcbiAgICAgIG9wYWNpdHk6IDAuNztcbiAgICB9XG5cbiAgICAudXNhZ2UtaXRlbSBzdHJvbmcge1xuICAgICAgZm9udC13ZWlnaHQ6IDYwMDtcbiAgICB9XG5cbiAgICAudXNhZ2Utc2VwIHtcbiAgICAgIG9wYWNpdHk6IDAuNDtcbiAgICB9XG5cbiAgICAvKiBTcGluZ2UgbGUgZmluZXN0cmUgZGkgY29uc3VtbyBhIGRlc3RyYTogc29ubyB1biBkYXRvIGRpIGNvbnRlc3RvLCBub24gZGVsIHR1cm5vLiAqL1xuICAgIC51c2FnZS1zcGFjZXIge1xuICAgICAgZmxleDogMTtcbiAgICB9XG5cbiAgICAudXNhZ2Utd2luZG93IHtcbiAgICAgIG9wYWNpdHk6IDAuODtcbiAgICAgIHdoaXRlLXNwYWNlOiBub3dyYXA7XG4gICAgfVxuICB9XG5cbiAgLmNvcGlsb3QtY2xpLXVuYXZhaWxhYmxlLWJhbm5lciB7XG4gICAgZmxleC1zaHJpbms6IDA7XG4gICAgZGlzcGxheTogZmxleDtcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xuICAgIGdhcDogMTJweDtcbiAgICBwYWRkaW5nOiAxMHB4IDE2cHg7XG4gICAgYmFja2dyb3VuZDogdmFyKC0tbWRlLXdhcm5pbmctYmcpO1xuICAgIGJvcmRlci10b3A6IDFweCBzb2xpZCB2YXIoLS1tZGUtd2FybmluZy1mZyk7XG4gICAgYm9yZGVyLWJvdHRvbTogMXB4IHNvbGlkIHZhcigtLW1kZS13YXJuaW5nLWZnKTtcbiAgICBjb2xvcjogdmFyKC0tbWRlLXdhcm5pbmctZmcpO1xuXG4gICAgbWF0LWljb24ge1xuICAgICAgZmxleC1zaHJpbms6IDA7XG4gICAgfVxuXG4gICAgLmJhbm5lci10ZXh0IHtcbiAgICAgIGZsZXg6IDE7XG4gICAgICBkaXNwbGF5OiBmbGV4O1xuICAgICAgZmxleC1kaXJlY3Rpb246IGNvbHVtbjtcbiAgICAgIGdhcDogMnB4O1xuICAgICAgZm9udC1zaXplOiAxMnB4O1xuXG4gICAgICBzdHJvbmcge1xuICAgICAgICBmb250LXNpemU6IDEzcHg7XG4gICAgICB9XG5cbiAgICAgIC5iYW5uZXItaGludCB7XG4gICAgICAgIG9wYWNpdHk6IDAuODU7XG4gICAgICB9XG4gICAgfVxuXG4gICAgYnV0dG9uIHtcbiAgICAgIGZsZXgtc2hyaW5rOiAwO1xuICAgIH1cbiAgfVxuXG4gIC5jaGF0LWlucHV0LWNvbnRhaW5lciB7XG4gICAgZmxleC1zaHJpbms6IDA7XG4gICAgZGlzcGxheTogZmxleDtcbiAgICBmbGV4LXdyYXA6IHdyYXA7XG4gICAgcGFkZGluZzogMTZweDtcbiAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtYmctc2Vjb25kYXJ5KTtcbiAgICBib3JkZXItdG9wOiAycHggc29saWQgdmFyKC0tbWRlLWJvcmRlci1jb2xvcik7XG4gICAgZ2FwOiAxMHB4O1xuICAgIGFsaWduLWl0ZW1zOiBmbGV4LWVuZDtcblxuICAgIC5jb25maWd1cmluZy1wcm92aWRlci1iYW5uZXIge1xuICAgICAgZmxleC1iYXNpczogMTAwJTtcbiAgICAgIGRpc3BsYXk6IGZsZXg7XG4gICAgICBhbGlnbi1pdGVtczogY2VudGVyO1xuICAgICAgZ2FwOiAxMHB4O1xuICAgICAgcGFkZGluZzogNnB4IDEycHg7XG4gICAgICBiYWNrZ3JvdW5kOiB2YXIoLS1tZGUtYWNjZW50LWxpZ2h0KTtcbiAgICAgIGJvcmRlcjogMXB4IHNvbGlkIHZhcigtLW1kZS1vdXRsaW5lLWNvbG9yKTtcbiAgICAgIGJvcmRlci1yYWRpdXM6IDRweDtcbiAgICAgIGZvbnQtc2l6ZTogMTJweDtcbiAgICAgIGNvbG9yOiB2YXIoLS1tZGUtYWNjZW50LXNlY29uZGFyeSk7XG5cbiAgICAgIG1hdC1wcm9ncmVzcy1zcGlubmVyIHtcbiAgICAgICAgZmxleC1zaHJpbms6IDA7XG4gICAgICB9XG4gICAgfVxuXG4gICAgLmNoYXQtaW5wdXQge1xuICAgICAgZmxleDogMTtcblxuICAgICAgOjpuZy1kZWVwIC5tYXQtZm9ybS1maWVsZC13cmFwcGVyIHtcbiAgICAgICAgcGFkZGluZy1ib3R0b206IDA7XG4gICAgICB9XG5cbiAgICAgIDo6bmctZGVlcCB0ZXh0YXJlYSB7XG4gICAgICAgIGJhY2tncm91bmQ6IHZhcigtLW1kZS1iZy1wcmltYXJ5KTtcbiAgICAgICAgYm9yZGVyLXJhZGl1czogNHB4O1xuICAgICAgICAvLyBMZXQgdGhlIHVzZXIgZHJhZyB0aGUgcHJvbXB0IGJveCB0YWxsZXIgZm9yIGxvbmcgaW5wdXRzLlxuICAgICAgICByZXNpemU6IHZlcnRpY2FsO1xuICAgICAgICBtaW4taGVpZ2h0OiA0OHB4O1xuICAgICAgICBtYXgtaGVpZ2h0OiA0MHZoO1xuICAgICAgfVxuICAgIH1cblxuICAgIC5zZW5kLWJ1dHRvbiB7XG4gICAgICBtYXJnaW4tYm90dG9tOiA0cHg7XG4gICAgfVxuICB9XG59XG5cbkBrZXlmcmFtZXMgc2xpZGVJbiB7XG4gIGZyb20ge1xuICAgIG9wYWNpdHk6IDA7XG4gICAgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDEwcHgpO1xuICB9XG4gIHRvIHtcbiAgICBvcGFjaXR5OiAxO1xuICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlWSgwKTtcbiAgfVxufVxuXG4vLyA9PT0gREFSSy1CQVNFRCBUSEVNRSBPVkVSUklERVMgKGRhcmsgKyBtaWxhbikgPT09XG4vLyBSaWRvdHRvIGFsIG1pbmltbzogbGUgc3VwZXJmaWNpL3Rlc3RpL2JvcmRpIG9yYSB1c2FubyBpIHRva2VuIGdsb2JhbGkgbmVsbGFcbi8vIHNlemlvbmUgYmFzZS4gUmVzdGFubyBzb2xvIGxhIHRvb2xiYXIgKG5vbiBjb3BlcnRhIGRhbCB0ZW1hIG5hdGl2bykgZSBsZVxuLy8gdGludGUgaWRlbnRpdGFyaWUgKHRoaW5raW5nIHZpb2xhLCBib2xsYSB1dGVudGUgaW5kYWNvKSBzZW56YSB0b2tlbiBkZWRpY2F0by5cbjpob3N0LWNvbnRleHQoYm9keS5kYXJrLXRoZW1lKSxcbjpob3N0LWNvbnRleHQoYm9keS5taWxhbi10aGVtZSkge1xuICAuYWktY2hhdC1jb250YWluZXIge1xuICAgIC5jaGF0LWhlYWRlciB7XG4gICAgICAvLyAuY2hhdC1oZWFkZXIgSVMgdGhlIG1hdC10b29sYmFyIGVsZW1lbnQuIEluIGxpZ2h0IG1vZGUgTWF0ZXJpYWwgcGFpbnRzIGl0XG4gICAgICAvLyB3aXRoIGNvbG9yPVwicHJpbWFyeVwiL1wiYWNjZW50XCIgKGRhcmsgYmx1ZSkuIEluIGRhcmsgbW9kZSB0aGF0IHN0YXlzIGRhcmtcbiAgICAgIC8vIGJsdWUgYW5kIHRoZSB3aGl0ZSBoZWFkZXIgdGl0bGUgKyBpY29ucyBsb29rIG9rLCBidXQgd2hlbiBDaHJvbWUgcmVuZGVyc1xuICAgICAgLy8gdGhlIE1EQyBidXR0b24gaWNvbnMgdGhleSBpbmhlcml0IHRoZSB0b29sYmFyJ3MgZm9yZWdyb3VuZCB0b2tlbiB3aGljaFxuICAgICAgLy8gZmFsbHMgYmFjayB0byBuZWFyLWJsYWNrIG9uIHRoZSBDREsgb3ZlcmxheSDDosKAwpQgaWNvbnMgZGlzYXBwZWFyLlxuICAgICAgLy8gRm9yY2UgdGhlIHRvb2xiYXIgdG8gdGhlIGFwcCdzIGRhcmsgc3VyZmFjZSArIHJlYWRhYmxlIGZvcmVncm91bmQuXG4gICAgICBiYWNrZ3JvdW5kLWNvbG9yOiB2YXIoLS1tZGUtYmctc2Vjb25kYXJ5KSAhaW1wb3J0YW50O1xuICAgICAgY29sb3I6IHZhcigtLW1kZS10ZXh0LXByaW1hcnkpICFpbXBvcnRhbnQ7XG4gICAgICBib3JkZXItYm90dG9tLWNvbG9yOiB2YXIoLS1tZGUtYm9yZGVyLWNvbG9yKTtcblxuICAgICAgLmhlYWRlci10aXRsZSB7XG4gICAgICAgIGNvbG9yOiB2YXIoLS1tZGUtdGV4dC1wcmltYXJ5KTtcbiAgICAgIH1cblxuICAgICAgYnV0dG9uLm1hdC1tZGMtaWNvbi1idXR0b24sXG4gICAgICAubWF0LW1kYy1pY29uLWJ1dHRvbiB7XG4gICAgICAgIGNvbG9yOiB2YXIoLS1tZGUtdGV4dC1wcmltYXJ5KTtcblxuICAgICAgICBtYXQtaWNvbiB7XG4gICAgICAgICAgY29sb3I6IHZhcigtLW1kZS10ZXh0LXByaW1hcnkpO1xuICAgICAgICB9XG5cbiAgICAgICAgJjpob3ZlciB7XG4gICAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogdmFyKC0tbWRlLWJnLWhvdmVyKTtcbiAgICAgICAgfVxuXG4gICAgICAgICZbZGlzYWJsZWRdLFxuICAgICAgICAmLm1hdC1tZGMtYnV0dG9uLWRpc2FibGVkIHtcbiAgICAgICAgICBjb2xvcjogdmFyKC0tbWRlLXRleHQtaGludCk7XG5cbiAgICAgICAgICBtYXQtaWNvbiB7XG4gICAgICAgICAgICBjb2xvcjogdmFyKC0tbWRlLXRleHQtaGludCk7XG4gICAgICAgICAgfVxuICAgICAgICB9XG4gICAgICB9XG5cbiAgICAgIC8vIFRoZSBsZWFkaW5nIFwic21hcnRfdG95XCIgaWNvbiAobm90IGEgYnV0dG9uKSBpbiB0aGUgZnVsbC1zaXplIGhlYWRlclxuICAgICAgPiBtYXQtaWNvbiB7XG4gICAgICAgIGNvbG9yOiB2YXIoLS1tZGUtdGV4dC1wcmltYXJ5KTtcbiAgICAgIH1cbiAgICB9XG5cbiAgICAuY2hhdC1tZXNzYWdlcyAubWVzc2FnZSB7XG4gICAgICAubWVzc2FnZS1jb250ZW50IC50aGlua2luZy1zZWN0aW9uIHtcbiAgICAgICAgLnRoaW5raW5nLWhlYWRlciB7XG4gICAgICAgICAgYmFja2dyb3VuZDogcmdiYSgxNTYsIDM5LCAxNzYsIDAuMTgpO1xuICAgICAgICAgIGNvbG9yOiAjY2U5M2Q4O1xuXG4gICAgICAgICAgJjpob3ZlciB7XG4gICAgICAgICAgICBiYWNrZ3JvdW5kOiByZ2JhKDE1NiwgMzksIDE3NiwgMC4yOCk7XG4gICAgICAgICAgfVxuICAgICAgICB9XG5cbiAgICAgICAgLnRoaW5raW5nLWJvZHkge1xuICAgICAgICAgIGJhY2tncm91bmQ6IHJnYmEoMTU2LCAzOSwgMTc2LCAwLjA4KTtcbiAgICAgICAgICBib3JkZXItbGVmdC1jb2xvcjogcmdiYSgyMDYsIDE0NywgMjE2LCAwLjUpO1xuICAgICAgICAgIGNvbG9yOiB2YXIoLS1tZGUtdGV4dC1zZWNvbmRhcnkpO1xuICAgICAgICB9XG4gICAgICB9XG5cbiAgICAgICYubWVzc2FnZS11c2VyIHtcbiAgICAgICAgYmFja2dyb3VuZC1jb2xvcjogcmdiYSgxMjEsIDEzNCwgMjAzLCAwLjE1KTtcblxuICAgICAgICAmOmhvdmVyIHtcbiAgICAgICAgICBiYWNrZ3JvdW5kLWNvbG9yOiByZ2JhKDEyMSwgMTM0LCAyMDMsIDAuMjUpO1xuICAgICAgICB9XG4gICAgICB9XG4gICAgfVxuICB9XG59XG5cbi8vIENvbXBhY3QgbW9kZSBzdHlsZXMgZm9yIHNpZGViYXJcbi5haS1jaGF0LWNvbnRhaW5lci5jb21wYWN0LW1vZGUge1xuICBtYXJnaW46IDA7XG4gIGhlaWdodDogMTAwJTtcbiAgYm9yZGVyLXJhZGl1czogMDtcbiAgYm9yZGVyOiBub25lO1xuXG4gIC5jaGF0LWhlYWRlciB7XG4gICAgbWluLWhlaWdodDogNDhweDtcbiAgICBwYWRkaW5nOiAwIDhweDtcblxuICAgIC5oZWFkZXItdGl0bGUge1xuICAgICAgZGlzcGxheTogbm9uZTtcbiAgICB9XG5cbiAgICAubW9kZWwtc3RhdHVzIHtcbiAgICAgIG1hcmdpbi1yaWdodDogNHB4O1xuXG4gICAgICA6Om5nLWRlZXAgLm1hdC1jaGlwLWxpc3Qge1xuICAgICAgICAubWF0LWNoaXAge1xuICAgICAgICAgIG1pbi1oZWlnaHQ6IDI0cHg7XG4gICAgICAgICAgcGFkZGluZzogNHB4IDhweDtcbiAgICAgICAgICBmb250LXNpemU6IDAuNzVyZW07XG5cbiAgICAgICAgICBtYXQtaWNvbiB7XG4gICAgICAgICAgICBmb250LXNpemU6IDE2cHg7XG4gICAgICAgICAgICB3aWR0aDogMTZweDtcbiAgICAgICAgICAgIGhlaWdodDogMTZweDtcbiAgICAgICAgICB9XG4gICAgICAgIH1cbiAgICAgIH1cbiAgICB9XG4gIH1cblxuICAuY2hhdC1tZXNzYWdlcyB7XG4gICAgcGFkZGluZzogOHB4IDA7XG4gICAgYmFja2dyb3VuZDogdmFyKC0tbWRlLWJnLXNlY29uZGFyeSk7XG5cbiAgICAubm8tbWVzc2FnZXMge1xuICAgICAgbWF0LWljb24ge1xuICAgICAgICBmb250LXNpemU6IDQ4cHg7XG4gICAgICAgIHdpZHRoOiA0OHB4O1xuICAgICAgICBoZWlnaHQ6IDQ4cHg7XG4gICAgICB9XG5cbiAgICAgIHAge1xuICAgICAgICBmb250LXNpemU6IDAuOWVtO1xuICAgICAgfVxuICAgIH1cblxuICAgIC5tZXNzYWdlIHtcbiAgICAgIHBhZGRpbmc6IDhweCAxMnB4O1xuICAgICAgbWFyZ2luLWJvdHRvbTogMXB4O1xuXG4gICAgICAubWVzc2FnZS1jb250ZW50IHtcbiAgICAgICAgLm1lc3NhZ2UtaGVhZGVyIHtcbiAgICAgICAgICBtYXJnaW4tYm90dG9tOiA0cHg7XG5cbiAgICAgICAgICAubWVzc2FnZS1yb2xlIHtcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMC43NWVtO1xuICAgICAgICAgIH1cblxuICAgICAgICAgIC5tZXNzYWdlLXRpbWUge1xuICAgICAgICAgICAgZm9udC1zaXplOiAwLjdlbTtcbiAgICAgICAgICB9XG4gICAgICAgIH1cblxuICAgICAgICAubWVzc2FnZS10ZXh0IHtcbiAgICAgICAgICBmb250LXNpemU6IDAuOWVtO1xuXG4gICAgICAgICAgcHJlIHtcbiAgICAgICAgICAgIHBhZGRpbmc6IDZweDtcbiAgICAgICAgICAgIGZvbnQtc2l6ZTogMC44NWVtO1xuICAgICAgICAgIH1cbiAgICAgICAgfVxuICAgICAgfVxuICAgIH1cbiAgfVxuXG4gIC5jaGF0LWlucHV0LWNvbnRhaW5lciB7XG4gICAgcGFkZGluZzogMTBweDtcbiAgICBnYXA6IDhweDtcblxuICAgIC5jaGF0LWlucHV0IHtcbiAgICAgIDo6bmctZGVlcCB7XG4gICAgICAgIC5tYXQtZm9ybS1maWVsZC1pbmZpeCB7XG4gICAgICAgICAgcGFkZGluZzogOHB4IDA7XG4gICAgICAgIH1cblxuICAgICAgICB0ZXh0YXJlYSB7XG4gICAgICAgICAgZm9udC1zaXplOiAwLjllbTtcbiAgICAgICAgfVxuICAgICAgfVxuICAgIH1cblxuICAgIC5zZW5kLWJ1dHRvbiB7XG4gICAgICA6Om5nLWRlZXAgLm1hdC1idXR0b24td3JhcHBlciB7XG4gICAgICAgIHBhZGRpbmc6IDA7XG5cbiAgICAgICAgbWF0LWljb24ge1xuICAgICAgICAgIGZvbnQtc2l6ZTogMThweDtcbiAgICAgICAgfVxuICAgICAgfVxuICAgIH1cbiAgfVxufVxuXG4vLyBSaWdhIGRpIHN0YXRvIG1lbnRyZSBsJ2FnZW50ZSByaXNwb25kZTogc3Bpbm5lciArIGwnYXR0aXZpdMODwqAgaW4gY29yc28uIEluIHRvbm8gbWlub3JlXG4vLyAoLS1tZGUtdGV4dC1oaW50KSwgcGVyY2jDg8KpIG5vbiDDg8KoIGxhIHJpc3Bvc3RhOiDDg8KoIGlsIHNlZ25vIGNoZSBpbCBsYXZvcm8gcHJvc2VndWUuXG4uc3RyZWFtaW5nLXN0YXR1cyB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gIGdhcDogOHB4O1xuICBtaW4td2lkdGg6IDA7XG5cbiAgLnRvb2wtYWN0aXZpdHkge1xuICAgIGZvbnQtc2l6ZTogMTJweDtcbiAgICBmb250LXN0eWxlOiBpdGFsaWM7XG4gICAgY29sb3I6IHZhcigtLW1kZS10ZXh0LWhpbnQpO1xuICAgIHdoaXRlLXNwYWNlOiBub3dyYXA7XG4gICAgb3ZlcmZsb3c6IGhpZGRlbjtcbiAgICB0ZXh0LW92ZXJmbG93OiBlbGxpcHNpcztcbiAgICBtaW4td2lkdGg6IDA7XG4gIH1cbn1cblxuLy8gUmlnYSBkZWxsYSBzY2VsdGEgZGVsIG1vZGVsbG8gQ29waWxvdCwgc290dG8gbGEgdGVzdGF0YS4gU2ZvbmRvIG5vcm1hbGUgZSB0b2tlbiBkZWwgdGVtYSxcbi8vIG5vbiBsYSB0b29sYmFyIGNvbG9yYXRhOyBpbCBjYW1wbyBNYXRlcmlhbCB2aWVuZSBjb21wYXR0YXRvIHBlcmNow4PCqSDDg8KoIHVuYSByaWdhIGRpIHNlcnZpemlvLlxuLmNvcGlsb3QtbW9kZWwtYmFyIHtcbiAgZmxleC1zaHJpbms6IDA7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIC8vIEluIHRoZSBzaWRlIHBhbmVsICh+MjQwcHgpIHRoZSB1c2FnZSBmaWd1cmVzIGRvIG5vdCBmaXQgbmV4dCB0byB0aGUgbW9kZWwgY2hvaWNlOiB0aGV5XG4gIC8vIHNxdWVlemVkIHRoZSBjb21ib2JveCB0byBpdHMgYXJyb3cgYW5kIHRoZSBsYXN0IGZpZ3VyZSBlbmRlZCB1bmRlciB0aGUgZG9jdW1lbnQuIFRoZSByb3dcbiAgLy8gd3JhcHM7IGluIGEgbmFycm93IHJvdyB0aGUgZmlndXJlcyB0YWtlIGEgbGluZSBvZiB0aGVpciBvd24gKGNvbnRhaW5lciBxdWVyeSBiZWxvdyksIGluXG4gIC8vIHRoZSB3aWRlIGNoYXQgdGhleSBzdGF5IGJlc2lkZSB0aGUgbW9kZWwgY2hvaWNlLlxuICBmbGV4LXdyYXA6IHdyYXA7XG4gIHJvdy1nYXA6IDA7XG4gIGNvbnRhaW5lci10eXBlOiBpbmxpbmUtc2l6ZTtcbiAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgZ2FwOiA4cHg7XG4gIHBhZGRpbmc6IDJweCAxMnB4O1xuICBib3JkZXItYm90dG9tOiAxcHggc29saWQgdmFyKC0tbWRlLWJvcmRlci1jb2xvcik7XG4gIGJhY2tncm91bmQ6IHZhcigtLW1kZS1iZy1wcmltYXJ5KTtcbiAgbWluLXdpZHRoOiAwO1xuXG4gIC5jb3BpbG90LW1vZGVsLWxhYmVsIHtcbiAgICBmb250LXNpemU6IDEycHg7XG4gICAgY29sb3I6IHZhcigtLW1kZS10ZXh0LWhpbnQpO1xuICAgIHdoaXRlLXNwYWNlOiBub3dyYXA7XG4gIH1cblxuICAuY29waWxvdC1tb2RlbC1maWVsZCB7XG4gICAgLy8gQmFzZSAwLCBub3QgYXV0bzogd2l0aCBhdXRvIHRoZSBmaWVsZCB0b29rIHRoZSB3aG9sZSByb3cgYW5kIHB1c2hlZCDDosKfwrMgb250byBhIGxpbmUgb2YgaXRzXG4gICAgLy8gb3duIGluIHRoZSBzaWRlIHBhbmVsIChtZWFzdXJlZCAxMy8wOS8yMDI2KS4gSXQgc3RpbGwgZ3Jvd3MgdXAgdG8gbWF4LXdpZHRoLlxuICAgIGZsZXg6IDEgMSAwO1xuICAgIG1pbi13aWR0aDogMTEwcHg7IC8vIG5ldmVyIHNxdWVlemVkIHRvIGl0cyBhcnJvdywgYW5kIMOiwp/CsyBzdGlsbCBmaXRzIGJlc2lkZSBpdCBpbiB0aGUgc2lkZSBwYW5lbFxuICAgIG1heC13aWR0aDogMzIwcHg7XG4gICAgZm9udC1zaXplOiAxM3B4O1xuXG4gICAgOjpuZy1kZWVwIC5tYXQtZm9ybS1maWVsZC13cmFwcGVyIHsgcGFkZGluZy1ib3R0b206IDA7IG1hcmdpbjogMDsgfVxuICAgIDo6bmctZGVlcCAubWF0LWZvcm0tZmllbGQtaW5maXggeyBwYWRkaW5nOiA2cHggMDsgYm9yZGVyLXRvcDogMDsgd2lkdGg6IGF1dG87IH1cbiAgICA6Om5nLWRlZXAgLm1hdC1mb3JtLWZpZWxkLW91dGxpbmUgeyB0b3A6IDA7IH1cbiAgICA6Om5nLWRlZXAgLm1hdC1mb3JtLWZpZWxkLXN1YnNjcmlwdC13cmFwcGVyIHsgZGlzcGxheTogbm9uZTsgfVxuICB9XG5cbiAgLmNvcGlsb3QtbW9kZWwtcmVmcmVzaCB7XG4gICAgd2lkdGg6IDMycHg7XG4gICAgaGVpZ2h0OiAzMnB4O1xuICAgIGxpbmUtaGVpZ2h0OiAzMnB4O1xuICAgIGZsZXgtc2hyaW5rOiAwO1xuICB9XG5cbiAgLmNvcGlsb3QtbW9kZWwtcmVmcmVzaCAuc3Bpbm5pbmcge1xuICAgIGFuaW1hdGlvbjogY29waWxvdC1tb2RlbC1zcGluIDFzIGxpbmVhciBpbmZpbml0ZTtcbiAgfVxuXG4gIC5jb3BpbG90LW1vZGVsLWhpbnQge1xuICAgIGZvbnQtc2l6ZTogMTJweDtcbiAgICBmb250LXN0eWxlOiBpdGFsaWM7XG4gICAgY29sb3I6IHZhcigtLW1kZS10ZXh0LWhpbnQpO1xuICAgIHdoaXRlLXNwYWNlOiBub3dyYXA7XG4gIH1cblxuICAuY29waWxvdC1tb2RlbC1lcnJvciB7XG4gICAgZGlzcGxheTogaW5saW5lLWZsZXg7XG4gICAgYWxpZ24taXRlbXM6IGNlbnRlcjtcbiAgICBnYXA6IDRweDtcbiAgICBmb250LXNpemU6IDEycHg7XG4gICAgY29sb3I6IHZhcigtLW1kZS13YXJuaW5nLWZnKTtcbiAgICB3aGl0ZS1zcGFjZTogbm93cmFwO1xuXG4gICAgbWF0LWljb24geyBmb250LXNpemU6IDE2cHg7IHdpZHRoOiAxNnB4OyBoZWlnaHQ6IDE2cHg7IH1cbiAgfVxuXG4gIC8vIENvbnN1bWkgYSBkZXN0cmEgZGVsbGEgcmlnYTogaW5mb3JtYXRpdmksIG5vbiB1biBhdnZpc28sIGZpbmNow4PCqSBub24gc2kgYXZ2aWNpbmFubyBhbCBwaWVuby5cbiAgLmNvcGlsb3QtdXNhZ2Uge1xuICAgIG1hcmdpbi1sZWZ0OiBhdXRvO1xuICAgIGRpc3BsYXk6IGlubGluZS1mbGV4O1xuICAgIGZsZXgtd3JhcDogd3JhcDtcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xuICAgIGdhcDogMnB4IDZweDtcbiAgICBwYWRkaW5nLWJvdHRvbTogMnB4O1xuICAgIGZvbnQtc2l6ZTogMTFweDtcbiAgICBjb2xvcjogdmFyKC0tbWRlLXRleHQtaGludCk7XG5cbiAgICAudXNhZ2UtaXRlbSB7IHdoaXRlLXNwYWNlOiBub3dyYXA7IH1cblxuICAgIC51c2FnZS1pdGVtIHN0cm9uZyB7IGZvbnQtd2VpZ2h0OiA2MDA7IH1cbiAgICAudXNhZ2Utc2VwIHsgb3BhY2l0eTogMC41OyB9XG4gICAgLnVzYWdlLWhpZ2ggc3Ryb25nIHsgY29sb3I6IHZhcigtLW1kZS13YXJuaW5nLWZnKTsgfVxuICB9XG5cbiAgLy8gTmFycm93IHJvdyAodGhlIHNpZGUgcGFuZWwpOiB0aGUgZmlndXJlcyBvbiB0aGVpciBvd24gbGluZSwgZnJvbSB0aGUgbGVmdCwgYWxsIHRvZ2V0aGVyLlxuICBAY29udGFpbmVyIChtYXgtd2lkdGg6IDQyMHB4KSB7XG4gICAgLmNvcGlsb3QtdXNhZ2Uge1xuICAgICAgZmxleC1iYXNpczogMTAwJTtcbiAgICAgIG1hcmdpbi1sZWZ0OiAwO1xuICAgICAgZmxleC13cmFwOiBub3dyYXA7XG4gICAgICBnYXA6IDRweDtcbiAgICB9XG4gIH1cbn1cblxuLm1vZGVsLXVuYXZhaWxhYmxlIHtcbiAgZm9udC1zdHlsZTogaXRhbGljO1xuICBvcGFjaXR5OiAwLjc7XG59XG5cbkBrZXlmcmFtZXMgY29waWxvdC1tb2RlbC1zcGluIHtcbiAgZnJvbSB7IHRyYW5zZm9ybTogcm90YXRlKDBkZWcpOyB9XG4gIHRvIHsgdHJhbnNmb3JtOiByb3RhdGUoMzYwZGVnKTsgfVxufVxuXG4vKiBEZXR0YXR1cmE6IGlsIG1pY3JvZm9ubyBzdGEgYWNjYW50byBhbCBTZW5kIGUgcHVsc2EgbWVudHJlIHJlZ2lzdHJhLCBjb3NpJyBzaSB2ZWRlIGEgY29scG9cbiAgIGQnb2NjaGlvIGNoZSBpbCBtaWNyb2Zvbm8gZScgYXBlcnRvLiAqL1xuLmRpY3RhdGlvbi1idXR0b24ge1xuICBtYXJnaW4tcmlnaHQ6IDhweDtcbiAgZmxleDogMCAwIGF1dG87XG5cbiAgJi5kaWN0YXRpb24tcmVjb3JkaW5nIHtcbiAgICBhbmltYXRpb246IGRpY3RhdGlvbi1wdWxzZSAxLjRzIGVhc2UtaW4tb3V0IGluZmluaXRlO1xuICB9XG5cbiAgbWF0LXNwaW5uZXIge1xuICAgIG1hcmdpbjogMCBhdXRvO1xuICB9XG59XG5cbkBrZXlmcmFtZXMgZGljdGF0aW9uLXB1bHNlIHtcbiAgMCUsIDEwMCUgeyB0cmFuc2Zvcm06IHNjYWxlKDEpOyB9XG4gIDUwJSAgICAgIHsgdHJhbnNmb3JtOiBzY2FsZSgxLjA4KTsgfVxufVxuXG4vKiBJbCBtb3Rpdm8gcGVyIGN1aSBpbCBtaWNyb2Zvbm8gbm9uIGhhIGZ1bnppb25hdG8sIHNvcHJhIGxhIGNhc2VsbGE6IGxhIHN0ZXNzYSBwb3NpemlvbmUgZGVsXG4gICBiYW5uZXIgXCJzdG8gY29uZmlndXJhbmRvIGlsIHByb3ZpZGVyXCIsIGNvc2knIGwnb2NjaGlvIGxvIHRyb3ZhIGRvdmUgc2kgYXNwZXR0YSBsZSBub3RpemllLiAqL1xuLmRpY3RhdGlvbi1lcnJvciB7XG4gIGRpc3BsYXk6IGZsZXg7XG4gIGFsaWduLWl0ZW1zOiBjZW50ZXI7XG4gIGdhcDogOHB4O1xuICBtYXJnaW4tYm90dG9tOiA4cHg7XG4gIHBhZGRpbmc6IDZweCA4cHg7XG4gIGJvcmRlci1yYWRpdXM6IDRweDtcbiAgYmFja2dyb3VuZDogcmdiYSgyNDQsIDY3LCA1NCwgMC4xMik7XG4gIGZvbnQtc2l6ZTogMTNweDtcblxuICAuZGljdGF0aW9uLWVycm9yLWljb24ge1xuICAgIGZvbnQtc2l6ZTogMThweDtcbiAgICB3aWR0aDogMThweDtcbiAgICBoZWlnaHQ6IDE4cHg7XG4gIH1cblxuICBzcGFuIHsgZmxleDogMTsgfVxufVxuIl0sInNvdXJjZVJvb3QiOiIifQ== */"]
     });
   }
 }
@@ -32912,6 +33130,179 @@ class AiSelectionService {
 
 /***/ }),
 
+/***/ 1359:
+/*!********************************************!*\
+  !*** ./src/app/services/speech.service.ts ***!
+  \********************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "SpeechService": () => (/* binding */ SpeechService),
+/* harmony export */   "VoiceRecording": () => (/* binding */ VoiceRecording)
+/* harmony export */ });
+/* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/common/http */ 8987);
+
+
+
+/**
+ * La dettatura: qui si registra, il riconoscimento lo fa il Service .NET.
+ *
+ * Il confine è voluto — la pagina fa la sola cosa che solo lei può fare, aprire il microfono;
+ * il modello sta nel Service, dove funziona uguale su Windows e su Linux e da dove l'audio non
+ * esce. Vedi docs-internal/Sprints/2026-09-22-Dettatura-Vocale-MarkAgent.md.
+ */
+class SpeechService {
+  /**
+   * ⚠️ Non è una preferenza: Whisper accetta **solo** WAV a 16 kHz e rifiuta tutto il resto
+   * (`Only 16KHz sample rate is supported`). Chiedendo un `AudioContext` a questa frequenza è
+   * Chromium a ricampionare il microfono, e il Service non ha bisogno né di ffmpeg né di un
+   * decoder audio.
+   */
+  static {
+    this.SAMPLE_RATE = 16000;
+  }
+  constructor(http) {
+    this.http = http;
+  }
+  status() {
+    return this.http.get('../api/speech/status');
+  }
+  transcribe(wav, language = 'it') {
+    const form = new FormData();
+    form.append('audio', wav, 'dettatura.wav');
+    return this.http.post(`../api/speech/transcribe?language=${language}`, form);
+  }
+  /** Apre il microfono e comincia a registrare. Il risultato si raccoglie con `stop()`. */
+  record() {
+    return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      const stream = yield navigator.mediaDevices.getUserMedia({
+        audio: {
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true
+        }
+      });
+      return new VoiceRecording(stream);
+    })();
+  }
+  static {
+    this.ɵfac = function SpeechService_Factory(t) {
+      return new (t || SpeechService)(_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_2__.HttpClient));
+    };
+  }
+  static {
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_1__["ɵɵdefineInjectable"]({
+      token: SpeechService,
+      factory: SpeechService.ɵfac,
+      providedIn: 'root'
+    });
+  }
+}
+/**
+ * Una registrazione in corso. Raccoglie i campioni a 16 kHz mono e alla fine ne fa un WAV.
+ *
+ * Usa `createScriptProcessor`, deprecato ma presente ovunque, invece di un `AudioWorklet`: il
+ * worklet vuole un modulo caricato a parte (o un blob URL, che la CSP dell'app può rifiutare) per
+ * fare esattamente la stessa cosa — copiare campioni in un array. Se un domani sparisse davvero,
+ * il pezzo da riscrivere è solo questa classe.
+ */
+class VoiceRecording {
+  constructor(stream) {
+    this.stream = stream;
+    this.chunks = [];
+    this.stopped = false;
+    this.context = new AudioContext({
+      sampleRate: SpeechService.SAMPLE_RATE
+    });
+    this.source = this.context.createMediaStreamSource(stream);
+    this.processor = this.context.createScriptProcessor(4096, 1, 1);
+    this.processor.onaudioprocess = e => {
+      if (this.stopped) {
+        return;
+      }
+      // Il buffer viene riusato dal browser al giro dopo: si copia, non si tiene il riferimento.
+      this.chunks.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+    };
+    this.source.connect(this.processor);
+    // Il processor deve arrivare alla destinazione o non viene mai chiamato. Nessun suono esce:
+    // il nodo non scrive niente nel proprio buffer di uscita.
+    this.processor.connect(this.context.destination);
+  }
+  /** Quanti secondi di parlato sono stati raccolti finora. */
+  get seconds() {
+    return this.chunks.reduce((n, c) => n + c.length, 0) / SpeechService.SAMPLE_RATE;
+  }
+  /** Chiude microfono e contesto audio, e restituisce il WAV da mandare al Service. */
+  stop() {
+    var _this = this;
+    return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      _this.stopped = true;
+      _this.processor.disconnect();
+      _this.source.disconnect();
+      _this.stream.getTracks().forEach(t => t.stop());
+      try {
+        yield _this.context.close();
+      } catch {/* già chiuso: non è un problema */}
+      return _this.toWav();
+    })();
+  }
+  /** Butta via tutto senza produrre niente (l'utente ha annullato). */
+  discard() {
+    var _this2 = this;
+    return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      _this2.stopped = true;
+      _this2.processor.disconnect();
+      _this2.source.disconnect();
+      _this2.stream.getTracks().forEach(t => t.stop());
+      try {
+        yield _this2.context.close();
+      } catch {/* idem */}
+      _this2.chunks.length = 0;
+    })();
+  }
+  /** I campioni raccolti come WAV PCM 16 bit mono: l'unico formato che il riconoscimento accetta. */
+  toWav() {
+    const campioni = this.chunks.reduce((n, c) => n + c.length, 0);
+    const buffer = new ArrayBuffer(44 + campioni * 2);
+    const view = new DataView(buffer);
+    const testo = (offset, s) => {
+      for (let i = 0; i < s.length; i++) {
+        view.setUint8(offset + i, s.charCodeAt(i));
+      }
+    };
+    testo(0, 'RIFF');
+    view.setUint32(4, 36 + campioni * 2, true);
+    testo(8, 'WAVE');
+    testo(12, 'fmt ');
+    view.setUint32(16, 16, true); // lunghezza del blocco fmt
+    view.setUint16(20, 1, true); // PCM non compresso
+    view.setUint16(22, 1, true); // mono
+    view.setUint32(24, SpeechService.SAMPLE_RATE, true);
+    view.setUint32(28, SpeechService.SAMPLE_RATE * 2, true); // byte al secondo
+    view.setUint16(32, 2, true); // byte per campione
+    view.setUint16(34, 16, true); // bit per campione
+    testo(36, 'data');
+    view.setUint32(40, campioni * 2, true);
+    let offset = 44;
+    for (const chunk of this.chunks) {
+      for (let i = 0; i < chunk.length; i++) {
+        // Da float [-1, 1] a intero con segno a 16 bit, tagliando quello che esce dai bordi.
+        const v = Math.max(-1, Math.min(1, chunk[i]));
+        view.setInt16(offset, v < 0 ? v * 0x8000 : v * 0x7fff, true);
+        offset += 2;
+      }
+    }
+    return new Blob([buffer], {
+      type: 'audio/wav'
+    });
+  }
+}
+
+/***/ }),
+
 /***/ 8199:
 /*!**********************************************************!*\
   !*** ./src/app/signalR/dialogs/rules/rules.component.ts ***!
@@ -37462,4 +37853,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.eb502f9168b1ca4a.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.1b71a636556e0d3d.js.map
