@@ -15,7 +15,7 @@
  * PlantUML SVG Conventions (legacy format, pre-2026):
  * - cluster_* : Package/container elements
  * - elem_*    : Component/element boxes
- * - GMN*      : Note elements
+ * - notes     : recognised by shape (folded corner), not by name — see isNoteBox()
  * - link_*    : Connection arrows (format: link_SourceName_TargetName)
  *
  * PlantUML SVG Conventions (new format, v1.2026.1+):
@@ -74,18 +74,42 @@ var InteractiveSvg = (function() {
      *
      *   - .interactive-svg-box   : on every clickable box (entity, cluster, GMN note, elem_*)
      *   - .interactive-svg-link  : on every link group
-     *   - .interactive-svg-note  : extra marker for GMN note boxes (used for dim/hover overrides if needed)
+     *   - .interactive-svg-note  : extra marker for note boxes, recognised by SHAPE (see isNoteBox)
      */
     function applyMarkerClasses(svg) {
         svg.querySelectorAll(SEL_BOXES).forEach(function(box) {
             box.classList.add('interactive-svg-box');
-            if (box.id && box.id.indexOf('GMN') === 0) {
+            if (isNoteBox(box)) {
                 box.classList.add('interactive-svg-note');
             }
         });
         svg.querySelectorAll(SEL_LINKS).forEach(function(link) {
             link.classList.add('interactive-svg-link');
         });
+    }
+
+    /**
+     * Is this box a PlantUML note?
+     *
+     * The name cannot tell: a note may be anonymous ("GMN62", legacy id "elem_GMN62")
+     * or named ("note as NotaDocumentoGara"). The shape can: a note has no <rect>,
+     * its outline is a <path>, and the next <path> is the folded corner — a right
+     * triangle M(x,y) L(x,y+h) L(x+h,y+h) L(x,y). Same drawing in both SVG formats.
+     */
+    function isNoteBox(box) {
+        if (box.querySelector(':scope > rect')) return false;
+        var paths = box.querySelectorAll(':scope > path');
+        if (paths.length < 2) return false;
+        var nums = (paths[1].getAttribute('d') || '').match(/-?\d+(?:\.\d+)?/g);
+        if (!nums || nums.length !== 8) return false;
+        var p = nums.map(parseFloat);
+        return p[0] === p[2] && p[3] > p[1] &&      // down the left side of the fold
+               p[5] === p[3] && p[4] > p[2] &&      // across the bottom of the fold
+               p[6] === p[0] && p[7] === p[1];      // back to the start
+    }
+
+    function isNote(el) {
+        return !!(el && el.classList && el.classList.contains('interactive-svg-note'));
     }
 
     /**
@@ -557,7 +581,7 @@ var InteractiveSvg = (function() {
             externalConnected.push(name);
             var el = findBoxByName(svg, name);
             if (!el || el === cluster) return;
-            if (name.indexOf && name.indexOf('GMN') === 0) {
+            if (isNote(el)) {
                 el.classList.add('destination-note');
                 highlightEllipses(el, '#FFC107');
             } else if (kind === 'outgoing') {
@@ -635,8 +659,8 @@ var InteractiveSvg = (function() {
 
             var destElem = findBoxByName(svg, item.to);
             if (destElem) {
-                // Note boxes (GMN*) = YELLOW, others = GREEN (receiving info)
-                if (item.to.startsWith('GMN')) {
+                // Note boxes = YELLOW, others = GREEN (receiving info)
+                if (isNote(destElem)) {
                     destElem.classList.add('destination-note');
                     highlightEllipses(destElem, '#FFC107');
                 } else {
@@ -657,8 +681,8 @@ var InteractiveSvg = (function() {
 
             var sourceElem = findBoxByName(svg, item.from);
             if (sourceElem && sourceElem !== boxElement) {
-                // Note boxes (GMN*) = YELLOW, others = RED (sending info)
-                if (item.from.startsWith('GMN')) {
+                // Note boxes = YELLOW, others = RED (sending info)
+                if (isNote(sourceElem)) {
                     sourceElem.classList.add('destination-note');
                     highlightEllipses(sourceElem, '#FFC107');
                 } else {

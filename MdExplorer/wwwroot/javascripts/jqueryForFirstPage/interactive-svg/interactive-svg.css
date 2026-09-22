@@ -6,7 +6,7 @@
  * Format-agnostic: uses marker classes added by interactive-svg.js
  *   - .interactive-svg-box   : every clickable box (legacy elem_/cluster_/GMN + new g.entity/g.cluster)
  *   - .interactive-svg-link  : every link group   (legacy link_*                + new g.link)
- *   - .interactive-svg-note  : GMN/note boxes (subset of .interactive-svg-box)
+ *   - .interactive-svg-note  : note boxes, recognised by shape (subset of .interactive-svg-box)
  *
  * State classes (added at click time by the JS):
  *   .source-selected         : the clicked box
