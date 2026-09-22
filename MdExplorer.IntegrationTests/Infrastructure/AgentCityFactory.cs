@@ -40,7 +40,25 @@ namespace MdExplorer.IntegrationTests.Infrastructure
             Directory.CreateDirectory(DataDir);
             // Letta da CrossPlatformPath.GetAppDataDirectory() su Linux: isola tutta la UserDB.
             Environment.SetEnvironmentVariable("XDG_DATA_HOME", DataDir);
+
+            // Git ermetico: ogni `git` lanciato dal Service o dal test legge QUESTA config globale
+            // e non quella della macchina. Il credential helper è uno store su file dentro DataDir:
+            // i test possono seminarlo e leggerlo, e non toccano mai ~/.git-credentials di chi
+            // esegue i test. GIT_TERMINAL_PROMPT=0 fa fallire subito invece di restare appesi.
+            GitCredentialsFile = Path.Combine(DataDir, "git-credentials");
+            var gitConfig = Path.Combine(DataDir, "gitconfig");
+            File.WriteAllText(gitConfig,
+                "[user]\n\tname = MdExplorer Test\n\temail = test@mde.local\n" +
+                "[init]\n\tdefaultBranch = main\n" +
+                "[protocol \"file\"]\n\tallow = always\n" +
+                $"[credential]\n\thelper = store --file={GitCredentialsFile.Replace("\\", "/")}\n");
+            Environment.SetEnvironmentVariable("GIT_CONFIG_GLOBAL", gitConfig);
+            Environment.SetEnvironmentVariable("GIT_CONFIG_NOSYSTEM", "1");
+            Environment.SetEnvironmentVariable("GIT_TERMINAL_PROMPT", "0");
         }
+
+        /// <summary>Lo store del credential helper di git per questa factory: una riga `scheme://user:pass@host` per credenziale.</summary>
+        public string GitCredentialsFile { get; }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
