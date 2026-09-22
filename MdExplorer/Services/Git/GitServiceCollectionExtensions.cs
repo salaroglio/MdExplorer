@@ -23,6 +23,8 @@ namespace MdExplorer.Services.Git
             // The credential cache is managed internally with a static/shared cache
             services.TryAddSingleton<INativeGitRunner, NativeGitRunner>();
             services.AddScoped<INativeGitTransport, NativeGitTransport>();
+            services.TryAddSingleton<GitCredentialMoveReportHolder>();
+            services.AddScoped<IGitCredentialMoveService, GitCredentialMoveService>();
             services.AddScoped<IModernGitService, ModernGitService>();
 
             // Register GitHub service for repository management
@@ -80,6 +82,8 @@ namespace MdExplorer.Services.Git
             // The credential cache is managed with a static/shared cache
             services.TryAddSingleton<INativeGitRunner, NativeGitRunner>();
             services.AddScoped<INativeGitTransport, NativeGitTransport>();
+            services.TryAddSingleton<GitCredentialMoveReportHolder>();
+            services.AddScoped<IGitCredentialMoveService, GitCredentialMoveService>();
             services.AddScoped<IModernGitService, ModernGitService>();
             services.AddScoped<IGitHubService, GitHubService>();
             services.AddScoped<IGitConfigHelper, GitConfigHelper>();

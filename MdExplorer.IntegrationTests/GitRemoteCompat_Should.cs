@@ -126,8 +126,27 @@ namespace MdExplorer.IntegrationTests
                     httpsPassword: Password, preferredAuthMethod: "username_password");
             }
 
+            // Il trasloco: all'avvio della versione nuova (qui a chiamata, perché il test spegne
+            // l'hosted service) MdExplorer consegna il segreto a git e verifica che git lo ritrovi.
+            var move = await PostJson(ctx, "/api/ModernGit/credential-move", new { });
+            using (var doc = JsonDocument.Parse(move.Raw))
+            {
+                Assert.AreEqual(1, doc.RootElement.GetProperty("moved").GetInt32(), "trasloco: " + move.Raw);
+                Assert.AreEqual(0, doc.RootElement.GetProperty("failed").GetInt32(), "trasloco: " + move.Raw);
+            }
+            var store = File.ReadAllText(ctx.Factory.GitCredentialsFile);
+            // lo store scrive la porta come %3a: basta utente, password e host
+            Assert.IsTrue(store.Contains($"{User}:{Password}@127.0.0.1"), "la credenziale deve essere nel helper di git: " + store);
+            var (_, cfg) = Git(path, "config", "--get", $"credential.{server.BaseUrl}.username");
+            Assert.AreEqual(User, cfg.Trim(), "il repo deve sapere quale utente usare per questo host");
+
             var push = await PostJson(ctx, "/api/ModernGit/push", new { repositoryPath = path, remoteName = "origin", branchName = "main" });
             Assert.IsTrue(push.Success, "push con credenziale solo nel DB: " + push.Error);
+
+            // E il segreto in chiaro non è più nel DB di MdExplorer: rifare il trasloco non trova niente.
+            var again = await PostJson(ctx, "/api/ModernGit/credential-move", new { });
+            using (var doc = JsonDocument.Parse(again.Raw))
+                Assert.IsTrue(doc.RootElement.GetProperty("nothingLeft").GetBoolean(), "secondo trasloco: " + again.Raw);
         }
 
         // ---------------------------------------------------------------- primo collegamento

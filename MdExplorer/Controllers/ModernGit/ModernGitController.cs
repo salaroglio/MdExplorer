@@ -1335,6 +1335,24 @@ namespace MdExplorer.Controllers.ModernGit
         /// </summary>
         /// <param name="request">Initialization request with repository path, branch name, and gitignore template</param>
         /// <returns>Initialization response with success status</returns>
+        /// <summary>
+        /// Il trasloco delle credenziali dal DB di MdExplorer al credential helper di git (vedi
+        /// <see cref="Services.Git.GitCredentialMoveService"/>). POST lo esegue, GET riporta l'ultimo esito:
+        /// la UI lo mostra una volta, con l'elenco di ciò che non si è potuto spostare e il perché.
+        /// </summary>
+        [HttpPost("credential-move")]
+        public async Task<IActionResult> RunCredentialMove([FromServices] Services.Git.IGitCredentialMoveService mover)
+        {
+            var report = await mover.RunAsync(HttpContext.RequestAborted);
+            return Ok(report);
+        }
+
+        [HttpGet("credential-move")]
+        public IActionResult LastCredentialMove([FromServices] Services.Git.GitCredentialMoveReportHolder holder)
+        {
+            return Ok(holder.Last ?? new Services.Git.GitCredentialMoveReport());
+        }
+
         [HttpPost("init")]
         public async Task<IActionResult> InitRepository([FromBody] InitRepositoryRequest request)
         {
