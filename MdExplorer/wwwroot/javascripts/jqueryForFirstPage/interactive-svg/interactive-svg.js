@@ -112,6 +112,113 @@ var InteractiveSvg = (function() {
         return !!(el && el.classList && el.classList.contains('interactive-svg-note'));
     }
 
+    // How far (SVG units) a speech-bubble tip may sit from the box border it points at.
+    // Measured on real diagrams: <= 0.4.
+    var NOTE_TAIL_TOLERANCE = 3;
+
+    /**
+     * Vertices of a note outline path ("M x,y L x,y A rx,ry rot large sweep x,y …").
+     */
+    function pathVertices(d) {
+        var pts = [];
+        var re = /([MLA])([^MLAZ]*)/gi, m;
+        while ((m = re.exec(d || '')) !== null) {
+            var n = (m[2].match(/-?\d+(?:\.\d+)?/g) || []).map(parseFloat);
+            if (n.length >= 2) pts.push({ x: n[n.length - 2], y: n[n.length - 1] });
+        }
+        return pts;
+    }
+
+    /**
+     * Tip of a note's speech bubble, or null when the note has none.
+     *
+     * A note with a single relation is drawn by PlantUML as a bubble: no g.link exists,
+     * the tail is three extra vertices inside the note outline. The tip is the only
+     * vertex lying outside the bounding box of all the others (= the note body).
+     */
+    function findNoteTailTip(noteBox) {
+        var outline = noteBox.querySelector(':scope > path');
+        if (!outline) return null;
+        var pts = pathVertices(outline.getAttribute('d'));
+        var tips = pts.filter(function(p, i) {
+            var others = pts.filter(function(_, j) { return j !== i; });
+            var minX = Math.min.apply(null, others.map(function(o) { return o.x; }));
+            var maxX = Math.max.apply(null, others.map(function(o) { return o.x; }));
+            var minY = Math.min.apply(null, others.map(function(o) { return o.y; }));
+            var maxY = Math.max.apply(null, others.map(function(o) { return o.y; }));
+            return p.x < minX - 1 || p.x > maxX + 1 || p.y < minY - 1 || p.y > maxY + 1;
+        });
+        return tips.length === 1 ? tips[0] : null;
+    }
+
+    /**
+     * Frame of a box: its <rect> (classes, packages) or, failing that, its bbox.
+     */
+    function boxFrame(box) {
+        var r = box.querySelector(':scope > rect');
+        if (r) {
+            return {
+                x: parseFloat(r.getAttribute('x')), y: parseFloat(r.getAttribute('y')),
+                w: parseFloat(r.getAttribute('width')), h: parseFloat(r.getAttribute('height'))
+            };
+        }
+        try {
+            var b = box.getBBox();
+            return (b.width || b.height) ? { x: b.x, y: b.y, w: b.width, h: b.height } : null;
+        } catch (e) {
+            return null;   // not rendered (e.g. hidden iframe): no geometry to compare
+        }
+    }
+
+    /**
+     * Distance from a point to the BORDER of a frame (0 when on it). A point inside a
+     * package is far from its border, so a class touched by the tip wins over the
+     * package that contains it.
+     */
+    function distanceToBorder(f, x, y) {
+        var dx = Math.max(f.x - x, 0, x - (f.x + f.w));
+        var dy = Math.max(f.y - y, 0, y - (f.y + f.h));
+        if (dx > 0 || dy > 0) return Math.sqrt(dx * dx + dy * dy);
+        return Math.min(x - f.x, f.x + f.w - x, y - f.y, f.y + f.h - y);
+    }
+
+    /**
+     * Pair every speech-bubble note with the box its tip touches.
+     * Classes win over packages; an unclear match is reported and skipped, never guessed.
+     *
+     * @returns {Array<{note: Element, target: Element}>}
+     */
+    function findNoteTails(svg) {
+        var candidates = [];
+        svg.querySelectorAll('.interactive-svg-box:not(.interactive-svg-note)').forEach(function(box) {
+            var f = boxFrame(box);
+            if (f) candidates.push({ box: box, frame: f, cluster: isClusterElement(box) });
+        });
+
+        var tails = [];
+        svg.querySelectorAll('.interactive-svg-note').forEach(function(note) {
+            var tip = findNoteTailTip(note);
+            if (!tip) return;
+
+            var near = candidates
+                .map(function(c) { return { c: c, d: distanceToBorder(c.frame, tip.x, tip.y) }; })
+                .filter(function(h) { return h.d <= NOTE_TAIL_TOLERANCE; });
+            if (near.some(function(h) { return !h.c.cluster; })) {
+                near = near.filter(function(h) { return !h.c.cluster; });
+            }
+            near.sort(function(a, b) { return a.d - b.d; });
+
+            if (near.length === 0 || (near.length > 1 && near[1].d - near[0].d < 0.5)) {
+                console.warn('[InteractiveSvg] Note "' + getElementName(note) + '": ' +
+                    (near.length ? 'tip touches more than one box' : 'no box at the tip') +
+                    ' (' + tip.x + ',' + tip.y + '), not attached');
+                return;
+            }
+            tails.push({ note: note, target: near[0].c.box });
+        });
+        return tails;
+    }
+
     /**
      * Remove the marker classes applied by applyMarkerClasses (used by destroy()).
      */
@@ -413,6 +520,17 @@ var InteractiveSvg = (function() {
             }
         });
 
+        // Speech-bubble notes have no g.link: add a virtual note -> box relation
+        // (link: null, nothing to paint) so both clicks find each other.
+        linkMap.noteTails = findNoteTails(svg).map(function(t) {
+            var note = getElementName(t.note), target = getElementName(t.target);
+            if (!linkMap.outgoing[note]) linkMap.outgoing[note] = [];
+            if (!linkMap.incoming[target]) linkMap.incoming[target] = [];
+            linkMap.outgoing[note].push({ link: null, to: target });
+            linkMap.incoming[target].push({ link: null, from: note });
+            return { from: note, to: target };
+        });
+
         return linkMap;
     }
 
@@ -614,6 +732,19 @@ var InteractiveSvg = (function() {
             }
         });
 
+        // Speech-bubble notes: same boundary rule, no link to paint
+        (linkMap.noteTails || []).forEach(function(t) {
+            var fromInside = (t.from === clusterName) || descendants.qnames.has(t.from);
+            var toInside   = (t.to   === clusterName) || descendants.qnames.has(t.to);
+            if (fromInside && !toInside) {
+                outCount++;
+                markExternal(t.to, 'outgoing');
+            } else if (!fromInside && toInside) {
+                inCount++;
+                markExternal(t.from, 'incoming');
+            }
+        });
+
         if (onSelect && typeof onSelect === 'function') {
             onSelect({
                 type: 'cluster',
@@ -651,7 +782,7 @@ var InteractiveSvg = (function() {
         // Find all OUTGOING links (selected -> other = GREEN for receivers)
         var outgoing = linkMap.outgoing[boxName] || [];
         outgoing.forEach(function(item) {
-            item.link.classList.add('link-highlighted');
+            if (item.link) item.link.classList.add('link-highlighted');
             outCount++;
             if (connectedBoxes.indexOf(item.to) === -1) {
                 connectedBoxes.push(item.to);
@@ -673,7 +804,7 @@ var InteractiveSvg = (function() {
         // Find all INCOMING links (other -> selected = RED for senders)
         var incoming = linkMap.incoming[boxName] || [];
         incoming.forEach(function(item) {
-            item.link.classList.add('link-highlighted');
+            if (item.link) item.link.classList.add('link-highlighted');
             inCount++;
             if (connectedBoxes.indexOf(item.from) === -1) {
                 connectedBoxes.push(item.from);
