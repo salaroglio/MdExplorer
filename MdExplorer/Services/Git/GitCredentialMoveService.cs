@@ -4,9 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using MdExplorer.Utilities;
-using Microsoft.Data.Sqlite;
+using Ad.Tools.Dal.Extensions;
+using MdExplorer.Abstractions.DB;
 using Microsoft.Extensions.Logging;
+using NHibernate;
 
 namespace MdExplorer.Services.Git
 {
@@ -59,47 +60,53 @@ namespace MdExplorer.Services.Git
     /// nel file (FluentMigrator su SQLite non sa cancellarle), vuote di segreti.
     /// Ciò che non si è potuto spostare resta, con il perché nel rapporto, e si riprova all'avvio dopo.
     /// </para>
+    /// <para>
+    /// ⚠️ Lo SQL passa dalla <b>stessa sessione NHibernate</b> (System.Data.SQLite) del resto dell'app,
+    /// mai da Microsoft.Data.Sqlite: il DB utente è in WAL e due librerie SQLite nello stesso processo
+    /// non si vedono i lock. Misurato il 22/09/2026: la prima versione, che apriva il file con
+    /// Microsoft.Data.Sqlite, alla chiusura ha buttato via il WAL dell'altra e il DB è finito in
+    /// «disk I/O error». È lo stesso motivo per cui l'indice FTS vive in un file side-car.
+    /// </para>
     /// </summary>
     public sealed class GitCredentialMoveService : IGitCredentialMoveService
     {
         private readonly INativeGitTransport _transport;
         private readonly INativeGitRunner _git;
         private readonly GitCredentialMoveReportHolder _holder;
+        private readonly IUserSettingsDB _db;
         private readonly ILogger<GitCredentialMoveService> _logger;
-        private readonly string _dbPath;
 
         public GitCredentialMoveService(INativeGitTransport transport, INativeGitRunner git,
-            GitCredentialMoveReportHolder holder, ILogger<GitCredentialMoveService> logger)
-            : this(transport, git, holder, logger, Path.Combine(CrossPlatformPath.GetAppDataPath(), "MdExplorer.db")) { }
-
-        public GitCredentialMoveService(INativeGitTransport transport, INativeGitRunner git,
-            GitCredentialMoveReportHolder holder, ILogger<GitCredentialMoveService> logger, string dbPath)
+            GitCredentialMoveReportHolder holder, IUserSettingsDB db, ILogger<GitCredentialMoveService> logger)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _git = git ?? throw new ArgumentNullException(nameof(git));
             _holder = holder ?? throw new ArgumentNullException(nameof(holder));
+            _db = db ?? throw new ArgumentNullException(nameof(db));
             _logger = logger;
-            _dbPath = dbPath;
         }
 
         public async Task<GitCredentialMoveReport> RunAsync(CancellationToken ct = default)
         {
             var entries = new List<GitCredentialMoveEntry>();
-            if (!File.Exists(_dbPath))
+            // Tutto dentro UNA transazione della sessione: letture fuori transazione rompono i
+            // Commit successivi della stessa sessione (vedi memoria usersettingsdb_session_hygiene).
+            _db.BeginTransaction();
+            try
             {
-                _logger.LogInformation("[trasloco] nessun DB utente in {Path}: niente da spostare", _dbPath);
-                return Publish(entries);
+                if (TableExists("GitCredential"))
+                    await MoveGitCredentialsAsync(entries, ct);
+                if (TableExists("GitlabSetting"))
+                    await MoveGitlabSettingsAsync(entries, ct);
+                if (TableExists("Setting"))
+                    await MoveGitHubTokenAsync(entries, ct);
+                _db.Commit();
             }
-
-            using var db = new SqliteConnection($"Data Source={_dbPath}");
-            await db.OpenAsync(ct);
-
-            if (TableExists(db, "GitCredential"))
-                await MoveGitCredentialsAsync(db, entries, ct);
-            if (TableExists(db, "GitlabSetting"))
-                await MoveGitlabSettingsAsync(db, entries, ct);
-            if (TableExists(db, "Setting"))
-                await MoveGitHubTokenAsync(db, entries, ct);
+            catch
+            {
+                _db.Rollback();
+                throw;
+            }
 
             foreach (var e in entries)
                 _logger.Log(e.Moved ? LogLevel.Information : LogLevel.Warning,
@@ -117,32 +124,24 @@ namespace MdExplorer.Services.Git
 
         // ------------------------------------------------------------------ GitCredential
 
-        private async Task MoveGitCredentialsAsync(SqliteConnection db, List<GitCredentialMoveEntry> entries, CancellationToken ct)
+        private async Task MoveGitCredentialsAsync(List<GitCredentialMoveEntry> entries, CancellationToken ct)
         {
-            var rows = new List<(long RowId, string User, string Type, string Secret, string SshKey)>();
-            using (var cmd = db.CreateCommand())
-            {
-                cmd.CommandText = @"SELECT rowid, AuthUsername, AccountType,
+            var rows = _db.CreateSQLQuery(@"SELECT rowid, AuthUsername, AccountType,
                         COALESCE(GitHubPAT, GitLabToken, BitbucketAppPassword, HttpsPassword) AS Secret, SSHKeyPath
                     FROM GitCredential
-                    WHERE (GitHubPAT IS NOT NULL OR GitLabToken IS NOT NULL OR BitbucketAppPassword IS NOT NULL OR HttpsPassword IS NOT NULL)";
-                using var r = await cmd.ExecuteReaderAsync(ct);
-                while (await r.ReadAsync(ct))
-                    rows.Add((r.GetInt64(0), r.IsDBNull(1) ? null : r.GetString(1), r.IsDBNull(2) ? null : r.GetString(2),
-                              r.IsDBNull(3) ? null : r.GetString(3), r.IsDBNull(4) ? null : r.GetString(4)));
-            }
+                    WHERE (GitHubPAT IS NOT NULL OR GitLabToken IS NOT NULL OR BitbucketAppPassword IS NOT NULL OR HttpsPassword IS NOT NULL)")
+                .List<object[]>()
+                .Select(r => (RowId: Convert.ToInt64(r[0]), User: r[1] as string, Type: r[2] as string, Secret: r[3] as string, SshKey: r[4] as string))
+                .ToList();
 
             foreach (var row in rows)
             {
-                var repos = new List<string>();
-                using (var cmd = db.CreateCommand())
-                {
-                    cmd.CommandText = @"SELECT RepositoryPath FROM GitRepositoryAccount
-                        WHERE CredentialId = (SELECT Id FROM GitCredential WHERE rowid = $rowid)";
-                    cmd.Parameters.AddWithValue("$rowid", row.RowId);
-                    using var r = await cmd.ExecuteReaderAsync(ct);
-                    while (await r.ReadAsync(ct)) if (!r.IsDBNull(0)) repos.Add(r.GetString(0));
-                }
+                var repos = _db.CreateSQLQuery(@"SELECT RepositoryPath FROM GitRepositoryAccount
+                        WHERE CredentialId = (SELECT Id FROM GitCredential WHERE rowid = :rowid)")
+                    .SetParameter("rowid", row.RowId)
+                    .List<string>()
+                    .Where(p => !string.IsNullOrEmpty(p))
+                    .ToList();
 
                 // Gli URL da cui git imparerà la credenziale: quelli dei repository collegati, oppure,
                 // se nessun repository lo è, l'host del provider dichiarato.
@@ -182,28 +181,22 @@ namespace MdExplorer.Services.Git
 
                 if (allMoved)
                 {
-                    using var cmd = db.CreateCommand();
-                    cmd.CommandText = @"UPDATE GitCredential SET GitHubPAT = NULL, GitLabToken = NULL, BitbucketAppPassword = NULL, HttpsPassword = NULL
-                        WHERE rowid = $rowid";
-                    cmd.Parameters.AddWithValue("$rowid", row.RowId);
-                    await cmd.ExecuteNonQueryAsync(ct);
+                    _db.CreateSQLQuery(@"UPDATE GitCredential SET GitHubPAT = NULL, GitLabToken = NULL, BitbucketAppPassword = NULL, HttpsPassword = NULL
+                        WHERE rowid = :rowid")
+                        .SetParameter("rowid", row.RowId)
+                        .ExecuteUpdate();
                 }
             }
         }
 
         // ------------------------------------------------------------------ GitlabSetting (legacy)
 
-        private async Task MoveGitlabSettingsAsync(SqliteConnection db, List<GitCredentialMoveEntry> entries, CancellationToken ct)
+        private async Task MoveGitlabSettingsAsync(List<GitCredentialMoveEntry> entries, CancellationToken ct)
         {
-            var rows = new List<(long RowId, string User, string Password, string Link, string LocalPath)>();
-            using (var cmd = db.CreateCommand())
-            {
-                cmd.CommandText = "SELECT rowid, UserName, Password, GitlabLink, LocalPath FROM GitlabSetting WHERE Password IS NOT NULL AND Password <> ''";
-                using var r = await cmd.ExecuteReaderAsync(ct);
-                while (await r.ReadAsync(ct))
-                    rows.Add((r.GetInt64(0), r.IsDBNull(1) ? null : r.GetString(1), r.IsDBNull(2) ? null : r.GetString(2),
-                              r.IsDBNull(3) ? null : r.GetString(3), r.IsDBNull(4) ? null : r.GetString(4)));
-            }
+            var rows = _db.CreateSQLQuery("SELECT rowid, UserName, Password, GitlabLink, LocalPath FROM GitlabSetting WHERE Password IS NOT NULL AND Password <> ''")
+                .List<object[]>()
+                .Select(r => (RowId: Convert.ToInt64(r[0]), User: r[1] as string, Password: r[2] as string, Link: r[3] as string, LocalPath: r[4] as string))
+                .ToList();
             foreach (var row in rows)
             {
                 var url = (row.LocalPath != null ? await OriginUrlAsync(row.LocalPath, ct) : null) ?? row.Link;
@@ -219,32 +212,26 @@ namespace MdExplorer.Services.Git
                 entries.Add(new GitCredentialMoveEntry { Source = "GitlabSetting", RepositoryPath = row.LocalPath, Url = url, Username = row.User, Moved = ok, Reason = why });
                 if (ok)
                 {
-                    using var cmd = db.CreateCommand();
-                    cmd.CommandText = "UPDATE GitlabSetting SET Password = NULL WHERE rowid = $rowid";
-                    cmd.Parameters.AddWithValue("$rowid", row.RowId);
-                    await cmd.ExecuteNonQueryAsync(ct);
+                    _db.CreateSQLQuery("UPDATE GitlabSetting SET Password = NULL WHERE rowid = :rowid")
+                        .SetParameter("rowid", row.RowId)
+                        .ExecuteUpdate();
                 }
             }
         }
 
         // ------------------------------------------------------------------ Setting: token GitHub
 
-        private async Task MoveGitHubTokenAsync(SqliteConnection db, List<GitCredentialMoveEntry> entries, CancellationToken ct)
+        private async Task MoveGitHubTokenAsync(List<GitCredentialMoveEntry> entries, CancellationToken ct)
         {
             string token = null, user = null;
-            using (var cmd = db.CreateCommand())
+            foreach (var r in _db.CreateSQLQuery("SELECT Name, ValueString FROM Setting WHERE Name IN ('GitHubPersonalAccessToken', 'GitHubTokenUsername')").List<object[]>())
             {
-                cmd.CommandText = "SELECT Name, ValueString FROM Setting WHERE Name IN ('GitHubPersonalAccessToken', 'GitHubTokenUsername')";
-                using var r = await cmd.ExecuteReaderAsync(ct);
-                while (await r.ReadAsync(ct))
-                {
-                    var v = r.IsDBNull(1) ? null : r.GetString(1);
-                    if (r.GetString(0) == "GitHubPersonalAccessToken") token = v; else user = v;
-                }
+                var v = r[1] as string;
+                if ((r[0] as string) == "GitHubPersonalAccessToken") token = v; else user = v;
             }
             if (string.IsNullOrWhiteSpace(token))
             {
-                await DeleteTokenRowsAsync(db, ct); // righe vuote o solo l'utente: via
+                DeleteTokenRows(); // righe vuote o solo l'utente: via
                 return;
             }
             const string url = "https://github.com/";
@@ -258,14 +245,13 @@ namespace MdExplorer.Services.Git
             }
             var (ok, why) = await HandOverAsync(url, user, token, ct);
             entries.Add(new GitCredentialMoveEntry { Source = "Setting:GitHubPersonalAccessToken", Url = url, Username = user, Moved = ok, Reason = why });
-            if (ok) await DeleteTokenRowsAsync(db, ct);
+            if (ok) DeleteTokenRows();
         }
 
-        private static async Task DeleteTokenRowsAsync(SqliteConnection db, CancellationToken ct)
+        private void DeleteTokenRows()
         {
-            using var cmd = db.CreateCommand();
-            cmd.CommandText = "DELETE FROM Setting WHERE Name IN ('GitHubPersonalAccessToken', 'GitHubTokenUsername', 'GitHubPersonalAccessToken_Global')";
-            await cmd.ExecuteNonQueryAsync(ct);
+            _db.CreateSQLQuery("DELETE FROM Setting WHERE Name IN ('GitHubPersonalAccessToken', 'GitHubTokenUsername', 'GitHubPersonalAccessToken_Global')")
+                .ExecuteUpdate();
         }
 
         // ------------------------------------------------------------------ meccanica
@@ -320,12 +306,9 @@ namespace MdExplorer.Services.Git
             _ => null,
         };
 
-        private static bool TableExists(SqliteConnection db, string table)
-        {
-            using var cmd = db.CreateCommand();
-            cmd.CommandText = "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = $name";
-            cmd.Parameters.AddWithValue("$name", table);
-            return cmd.ExecuteScalar() != null;
-        }
+        private bool TableExists(string table)
+            => _db.CreateSQLQuery("SELECT name FROM sqlite_master WHERE type = 'table' AND name = :name")
+                .SetParameter("name", table)
+                .UniqueResult<string>() != null;
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using Ad.Tools.Dal.Extensions;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -297,30 +298,27 @@ namespace MdExplorer.IntegrationTests
             Git(work, "-c", "credential.helper=", "push", "-q", "-u", "origin", "main");
         }
 
-        /// <summary>Un account con password salvata SOLO nel DB di MdExplorer, come faceva il dialogo account fino allo sprint.</summary>
+        /// <summary>
+        /// Un account con password salvata SOLO nel DB di MdExplorer, come faceva il dialogo account
+        /// fino allo sprint. Dalla sessione NHibernate del Service (mai un'altra libreria SQLite sul
+        /// DB in WAL), Guid come BLOB di 16 byte, che è come li scriveva NHibernate.
+        /// </summary>
         private static void SeedLegacyDbCredential(AgentCityContext ctx, string repositoryPath, string user, string password)
         {
-            var dbPath = Directory.GetFiles(ctx.Factory.DataDir, "MdExplorer.db", SearchOption.AllDirectories).Single();
-            using var db = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}");
-            db.Open();
+            using var scope = ctx.Factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<MdExplorer.Abstractions.DB.IUserSettingsDB>();
             var credId = Guid.NewGuid().ToByteArray();
-            var now = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
-            using (var cmd = db.CreateCommand())
-            {
-                cmd.CommandText = @"INSERT INTO GitCredential (Id, AccountName, AccountType, AuthUsername, HttpsPassword, IsActive, CreatedAt, UpdatedAt)
-                                    VALUES ($id, 'Server di prova', 'Generic', $user, $pwd, 1, $now, $now)";
-                cmd.Parameters.AddWithValue("$id", credId); cmd.Parameters.AddWithValue("$user", user);
-                cmd.Parameters.AddWithValue("$pwd", password); cmd.Parameters.AddWithValue("$now", now);
-                cmd.ExecuteNonQuery();
-            }
-            using (var cmd = db.CreateCommand())
-            {
-                cmd.CommandText = @"INSERT INTO GitRepositoryAccount (Id, RepositoryPath, CredentialId, PreferredAuthMethod, IsActive, CreatedAt, UpdatedAt)
-                                    VALUES ($id, $path, $cred, 'username_password', 1, $now, $now)";
-                cmd.Parameters.AddWithValue("$id", Guid.NewGuid().ToByteArray()); cmd.Parameters.AddWithValue("$path", repositoryPath);
-                cmd.Parameters.AddWithValue("$cred", credId); cmd.Parameters.AddWithValue("$now", now);
-                cmd.ExecuteNonQuery();
-            }
+            var now = DateTime.UtcNow;
+            db.BeginTransaction();
+            db.CreateSQLQuery(@"INSERT INTO GitCredential (Id, AccountName, AccountType, AuthUsername, HttpsPassword, IsActive, CreatedAt, UpdatedAt)
+                                VALUES (:id, 'Server di prova', 'Generic', :user, :pwd, 1, :now, :now)")
+                .SetParameter("id", credId).SetParameter("user", user).SetParameter("pwd", password).SetParameter("now", now)
+                .ExecuteUpdate();
+            db.CreateSQLQuery(@"INSERT INTO GitRepositoryAccount (Id, RepositoryPath, CredentialId, PreferredAuthMethod, IsActive, CreatedAt, UpdatedAt)
+                                VALUES (:id, :path, :cred, 'username_password', 1, :now, :now)")
+                .SetParameter("id", Guid.NewGuid().ToByteArray()).SetParameter("path", repositoryPath).SetParameter("cred", credId).SetParameter("now", now)
+                .ExecuteUpdate();
+            db.Commit();
         }
 
         private sealed record Outcome(bool Success, string Error, string Raw);
