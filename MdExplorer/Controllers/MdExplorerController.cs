@@ -438,18 +438,17 @@ namespace MdExplorer.Controllers
             html.AppendChild(body);
 
             head.InnerXml = $@"
-            <link rel=""stylesheet"" href=""/commonSlide.css"" />            
-            "; //<script src=""/commonSlide.js""></script>
+            <link rel=""stylesheet"" href=""/commonSlide.css"" />
+            ";
 
             // add final div and script
 
             var finalExecutionScript = @"
                 <script src=""/reveal/dist/reveal.js""></script>
-                <script src =""/reveal/plugin/zoom/zoom.js""></script>
-                <script src =""/reveal/plugin/notes/notes.js""></script>
-                <script src =""/reveal/plugin/search/search.js""></script>
-                <script src =""/reveal/plugin/markdown/markdown.js""></script>
-                <script src =""/reveal/plugin/highlight/highlight.js""></script>
+                <script src =""/reveal/dist/plugin/zoom.js""></script>
+                <script src =""/reveal/dist/plugin/notes.js""></script>
+                <script src =""/reveal/dist/plugin/search.js""></script>
+                <script src =""/reveal/dist/plugin/highlight.js""></script>
                 ";
 
             var execScript = @"
@@ -463,7 +462,7 @@ namespace MdExplorer.Controllers
 				hash: true,
 
 				// Learn about plugins: https://revealjs.com/plugins/
-				plugins: [ RevealZoom, RevealNotes, RevealSearch, RevealMarkdown, RevealHighlight ]
+				plugins: [ RevealZoom, RevealNotes, RevealSearch, RevealHighlight ]
 			});
 
             </script>
