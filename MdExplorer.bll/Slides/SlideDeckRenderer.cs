@@ -187,6 +187,7 @@ namespace MdExplorer.Features.Slides
 <head>
 <meta charset=""utf-8"">
 <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+<meta name=""mdexplorer-view"" content=""slides"">
 <title>{title}</title>
 <link rel=""stylesheet"" href=""/reveal/dist/reset.css"">
 <link rel=""stylesheet"" href=""/reveal/dist/reveal.css"">

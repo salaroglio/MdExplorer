@@ -538,6 +538,15 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
         isIndexing: false
       });
 
+      // The slide page says it is one (SlideDeckRenderer): the toolbar then offers the PDF export.
+      let isSlideDeck = false;
+      try {
+        isSlideDeck = !!iframeElement.contentDocument?.querySelector('meta[name="mdexplorer-view"][content="slides"]');
+      } catch {
+        // Not the same origin: not one of MdExplorer's pages.
+      }
+      this.documentRefreshService.setSlideDeckShown(isSlideDeck);
+
       // Se il documento è stato aperto da un risultato della ricerca full-text,
       // inietta la ricerca in-documento (barra Ctrl+F dell'iframe) col termine.
       const pendingSearchTerm = this.service.consumePendingDocumentSearch();

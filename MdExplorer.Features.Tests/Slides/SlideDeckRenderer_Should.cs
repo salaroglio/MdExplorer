@@ -389,6 +389,8 @@ reveal:
             }
             StringAssert.Contains(page, "RevealMath.KaTeX");
             StringAssert.Contains(page, "<title>Prova</title>");
+            // How the viewer and the PDF export know the page is a deck.
+            StringAssert.Contains(page, "<meta name=\"mdexplorer-view\" content=\"slides\">");
         }
 
         [TestMethod]

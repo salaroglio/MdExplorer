@@ -77,6 +77,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   /** Master switch del progetto: governa la visibilità dei comandi della città. */
   cityEnabled: boolean = false;
   private citySubscriptions = new Subscription();
+  /** The viewer shows a slide deck: the toolbar offers its PDF export. */
+  slideDeckShown = false;
+  private slideDeckSubscription: Subscription;
   taglist: ITag[];
   currentMdFile: MdFile
   public connectionIsActive: boolean = true;
@@ -164,6 +167,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.slideDeckSubscription = this.documentRefreshService.slideDeckShown$
+      .subscribe(shown => this.slideDeckShown = shown);
+
     // Entrare o uscire dalla revisione cambia di chi sono i numeri della finestrella.
     this.reviewContext.agent$.subscribe(agent => {
       this.reviewAgent = agent;
@@ -298,6 +304,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     console.log("ngOnDestroy toolbar");
     this.subscriptionserverSelectedMdFile.unsubscribe();
     this.citySubscriptions.unsubscribe();
+    this.slideDeckSubscription?.unsubscribe();
   }
 
 
@@ -606,6 +613,39 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     } else {
       // Web fallback: a new browser window/tab.
       window.open(url, '_blank');
+    }
+  }
+
+  /**
+   * The slide deck on screen as a PDF. On the desktop, Electron asks where to save it (next to
+   * the markdown file by default) and prints reveal.js's print view with the slides'
+   * backgrounds. In a browser there is no such printer: the print view opens in a new tab,
+   * to print with the browser.
+   */
+  async exportSlidesPdf(): Promise<void> {
+    if (!this.relativePath) {
+      return;
+    }
+    const cleanPath = this.relativePath.replace(/^[\/\\]+/, '');
+    const theme = this.themeService.getResolvedTheme();
+    const connectionId = this.connectionId ?? this.monitorMDService.connectionId ?? '';
+    // source=detached: the server resolves the project from the connectionId without pushing
+    // "document processed" events to this window.
+    const url = `${window.location.origin}/api/mdexplorer/${cleanPath}?ConnectionId=${connectionId}&source=detached&theme=${theme}`;
+
+    const electronAPI = (window as any).electronAPI;
+    if (!electronAPI?.exportSlidesPdf) {
+      window.open(`${url}&print-pdf`, '_blank');
+      this._snackBar.open(this.translate.instant('TOOLBAR.SLIDES_PDF_BROWSER_HINT'), 'OK', { duration: 8000, verticalPosition: 'top' });
+      return;
+    }
+
+    const suggestedPath = this.absolutePath ? this.absolutePath.replace(/\.md$/i, '') + '.pdf' : undefined;
+    const result = await electronAPI.exportSlidesPdf(url, suggestedPath);
+    if (result?.success) {
+      this._snackBar.open(this.translate.instant('TOOLBAR.SLIDES_PDF_SAVED', { path: result.filePath }), 'OK', { duration: 6000, verticalPosition: 'top' });
+    } else if (!result?.canceled) {
+      this._snackBar.open(this.translate.instant('TOOLBAR.SLIDES_PDF_FAILED', { error: result?.error ?? '' }), 'OK', { verticalPosition: 'top' });
     }
   }
 
