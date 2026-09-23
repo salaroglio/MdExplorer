@@ -29,5 +29,12 @@ namespace MdExplorer.Abstractions.Models
         /// </summary>
         public bool ReadOnly { get; set; }
 
+        /// <summary>
+        /// Render of a slide deck: only the commands whose output works in a reveal.js page run
+        /// (<c>ICommand.WorksInSlides</c>). The others write HTML that lives on the document view's
+        /// scripts (toolbars, date pickers, runnable code…), which the slide page does not load.
+        /// </summary>
+        public bool SlideDeck { get; set; }
+
     }
 }

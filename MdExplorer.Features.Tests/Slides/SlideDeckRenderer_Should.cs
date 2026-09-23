@@ -330,6 +330,14 @@ reveal:
         }
 
         [TestMethod]
+        public void Refuse_mermaid_and_point_to_plantuml()
+        {
+            var ex = Assert.ThrowsException<SlideDeckException>(() => Render("## A\n\n```mermaid\ngraph TD; A-->B;\n```\n"));
+
+            StringAssert.Contains(ex.Message, "PlantUML");
+        }
+
+        [TestMethod]
         public void Render_characters_that_broke_the_old_xml_page()
         {
             var section = Sections(Render("## R&S\n\nriga<br>due & < tre\n"))[0];

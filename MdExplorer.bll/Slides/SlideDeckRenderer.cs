@@ -102,6 +102,12 @@ namespace MdExplorer.Features.Slides
 
             foreach (var code in document.Descendants<FencedCodeBlock>())
             {
+                if (code.Info == "mermaid")
+                {
+                    // Markdig would write <pre class="mermaid">, and the slide page loads no mermaid.
+                    throw new SlideDeckException(
+                        "Mermaid diagrams are not shown in slides: draw the diagram with PlantUML (```plantuml), which becomes an SVG in the slide.");
+                }
                 ApplyLineNumbers(code);
             }
 

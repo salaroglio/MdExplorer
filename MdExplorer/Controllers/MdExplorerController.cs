@@ -8,7 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MdExplorer.Features.Slides;
 using System;
+using System.Net;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -221,14 +223,17 @@ namespace MdExplorer.Controllers
             var textHash = _helper.GetHashString(markdownTxt, Encoding.UTF8);
             var cacheName = Path.GetFileName(fullPathFile) + textHash + ".html";
             XmlDocument doc1 = null;
+            string slideDeckHtml = null;
             // parse type of document. Choose between MarkdownType: slides, MarkdownType: document
-            if (descriptor!= null &&  descriptor.DocumentType == "slides")
+            if (IsSlideDeck(descriptor))
             {
-                doc1 = await ProcessAsSlideTypeDocument(
+                slideDeckHtml = await ProcessAsSlideTypeDocument(
                     markdownTxt,
                     relativePathFile,
                     fullPathFile,
-                    monitoredMd);
+                    connectionId,
+                    monitoredMd,
+                    theme);
             }
             else
             {
@@ -266,7 +271,11 @@ namespace MdExplorer.Controllers
 
             // Get HTML content - check if using fallback mode
             string htmlContent;
-            if (doc1.DocumentElement != null &&
+            if (slideDeckHtml != null)
+            {
+                htmlContent = slideDeckHtml;
+            }
+            else if (doc1.DocumentElement != null &&
                 doc1.DocumentElement.GetAttribute("_html_fallback") == "true")
             {
                 // Using string-based fallback
@@ -397,6 +406,14 @@ namespace MdExplorer.Controllers
                 FullDirectoryPath = Path.GetDirectoryName(fullPathFile),
             };
 
+            if (IsSlideDeck(_yamlDocumentDescriptor.GetDescriptor(markdownTxt)))
+            {
+                var deck = await ProcessAsSlideTypeDocument(
+                    markdownTxt, relativePathFile, fullPathFile, connectionId, monitoredMd, theme,
+                    explicitRoot: worktreeRoot, readOnly: true);
+                return new ContentResult { ContentType = "text/html; charset=utf-8", Content = deck };
+            }
+
             var doc1 = await ProcessAsMarkdownTypeDocument(
                 markdownTxt, relativePathFile, fullPathFile, connectionId, monitoredMd, theme,
                 explicitRoot: worktreeRoot, readOnly: true);
@@ -419,59 +436,75 @@ namespace MdExplorer.Controllers
                 || normCand.StartsWith(normRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
         }
 
-        private async Task<XmlDocument> ProcessAsSlideTypeDocument(string markdownTxt,
-                        string relativePathFile, string fullPathFile, MonitoredMDModel monitoredMd)
+        private static bool IsSlideDeck(MdExplorerDocumentDescriptor descriptor)
+            => descriptor?.DocumentType == "slides";
+
+        /// <summary>
+        /// A markdown slide deck as a reveal.js page (<see cref="SlideDeckRenderer"/>). The markdown
+        /// goes through the document view's Markdig pipeline and MdExplorer's commands, as a document
+        /// does. A deck that cannot be rendered as written shows what to change instead.
+        /// </summary>
+        private async Task<string> ProcessAsSlideTypeDocument(string markdownTxt,
+                        string relativePathFile, string fullPathFile, string connectionId,
+                        MonitoredMDModel monitoredMd, string theme,
+                        string explicitRoot = null, bool readOnly = false)
         {
+            var root = string.IsNullOrEmpty(explicitRoot) ? GetProjectPath() : explicitRoot;
+            var requestInfo = new RequestInfo()
+            {
+                CurrentQueryRequest = relativePathFile,
+                CurrentRoot = root,
+                AbsolutePathFile = fullPathFile,
+                RootQueryRequest = relativePathFile,
+                ConnectionId = connectionId,
+                BaseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}",
+                ReadOnly = readOnly,
+                SlideDeck = true,
+            };
+            var isPlantuml = markdownTxt.Contains("```plantuml") && !readOnly;
+            if (isPlantuml)
+            {
+                await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStart", monitoredMd);
+            }
+            try
+            {
+                return SlideDeckRenderer.Render(markdownTxt, new SlideDeckRenderOptions
+                {
+                    Pipeline = BuildDocumentViewPipeline(),
+                    DarkTheme = theme == "dark" || theme == "milan",
+                    BeforeMarkdown = body => _commandRunner.TransformInNewMDFromMD(body, requestInfo),
+                    AfterMarkdown = html =>
+                    {
+                        // The commands read the diagrams from ".md/" relative to the project, as for
+                        // a document (and, as there, not in a read-only render).
+                        if (!readOnly) Directory.SetCurrentDirectory(root);
+                        return _commandRunner.TransformAfterConversion(html, requestInfo);
+                    },
+                });
+            }
+            catch (SlideDeckException ex)
+            {
+                _logger.LogWarning("⚠️ [Slides] {File}: {Message}", fullPathFile, ex.Message);
+                return SlideDeckErrorPage(fullPathFile, ex.Message);
+            }
+            finally
+            {
+                if (isPlantuml)
+                {
+                    await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStop", monitoredMd);
+                }
+            }
+        }
 
-            Regex rx = new Regex(@"-{3}([^-{3}]*)-{3}(.*)",
-                               RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            var matches = rx.Matches(markdownTxt);
-
-            var innerXML = matches[0].Groups[2].Value;
-
-            var doc1 = new XmlDocument();
-            var html = doc1.CreateElement("html");
-            doc1.AppendChild(html);
-            var head = doc1.CreateElement("head");
-            html.AppendChild(head);
-            var body = doc1.CreateElement("body");
-            html.AppendChild(body);
-
-            head.InnerXml = $@"
-            <link rel=""stylesheet"" href=""/commonSlide.css"" />
-            ";
-
-            // add final div and script
-
-            var finalExecutionScript = @"
-                <script src=""/reveal/dist/reveal.js""></script>
-                <script src =""/reveal/dist/plugin/zoom.js""></script>
-                <script src =""/reveal/dist/plugin/notes.js""></script>
-                <script src =""/reveal/dist/plugin/search.js""></script>
-                <script src =""/reveal/dist/plugin/highlight.js""></script>
-                ";
-
-            var execScript = @"
-            <script>
-			// Also available as an ES module, see:
-			// https://revealjs.com/initialization/
-			Reveal.initialize({
-				controls: true,
-				progress: true,
-				center: true,
-				hash: true,
-
-				// Learn about plugins: https://revealjs.com/plugins/
-				plugins: [ RevealZoom, RevealNotes, RevealSearch, RevealHighlight ]
-			});
-
-            </script>
-            ";
-
-            var xmlForBody = string.Concat(innerXML, finalExecutionScript, execScript);
-            body.InnerXml += xmlForBody;
-
-            return doc1;            
+        private static string SlideDeckErrorPage(string fullPathFile, string message)
+        {
+            var file = WebUtility.HtmlEncode(Path.GetFileName(fullPathFile));
+            return $@"<!DOCTYPE html>
+<html><head><meta charset=""utf-8""><title>{file}</title></head>
+<body style=""font-family: sans-serif; padding: 2em; line-height: 1.5"">
+<h2>The slides of {file} cannot be shown</h2>
+<p>{WebUtility.HtmlEncode(message)}</p>
+</body></html>";
         }
 
         private string ManageIfThePathContainsExtensionMdOrNot(string rootPathSystem, string relativePathFile, string relativePathExtension)

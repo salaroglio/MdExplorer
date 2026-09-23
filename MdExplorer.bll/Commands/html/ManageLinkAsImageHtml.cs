@@ -14,6 +14,9 @@ namespace MdExplorer.Features.Commands.html
 {
     public class ManageLinkAsImageHtml : ManageLinkAsImages, ICommandHtml
     {
+        /// <summary>Runs on slide decks: image paths resolved against the project, as in a document.</summary>
+        public bool WorksInSlides => true;
+
         public ManageLinkAsImageHtml(ILogger<ManageLinkAsImages> logger, IHelper helper) : base(logger, helper)
         {
         }

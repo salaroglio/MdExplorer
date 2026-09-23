@@ -19,6 +19,9 @@ namespace MdExplorer.Features.Commands.html
 {
     public class MDShowH2Html : MDShowH2, ICommandHtml
     {
+        /// <summary>Runs on slide decks: includes a section of another file.</summary>
+        public bool WorksInSlides => true;
+
         private readonly IHelper _helper;
 
         private string[] colorsArray = new[] { "red", "green", "yellow", "brown", "black" };

@@ -182,7 +182,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       if (currentState.currentPath && currentState.status === 'loaded') {
         const dateTime = new Date().getTime() / 1000;
         const cleanPath = this.cleanRelativePath(currentState.currentPath);
-        this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
+        this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`);
       }
     });
 
@@ -386,6 +386,27 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
+   * A slide deck (reveal.js, `hash: true`) keeps its current slide in the iframe's hash
+   * (`#/2/1`). Reloading the same file — a save, a theme change — would restart it from the
+   * first slide: the new URL carries the hash along. Another file starts from its beginning.
+   */
+  private keepCurrentSlide(url: string): string {
+    try {
+      const current = this.iframe?.nativeElement?.contentWindow?.location;
+      if (!current?.hash?.startsWith('#/')) {
+        return url;
+      }
+      // Resolved as the iframe resolves its src: against <base href>, not the route's address.
+      const next = new URL(url, document.baseURI);
+      const samePath = decodeURIComponent(next.pathname).toLowerCase() === decodeURIComponent(current.pathname).toLowerCase();
+      return samePath ? url + current.hash : url;
+    } catch {
+      // Not the same origin (about:blank, an external page): nothing to keep.
+      return url;
+    }
+  }
+
+  /**
    * Remove leading slashes/backslashes from path to prevent double slash in URL
    */
   private cleanRelativePath(path: string): string {
@@ -399,7 +420,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     if (node?.relativePath) {
       const dateTime = new Date().getTime() / 1000;
       const cleanPath = this.cleanRelativePath(node.relativePath);
-      const newHtmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
+      const newHtmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`);
 
       // Only update if URL actually changed to prevent unnecessary reloads
       if (this.htmlSource !== newHtmlSource) {
@@ -601,7 +622,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       if (currentState.currentPath) {
         const dateTime = new Date().getTime() / 1000;
         const cleanPath = this.cleanRelativePath(currentState.currentPath);
-        this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}&retry=${currentState.retryCount + 1}`;
+        this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}&retry=${currentState.retryCount + 1}`);
       }
     });
   }
@@ -691,7 +712,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       // Force reload with new timestamp
       const dateTime = new Date().getTime() / 1000;
       const cleanPath = this.cleanRelativePath(currentPath);
-      this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}&refreshed=true`;
+      this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}&refreshed=true`);
     }
   }
 
