@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -88,19 +89,25 @@ namespace MdExplorer.Services.Git
             _logger = logger;
         }
 
-        public Task<NativeGitOutcome> PushAsync(string repositoryPath, string remoteName, string branchName, CancellationToken ct = default)
+        public async Task<NativeGitOutcome> PushAsync(string repositoryPath, string remoteName, string branchName, CancellationToken ct = default)
             // -u: il primo push di un branch nuovo lo mette a tracciare il remoto; sui successivi è innocuo.
-            => Run(repositoryPath, new[] { "push", "-u", remoteName ?? "origin", string.IsNullOrEmpty(branchName) ? "HEAD" : branchName }, ct);
+            => await Gated(await RemoteUrlAsync(repositoryPath, remoteName ?? "origin", ct),
+                () => Run(repositoryPath, new[] { "push", "-u", remoteName ?? "origin", string.IsNullOrEmpty(branchName) ? "HEAD" : branchName }, ct), ct);
 
-        public Task<NativeGitOutcome> PullAsync(string repositoryPath, CancellationToken ct = default)
+        public async Task<NativeGitOutcome> PullAsync(string repositoryPath, CancellationToken ct = default)
             // --no-rebase: lo stesso merge che faceva Commands.Pull, senza dipendere da pull.rebase dell'utente.
-            => Run(repositoryPath, new[] { "pull", "--no-rebase" }, ct);
+            => await Gated(await RemoteUrlAsync(repositoryPath, "origin", ct),
+                () => Run(repositoryPath, new[] { "pull", "--no-rebase" }, ct), ct);
 
-        public Task<NativeGitOutcome> FetchAsync(string repositoryPath, string remoteName, CancellationToken ct = default)
-            => Run(repositoryPath, new[] { "fetch", remoteName ?? "origin" }, ct);
+        public async Task<NativeGitOutcome> FetchAsync(string repositoryPath, string remoteName, CancellationToken ct = default)
+            => await Gated(await RemoteUrlAsync(repositoryPath, remoteName ?? "origin", ct),
+                () => Run(repositoryPath, new[] { "fetch", remoteName ?? "origin" }, ct), ct);
 
-        public Task<NativeGitOutcome> LsRemoteAsync(string workingDirectory, string remoteNameOrUrl, CancellationToken ct = default)
-            => Run(workingDirectory, new[] { "ls-remote", "--heads", remoteNameOrUrl }, ct, LsRemoteTimeoutMs);
+        public async Task<NativeGitOutcome> LsRemoteAsync(string workingDirectory, string remoteNameOrUrl, CancellationToken ct = default)
+        {
+            var url = LooksLikeUrl(remoteNameOrUrl) ? remoteNameOrUrl : await RemoteUrlAsync(workingDirectory, remoteNameOrUrl, ct);
+            return await Gated(url, () => Run(workingDirectory, new[] { "ls-remote", "--heads", remoteNameOrUrl }, ct, LsRemoteTimeoutMs), ct);
+        }
 
         public Task<NativeGitOutcome> CloneAsync(string url, string localPath, string branchName, CancellationToken ct = default)
         {
@@ -110,7 +117,72 @@ namespace MdExplorer.Services.Git
             args.Add(localPath);
             // La cartella di lavoro è il padre: la destinazione ancora non esiste.
             var parent = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(localPath)) ?? System.IO.Path.GetTempPath();
-            return Run(parent, args.ToArray(), ct);
+            return Gated(url, () => Run(parent, args.ToArray(), ct), ct);
+        }
+
+        // ------------------------------------------------------------------ un login alla volta
+
+        /// <summary>
+        /// Un cancello per host. Su Windows ogni processo git che non trova la credenziale apre il
+        /// SUO login di Git Credential Manager nel browser: all'apertura di un progetto toolbar e
+        /// polling chiedono insieme remote-status e get-data-to-pull, e l'utente si è trovato
+        /// davanti tante finestre di login tutte insieme (23/09/2026). Qui le operazioni di rete
+        /// verso lo stesso host passano una alla volta: la prima fa il login, le altre trovano la
+        /// credenziale già salvata.
+        /// </summary>
+        private static readonly ConcurrentDictionary<string, SemaphoreSlim> HostGates = new();
+        /// <summary>L'ultimo fallimento di autenticazione per host, con l'ora in cui è finito.</summary>
+        private static readonly ConcurrentDictionary<string, (DateTime At, NativeGitOutcome Outcome)> LastAuthFailure = new();
+
+        private async Task<NativeGitOutcome> Gated(string url, Func<Task<NativeGitOutcome>> op, CancellationToken ct)
+        {
+            var key = HostKey(url);
+            if (key == null) return await op();
+
+            var queuedAt = DateTime.UtcNow;
+            var gate = HostGates.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct);
+            try
+            {
+                // Mentre aspettavo, chi era davanti ha provato e l'autenticazione è fallita (login
+                // chiuso, credenziale mancante): riprovare subito aprirebbe un'altra finestra
+                // identica. Prendo il suo esito. Una chiamata NUOVA, partita dopo, riprova davvero.
+                if (LastAuthFailure.TryGetValue(key, out var last) && last.At > queuedAt)
+                {
+                    _logger?.LogInformation("[git] {Host}: login appena fallito per un'altra operazione, non ne apro un altro", key);
+                    return last.Outcome;
+                }
+
+                var outcome = await op();
+                if (outcome.Kind is NativeGitFailureKind.CredentialsMissing or NativeGitFailureKind.AuthenticationFailed)
+                    LastAuthFailure[key] = (DateTime.UtcNow, outcome);
+                else
+                    LastAuthFailure.TryRemove(key, out _);
+                return outcome;
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }
+
+        /// <summary><c>scheme://host[:porta]</c> dell'URL; per <c>git@host:path</c> <c>ssh://host</c>. Null se non si capisce.</summary>
+        private static string HostKey(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return null;
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri) && !string.IsNullOrEmpty(uri.Host))
+                return uri.IsDefaultPort ? $"{uri.Scheme}://{uri.Host}" : $"{uri.Scheme}://{uri.Host}:{uri.Port}";
+            var at = url.IndexOf('@'); var colon = url.IndexOf(':', Math.Max(at, 0));
+            if (at >= 0 && colon > at) return "ssh://" + url.Substring(at + 1, colon - at - 1);
+            return null;
+        }
+
+        private static bool LooksLikeUrl(string s) => !string.IsNullOrEmpty(s) && (s.Contains("://") || s.Contains('@'));
+
+        private async Task<string> RemoteUrlAsync(string repositoryPath, string remoteName, CancellationToken ct)
+        {
+            var r = await _git.RunAsync(repositoryPath, new[] { "remote", "get-url", remoteName }, ct);
+            return r.Ok ? r.Stdout?.Trim() : null;
         }
 
         public Task<NativeGitOutcome> ApproveCredentialAsync(string url, string username, string password, CancellationToken ct = default)

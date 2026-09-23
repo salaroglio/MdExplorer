@@ -147,6 +147,42 @@ namespace MdExplorer.IntegrationTests
                 Assert.IsTrue(doc.RootElement.GetProperty("nothingLeft").GetBoolean(), "secondo trasloco: " + again.Raw);
         }
 
+        [TestMethod]
+        public async Task ApertureProgetto_ChiamateDiReteInParallelo_UnSoloTentativoDiLogin()
+        {
+            // All'apertura del progetto toolbar e polling chiedono insieme remote-status e
+            // get-data-to-pull. Su Windows ogni processo git senza credenziale apre il SUO login
+            // di Git Credential Manager nel browser: visto dall'utente il 23/09, tante finestre
+            // tutte insieme. Il Service deve farne partire UNO per host; chi arriva mentre è in
+            // corso aspetta e ne riceve l'esito.
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var url = server.CreateBareRepository("apertura");
+            var path = SeedLinkedProject(ctx, url, "apertura");
+            // Il credential helper che «chiede il login» e lo conta: ogni invocazione = una finestra.
+            var counter = Path.Combine(ctx.Factory.DataDir, "login-windows.log");
+            var helper = Path.Combine(ctx.Factory.DataDir, "fake-gcm.sh");
+            File.WriteAllText(helper, $"#!/bin/sh\n[ \"$1\" = get ] && {{ echo x >> '{counter}'; sleep 1; }}\nexit 0\n");
+            File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Git(path, "config", "credential.helper", "");
+            Git(path, "config", "--add", "credential.helper", helper);
+
+            var q = Uri.EscapeDataString(path);
+            var calls = new[]
+            {
+                ctx.Client.GetAsync("/api/ModernGit/remote-status?repositoryPath=" + q),
+                ctx.Client.GetAsync("/api/ModernGit/remote-status?repositoryPath=" + q),
+                ctx.Client.GetAsync("/api/ModernGitToolbar/get-data-to-pull?projectPath=" + q),
+                ctx.Client.GetAsync("/api/ModernGitToolbar/get-data-to-pull?projectPath=" + q),
+                ctx.Client.GetAsync("/api/ModernGit/remote-status?repositoryPath=" + q),
+            };
+            await Task.WhenAll(calls);
+
+            var windows = File.Exists(counter) ? File.ReadAllLines(counter).Length : 0;
+            Assert.AreEqual(1, windows, $"cinque chiamate in parallelo hanno aperto {windows} login");
+        }
+
         // ---------------------------------------------------------------- primo collegamento
 
         [TestMethod]

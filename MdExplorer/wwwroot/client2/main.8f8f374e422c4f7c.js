@@ -7308,12 +7308,23 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class GITService {
+  /** Chiamato da un'azione dell'utente: il polling può tornare a chiedere al remoto. */
+  resumeRemotePolling() {
+    this.remotePollingPaused = false;
+  }
   constructor(http) {
     this.http = http;
     this.gitPollingInterval = null;
     this.ACTIVE_POLLING_INTERVAL = 60000; // 60 secondi quando attivo
     this.INACTIVE_POLLING_INTERVAL = 300000; // 5 minuti quando inattivo
     this.currentProjectPath = null;
+    /**
+     * Il polling non tocca la rete finché git non ha una credenziale. Su Windows ogni tentativo senza
+     * credenziale apre un login di Git Credential Manager nel browser: se l'utente l'ha chiuso, il
+     * polling ne riaprirebbe uno ogni minuto. Si riparte solo da un'azione dell'utente
+     * (checkConnection della toolbar: apertura progetto, «riprova», dopo push/pull/collega).
+     */
+    this.remotePollingPaused = false;
     this.currentBranch$ = new rxjs__WEBPACK_IMPORTED_MODULE_1__.BehaviorSubject({
       id: "",
       name: "",
@@ -7367,9 +7378,20 @@ class GITService {
    * IMPORTANT: Checks remote status first to authenticate, then fetches Git data using cached credentials
    */
   performPoll() {
+    if (this.currentProjectPath && this.remotePollingPaused) {
+      // Solo i numeri locali: niente processi git verso il remoto, quindi niente login.
+      this.modernGetBranchStatus(this.currentProjectPath).subscribe(branch => this.currentBranch$.next(branch), error => console.error('Error in modern branch status:', error));
+      return;
+    }
     if (this.currentProjectPath) {
       // Step 1: Check remote status first (authenticates and caches credentials)
       this.checkRemoteStatus(this.currentProjectPath).subscribe(remoteStatus => {
+        // Credenziale mancante o rifiutata: ogni nuovo tentativo aprirebbe un login. La rete
+        // irraggiungibile (VPN spenta) invece NON ferma il polling: deve riprendersi da solo.
+        const networkDown = (remoteStatus.authenticationFailureReason || '').startsWith('Cannot connect');
+        if (remoteStatus.hasRemote && (remoteStatus.authenticationMissing || remoteStatus.authenticationFailed && !networkDown)) {
+          this.remotePollingPaused = true;
+        }
         // Only proceed with Git operations if authentication is successful
         if (remoteStatus.hasRemote && remoteStatus.canAuthenticate) {
           // Step 2: Now fetch Git data (will use cached credentials, no additional auth)
@@ -17671,8 +17693,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.22.6',
-  buildTime: '2026.09.22 18:46:21'
+  version: '2026.09.23.2',
+  buildTime: '2026.09.23 09:04:48'
 };
 
 /***/ }),
@@ -17706,4 +17728,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.ad7ad6e5119ff984.js.map
+//# sourceMappingURL=main.8f8f374e422c4f7c.js.map

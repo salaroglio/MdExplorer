@@ -386,6 +386,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
     // Update the Git service with current project path
     this.gitservice.setProjectPath(projectPath);
+    // checkConnection parte sempre da un'azione dell'utente: il polling può tornare a chiedere al remoto.
+    this.gitservice.resumeRemotePolling();
 
     // Check remote status first
     this.gitservice.checkRemoteStatus(projectPath).subscribe(

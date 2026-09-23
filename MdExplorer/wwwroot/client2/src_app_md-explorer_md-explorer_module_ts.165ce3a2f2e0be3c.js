@@ -28743,6 +28743,8 @@ class ToolbarComponent {
     }
     // Update the Git service with current project path
     this.gitservice.setProjectPath(projectPath);
+    // checkConnection parte sempre da un'azione dell'utente: il polling può tornare a chiedere al remoto.
+    this.gitservice.resumeRemotePolling();
     // Check remote status first
     this.gitservice.checkRemoteStatus(projectPath).subscribe(remoteStatus => {
       console.log('Remote status:', remoteStatus);
@@ -37739,4 +37741,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.05998078269fa521.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.165ce3a2f2e0be3c.js.map
