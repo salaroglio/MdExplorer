@@ -8,6 +8,10 @@
  *    iframe itself it was loaded twice — once by the link, once more by Angular, told by the
  *    server (measured, sprint F0). Outside MdExplorer (detached window, browser) a link stays a link.
  *
+ *    A link to another site (http/https) opens in the system browser, as in a document
+ *    (navigation-history.js: POST /api/MdFiles/OpenUrlInBrowser): followed in the iframe, a site
+ *    that forbids being framed left a black page in MdExplorer's view.
+ *
  * 2. A breadcrumb in the top left corner: the decks that led here, each one back to the very
  *    slide it was left from. The way is kept in sessionStorage, which the decks and Angular share
  *    in a window. The deck being left writes where the jump starts (deck, slide, #/h/v); the deck
@@ -72,11 +76,44 @@
         }
     }
 
+    /** A link to another site: the system browser, never MdExplorer's view. */
+    function openOutside(href) {
+        if (!inMdExplorer) {
+            // Detached window (Electron sends it to the system browser) or a browser tab.
+            window.open(href, '_blank', 'noopener');
+            return;
+        }
+        fetch('/api/MdFiles/OpenUrlInBrowser', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: href, connectionId: document.body.getAttribute('ConnectionId') || '' })
+        }).then(function (response) {
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+        }).catch(function (error) {
+            console.error('[slide-navigation] The link could not be opened in the browser:', href, error);
+            showNotice('Non sono riuscito ad aprire il link nel browser: ' + href);
+        });
+    }
+
+    function showNotice(message) {
+        var notice = document.createElement('div');
+        notice.className = 'mde-inline-edit-toast';
+        notice.textContent = message;
+        notice.addEventListener('click', function () { notice.remove(); });
+        document.body.appendChild(notice);
+        setTimeout(function () { if (notice.isConnected) notice.remove(); }, 8000);
+    }
+
     function followLinks() {
         document.addEventListener('click', function (event) {
             var link = event.target.closest && event.target.closest('a[href]');
             if (!link || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return;
             var url = new URL(link.href, window.location.href);
+            if (/^https?:$/.test(url.protocol) && url.origin !== window.location.origin) {
+                event.preventDefault();
+                openOutside(url.href);
+                return;
+            }
             var target = markdownPathOf(url);
             // Another slide of this deck (#/3) is reveal.js's business.
             if (!target || target === here) return;
