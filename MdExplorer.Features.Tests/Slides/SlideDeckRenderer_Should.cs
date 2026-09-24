@@ -377,6 +377,55 @@ reveal:
             Assert.IsNotNull(section.SelectSingleNode("div[@class='r-stack']/img[@class='fragment']"));
         }
 
+        // ---- files the slides load by themselves ----
+
+        private static HtmlNode[] SectionsWithQuery(string body)
+            => SlidePage.Sections(SlideDeckRenderer.Render(FrontMatter + body, new SlideDeckRenderOptions
+            {
+                Pipeline = DocumentViewPipeline.Build(null),
+                ResourceQuery = "connectionId=abc",
+            }));
+
+        [TestMethod]
+        public void Let_images_written_in_html_reach_the_projects_files()
+        {
+            var images = SectionsWithQuery("<div class=\"r-stack\">\n<img src=\"assets/a.png\">\n<img src=\"b.svg?v=2#x\">\n</div>\n")[0].SelectNodes(".//img");
+
+            Assert.AreEqual("assets/a.png?connectionId=abc", images[0].GetAttributeValue("src", null));
+            Assert.AreEqual("b.svg?v=2&connectionId=abc#x", images[1].GetAttributeValue("src", null));
+        }
+
+        [TestMethod]
+        public void Let_slide_backgrounds_reach_the_projects_files()
+        {
+            var sections = SectionsWithQuery(
+                "<!-- .slide: data-background-image=\"img/fondo.jpg\" -->\n## A\n\n---\n\n<!-- .slide: data-background-video=\"v.mp4, v.webm\" -->\n## B\n");
+
+            Assert.AreEqual("img/fondo.jpg?connectionId=abc", sections[0].GetAttributeValue("data-background-image", null));
+            Assert.AreEqual("v.mp4?connectionId=abc,v.webm?connectionId=abc", sections[1].GetAttributeValue("data-background-video", null));
+        }
+
+        [TestMethod]
+        public void Leave_urls_that_are_not_relative_paths_as_written()
+        {
+            var section = SectionsWithQuery(
+                "<img src=\"https://example.com/a.png\">\n<img src=\"/api/mdexplorer/b.png?connectionId=x\">\n<img src=\"data:image/png;base64,AA==\">\n<a href=\"#sopra\">su</a> <a href=\"mailto:a@b.it\">m</a>\n")[0];
+
+            CollectionAssert.AreEqual(
+                new[] { "https://example.com/a.png", "/api/mdexplorer/b.png?connectionId=x", "data:image/png;base64,AA==" },
+                section.SelectNodes(".//img").Select(i => i.GetAttributeValue("src", null)).ToArray());
+            CollectionAssert.AreEqual(new[] { "#sopra", "mailto:a@b.it" },
+                section.SelectNodes(".//a").Select(a => a.GetAttributeValue("href", null)).ToArray());
+        }
+
+        [TestMethod]
+        public void Leave_urls_as_written_without_a_page_query()
+        {
+            var image = Sections(Render("<img src=\"assets/a.png\">\n"))[0].SelectSingleNode(".//img");
+
+            Assert.AreEqual("assets/a.png", image.GetAttributeValue("src", null));
+        }
+
         // ---- MdExplorer's commands ----
 
         [TestMethod]

@@ -28,6 +28,13 @@ namespace MdExplorer.Features.Slides
 
         /// <summary>MdExplorer's commands on the HTML, run on each slide and on each speaker note.</summary>
         public Func<string, string> AfterMarkdown { get; init; } = html => html;
+
+        /// <summary>
+        /// The page's query (<c>connectionId=…</c>), added to the relative URLs a slide loads by
+        /// itself — images written in HTML, backgrounds (<see cref="SlideResources"/>). Null leaves
+        /// them as written.
+        /// </summary>
+        public string ResourceQuery { get; init; }
     }
 
     /// <summary>
@@ -99,7 +106,9 @@ namespace MdExplorer.Features.Slides
                 ? string.Empty
                 : $"<aside class=\"notes\">{options.AfterMarkdown(ToHtml(slide.Notes, options.Pipeline))}</aside>";
 
-            if (!SlideAttributes.AnyIn(content))
+            var hasComments = SlideAttributes.AnyIn(content);
+            var rewriteUrls = !string.IsNullOrEmpty(options.ResourceQuery) && SlideResources.AnyIn(content);
+            if (!hasComments && !rewriteUrls)
             {
                 return $"<section>{content}{notes}</section>";
             }
@@ -108,6 +117,11 @@ namespace MdExplorer.Features.Slides
             document.LoadHtml("<section>" + content + "</section>");
             var section = document.DocumentNode.SelectSingleNode("section");
             SlideAttributes.Apply(section);
+            if (!string.IsNullOrEmpty(options.ResourceQuery))
+            {
+                // After the comments: a .slide comment is where a background URL comes from.
+                SlideResources.Rewrite(section, options.ResourceQuery);
+            }
             var attributes = string.Concat(section.Attributes.Select(a =>
                 $" {a.OriginalName}=\"{WebUtility.HtmlEncode(a.Value)}\""));
             return $"<section{attributes}>{section.InnerHtml}{notes}</section>";

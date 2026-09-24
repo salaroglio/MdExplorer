@@ -472,6 +472,11 @@ namespace MdExplorer.Controllers
                 {
                     Pipeline = BuildDocumentViewPipeline(),
                     DarkTheme = theme == "dark" || theme == "milan",
+                    // What the service needs to find the deck's own files (images written in HTML,
+                    // backgrounds): the project, and for a worktree the agent too.
+                    ResourceQuery = readOnly
+                        ? $"agent={Uri.EscapeDataString(Request.Query["agent"].ToString())}&connectionId={Uri.EscapeDataString(connectionId ?? string.Empty)}"
+                        : $"connectionId={Uri.EscapeDataString(connectionId ?? string.Empty)}",
                     BeforeMarkdown = body => _commandRunner.TransformInNewMDFromMD(body, requestInfo),
                     AfterMarkdown = html =>
                     {
