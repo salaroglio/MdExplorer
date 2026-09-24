@@ -52,6 +52,12 @@ namespace MdExplorer.Features.Tests.Slides
                 Assert.AreEqual("img/cantiere.jpg", sections[1].GetAttributeValue("data-background-image", null));
                 Assert.AreEqual("0.4", sections[1].GetAttributeValue("data-background-opacity", null));
             },
+            ["sfondo-video"] = page =>
+            {
+                var section = SlidePage.Sections(page)[0];
+                StringAssert.StartsWith(section.GetAttributeValue("data-background-iframe", ""), "https://www.youtube.com/embed/aqz-KE-bpKQ?autoplay=1&amp;mute=1");
+                Assert.IsTrue(section.Attributes.Contains("data-background-interactive"));
+            },
             ["transizione"] = page =>
                 Assert.AreEqual("zoom", SlidePage.Sections(page)[0].GetAttributeValue("data-transition", null)),
             ["verticali"] = page =>

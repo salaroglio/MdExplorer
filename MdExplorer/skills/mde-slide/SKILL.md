@@ -3,7 +3,7 @@ name: mde-slide
 description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF."
 mde:
   origin: mdexplorer
-  version: 1
+  version: 2
   updatePolicy: replace
 ---
 
@@ -155,6 +155,33 @@ Il percorso dell'immagine è relativo al file, come in un documento. Esiste anch
 - Uno sfondo scuro «che si nota» si nota solo su un tema chiaro: se conta, scrivi `reveal.theme: white`,
   altrimenti con MdExplorer in tema scuro la presentazione diventa scura tutta.
 - Non mettere un diagramma PlantUML su una slide a sfondo scuro: il diagramma resta chiaro, un riquadro bianco.
+
+### «Come sfondo voglio un video, anche di YouTube, che si muove»
+
+Un video di YouTube come sfondo vivo, non un'immagine ferma: `data-background-iframe` con l'indirizzo
+**embed** del video (`https://www.youtube.com/embed/<ID>`, non `watch?v=`). `<ID>` è la parte dopo `watch?v=`.
+
+````markdown esempio=sfondo-video
+<!-- .slide: data-background-iframe="https://www.youtube.com/embed/aqz-KE-bpKQ?autoplay=1&mute=1&loop=1&playlist=aqz-KE-bpKQ&controls=0&playsinline=1" data-background-interactive -->
+
+# Il titolo sopra il video
+````
+
+- `autoplay=1&mute=1`: parte da solo. I browser lo permettono **solo senza audio**; per l'audio togli
+  `mute=1` e il video lo fa partire chi presenta, con un clic.
+- `loop=1&playlist=<ID>`: ricomincia alla fine. YouTube vuole l'ID ripetuto in `playlist`.
+- `controls=0`: nessuna barra di comandi sopra lo sfondo.
+- `data-background-interactive`: il video risponde ai clic (pausa, avvio). Senza, è solo sfondo.
+- Serve la **rete**: senza, lo sfondo resta nero.
+- Il video è 16:9: per non avere bande nere dai alla presentazione le stesse proporzioni, `width: 1280` e
+  `height: 720` in `reveal.config`.
+- Il testo va scelto per il video: su un video chiaro il tema `white`, su uno scuro `black`.
+- Nel **PDF** un video non c'è: compare al più un fotogramma. Se il PDF conta, per quella slide usa
+  un'immagine.
+
+Un file video del progetto (mp4, webm) si mette con `data-background-video="video/intro.mp4"`, anche in più
+formati separati da virgola (`"video/intro.mp4, video/intro.webm"`), più `data-background-video-loop` e
+`data-background-video-muted`. Il percorso è relativo al file, come per le immagini, e funziona senza rete.
 
 ### «Questa slide deve entrare in un altro modo»
 
