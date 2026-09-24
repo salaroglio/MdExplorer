@@ -39,7 +39,7 @@ namespace MdExplorer.Features.Slides
         /// <summary>
         /// The markdown file, its project and the viewer's connection, written on the page's
         /// <c>&lt;body&gt;</c> as a document page does: the diagram scripts read them there
-        /// ("Ask to MarkAgent", the links of a YAML tree).
+        /// (the links of a YAML tree).
         /// </summary>
         public string DocumentPath { get; init; }
 
@@ -63,12 +63,14 @@ namespace MdExplorer.Features.Slides
         private static readonly string[] Plugins = { "highlight", "notes", "math", "search", "zoom" };
 
         /// <summary>
-        /// The document view's diagram scripts (click-to-highlight, sequence, YAML, "Ask to
-        /// MarkAgent"), the same files, started by <c>javascripts/slides/slide-diagrams.js</c>.
+        /// The document view's diagram scripts (click-to-highlight, sequence, YAML trees and links),
+        /// the same files, started by <c>javascripts/slides/slide-diagrams.js</c>. Not
+        /// mark-diagram-context.js: "Ask to MarkAgent" is left out of the slides (user's decision,
+        /// 24/09/2026 — never tried end to end there).
         /// </summary>
         private static readonly string[] DiagramScripts =
         {
-            "interactive-svg", "mark-diagram-context", "interactive-svg-sequence", "interactive-svg-yaml-links", "interactive-svg-yaml",
+            "interactive-svg", "interactive-svg-sequence", "interactive-svg-yaml-links", "interactive-svg-yaml",
         };
 
         private const string DiagramScriptsFolder = "/javascripts/jqueryForFirstPage/interactive-svg/";

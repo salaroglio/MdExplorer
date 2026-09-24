@@ -2,8 +2,8 @@
  * MdExplorer - PlantUML diagrams in a slide deck
  * ===============================================
  * The slide page (SlideDeckRenderer) loads the same interactive-svg scripts as a document —
- * click-to-highlight, sequence, YAML trees and links, "Ask to MarkAgent" — and this file starts
- * them. In a document core/init.js does it, inside jQuery's ready: the slide page has no jQuery,
+ * click-to-highlight, sequence, YAML trees and links — and this file starts them. Not "Ask to
+ * MarkAgent" (mark-diagram-context.js): left out of the slides by the user's decision. In a document core/init.js does it, inside jQuery's ready: the slide page has no jQuery,
  * and the scripts do not need it.
  *
  * One thing is the slides' own: ESC. The scripts clear a selection on ESC, reveal.js opens the
@@ -22,7 +22,7 @@
 (function () {
     'use strict';
 
-    var SCRIPTS = ['InteractiveSvg', 'MarkDiagramContext', 'InteractiveSvgSequence', 'InteractiveSvgYamlLinks', 'InteractiveSvgYaml'];
+    var SCRIPTS = ['InteractiveSvg', 'InteractiveSvgSequence', 'InteractiveSvgYamlLinks', 'InteractiveSvgYaml'];
     var SELECTION = 'svg.has-selection, svg.seq-has-selection, svg.yaml-has-selection';
     var ESC = 27;
 
