@@ -24,7 +24,8 @@
         return;
     }
 
-    var CONTENT_SELECTOR = '.mdeItemMainPageCenter';
+    // The document's content area, or one a page declares as its own (the slides of a deck).
+    var CONTENT_SELECTOR = '.mdeItemMainPageCenter, [data-mde-content]';
     var LEAF_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, li, td, th';
     var OBJECT_TAGS = { img: true, br: true, input: true };
     // Blocks inside the one being corrected (the sub-list of a list item) are not its text.

@@ -7,10 +7,12 @@
  * and the scripts do not need it.
  *
  * One thing is the slides' own: ESC. The scripts clear a selection on ESC, reveal.js opens the
- * overview on ESC, and both happened at once. reveal.js is told to leave ESC alone while the
- * current slide has a selection: the first ESC clears it, the next one opens the overview.
- * The selection is read before anyone handles the key (capture on window): by the time reveal.js
- * asks its keyboardCondition, the scripts have already cleared it (measured, sprint F0).
+ * overview on ESC, and both happened at once. reveal.js is told to leave the keys alone while the
+ * page is busy with them: the current slide has a selection, a block is being corrected
+ * (slide-edit.js / inline-edit.js: Enter and Esc end the correction), or an element that holds the
+ * keys is open (data-mde-holds-keys: the correction menu). The first ESC clears, the next one opens
+ * the overview. The state is read before anyone handles the key (capture on window): by the time
+ * reveal.js asks its keyboardCondition, the key's own handler has already cleared it (measured).
  *
  * The colour legend: in a document it lives in the diagram's toolbar (image-transform.js), which a
  * slide does not have. Here each slide with interactive diagrams gets a 🎨 button in its top
@@ -24,23 +26,24 @@
 
     var SCRIPTS = ['InteractiveSvg', 'InteractiveSvgSequence', 'InteractiveSvgYamlLinks', 'InteractiveSvgYaml'];
     var SELECTION = 'svg.has-selection, svg.seq-has-selection, svg.yaml-has-selection';
-    var ESC = 27;
 
-    var selectionAtKey = false;
+    var busyAtKey = false;
 
-    function currentSlideHasSelection() {
+    function pageIsBusyWithKeys() {
         var slide = Reveal.getCurrentSlide();
-        return !!(slide && slide.querySelector(SELECTION));
+        return !!(slide && slide.querySelector(SELECTION))
+            || !!(document.activeElement && document.activeElement.isContentEditable)
+            || !!document.querySelector('[data-mde-holds-keys]');
     }
 
     window.addEventListener('keydown', function () {
-        selectionAtKey = currentSlideHasSelection();
+        busyAtKey = pageIsBusyWithKeys();
     }, true);
 
     /** The deck's own keyboardCondition ('focused' is the only one YAML can write) still applies. */
     function leaveEscToTheDiagram(previous) {
         return function (event) {
-            if (event.keyCode === ESC && selectionAtKey) return false;
+            if (busyAtKey) return false;
             if (typeof previous === 'function') return previous(event);
             if (previous === 'focused') return Reveal.isFocused();
             return true;

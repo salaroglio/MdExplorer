@@ -342,7 +342,10 @@ namespace MdExplorer.Features.Slides
             var diagramStyles = string.Concat(DiagramScripts.Select(s => $"<link rel=\"stylesheet\" href=\"{DiagramScriptsFolder}{s}.css\">\n"))
                 + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/images/image-toolbar.css\">\n"
                 + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-diagrams.css\">\n"
-                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-navigation.css\">\n";
+                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-navigation.css\">\n"
+                // Text correction: the document's script and styles, its menu's look.
+                + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/inline-edit/inline-edit.css\">\n"
+                + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.css\">\n";
             var diagramScripts = string.Concat(DiagramScripts.Select(s => $"<script src=\"{DiagramScriptsFolder}{s}.js\"></script>\n"));
             return $@"<!DOCTYPE html>
 <html>
@@ -360,12 +363,14 @@ namespace MdExplorer.Features.Slides
 </style>
 </head>
 <body{BodyAttributes(options)}>
-<div class=""reveal""><div class=""slides"">
+<div class=""reveal""><div class=""slides"" data-mde-content>
 {slides}</div></div>
 <script src=""/reveal/dist/reveal.js""></script>
 {scripts}{diagramScripts}<script src=""/javascripts/jqueryForFirstPage/images/toolbar-shared.js""></script>
 <script src=""/javascripts/slides/slide-diagrams.js""></script>
 <script src=""/javascripts/slides/slide-navigation.js""></script>
+<script src=""/javascripts/jqueryForFirstPage/inline-edit/inline-edit.js""></script>
+<script src=""/javascripts/slides/slide-edit.js""></script>
 <script>
 Reveal.initialize(Object.assign({Configuration(settings.Config).ToJsonString()}, {{ plugins: [RevealHighlight, RevealNotes, RevealMath.KaTeX, RevealSearch, RevealZoom] }}));
 </script>

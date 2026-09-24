@@ -394,6 +394,10 @@ reveal:
             // Links between decks and the breadcrumb (slide-navigation.js), also registered on ready.
             StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-navigation.css\">");
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-navigation.js") < page.IndexOf("Reveal.initialize("));
+            // Text correction: the document's inline-edit.js, started by slide-edit.js, in the content the page declares.
+            StringAssert.Contains(page, "<div class=\"slides\" data-mde-content>");
+            Assert.IsTrue(page.IndexOf("/inline-edit/inline-edit.js") < page.IndexOf("/javascripts/slides/slide-edit.js"));
+            StringAssert.Contains(page, "/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.css");
             // slide-diagrams.js registers on Reveal's ready event: it must come before Reveal.initialize.
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-diagrams.js") < page.IndexOf("Reveal.initialize("));
             Assert.IsFalse(page.Contains("jquery-3"), "the diagram scripts do not need jQuery");
