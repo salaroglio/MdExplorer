@@ -156,6 +156,24 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         }
 
         /// <summary>
+        /// Where the session loads skills from: the project's <c>.github/skills</c>, where MdExplorer
+        /// installs its own (mde-plantuml, mde-slide, …) for the Copilot harness. The SDK does not
+        /// look there by itself — measured on 1.0.11 with a real session: without this the session
+        /// listed only Copilot's built-in skills (customize-cloud-agent, github-pr-media). Named
+        /// explicitly rather than turning on EnableConfigDiscovery, which would also pick up the
+        /// project's MCP servers, hooks and agents.
+        /// </summary>
+        internal static List<string> SkillDirectoriesFor(string workingDirectory)
+        {
+            if (string.IsNullOrEmpty(workingDirectory))
+            {
+                return new List<string>();
+            }
+            var skills = Path.Combine(workingDirectory, ".github", "skills");
+            return Directory.Exists(skills) ? new List<string> { skills } : new List<string>();
+        }
+
+        /// <summary>
         /// Starts the CLI in server mode and opens the conversation.
         /// </summary>
         public async Task StartAsync(CancellationToken ct = default)
@@ -188,6 +206,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     OnPostToolUse = OnPostToolUseAsync,
                     OnAgentStop = OnAgentStopAsync,
                 },
+                SkillDirectories = SkillDirectoriesFor(_workingDirectory),
             };
 
             // No model = the CLI picks its own. Deliberate: which models exist is a property of
