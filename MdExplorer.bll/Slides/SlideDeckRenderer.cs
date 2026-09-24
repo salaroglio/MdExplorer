@@ -337,6 +337,9 @@ Reveal.initialize(Object.assign({Configuration(settings.Config).ToJsonString()},
                 // reveal.js 5+ turns the deck into a scrolling page below 435 px, and MdExplorer's
                 // pane can be that narrow (measured: a 400 px iframe switches, 23/09/2026).
                 ["scrollActivationWidth"] = null,
+                // reveal.js tells the page around it (MdExplorer's view) each slide change: the
+                // history of the title-bar arrows keeps where a deck was left.
+                ["postMessageEvents"] = true,
             };
             foreach (var (key, value) in config ?? new JsonObject())
             {

@@ -12426,6 +12426,22 @@ class MdNavigationService {
     this.currentIndex = this.navigationGhost.length - 1; // index i 0 based, length is 1 based
     // Navigation updated, length: " + this.navigation.length
   }
+  /**
+   * The slide deck on screen is on this slide (reveal.js's '#/h/v'): the current history entry
+   * keeps it, so the title-bar arrows reopen the deck there. Only when the entry is that file —
+   * a late message from a deck already left must not land on another entry.
+   */
+  rememberSlide(relativePath, slideHash) {
+    const same = file => !!file && MdNavigationService.normalize(file.relativePath) === MdNavigationService.normalize(relativePath);
+    const current = this.navigationGhost[this.navigationGhost.length - 1];
+    if (same(current)) current.slideHash = slideHash;
+    // navigation is a copy of navigationGhost: the same entry lives in both.
+    const entry = this.navigation[this.currentIndex];
+    if (same(entry)) entry.slideHash = slideHash;
+  }
+  static normalize(path) {
+    return (path || '').replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+  }
   deepCopyArray(array) {
     return JSON.parse(JSON.stringify(array));
   }
@@ -17693,8 +17709,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.24.2',
-  buildTime: '2026.09.24 15:22:23'
+  version: '2026.09.24.3',
+  buildTime: '2026.09.24 15:27:15'
 };
 
 /***/ }),
@@ -17728,4 +17744,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.e40eed578fa29961.js.map
+//# sourceMappingURL=main.f3dedde1204fc396.js.map

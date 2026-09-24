@@ -176,6 +176,7 @@ reveal:
             Assert.AreEqual(true, config["hash"].GetValue<bool>());
             Assert.IsTrue(config.ContainsKey("scrollActivationWidth"));
             Assert.IsNull(config["scrollActivationWidth"]);
+            Assert.AreEqual(true, config["postMessageEvents"].GetValue<bool>());
 
             var overridden = Config(SlideDeckRenderer.Render(
                 "---\ndocument_type: slides\nreveal:\n  config:\n    hash: false\n    scrollActivationWidth: 435\n---\n# A\n", Options()));

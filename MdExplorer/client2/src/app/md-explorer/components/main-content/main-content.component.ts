@@ -385,6 +385,27 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     this.callMdExplorerController(file);
   }
 
+  /**
+   * reveal.js's events from the deck on screen (postMessageEvents, on by default in MdExplorer's
+   * slide pages): a slide change is written on the current history entry, so that the title-bar
+   * arrows bring the deck back on that slide. Only from this view's own iframe.
+   */
+  private rememberSlideOfDeck(event: MessageEvent): void {
+    const frame = this.iframe?.nativeElement;
+    if (!frame || event.source !== frame.contentWindow || typeof event.data !== 'string') return;
+    let message: any;
+    try { message = JSON.parse(event.data); } catch { return; }
+    if (message?.namespace !== 'reveal' || !['slidechanged', 'ready'].includes(message.eventName)) return;
+    const h = message.state?.indexh, v = message.state?.indexv;
+    if (!Number.isInteger(h)) return;
+    try {
+      const path = decodeURIComponent(frame.contentWindow.location.pathname).replace(/^\/api\/mdexplorer\//i, '');
+      this.navService.rememberSlide(path, '#/' + h + (v ? '/' + v : ''));
+    } catch {
+      // Not the same origin: not one of MdExplorer's pages.
+    }
+  }
+
   /** reveal.js's position in a URL: '#/3' or '#/3/1', nothing else. */
   private static isSlidePosition(hash: string | undefined): boolean {
     return !!hash && /^#\/\d+(\/\d+)?$/.test(hash);
@@ -801,6 +822,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   private setupP2PMessageListener(): void {
     console.log('[P2P Angular] Setting up P2P message listener');
     window.addEventListener('message', (event: MessageEvent) => {
+      this.rememberSlideOfDeck(event);
       if (!event.data || !event.data.type) return;
 
       // Only log P2P messages
