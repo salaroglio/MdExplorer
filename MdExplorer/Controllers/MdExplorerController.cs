@@ -474,6 +474,10 @@ namespace MdExplorer.Controllers
                     DarkTheme = theme == "dark" || theme == "milan",
                     // What the service needs to find the deck's own files (images written in HTML,
                     // backgrounds): the project, and for a worktree the agent too.
+                    DocumentPath = fullPathFile,
+                    ProjectPath = root,
+                    ConnectionId = connectionId,
+                    AssetVersion = SlideAssetVersion(),
                     ResourceQuery = readOnly
                         ? $"agent={Uri.EscapeDataString(Request.Query["agent"].ToString())}&connectionId={Uri.EscapeDataString(connectionId ?? string.Empty)}"
                         : $"connectionId={Uri.EscapeDataString(connectionId ?? string.Empty)}",
@@ -499,6 +503,34 @@ namespace MdExplorer.Controllers
                     await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStop", monitoredMd);
                 }
             }
+        }
+
+        private static string _slideAssetVersion;
+
+        /// <summary>
+        /// The newest change to the scripts a slide page loads from wwwroot (the diagram scripts and
+        /// their start): the page adds it as ?v=… so that an updated script is not taken from the
+        /// browser's cache. Computed once per run of the service — an update restarts it.
+        /// </summary>
+        private string SlideAssetVersion()
+        {
+            if (_slideAssetVersion != null)
+            {
+                return _slideAssetVersion;
+            }
+            var webRoot = HttpContext.RequestServices.GetService<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>()?.WebRootPath;
+            var folders = new[]
+            {
+                Path.Combine("javascripts", "jqueryForFirstPage", "interactive-svg"),
+                Path.Combine("javascripts", "slides"),
+            }.Select(f => webRoot == null ? null : Path.Combine(webRoot, f)).ToArray();
+            if (folders.Any(f => f == null || !Directory.Exists(f)))
+            {
+                _logger.LogWarning("⚠️ [Slides] Diagram scripts not found under wwwroot '{WebRoot}': their URLs carry no version, a browser may keep old copies.", webRoot);
+                return null;
+            }
+            var newest = folders.SelectMany(f => Directory.GetFiles(f)).Max(System.IO.File.GetLastWriteTimeUtc);
+            return _slideAssetVersion = newest.ToString("yyyyMMddHHmmss");
         }
 
         private static string SlideDeckErrorPage(string fullPathFile, string message)

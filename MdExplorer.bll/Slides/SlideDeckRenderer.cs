@@ -35,6 +35,25 @@ namespace MdExplorer.Features.Slides
         /// them as written.
         /// </summary>
         public string ResourceQuery { get; init; }
+
+        /// <summary>
+        /// The markdown file, its project and the viewer's connection, written on the page's
+        /// <c>&lt;body&gt;</c> as a document page does: the diagram scripts read them there
+        /// ("Ask to MarkAgent", the links of a YAML tree).
+        /// </summary>
+        public string DocumentPath { get; init; }
+
+        /// <inheritdoc cref="DocumentPath"/>
+        public string ProjectPath { get; init; }
+
+        /// <inheritdoc cref="DocumentPath"/>
+        public string ConnectionId { get; init; }
+
+        /// <summary>
+        /// Added as <c>?v=…</c> to the diagram scripts and styles. The service sends them without
+        /// Cache-Control, and a browser kept running the old copy of a changed script (measured).
+        /// </summary>
+        public string AssetVersion { get; init; }
     }
 
     /// <summary>
@@ -48,6 +67,17 @@ namespace MdExplorer.Features.Slides
     {
         /// <summary>The plugins' globals, in the order their scripts are loaded.</summary>
         private static readonly string[] Plugins = { "highlight", "notes", "math", "search", "zoom" };
+
+        /// <summary>
+        /// The document view's diagram scripts (click-to-highlight, sequence, YAML, "Ask to
+        /// MarkAgent"), the same files, started by <c>javascripts/slides/slide-diagrams.js</c>.
+        /// </summary>
+        private static readonly string[] DiagramScripts =
+        {
+            "interactive-svg", "mark-diagram-context", "interactive-svg-sequence", "interactive-svg-yaml-links", "interactive-svg-yaml",
+        };
+
+        private const string DiagramScriptsFolder = "/javascripts/jqueryForFirstPage/interactive-svg/";
 
         // reveal.js 6.0.2, plugin/markdown: what may follow the language of a fence.
         private static readonly Regex LineNumbers = new(@"\[\s*((\d*):)?\s*([\s\d,|-]*)\]", RegexOptions.Compiled);
@@ -79,7 +109,7 @@ namespace MdExplorer.Features.Slides
                 slides.Append('\n');
             }
 
-            return Page(settings, slides.ToString());
+            return Page(settings, slides.ToString(), options);
         }
 
         /// <summary>reveal.js's slide height when the deck does not set one.</summary>
@@ -90,13 +120,40 @@ namespace MdExplorer.Features.Slides
         /// (measured: a 15-class diagram, 895 px, in a 700 px slide). It is shrunk to fit — never
         /// enlarged — within the slide's width and three quarters of its height, which leaves room
         /// for the title. The height is reveal.config.height when it is a number of pixels.
+        /// <para>
+        /// No <c>!important</c>: the zoom of the diagram scripts (Ctrl+wheel) writes the size on the
+        /// <c>&lt;svg&gt;</c>'s style, and must win — an <c>!important</c> rule cancelled it (measured,
+        /// sprint Slide-SVG-Interattivi F0). PlantUML's own size in the style is taken out instead
+        /// (<see cref="FreeDiagramSize"/>). The zoom also sets <c>max-width: none</c>: then the
+        /// height is free too.
+        /// </para>
         /// </summary>
         private static string DiagramFit(JsonObject config)
         {
             var height = config?["height"] is JsonValue value && value.TryGetValue<long>(out var pixels) && pixels > 0
                 ? (int)pixels
                 : DefaultSlideHeight;
-            return $".reveal .slides section svg[data-diagram-type] {{ max-width: 100%; max-height: {height * 3 / 4}px; width: auto !important; height: auto !important; }}";
+            return $@".reveal .slides section svg[data-diagram-type] {{ max-width: 100%; max-height: {height * 3 / 4}px; width: auto; height: auto; }}
+.reveal .slides section svg[data-diagram-type][style*=""max-width: none""] {{ max-height: none; }}";
+        }
+
+        private static readonly Regex PixelSize = new(@"(?<![\w-])(width|height)\s*:\s*[\d.]+px\s*;?", RegexOptions.IgnoreCase);
+
+        /// <summary>
+        /// Takes PlantUML's <c>width:…px;height:…px</c> out of a diagram's style — it would beat the
+        /// fitting rule — and keeps the rest (background). The width and height attributes stay:
+        /// they give the diagram its natural size and proportions.
+        /// </summary>
+        private static void FreeDiagramSize(HtmlNode section)
+        {
+            foreach (var svg in section.Descendants("svg").Where(s => s.Attributes.Contains("data-diagram-type")))
+            {
+                var style = svg.GetAttributeValue("style", null);
+                if (style != null)
+                {
+                    svg.SetAttributeValue("style", PixelSize.Replace(style, "").Trim());
+                }
+            }
         }
 
         private static string RenderSlide(SlideSource slide, SlideDeckRenderOptions options)
@@ -108,7 +165,8 @@ namespace MdExplorer.Features.Slides
 
             var hasComments = SlideAttributes.AnyIn(content);
             var rewriteUrls = !string.IsNullOrEmpty(options.ResourceQuery) && SlideResources.AnyIn(content);
-            if (!hasComments && !rewriteUrls)
+            var hasDiagrams = content.Contains("data-diagram-type");
+            if (!hasComments && !rewriteUrls && !hasDiagrams)
             {
                 return $"<section>{content}{notes}</section>";
             }
@@ -122,6 +180,7 @@ namespace MdExplorer.Features.Slides
                 // After the comments: a .slide comment is where a background URL comes from.
                 SlideResources.Rewrite(section, options.ResourceQuery);
             }
+            FreeDiagramSize(section);
             var attributes = string.Concat(section.Attributes.Select(a =>
                 $" {a.OriginalName}=\"{WebUtility.HtmlEncode(a.Value)}\""));
             return $"<section{attributes}>{section.InnerHtml}{notes}</section>";
@@ -209,10 +268,33 @@ namespace MdExplorer.Features.Slides
             code.Arguments = language.Contains(' ') ? language.Split(' ', 2)[1] : null;
         }
 
-        private static string Page(SlideDeckSettings settings, string slides)
+        /// <summary>
+        /// DocumentPath, ProjectPath and ConnectionId on the <c>&lt;body&gt;</c>, with the names the
+        /// document page uses (<c>CreateHTMLBody</c>).
+        /// </summary>
+        private static string BodyAttributes(SlideDeckRenderOptions options)
+        {
+            var attributes = new StringBuilder();
+            void Add(string name, string value)
+            {
+                if (!string.IsNullOrEmpty(value))
+                {
+                    attributes.Append($" {name}=\"{WebUtility.HtmlEncode(value)}\"");
+                }
+            }
+            Add("ConnectionId", options.ConnectionId);
+            Add("DocumentPath", options.DocumentPath);
+            Add("ProjectPath", options.ProjectPath);
+            return attributes.ToString();
+        }
+
+        private static string Page(SlideDeckSettings settings, string slides, SlideDeckRenderOptions options)
         {
             var title = WebUtility.HtmlEncode(settings.Title ?? "Slides");
             var scripts = string.Concat(Plugins.Select(p => $"<script src=\"/reveal/dist/plugin/{p}.js\"></script>\n"));
+            var version = string.IsNullOrEmpty(options.AssetVersion) ? string.Empty : "?v=" + Uri.EscapeDataString(options.AssetVersion);
+            var diagramStyles = string.Concat(DiagramScripts.Select(s => $"<link rel=\"stylesheet\" href=\"{DiagramScriptsFolder}{s}.css{version}\">\n"));
+            var diagramScripts = string.Concat(DiagramScripts.Select(s => $"<script src=\"{DiagramScriptsFolder}{s}.js{version}\"></script>\n"));
             return $@"<!DOCTYPE html>
 <html>
 <head>
@@ -224,15 +306,16 @@ namespace MdExplorer.Features.Slides
 <link rel=""stylesheet"" href=""/reveal/dist/reveal.css"">
 <link rel=""stylesheet"" href=""/reveal/dist/theme/{settings.Theme}.css"">
 <link rel=""stylesheet"" href=""/reveal/dist/plugin/highlight/{settings.HighlightTheme}.css"">
-<style>
+{diagramStyles}<style>
 {DiagramFit(settings.Config)}
 </style>
 </head>
-<body>
+<body{BodyAttributes(options)}>
 <div class=""reveal""><div class=""slides"">
 {slides}</div></div>
 <script src=""/reveal/dist/reveal.js""></script>
-{scripts}<script>
+{scripts}{diagramScripts}<script src=""/javascripts/slides/slide-diagrams.js{version}""></script>
+<script>
 Reveal.initialize(Object.assign({Configuration(settings.Config).ToJsonString()}, {{ plugins: [RevealHighlight, RevealNotes, RevealMath.KaTeX, RevealSearch, RevealZoom] }}));
 </script>
 </body>

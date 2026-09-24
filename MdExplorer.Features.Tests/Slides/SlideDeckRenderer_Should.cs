@@ -354,11 +354,69 @@ reveal:
         [TestMethod]
         public void Shrink_diagrams_to_three_quarters_of_the_slide_height()
         {
-            StringAssert.Contains(Render("# A\n"), "svg[data-diagram-type] { max-width: 100%; max-height: 525px;");
+            var page = Render("# A\n");
+            StringAssert.Contains(page, "svg[data-diagram-type] { max-width: 100%; max-height: 525px; width: auto; height: auto; }");
+            // No !important: the zoom of the diagram scripts writes the size on the style, and must win.
+            Assert.IsFalse(page.Contains("!important"));
+            StringAssert.Contains(page, "svg[data-diagram-type][style*=\"max-width: none\"] { max-height: none; }");
 
             var tall = SlideDeckRenderer.Render(
                 "---\ndocument_type: slides\nreveal:\n  config:\n    height: 1080\n---\n# A\n", Options());
             StringAssert.Contains(tall, "max-height: 810px;");
+        }
+
+        [TestMethod]
+        public void Take_plantumls_pixel_size_out_of_the_diagram_style_and_keep_the_rest()
+        {
+            var svg = Sections(Render("<svg data-diagram-type=\"CLASS\" width=\"837px\" height=\"895px\" style=\"width:837px;height:895px;background:#FFFFFF;\"><rect style=\"stroke-width:1.5;\"/></svg>\n"))[0]
+                .SelectSingleNode(".//svg");
+
+            Assert.AreEqual("background:#FFFFFF;", svg.GetAttributeValue("style", null));
+            Assert.AreEqual("837px", svg.GetAttributeValue("width", null));
+            Assert.AreEqual("stroke-width:1.5;", svg.SelectSingleNode("rect").GetAttributeValue("style", null));
+        }
+
+        [TestMethod]
+        public void Load_the_diagram_scripts_of_the_document_view_before_reveal_starts()
+        {
+            var page = Render("# A\n");
+
+            foreach (var name in new[] { "interactive-svg", "mark-diagram-context", "interactive-svg-sequence", "interactive-svg-yaml-links", "interactive-svg-yaml" })
+            {
+                StringAssert.Contains(page, $"<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/interactive-svg/{name}.css\">");
+                StringAssert.Contains(page, $"<script src=\"/javascripts/jqueryForFirstPage/interactive-svg/{name}.js\"></script>");
+            }
+            // slide-diagrams.js registers on Reveal's ready event: it must come before Reveal.initialize.
+            Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-diagrams.js") < page.IndexOf("Reveal.initialize("));
+            Assert.IsFalse(page.Contains("jquery-3"), "the diagram scripts do not need jQuery");
+        }
+
+        [TestMethod]
+        public void Version_the_diagram_scripts_so_that_an_update_is_not_taken_from_the_cache()
+        {
+            var page = SlideDeckRenderer.Render(FrontMatter + "# A\n", new SlideDeckRenderOptions
+            {
+                Pipeline = DocumentViewPipeline.Build(null),
+                AssetVersion = "20260924090020",
+            });
+
+            StringAssert.Contains(page, "/interactive-svg/interactive-svg-yaml-links.js?v=20260924090020\"");
+            StringAssert.Contains(page, "/interactive-svg/interactive-svg.css?v=20260924090020\"");
+            StringAssert.Contains(page, "/javascripts/slides/slide-diagrams.js?v=20260924090020\"");
+        }
+
+        [TestMethod]
+        public void Write_the_document_project_and_connection_on_the_body_as_a_document_page_does()
+        {
+            var page = SlideDeckRenderer.Render(FrontMatter + "# A\n", new SlideDeckRenderOptions
+            {
+                Pipeline = DocumentViewPipeline.Build(null),
+                DocumentPath = @"C:\progetto\R&S\deck.md",
+                ProjectPath = @"C:\progetto",
+                ConnectionId = "abc",
+            });
+
+            StringAssert.Contains(page, "<body ConnectionId=\"abc\" DocumentPath=\"C:\\progetto\\R&amp;S\\deck.md\" ProjectPath=\"C:\\progetto\">");
         }
 
         [TestMethod]
