@@ -86,6 +86,7 @@ namespace MdExplorer.IntegrationTests
                     ".claude/skills/mde-plantuml/SKILL.md",
                     ".claude/skills/mde-prompt-for-agents/SKILL.md",
                     ".claude/skills/mde-readme/SKILL.md",
+                    ".claude/skills/mde-slide/SKILL.md",
                 },
                 ProducedFiles(_root),
                 "agents and commands are flat <name>.md files, skills stay in their folder");

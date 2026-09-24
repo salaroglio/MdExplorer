@@ -14456,7 +14456,7 @@ class NewMarkdownComponent {
       name: this.translate.instant('NEW_MARKDOWN.PROMPTLAB'),
       documentType: 'promptlab'
     }, {
-      id: 5,
+      id: 7,
       name: this.translate.instant('NEW_MARKDOWN.SLIDES'),
       documentType: 'slides'
     }];
@@ -37854,4 +37854,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.7cfd91e72b8544f4.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.775b38c71a12f576.js.map

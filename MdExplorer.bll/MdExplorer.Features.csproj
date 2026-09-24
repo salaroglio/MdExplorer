@@ -66,7 +66,7 @@
     <None Remove="snippets\sequence_diagram\assets\signalR.png" />
     <None Remove="snippets\sequence_diagram\assets\vscode.png" />
     <None Remove="snippets\sequence_diagram\sequence_diagram.plantuml" />
-    <None Remove="snippets\slide\SlidePowerPoint.reveal" />
+    <None Remove="snippets\slide\SlidePowerPoint.md" />
     <None Remove="snippets\workflow\workflow.plantuml" />
   </ItemGroup>
 
@@ -85,7 +85,7 @@
     <EmbeddedResource Include="snippets\sequence_diagram\plantuml\sequence_diagram.plantuml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <EmbeddedResource Include="snippets\slide\SlidePowerPoint.reveal" />
+    <EmbeddedResource Include="snippets\slide\SlidePowerPoint.md" />
     <EmbeddedResource Include="snippets\workflow\workflow.plantuml" />
   </ItemGroup>
 

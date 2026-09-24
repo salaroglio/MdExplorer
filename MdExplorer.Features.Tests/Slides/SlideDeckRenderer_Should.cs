@@ -26,23 +26,9 @@ namespace MdExplorer.Features.Tests.Slides
                 AfterMarkdown = after ?? (s => s),
             };
 
-        private static HtmlNode Slides(string page)
-        {
-            var document = new HtmlDocument { OptionOutputOriginalCase = true };
-            document.LoadHtml(page);
-            return document.DocumentNode.SelectSingleNode("//div[@class='slides']");
-        }
+        private static HtmlNode[] Sections(string page) => SlidePage.Sections(page);
 
-        private static HtmlNode[] Sections(string page)
-            => Slides(page).ChildNodes.Where(n => n.Name == "section").ToArray();
-
-        private static JsonObject Config(string page)
-        {
-            const string start = "Reveal.initialize(Object.assign(";
-            var from = page.IndexOf(start, StringComparison.Ordinal) + start.Length;
-            var to = page.IndexOf(", { plugins:", from, StringComparison.Ordinal);
-            return (JsonObject)JsonNode.Parse(page.Substring(from, to - from));
-        }
+        private static JsonObject Config(string page) => SlidePage.Config(page);
 
         // ---- slides ----
 
@@ -396,13 +382,7 @@ reveal:
         [TestMethod]
         public void Offer_exactly_the_themes_that_ship_in_wwwroot()
         {
-            var root = new DirectoryInfo(AppContext.BaseDirectory);
-            while (root != null && !File.Exists(Path.Combine(root.FullName, "MdExplorer.sln")))
-            {
-                root = root.Parent;
-            }
-            Assert.IsNotNull(root, "repository root not found");
-            var wwwroot = Path.Combine(root.FullName, "MdExplorer", "wwwroot");
+            var wwwroot = Path.Combine(SlidePage.RepositoryRoot(), "MdExplorer", "wwwroot");
 
             var themes = Directory.GetFiles(Path.Combine(wwwroot, "reveal", "dist", "theme"), "*.css")
                 .Select(Path.GetFileNameWithoutExtension).OrderBy(t => t).ToArray();

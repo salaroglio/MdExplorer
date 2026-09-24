@@ -57,6 +57,7 @@ namespace MdExplorer.IntegrationTests
                     ".github/skills/mde-plantuml/SKILL.md",
                     ".github/skills/mde-prompt-for-agents/SKILL.md",
                     ".github/skills/mde-readme/SKILL.md",
+                    ".github/skills/mde-slide/SKILL.md",
                 },
                 ProducedFiles(),
                 "il layout Copilot deve restare bit per bit quello di sempre");
@@ -73,7 +74,7 @@ namespace MdExplorer.IntegrationTests
                 CollectionAssert.Contains(produced, $".github/skills/{name}/SKILL.md",
                     $"la skill Fuseki '{name}' deve comparire quando Fuseki è configurato");
             }
-            Assert.AreEqual(12, produced.Length, "8 skill + 1 agent + 3 prompt");
+            Assert.AreEqual(13, produced.Length, "9 skill + 1 agent + 3 prompt");
         }
 
         [TestMethod]
@@ -122,6 +123,7 @@ namespace MdExplorer.IntegrationTests
                     ".opencode/skills/mde-plantuml/SKILL.md",
                     ".opencode/skills/mde-prompt-for-agents/SKILL.md",
                     ".opencode/skills/mde-readme/SKILL.md",
+                    ".opencode/skills/mde-slide/SKILL.md",
                 },
                 ProducedFiles(),
                 "agent e comandi sono file piatti <nome>.md, le skill restano in cartella");

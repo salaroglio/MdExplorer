@@ -266,7 +266,6 @@ Keep tool call content SHORT. Only include what needs to be added or changed.
         /// </summary>
         /// <summary>
         /// Tool names suitable for a local 9B model.
-        /// Complex tools like create_slide_presentation are excluded.
         /// </summary>
         private static readonly HashSet<string> LocalSupportedTools = new HashSet<string>
         {
