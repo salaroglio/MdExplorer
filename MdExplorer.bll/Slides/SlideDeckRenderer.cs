@@ -291,7 +291,8 @@ namespace MdExplorer.Features.Slides
             // The legend's rows use the document toolbar's classes; its texts come from toolbar-shared.js.
             var diagramStyles = string.Concat(DiagramScripts.Select(s => $"<link rel=\"stylesheet\" href=\"{DiagramScriptsFolder}{s}.css\">\n"))
                 + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/images/image-toolbar.css\">\n"
-                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-diagrams.css\">\n";
+                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-diagrams.css\">\n"
+                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-navigation.css\">\n";
             var diagramScripts = string.Concat(DiagramScripts.Select(s => $"<script src=\"{DiagramScriptsFolder}{s}.js\"></script>\n"));
             return $@"<!DOCTYPE html>
 <html>
@@ -314,6 +315,7 @@ namespace MdExplorer.Features.Slides
 <script src=""/reveal/dist/reveal.js""></script>
 {scripts}{diagramScripts}<script src=""/javascripts/jqueryForFirstPage/images/toolbar-shared.js""></script>
 <script src=""/javascripts/slides/slide-diagrams.js""></script>
+<script src=""/javascripts/slides/slide-navigation.js""></script>
 <script>
 Reveal.initialize(Object.assign({Configuration(settings.Config).ToJsonString()}, {{ plugins: [RevealHighlight, RevealNotes, RevealMath.KaTeX, RevealSearch, RevealZoom] }}));
 </script>

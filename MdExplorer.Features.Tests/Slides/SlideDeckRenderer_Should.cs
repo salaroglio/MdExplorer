@@ -390,6 +390,9 @@ reveal:
             StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/images/image-toolbar.css\">");
             StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-diagrams.css\">");
             Assert.IsTrue(page.IndexOf("/images/toolbar-shared.js") < page.IndexOf("/javascripts/slides/slide-diagrams.js"));
+            // Links between decks and the breadcrumb (slide-navigation.js), also registered on ready.
+            StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-navigation.css\">");
+            Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-navigation.js") < page.IndexOf("Reveal.initialize("));
             // slide-diagrams.js registers on Reveal's ready event: it must come before Reveal.initialize.
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-diagrams.js") < page.IndexOf("Reveal.initialize("));
             Assert.IsFalse(page.Contains("jquery-3"), "the diagram scripts do not need jQuery");

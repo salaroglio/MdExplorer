@@ -20065,6 +20065,10 @@ class MainContentComponent {
     // Call the original controller method but with enhanced URL building
     this.callMdExplorerController(file);
   }
+  /** reveal.js's position in a URL: '#/3' or '#/3/1', nothing else. */
+  static isSlidePosition(hash) {
+    return !!hash && /^#\/\d+(\/\d+)?$/.test(hash);
+  }
   /**
    * A slide deck (reveal.js, `hash: true`) keeps its current slide in the iframe's hash
    * (`#/2/1`). Reloading the same file — a save, a theme change — would restart it from the
@@ -20098,7 +20102,9 @@ class MainContentComponent {
     if (node?.relativePath) {
       const dateTime = new Date().getTime() / 1000;
       const cleanPath = this.cleanRelativePath(node.relativePath);
-      const newHtmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`);
+      const url = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
+      // A deck asked on a given slide opens there; otherwise a reload of the same deck keeps its slide.
+      const newHtmlSource = MainContentComponent.isSlidePosition(node.slideHash) ? url + node.slideHash : this.keepCurrentSlide(url);
       // Only update if URL actually changed to prevent unnecessary reloads
       if (this.htmlSource !== newHtmlSource) {
         this.htmlSource = newHtmlSource;
@@ -20526,7 +20532,8 @@ class MainContentComponent {
       type: 'file',
       index: 0,
       isLoading: false,
-      childrens: []
+      childrens: [],
+      slideHash: data.slideHash
     };
     this.navService.setNewNavigation(mdFile);
     this.loadMarkdownFile(mdFile);
@@ -37854,4 +37861,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.775b38c71a12f576.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.aaa9bd40d906eed7.js.map

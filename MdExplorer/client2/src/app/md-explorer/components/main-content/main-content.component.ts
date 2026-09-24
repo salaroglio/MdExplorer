@@ -385,6 +385,11 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     this.callMdExplorerController(file);
   }
 
+  /** reveal.js's position in a URL: '#/3' or '#/3/1', nothing else. */
+  private static isSlidePosition(hash: string | undefined): boolean {
+    return !!hash && /^#\/\d+(\/\d+)?$/.test(hash);
+  }
+
   /**
    * A slide deck (reveal.js, `hash: true`) keeps its current slide in the iframe's hash
    * (`#/2/1`). Reloading the same file — a save, a theme change — would restart it from the
@@ -420,7 +425,9 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     if (node?.relativePath) {
       const dateTime = new Date().getTime() / 1000;
       const cleanPath = this.cleanRelativePath(node.relativePath);
-      const newHtmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`);
+      const url = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
+      // A deck asked on a given slide opens there; otherwise a reload of the same deck keeps its slide.
+      const newHtmlSource = MainContentComponent.isSlidePosition(node.slideHash) ? url + node.slideHash : this.keepCurrentSlide(url);
 
       // Only update if URL actually changed to prevent unnecessary reloads
       if (this.htmlSource !== newHtmlSource) {
@@ -883,7 +890,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    * only loaded, and ← → skipped it (measured 17/09/2026). Through here a text file opens as
    * colored source, as from the tree.
    */
-  private handleMdNavigate(data: { relativePath: string; name: string; fullPath?: string }): void {
+  private handleMdNavigate(data: { relativePath: string; name: string; fullPath?: string; slideHash?: string }): void {
     const relativePath = (data.relativePath || '').replace(/\\/g, '/').replace(/^\/+/, '');
     const mdFile: MdFile = {
       name: data.name,
@@ -898,7 +905,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       type: 'file',
       index: 0,
       isLoading: false,
-      childrens: []
+      childrens: [],
+      slideHash: data.slideHash
     };
     this.navService.setNewNavigation(mdFile);
     this.loadMarkdownFile(mdFile);

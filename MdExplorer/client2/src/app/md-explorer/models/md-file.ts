@@ -38,6 +38,10 @@ export class MdFile implements IFileInfoNode {
   // A revealed non-markdown file whose content is text: clickable, shown colored in the panel.
   isTextFile?: boolean;
 
+  // A slide deck opened on one of its slides: reveal.js's position ('#/3' or '#/3/1'). Set by the
+  // breadcrumb between decks and by the history of the title-bar arrows.
+  slideHash?: string;
+
   // Compact folder properties (VS Code-style)
   isCompacted?: boolean;
   compactedPath?: string;
