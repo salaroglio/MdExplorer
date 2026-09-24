@@ -58,6 +58,12 @@ namespace MdExplorer.Features.Tests.Slides
                 StringAssert.StartsWith(section.GetAttributeValue("data-background-iframe", ""), "https://www.youtube.com/embed/aqz-KE-bpKQ?autoplay=1&amp;mute=1");
                 Assert.IsTrue(section.Attributes.Contains("data-background-interactive"));
             },
+            ["sezioni"] = page =>
+            {
+                // The links reach the engine as links; slide-navigation.js turns them into jumps.
+                var links = SlidePage.Sections(page)[0].SelectNodes(".//a").Select(a => a.GetAttributeValue("href", null)).ToArray();
+                CollectionAssert.AreEqual(new[] { "sezioni/vendite.md", "sezioni/acquisti.md", "sezioni/acquisti.md#/3" }, links);
+            },
             ["transizione"] = page =>
                 Assert.AreEqual("zoom", SlidePage.Sections(page)[0].GetAttributeValue("data-transition", null)),
             ["verticali"] = page =>

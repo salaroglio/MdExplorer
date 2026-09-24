@@ -87,7 +87,8 @@
             });
             if (inMdExplorer) {
                 event.preventDefault();
-                open(target, null);
+                // [Costi](vendite.md#/3) opens that deck on that slide.
+                open(target, /^#\/\d+(\/\d+)?$/.test(url.hash) ? url.hash : null);
             }
         }, true);
     }
@@ -113,7 +114,9 @@
         trail.forEach(function (step) {
             var back = document.createElement('a');
             back.href = '#';
-            back.textContent = step.slide ? step.deck + ': ' + step.slide : step.deck;
+            // The first slide often repeats the deck's title: said once.
+            var sameAsDeck = !step.slide || step.slide.toLowerCase() === (step.deck || '').toLowerCase();
+            back.textContent = sameAsDeck ? step.deck : step.deck + ': ' + step.slide;
             back.title = step.deck + (step.slide ? ' — ' + step.slide : '');
             back.addEventListener('click', function (event) {
                 event.preventDefault();

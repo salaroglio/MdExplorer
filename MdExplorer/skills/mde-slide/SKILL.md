@@ -3,7 +3,7 @@ name: mde-slide
 description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF."
 mde:
   origin: mdexplorer
-  version: 2
+  version: 3
   updatePolicy: replace
 ---
 
@@ -182,6 +182,31 @@ Un video di YouTube come sfondo vivo, non un'immagine ferma: `data-background-if
 Un file video del progetto (mp4, webm) si mette con `data-background-video="video/intro.mp4"`, anche in più
 formati separati da virgola (`"video/intro.mp4, video/intro.webm"`), più `data-background-video-loop` e
 `data-background-video-muted`. Il percorso è relativo al file, come per le immagini, e funziona senza rete.
+
+### «Una presentazione principale che porta alle sezioni»
+
+Più presentazioni collegate: una **principale** con un link per sezione, e una presentazione per sezione.
+Il link è un normale link markdown a un altro file `.md` (percorso relativo al file); con `#/n` dopo il nome si
+arriva direttamente alla slide `n+1` (si conta da 0).
+
+````markdown esempio=sezioni
+## Le sezioni
+
+- [Vendite](sezioni/vendite.md)
+- [Acquisti](sezioni/acquisti.md)
+- [Acquisti: i costi](sezioni/acquisti.md#/3)
+````
+
+Cosa fa MdExplorer, senza che serva scrivere altro:
+
+- in una sezione compare in alto a sinistra un **breadcrumb** (`Le sezioni: principale › Vendite`); un clic
+  riporta alla presentazione principale **sulla slide da cui si era partiti**. Funziona su più livelli;
+- anche le frecce **← →** della barra di MdExplorer riaprono ogni presentazione sulla slide dove era stata
+  lasciata;
+- il breadcrumb si azzera quando una presentazione si apre dall'albero dei file, e non compare nel PDF.
+
+Ogni sezione è una presentazione completa (front matter con `document_type: slides`), con il suo `title`: è il
+nome che compare nel breadcrumb.
 
 ### «Questa slide deve entrare in un altro modo»
 
