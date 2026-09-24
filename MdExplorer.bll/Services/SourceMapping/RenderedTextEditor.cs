@@ -167,7 +167,7 @@ namespace MdExplorer.Features.Services.SourceMapping
             }
 
             var document = Markdown.Parse(text, pipeline);
-            var leaf = FindLeaf(document, target, out var notFound);
+            var leaf = FindLeaf(document, text, target, out var notFound);
             if (leaf == null)
             {
                 return RenderedTextEdit.Refused(RenderedTextRefusal.BlockNotFound, notFound);
@@ -564,7 +564,7 @@ namespace MdExplorer.Features.Services.SourceMapping
 
         // ── The block ───────────────────────────────────────────────────────────────────────
 
-        private static LeafBlock FindLeaf(MarkdownDocument document, RenderedTextTarget target, out string notFound)
+        private static LeafBlock FindLeaf(MarkdownDocument document, string text, RenderedTextTarget target, out string notFound)
         {
             notFound = null;
             if (target.Row.HasValue != target.Column.HasValue)
@@ -600,8 +600,13 @@ namespace MdExplorer.Features.Services.SourceMapping
                 return cellLeaves[0];
             }
 
+            // Where the block's text starts, as the page's data-mde-line-start says (a setext heading
+            // starts on its text, not on its underline: MarkdownSourceMapService.StartLine).
+            var lineStarts = MarkdownSourceMapService.BuildLineStartOffsets(text);
             var leaves = document.Descendants().OfType<LeafBlock>()
-                .Where(b => (b is ParagraphBlock || b is HeadingBlock) && b.Line + 1 == target.Line && !(b.Parent is TableCell))
+                .Where(b => (b is ParagraphBlock || b is HeadingBlock)
+                            && MarkdownSourceMapService.StartLine(b, lineStarts) + 1 == target.Line
+                            && !(b.Parent is TableCell))
                 .ToList();
             if (leaves.Count != 1)
             {
@@ -1003,7 +1008,7 @@ namespace MdExplorer.Features.Services.SourceMapping
                 return RenderedTextEdit.Refused(RenderedTextRefusal.VerificationFailed, "The correction would change the blocks of the document.");
             }
 
-            var leaf = FindLeaf(newDocument, target, out var notFound);
+            var leaf = FindLeaf(newDocument, newText, target, out var notFound);
             if (leaf == null)
             {
                 // Clearing a cell is a correction: the cell stays, with no paragraph in it.

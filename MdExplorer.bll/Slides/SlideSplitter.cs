@@ -5,8 +5,11 @@ using System.Text.RegularExpressions;
 
 namespace MdExplorer.Features.Slides
 {
-    /// <summary>One slide as written: its markdown and its speaker notes (null when it has none).</summary>
-    public sealed record SlideSource(string Markdown, string Notes);
+    /// <summary>
+    /// One slide as written: its markdown, its speaker notes (null when it has none), and the
+    /// 0-based line of the split text its markdown starts on.
+    /// </summary>
+    public sealed record SlideSource(string Markdown, string Notes, int FirstLine = 0);
 
     /// <summary>
     /// Cuts the body of a slide deck into slides, with the separators of reveal.js's markdown
@@ -36,11 +39,22 @@ namespace MdExplorer.Features.Slides
             int? notesStart = null;
             var notesTextStart = 0;
 
+            int LineOf(int offset)
+            {
+                var line = 0;
+                for (var i = 0; i < offset && i < body.Length; i++)
+                {
+                    if (body[i] == '\n') line++;
+                }
+                return line;
+            }
+
             void CloseSlide(int end)
             {
+                var firstLine = LineOf(slideStart);
                 stack.Add(notesStart is int n
-                    ? new SlideSource(body.Substring(slideStart, n - slideStart), body.Substring(notesTextStart, end - notesTextStart).Trim())
-                    : new SlideSource(body.Substring(slideStart, end - slideStart), null));
+                    ? new SlideSource(body.Substring(slideStart, n - slideStart), body.Substring(notesTextStart, end - notesTextStart).Trim(), firstLine)
+                    : new SlideSource(body.Substring(slideStart, end - slideStart), null, firstLine));
                 notesStart = null;
             }
 

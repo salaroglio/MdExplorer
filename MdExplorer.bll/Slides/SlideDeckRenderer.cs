@@ -1,4 +1,6 @@
 using HtmlAgilityPack;
+using MdExplorer.Features.Services.SourceMapping;
+using Microsoft.Extensions.Logging.Abstractions;
 using Markdig;
 using Markdig.Renderers;
 using Markdig.Renderers.Html;
@@ -48,6 +50,14 @@ namespace MdExplorer.Features.Slides
 
         /// <inheritdoc cref="DocumentPath"/>
         public string ConnectionId { get; init; }
+
+        /// <summary>
+        /// The file's fingerprint as read from disk (<c>MarkdownFileEditor.SourceHash</c>), written on the
+        /// <c>&lt;body&gt;</c> as <c>data-mde-source-hash</c>: a text correction made on the page is refused
+        /// if the file has changed since. With it, the slides' blocks carry the file lines they come
+        /// from (<c>data-mde-line-start</c>/<c>-end</c>), as a document page's do. Null: neither.
+        /// </summary>
+        public string SourceHash { get; init; }
     }
 
     /// <summary>
@@ -86,19 +96,21 @@ namespace MdExplorer.Features.Slides
             }
 
             var (settings, body) = SlideDeckFrontMatter.Read(markdown, options.DarkTheme);
+            var transformed = options.BeforeMarkdown(body);
+            var fileLines = string.IsNullOrEmpty(options.SourceHash) ? null : FileLines(markdown, body, transformed);
             var slides = new StringBuilder();
-            foreach (var stack in SlideSplitter.Split(options.BeforeMarkdown(body)))
+            foreach (var stack in SlideSplitter.Split(transformed))
             {
                 if (stack.Count == 1)
                 {
-                    slides.Append(RenderSlide(stack[0], options));
+                    slides.Append(RenderSlide(stack[0], options, fileLines));
                 }
                 else
                 {
                     slides.Append("<section>");
                     foreach (var slide in stack)
                     {
-                        slides.Append(RenderSlide(slide, options));
+                        slides.Append(RenderSlide(slide, options, fileLines));
                     }
                     slides.Append("</section>");
                 }
@@ -152,9 +164,40 @@ namespace MdExplorer.Features.Slides
             }
         }
 
-        private static string RenderSlide(SlideSource slide, SlideDeckRenderOptions options)
+        private static readonly MarkdownSourceMapService SourceMap = new(NullLogger<MarkdownSourceMapService>.Instance);
+
+        /// <summary>
+        /// For each line of the transformed body, the 0-based file line it comes from, or -1 when
+        /// MdExplorer's commands generated it: the documents' source map (a line diff between the
+        /// body as written and as transformed), moved down by the lines above the body (front matter).
+        /// Null for a deck too big to map: no correction offered, the slides still render.
+        /// </summary>
+        private static int[] FileLines(string markdown, string body, string transformed)
         {
-            var content = options.AfterMarkdown(ToHtml(slide.Markdown, options.Pipeline));
+            var original = MarkdownSourceMapService.SplitLines(body);
+            var changed = MarkdownSourceMapService.SplitLines(transformed);
+            if (original.Length > MarkdownSourceMapService.MaxLines || changed.Length > MarkdownSourceMapService.MaxLines)
+            {
+                return null;
+            }
+            // The body is the end of the file: what comes before it is the front matter.
+            var linesAbove = markdown.Substring(0, markdown.Length - body.Length).Count(c => c == '\n');
+            return SourceMap.BuildLineMap(original, changed).Select(line => line < 0 ? -1 : line + linesAbove).ToArray();
+        }
+
+        /// <summary>The file lines of one slide's own lines (<see cref="SlideSource.FirstLine"/> on).</summary>
+        private static int[] SlideLines(SlideSource slide, int[] fileLines)
+        {
+            if (fileLines == null) return null;
+            var count = MarkdownSourceMapService.SplitLines(slide.Markdown).Length;
+            return Enumerable.Range(slide.FirstLine, count)
+                .Select(line => line < fileLines.Length ? fileLines[line] : -1)
+                .ToArray();
+        }
+
+        private static string RenderSlide(SlideSource slide, SlideDeckRenderOptions options, int[] fileLines)
+        {
+            var content = options.AfterMarkdown(ToHtml(slide.Markdown, options.Pipeline, SlideLines(slide, fileLines)));
             var notes = slide.Notes == null
                 ? string.Empty
                 : $"<aside class=\"notes\">{options.AfterMarkdown(ToHtml(slide.Notes, options.Pipeline))}</aside>";
@@ -182,9 +225,15 @@ namespace MdExplorer.Features.Slides
             return $"<section{attributes}>{section.InnerHtml}{notes}</section>";
         }
 
-        private static string ToHtml(string markdown, MarkdownPipeline pipeline)
+        private static string ToHtml(string markdown, MarkdownPipeline pipeline, int[] fileLines = null)
         {
-            var document = Markdown.Parse(MarkCommentsAfterLists(markdown, pipeline), pipeline);
+            var parsed = MarkCommentsAfterLists(markdown, pipeline);
+            var document = Markdown.Parse(parsed, pipeline);
+            if (fileLines != null)
+            {
+                // The marker MarkCommentsAfterLists adds sits inside a line: the lines are the slide's.
+                SourceMap.DecorateBlocks(document, parsed, fileLines);
+            }
 
             foreach (var code in document.Descendants<FencedCodeBlock>())
             {
@@ -279,6 +328,7 @@ namespace MdExplorer.Features.Slides
                 }
             }
             Add("ConnectionId", options.ConnectionId);
+            Add("data-mde-source-hash", options.SourceHash);
             Add("DocumentPath", options.DocumentPath);
             Add("ProjectPath", options.ProjectPath);
             return attributes.ToString();

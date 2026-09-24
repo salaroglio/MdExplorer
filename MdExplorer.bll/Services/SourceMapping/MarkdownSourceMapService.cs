@@ -56,14 +56,26 @@ namespace MdExplorer.Features.Services.SourceMapping
             var map = BuildLineMap(originalLines, transformedLines);
 
             var document = Markdown.Parse(transformedText, pipeline);
-            var lineStartOffsets = BuildLineStartOffsets(transformedText);
-
-            foreach (var block in document.Descendants().OfType<Block>())
-            {
-                DecorateBlock(block, map, lineStartOffsets, transformedLines.Length);
-            }
+            DecorateBlocks(document, transformedText, map);
 
             return Markdown.ToHtml(document, pipeline);
+        }
+
+        /// <summary>
+        /// Decorates the blocks of <paramref name="document"/>, parsed from <paramref name="text"/>,
+        /// with the file lines <paramref name="lineMap"/> gives: <c>lineMap[i]</c> is the 0-based line
+        /// of the file that line <c>i</c> of <paramref name="text"/> comes from, or -1 for a generated
+        /// line. The same rule as a whole document: a block entirely generated gets no attributes.
+        /// Used by the slide engine, where each slide is a piece of the file.
+        /// </summary>
+        internal void DecorateBlocks(MarkdownDocument document, string text, int[] lineMap)
+        {
+            var lineStartOffsets = BuildLineStartOffsets(text);
+            var lineCount = Math.Min(SplitLines(text).Length, lineMap.Length);
+            foreach (var block in document.Descendants().OfType<Block>())
+            {
+                DecorateBlock(block, lineMap, lineStartOffsets, lineCount);
+            }
         }
 
         private void DecorateBlock(Block block, int[] map, int[] lineStartOffsets, int transformedLineCount)
@@ -73,7 +85,7 @@ namespace MdExplorer.Features.Services.SourceMapping
                 return;
             }
 
-            var startLine = block.Line;
+            var startLine = StartLine(block, lineStartOffsets);
             if (startLine < 0 || startLine >= transformedLineCount)
             {
                 return;
@@ -114,6 +126,16 @@ namespace MdExplorer.Features.Services.SourceMapping
             attributes.AddProperty("data-mde-line-end", (originalEnd + 1).ToString());
         }
 
+        /// <summary>
+        /// The line a block's text starts on. Markdig's <c>Line</c> is that line, except for a setext
+        /// heading (<c>Title</c> over <c>---</c>), where it is the underline's (measured, Markdig 1.1.2):
+        /// the heading starts where its text does. RenderedTextEditor finds blocks by the same rule.
+        /// </summary>
+        internal static int StartLine(Block block, int[] lineStartOffsets)
+            => block is HeadingBlock { IsSetext: true } && !block.Span.IsEmpty
+                ? OffsetToLine(lineStartOffsets, block.Span.Start)
+                : block.Line;
+
         private static bool ShouldDecorate(Block block)
         {
             switch (block)
@@ -148,7 +170,7 @@ namespace MdExplorer.Features.Services.SourceMapping
             return lines;
         }
 
-        private static int[] BuildLineStartOffsets(string text)
+        internal static int[] BuildLineStartOffsets(string text)
         {
             var starts = new List<int> { 0 };
             for (var i = 0; i < text.Length; i++)

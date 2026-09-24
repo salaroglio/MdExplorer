@@ -477,6 +477,9 @@ namespace MdExplorer.Controllers
                     DocumentPath = fullPathFile,
                     ProjectPath = root,
                     ConnectionId = connectionId,
+                    // The file as read: a text correction made on the slides is refused if it has
+                    // changed since. Not in a read-only review, where nothing is corrected.
+                    SourceHash = readOnly ? null : MarkdownFileEditor.SourceHash(markdownTxt),
                     ResourceQuery = readOnly
                         ? $"agent={Uri.EscapeDataString(Request.Query["agent"].ToString())}&connectionId={Uri.EscapeDataString(connectionId ?? string.Empty)}"
                         : $"connectionId={Uri.EscapeDataString(connectionId ?? string.Empty)}",

@@ -158,6 +158,18 @@ namespace MdExplorer.Features.Tests.SourceMapping
         // ── Text ───────────────────────────────────────────────────────────────────────────
 
         [TestMethod]
+        public void Start_a_setext_heading_on_its_text_and_correct_it()
+        {
+            // Markdig's Line of "Titolo" over "---" is the underline's; the page says where the text is.
+            const string markdown = "Intro.\n\nTitolo del capitolo\n---\n\nTesto.\n";
+            Assert.AreEqual("3", Element(markdown, "//h2").GetAttribute("data-mde-line-start"));
+
+            Assert.AreEqual("Intro.\n\nTitolo della parte\n---\n\nTesto.\n",
+                Applied(Correct(markdown, "//h2", Replace("del capitolo", "della parte"))));
+        }
+
+
+        [TestMethod]
         public void ChangeAWordOfAParagraph()
         {
             Assert.AreEqual("# T\n\nUna frase giusta qui.\n\nAltro.\n",
