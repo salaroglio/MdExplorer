@@ -931,7 +931,10 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       slideHash: data.slideHash
     };
     this.navService.setNewNavigation(mdFile);
-    this.loadMarkdownFile(mdFile);
+    // Through the selected file, as the tree and the title-bar arrows do: this view loads it (its
+    // subscription, once), and whoever follows the selected file follows it too — MarkAgent's chat
+    // context, the tree. Loading it here directly left them on the previous file.
+    this.service.setSelectedMdFileFromSideNav(mdFile);
   }
 
   /** The file's path in the open project, with the project's own separator. */

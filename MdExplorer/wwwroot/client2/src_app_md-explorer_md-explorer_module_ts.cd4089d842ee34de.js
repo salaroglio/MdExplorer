@@ -20562,7 +20562,10 @@ class MainContentComponent {
       slideHash: data.slideHash
     };
     this.navService.setNewNavigation(mdFile);
-    this.loadMarkdownFile(mdFile);
+    // Through the selected file, as the tree and the title-bar arrows do: this view loads it (its
+    // subscription, once), and whoever follows the selected file follows it too — MarkAgent's chat
+    // context, the tree. Loading it here directly left them on the previous file.
+    this.service.setSelectedMdFileFromSideNav(mdFile);
   }
   /** The file's path in the open project, with the project's own separator. */
   fullPathInProject(relativePath) {
@@ -37887,4 +37890,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.559953675d12dc85.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.cd4089d842ee34de.js.map
