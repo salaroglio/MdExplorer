@@ -251,6 +251,34 @@ reveal:
         }
 
         [TestMethod]
+        public void Give_element_comments_in_ordered_lists_and_inside_raw_html()
+        {
+            var section = Sections(Render("1. Uno <!-- .element: class=\"fragment\" -->\n2. Due\n\n<div class=\"r-hstack\">\n<div>\n\n- Dentro <!-- .element: class=\"fragment\" -->\n\n</div>\n</div>\n"))[0];
+
+            Assert.AreEqual("fragment", section.SelectSingleNode("ol/li").GetAttributeValue("class", null));
+            Assert.AreEqual("fragment", section.SelectSingleNode(".//div[@class='r-hstack']//li").GetAttributeValue("class", null));
+        }
+
+        [TestMethod]
+        public void Give_a_slide_comment_anywhere_in_the_slide_to_the_section()
+        {
+            var section = Sections(Render("## Titolo\n\nTesto\n\n<!-- .slide: data-background-color=\"#000\" data-transition=\"zoom\" -->\n"))[0];
+
+            Assert.AreEqual("#000", section.GetAttributeValue("data-background-color", null));
+            Assert.AreEqual("zoom", section.GetAttributeValue("data-transition", null));
+        }
+
+        [TestMethod]
+        public void Read_notes_that_start_on_the_note_line_and_end_at_the_next_slide()
+        {
+            var sections = Sections(Render("## A\n\nNote: subito qui\nseconda riga\n\n--\n\n## B\n"))[0]
+                .ChildNodes.Where(n => n.Name == "section").ToArray();
+
+            StringAssert.Contains(sections[0].SelectSingleNode("aside").InnerText, "subito qui");
+            Assert.IsNull(sections[1].SelectSingleNode("aside"));
+        }
+
+        [TestMethod]
         public void Give_a_slide_comment_to_the_section()
         {
             var section = Sections(Render("<!-- .slide: data-background-color=\"#1b2a3a\" data-auto-animate -->\n\n## Titolo\n"))[0];
@@ -321,6 +349,16 @@ reveal:
             var ex = Assert.ThrowsException<SlideDeckException>(() => Render("## A\n\n```mermaid\ngraph TD; A-->B;\n```\n"));
 
             StringAssert.Contains(ex.Message, "PlantUML");
+        }
+
+        [TestMethod]
+        public void Shrink_diagrams_to_three_quarters_of_the_slide_height()
+        {
+            StringAssert.Contains(Render("# A\n"), "svg[data-diagram-type] { max-width: 100%; max-height: 525px;");
+
+            var tall = SlideDeckRenderer.Render(
+                "---\ndocument_type: slides\nreveal:\n  config:\n    height: 1080\n---\n# A\n", Options());
+            StringAssert.Contains(tall, "max-height: 810px;");
         }
 
         [TestMethod]

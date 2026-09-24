@@ -42,7 +42,15 @@ Prima di scrivere, chiarisci con l'utente, se non lo ha già detto:
 - a chi è rivolta e quanto deve durare. Circa una slide al minuto è un buon punto di partenza;
 - se la proietta parlando (poco testo e note del relatore) o se la manda da leggere (testo più completo,
   niente effetti);
-- se serve il PDF. Gli effetti a comparsa nel PDF diventano più pagine, vedi *Esportare in PDF*.
+- se serve il PDF. Gli effetti a comparsa nel PDF diventano più pagine, vedi *«Mi serve il PDF»*.
+
+Se non puoi chiedere, decidi e dillo all'utente quando consegni:
+
+- **tema esplicito** (`reveal.theme`), non quello che segue MdExplorer: se la presentazione usa sfondi colorati o
+  diagrammi, il suo aspetto non deve cambiare con il tema dell'app. `white` è la scelta più sicura;
+- **dimensioni**: reveal.js parte da 960×700. Per uno schermo 16:9 scrivi `width: 1280` e `height: 720` in
+  `reveal.config`;
+- **effetti a comparsa** solo se la presenta parlando; **note del relatore** sempre, se la presenta parlando.
 
 ## Lo scheletro
 
@@ -72,6 +80,8 @@ Area vendite · settembre 2026
 ````
 
 - `document_type: slides` nel front matter è ciò che fa del file una presentazione. Senza, è un documento.
+- `title` nel front matter non compare sulle slide: è il titolo della scheda e del PDF. Il titolo visibile è
+  il `#` della prima slide.
 - **Una riga `---` da sola separa due slide.**
 - Il titolo della prima slide con `#`, quelli delle altre con `##`.
 
@@ -82,7 +92,8 @@ Area vendite · settembre 2026
    `***`.
 2. **Dentro un blocco di codice nulla è un separatore.** Un `---` in un blocco YAML resta codice.
 3. **Una riga che comincia con `Note:` trasforma il resto della slide in note del relatore**, che il pubblico
-   non vede. Non scrivere `Note:` all'inizio di una riga quando vuoi che si veda.
+   non vede. Il testo delle note può cominciare sulla stessa riga (`Note: dire che…`) e finisce al separatore
+   successivo (`---` o `--`). Non scrivere `Note:` all'inizio di una riga quando vuoi che si veda.
 
 ## Ricette: cosa vuole l'utente → cosa scrivere
 
@@ -99,7 +110,8 @@ Un commento `.element` alla fine di ogni punto:
 ````
 
 Il commento si applica all'elemento **prima** di lui: scritto alla fine di un punto, vale per quel punto.
-Scritto sulla riga sotto l'elenco vale per l'ultimo punto; dopo una riga vuota, per l'elenco intero.
+Scritto sulla riga sotto l'elenco vale per l'ultimo punto; dopo una riga vuota, per l'elenco intero. Funziona
+allo stesso modo negli elenchi numerati e nel markdown dentro un blocco HTML (per esempio nelle colonne).
 
 ### «Con effetti diversi, e in un ordine preciso»
 
@@ -121,7 +133,8 @@ Effetti utili: `fade-in`, `fade-up`, `fade-down`, `fade-out`, `grow`, `shrink`, 
 
 ### «Questa slide deve avere uno sfondo diverso»
 
-Un commento `.slide` nella slide:
+Un commento `.slide` nella slide. Può stare in qualunque punto della slide (in cima è più leggibile) e può
+portare più attributi insieme, per esempio sfondo e transizione:
 
 ````markdown esempio=sfondo
 <!-- .slide: data-background-color="#1b2a3a" -->
@@ -137,6 +150,11 @@ Un commento `.slide` nella slide:
 
 Il percorso dell'immagine è relativo al file, come in un documento. Esiste anche
 `data-background-gradient="linear-gradient(to bottom, #283b95, #17b2c3)"`.
+
+- Su uno sfondo scuro reveal.js schiarisce da solo il testo della slide, qualunque sia il tema.
+- Uno sfondo scuro «che si nota» si nota solo su un tema chiaro: se conta, scrivi `reveal.theme: white`,
+  altrimenti con MdExplorer in tema scuro la presentazione diventa scura tutta.
+- Non mettere un diagramma PlantUML su una slide a sfondo scuro: il diagramma resta chiaro, un riquadro bianco.
 
 ### «Questa slide deve entrare in un altro modo»
 
@@ -188,7 +206,8 @@ Dire subito che il dato di settembre è provvisorio.
 Se chiedono dei margini: slide 7.
 ````
 
-Le note le vede solo chi presenta, nella vista relatore (tasto **S**). Accettano il markdown.
+Le note le vede solo chi presenta, nella **vista relatore**: il tasto **S** sulla presentazione apre una
+finestra a parte con la slide corrente, la successiva, le note e il tempo. Le note accettano il markdown.
 
 ### «Codice evidenziato un pezzo alla volta»
 
@@ -231,8 +250,9 @@ Magazzino --> Cliente : spedisce
 ````
 
 - **Niente mermaid**: un blocco `mermaid` in una presentazione dà un errore. Usa PlantUML.
-- Il diagramma ha la sua dimensione naturale. Se è troppo grande per la slide, semplificalo o dividilo in
-  due slide.
+- Un diagramma troppo grande viene **rimpicciolito** per stare nella slide (in larghezza, e in altezza fino a
+  tre quarti della slide); non viene mai ingrandito. Rimpicciolito troppo diventa illeggibile: oltre una
+  dozzina di riquadri, o con testi lunghi nei riquadri, dividilo in due slide.
 - Nei documenti in tema scuro MdExplorer ribalta i colori del diagramma (`filter: invert`), **nelle slide
   no**: il diagramma resta com'è, e su un tema scuro compare come un riquadro chiaro. Scegli un tema chiaro,
   oppure dai al diagramma colori pensati per lo sfondo scuro.
@@ -338,6 +358,7 @@ reveal:
   come vero.
 - Due impostazioni le decide MdExplorer e il file non le può cambiare: i `plugins` e il percorso di KaTeX
   (`katex.local`). Scriverle dà un errore.
+- `pdfSeparateFragments` cambia solo il PDF: presentando, gli effetti a comparsa restano.
 - MdExplorer parte da `hash: true`, così la presentazione resta sulla slide corrente quando il file cambia, e
   da `scrollActivationWidth: null`, così resta a slide anche in un pannello stretto. Tutte e due si possono
   cambiare.
@@ -365,8 +386,10 @@ reveal:
 
 ### «Mi serve il PDF»
 
-Il pulsante **PDF** della barra, visibile solo sulle presentazioni, chiede dove salvare e produce una pagina
-per slide, con gli sfondi. Due cose da sapere:
+Il pulsante **PDF** della barra, visibile solo sulle presentazioni, chiede dove salvare (propone il nome del
+file markdown) e produce una pagina per slide, con gli sfondi. Le slide verticali seguono la loro slide madre;
+il titolo del PDF è il `title` del front matter. Un'AI non può premere il pulsante: prepara la configurazione
+qui sotto e di' all'utente di premere **PDF**. Due cose da sapere:
 
 - ogni passo degli effetti a comparsa diventa una pagina: una slide con tre punti a comparsa diventa quattro
   pagine. Per una pagina sola per slide: `pdfSeparateFragments: false` in `reveal.config`;

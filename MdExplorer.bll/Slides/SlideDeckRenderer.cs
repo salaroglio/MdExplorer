@@ -75,6 +75,23 @@ namespace MdExplorer.Features.Slides
             return Page(settings, slides.ToString());
         }
 
+        /// <summary>reveal.js's slide height when the deck does not set one.</summary>
+        private const int DefaultSlideHeight = 700;
+
+        /// <summary>
+        /// A PlantUML diagram keeps its own size in pixels, and a big one ran off the slide
+        /// (measured: a 15-class diagram, 895 px, in a 700 px slide). It is shrunk to fit — never
+        /// enlarged — within the slide's width and three quarters of its height, which leaves room
+        /// for the title. The height is reveal.config.height when it is a number of pixels.
+        /// </summary>
+        private static string DiagramFit(JsonObject config)
+        {
+            var height = config?["height"] is JsonValue value && value.TryGetValue<long>(out var pixels) && pixels > 0
+                ? (int)pixels
+                : DefaultSlideHeight;
+            return $".reveal .slides section svg[data-diagram-type] {{ max-width: 100%; max-height: {height * 3 / 4}px; width: auto !important; height: auto !important; }}";
+        }
+
         private static string RenderSlide(SlideSource slide, SlideDeckRenderOptions options)
         {
             var content = options.AfterMarkdown(ToHtml(slide.Markdown, options.Pipeline));
@@ -193,6 +210,9 @@ namespace MdExplorer.Features.Slides
 <link rel=""stylesheet"" href=""/reveal/dist/reveal.css"">
 <link rel=""stylesheet"" href=""/reveal/dist/theme/{settings.Theme}.css"">
 <link rel=""stylesheet"" href=""/reveal/dist/plugin/highlight/{settings.HighlightTheme}.css"">
+<style>
+{DiagramFit(settings.Config)}
+</style>
 </head>
 <body>
 <div class=""reveal""><div class=""slides"">
