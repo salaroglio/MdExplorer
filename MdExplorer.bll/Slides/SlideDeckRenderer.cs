@@ -48,12 +48,6 @@ namespace MdExplorer.Features.Slides
 
         /// <inheritdoc cref="DocumentPath"/>
         public string ConnectionId { get; init; }
-
-        /// <summary>
-        /// Added as <c>?v=…</c> to the diagram scripts and styles. The service sends them without
-        /// Cache-Control, and a browser kept running the old copy of a changed script (measured).
-        /// </summary>
-        public string AssetVersion { get; init; }
     }
 
     /// <summary>
@@ -292,9 +286,11 @@ namespace MdExplorer.Features.Slides
         {
             var title = WebUtility.HtmlEncode(settings.Title ?? "Slides");
             var scripts = string.Concat(Plugins.Select(p => $"<script src=\"/reveal/dist/plugin/{p}.js\"></script>\n"));
-            var version = string.IsNullOrEmpty(options.AssetVersion) ? string.Empty : "?v=" + Uri.EscapeDataString(options.AssetVersion);
-            var diagramStyles = string.Concat(DiagramScripts.Select(s => $"<link rel=\"stylesheet\" href=\"{DiagramScriptsFolder}{s}.css{version}\">\n"));
-            var diagramScripts = string.Concat(DiagramScripts.Select(s => $"<script src=\"{DiagramScriptsFolder}{s}.js{version}\"></script>\n"));
+            // The legend's rows use the document toolbar's classes; its texts come from toolbar-shared.js.
+            var diagramStyles = string.Concat(DiagramScripts.Select(s => $"<link rel=\"stylesheet\" href=\"{DiagramScriptsFolder}{s}.css\">\n"))
+                + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/images/image-toolbar.css\">\n"
+                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-diagrams.css\">\n";
+            var diagramScripts = string.Concat(DiagramScripts.Select(s => $"<script src=\"{DiagramScriptsFolder}{s}.js\"></script>\n"));
             return $@"<!DOCTYPE html>
 <html>
 <head>
@@ -314,7 +310,8 @@ namespace MdExplorer.Features.Slides
 <div class=""reveal""><div class=""slides"">
 {slides}</div></div>
 <script src=""/reveal/dist/reveal.js""></script>
-{scripts}{diagramScripts}<script src=""/javascripts/slides/slide-diagrams.js{version}""></script>
+{scripts}{diagramScripts}<script src=""/javascripts/jqueryForFirstPage/images/toolbar-shared.js""></script>
+<script src=""/javascripts/slides/slide-diagrams.js""></script>
 <script>
 Reveal.initialize(Object.assign({Configuration(settings.Config).ToJsonString()}, {{ plugins: [RevealHighlight, RevealNotes, RevealMath.KaTeX, RevealSearch, RevealZoom] }}));
 </script>

@@ -386,23 +386,13 @@ reveal:
                 StringAssert.Contains(page, $"<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/interactive-svg/{name}.css\">");
                 StringAssert.Contains(page, $"<script src=\"/javascripts/jqueryForFirstPage/interactive-svg/{name}.js\"></script>");
             }
+            // The colour legend: the document toolbar's row styles, its own corner, the shared IT/EN texts.
+            StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/images/image-toolbar.css\">");
+            StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-diagrams.css\">");
+            Assert.IsTrue(page.IndexOf("/images/toolbar-shared.js") < page.IndexOf("/javascripts/slides/slide-diagrams.js"));
             // slide-diagrams.js registers on Reveal's ready event: it must come before Reveal.initialize.
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-diagrams.js") < page.IndexOf("Reveal.initialize("));
             Assert.IsFalse(page.Contains("jquery-3"), "the diagram scripts do not need jQuery");
-        }
-
-        [TestMethod]
-        public void Version_the_diagram_scripts_so_that_an_update_is_not_taken_from_the_cache()
-        {
-            var page = SlideDeckRenderer.Render(FrontMatter + "# A\n", new SlideDeckRenderOptions
-            {
-                Pipeline = DocumentViewPipeline.Build(null),
-                AssetVersion = "20260924090020",
-            });
-
-            StringAssert.Contains(page, "/interactive-svg/interactive-svg-yaml-links.js?v=20260924090020\"");
-            StringAssert.Contains(page, "/interactive-svg/interactive-svg.css?v=20260924090020\"");
-            StringAssert.Contains(page, "/javascripts/slides/slide-diagrams.js?v=20260924090020\"");
         }
 
         [TestMethod]

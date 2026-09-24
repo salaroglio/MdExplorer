@@ -116,6 +116,8 @@ if (window.commonJsLoaded) {
         document.write("<link href='/javascripts/jqueryForFirstPage/images/image-toolbar.css' rel='stylesheet' />");
         loadScriptOnce('/javascripts/jqueryForFirstPage/images/image-readability.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/images/image-magnifier.js');
+        // Testi IT/EN della barra e memoria della legenda, usati da image-transform.js (e dalle slide).
+        loadScriptOnce('/javascripts/jqueryForFirstPage/images/toolbar-shared.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/images/image-transform.js');
 
         // NAVIGATION: History and scroll position management
