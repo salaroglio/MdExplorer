@@ -412,10 +412,21 @@ namespace MdExplorer.Features.Tests.SourceMapping
             Refused(Correct("Ciao mondo.\n", "(//p)[1]", Replace("mondo", ":smile:")), RenderedTextRefusal.VerificationFailed);
         }
 
+        /// <summary>
+        /// Emptying a paragraph removes it with its lines (user's request, 25/09/2026 — it used to be
+        /// refused). The deletion rules and their refusals: SlideTextCorrection_Should.
+        /// </summary>
         [TestMethod]
-        public void RefuseToEmptyAParagraph()
+        public void RemoveAnEmptiedParagraph()
         {
-            Refused(Correct("Primo.\n\nSecondo.\n", "(//p)[1]", _ => new List<RenderedRun>()), RenderedTextRefusal.VerificationFailed);
+            var markdown = "Primo.\n\nSecondo.\n";
+            var element = Element(markdown, "(//p)[1]");
+
+            var edit = RenderedTextEditor.Apply(markdown, Pipeline, TargetOf(element), Runs(element), new List<RenderedRun>());
+
+            Assert.AreEqual(RenderedTextEditStatus.Applied, edit.Status, $"{edit.Refusal}: {edit.Detail}");
+            Assert.IsTrue(edit.BlockDeleted);
+            Assert.AreEqual("Secondo.\n", edit.NewContent);
         }
 
         [TestMethod]

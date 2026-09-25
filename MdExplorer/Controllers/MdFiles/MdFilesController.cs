@@ -3752,7 +3752,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
             {
                 SetFileSystemWatcherEnabled(true, request.ConnectionId);
             }
-            _logger.LogInformation("[EditRenderedText] Corretto il blocco alla riga {Line} di {File}", request.Line, fullPath);
+            _logger.LogInformation(edit.BlockDeleted
+                ? "[EditRenderedText] Tolto il blocco alla riga {Line} di {File} (testo cancellato tutto)"
+                : "[EditRenderedText] Corretto il blocco alla riga {Line} di {File}", request.Line, fullPath);
 
             try
             {
@@ -3776,7 +3778,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 _logger.LogWarning(signalrEx, "[EditRenderedText] Notifica markdownfileischanged non inviata per {File}", fullPath);
             }
 
-            return Ok(new { status = "applied", sourceHash = MarkdownFileEditor.SourceHash(edit.NewContent) });
+            return Ok(new { status = edit.BlockDeleted ? "deleted" : "applied", sourceHash = MarkdownFileEditor.SourceHash(edit.NewContent) });
         }
 
         private static List<RenderedRun> ToRenderedRuns(IEnumerable<RenderedRunDto> runs)
@@ -3802,7 +3804,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 "Il testo scritto ha una formattazione (grassetto, corsivo, link) che lì non c'è: dalla pagina non si aggiunge formattazione.",
             RenderedTextRefusal.EditTooLarge =>
                 "La correzione cambia troppo testo in una volta: falla in più passi.",
-            RenderedTextRefusal.VerificationFailed =>
+            RenderedTextRefusal.BlockDeletionNotAllowed =>
+                "Qui cancellare tutto il testo non toglie il blocco in modo sicuro (una voce con sotto-voci, un titolo sottolineato, un blocco in una citazione): toglilo nel file.",
+                        RenderedTextRefusal.VerificationFailed =>
                 "Quello che hai scritto verrebbe letto come Markdown (un link, un'emoji, un simbolo) e la pagina non lo mostrerebbe così: cambialo e riprova.",
             _ => throw new ArgumentOutOfRangeException(nameof(refusal), refusal, "Motivo di rifiuto senza messaggio")
         };

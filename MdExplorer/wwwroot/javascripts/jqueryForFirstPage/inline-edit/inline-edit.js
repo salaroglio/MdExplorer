@@ -311,10 +311,17 @@
                 console.log('[inline-edit.js] ' + (result && result.status) + ' at line ' + edit.target.line, edit.target);
                 // The page now shows the file: its fingerprint moves with it, so a second
                 // correction works before the reload SignalR asks for.
-                if (result && result.sourceHash) {
+                // Not after a deletion: the lines below moved up, and the page's line numbers stay
+                // old until the reload — an edit made before it must meet the 409, not a wrong line.
+                if (result && result.sourceHash && result.status !== 'deleted') {
                     document.body.setAttribute('data-mde-source-hash', result.sourceHash);
                 }
                 finish(false);
+                // All the text deleted: the block went away with its lines (a list item with its
+                // bullet). The page drops it now, before the reload SignalR asks for.
+                if (result && result.status === 'deleted') {
+                    edit.block.remove();
+                }
                 return;
             }
 

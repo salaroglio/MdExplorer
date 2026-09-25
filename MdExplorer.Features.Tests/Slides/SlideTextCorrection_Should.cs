@@ -86,6 +86,14 @@ namespace MdExplorer.Features.Tests.Slides
             return edit.NewContent;
         }
 
+        /// <summary>Deletes all the text of the block at <paramref name="xpath"/>, as the page sends it: runs after = none.</summary>
+        private static RenderedTextEdit DeleteAll(string markdown, string xpath)
+        {
+            var block = Node(Page(markdown), xpath);
+            return RenderedTextEditor.Apply(markdown, DocumentViewPipeline.Build(null),
+                new RenderedTextTarget { Line = StartLine(block) }, Runs(block), new List<RenderedRun>());
+        }
+
         private const string Deck = @"---
 title: Prova
 document_type: slides
@@ -193,6 +201,82 @@ Testo della verticale
                 new RenderedTextTarget { Line = StartLine(table), Row = 1, Column = 1 });
 
             Assert.AreEqual(Deck.Replace("| x | yy |", "| x | zz |"), corrected);
+        }
+    
+        // ── Deleting all the text: the block goes away with its lines ──
+
+        [TestMethod]
+        public void Delete_a_fragment_item_with_its_bullet_and_its_comment()
+        {
+            var edit = DeleteAll(Deck, "(//li)[1]");
+
+            Assert.AreEqual(RenderedTextEditStatus.Applied, edit.Status, $"{edit.Refusal}: {edit.Detail}");
+            Assert.IsTrue(edit.BlockDeleted);
+            Assert.AreEqual(Deck.Replace("- Costi in crescita <!-- .element: class=\"fragment\" -->\n", ""), edit.NewContent);
+        }
+
+        [TestMethod]
+        public void Delete_the_only_item_of_a_list()
+        {
+            var deck = "---\ndocument_type: slides\n---\n\n## Uno\n\n- Solo\n\n---\n\n## Due\n";
+
+            var edit = DeleteAll(deck, "//li");
+
+            Assert.AreEqual(RenderedTextEditStatus.Applied, edit.Status, $"{edit.Refusal}: {edit.Detail}");
+            Assert.AreEqual(deck.Replace("- Solo\n", ""), edit.NewContent);
+        }
+
+        [TestMethod]
+        public void Delete_a_paragraph_with_one_blank_line()
+        {
+            var edit = DeleteAll(Deck, "//p[contains(.,'Testo della verticale')]");
+
+            Assert.AreEqual(RenderedTextEditStatus.Applied, edit.Status, $"{edit.Refusal}: {edit.Detail}");
+            Assert.AreEqual(Deck.Replace("Testo della verticale\n\n", ""), edit.NewContent);
+        }
+
+        [TestMethod]
+        public void Refuse_to_delete_an_item_with_sub_items()
+        {
+            var deck = "---\ndocument_type: slides\n---\n\n## Uno\n\n- Padre\n  - Figlio\n- Altro\n";
+
+            var edit = DeleteAll(deck, "(//li)[1]");
+
+            Assert.AreEqual(RenderedTextRefusal.BlockDeletionNotAllowed, edit.Refusal);
+        }
+
+        [TestMethod]
+        public void Refuse_to_delete_a_title_written_above_a_separator()
+        {
+            // In the file Markdig reads «Verticale» + «---» as a setext heading: removing it would take
+            // the slide separator away.
+            var edit = DeleteAll(Deck, "//p[contains(.,'Verticale') and not(contains(.,'della'))]");
+
+            Assert.AreEqual(RenderedTextRefusal.BlockDeletionNotAllowed, edit.Refusal);
+        }
+
+        [TestMethod]
+        public void Refuse_a_deletion_that_would_join_two_lists()
+        {
+            var deck = "---\ndocument_type: slides\n---\n\n## Uno\n\n- a\n\nIn mezzo\n\n- b\n";
+
+            var edit = DeleteAll(deck, "//p[contains(.,'In mezzo')]");
+
+            Assert.AreEqual(RenderedTextRefusal.BlockDeletionNotAllowed, edit.Refusal);
+        }
+
+        [TestMethod]
+        public void Keep_an_emptied_cell_in_its_table()
+        {
+            var table = Node(Page(Deck), "//table");
+            var cell = Node(Page(Deck), "(//tbody/tr)[1]/td[2]");
+
+            var edit = RenderedTextEditor.Apply(Deck, DocumentViewPipeline.Build(null),
+                new RenderedTextTarget { Line = StartLine(table), Row = 1, Column = 1 }, Runs(cell), new List<RenderedRun>());
+
+            Assert.AreEqual(RenderedTextEditStatus.Applied, edit.Status, $"{edit.Refusal}: {edit.Detail}");
+            Assert.IsFalse(edit.BlockDeleted);
+            StringAssert.Contains(edit.NewContent, "| x |  |");
         }
     }
 }

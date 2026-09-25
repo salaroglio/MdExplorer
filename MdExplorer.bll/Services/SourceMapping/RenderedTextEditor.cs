@@ -81,7 +81,10 @@ namespace MdExplorer.Features.Services.SourceMapping
         EditTooLarge,
 
         /// <summary>The corrected file would not render as what was typed, or its structure would change.</summary>
-        VerificationFailed
+        VerificationFailed,
+
+        /// <summary>All the text was deleted, but the block cannot go away with its lines safely (a list item with sub-items, a setext heading, a block in a quote…).</summary>
+        BlockDeletionNotAllowed
     }
 
     public sealed class RenderedTextEdit
@@ -98,8 +101,14 @@ namespace MdExplorer.Features.Services.SourceMapping
         /// <summary>For <see cref="RenderedTextEditStatus.Refused"/>: what exactly stopped the correction.</summary>
         public string Detail { get; private set; }
 
+        /// <summary>All the text was deleted and the block went away with its lines (a list item with its bullet).</summary>
+        public bool BlockDeleted { get; private set; }
+
         internal static RenderedTextEdit Applied(string content)
             => new RenderedTextEdit { Status = RenderedTextEditStatus.Applied, NewContent = content };
+
+        internal static RenderedTextEdit Deleted(string content)
+            => new RenderedTextEdit { Status = RenderedTextEditStatus.Applied, NewContent = content, BlockDeleted = true };
 
         internal static RenderedTextEdit NoChange()
             => new RenderedTextEdit { Status = RenderedTextEditStatus.NoChange };
@@ -192,6 +201,13 @@ namespace MdExplorer.Features.Services.SourceMapping
             {
                 return RenderedTextEdit.Refused(RenderedTextRefusal.RenderedTextMismatch,
                     $"The text the page shows for the block at line {target.Line} is not what the file renders.");
+            }
+
+            // Everything deleted: the block goes away with its lines — a list item with its bullet
+            // (user's request, 25/09/2026). A cell stays, empty: a table cannot lose half a row.
+            if (pageAfter.Count == 0 && !target.Row.HasValue)
+            {
+                return DeleteBlock(document, text, pipeline, leaf);
             }
 
             var ops = Diff(pageBefore, pageAfter);
@@ -625,6 +641,102 @@ namespace MdExplorer.Features.Services.SourceMapping
         /// cell does not count — a cleared cell is still the same cell — nor the line of a cell:
         /// Markdig gives an empty cell line 0 (measured 14/09/2026). The row keeps its cell count.
         /// </summary>
+        // ── Deleting a whole block ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Removes the lines of the block whose text was all deleted: a list item holding only that text
+        /// (with its bullet), or a paragraph or ATX heading of the document. Anything else is refused. The
+        /// lines must hold that block and nothing else, and the new file must have exactly the blocks of
+        /// the old one minus this one — same lists, same looseness, same text: if removing the lines would
+        /// join two lists or change how a list is laid out, nothing is written.
+        /// </summary>
+        private static RenderedTextEdit DeleteBlock(MarkdownDocument document, string text, MarkdownPipeline pipeline, LeafBlock leaf)
+        {
+            Block removed;
+            if (leaf is ParagraphBlock && leaf.Parent is ListItemBlock item)
+            {
+                if (item.Count != 1)
+                    return RenderedTextEdit.Refused(RenderedTextRefusal.BlockDeletionNotAllowed, "The list item holds more than its text (sub-items or more paragraphs).");
+                removed = item;
+            }
+            else if ((leaf is ParagraphBlock || leaf is HeadingBlock) && leaf.Parent is MarkdownDocument)
+            {
+                if (leaf is HeadingBlock heading && heading.IsSetext)
+                    return RenderedTextEdit.Refused(RenderedTextRefusal.BlockDeletionNotAllowed, "A setext heading: its underline may be a slide separator.");
+                removed = leaf;
+            }
+            else
+            {
+                return RenderedTextEdit.Refused(RenderedTextRefusal.BlockDeletionNotAllowed, "Only a list item, a paragraph or a heading of the document goes away with its lines.");
+            }
+
+            var lineStarts = MarkdownSourceMapService.BuildLineStartOffsets(text);
+            int LineOf(int offset)
+            {
+                var line = Array.BinarySearch(lineStarts, offset);
+                return line >= 0 ? line : ~line - 1;
+            }
+            int LineEnd(int line) => line + 1 < lineStarts.Length ? lineStarts[line + 1] : text.Length;
+
+            var firstLine = LineOf(removed.Span.Start);
+            var lastLine = LineOf(removed.Span.End);
+            // The lines must hold this block and nothing else.
+            if (text.Substring(lineStarts[firstLine], removed.Span.Start - lineStarts[firstLine]).Trim().Length > 0
+                || text.Substring(removed.Span.End + 1, LineEnd(lastLine) - removed.Span.End - 1).Trim().Length > 0)
+            {
+                return RenderedTextEdit.Refused(RenderedTextRefusal.BlockDeletionNotAllowed, "Its lines hold something else too.");
+            }
+
+            var start = lineStarts[firstLine];
+            var end = LineEnd(lastLine);
+            // A paragraph or heading takes one blank line with it, so the blocks around keep one between them.
+            if (!(removed is ListItemBlock) && lastLine + 1 < lineStarts.Length && text.Substring(end, LineEnd(lastLine + 1) - end).Trim().Length == 0)
+            {
+                end = LineEnd(lastLine + 1);
+            }
+            var newText = text.Remove(start, end - start);
+
+            var expected = DeletionSignature(document, text, removed);
+            var actual = DeletionSignature(Markdown.Parse(newText, pipeline), newText, null);
+            if (!expected.SequenceEqual(actual))
+            {
+                return RenderedTextEdit.Refused(RenderedTextRefusal.BlockDeletionNotAllowed,
+                    "Removing the lines would change the other blocks (two lists joined, a list laid out differently…).");
+            }
+            return RenderedTextEdit.Deleted(newText);
+        }
+
+        /// <summary>
+        /// The blocks of a document without their lines (which move when lines go away): kind, children,
+        /// list style and looseness, text. <paramref name="removed"/> and what is inside it are left out,
+        /// and its parent counts one child less (and is left out when it has none left).
+        /// </summary>
+        private static List<string> DeletionSignature(MarkdownDocument document, string text, Block removed)
+        {
+            var signature = new List<string>();
+            foreach (var block in document.Descendants().OfType<Block>())
+            {
+                if (removed != null && (block == removed || IsInside(block, removed))) continue;
+                var count = block is ContainerBlock container ? container.Count - (removed != null && removed.Parent == block ? 1 : 0) : 0;
+                if (block is ContainerBlock && count == 0 && removed != null && removed.Parent == block) continue;
+                var entry = block.GetType().Name;
+                if (block is ContainerBlock) entry += "#" + count;
+                if (block is ListBlock list) entry += (list.IsOrdered ? " ordered" : " bullet") + (list.IsLoose ? " loose" : " tight");
+                if (block is LeafBlock && block.Span.Length > 0) entry += ":" + text.Substring(block.Span.Start, block.Span.Length).Trim();
+                signature.Add(entry);
+            }
+            return signature;
+        }
+
+        private static bool IsInside(Block block, Block container)
+        {
+            for (var parent = block.Parent; parent != null; parent = parent.Parent)
+            {
+                if (parent == container) return true;
+            }
+            return false;
+        }
+
         private static List<string> Signature(MarkdownDocument document)
             => document.Descendants().OfType<Block>()
                 .Where(b => !(b.Parent is TableCell))
