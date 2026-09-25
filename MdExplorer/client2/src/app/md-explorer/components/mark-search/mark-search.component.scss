@@ -352,3 +352,11 @@
     }
   }
 }
+
+// The sidenav turns text selection off (sidenav.component.scss): the text of a turn is back on, so
+// it can be copied. Not the result boxes: a click there opens the document.
+.ms-user-text,
+.ms-commentary,
+.ms-error {
+  user-select: text;
+}

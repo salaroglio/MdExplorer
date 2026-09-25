@@ -9395,7 +9395,9 @@ class MarkAssistantComponent {
   onDragStart(event) {
     if (event.button !== 0) return; // only left button
     const t = event.target;
-    if (t.closest('input, textarea, button, .send-btn, .skip-btn, .resize-handle')) return;
+    // Not from the text either: there the mouse selects, so an answer can be copied (the whole
+    // dialog used to start a drag, and its preventDefault made the text unselectable, 25/09/2026).
+    if (t.closest('input, textarea, button, .send-btn, .skip-btn, .resize-handle, .dialog-text')) return;
     const wrap = this.wrapRef?.nativeElement;
     if (!wrap) return;
     const rect = wrap.getBoundingClientRect();
@@ -17885,8 +17887,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.25.3',
-  buildTime: '2026.09.25 11:02:54'
+  version: '2026.09.25.8',
+  buildTime: '2026.09.25 12:12:42'
 };
 
 /***/ }),
@@ -17920,4 +17922,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.70c61de7fc0e3fee.js.map
+//# sourceMappingURL=main.d2cb1948748506e5.js.map

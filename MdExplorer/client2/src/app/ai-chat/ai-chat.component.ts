@@ -836,10 +836,25 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     }, 100);
   }
 
+  /**
+   * The same SafeHtml object for the same text. The template binds [innerHTML] to this method: a new
+   * object on every change detection made Angular rewrite every message's HTML at every mouse event,
+   * so a drag never managed to select text (measured 25/09/2026: 19 rewrites of one message during
+   * one drag; nothing could be copied from the MarkAgent tab).
+   */
+  private readonly formattedCache = new Map<string, SafeHtml>();
+
   formatMessageContent(content: string): SafeHtml {
     if (!content) return '';
-    const html = marked.parse(content, { breaks: true }) as string;
-    return this.sanitizer.bypassSecurityTrustHtml(html);
+    let formatted = this.formattedCache.get(content);
+    if (!formatted) {
+      // A streamed answer passes through many lengths: keep the cache from growing without end.
+      if (this.formattedCache.size > 500) this.formattedCache.clear();
+      const html = marked.parse(content, { breaks: true }) as string;
+      formatted = this.sanitizer.bypassSecurityTrustHtml(html);
+      this.formattedCache.set(content, formatted);
+    }
+    return formatted;
   }
 
   getMessageClass(message: ChatMessage): string {

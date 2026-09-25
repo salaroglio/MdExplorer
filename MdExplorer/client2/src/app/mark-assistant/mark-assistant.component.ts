@@ -194,7 +194,9 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
   onDragStart(event: MouseEvent): void {
     if (event.button !== 0) return; // only left button
     const t = event.target as HTMLElement;
-    if (t.closest('input, textarea, button, .send-btn, .skip-btn, .resize-handle')) return;
+    // Not from the text either: there the mouse selects, so an answer can be copied (the whole
+    // dialog used to start a drag, and its preventDefault made the text unselectable, 25/09/2026).
+    if (t.closest('input, textarea, button, .send-btn, .skip-btn, .resize-handle, .dialog-text')) return;
 
     const wrap = this.wrapRef?.nativeElement;
     if (!wrap) return;

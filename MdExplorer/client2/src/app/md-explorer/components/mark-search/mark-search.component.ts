@@ -279,12 +279,25 @@ export class MarkSearchComponent implements OnInit, OnDestroy, AfterViewChecked 
     this.mdFileService.setSelectedMdFileFromSideNav(mdFile as any);
   }
 
+  /**
+   * The same SafeHtml object for the same text: [innerHTML] bound to a method that returns a new
+   * object rewrites the HTML at every change detection, and the text can never be selected (same
+   * defect as the MarkAgent tab, fixed 25/09/2026 in ai-chat.component.ts).
+   */
+  private readonly renderedCache = new Map<string, SafeHtml>();
+
   renderMarkdown(content: string): SafeHtml {
     if (!content) {
       return '';
     }
-    const html = marked.parse(content, { breaks: true }) as string;
-    return this.sanitizer.bypassSecurityTrustHtml(html);
+    let rendered = this.renderedCache.get(content);
+    if (!rendered) {
+      if (this.renderedCache.size > 500) this.renderedCache.clear();
+      const html = marked.parse(content, { breaks: true }) as string;
+      rendered = this.sanitizer.bypassSecurityTrustHtml(html);
+      this.renderedCache.set(content, rendered);
+    }
+    return rendered;
   }
 
   // ---------------------------------------------------------------- protocol
