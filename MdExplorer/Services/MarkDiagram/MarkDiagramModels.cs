@@ -54,6 +54,31 @@ namespace MdExplorer.Services.MarkDiagram
 
         /// <summary>Full PlantUML source, decoded from the SVG. Null when absent.</summary>
         public string? PlantumlSource { get; set; }
+
+        /// <summary>
+        /// The point of a slide asked about (a title, an item, a paragraph, a cell, a box of a
+        /// diagram): it is explained from the project's documents, not only from the deck.
+        /// Null for a box of a diagram in a document.
+        /// </summary>
+        public MarkPoint? Point { get; set; }
+    }
+
+    /// <summary>A point of a slide, as the slide page reads it.</summary>
+    public class MarkPoint
+    {
+        /// <summary>The text of the point as the slide shows it (for a box, its name).</summary>
+        public string? Text { get; set; }
+
+        /// <summary>"text" or "box".</summary>
+        public string? Kind { get; set; }
+
+        /// <summary>The title of the slide holding the point, when it has one.</summary>
+        public string? SlideTitle { get; set; }
+
+        /// <summary>All the text of that slide, so the point is read in its place.</summary>
+        public string? SlideText { get; set; }
+
+        public bool IsBox => string.Equals(Kind, "box", System.StringComparison.OrdinalIgnoreCase);
     }
 
     public class MarkDiagramExplainRequest

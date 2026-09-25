@@ -12,6 +12,9 @@ using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Abstractions.Models.AI;
 using MdExplorer.Abstractions.Services;
 using MdExplorer.Features.Services.AI;
+using MdExplorer.Features.Services.MarkPoint;
+using MdExplorer.Features.Yaml.Interfaces;
+using MdExplorer.Features.Yaml.Models;
 using MdExplorer.Hubs;
 using MdExplorer.Utilities;
 using Microsoft.AspNetCore.SignalR;
@@ -79,6 +82,16 @@ namespace MdExplorer.Services.MarkDiagram
             string projectPath,
             CancellationToken ct = default)
         {
+            // Un box di una presentazione si spiega come ogni altro punto di una slide: con i
+            // documenti del progetto e in più il contesto del diagramma (D3). Lo si riconosce dal
+            // file, così lo script dei diagrammi, comune a documenti e slide, non cambia.
+            if (context != null && context.Point == null && IsSlideDeck(context, projectPath))
+            {
+                context.Point = new MarkPoint { Text = context.Box?.Name, Kind = "box" };
+                await ExplainPointAsync(connectionId, context, projectPath, ct);
+                return;
+            }
+
             // Supersede the previous request for this connection: the user clicked
             // another box, the old answer is already stale on screen.
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -200,6 +213,21 @@ namespace MdExplorer.Services.MarkDiagram
             if (!_conversations.TryGetValue(connectionId, out var conversation))
                 return false;
 
+            if (conversation.Context?.Point != null)
+            {
+                _pendingEdits.TryRemove(connectionId, out _);
+                var ctsPoint = Supersede(connectionId, ct);
+                try
+                {
+                    await RunPointAsync(connectionId, conversation, question, ctsPoint);
+                }
+                finally
+                {
+                    Release(connectionId, ctsPoint);
+                }
+                return true;
+            }
+
             var boxName = conversation.Context?.Box?.Name;
 
             // Stessa ragione: una nuova domanda supera la proposta precedente.
@@ -301,6 +329,228 @@ namespace MdExplorer.Services.MarkDiagram
                     _running.TryRemove(connectionId, out _);
                 cts.Dispose();
             }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        //  Un punto di una slide, spiegato con i documenti del progetto
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>Most results per keyword: the number Mark Search asks <c>quickSearch</c> for.</summary>
+        private const int SearchResultsPerKeyword = 24;
+
+        public async Task ExplainPointAsync(
+            string connectionId,
+            MarkDiagramContextDto context,
+            string projectPath,
+            CancellationToken ct = default)
+        {
+            var cts = Supersede(connectionId, ct);
+            var conversation = new DiagramConversation(context, projectPath, Guid.NewGuid().ToString());
+            _conversations[connectionId] = conversation;
+            _pendingEdits.TryRemove(connectionId, out _);
+            try
+            {
+                await RunPointAsync(connectionId, conversation, null, cts);
+            }
+            finally
+            {
+                Release(connectionId, cts);
+            }
+        }
+
+        /// <summary>
+        /// Le due fasi di Mark Search: MarkAgent sceglie le parole, MDE cerca con le stesse funzioni
+        /// (<see cref="ISearchService.SearchAsync"/>, quella dietro <c>api/search/quick</c>), MarkAgent
+        /// spiega su ciò che è stato trovato. Ogni passo è raccontato all'utente, e la fine dice con
+        /// quali parole si è cercato e in quali file: nessuna ricerca resta nascosta.
+        /// </summary>
+        private async Task RunPointAsync(string connectionId, DiagramConversation conversation, string? question, CancellationTokenSource cts)
+        {
+            var context = conversation.Context;
+            var label = PointLabel(context.Point);
+            var isBox = context.Point?.IsBox == true;
+            try
+            {
+                await SendAsync(connectionId, new { phase = "start", box = label });
+                await SendStatusAsync(connectionId, label, "Cerco il motore AI configurato...");
+
+                var provider = ResolveConfiguredProvider(conversation.ProjectPath, out var modelId, out var whyNot);
+                if (provider == null)
+                {
+                    await SendAsync(connectionId, new { phase = "error", box = label, message = whyNot });
+                    return;
+                }
+                var engineLabel = string.IsNullOrWhiteSpace(modelId) ? provider.GetName() : $"{provider.GetName()} ({modelId})";
+
+                // 1 ─ MarkAgent sceglie le parole (fase 1 di Mark Search). La risposta non va a video:
+                //     è un blocco JSON per noi, non una frase per l'utente.
+                await SendStatusAsync(connectionId, label, $"Chiedo a {engineLabel} cosa cercare nel progetto...");
+                var keywordsAnswer = new StringBuilder();
+                await foreach (var chunk in StreamAsync(provider, MarkPointPromptBuilder.BuildKeywordsPrompt(context, question), modelId, conversation.SessionId, cts.Token))
+                {
+                    if (cts.Token.IsCancellationRequested) return;
+                    keywordsAnswer.Append(chunk);
+                }
+                IReadOnlyList<string> keywords;
+                try
+                {
+                    keywords = MarkSearchKeywords.Parse(keywordsAnswer.ToString());
+                }
+                catch (FormatException ex)
+                {
+                    _logger.LogWarning("[MarkPoint] Parole non leggibili: {Answer}", keywordsAnswer.ToString());
+                    await SendAsync(connectionId, new { phase = "error", box = label, message = ex.Message + " Riprova a chiederlo." });
+                    return;
+                }
+
+                // 2 ─ MDE cerca, una ricerca per parola come Mark Search, e legge i passaggi.
+                var sources = (IReadOnlyList<ProjectSource>)Array.Empty<ProjectSource>();
+                if (keywords.Count > 0)
+                {
+                    await SendStatusAsync(connectionId, label, $"Cerco nel progetto: {string.Join(", ", keywords.Select(k => $"«{k}»"))}...");
+                    sources = await SearchProjectAsync(keywords, context, conversation.ProjectPath);
+                }
+
+                var deckText = ReadDocument(context, conversation.ProjectPath, out var truncated);
+                if (deckText.Length > MarkPointPromptBuilder.MaxDeckChars)
+                {
+                    deckText = deckText.Substring(0, MarkPointPromptBuilder.MaxDeckChars);
+                    truncated = true;
+                }
+
+                // 3 ─ MarkAgent spiega su ciò che è stato trovato.
+                var prompt = MarkPointPromptBuilder.BuildSystemPrompt() + "\n\n---\n\n"
+                           + MarkPointPromptBuilder.BuildAnswerPrompt(context, keywords, sources, deckText, truncated, question);
+                if (question != null && isBox)
+                    prompt += "\n\n" + MarkDiagramPromptBuilder.BuildEditInstructions();
+
+                await SendStatusAsync(connectionId, label,
+                    sources.Count == 0
+                        ? $"Nessun documento trovato: chiedo a {engineLabel} di dirmi cosa si può dire dalla presentazione..."
+                        : $"Chiedo a {engineLabel} di spiegare con {sources.Count} documenti del progetto...");
+
+                var answer = new StringBuilder();
+                await foreach (var chunk in StreamAsync(provider, prompt, modelId, conversation.SessionId, cts.Token))
+                {
+                    if (cts.Token.IsCancellationRequested) return;
+                    if (string.IsNullOrEmpty(chunk)) continue;
+                    answer.Append(chunk);
+                    await SendAsync(connectionId, new { phase = "chunk", box = label, text = chunk });
+                }
+                var full = answer.ToString().Trim();
+
+                // Proposte di modifica solo sui box (D6): per il testo c'è «Modifica testo».
+                if (question != null && isBox)
+                {
+                    var proposal = TryParseProposal(full);
+                    if (proposal != null)
+                    {
+                        proposal.OtherDocuments = FindOtherDocumentsMentioning(conversation, cts.Token);
+                        _pendingEdits[connectionId] = proposal;
+                        await SendAsync(connectionId, new
+                        {
+                            phase = "proposal",
+                            box = label,
+                            summary = proposal.Summary,
+                            changesDiagram = !string.IsNullOrWhiteSpace(proposal.NewPlantuml),
+                            textEdits = proposal.TextEdits?.Count ?? 0,
+                            otherDocuments = proposal.OtherDocuments,
+                        });
+                        return;
+                    }
+                }
+
+                var sentences = MarkDiagramPromptBuilder.CountSentences(full);
+                if (sentences > MarkDiagramPromptBuilder.MaxSentences)
+                {
+                    _logger.LogWarning("[MarkPoint] '{Point}': {Count} frasi, limite {Max}", label, sentences, MarkDiagramPromptBuilder.MaxSentences);
+                }
+
+                await SendAsync(connectionId, new
+                {
+                    phase = "done",
+                    box = label,
+                    text = full,
+                    sentences,
+                    followUp = question != null,
+                    keywords,
+                    sources = sources.Select(s => s.Path).ToList(),
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("[MarkPoint] Spiegazione di '{Point}' annullata", label);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[MarkPoint] Spiegazione di '{Point}' fallita", label);
+                await SendAsync(connectionId, new { phase = "error", box = label, message = ex.Message });
+            }
+        }
+
+        private async Task<IReadOnlyList<ProjectSource>> SearchProjectAsync(
+            IReadOnlyList<string> keywords, MarkDiagramContextDto context, string projectPath)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var search = scope.ServiceProvider.GetRequiredService<ISearchService>();
+
+            var searches = new List<(string Keyword, SearchResult Result)>();
+            foreach (var keyword in keywords)
+            {
+                searches.Add((keyword, await search.SearchAsync(keyword, SearchType.All, SearchResultsPerKeyword, projectPath)));
+            }
+
+            var deck = ResolveDocumentPath(context, projectPath);
+            return ProjectSearchDigest.Build(searches, projectPath, deck, relative =>
+            {
+                var full = Path.GetFullPath(Path.Combine(projectPath, relative));
+                if (!IsInsideProject(full, projectPath) || !File.Exists(full)) return null;
+                try
+                {
+                    return File.ReadAllText(full);
+                }
+                catch (Exception ex)
+                {
+                    // Il file resta tra i trovati, senza passaggi: il prompt lo dice al modello.
+                    _logger.LogWarning(ex, "[MarkPoint] Non riesco a leggere {Path}", full);
+                    return null;
+                }
+            });
+        }
+
+        /// <summary>What the dialog shows as the subject: a box by its name, a text by its first words.</summary>
+        private static string PointLabel(MarkPoint? point)
+        {
+            var text = (point?.Text ?? string.Empty).Replace('\n', ' ').Trim();
+            return text.Length <= 60 ? text : text.Substring(0, 60).TrimEnd() + "…";
+        }
+
+        private bool IsSlideDeck(MarkDiagramContextDto context, string projectPath)
+        {
+            var fullPath = ResolveDocumentPath(context, projectPath);
+            if (fullPath == null || !File.Exists(fullPath)) return false;
+            using var scope = _scopeFactory.CreateScope();
+            var yaml = scope.ServiceProvider.GetRequiredService<IYamlParser<MdExplorerDocumentDescriptor>>();
+            return yaml.GetDescriptor(File.ReadAllText(fullPath))?.DocumentType == "slides";
+        }
+
+        private CancellationTokenSource Supersede(string connectionId, CancellationToken ct)
+        {
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            if (_running.TryRemove(connectionId, out var previous))
+            {
+                try { previous.Cancel(); } catch { /* già finita */ }
+                previous.Dispose();
+            }
+            _running[connectionId] = cts;
+            return cts;
+        }
+
+        private void Release(string connectionId, CancellationTokenSource cts)
+        {
+            if (_running.TryGetValue(connectionId, out var mine) && mine == cts)
+                _running.TryRemove(connectionId, out _);
+            cts.Dispose();
         }
 
         /// <summary>

@@ -22,6 +22,17 @@ namespace MdExplorer.Services.MarkDiagram
             CancellationToken ct = default);
 
         /// <summary>
+        /// Fire-and-forget. Explains a point of a slide (<see cref="MarkDiagramContextDto.Point"/>)
+        /// from the project's documents: MarkAgent chooses the keywords, MDE searches as Mark
+        /// Search does, MarkAgent explains from what was found. Streams like <see cref="ExplainBoxAsync"/>.
+        /// </summary>
+        Task ExplainPointAsync(
+            string connectionId,
+            MarkDiagramContextDto context,
+            string projectPath,
+            CancellationToken ct = default);
+
+        /// <summary>
         /// Domanda di seguito sullo stesso box, <b>nella stessa sessione del CLI</b>: il
         /// modello ha ancora davanti il diagramma, il documento e la spiegazione appena data,
         /// quindi si manda solo la domanda.

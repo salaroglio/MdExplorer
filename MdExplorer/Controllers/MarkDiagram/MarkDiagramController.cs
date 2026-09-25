@@ -59,6 +59,28 @@ namespace MdExplorer.Controllers.MarkDiagram
         }
 
         /// <summary>
+        /// «Chiedi a MarkAgent» su un punto di una slide: spiegato con i documenti del progetto.
+        /// Sprint: docs-internal/Sprints/2026-09-25-Slide-Chiedi-A-MarkAgent.md
+        /// </summary>
+        [HttpPost("explain-point")]
+        public IActionResult ExplainPoint([FromBody] MarkDiagramExplainRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.ConnectionId))
+                return BadRequest("connectionId is required");
+            if (string.IsNullOrWhiteSpace(request.Context?.Point?.Text))
+                return BadRequest("context.point.text is required");
+
+            var projectPath = GetProjectPath();
+            if (string.IsNullOrWhiteSpace(projectPath))
+                return BadRequest("Nessun progetto aperto per questa connessione: la spiegazione cerca nei documenti del progetto.");
+
+            _ = _explainService.ExplainPointAsync(
+                request.ConnectionId, request.Context, projectPath, CancellationToken.None);
+
+            return Ok(new { started = true });
+        }
+
+        /// <summary>
         /// Domanda di seguito sullo stesso box, nella stessa sessione del CLI.
         /// Se per questa connessione non c'è una conversazione aperta risponde 409: il
         /// client deve dirlo all'utente, non fingere di aver chiesto.

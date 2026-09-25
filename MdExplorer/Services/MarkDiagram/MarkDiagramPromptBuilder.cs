@@ -95,7 +95,7 @@ namespace MdExplorer.Services.MarkDiagram
             return sb.ToString();
         }
 
-        private static void AppendRelations(StringBuilder sb, MarkDiagramContextDto ctx)
+        internal static void AppendRelations(StringBuilder sb, MarkDiagramContextDto ctx)
         {
             var relations = ctx.Relations;
             if (relations == null || relations.Count == 0)
@@ -165,7 +165,7 @@ namespace MdExplorer.Services.MarkDiagram
             };
         }
 
-        private static void AppendSource(StringBuilder sb, MarkDiagramContextDto ctx)
+        internal static void AppendSource(StringBuilder sb, MarkDiagramContextDto ctx)
         {
             if (string.IsNullOrWhiteSpace(ctx.PlantumlSource)) return;
             sb.AppendLine("SORGENTE PLANTUML del diagramma:");
