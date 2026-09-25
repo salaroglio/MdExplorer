@@ -165,7 +165,7 @@ export class MarkDiagramService {
       emit({ phase: 'status', message: 'Chiedo a MarkAgent cosa cercare nel progetto...' });
       const first = await firstValueFrom(this.http.post<{ prompt: string }>(
         `${this.baseUrl}/point/keywords-prompt`, { context, question }));
-      const keywordsAnswer = await this.converse(channelId, first.prompt, null);
+      const keywordsAnswer = await this.aiChat.askOnChannel(channelId, first.prompt);
       if (run !== this.pointRun) return;
 
       const second = await firstValueFrom(this.http.post<{ prompt: string; keywords: string[]; sources: string[] }>(
@@ -177,7 +177,7 @@ export class MarkDiagramService {
           : 'MarkAgent non ha indicato parole da cercare: spiega con la sola presentazione...',
       });
 
-      const answer = await this.converse(channelId, second.prompt, chunk => emit({ phase: 'chunk', text: chunk }));
+      const answer = await this.aiChat.askOnChannel(channelId, second.prompt, chunk => emit({ phase: 'chunk', text: chunk }));
       emit({ phase: 'done', text: answer, keywords: second.keywords, sources: second.sources, followUp: question !== null });
     } catch (err: any) {
       console.warn('[MarkDiagram] point explanation failed', err);
@@ -185,30 +185,6 @@ export class MarkDiagramService {
     } finally {
       this.aiChat.clearChannelHistory(channelId);
     }
-  }
-
-  /** One turn on the channel: resolves with the whole answer, or rejects with the chat's error. */
-  private converse(channelId: string, prompt: string, onChunk: ((chunk: string) => void) | null): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      let text = '';
-      const sub = this.aiChat.getChannelStream$(channelId).subscribe(evt => {
-        switch (evt.type) {
-          case 'chunk':
-            text += evt.data ?? '';
-            onChunk?.(evt.data ?? '');
-            break;
-          case 'complete':
-            sub.unsubscribe();
-            resolve(text);
-            break;
-          case 'error':
-            sub.unsubscribe();
-            reject(new Error(String(evt.data)));
-            break;
-        }
-      });
-      this.aiChat.sendMessageToChannel(prompt, channelId);
-    });
   }
 
   /**

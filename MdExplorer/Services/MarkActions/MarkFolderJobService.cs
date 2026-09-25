@@ -334,7 +334,7 @@ namespace MdExplorer.Services.MarkActions
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // AI provider resolution — mirrors GitCommitAiService: AI_DefaultProvider
+        // AI provider resolution (GitCommitAiService had the same chain until 25/09/2026): AI_DefaultProvider
         // setting → copilotcli → gemini → openai → local, first one IsAvailable().
         // ─────────────────────────────────────────────────────────────────────
         private IAiProvider ResolveProvider()

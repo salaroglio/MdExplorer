@@ -554,6 +554,36 @@ export class AiChatService {
   }
 
   /**
+   * One turn on a channel of the AI chat, as a promise: resolves with the whole answer, rejects
+   * with the chat's error. The channel shares the CLI session of the MarkAgent tab (AiChatHub keeps
+   * one session per connection), so the question is asked with the tab's memory — used by
+   * "Chiedi a MarkAgent" on the slides and by the AI commit message.
+   * Give each request its own channel: the events of a superseded one cannot land on the next.
+   */
+  askOnChannel(channelId: string, prompt: string, onChunk: ((chunk: string) => void) | null = null): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      let text = '';
+      const sub = this.getChannelStream$(channelId).subscribe(evt => {
+        switch (evt.type) {
+          case 'chunk':
+            text += evt.data ?? '';
+            onChunk?.(evt.data ?? '');
+            break;
+          case 'complete':
+            sub.unsubscribe();
+            resolve(text);
+            break;
+          case 'error':
+            sub.unsubscribe();
+            reject(new Error(String(evt.data)));
+            break;
+        }
+      });
+      this.sendMessageToChannel(prompt, channelId);
+    });
+  }
+
+  /**
    * Get an Observable stream of events filtered for a specific channelId.
    * Each event has { type: 'chunk' | 'thinking' | 'tool' | 'complete' | 'error', data: any }.
    * 'tool' arriva solo da Claude Code ed è una riga di stato, non testo della risposta.
@@ -1061,9 +1091,6 @@ export class AiChatService {
     console.log('[AiChatService] ClaudeCode disconnesso');
   }
 
-  generateCommitMessage(projectPath: string): Observable<any> {
-    return this.http.post('/api/GitAi/generate-commit-message', { projectPath });
-  }
   
   getGitAiStatus(): Observable<any> {
     return this.http.get('/api/GitAi/ai-status');

@@ -10932,7 +10932,7 @@ class MarkDiagramService {
           context,
           question
         }));
-        const keywordsAnswer = yield _this.converse(channelId, first.prompt, null);
+        const keywordsAnswer = yield _this.aiChat.askOnChannel(channelId, first.prompt);
         if (run !== _this.pointRun) return;
         const second = yield (0,rxjs__WEBPACK_IMPORTED_MODULE_4__.firstValueFrom)(_this.http.post(`${_this.baseUrl}/point/answer-prompt`, {
           context,
@@ -10943,7 +10943,7 @@ class MarkDiagramService {
           phase: 'status',
           message: second.keywords.length ? `Ho cercato ${second.keywords.map(k => `«${k}»`).join(', ')}: ${second.sources.length} documenti. Chiedo a MarkAgent di spiegare...` : 'MarkAgent non ha indicato parole da cercare: spiega con la sola presentazione...'
         });
-        const answer = yield _this.converse(channelId, second.prompt, chunk => emit({
+        const answer = yield _this.aiChat.askOnChannel(channelId, second.prompt, chunk => emit({
           phase: 'chunk',
           text: chunk
         }));
@@ -10964,29 +10964,6 @@ class MarkDiagramService {
         _this.aiChat.clearChannelHistory(channelId);
       }
     })();
-  }
-  /** One turn on the channel: resolves with the whole answer, or rejects with the chat's error. */
-  converse(channelId, prompt, onChunk) {
-    return new Promise((resolve, reject) => {
-      let text = '';
-      const sub = this.aiChat.getChannelStream$(channelId).subscribe(evt => {
-        switch (evt.type) {
-          case 'chunk':
-            text += evt.data ?? '';
-            onChunk?.(evt.data ?? '');
-            break;
-          case 'complete':
-            sub.unsubscribe();
-            resolve(text);
-            break;
-          case 'error':
-            sub.unsubscribe();
-            reject(new Error(String(evt.data)));
-            break;
-        }
-      });
-      this.aiChat.sendMessageToChannel(prompt, channelId);
-    });
   }
   /**
    * Domanda di seguito sullo stesso box. La risposta arriva sullo stesso canale
@@ -14389,6 +14366,35 @@ class AiChatService {
     }
   }
   /**
+   * One turn on a channel of the AI chat, as a promise: resolves with the whole answer, rejects
+   * with the chat's error. The channel shares the CLI session of the MarkAgent tab (AiChatHub keeps
+   * one session per connection), so the question is asked with the tab's memory — used by
+   * "Chiedi a MarkAgent" on the slides and by the AI commit message.
+   * Give each request its own channel: the events of a superseded one cannot land on the next.
+   */
+  askOnChannel(channelId, prompt, onChunk = null) {
+    return new Promise((resolve, reject) => {
+      let text = '';
+      const sub = this.getChannelStream$(channelId).subscribe(evt => {
+        switch (evt.type) {
+          case 'chunk':
+            text += evt.data ?? '';
+            onChunk?.(evt.data ?? '');
+            break;
+          case 'complete':
+            sub.unsubscribe();
+            resolve(text);
+            break;
+          case 'error':
+            sub.unsubscribe();
+            reject(new Error(String(evt.data)));
+            break;
+        }
+      });
+      this.sendMessageToChannel(prompt, channelId);
+    });
+  }
+  /**
    * Get an Observable stream of events filtered for a specific channelId.
    * Each event has { type: 'chunk' | 'thinking' | 'tool' | 'complete' | 'error', data: any }.
    * 'tool' arriva solo da Claude Code ed è una riga di stato, non testo della risposta.
@@ -14845,11 +14851,6 @@ class AiChatService {
     // farebbe credere che quei numeri riguardino ancora la chat aperta.
     this._claudeUsage$.next(null);
     console.log('[AiChatService] ClaudeCode disconnesso');
-  }
-  generateCommitMessage(projectPath) {
-    return this.http.post('/api/GitAi/generate-commit-message', {
-      projectPath
-    });
   }
   getGitAiStatus() {
     return this.http.get('/api/GitAi/ai-status');
@@ -17884,8 +17885,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.25.2',
-  buildTime: '2026.09.25 10:43:41'
+  version: '2026.09.25.3',
+  buildTime: '2026.09.25 11:02:54'
 };
 
 /***/ }),
@@ -17919,4 +17920,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.9a3ff15a6f2d7beb.js.map
+//# sourceMappingURL=main.70c61de7fc0e3fee.js.map

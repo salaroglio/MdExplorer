@@ -36,80 +36,39 @@ namespace MdExplorer.Controllers.AI
             _logger = logger;
         }
 
-        [HttpPost("generate-commit-message")]
-        public async Task<IActionResult> GenerateCommitMessage([FromBody] GenerateCommitMessageRequest request)
+        /// <summary>
+        /// The prompt for an AI commit message. The client asks it on a channel of the AI chat, in
+        /// the MarkAgent tab's session: the agent that did the work writes the WHY.
+        /// Sprint: docs-internal/Sprints/2026-09-25-Commit-AI-Sessione-Del-Tab.md
+        /// </summary>
+        [HttpPost("commit-prompt")]
+        public async Task<IActionResult> CommitPrompt([FromBody] GenerateCommitMessageRequest request)
         {
-            try
-            {
-                _logger.LogInformation("Generating commit message for project: {ProjectPath}", request.ProjectPath);
+            if (string.IsNullOrEmpty(request?.ProjectPath))
+                return BadRequest(new { error = "Project path is required" });
+            if (!Directory.Exists(request.ProjectPath))
+                return BadRequest(new { error = $"Directory does not exist: {request.ProjectPath}" });
 
-                // Validate request
-                if (string.IsNullOrEmpty(request?.ProjectPath))
-                {
-                    return BadRequest(new GenerateCommitMessageResponse
-                    {
-                        Success = false,
-                        Error = "Project path is required"
-                    });
-                }
+            var prompt = await _gitCommitAiService.BuildCommitPromptAsync(request.ProjectPath, request.Language);
+            var it = (request.Language ?? "en").Trim().ToLowerInvariant().StartsWith("it");
+            if (prompt == null)
+                return Ok(new { noChanges = true, message = it ? "Nessuna modifica da committare." : "No changes to commit." });
+            return Ok(new { prompt });
+        }
 
-                if (!Directory.Exists(request.ProjectPath))
-                {
-                    return BadRequest(new GenerateCommitMessageResponse
-                    {
-                        Success = false,
-                        Error = $"Directory does not exist: {request.ProjectPath}"
-                    });
-                }
+        /// <summary>The agent's answer as a commit message. 422 when nothing usable is left.</summary>
+        [HttpPost("clean-commit-message")]
+        public IActionResult CleanCommitMessage([FromBody] CleanCommitMessageRequest request)
+        {
+            var message = _gitCommitAiService.CleanCommitMessage(request?.Raw ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(message))
+                return UnprocessableEntity(new { error = "MarkAgent non ha scritto un messaggio di commit utilizzabile." });
+            return Ok(new { message });
+        }
 
-                // Check if any AI is available (Gemini, Local model or Copilot CLI auto-select)
-                var copilotAvailable = _aiProviders?
-                    .FirstOrDefault(p => p.GetProviderType() == ProviderType.CopilotCli)?.IsAvailable() == true;
-                bool hasAi = _geminiService.IsConfigured()
-                             || _aiChatService.IsModelLoaded()
-                             || copilotAvailable;
-                var lang = (request.Language ?? "en").Trim().ToLowerInvariant().StartsWith("it") ? "it" : "en";
-
-                if (!hasAi)
-                {
-                    _logger.LogWarning("No AI service available for commit message generation");
-                    return Ok(new GenerateCommitMessageResponse
-                    {
-                        Success = false,
-                        Error = lang == "it"
-                            ? "Nessun servizio AI configurato. Configura Gemini, Copilot CLI o carica un modello locale dalle impostazioni."
-                            : "No AI service configured. Configure Gemini, Copilot CLI or load a local model from settings.",
-                        SuggestedMessage = lang == "it"
-                            ? $"Aggiornamento del {DateTime.Now:yyyy-MM-dd HH:mm}"
-                            : $"Update {DateTime.Now:yyyy-MM-dd HH:mm}"
-                    });
-                }
-
-                // Generate commit message
-                var suggestedMessage = await _gitCommitAiService.GenerateCommitMessageAsync(request.ProjectPath, lang);
-
-                string aiService;
-                if (copilotAvailable) aiService = "Copilot CLI";
-                else if (_geminiService.IsConfigured()) aiService = "Gemini";
-                else aiService = "Local Model";
-
-                return Ok(new GenerateCommitMessageResponse
-                {
-                    Success = true,
-                    SuggestedMessage = suggestedMessage,
-                    AiService = aiService
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error generating commit message");
-                return StatusCode(500, new GenerateCommitMessageResponse
-                {
-                    Success = false,
-                    Error = "Errore durante la generazione del messaggio di commit",
-                    SuggestedMessage = "Update from MdExplorer"
-                });
-            }
+        public class CleanCommitMessageRequest
+        {
+            public string? Raw { get; set; }
         }
 
         [HttpGet("ai-status")]
@@ -153,11 +112,4 @@ namespace MdExplorer.Controllers.AI
         public string Language { get; set; }
     }
 
-    public class GenerateCommitMessageResponse
-    {
-        public bool Success { get; set; }
-        public string SuggestedMessage { get; set; }
-        public string Error { get; set; }
-        public string AiService { get; set; }
-    }
 }
