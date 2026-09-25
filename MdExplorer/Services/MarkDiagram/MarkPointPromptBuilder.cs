@@ -87,9 +87,14 @@ namespace MdExplorer.Services.MarkDiagram
                 "",
                 "4. Non usare i tuoi tool e non cercare altro: la ricerca l'ho già fatta io.",
                 "",
-                "5. Niente preamboli, niente riepiloghi, niente 'come richiesto'. Parti dal contenuto.",
+                "5. Una SINTESI DI COMPRENSIONE, non una descrizione: non elencare cosa contiene un documento",
+                "   («la prima slide dice…, poi…»). Di' cosa SIGNIFICA: il messaggio di fondo, perché conta,",
+                "   cosa implica o lascia aperto. L'utente deve capire, e da lì poter chiedere di più.",
+                "   Chiudi con 2-3 domande brevi da cui potrebbe proseguire (contano nel limite delle frasi).",
                 "",
-                "6. Scrivi in italiano, con lo stesso lessico dei documenti.",
+                "6. Niente preamboli, niente riepiloghi, niente 'come richiesto'. Parti dal contenuto.",
+                "",
+                "7. Scrivi in italiano, con lo stesso lessico dei documenti.",
             });
         }
 
@@ -145,14 +150,15 @@ namespace MdExplorer.Services.MarkDiagram
 
             if (string.IsNullOrWhiteSpace(question) && linked.Any(d => d.Text != null))
             {
-                sb.AppendLine($"Il punto rimanda a {string.Join(", ", linked.Where(d => d.Text != null).Select(d => $"`{d.Path}`"))}: spiegalo");
-                sb.AppendLine($"soprattutto con un riassunto di quel documento, in non più di {MarkDiagramPromptBuilder.MaxSentences} frasi: di cosa");
-                sb.AppendLine("parla e le sue cose principali, poi, se serve, come si lega alla slide da cui l'utente arriva.");
+                sb.AppendLine($"Il punto rimanda a {string.Join(", ", linked.Where(d => d.Text != null).Select(d => $"`{d.Path}`"))}: in non più");
+                sb.AppendLine($"di {MarkDiagramPromptBuilder.MaxSentences} frasi dai una sintesi di comprensione di quel documento — il suo messaggio");
+                sb.AppendLine("di fondo, perché conta, cosa implica o lascia aperto — e come si lega alla slide da cui l'utente");
+                sb.AppendLine("arriva. Non descriverlo slide per slide.");
             }
             else if (string.IsNullOrWhiteSpace(question))
             {
-                sb.AppendLine($"Spiega il punto in non più di {MarkDiagramPromptBuilder.MaxSentences} frasi: cosa vuol dire, e cosa");
-                sb.AppendLine("aggiungono i documenti del progetto che la slide da sola non poteva dire.");
+                sb.AppendLine($"In non più di {MarkDiagramPromptBuilder.MaxSentences} frasi dai una sintesi di comprensione del punto: cosa");
+                sb.AppendLine("significa, e cosa aggiungono i documenti del progetto che la slide da sola non poteva dire.");
             }
             else
             {
