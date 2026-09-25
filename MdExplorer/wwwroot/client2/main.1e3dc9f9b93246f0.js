@@ -10324,7 +10324,7 @@ class MarkAssistantService {
    * An already-explained box is re-shown from the volatile cache without asking
    * the model again.
    */
-  beginDiagramExplanation(context) {
+  beginDiagramExplanation(context, kind = 'box') {
     const key = this.diagramKey(context.documentPath, context.box.name);
     const cached = this.diagramAnswers.get(key);
     this.diagramConversation = {
@@ -10350,7 +10350,9 @@ class MarkAssistantService {
     this.diagramAnswerStarted = false;
     this.clearThinkingTimer();
     this._thinking.next([]);
-    this._text.next(this.translate.instant('MARK.DIAGRAM.THINKING', {
+    this._text.next(kind === 'point' ? this.translate.instant('MARK.DIAGRAM.THINKING_POINT', {
+      point: context.box.name
+    }) : this.translate.instant('MARK.DIAGRAM.THINKING', {
       box: context.box.name
     }));
     this.diagramSub?.unsubscribe();
@@ -10451,7 +10453,7 @@ class MarkAssistantService {
           // Se non è mai partita una risposta, quello che c'è a schermo è la cronaca
           // dell'attesa: spacciarla per risposta sarebbe peggio che ammettere il vuoto.
           const streamed = this.diagramAnswerStarted ? this._text.getValue() || '' : '';
-          const answer = (evt.text || streamed).trim() || 'Il modello non ha risposto nulla su questo box.';
+          const answer = ((evt.text || streamed).trim() || 'Il modello non ha risposto nulla su questo box.') + this.searchFooter(evt);
           this._text.next(answer);
           this._continueArrow.next(true);
           // La cache conserva la SINTESI INIZIALE, il punto fermo a cui si torna
@@ -10469,9 +10471,22 @@ class MarkAssistantService {
           break;
         }
       case 'error':
-        this.showDiagramError(evt.box, evt.message || 'Non sono riuscito a spiegare questo box.');
+        this.showDiagramError(evt.box, evt.message || 'Non sono riuscito a spiegarlo.');
         break;
     }
+  }
+  /**
+   * A point of a slide is explained from a search in the project: the answer says with which
+   * words and in which documents, so no search stays hidden (the status lines fade away).
+   * Absent for a box of a document, which reads only its document.
+   */
+  searchFooter(evt) {
+    if (!Array.isArray(evt.keywords)) return '';
+    if (evt.keywords.length === 0) return '\n\n---\n*Nessuna ricerca nel progetto: MarkAgent non ha indicato parole da cercare.*';
+    const words = evt.keywords.map(k => `«${k}»`).join(', ');
+    const sources = Array.isArray(evt.sources) ? evt.sources : [];
+    const found = sources.length ? `documenti: ${sources.map(s => '`' + s + '`').join(', ')}` : 'nessun documento trovato';
+    return `\n\n---\n*Cercato nel progetto: ${words} — ${found}.*`;
   }
   /** Svuota il fumetto dopo qualche secondo dalla risposta. */
   fadeThinkingAway() {
@@ -10802,7 +10817,12 @@ class MarkDiagramService {
   setupIframeListener() {
     window.addEventListener('message', event => {
       const data = event.data;
-      if (!data || data.type !== 'mde-mark.askAboutBox') return;
+      if (!data) return;
+      if (data.type === 'mde-mark.askAboutPoint' && data.context?.point?.label) {
+        this.askAboutPoint(data.context);
+        return;
+      }
+      if (data.type !== 'mde-mark.askAboutBox') return;
       if (!data.context?.box?.name) return;
       this.ask(data.context);
     });
@@ -10828,6 +10848,33 @@ class MarkDiagramService {
     });
   }
   /**
+   * Asks MarkAgent about a point of a slide. Same dialog, same stream as a box: the point's
+   * label plays the box name's part (the backend sends it back on every event).
+   */
+  askAboutPoint(context) {
+    const label = context.point.label;
+    const connectionId = this.serverMessages.connectionId;
+    if (!connectionId) {
+      this.mark.showDiagramError(label, 'Non sono connesso al servizio: riapri la presentazione e riprova.');
+      return;
+    }
+    this.mark.beginDiagramExplanation({
+      documentPath: context.documentPath,
+      box: {
+        name: label
+      }
+    }, 'point');
+    this.http.post(`${this.baseUrl}/explain-point`, {
+      connectionId,
+      context
+    }).subscribe({
+      error: err => {
+        console.warn('[MarkDiagram] explain-point request failed', err);
+        this.mark.showDiagramError(label, err?.error || 'Non sono riuscito ad avviare la spiegazione.');
+      }
+    });
+  }
+  /**
    * Domanda di seguito sullo stesso box. La risposta arriva sullo stesso canale
    * SignalR della spiegazione, quindi qui non si aspetta nulla.
    */
@@ -10845,7 +10892,7 @@ class MarkDiagramService {
       error: err => {
         // 409 = nessuna conversazione aperta. Dirlo è più utile che tacere:
         // significa che l'utente ha scritto senza aver prima chiesto di un box.
-        const message = err?.status === 409 ? 'Non stiamo parlando di nessun box: fai prima tasto destro su un elemento del diagramma.' : err?.error?.message || 'Non sono riuscito a inoltrare la domanda.';
+        const message = err?.status === 409 ? 'Non stiamo parlando di nessun box né di nessun punto di una slide: fai prima tasto destro su un elemento.' : err?.error?.message || 'Non sono riuscito a inoltrare la domanda.';
         this.mark.showDiagramError('', message);
       }
     });
@@ -17709,8 +17756,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.24.4',
-  buildTime: '2026.09.24 18:20:36'
+  version: '2026.09.25.1',
+  buildTime: '2026.09.25 10:18:14'
 };
 
 /***/ }),
@@ -17744,4 +17791,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.762923a449808d1a.js.map
+//# sourceMappingURL=main.1e3dc9f9b93246f0.js.map

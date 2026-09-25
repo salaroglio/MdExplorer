@@ -83,18 +83,25 @@ namespace MdExplorer.Features.Services.MarkPoint
         public const int MaxCharsPerSource = 2500;
         public const int MaxCharsPerPassage = 1000;
 
+        /// <summary>A line that starts a passage by itself: a table row, a list item.</summary>
+        private static readonly Regex StartsUnit = new(@"^\s{0,3}(\||[-*+]\s|\d+[.)]\s)");
+
         /// <summary>
         /// The files found, best first, at most <see cref="MaxSources"/>, each with its passages.
         /// <paramref name="readFile"/> reads a project-relative path and returns null when the file
         /// cannot be read; <paramref name="exclude"/> (project-relative) is left out — the document
-        /// the question comes from is given whole.
+        /// the question comes from is given whole. Files under <paramref name="excludedFolders"/>
+        /// (project-relative, '/') are left out too: the skills an agentic environment copies into the
+        /// project are MdExplorer's documentation, not the project's.
         /// </summary>
         public static IReadOnlyList<ProjectSource> Build(
             IReadOnlyList<(string Keyword, SearchResult Result)> searches,
             string projectPath,
             string exclude,
-            Func<string, string> readFile)
+            Func<string, string> readFile,
+            IReadOnlyCollection<string> excludedFolders = null)
         {
+            var folders = (excludedFolders ?? Array.Empty<string>()).Select(f => f.Trim('/') + "/").ToList();
             var foundBy = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             foreach (var (keyword, result) in searches)
             {
@@ -103,6 +110,7 @@ namespace MdExplorer.Features.Services.MarkPoint
                 foreach (var path in FilesOf(result, projectPath).Where(p => p.EndsWith(".md", StringComparison.OrdinalIgnoreCase)))
                 {
                     if (exclude != null && string.Equals(path, Relative(exclude, projectPath), StringComparison.OrdinalIgnoreCase)) continue;
+                    if (folders.Any(f => path.StartsWith(f, StringComparison.OrdinalIgnoreCase))) continue;
                     if (!foundBy.TryGetValue(path, out var keywords)) foundBy[path] = keywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     keywords.Add(keyword);
                 }
@@ -126,8 +134,8 @@ namespace MdExplorer.Features.Services.MarkPoint
 
         /// <summary>
         /// The paragraphs of <paramref name="text"/> holding the most keywords, in file order, up to
-        /// <paramref name="maxChars"/>. A paragraph is a run of lines between blank lines; the front
-        /// matter is not one.
+        /// <paramref name="maxChars"/>. A paragraph is a run of lines between blank lines, a table row
+        /// or a list item (with its continuation lines); the front matter is not one.
         /// </summary>
         public static IReadOnlyList<ProjectPassage> Passages(string text, IReadOnlyCollection<string> keywords, int maxChars)
         {
@@ -155,6 +163,10 @@ namespace MdExplorer.Features.Services.MarkPoint
                     Close();
                     continue;
                 }
+                // A row of a table and an item of a list are passages of their own: a whole table
+                // is one paragraph, and cut to size it lost the very row the keywords were in
+                // (measured in F2: «il passaggio che ho è troncato»).
+                if (StartsUnit.IsMatch(lines[i])) Close();
                 if (current.Count == 0) currentLine = i + 1;
                 current.Add(lines[i]);
             }

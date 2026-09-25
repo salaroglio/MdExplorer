@@ -41,7 +41,7 @@ namespace MdExplorer.Features.Slides
         /// <summary>
         /// The markdown file, its project and the viewer's connection, written on the page's
         /// <c>&lt;body&gt;</c> as a document page does: the diagram scripts read them there
-        /// (the links of a YAML tree).
+        /// ("Chiedi a MarkAgent", the links of a YAML tree).
         /// </summary>
         public string DocumentPath { get; init; }
 
@@ -73,14 +73,15 @@ namespace MdExplorer.Features.Slides
         private static readonly string[] Plugins = { "highlight", "notes", "math", "search", "zoom" };
 
         /// <summary>
-        /// The document view's diagram scripts (click-to-highlight, sequence, YAML trees and links),
-        /// the same files, started by <c>javascripts/slides/slide-diagrams.js</c>. Not
-        /// mark-diagram-context.js: "Ask to MarkAgent" is left out of the slides (user's decision,
-        /// 24/09/2026 — never tried end to end there).
+        /// The document view's diagram scripts (click-to-highlight, sequence, YAML trees and links,
+        /// "Ask to MarkAgent" on a box), the same files, started by
+        /// <c>javascripts/slides/slide-diagrams.js</c> — mark-diagram-context.js by slide-edit.js, and
+        /// only inside MdExplorer's view: in a deck a box is explained from the project's documents
+        /// (sprint 2026-09-25-Slide-Chiedi-A-MarkAgent.md).
         /// </summary>
         private static readonly string[] DiagramScripts =
         {
-            "interactive-svg", "interactive-svg-sequence", "interactive-svg-yaml-links", "interactive-svg-yaml",
+            "interactive-svg", "mark-diagram-context", "interactive-svg-sequence", "interactive-svg-yaml-links", "interactive-svg-yaml",
         };
 
         private const string DiagramScriptsFolder = "/javascripts/jqueryForFirstPage/interactive-svg/";

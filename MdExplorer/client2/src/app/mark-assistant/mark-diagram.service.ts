@@ -30,6 +30,18 @@ export interface MarkDiagramContext {
 }
 
 /**
+ * A point of a slide ("Chiedi a MarkAgent" in a deck), collected by
+ * `wwwroot/javascripts/slides/slide-edit.js`: explained from the project's documents.
+ * Mirrors MarkDiagramContextDto.Point on the backend.
+ * Sprint: docs-internal/Sprints/2026-09-25-Slide-Chiedi-A-MarkAgent.md
+ */
+export interface MarkPointContext {
+  documentPath: string;
+  projectPath: string;
+  point: { label: string; text: string; kind: 'text'; slideTitle: string | null; slideText: string | null };
+}
+
+/**
  * "Ask to MarkAgent" — bridge between the markdown iframe and Mark's dialog.
  *
  * Listens for the `mde-mark.askAboutBox` postMessage the iframe fires when the
@@ -63,7 +75,12 @@ export class MarkDiagramService {
   private setupIframeListener(): void {
     window.addEventListener('message', (event: MessageEvent) => {
       const data = event.data;
-      if (!data || data.type !== 'mde-mark.askAboutBox') return;
+      if (!data) return;
+      if (data.type === 'mde-mark.askAboutPoint' && data.context?.point?.label) {
+        this.askAboutPoint(data.context as MarkPointContext);
+        return;
+      }
+      if (data.type !== 'mde-mark.askAboutBox') return;
       if (!data.context?.box?.name) return;
       this.ask(data.context as MarkDiagramContext);
     });
@@ -99,6 +116,28 @@ export class MarkDiagramService {
   }
 
   /**
+   * Asks MarkAgent about a point of a slide. Same dialog, same stream as a box: the point's
+   * label plays the box name's part (the backend sends it back on every event).
+   */
+  askAboutPoint(context: MarkPointContext): void {
+    const label = context.point.label;
+    const connectionId = this.serverMessages.connectionId;
+    if (!connectionId) {
+      this.mark.showDiagramError(label, 'Non sono connesso al servizio: riapri la presentazione e riprova.');
+      return;
+    }
+
+    this.mark.beginDiagramExplanation({ documentPath: context.documentPath, box: { name: label } }, 'point');
+
+    this.http.post<{ started: boolean }>(`${this.baseUrl}/explain-point`, { connectionId, context }).subscribe({
+      error: (err) => {
+        console.warn('[MarkDiagram] explain-point request failed', err);
+        this.mark.showDiagramError(label, err?.error || 'Non sono riuscito ad avviare la spiegazione.');
+      },
+    });
+  }
+
+  /**
    * Domanda di seguito sullo stesso box. La risposta arriva sullo stesso canale
    * SignalR della spiegazione, quindi qui non si aspetta nulla.
    */
@@ -116,7 +155,7 @@ export class MarkDiagramService {
         // 409 = nessuna conversazione aperta. Dirlo è più utile che tacere:
         // significa che l'utente ha scritto senza aver prima chiesto di un box.
         const message = err?.status === 409
-          ? 'Non stiamo parlando di nessun box: fai prima tasto destro su un elemento del diagramma.'
+          ? 'Non stiamo parlando di nessun box né di nessun punto di una slide: fai prima tasto destro su un elemento.'
           : (err?.error?.message || 'Non sono riuscito a inoltrare la domanda.');
         this.mark.showDiagramError('', message);
       },

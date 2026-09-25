@@ -747,7 +747,7 @@ export class MarkAssistantService {
    * An already-explained box is re-shown from the volatile cache without asking
    * the model again.
    */
-  beginDiagramExplanation(context: { documentPath: string; box: { name: string } }): void {
+  beginDiagramExplanation(context: { documentPath: string; box: { name: string } }, kind: 'box' | 'point' = 'box'): void {
     const key = this.diagramKey(context.documentPath, context.box.name);
     const cached = this.diagramAnswers.get(key);
     this.diagramConversation = { documentPath: context.documentPath, boxName: context.box.name };
@@ -771,7 +771,9 @@ export class MarkAssistantService {
     this.clearThinkingTimer();
     this._thinking.next([]);
     this._text.next(
-      this.translate.instant('MARK.DIAGRAM.THINKING', { box: context.box.name })
+      kind === 'point'
+        ? this.translate.instant('MARK.DIAGRAM.THINKING_POINT', { point: context.box.name })
+        : this.translate.instant('MARK.DIAGRAM.THINKING', { box: context.box.name })
     );
 
     this.diagramSub?.unsubscribe();
@@ -880,8 +882,8 @@ export class MarkAssistantService {
         // Se non è mai partita una risposta, quello che c'è a schermo è la cronaca
         // dell'attesa: spacciarla per risposta sarebbe peggio che ammettere il vuoto.
         const streamed = this.diagramAnswerStarted ? (this._text.getValue() || '') : '';
-        const answer = (evt.text || streamed).trim()
-          || 'Il modello non ha risposto nulla su questo box.';
+        const answer = ((evt.text || streamed).trim()
+          || 'Il modello non ha risposto nulla su questo box.') + this.searchFooter(evt);
         this._text.next(answer);
         this._continueArrow.next(true);
         // La cache conserva la SINTESI INIZIALE, il punto fermo a cui si torna
@@ -900,9 +902,25 @@ export class MarkAssistantService {
       }
 
       case 'error':
-        this.showDiagramError(evt.box, evt.message || 'Non sono riuscito a spiegare questo box.');
+        this.showDiagramError(evt.box, evt.message || 'Non sono riuscito a spiegarlo.');
         break;
     }
+  }
+
+  /**
+   * A point of a slide is explained from a search in the project: the answer says with which
+   * words and in which documents, so no search stays hidden (the status lines fade away).
+   * Absent for a box of a document, which reads only its document.
+   */
+  private searchFooter(evt: any): string {
+    if (!Array.isArray(evt.keywords)) return '';
+    if (evt.keywords.length === 0) return '\n\n---\n*Nessuna ricerca nel progetto: MarkAgent non ha indicato parole da cercare.*';
+    const words = evt.keywords.map((k: string) => `«${k}»`).join(', ');
+    const sources: string[] = Array.isArray(evt.sources) ? evt.sources : [];
+    const found = sources.length
+      ? `documenti: ${sources.map(s => '`' + s + '`').join(', ')}`
+      : 'nessun documento trovato';
+    return `\n\n---\n*Cercato nel progetto: ${words} — ${found}.*`;
   }
 
   /** Svuota il fumetto dopo qualche secondo dalla risposta. */

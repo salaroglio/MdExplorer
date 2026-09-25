@@ -113,11 +113,27 @@ var MarkDiagramContext = (function () {
 
     /**
      * Full PlantUML source of a diagram, or null when the SVG carries none.
+     *
+     * PlantUML writes 3 bytes as 4 characters: a compressed source whose length is not a multiple
+     * of 3 ends with 1 or 2 zero bytes of padding. Chrome's DecompressionStream refuses bytes after
+     * the end of the deflate stream ("Failed to fetch": measured 25/09/2026 on a PlantUML 2026 SVG,
+     * the source was never read and "Ask to MarkAgent" never started). So the padding is dropped,
+     * and only the padding: at most two trailing zero bytes.
      */
     async function readPlantumlSource(svg) {
         var encoded = findEncodedSource(svg);
         if (!encoded) return null;
-        return await inflateRaw(decodePumlBase64(encoded));
+        var bytes = decodePumlBase64(encoded);
+        var lastError = null;
+        for (var padding = 0; padding <= 2; padding++) {
+            if (padding > 0 && bytes[bytes.length - padding] !== 0) break;
+            try {
+                return await inflateRaw(bytes.subarray(0, bytes.length - padding));
+            } catch (err) {
+                lastError = err;
+            }
+        }
+        throw lastError;
     }
 
     // ─────────────────────────────────────────────────────────────────────

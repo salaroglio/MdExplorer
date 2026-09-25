@@ -2,15 +2,16 @@
  * MdExplorer - PlantUML diagrams in a slide deck
  * ===============================================
  * The slide page (SlideDeckRenderer) loads the same interactive-svg scripts as a document —
- * click-to-highlight, sequence, YAML trees and links — and this file starts them. Not "Ask to
- * MarkAgent" (mark-diagram-context.js): left out of the slides by the user's decision. In a document core/init.js does it, inside jQuery's ready: the slide page has no jQuery,
- * and the scripts do not need it.
+ * click-to-highlight, sequence, YAML trees and links — and this file starts them ("Ask to
+ * MarkAgent" on a box, mark-diagram-context.js, is started by slide-edit.js, only inside
+ * MdExplorer's view). In a document core/init.js does it, inside jQuery's ready: the slide page
+ * has no jQuery, and the scripts do not need it.
  *
  * One thing is the slides' own: ESC. The scripts clear a selection on ESC, reveal.js opens the
  * overview on ESC, and both happened at once. reveal.js is told to leave the keys alone while the
  * page is busy with them: the current slide has a selection, a block is being corrected
  * (slide-edit.js / inline-edit.js: Enter and Esc end the correction), or an element that holds the
- * keys is open (data-mde-holds-keys: the correction menu). The first ESC clears, the next one opens
+ * keys is open (data-mde-holds-keys: the slide's menu; #mark-diagram-menu: the menu of a box). The first ESC clears, the next one opens
  * the overview. The state is read before anyone handles the key (capture on window): by the time
  * reveal.js asks its keyboardCondition, the key's own handler has already cleared it (measured).
  *
@@ -33,7 +34,7 @@
         var slide = Reveal.getCurrentSlide();
         return !!(slide && slide.querySelector(SELECTION))
             || !!(document.activeElement && document.activeElement.isContentEditable)
-            || !!document.querySelector('[data-mde-holds-keys]');
+            || !!document.querySelector('[data-mde-holds-keys], #mark-diagram-menu');
     }
 
     window.addEventListener('keydown', function () {

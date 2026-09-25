@@ -515,12 +515,13 @@ namespace MdExplorer.Services.MarkDiagram
                     _logger.LogWarning(ex, "[MarkPoint] Non riesco a leggere {Path}", full);
                     return null;
                 }
-            });
+            }, HarnessLayout.All.Select(l => l.SkillsFolder).ToList());
         }
 
         /// <summary>What the dialog shows as the subject: a box by its name, a text by its first words.</summary>
         private static string PointLabel(MarkPoint? point)
         {
+            if (!string.IsNullOrWhiteSpace(point?.Label)) return point.Label;
             var text = (point?.Text ?? string.Empty).Replace('\n', ' ').Trim();
             return text.Length <= 60 ? text : text.Substring(0, 60).TrimEnd() + "…";
         }

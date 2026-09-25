@@ -382,7 +382,7 @@ reveal:
         {
             var page = Render("# A\n");
 
-            foreach (var name in new[] { "interactive-svg", "interactive-svg-sequence", "interactive-svg-yaml-links", "interactive-svg-yaml" })
+            foreach (var name in new[] { "interactive-svg", "mark-diagram-context", "interactive-svg-sequence", "interactive-svg-yaml-links", "interactive-svg-yaml" })
             {
                 StringAssert.Contains(page, $"<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/interactive-svg/{name}.css\">");
                 StringAssert.Contains(page, $"<script src=\"/javascripts/jqueryForFirstPage/interactive-svg/{name}.js\"></script>");
@@ -401,8 +401,6 @@ reveal:
             // slide-diagrams.js registers on Reveal's ready event: it must come before Reveal.initialize.
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-diagrams.js") < page.IndexOf("Reveal.initialize("));
             Assert.IsFalse(page.Contains("jquery-3"), "the diagram scripts do not need jQuery");
-            // "Ask to MarkAgent" is left out of the slides (user's decision, 24/09/2026).
-            Assert.IsFalse(page.Contains("mark-diagram-context"));
         }
 
         [TestMethod]

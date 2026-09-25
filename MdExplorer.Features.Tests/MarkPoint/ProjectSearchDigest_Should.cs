@@ -79,6 +79,19 @@ namespace MdExplorer.Features.Tests.MarkPoint
         }
 
         [TestMethod]
+        public void Leave_out_the_skills_of_the_agentic_environments()
+        {
+            var searches = new List<(string, SearchResult)>
+            {
+                ("slide", Found("/proj/.claude/skills/mde-slide/SKILL.md", "/proj/.github/skills/x/SKILL.md", "/proj/.claude/notes.md", "/proj/doc.md")),
+            };
+
+            var sources = ProjectSearchDigest.Build(searches, Root, null, _ => "", new[] { ".claude/skills", ".github/skills/" });
+
+            CollectionAssert.AreEquivalent(new[] { ".claude/notes.md", "doc.md" }, sources.Select(s => s.Path).ToList());
+        }
+
+        [TestMethod]
         public void Give_the_paragraphs_holding_the_keywords_with_their_line()
         {
             var text = "---\ntitle: breadcrumb\n---\n\n# Titolo\n\nNiente qui.\n\nIl breadcrumb riporta\nalla slide di partenza.\n\nAltro.\n\nUna slide sola.\n";
@@ -89,6 +102,18 @@ namespace MdExplorer.Features.Tests.MarkPoint
             Assert.AreEqual(9, passages[0].Line);
             Assert.AreEqual("Il breadcrumb riporta\nalla slide di partenza.", passages[0].Text);
             Assert.AreEqual(14, passages[1].Line);
+        }
+
+        [TestMethod]
+        public void Give_a_table_row_and_a_list_item_as_passages_of_their_own()
+        {
+            var text = "| # | Decisione |\n|---|---|\n| D1 | niente |\n| D2 | il breadcrumb in sessionStorage |\n\n- uno\n- il breadcrumb si azzera\n  dall'albero\n";
+
+            var passages = ProjectSearchDigest.Passages(text, new[] { "breadcrumb" }, 1500);
+
+            Assert.AreEqual(2, passages.Count);
+            Assert.AreEqual((4, "| D2 | il breadcrumb in sessionStorage |"), (passages[0].Line, passages[0].Text));
+            Assert.AreEqual((7, "- il breadcrumb si azzera\n  dall'albero"), (passages[1].Line, passages[1].Text));
         }
 
         [TestMethod]

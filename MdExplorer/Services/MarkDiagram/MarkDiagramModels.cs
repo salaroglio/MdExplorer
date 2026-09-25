@@ -66,6 +66,12 @@ namespace MdExplorer.Services.MarkDiagram
     /// <summary>A point of a slide, as the slide page reads it.</summary>
     public class MarkPoint
     {
+        /// <summary>
+        /// What Mark's dialog calls the point, chosen by the page; the events of the answer carry it
+        /// back unchanged, so the dialog matches them to its question. Null: the first words of <see cref="Text"/>.
+        /// </summary>
+        public string? Label { get; set; }
+
         /// <summary>The text of the point as the slide shows it (for a box, its name).</summary>
         public string? Text { get; set; }
 

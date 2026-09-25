@@ -1444,6 +1444,7 @@
     },
     "DIAGRAM": {
       "THINKING": "Sto guardando il box \"{{box}}\"...",
+      "THINKING_POINT": "Cerco nel progetto cosa spiega «{{point}}»...",
       "APPLY": "Applica",
       "DISCARD": "Lascia stare",
       "DISCARDED": "Va bene, non ho toccato nulla."
