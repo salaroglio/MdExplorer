@@ -509,6 +509,9 @@ export class AiChatService {
         });
     } else {
       console.error(`[AiChatService] Hub NOT connected! State: ${this.hubConnection.state}. Message dropped.`);
+      // Said on the channel too: its listener waits for 'complete' or 'error', and a message
+      // dropped in silence would leave it waiting for ever.
+      this._channelEvent$.next({ type: 'error', data: 'La chat AI non è connessa: il messaggio non è partito. Riprova tra poco.', channelId });
     }
   }
 
@@ -533,6 +536,9 @@ export class AiChatService {
         });
     } else {
       console.error(`[AiChatService] Hub NOT connected! State: ${this.hubConnection.state}. Message dropped.`);
+      // Said on the channel too: its listener waits for 'complete' or 'error', and a message
+      // dropped in silence would leave it waiting for ever.
+      this._channelEvent$.next({ type: 'error', data: 'La chat AI non è connessa: il messaggio non è partito. Riprova tra poco.', channelId });
     }
   }
 

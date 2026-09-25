@@ -211,7 +211,10 @@ var MarkDiagramContext = (function () {
                 sourceLine: box.getAttribute('data-source-line') || null
             },
             relations: collectRelations(svg, box),
-            plantumlSource: await readPlantumlSource(svg)
+            plantumlSource: await readPlantumlSource(svg),
+            // On a slide (reveal.js page) the box is explained from the project's documents
+            // (docs-internal/Sprints/2026-09-25-Slide-Chiedi-A-MarkAgent.md).
+            slideDeck: !!window.Reveal
         };
     }
 

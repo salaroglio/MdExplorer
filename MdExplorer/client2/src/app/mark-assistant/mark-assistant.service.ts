@@ -747,7 +747,7 @@ export class MarkAssistantService {
    * An already-explained box is re-shown from the volatile cache without asking
    * the model again.
    */
-  beginDiagramExplanation(context: { documentPath: string; box: { name: string } }, kind: 'box' | 'point' = 'box'): void {
+  beginDiagramExplanation(context: { documentPath: string; box: { name: string } }, kind: 'box' | 'point' = 'box'): boolean {
     const key = this.diagramKey(context.documentPath, context.box.name);
     const cached = this.diagramAnswers.get(key);
     this.diagramConversation = { documentPath: context.documentPath, boxName: context.box.name };
@@ -762,7 +762,7 @@ export class MarkAssistantService {
       this.diagramBoxInFlight = null;
       this._text.next(cached);
       this._continueArrow.next(true);
-      return;
+      return true;
     }
 
     this.diagramConversation = { documentPath: context.documentPath, boxName: context.box.name };
@@ -777,9 +777,21 @@ export class MarkAssistantService {
     );
 
     this.diagramSub?.unsubscribe();
-    this.diagramSub = this.serverMessages.markDiagramExplain$.subscribe(evt => {
-      this.onDiagramEvent(context.documentPath, evt);
-    });
+    this.diagramSub = null;
+    // A point of a slide is explained by the client on the AI chat (MarkDiagramService.runPoint),
+    // which hands the events over with emitDiagramEvent; a box of a document by the server.
+    if (kind === 'box') {
+      this.diagramSub = this.serverMessages.markDiagramExplain$.subscribe(evt => {
+        this.onDiagramEvent(context.documentPath, evt);
+      });
+    }
+    return false;
+  }
+
+  /** An event of a point's explanation, in the shape of the server's (markDiagramExplain). */
+  emitDiagramEvent(evt: any): void {
+    if (!this.diagramConversation) return;
+    this.onDiagramEvent(this.diagramConversation.documentPath, evt);
   }
 
   /**
@@ -787,7 +799,7 @@ export class MarkAssistantService {
    * schermo finché non arriva la prima parola della nuova: così non si guarda il
    * vuoto mentre il modello pensa, e il fumetto intanto racconta.
    */
-  beginDiagramFollowUp(): void {
+  beginDiagramFollowUp(fromServer = true): void {
     if (!this.diagramConversation) return;
 
     this.takeOverDialog();
@@ -797,6 +809,8 @@ export class MarkAssistantService {
     this.diagramBoxInFlight = this.diagramConversation.boxName;
 
     this.diagramSub?.unsubscribe();
+    this.diagramSub = null;
+    if (!fromServer) return;
     const documentPath = this.diagramConversation.documentPath;
     this.diagramSub = this.serverMessages.markDiagramExplain$.subscribe(evt => {
       this.onDiagramEvent(documentPath, evt);

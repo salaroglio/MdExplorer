@@ -93,6 +93,17 @@ namespace MdExplorer.Services.MarkDiagram
         public MarkDiagramContextDto? Context { get; set; }
     }
 
+    /// <summary>
+    /// «Chiedi a MarkAgent» on a point of a slide: the prompts of the two phases. For the second,
+    /// <see cref="KeywordsAnswer"/> is MarkAgent's answer to the first.
+    /// </summary>
+    public class MarkPointPromptRequest
+    {
+        public MarkDiagramContextDto? Context { get; set; }
+        public string? Question { get; set; }
+        public string? KeywordsAnswer { get; set; }
+    }
+
     public class MarkDiagramFollowUpRequest
     {
         public string? ConnectionId { get; set; }

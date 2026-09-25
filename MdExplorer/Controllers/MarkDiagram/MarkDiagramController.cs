@@ -59,25 +59,43 @@ namespace MdExplorer.Controllers.MarkDiagram
         }
 
         /// <summary>
-        /// «Chiedi a MarkAgent» su un punto di una slide: spiegato con i documenti del progetto.
-        /// Sprint: docs-internal/Sprints/2026-09-25-Slide-Chiedi-A-MarkAgent.md
+        /// «Chiedi a MarkAgent» su un punto di una slide, fase 1: il prompt con cui MarkAgent sceglie
+        /// le parole da cercare. La conversazione è del client, sul canale della chat AI: stessa sessione
+        /// del tab MarkAgent. Sprint: docs-internal/Sprints/2026-09-25-Slide-Chiedi-A-MarkAgent.md
         /// </summary>
-        [HttpPost("explain-point")]
-        public IActionResult ExplainPoint([FromBody] MarkDiagramExplainRequest request)
+        [HttpPost("point/keywords-prompt")]
+        public IActionResult PointKeywordsPrompt([FromBody] MarkPointPromptRequest request,
+            [FromServices] MarkPointPromptService prompts)
         {
-            if (string.IsNullOrWhiteSpace(request?.ConnectionId))
-                return BadRequest("connectionId is required");
-            if (string.IsNullOrWhiteSpace(request.Context?.Point?.Text))
+            if (string.IsNullOrWhiteSpace(request?.Context?.Point?.Text))
+                return BadRequest("context.point.text is required");
+            return Ok(new { prompt = prompts.KeywordsPrompt(request.Context, request.Question) });
+        }
+
+        /// <summary>
+        /// Fase 2: dalla risposta della fase 1 le parole, la ricerca nel progetto, i passaggi, e il
+        /// prompt con cui MarkAgent spiega. 422 se la risposta della fase 1 non contiene le parole.
+        /// </summary>
+        [HttpPost("point/answer-prompt")]
+        public async Task<IActionResult> PointAnswerPrompt([FromBody] MarkPointPromptRequest request,
+            [FromServices] MarkPointPromptService prompts)
+        {
+            if (string.IsNullOrWhiteSpace(request?.Context?.Point?.Text))
                 return BadRequest("context.point.text is required");
 
             var projectPath = GetProjectPath();
             if (string.IsNullOrWhiteSpace(projectPath))
                 return BadRequest("Nessun progetto aperto per questa connessione: la spiegazione cerca nei documenti del progetto.");
 
-            _ = _explainService.ExplainPointAsync(
-                request.ConnectionId, request.Context, projectPath, CancellationToken.None);
-
-            return Ok(new { started = true });
+            try
+            {
+                var answer = await prompts.AnswerPromptAsync(request.Context, request.KeywordsAnswer ?? string.Empty, request.Question, projectPath);
+                return Ok(new { prompt = answer.Prompt, keywords = answer.Keywords, sources = answer.Sources });
+            }
+            catch (FormatException ex)
+            {
+                return UnprocessableEntity(new { message = ex.Message + " Riprova a chiederlo." });
+            }
         }
 
         /// <summary>

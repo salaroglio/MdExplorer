@@ -7,10 +7,10 @@
  *    safely: the page carries the file's fingerprint and each block its file line (SlideDeckRenderer);
  *    the server refuses what it cannot correct.
  *  - "Chiedi a MarkAgent": MarkAgent explains that point from the project's documents, in Mark's
- *    dialog (MarkDiagramService, api/markdiagram/explain-point). Any point with text, also one a
+ *    dialog, on the AI chat channel shared with the MarkAgent tab (MarkDiagramService). Any point with text, also one a
  *    command wrote or a block of code.
- * On a box of a diagram the menu is mark-diagram-context.js's, started here: in a deck the server
- * explains the box from the project's documents too.
+ * On a box of a diagram the menu is mark-diagram-context.js's, started here: on a slide the box
+ * is explained from the project's documents too.
  *
  * Only inside MdExplorer's view (its page around the slide is the app, /client2/): not in the
  * speaker view, not in a detached window, not in print.

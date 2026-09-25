@@ -10340,7 +10340,7 @@ class MarkAssistantService {
       this.diagramBoxInFlight = null;
       this._text.next(cached);
       this._continueArrow.next(true);
-      return;
+      return true;
     }
     this.diagramConversation = {
       documentPath: context.documentPath,
@@ -10356,16 +10356,27 @@ class MarkAssistantService {
       box: context.box.name
     }));
     this.diagramSub?.unsubscribe();
-    this.diagramSub = this.serverMessages.markDiagramExplain$.subscribe(evt => {
-      this.onDiagramEvent(context.documentPath, evt);
-    });
+    this.diagramSub = null;
+    // A point of a slide is explained by the client on the AI chat (MarkDiagramService.runPoint),
+    // which hands the events over with emitDiagramEvent; a box of a document by the server.
+    if (kind === 'box') {
+      this.diagramSub = this.serverMessages.markDiagramExplain$.subscribe(evt => {
+        this.onDiagramEvent(context.documentPath, evt);
+      });
+    }
+    return false;
+  }
+  /** An event of a point's explanation, in the shape of the server's (markDiagramExplain). */
+  emitDiagramEvent(evt) {
+    if (!this.diagramConversation) return;
+    this.onDiagramEvent(this.diagramConversation.documentPath, evt);
   }
   /**
    * Prepara la box per una domanda di seguito. La risposta precedente resta a
    * schermo finché non arriva la prima parola della nuova: così non si guarda il
    * vuoto mentre il modello pensa, e il fumetto intanto racconta.
    */
-  beginDiagramFollowUp() {
+  beginDiagramFollowUp(fromServer = true) {
     if (!this.diagramConversation) return;
     this.takeOverDialog();
     this.clearThinkingTimer();
@@ -10373,6 +10384,8 @@ class MarkAssistantService {
     this.diagramAnswerStarted = false;
     this.diagramBoxInFlight = this.diagramConversation.boxName;
     this.diagramSub?.unsubscribe();
+    this.diagramSub = null;
+    if (!fromServer) return;
     const documentPath = this.diagramConversation.documentPath;
     this.diagramSub = this.serverMessages.markDiagramExplain$.subscribe(evt => {
       this.onDiagramEvent(documentPath, evt);
@@ -10782,10 +10795,16 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "MarkDiagramService": () => (/* binding */ MarkDiagramService)
 /* harmony export */ });
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @angular/common/http */ 8987);
-/* harmony import */ var _mark_assistant_service__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./mark-assistant.service */ 5270);
-/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
+/* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! rxjs */ 4363);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var _mark_assistant_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./mark-assistant.service */ 5270);
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
+/* harmony import */ var _services_ai_chat_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../services/ai-chat.service */ 9109);
+
+
+
 
 
 
@@ -10802,16 +10821,24 @@ __webpack_require__.r(__webpack_exports__);
  * any document, the same way ExecutionService works for ▶ Run blocks.
  */
 class MarkDiagramService {
-  constructor(http, mark, serverMessages) {
+  constructor(http, mark, serverMessages, aiChat) {
     this.http = http;
     this.mark = mark;
     this.serverMessages = serverMessages;
+    this.aiChat = aiChat;
     this.baseUrl = '../api/markdiagram';
+    // ──────────────────────────────────────────────────────────────────────
+    //  "Chiedi a MarkAgent" on a point of a slide
+    // ──────────────────────────────────────────────────────────────────────
+    /** The point being talked about: follow-up questions go to it. Null while talking about a box of a document. */
+    this.pointContext = null;
+    /** Each run has its own channel: the events of a superseded run cannot land on the next one. */
+    this.pointRun = 0;
     this.setupIframeListener();
     // Si registra come inoltratore delle domande di seguito: è questo servizio a
     // conoscere MarkAssistantService, non il contrario — vedi il commento su
     // registerDiagramFollowUpSender.
-    this.mark.registerDiagramFollowUpSender(q => this.askFollowUp(q));
+    this.mark.registerDiagramFollowUpSender(q => this.pointContext ? this.runPoint(this.pointContext, q) : this.askFollowUp(q));
     this.mark.registerDiagramEditActions(() => this.applyEdit(), () => this.discardEdit());
   }
   setupIframeListener() {
@@ -10824,6 +10851,22 @@ class MarkDiagramService {
       }
       if (data.type !== 'mde-mark.askAboutBox') return;
       if (!data.context?.box?.name) return;
+      if (data.context.slideDeck) {
+        // A box on a slide is a point of the slide: explained from the project's documents,
+        // with the diagram's context too (sprint D3).
+        const box = data.context;
+        this.askAboutPoint({
+          ...box,
+          point: {
+            label: box.box.name,
+            text: box.box.name,
+            kind: 'box',
+            slideTitle: null,
+            slideText: null
+          }
+        });
+        return;
+      }
       this.ask(data.context);
     });
   }
@@ -10832,6 +10875,7 @@ class MarkDiagramService {
    * back over SignalR into Mark's dialog.
    */
   ask(context) {
+    this.pointContext = null;
     const connectionId = this.serverMessages.connectionId;
     if (!connectionId) {
       // Without SignalR there is no channel for the answer. Say so in the
@@ -10848,30 +10892,100 @@ class MarkDiagramService {
     });
   }
   /**
-   * Asks MarkAgent about a point of a slide. Same dialog, same stream as a box: the point's
-   * label plays the box name's part (the backend sends it back on every event).
+   * Asks MarkAgent about a point of a slide, as Mark Search asks: two turns on a channel of the
+   * AI chat — the same CLI session as the MarkAgent tab, so each knows what happened in the other
+   * (user's decision, 25/09/2026). The server builds the prompts and runs the search in between.
    */
   askAboutPoint(context) {
-    const label = context.point.label;
-    const connectionId = this.serverMessages.connectionId;
-    if (!connectionId) {
-      this.mark.showDiagramError(label, 'Non sono connesso al servizio: riapri la presentazione e riprova.');
-      return;
-    }
-    this.mark.beginDiagramExplanation({
+    this.pointContext = context;
+    const cached = this.mark.beginDiagramExplanation({
       documentPath: context.documentPath,
       box: {
-        name: label
+        name: context.point.label
       }
     }, 'point');
-    this.http.post(`${this.baseUrl}/explain-point`, {
-      connectionId,
-      context
-    }).subscribe({
-      error: err => {
-        console.warn('[MarkDiagram] explain-point request failed', err);
-        this.mark.showDiagramError(label, err?.error || 'Non sono riuscito ad avviare la spiegazione.');
+    if (cached) return;
+    this.runPoint(context, null);
+  }
+  runPoint(context, question) {
+    var _this = this;
+    return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      const run = ++_this.pointRun;
+      const channelId = `mark-point-${run}`;
+      const box = context.point.label;
+      const emit = evt => {
+        if (run === _this.pointRun) _this.mark.emitDiagramEvent({
+          box,
+          ...evt
+        });
+      };
+      if (question !== null) _this.mark.beginDiagramFollowUp(false);
+      emit({
+        phase: 'start'
+      });
+      try {
+        emit({
+          phase: 'status',
+          message: 'Chiedo a MarkAgent cosa cercare nel progetto...'
+        });
+        const first = yield (0,rxjs__WEBPACK_IMPORTED_MODULE_4__.firstValueFrom)(_this.http.post(`${_this.baseUrl}/point/keywords-prompt`, {
+          context,
+          question
+        }));
+        const keywordsAnswer = yield _this.converse(channelId, first.prompt, null);
+        if (run !== _this.pointRun) return;
+        const second = yield (0,rxjs__WEBPACK_IMPORTED_MODULE_4__.firstValueFrom)(_this.http.post(`${_this.baseUrl}/point/answer-prompt`, {
+          context,
+          question,
+          keywordsAnswer
+        }));
+        emit({
+          phase: 'status',
+          message: second.keywords.length ? `Ho cercato ${second.keywords.map(k => `«${k}»`).join(', ')}: ${second.sources.length} documenti. Chiedo a MarkAgent di spiegare...` : 'MarkAgent non ha indicato parole da cercare: spiega con la sola presentazione...'
+        });
+        const answer = yield _this.converse(channelId, second.prompt, chunk => emit({
+          phase: 'chunk',
+          text: chunk
+        }));
+        emit({
+          phase: 'done',
+          text: answer,
+          keywords: second.keywords,
+          sources: second.sources,
+          followUp: question !== null
+        });
+      } catch (err) {
+        console.warn('[MarkDiagram] point explanation failed', err);
+        emit({
+          phase: 'error',
+          message: err?.error?.message || err?.error || err?.message || 'Non sono riuscito a spiegare questo punto.'
+        });
+      } finally {
+        _this.aiChat.clearChannelHistory(channelId);
       }
+    })();
+  }
+  /** One turn on the channel: resolves with the whole answer, or rejects with the chat's error. */
+  converse(channelId, prompt, onChunk) {
+    return new Promise((resolve, reject) => {
+      let text = '';
+      const sub = this.aiChat.getChannelStream$(channelId).subscribe(evt => {
+        switch (evt.type) {
+          case 'chunk':
+            text += evt.data ?? '';
+            onChunk?.(evt.data ?? '');
+            break;
+          case 'complete':
+            sub.unsubscribe();
+            resolve(text);
+            break;
+          case 'error':
+            sub.unsubscribe();
+            reject(new Error(String(evt.data)));
+            break;
+        }
+      });
+      this.aiChat.sendMessageToChannel(prompt, channelId);
     });
   }
   /**
@@ -10925,11 +11039,11 @@ class MarkDiagramService {
   }
   static {
     this.ɵfac = function MarkDiagramService_Factory(t) {
-      return new (t || MarkDiagramService)(_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_3__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_mark_assistant_service__WEBPACK_IMPORTED_MODULE_0__.MarkAssistantService), _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__.MdServerMessagesService));
+      return new (t || MarkDiagramService)(_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_mark_assistant_service__WEBPACK_IMPORTED_MODULE_1__.MarkAssistantService), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_services_ai_chat_service__WEBPACK_IMPORTED_MODULE_3__.AiChatService));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵdefineInjectable"]({
       token: MarkDiagramService,
       factory: MarkDiagramService.ɵfac,
       providedIn: 'root'
@@ -14224,6 +14338,13 @@ class AiChatService {
       });
     } else {
       console.error(`[AiChatService] Hub NOT connected! State: ${this.hubConnection.state}. Message dropped.`);
+      // Said on the channel too: its listener waits for 'complete' or 'error', and a message
+      // dropped in silence would leave it waiting for ever.
+      this._channelEvent$.next({
+        type: 'error',
+        data: 'La chat AI non è connessa: il messaggio non è partito. Riprova tra poco.',
+        channelId
+      });
     }
   }
   /**
@@ -14248,6 +14369,13 @@ class AiChatService {
       });
     } else {
       console.error(`[AiChatService] Hub NOT connected! State: ${this.hubConnection.state}. Message dropped.`);
+      // Said on the channel too: its listener waits for 'complete' or 'error', and a message
+      // dropped in silence would leave it waiting for ever.
+      this._channelEvent$.next({
+        type: 'error',
+        data: 'La chat AI non è connessa: il messaggio non è partito. Riprova tra poco.',
+        channelId
+      });
     }
   }
   /**
@@ -17756,8 +17884,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.25.1',
-  buildTime: '2026.09.25 10:18:14'
+  version: '2026.09.25.2',
+  buildTime: '2026.09.25 10:43:41'
 };
 
 /***/ }),
@@ -17791,4 +17919,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.1e3dc9f9b93246f0.js.map
+//# sourceMappingURL=main.9a3ff15a6f2d7beb.js.map
