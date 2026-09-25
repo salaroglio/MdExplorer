@@ -84,6 +84,12 @@ namespace MdExplorer.Services.MarkDiagram
         /// <summary>All the text of that slide, so the point is read in its place.</summary>
         public string? SlideText { get; set; }
 
+        /// <summary>
+        /// The project documents the point links to, project-relative, as the page reads its links. They are
+        /// read whole: a point that is a link to another deck is explained through that deck.
+        /// </summary>
+        public List<string>? Links { get; set; }
+
         public bool IsBox => string.Equals(Kind, "box", System.StringComparison.OrdinalIgnoreCase);
     }
 

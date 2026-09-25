@@ -8,7 +8,8 @@
  *    the server refuses what it cannot correct.
  *  - "Chiedi a MarkAgent": MarkAgent explains that point from the project's documents, in Mark's
  *    dialog, on the AI chat channel shared with the MarkAgent tab (MarkDiagramService). Any point with text, also one a
- *    command wrote or a block of code.
+ *    command wrote or a block of code. The point stays outlined (slide-edit.css) until another is
+ *    asked about or the slide changes; the documents it links to go with it, read whole by the server.
  * On a box of a diagram the menu is mark-diagram-context.js's, started here: on a slide the box
  * is explained from the project's documents too.
  *
@@ -77,6 +78,28 @@
         return text.length <= LABEL_LENGTH ? text : text.substring(0, LABEL_LENGTH).trim() + '…';
     }
 
+    /**
+     * The project documents the point links to, project-relative ("sezioni/vendite.md"): a link on a
+     * slide is relative to the deck's page, /api/mdexplorer/<path>, so the path is what follows it.
+     * A point that is a link to another deck is explained through that deck (measured 25/09/2026:
+     * the search alone never found it).
+     */
+    function linkedDocuments(block) {
+        var prefix = '/api/mdexplorer/';
+        var found = [];
+        block.querySelectorAll('a[href]').forEach(function (a) {
+            var url;
+            try { url = new URL(a.getAttribute('href'), window.location.href); } catch (e) { return; }
+            // Another site, or this same deck (a link to one of its slides): the deck is given whole already.
+            if (url.origin !== window.location.origin || url.pathname === window.location.pathname) return;
+            var path = url.pathname;
+            if (path.toLowerCase().indexOf(prefix) !== 0 || !/\.md$/i.test(path)) return;
+            var relative = decodeURIComponent(path.substring(prefix.length));
+            if (found.indexOf(relative) < 0) found.push(relative);
+        });
+        return found;
+    }
+
     /** The point, with the slide it sits in: its title, and all its visible text (not the notes). */
     function contextOf(block) {
         var text = ownText(block);
@@ -91,12 +114,23 @@
                 kind: 'text',
                 slideTitle: title ? title.textContent.trim() : null,
                 // innerText leaves out what is not shown: the speaker notes, a closed legend.
-                slideText: slide ? slide.innerText.trim() : null
+                slideText: slide ? slide.innerText.trim() : null,
+                links: linkedDocuments(block)
             }
         };
     }
 
+    // ---- the point being explained, outlined ----
+
+    var ASKING = 'mde-mark-asking';
+
+    function clearAsking() {
+        document.querySelectorAll('.' + ASKING).forEach(function (el) { el.classList.remove(ASKING); });
+    }
+
     function askMarkAgent(block) {
+        clearAsking();
+        block.classList.add(ASKING);
         try {
             window.parent.postMessage({ type: MSG_ASK_POINT, context: contextOf(block) }, '*');
         } catch (e) {
@@ -174,6 +208,7 @@
 
     if (window.Reveal) {
         Reveal.on('slidechanged', closeMenu);
+        Reveal.on('slidechanged', clearAsking);
         // The menu of a diagram's boxes: its postMessage goes to MdExplorer's page around the slide.
         Reveal.on('ready', function () {
             if (!canAsk()) return;

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,10 +18,16 @@ namespace MdExplorer.Services.MarkDiagram
     ///
     /// Sprint: docs-internal/Sprints/2026-09-25-Slide-Chiedi-A-MarkAgent.md
     /// </summary>
+    /// <summary>A document the point links to, read whole; <see cref="Text"/> null when it cannot be read.</summary>
+    public sealed record LinkedDocument(string Path, string? Text, bool Truncated);
+
     public static class MarkPointPromptBuilder
     {
         /// <summary>Soft cap on the deck given whole: a deck is short, the budget goes to the project.</summary>
         public const int MaxDeckChars = 20000;
+
+        /// <summary>At most this many documents the point links to, each read whole up to <see cref="MaxDeckChars"/>.</summary>
+        public const int MaxLinkedDocuments = 3;
 
         public static string BuildKeywordsPrompt(MarkDiagramContextDto ctx, string? question)
         {
@@ -43,6 +50,11 @@ namespace MdExplorer.Services.MarkDiagram
             sb.AppendLine("- non usare i tuoi tool: la ricerca la eseguo io per te");
             sb.AppendLine();
             AppendPoint(sb, ctx);
+            if (ctx.Point?.Links is { Count: > 0 } links)
+            {
+                sb.AppendLine($"il punto rimanda a: {string.Join(", ", links)} (questi documenti te li darò per intero:");
+                sb.AppendLine("cerca piuttosto ciò che li collega al resto del progetto)");
+            }
             if (!string.IsNullOrWhiteSpace(question))
             {
                 sb.AppendLine();
@@ -87,11 +99,26 @@ namespace MdExplorer.Services.MarkDiagram
             IReadOnlyList<ProjectSource> sources,
             string deckText,
             bool deckTruncated,
-            string? question)
+            string? question,
+            IReadOnlyList<LinkedDocument>? linked = null)
         {
+            linked ??= Array.Empty<LinkedDocument>();
             var sb = new StringBuilder();
             AppendPoint(sb, ctx);
             sb.AppendLine();
+
+            // A point that links to a document is a pointer: what it means is what that document says.
+            foreach (var doc in linked)
+            {
+                sb.AppendLine($"DOCUMENTO A CUI IL PUNTO RIMANDA: `{doc.Path}`" + (doc.Text == null ? " — non leggibile." : ", per intero:"));
+                if (doc.Text == null) continue;
+                sb.AppendLine("---");
+                sb.AppendLine(doc.Text);
+                sb.AppendLine("---");
+                if (doc.Truncated)
+                    sb.AppendLine("ATTENZIONE: il documento è stato troncato perché troppo lungo.");
+                sb.AppendLine();
+            }
 
             if (ctx.Point?.IsBox == true)
             {
@@ -116,7 +143,13 @@ namespace MdExplorer.Services.MarkDiagram
             }
             sb.AppendLine();
 
-            if (string.IsNullOrWhiteSpace(question))
+            if (string.IsNullOrWhiteSpace(question) && linked.Any(d => d.Text != null))
+            {
+                sb.AppendLine($"Il punto rimanda a {string.Join(", ", linked.Where(d => d.Text != null).Select(d => $"`{d.Path}`"))}: spiegalo");
+                sb.AppendLine($"soprattutto con un riassunto di quel documento, in non più di {MarkDiagramPromptBuilder.MaxSentences} frasi: di cosa");
+                sb.AppendLine("parla e le sue cose principali, poi, se serve, come si lega alla slide da cui l'utente arriva.");
+            }
+            else if (string.IsNullOrWhiteSpace(question))
             {
                 sb.AppendLine($"Spiega il punto in non più di {MarkDiagramPromptBuilder.MaxSentences} frasi: cosa vuol dire, e cosa");
                 sb.AppendLine("aggiungono i documenti del progetto che la slide da sola non poteva dire.");

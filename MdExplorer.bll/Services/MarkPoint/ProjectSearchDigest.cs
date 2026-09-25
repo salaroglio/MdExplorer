@@ -89,19 +89,21 @@ namespace MdExplorer.Features.Services.MarkPoint
         /// <summary>
         /// The files found, best first, at most <see cref="MaxSources"/>, each with its passages.
         /// <paramref name="readFile"/> reads a project-relative path and returns null when the file
-        /// cannot be read; <paramref name="exclude"/> (project-relative) is left out — the document
-        /// the question comes from is given whole. Files under <paramref name="excludedFolders"/>
+        /// cannot be read; <paramref name="exclude"/> (full or project-relative paths) is left out — the
+        /// deck the question comes from and the documents the point links to are given whole. Files under <paramref name="excludedFolders"/>
         /// (project-relative, '/') are left out too: the skills an agentic environment copies into the
         /// project are MdExplorer's documentation, not the project's.
         /// </summary>
         public static IReadOnlyList<ProjectSource> Build(
             IReadOnlyList<(string Keyword, SearchResult Result)> searches,
             string projectPath,
-            string exclude,
+            IReadOnlyCollection<string> exclude,
             Func<string, string> readFile,
             IReadOnlyCollection<string> excludedFolders = null)
         {
             var folders = (excludedFolders ?? Array.Empty<string>()).Select(f => f.Trim('/') + "/").ToList();
+            var excluded = new HashSet<string>((exclude ?? Array.Empty<string>()).Where(e => e != null).Select(e => Relative(e, projectPath)),
+                StringComparer.OrdinalIgnoreCase);
             var foundBy = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             foreach (var (keyword, result) in searches)
             {
@@ -109,7 +111,7 @@ namespace MdExplorer.Features.Services.MarkPoint
                 // image, a link can point to a site.
                 foreach (var path in FilesOf(result, projectPath).Where(p => p.EndsWith(".md", StringComparison.OrdinalIgnoreCase)))
                 {
-                    if (exclude != null && string.Equals(path, Relative(exclude, projectPath), StringComparison.OrdinalIgnoreCase)) continue;
+                    if (excluded.Contains(path)) continue;
                     if (folders.Any(f => path.StartsWith(f, StringComparison.OrdinalIgnoreCase))) continue;
                     if (!foundBy.TryGetValue(path, out var keywords)) foundBy[path] = keywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     keywords.Add(keyword);
@@ -141,6 +143,11 @@ namespace MdExplorer.Features.Services.MarkPoint
         {
             if (string.IsNullOrEmpty(text) || keywords.Count == 0) return Array.Empty<ProjectPassage>();
 
+            // Whole words, as the search finds them: «anno» is not in «annota» (measured 25/09/2026:
+            // with a plain Contains the passages were paragraphs about something else).
+            var matchers = keywords
+                .Select(k => new Regex(@"(?<![\p{L}\p{N}_])" + Regex.Escape(k) + @"(?![\p{L}\p{N}_])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+                .ToList();
             var lines = text.Replace("\r\n", "\n").Split('\n');
             var paragraphs = new List<(int Line, string Text, int Hits)>();
             var start = FrontMatterEnd(lines);
@@ -151,7 +158,7 @@ namespace MdExplorer.Features.Services.MarkPoint
             {
                 if (current.Count == 0) return;
                 var paragraph = string.Join("\n", current).Trim();
-                var hits = keywords.Count(k => paragraph.Contains(k, StringComparison.OrdinalIgnoreCase));
+                var hits = matchers.Count(m => m.IsMatch(paragraph));
                 if (hits > 0) paragraphs.Add((currentLine, paragraph, hits));
                 current.Clear();
             }

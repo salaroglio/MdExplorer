@@ -344,6 +344,7 @@ namespace MdExplorer.Features.Slides
                 + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/images/image-toolbar.css\">\n"
                 + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-diagrams.css\">\n"
                 + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-navigation.css\">\n"
+                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-edit.css\">\n"
                 // Text correction: the document's script and styles, its menu's look.
                 + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/inline-edit/inline-edit.css\">\n"
                 + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.css\">\n";

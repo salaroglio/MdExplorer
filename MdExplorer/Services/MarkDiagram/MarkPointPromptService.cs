@@ -48,6 +48,8 @@ namespace MdExplorer.Services.MarkDiagram
             MarkDiagramContextDto context, string keywordsAnswer, string? question, string projectPath)
         {
             var keywords = MarkSearchKeywords.Parse(keywordsAnswer);
+            var linked = ReadLinkedDocuments(context, projectPath);
+            var deck = MarkDiagramExplainService.ResolveDocumentPath(context, projectPath);
 
             var sources = (IReadOnlyList<ProjectSource>)Array.Empty<ProjectSource>();
             if (keywords.Count > 0)
@@ -57,16 +59,42 @@ namespace MdExplorer.Services.MarkDiagram
                 {
                     searches.Add((keyword, await _search.SearchAsync(keyword, SearchType.All, SearchResultsPerKeyword, projectPath)));
                 }
-                var deck = MarkDiagramExplainService.ResolveDocumentPath(context, projectPath);
-                sources = ProjectSearchDigest.Build(searches, projectPath, deck, relative => ReadProjectFile(projectPath, relative),
-                    HarnessLayout.All.Select(l => l.SkillsFolder).ToList());
+                // The deck and the linked documents are given whole: not again as passages.
+                var given = linked.Select(d => d.Path).Append(deck).Where(p => p != null).ToList();
+                sources = ProjectSearchDigest.Build(searches, projectPath, given, relative => ReadProjectFile(projectPath, relative),
+                    // What the agentic environment installs (skills, agents, commands) is MdExplorer's
+                    // documentation, not the project's.
+                    HarnessLayout.All.SelectMany(l => new[] { l.SkillsFolder, l.AgentsFolder, l.PromptsFolder }).ToList());
             }
 
             var deckText = ReadDeck(context, projectPath, out var truncated);
             var prompt = MarkPointPromptBuilder.BuildSystemPrompt() + "\n\n---\n\n"
-                       + MarkPointPromptBuilder.BuildAnswerPrompt(context, keywords, sources, deckText, truncated, question);
+                       + MarkPointPromptBuilder.BuildAnswerPrompt(context, keywords, sources, deckText, truncated, question, linked);
 
-            return new MarkPointAnswerPrompt(prompt, keywords, sources.Select(s => s.Path).ToList());
+            return new MarkPointAnswerPrompt(prompt, keywords,
+                linked.Where(d => d.Text != null).Select(d => d.Path).Concat(sources.Select(s => s.Path)).ToList());
+        }
+
+        /// <summary>
+        /// The documents the point links to (<see cref="MarkPoint.Links"/>), read whole. A path outside the
+        /// project or a missing file stays in the list without text: the prompt says it could not be read.
+        /// </summary>
+        private List<LinkedDocument> ReadLinkedDocuments(MarkDiagramContextDto context, string projectPath)
+        {
+            var result = new List<LinkedDocument>();
+            foreach (var relative in (context.Point?.Links ?? new List<string>())
+                         .Where(l => !string.IsNullOrWhiteSpace(l))
+                         .Distinct(StringComparer.OrdinalIgnoreCase)
+                         .Take(MarkPointPromptBuilder.MaxLinkedDocuments))
+            {
+                var path = relative.Replace('\\', '/').TrimStart('/');
+                var text = ReadProjectFile(projectPath, path);
+                var truncated = text != null && text.Length > MarkPointPromptBuilder.MaxDeckChars;
+                if (truncated) text = text!.Substring(0, MarkPointPromptBuilder.MaxDeckChars);
+                if (text == null) _logger.LogWarning("[MarkPoint] Documento collegato non leggibile: {Path}", path);
+                result.Add(new LinkedDocument(path, text, truncated));
+            }
+            return result;
         }
 
         private string? ReadProjectFile(string projectPath, string relative)

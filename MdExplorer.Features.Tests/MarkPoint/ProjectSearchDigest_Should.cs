@@ -73,7 +73,7 @@ namespace MdExplorer.Features.Tests.MarkPoint
                 }),
             };
 
-            var sources = ProjectSearchDigest.Build(searches, Root, "/deck.md", _ => "");
+            var sources = ProjectSearchDigest.Build(searches, Root, new[] { "/proj/deck.md" }, _ => "");
 
             CollectionAssert.AreEqual(new[] { "doc/guida.md" }, sources.Select(s => s.Path).ToList());
         }
@@ -102,6 +102,26 @@ namespace MdExplorer.Features.Tests.MarkPoint
             Assert.AreEqual(9, passages[0].Line);
             Assert.AreEqual("Il breadcrumb riporta\nalla slide di partenza.", passages[0].Text);
             Assert.AreEqual(14, passages[1].Line);
+        }
+
+        [TestMethod]
+        public void Leave_out_the_documents_the_point_links_to()
+        {
+            var searches = new List<(string, SearchResult)> { ("vendite", Found("/proj/sezioni/vendite.md", "/proj/doc.md")) };
+
+            var sources = ProjectSearchDigest.Build(searches, Root, new[] { "/proj/deck.md", "sezioni/vendite.md" }, _ => "");
+
+            CollectionAssert.AreEqual(new[] { "doc.md" }, sources.Select(s => s.Path).ToList());
+        }
+
+        [TestMethod]
+        public void Match_whole_words_only()
+        {
+            var text = "Annota la domanda.\n\nI numeri dell'anno.\n";
+
+            var passages = ProjectSearchDigest.Passages(text, new[] { "anno" }, 1500);
+
+            Assert.AreEqual("I numeri dell'anno.", passages.Single().Text);
         }
 
         [TestMethod]
