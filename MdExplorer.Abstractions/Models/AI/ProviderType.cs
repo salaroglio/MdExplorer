@@ -1,4 +1,4 @@
-namespace MdExplorer.Abstractions.Models.AI
+﻿namespace MdExplorer.Abstractions.Models.AI
 {
     /// <summary>
     /// Tipi di provider AI supportati
@@ -33,6 +33,20 @@ namespace MdExplorer.Abstractions.Models.AI
         /// <summary>
         /// GitHub Copilot CLI (copilot -p)
         /// </summary>
-        CopilotCli
+        CopilotCli,
+
+        /// <summary>
+        /// Claude Code CLI (claude -p, protocollo nativo stream-json).
+        /// Distinto da <see cref="Claude"/>, che è l'API HTTP di Anthropic con API key:
+        /// qui si pilota il CLI installato in locale, che gira sull'abbonamento dell'utente.
+        /// </summary>
+        ClaudeCode,
+
+        /// <summary>
+        /// opencode, pilotato dal suo server HTTP (<c>opencode serve</c>) e non da un processo
+        /// per conversazione: un solo server per istanza di MdExplorer serve tutti i progetti,
+        /// passando la cartella nel parametro <c>directory</c>.
+        /// </summary>
+        OpenCode
     }
 }

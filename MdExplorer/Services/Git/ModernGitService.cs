@@ -18,118 +18,96 @@ namespace MdExplorer.Services.Git
 {
     public class ModernGitService : IModernGitService
     {
-        private readonly IEnumerable<ICredentialResolver> _credentialResolvers;
         private readonly ILogger<ModernGitService> _logger;
         private readonly GitAuthenticationOptions _authOptions;
         private readonly GitOperationOptions _operationOptions;
         private readonly IUserSettingsDB _userSettingsDB;
 
+        /// <summary>L'unico meccanismo di rete: il git di sistema col suo credential manager (vedi <see cref="NativeGitTransport"/>).</summary>
+        private readonly INativeGitTransport _transport;
+
         public ModernGitService(
-            IEnumerable<ICredentialResolver> credentialResolvers,
             ILogger<ModernGitService> logger,
             IUserSettingsDB userSettingsDB,
+            INativeGitTransport transport,
             IOptions<GitAuthenticationOptions> authOptions = null,
-            IOptions<GitOperationOptions> operationOptions = null)
+            IOptions<GitOperationOptions> operationOptions = null,
+            IProjectSubmoduleInitializer submodules = null,
+            ISubmoduleBranchAttacher attacher = null)
         {
-            _credentialResolvers = credentialResolvers?.OrderBy(r => r.GetPriority()) ?? throw new ArgumentNullException(nameof(credentialResolvers));
+            _transport = transport ?? throw new ArgumentNullException(nameof(transport), "INativeGitTransport non registrato: push, pull, fetch e clone passano di lì");
             _logger = logger;
             _userSettingsDB = userSettingsDB;
             _authOptions = authOptions?.Value ?? new GitAuthenticationOptions();
             _operationOptions = operationOptions?.Value ?? new GitOperationOptions();
+            _submodules = submodules;
+            _attacher = attacher;
         }
 
         /// <summary>
-        /// Sets the Git execution context with repository path and known username.
-        /// This allows credential resolvers to use the correct account without prompting.
+        /// Chi popola i submodule. Clone e pull passano di qui invece di farlo per conto loro,
+        /// così esiste un solo posto che sa come si popolano e un solo posto che racconta com'è
+        /// andata: prima il fallimento finiva appeso al messaggio di successo del clone, il clone
+        /// risultava riuscito, la cartella restava vuota e nessuno leggeva quel pezzo di frase.
+        /// Opzionale perché il servizio git viene costruito anche fuori dal grafo completo.
         /// </summary>
-        private void SetGitExecutionContext(string repositoryPath)
+        private readonly IProjectSubmoduleInitializer _submodules;
+
+        /// <summary>
+        /// Chi rimette i submodule sul loro ramo dopo un aggiornamento. Condiviso con l'apertura
+        /// del progetto: senza, il riaggancio sarebbe solo su clone e pull, e chi apre una cartella
+        /// clonata da fuori se li ritroverebbe staccati per sempre.
+        /// </summary>
+        private readonly ISubmoduleBranchAttacher _attacher;
+
+        /// <summary>Un riaggancio non riuscito non invalida l'operazione: i file sono gia' quelli giusti.</summary>
+        private async Task AttachSafely(string repositoryPath)
         {
-            GitExecutionContext.CurrentRepositoryPath = repositoryPath;
-            GitExecutionContext.CurrentUsername = null; // Reset first
-
-            try
-            {
-                // Look up saved account for this repository
-                var normalizedPath = Path.GetFullPath(repositoryPath);
-                using var tx = _userSettingsDB.BeginTransaction();
-                var accountDal = _userSettingsDB.GetDal<GitRepositoryAccount>();
-                var credentialDal = _userSettingsDB.GetDal<GitCredential>();
-
-                // Fetch all active accounts first, then filter in memory
-                // (Path.GetFullPath cannot be translated to SQL by NHibernate)
-                var allAccounts = accountDal.GetList().Where(a => a.IsActive).ToList();
-                var account = allAccounts.FirstOrDefault(a =>
-                    !string.IsNullOrEmpty(a.RepositoryPath) &&
-                    Path.GetFullPath(a.RepositoryPath).Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
-
-                if (account != null)
-                {
-                    // Load the associated GitCredential explicitly (NHibernate lazy loading doesn't work with convenience properties)
-                    if (account.CredentialId.HasValue)
-                    {
-                        account.Credential = credentialDal.GetList()
-                            .FirstOrDefault(c => c.Id == account.CredentialId.Value);
-
-                        _logger.LogDebug("[GitContext] Loaded credential {CredentialId} for {RepoPath}",
-                            account.CredentialId, repositoryPath);
-                    }
-
-                    // Now AuthUsername will work correctly (reads from Credential.AuthUsername)
-                    if (!string.IsNullOrEmpty(account.AuthUsername))
-                    {
-                        GitExecutionContext.CurrentUsername = account.AuthUsername;
-                        _logger.LogInformation("[GitContext] Set username for {RepoPath}: {Username}",
-                            repositoryPath, account.AuthUsername);
-                    }
-                    else
-                    {
-                        _logger.LogDebug("[GitContext] Account found but no AuthUsername for {RepoPath}", repositoryPath);
-                    }
-                }
-                else
-                {
-                    _logger.LogDebug("[GitContext] No saved account for {RepoPath}", repositoryPath);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[GitContext] Failed to lookup account for {RepoPath}", repositoryPath);
-            }
+            try { await _attacher.AttachAsync(repositoryPath); }
+            catch (Exception ex) { _logger.LogWarning(ex, "[Submodule] riaggancio non riuscito in '{Path}'.", repositoryPath); }
         }
 
         /// <summary>
-        /// Builds the <see cref="StatusOptions"/> used for every working-directory status query,
-        /// honoring the per-project "ExcludeSubmodulesFromGitStatus" flag (default ON, applied
-        /// globally when no project row is found). When enabled, LibGit2Sharp omits submodule
-        /// entries from the status, so a dirty submodule — or one whose recorded commit moved —
-        /// no longer marks the parent repository as changed (which would otherwise keep the
-        /// toolbar commit button perpetually lit).
+        /// Popola i submodule tramite l'inizializzatore condiviso; senza di lui (costruzione
+        /// isolata) ripiega sul comando diretto, che fa la stessa cosa ma senza notifica.
         /// </summary>
-        private StatusOptions BuildStatusOptions(string repositoryPath)
+        private async Task<GitOperationResult> EnsureSubmodulesAsync(string repositoryPath)
         {
-            bool excludeSubmodules = true; // global default: keep submodules out of the change indicator
-            try
+            // L'inizializzatore popola i submodule VUOTI, con le sue notifiche. Non basta dopo un
+            // pull: se il submodule c'e' gia' ma sta a un commit vecchio, lui dice «gia' tutti
+            // popolati» e non tocca niente — e il codice resta indietro rispetto alla
+            // documentazione appena tirata giu'. Verificato con un test: pull fast-forward
+            // riuscito, contenuto del submodule ancora quello di prima.
+            if (_submodules != null)
             {
-                var normalizedPath = NormalizeRepositoryPath(repositoryPath);
-                // Match the read pattern used by ProjectSettingsController: clear the session
-                // cache first so a freshly toggled per-project value is picked up immediately.
-                _userSettingsDB.Clear();
-                var project = _userSettingsDB.GetDal<Project>().GetList().ToList()
-                    .FirstOrDefault(p => !string.IsNullOrEmpty(p.Path) &&
-                        NormalizeRepositoryPath(p.Path).Equals(normalizedPath, StringComparison.OrdinalIgnoreCase));
-                if (project != null)
-                {
-                    excludeSubmodules = project.ExcludeSubmodulesFromGitStatus;
-                }
+                var ensured = await _submodules.EnsureAsync(repositoryPath);
+                if (!ensured.Success)
+                    return new GitOperationResult { Success = false, ErrorMessage = ensured.Error };
+                if (ensured.NothingToDo && !File.Exists(Path.Combine(repositoryPath, ".gitmodules")))
+                    return new GitOperationResult { Success = true, Message = "No submodules" };
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex,
-                    "[GitStatus] Could not read ExcludeSubmodulesFromGitStatus for {RepoPath}; defaulting to exclude submodules",
-                    repositoryPath);
-            }
-            return new StatusOptions { ExcludeSubmodules = excludeSubmodules };
+
+            // E poi si allinea davvero ai commit registrati: e' un no-op quando sono gia' li'.
+            var updated = await UpdateSubmodulesAsync(repositoryPath);
+            if (updated.Success && _attacher != null) await AttachSafely(repositoryPath);
+            return updated;
         }
+        /// <summary>
+        /// Le opzioni di ogni lettura dello stato: i submodule restano <b>fuori</b>.
+        /// <para>
+        /// Non è più configurabile per progetto (colonna rimossa il 18/08/2026). La manopola
+        /// esisteva perché un submodule sporco teneva acceso per sempre il pulsante Commit della
+        /// toolbar; quel pulsante ora legge la vista per repository, che dice <i>cosa</i> c'è e
+        /// <i>dove</i>, quindi non c'era più niente da tarare.
+        /// </para>
+        /// <para>
+        /// L'esclusione resta perché serve a chi legge ancora questo stato — l'avviso prima del
+        /// cambio di ramo — e lì è la risposta giusta: cambiare ramo nel progetto non tocca il
+        /// contenuto dei submodule, quindi un submodule sporco non è un motivo per fermarti.
+        /// </para>
+        /// </summary>
+        private static StatusOptions BuildStatusOptions(string repositoryPath)
+            => new StatusOptions { ExcludeSubmodules = true };
 
         /// <summary>
         /// Full-path normalization tolerant of a trailing directory separator, so that a
@@ -139,92 +117,69 @@ namespace MdExplorer.Services.Git
         private static string NormalizeRepositoryPath(string path)
             => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
-        public async Task<GitOperationResult> PullAsync(string repositoryPath)
+public async Task<GitOperationResult> PullAsync(string repositoryPath)
         {
             var stopwatch = Stopwatch.StartNew();
-            var credentialCallCount = 0;
-
             try
             {
                 _logger.LogInformation("Starting pull operation for repository: {RepositoryPath}", repositoryPath);
-
                 if (!Directory.Exists(repositoryPath))
                 {
                     return new GitOperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Repository directory does not exist: {repositoryPath}",
-                        Duration = stopwatch.Elapsed
-                    };
+                {
+                    Success = false,
+                    ErrorMessage = $"Repository directory does not exist: {repositoryPath}",
+                    Duration = stopwatch.Elapsed
+                };
                 }
 
-                // Set repository path and username in execution context for credential resolvers
-                SetGitExecutionContext(repositoryPath);
+                string headCommitBefore;
+                using (var before = new Repository(repositoryPath))
+                    headCommitBefore = before.Head.Tip?.Sha;
 
-                using var repo = new Repository(repositoryPath);
-
-                var pullOptions = new PullOptions
+                // Il git nativo fa il pull e la sua autenticazione: MdExplorer non tocca credenziali.
+                var pull = await _transport.PullAsync(repositoryPath);
+                if (!pull.Ok)
                 {
-                    FetchOptions = new FetchOptions
-                    {
-                        CredentialsProvider = (url, usernameFromUrl, types) =>
-                        {
-                            credentialCallCount++;
-                            _logger.LogInformation("PULL CREDENTIAL CALLBACK #{Count} - URL: {Url}, User: {User}, Types: {Types}", 
-                                credentialCallCount, url, usernameFromUrl, types);
-                            
-                            var result = ResolveCredentials(url, usernameFromUrl, types).GetAwaiter().GetResult();
-                            
-                            _logger.LogInformation("PULL CREDENTIAL CALLBACK #{Count} - Resolved: {HasCredentials}, Method: {Method}", 
-                                credentialCallCount, result != null, _lastUsedAuthMethod);
-                            
-                            return result;
-                        }
-                    }
+                    stopwatch.Stop();
+                    var conflicts = pull.Stdout.Contains("CONFLICT") || pull.Stderr.Contains("CONFLICT");
+                    return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = conflicts ? $"Pull completed but conflicts need to be resolved: {pull.Error}" : $"Pull failed: {pull.Error}",
+                    Duration = stopwatch.Elapsed
                 };
+                }
 
-                // Get current HEAD to compare later
-                var headCommitBefore = repo.Head.Tip?.Sha;
-
-                // Get or create signature for the merge
-                var signature = GetGitSignature(repo);
-
-                // Perform pull
-                var pullResult = Commands.Pull(repo, signature, pullOptions);
-
-                var headCommitAfter = repo.Head.Tip?.Sha;
+                string headCommitAfter;
+                IEnumerable<string> changes;
+                using (var after = new Repository(repositoryPath))
+                {
+                    headCommitAfter = after.Head.Tip?.Sha;
+                    changes = headCommitBefore != headCommitAfter
+                        ? GetCommitDiffPaths(after, headCommitBefore, headCommitAfter)
+                        : new string[0];
+                }
                 var hasChanges = headCommitBefore != headCommitAfter;
-
                 stopwatch.Stop();
-
-                var message = pullResult.Status switch
-                {
-                    MergeStatus.UpToDate => "Repository is up to date",
-                    MergeStatus.FastForward => "Fast-forward merge completed",
-                    MergeStatus.NonFastForward => "Merge completed (non-fast-forward)",
-                    MergeStatus.Conflicts => "Pull completed but conflicts need to be resolved",
-                    _ => "Pull completed"
-                };
-
-                _logger.LogInformation("Pull operation completed: {Status}, HasChanges: {HasChanges}, Duration: {Duration}ms, CredentialCalls: {CredentialCalls}",
-                    pullResult.Status, hasChanges, stopwatch.ElapsedMilliseconds, credentialCallCount);
-
-                // Clear credential call history after successful operation
-                ClearCredentialCallHistory();
+                var message = hasChanges ? "Pull completed" : "Repository is up to date";
+                _logger.LogInformation("Pull operation completed, HasChanges: {HasChanges}, Duration: {Duration}ms",
+                    hasChanges, stopwatch.ElapsedMilliseconds);
 
                 // Populate/refresh submodules after pull (native git; no-op when .gitmodules absent)
-                var submoduleResult = await UpdateSubmodulesAsync(repositoryPath);
+                var submoduleResult = await EnsureSubmodulesAsync(repositoryPath);
                 if (!submoduleResult.Success)
                 {
                     message += $" (warning: submodule update failed: {submoduleResult.ErrorMessage})";
                 }
 
+                _lastUsedAuthMethod = AuthenticationMethod.GitCredentialHelper;
                 return new GitOperationResult
                 {
                     Success = true,
                     Message = message,
                     HasChanges = hasChanges,
-                    Changes = hasChanges ? GetCommitDiffPaths(repo, headCommitBefore, headCommitAfter) : new string[0],
+                    Changes = changes,
                     Duration = stopwatch.Elapsed,
                     AuthenticationMethodUsed = _lastUsedAuthMethod
                 };
@@ -233,7 +188,6 @@ namespace MdExplorer.Services.Git
             {
                 stopwatch.Stop();
                 _logger.LogError(ex, "Error during pull operation for repository: {RepositoryPath}", repositoryPath);
-                
                 return new GitOperationResult
                 {
                     Success = false,
@@ -243,96 +197,68 @@ namespace MdExplorer.Services.Git
             }
         }
 
-        public async Task<GitOperationResult> PushAsync(string repositoryPath, string remoteName = "origin", string branchName = null)
+public async Task<GitOperationResult> PushAsync(string repositoryPath, string remoteName = "origin", string branchName = null)
         {
             var stopwatch = Stopwatch.StartNew();
-            var credentialCallCount = 0;
-
             try
             {
                 _logger.LogInformation("Starting push operation for repository: {RepositoryPath}, Remote: {Remote}, Branch: {Branch}",
                     repositoryPath, remoteName, branchName ?? "current");
-
                 if (!Directory.Exists(repositoryPath))
                 {
                     return new GitOperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Repository directory does not exist: {repositoryPath}",
-                        Duration = stopwatch.Elapsed
-                    };
-                }
-
-                // Set repository path and username in execution context for credential resolvers
-                SetGitExecutionContext(repositoryPath);
-
-                using var repo = new Repository(repositoryPath);
-
-                var remote = repo.Network.Remotes[remoteName];
-                if (remote == null)
                 {
-                    return new GitOperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Remote '{remoteName}' not found",
-                        Duration = stopwatch.Elapsed
-                    };
-                }
-
-                var branch = string.IsNullOrEmpty(branchName) ? repo.Head : repo.Branches[branchName];
-                if (branch == null)
-                {
-                    return new GitOperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Branch '{branchName}' not found",
-                        Duration = stopwatch.Elapsed
-                    };
-                }
-
-                var pushOptions = new PushOptions
-                {
-                    CredentialsProvider = (url, usernameFromUrl, types) =>
-                    {
-                        credentialCallCount++;
-                        _logger.LogInformation("PUSH CREDENTIAL CALLBACK #{Count} - URL: {Url}, User: {User}, Types: {Types}", 
-                            credentialCallCount, url, usernameFromUrl, types);
-                        
-                        var task = ResolveCredentials(url, usernameFromUrl, types);
-                        var result = task.GetAwaiter().GetResult();
-                        
-                        if (result == null)
-                        {
-                            _logger.LogError("PUSH CREDENTIAL CALLBACK #{Count} - No credentials resolved for URL: {Url}", 
-                                credentialCallCount, url);
-                            throw new InvalidOperationException($"No credentials available for {url} (Attempt #{credentialCallCount})");
-                        }
-                        
-                        _logger.LogInformation("PUSH CREDENTIAL CALLBACK #{Count} - Resolved: {HasCredentials}, Method: {Method}", 
-                            credentialCallCount, result != null, _lastUsedAuthMethod);
-                        
-                        return result;
-                    }
+                    Success = false,
+                    ErrorMessage = $"Repository directory does not exist: {repositoryPath}",
+                    Duration = stopwatch.Elapsed
                 };
+                }
 
-                // Push the branch
-                _logger.LogInformation("Executing push to remote: {Remote}, Branch: {Branch}", remoteName, branch.FriendlyName);
+                string branchToPush;
+                using (var repo = new Repository(repositoryPath))
+                {
+                    if (repo.Network.Remotes[remoteName] == null)
+                    {
+                        return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Remote '{remoteName}' not found",
+                    Duration = stopwatch.Elapsed
+                };
+                    }
+                    var branch = string.IsNullOrEmpty(branchName) ? repo.Head : repo.Branches[branchName];
+                    if (branch == null)
+                    {
+                        return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Branch '{branchName}' not found",
+                    Duration = stopwatch.Elapsed
+                };
+                    }
+                    branchToPush = branch.FriendlyName;
+                }
 
-                repo.Network.Push(branch, pushOptions);
-                _logger.LogInformation("Push executed successfully");
-
+                _logger.LogInformation("Executing push to remote: {Remote}, Branch: {Branch}", remoteName, branchToPush);
+                var push = await _transport.PushAsync(repositoryPath, remoteName, branchToPush);
                 stopwatch.Stop();
+                if (!push.Ok)
+                {
+                    _logger.LogError("Push failed for {RepositoryPath}: {Kind} — {Error}", repositoryPath, push.Kind, push.Error);
+                    return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Push failed: {push.Error}",
+                    Duration = stopwatch.Elapsed
+                };
+                }
 
-                _logger.LogInformation("Push operation completed successfully, Duration: {Duration}ms, CredentialCalls: {CredentialCalls}",
-                    stopwatch.ElapsedMilliseconds, credentialCallCount);
-
-                // Clear credential call history after successful operation
-                ClearCredentialCallHistory();
-
+                _logger.LogInformation("Push operation completed successfully, Duration: {Duration}ms", stopwatch.ElapsedMilliseconds);
+                _lastUsedAuthMethod = AuthenticationMethod.GitCredentialHelper;
                 return new GitOperationResult
                 {
                     Success = true,
-                    Message = $"Successfully pushed {branch.FriendlyName} to {remoteName}",
+                    Message = $"Successfully pushed {branchToPush} to {remoteName}",
                     Duration = stopwatch.Elapsed,
                     AuthenticationMethodUsed = _lastUsedAuthMethod
                 };
@@ -341,7 +267,6 @@ namespace MdExplorer.Services.Git
             {
                 stopwatch.Stop();
                 _logger.LogError(ex, "Error during push operation for repository: {RepositoryPath}", repositoryPath);
-                
                 return new GitOperationResult
                 {
                     Success = false,
@@ -491,393 +416,78 @@ namespace MdExplorer.Services.Git
             }
         }
 
-        public async Task<GitOperationResult> CloneAsync(string url, string localPath, string branchName = null,
+public async Task<GitOperationResult> CloneAsync(string url, string localPath, string branchName = null,
             bool useSavedToken = true, string username = null, string password = null)
         {
             var stopwatch = Stopwatch.StartNew();
-
             try
             {
-                _logger.LogError("🚀🚀🚀 CLONE ASYNC - NEW CODE VERSION WITH DIAGNOSTICS 🚀🚀🚀");
-                _logger.LogInformation("Starting clone operation: {Url} to {LocalPath} (useSavedToken={UseSavedToken}, hasManualCredentials={HasManual})",
-                    url, localPath, useSavedToken, !string.IsNullOrEmpty(username));
+                _logger.LogInformation("Clone {Url} → {LocalPath} (branch: {Branch}, typed credentials: {Typed})",
+                    url, localPath, branchName ?? "(default)", !string.IsNullOrEmpty(username));
 
                 // Auto-create parent directories if they don't exist
                 // This supports the Share Project feature where basePath may include nested folders
                 var parentDirectory = System.IO.Path.GetDirectoryName(localPath);
                 if (!string.IsNullOrEmpty(parentDirectory) && !Directory.Exists(parentDirectory))
                 {
-                    _logger.LogInformation("Creating parent directories: {ParentDirectory}", parentDirectory);
                     Directory.CreateDirectory(parentDirectory);
                 }
-
                 if (Directory.Exists(localPath) && Directory.GetFileSystemEntries(localPath).Length > 0)
                 {
                     return new GitOperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Target directory is not empty: {localPath}",
-                        Duration = stopwatch.Elapsed
-                    };
-                }
-
-                // Set repository path in execution context for credential resolvers
-                GitExecutionContext.CurrentRepositoryPath = localPath;
-
-                // HYBRID APPROACH: Use native git for Basic Auth providers (SCM-Manager, Gitea, etc.)
-                // This fixes the issue where LibGit2Sharp.Clone() doesn't checkout files properly
-                if (IsBasicAuthProvider(url))
                 {
-                    _logger.LogInformation("Detected Basic Auth provider, using native git clone");
-                    var nativeResult = await CloneWithNativeGitAsync(url, localPath, branchName, username, password, stopwatch);
-                    if (nativeResult.Success)
-                    {
-                        // Populate submodules after clone (native git; no-op when .gitmodules absent)
-                        var nativeSubmoduleResult = await UpdateSubmodulesAsync(localPath);
-                        if (!nativeSubmoduleResult.Success)
-                        {
-                            nativeResult.Message += $" (warning: submodule update failed: {nativeSubmoduleResult.ErrorMessage})";
-                        }
-                    }
-                    return nativeResult;
-                }
-
-                // For OAuth providers (GitHub, GitLab, etc.), continue with LibGit2Sharp
-                _logger.LogInformation("Detected OAuth provider, using LibGit2Sharp clone");
-
-                var cloneOptions = new CloneOptions
-                {
-                    BranchName = branchName,
-                    Checkout = true,  // Explicitly enable checkout (should be default, but let's be sure)
-                    OnCheckoutProgress = (path, completedSteps, totalSteps) =>
-                    {
-                        // Log checkout progress to understand if checkout is happening at all
-                        if (completedSteps == 1 || completedSteps == totalSteps || completedSteps % 100 == 0)
-                        {
-                            _logger.LogWarning("📦 CHECKOUT PROGRESS: {Path} - {Completed}/{Total}",
-                                path ?? "(starting)", completedSteps, totalSteps);
-                        }
-                    }
+                    Success = false,
+                    ErrorMessage = $"Target directory is not empty: {localPath}",
+                    Duration = stopwatch.Elapsed
                 };
-
-                // DEBUG: Log clone options
-                _logger.LogWarning("[CLONE DEBUG] CloneOptions: BranchName={BranchName}, Checkout={Checkout}",
-                    string.IsNullOrEmpty(branchName) ? "(default/null)" : branchName, cloneOptions.Checkout);
-                _logger.LogWarning("[CLONE DEBUG] CloneAsync params: useSavedToken={UseSavedToken}, hasUsername={HasUsername}, hasPassword={HasPassword}",
-                    useSavedToken, !string.IsNullOrEmpty(username), !string.IsNullOrEmpty(password));
-
-                // Use manual credentials if provided, otherwise use credential resolver
-                if (!useSavedToken && !string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
-                {
-                    _logger.LogInformation("Using manual credentials for clone: {Username}", username);
-                    // DEBUG: Confirm MANUAL path
-                    _logger.LogWarning("[CLONE DEBUG] Using credential path: MANUAL");
-                    cloneOptions.FetchOptions.CredentialsProvider = (repoUrl, usernameFromUrl, types) =>
-                        new UsernamePasswordCredentials
-                        {
-                            Username = username,
-                            Password = password
-                        };
-                }
-                else
-                {
-                    // DEBUG: Confirm RESOLVER path
-                    _logger.LogWarning("[CLONE DEBUG] Using credential path: RESOLVER (will call ResolveCredentials)");
-                    cloneOptions.FetchOptions.CredentialsProvider = (repoUrl, usernameFromUrl, types) =>
-                        ResolveCredentials(repoUrl, usernameFromUrl, types).GetAwaiter().GetResult();
                 }
 
-                var clonedRepoPath = Repository.Clone(url, localPath, cloneOptions);
-
-                // IMMEDIATE CHECK: Count files right after clone, BEFORE any fixes
-                var immediateFileCount = Directory.GetFileSystemEntries(localPath)
-                    .Where(entry => !entry.EndsWith(".git"))
-                    .Count();
-                _logger.LogError("🚨 IMMEDIATE POST-CLONE - Files in working dir (excluding .git): {FileCount}", immediateFileCount);
-
-                if (immediateFileCount == 0)
+                // Se l'utente ha digitato utente e password nella maschera, le consegniamo a git:
+                // da qui in poi le conserva il suo credential helper, non MdExplorer.
+                var typed = !string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password);
+                if (typed)
                 {
-                    _logger.LogError("🚨🚨🚨 CLONE DID NOT CHECKOUT FILES! Working directory is empty!");
-                }
-
-                // Diagnostic logging to investigate clone behavior
-                try
-                {
-                    using (var repo = new Repository(localPath))
+                    var approve = await _transport.ApproveCredentialAsync(url, username, password);
+                    if (!approve.Ok)
                     {
-                        _logger.LogWarning("🔍 CLONE DIAGNOSTIC - Local HEAD: {LocalHead}", repo.Head.Tip?.Sha);
-                        _logger.LogWarning("🔍 CLONE DIAGNOSTIC - Branch: {Branch}", repo.Head.FriendlyName);
-                        _logger.LogWarning("🔍 CLONE DIAGNOSTIC - Tracking branch: {TrackingBranch}",
-                            repo.Head.TrackedBranch?.FriendlyName ?? "none");
-
-                        var origin = repo.Network.Remotes["origin"];
-                        if (origin != null)
-                        {
-                            _logger.LogWarning("🔍 CLONE DIAGNOSTIC - Remote URL: {RemoteUrl}", origin.Url);
-
-                            // Check what remote HEAD points to
-                            var remoteHead = repo.Refs["refs/remotes/origin/HEAD"];
-                            if (remoteHead != null)
-                            {
-                                _logger.LogWarning("🔍 CLONE DIAGNOSTIC - Remote HEAD ref: {RemoteHead}",
-                                    remoteHead.TargetIdentifier);
-                            }
-                            else
-                            {
-                                _logger.LogWarning("🔍 CLONE DIAGNOSTIC - Remote HEAD ref: NOT SET");
-                            }
-                        }
-
-                        // List all remote branches with their commit SHAs
-                        var remoteBranches = repo.Branches.Where(b => b.IsRemote).ToList();
-                        _logger.LogWarning("🔍 CLONE DIAGNOSTIC - Found {Count} remote branches:", remoteBranches.Count);
-                        foreach (var branch in remoteBranches.Take(10)) // Limit to first 10 to avoid log spam
-                        {
-                            _logger.LogWarning("   📍 {Branch} -> {Commit}",
-                                branch.FriendlyName, branch.Tip?.Sha?.Substring(0, 8));
-                        }
-
-                        // Log current state for debugging
-                        var workingDirFilesBeforeFix = Directory.GetFileSystemEntries(localPath)
-                            .Where(entry => !entry.EndsWith(".git"))
-                            .Count();
-                        _logger.LogWarning("🔍 CLONE STATE - TrackedBranch: {TrackedBranch}, IsDetached: {IsDetached}, WorkingDirFiles: {FileCount}",
-                            repo.Head.TrackedBranch?.FriendlyName ?? "NULL",
-                            repo.Head.FriendlyName == "(no branch)" || !repo.Head.CanonicalName.StartsWith("refs/heads/"),
-                            workingDirFilesBeforeFix);
-
-                        // Check if local branch is behind remote
-                        if (repo.Head.TrackedBranch != null)
-                        {
-                            _logger.LogWarning("🔍 PATH: Entering TrackedBranch check (TrackedBranch is NOT null)");
-                            var localTip = repo.Head.Tip;
-                            var remoteTip = repo.Head.TrackedBranch.Tip;
-
-                            if (localTip?.Sha != remoteTip?.Sha)
-                            {
-                                _logger.LogError("⚠️ CLONE DIAGNOSTIC - LOCAL IS BEHIND REMOTE!");
-                                _logger.LogError("   Local commit:  {LocalSha}", localTip?.Sha);
-                                _logger.LogError("   Remote commit: {RemoteSha}", remoteTip?.Sha);
-
-                                // Calculate how many commits behind
-                                var filter = new CommitFilter
-                                {
-                                    IncludeReachableFrom = remoteTip,
-                                    ExcludeReachableFrom = localTip
-                                };
-                                var commitsBehind = repo.Commits.QueryBy(filter).Count();
-                                _logger.LogError("   Commits behind: {Count}", commitsBehind);
-
-                                // FIX: Force checkout of the BRANCH (not commit) to sync local with remote
-                                var remoteBranchName = repo.Head.TrackedBranch?.FriendlyName;
-                                _logger.LogWarning("🔧 FIX - Forcing checkout of tracked branch: {RemoteBranch} (tip: {RemoteSha})",
-                                    remoteBranchName, remoteTip?.Sha);
-
-                                try
-                                {
-                                    // Find the local branch that tracks this remote branch
-                                    var localBranchName = repo.Head.FriendlyName;
-                                    var localBranch = repo.Branches[localBranchName];
-
-                                    if (localBranch != null)
-                                    {
-                                        _logger.LogInformation("🔧 FIX - Resetting local branch {LocalBranch} to match remote", localBranchName);
-
-                                        // Reset the local branch to match the remote
-                                        repo.Reset(ResetMode.Hard, remoteTip);
-
-                                        _logger.LogInformation("✅ FIX - Successfully reset local branch to remote HEAD");
-                                        _logger.LogInformation("   New local HEAD: {NewLocalSha}", repo.Head.Tip?.Sha);
-                                        _logger.LogInformation("   Branch: {Branch}",
-                                            repo.Head.FriendlyName);
-                                    }
-                                    else
-                                    {
-                                        // Local branch object is null (branch exists but has no commits - HEAD is null)
-                                        // This happens when clone fetches objects but doesn't checkout files
-                                        _logger.LogWarning("⚠️ FIX - Local branch {LocalBranch} has no commits, forcing checkout of remote tip", localBranchName);
-
-                                        // Force checkout the remote tip directly
-                                        Commands.Checkout(repo, remoteTip, new CheckoutOptions
-                                        {
-                                            CheckoutModifiers = CheckoutModifiers.Force
-                                        });
-
-                                        // Now create/update the local branch to point to this commit
-                                        var existingBranch = repo.Branches[localBranchName];
-                                        if (existingBranch == null)
-                                        {
-                                            // Create the branch pointing to the remote tip
-                                            repo.CreateBranch(localBranchName, remoteTip);
-                                            _logger.LogInformation("✅ FIX - Created local branch {LocalBranch} at {Sha}", localBranchName, remoteTip.Sha);
-                                        }
-
-                                        // Checkout the local branch (not detached HEAD)
-                                        var branch = repo.Branches[localBranchName];
-                                        if (branch != null)
-                                        {
-                                            Commands.Checkout(repo, branch);
-                                            _logger.LogInformation("✅ FIX - Checked out local branch {LocalBranch}", localBranchName);
-                                        }
-
-                                        _logger.LogInformation("✅ FIX - Successfully forced checkout of remote tip");
-                                        _logger.LogInformation("   Working directory files: {FileCount}", Directory.GetFiles(localPath, "*", SearchOption.AllDirectories).Length);
-                                    }
-                                }
-                                catch (Exception checkoutEx)
-                                {
-                                    _logger.LogError(checkoutEx, "❌ FIX - Failed to reset local branch to remote HEAD");
-                                }
-                            }
-                            else
-                            {
-                                _logger.LogInformation("✅ CLONE DIAGNOSTIC - Local HEAD matches remote HEAD");
-                            }
-                        }
-
-                        // Log if we skipped the TrackedBranch check
-                        if (repo.Head.TrackedBranch == null)
-                        {
-                            _logger.LogWarning("🔍 PATH: SKIPPED TrackedBranch check (TrackedBranch is NULL)");
-                        }
-
-                        // FINAL CHECK: Ensure we're not in detached HEAD state
-                        // In LibGit2Sharp, detached HEAD is indicated by FriendlyName = "(no branch)"
-                        var isDetached = repo.Head.FriendlyName == "(no branch)" ||
-                                         !repo.Head.CanonicalName.StartsWith("refs/heads/");
-
-                        _logger.LogWarning("🔍 PATH: isDetached = {IsDetached}", isDetached);
-
-                        if (isDetached)
-                        {
-                            _logger.LogError("⚠️ POST-CLONE CHECK - Repository is in DETACHED HEAD state!");
-                            _logger.LogError("   Current HEAD: {HeadSha}", repo.Head.Tip?.Sha);
-
-                            try
-                            {
-                                // Find the default branch from remote (usually origin/main or origin/master)
-                                var remoteHead = repo.Refs["refs/remotes/origin/HEAD"];
-                                string defaultBranchName = null;
-
-                                if (remoteHead != null && remoteHead is SymbolicReference symRef)
-                                {
-                                    // Extract branch name from "refs/remotes/origin/main" -> "main"
-                                    defaultBranchName = symRef.Target.CanonicalName.Replace("refs/remotes/origin/", "");
-                                    _logger.LogInformation("🔧 Found default branch from origin/HEAD: {DefaultBranch}", defaultBranchName);
-                                }
-                                else
-                                {
-                                    // Fallback: try common default branches (master first for legacy repos)
-                                    var commonDefaults = new[] { "master", "develop", "main" };
-                                    foreach (var commonBranch in commonDefaults)
-                                    {
-                                        var remoteBranch = repo.Branches[$"origin/{commonBranch}"];
-                                        if (remoteBranch != null)
-                                        {
-                                            defaultBranchName = commonBranch;
-                                            _logger.LogInformation("🔧 Found common default branch: {DefaultBranch}", defaultBranchName);
-                                            break;
-                                        }
-                                    }
-                                }
-
-                                if (!string.IsNullOrEmpty(defaultBranchName))
-                                {
-                                    var localBranch = repo.Branches[defaultBranchName];
-                                    var remoteBranch = repo.Branches[$"origin/{defaultBranchName}"];
-
-                                    if (localBranch == null && remoteBranch != null)
-                                    {
-                                        // Create local branch tracking the remote
-                                        _logger.LogInformation("🔧 Creating local branch {Branch} to track origin/{Branch}", defaultBranchName, defaultBranchName);
-                                        localBranch = repo.CreateBranch(defaultBranchName, remoteBranch.Tip);
-                                        repo.Branches.Update(localBranch, b => b.TrackedBranch = remoteBranch.CanonicalName);
-                                    }
-
-                                    if (localBranch != null)
-                                    {
-                                        // Checkout the branch
-                                        _logger.LogInformation("🔧 Checking out branch {Branch}", defaultBranchName);
-                                        Commands.Checkout(repo, localBranch);
-
-                                        _logger.LogInformation("✅ POST-CLONE FIX - Successfully checked out branch {Branch}", defaultBranchName);
-                                        _logger.LogInformation("   HEAD is now at: {HeadSha}", repo.Head.Tip?.Sha);
-                                    }
-                                }
-                                else
-                                {
-                                    _logger.LogError("❌ POST-CLONE FIX - Could not determine default branch");
-                                }
-                            }
-                            catch (Exception detachedEx)
-                            {
-                                _logger.LogError(detachedEx, "❌ POST-CLONE FIX - Failed to resolve detached HEAD state");
-                            }
-                        }
-                        else
-                        {
-                            _logger.LogInformation("✅ POST-CLONE CHECK - Repository has a proper branch checked out: {Branch}",
-                                repo.Head.FriendlyName);
-                        }
-
-                        // FINAL STEP: Pull to ensure we have the latest commits from remote
-                        _logger.LogInformation("🔄 POST-CLONE - Performing pull to sync with remote");
-
-                        try
-                        {
-                            var pullOptions = new PullOptions
-                            {
-                                FetchOptions = new FetchOptions
-                                {
-                                    CredentialsProvider = (repoUrl, usernameFromUrl, types) =>
-                                        ResolveCredentials(repoUrl, usernameFromUrl, types).GetAwaiter().GetResult()
-                                }
-                            };
-
-                            var signature = GetGitSignature(repo);
-                            var pullResult = Commands.Pull(repo, signature, pullOptions);
-
-                            _logger.LogInformation("✅ POST-CLONE - Pull completed: {Status}", pullResult.Status);
-
-                            if (pullResult.Status == MergeStatus.UpToDate)
-                            {
-                                _logger.LogInformation("   Repository is up to date with remote");
-                            }
-                            else if (pullResult.Status == MergeStatus.FastForward)
-                            {
-                                _logger.LogInformation("   Fast-forwarded to latest commit: {CommitSha}", repo.Head.Tip?.Sha);
-                            }
-                        }
-                        catch (Exception pullEx)
-                        {
-                            // Pull failure is non-fatal - the clone already succeeded
-                            _logger.LogWarning(pullEx, "⚠️ POST-CLONE - Pull failed (non-fatal): {Message}", pullEx.Message);
-                        }
-
-                        // FINAL LOG: Count files in working directory after all fixes
-                        var finalFileCount = Directory.GetFileSystemEntries(localPath)
-                            .Where(entry => !entry.EndsWith(".git"))
-                            .Count();
-                        _logger.LogWarning("🔍 FINAL STATE - WorkingDirFiles after all fixes: {FileCount}", finalFileCount);
+                        stopwatch.Stop();
+                        return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Clone failed: impossibile consegnare la credenziale a git: {approve.Error}",
+                    Duration = stopwatch.Elapsed
+                };
                     }
                 }
-                catch (Exception diagEx)
+
+                var clone = await _transport.CloneAsync(url, localPath, branchName);
+                if (!clone.Ok)
                 {
-                    _logger.LogError(diagEx, "Error during clone diagnostics (non-fatal)");
+                    if (typed && clone.Kind is NativeGitFailureKind.AuthenticationFailed or NativeGitFailureKind.CredentialsMissing)
+                    {
+                        // Il server l'ha rifiutata: git non deve riproporla al prossimo tentativo.
+                        await _transport.RejectCredentialAsync(url, username);
+                    }
+                    stopwatch.Stop();
+                    return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Clone failed: {clone.Error}",
+                    Duration = stopwatch.Elapsed
+                };
                 }
+
+                var fileCount = EnsureBranchCheckedOutAfterClone(localPath);
+                var cloneMessage = $"Successfully cloned repository ({fileCount} items)";
 
                 // Populate submodules after clone (native git; no-op when .gitmodules absent)
-                var cloneMessage = $"Successfully cloned repository to {clonedRepoPath}";
-                var submoduleUpdateResult = await UpdateSubmodulesAsync(localPath);
+                var submoduleUpdateResult = await EnsureSubmodulesAsync(localPath);
                 if (!submoduleUpdateResult.Success)
                 {
                     cloneMessage += $" (warning: submodule update failed: {submoduleUpdateResult.ErrorMessage})";
                 }
-
                 stopwatch.Stop();
-
-                _logger.LogInformation("Clone operation completed successfully, Duration: {Duration}ms", stopwatch.ElapsedMilliseconds);
-
+                _lastUsedAuthMethod = AuthenticationMethod.GitCredentialHelper;
                 return new GitOperationResult
                 {
                     Success = true,
@@ -890,7 +500,6 @@ namespace MdExplorer.Services.Git
             {
                 stopwatch.Stop();
                 _logger.LogError(ex, "Error during clone operation: {Url} to {LocalPath}", url, localPath);
-
                 return new GitOperationResult
                 {
                     Success = false,
@@ -901,186 +510,42 @@ namespace MdExplorer.Services.Git
         }
 
         /// <summary>
-        /// Determines if the URL is for a Basic Auth provider (SCM-Manager, Gitea, etc.)
-        /// OAuth providers (GitHub, GitLab, etc.) use LibGit2Sharp, Basic Auth uses native git.
+        /// Dopo il clone, se HEAD è staccato o senza commit (remoto con HEAD che punta a un ramo
+        /// inesistente), mette in checkout il primo ramo che esiste tra master, develop e main,
+        /// tracciandolo. Ritorna quanti elementi ci sono nella cartella di lavoro.
         /// </summary>
-        private bool IsBasicAuthProvider(string url)
+        private int EnsureBranchCheckedOutAfterClone(string localPath)
         {
-            if (string.IsNullOrEmpty(url)) return false;
-            var urlLower = url.ToLowerInvariant();
-
-            // OAuth providers - use LibGit2Sharp
-            if (urlLower.Contains("github.com") ||
-                urlLower.Contains("gitlab.com") ||
-                urlLower.Contains("bitbucket.org") ||
-                urlLower.Contains("dev.azure.com") ||
-                urlLower.Contains("visualstudio.com"))
-            {
-                return false;
-            }
-
-            // Everything else (SCM-Manager, Gitea, generic) - use native git
-            return true;
-        }
-
-        /// <summary>
-        /// Clone with native git for Basic Auth providers (SCM-Manager, Gitea, etc.)
-        /// This approach solves the issue where LibGit2Sharp.Clone() doesn't checkout files properly.
-        /// </summary>
-        private async Task<GitOperationResult> CloneWithNativeGitAsync(
-            string url, string localPath, string branchName,
-            string username, string password, Stopwatch stopwatch)
-        {
-            _logger.LogInformation("Using native git clone for Basic Auth provider: {Url}", url);
-
+            int Count() => Directory.GetFileSystemEntries(localPath).Count(e => !e.EndsWith(".git"));
             try
             {
-                // 1. Save credentials with git credential approve (before clone)
-                if (!string.IsNullOrEmpty(username) && !string.IsNullOrEmpty(password))
+                using var repo = new Repository(localPath);
+                var currentBranch = repo.Head.FriendlyName;
+                var hasCommits = repo.Head.Tip != null;
+                var isDetached = currentBranch == "(no branch)" || !repo.Head.CanonicalName.StartsWith("refs/heads/");
+                if (hasCommits && !isDetached)
                 {
-                    var credSaved = await SaveCredentialsToGitAsync(url, username, password);
-                    _logger.LogInformation("Credentials saved to git credential store: {Success}", credSaved);
+                    return Count();
                 }
-
-                // 2. Execute git clone (clean URL, credentials come from credential store)
-                var args = $"clone \"{url}\" \"{localPath}\"";
-                if (!string.IsNullOrEmpty(branchName))
+                foreach (var preferredBranch in new[] { "master", "develop", "main" })
                 {
-                    args += $" --branch \"{branchName}\"";
-                }
-
-                _logger.LogInformation("Executing: git {Args}", args);
-
-                var process = new Process
-                {
-                    StartInfo = new ProcessStartInfo
+                    var remoteBranch = repo.Branches[$"origin/{preferredBranch}"];
+                    if (remoteBranch?.Tip == null) continue;
+                    var localBranch = repo.Branches[preferredBranch];
+                    if (localBranch == null)
                     {
-                        FileName = "git",
-                        Arguments = args,
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        CreateNoWindow = true
+                        localBranch = repo.CreateBranch(preferredBranch, remoteBranch.Tip);
+                        repo.Branches.Update(localBranch, b => b.TrackedBranch = remoteBranch.CanonicalName);
                     }
-                };
-
-                process.Start();
-                var completed = await Task.Run(() => process.WaitForExit(300000)); // 5 min timeout
-
-                if (!completed)
-                {
-                    try { process.Kill(); } catch { }
-                    stopwatch.Stop();
-                    return new GitOperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = "Clone timeout after 5 minutes",
-                        Duration = stopwatch.Elapsed
-                    };
+                    Commands.Checkout(repo, localBranch);
+                    break;
                 }
-
-                var stdout = await process.StandardOutput.ReadToEndAsync();
-                var stderr = await process.StandardError.ReadToEndAsync();
-                stopwatch.Stop();
-
-                _logger.LogInformation("git clone exit code: {ExitCode}", process.ExitCode);
-                if (!string.IsNullOrEmpty(stdout))
-                    _logger.LogInformation("git clone stdout: {Stdout}", stdout);
-                if (!string.IsNullOrEmpty(stderr))
-                    _logger.LogInformation("git clone stderr: {Stderr}", stderr);
-
-                if (process.ExitCode == 0)
-                {
-                    var fileCount = Directory.GetFileSystemEntries(localPath)
-                        .Count(e => !e.EndsWith(".git"));
-
-                    _logger.LogInformation("Native git clone successful: {FileCount} items in working directory", fileCount);
-
-                    // Post-clone branch fix for Basic Auth providers (same logic as OAuth)
-                    // This ensures we checkout the correct branch if the remote default is wrong
-                    try
-                    {
-                        using (var repo = new Repository(localPath))
-                        {
-                            var currentBranch = repo.Head.FriendlyName;
-                            var hasCommits = repo.Head.Tip != null;
-                            var isDetached = currentBranch == "(no branch)" || !repo.Head.CanonicalName.StartsWith("refs/heads/");
-
-                            _logger.LogInformation("Post-clone check: branch={Branch}, hasCommits={HasCommits}, isDetached={IsDetached}",
-                                currentBranch, hasCommits, isDetached);
-
-                            if (!hasCommits || isDetached)
-                            {
-                                _logger.LogWarning("Branch has no commits or is detached, searching for valid branch...");
-
-                                // Try preferred branches in order: master first for legacy repos
-                                var preferredBranches = new[] { "master", "develop", "main" };
-                                foreach (var preferredBranch in preferredBranches)
-                                {
-                                    var remoteBranch = repo.Branches[$"origin/{preferredBranch}"];
-                                    if (remoteBranch?.Tip != null)
-                                    {
-                                        _logger.LogInformation("Found valid remote branch: origin/{Branch}", preferredBranch);
-
-                                        var localBranch = repo.Branches[preferredBranch];
-                                        if (localBranch == null)
-                                        {
-                                            // Create local branch tracking the remote
-                                            localBranch = repo.CreateBranch(preferredBranch, remoteBranch.Tip);
-                                            repo.Branches.Update(localBranch, b => b.TrackedBranch = remoteBranch.CanonicalName);
-                                            _logger.LogInformation("Created local branch {Branch} tracking origin/{Branch}", preferredBranch, preferredBranch);
-                                        }
-
-                                        Commands.Checkout(repo, localBranch);
-                                        _logger.LogInformation("Checked out branch: {Branch}", preferredBranch);
-
-                                        // Update file count after checkout
-                                        fileCount = Directory.GetFileSystemEntries(localPath)
-                                            .Count(e => !e.EndsWith(".git"));
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception branchFixEx)
-                    {
-                        _logger.LogWarning(branchFixEx, "Post-clone branch fix failed, continuing with default branch");
-                    }
-
-                    return new GitOperationResult
-                    {
-                        Success = true,
-                        Message = $"Successfully cloned repository ({fileCount} items)",
-                        Duration = stopwatch.Elapsed
-                    };
-                }
-
-                // 3. If authentication error, remove bad credentials from credential store
-                if (IsAuthenticationError(stderr))
-                {
-                    _logger.LogWarning("Authentication failed, removing bad credentials from store");
-                    await RejectCredentialsAsync(url, username);
-                }
-
-                return new GitOperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Clone failed: {stderr}",
-                    Duration = stopwatch.Elapsed
-                };
             }
             catch (Exception ex)
             {
-                stopwatch.Stop();
-                _logger.LogError(ex, "Error during native git clone: {Url}", url);
-                return new GitOperationResult
-                {
-                    Success = false,
-                    ErrorMessage = $"Clone failed: {ex.Message}",
-                    Duration = stopwatch.Elapsed
-                };
+                _logger.LogWarning(ex, "Post-clone branch check failed for {LocalPath} (non-fatal)", localPath);
             }
+            return Count();
         }
 
         /// <summary>
@@ -1251,7 +716,7 @@ namespace MdExplorer.Services.Git
 
                 // Populate nested submodules; a failure here is a visible warning — the add itself succeeded
                 var message = $"Submodule '{submoduleName}' added and committed.";
-                var nestedResult = await UpdateSubmodulesAsync(repositoryPath);
+                var nestedResult = await EnsureSubmodulesAsync(repositoryPath);
                 if (!nestedResult.Success)
                 {
                     message += $" Warning: nested submodule init failed: {nestedResult.ErrorMessage}";
@@ -1386,96 +851,6 @@ namespace MdExplorer.Services.Git
 
         #endregion
 
-        /// <summary>
-        /// Saves credentials to the git credential store using 'git credential approve'
-        /// </summary>
-        private async Task<bool> SaveCredentialsToGitAsync(string url, string username, string password)
-        {
-            try
-            {
-                var uri = new Uri(url);
-                var process = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "git",
-                        Arguments = "credential approve",
-                        UseShellExecute = false,
-                        RedirectStandardInput = true,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        CreateNoWindow = true
-                    }
-                };
-
-                process.Start();
-
-                var credentialInput = $"protocol={uri.Scheme}\nhost={uri.Host}\nusername={username}\npassword={password}\n\n";
-                await process.StandardInput.WriteAsync(credentialInput);
-                process.StandardInput.Close();
-
-                var completed = process.WaitForExit(10000);
-
-                if (completed && process.ExitCode == 0)
-                {
-                    _logger.LogInformation("Credentials saved to git credential store for {Host}", uri.Host);
-                    return true;
-                }
-                else
-                {
-                    var stderr = await process.StandardError.ReadToEndAsync();
-                    _logger.LogWarning("Failed to save credentials to git credential store: {Error}", stderr);
-                    return false;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Exception saving credentials to git credential store");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Removes bad credentials from the git credential store using 'git credential reject'
-        /// </summary>
-        private async Task RejectCredentialsAsync(string url, string username)
-        {
-            try
-            {
-                var uri = new Uri(url);
-                var process = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "git",
-                        Arguments = "credential reject",
-                        UseShellExecute = false,
-                        RedirectStandardInput = true,
-                        CreateNoWindow = true
-                    }
-                };
-
-                process.Start();
-
-                var input = $"protocol={uri.Scheme}\nhost={uri.Host}\n";
-                if (!string.IsNullOrEmpty(username))
-                {
-                    input += $"username={username}\n";
-                }
-                input += "\n";
-
-                await process.StandardInput.WriteAsync(input);
-                process.StandardInput.Close();
-                process.WaitForExit(5000);
-
-                _logger.LogInformation("Bad credentials rejected from store for {Host}", uri.Host);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to reject credentials from store");
-            }
-        }
-
         public async Task<GitBranchInfo> GetCurrentBranchAsync(string repositoryPath)
         {
             try
@@ -1539,9 +914,6 @@ namespace MdExplorer.Services.Git
                 _logger.LogInformation("Starting checkout operation for repository: {RepositoryPath}, Branch: {Branch}",
                     repositoryPath, branchName);
 
-                // Set repository path and username in execution context for credential resolvers
-                SetGitExecutionContext(repositoryPath);
-
                 using var repo = new Repository(repositoryPath);
 
                 var headCommitBefore = repo.Head.Tip?.Sha;
@@ -1592,46 +964,14 @@ namespace MdExplorer.Services.Git
                 _logger.LogInformation("Checking out branch: {BranchName}", branchName);
                 Commands.Checkout(repo, branch);
 
-                // STEP 4: If it has a remote tracking branch, pull latest changes
+                // STEP 4: If it has a remote tracking branch, pull latest changes (native git; non-fatal)
                 if (branch.TrackedBranch != null)
                 {
-                    _logger.LogInformation("Branch has remote tracking: {TrackedBranch}, pulling latest changes",
-                        branch.TrackedBranch.FriendlyName);
-
-                    try
+                    var pull = await _transport.PullAsync(repositoryPath);
+                    if (!pull.Ok)
                     {
-                        var pullOptions = new PullOptions
-                        {
-                            FetchOptions = new FetchOptions
-                            {
-                                CredentialsProvider = (url, usernameFromUrl, types) =>
-                                    ResolveCredentials(url, usernameFromUrl, types).GetAwaiter().GetResult()
-                            }
-                        };
-
-                        var signature = GetGitSignature(repo);
-                        var pullResult = Commands.Pull(repo, signature, pullOptions);
-
-                        _logger.LogInformation("✅ Pull completed: {PullStatus}", pullResult.Status);
-
-                        if (pullResult.Status == MergeStatus.UpToDate)
-                        {
-                            _logger.LogInformation("   Repository is up to date with remote");
-                        }
-                        else if (pullResult.Status == MergeStatus.FastForward)
-                        {
-                            _logger.LogInformation("   Fast-forwarded to latest commit: {CommitSha}", repo.Head.Tip?.Sha);
-                        }
+                        _logger.LogWarning("Pull after checkout of {Branch} failed (non-fatal): {Error}", branchName, pull.Error);
                     }
-                    catch (Exception pullEx)
-                    {
-                        // Pull failure is non-fatal - checkout already succeeded
-                        _logger.LogWarning(pullEx, "⚠️ Pull after checkout failed (non-fatal): {Message}", pullEx.Message);
-                    }
-                }
-                else
-                {
-                    _logger.LogInformation("Branch has no remote tracking, skipping pull");
                 }
 
                 stopwatch.Stop();
@@ -1710,41 +1050,38 @@ namespace MdExplorer.Services.Git
             }
         }
 
-        public async Task<GitOperationResult> FetchAsync(string repositoryPath, string remoteName = "origin")
+public async Task<GitOperationResult> FetchAsync(string repositoryPath, string remoteName = "origin")
         {
             var stopwatch = Stopwatch.StartNew();
-
             try
             {
                 _logger.LogInformation("Starting fetch operation for repository: {RepositoryPath}, Remote: {Remote}",
                     repositoryPath, remoteName);
-
-                // Set repository path and username in execution context for credential resolvers
-                SetGitExecutionContext(repositoryPath);
-
-                using var repo = new Repository(repositoryPath);
-
-                var remote = repo.Network.Remotes[remoteName];
-                if (remote == null)
+                using (var repo = new Repository(repositoryPath))
                 {
-                    return new GitOperationResult
+                    if (repo.Network.Remotes[remoteName] == null)
                     {
-                        Success = false,
-                        ErrorMessage = $"Remote '{remoteName}' not found",
-                        Duration = stopwatch.Elapsed
-                    };
+                        return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Remote '{remoteName}' not found",
+                    Duration = stopwatch.Elapsed
+                };
+                    }
                 }
 
-                var fetchOptions = new FetchOptions
-                {
-                    CredentialsProvider = (url, usernameFromUrl, types) =>
-                        ResolveCredentials(url, usernameFromUrl, types).GetAwaiter().GetResult()
-                };
-
-                Commands.Fetch(repo, remoteName, new string[0], fetchOptions, null);
-
+                var fetch = await _transport.FetchAsync(repositoryPath, remoteName);
                 stopwatch.Stop();
-
+                if (!fetch.Ok)
+                {
+                    return new GitOperationResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Fetch failed: {fetch.Error}",
+                    Duration = stopwatch.Elapsed
+                };
+                }
+                _lastUsedAuthMethod = AuthenticationMethod.GitCredentialHelper;
                 return new GitOperationResult
                 {
                     Success = true,
@@ -1757,7 +1094,6 @@ namespace MdExplorer.Services.Git
             {
                 stopwatch.Stop();
                 _logger.LogError(ex, "Error during fetch operation for repository: {RepositoryPath}", repositoryPath);
-                
                 return new GitOperationResult
                 {
                     Success = false,
@@ -1770,191 +1106,6 @@ namespace MdExplorer.Services.Git
         #region Private Helper Methods
 
         private AuthenticationMethod _lastUsedAuthMethod = AuthenticationMethod.UserPrompt;
-
-        // STATIC cache shared across all instances - per-project and permanent until application close
-        // Key format: "repositoryPath|url|username|types"
-        private static readonly Dictionary<string, CachedCredential> _credentialCache = new Dictionary<string, CachedCredential>();
-        private static readonly Dictionary<string, int> _credentialCallHistory = new Dictionary<string, int>();
-        private static readonly Dictionary<string, SemaphoreSlim> _credentialResolutionLocks = new Dictionary<string, SemaphoreSlim>();
-        private static readonly object _cacheLock = new object(); // Thread safety for cache access
-        private static readonly object _lockDictionaryLock = new object(); // Thread safety for lock dictionary
-
-        private const int MaxAuthenticationAttempts = 3;
-
-        private class CachedCredential
-        {
-            public Credentials Credentials { get; set; }
-            public DateTime CachedAt { get; set; }
-            public AuthenticationMethod AuthMethod { get; set; }
-            public string RepositoryPath { get; set; }
-        }
-
-        private async Task<Credentials> ResolveCredentials(string url, string usernameFromUrl, SupportedCredentialTypes types)
-        {
-            var resolverCallId = Guid.NewGuid().ToString("N")[..8];
-
-            // Get repository path from execution context for per-project caching
-            var repositoryPath = GitExecutionContext.CurrentRepositoryPath ?? "global";
-
-            // Create per-project cache key
-            var cacheKey = $"{repositoryPath}|{url}|{usernameFromUrl}|{types}";
-
-            // IMPORTANT: Check cache FIRST before doing anything else - with thread safety
-            // Cache is PERMANENT (no timeout) - credentials persist until application close
-            lock (_cacheLock)
-            {
-                if (_credentialCache.ContainsKey(cacheKey))
-                {
-                    var cached = _credentialCache[cacheKey];
-                    var age = DateTime.UtcNow - cached.CachedAt;
-
-                    _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Using CACHED credentials for {Url} in project {Project} (age: {Age:F1} seconds)",
-                        resolverCallId, url, repositoryPath, age.TotalSeconds);
-                    _lastUsedAuthMethod = cached.AuthMethod;
-                    return cached.Credentials;
-                }
-            }
-
-            // Get or create a semaphore for this specific cache key to prevent concurrent resolution
-            SemaphoreSlim resolutionLock;
-            lock (_lockDictionaryLock)
-            {
-                if (!_credentialResolutionLocks.ContainsKey(cacheKey))
-                {
-                    _credentialResolutionLocks[cacheKey] = new SemaphoreSlim(1, 1);
-                }
-                resolutionLock = _credentialResolutionLocks[cacheKey];
-            }
-
-            // Wait for any ongoing credential resolution for this cache key
-            _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Waiting for resolution lock for {Url}", resolverCallId, url);
-            await resolutionLock.WaitAsync();
-
-            try
-            {
-                // Double-check cache after acquiring lock (another thread might have resolved it)
-                lock (_cacheLock)
-                {
-                    if (_credentialCache.ContainsKey(cacheKey))
-                    {
-                        var cached = _credentialCache[cacheKey];
-                        var age = DateTime.UtcNow - cached.CachedAt;
-
-                        _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Using CACHED credentials (found after lock wait) for {Url} in project {Project} (age: {Age:F1} seconds)",
-                            resolverCallId, url, repositoryPath, age.TotalSeconds);
-                        _lastUsedAuthMethod = cached.AuthMethod;
-                        return cached.Credentials;
-                    }
-
-                    // Track call history for this URL
-                    if (_credentialCallHistory.ContainsKey(cacheKey))
-                    {
-                        _credentialCallHistory[cacheKey]++;
-                    }
-                    else
-                    {
-                        _credentialCallHistory[cacheKey] = 1;
-                    }
-                }
-
-                var callCount = _credentialCallHistory[cacheKey];
-            
-            _logger.LogInformation("CREDENTIAL RESOLUTION CALL [{CallId}] - URL: {Url}, User: {User}, Types: {Types}, CallCount: {CallCount}", 
-                resolverCallId, url, usernameFromUrl, types, callCount);
-                
-            // Log warning if this is a repeated call
-            if (callCount > 1)
-            {
-                _logger.LogWarning("CREDENTIAL RESOLUTION [{CallId}] - REPEATED CALL #{Count} for same URL/user/types combination", 
-                    resolverCallId, callCount);
-                    
-                // If we've been called too many times, fail fast to prevent infinite loops
-                if (callCount > MaxAuthenticationAttempts)
-                {
-                    _logger.LogError("CREDENTIAL RESOLUTION [{CallId}] - EXCEEDED MAX ATTEMPTS ({Count}/{Max}) - Failing to prevent infinite loop", 
-                        resolverCallId, callCount, MaxAuthenticationAttempts);
-                    return null;
-                }
-            }
-
-            var resolverIndex = 0;
-            foreach (var resolver in _credentialResolvers)
-            {
-                resolverIndex++;
-                try
-                {
-                    _logger.LogDebug("CREDENTIAL RESOLUTION [{CallId}] - Checking resolver #{Index}: {ResolverType}, Priority: {Priority}", 
-                        resolverCallId, resolverIndex, resolver.GetType().Name, resolver.GetPriority());
-
-                    if (resolver.CanResolveCredentials(url, types))
-                    {
-                        _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Trying resolver #{Index}: {ResolverType}", 
-                            resolverCallId, resolverIndex, resolver.GetType().Name);
-                        
-                        var credentials = await resolver.ResolveCredentialsAsync(url, usernameFromUrl, types);
-                        if (credentials != null)
-                        {
-                            _lastUsedAuthMethod = resolver.GetAuthenticationMethod();
-                            
-                            // Log detailed credential type information
-                            var credType = credentials.GetType().Name;
-                            var isSSH = url.StartsWith("git@") || url.StartsWith("ssh://");
-                            var isHTTPS = url.StartsWith("https://");
-                            
-                            _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - SUCCESS using {ResolverType}: {AuthMethod}, CredType: {CredType}, SSH: {IsSSH}, HTTPS: {IsHTTPS}",
-                                resolverCallId, resolver.GetType().Name, _lastUsedAuthMethod, credType, isSSH, isHTTPS);
-
-                            // Cache the successful credential for future use - with thread safety
-                            // Credentials are cached per-project and persist until application close
-                            lock (_cacheLock)
-                            {
-                                _credentialCache[cacheKey] = new CachedCredential
-                                {
-                                    Credentials = credentials,
-                                    CachedAt = DateTime.UtcNow,
-                                    AuthMethod = _lastUsedAuthMethod,
-                                    RepositoryPath = repositoryPath
-                                };
-
-                                _logger.LogInformation("CREDENTIAL RESOLUTION [{CallId}] - Credentials CACHED PERMANENTLY for {Url} in project {Project} (valid until application close)",
-                                    resolverCallId, url, repositoryPath);
-
-                                // Reset call history on success
-                                _credentialCallHistory[cacheKey] = 0;
-                            }
-                            
-                            return credentials;
-                        }
-                        else
-                        {
-                            _logger.LogWarning("CREDENTIAL RESOLUTION [{CallId}] - FAILED {ResolverType} returned null", 
-                                resolverCallId, resolver.GetType().Name);
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogDebug("CREDENTIAL RESOLUTION [{CallId}] - SKIPPED {ResolverType}: cannot handle URL/types", 
-                            resolverCallId, resolver.GetType().Name);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "CREDENTIAL RESOLUTION [{CallId}] - ERROR in {ResolverType}: {Error}", 
-                        resolverCallId, resolver.GetType().Name, ex.Message);
-                }
-            }
-
-                _logger.LogError("CREDENTIAL RESOLUTION [{CallId}] - FAILED: No resolver could provide credentials for URL: {Url}",
-                    resolverCallId, url);
-                return null;
-            }
-            finally
-            {
-                // Always release the semaphore
-                resolutionLock.Release();
-                _logger.LogDebug("CREDENTIAL RESOLUTION [{CallId}] - Released resolution lock for {Url}", resolverCallId, url);
-            }
-        }
 
         private Signature GetGitSignature(Repository repo)
         {
@@ -2063,60 +1214,13 @@ namespace MdExplorer.Services.Git
                 return new string[0];
             }
         }
-
-        private void ClearCredentialCallHistory()
-        {
-            // Clear the call history to prevent false positives on next operation - with thread safety
-            lock (_cacheLock)
-            {
-                _credentialCallHistory.Clear();
-                _logger.LogDebug("Credential call history cleared after successful operation");
-            }
-        }
-
-        /// <summary>
-        /// Clears all cached credentials for a specific repository
-        /// Useful when changing credentials for a project
-        /// </summary>
-        public void ClearProjectCache(string repositoryPath)
-        {
-            lock (_cacheLock)
-            {
-                var keysToRemove = _credentialCache
-                    .Where(kvp => kvp.Value.RepositoryPath == repositoryPath)
-                    .Select(kvp => kvp.Key)
-                    .ToList();
-
-                foreach (var key in keysToRemove)
-                {
-                    _credentialCache.Remove(key);
-                }
-
-                if (keysToRemove.Any())
-                {
-                    _logger.LogInformation("Cleared {Count} cached credentials for project: {RepositoryPath}", keysToRemove.Count, repositoryPath);
-                }
-            }
-        }
-
         #endregion
 
         public async Task<GitPullPushData> GetPullPushDataAsync(string repositoryPath)
         {
             var callId = Guid.NewGuid().ToString("N")[..8];
-            _logger.LogWarning("🟢 [GET PULL PUSH DATA - START] CallId: {CallId}, Repository: {RepositoryPath}", callId, repositoryPath);
-
             try
             {
-                _logger.LogInformation("🟢 [GET PULL PUSH DATA {CallId}] Getting pull/push data for repository: {RepositoryPath}", callId, repositoryPath);
-
-                // Set repository path and username in execution context for credential resolvers
-                SetGitExecutionContext(repositoryPath);
-
-                using var repo = new Repository(repositoryPath);
-                var currentBranch = repo.Head;
-
-                // Initialize the result
                 var result = new GitPullPushData
                 {
                     HasDataToPull = false,
@@ -2127,81 +1231,34 @@ namespace MdExplorer.Services.Git
                     RemoteConnectionError = null
                 };
 
-                // Check if we have a tracked branch
-                if (currentBranch.TrackedBranch == null)
+                bool hasOrigin, isTracked;
+                using (var probe = new Repository(repositoryPath))
                 {
-                    _logger.LogWarning("Current branch {Branch} has no tracked remote branch", currentBranch.FriendlyName);
+                    hasOrigin = probe.Network.Remotes["origin"] != null;
+                    isTracked = probe.Head.TrackedBranch != null;
+                }
+                if (!isTracked)
+                {
                     return result;
                 }
 
+                // Fetch col git nativo PRIMA di aprire il repository con LibGit2Sharp, così i ref
+                // che leggiamo dopo sono quelli appena scaricati e non una copia in cache.
+                if (hasOrigin)
+                {
+                    var fetch = await _transport.FetchAsync(repositoryPath, "origin");
+                    result.IsRemoteAvailable = fetch.Ok;
+                    if (!fetch.Ok)
+                    {
+                        // Don't fail the whole operation - use cached tracking information
+                        result.RemoteConnectionError = $"Fetch failed: {fetch.Error}";
+                    }
+                }
+
+                using var repo = new Repository(repositoryPath);
+                var currentBranch = repo.Head;
                 try
                 {
-                    // Fetch latest from remote to ensure accurate comparison
-                    var fetchCredentialCallCount = 0;
-
-                    _logger.LogWarning("[FETCH DEBUG] About to create FetchOptions with CredentialsProvider");
-
-                    var fetchOptions = new FetchOptions
-                    {
-                        CredentialsProvider = (url, userFromUrl, types) =>
-                        {
-                            fetchCredentialCallCount++;
-                            _logger.LogWarning("[FETCH DEBUG] *** CREDENTIALS PROVIDER CALLED! *** Count: {Count}, URL: {Url}, User: {User}, Types: {Types}",
-                                fetchCredentialCallCount, url, userFromUrl, types);
-
-                            var task = ResolveCredentials(url, userFromUrl, types);
-                            var result = task.GetAwaiter().GetResult();
-
-                            _logger.LogWarning("[FETCH DEBUG] *** CREDENTIALS PROVIDER RETURNING *** HasCredentials: {HasCredentials}, Method: {Method}",
-                                result != null, _lastUsedAuthMethod);
-
-                            return result;
-                        }
-                    };
-
-                    _logger.LogWarning("[FETCH DEBUG] FetchOptions created, looking for remote 'origin'");
-
-                    var remote = repo.Network.Remotes["origin"];
-                    if (remote != null)
-                    {
-                        try
-                        {
-                            _logger.LogWarning("[FETCH DEBUG] Remote found: {RemoteName}, URL: {RemoteUrl}", remote.Name, remote.Url);
-
-                            var refSpecs = remote.FetchRefSpecs.Select(x => x.Specification);
-                            _logger.LogWarning("[FETCH DEBUG] About to call Commands.Fetch with {RefSpecCount} refspecs", refSpecs.Count());
-
-                            // Log exact moment before fetch
-                            _logger.LogWarning("[FETCH DEBUG] === CALLING Commands.Fetch NOW ===");
-                            try
-                            {
-                                Commands.Fetch(repo, remote.Name, refSpecs, fetchOptions, string.Empty);
-                                _logger.LogWarning("[FETCH DEBUG] === Commands.Fetch RETURNED NORMALLY ===");
-                            }
-                            catch (LibGit2SharpException libEx)
-                            {
-                                _logger.LogWarning("[FETCH DEBUG] === LibGit2SharpException in Commands.Fetch ===");
-                                _logger.LogWarning("[FETCH DEBUG] Exception Type: {Type}", libEx.GetType().FullName);
-                                _logger.LogWarning("[FETCH DEBUG] Exception Message: {Message}", libEx.Message);
-                                _logger.LogWarning("[FETCH DEBUG] Exception StackTrace: {StackTrace}", libEx.StackTrace);
-
-                                // Re-throw to be caught by outer catch
-                                throw;
-                            }
-
-                            _logger.LogWarning("[FETCH DEBUG] Commands.Fetch completed successfully");
-                            result.IsRemoteAvailable = true;
-                            _logger.LogDebug("Fetch completed successfully");
-                        }
-                        catch (Exception fetchEx)
-                        {
-                            _logger.LogWarning(fetchEx, "Fetch failed, but continuing with cached tracking information. Error: {Error}", fetchEx.Message);
-                            // Don't fail the whole operation - use cached tracking information
-                            result.IsRemoteAvailable = false;
-                            result.RemoteConnectionError = $"Fetch failed: {fetchEx.Message}";
-                        }
-                    }
-
                     // Get tracking details after fetch
                     var trackingDetails = currentBranch.TrackingDetails;
 
@@ -2498,109 +1555,22 @@ namespace MdExplorer.Services.Git
         /// <summary>
         /// Tests if authentication to the remote works by attempting a lightweight fetch
         /// </summary>
-        private AuthTestResult TestRemoteAuthentication(Repository repo, Remote remote, string repositoryPath)
+private AuthTestResult TestRemoteAuthentication(Repository repo, Remote remote, string repositoryPath)
         {
-            var result = new AuthTestResult();
-            bool credentialsWereResolved = false;
-
-            try
+            // `git ls-remote --heads origin`: la prova più leggera che il remoto risponde e la
+            // credenziale del credential helper è buona. Senza terminale git non resta appeso.
+            var probe = _transport.LsRemoteAsync(repositoryPath, remote.Name).GetAwaiter().GetResult();
+            if (probe.Ok)
             {
-                _logger.LogWarning("🔐 [CHECK REMOTE STATUS] Testing authentication for remote: {RemoteUrl}", remote.Url);
-
-                // Set repository path and username in execution context for credential resolvers
-                SetGitExecutionContext(repositoryPath);
-
-                // Attempt to list remote references (lightweight operation that tests authentication)
-                // Using inline delegate for credentials provider
-                _logger.LogWarning("🔐 [CHECK REMOTE STATUS] About to call ListReferences...");
-                var refs = repo.Network.ListReferences(remote, (url, usernameFromUrl, types) =>
-                {
-                    _logger.LogWarning("🔐 [CHECK REMOTE STATUS - CREDENTIAL CALLBACK] Resolving credentials for: {Url}", url);
-                    var task = ResolveCredentials(url, usernameFromUrl, types);
-                    var creds = task.GetAwaiter().GetResult();
-                    credentialsWereResolved = creds != null;
-                    _logger.LogWarning("🔐 [CHECK REMOTE STATUS - CREDENTIAL CALLBACK] Resolved: {HasCreds}, Method: {Method}",
-                        creds != null, _lastUsedAuthMethod);
-                    return creds;
-                });
-
-                // If we get here without exception, authentication worked
-                _logger.LogWarning("🔐 [CHECK REMOTE STATUS] Authentication test successful - {RefCount} references found", refs.Count());
-                result.Success = true;
-                return result;
+                _lastUsedAuthMethod = AuthenticationMethod.GitCredentialHelper;
+                return new AuthTestResult { Success = true };
             }
-            catch (LibGit2SharpException ex)
+            return probe.Kind switch
             {
-                _logger.LogWarning(ex, "🔐 [CHECK REMOTE STATUS] Authentication test failed: {Message}", ex.Message);
-
-                // Check if this is a network/connection error (VPN disconnected, server unreachable)
-                var errorMsg = ex.Message.ToLowerInvariant();
-                var isNetworkError = errorMsg.Contains("failed to resolve")
-                    || errorMsg.Contains("could not resolve")
-                    || errorMsg.Contains("connection refused")
-                    || errorMsg.Contains("network is unreachable")
-                    || errorMsg.Contains("timed out")
-                    || errorMsg.Contains("timeout")
-                    || errorMsg.Contains("no route to host")
-                    || errorMsg.Contains("connection reset")
-                    || errorMsg.Contains("socket")
-                    || errorMsg.Contains("ssl")
-                    || errorMsg.Contains("certificate");
-
-                if (isNetworkError)
-                {
-                    // Network/VPN issue - credentials might be fine, but can't reach server
-                    result.AuthFailed = true;
-                    result.FailureReason = "Cannot connect to remote server (check VPN or network)";
-                    _logger.LogWarning("🌐 Network error detected: {Message}", ex.Message);
-                }
-                else if (!credentialsWereResolved)
-                {
-                    // Credential callback was never called - no credentials configured
-                    result.CredentialsMissing = true;
-                    result.FailureReason = "No credentials configured for this repository";
-                }
-                else
-                {
-                    // Credentials were provided but rejected (wrong password, expired token)
-                    result.AuthFailed = true;
-                    result.FailureReason = ex.Message;
-                }
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "🔐 [CHECK REMOTE STATUS] Authentication test error: {Message}", ex.Message);
-
-                // Check for network errors
-                var errorMsg = ex.Message.ToLowerInvariant();
-                var isNetworkError = errorMsg.Contains("failed to resolve")
-                    || errorMsg.Contains("could not resolve")
-                    || errorMsg.Contains("connection refused")
-                    || errorMsg.Contains("network is unreachable")
-                    || errorMsg.Contains("timed out")
-                    || errorMsg.Contains("timeout")
-                    || errorMsg.Contains("no route to host")
-                    || errorMsg.Contains("connection reset")
-                    || errorMsg.Contains("socket");
-
-                if (isNetworkError)
-                {
-                    result.AuthFailed = true;
-                    result.FailureReason = "Cannot connect to remote server (check VPN or network)";
-                }
-                else if (!credentialsWereResolved)
-                {
-                    result.CredentialsMissing = true;
-                    result.FailureReason = "No credentials configured for this repository";
-                }
-                else
-                {
-                    result.AuthFailed = true;
-                    result.FailureReason = ex.Message;
-                }
-                return result;
-            }
+                NativeGitFailureKind.CredentialsMissing => new AuthTestResult { CredentialsMissing = true, FailureReason = probe.Error },
+                NativeGitFailureKind.Network => new AuthTestResult { AuthFailed = true, FailureReason = "Cannot connect to remote server (check VPN or network): " + probe.Error },
+                _ => new AuthTestResult { AuthFailed = true, FailureReason = probe.Error },
+            };
         }
 
         /// <summary>
@@ -3303,177 +2273,27 @@ namespace MdExplorer.Services.Git
         /// - OAuth providers (GitHub, GitLab, Azure, Bitbucket): uses git command to allow GCM to open browser
         /// - Basic auth providers (SCM Manager, Gitea, etc.): uses LibGit2Sharp with existing credential resolution
         /// </summary>
-        public async Task<RemoteUrlValidationResult> ValidateRemoteUrlAsync(string url)
+public async Task<RemoteUrlValidationResult> ValidateRemoteUrlAsync(string url)
         {
-            _logger.LogInformation("Validating remote URL reachability: {Url}", url);
-
-            if (IsOAuthProvider(url))
+            var probe = await _transport.LsRemoteAsync(Path.GetTempPath(), url);
+            if (probe.Ok)
             {
-                _logger.LogInformation("Detected OAuth provider, using git ls-remote with GCM support");
-                return await ValidateWithGitCommandAsync(url);
-            }
-            else
-            {
-                _logger.LogInformation("Detected Basic Auth provider, using LibGit2Sharp");
-                return await ValidateWithLibGit2SharpAsync(url);
-            }
-        }
-
-        /// <summary>
-        /// Determines if the URL belongs to an OAuth provider (GitHub, GitLab, Azure DevOps, Bitbucket).
-        /// These providers support GCM browser-based authentication.
-        /// </summary>
-        private bool IsOAuthProvider(string url)
-        {
-            if (string.IsNullOrEmpty(url)) return false;
-
-            var urlLower = url.ToLowerInvariant();
-            return urlLower.Contains("github.com") ||
-                   urlLower.Contains("gitlab.com") ||
-                   urlLower.Contains("bitbucket.org") ||
-                   urlLower.Contains("dev.azure.com") ||
-                   urlLower.Contains("visualstudio.com");
-        }
-
-        /// <summary>
-        /// Validates URL using real git command, allowing GCM to handle OAuth authentication
-        /// (opens browser for login, shows account selection dialog, etc.)
-        /// </summary>
-        private async Task<RemoteUrlValidationResult> ValidateWithGitCommandAsync(string url)
-        {
-            try
-            {
-                var process = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "git",
-                        Arguments = $"ls-remote --heads \"{url}\"",
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        CreateNoWindow = false  // Allow GCM to open browser/dialogs for authentication
-                    }
-                };
-
-                _logger.LogInformation("Starting git ls-remote process (GCM may open browser for authentication)");
-                process.Start();
-
-                // Use longer timeout to allow for browser authentication (2 minutes)
-                var timeoutMs = 120000;
-                var completed = await Task.Run(() => process.WaitForExit(timeoutMs));
-
-                if (!completed)
-                {
-                    _logger.LogWarning("git ls-remote timed out after {Timeout}ms for URL: {Url}", timeoutMs, url);
-                    try { process.Kill(); } catch { }
-                    return new RemoteUrlValidationResult
-                    {
-                        IsReachable = false,
-                        Error = "Timeout waiting for authentication. Please try again."
-                    };
-                }
-
-                var output = await process.StandardOutput.ReadToEndAsync();
-                var error = await process.StandardError.ReadToEndAsync();
-
-                if (process.ExitCode == 0)
-                {
-                    var refCount = output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
-                    _logger.LogInformation("Remote URL validation successful: {Url}, found {RefCount} references", url, refCount);
-
-                    return new RemoteUrlValidationResult
-                    {
-                        IsReachable = true,
-                        ReferenceCount = refCount
-                    };
-                }
-                else
-                {
-                    _logger.LogWarning("git ls-remote failed for URL: {Url}, ExitCode: {ExitCode}, Error: {Error}",
-                        url, process.ExitCode, error);
-
-                    var errorMsg = error.ToLowerInvariant();
-                    var isAuthError = errorMsg.Contains("authentication") ||
-                                      errorMsg.Contains("unauthorized") ||
-                                      errorMsg.Contains("401") ||
-                                      errorMsg.Contains("403") ||
-                                      errorMsg.Contains("could not read username") ||
-                                      errorMsg.Contains("terminal prompts disabled");
-
-                    // GitHub returns 404 for private repos without auth
-                    var isPotentialAuthError = errorMsg.Contains("404") ||
-                                               errorMsg.Contains("not found") ||
-                                               errorMsg.Contains("repository not found");
-
-                    return new RemoteUrlValidationResult
-                    {
-                        IsReachable = false,
-                        Error = string.IsNullOrWhiteSpace(error) ? "Repository not accessible" : error.Trim(),
-                        IsAuthenticationError = isAuthError || isPotentialAuthError
-                    };
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error validating remote URL with git command: {Url}", url);
-                return new RemoteUrlValidationResult
-                {
-                    IsReachable = false,
-                    Error = ex.Message
-                };
-            }
-        }
-
-        /// <summary>
-        /// Validates URL using LibGit2Sharp with existing credential resolution.
-        /// Used for Basic Auth providers (SCM Manager, Gitea, on-premises Git servers).
-        /// </summary>
-        private async Task<RemoteUrlValidationResult> ValidateWithLibGit2SharpAsync(string url)
-        {
-            try
-            {
-                // Use LibGit2Sharp to attempt to list remote references
-                var refs = Repository.ListRemoteReferences(url, (repoUrl, usernameFromUrl, types) =>
-                {
-                    return ResolveCredentials(repoUrl, usernameFromUrl, types).GetAwaiter().GetResult();
-                });
-
-                var refCount = refs.Count();
-                _logger.LogInformation("Remote URL validation successful: {Url}, found {RefCount} references", url, refCount);
-
                 return new RemoteUrlValidationResult
                 {
                     IsReachable = true,
-                    ReferenceCount = refCount
+                    ReferenceCount = probe.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length
                 };
             }
-            catch (LibGit2SharpException ex)
+            // GitHub risponde 404 a un repository privato senza credenziale: anche quello è un
+            // problema di autenticazione, non di URL.
+            return new RemoteUrlValidationResult
             {
-                _logger.LogWarning(ex, "Remote URL validation failed: {Url}", url);
-
-                var errorMsg = ex.Message.ToLowerInvariant();
-                var isAuthError = errorMsg.Contains("authentication") ||
-                                  errorMsg.Contains("unauthorized") ||
-                                  errorMsg.Contains("401") ||
-                                  errorMsg.Contains("403");
-
-                return new RemoteUrlValidationResult
-                {
-                    IsReachable = false,
-                    Error = ex.Message,
-                    IsAuthenticationError = isAuthError
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error validating remote URL: {Url}", url);
-                return new RemoteUrlValidationResult
-                {
-                    IsReachable = false,
-                    Error = ex.Message
-                };
-            }
+                IsReachable = false,
+                Error = probe.Error,
+                IsAuthenticationError = probe.Kind is NativeGitFailureKind.CredentialsMissing
+                    or NativeGitFailureKind.AuthenticationFailed
+                    or NativeGitFailureKind.NotFound
+            };
         }
 
     }

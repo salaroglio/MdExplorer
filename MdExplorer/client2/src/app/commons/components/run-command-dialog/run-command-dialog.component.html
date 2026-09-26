@@ -20,17 +20,26 @@
   <div *ngIf="data.params?.length" class="params-section">
     <div class="section-label">Parameters</div>
     <div *ngFor="let p of data.params" class="param-row">
+      <!-- Explicit caption above the control: a floating mat-label sits inside the field
+           and blurs into the value (and is nearly invisible in dark theme). -->
+      <label class="param-caption" [attr.for]="'mde-param-' + p.name">
+        <span class="param-caption-name">{{ p.name }}</span>
+        <span class="param-caption-desc" *ngIf="p.description">{{ p.description }}</span>
+      </label>
       <mat-form-field appearance="outline" class="param-field">
-        <mat-label>{{ p.name }}</mat-label>
-        <input matInput
+        <mat-select *ngIf="p.options?.length"
+                    [id]="'mde-param-' + p.name"
+                    [(ngModel)]="values[p.name]">
+          <mat-option *ngFor="let o of p.options" [value]="o">{{ o }}</mat-option>
+        </mat-select>
+        <input *ngIf="!p.options?.length" matInput
+               [id]="'mde-param-' + p.name"
                [type]="p.isSecret && !showSecret[p.name] ? 'password' : 'text'"
-               [(ngModel)]="values[p.name]"
-               [placeholder]="p.description || ''">
-        <button *ngIf="p.isSecret" mat-icon-button matSuffix (click)="toggleSecret(p.name)"
+               [(ngModel)]="values[p.name]">
+        <button *ngIf="p.isSecret && !p.options?.length" mat-icon-button matSuffix (click)="toggleSecret(p.name)"
                 type="button" tabindex="-1" aria-label="Toggle visibility">
           <mat-icon>{{ showSecret[p.name] ? 'visibility_off' : 'visibility' }}</mat-icon>
         </button>
-        <mat-hint *ngIf="p.description">{{ p.description }}</mat-hint>
       </mat-form-field>
     </div>
   </div>

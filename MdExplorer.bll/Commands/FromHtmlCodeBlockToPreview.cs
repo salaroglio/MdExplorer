@@ -53,9 +53,16 @@ namespace MdExplorer.Features.Commands
             var matches = GetMatches(markdown);
             if (matches.Count == 0) return markdown;
 
+            var regions = MarkdownCodeRegions.Of(markdown);
             var currentIncrement = 0;
             foreach (Match match in matches)
             {
+                // A ```html block written as an example inside a ```` block is text, not a page to preview.
+                if (regions.IsCode(match.Index))
+                {
+                    continue;
+                }
+
                 try
                 {
                     var externalFile = match.Groups[1].Value; // filename from ```html(file.html)
@@ -203,78 +210,28 @@ namespace MdExplorer.Features.Commands
         }
 
         /// <summary>
-        /// Resolves and reads an external HTML file, using the same path resolution logic as MDShowMDHtml.
-        /// Supports: relative paths (./file.html, ../file.html), absolute from project root (/file.html), and plain names.
+        /// Path resolution and sandboxing live in <see cref="ExternalFileResolver"/>, shared with
+        /// the other include commands. Returns null when the file is not found, too large, or
+        /// escapes the project root.
         /// </summary>
         private string ReadExternalFile(string fileName, RequestInfo requestInfo, out string absoluteFilePath)
         {
-            absoluteFilePath = null;
             try
             {
-                string resolvedPath;
+                var content = ExternalFileResolver.ReadInsideProject(
+                    fileName, requestInfo, MaxExternalFileSizeBytes, out absoluteFilePath, out var error);
 
-                if (fileName.StartsWith("../") || fileName.StartsWith("./"))
+                if (content == null)
                 {
-                    // Relative to current .md file
-                    var listOfItem = requestInfo.CurrentQueryRequest
-                        .Split(Path.DirectorySeparatorChar, options: StringSplitOptions.RemoveEmptyEntries)
-                        .ToList();
-                    listOfItem.RemoveAt(listOfItem.Count - 1); // remove filename
-
-                    var currentFolder = string.Join(Path.DirectorySeparatorChar, listOfItem.ToArray());
-                    var relativePath = fileName.Replace('/', Path.DirectorySeparatorChar);
-                    resolvedPath = Path.Combine(currentFolder, relativePath);
-                    resolvedPath = _helper.NormalizePath(resolvedPath);
-                }
-                else if (fileName.StartsWith("/"))
-                {
-                    // Absolute from project root
-                    resolvedPath = fileName.Remove(0, 1).Replace('/', Path.DirectorySeparatorChar);
-                }
-                else
-                {
-                    // Plain name: relative to current .md file
-                    var listOfItem = requestInfo.CurrentQueryRequest
-                        .Split(Path.DirectorySeparatorChar, options: StringSplitOptions.RemoveEmptyEntries)
-                        .ToList();
-                    listOfItem.RemoveAt(listOfItem.Count - 1);
-
-                    var currentFolder = string.Join(Path.DirectorySeparatorChar, listOfItem.ToArray());
-                    resolvedPath = Path.Combine(currentFolder, fileName.Replace('/', Path.DirectorySeparatorChar));
-                    resolvedPath = _helper.NormalizePath(resolvedPath);
+                    _logger.LogWarning("[FromHtmlCodeBlockToPreview] {Reason} ({FileName})", error, fileName);
                 }
 
-                // Build absolute path from project root
-                var absolutePath = Path.Combine(requestInfo.CurrentRoot, resolvedPath);
-                absolutePath = Path.GetFullPath(absolutePath);
-
-                // Security: ensure the resolved path is within the project root
-                var projectRoot = Path.GetFullPath(requestInfo.CurrentRoot);
-                if (!absolutePath.StartsWith(projectRoot, StringComparison.OrdinalIgnoreCase))
-                {
-                    _logger.LogWarning("[FromHtmlCodeBlockToPreview] Path traversal blocked: {Path}", fileName);
-                    return null;
-                }
-
-                if (!File.Exists(absolutePath))
-                {
-                    _logger.LogWarning("[FromHtmlCodeBlockToPreview] External file not found: {Path}", absolutePath);
-                    return null;
-                }
-
-                var fileInfo = new FileInfo(absolutePath);
-                if (fileInfo.Length > MaxExternalFileSizeBytes)
-                {
-                    _logger.LogWarning("[FromHtmlCodeBlockToPreview] External file too large ({Size} bytes): {Path}", fileInfo.Length, absolutePath);
-                    return null;
-                }
-
-                absoluteFilePath = absolutePath;
-                return File.ReadAllText(absolutePath, Encoding.UTF8);
+                return content;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[FromHtmlCodeBlockToPreview] Error reading external file: {FileName}", fileName);
+                absoluteFilePath = null;
                 return null;
             }
         }

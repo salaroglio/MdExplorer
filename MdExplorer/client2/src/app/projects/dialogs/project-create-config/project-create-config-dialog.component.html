@@ -12,12 +12,30 @@
 
     <div class="config-options">
       <div class="option-item">
-        <mat-checkbox [(ngModel)]="config.addCopilotInstructions" color="primary">
-          <strong>{{ 'PROJECT_CONFIG.ADD_COPILOT' | translate }}</strong>
-          <div class="option-description">
-            {{ 'PROJECT_CONFIG.ADD_COPILOT_DESC' | translate }}
-          </div>
-        </mat-checkbox>
+        <label class="group-label" id="harness-label">
+          <strong>{{ 'PROJECT_CONFIG.HARNESS' | translate }}</strong>
+        </label>
+        <div class="option-description group-description">
+          {{ 'PROJECT_CONFIG.HARNESS_DESC' | translate }}
+        </div>
+
+        <mat-radio-group
+          class="harness-group"
+          aria-labelledby="harness-label"
+          [(ngModel)]="config.harness">
+          <mat-radio-button
+            *ngFor="let option of harnessOptions"
+            [value]="option.value"
+            class="harness-radio">
+            <span class="harness-label">
+              <mat-icon class="harness-icon">{{ option.icon }}</mat-icon>
+              <strong>{{ option.labelKey | translate }}</strong>
+            </span>
+            <div class="option-description">
+              {{ option.descKey | translate }}
+            </div>
+          </mat-radio-button>
+        </mat-radio-group>
       </div>
 
       <div class="option-item">

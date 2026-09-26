@@ -33,16 +33,12 @@ namespace MdExplorer.Controllers.ModernGit
     public class ModernGitController : MdControllerBase<ModernGitController>
     {
         private readonly IModernGitService _gitService;
-        private readonly IGitHubService _gitHubService;
         private readonly IMdIgnoreService _mdIgnoreService;
         private readonly IGitRemoteUrlParser _urlParser;
         private readonly IGenericRemoteService _genericRemoteService;
-        private readonly IGitAccountService _gitAccountService;
-        private readonly GitCredentialHelperResolver _gitCredentialHelper;
 
         public ModernGitController(
             IModernGitService gitService,
-            IGitHubService gitHubService,
             ILogger<ModernGitController> logger,
             IUserSettingsDB userSettingsDb,
             IHubContext<MonitorMDHub> hubContext,
@@ -51,19 +47,14 @@ namespace MdExplorer.Controllers.ModernGit
             IOptions<MdExplorerAppSettings> options,
             IGitRemoteUrlParser urlParser,
             IGenericRemoteService genericRemoteService,
-            IGitAccountService gitAccountService,
-            GitCredentialHelperResolver gitCredentialHelper,
             IDatabaseManager databaseManager = null,
             IFileSystemWatcherManager fileSystemWatcherManager = null)
             : base(logger, options, hubContext, userSettingsDb, engineDB, null, null, null, databaseManager, fileSystemWatcherManager)
         {
             _gitService = gitService;
-            _gitHubService = gitHubService;
             _mdIgnoreService = mdIgnoreService;
             _urlParser = urlParser;
             _genericRemoteService = genericRemoteService;
-            _gitAccountService = gitAccountService;
-            _gitCredentialHelper = gitCredentialHelper;
         }
 
         /// <summary>
@@ -293,12 +284,6 @@ namespace MdExplorer.Controllers.ModernGit
                 _logger.LogInformation("Clone request received: {Url} to {LocalPath} (useSavedToken={UseSavedToken})",
                     request.Url, request.LocalPath, request.UseSavedToken);
 
-                // DEBUG: Log all parameters to trace clone failure
-                _logger.LogWarning("[CLONE DEBUG] Controller received: Url={Url}, UseSavedToken={UseSavedToken}, HasUsername={HasUsername}, HasPassword={HasPassword}",
-                    request.Url, request.UseSavedToken,
-                    !string.IsNullOrEmpty(request.Username),
-                    !string.IsNullOrEmpty(request.Password));
-
                 var result = await _gitService.CloneAsync(
                     request.Url,
                     request.LocalPath,
@@ -309,47 +294,6 @@ namespace MdExplorer.Controllers.ModernGit
 
                 if (result.Success)
                 {
-                    // Save per-repository credentials if provided manually (not using saved token)
-                    if (!request.UseSavedToken && !string.IsNullOrEmpty(request.Username))
-                    {
-                        try
-                        {
-                            await SaveCloneCredentialsAsync(request);
-                            _logger.LogInformation("Saved credentials for cloned repository: {LocalPath}", request.LocalPath);
-                        }
-                        catch (Exception ex)
-                        {
-                            // Non-fatal: clone succeeded, credential saving is best-effort
-                            _logger.LogWarning(ex, "Failed to save clone credentials (non-fatal)");
-                        }
-                    }
-                    else
-                    {
-                        // Credentials were provided via GCM prompt (request.Username is empty)
-                        // Try to detect and save credentials from GCM cache
-                        try
-                        {
-                            _logger.LogInformation("🔐 Attempting to auto-detect and save credentials from GCM for: {LocalPath}", request.LocalPath);
-                            var credentialsSaved = await _gitCredentialHelper.DetectAndSaveCredentialsForRepository(
-                                request.LocalPath,
-                                request.Url);
-
-                            if (credentialsSaved)
-                            {
-                                _logger.LogInformation("✅ Successfully auto-detected and saved GCM credentials for: {LocalPath}", request.LocalPath);
-                            }
-                            else
-                            {
-                                _logger.LogWarning("⚠️ Could not auto-detect credentials from GCM for: {LocalPath}", request.LocalPath);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            // Non-fatal: clone succeeded, credential auto-detection is best-effort
-                            _logger.LogWarning(ex, "Failed to auto-detect GCM credentials (non-fatal)");
-                        }
-                    }
-
                     return Ok(new
                     {
                         success = true,
@@ -375,40 +319,6 @@ namespace MdExplorer.Controllers.ModernGit
                     error = "Internal server error during clone operation"
                 });
             }
-        }
-
-        /// <summary>
-        /// Saves credentials used during clone to the GitRepositoryAccount table
-        /// for future authentication with this repository.
-        /// </summary>
-        private async Task SaveCloneCredentialsAsync(CloneRequest request)
-        {
-            var urlInfo = _urlParser.ParseUrl(request.Url);
-
-            var accountType = urlInfo.Provider?.ToLower() switch
-            {
-                "github" => "GitHub",
-                "gitlab" => "GitLab",
-                "bitbucket" => "Bitbucket",
-                _ => "Generic"
-            };
-
-            var repositoryPath = Path.GetFullPath(request.LocalPath);
-            var accountName = $"{accountType} - {request.Username ?? "Account"}";
-
-            // Use CreateAccountWithCredentialAsync to create account with linked credential
-            var account = await _gitAccountService.CreateAccountWithCredentialAsync(
-                repositoryPath,
-                accountType,
-                accountName,
-                request.Username,
-                gitHubPAT: accountType == "GitHub" ? request.Password : null,
-                gitLabToken: accountType == "GitLab" ? request.Password : null,
-                httpsPassword: request.Password,
-                preferredAuthMethod: "username_password");
-
-            _logger.LogInformation("Created GitRepositoryAccount for {RepoPath} with type {AccountType}",
-                account.RepositoryPath, account.AccountType);
         }
 
         /// <summary>
@@ -858,92 +768,6 @@ namespace MdExplorer.Controllers.ModernGit
             }
         }
 
-        /// <summary>
-        /// Sets up a GitHub remote for the repository
-        /// </summary>
-        /// <param name="request">Remote setup parameters</param>
-        /// <returns>Result of the setup operation</returns>
-        [HttpPost("setup-remote")]
-        public async Task<IActionResult> SetupRemote([FromBody] SetupRemoteRequest request)
-        {
-            try
-            {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
-
-                _logger.LogInformation("Setting up remote for repository: {RepositoryPath}", request.RepositoryPath);
-
-                // Save organization if requested
-                if (request.SaveOrganization)
-                {
-                    await SaveGitHubOrganization(request.Organization);
-                }
-
-                // First, try to create the repository on GitHub if it doesn't exist
-                var gitHubResult = await _gitHubService.CreateRepositoryAsync(
-                    request.Organization,
-                    request.RepositoryName,
-                    request.RepositoryDescription,
-                    request.IsPrivate ?? true);
-
-                if (!gitHubResult.Success)
-                {
-                    _logger.LogWarning("Failed to create GitHub repository: {Error}", gitHubResult.ErrorMessage);
-                    // If it's not an "already exists" error, return the error
-                    if (!gitHubResult.AlreadyExists)
-                    {
-                        return BadRequest(new
-                        {
-                            success = false,
-                            error = gitHubResult.ErrorMessage,
-                            needsToken = gitHubResult.ErrorMessage.Contains("token")
-                        });
-                    }
-                }
-                else
-                {
-                    _logger.LogInformation("GitHub repository {Status}: {Url}",
-                        gitHubResult.AlreadyExists ? "already exists" : "created",
-                        gitHubResult.RepositoryUrl);
-                }
-
-                // Add the remote
-                var result = await _gitService.AddRemoteAsync(
-                    request.RepositoryPath,
-                    request.Organization,
-                    request.RepositoryName,
-                    request.PushAfterAdd);
-
-                if (result.Success)
-                {
-                    return Ok(new
-                    {
-                        success = true,
-                        message = result.Message,
-                        durationMs = result.Duration.TotalMilliseconds
-                    });
-                }
-
-                return BadRequest(new
-                {
-                    success = false,
-                    error = result.ErrorMessage,
-                    durationMs = result.Duration.TotalMilliseconds
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error during remote setup");
-                return StatusCode(500, new
-                {
-                    success = false,
-                    error = "Internal server error during remote setup"
-                });
-            }
-        }
-
         #region Generic Remote Setup Endpoints
 
         /// <summary>
@@ -964,7 +788,6 @@ namespace MdExplorer.Controllers.ModernGit
                 _logger.LogInformation("Parsing remote URL: {Url}", request.Url);
 
                 var urlInfo = _urlParser.ParseUrl(request.Url);
-                var tokenUrl = _urlParser.GetTokenCreationUrl(urlInfo.Provider, urlInfo.Host);
 
                 return Ok(new ParseRemoteUrlResponse
                 {
@@ -975,7 +798,6 @@ namespace MdExplorer.Controllers.ModernGit
                     RepoName = urlInfo.RepoName,
                     Protocol = urlInfo.Protocol,
                     SupportsAutoCreate = urlInfo.SupportsAutoCreate,
-                    TokenCreationUrl = tokenUrl,
                     Error = urlInfo.Error
                 });
             }
@@ -986,53 +808,6 @@ namespace MdExplorer.Controllers.ModernGit
                 {
                     IsValid = false,
                     Error = "Internal server error parsing URL"
-                });
-            }
-        }
-
-        /// <summary>
-        /// Validates remote URL with provided credentials
-        /// </summary>
-        /// <param name="request">Validation request with URL and credentials</param>
-        /// <returns>Validation result</returns>
-        [HttpPost("validate-remote-auth")]
-        public async Task<IActionResult> ValidateRemoteAuth([FromBody] ValidateRemoteAuthRequest request)
-        {
-            try
-            {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
-
-                _logger.LogInformation("Validating remote auth for: {Url}", request.RemoteUrl);
-
-                var result = await _genericRemoteService.ValidateRemoteWithCredentialsAsync(
-                    new Services.Git.Interfaces.ValidateRemoteRequest
-                    {
-                        RemoteUrl = request.RemoteUrl,
-                        Username = request.Username,
-                        Password = request.Password,
-                        AuthMethod = request.AuthMethod
-                    });
-
-                return Ok(new ValidateRemoteAuthResponse
-                {
-                    IsReachable = result.IsReachable,
-                    RequiresAuth = result.RequiresAuth,
-                    CredentialsValid = result.CredentialsValid,
-                    RepositoryExists = result.RepositoryExists,
-                    Provider = result.Provider,
-                    Error = result.Error
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error validating remote auth: {Url}", request.RemoteUrl);
-                return StatusCode(500, new ValidateRemoteAuthResponse
-                {
-                    IsReachable = false,
-                    Error = "Internal server error during validation"
                 });
             }
         }
@@ -1051,51 +826,32 @@ namespace MdExplorer.Controllers.ModernGit
                 {
                     return BadRequest(ModelState);
                 }
-
-                _logger.LogInformation("Setting up generic remote: {RemoteUrl} for repository: {RepositoryPath}",
+                _logger.LogInformation("Setting up remote: {RemoteUrl} for repository: {RepositoryPath}",
                     request.RemoteUrl, request.RepositoryPath);
-
                 var result = await _genericRemoteService.SetupRemoteGenericAsync(
                     new Services.Git.Interfaces.SetupRemoteGenericRequest
                     {
                         RepositoryPath = request.RepositoryPath,
                         RemoteUrl = request.RemoteUrl,
                         RemoteName = request.RemoteName,
-                        AuthMethod = request.AuthMethod,
-                        Username = request.Username,
-                        Password = request.Password,
-                        Token = request.Token,
-                        SaveCredentials = request.SaveCredentials,
+                        AccountUsername = request.AccountUsername,
                         PushAfterAdd = request.PushAfterAdd,
-                        CreateRemoteRepo = request.CreateRemoteRepo,
-                        RepoDescription = request.RepoDescription,
-                        IsPrivate = request.IsPrivate,
-                        UseSavedToken = request.UseSavedToken,
-                        CopyFromCredentialId = request.CopyFromCredentialId
                     });
-
-                if (result.Success)
+                var response = new GenericSetupRemoteResponse
                 {
-                    return Ok(new GenericSetupRemoteResponse
-                    {
-                        Success = true,
-                        Message = result.Message,
-                        RepositoryCreated = result.RepositoryCreated,
-                        RemoteUrl = result.RemoteUrl,
-                        DurationMs = result.DurationMs
-                    });
-                }
-
-                return BadRequest(new GenericSetupRemoteResponse
-                {
-                    Success = false,
+                    Success = result.Success,
+                    Message = result.Message,
                     Error = result.Error,
+                    RemoteUrl = result.RemoteUrl,
+                    PushAttempted = result.PushAttempted,
+                    PushSucceeded = result.PushSucceeded,
                     DurationMs = result.DurationMs
-                });
+                };
+                return result.Success ? Ok(response) : BadRequest(response);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error setting up generic remote: {RemoteUrl}", request.RemoteUrl);
+                _logger.LogError(ex, "Error setting up remote: {RemoteUrl}", request.RemoteUrl);
                 return StatusCode(500, new GenericSetupRemoteResponse
                 {
                     Success = false,
@@ -1152,189 +908,28 @@ namespace MdExplorer.Controllers.ModernGit
         }
 
         /// <summary>
-        /// Gets the saved GitHub organization
-        /// </summary>
-        /// <returns>The saved organization name or empty string</returns>
-        [HttpGet("github-organization")]
-        public IActionResult GetGitHubOrganization()
-        {
-            try
-            {
-                var dal = _userSettingsDB.GetDal<Setting>();
-                var setting = dal.GetList().Where(s => s.Name == "GitHubOrganization").FirstOrDefault();
-
-                return Ok(new
-                {
-                    organization = setting?.ValueString ?? string.Empty
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting GitHub organization");
-                return Ok(new { organization = string.Empty });
-            }
-        }
-
-        /// <summary>
-        /// Saves the GitHub organization for future use
-        /// </summary>
-        /// <param name="request">Organization to save</param>
-        /// <returns>Success status</returns>
-        [HttpPost("github-organization")]
-        public async Task<IActionResult> SaveGitHubOrganizationEndpoint([FromBody] OrganizationRequest request)
-        {
-            try
-            {
-                await SaveGitHubOrganization(request?.Organization);
-                return Ok(new { success = true });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error saving GitHub organization");
-                return StatusCode(500, new { success = false, error = "Failed to save organization" });
-            }
-        }
-
-        /// <summary>
-        /// Sets the GitHub personal access token
-        /// </summary>
-        [HttpPost("github-token")]
-        public async Task<IActionResult> SetGitHubToken([FromBody] TokenRequest request)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(request?.Token))
-                {
-                    return BadRequest(new { success = false, error = "Token is required" });
-                }
-
-                await _gitHubService.SetTokenAsync(request.Token);
-
-                // Test the token to make sure it's valid
-                var isValid = await _gitHubService.TestTokenAsync();
-
-                return Ok(new
-                {
-                    success = true,
-                    tokenValid = isValid
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error setting GitHub token");
-                return StatusCode(500, new { success = false, error = "Failed to set token" });
-            }
-        }
-
-        /// <summary>
-        /// Gets the masked GitHub token (for display)
-        /// </summary>
-        [HttpGet("github-token")]
-        public async Task<IActionResult> GetGitHubToken()
-        {
-            try
-            {
-                var maskedToken = await _gitHubService.GetMaskedTokenAsync();
-                var username = await _gitHubService.GetTokenUsernameAsync();
-                var isValid = !string.IsNullOrEmpty(maskedToken) ? await _gitHubService.TestTokenAsync() : false;
-
-                return Ok(new
-                {
-                    hasToken = !string.IsNullOrEmpty(maskedToken),
-                    maskedToken = maskedToken,
-                    tokenValid = isValid,
-                    username = username
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting GitHub token");
-                return Ok(new { hasToken = false, maskedToken = "", tokenValid = false, username = (string)null });
-            }
-        }
-
-        /// <summary>
-        /// Tests the GitHub token validity
-        /// </summary>
-        [HttpPost("test-github-token")]
-        public async Task<IActionResult> TestGitHubToken()
-        {
-            try
-            {
-                var isValid = await _gitHubService.TestTokenAsync();
-
-                return Ok(new
-                {
-                    success = true,
-                    tokenValid = isValid
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error testing GitHub token");
-                return Ok(new { success = false, tokenValid = false });
-            }
-        }
-
-        /// <summary>
-        /// Deletes the stored GitHub personal access token
-        /// </summary>
-        [HttpDelete("github-token")]
-        public async Task<IActionResult> DeleteGitHubToken()
-        {
-            try
-            {
-                await _gitHubService.ClearTokenAsync();
-                _logger.LogInformation("GitHub token deleted successfully");
-                return Ok(new { success = true, message = "Token deleted successfully" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting GitHub token");
-                return StatusCode(500, new { success = false, error = "Failed to delete token" });
-            }
-        }
-
-        private async Task SaveGitHubOrganization(string organization)
-        {
-            await Task.Run(() =>
-            {
-                _userSettingsDB.BeginTransaction();
-                try
-                {
-                    var dal = _userSettingsDB.GetDal<Setting>();
-                    var setting = dal.GetList().Where(s => s.Name == "GitHubOrganization").FirstOrDefault();
-
-                    if (setting != null)
-                    {
-                        setting.ValueString = organization;
-                    }
-                    else
-                    {
-                        setting = new Setting
-                        {
-                            Name = "GitHubOrganization",
-                            ValueString = organization
-                        };
-                    }
-
-                    dal.Save(setting);
-                    _userSettingsDB.Commit();
-                    _logger.LogInformation("GitHub organization saved: {Organization}", organization);
-                }
-                catch (Exception ex)
-                {
-                    _userSettingsDB.Rollback();
-                    throw;
-                }
-            });
-        }
-
-        /// <summary>
         /// Initializes a new Git repository in the specified directory
         /// </summary>
         /// <param name="request">Initialization request with repository path, branch name, and gitignore template</param>
         /// <returns>Initialization response with success status</returns>
+        /// <summary>
+        /// Il trasloco delle credenziali dal DB di MdExplorer al credential helper di git (vedi
+        /// <see cref="Services.Git.GitCredentialMoveService"/>). POST lo esegue, GET riporta l'ultimo esito:
+        /// la UI lo mostra una volta, con l'elenco di ciò che non si è potuto spostare e il perché.
+        /// </summary>
+        [HttpPost("credential-move")]
+        public async Task<IActionResult> RunCredentialMove([FromServices] Services.Git.IGitCredentialMoveService mover)
+        {
+            var report = await mover.RunAsync(HttpContext.RequestAborted);
+            return Ok(report);
+        }
+
+        [HttpGet("credential-move")]
+        public IActionResult LastCredentialMove([FromServices] Services.Git.GitCredentialMoveReportHolder holder)
+        {
+            return Ok(holder.Last ?? new Services.Git.GitCredentialMoveReport());
+        }
+
         [HttpPost("init")]
         public async Task<IActionResult> InitRepository([FromBody] InitRepositoryRequest request)
         {

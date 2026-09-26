@@ -6,7 +6,7 @@
  * Format-agnostic: uses marker classes added by interactive-svg.js
  *   - .interactive-svg-box   : every clickable box (legacy elem_/cluster_/GMN + new g.entity/g.cluster)
  *   - .interactive-svg-link  : every link group   (legacy link_*                + new g.link)
- *   - .interactive-svg-note  : GMN/note boxes (subset of .interactive-svg-box)
+ *   - .interactive-svg-note  : note boxes, recognised by shape (subset of .interactive-svg-box)
  *
  * State classes (added at click time by the JS):
  *   .source-selected         : the clicked box
@@ -14,7 +14,7 @@
  *   .destination-outgoing    : a box the selected one points TO (receiver)        — GREEN
  *   .destination-note        : a note connected to the selected one               — YELLOW
  *   .destination             : legacy alias kept for back-compat (treated like incoming)
- *   .link-highlighted        : a link connected to the selection                  — ORANGE
+ *   .link-highlighted        : a link connected to the selection — colour by UML kind (.link-type-*), default ORANGE
  *   .has-selection           : on the <svg> while a selection is active           (drives dimming)
  *   .interactive-svg-active  : on the <svg> while a selection is active           (enables ESC)
  *
@@ -23,7 +23,7 @@
  *   RED    #f44336  incoming (sender)
  *   GREEN  #4CAF50  outgoing (receiver)
  *   YELLOW #FFC107  note
- *   ORANGE #FF9800  highlighted link
+ *   ORANGE #FF9800  highlighted link (default; per UML kind see .link-type-*)
  */
 
 /* === BASE === */
@@ -121,19 +121,52 @@ svg.interactive-svg g.destination-note  ellipse {
     filter: drop-shadow(0 0 8px #FFC107) drop-shadow(0 0 16px #FFC107) !important;
 }
 
-/* === HIGHLIGHTED LINKS - ORANGE === */
+svg.interactive-svg g.destination-note > path {
+    fill: #FFEB3B !important;
+}
+
+/* Dark theme: dark-theme.css inverts the whole <svg>, and under that filter a bright
+   yellow does not exist (#FFEB3B comes out #4A3B00). While a note is lit, the filter
+   moves from the <svg> onto each of its elements except the lit notes. Same picture,
+   bright notes. Not applied when the project keeps original colours or the diagram's
+   light bulb is on (image-transform.js). */
+body.dark-theme:not(.plantuml-keep-original) svg.interactive-svg.interactive-svg-note-lit:not(.svg-light-on) {
+    filter: none !important;
+    background-color: #1F1F1F !important;   /* white under invert(0.88) */
+}
+
+body.dark-theme:not(.plantuml-keep-original) svg.interactive-svg.interactive-svg-note-lit:not(.svg-light-on) > g > *:not(.destination-note) {
+    filter: invert(0.88) hue-rotate(180deg);
+}
+
+/* === HIGHLIGHTED LINKS - colour from --link-hl (UML kind below), default ORANGE === */
 
 svg.interactive-svg g.link-highlighted path:not(.hit-area) {
-    stroke: #FF9800 !important;
+    stroke: var(--link-hl, #FF9800) !important;
     stroke-width: 4 !important;
-    filter: drop-shadow(0 0 6px #FF9800) drop-shadow(0 0 12px #FF9800) !important;
+    filter: drop-shadow(0 0 6px var(--link-hl, #FF9800)) drop-shadow(0 0 12px var(--link-hl, #FF9800)) !important;
 }
 
+/* Hollow heads (inheritance triangle, aggregation diamond) stay hollow: the empty
+   shape IS the UML meaning. Only the outline takes the colour. */
 svg.interactive-svg g.link-highlighted polygon {
-    fill: #FF9800 !important;
-    stroke: #FF9800 !important;
-    filter: drop-shadow(0 0 6px #FF9800) !important;
+    stroke: var(--link-hl, #FF9800) !important;
+    filter: drop-shadow(0 0 6px var(--link-hl, #FF9800)) !important;
 }
+
+svg.interactive-svg g.link-highlighted polygon:not([fill="none"]) {
+    fill: var(--link-hl, #FF9800) !important;
+}
+
+/* === HIGHLIGHTED LINKS BY UML KIND (data-link-type, new format only) ===
+   Kinds without a colour here (nested, crowfoot, untyped, legacy SVGs) stay ORANGE.
+   Note: PlantUML tags every open-arrow line as "dependency", solid --> included. */
+
+svg.interactive-svg g.link-type-extension   { --link-hl: #9C27B0; }  /* <|-- and <|..  VIOLET */
+svg.interactive-svg g.link-type-composition { --link-hl: #FF9800; }  /* *--             ORANGE */
+svg.interactive-svg g.link-type-aggregation { --link-hl: #03A9F4; }  /* o--             LIGHT BLUE */
+svg.interactive-svg g.link-type-dependency  { --link-hl: #E91E63; }  /* --> and ..>     MAGENTA */
+svg.interactive-svg g.link-type-association { --link-hl: #009688; }  /* -- and ..       TEAL */
 
 /* === DIM NON-RELATED ELEMENTS === */
 

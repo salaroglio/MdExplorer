@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { SearchResult, SearchRequest, FileSearchResult, LinkSearchResult, ContentSearchResult } from '../models/search.models';
+import { SearchResult, SearchRequest, FileSearchResult, LinkSearchResult, ContentSearchResult, TextContentSearchResponse } from '../models/search.models';
 
 @Injectable({
   providedIn: 'root'
@@ -57,5 +57,19 @@ export class SearchService {
       .set('maxResults', maxResults.toString());
 
     return this.http.get<{ contents: ContentSearchResult[], totalContents: number }>(`${this.baseUrl}/content`, { params });
+  }
+
+  /** Full-text search over NON-markdown text files (separate text index). */
+  searchTextContent(term: string, maxResults: number = 50): Observable<TextContentSearchResponse> {
+    const params = new HttpParams()
+      .set('term', term)
+      .set('maxResults', maxResults.toString());
+
+    return this.http.get<TextContentSearchResponse>(`${this.baseUrl}/text-content`, { params });
+  }
+
+  /** Whether the separate text index is active for the current project (drives tab visibility). */
+  textStatus(): Observable<{ enabled: boolean }> {
+    return this.http.get<{ enabled: boolean }>(`${this.baseUrl}/text-status`);
   }
 }

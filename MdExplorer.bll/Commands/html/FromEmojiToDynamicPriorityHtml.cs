@@ -1,6 +1,7 @@
 ﻿using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Features.Interfaces;
+using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -76,11 +77,19 @@ namespace MdExplorer.Features.Commands.html
             }
 
             var dictionaryInfo = infos.ToDictionary(_ => _.AbsoluteMatchIndex);
+            var regions = MarkdownCodeRegions.Of(markdown);
             var currentIncrement = 0;
             for (int i = 0; i < priorityMatches.Count; i++)
             {
                 var stringPointer = ""; //"style=\"cursor: pointer\"";
                 var priorityItem = priorityMatches[i];
+                // An emoji in code stays text. It keeps its number i all the same: SetEmojiPriority
+                // counts every emoji of the file, code included, and a click on the next one must
+                // still change that one.
+                if (regions.IsCode(priorityItem.Index))
+                {
+                    continue;
+                }
                 var priorityText = priorityItem.Groups[0].Value;
                 string tippyContent = translateTyppeContent(priorityText);
                 var idName = $"emojiPriority{i}";

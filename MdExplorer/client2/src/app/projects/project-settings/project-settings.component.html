@@ -96,6 +96,51 @@
 
         <mat-card class="settings-section">
           <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.TEXT_INDEXING' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="setting-item" *ngIf="!loading">
+              <mat-checkbox
+                [(ngModel)]="indexAllTextFilesEnabled"
+                (change)="onTextIndexingChange()"
+                [disabled]="saving">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.ENABLE_TEXT_INDEXING' | translate }}</span>
+              </mat-checkbox>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.TEXT_INDEXING_DESC' | translate }}
+              </p>
+            </div>
+
+            <div class="setting-item" *ngIf="!loading && indexAllTextFilesEnabled">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>{{ 'PROJECT_SETTINGS.TEXT_EXTENSIONS' | translate }}</mat-label>
+                <textarea matInput rows="2"
+                  [(ngModel)]="textFileExtensions"
+                  (blur)="onTextIndexingChange()"
+                  [placeholder]="textFileExtensionsDefault"
+                  [disabled]="saving"></textarea>
+                <mat-hint>{{ 'PROJECT_SETTINGS.TEXT_EXTENSIONS_HINT' | translate }}</mat-hint>
+              </mat-form-field>
+            </div>
+
+            <div class="setting-item" *ngIf="!loading && indexAllTextFilesEnabled">
+              <button mat-stroked-button
+                (click)="onReindexTextFiles()"
+                [disabled]="reindexingText || saving">
+                <mat-icon *ngIf="!reindexingText">refresh</mat-icon>
+                <mat-spinner *ngIf="reindexingText" diameter="18" class="inline-spinner"></mat-spinner>
+                {{ reindexingText ? ('PROJECT_SETTINGS.REINDEXING_TEXT' | translate) : ('PROJECT_SETTINGS.REINDEX_TEXT' | translate) }}
+              </button>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.REINDEX_TEXT_DESC' | translate }}
+              </p>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-card class="settings-section">
+          <mat-card-header>
             <mat-card-title>{{ 'PROJECT_SETTINGS.VIEW_OPTIONS' | translate }}</mat-card-title>
           </mat-card-header>
 
@@ -128,19 +173,138 @@
 
         <mat-card class="settings-section">
           <mat-card-header>
-            <mat-card-title>{{ 'PROJECT_SETTINGS.GIT_TITLE' | translate }}</mat-card-title>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.AGENT_CITY_TITLE' | translate }}</mat-card-title>
           </mat-card-header>
 
           <mat-card-content>
-            <div class="setting-item" *ngIf="!loading">
+            <div class="setting-item">
               <mat-checkbox
-                [(ngModel)]="excludeSubmodulesEnabled"
-                (change)="onExcludeSubmodulesChange()"
+                [(ngModel)]="agentCityEnabled"
+                (change)="onAgentCityChange()"
                 [disabled]="saving">
-                <span class="setting-label">{{ 'PROJECT_SETTINGS.EXCLUDE_SUBMODULES' | translate }}</span>
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.AGENT_CITY_ENABLE' | translate }}</span>
               </mat-checkbox>
               <p class="setting-description">
-                {{ 'PROJECT_SETTINGS.EXCLUDE_SUBMODULES_DESC' | translate }}
+                {{ 'PROJECT_SETTINGS.AGENT_CITY_ENABLE_DESC' | translate }}
+              </p>
+            </div>
+
+            <div class="setting-item" *ngIf="agentCityEnabled">
+              <label class="setting-label">{{ 'PROJECT_SETTINGS.AGENT_CITY_OWNERSHIP_DOC' | translate }}</label>
+              <mat-form-field appearance="outline" style="width:100%">
+                <input matInput
+                       [(ngModel)]="agentCityOwnershipDoc"
+                       (blur)="onAgentCityChange()"
+                       [disabled]="saving"
+                       placeholder="docs/ownership.md">
+              </mat-form-field>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.AGENT_CITY_OWNERSHIP_DOC_DESC' | translate }}
+              </p>
+              <p class="setting-description" *ngIf="agentCityHasRoomSecret">
+                🔑 {{ 'PROJECT_SETTINGS.AGENT_CITY_ROOM_SECRET_SET' | translate }}
+              </p>
+            </div>
+
+            <!-- Isolamento e auto-merge: hanno senso solo su un repo git, quindi senza git
+                 restano spenti e non toccabili invece di essere spuntabili e poi inerti. -->
+            <div class="setting-item" *ngIf="agentCityEnabled">
+              <mat-checkbox
+                [(ngModel)]="agentUseWorktrees"
+                (change)="onAgentWorktreesChange()"
+                [disabled]="saving || !projectIsGit">
+                <span class="setting-label">{{ 'PROJECT_SETTINGS.AGENT_WORKTREES' | translate }}</span>
+              </mat-checkbox>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.AGENT_WORKTREES_DESC' | translate }}
+              </p>
+
+              <p class="setting-description" *ngIf="!projectIsGit">
+                ℹ️ {{ 'PROJECT_SETTINGS.AGENT_NEEDS_GIT' | translate }}
+              </p>
+
+              <!-- I posti hanno senso solo con l'isolamento acceso: senza, gli agenti girano
+                   nel progetto e di scrivanie non ce n'e' nessuna da contare. -->
+              <div class="setting-inline" *ngIf="agentUseWorktrees && projectIsGit">
+                <label for="agentWorktreeSlots" class="setting-label">
+                  {{ 'PROJECT_SETTINGS.AGENT_WORKTREE_SLOTS' | translate }}
+                </label>
+                <mat-form-field appearance="outline" class="slots-field">
+                  <input matInput id="agentWorktreeSlots" type="number"
+                         [(ngModel)]="agentWorktreeSlots"
+                         (change)="onAgentWorktreeSlotsChange()"
+                         [disabled]="saving"
+                         min="1" [max]="agentWorktreeMaxSlots">
+                </mat-form-field>
+                <p class="setting-description">
+                  {{ 'PROJECT_SETTINGS.AGENT_WORKTREE_SLOTS_DESC' | translate:{
+                       def: agentWorktreeDefaultSlots, max: agentWorktreeMaxSlots } }}
+                </p>
+              </div>
+            </div>
+
+            <!-- Relay: indirizzo e chiave d'ingresso. Il room secret sopra viaggia col repo
+                 (apre UNA stanza); questa chiave apre il relay intero, quindi resta locale. -->
+            <div class="setting-item" *ngIf="agentCityEnabled">
+              <label class="setting-label">{{ 'PROJECT_SETTINGS.RELAY_URL' | translate }}</label>
+              <mat-form-field appearance="outline" style="width:100%">
+                <input matInput
+                       [(ngModel)]="relayUrl"
+                       (blur)="onRelaySettingsChange()"
+                       [disabled]="saving"
+                       placeholder="wss://errantia.net/mdchat">
+              </mat-form-field>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.RELAY_URL_DESC' | translate }}
+              </p>
+
+              <label class="setting-label">{{ 'PROJECT_SETTINGS.RELAY_API_KEY' | translate }}</label>
+              <mat-form-field appearance="outline" style="width:100%">
+                <input matInput
+                       type="password"
+                       autocomplete="off"
+                       [(ngModel)]="relayApiKey"
+                       [disabled]="saving"
+                       [placeholder]="(relayHasApiKey ? 'PROJECT_SETTINGS.RELAY_API_KEY_SET' : 'PROJECT_SETTINGS.RELAY_API_KEY_EMPTY') | translate">
+              </mat-form-field>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.RELAY_API_KEY_DESC' | translate }}
+              </p>
+
+              <div class="setting-actions" style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button mat-stroked-button color="primary"
+                        [disabled]="saving || !relayApiKey?.trim()"
+                        (click)="onRelaySettingsChange()">
+                  <mat-icon>save</mat-icon>
+                  {{ 'PROJECT_SETTINGS.RELAY_SAVE_KEY' | translate }}
+                </button>
+                <button mat-stroked-button
+                        [disabled]="saving || relayTesting"
+                        (click)="testRelay()">
+                  <mat-icon>wifi_tethering</mat-icon>
+                  {{ 'PROJECT_SETTINGS.RELAY_TEST' | translate }}
+                </button>
+                <button mat-stroked-button color="warn"
+                        *ngIf="relayHasApiKey && relayApiKeySource === 'Project'"
+                        [disabled]="saving"
+                        (click)="clearRelayApiKey()">
+                  <mat-icon>delete</mat-icon>
+                  {{ 'PROJECT_SETTINGS.RELAY_CLEAR_KEY' | translate }}
+                </button>
+              </div>
+
+              <p class="setting-description" *ngIf="relayTesting">
+                {{ 'PROJECT_SETTINGS.RELAY_TESTING' | translate }}
+              </p>
+              <p class="setting-description" *ngIf="relayTestMessage">
+                <span *ngIf="relayTestSuccess">✅</span><span *ngIf="relayTestSuccess === false">⚠️</span>
+                {{ relayTestMessage }}
+              </p>
+              <p class="setting-description" *ngIf="relayApiKeySource === 'Global'">
+                {{ 'PROJECT_SETTINGS.RELAY_KEY_FROM_GLOBAL' | translate }}
+              </p>
+              <p class="setting-description" *ngIf="relayApiKeySource === 'None'">
+                {{ 'PROJECT_SETTINGS.RELAY_KEY_MISSING' | translate }}
               </p>
             </div>
           </mat-card-content>
@@ -180,10 +344,22 @@
                     {{ 'PROJECT_SETTINGS.INTELLIJ' | translate }}
                   </span>
                 </mat-radio-button>
-                <mat-radio-button value="copilot" class="ide-radio">
+                <!-- Non un CLI fisso: quello dell'ambiente agentico del progetto (tab AI & RAG).
+                     Prima qui c'era "GitHub Copilot", e su un progetto Claude o opencode la matita
+                     apriva il CLI sbagliato. -->
+                <mat-radio-button value="agent-cli" class="ide-radio"
+                                  [disabled]="!engineSettingsLoaded || markAgentEngine === 'none'">
                   <span class="ide-label">
                     <mat-icon class="ide-icon-inline copilot-color">smart_toy</mat-icon>
-                    {{ 'PROJECT_SETTINGS.COPILOT' | translate }}
+                    {{ 'PROJECT_SETTINGS.AGENT_CLI' | translate }}
+                  </span>
+                  <span class="harness-reason" *ngIf="engineSettingsLoaded">
+                    <ng-container *ngIf="markAgentEngine !== 'none'">
+                      {{ 'PROJECT_SETTINGS.AGENT_CLI_HINT' | translate:{ engine: (engineLabelKey(markAgentEngine) | translate) } }}
+                    </ng-container>
+                    <ng-container *ngIf="markAgentEngine === 'none'">
+                      {{ 'PROJECT_SETTINGS.AGENT_CLI_NONE' | translate }}
+                    </ng-container>
                   </span>
                 </mat-radio-button>
               </mat-radio-group>
@@ -217,22 +393,183 @@
     <mat-tab [label]="'PROJECT_SETTINGS.AI_RAG' | translate">
       <div class="tab-content">
 
+        <!-- Ambiente agentico: UNA domanda per una decisione sola. Le cartelle (.github/, .claude/,
+             .opencode/) e il CLI che le legge sono la stessa scelta; scollegarli si può, ma dalle
+             avanzate e sapendolo. -->
         <mat-card class="settings-section">
           <mat-card-header>
-            <mat-card-title>{{ 'PROJECT_SETTINGS.COPILOT_CLI_TITLE' | translate }}</mat-card-title>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.AI_ENV_TITLE' | translate }}</mat-card-title>
           </mat-card-header>
 
           <mat-card-content>
-            <div class="setting-item" *ngIf="!loading">
-              <mat-checkbox
-                [(ngModel)]="copilotCliAutoSelectEnabled"
-                (change)="onCopilotCliAutoSelectChange()"
-                [disabled]="saving">
-                <span class="setting-label">{{ 'PROJECT_SETTINGS.COPILOT_CLI_AUTO_SELECT' | translate }}</span>
-              </mat-checkbox>
+            <div class="setting-item">
               <p class="setting-description">
-                {{ 'PROJECT_SETTINGS.COPILOT_CLI_AUTO_SELECT_DESC' | translate }}
+                {{ 'PROJECT_SETTINGS.AI_ENV_DESC' | translate }}
               </p>
+
+              <div class="setting-description" *ngIf="!harnessDeclared">
+                <mat-icon class="inline-warn-icon">info</mat-icon>
+                {{ 'PROJECT_SETTINGS.HARNESS_NOT_DECLARED' | translate }}
+              </div>
+
+              <!-- L'avviso compare SOLO se qualcuno ha scollegato il motore dalle avanzate:
+                   è l'unico modo in cui i due possono divergere. -->
+              <div class="harness-mismatch" *ngIf="engineDecoupled">
+                <mat-icon class="harness-mismatch-icon">warning</mat-icon>
+                <span class="harness-mismatch-text">
+                  {{ 'PROJECT_SETTINGS.ENGINE_DECOUPLED' | translate:{
+                       engine: (engineLabelKey(markAgentEngine) | translate),
+                       harness: (harnessLabelKey(harness) | translate) } }}
+                  <ng-container *ngIf="!engineReadsHarness">
+                    {{ 'PROJECT_SETTINGS.ENGINE_NOT_READ' | translate:{
+                         engine: (engineLabelKey(markAgentEngine) | translate),
+                         harness: (harnessLabelKey(harness) | translate) } }}
+                  </ng-container>
+                </span>
+                <button mat-stroked-button color="primary" class="harness-mismatch-action"
+                        (click)="relinkEngine()" [disabled]="savingEngine">
+                  {{ 'PROJECT_SETTINGS.ENGINE_RELINK' | translate }}
+                </button>
+              </div>
+
+              <mat-radio-group
+                [(ngModel)]="harness"
+                (change)="onHarnessChange()"
+                [disabled]="savingHarness">
+                <mat-radio-button value="copilot" class="ide-radio">
+                  <span class="ide-label">
+                    <mat-icon class="ide-icon-inline copilot-color">smart_toy</mat-icon>
+                    {{ 'PROJECT_SETTINGS.HARNESS_COPILOT' | translate }}
+                  </span>
+                  <span class="harness-reason">{{ 'PROJECT_SETTINGS.AI_ENV_HINT_COPILOT' | translate }}</span>
+                </mat-radio-button>
+                <mat-radio-button value="opencode" class="ide-radio">
+                  <span class="ide-label">
+                    <mat-icon class="ide-icon-inline">terminal</mat-icon>
+                    {{ 'PROJECT_SETTINGS.HARNESS_OPENCODE' | translate }}
+                  </span>
+                  <span class="harness-reason">{{ 'PROJECT_SETTINGS.AI_ENV_HINT_OPENCODE' | translate }}</span>
+                </mat-radio-button>
+                <mat-radio-button value="claude" class="ide-radio">
+                  <span class="ide-label">
+                    <mat-icon class="ide-icon-inline claude-color">psychology</mat-icon>
+                    {{ 'PROJECT_SETTINGS.HARNESS_CLAUDE' | translate }}
+                  </span>
+                  <span class="harness-reason">{{ 'PROJECT_SETTINGS.AI_ENV_HINT_CLAUDE' | translate }}</span>
+                </mat-radio-button>
+                <mat-radio-button value="none" class="ide-radio">
+                  <span class="ide-label">
+                    <mat-icon class="ide-icon-inline">block</mat-icon>
+                    {{ 'PROJECT_SETTINGS.HARNESS_NONE' | translate }}
+                  </span>
+                  <span class="harness-reason">{{ 'PROJECT_SETTINGS.AI_ENV_HINT_NONE' | translate }}</span>
+                </mat-radio-button>
+              </mat-radio-group>
+
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.HARNESS_SWITCH_NOTE' | translate }}
+              </p>
+            </div>
+
+            <!-- Avanzate: il caso in cui il team ha scelto un ambiente e su questa macchina c'è
+                 un altro CLI. Chiuso di default, perché non è la strada normale. -->
+            <div class="setting-item">
+              <button mat-button type="button" class="advanced-engine-toggle"
+                      (click)="showAdvancedEngine = !showAdvancedEngine">
+                <mat-icon>{{ showAdvancedEngine ? 'expand_less' : 'expand_more' }}</mat-icon>
+                {{ 'PROJECT_SETTINGS.ENGINE_ADVANCED' | translate }}
+              </button>
+
+              <div *ngIf="showAdvancedEngine" class="advanced-engine-body">
+                <p class="setting-description">
+                  {{ 'PROJECT_SETTINGS.ENGINE_ADVANCED_DESC' | translate }}
+                </p>
+
+                <label class="setting-label" for="markAgentEngineGroup">
+                  {{ 'PROJECT_SETTINGS.ENGINE_LABEL' | translate }}
+                </label>
+                <mat-radio-group
+                  id="markAgentEngineGroup"
+                  [(ngModel)]="engineChoice"
+                  (change)="onEngineChange()"
+                  [disabled]="savingEngine || !engineSettingsLoaded">
+                  <mat-radio-button value="linked" class="ide-radio">
+                    <span class="ide-label">
+                      <mat-icon class="ide-icon-inline">link</mat-icon>
+                      {{ 'PROJECT_SETTINGS.ENGINE_FOLLOWS' | translate:{
+                           engine: (engineLabelKey(markAgentEngine) | translate) } }}
+                    </span>
+                  </mat-radio-button>
+                  <mat-radio-button value="copilot" class="ide-radio">
+                    <span class="ide-label">{{ 'PROJECT_SETTINGS.ENGINE_COPILOT' | translate }}</span>
+                  </mat-radio-button>
+                  <mat-radio-button value="opencode" class="ide-radio">
+                    <span class="ide-label">{{ 'PROJECT_SETTINGS.ENGINE_OPENCODE' | translate }}</span>
+                  </mat-radio-button>
+                  <mat-radio-button value="claude" class="ide-radio">
+                    <span class="ide-label">{{ 'PROJECT_SETTINGS.ENGINE_CLAUDE' | translate }}</span>
+                  </mat-radio-button>
+                  <mat-radio-button value="none" class="ide-radio">
+                    <span class="ide-label">{{ 'PROJECT_SETTINGS.ENGINE_NONE' | translate }}</span>
+                  </mat-radio-button>
+                </mat-radio-group>
+              </div>
+            </div>
+
+            <div *ngIf="savingHarness || savingEngine" class="saving-indicator">
+              <mat-spinner diameter="20"></mat-spinner>
+              <span>{{ 'COMMON.SAVING' | translate }}</span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Strumenti MCP nel contesto. Ogni gruppo acceso entra in tools/list, e quindi nel
+             contesto della chat, prima ancora che l'utente scriva: qui si sceglie cosa pagare.
+             L'elenco e i pesi arrivano dal server MCP (--list-groups), non da una copia qui. -->
+        <mat-card class="settings-section">
+          <mat-card-header>
+            <mat-card-title>{{ 'PROJECT_SETTINGS.MCP_GROUPS_TITLE' | translate }}</mat-card-title>
+          </mat-card-header>
+
+          <mat-card-content>
+            <div class="setting-item">
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.MCP_GROUPS_DESC' | translate }}
+              </p>
+
+              <div class="setting-description" *ngIf="mcpGroupsLoaded && !mcpGroupsError && !mcpGroupsChosen">
+                <mat-icon class="inline-warn-icon">info</mat-icon>
+                {{ 'PROJECT_SETTINGS.MCP_GROUPS_PROPOSED' | translate }}
+              </div>
+
+              <div class="harness-mismatch" *ngIf="mcpGroupsError">
+                <mat-icon class="harness-mismatch-icon">warning</mat-icon>
+                <span class="harness-mismatch-text">{{ mcpGroupsError }}</span>
+              </div>
+
+              <div class="mcp-group-row" *ngFor="let group of mcpGroups">
+                <mat-checkbox
+                  [(ngModel)]="group.enabled"
+                  (change)="onMcpGroupChange()"
+                  [disabled]="group.mandatory || savingMcpGroups || !mcpGroupsLoaded">
+                  <span class="setting-label">{{ 'PROJECT_SETTINGS.MCP_GROUP_' + (group.id | uppercase) | translate }}</span>
+                </mat-checkbox>
+                <span class="mcp-group-weight">
+                  {{ 'PROJECT_SETTINGS.MCP_GROUP_WEIGHT' | translate:{ tools: group.toolCount, tokens: group.approxTokens } }}
+                </span>
+                <p class="setting-description mcp-group-summary">{{ group.summary }}</p>
+              </div>
+
+              <p class="setting-description mcp-groups-total" *ngIf="mcpGroupsLoaded && !mcpGroupsError">
+                {{ 'PROJECT_SETTINGS.MCP_GROUPS_TOTAL' | translate:{ selected: mcpTokensSelected, all: mcpTokensAll } }}
+                <br>
+                {{ 'PROJECT_SETTINGS.MCP_GROUPS_NEXT_SESSION' | translate }}
+              </p>
+            </div>
+
+            <div *ngIf="savingMcpGroups" class="saving-indicator">
+              <mat-spinner diameter="20"></mat-spinner>
+              <span>{{ 'COMMON.SAVING' | translate }}</span>
             </div>
           </mat-card-content>
         </mat-card>

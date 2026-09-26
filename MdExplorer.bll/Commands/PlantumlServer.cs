@@ -44,6 +44,57 @@ namespace MdExplorer.Features.Commands
         }
 
         /// <summary>
+        /// Runs plantuml.jar in <c>-checkonly</c> mode: validates the source WITHOUT rendering
+        /// it, and surfaces what the renderers throw away — the exit code and stderr.
+        /// <para>
+        /// Contract measured on the bundled jar (1.2026.1): a valid diagram exits 0 with empty
+        /// stderr; a broken one exits 200 and writes three lines to stderr — the marker
+        /// <c>ERROR</c>, the line number, the message.
+        /// </para>
+        /// <para>
+        /// An invalid diagram is NOT an exception here: it is the answer the caller asked for.
+        /// A missing java or jar IS different, and comes back in
+        /// <see cref="PlantumlCheckOutcome.ToolUnavailable"/> — telling a caller "your diagram is
+        /// wrong" when the truth is "java is not installed" would send it correcting a source
+        /// that has nothing wrong with it.
+        /// </para>
+        /// </summary>
+        public async Task<PlantumlCheckOutcome> CheckAsync(string plantumlCode)
+        {
+            using (var session = _dalFactory.OpenSession())
+            {
+                var paths = ResolvePlantumlPaths(session);
+
+                if (string.IsNullOrEmpty(paths.JarPath) || !File.Exists(paths.JarPath))
+                {
+                    return PlantumlCheckOutcome.Unavailable(
+                        $"plantuml.jar non trovato. Cercato nell'impostazione 'PlantumlLocalPath' e in " +
+                        $"'{Path.Combine(AppContext.BaseDirectory, "Binaries")}'.");
+                }
+
+                var arguments = new StringBuilder();
+                arguments.Append("-Dfile.encoding=UTF-8 -jar \"").Append(paths.JarPath)
+                    .Append("\" -pipe -charset UTF-8 -checkonly");
+
+                try
+                {
+                    var run = await RunProcessAsync(paths.JavaPath, arguments.ToString(), plantumlCode)
+                        .ConfigureAwait(false);
+                    return PlantumlCheckOutcome.FromProcess(run.ExitCode, run.Stderr);
+                }
+                catch (System.ComponentModel.Win32Exception ex)
+                {
+                    // Java non eseguibile: il messaggio deve dire COSA manca e DOVE si e' guardato,
+                    // altrimenti chi chiama lo scambia per un diagramma sbagliato.
+                    _logger.LogWarning(ex, "[PlantumlServer] java non eseguibile: {JavaPath}", paths.JavaPath);
+                    return PlantumlCheckOutcome.Unavailable(
+                        $"java non eseguibile ('{paths.JavaPath}'). Impostane il percorso in 'JavaPath' " +
+                        "oppure installa un JRE e rendilo raggiungibile dal PATH.");
+                }
+            }
+        }
+
+        /// <summary>
         /// Invokes plantuml.jar via java in -pipe mode.
         /// </summary>
         /// <remarks>
@@ -67,9 +118,28 @@ namespace MdExplorer.Features.Commands
                 arguments.Append(" -graphvizdot \"").Append(graphvizDotPath).Append('"');
             }
 
+            var run = await RunProcessAsync(javaPath, arguments.ToString(), plantumlCode).ConfigureAwait(false);
+
+            if (run.ExitCode != 0)
+            {
+                throw new InvalidOperationException(
+                    $"PlantUML rendering failed (java exit code {run.ExitCode}): {run.Stderr}");
+            }
+
+            return run.Stdout;
+        }
+
+        /// <summary>
+        /// Runs java with the given arguments, feeding the diagram on stdin, and returns exit
+        /// code, stdout and stderr. Shared by the renderers and by <see cref="CheckAsync"/>: the
+        /// renderers turn a non-zero exit into an exception, the check reports it as its answer.
+        /// </summary>
+        private static async Task<(int ExitCode, byte[] Stdout, string Stderr)> RunProcessAsync(
+            string javaPath, string arguments, string plantumlCode)
+        {
             var startInfo = new ProcessStartInfo(javaPath)
             {
-                Arguments = arguments.ToString(),
+                Arguments = arguments,
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -96,13 +166,7 @@ namespace MdExplorer.Features.Commands
                 var output = await stdoutTask.ConfigureAwait(false);
                 var error = await stderrTask.ConfigureAwait(false);
 
-                if (process.ExitCode != 0)
-                {
-                    throw new InvalidOperationException(
-                        $"PlantUML rendering failed (java exit code {process.ExitCode}): {error}");
-                }
-
-                return output;
+                return (process.ExitCode, output, error);
             }
         }
 

@@ -191,7 +191,7 @@
     .error-title {
       font-size: 1.3rem;
       font-weight: 600;
-      color: #d32f2f;
+      color: var(--mde-error-fg);
       margin: 0 0 1rem 0;
     }
 
@@ -369,7 +369,7 @@
   
   // Focus styles for accessibility
   &:focus {
-    outline: 2px solid #2196f3;
+    outline: 2px solid var(--mde-accent-primary);
     outline-offset: -2px;
   }
 }
@@ -489,3 +489,88 @@
 }
 
 // Dark mode is handled by CSS variables in styles.scss (body.dark-theme)
+
+// La differenza di un file occupa il riquadro grande, al posto del documento: e' la stessa
+// domanda — «cosa c'e' scritto qui» — quindi e' lo stesso posto.
+//
+// I colori vengono dai token (--mde-*), non da '@media (prefers-color-scheme)': il tema non lo
+// decide il sistema operativo, lo decide ThemeService mettendo una classe sul body. Una regola
+// legata alla media query non scatterebbe mai quando il tema si cambia dentro l'app.
+.diff-view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  // Il pannello non cresce MAI oltre il riquadro: e' il corpo che scorre. Senza questo, se
+  // l'altezza del contenitore non si risolve, il diff si allunga e non scorre piu' niente.
+  overflow: hidden;
+  min-height: 0;
+  background: var(--mde-bg-primary);
+  color: var(--mde-text-primary);
+  z-index: 2;
+}
+
+.diff-view-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--mde-border-color);
+  background: var(--mde-bg-secondary);
+  font-size: 13px;
+  flex: 0 0 auto;
+
+  .flexExpand { flex: 1 1 auto; }
+
+  // Il repository davanti al percorso: due file omonimi in submodule diversi sono
+  // indistinguibili senza.
+  .dv-repo {
+    font-family: monospace;
+    font-size: 11.5px;
+    padding: 1px 6px;
+    border-radius: 9px;
+    background: var(--mde-bg-tertiary);
+    color: var(--mde-text-secondary);
+  }
+
+  .dv-path { font-family: monospace; font-weight: 600; }
+  .dv-base { font-size: 11.5px; color: var(--mde-text-secondary); }
+}
+
+.diff-view-body {
+  flex: 1 1 auto;
+  // 'min-height: 0' e' cio' che permette a un elemento flex di rimpicciolirsi sotto il suo
+  // contenuto: senza, 'overflow: auto' non ha niente da cui scorrere.
+  min-height: 0;
+  overflow: auto;
+}
+
+.dv-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  color: var(--mde-text-secondary);
+  text-align: center;
+  font-size: 13px;
+
+  &.dv-problem { color: var(--mde-error-fg); }
+}
+
+.dv-diff {
+  margin: 0;
+  padding: 10px 12px;
+  font-family: monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre;
+  // Le righe lunghe scorrono in orizzontale qui dentro, senza allargare il pannello.
+  overflow-x: auto;
+  color: var(--mde-text-primary);
+
+  .d-add { color: var(--mde-success-fg); }
+  .d-del { color: var(--mde-error-fg); }
+  .d-hunk { color: var(--mde-accent-primary); }
+  .d-meta { color: var(--mde-text-hint); }
+}

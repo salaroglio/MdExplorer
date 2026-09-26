@@ -6,83 +6,54 @@ using System.Threading.Tasks;
 using LibGit2Sharp;
 using Microsoft.Extensions.Logging;
 using MdExplorer.Services.Git.Interfaces;
-using MdExplorer.Features.Services;
 using MdExplorer.Abstractions.Services;
-using MdExplorer.Abstractions.Models.AI;
-using MdExplorer.Abstractions.DB;
-using MdExplorer.Abstractions.Entities.UserDB;
-using MdExplorer.Features.Services.AI;
-using Ad.Tools.Dal.Extensions;
 
 namespace MdExplorer.Services
 {
+    /// <summary>
+    /// The deterministic half of the AI commit message: the changes, the prompt, the cleaning of the
+    /// answer. The question is asked by the client on a channel of the AI chat
+    /// (<c>AiChatService.askOnChannel</c>), so it goes into the same CLI session as the MarkAgent
+    /// tab: the agent that did the work, or talked about it, writes the WHY (user's decision,
+    /// 25/09/2026 — before, a one-shot call with no memory, through a chain of providers that
+    /// fell back to the next, and then to a generic message, in silence).
+    /// Sprint: docs-internal/Sprints/2026-09-25-Commit-AI-Sessione-Del-Tab.md
+    /// </summary>
     public interface IGitCommitAiService
     {
-        Task<string> GenerateCommitMessageAsync(string repositoryPath, string language);
+        /// <summary>The prompt for the changes of <paramref name="repositoryPath"/>; null when there is nothing to commit.</summary>
+        Task<string> BuildCommitPromptAsync(string repositoryPath, string language);
+
+        /// <summary>The agent's answer as a commit message (the seven rules); empty when nothing is left.</summary>
+        string CleanCommitMessage(string aiResponse);
     }
 
     public class GitCommitAiService : IGitCommitAiService
     {
         private readonly ILogger<GitCommitAiService> _logger;
-        private readonly IAiChatService _aiChatService;
-        private readonly IGeminiApiService _geminiService;
         private readonly IModernGitService _modernGitService;
-        private readonly IEnumerable<IAiProvider> _aiProviders;
-        private readonly IUserSettingsDB _userSettingsDB;
         private const int MaxDiffLinesPerFile = 100;
         private const int MaxFilesToAnalyze = 20;
-        private const string DefaultProviderKey = "AI_DefaultProvider";
 
         public GitCommitAiService(
             ILogger<GitCommitAiService> logger,
-            IAiChatService aiChatService,
-            IGeminiApiService geminiService,
-            IModernGitService modernGitService,
-            IEnumerable<IAiProvider> aiProviders,
-            IUserSettingsDB userSettingsDB)
+            IModernGitService modernGitService)
         {
             _logger = logger;
-            _aiChatService = aiChatService;
-            _geminiService = geminiService;
             _modernGitService = modernGitService;
-            _aiProviders = aiProviders;
-            _userSettingsDB = userSettingsDB;
         }
 
-        public async Task<string> GenerateCommitMessageAsync(string repositoryPath, string language)
+        public async Task<string> BuildCommitPromptAsync(string repositoryPath, string language)
         {
             var lang = NormalizeLanguage(language);
-            try
+            var status = await _modernGitService.GetStatusAsync(repositoryPath);
+            if (!HasChanges(status))
             {
-                _logger.LogInformation("Generating commit message for repository: {RepositoryPath} (lang={Lang})",
-                    repositoryPath, lang);
-
-                // Get repository status
-                var status = await _modernGitService.GetStatusAsync(repositoryPath);
-
-                if (!HasChanges(status))
-                {
-                    _logger.LogInformation("No changes detected in repository");
-                    return lang == "it" ? "Nessuna modifica da committare" : "No changes to commit";
-                }
-
-                // Collect changes information
-                var changesInfo = await CollectChangesInfo(repositoryPath, status);
-
-                // Generate prompt for AI
-                var prompt = BuildCommitPrompt(changesInfo, lang);
-
-                // Call AI to generate message
-                var commitMessage = await CallAiForCommitMessage(prompt, repositoryPath, lang);
-
-                _logger.LogInformation("Successfully generated commit message");
-                return commitMessage;
+                _logger.LogInformation("No changes detected in repository {RepositoryPath}", repositoryPath);
+                return null;
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error generating commit message for repository: {RepositoryPath}", repositoryPath);
-                return GenerateFallbackMessage(lang);
-            }
+            var changesInfo = await CollectChangesInfo(repositoryPath, status);
+            return BuildCommitPrompt(changesInfo, lang);
         }
 
         private static string NormalizeLanguage(string language)
@@ -324,6 +295,10 @@ namespace MdExplorer.Services
 
             if (isIt)
             {
+                prompt.AppendLine("Il PERCHÉ: se nella nostra conversazione abbiamo fatto o discusso queste modifiche, usa quello che");
+                prompt.AppendLine("sai (lo scopo, la decisione presa, il problema risolto) per scrivere il body. Non inventare: se non ne");
+                prompt.AppendLine("sai niente, descrivi solo quello che si vede dalle modifiche. Non usare i tuoi tool: le modifiche sono qui.");
+                prompt.AppendLine();
                 prompt.AppendLine("Vincoli aggiuntivi:");
                 prompt.AppendLine("  - Niente prefissi tipo \"commit:\", \"git:\", \"message:\".");
                 prompt.AppendLine("  - Niente blocchi markdown, backtick di apertura/chiusura, virgolette di contorno.");
@@ -337,6 +312,10 @@ namespace MdExplorer.Services
             }
             else
             {
+                prompt.AppendLine("The WHY: if these changes were made or discussed in our conversation, use what you know (the aim,");
+                prompt.AppendLine("the decision taken, the problem solved) to write the body. Do not invent: if you know nothing about");
+                prompt.AppendLine("them, describe only what the changes show. Do not use your tools: the changes are here.");
+                prompt.AppendLine();
                 prompt.AppendLine("Additional constraints:");
                 prompt.AppendLine("  - No prefixes like \"commit:\", \"git:\", \"message:\".");
                 prompt.AppendLine("  - No markdown fences, wrapping backticks or quotes.");
@@ -382,121 +361,7 @@ namespace MdExplorer.Services
                 Changes = "Changes"
             };
 
-        private async Task<string> CallAiForCommitMessage(string prompt, string repositoryPath, string language)
-        {
-            try
-            {
-                // Resolve preferred provider order:
-                //   1. user's explicit AI_DefaultProvider setting (if set and available)
-                //   2. Copilot CLI (matches the per-project auto-select behavior used by Mark Agent)
-                //   3. Gemini
-                //   4. Local (LLamaSharp)
-                var preferredProvider = TryReadDefaultProviderSetting();
-                var copilotProvider = _aiProviders?
-                    .FirstOrDefault(p => p.GetProviderType() == ProviderType.CopilotCli) as CopilotCliProvider;
-
-                var order = BuildProviderOrder(preferredProvider, copilotProvider);
-
-                foreach (var candidate in order)
-                {
-                    var response = await TryInvokeProviderAsync(candidate, prompt, repositoryPath, copilotProvider);
-                    if (!string.IsNullOrWhiteSpace(response))
-                    {
-                        return CleanCommitMessage(response);
-                    }
-                }
-
-                _logger.LogWarning("No AI service available for commit message generation");
-                return GenerateFallbackMessage(language);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error calling AI for commit message");
-                return GenerateFallbackMessage(language);
-            }
-        }
-
-        private static IEnumerable<string> BuildProviderOrder(string preferred, CopilotCliProvider copilot)
-        {
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (!string.IsNullOrWhiteSpace(preferred) && seen.Add(preferred))
-                yield return preferred;
-
-            // Copilot CLI first (silent auto-select path), then Gemini, then Local
-            foreach (var fallback in new[] { "copilotcli", "gemini", "local" })
-            {
-                if (seen.Add(fallback)) yield return fallback;
-            }
-        }
-
-        private async Task<string> TryInvokeProviderAsync(
-            string providerKey,
-            string prompt,
-            string repositoryPath,
-            CopilotCliProvider copilotProvider)
-        {
-            try
-            {
-                switch (providerKey?.ToLowerInvariant())
-                {
-                    case "copilotcli":
-                        if (copilotProvider != null && copilotProvider.IsAvailable())
-                        {
-                            _logger.LogInformation("Using Copilot CLI for commit message generation");
-                            // Ensure the CLI runs inside the repo (singleton WD may have drifted)
-                            if (!string.IsNullOrEmpty(repositoryPath) && System.IO.Directory.Exists(repositoryPath))
-                            {
-                                copilotProvider.WorkingDirectory = repositoryPath;
-                            }
-                            return await copilotProvider.ChatAsync(prompt);
-                        }
-                        break;
-
-                    case "gemini":
-                        if (_geminiService.IsConfigured())
-                        {
-                            _logger.LogInformation("Using Gemini API for commit message generation");
-                            return await _geminiService.ChatAsync(prompt, "gemini-1.5-flash");
-                        }
-                        break;
-
-                    case "local":
-                        if (_aiChatService.IsModelLoaded())
-                        {
-                            _logger.LogInformation("Using local AI model for commit message generation");
-                            return await _aiChatService.ChatAsync(prompt);
-                        }
-                        break;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Provider '{Provider}' failed generating commit message, trying next", providerKey);
-            }
-            return null;
-        }
-
-        private string TryReadDefaultProviderSetting()
-        {
-            // IUserSettingsDB is a shared NHibernate session (ReplaceDalFeatures);
-            // even pure reads must happen inside an explicit BeginTransaction/Commit
-            // or other controllers' Commit() will fail with TransactionException.
-            try
-            {
-                _userSettingsDB.BeginTransaction();
-                var settings = _userSettingsDB.GetDal<Setting>().GetList().ToList();
-                _userSettingsDB.Commit();
-                return settings.FirstOrDefault(s => s.Name == DefaultProviderKey)?.ValueString;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Could not read AI_DefaultProvider setting (non-fatal)");
-                try { _userSettingsDB.Rollback(); } catch { }
-                return null;
-            }
-        }
-
-        private string CleanCommitMessage(string aiResponse)
+        public string CleanCommitMessage(string aiResponse)
         {
             // Normalize line endings and strip markdown fences + wrapping quotes
             aiResponse = aiResponse.Replace("\r\n", "\n").Replace("\r", "\n");
@@ -682,13 +547,6 @@ namespace MdExplorer.Services
             }
             if (current.Length > 0) sb.Append(current);
             return sb.ToString();
-        }
-
-        private string GenerateFallbackMessage(string language)
-        {
-            return language == "it"
-                ? $"Aggiornamento del {DateTime.Now:yyyy-MM-dd HH:mm}"
-                : $"Update {DateTime.Now:yyyy-MM-dd HH:mm}";
         }
 
         private class ChangesInfo

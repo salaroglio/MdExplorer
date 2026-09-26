@@ -15,7 +15,7 @@
  * PlantUML SVG Conventions (legacy format, pre-2026):
  * - cluster_* : Package/container elements
  * - elem_*    : Component/element boxes
- * - GMN*      : Note elements
+ * - notes     : recognised by shape (folded corner), not by name — see isNoteBox()
  * - link_*    : Connection arrows (format: link_SourceName_TargetName)
  *
  * PlantUML SVG Conventions (new format, v1.2026.1+):
@@ -74,18 +74,152 @@ var InteractiveSvg = (function() {
      *
      *   - .interactive-svg-box   : on every clickable box (entity, cluster, GMN note, elem_*)
      *   - .interactive-svg-link  : on every link group
-     *   - .interactive-svg-note  : extra marker for GMN note boxes (used for dim/hover overrides if needed)
+     *   - .interactive-svg-note  : extra marker for note boxes, recognised by SHAPE (see isNoteBox)
      */
     function applyMarkerClasses(svg) {
         svg.querySelectorAll(SEL_BOXES).forEach(function(box) {
             box.classList.add('interactive-svg-box');
-            if (box.id && box.id.indexOf('GMN') === 0) {
+            if (isNoteBox(box)) {
                 box.classList.add('interactive-svg-note');
             }
         });
         svg.querySelectorAll(SEL_LINKS).forEach(function(link) {
             link.classList.add('interactive-svg-link');
+            // New format only: the UML kind drives the highlight colour (CSS .link-type-*)
+            var type = link.getAttribute('data-link-type');
+            if (type) link.classList.add('link-type-' + type);
         });
+    }
+
+    /**
+     * Is this box a PlantUML note?
+     *
+     * The name cannot tell: a note may be anonymous ("GMN62", legacy id "elem_GMN62")
+     * or named ("note as NotaDocumentoGara"). The shape can: a note has no <rect>,
+     * its outline is a <path>, and the next <path> is the folded corner — a right
+     * triangle M(x,y) L(x,y+h) L(x+h,y+h) L(x,y). Same drawing in both SVG formats.
+     */
+    function isNoteBox(box) {
+        if (box.querySelector(':scope > rect')) return false;
+        var paths = box.querySelectorAll(':scope > path');
+        if (paths.length < 2) return false;
+        var nums = (paths[1].getAttribute('d') || '').match(/-?\d+(?:\.\d+)?/g);
+        if (!nums || nums.length !== 8) return false;
+        var p = nums.map(parseFloat);
+        return p[0] === p[2] && p[3] > p[1] &&      // down the left side of the fold
+               p[5] === p[3] && p[4] > p[2] &&      // across the bottom of the fold
+               p[6] === p[0] && p[7] === p[1];      // back to the start
+    }
+
+    function isNote(el) {
+        return !!(el && el.classList && el.classList.contains('interactive-svg-note'));
+    }
+
+    // How far (SVG units) a speech-bubble tip may sit from the box border it points at.
+    // Measured on real diagrams: <= 0.4.
+    var NOTE_TAIL_TOLERANCE = 3;
+
+    /**
+     * Vertices of a note outline path ("M x,y L x,y A rx,ry rot large sweep x,y …").
+     */
+    function pathVertices(d) {
+        var pts = [];
+        var re = /([MLA])([^MLAZ]*)/gi, m;
+        while ((m = re.exec(d || '')) !== null) {
+            var n = (m[2].match(/-?\d+(?:\.\d+)?/g) || []).map(parseFloat);
+            if (n.length >= 2) pts.push({ x: n[n.length - 2], y: n[n.length - 1] });
+        }
+        return pts;
+    }
+
+    /**
+     * Tip of a note's speech bubble, or null when the note has none.
+     *
+     * A note with a single relation is drawn by PlantUML as a bubble: no g.link exists,
+     * the tail is three extra vertices inside the note outline. The tip is the only
+     * vertex lying outside the bounding box of all the others (= the note body).
+     */
+    function findNoteTailTip(noteBox) {
+        var outline = noteBox.querySelector(':scope > path');
+        if (!outline) return null;
+        var pts = pathVertices(outline.getAttribute('d'));
+        var tips = pts.filter(function(p, i) {
+            var others = pts.filter(function(_, j) { return j !== i; });
+            var minX = Math.min.apply(null, others.map(function(o) { return o.x; }));
+            var maxX = Math.max.apply(null, others.map(function(o) { return o.x; }));
+            var minY = Math.min.apply(null, others.map(function(o) { return o.y; }));
+            var maxY = Math.max.apply(null, others.map(function(o) { return o.y; }));
+            return p.x < minX - 1 || p.x > maxX + 1 || p.y < minY - 1 || p.y > maxY + 1;
+        });
+        return tips.length === 1 ? tips[0] : null;
+    }
+
+    /**
+     * Frame of a box: its <rect> (classes, packages) or, failing that, its bbox.
+     */
+    function boxFrame(box) {
+        var r = box.querySelector(':scope > rect');
+        if (r) {
+            return {
+                x: parseFloat(r.getAttribute('x')), y: parseFloat(r.getAttribute('y')),
+                w: parseFloat(r.getAttribute('width')), h: parseFloat(r.getAttribute('height'))
+            };
+        }
+        try {
+            var b = box.getBBox();
+            return (b.width || b.height) ? { x: b.x, y: b.y, w: b.width, h: b.height } : null;
+        } catch (e) {
+            return null;   // not rendered (e.g. hidden iframe): no geometry to compare
+        }
+    }
+
+    /**
+     * Distance from a point to the BORDER of a frame (0 when on it). A point inside a
+     * package is far from its border, so a class touched by the tip wins over the
+     * package that contains it.
+     */
+    function distanceToBorder(f, x, y) {
+        var dx = Math.max(f.x - x, 0, x - (f.x + f.w));
+        var dy = Math.max(f.y - y, 0, y - (f.y + f.h));
+        if (dx > 0 || dy > 0) return Math.sqrt(dx * dx + dy * dy);
+        return Math.min(x - f.x, f.x + f.w - x, y - f.y, f.y + f.h - y);
+    }
+
+    /**
+     * Pair every speech-bubble note with the box its tip touches.
+     * Classes win over packages; an unclear match is reported and skipped, never guessed.
+     *
+     * @returns {Array<{note: Element, target: Element}>}
+     */
+    function findNoteTails(svg) {
+        var candidates = [];
+        svg.querySelectorAll('.interactive-svg-box:not(.interactive-svg-note)').forEach(function(box) {
+            var f = boxFrame(box);
+            if (f) candidates.push({ box: box, frame: f, cluster: isClusterElement(box) });
+        });
+
+        var tails = [];
+        svg.querySelectorAll('.interactive-svg-note').forEach(function(note) {
+            var tip = findNoteTailTip(note);
+            if (!tip) return;
+
+            var near = candidates
+                .map(function(c) { return { c: c, d: distanceToBorder(c.frame, tip.x, tip.y) }; })
+                .filter(function(h) { return h.d <= NOTE_TAIL_TOLERANCE; });
+            if (near.some(function(h) { return !h.c.cluster; })) {
+                near = near.filter(function(h) { return !h.c.cluster; });
+            }
+            near.sort(function(a, b) { return a.d - b.d; });
+
+            if (near.length === 0 || (near.length > 1 && near[1].d - near[0].d < 0.5)) {
+                console.warn('[InteractiveSvg] Note "' + getElementName(note) + '": ' +
+                    (near.length ? 'tip touches more than one box' : 'no box at the tip') +
+                    ' (' + tip.x + ',' + tip.y + '), not attached');
+                return;
+            }
+            tails.push({ note: note, target: near[0].c.box });
+        });
+        return tails;
     }
 
     /**
@@ -95,6 +229,8 @@ var InteractiveSvg = (function() {
         svg.querySelectorAll('.interactive-svg-box, .interactive-svg-link, .interactive-svg-note')
            .forEach(function(el) {
                el.classList.remove('interactive-svg-box', 'interactive-svg-link', 'interactive-svg-note');
+               var type = el.getAttribute('data-link-type');
+               if (type) el.classList.remove('link-type-' + type);
            });
     }
 
@@ -389,6 +525,17 @@ var InteractiveSvg = (function() {
             }
         });
 
+        // Speech-bubble notes have no g.link: add a virtual note -> box relation
+        // (link: null, nothing to paint) so both clicks find each other.
+        linkMap.noteTails = findNoteTails(svg).map(function(t) {
+            var note = getElementName(t.note), target = getElementName(t.target);
+            if (!linkMap.outgoing[note]) linkMap.outgoing[note] = [];
+            if (!linkMap.incoming[target]) linkMap.incoming[target] = [];
+            linkMap.outgoing[note].push({ link: null, to: target });
+            linkMap.incoming[target].push({ link: null, from: note });
+            return { from: note, to: target };
+        });
+
         return linkMap;
     }
 
@@ -415,7 +562,16 @@ var InteractiveSvg = (function() {
             el.removeAttribute('data-orig-style');
         });
 
-        svg.classList.remove('has-selection', 'interactive-svg-active');
+        svg.classList.remove('has-selection', 'interactive-svg-active', 'interactive-svg-note-lit');
+    }
+
+    /**
+     * Flag the SVG while at least one note is lit. In dark theme the CSS then moves the
+     * invert filter from the <svg> onto its elements, sparing the lit notes: under the
+     * root filter a bright yellow does not exist (it comes out #4A3B00).
+     */
+    function markLitNotes(svg) {
+        svg.classList.toggle('interactive-svg-note-lit', !!svg.querySelector('.destination-note'));
     }
 
     /**
@@ -557,7 +713,7 @@ var InteractiveSvg = (function() {
             externalConnected.push(name);
             var el = findBoxByName(svg, name);
             if (!el || el === cluster) return;
-            if (name.indexOf && name.indexOf('GMN') === 0) {
+            if (isNote(el)) {
                 el.classList.add('destination-note');
                 highlightEllipses(el, '#FFC107');
             } else if (kind === 'outgoing') {
@@ -589,6 +745,21 @@ var InteractiveSvg = (function() {
                 markExternal(ep.from, 'incoming');
             }
         });
+
+        // Speech-bubble notes: same boundary rule, no link to paint
+        (linkMap.noteTails || []).forEach(function(t) {
+            var fromInside = (t.from === clusterName) || descendants.qnames.has(t.from);
+            var toInside   = (t.to   === clusterName) || descendants.qnames.has(t.to);
+            if (fromInside && !toInside) {
+                outCount++;
+                markExternal(t.to, 'outgoing');
+            } else if (!fromInside && toInside) {
+                inCount++;
+                markExternal(t.from, 'incoming');
+            }
+        });
+
+        markLitNotes(svg);
 
         if (onSelect && typeof onSelect === 'function') {
             onSelect({
@@ -627,7 +798,7 @@ var InteractiveSvg = (function() {
         // Find all OUTGOING links (selected -> other = GREEN for receivers)
         var outgoing = linkMap.outgoing[boxName] || [];
         outgoing.forEach(function(item) {
-            item.link.classList.add('link-highlighted');
+            if (item.link) item.link.classList.add('link-highlighted');
             outCount++;
             if (connectedBoxes.indexOf(item.to) === -1) {
                 connectedBoxes.push(item.to);
@@ -635,8 +806,8 @@ var InteractiveSvg = (function() {
 
             var destElem = findBoxByName(svg, item.to);
             if (destElem) {
-                // Note boxes (GMN*) = YELLOW, others = GREEN (receiving info)
-                if (item.to.startsWith('GMN')) {
+                // Note boxes = YELLOW, others = GREEN (receiving info)
+                if (isNote(destElem)) {
                     destElem.classList.add('destination-note');
                     highlightEllipses(destElem, '#FFC107');
                 } else {
@@ -649,7 +820,7 @@ var InteractiveSvg = (function() {
         // Find all INCOMING links (other -> selected = RED for senders)
         var incoming = linkMap.incoming[boxName] || [];
         incoming.forEach(function(item) {
-            item.link.classList.add('link-highlighted');
+            if (item.link) item.link.classList.add('link-highlighted');
             inCount++;
             if (connectedBoxes.indexOf(item.from) === -1) {
                 connectedBoxes.push(item.from);
@@ -657,8 +828,8 @@ var InteractiveSvg = (function() {
 
             var sourceElem = findBoxByName(svg, item.from);
             if (sourceElem && sourceElem !== boxElement) {
-                // Note boxes (GMN*) = YELLOW, others = RED (sending info)
-                if (item.from.startsWith('GMN')) {
+                // Note boxes = YELLOW, others = RED (sending info)
+                if (isNote(sourceElem)) {
                     sourceElem.classList.add('destination-note');
                     highlightEllipses(sourceElem, '#FFC107');
                 } else {
@@ -669,6 +840,8 @@ var InteractiveSvg = (function() {
         });
 
         // Call callback if provided
+        markLitNotes(svg);
+
         if (onSelect && typeof onSelect === 'function') {
             onSelect({
                 element: boxElement,
@@ -935,12 +1108,68 @@ var InteractiveSvg = (function() {
     }
 
     // Public API
+    // Box colours as painted by interactive-svg.css (stroke/glow of the state classes).
+    // ⚠️ Keep in step with the CSS: box colours are literals there, not variables.
+    var LEGEND_BOXES = [
+        { key: 'selected', color: '#2196F3', label: 'Selected' },
+        { key: 'incoming', color: '#f44336', label: 'Points to the selected one' },
+        { key: 'outgoing', color: '#4CAF50', label: 'Receives from the selected one' },
+        { key: 'note',     color: '#FFEB3B', label: 'Note' },
+        { key: 'cluster',  color: '#64B5F6', label: 'Inside the selected package' }
+    ];
+
+    var LEGEND_LINK_LABELS = {
+        extension:   'Inheritance / realization',
+        composition: 'Composition',
+        aggregation: 'Aggregation',
+        dependency:  'Dependency / directed (-->)',
+        association: 'Association'
+    };
+
+    var LINK_DEFAULT_COLOR = '#FF9800';
+
+    /**
+     * What the colours mean in THIS diagram: the box states it can show and only the
+     * relation kinds it contains. Link colours are read from --link-hl on the real
+     * elements, so the CSS stays the single source for them.
+     *
+     * @returns {{boxes: Array<{key,color,label}>, links: Array<{key,color,label}>}}
+     */
+    function getLegend(svg) {
+        var hasLinks = !!svg.querySelector('.interactive-svg-link');
+        var boxes = LEGEND_BOXES.filter(function(b) {
+            if (b.key === 'note') return !!svg.querySelector('.interactive-svg-note');
+            if (b.key === 'cluster') return !!svg.querySelector('g.cluster, g[id^="cluster_"]');
+            return hasLinks;
+        });
+
+        var links = [], seen = {}, hasOther = false;
+        svg.querySelectorAll('.interactive-svg-link').forEach(function(link) {
+            var type = link.getAttribute('data-link-type');
+            if (!type || !LEGEND_LINK_LABELS[type]) { hasOther = true; return; }
+            if (seen[type]) return;
+            seen[type] = true;
+            var color = getComputedStyle(link).getPropertyValue('--link-hl').trim();
+            links.push({ key: type, color: color || LINK_DEFAULT_COLOR, label: LEGEND_LINK_LABELS[type] });
+        });
+        var order = Object.keys(LEGEND_LINK_LABELS);
+        links.sort(function(a, b) { return order.indexOf(a.key) - order.indexOf(b.key); });
+        if (hasOther) {
+            // 'other' next to typed arrows, plain 'relation' when no arrow has a type (legacy SVG)
+            links.push(links.length
+                ? { key: 'other',    color: LINK_DEFAULT_COLOR, label: 'Other relation' }
+                : { key: 'relation', color: LINK_DEFAULT_COLOR, label: 'Relation' });
+        }
+        return { boxes: boxes, links: links };
+    }
+
     return {
         init: init,
         initAll: initAll,
         destroy: destroy,
         selectElement: selectElement,
-        clear: clear
+        clear: clear,
+        getLegend: getLegend
     };
 
 })();

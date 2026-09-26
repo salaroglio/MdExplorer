@@ -19,7 +19,7 @@ export class NewMarkdownComponent implements OnInit {
     this.documentTypes = [
       { id: 0, name: this.translate.instant('NEW_MARKDOWN.TEXT_DOC'), documentType: 'document' },
       { id: 8, name: this.translate.instant('NEW_MARKDOWN.PROMPTLAB'), documentType: 'promptlab' },
-      { id: 5, name: this.translate.instant('NEW_MARKDOWN.SLIDES'), documentType: 'slides' }
+      { id: 7, name: this.translate.instant('NEW_MARKDOWN.SLIDES'), documentType: 'slides' }
     ];
     this.selectedTemplate = this.documentTypes[0];
   }

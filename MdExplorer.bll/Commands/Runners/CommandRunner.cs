@@ -39,13 +39,15 @@ namespace MdExplorer.Features.Commands
             return command.SupportedModes.Contains(currentMode);
         }
 
-        private IEnumerable<ICommand> GetCompatibleCommands(string projectPath)
+        private IEnumerable<ICommand> GetCompatibleCommands(RequestInfo requestInfo)
         {
+            var projectPath = requestInfo.CurrentRoot;
             var currentMode = _compatibilityService.GetMode(projectPath);
 
             return _commands
                 .OrderBy(_ => _.Priority)
                 .Where(_ => _.Enabled)
+                .Where(_ => !requestInfo.SlideDeck || _.WorksInSlides)
                 .Where(cmd =>
                 {
                     var isCompatible = IsCommandCompatible(cmd, projectPath);
@@ -59,7 +61,7 @@ namespace MdExplorer.Features.Commands
 
         public string TransformInNewMDFromMD(string markdownText, RequestInfo requestInfo)
         {
-            foreach (var item in GetCompatibleCommands(requestInfo.CurrentRoot))
+            foreach (var item in GetCompatibleCommands(requestInfo))
             {
                 try
                 {
@@ -80,7 +82,7 @@ namespace MdExplorer.Features.Commands
 
         public string TransformAfterConversion(string markdownText, RequestInfo requestInfo)
         {
-            foreach (var item in GetCompatibleCommands(requestInfo.CurrentRoot))
+            foreach (var item in GetCompatibleCommands(requestInfo))
             {
                 try
                 {
@@ -96,7 +98,7 @@ namespace MdExplorer.Features.Commands
 
         public string PrepareMetadataBasedOnMD(string markdownText, RequestInfo requestInfo)
         {
-            foreach (var item in GetCompatibleCommands(requestInfo.CurrentRoot))
+            foreach (var item in GetCompatibleCommands(requestInfo))
             {
                 try
                 {

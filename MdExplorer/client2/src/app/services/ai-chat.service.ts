@@ -55,9 +55,29 @@ export interface ChatMessage {
 export class AiChatService {
   private hubConnection: HubConnection;
   private baseUrl = '/api/AiModels';
+
+  // Il modello che ha RISPOSTO all'ultimo turno della chat principale, come lo riporta Copilot.
+  // Puo' essere diverso da quello scelto: un modello che l'installazione non ha non da' errore,
+  // il CLI lo sostituisce in silenzio. E' l'unico nome onesto da mostrare.
+  private _answeredModel$ = new BehaviorSubject<{ requestedModel: string | null; answeredModel: string } | null>(null);
+  public answeredModel$ = this._answeredModel$.asObservable();
+
+  // Ultimo connectionId noto di MonitorMDHub: e' cosi' che il backend risale al progetto.
+  // Va conservato perche' i due hub si connettono in ordine imprevedibile, e chi arriva
+  // secondo deve poter (ri)mandare il valore senza dipendere da un timer.
+  private _projectConnId: string | null = null;
   
   private _messages$ = new BehaviorSubject<ChatMessage[]>([]);
   public messages$ = this._messages$.asObservable();
+
+  // Last scroll position of the chat message list. Persisted here (in the
+  // singleton service) rather than in AiChatComponent because mat-tab-group
+  // uses preserveContent=false: switching away from the Mark Agent tab detaches
+  // the tab body portal and destroys the component, so any component-local
+  // scroll state would be lost. savedAtBottom lets the freshly recreated
+  // component decide between "restore the exact position" and "snap to bottom".
+  public savedScrollTop = 0;
+  public savedAtBottom = true;
   
   private _downloadProgress$ = new Subject<DownloadProgress>();
   public downloadProgress$ = this._downloadProgress$.asObservable();
@@ -77,6 +97,24 @@ export class AiChatService {
   // True while a prompt is streaming a response on the default channel — drives the Stop button.
   private _isStreaming$ = new BehaviorSubject<boolean>(false);
   public isStreaming$ = this._isStreaming$.asObservable();
+
+  /**
+   * Consuntivo dell'ultimo turno di Claude Code (evento SignalR `ReceiveClaudeUsage`).
+   * Resta null per ogni altro provider: nessun altro lo manda.
+   */
+  private _claudeUsage$ = new BehaviorSubject<any | null>(null);
+  public claudeUsage$ = this._claudeUsage$.asObservable();
+
+  /**
+   * Consumi di Copilot (evento SignalR `ReceiveCopilotUsage`): quota del periodo, parte presa da
+   * questa conversazione, riempimento del contesto. Null finché il backend non li manda.
+   */
+  private _copilotUsage$ = new BehaviorSubject<any | null>(null);
+  public copilotUsage$ = this._copilotUsage$.asObservable();
+
+  /** Ultima attività sui tool osservata nel turno in corso (riga di stato, non risposta). */
+  private _toolActivity$ = new BehaviorSubject<string | null>(null);
+  public toolActivity$ = this._toolActivity$.asObservable();
 
   private _gpuInfo$ = new BehaviorSubject<GpuInfo | null>(null);
   public gpuInfo$ = this._gpuInfo$.asObservable();
@@ -105,6 +143,12 @@ export class AiChatService {
   // Replayed in startConnection() BEFORE getModelStatus() so the backend
   // answers with the correct provider instead of "None".
   private _pendingChatMode: { provider: string; modelId: string | null } | null = null;
+
+  // Last chat mode successfully applied. Unlike _pendingChatMode (cleared on flush),
+  // this persists so onreconnected() can re-register the provider on the NEW connectionId
+  // that automatic reconnect assigns — otherwise the reconnected hub has no provider and
+  // every prompt fails with "Copilot not available".
+  private _lastChatMode: { provider: string; modelId: string | null } | null = null;
 
   constructor(
     private http: HttpClient,
@@ -153,6 +197,18 @@ export class AiChatService {
       this.addMessage(role as 'system' | 'assistant', content);
     });
 
+    this.hubConnection.on('ReceiveAnsweredModel',
+      (info: { requestedModel: string | null; answeredModel: string }, channelId?: string) => {
+        // Solo la chat principale ha una testata da correggere: i canali privati (mark-search,
+        // promptlab, ai-selection) usano lo stesso hub ma non mostrano il modello.
+        if ((channelId || 'default') !== 'default' || !info?.answeredModel) return;
+        this._answeredModel$.next(info);
+        this._currentModel$.next(`CopilotCli: ${info.answeredModel}`);
+        if (info.requestedModel && info.requestedModel.toLowerCase() !== info.answeredModel.toLowerCase()) {
+          console.warn('[AiChatService] Chiesto', info.requestedModel, 'ma ha risposto', info.answeredModel);
+        }
+      });
+
     this.hubConnection.on('ReceiveStreamMeta', (meta: { providerType: string }) => {
       this.currentStreamingProviderType = meta.providerType;
     });
@@ -174,12 +230,40 @@ export class AiChatService {
       }
     });
 
+    // Consuntivo di fine turno: solo Claude Code lo manda. Il canale privato (mark-search,
+    // promptlab, ai-selection) non ha dove mostrarlo, quindi si tiene solo quello della chat.
+    this.hubConnection.on('ReceiveClaudeUsage', (usage: any, channelId?: string) => {
+      if ((channelId || 'default') === 'default') {
+        this._claudeUsage$.next(usage ?? null);
+      }
+    });
+
+    // Consumi di Copilot: prima della risposta (quota) e dopo (sessione e contesto). Come sopra,
+    // conta solo la chat: gli altri canali non hanno dove mostrarli.
+    this.hubConnection.on('ReceiveCopilotUsage', (usage: any, channelId?: string) => {
+      if ((channelId || 'default') === 'default') {
+        this._copilotUsage$.next(usage ?? null);
+      }
+    });
+
+    // Attività sui tool: "sta leggendo X", "sta eseguendo Y". È una riga di stato, non la
+    // risposta, e per questo NON entra nel messaggio in costruzione.
+    this.hubConnection.on('ReceiveToolActivity', (activity: string, channelId?: string) => {
+      const ch = channelId || 'default';
+      this._channelEvent$.next({ type: 'tool', data: activity, channelId: ch });
+      if (ch === 'default') {
+        this._toolActivity$.next(activity);
+      }
+    });
+
     this.hubConnection.on('StreamComplete', (channelId?: string) => {
       const ch = channelId || 'default';
       this._channelEvent$.next({ type: 'complete', data: null, channelId: ch });
       if (ch === 'default') {
         this.finalizeStreamingMessage();
         this._isStreaming$.next(false);
+        // Il turno è finito: l'ultima attività sui tool non è più "sta facendo", è passato.
+        this._toolActivity$.next(null);
       }
     });
 
@@ -190,8 +274,26 @@ export class AiChatService {
         console.error('Chat error:', error);
         this.addMessage('system', `Error: ${error}`);
         this._isStreaming$.next(false);
+        this._toolActivity$.next(null);
       }
     });
+
+    // Automatic reconnect assigns a NEW connectionId, and the backend wiped all state
+    // (chat mode, project mapping, ACP session) for the old one in OnDisconnectedAsync.
+    // Re-register everything the hub needs, or every subsequent prompt would fail with
+    // "provider not available".
+    this.hubConnection.onreconnected(() => {
+      console.log('[AiChatService] Reconnected — replaying project connection and chat mode');
+      this.sendProjectConnectionId();
+      if (this._lastChatMode) {
+        this.hubConnection.invoke('SetChatMode', this._lastChatMode.provider, this._lastChatMode.modelId)
+          .then(() => console.log('[AiChatService] Chat mode replayed after reconnect:', this._lastChatMode))
+          .catch(err => console.error('[AiChatService] Error replaying chat mode after reconnect:', err));
+      }
+    });
+
+    // Follow the project connectionId from now on (see watchProjectConnectionId).
+    this.watchProjectConnectionId();
 
     // Start connection
     this.startConnection();
@@ -228,26 +330,43 @@ export class AiChatService {
   }
 
   /**
+   * Follows the MonitorMDHub connectionId instead of taking a snapshot of it.
+   *
+   * `connectionId$` is a ReplaySubject(1) that emits when the monitor connects AND on
+   * every reconnection, so this covers both ways the link used to break: the chat
+   * connecting before the monitor (a single 2s retry lost that race and then gave up
+   * for good), and the monitor reconnecting with a NEW id while the chat kept pointing
+   * at the dead one. Without this id the backend cannot tell which project the chat is
+   * in, and every prompt dies before any CLI is even started.
+   */
+  private watchProjectConnectionId(): void {
+    this.serverMessages?.connectionId$?.subscribe(connId => {
+      if (!connId) return;
+      this._projectConnId = connId;
+      this.sendProjectConnectionId();
+    });
+  }
+
+  /**
    * Sends the MonitorMDHub connectionId to AiChatHub so it can
    * look up the project path via WatcherManager.
+   *
+   * A no-op while the chat hub is not connected: the value is kept and sent again on
+   * connect and on reconnect, because the backend forgets it for the old connectionId.
    */
   private sendProjectConnectionId(): void {
-    const projectConnId = this.serverMessages?.connectionId;
-    if (projectConnId && this.hubConnection.state === 'Connected') {
-      this.hubConnection.invoke('SetProjectConnectionId', projectConnId)
-        .then(() => console.log('[AiChatService] Sent project connectionId:', projectConnId))
-        .catch(err => console.error('[AiChatService] Error sending project connectionId:', err));
-    } else {
-      // MonitorMDHub might not be connected yet — retry after a short delay
-      setTimeout(() => {
-        const connId = this.serverMessages?.connectionId;
-        if (connId && this.hubConnection.state === 'Connected') {
-          this.hubConnection.invoke('SetProjectConnectionId', connId)
-            .then(() => console.log('[AiChatService] Sent project connectionId (retry):', connId))
-            .catch(err => console.error('[AiChatService] Error sending project connectionId:', err));
-        }
-      }, 2000);
+    const projectConnId = this._projectConnId;
+    if (!projectConnId) {
+      console.log('[AiChatService] Project connectionId not known yet \u2014 will send as soon as it is');
+      return;
     }
+    if (this.hubConnection.state !== 'Connected') {
+      console.log('[AiChatService] Chat hub not connected yet \u2014 project connectionId will be sent on connect');
+      return;
+    }
+    this.hubConnection.invoke('SetProjectConnectionId', projectConnId)
+      .then(() => console.log('[AiChatService] Sent project connectionId:', projectConnId))
+      .catch(err => console.error('[AiChatService] Error sending project connectionId:', err));
   }
 
   // Model Management
@@ -306,6 +425,14 @@ export class AiChatService {
   // Chat functionality
   sendMessage(message: string): void {
     if (!message.trim()) return;
+    // Defense in depth: never start a second default-channel turn while one is streaming.
+    // The component already guards on isStreaming, but a programmatic caller must not be
+    // able to reassign currentStreamingMessageId and race a live prompt (would kill any
+    // running sub-agent). Interrupt via cancelPrompt() (Stop) instead.
+    if (this._isStreaming$.value) {
+      console.warn('[AiChatService] sendMessage ignored: a prompt is already streaming. Use Stop to interrupt.');
+      return;
+    }
 
     // Add user message
     this.addMessage('user', message);
@@ -340,11 +467,28 @@ export class AiChatService {
    * which clears the streaming state; we optimistically clear it here too.
    */
   cancelPrompt(): void {
-    if (this.hubConnection.state === 'Connected') {
-      this.hubConnection.invoke('CancelPrompt')
-        .catch(err => console.error('Error cancelling prompt:', err));
+    if (this.hubConnection.state !== 'Connected') {
+      this._isStreaming$.next(false);   // niente connessione: non c'è nulla che stia generando
+      return;
     }
-    this._isStreaming$.next(false);
+
+    // NIENTE OTTIMISMO. Prima si spegneva subito l'indicatore: il pulsante SEMBRAVA aver
+    // fermato la generazione mentre il backend continuava — ed era il motivo per cui lo Stop
+    // "a volte non funzionava". Lo stato si spegne quando arriva StreamComplete dal server,
+    // che è l'unico a sapere davvero quando il turno è finito.
+    this.hubConnection.invoke<boolean>('CancelPrompt')
+      .then(cancelled => {
+        if (!cancelled) {
+          // Il server non aveva nulla in volo: allora l'indicatore era già disallineato, e
+          // spegnerlo qui è corretto (non stiamo nascondendo un turno vivo).
+          console.warn('CancelPrompt: nessun turno in volo lato server');
+          this._isStreaming$.next(false);
+        }
+      })
+      .catch(err => {
+        console.error('Error cancelling prompt:', err);
+        this._isStreaming$.next(false);
+      });
   }
 
   /**
@@ -365,6 +509,36 @@ export class AiChatService {
         });
     } else {
       console.error(`[AiChatService] Hub NOT connected! State: ${this.hubConnection.state}. Message dropped.`);
+      // Said on the channel too: its listener waits for 'complete' or 'error', and a message
+      // dropped in silence would leave it waiting for ever.
+      this._channelEvent$.next({ type: 'error', data: 'La chat AI non è connessa: il messaggio non è partito. Riprova tra poco.', channelId });
+    }
+  }
+
+  /**
+   * Like sendMessageToChannel but the server reads the given project files fresh from
+   * disk and injects their content as context (SendMessageWithContext). The client only
+   * ships the paths — no large content round-trip over SignalR. Empty paths → plain send.
+   */
+  sendMessageWithContextToChannel(message: string, channelId: string, contextFiles: string[]): void {
+    if (!message.trim()) return;
+
+    if (!contextFiles || contextFiles.length === 0) {
+      this.sendMessageToChannel(message, channelId);
+      return;
+    }
+
+    if (this.hubConnection.state === 'Connected') {
+      this.hubConnection.invoke('SendMessageWithContext', message, channelId, contextFiles)
+        .catch(err => {
+          console.error(`[AiChatService] Error sending message+context to channel ${channelId}:`, err);
+          this._channelEvent$.next({ type: 'error', data: `Failed to send message: ${err}`, channelId });
+        });
+    } else {
+      console.error(`[AiChatService] Hub NOT connected! State: ${this.hubConnection.state}. Message dropped.`);
+      // Said on the channel too: its listener waits for 'complete' or 'error', and a message
+      // dropped in silence would leave it waiting for ever.
+      this._channelEvent$.next({ type: 'error', data: 'La chat AI non è connessa: il messaggio non è partito. Riprova tra poco.', channelId });
     }
   }
 
@@ -380,8 +554,39 @@ export class AiChatService {
   }
 
   /**
+   * One turn on a channel of the AI chat, as a promise: resolves with the whole answer, rejects
+   * with the chat's error. The channel shares the CLI session of the MarkAgent tab (AiChatHub keeps
+   * one session per connection), so the question is asked with the tab's memory — used by
+   * "Chiedi a MarkAgent" on the slides and by the AI commit message.
+   * Give each request its own channel: the events of a superseded one cannot land on the next.
+   */
+  askOnChannel(channelId: string, prompt: string, onChunk: ((chunk: string) => void) | null = null): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      let text = '';
+      const sub = this.getChannelStream$(channelId).subscribe(evt => {
+        switch (evt.type) {
+          case 'chunk':
+            text += evt.data ?? '';
+            onChunk?.(evt.data ?? '');
+            break;
+          case 'complete':
+            sub.unsubscribe();
+            resolve(text);
+            break;
+          case 'error':
+            sub.unsubscribe();
+            reject(new Error(String(evt.data)));
+            break;
+        }
+      });
+      this.sendMessageToChannel(prompt, channelId);
+    });
+  }
+
+  /**
    * Get an Observable stream of events filtered for a specific channelId.
-   * Each event has { type: 'chunk' | 'thinking' | 'complete' | 'error', data: any }.
+   * Each event has { type: 'chunk' | 'thinking' | 'tool' | 'complete' | 'error', data: any }.
+   * 'tool' arriva solo da Claude Code ed è una riga di stato, non testo della risposta.
    * Used by PromptLab cards to subscribe to their own channel.
    */
   getChannelStream$(channelId: string): Observable<{ type: string; data: any }> {
@@ -587,6 +792,7 @@ export class AiChatService {
    */
   setProvider(provider: string, modelId: string | null): void {
     console.log('[AiChatService] setProvider called with:', provider, modelId);
+    this._lastChatMode = { provider, modelId };
 
     // Update internal state based on provider
     if (provider === 'gemini') {
@@ -623,6 +829,7 @@ export class AiChatService {
    */
   async setProviderAsync(provider: string, modelId: string | null): Promise<void> {
     console.log('[AiChatService] setProviderAsync called with:', provider, modelId);
+    this._lastChatMode = { provider, modelId };
 
     if (provider === 'gemini') {
       this._useGemini$.next(true);
@@ -706,6 +913,21 @@ export class AiChatService {
     );
   }
 
+  checkClaudeCodeConfiguration(): Observable<any> {
+    return this.http.get('/api/claudecode/configured');
+  }
+
+  /**
+   * Modelli di Claude Code. Passa dall'endpoint generico per tipo di provider: la lista è
+   * dichiarata lato server (il CLI non espone un comando per elencarla) e sono alias
+   * — `sonnet`, `opus`, `haiku` — che puntano sempre all'ultima versione della famiglia.
+   */
+  getClaudeCodeModels(): Observable<any[]> {
+    return this.getModelsByProvider('ClaudeCode').pipe(
+      map((response: any) => response.models || [])
+    );
+  }
+
   getCopilotCliSystemPrompt(): Observable<any> {
     return this.http.get('/api/copilotcli/system-prompt');
   }
@@ -740,6 +962,18 @@ export class AiChatService {
   }
 
   /**
+   * I modelli Copilot salvati (tabella AvailableModel, solo provider CopilotCli): istantaneo,
+   * nessuna chiamata al CLI. Niente cache in memoria: la tabella e' gia' il posto veloce, e una
+   * copia qui dovrebbe essere invalidata a ogni aggiornamento. Un errore arriva come errore, non
+   * come lista vuota: "nessun modello" e "non riesco a leggere i modelli" sono cose diverse.
+   */
+  getCopilotChatModels(): Observable<{ id: string; name: string }[]> {
+    return this.http.get<any>('/api/aimodels/cached', { params: { provider: 'CopilotCli' } }).pipe(
+      map(response => (response?.models || []).map((m: any) => ({ id: m.id, name: m.name || m.id })))
+    );
+  }
+
+  /**
    * Refresh models via Copilot CLI discovery (slow, ~5s).
    * Deduplicates concurrent calls. Updates DB cache on the backend.
    */
@@ -763,10 +997,63 @@ export class AiChatService {
     return this._refreshInFlight;
   }
 
-  notifyCopilotCliConnected(modelId: string): void {
+  /**
+   * I modelli di Claude Code salvati (AvailableModel, provider ClaudeCode), con la descrizione che il
+   * CLI dà a ciascuno. Istantaneo. Come per Copilot, un errore arriva come errore e non come lista vuota.
+   */
+  getClaudeCodeChatModels(): Observable<{ id: string; name: string; description: string | null }[]> {
+    return this.http.get<any>('/api/aimodels/cached', { params: { provider: 'ClaudeCode' } }).pipe(
+      map(response => (response?.models || []).map((m: any) => ({
+        id: m.id, name: m.name || m.id, description: m.description || null
+      })))
+    );
+  }
+
+  private _claudeRefreshInFlight: Observable<any> | null = null;
+
+  /** Chiede al CLI i modelli di questo account (initialize, nessun token) e li salva. Chiamate concorrenti condivise. */
+  refreshClaudeCodeModels(): Observable<any> {
+    if (this._claudeRefreshInFlight) {
+      return this._claudeRefreshInFlight;
+    }
+    this._claudeRefreshInFlight = this.http.post('/api/claudecode/refresh-models', {}).pipe(
+      finalize(() => { this._claudeRefreshInFlight = null; }),
+      shareReplay(1)
+    );
+    return this._claudeRefreshInFlight;
+  }
+
+  /**
+   * I modelli di opencode salvati (AvailableModel, provider OpenCode). Istantaneo: se la tabella
+   * è vuota tocca al refresh, che accende il server.
+   */
+  getOpenCodeChatModels(): Observable<{ id: string; name: string; description: string | null }[]> {
+    return this.http.get<any>('/api/aimodels/cached', { params: { provider: 'OpenCode' } }).pipe(
+      map(response => (response?.models || []).map((m: any) => ({
+        id: m.id, name: m.name || m.id, description: m.description || null
+      })))
+    );
+  }
+
+  private _openCodeRefreshInFlight: Observable<any> | null = null;
+
+  /** Chiede al server i modelli dei provider collegati e li salva. Chiamate concorrenti condivise. */
+  refreshOpenCodeModels(): Observable<any> {
+    if (this._openCodeRefreshInFlight) {
+      return this._openCodeRefreshInFlight;
+    }
+    this._openCodeRefreshInFlight = this.http.post('/api/opencode/refresh-models', {}).pipe(
+      finalize(() => { this._openCodeRefreshInFlight = null; }),
+      shareReplay(1)
+    );
+    return this._openCodeRefreshInFlight;
+  }
+
+  notifyCopilotCliConnected(modelId: string | null): void {
     console.log('[AiChatService] notifyCopilotCliConnected called with modelId:', modelId);
     this._isModelLoaded$.next(true);
-    this._currentModel$.next(`CopilotCli: ${modelId}`);
+    // null = il modello lo sceglie il CLI: dirlo, invece di stampare "null".
+    this._currentModel$.next(`CopilotCli: ${modelId || 'auto'}`);
     console.log('[AiChatService] CopilotCli connected:', modelId);
   }
 
@@ -776,9 +1063,34 @@ export class AiChatService {
     console.log('[AiChatService] CopilotCli disconnected');
   }
 
-  generateCommitMessage(projectPath: string): Observable<any> {
-    return this.http.post('/api/GitAi/generate-commit-message', { projectPath });
+  notifyClaudeCodeConnected(modelId: string): void {
+    console.log('[AiChatService] notifyClaudeCodeConnected con modelId:', modelId);
+    this._isModelLoaded$.next(true);
+    this._currentModel$.next(`ClaudeCode: ${modelId}`);
   }
+
+  notifyOpenCodeConnected(modelId: string | null): void {
+    console.log('[AiChatService] notifyOpenCodeConnected con modelId:', modelId);
+    this._isModelLoaded$.next(true);
+    // null = lo sceglie il server: dirlo, invece di stampare "null".
+    this._currentModel$.next(`opencode: ${modelId || 'default del server'}`);
+  }
+
+  notifyOpenCodeDisconnected(): void {
+    this._isModelLoaded$.next(false);
+    this._currentModel$.next(null);
+    console.log('[AiChatService] opencode disconnesso');
+  }
+
+  notifyClaudeCodeDisconnected(): void {
+    this._isModelLoaded$.next(false);
+    this._currentModel$.next(null);
+    // Il consuntivo si riferisce a una sessione che non c'è più: lasciarlo a video
+    // farebbe credere che quei numeri riguardino ancora la chat aperta.
+    this._claudeUsage$.next(null);
+    console.log('[AiChatService] ClaudeCode disconnesso');
+  }
+
   
   getGitAiStatus(): Observable<any> {
     return this.http.get('/api/GitAi/ai-status');

@@ -52,6 +52,13 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
 
   // Copilot CLI properties
   useCopilotCli = false;
+  // Claude Code: stessi campi del gemello Copilot. Nessuna API key da gestire — il CLI
+  // gira sull'abbonamento di chi ha fatto il login.
+  useClaudeCode = false;
+  claudeCodeAvailable = false;
+  claudeCodeModels: any[] = [];
+  selectedClaudeCodeModel: string | null = null;
+  showClaudeCodeConfig = false;
   copilotCliModels: any[] = [];
   selectedCopilotCliModel = 'claude-sonnet-4';
   copilotCliAvailable = false;
@@ -90,6 +97,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     this.checkGeminiConfiguration();
     this.checkOpenAiConfiguration();
     this.checkCopilotCliConfiguration();
+    this.checkClaudeCodeConfiguration();
     this.loadAvailableProviders();
     this.loadDefaultPreferences();
 
@@ -675,6 +683,9 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     if (this.useCopilotCli) {
       this.disconnectCopilotCli();
     }
+    if (this.useClaudeCode) {
+      this.disconnectClaudeCode();
+    }
 
     this.showProviderSelector = false;
   }
@@ -713,6 +724,11 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
         case 'openai':
           if (this.openAiConfigured && this.openAiModels.length > 0) {
             this.connectOpenAiModel(model);
+          }
+          break;
+        case 'claudecode':
+          if (this.claudeCodeAvailable) {
+            this.connectClaudeCodeModel(model);
           }
           break;
         case 'copilotcli':
@@ -843,6 +859,84 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     this.selectedCopilotCliModel = null;
     this.selectedProvider = 'local';
     this.aiService.notifyCopilotCliDisconnected();
+  }
+
+  // ---- Claude Code ----
+
+  checkClaudeCodeConfiguration(): void {
+    this.aiService.checkClaudeCodeConfiguration().subscribe({
+      next: (response: any) => {
+        this.claudeCodeAvailable = response.configured;
+        if (this.claudeCodeAvailable) {
+          this.loadClaudeCodeModels();
+        }
+      },
+      error: (err) => {
+        console.error('Errore nel controllo della disponibilità di Claude Code:', err);
+      }
+    });
+  }
+
+  loadClaudeCodeModels(): void {
+    this.aiService.getClaudeCodeModels().subscribe({
+      next: (models) => {
+        this.claudeCodeModels = models;
+      },
+      error: (err) => {
+        console.error('Errore nel caricamento dei modelli Claude Code:', err);
+      }
+    });
+  }
+
+  toggleClaudeCodeConfig(): void {
+    this.showClaudeCodeConfig = !this.showClaudeCodeConfig;
+    if (this.showClaudeCodeConfig && this.claudeCodeAvailable) {
+      this.loadClaudeCodeModels();
+    }
+    this.contentChanged.emit();
+  }
+
+  async connectClaudeCodeModel(modelId: string): Promise<void> {
+    console.log('[ModelManager] Connessione a Claude Code, modello:', modelId);
+    this.selectedClaudeCodeModel = modelId;
+    this.useClaudeCode = true;
+    this.selectedProvider = 'claudecode';
+
+    // Un motore per volta: gli altri provider vanno staccati, altrimenti la UI mostrerebbe
+    // due connessioni vive mentre il backend ne conosce una sola.
+    if (this.useGemini) {
+      this.disconnectGemini();
+    }
+    if (this.useOpenAi) {
+      this.disconnectOpenAi();
+    }
+    if (this.useCopilotCli) {
+      this.disconnectCopilotCli();
+    }
+
+    try {
+      await this.aiService.setProviderAsync('claudecode', modelId);
+    } catch (err) {
+      console.error('[ModelManager] Errore nel selezionare Claude Code come provider:', err);
+      alert(this.translate.instant('MODEL_MANAGER.CONNECT_CLAUDE_CODE_FAILED', { name: modelId }));
+      return;
+    }
+
+    // "Caricato" solo DOPO che il backend ha registrato il provider.
+    this.aiService.notifyClaudeCodeConnected(modelId);
+    this.saveCurrentPreference('claudecode', modelId);
+
+    alert(this.translate.instant('MODEL_MANAGER.CONNECTED_CLAUDE_CODE', {
+      name: this.claudeCodeModels.find(m => m.id === modelId)?.name || modelId
+    }));
+  }
+
+  disconnectClaudeCode(): void {
+    console.log('[ModelManager] Disconnessione da Claude Code');
+    this.useClaudeCode = false;
+    this.selectedClaudeCodeModel = null;
+    this.selectedProvider = 'local';
+    this.aiService.notifyClaudeCodeDisconnected();
   }
 
   editCopilotCliSystemPrompt(): void {

@@ -1,0 +1,67 @@
+<div mat-dialog-title class="ai-selection-title">
+  <span>✨ {{ 'AI_SELECTION.TITLE' | translate }}</span>
+  <span class="file-info">{{ 'AI_SELECTION.LINES' | translate: { start: data.startLine, end: data.endLine } }} — {{ fileName }}</span>
+</div>
+
+<mat-dialog-content class="ai-selection-content">
+
+  <div *ngIf="fragmentError" class="banner error">
+    {{ fragmentError }}
+  </div>
+
+  <ng-container *ngIf="fragment !== null">
+    <div class="panes" [class.with-proposal]="proposal !== null">
+      <div class="pane">
+        <div class="pane-header">{{ 'AI_SELECTION.ORIGINAL' | translate }}</div>
+        <pre class="fragment">{{ fragment }}</pre>
+      </div>
+      <div class="pane" *ngIf="proposal !== null">
+        <div class="pane-header">
+          {{ 'AI_SELECTION.PROPOSAL' | translate }}
+          <span *ngIf="!proposalDelimited" class="warn-badge" [matTooltip]="'AI_SELECTION.NOT_DELIMITED' | translate">⚠</span>
+        </div>
+        <pre class="fragment proposal">{{ proposal }}</pre>
+      </div>
+    </div>
+
+    <details *ngIf="thinkingContent" class="thinking">
+      <summary>{{ 'AI_SELECTION.THINKING' | translate }}</summary>
+      <pre>{{ thinkingContent }}</pre>
+    </details>
+
+    <div *ngIf="isStreaming" class="streaming">
+      <mat-spinner diameter="18"></mat-spinner>
+      <pre class="streaming-text">{{ streamingResponse }}</pre>
+    </div>
+
+    <div *ngIf="conflict" class="banner warn">
+      {{ 'AI_SELECTION.CONFLICT' | translate }}
+      <button mat-stroked-button (click)="loadFragment()">{{ 'AI_SELECTION.RELOAD_FRAGMENT' | translate }}</button>
+    </div>
+
+    <div *ngIf="errorMessage" class="banner error">
+      {{ errorMessage }}
+    </div>
+
+    <div class="instruction-row">
+      <mat-form-field appearance="outline" class="instruction-field">
+        <mat-label>{{ 'AI_SELECTION.INSTRUCTION_PLACEHOLDER' | translate }}</mat-label>
+        <textarea matInput rows="2" [(ngModel)]="instruction" [disabled]="isStreaming"
+                  (keydown.control.enter)="send()"></textarea>
+      </mat-form-field>
+      <button mat-flat-button color="primary" (click)="send()"
+              [disabled]="isStreaming || !instruction.trim()">
+        {{ 'AI_SELECTION.SEND' | translate }}
+      </button>
+    </div>
+  </ng-container>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="dismiss()">{{ 'COMMON.CANCEL' | translate }}</button>
+  <button mat-button color="warn" *ngIf="isStreaming" (click)="stop()">{{ 'AI_SELECTION.STOP' | translate }}</button>
+  <button mat-flat-button color="primary" (click)="approve()"
+          [disabled]="proposal === null || isStreaming || isApplying || conflict">
+    {{ 'AI_SELECTION.APPROVE' | translate }}
+  </button>
+</mat-dialog-actions>

@@ -12,9 +12,14 @@ namespace MdExplorer.Features.Services.Atlassian
     /// </summary>
     public interface IJiraClient
     {
-        /// <summary>Runs a JQL search via /rest/api/3/search/jql (the GET form).</summary>
+        /// <summary>
+        /// Runs a JQL search via /rest/api/3/search/jql (the GET form). Each row can carry
+        /// custom fields: pass <paramref name="customFieldSelect"/> (names or customfield_ ids)
+        /// to request specific ones, or null to include all of the site's populated custom fields.
+        /// </summary>
         Task<IReadOnlyList<JiraIssueSummary>> SearchAsync(
-            JiraConnection conn, string jql, int maxResults, CancellationToken ct = default);
+            JiraConnection conn, string jql, int maxResults,
+            IReadOnlyList<string> customFieldSelect = null, CancellationToken ct = default);
 
         /// <summary>Fetches one issue with the fields needed for planning.</summary>
         Task<JiraIssueDetail> GetIssueAsync(
@@ -37,6 +42,40 @@ namespace MdExplorer.Features.Services.Atlassian
 
         /// <summary>Lists the Jira projects the user can see (key + name).</summary>
         Task<IReadOnlyList<JiraProject>> ListProjectsAsync(JiraConnection conn, CancellationToken ct = default);
+
+        /// <summary>
+        /// Lists the site's field catalog so a caller can discover the exact name, the
+        /// customfield_ id and the accepted value shape before writing. Without this a
+        /// caller can only learn a field's name by guessing it wrong. Reads the same
+        /// per-site cache the write path uses.
+        /// </summary>
+        Task<IReadOnlyList<JiraFieldMeta>> ListFieldsAsync(
+            JiraConnection conn, bool customOnly = true, string nameFilter = null, CancellationToken ct = default);
+
+        /// <summary>
+        /// Reads the fields the CREATE screen of a project + issue type actually exposes.
+        /// <see cref="ListFieldsAsync"/> answers "does this field exist on the site", which
+        /// is a different question: a field can exist and still be off this screen, and Jira
+        /// then refuses the create with "not on the appropriate screen". Ask this first.
+        /// </summary>
+        Task<JiraCreateFieldsResult> GetCreateFieldsAsync(
+            JiraConnection conn, string projectKey, string issueType, CancellationToken ct = default);
+
+        /// <summary>
+        /// Lists a project's versions — the values a fixVersions/versions field accepts.
+        /// </summary>
+        Task<IReadOnlyList<JiraVersion>> GetProjectVersionsAsync(
+            JiraConnection conn, string projectKey, CancellationToken ct = default);
+
+        /// <summary>
+        /// Uploads a file to an issue (POST /rest/api/3/issue/{key}/attachments, multipart).
+        /// The caller owns the stream and decides where the bytes come from: this client
+        /// never touches the disk, so the "which files may leave the machine" question stays
+        /// with the caller that knows the project boundary.
+        /// </summary>
+        Task<IReadOnlyList<JiraAttachment>> AttachFileAsync(
+            JiraConnection conn, string issueKey, System.IO.Stream content, string fileName,
+            CancellationToken ct = default);
 
         /// <summary>Adds a comment (plain text wrapped to ADF). Returns the comment id.</summary>
         Task<string> AddCommentAsync(JiraConnection conn, string issueKey, string body, CancellationToken ct = default);
@@ -65,6 +104,15 @@ namespace MdExplorer.Features.Services.Atlassian
         /// "Browse users" global permission on the token's account.
         /// </summary>
         Task<IReadOnlyList<JiraUser>> SearchUsersAsync(JiraConnection conn, string query, int maxResults, CancellationToken ct = default);
+
+        /// <summary>
+        /// Resolves a free-text name/email to candidate users, trying the literal query
+        /// then the name tokens and the reversed order. Returns every match (active, real
+        /// accounts, de-duplicated): 0 or >1 candidates is the caller's to disambiguate,
+        /// never this client's to guess.
+        /// </summary>
+        Task<IReadOnlyList<JiraUser>> ResolveUsersAsync(
+            JiraConnection conn, string query, CancellationToken ct = default);
 
         /// <summary>
         /// Sets the assignee of an issue (PUT /rest/api/3/issue/{key}/assignee). Pass a

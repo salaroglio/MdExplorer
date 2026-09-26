@@ -18,6 +18,9 @@ namespace MdExplorer.Features.Commands.html
 {
     public class MDShowMDHtml : MDShowMD, ICommandHtml
     {
+        /// <summary>Runs on slide decks: includes another markdown file; runs on the whole deck, so it can bring separators too.</summary>
+        public bool WorksInSlides => true;
+
         private readonly IHelper _helper;
 
         private string[] colorsArray = new[] { "red", "green", "yellow", "brown", "black" };

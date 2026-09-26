@@ -43,14 +43,33 @@ namespace MdExplorer.Features.Commands.html
             return matches;
         }
 
+        /// <summary>
+        /// Images that keep their markdown as written, without the toolbar wrapper.
+        /// <list type="bullet">
+        /// <item>In code: an image written as an example must show as text.</item>
+        /// <item>In a table: the wrapper is a block of several lines, and a table row is one line —
+        /// the row broke, the image fell out of the table followed by the rest of the cell. Markdig
+        /// renders the image in its cell, responsive like the others (Bootstrap's img-fluid).</item>
+        /// </list>
+        /// </summary>
+        private static bool KeepAsWritten(MarkdownCodeRegions regions, Match image)
+            => regions.IsCode(image.Index) || regions.IsInTable(image.Index);
+
         public override string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
             var imgMatches = GetLinkWithCurlyBracketsMatches(markdown);
-            
+            var regions = MarkdownCodeRegions.Of(markdown);
+            var increment = 0;
+
             var matches = GetMatches(markdown);
-            // i should remove the CSS extra            
+            // i should remove the CSS extra
             foreach (Match itemImg in imgMatches)
             {
+                if (KeepAsWritten(regions, itemImg))
+                {
+                    continue;
+                }
+
                 var curlyBrackets = itemImg.Groups[3].Value;
                 var metadataMatch = GetMetaDataMatches(curlyBrackets);
 
@@ -111,6 +130,10 @@ namespace MdExplorer.Features.Commands.html
                 
                 var prepareCurrentQueryRequest = requestInfo.CurrentQueryRequest.Replace(@"\",@"\\");
                 
+                // The PlantUML SVG is inlined inside this div: without this class it stays on the left,
+                // while a pasted image (simpleImgContainer) is centered.
+                var plantumlClass = plantumlInfo != null ? "mdePlantuml" : string.Empty;
+
                 var mathTostring = GetHashFromLink(itemImg.Groups[2].Value);
                 var stringMatchedHash = mathTostring.Count >0 ? mathTostring[0].Groups[1].Value:string.Empty;
                 var guidToDisplayToolbar = Guid.NewGuid().ToString("D");
@@ -119,13 +142,13 @@ namespace MdExplorer.Features.Commands.html
 
                 var metadataToReplaceString = metadataString.Substring(0, metadataString.Length) + dataMdHash;
                 var divContainsImage = itemImg.Groups[0].Value.Replace(metadataString, metadataToReplaceString);
-                divContainsImage = $"<div id=\"{stringMatchedHash}\" onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\"  md-path-file=\"{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}\" md-css-hash=\"{cssHash}\" md-CurrentQueryRequest=\"{prepareCurrentQueryRequest}\" md-link-hash=\"{linkHash}\" style=\"width:{divWidth}; height:{divHeight};\" class=\"defaultImg \" onmouseup=\"resizeImage(this)\">" +
+                divContainsImage = $"<div id=\"{stringMatchedHash}\" onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\"  md-path-file=\"{requestInfo.AbsolutePathFile.Replace(Path.DirectorySeparatorChar, '/')}\" md-css-hash=\"{cssHash}\" md-CurrentQueryRequest=\"{prepareCurrentQueryRequest}\" md-link-hash=\"{linkHash}\" style=\"width:{divWidth}; height:{divHeight};\" class=\"defaultImg {plantumlClass}\" onmouseup=\"resizeImage(this)\">" +
                     $"{System.Environment.NewLine}{System.Environment.NewLine}" +
                     $"{divContainsImage}" +
                     $"{System.Environment.NewLine}{System.Environment.NewLine}" +
                     $"</div>";
                 var newDivContainer = $"\r\n<div {classForDivContainer} {styleTopDivContainer} >";
-                var newDivToolbar = $"\r\n<div id=\"{guidToDisplayToolbar}\" onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\" style=\" display:none;\">"; 
+                var newDivToolbar = $"\r\n<div id=\"{guidToDisplayToolbar}\" class=\"mde-img-toolbar\" onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\" style=\" display:none;\">"; 
                 var newButtonForResize = linkHash != null ?  $"\r\n<button onclick =\"activateResize('{linkHash}')\" class=\"btn btn-md btn-primary-outline\"><img src=\"/assets/resize.png\"/></button>"
                     :string.Empty;
                 var newButtonForMove = linkHash !=null? $"\r\n<button onclick=\"activateMove(this,'{linkHash}','{guidToDisplayToolbar}')\"  class=\"btn btn-md btn-primary-outline\"><img src=\"/assets/move.png\"/></button>"
@@ -139,7 +162,7 @@ namespace MdExplorer.Features.Commands.html
                 var newButtonForImageCopy = (!isPlantumlCopy && !string.IsNullOrEmpty(imageLinkPath)) ?
                     $@"<button alt=""copy into clipboard"" onclick=""copyImageToClipboard('{imageLinkPath}')""><img src=""/assets/clipboard.png""/></button>" : string.Empty;
                 var newButtonEyes = $@"<button alt=""see original size"" onclick=""toggleSeeMe('{stringMatchedHash}')""><img src = ""/assets/eyes.png""/></button>";
-                var newButtonMagnifier = isSvgImage ? $@"<button alt=""search text"" onclick=""toggleMagnifier('{stringMatchedHash}')""><img src = ""/assets/magnifier.svg"" style=""width: 16px; height: 16px;""/></button>" : string.Empty;
+                var newButtonMagnifier = isSvgImage ? $@"<button alt=""search text"" onclick=""toggleMagnifier('{stringMatchedHash}')""><img src = ""/assets/magnifier.svg""/></button>" : string.Empty;
                 var endDivForToolbar = "</div>";
                 var endDivContainer = $"</div>";
                 divContainsImage = string.Concat(newDivContainer,
@@ -154,14 +177,22 @@ namespace MdExplorer.Features.Commands.html
                                                     endDivForToolbar,
                                                     divContainsImage,
                                                 endDivContainer);
-                markdown = markdown.Replace(itemImg.Groups[0].Value, divContainsImage);
+                // By position: a Replace would also rewrite the same image written in a code block.
+                (markdown, increment) = ManageReplaceOnMD(markdown, increment, itemImg, divContainsImage);
 
             }
 
             // Process simple images without curly brackets: ![alt](path)
             var simpleImgMatches = GetSimpleImageMatches(markdown);
+            regions = MarkdownCodeRegions.Of(markdown);
+            increment = 0;
             foreach (Match simpleImg in simpleImgMatches)
             {
+                if (KeepAsWritten(regions, simpleImg))
+                {
+                    continue;
+                }
+
                 var altText = simpleImg.Groups[1].Value;
                 var imagePath = simpleImg.Groups[2].Value;
 
@@ -172,7 +203,6 @@ namespace MdExplorer.Features.Commands.html
                 var prepareCurrentQueryRequest = requestInfo.CurrentQueryRequest.Replace(@"\", @"\\");
 
                 // Build the wrapped image HTML
-                var originalImageMarkdown = simpleImg.Groups[0].Value;
                 var imageWithClass = $"![{altText}]({imagePath}){{.simpleImgFluid data-md-hash=\"empty\"}}";
 
                 var divContainsImage = $"<div id=\"{imageHash}\" " +
@@ -191,6 +221,7 @@ namespace MdExplorer.Features.Commands.html
                 // Build toolbar (eyes and copy for simple images — no magnifier, text search makes no sense on raster images)
                 var newDivContainer = $"\r\n<div>";
                 var newDivToolbar = $"\r\n<div id=\"{guidToDisplayToolbar}\" " +
+                    $"class=\"mde-img-toolbar\" " +
                     $"onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" " +
                     $"onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\" " +
                     $"style=\"display:none;\">";
@@ -207,7 +238,7 @@ namespace MdExplorer.Features.Commands.html
                                                     divContainsImage,
                                                 endDivContainer);
 
-                markdown = markdown.Replace(originalImageMarkdown, divContainsImage);
+                (markdown, increment) = ManageReplaceOnMD(markdown, increment, simpleImg, divContainsImage);
             }
 
             return markdown;

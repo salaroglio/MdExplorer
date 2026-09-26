@@ -21,9 +21,22 @@ namespace MDExplorer.DataAccess.Mapping
             Map(_ => _.SelectedIde).Length(50).Nullable();
             Map(_ => _.LinkIndexingEnabled).Not.Nullable().Default("1");
             Map(_ => _.PlantUmlKeepOriginalColorsInDarkMode).Not.Nullable().Default("0");
-            Map(_ => _.UseCopilotCliAsDefault).Not.Nullable().Default("1");
+            // Motore di MarkAgent: NULL = segue l'harness del repository (MarkAgentEngines.Resolve).
+            // Le colonne UseCopilotCliAsDefault/UseClaudeCodeAsDefault non si mappano piu': restano
+            // nel DB (su SQLite Delete.Column e' un no-op, vedi M2026_09_21_001) ma sono NOT NULL
+            // con DEFAULT, quindi l'INSERT che non le nomina funziona lo stesso.
+            Map(_ => _.MarkAgentEngine).Length(20).Nullable();
+            Map(_ => _.CopilotChatModel).Length(200).Nullable();
+            Map(_ => _.ClaudeCodeChatModel).Length(200).Nullable();
+            Map(_ => _.OpenCodeChatModel).Length(200).Nullable();
             Map(_ => _.ExecutionTrusted).Not.Nullable().Default("0");
-            Map(_ => _.ExcludeSubmodulesFromGitStatus).Not.Nullable().Default("1");
+            Map(_ => _.UseAgentWorktrees).Nullable();
+            Map(_ => _.AgentWorktreeSlots).Nullable();
+            Map(_ => _.IndexAllTextFiles).Not.Nullable().Default("0");
+            Map(_ => _.TextFileExtensions).Length(int.MaxValue).Nullable();
+            // Gruppi di funzionalita' MCP: NULL = mai scelto, li decidono le integrazioni
+            // configurate nel progetto (McpToolGroupsSettings.Resolve).
+            Map(_ => _.McpToolGroups).Length(200).Nullable();
             HasMany(x => x.Bookmarks).LazyLoad().Cascade.SaveUpdate();
         }
     }

@@ -2,6 +2,78 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
+/** Da dove viene un valore risolto del relay (catena: progetto → .development.yml → globale). */
+export type RelaySettingSource = 'None' | 'Project' | 'DevelopmentYml' | 'Global';
+
+export interface RelaySettings {
+  relayUrl: string;
+  relayUrlSource: RelaySettingSource;
+  /** La chiave non viaggia mai verso il client: si sa solo se c'è. */
+  hasApiKey: boolean;
+  apiKeySource: RelaySettingSource;
+  lastTestedAt: string | null;
+  lastTestSuccess: boolean | null;
+}
+
+/**
+ * Harness agentico del progetto: dove MdExplorer installa skill, agent e prompt.
+ * Vive in .development.yml, quindi è una scelta del repository condivisa dal team.
+ */
+export type HarnessTarget = 'copilot' | 'opencode' | 'claude' | 'none';
+
+export interface HarnessSetting {
+  target: HarnessTarget;
+  /**
+   * false = il progetto non dichiara ancora l'harness (creato prima che la scelta esistesse):
+   * `target` è quello dedotto dalle cartelle presenti sul disco.
+   */
+  declared: boolean;
+}
+
+/**
+ * Il CLI con cui MarkAgent parla in questo progetto. Stessi nomi dell'harness, e non è un caso:
+ * sono la stessa decisione vista da due lati — l'harness dice dove stanno skill, agenti e prompt,
+ * il motore chi li legge.
+ */
+export type MarkAgentEngineId = 'copilot' | 'opencode' | 'claude' | 'none';
+
+/**
+ * Un gruppo di funzionalità del server MCP. L'elenco arriva dal server stesso
+ * (`MdExplorer.Mcp --list-groups`), pesi compresi: qui non se ne tiene una copia.
+ */
+export interface McpToolGroup {
+  id: string;
+  mandatory: boolean;
+  summary: string;
+  toolCount: number;
+  approxTokens: number;
+  enabled: boolean;
+}
+
+export interface McpToolGroupsSetting {
+  /** true = l'utente ha scelto; false = proposta in base alle integrazioni configurate. */
+  chosen: boolean;
+  groups: McpToolGroup[];
+}
+
+export interface MarkAgentEngineSetting {
+  engine: MarkAgentEngineId;
+  /**
+   * true = il motore SEGUE l'ambiente agentico del repository (il caso normale). false = questa
+   * macchina ha scelto un CLI diverso da quello dell'harness, dalla modalità avanzata.
+   */
+  linked: boolean;
+  /** L'harness del repository, che arriva nella stessa risposta per non doverlo richiedere. */
+  harness: HarnessTarget;
+  declared: boolean;
+}
+
+export interface RelayTestResult {
+  success: boolean;
+  statusCode: number | null;
+  message: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -57,24 +129,106 @@ export class ProjectSettingsService {
     return this.http.post<any>(url, { enabled, projectPath });
   }
 
-  getCopilotCliAutoSelectSetting(projectPath: string): Observable<{enabled: boolean}> {
-    const url = '../api/ProjectSettings/GetCopilotCliAutoSelectSetting';
-    return this.http.get<{enabled: boolean}>(url, { params: { projectPath } });
+  /** Gruppi di funzionalità MCP del progetto: quali esistono, quanto pesano, quali sono accesi. */
+  getMcpToolGroups(projectPath: string): Observable<McpToolGroupsSetting> {
+    const url = '../api/ProjectSettings/GetMcpToolGroups';
+    return this.http.get<McpToolGroupsSetting>(url, { params: { projectPath } });
   }
 
-  setCopilotCliAutoSelectSetting(enabled: boolean, projectPath: string): Observable<any> {
-    const url = '../api/ProjectSettings/SetCopilotCliAutoSelectSetting';
-    return this.http.post<any>(url, { enabled, projectPath });
+  /** Salva i gruppi accesi. Quelli obbligatori li aggiunge il backend. */
+  setMcpToolGroups(groups: string[], projectPath: string): Observable<{ groups: string[]; chosen: boolean }> {
+    const url = '../api/ProjectSettings/SetMcpToolGroups';
+    return this.http.post<{ groups: string[]; chosen: boolean }>(url, { groups, projectPath });
   }
 
-  getExcludeSubmodulesSetting(projectPath: string): Observable<{enabled: boolean}> {
-    const url = '../api/ProjectSettings/GetExcludeSubmodulesSetting';
-    return this.http.get<{enabled: boolean}>(url, { params: { projectPath } });
+  /** Il motore di MarkAgent per questo progetto, e se segue l'ambiente o no. */
+  getMarkAgentEngine(projectPath: string): Observable<MarkAgentEngineSetting> {
+    const url = '../api/ProjectSettings/GetMarkAgentEngine';
+    return this.http.get<MarkAgentEngineSetting>(url, { params: { projectPath } });
   }
 
-  setExcludeSubmodulesSetting(enabled: boolean, projectPath: string): Observable<any> {
-    const url = '../api/ProjectSettings/SetExcludeSubmodulesSetting';
-    return this.http.post<any>(url, { enabled, projectPath });
+  /**
+   * Scollega il motore dall'ambiente, o lo ricollega passando null. Non tocca il
+   * .development.yml: cambiare l'ambiente è `setHarness`, perché quel file è committato.
+   */
+  setMarkAgentEngine(engine: MarkAgentEngineId | null, projectPath: string): Observable<{ engine: MarkAgentEngineId; linked: boolean }> {
+    const url = '../api/ProjectSettings/SetMarkAgentEngine';
+    return this.http.post<{ engine: MarkAgentEngineId; linked: boolean }>(url, { engine, projectPath });
+  }
+
+  /**
+   * Modello Copilot della chat per questo progetto. null = lo sceglie il CLI.
+   */
+  setCopilotChatModelSetting(modelId: string | null, projectPath: string): Observable<{ modelId: string | null }> {
+    const url = '../api/ProjectSettings/SetCopilotChatModelSetting';
+    return this.http.post<{ modelId: string | null }>(url, { modelId, projectPath });
+  }
+
+  /**
+   * Modello di Claude Code per MarkAgent in questo progetto: un id dell'elenco del CLI.
+   * null = mai scelto (la chat usa sonnet).
+   */
+  setClaudeCodeChatModelSetting(modelId: string | null, projectPath: string): Observable<{ modelId: string | null }> {
+    const url = '../api/ProjectSettings/SetClaudeCodeChatModelSetting';
+    return this.http.post<{ modelId: string | null }>(url, { modelId, projectPath });
+  }
+
+  /**
+   * Isolamento worktree: preferenza di QUESTA macchina (UserDB), non del repo — costa spazio
+   * disco locale, quindi non si impone al team via git come le altre opzioni della città.
+   */
+  getAgentWorktreesSetting(projectPath: string): Observable<{
+    enabled: boolean; isExplicit: boolean; defaultValue: boolean;
+    /** Posti di lavoro del pool: quanti agenti possono lavorare insieme su questa macchina. */
+    slots: number; defaultSlots: number; maxSlots: number;
+  }> {
+    return this.http.get<any>('../api/ProjectSettings/GetAgentWorktreesSetting', { params: { projectPath } });
+  }
+
+  /** `slots` assente = lascia il numero com'è; `null` = torna al default. */
+  setAgentWorktreesSetting(enabled: boolean | null, projectPath: string, slots?: number | null): Observable<any> {
+    return this.http.post<any>('../api/ProjectSettings/SetAgentWorktreesSetting',
+      { enabled, projectPath, slots });
+  }
+
+
+  getTextIndexingSetting(projectPath: string): Observable<{enabled: boolean, extensions: string, defaultExtensions: string}> {
+    const url = '../api/ProjectSettings/GetTextIndexingSetting';
+    return this.http.get<{enabled: boolean, extensions: string, defaultExtensions: string}>(url, { params: { projectPath } });
+  }
+
+  /**
+   * Modello di opencode per MarkAgent in questo progetto, scritto `provider/modello`.
+   * null = mai scelto, decide il server.
+   */
+  setOpenCodeChatModelSetting(modelId: string | null, projectPath: string): Observable<{ modelId: string | null }> {
+    const url = '../api/ProjectSettings/SetOpenCodeChatModelSetting';
+    return this.http.post<{ modelId: string | null }>(url, { modelId, projectPath });
+  }
+
+  setTextIndexingSetting(enabled: boolean, extensions: string, projectPath: string): Observable<any> {
+    const url = '../api/ProjectSettings/SetTextIndexingSetting';
+    return this.http.post<any>(url, { enabled, extensions, projectPath });
+  }
+
+  getHarness(projectPath: string): Observable<HarnessSetting> {
+    return this.http.get<HarnessSetting>('../api/ProjectSettings/GetHarness', { params: { projectPath } });
+  }
+
+  /**
+   * Cambia l'harness e installa subito i file dove il nuovo harness li vuole.
+   * Non rimuove quelli del precedente: sono file in un repository, possibilmente
+   * personalizzati — la pulizia resta una scelta esplicita dell'utente.
+   */
+  setHarness(target: HarnessTarget, projectPath: string): Observable<{ target: HarnessTarget }> {
+    return this.http.post<{ target: HarnessTarget }>('../api/ProjectSettings/SetHarness',
+      { target, projectPath });
+  }
+
+  /** Forces a full rebuild of the separate text index only (POST api/mdfiles/ReindexTextFiles). */
+  reindexTextFiles(connectionId: string): Observable<any> {
+    const url = '../api/mdfiles/ReindexTextFiles?connectionId=' + encodeURIComponent(connectionId || '');
+    return this.http.post<any>(url, {});
   }
 
   // RAG Settings
@@ -117,6 +271,34 @@ export class ProjectSettingsService {
   indexRagDirectory(directoryPath: string, projectPath: string, forceReindex = false): Observable<any> {
     const url = '../api/Rag/index-directory';
     return this.http.post<any>(url, { directoryPath, projectPath, forceReindex });
+  }
+
+  // ============================================================
+  //   Agent City / Federation activation (.development.yml, §12.4)
+  // ============================================================
+  getAgentCity(projectPath: string): Observable<{ enabled: boolean; ownershipDoc: string | null; relayUrl: string | null; hasRoomSecret: boolean; useAgentWorktrees: boolean; autoMergeAgentDeliverables: boolean }> {
+    return this.http.get<any>('../api/MdProjects/AgentCity', { params: { path: projectPath } });
+  }
+
+  setAgentCity(projectPath: string, body: { enabled: boolean; ownershipDoc?: string; relayUrl?: string; useAgentWorktrees?: boolean; autoMergeAgentDeliverables?: boolean }): Observable<any> {
+    return this.http.post<any>('../api/MdProjects/SetAgentCity', body, { params: { path: projectPath } });
+  }
+
+  // ------------------------------------------------------------
+  //   Relay della federazione: indirizzo + API key, PER PROGETTO.
+  //   La chiave non attraversa mai il filo in uscita dal server:
+  //   il GET dice solo se c'è e da dove arriva.
+  // ------------------------------------------------------------
+  getRelaySettings(projectPath: string): Observable<RelaySettings> {
+    return this.http.get<RelaySettings>('../api/MdProjects/RelaySettings', { params: { path: projectPath } });
+  }
+
+  setRelaySettings(projectPath: string, body: { relayUrl?: string; apiKey?: string; clearApiKey?: boolean }): Observable<RelaySettings> {
+    return this.http.post<RelaySettings>('../api/MdProjects/SetRelaySettings', body, { params: { path: projectPath } });
+  }
+
+  testRelaySettings(projectPath: string): Observable<RelayTestResult> {
+    return this.http.post<RelayTestResult>('../api/MdProjects/TestRelaySettings', {}, { params: { path: projectPath } });
   }
 
   // ============================================================

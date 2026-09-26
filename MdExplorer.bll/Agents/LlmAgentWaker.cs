@@ -1,0 +1,193 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using MdExplorer.Features.Execution;
+
+namespace MdExplorer.Features.Agents
+{
+    /// <summary>Cosa serve per svegliare un agente LLM su un messaggio ricevuto (§7 passo 5).</summary>
+    public class LlmWakeRequest
+    {
+        public Guid RunId { get; set; }
+        public string AgentName { get; set; }
+        public string AgentFileContent { get; set; }
+        public string ProjectPath { get; set; }
+        /// <summary>
+        /// Directory di lavoro del processo agente (Fase 7c): il worktree isolato quando attivo.
+        /// <b>Solo</b> il cwd del turno — <see cref="ProjectPath"/> resta il progetto vero (claims
+        /// del RunToken, <c>MDE_PROJECT_PATH</c>, memoria/registry). <c>null</c> = gira nel progetto.
+        /// </summary>
+        public string WorkingDirectory { get; set; }
+        public string ConversationId { get; set; }
+        public string FromAgent { get; set; }
+        public string MessageBody { get; set; }
+        public IReadOnlyList<string> Topics { get; set; }
+        public IReadOnlyList<AgentRosterEntry> Roster { get; set; }
+        /// <summary>Ownership del progetto (§12.3) quando la federazione è attiva; null = niente iniezione.</summary>
+        public IReadOnlyList<OwnershipEntry> Ownership { get; set; }
+        /// <summary>Memoria rilevante recuperata al risveglio (§11 Fase 5c); null/vuoto = niente iniezione.</summary>
+        public IReadOnlyList<RecalledFact> RetrievedMemory { get; set; }
+
+        /// <summary>Manifesto <c>tools:</c> della card: cosa l'agente dichiara di voler usare.</summary>
+        public IReadOnlyList<string> DeclaredTools { get; set; }
+
+        /// <summary>Fiducia dell'umano su questo agente. Insieme al manifesto decide i tool esposti.</summary>
+        public bool Trusted { get; set; }
+
+        /// <summary>Provider dichiarato nel blocco <c>runtime:</c> della card (vuoto = predefinito).</summary>
+        public string RuntimeProvider { get; set; }
+
+        /// <summary>Modello dichiarato nel blocco <c>runtime:</c> della card (vuoto = predefinito).</summary>
+        public string RuntimeModel { get; set; }
+    }
+
+    /// <summary>Un fatto recuperato dalla memoria dell'agente, per l'iniezione nel prompt (§11).</summary>
+    public class RecalledFact
+    {
+        public string Statement { get; set; }
+        public double Confidence { get; set; }
+        /// <summary>Vero se dal grafo condiviso della città (non dalla memoria privata).</summary>
+        public bool Shared { get; set; }
+    }
+
+    /// <summary>Esito del risveglio: il dispatcher lo mappa su processed / retry-or-fail.</summary>
+    public class LlmWakeOutcome
+    {
+        public bool Success { get; private set; }
+        public string Output { get; private set; }
+        public string Error { get; private set; }
+
+        /// <summary>Com'è finito il turno sotto. Serve al dispatcher per distinguere un
+        /// fallimento del provider da un lavoro lasciato a metà (che va riportato all'origine
+        /// come <c>not-ready</c>, non come errore generico).</summary>
+        public AgentTurnOutcome Outcome { get; private set; }
+
+        /// <summary>Iterazioni di tool calling consumate, se il runner sa contarle.</summary>
+        public int? Iterations { get; private set; }
+
+        public static LlmWakeOutcome Ok(string output, int? iterations = null)
+            => new LlmWakeOutcome { Success = true, Output = output, Outcome = AgentTurnOutcome.Completed, Iterations = iterations };
+
+        public static LlmWakeOutcome Fail(string error, AgentTurnOutcome outcome = AgentTurnOutcome.ProviderError, int? iterations = null)
+            => new LlmWakeOutcome { Success = false, Error = error, Outcome = outcome, Iterations = iterations };
+    }
+
+    public interface ILlmAgentWaker
+    {
+        Task<LlmWakeOutcome> WakeAsync(LlmWakeRequest request, CancellationToken ct = default);
+    }
+
+    /// <summary>
+    /// Il cuore del risveglio LLM (§7, R1+R2): conia un <c>RunToken</c> legato all'identità
+    /// dell'agente svegliato, compone il prompt di risveglio col messaggio come <b>dato</b>
+    /// dentro delimitatori (anti prompt-injection), esegue un turno headless passando il
+    /// token <b>nell'ambiente</b> del processo (mai nel prompt) e <b>revoca il token a fine
+    /// run</b> — sempre, anche in caso di errore.
+    /// <para>
+    /// Vive in bll apposta: il seam <see cref="IAgentTurnRunner"/> permette a una fake
+    /// deterministica di sostituire Copilot nei test (R10) senza spawn di processo, e senza
+    /// un progetto di test che referenzi l'EXE del Service.
+    /// </para>
+    /// </summary>
+    public class LlmAgentWaker : ILlmAgentWaker
+    {
+        // Nomi delle variabili d'ambiente che il processo figlio (e il suo MCP) leggerà per
+        // autenticarsi verso il Service (lo step 5 le consuma nei tool SendAgentMessage/ListAgents).
+        public const string EnvRunToken = "MDE_RUN_TOKEN";
+        public const string EnvAgentName = "MDE_AGENT_NAME";
+        public const string EnvProjectPath = "MDE_PROJECT_PATH";
+        public const string EnvConversationId = "MDE_CONVERSATION_ID";
+        public const string EnvFromAgent = "MDE_FROM_AGENT";
+
+        private readonly IRunTokenStore _tokens;
+        private readonly IAgentTurnRunner _runner;
+
+        public LlmAgentWaker(IRunTokenStore tokens, IAgentTurnRunner runner)
+        {
+            _tokens = tokens ?? throw new ArgumentNullException(nameof(tokens));
+            _runner = runner ?? throw new ArgumentNullException(nameof(runner));
+        }
+
+        public async Task<LlmWakeOutcome> WakeAsync(LlmWakeRequest request, CancellationToken ct = default)
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            if (string.IsNullOrWhiteSpace(request.AgentName))
+                throw new ArgumentException("AgentName mancante — non posso coniare un token senza identità.", nameof(request));
+            if (string.IsNullOrWhiteSpace(request.AgentFileContent))
+                throw new ArgumentException("AgentFileContent vuoto — rifiuto di svegliare un agente senza corpo.", nameof(request));
+
+            // R2: il token è legato all'identità dell'agente svegliato e al contesto. Chi invierà
+            // messaggi in uscita si autentica con questo token; il Service risale a queste claim.
+            var token = _tokens.Mint(new RunTokenClaims
+            {
+                RunId = request.RunId,
+                AgentName = request.AgentName,
+                ProjectPath = request.ProjectPath,
+                ConversationId = request.ConversationId,
+            });
+
+            try
+            {
+                // R1: il messaggio entra come DATO dentro delimitatori, non come istruzione.
+                var prompt = AgentPromptComposer.ComposeMessageWakePrompt(
+                    request.AgentFileContent, request.FromAgent, request.MessageBody,
+                    request.Roster, request.Topics, request.Ownership, request.RetrievedMemory);
+
+                var env = new Dictionary<string, string>
+                {
+                    [EnvRunToken] = token,
+                    [EnvAgentName] = request.AgentName ?? string.Empty,
+                    [EnvProjectPath] = request.ProjectPath ?? string.Empty,
+                    [EnvConversationId] = request.ConversationId ?? string.Empty,
+                    [EnvFromAgent] = request.FromAgent ?? string.Empty,
+                };
+
+                // Firma git per-agente (§10): ogni commit che l'agente fa nel workspace è
+                // attribuito a lui (`<name>@agents.mde`), non all'umano. git blame resta giusto.
+                foreach (var kv in AgentGitIdentity.EnvFor(request.AgentName))
+                    env[kv.Key] = kv.Value;
+
+                var result = await _runner.RunTurnAsync(new AgentTurnRequest
+                {
+                    ComposedPrompt = prompt,
+                    AgentName = request.AgentName,
+                    ProjectPath = request.ProjectPath,
+                    // Autorizzazione dei tool: passata come dato, non via ambiente (vedi
+                    // AgentTurnRequest.DeclaredTools).
+                    DeclaredTools = request.DeclaredTools,
+                    Trusted = request.Trusted,
+                    RequestedProvider = request.RuntimeProvider,
+                    RequestedModel = request.RuntimeModel,
+                    // Fase 7c: cwd = worktree se attivo, altrimenti il progetto. Claims ed env
+                    // (sopra) restano SEMPRE sul progetto vero — il cwd è disaccoppiato.
+                    WorkingDirectory = request.WorkingDirectory ?? request.ProjectPath,
+                    Environment = env,
+                }, ct);
+
+                // Un turno può fallire SENZA sollevare (tetto di iterazioni, tool in errore):
+                // l'esito lo dice il runner, non l'assenza di eccezioni.
+                return result.IsSuccess
+                    ? LlmWakeOutcome.Ok(result.Text, result.Iterations)
+                    : LlmWakeOutcome.Fail(
+                        result.Diagnostic ?? $"turno concluso come {result.Outcome}",
+                        result.Outcome, result.Iterations);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Shutdown: non consumare un tentativo. Il messaggio resta 'delivered' e la
+                // recovery all'avvio lo rimette 'pending'. Rilancio (il token è già revocato dal finally).
+                throw;
+            }
+            catch (Exception ex)
+            {
+                return LlmWakeOutcome.Fail(ex.Message);
+            }
+            finally
+            {
+                // "Monouso" nel senso del run: il token vale finché il run è vivo, poi muore.
+                _tokens.Revoke(token);
+            }
+        }
+    }
+}

@@ -23,6 +23,78 @@
 var _toolbarScrollListeners = {};
 
 /**
+ * Is the dark-mode invert filter acting on this SVG? Usually it sits on the <svg> itself;
+ * while a PlantUML note is lit (interactive-svg.css, .interactive-svg-note-lit) it moves
+ * onto the SVG's elements and the <svg> reports filter:none, so the computed filter alone
+ * would mistake a dark diagram for a lit one.
+ */
+function _svgIsDarkFiltered(svg) {
+    if (svg.classList.contains('svg-light-on')) return false;
+    var computed = window.getComputedStyle(svg).filter;
+    if (computed && computed !== 'none') return true;
+    return svg.classList.contains('interactive-svg-note-lit') &&
+           document.body.classList.contains('dark-theme') &&
+           !document.body.classList.contains('plantuml-keep-original');
+}
+
+// Testi IT/EN della barra e memoria della legenda: in toolbar-shared.js, che common.js carica
+// prima di questo file (li usa anche la pagina delle slide, che questo file non lo carica).
+
+
+/** L'<svg> del diagramma a cui appartiene la barra (è il blocco subito dopo). */
+function _svgOfToolbar($toolbar) {
+    var $sibling = $toolbar.next();
+    var $svg = $sibling.find('svg').first();
+    if (!$svg.length) $svg = $sibling.filter('svg');
+    return $svg[0] || null;
+}
+
+/**
+ * Riempie il pannello con i colori di QUESTO diagramma (InteractiveSvg.getLegend).
+ * La legenda è HTML fuori dall'SVG, quindi il filtro scuro non la tocca: quando il
+ * diagramma è filtrato, ai campioni si applica lo stesso filtro, così mostrano il
+ * colore che si vede davvero. Non alla nota, che resta gialla vera (F3).
+ */
+function _renderSvgLegend($toolbar) {
+    var svg = _svgOfToolbar($toolbar);
+    var $panel = $toolbar.find('.mde-svg-legend');
+    if (!svg || !$panel.length) return;
+
+    var legend = InteractiveSvg.getLegend(svg);
+    var dark = _svgIsDarkFiltered(svg);
+    var $content = $('<div></div>');
+
+    function section(title, items, shape) {
+        if (!items.length) return;
+        $content.append($('<div class="mde-svg-legend-title"></div>').text(title));
+        items.forEach(function (item) {
+            var $swatch = $('<span class="mde-svg-legend-swatch"></span>').addClass('mde-svg-legend-' + shape);
+            $swatch.css(shape === 'box' ? { 'border-color': item.color, 'box-shadow': '0 0 4px ' + item.color } : { background: item.color });
+            if (item.key === 'note') $swatch.css('background', item.color);
+            if (dark && item.key !== 'note') $swatch.css('filter', 'invert(0.88) hue-rotate(180deg)');
+            $content.append($('<div class="mde-svg-legend-row"></div>')
+                .append($swatch)
+                .append($('<span></span>').text(_toolbarText(item.key))));
+        });
+    }
+
+    section(_toolbarText('boxes'), legend.boxes, 'box');
+    section(_toolbarText('arrows'), legend.links, 'line');
+    $panel.empty().append($content.children());
+}
+
+function toggleSvgLegend(btnElement) {
+    var $toolbar = $(btnElement).closest('.mde-img-toolbar');
+    var open = !$toolbar.hasClass('mde-svg-legend-open');
+    $toolbar.toggleClass('mde-svg-legend-open', open);
+    $(btnElement).attr('title', _toolbarText(open ? 'legendHide' : 'legendShow'));
+    if (open) _renderSvgLegend($toolbar);
+    _rememberSvgLegend(open);
+    // Richiusa, la barra torna a sparire da sola dopo un po' di mouse fermo.
+    if (!open) _startIdleHideTimer($toolbar.attr('id'));
+}
+
+/**
  * Toggle SVG light mode: removes/restores the CSS invert filter on the SVG
  * sibling of the toolbar, so the user can see original colors in dark mode.
  */
@@ -34,26 +106,30 @@ function toggleSvgLightMode(btnElement) {
     if (!$svg.length) return;
 
     var $icon = $(btnElement).find('.svg-light-toggle-icon');
-    var current = $svg.css('filter');
-    if (current && current !== 'none') {
+    if (_svgIsDarkFiltered($svg[0])) {
         // Turn ON the light: remove filter, light mode (yellow bulb)
-        $svg.data('original-filter', current);
+        var current = $svg.css('filter');
+        $svg.data('original-filter', current && current !== 'none' ? current : null);
+        $svg.addClass('svg-light-on');
         $svg.css('filter', 'none');
         $icon.css({
             'filter': 'none',
             'opacity': '1'
         });
-        $(btnElement).attr('title', 'Turn off the light (back to dark mode)');
+        $(btnElement).attr('title', _toolbarText('lightOff'));
     } else {
         // Turn OFF the light: restore filter, dark mode (faded/grayscale bulb)
         var original = $svg.data('original-filter') || 'invert(0.88) hue-rotate(180deg)';
+        $svg.removeClass('svg-light-on');
         $svg.css('filter', original);
         $icon.css({
             'filter': 'grayscale(1) brightness(0.6)',
             'opacity': '0.5'
         });
-        $(btnElement).attr('title', 'Turn on the light (view in light mode)');
+        $(btnElement).attr('title', _toolbarText('lightOn'));
     }
+    // I campioni della legenda seguono il filtro: acceso o spento, vanno ridipinti.
+    if ($toolbar.hasClass('mde-svg-legend-open')) _renderSvgLegend($toolbar);
 }
 
 // Pending hide timers keyed by referenceId (allows mouseenter on search box to cancel)
@@ -63,6 +139,52 @@ var _hideToolbarTimers = {};
 var _idleHideTimers = {};
 var _idleMouseMoveListeners = {};
 var _toolbarIdleHidden = {};
+
+// Spostamento della barra: di quanto l'utente l'ha tirata via dal suo angolo
+// (per barra), e se la sta trascinando proprio adesso.
+var _toolbarOffsets = {};
+var _toolbarDragging = {};
+
+/**
+ * L'angolo "di casa" della barra: in alto a sinistra dell'area visibile del
+ * contenitore. È da qui che si parte, e a cui si somma lo spostamento scelto.
+ *
+ * @param {string} referenceId - ID of toolbar element
+ * @returns {{top:number,left:number}|null}
+ */
+function _toolbarAnchor(referenceId) {
+    var $toolbar = $('#' + referenceId);
+    var parent = $toolbar.parent()[0];
+    if (!parent) return null;
+
+    var rect = parent.getBoundingClientRect();
+    return { top: Math.max(0, rect.top) + 20, left: Math.max(0, rect.left) };
+}
+
+/**
+ * Dove va disegnata la barra: l'angolo più lo spostamento dell'utente, il tutto
+ * tenuto dentro la finestra — una barra trascinata fuori non si recupererebbe più.
+ *
+ * @param {string} referenceId - ID of toolbar element
+ * @returns {{top:number,left:number}|null}
+ */
+function _toolbarPlacement(referenceId) {
+    var anchor = _toolbarAnchor(referenceId);
+    if (!anchor) return null;
+
+    var offset = _toolbarOffsets[referenceId] || { dx: 0, dy: 0 };
+    var el = document.getElementById(referenceId);
+    var width = el ? el.offsetWidth : 0;
+    var height = el ? el.offsetHeight : 0;
+
+    var maxLeft = Math.max(0, window.innerWidth - width);
+    var maxTop = Math.max(0, window.innerHeight - height);
+
+    return {
+        top: Math.min(Math.max(0, anchor.top + offset.dy), maxTop),
+        left: Math.min(Math.max(0, anchor.left + offset.dx), maxLeft)
+    };
+}
 
 /**
  * Recalculate and apply position:fixed coordinates for the toolbar,
@@ -74,11 +196,109 @@ function _updateToolbarPosition(referenceId) {
     var $toolbar = $('#' + referenceId);
     if (!$toolbar.length || $toolbar.css('display') === 'none') return;
 
-    var rect = $toolbar.parent()[0].getBoundingClientRect();
-    var top = Math.max(0, rect.top) + 20;
-    var left = Math.max(0, rect.left);
+    var placement = _toolbarPlacement(referenceId);
+    if (!placement) return;
 
-    $toolbar.css({ top: top + 'px', left: left + 'px' });
+    $toolbar.css({ top: placement.top + 'px', left: placement.left + 'px' });
+}
+
+/**
+ * La maniglia per spostare la barra, aggiunta una volta sola.
+ * <p>Si trascina SOLO da lì: se si potesse trascinare da tutta la barra, un clic
+ * un po' mosso su un pulsante diventerebbe uno spostamento invece di un comando.</p>
+ *
+ * @param {string} referenceId - ID of toolbar element
+ */
+function _ensureToolbarGrip(referenceId) {
+    var $toolbar = $('#' + referenceId);
+    if (!$toolbar.length) return;
+
+    $toolbar.addClass('mde-img-toolbar');
+    if ($toolbar.data('grip-added')) return;
+
+    var $grip = $('<span class="mde-img-toolbar-grip" title="Trascina la barra">\u2807</span>');
+    $grip.on('mousedown', function (ev) { _startToolbarDrag(referenceId, ev); });
+    $toolbar.prepend($grip);
+    $toolbar.data('grip-added', true);
+}
+
+/**
+ * Trascinamento della barra. Finché dura: niente auto-nascondi (il puntatore
+ * esce dalla barra in continuazione) e la casella di ricerca del diagramma
+ * segue, perché si posiziona a partire dalla barra.
+ *
+ * @param {string} referenceId - ID of toolbar element
+ * @param {MouseEvent} ev - mousedown sulla maniglia
+ */
+function _startToolbarDrag(referenceId, ev) {
+    if (ev.button !== 0) return;   // solo il tasto sinistro
+    ev.preventDefault();           // senza, il browser inizia a selezionare il testo sotto
+
+    var el = document.getElementById(referenceId);
+    if (!el) return;
+
+    var rect = el.getBoundingClientRect();
+    var startX = ev.clientX;
+    var startY = ev.clientY;
+    var startTop = rect.top;
+    var startLeft = rect.left;
+
+    _toolbarDragging[referenceId] = true;
+    $(el).addClass('mde-img-toolbar-dragging');
+
+    // L'auto-nascondi si ferma qui e riparte al rilascio.
+    if (_idleHideTimers[referenceId]) {
+        clearTimeout(_idleHideTimers[referenceId]);
+        delete _idleHideTimers[referenceId];
+    }
+
+    var onMove = function (moveEv) {
+        var width = el.offsetWidth;
+        var height = el.offsetHeight;
+        var top = Math.min(Math.max(0, startTop + (moveEv.clientY - startY)), Math.max(0, window.innerHeight - height));
+        var left = Math.min(Math.max(0, startLeft + (moveEv.clientX - startX)), Math.max(0, window.innerWidth - width));
+
+        el.style.top = top + 'px';
+        el.style.left = left + 'px';
+
+        // Lo spostamento si ricorda rispetto all'angolo, non come coordinata
+        // assoluta: così scorrendo la pagina la barra resta dove l'utente l'ha
+        // messa RISPETTO all'immagine, e non ferma a metà schermo.
+        var anchor = _toolbarAnchor(referenceId);
+        if (anchor) {
+            _toolbarOffsets[referenceId] = { dx: left - anchor.left, dy: top - anchor.top };
+        }
+
+        _updateSearchBoxForToolbar(referenceId);
+    };
+
+    var onUp = function () {
+        document.removeEventListener('mousemove', onMove, true);
+        document.removeEventListener('mouseup', onUp, true);
+        delete _toolbarDragging[referenceId];
+        $(el).removeClass('mde-img-toolbar-dragging');
+        _updateSearchBoxForToolbar(referenceId);
+        // Ripreso il movimento normale: l'auto-nascondi torna a contare.
+        _startIdleHideTimer(referenceId);
+    };
+
+    document.addEventListener('mousemove', onMove, true);
+    document.addEventListener('mouseup', onUp, true);
+}
+
+/**
+ * La casella "cerca nel diagramma" si posiziona a partire dalla barra: se la
+ * barra si sposta, va rimessa anche lei, altrimenti resta indietro.
+ *
+ * @param {string} referenceId - ID of toolbar element
+ */
+function _updateSearchBoxForToolbar(referenceId) {
+    if (typeof _toolbarToHashMap === 'undefined' || !_toolbarToHashMap[referenceId]) return;
+    if (typeof _updateSearchBoxPosition !== 'function') return;
+
+    var hash = _toolbarToHashMap[referenceId];
+    var $box = $('#' + referenceId).next();
+    if ($box.length) _updateSearchBoxPosition(hash, $box);
 }
 
 /**
@@ -93,6 +313,9 @@ function _startIdleHideTimer(referenceId) {
         clearTimeout(_idleHideTimers[referenceId]);
     }
 
+    // Mentre si trascina non si nasconde niente: il conto riparte al rilascio.
+    if (_toolbarDragging[referenceId]) return;
+
     _idleHideTimers[referenceId] = setTimeout(function () {
         // Don't idle-hide if search box is open for this toolbar's image
         if (typeof _toolbarToHashMap !== 'undefined' && _toolbarToHashMap[referenceId]) {
@@ -103,6 +326,8 @@ function _startIdleHideTimer(referenceId) {
         }
 
         var $toolbar = $('#' + referenceId);
+        // Con la legenda aperta si sta leggendo, col mouse fermo: niente auto-nascondi.
+        if ($toolbar.hasClass('mde-svg-legend-open')) return;
         $toolbar.attr("style", "display:none;");
         _toolbarIdleHidden[referenceId] = true;
     }, 2000);
@@ -152,12 +377,16 @@ function showImageToolbar(referenceId) {
     _toolbarIdleHidden[referenceId] = false;
 
     var $element = $('#' + referenceId);
-    var rect = $element.parent()[0].getBoundingClientRect();
-    var top = Math.max(0, rect.top) + 20;
-    var left = Math.max(0, rect.left);
 
-    $element.attr("style",
-        "display:block; position:fixed; top:" + top + "px; left:" + left + "px; z-index:100;");
+    // Prima si mostra (una barra con display:none misura zero, e lo spostamento
+    // va calcolato sulla sua larghezza vera), poi si mette al posto giusto.
+    $element.attr("style", "display:block; position:fixed; z-index:100;");
+    _ensureToolbarGrip(referenceId);
+
+    var placement = _toolbarPlacement(referenceId);
+    if (placement) {
+        $element.css({ top: placement.top + 'px', left: placement.left + 'px' });
+    }
 
     // Dark mode: inject light-mode toggle button for SVG diagrams
     if (document.body.classList.contains('dark-theme') && !$element.data('light-toggle-added')) {
@@ -168,23 +397,41 @@ function showImageToolbar(referenceId) {
             // project setting PlantUmlKeepOriginalColorsInDarkMode (body.plantuml-keep-original).
             var $svg = $sibling.find('svg').first();
             if (!$svg.length) $svg = $sibling.filter('svg');
-            var filterActive = false;
-            if ($svg.length) {
-                var computed = window.getComputedStyle($svg[0]).filter;
-                filterActive = !!computed && computed !== 'none';
-            }
-            var initialTitle = filterActive
-                ? 'Turn on the light (view in light mode)'
-                : 'Turn off the light (back to dark mode)';
+            var filterActive = $svg.length ? _svgIsDarkFiltered($svg[0]) : false;
+            var initialTitle = _toolbarText(filterActive ? 'lightOn' : 'lightOff');
+            // Solo lo STATO (accesa/spenta) sta qui: la misura la decide il CSS della
+            // barra, altrimenti questa lampadina resterebbe più grande delle altre icone.
             var iconStyle = filterActive
-                ? 'font-size:18px;line-height:1;display:inline-block;filter:grayscale(1) brightness(0.6);opacity:0.5;'
-                : 'font-size:18px;line-height:1;display:inline-block;';
+                ? 'filter:grayscale(1) brightness(0.6);opacity:0.5;'
+                : '';
             var $btn = $('<button alt="light mode" title="' + initialTitle + '" onclick="toggleSvgLightMode(this)">' +
                 '<span class="svg-light-toggle-icon" style="' + iconStyle + '">💡</span>' +
                 '</button>');
             $element.append($btn);
             $element.data('light-toggle-added', true);
         }
+    }
+
+    // Il tooltip della lampadina si riscrive a ogni comparsa: la lingua può essere cambiata.
+    var $bulb = $element.find('button[alt="light mode"]');
+    var bulbSvg = $bulb.length ? _svgOfToolbar($element) : null;
+    if (bulbSvg) $bulb.attr('title', _toolbarText(_svgIsDarkFiltered(bulbSvg) ? 'lightOn' : 'lightOff'));
+
+    // Legenda dei colori, solo per i diagrammi resi interattivi da InteractiveSvg (F7)
+    if (!$element.data('legend-added') && typeof InteractiveSvg !== 'undefined') {
+        var legendSvg = _svgOfToolbar($element);
+        if (legendSvg && legendSvg.classList.contains('interactive-svg')) {
+            $element.append('<button alt="colour legend" class="mde-svg-legend-toggle" onclick="toggleSvgLegend(this)">' +
+                '<span class="svg-legend-toggle-icon">🎨</span></button>');
+            $element.append('<div class="mde-svg-legend"></div>');
+            $element.data('legend-added', true);
+        }
+    }
+    if ($element.data('legend-added')) {
+        var legendOpen = _svgLegendRemembered();
+        $element.toggleClass('mde-svg-legend-open', legendOpen);
+        $element.find('.mde-svg-legend-toggle').attr('title', _toolbarText(legendOpen ? 'legendHide' : 'legendShow'));
+        if (legendOpen) _renderSvgLegend($element);
     }
 
     // Guard against double-adding the scroll listener
@@ -216,6 +463,10 @@ function showImageToolbar(referenceId) {
  * @param {string} referenceId - ID of toolbar element
  */
 function hideImageToolbar(referenceId) {
+    // Trascinando, il puntatore esce di continuo dalla barra: nascondersi ora
+    // vorrebbe dire sparire in mano all'utente.
+    if (_toolbarDragging[referenceId]) return;
+
     // Immediately cancel idle timer to prevent it firing during the 150ms delay
     if (_idleHideTimers[referenceId]) {
         clearTimeout(_idleHideTimers[referenceId]);
