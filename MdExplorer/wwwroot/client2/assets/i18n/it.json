@@ -1875,6 +1875,14 @@
     "RUN_TESTS": "Esegui i test",
     "RUN_AGAIN": "Esegui di nuovo",
     "COMMITTED": "✔ Commit {{sha}}: {{message}}",
-    "NOT_COMMITTED": "{{file}}: commit non fatto, {{reason}}"
+    "NOT_COMMITTED": "{{file}}: commit non fatto, {{reason}}",
+    "FINGERPRINTED": "✔ Impronta del test scritta in {{count}} script",
+    "LEAK": "Il valore della credenziale «{{key}}» era finito in {{file}}: sostituito con il nome della chiave.",
+    "SCRIPTS": "Script Playwright",
+    "NO_SCRIPTS": "nessuno script: si creano alla prima esecuzione con MarkAgent.",
+    "STALE": "scaduto (il test è cambiato)",
+    "REPLAYING": "Rigioco gli script con dotnet test, senza LLM…",
+    "STALE_SKIPPED": "Non rigiocati perché scaduti: {{scripts}}. Esegui di nuovo il test con MarkAgent per rigenerarli.",
+    "REPLAY": "Rigioca gli script"
   }
 }

@@ -57,6 +57,39 @@
       </div>
     </section>
 
+    <!-- Script: rigioco senza LLM (F5) -->
+    <section class="e2e-section" *ngIf="plan && plan.items.length > 0">
+      <h3>{{ 'E2E.SCRIPTS' | translate }}</h3>
+      <ng-container *ngFor="let item of plan.items">
+        <div *ngIf="!item.scripts?.length" class="e2e-hint">
+          <code>{{ item.file }}</code>: {{ 'E2E.NO_SCRIPTS' | translate }}
+        </div>
+        <div *ngFor="let s of item.scripts" class="e2e-item">
+          <mat-icon [class.e2e-ok]="!s.stale" [class.e2e-ko]="s.stale">{{ s.stale ? 'update' : 'code' }}</mat-icon>
+          <span><code>{{ s.file }}</code> — {{ s.state || '?' }}<span *ngIf="s.stale">, {{ 'E2E.STALE' | translate }}</span></span>
+        </div>
+      </ng-container>
+      <div *ngIf="plan.dotnet && !plan.dotnet.ok" class="e2e-hint">{{ plan.dotnet.detail }} {{ plan.dotnet.remedy }}</div>
+      <div *ngIf="replaying" class="e2e-loading">
+        <mat-spinner diameter="20" strokeWidth="2"></mat-spinner>
+        <span>{{ 'E2E.REPLAYING' | translate }}</span>
+      </div>
+      <ng-container *ngFor="let r of replayResults || []">
+        <div *ngIf="r.problem" class="e2e-message e2e-error"><mat-icon>error_outline</mat-icon><span><code>{{ r.file }}</code>: {{ r.problem }}</span></div>
+        <div *ngFor="let o of r.outcomes" class="e2e-message" [class.e2e-success]="o.passed" [class.e2e-error]="!o.passed">
+          <mat-icon>{{ o.passed ? 'check_circle' : 'cancel' }}</mat-icon>
+          <span>T{{ o.test }} ({{ o.script }}){{ o.passed ? '' : ': ' + o.message }}</span>
+        </div>
+        <div *ngIf="r.stale.length" class="e2e-message e2e-warning">
+          <mat-icon>update</mat-icon><span>{{ 'E2E.STALE_SKIPPED' | translate: { scripts: r.stale.join(', ') } }}</span>
+        </div>
+        <div *ngIf="r.commit" class="e2e-hint">
+          {{ r.commit.committed ? ('E2E.COMMITTED' | translate: { sha: (r.commit.sha || '').slice(0, 8), message: r.commit.message })
+                                : ('E2E.NOT_COMMITTED' | translate: { file: r.file, reason: r.commit.reason }) }}
+        </div>
+      </ng-container>
+    </section>
+
     <!-- Prerequisiti: il wizard secondario (D7) -->
     <section class="e2e-section" *ngIf="prerequisites">
       <h3>{{ 'E2E.PREREQUISITES' | translate }}</h3>
@@ -102,6 +135,9 @@
   <button mat-button (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
   <button *ngIf="running" mat-stroked-button color="warn" (click)="stop()">
     <mat-icon>stop</mat-icon> {{ 'E2E.STOP' | translate }}
+  </button>
+  <button mat-stroked-button color="primary" [disabled]="!canReplay" (click)="replay()">
+    <mat-icon>replay</mat-icon> {{ 'E2E.REPLAY' | translate }}
   </button>
   <button mat-raised-button color="primary" [disabled]="!canRun" (click)="run()">
     <mat-icon>play_arrow</mat-icon> {{ (finished ? 'E2E.RUN_AGAIN' : 'E2E.RUN_TESTS') | translate }}

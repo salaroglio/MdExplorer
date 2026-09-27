@@ -1877,6 +1877,12 @@
     "COMMITTED": "✔ Commit {{sha}}: {{message}}",
     "NOT_COMMITTED": "{{file}}: no commit, {{reason}}",
     "FINGERPRINTED": "✔ Test fingerprint written in {{count}} scripts",
-    "LEAK": "The value of the credential «{{key}}» had ended up in {{file}}: replaced with the key."
+    "LEAK": "The value of the credential «{{key}}» had ended up in {{file}}: replaced with the key.",
+    "SCRIPTS": "Playwright scripts",
+    "NO_SCRIPTS": "no scripts: they are written by the first run with MarkAgent.",
+    "STALE": "stale (the test changed)",
+    "REPLAYING": "Replaying the scripts with dotnet test, no LLM…",
+    "STALE_SKIPPED": "Not replayed because stale: {{scripts}}. Run the test again with MarkAgent to rewrite them.",
+    "REPLAY": "Replay the scripts"
   }
 }

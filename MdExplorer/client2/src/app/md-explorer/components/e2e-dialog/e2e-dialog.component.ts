@@ -4,7 +4,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { forkJoin, Subscription } from 'rxjs';
 import { AiChatService } from '../../../services/ai-chat.service';
 import {
-  E2eOwnSettings, E2ePlan, E2ePrerequisites, E2eRequirement, E2eService, E2eSetting, E2eSettingsState
+  E2eOwnSettings, E2ePlan, E2ePrerequisites, E2eReplayResult, E2eRequirement, E2eService, E2eSetting, E2eSettingsState
 } from '../../services/e2e.service';
 
 export interface E2eDialogData {
@@ -64,6 +64,8 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
   progress = '';
   log: LogLine[] = [];
   results: { file: string; runFolder: string; answer: string }[] = [];
+  replaying = false;
+  replayResults: E2eReplayResult[] | null = null;
   private answer = '';
   /** What the agent wrote after its last tool: its conclusion, without the running commentary. */
   private conclusion = '';
@@ -86,8 +88,32 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
     this.channelSub?.unsubscribe();
   }
 
+  /** Scripts that can be replayed: at least one script still matching its test, and a .NET SDK. */
+  get canReplay(): boolean {
+    return !!this.plan?.dotnet?.ok && !!this.prerequisites?.browser?.ok && !this.running && !this.replaying && !this.loading
+      && (this.plan?.items || []).some(i => (i.scripts || []).some(s => !s.stale));
+  }
+
+  replay(): void {
+    if (!this.canReplay) return;
+    this.replaying = true;
+    this.replayResults = null;
+    this.error = null;
+    this.e2e.replay(this.data.path, this.data.projectPath).subscribe({
+      next: results => {
+        this.replayResults = results;
+        this.replaying = false;
+        this.e2e.getPlan(this.data.path, this.data.projectPath).subscribe(plan => this.plan = plan);
+      },
+      error: err => {
+        this.error = err?.error?.error || err?.message || String(err);
+        this.replaying = false;
+      }
+    });
+  }
+
   get canRun(): boolean {
-    return !!this.plan?.canRun && !!this.prerequisites?.readyToRun && !this.running && !this.loading && !this.saving;
+    return !!this.plan?.canRun && !!this.prerequisites?.readyToRun && !this.running && !this.replaying && !this.loading && !this.saving;
   }
 
   refresh(): void {

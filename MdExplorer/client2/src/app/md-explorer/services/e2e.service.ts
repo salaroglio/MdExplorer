@@ -23,8 +23,16 @@ export interface E2eSettingsState {
   effective: { dedicatedSession: E2eSetting; commitAfterRun: E2eSetting; headless: E2eSetting };
 }
 
+export interface E2eScriptInfo {
+  test: number;
+  file: string;
+  state: string | null;
+  stale: boolean;
+}
+
 export interface E2ePlanItem {
   file: string;
+  scripts: E2eScriptInfo[];
   runFolder: string;
   tests: number;
   dedicatedSession: E2eSetting;
@@ -33,6 +41,7 @@ export interface E2ePlanItem {
 }
 
 export interface E2ePlan {
+  dotnet: E2eRequirement;
   canRun: boolean;
   errors: string[];
   warnings: string[];
@@ -45,6 +54,15 @@ export interface E2eRequirement {
   detail: string;
   remedy: string | null;
   installable: boolean;
+}
+
+export interface E2eReplayResult {
+  file: string;
+  runFolder: string | null;
+  outcomes: { test: number; script: string; passed: boolean; message: string | null }[];
+  stale: string[];
+  problem: string | null;
+  commit: { committed: boolean; sha: string | null; message: string | null; reason: string | null } | null;
 }
 
 export interface E2ePrerequisites {
@@ -76,6 +94,10 @@ export class E2eService {
 
   getPlan(path: string, projectPath: string): Observable<E2ePlan> {
     return this.http.get<E2ePlan>(`${this.base}/plan`, { params: { path, projectPath } });
+  }
+
+  replay(path: string, projectPath: string): Observable<E2eReplayResult[]> {
+    return this.http.post<E2eReplayResult[]>(`${this.base}/replay`, { path, projectPath });
   }
 
   getPrerequisites(): Observable<E2ePrerequisites> {

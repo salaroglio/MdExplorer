@@ -103,12 +103,14 @@ namespace MdExplorer.Controllers.E2e
         /// run folders, and every problem that would stop it (F2 checks). Nothing is written.
         /// </summary>
         [HttpGet("plan")]
-        public IActionResult GetPlan([FromQuery] string path, [FromQuery] string projectPath)
+        public async Task<IActionResult> GetPlan([FromQuery] string path, [FromQuery] string projectPath, CancellationToken ct)
         {
             if (!TryResolve(path, projectPath, out var full, out var root, out var problem)) return BadRequest(new { error = problem });
             var plan = E2eRunPlanner.Plan(full, root, DateTime.Now);
+            var (dotnet, _) = await _environment.CheckDotnetAsync(ct);
             return Ok(new
             {
+                dotnet,
                 canRun = plan.CanRun,
                 errors = plan.Errors,
                 warnings = plan.Warnings,
@@ -120,8 +122,59 @@ namespace MdExplorer.Controllers.E2e
                     dedicatedSession = Setting(i.Settings.DedicatedSession, root),
                     commitAfterRun = Setting(i.Settings.CommitAfterRun, root),
                     headless = Setting(i.Settings.Headless, root),
+                    scripts = E2ePostRun.Scripts(i).Select(s => new { test = s.TestNumber, file = Path.GetFileName(s.Path), state = s.State, stale = s.Stale }),
                 }),
             });
+        }
+
+        /// <summary>
+        /// Replays the scripts of a <c>.e2e.md</c> or of every test of a folder with <c>dotnet test</c>, without any
+        /// LLM (F5): only the scripts still matching their test; outcomes on top of <c>## Esiti</c>; a commit
+        /// when the test says so.
+        /// </summary>
+        [HttpPost("replay")]
+        public async Task<IActionResult> Replay([FromBody] RunSettingsBody body, CancellationToken ct)
+        {
+            if (!TryResolve(body?.Path, body?.ProjectPath, out var full, out var root, out var problem)) return BadRequest(new { error = problem });
+            var (dotnetRequirement, dotnet) = await _environment.CheckDotnetAsync(ct);
+            if (dotnet == null) return UnprocessableEntity(new { error = dotnetRequirement.Detail + " " + dotnetRequirement.Remedy });
+            var prerequisites = await _environment.CheckAsync(ct);
+            if (!prerequisites.Browser.Ok) return UnprocessableEntity(new { error = prerequisites.Browser.Detail + " " + prerequisites.Browser.Remedy });
+
+            var plan = E2eRunPlanner.Plan(full, root, DateTime.Now);
+            if (!plan.CanRun) return UnprocessableEntity(new { error = string.Join("\n", plan.Errors) });
+
+            var results = new System.Collections.Generic.List<E2eReplayFileResult>();
+            foreach (var item in plan.Items)
+            {
+                var result = await E2eReplay.RunAsync(item, prerequisites.BrowserArgument, dotnet, DateTime.Now, ct);
+                if (item.Settings.CommitAfterRun.Value && result.Problem == null && result.Outcomes.Count > 0)
+                {
+                    var ok = result.Outcomes.Count(o => o.Passed);
+                    var ko = result.Outcomes.Count - ok;
+                    var message = $"test e2e (script): {item.RelativeTestFile} — " + string.Join(", ",
+                        new[] { ok > 0 ? $"{ok} ✅" : null, ko > 0 ? $"{ko} ❌" : null }.Where(x => x != null))
+                        + $" (esecuzione {Path.GetFileName(result.RunFolder)})";
+                    result = new E2eReplayFileResult
+                    {
+                        File = result.File, RunFolder = result.RunFolder, Outcomes = result.Outcomes, Stale = result.Stale,
+                        Commit = E2eCommitter.Commit(item, message),
+                    };
+                }
+                _logger.LogInformation("[E2e] rigioco {File}: {Ok}/{Total} superati{Problem}", item.RelativeTestFile,
+                    result.Outcomes.Count(o => o.Passed), result.Outcomes.Count, result.Problem == null ? "" : " — " + result.Problem);
+                results.Add(result);
+            }
+
+            return Ok(results.Select(r => new
+            {
+                file = r.File,
+                runFolder = r.RunFolder == null ? null : Relative(root, r.RunFolder),
+                outcomes = r.Outcomes.Select(o => new { test = o.Test, script = o.Script, passed = o.Passed, message = o.Message }),
+                stale = r.Stale,
+                problem = r.Problem,
+                commit = r.Commit == null ? null : new { committed = r.Commit.Committed, sha = r.Commit.Sha, message = r.Commit.Message, reason = r.Commit.Reason },
+            }));
         }
 
         private static object Describe(string full, string root)

@@ -20,7 +20,7 @@ namespace MdExplorer.Features.E2e
         private static readonly string[] SupportFiles = { "E2eTests.csproj", "E2eSupport.cs", "e2e.runsettings" };
         private static readonly Regex ReportHeading = new(@"^## T\d+ .*[—-]\s*(✅|❌|⚠️)", RegexOptions.Multiline);
 
-        public static E2eCommitResult Commit(E2eRunItem item)
+        public static E2eCommitResult Commit(E2eRunItem item, string message = null)
         {
             var gitDir = Repository.Discover(Path.GetDirectoryName(item.TestFile));
             if (gitDir == null)
@@ -62,7 +62,7 @@ namespace MdExplorer.Features.E2e
             if (staged.Count == 0)
                 return new E2eCommitResult(false, null, null, "nessuna modifica da registrare.");
 
-            var message = MessageFor(item);
+            message ??= MessageFor(item);
             var commit = repo.Commit(message, signature, signature);
             return new E2eCommitResult(true, commit.Sha, message, null);
         }

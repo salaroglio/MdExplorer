@@ -275,11 +275,41 @@ namespace MdExplorer.Features.E2e
             return Tail(output);
         }
 
+        // ---------------------------------------------------------------- .NET SDK (replay only)
+
+        /// <summary>
+        /// The <c>dotnet</c> that can replay the scripts (F5): an SDK 8 or later. Not needed to run the tests with
+        /// MarkAgent, only to replay them without an LLM.
+        /// </summary>
+        public async Task<(E2eRequirement Requirement, string Dotnet)> CheckDotnetAsync(CancellationToken ct = default)
+        {
+            var candidates = new List<string>();
+            var root = _environment("DOTNET_ROOT");
+            var exe = OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";
+            if (!string.IsNullOrWhiteSpace(root)) candidates.Add(Path.Combine(root, exe));
+            foreach (var dir in (_environment("PATH") ?? "").Split(Path.PathSeparator).Where(d => d.Trim().Length > 0))
+                candidates.Add(Path.Combine(dir.Trim().Trim('"'), exe));
+            var dotnet = candidates.FirstOrDefault(File.Exists);
+            if (dotnet == null)
+                return (new E2eRequirement("dotnet", false, ".NET SDK non trovato.",
+                    "Per rigiocare gli script serve il .NET SDK 8 o successivo (dotnet.microsoft.com). Non serve per eseguire i test con MarkAgent.", false), null);
+
+            var (exit, output) = await RunAsync(dotnet, new[] { "--list-sdks" }, TimeSpan.FromSeconds(30), ct);
+            var majors = Regex.Matches(output ?? "", @"^(\d+)\.", RegexOptions.Multiline).Select(m => int.Parse(m.Groups[1].Value)).ToList();
+            if (exit != 0 || !majors.Any(m => m >= 8))
+                return (new E2eRequirement("dotnet", false, $".NET SDK 8 o successivo non installato (trovati: {(majors.Count == 0 ? "nessuno" : string.Join(", ", majors.Distinct()))}).",
+                    "Installa il .NET SDK 8 o successivo per rigiocare gli script.", false), null);
+            return (new E2eRequirement("dotnet", true, $".NET SDK {majors.Max()} ({dotnet})", null, false), dotnet);
+        }
+
         // ---------------------------------------------------------------- processes
 
-        private static async Task<(int Exit, string Output)> RunAsNodeAsync(string electronPath, IEnumerable<string> args, TimeSpan timeout, CancellationToken ct)
+        private static Task<(int Exit, string Output)> RunAsNodeAsync(string electronPath, IEnumerable<string> args, TimeSpan timeout, CancellationToken ct)
+            => RunAsync(electronPath, args, timeout, ct, asNode: true);
+
+        private static async Task<(int Exit, string Output)> RunAsync(string executable, IEnumerable<string> args, TimeSpan timeout, CancellationToken ct, bool asNode = false)
         {
-            var start = new ProcessStartInfo(electronPath)
+            var start = new ProcessStartInfo(executable)
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -287,7 +317,7 @@ namespace MdExplorer.Features.E2e
                 CreateNoWindow = true,
             };
             foreach (var a in args) start.ArgumentList.Add(a);
-            start.Environment["ELECTRON_RUN_AS_NODE"] = "1";
+            if (asNode) start.Environment["ELECTRON_RUN_AS_NODE"] = "1";
 
             using var process = new Process { StartInfo = start };
             try
