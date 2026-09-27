@@ -126,6 +126,7 @@ namespace MdExplorer.Controllers.E2e
                     commitAfterRun = Setting(i.Settings.CommitAfterRun, root),
                     headless = Setting(i.Settings.Headless, root),
                     scripts = E2ePostRun.Scripts(i, Services.E2e.E2eLaunchService.CurrentGenerator()).Select(s => new { test = s.TestNumber, file = Path.GetFileName(s.Path), state = s.State, stale = s.Stale }),
+                    replayPackages = ReplayPackages(i, root),
                 }),
             });
         }
@@ -185,8 +186,44 @@ namespace MdExplorer.Controllers.E2e
                 outcomes = r.Outcomes.Select(o => new { test = o.Test, script = o.Script, passed = o.Passed, message = o.Message }),
                 stale = r.Stale,
                 problem = r.Problem,
+                needsRestore = r.NeedsRestore,
                 commit = r.Commit == null ? null : new { committed = r.Commit.Committed, sha = r.Commit.Sha, message = r.Commit.Message, reason = r.Commit.Reason },
             }));
+        }
+
+        /// <summary>
+        /// Downloads the packages the replay needs (<c>dotnet restore</c> of the tests projects of a test or of every
+        /// test of a folder). Only on the user's request from the dialog: the replay itself never downloads (D3, D7).
+        /// </summary>
+        [HttpPost("replay-restore")]
+        public async Task<IActionResult> RestoreReplayPackages([FromBody] RunSettingsBody body, CancellationToken ct)
+        {
+            if (!TryResolve(body?.Path, body?.ProjectPath, out var full, out var root, out var problem)) return BadRequest(new { error = problem });
+            var (dotnetRequirement, dotnet) = await _environment.CheckDotnetAsync(ct);
+            if (dotnet == null) return UnprocessableEntity(new { error = dotnetRequirement.Detail + " " + dotnetRequirement.Remedy });
+
+            var projects = E2eRunPlanner.Plan(full, root, DateTime.Now).Items
+                .Select(i => E2eReplay.FindProject(i, root)).Where(p => p != null && !E2eReplay.PackagesRestored(p))
+                .Distinct().ToList();
+            if (projects.Count == 0) return Ok(new { restored = Array.Empty<string>() });
+
+            var restored = new System.Collections.Generic.List<string>();
+            foreach (var project in projects)
+            {
+                _logger.LogInformation("[E2e] dotnet restore {Project} (chiesto dall'utente)", project);
+                var failure = await E2eReplay.RestoreAsync(project, dotnet, ct);
+                if (failure != null)
+                    return UnprocessableEntity(new { error = $"{Relative(root, project)}: {failure}", restored });
+                restored.Add(Relative(root, project));
+            }
+            return Ok(new { restored });
+        }
+
+        /// <summary>The tests project of an item and whether its packages are downloaded; null without a project.</summary>
+        private static object ReplayPackages(E2eRunItem item, string root)
+        {
+            var project = E2eReplay.FindProject(item, root);
+            return project == null ? null : new { project = Relative(root, project), restored = E2eReplay.PackagesRestored(project) };
         }
 
         /// <summary>

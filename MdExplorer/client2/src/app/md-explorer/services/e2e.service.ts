@@ -38,6 +38,8 @@ export interface E2ePlanItem {
   dedicatedSession: E2eSetting;
   commitAfterRun: E2eSetting;
   headless: E2eSetting;
+  /** The tests project (E2eTests.csproj) and whether its packages are downloaded; null before the first run. */
+  replayPackages: { project: string; restored: boolean } | null;
 }
 
 export interface E2ePlan {
@@ -62,6 +64,7 @@ export interface E2eReplayResult {
   outcomes: { test: number; script: string; passed: boolean; message: string | null }[];
   stale: string[];
   problem: string | null;
+  needsRestore: boolean;
   commit: { committed: boolean; sha: string | null; message: string | null; reason: string | null } | null;
 }
 
@@ -103,6 +106,11 @@ export class E2eService {
 
   replay(path: string, projectPath: string): Observable<E2eReplayResult[]> {
     return this.http.post<E2eReplayResult[]>(`${this.base}/replay`, { path, projectPath });
+  }
+
+  /** Downloads the replay packages (dotnet restore): only when the user asks, never on its own (D3, D7). */
+  restoreReplayPackages(path: string, projectPath: string): Observable<{ restored: string[] }> {
+    return this.http.post<{ restored: string[] }>(`${this.base}/replay-restore`, { path, projectPath });
   }
 
   getPrerequisites(): Observable<E2ePrerequisites> {

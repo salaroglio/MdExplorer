@@ -71,5 +71,43 @@ namespace MdExplorer.Features.Tests.E2e
             StringAssert.StartsWith(outcomes[1].Message, "Locator expected to be visible");
             Assert.AreEqual("login.T2.spec.cs", outcomes[1].Script);
         }
+
+        [TestMethod]
+        public void Refuse_to_replay_before_the_user_agrees_to_download_the_packages()
+        {
+            // D3/D7: `dotnet test` would download ~200 MB from NuGet on its own. Without a restore for the current
+            // csproj the replay stops and says so; `dotnet` is never started (the path given here does not exist).
+            var root = Path.Combine(Path.GetTempPath(), "e2e-replay-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var folder = Path.Combine(root, "test-e2e");
+                Directory.CreateDirectory(Path.Combine(folder, "login.e2e", "scripts"));
+                var test = Path.Combine(folder, "login.e2e.md");
+                File.WriteAllText(test, Test);
+                var project = Path.Combine(folder, "E2eTests.csproj");
+                File.WriteAllText(project, "<Project Sdk=\"Microsoft.NET.Sdk\" />\n");
+                var item = E2eRunPlanner.Plan(test, root, new DateTime(2026, 9, 27, 10, 30, 0)).Items.Single();
+
+                Assert.AreEqual(project, E2eReplay.FindProject(item, root));
+                Assert.IsFalse(E2eReplay.PackagesRestored(project));
+                var result = E2eReplay.RunAsync(item, root, "chrome", Path.Combine(root, "no-dotnet"), DateTime.Now,
+                    new Dictionary<string, string>(), null, default).GetAwaiter().GetResult();
+                Assert.IsTrue(result.NeedsRestore);
+                Assert.AreEqual(E2eReplay.PackagesMissing, result.Problem);
+
+                var assets = Path.Combine(folder, "obj", "project.assets.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(assets)!);
+                File.WriteAllText(assets, "{}");
+                Assert.IsTrue(E2eReplay.PackagesRestored(project));
+
+                // The agent changes the csproj (a package added): a new restore is needed, so a new consent.
+                File.SetLastWriteTimeUtc(project, File.GetLastWriteTimeUtc(assets).AddMinutes(1));
+                Assert.IsFalse(E2eReplay.PackagesRestored(project));
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
     }
 }

@@ -22,6 +22,8 @@ namespace MdExplorer.Features.E2e
         public IReadOnlyList<string> Stale { get; init; } = Array.Empty<string>();
 
         public string Problem { get; init; }
+        /// <summary>The packages of the tests project are not restored: the user must agree to the download.</summary>
+        public bool NeedsRestore { get; init; }
         public E2eCommitResult Commit { get; init; }
     }
 
@@ -44,16 +46,14 @@ namespace MdExplorer.Features.E2e
         {
             var folder = Path.GetDirectoryName(item.TestFile)!;
             var relative = item.RelativeTestFile;
-            // The tests project next to the test or in a folder above it, up to the project root: nested test
-            // folders share one project (two would compile the same scripts twice).
-            string project = null;
-            for (var dir = folder; dir != null && E2eRunPlanner.IsInside(dir, projectRoot); dir = Path.GetDirectoryName(dir))
-            {
-                var candidate = Path.Combine(dir, "E2eTests.csproj");
-                if (File.Exists(candidate)) { project = candidate; break; }
-            }
+            var project = FindProject(item, projectRoot);
             if (project == null)
                 return new E2eReplayFileResult { File = relative, Problem = "manca E2eTests.csproj (accanto al test o in una cartella sopra): esegui prima i test con MarkAgent, che crea i file di supporto." };
+            // D3/D7: nothing is downloaded without the user's consent. `dotnet test` would restore the packages
+            // (Microsoft.Playwright with its own Node, ~200 MB) on its own: it runs with --no-restore, and the
+            // restore is a separate step the user starts from the dialog.
+            if (!PackagesRestored(project))
+                return new E2eReplayFileResult { File = relative, NeedsRestore = true, Problem = PackagesMissing };
             var projectFolder = Path.GetDirectoryName(project)!;
             if (browserArgument is not ("chrome" or "msedge"))
                 return new E2eReplayFileResult { File = relative, Problem = "il rigioco degli script usa Chrome o Edge installati: il Chromium di Playwright non va bene per la libreria .NET." };
@@ -88,7 +88,7 @@ namespace MdExplorer.Features.E2e
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
-            foreach (var a in new[] { "test", project, "--settings", Path.Combine(projectFolder, "e2e.runsettings"),
+            foreach (var a in new[] { "test", project, "--no-restore", "--settings", Path.Combine(projectFolder, "e2e.runsettings"),
                          "--logger", "trx;LogFileName=" + trx,
                          "--filter", string.Join("|", classes.Keys.Select(c => "FullyQualifiedName~" + c + ".")),
                          "--", "Playwright.LaunchOptions.Channel=" + browserArgument,
@@ -139,6 +139,72 @@ namespace MdExplorer.Features.E2e
             await File.WriteAllTextAsync(item.TestFile, markdown, ct);
 
             return new E2eReplayFileResult { File = relative, RunFolder = runFolder, Outcomes = outcomes, Stale = stale };
+        }
+
+        public const string PackagesMissing =
+            "i pacchetti per rigiocare gli script (Microsoft.Playwright per .NET, circa 200 MB la prima volta, con un suo Node) non sono scaricati: scaricali dalla finestra dei test.";
+
+        /// <summary>
+        /// The tests project of <paramref name="item"/>: <c>E2eTests.csproj</c> next to the test or in a folder above
+        /// it, up to the project root (nested test folders share one project: two would compile the same scripts
+        /// twice). Null when there is none yet.
+        /// </summary>
+        public static string FindProject(E2eRunItem item, string projectRoot)
+        {
+            for (var dir = Path.GetDirectoryName(item.TestFile); dir != null && E2eRunPlanner.IsInside(dir, projectRoot); dir = Path.GetDirectoryName(dir))
+            {
+                var candidate = Path.Combine(dir, "E2eTests.csproj");
+                if (File.Exists(candidate)) return candidate;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// The packages of the tests project are restored for its current content: <c>obj/project.assets.json</c>
+        /// exists and is not older than the csproj (a package added or changed by the agent needs a new restore).
+        /// </summary>
+        public static bool PackagesRestored(string project)
+        {
+            var assets = Path.Combine(Path.GetDirectoryName(project)!, "obj", "project.assets.json");
+            return File.Exists(assets) && File.GetLastWriteTimeUtc(assets) >= File.GetLastWriteTimeUtc(project);
+        }
+
+        /// <summary>
+        /// <c>dotnet restore</c> of the tests project: the download the user agreed to from the dialog. Returns
+        /// null when it worked, otherwise the end of the output.
+        /// </summary>
+        public static async Task<string> RestoreAsync(string project, string dotnet, CancellationToken ct)
+        {
+            var start = new ProcessStartInfo(dotnet)
+            {
+                WorkingDirectory = Path.GetDirectoryName(project)!,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            };
+            start.ArgumentList.Add("restore");
+            start.ArgumentList.Add(project);
+            start.Environment.Remove("ELECTRON_RUN_AS_NODE");
+
+            using var process = Process.Start(start)!;
+            using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            limit.CancelAfter(Timeout);
+            var stdout = process.StandardOutput.ReadToEndAsync(limit.Token);
+            var stderr = process.StandardError.ReadToEndAsync(limit.Token);
+            try
+            {
+                await process.WaitForExitAsync(limit.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                try { process.Kill(entireProcessTree: true); } catch { /* already gone */ }
+                if (ct.IsCancellationRequested) throw;
+                return $"dotnet restore non ha finito entro {Timeout.TotalMinutes:0} minuti: interrotto.";
+            }
+            var output = await stdout + await stderr;
+            if (process.ExitCode != 0) return "dotnet restore non riuscito: " + Tail(output);
+            return PackagesRestored(project) ? null : "dotnet restore è finito senza scrivere obj/project.assets.json: " + Tail(output);
         }
 
         public static IReadOnlyList<E2eReplayOutcome> ReadTrx(string trxPath, IReadOnlyDictionary<string, E2eScript> classes)

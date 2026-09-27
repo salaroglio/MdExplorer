@@ -76,6 +76,7 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
   private currentInTab = false;
   private lostSub: Subscription | null = null;
   replaying = false;
+  restoring = false;
   replayResults: E2eReplayResult[] | null = null;
   private answer = '';
   /** What the agent wrote after its last tool: its conclusion, without the running commentary. */
@@ -134,11 +135,32 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Scripts that can be replayed: at least one script still matching its test, and a .NET SDK. */
+  /** Scripts that can be replayed: at least one script still matching its test, a .NET SDK and the packages downloaded. */
   get canReplay(): boolean {
     const browser = this.prerequisites?.browserArgument;
     return !!this.plan?.dotnet?.ok && (browser === 'chrome' || browser === 'msedge') && !this.running && !this.replaying && !this.loading
+      && !this.restoring && !this.replayPackagesMissing
       && (this.plan?.items || []).some(i => (i.scripts || []).some(s => !s.stale));
+  }
+
+  /** A tests project whose packages are not downloaded: the replay waits for the user's consent (D3, D7). */
+  get replayPackagesMissing(): boolean {
+    return (this.plan?.items || []).some(i => !!i.replayPackages && !i.replayPackages.restored);
+  }
+
+  restoreReplayPackages(): void {
+    this.restoring = true;
+    this.error = null;
+    this.e2e.restoreReplayPackages(this.data.path, this.data.projectPath).subscribe({
+      next: () => {
+        this.restoring = false;
+        this.e2e.getPlan(this.data.path, this.data.projectPath).subscribe(plan => this.plan = plan);
+      },
+      error: err => {
+        this.error = err?.error?.error || err?.message || String(err);
+        this.restoring = false;
+      }
+    });
   }
 
   replay(): void {

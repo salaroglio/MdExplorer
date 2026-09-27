@@ -85,6 +85,17 @@
         </div>
       </ng-container>
       <div *ngIf="plan.dotnet && !plan.dotnet.ok" class="e2e-hint">{{ plan.dotnet.detail }} {{ plan.dotnet.remedy }}</div>
+      <div *ngIf="plan.dotnet?.ok && replayPackagesMissing" class="e2e-message e2e-warning">
+        <mat-icon>cloud_download</mat-icon>
+        <span>{{ 'E2E.REPLAY_PACKAGES_MISSING' | translate }}</span>
+        <button mat-stroked-button color="primary" [disabled]="restoring || running || replaying" (click)="restoreReplayPackages()">
+          <mat-icon>download</mat-icon> {{ 'E2E.REPLAY_PACKAGES_DOWNLOAD' | translate }}
+        </button>
+      </div>
+      <div *ngIf="restoring" class="e2e-loading">
+        <mat-spinner diameter="20" strokeWidth="2"></mat-spinner>
+        <span>{{ 'E2E.REPLAY_PACKAGES_DOWNLOADING' | translate }}</span>
+      </div>
       <div *ngIf="replaying" class="e2e-loading">
         <mat-spinner diameter="20" strokeWidth="2"></mat-spinner>
         <span>{{ 'E2E.REPLAYING' | translate }}</span>
@@ -147,7 +158,7 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button [disabled]="running || replaying" (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
+  <button mat-button [disabled]="running || replaying || restoring" (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
   <button mat-button [disabled]="running || replaying || loading" (click)="refresh()">
     <mat-icon>refresh</mat-icon> {{ 'E2E.RECHECK' | translate }}
   </button>
