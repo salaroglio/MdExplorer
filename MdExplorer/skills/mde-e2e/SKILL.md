@@ -447,7 +447,7 @@ namespace MdeE2e
 ```
 
 Gli script si rigiocano dalla finestra dei test di MdExplorer («Rigioca gli script»), che esegue
-`dotnet test E2eTests.csproj --no-restore --settings e2e.runsettings`. I pacchetti (circa 200 MB la prima volta) li
+`dotnet test E2eTests.csproj --no-restore --settings e2e.runsettings`. I pacchetti (circa 230 MB la prima volta) li
 scarica MdExplorer solo quando l'utente lo chiede dalla stessa finestra: non lanciare `dotnet restore` né
 `dotnet build` tu.
 

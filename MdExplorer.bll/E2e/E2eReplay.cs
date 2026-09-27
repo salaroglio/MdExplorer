@@ -50,7 +50,7 @@ namespace MdExplorer.Features.E2e
             if (project == null)
                 return new E2eReplayFileResult { File = relative, Problem = "manca E2eTests.csproj (accanto al test o in una cartella sopra): esegui prima i test con MarkAgent, che crea i file di supporto." };
             // D3/D7: nothing is downloaded without the user's consent. `dotnet test` would restore the packages
-            // (Microsoft.Playwright with its own Node, ~200 MB) on its own: it runs with --no-restore, and the
+            // (Microsoft.Playwright with its own Node: ~230 MB downloaded, ~900 MB in the NuGet cache) on its own: it runs with --no-restore, and the
             // restore is a separate step the user starts from the dialog.
             if (!PackagesRestored(project))
                 return new E2eReplayFileResult { File = relative, NeedsRestore = true, Problem = PackagesMissing };
@@ -142,7 +142,7 @@ namespace MdExplorer.Features.E2e
         }
 
         public const string PackagesMissing =
-            "i pacchetti per rigiocare gli script (Microsoft.Playwright per .NET, circa 200 MB la prima volta, con un suo Node) non sono scaricati: scaricali dalla finestra dei test.";
+            "i pacchetti per rigiocare gli script (Microsoft.Playwright per .NET, circa 230 MB da scaricare la prima volta, circa 900 MB nella cache NuGet, con un suo Node) non sono scaricati o l'ultimo scaricamento è fallito: scaricali dalla finestra dei test.";
 
         /// <summary>
         /// The tests project of <paramref name="item"/>: <c>E2eTests.csproj</c> next to the test or in a folder above
@@ -161,12 +161,24 @@ namespace MdExplorer.Features.E2e
 
         /// <summary>
         /// The packages of the tests project are restored for its current content: <c>obj/project.assets.json</c>
-        /// exists and is not older than the csproj (a package added or changed by the agent needs a new restore).
+        /// exists, is not older than the csproj (a package added or changed by the agent needs a new restore) and
+        /// records no error. A failed restore writes the file anyway, with no libraries and the error in its
+        /// <c>logs</c>: `dotnet test --no-restore` then "succeeds" without running anything (seen on 27/09/2026).
         /// </summary>
         public static bool PackagesRestored(string project)
         {
             var assets = Path.Combine(Path.GetDirectoryName(project)!, "obj", "project.assets.json");
-            return File.Exists(assets) && File.GetLastWriteTimeUtc(assets) >= File.GetLastWriteTimeUtc(project);
+            if (!File.Exists(assets) || File.GetLastWriteTimeUtc(assets) < File.GetLastWriteTimeUtc(project)) return false;
+            try
+            {
+                using var json = System.Text.Json.JsonDocument.Parse(File.ReadAllText(assets));
+                return !(json.RootElement.TryGetProperty("logs", out var logs) && logs.ValueKind == System.Text.Json.JsonValueKind.Array
+                         && logs.EnumerateArray().Any(l => l.TryGetProperty("level", out var level) && level.GetString() == "Error"));
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -203,7 +215,13 @@ namespace MdExplorer.Features.E2e
                 return $"dotnet restore non ha finito entro {Timeout.TotalMinutes:0} minuti: interrotto.";
             }
             var output = await stdout + await stderr;
-            if (process.ExitCode != 0) return "dotnet restore non riuscito: " + Tail(output);
+            if (process.ExitCode != 0)
+            {
+                // The errors (NU1301 "unable to load the service index"…), not the warnings around them.
+                var errors = output.Split('\n').Select(l => l.Trim()).Where(l => l.Contains(": error ", StringComparison.Ordinal))
+                    .Select(l => l.Substring(l.IndexOf(": error ", StringComparison.Ordinal) + 2)).Distinct().ToList();
+                return "dotnet restore non riuscito: " + (errors.Count > 0 ? Tail(string.Join(" ", errors)) : Tail(output));
+            }
             return PackagesRestored(project) ? null : "dotnet restore è finito senza scrivere obj/project.assets.json: " + Tail(output);
         }
 

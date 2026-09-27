@@ -100,6 +100,12 @@ namespace MdExplorer.Features.Tests.E2e
                 File.WriteAllText(assets, "{}");
                 Assert.IsTrue(E2eReplay.PackagesRestored(project));
 
+                // A failed restore (no network, unreachable source) writes the file anyway, with the error in its logs.
+                File.WriteAllText(assets, "{\"version\":3,\"libraries\":{},\"logs\":[{\"code\":\"NU1301\",\"level\":\"Error\",\"message\":\"Unable to load the service index\"}]}");
+                Assert.IsFalse(E2eReplay.PackagesRestored(project), "a failed restore is not a restore");
+                File.WriteAllText(assets, "{\"version\":3,\"libraries\":{},\"logs\":[{\"code\":\"NU1803\",\"level\":\"Warning\"}]}");
+                Assert.IsTrue(E2eReplay.PackagesRestored(project), "a warning does not stop the replay");
+
                 // The agent changes the csproj (a package added): a new restore is needed, so a new consent.
                 File.SetLastWriteTimeUtc(project, File.GetLastWriteTimeUtc(assets).AddMinutes(1));
                 Assert.IsFalse(E2eReplay.PackagesRestored(project));

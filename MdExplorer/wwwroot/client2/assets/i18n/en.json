@@ -1884,7 +1884,7 @@
     "REPLAYING": "Replaying the scripts with dotnet test, no LLM…",
     "STALE_SKIPPED": "Not replayed because stale: {{scripts}}. Run the test again with MarkAgent to rewrite them.",
     "REPLAY": "Replay the scripts",
-    "REPLAY_PACKAGES_MISSING": "Replaying the scripts needs the Playwright for .NET packages: about 200 MB downloaded from NuGet the first time, with their own Node. Nothing is downloaded without your consent.",
+    "REPLAY_PACKAGES_MISSING": "Replaying the scripts needs the Playwright for .NET packages: about 230 MB downloaded from NuGet the first time (about 900 MB on disk, in the NuGet cache), with their own Node. Nothing is downloaded without your consent.",
     "REPLAY_PACKAGES_DOWNLOAD": "Download the packages",
     "REPLAY_PACKAGES_DOWNLOADING": "Downloading the packages (dotnet restore)…",
     "LEAK_REPORTED": "The value of the credential «{{key}}» appears in {{file}}: check it and replace it with the key (MdExplorer does not rewrite files outside the run folder).",
