@@ -256,6 +256,12 @@ export class AiChatService {
       }
     });
 
+    // Test e2e (sprint 2026-09-26-Test-E2E-Da-Markdown): i passi strutturati di un lancio
+    // (plan, refused, prerequisites, test-start, test-end, done, cancelled) arrivano sul suo canale.
+    this.hubConnection.on('ReceiveE2eEvent', (event: any, channelId?: string) => {
+      this._channelEvent$.next({ type: 'e2e', data: event, channelId: channelId || 'e2e' });
+    });
+
     this.hubConnection.on('StreamComplete', (channelId?: string) => {
       const ch = channelId || 'default';
       this._channelEvent$.next({ type: 'complete', data: null, channelId: ch });
@@ -584,8 +590,25 @@ export class AiChatService {
   }
 
   /**
+   * Runs the e2e tests of a .e2e.md or of a folder with the MarkAgent engine (AiChatHub.RunE2eTests).
+   * Everything comes back on channelId: 'e2e' events for the steps, 'chunk' and 'tool' for the agent,
+   * 'complete' at the end. Give each launch its own channel.
+   */
+  runE2eTests(targetPath: string, channelId: string): Promise<void> {
+    if (!this.hubConnection) {
+      return Promise.reject(new Error('La connessione con MarkAgent non è pronta.'));
+    }
+    return this.hubConnection.invoke('RunE2eTests', targetPath, channelId);
+  }
+
+  /** A message added to the MarkAgent chat by MdExplorer itself (the summary of an e2e launch). */
+  postToChat(role: 'assistant' | 'system', content: string): void {
+    this.addMessage(role, content);
+  }
+
+  /**
    * Get an Observable stream of events filtered for a specific channelId.
-   * Each event has { type: 'chunk' | 'thinking' | 'tool' | 'complete' | 'error', data: any }.
+   * Each event has { type: 'chunk' | 'thinking' | 'tool' | 'e2e' | 'complete' | 'error', data: any }.
    * 'tool' arriva solo da Claude Code ed è una riga di stato, non testo della risposta.
    * Used by PromptLab cards to subscribe to their own channel.
    */

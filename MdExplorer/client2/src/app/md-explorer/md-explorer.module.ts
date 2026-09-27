@@ -18,6 +18,7 @@ import { RulesComponent } from '../signalR/dialogs/rules/rules.component';
 import { NewMarkdownComponent } from './components/dialogs/new-markdown/new-markdown.component';
 import { NewDirectoryComponent } from './components/dialogs/new-directory/new-directory.component';
 import { MdTreeComponent } from './components/md-tree/md-tree.component';
+import { E2eDialogComponent } from './components/e2e-dialog/e2e-dialog.component';
 import { AgentReviewComponent } from './components/agent-review/agent-review.component';
 import { WorkingChangesComponent } from './components/working-changes/working-changes.component';
 import { ConnectionLostComponent } from '../signalR/dialogs/connection-lost/connection-lost.component';
@@ -135,7 +136,8 @@ const routes: Routes = [
     AgentScheduleDialogComponent,
     AgentRegistryDialogComponent,
     AgentMemoryDialogComponent,
-    MailboxDialogComponent
+    MailboxDialogComponent,
+    E2eDialogComponent
   ],
   imports: [
     CommonModule,

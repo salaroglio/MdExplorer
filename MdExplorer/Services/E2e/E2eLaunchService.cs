@@ -164,6 +164,30 @@ namespace MdExplorer.Services.E2e
 
                 _logger.LogInformation("[E2e] {File}: eseguito ({Index}/{Total})", item.RelativeTestFile, index, plan.Items.Count);
                 await sink.Event(new { type = "test-end", file = item.RelativeTestFile, runFolder = item.RelativeRunFolder, answer = answer.ToString() });
+
+                if (item.Settings.CommitAfterRun.Value)
+                {
+                    // D21, D26: only what the run produced or touched, screenshots included.
+                    E2eCommitResult commit;
+                    try
+                    {
+                        commit = E2eCommitter.Commit(item);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[E2e] commit dopo {File}", item.RelativeTestFile);
+                        commit = new E2eCommitResult(false, null, null, "il commit non è riuscito: " + ex.Message);
+                    }
+                    await sink.Event(new
+                    {
+                        type = "commit",
+                        file = item.RelativeTestFile,
+                        committed = commit.Committed,
+                        sha = commit.Sha,
+                        message = commit.Message,
+                        reason = commit.Reason,
+                    });
+                }
             }
 
             }

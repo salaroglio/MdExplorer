@@ -1,4 +1,5 @@
 import { FlatTreeControl } from '@angular/cdk/tree';
+import { E2eDialogComponent, E2eDialogData } from '../e2e-dialog/e2e-dialog.component';
 import { Component, OnInit, ViewChild, ChangeDetectorRef, ChangeDetectionStrategy, AfterViewInit, OnDestroy } from '@angular/core';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { MatLegacyMenuTrigger as MatMenuTrigger } from '@angular/material/legacy-menu';
@@ -965,6 +966,31 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const folderFullPath = lastSeg ? lastSeg.fullPath : node.fullPath;
     const folderName = lastSeg ? lastSeg.name : node.name;
     this.markAssistant.launchFolderActions({ folderFullPath, folderName });
+  }
+
+  /** A test written in markdown (sprint 2026-09-26-Test-E2E-Da-Markdown): recognised by its name. */
+  isE2eFile(node: MdFile): boolean {
+    return !!node && (node.type === 'mdFile' || node.type === 'mdFileTimer') && /\.e2e\.md$/i.test(node.name || '');
+  }
+
+  /**
+   * The e2e tests window of a .e2e.md or of a folder (all the tests below it): settings (the particular
+   * wins over the general), checks, prerequisites, launch.
+   */
+  openE2eTests(node: MdFile) {
+    if (node == null) return;
+    const lastSeg = node.isCompacted && node.compactedSegments?.length
+      ? node.compactedSegments[node.compactedSegments.length - 1]
+      : null;
+    const path = lastSeg ? lastSeg.fullPath : node.fullPath;
+    const name = lastSeg ? lastSeg.name : node.name;
+    const projectPath = this.projectsService.currentProjects$.value?.path || '';
+    this.dialog.open(E2eDialogComponent, {
+      data: { path, name, projectPath } as E2eDialogData,
+      width: '860px',
+      maxWidth: '95vw',
+      disableClose: true,
+    });
   }
 
   /**
