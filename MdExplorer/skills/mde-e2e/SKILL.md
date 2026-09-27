@@ -173,10 +173,10 @@ correggila e scrivi accanto la data.
 
 Un file di testo con una riga `chiave=valore` per ogni credenziale; le righe che iniziano con `#` sono commenti.
 
-```text
+```text esempio=credenziali
 # credenziali per i test di the-internet
-the-internet.utente=tomsmith
-the-internet.password=SuperSecretPassword!
+the-internet.utente=utente-di-esempio
+the-internet.password=password-di-esempio
 ```
 
 **Non leggere il file delle credenziali.** Il server playwright lo riceve da MdExplorer e fa lui la sostituzione:
