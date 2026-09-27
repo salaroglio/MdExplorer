@@ -179,13 +179,20 @@ the-internet.utente=tomsmith
 the-internet.password=SuperSecretPassword!
 ```
 
-Leggi il file solo per scrivere i valori nel browser. **Non copiare mai un valore** nel `.e2e.md`, nella mappa,
-nel report, negli script o nella risposta all'utente: lì si scrive solo la chiave (`{{the-internet.password}}`).
-Se il file o una chiave mancano, fermati e dillo all'utente: non inventare credenziali.
+**Non leggere il file delle credenziali.** Il server playwright lo riceve da MdExplorer e fa lui la sostituzione:
+per un passo come «Scrivi {{the-internet.password}} nel campo "Password"», chiama `browser_type` con il testo
+`the-internet.password` (il nome della chiave, **senza** graffe). Il server scrive nel campo il valore vero, e
+nelle sue risposte ogni valore segreto compare come `<secret>the-internet.password</secret>`: tu non vedi mai i
+valori, ed è voluto.
+
+Nel `.e2e.md`, nella mappa, nel report e negli script si scrive solo la chiave (`{{the-internet.password}}`).
+Se una chiave sembra non funzionare (il login fallisce, il campo contiene il nome della chiave), non provare
+altri nomi e non chiedere il valore: dai l'esito ⚠️ e scrivi quale chiave hai usato.
 
 ## Eseguire i test
 
-1. Leggi il `.e2e.md`, la mappa del sito e il file delle credenziali indicati nel front matter.
+1. Leggi il `.e2e.md` e la mappa del sito indicata nel front matter (il file delle credenziali no: vedi
+   *«Le credenziali»*).
 2. La **cartella dell'esecuzione** è `<artifacts>/esecuzioni/<AAAA-MM-GG_hh-mm>/`: te la indica chi lancia i
    test; se nessuno la indica, usa data e ora correnti. Creala se non c'è.
 3. Per ogni test, in ordine, esegui i passi con gli strumenti playwright. Prima di cliccare o scrivere, guarda
@@ -267,7 +274,9 @@ Le regole, tutte obbligatorie:
 - **segui lo scheletro qui sotto alla lettera**: stessi `using`, stesso namespace `MdeE2e.<NomeFile>`, una classe
   `Test_T<n>` per test che eredita `PageTest`, un solo metodo `T<n>_<Titolo>` (così l'esito di
   `dotnet test` dice quale test è);
-- le credenziali si leggono **solo** con `E2e.Credential(Credentials, "<chiave>")`, mai scritte nello script;
+- le credenziali si leggono **solo** con `E2e.Credential(Credentials, "<chiave>")`, mai scritte nello script:
+  il codice che il server restituisce per quei passi usa `Environment.GetEnvironmentVariable("<chiave>")`,
+  sostituiscilo;
 - gli screenshot si fanno **solo** con `E2e.Screenshot(Page, Artifacts, "<nome>")`, mai con percorsi scritti a mano;
 - ogni passo e ogni verifica hanno sopra un commento con la riga del test, numero compreso;
 - le asserzioni usano il **testo atteso del test** (tabella delle verifiche), mai quello osservato;
