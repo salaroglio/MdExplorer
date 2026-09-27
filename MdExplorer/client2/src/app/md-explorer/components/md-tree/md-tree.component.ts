@@ -973,6 +973,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     return !!node && (node.type === 'mdFile' || node.type === 'mdFileTimer') && /\.e2e\.md$/i.test(node.name || '');
   }
 
+  /** The fact_check icon next to a .e2e.md: opens its tests window, not the document. */
+  openE2eFromIcon(node: MdFile, event: MouseEvent) {
+    event.stopPropagation();
+    this.openE2eTests(node);
+  }
+
   /**
    * The e2e tests window of a .e2e.md or of a folder (all the tests below it): settings (the particular
    * wins over the general), checks, prerequisites, launch.
