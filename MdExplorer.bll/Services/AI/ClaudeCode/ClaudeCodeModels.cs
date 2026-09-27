@@ -165,6 +165,40 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         /// </summary>
         public string ResumeSessionId { get; init; }
 
+        /// <summary>
+        /// Regole di divieto in più (<c>--disallowedTools</c>), per esempio <c>Read(//percorso/**)</c> per un
+        /// file che l'agente non deve leggere. Verificato il 27/09/2026 su claude 2.1.283: <c>Read</c> e
+        /// <c>Grep</c> su un percorso assoluto (<c>//…</c>) o relativo (<c>./…</c>) vengono negati.
+        /// </summary>
+        public IReadOnlyList<string> DisallowedTools { get; init; }
+
+        /// <summary>
+        /// Strumenti autorizzati in più (<c>--allowedTools</c>), oltre ai server di <see cref="AllowedMcpServers"/>.
+        /// Serve perché in <c>dontAsk</c> passa solo ciò che è pre-autorizzato: verificato il 27/09/2026 in un
+        /// lancio dei test e2e, <c>Edit</c> e <c>Write</c> venivano negati («permission mode don't ask»).
+        /// </summary>
+        public IReadOnlyList<string> AllowedTools { get; init; }
+
+        /// <summary>
+        /// Identità della configurazione "test e2e" della sessione (server Playwright, segreti, divieti): null
+        /// per una chat normale. Il pool riavvia la sessione, riprendendo la conversazione, quando un lancio
+        /// chiede una configurazione diversa da quella con cui la sessione è partita.
+        /// </summary>
+        public string ProfileKey { get; init; }
+
         public static readonly ClaudeCodeSessionOptions Default = new ClaudeCodeSessionOptions();
+
+        /// <summary>Le stesse opzioni, riprendendo la conversazione <paramref name="sessionId"/>.</summary>
+        public ClaudeCodeSessionOptions WithResume(string sessionId) => new ClaudeCodeSessionOptions
+        {
+            ToolPolicy = ToolPolicy,
+            Bare = Bare,
+            McpConfigPath = McpConfigPath,
+            AllowedMcpServers = AllowedMcpServers,
+            ResumeSessionId = sessionId,
+            DisallowedTools = DisallowedTools,
+            AllowedTools = AllowedTools,
+            ProfileKey = ProfileKey,
+        };
     }
 }

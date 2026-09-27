@@ -252,6 +252,7 @@ namespace MdExplorer
             services.AddSingleton<Features.Services.ILlamaBackendService, Features.Services.LlamaBackendService>();
             // Test e2e (F3): prerequisiti sul computer e download fuori dal pacchetto (Playwright MCP, Chromium).
             services.AddSingleton(new Features.E2e.E2eEnvironment());
+            services.AddSingleton<Services.E2e.E2eLaunchService>();
             services.AddSingleton<Features.Services.IAiChatService, Features.Services.AiChatService>();
             services.AddSingleton<Features.Services.IGeminiApiService, Features.Services.GeminiApiService>();
             services.AddSingleton<Features.Services.AI.LocalLlamaProvider>();

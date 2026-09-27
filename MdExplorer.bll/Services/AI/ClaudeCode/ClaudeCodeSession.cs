@@ -142,11 +142,15 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                 sb.Append(" --model ").Append(Quote(modelId));
             }
 
-            if (options.ToolPolicy == ClaudeCodeToolPolicy.NoExecution)
+            // Divieti mirati, MAI `--tools ""`: con zero tool il modello non rifiuta,
+            // si inventa la chiamata e finge l'output (verificato).
+            var disallowed = new List<string>();
+            if (options.ToolPolicy == ClaudeCodeToolPolicy.NoExecution) disallowed.Add("Bash");
+            disallowed.AddRange((options.DisallowedTools ?? Array.Empty<string>()).Where(r => !string.IsNullOrWhiteSpace(r)));
+            if (disallowed.Count > 0)
             {
-                // Divieto mirato, MAI `--tools ""`: con zero tool il modello non rifiuta,
-                // si inventa la chiamata e finge l'output (verificato).
-                sb.Append(" --disallowedTools Bash");
+                sb.Append(" --disallowedTools");
+                foreach (var rule in disallowed.Distinct(StringComparer.Ordinal)) sb.Append(' ').Append(QuoteRule(rule));
             }
 
             if (options.Bare)
@@ -161,16 +165,18 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                 sb.Append(" --mcp-config ").Append(Quote(options.McpConfigPath));
                 sb.Append(" --strict-mcp-config");
 
-                // I server che dichiariamo noi sono da usare, non solo da vedere: in dontAsk uno
-                // strumento MCP non autorizzato viene negato in silenzio.
-                var allowed = (options.AllowedMcpServers ?? Array.Empty<string>())
-                    .Where(name => !string.IsNullOrWhiteSpace(name))
-                    .Select(name => "mcp__" + name.Trim())
-                    .ToArray();
-                if (allowed.Length > 0)
-                {
-                    sb.Append(" --allowedTools ").Append(string.Join(",", allowed));
-                }
+            }
+
+            // I server che dichiariamo noi sono da usare, non solo da vedere: in dontAsk uno
+            // strumento MCP non autorizzato viene negato in silenzio. Idem per gli strumenti in più.
+            var allowed = (string.IsNullOrWhiteSpace(options.McpConfigPath) ? Array.Empty<string>() : options.AllowedMcpServers ?? Array.Empty<string>())
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => "mcp__" + name.Trim())
+                .Concat((options.AllowedTools ?? Array.Empty<string>()).Where(t => !string.IsNullOrWhiteSpace(t)))
+                .ToArray();
+            if (allowed.Length > 0)
+            {
+                sb.Append(" --allowedTools ").Append(QuoteRule(string.Join(",", allowed)));
             }
 
             if (!string.IsNullOrWhiteSpace(options.ResumeSessionId))
@@ -183,6 +189,20 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
 
         private static string Quote(string value) =>
             value.IndexOf(' ') >= 0 ? "\"" + value + "\"" : value;
+
+        /// <summary>
+        /// Una regola di permesso fra virgolette quando ha caratteri che una shell o cmd.exe leggerebbero
+        /// (parentesi, asterischi, spazi): su Windows il CLI può passare da <c>claude.cmd</c>.
+        /// </summary>
+        private static string QuoteRule(string rule)
+        {
+            if (rule.IndexOf('"') >= 0)
+                throw new ArgumentException($"Una regola di permesso non può contenere virgolette doppie: {rule}", nameof(rule));
+            return System.Text.RegularExpressions.Regex.IsMatch(rule, @"^[A-Za-z0-9_\-.:,/=@]+$") ? rule : "\"" + rule + "\"";
+        }
+
+        /// <summary>La configurazione "test e2e" con cui la sessione è partita (null = chat normale).</summary>
+        public string ProfileKey => _options.ProfileKey;
 
         /// <summary>
         /// Lancia il processo e avvia i loop di lettura. <b>Non</b> fa handshake: il CLI non

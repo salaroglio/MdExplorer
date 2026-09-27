@@ -78,7 +78,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             if (string.IsNullOrEmpty(connectionId))
                 throw new ArgumentException("connectionId obbligatoria", nameof(connectionId));
 
-            if (_sessions.TryGetValue(connectionId, out var fast) && Matches(fast, workingDirectory, modelId))
+            if (_sessions.TryGetValue(connectionId, out var fast) && Matches(fast, workingDirectory, modelId) && ProfileFits(fast, options))
             {
                 return fast;
             }
@@ -88,6 +88,26 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             try
             {
                 if (_sessions.TryGetValue(connectionId, out var existing))
+                {
+                    if (!ProfileFits(existing, options))
+                    {
+                        // A test launch needs another Playwright server, other secrets or other bans: they
+                        // are fixed when the CLI starts, so the session restarts — and resumes the same
+                        // conversation (verified 27/09/2026: --resume with another --mcp-config keeps it).
+                        if (existing.SessionId != null &&
+                            string.Equals(existing.WorkingDirectory, workingDirectory, StringComparison.OrdinalIgnoreCase))
+                        {
+                            options = options.WithResume(existing.SessionId);
+                        }
+                        _logger.LogInformation(
+                            "[ClaudeCodeSessionPool] Configurazione dei test diversa per {ConnectionId}: riavvio {Resume}",
+                            connectionId, options.ResumeSessionId != null ? "riprendendo la conversazione" : "da capo");
+                        await ReleaseAsync(connectionId).ConfigureAwait(false);
+                        existing = null;
+                    }
+                }
+
+                if (existing != null)
                 {
                     if (Matches(existing, workingDirectory, modelId)) return existing;
                     if (OnlyModelDiffers(existing, workingDirectory, modelId))
@@ -133,6 +153,13 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                 gate.Release();
             }
         }
+
+        /// <summary>
+        /// A chat turn (no profile) uses whatever the session has; a test launch needs the session started
+        /// with its own profile (server, secrets, bans).
+        /// </summary>
+        private static bool ProfileFits(ClaudeCodeSession session, ClaudeCodeSessionOptions options) =>
+            options?.ProfileKey == null || string.Equals(session.ProfileKey, options.ProfileKey, StringComparison.Ordinal);
 
         private static bool OnlyModelDiffers(ClaudeCodeSession session, string workingDirectory, string modelId) =>
             session.IsAlive &&

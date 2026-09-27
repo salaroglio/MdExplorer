@@ -179,7 +179,10 @@ the-internet.utente=utente-di-esempio
 the-internet.password=password-di-esempio
 ```
 
-**Non leggere il file delle credenziali.** Il server playwright lo riceve da MdExplorer e fa lui la sostituzione:
+**Non leggere e non cercare il file delle credenziali.** È escluso da git, quindi le ricerche (`Glob`, `Grep`)
+possono non vederlo: non vuol dire che manchi, e non devi crearlo. MdExplorer ha già controllato, prima di
+lanciarti, che esista e che contenga ogni chiave usata dal test. Il server playwright lo riceve da MdExplorer e
+fa lui la sostituzione:
 per un passo come «Scrivi {{the-internet.password}} nel campo "Password"», chiama `browser_type` con il testo
 `the-internet.password` (il nome della chiave, **senza** graffe). Il server scrive nel campo il valore vero, e
 nelle sue risposte ogni valore segreto compare come `<secret>the-internet.password</secret>`: tu non vedi mai i

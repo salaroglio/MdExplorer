@@ -36,6 +36,7 @@ namespace MdExplorer.Hubs
         private readonly Features.Services.AI.LocalLlamaProvider _localProvider;
         private readonly CopilotChatSessionPool _copilotChatPool;
         private readonly ClaudeCodeSessionPool _claudeCodePool;
+        private readonly Services.E2e.E2eLaunchService _e2eLaunch;
         private readonly OpenCodeSessionPool _openCodePool;
         /// <summary>Serve per una cosa sola: sapere quali gruppi di funzionalità MCP accendere per il progetto.</summary>
         private readonly Abstractions.DB.IUserSettingsDB _userSettingsDB;
@@ -90,8 +91,10 @@ namespace MdExplorer.Hubs
             CopilotChatSessionPool copilotChatPool,
             ClaudeCodeSessionPool claudeCodePool,
             OpenCodeSessionPool openCodePool,
-            Abstractions.DB.IUserSettingsDB userSettingsDB)
+            Abstractions.DB.IUserSettingsDB userSettingsDB,
+            Services.E2e.E2eLaunchService e2eLaunch)
         {
+            _e2eLaunch = e2eLaunch;
             _aiChatService = aiChatService;
             _downloadService = downloadService;
             _geminiService = geminiService;
@@ -749,6 +752,63 @@ namespace MdExplorer.Hubs
             return Task.CompletedTask;
         }
         
+        /// <summary>
+        /// Runs the e2e tests of a <c>.e2e.md</c> or of a folder with the engine of the MarkAgent tab
+        /// (sprint docs-internal/Sprints/2026-09-26-Test-E2E-Da-Markdown.md, F4). Everything is sent on
+        /// <paramref name="channelId"/>: <c>ReceiveE2eEvent</c> for the structured steps, the usual
+        /// <c>ReceiveStreamChunk</c> and <c>ReceiveToolActivity</c> for the agent, <c>StreamComplete</c> at the end.
+        /// </summary>
+        public async Task RunE2eTests(string targetPath, string channelId)
+        {
+            channelId = string.IsNullOrEmpty(channelId) ? "e2e" : channelId;
+            using var cts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
+            _claudeCodePool?.RegisterActivePrompt(Context.ConnectionId, cts);
+            try
+            {
+                var projectPath = GetProjectPath(out var whyNoProject);
+                if (string.IsNullOrEmpty(projectPath))
+                {
+                    await Clients.Caller.SendAsync("ReceiveE2eEvent", new { type = "refused", errors = new[] { $"Non so in quale progetto lavorare: {whyNoProject}. Riapri il progetto." } }, channelId);
+                    return;
+                }
+                var chatMode = GetChatMode();
+                if (!chatMode.ProviderType.HasValue)
+                {
+                    await Clients.Caller.SendAsync("ReceiveE2eEvent", new { type = "refused", errors = new[] { "Scegli prima il motore di MarkAgent (Claude Code, Copilot o opencode) nel tab MarkAgent." } }, channelId);
+                    return;
+                }
+
+                var caller = Clients.Caller;
+                await _e2eLaunch.RunAsync(new Services.E2e.E2eLaunchRequest
+                {
+                    ConnectionId = Context.ConnectionId,
+                    ProjectPath = projectPath,
+                    Target = targetPath,
+                    Engine = chatMode.ProviderType.Value,
+                    ModelId = string.IsNullOrEmpty(chatMode.ModelId) ? "sonnet" : chatMode.ModelId,
+                    McpGroupsArgument = MdExplorer.Service.ProjectsManager.McpGroupsArgument(_userSettingsDB, projectPath),
+                }, new Services.E2e.E2eLaunchSink
+                {
+                    Event = e => caller.SendAsync("ReceiveE2eEvent", e, channelId),
+                    Chunk = t => caller.SendAsync("ReceiveStreamChunk", t, channelId),
+                    Tool = t => caller.SendAsync("ReceiveToolActivity", t, channelId),
+                }, cts.Token);
+            }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested)
+            {
+                await Clients.Caller.SendAsync("ReceiveE2eEvent", new { type = "cancelled" }, channelId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[RunE2eTests] {Target}", targetPath);
+                await Clients.Caller.SendAsync("ReceiveError", ex.Message, channelId);
+            }
+            finally
+            {
+                await Clients.Caller.SendAsync("StreamComplete", channelId);
+            }
+        }
+
         private ChatModeInfo GetChatMode()
         {
             return _connectionChatModes.GetOrAdd(Context.ConnectionId, _ => new ChatModeInfo());

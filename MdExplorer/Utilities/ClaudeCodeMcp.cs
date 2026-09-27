@@ -160,16 +160,17 @@ namespace MdExplorer.Utilities
 
         /// <summary>
         /// The <c>--mcp-config</c> file for a MarkAgent Claude Code session, in MdExplorer's own data folder
-        /// (never in the project). Null — and said — when the MCP executable cannot be found: the session
-        /// then starts without MdExplorer's tools.
+        /// (never in the project). With <paramref name="playwright"/> the session also gets the Playwright
+        /// server of the e2e tests (F4b). Null — and said — when there is no server to declare: the MCP
+        /// executable cannot be found and no Playwright server is asked.
         /// </summary>
-        public static string WriteSessionConfig(string mcpGroupsArgument = null)
+        public static string WriteSessionConfig(string mcpGroupsArgument = null, Features.E2e.E2ePlaywrightServer playwright = null)
         {
             var mcpExecutable = ProjectsManager.ResolveMcpExecutable(AppDomain.CurrentDomain.BaseDirectory);
             if (mcpExecutable == null)
             {
                 Console.WriteLine("[ClaudeCodeMcp] MdExplorer.Mcp non trovato: la sessione Claude Code parte senza gli strumenti di MdExplorer.");
-                return null;
+                if (playwright == null) return null;
             }
 
             // An empty string when the folder does not exist (seen on Linux with a missing XDG_CONFIG_HOME):
@@ -177,39 +178,61 @@ namespace MdExplorer.Utilities
             var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
             if (string.IsNullOrEmpty(appData))
             {
+                if (playwright != null)
+                    throw new InvalidOperationException("Cartella dati dell'utente non disponibile: non posso preparare il server Playwright per i test e2e.");
                 Console.WriteLine("[ClaudeCodeMcp] Cartella dati dell'utente non disponibile: la sessione Claude Code parte senza gli strumenti di MdExplorer.");
                 return null;
             }
 
-            return WriteSessionConfig(mcpExecutable, Path.Combine(appData, "MdExplorer"), mcpGroupsArgument);
+            return WriteSessionConfig(mcpExecutable, Path.Combine(appData, "MdExplorer"), mcpGroupsArgument, playwright);
         }
 
-        /// <summary>Writes <c>{ "mcpServers": { "mdexplorer": … } }</c> in <paramref name="directory"/>; returns its path.</summary>
-        public static string WriteSessionConfig(string mcpExecutable, string directory, string mcpGroupsArgument = null)
+        /// <summary>
+        /// Writes <c>{ "mcpServers": { "mdexplorer": …, "playwright": … } }</c> in <paramref name="directory"/>;
+        /// returns its path. Without Playwright the file is the one every chat shares; with it, the name
+        /// comes from the content, so two sessions with different test settings never overwrite each other.
+        /// </summary>
+        public static string WriteSessionConfig(string mcpExecutable, string directory, string mcpGroupsArgument = null,
+            Features.E2e.E2ePlaywrightServer playwright = null)
         {
             Directory.CreateDirectory(directory);
-            var path = Path.Combine(directory, SessionConfigFileName);
 
-            var config = new JsonObject
+            var servers = new JsonObject();
+            if (mcpExecutable != null)
             {
-                ["mcpServers"] = new JsonObject
+                servers[ServerName] = new JsonObject
                 {
-                    [ServerName] = new JsonObject
-                    {
-                        ["type"] = "stdio",
-                        ["command"] = mcpExecutable,
-                        // I gruppi di funzionalita' MCP di QUESTO progetto: il file si riscrive a
-                        // ogni sessione di chat, quindi la scelta vale dalla prossima in poi.
-                        ["args"] = string.IsNullOrWhiteSpace(mcpGroupsArgument)
-                            ? new JsonArray()
-                            : new JsonArray("--groups", mcpGroupsArgument),
-                    },
-                },
-            };
+                    ["type"] = "stdio",
+                    ["command"] = mcpExecutable,
+                    // I gruppi di funzionalita' MCP di QUESTO progetto: il file si riscrive a
+                    // ogni sessione di chat, quindi la scelta vale dalla prossima in poi.
+                    ["args"] = string.IsNullOrWhiteSpace(mcpGroupsArgument)
+                        ? new JsonArray()
+                        : new JsonArray("--groups", mcpGroupsArgument),
+                };
+            }
+            if (playwright != null)
+            {
+                var env = new JsonObject();
+                foreach (var (key, value) in playwright.Env) env[key] = value;
+                servers[Features.E2e.E2ePlaywrightServer.Name] = new JsonObject
+                {
+                    ["type"] = "stdio",
+                    ["command"] = playwright.Command,
+                    ["args"] = new JsonArray(playwright.Args.Select(a => (JsonNode)a).ToArray()),
+                    ["env"] = env,
+                };
+            }
+
+            var json = new JsonObject { ["mcpServers"] = servers }.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+            var fileName = playwright == null
+                ? SessionConfigFileName
+                : "claude-code-mcp-e2e-" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(json))).Substring(0, 12).ToLowerInvariant() + ".json";
+            var path = Path.Combine(directory, fileName);
 
             // Atomic: two sessions starting together must not read a half-written file.
             var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            File.WriteAllText(temp, config.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(temp, json);
             File.Move(temp, path, overwrite: true);
             return path;
         }

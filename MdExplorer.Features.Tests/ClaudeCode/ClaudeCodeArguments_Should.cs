@@ -97,6 +97,34 @@ namespace MdExplorer.Features.Tests.ClaudeCode
         }
 
         [TestMethod]
+        public void Vietare_i_file_delle_credenziali_con_regole_fra_virgolette()
+        {
+            // Test e2e (F4b): regole con parentesi e asterischi, che cmd.exe (claude.cmd su Windows) leggerebbe.
+            var args = ClaudeCodeSession.BuildArguments("sonnet", new ClaudeCodeSessionOptions
+            {
+                ToolPolicy = ClaudeCodeToolPolicy.NoExecution,
+                DisallowedTools = new[] { "Bash", "Read(//home/u/segreti/**)", "Grep(./test e2e/credenziali-x.txt)" },
+            });
+
+            StringAssert.Contains(args, "--disallowedTools Bash \"Read(//home/u/segreti/**)\" \"Grep(./test e2e/credenziali-x.txt)\"");
+            Assert.AreEqual(1, System.Text.RegularExpressions.Regex.Matches(args, "--disallowedTools").Count, "one flag, Bash once");
+            Assert.AreEqual(1, System.Text.RegularExpressions.Regex.Matches(args, " Bash").Count);
+        }
+
+        [TestMethod]
+        public void Autorizzare_la_scrittura_solo_dentro_il_progetto_quando_serve()
+        {
+            // In dontAsk Edit e Write vengono negati se nessuno li autorizza (visto il 27/09/2026 nei test e2e).
+            var args = ClaudeCodeSession.BuildArguments("sonnet", new ClaudeCodeSessionOptions
+            {
+                McpConfigPath = "/x/mcp.json",
+                AllowedMcpServers = new[] { "mdexplorer", "playwright" },
+                AllowedTools = new[] { "Edit(./**)", "Write(./**)" },
+            });
+            StringAssert.Contains(args, "--allowedTools \"mcp__mdexplorer,mcp__playwright,Edit(./**),Write(./**)\"");
+        }
+
+        [TestMethod]
         public void Legare_il_file_mcp_alla_modalita_stretta()
         {
             var args = ClaudeCodeSession.BuildArguments("sonnet",
