@@ -37,6 +37,7 @@ namespace MdExplorer.Hubs
         private readonly CopilotChatSessionPool _copilotChatPool;
         private readonly ClaudeCodeSessionPool _claudeCodePool;
         private readonly Services.E2e.E2eLaunchService _e2eLaunch;
+        private readonly IHubContext<AiChatHub> _hubContext;
         private readonly OpenCodeSessionPool _openCodePool;
         /// <summary>Serve per una cosa sola: sapere quali gruppi di funzionalità MCP accendere per il progetto.</summary>
         private readonly Abstractions.DB.IUserSettingsDB _userSettingsDB;
@@ -92,9 +93,11 @@ namespace MdExplorer.Hubs
             ClaudeCodeSessionPool claudeCodePool,
             OpenCodeSessionPool openCodePool,
             Abstractions.DB.IUserSettingsDB userSettingsDB,
-            Services.E2e.E2eLaunchService e2eLaunch)
+            Services.E2e.E2eLaunchService e2eLaunch,
+            IHubContext<AiChatHub> hubContext)
         {
             _e2eLaunch = e2eLaunch;
+            _hubContext = hubContext;
             _aiChatService = aiChatService;
             _downloadService = downloadService;
             _geminiService = geminiService;
@@ -761,55 +764,77 @@ namespace MdExplorer.Hubs
         public async Task RunE2eTests(string targetPath, string channelId)
         {
             channelId = string.IsNullOrEmpty(channelId) ? "e2e" : channelId;
-            using var cts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
-            _claudeCodePool?.RegisterActivePrompt(Context.ConnectionId, cts);
-            _copilotChatPool?.RegisterActivePrompt(Context.ConnectionId, cts);
-            try
-            {
-                var projectPath = GetProjectPath(out var whyNoProject);
-                if (string.IsNullOrEmpty(projectPath))
-                {
-                    await Clients.Caller.SendAsync("ReceiveE2eEvent", new { type = "refused", errors = new[] { $"Non so in quale progetto lavorare: {whyNoProject}. Riapri il progetto." } }, channelId);
-                    return;
-                }
-                var chatMode = GetChatMode();
-                if (!chatMode.ProviderType.HasValue)
-                {
-                    await Clients.Caller.SendAsync("ReceiveE2eEvent", new { type = "refused", errors = new[] { "Scegli prima il motore di MarkAgent (Claude Code, Copilot o opencode) nel tab MarkAgent." } }, channelId);
-                    return;
-                }
+            var connectionId = Context.ConnectionId;
+            var client = _hubContext.Clients.Client(connectionId);
 
-                var caller = Clients.Caller;
-                await _e2eLaunch.RunAsync(new Services.E2e.E2eLaunchRequest
+            var projectPath = GetProjectPath(out var whyNoProject);
+            if (string.IsNullOrEmpty(projectPath))
+            {
+                await client.SendAsync("ReceiveE2eEvent", new { type = "refused", errors = new[] { $"Non so in quale progetto lavorare: {whyNoProject}. Riapri il progetto." } }, channelId);
+                await client.SendAsync("StreamComplete", channelId);
+                return;
+            }
+            var chatMode = GetChatMode();
+            if (!chatMode.ProviderType.HasValue)
+            {
+                await client.SendAsync("ReceiveE2eEvent", new { type = "refused", errors = new[] { "Scegli prima il motore di MarkAgent (Claude Code, Copilot o opencode) nel tab MarkAgent." } }, channelId);
+                await client.SendAsync("StreamComplete", channelId);
+                return;
+            }
+
+            var request = new Services.E2e.E2eLaunchRequest
+            {
+                ConnectionId = connectionId,
+                ProjectPath = projectPath,
+                Target = targetPath,
+                Engine = chatMode.ProviderType.Value,
+                // Claude needs a model ("sonnet" as in the chat); for Copilot no model means "the CLI chooses".
+                ModelId = string.IsNullOrEmpty(chatMode.ModelId) && chatMode.ProviderType == Abstractions.Models.AI.ProviderType.ClaudeCode
+                    ? "sonnet" : chatMode.ModelId,
+                McpGroupsArgument = MdExplorer.Service.ProjectsManager.McpGroupsArgument(_userSettingsDB, projectPath),
+                ConnectionAborted = Context.ConnectionAborted,
+            };
+
+            // The launch runs in the background and this call returns at once: SignalR runs one invocation per
+            // connection at a time, so a launch held here kept Stop (CancelPrompt) and the chat waiting until it
+            // ended — measured on 27/09/2026: Stop sent after 15 s, answered only when the launch finished at 53 s.
+            var cts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
+            _claudeCodePool?.RegisterActivePrompt(connectionId, cts);
+            _copilotChatPool?.RegisterActivePrompt(connectionId, cts);
+            _openCodePool?.RegisterActivePrompt(connectionId, cts);
+            var logger = _logger;
+            var launch = _e2eLaunch;
+            var (claude, copilot, opencode) = (_claudeCodePool, _copilotChatPool, _openCodePool);
+
+            _ = Task.Run(async () =>
+            {
+                try
                 {
-                    ConnectionId = Context.ConnectionId,
-                    ProjectPath = projectPath,
-                    Target = targetPath,
-                    Engine = chatMode.ProviderType.Value,
-                    // Claude needs a model ("sonnet" as in the chat); for Copilot no model means "the CLI chooses".
-                    ModelId = string.IsNullOrEmpty(chatMode.ModelId) && chatMode.ProviderType == Abstractions.Models.AI.ProviderType.ClaudeCode
-                        ? "sonnet" : chatMode.ModelId,
-                    McpGroupsArgument = MdExplorer.Service.ProjectsManager.McpGroupsArgument(_userSettingsDB, projectPath),
-                }, new Services.E2e.E2eLaunchSink
+                    await launch.RunAsync(request, new Services.E2e.E2eLaunchSink
+                    {
+                        Event = e => client.SendAsync("ReceiveE2eEvent", e, channelId),
+                        Chunk = t => client.SendAsync("ReceiveStreamChunk", t, channelId),
+                        Tool = t => client.SendAsync("ReceiveToolActivity", t, channelId),
+                    }, cts.Token);
+                }
+                catch (OperationCanceledException) when (cts.IsCancellationRequested)
                 {
-                    Event = e => caller.SendAsync("ReceiveE2eEvent", e, channelId),
-                    Chunk = t => caller.SendAsync("ReceiveStreamChunk", t, channelId),
-                    Tool = t => caller.SendAsync("ReceiveToolActivity", t, channelId),
-                }, cts.Token);
-            }
-            catch (OperationCanceledException) when (cts.IsCancellationRequested)
-            {
-                await Clients.Caller.SendAsync("ReceiveE2eEvent", new { type = "cancelled" }, channelId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[RunE2eTests] {Target}", targetPath);
-                await Clients.Caller.SendAsync("ReceiveError", ex.Message, channelId);
-            }
-            finally
-            {
-                await Clients.Caller.SendAsync("StreamComplete", channelId);
-            }
+                    await client.SendAsync("ReceiveE2eEvent", new { type = "cancelled" }, channelId);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "[RunE2eTests] {Target}", targetPath);
+                    await client.SendAsync("ReceiveError", ex.Message, channelId);
+                }
+                finally
+                {
+                    claude?.UnregisterActivePrompt(connectionId, cts);
+                    copilot?.UnregisterActivePrompt(connectionId, cts);
+                    opencode?.UnregisterActivePrompt(connectionId, cts);
+                    cts.Dispose();
+                    try { await client.SendAsync("StreamComplete", channelId); } catch { /* connection gone */ }
+                }
+            });
         }
 
         private ChatModeInfo GetChatMode()

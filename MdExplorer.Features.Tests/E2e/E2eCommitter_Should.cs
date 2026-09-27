@@ -17,7 +17,7 @@ namespace MdExplorer.Features.Tests.E2e
         public void Setup()
         {
             _root = Path.Combine(Path.GetTempPath(), "e2e-commit-" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(Path.Combine(_root, "test-e2e", "login.e2e", "esecuzioni", "2026-09-27_10-30"));
+            Directory.CreateDirectory(Path.Combine(_root, "test-e2e"));
             Repository.Init(_root);
             using (var repo = new Repository(_root))
             {
@@ -31,9 +31,6 @@ namespace MdExplorer.Features.Tests.E2e
                 "## T1 — Uno\n1. Scrivi {{x.password}} nel campo \"Password\"\n2. ✔ Compare il testo \"ok\"\n\n## Artefatti\n\n## Esiti\n");
             File.WriteAllText(Path.Combine(_root, "test-e2e", "credenziali-x.txt"), "x.password=segreta\n");
             File.WriteAllText(Path.Combine(_root, "test-e2e", "mappa.md"), "# mappa\n");
-            var run = Path.Combine(_root, "test-e2e", "login.e2e", "esecuzioni", "2026-09-27_10-30");
-            File.WriteAllText(Path.Combine(run, "report.md"), "# Esecuzione\n\n## T1 — Uno — ✅ superato\n\n## T2 — Due — ❌ l'applicazione sbaglia\n");
-            File.WriteAllBytes(Path.Combine(run, "T1-02-ok.png"), new byte[] { 1, 2, 3 });
             File.WriteAllText(Path.Combine(_root, "appunti-utente.md"), "non c'entra\n");
         }
 
@@ -44,8 +41,18 @@ namespace MdExplorer.Features.Tests.E2e
             Directory.Delete(_root, true);
         }
 
-        private E2eRunItem Item() =>
-            E2eRunPlanner.Plan(_test, _root, new DateTime(2026, 9, 27, 10, 30, 0)).Items.Single();
+        private E2eRunItem _item;
+
+        /// <summary>The item of a launch at 10:30, with what the run wrote in its folder (created once).</summary>
+        private E2eRunItem Item()
+        {
+            if (_item != null) return _item;
+            _item = E2eRunPlanner.Plan(_test, _root, new DateTime(2026, 9, 27, 10, 30, 0)).Items.Single();
+            Directory.CreateDirectory(_item.RunFolder);
+            File.WriteAllText(Path.Combine(_item.RunFolder, "report.md"), "# Esecuzione\n\n## T1 — Uno — ✅ superato\n\n## T2 — Due — ❌ l'applicazione sbaglia\n");
+            File.WriteAllBytes(Path.Combine(_item.RunFolder, "T1-02-ok.png"), new byte[] { 1, 2, 3 });
+            return _item;
+        }
 
         [TestMethod]
         public void Commit_only_what_the_run_produced_with_the_outcomes_in_the_message()

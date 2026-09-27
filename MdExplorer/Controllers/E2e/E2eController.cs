@@ -1,3 +1,4 @@
+using Ad.Tools.Dal.Extensions;
 using MdExplorer.Features.E2e;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -25,14 +26,16 @@ namespace MdExplorer.Controllers.E2e
         private readonly E2eEnvironment _environment;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly Features.Services.ITocGenerationService _toc;
+        private readonly Abstractions.DB.IUserSettingsDB _userSettingsDB;
         private readonly ILogger<E2eController> _logger;
 
         public E2eController(E2eEnvironment environment, IHttpClientFactory httpClientFactory,
-            Features.Services.ITocGenerationService toc, ILogger<E2eController> logger)
+            Features.Services.ITocGenerationService toc, Abstractions.DB.IUserSettingsDB userSettingsDB, ILogger<E2eController> logger)
         {
             _environment = environment;
             _httpClientFactory = httpClientFactory;
             _toc = toc;
+            _userSettingsDB = userSettingsDB;
             _logger = logger;
         }
 
@@ -122,7 +125,7 @@ namespace MdExplorer.Controllers.E2e
                     dedicatedSession = Setting(i.Settings.DedicatedSession, root),
                     commitAfterRun = Setting(i.Settings.CommitAfterRun, root),
                     headless = Setting(i.Settings.Headless, root),
-                    scripts = E2ePostRun.Scripts(i).Select(s => new { test = s.TestNumber, file = Path.GetFileName(s.Path), state = s.State, stale = s.Stale }),
+                    scripts = E2ePostRun.Scripts(i, Services.E2e.E2eLaunchService.CurrentGenerator()).Select(s => new { test = s.TestNumber, file = Path.GetFileName(s.Path), state = s.State, stale = s.Stale }),
                 }),
             });
         }
@@ -141,13 +144,21 @@ namespace MdExplorer.Controllers.E2e
             var prerequisites = await _environment.CheckAsync(ct);
             if (!prerequisites.Browser.Ok) return UnprocessableEntity(new { error = prerequisites.Browser.Detail + " " + prerequisites.Browser.Remedy });
 
+            // Each file on its own: a problem of another test (say, mixed headless settings in the MarkAgent tab,
+            // which the replay never uses) must not stop this one.
             var plan = E2eRunPlanner.Plan(full, root, DateTime.Now);
-            if (!plan.CanRun) return UnprocessableEntity(new { error = string.Join("\n", plan.Errors) });
+            if (plan.Items.Count == 0) return UnprocessableEntity(new { error = string.Join("\n", plan.Errors) });
+            var generator = Services.E2e.E2eLaunchService.CurrentGenerator();
 
             var results = new System.Collections.Generic.List<E2eReplayFileResult>();
             foreach (var item in plan.Items)
             {
-                var result = await E2eReplay.RunAsync(item, prerequisites.BrowserArgument, dotnet, DateTime.Now, ct);
+                if (!item.Preflight.CanRun)
+                {
+                    results.Add(new E2eReplayFileResult { File = item.RelativeTestFile, Problem = string.Join(" ", item.Preflight.Errors) });
+                    continue;
+                }
+                var result = await E2eReplay.RunAsync(item, prerequisites.BrowserArgument, dotnet, DateTime.Now, plan.Secrets, generator, ct);
                 if (item.Settings.CommitAfterRun.Value && result.Problem == null && result.Outcomes.Count > 0)
                 {
                     var ok = result.Outcomes.Count(o => o.Passed);
@@ -158,7 +169,7 @@ namespace MdExplorer.Controllers.E2e
                     result = new E2eReplayFileResult
                     {
                         File = result.File, RunFolder = result.RunFolder, Outcomes = result.Outcomes, Stale = result.Stale,
-                        Commit = E2eCommitter.Commit(item, message),
+                        Commit = SafeCommit(item, message),
                     };
                 }
                 _logger.LogInformation("[E2e] rigioco {File}: {Ok}/{Total} superati{Problem}", item.RelativeTestFile,
@@ -175,6 +186,19 @@ namespace MdExplorer.Controllers.E2e
                 problem = r.Problem,
                 commit = r.Commit == null ? null : new { committed = r.Commit.Committed, sha = r.Commit.Sha, message = r.Commit.Message, reason = r.Commit.Reason },
             }));
+        }
+
+        private E2eCommitResult SafeCommit(E2eRunItem item, string message)
+        {
+            try
+            {
+                return E2eCommitter.Commit(item, message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[E2e] commit dopo il rigioco di {File}", item.RelativeTestFile);
+                return new E2eCommitResult(false, null, null, "il commit non è riuscito: " + ex.Message);
+            }
         }
 
         private static object Describe(string full, string root)
@@ -206,12 +230,25 @@ namespace MdExplorer.Controllers.E2e
 
         private static string Relative(string root, string path) => Path.GetRelativePath(root, path).Replace('\\', '/');
 
-        private static bool TryResolve(string path, string projectPath, out string full, out string root, out string problem)
+        private bool TryResolve(string path, string projectPath, out string full, out string root, out string problem)
         {
             full = root = problem = null;
             if (string.IsNullOrWhiteSpace(projectPath) || !Directory.Exists(projectPath))
             {
                 problem = "Il progetto non è indicato o non esiste.";
+                return false;
+            }
+            // The root comes from the client: it must be a project MdExplorer knows, or these endpoints (which
+            // write front matter and run dotnet test) would work on any folder a local process names.
+            var comparisonKnown = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            var asked = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectPath));
+            // Materialized first: NHibernate LINQ cannot translate string.IsNullOrWhiteSpace (seen as a 500).
+            var known = _userSettingsDB.GetDal<Abstractions.Entities.UserDB.Project>().GetList().ToList()
+                .Select(p => p.Path).Where(p => !string.IsNullOrWhiteSpace(p))
+                .Any(p => string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(p)), asked, comparisonKnown));
+            if (!known)
+            {
+                problem = "Il percorso indicato non è un progetto di MdExplorer.";
                 return false;
             }
             root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectPath));
@@ -221,8 +258,7 @@ namespace MdExplorer.Controllers.E2e
                 return false;
             }
             full = Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Combine(root, path));
-            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-            if (!(string.Equals(full, root, comparison) || full.StartsWith(root + Path.DirectorySeparatorChar, comparison)))
+            if (!E2eRunPlanner.IsInside(full, root))
             {
                 problem = "Il percorso è fuori dal progetto.";
                 return false;

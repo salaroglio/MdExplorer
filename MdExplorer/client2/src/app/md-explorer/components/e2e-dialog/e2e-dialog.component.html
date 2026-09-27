@@ -132,7 +132,7 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
+  <button mat-button [disabled]="running || replaying" (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
   <button *ngIf="running" mat-stroked-button color="warn" (click)="stop()">
     <mat-icon>stop</mat-icon> {{ 'E2E.STOP' | translate }}
   </button>

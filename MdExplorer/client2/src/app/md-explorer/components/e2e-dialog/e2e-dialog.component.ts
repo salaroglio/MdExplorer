@@ -166,9 +166,11 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
         this.e2e.getPlan(this.data.path, this.data.projectPath).subscribe(plan => this.plan = plan);
       },
       error: err => {
-        this.error = err?.error?.error || err?.message || String(err);
+        const message = err?.error?.error || err?.message || String(err);
         this.saving = false;
+        // Read the real state again, then say why the choice was not saved (refresh() clears the error).
         this.refresh();
+        setTimeout(() => this.error = message);
       }
     });
   }
@@ -271,7 +273,7 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
           this.addLog('step', this.translate.instant('E2E.FINGERPRINTED', { count: event.fingerprinted }));
         }
         for (const leak of event.leaks || []) {
-          this.runErrors = [...this.runErrors, this.translate.instant('E2E.LEAK', { key: leak.key, file: leak.file })];
+          this.runErrors = [...this.runErrors, this.translate.instant(leak.replaced ? 'E2E.LEAK' : 'E2E.LEAK_REPORTED', { key: leak.key, file: leak.file })];
         }
         this.runErrors = [...this.runErrors, ...(event.problems || [])];
         break;

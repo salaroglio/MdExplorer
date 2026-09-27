@@ -440,3 +440,7 @@ dotnet test E2eTests.csproj --settings e2e.runsettings
 - Non scrivere mai il valore di una credenziale fuori dal file delle credenziali.
 - Non usare comandi di shell per eseguire i test: il browser si guida solo con gli strumenti playwright.
 - Non cancellare esecuzioni, righe di esito o script vecchi: si accumulano.
+- Non toccare le righe di `## Esiti` marcate «(script)» né le cartelle `esecuzioni/<data>_script`: le scrive
+  MdExplorer quando rigioca gli script senza di te.
+- Non modificare la configurazione degli agenti (`.claude/`, `.github/`, `.opencode/`, `.vscode/`, `.md/`,
+  `opencode.json`, `.mcp.json`, `CLAUDE.md`, `AGENTS.md`): durante i test la scrittura lì è vietata.

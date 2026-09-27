@@ -451,18 +451,30 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             return SessionId;
         }
 
-        private async Task RejectPermissionAsync(string permissionId, string what)
+        private async Task RejectPermissionAsync(string sessionId, string permissionId, string what)
         {
-            try
+            var url = $"/session/{sessionId}/permissions/{permissionId}?directory={Uri.EscapeDataString(WorkingDirectory)}";
+            for (var attempt = 1; attempt <= 3; attempt++)
             {
-                var url = $"/session/{SessionId}/permissions/{permissionId}?directory={Uri.EscapeDataString(WorkingDirectory)}";
-                using var res = await _client.PostAsJsonAsync(url, new { response = "reject" }).ConfigureAwait(false);
-                _logger.LogInformation("[opencode] permesso {What} negato ({Status})", what, (int)res.StatusCode);
+                try
+                {
+                    using var res = await _client.PostAsJsonAsync(url, new { response = "reject" }).ConfigureAwait(false);
+                    if (res.IsSuccessStatusCode)
+                    {
+                        _logger.LogInformation("[opencode] permesso {What} negato", what);
+                        return;
+                    }
+                    _logger.LogWarning("[opencode] negare il permesso {What}: risposta {Status}", what, (int)res.StatusCode);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[opencode] negare il permesso {What}: tentativo {Attempt} fallito", what, attempt);
+                }
+                await Task.Delay(300 * attempt).ConfigureAwait(false);
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[opencode] non sono riuscito a negare il permesso {What}", what);
-            }
+            // A permission left pending would hang the turn for ever: stop it instead.
+            _logger.LogError("[opencode] permesso {What} non negato dopo 3 tentativi: interrompo il turno", what);
+            try { await AbortAsync().ConfigureAwait(false); } catch (Exception ex) { _logger.LogWarning(ex, "[opencode] interruzione fallita"); }
         }
 
         private void HandleEvent(string json)
@@ -472,6 +484,19 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             if (!root.TryGetProperty("type", out var typeEl)) return;
             if (!root.TryGetProperty("properties", out var props)) return;
 
+            // On the dedicated server of a test launch every permission is refused, whatever session asks:
+            // a sub-agent (task tool) asks from a child session, and an ask nobody answers hangs the turn.
+            if (_rejectPermissions && typeEl.GetString() == "permission.asked")
+            {
+                var permissionId = props.TryGetProperty("id", out var perId) ? perId.GetString() : null;
+                var askingSession = props.TryGetProperty("sessionID", out var askSid) ? askSid.GetString() : SessionId;
+                var what = props.TryGetProperty("permission", out var perKind) ? perKind.GetString() : "?";
+                if (permissionId == null) return;
+                _ = RejectPermissionAsync(askingSession, permissionId, what);
+                _turn?.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindTool, $"{what} · negato durante i test"));
+                return;
+            }
+
             // Il server parla di TUTTE le sessioni che ospita, comprese quelle di altri
             // progetti: quello che non è nostro non ci riguarda.
             if (props.TryGetProperty("sessionID", out var sid) && sid.GetString() != SessionId) return;
@@ -479,14 +504,6 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             var turn = _turn;
             switch (typeEl.GetString())
             {
-                case "permission.asked":
-                    if (!_rejectPermissions) return;
-                    var permissionId = props.TryGetProperty("id", out var perId) ? perId.GetString() : null;
-                    var what = props.TryGetProperty("permission", out var perKind) ? perKind.GetString() : "?";
-                    if (permissionId == null) return;
-                    _ = RejectPermissionAsync(permissionId, what);
-                    turn?.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindTool, $"{what} · negato durante i test"));
-                    return;
 
                 case "message.part.delta":
                     if (turn == null) return;

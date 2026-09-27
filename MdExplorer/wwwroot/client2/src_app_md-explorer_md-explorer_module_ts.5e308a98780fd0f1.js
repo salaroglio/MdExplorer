@@ -17104,9 +17104,11 @@ class E2eDialogComponent {
         this.e2e.getPlan(this.data.path, this.data.projectPath).subscribe(plan => this.plan = plan);
       },
       error: err => {
-        this.error = err?.error?.error || err?.message || String(err);
+        const message = err?.error?.error || err?.message || String(err);
         this.saving = false;
+        // Read the real state again, then say why the choice was not saved (refresh() clears the error).
         this.refresh();
+        setTimeout(() => this.error = message);
       }
     });
   }
@@ -17207,7 +17209,7 @@ class E2eDialogComponent {
           }));
         }
         for (const leak of event.leaks || []) {
-          this.runErrors = [...this.runErrors, this.translate.instant('E2E.LEAK', {
+          this.runErrors = [...this.runErrors, this.translate.instant(leak.replaced ? 'E2E.LEAK' : 'E2E.LEAK_REPORTED', {
             key: leak.key,
             file: leak.file
           })];
@@ -17283,8 +17285,8 @@ class E2eDialogComponent {
       type: E2eDialogComponent,
       selectors: [["app-e2e-dialog"]],
       decls: 24,
-      vars: 19,
-      consts: [["mat-dialog-title", ""], [1, "title-icon"], [1, "e2e-content"], ["class", "e2e-loading", 4, "ngIf"], ["class", "e2e-message e2e-error", 4, "ngIf"], [4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "click"], ["mat-stroked-button", "", "color", "warn", 3, "click", 4, "ngIf"], ["mat-stroked-button", "", "color", "primary", 3, "disabled", "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], [1, "e2e-loading"], ["diameter", "24", "strokeWidth", "3"], [1, "e2e-message", "e2e-error"], [1, "e2e-section"], [1, "e2e-note"], ["class", "e2e-setting", 4, "ngFor", "ngForOf"], ["class", "e2e-section", 4, "ngIf"], [1, "e2e-setting"], [1, "e2e-label"], [1, "e2e-setting-line"], [3, "id", "value", "disabled", "change"], ["value", "inherit"], ["value", "yes"], ["value", "no"], ["class", "e2e-effective", 4, "ngIf"], [1, "e2e-hint"], [1, "e2e-effective"], ["class", "e2e-message e2e-error", 4, "ngFor", "ngForOf"], ["class", "e2e-message e2e-warning", 4, "ngFor", "ngForOf"], ["class", "e2e-item", 4, "ngFor", "ngForOf"], ["class", "e2e-message e2e-success", 4, "ngIf"], [1, "e2e-message", "e2e-warning"], [1, "e2e-item"], [1, "e2e-ok"], [1, "e2e-message", "e2e-success"], [4, "ngFor", "ngForOf"], ["class", "e2e-hint", 4, "ngIf"], ["diameter", "20", "strokeWidth", "2"], ["class", "e2e-message", 3, "e2e-success", "e2e-error", 4, "ngFor", "ngForOf"], ["class", "e2e-message e2e-warning", 4, "ngIf"], [1, "e2e-message"], ["class", "e2e-requirement", 4, "ngFor", "ngForOf"], [1, "e2e-requirement"], [1, "e2e-requirement-text"], ["mat-stroked-button", "", "color", "primary", 3, "disabled", "click", 4, "ngIf"], ["diameter", "16", "strokeWidth", "2", "class", "inline-spinner", 4, "ngIf"], ["diameter", "16", "strokeWidth", "2", 1, "inline-spinner"], ["class", "e2e-progress", 4, "ngIf"], [1, "e2e-log"], [3, "e2e-log-step", 4, "ngFor", "ngForOf"], [1, "e2e-progress"], ["mat-stroked-button", "", "color", "warn", 3, "click"]],
+      vars: 20,
+      consts: [["mat-dialog-title", ""], [1, "title-icon"], [1, "e2e-content"], ["class", "e2e-loading", 4, "ngIf"], ["class", "e2e-message e2e-error", 4, "ngIf"], [4, "ngIf"], ["align", "end"], ["mat-button", "", 3, "disabled", "click"], ["mat-stroked-button", "", "color", "warn", 3, "click", 4, "ngIf"], ["mat-stroked-button", "", "color", "primary", 3, "disabled", "click"], ["mat-raised-button", "", "color", "primary", 3, "disabled", "click"], [1, "e2e-loading"], ["diameter", "24", "strokeWidth", "3"], [1, "e2e-message", "e2e-error"], [1, "e2e-section"], [1, "e2e-note"], ["class", "e2e-setting", 4, "ngFor", "ngForOf"], ["class", "e2e-section", 4, "ngIf"], [1, "e2e-setting"], [1, "e2e-label"], [1, "e2e-setting-line"], [3, "id", "value", "disabled", "change"], ["value", "inherit"], ["value", "yes"], ["value", "no"], ["class", "e2e-effective", 4, "ngIf"], [1, "e2e-hint"], [1, "e2e-effective"], ["class", "e2e-message e2e-error", 4, "ngFor", "ngForOf"], ["class", "e2e-message e2e-warning", 4, "ngFor", "ngForOf"], ["class", "e2e-item", 4, "ngFor", "ngForOf"], ["class", "e2e-message e2e-success", 4, "ngIf"], [1, "e2e-message", "e2e-warning"], [1, "e2e-item"], [1, "e2e-ok"], [1, "e2e-message", "e2e-success"], [4, "ngFor", "ngForOf"], ["class", "e2e-hint", 4, "ngIf"], ["diameter", "20", "strokeWidth", "2"], ["class", "e2e-message", 3, "e2e-success", "e2e-error", 4, "ngFor", "ngForOf"], ["class", "e2e-message e2e-warning", 4, "ngIf"], [1, "e2e-message"], ["class", "e2e-requirement", 4, "ngFor", "ngForOf"], [1, "e2e-requirement"], [1, "e2e-requirement-text"], ["mat-stroked-button", "", "color", "primary", 3, "disabled", "click", 4, "ngIf"], ["diameter", "16", "strokeWidth", "2", "class", "inline-spinner", 4, "ngIf"], ["diameter", "16", "strokeWidth", "2", 1, "inline-spinner"], ["class", "e2e-progress", 4, "ngIf"], [1, "e2e-log"], [3, "e2e-log-step", 4, "ngFor", "ngForOf"], [1, "e2e-progress"], ["mat-stroked-button", "", "color", "warn", 3, "click"]],
       template: function E2eDialogComponent_Template(rf, ctx) {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "h2", 0)(1, "mat-icon", 1);
@@ -17329,25 +17331,27 @@ class E2eDialogComponent {
         }
         if (rf & 2) {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate2"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](4, 11, "E2E.TITLE"), " \u2014 ", ctx.data.name, "\n");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate2"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](4, 12, "E2E.TITLE"), " \u2014 ", ctx.data.name, "\n");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.loading);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.error);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", !ctx.loading && ctx.settings);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](12, 13, "COMMON.CLOSE"));
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", ctx.running || ctx.replaying);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](12, 14, "COMMON.CLOSE"));
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngIf", ctx.running);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](1);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", !ctx.canReplay);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](18, 15, "E2E.REPLAY"), " ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](18, 16, "E2E.REPLAY"), " ");
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](2);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", !ctx.canRun);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](23, 17, ctx.finished ? "E2E.RUN_AGAIN" : "E2E.RUN_TESTS"), " ");
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtextInterpolate1"](" ", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](23, 18, ctx.finished ? "E2E.RUN_AGAIN" : "E2E.RUN_TESTS"), " ");
         }
       },
       dependencies: [_angular_common__WEBPACK_IMPORTED_MODULE_6__.NgForOf, _angular_common__WEBPACK_IMPORTED_MODULE_6__.NgIf, _angular_material_legacy_button__WEBPACK_IMPORTED_MODULE_7__.MatLegacyButton, _angular_material_button_toggle__WEBPACK_IMPORTED_MODULE_8__.MatButtonToggleGroup, _angular_material_button_toggle__WEBPACK_IMPORTED_MODULE_8__.MatButtonToggle, _angular_material_icon__WEBPACK_IMPORTED_MODULE_9__.MatIcon, _angular_material_legacy_progress_spinner__WEBPACK_IMPORTED_MODULE_10__.MatLegacyProgressSpinner, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogTitle, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogContent, _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_4__.MatLegacyDialogActions, _ngx_translate_core__WEBPACK_IMPORTED_MODULE_5__.TranslatePipe],
@@ -39227,4 +39231,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.10f6d5e81fde01b4.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.5e308a98780fd0f1.js.map

@@ -23,6 +23,16 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         /// <summary>Absolute paths the agent must not read.</summary>
         public IReadOnlyList<string> DeniedReadPaths { get; init; } = Array.Empty<string>();
 
+        /// <summary>File-name patterns (<c>*</c> wildcard) the agent must not read anywhere: every credentials file of the project.</summary>
+        public IReadOnlyList<string> DeniedReadNames { get; init; } = Array.Empty<string>();
+
+        /// <summary>
+        /// Paths relative to the project the agent must not write: folders (ending with <c>/</c>) and files. The
+        /// agents' own configuration (hooks, settings, instructions) would run or be read with the shell in the
+        /// next session.
+        /// </summary>
+        public IReadOnlyList<string> DeniedWritePaths { get; init; } = Array.Empty<string>();
+
         public bool DenyShell { get; init; } = true;
     }
 }

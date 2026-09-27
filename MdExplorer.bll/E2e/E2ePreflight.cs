@@ -28,6 +28,8 @@ namespace MdExplorer.Features.E2e
     /// </summary>
     public static class E2ePreflight
     {
+        private static readonly System.Text.RegularExpressions.Regex ValidKey = new(@"^[A-Za-z0-9_.-]+$");
+
         public static E2ePreflightResult Check(string testFilePath)
         {
             var errors = new List<string>();
@@ -61,6 +63,10 @@ namespace MdExplorer.Features.E2e
                 if (File.Exists(credentialsPath))
                 {
                     var known = ReadCredentialKeys(credentialsPath);
+                    // The Playwright server's dotenv drops, in silence, any key outside [\w.-] (ASCII): it would
+                    // then type the key's name (@playwright/mcp 0.0.82, utilsBundle.js). Checked here instead.
+                    foreach (var key in keys.Concat(known).Distinct().Where(k => !ValidKey.IsMatch(k)))
+                        errors.Add($"{fileName}: la chiave '{key}' ha caratteri che il server Playwright non accetta: usa solo lettere, cifre, '_', '.' e '-' (senza accenti).");
                     foreach (var key in keys.Where(k => !known.Contains(k)))
                         errors.Add($"{fileName}: la chiave '{key}' non c'è in '{document.Credentials}'. Aggiungi la riga '{key}=<valore>' oppure correggi il nome nel test.");
                     CheckNotInGit(credentialsPath, document.Credentials, fileName, errors);
@@ -78,7 +84,7 @@ namespace MdExplorer.Features.E2e
         public static HashSet<string> ReadCredentialKeys(string path) =>
             File.ReadAllLines(path)
                 .Select(l => l.Trim())
-                .Where(l => l.Length > 0 && !l.StartsWith("#") && l.IndexOf('=') > 0)
+                .Where(l => l.Length > 0 && !l.StartsWith("#", StringComparison.Ordinal) && l.IndexOf('=') > 0)
                 .Select(l => l.Substring(0, l.IndexOf('=')).Trim())
                 .ToHashSet(StringComparer.Ordinal);
 

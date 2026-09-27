@@ -156,7 +156,7 @@ namespace MdExplorer.Features.E2e
                 end += newRun.Count;
             }
 
-            var hasChildren = file.Items.Skip(start + 1).Take(end - start - 1).Any(l => !IsBlank(l) && !l.TrimStart().StartsWith("#"));
+            var hasChildren = file.Items.Skip(start + 1).Take(end - start - 1).Any(l => !IsBlank(l) && !l.TrimStart().StartsWith("#", StringComparison.Ordinal));
             if (!hasChildren) file.Remove(start, end - start);
 
             return Verified(file.Render(), run, fileName);
@@ -169,7 +169,17 @@ namespace MdExplorer.Features.E2e
         /// </summary>
         public static string CarryOverBlock(string oldFile, string newFile)
         {
-            var block = oldFile == null ? null : ReadBlock(oldFile);
+            string block;
+            try
+            {
+                block = oldFile == null ? null : ReadBlock(oldFile);
+            }
+            catch (E2eFormatException)
+            {
+                // A flow-style 'e2e: { … }' cannot be edited, but it must not stop the regeneration of the
+                // folder's summary nor vanish: carried over as it is, the tests' checks will report it.
+                block = oldFile.Replace("\r\n", "\n").Split('\n').FirstOrDefault(l => l.StartsWith("e2e:", StringComparison.Ordinal));
+            }
             if (block == null) return newFile;
 
             var target = Lines.Of(newFile);
@@ -220,19 +230,38 @@ namespace MdExplorer.Features.E2e
                     throw new E2eFormatException("Scrivi 'e2e:' in forma a blocchi (una chiave per riga, rientrate), non 'e2e: { … }'.");
                 if (!BlockStart.IsMatch(line)) continue;
 
+                // The block goes on while lines are indented. A comment at column 0 does not end it when
+                // indented lines follow (legal YAML): seen cutting 'credentials' off in the review of 27/09/2026.
                 var end = i + 1;
-                while (end < file.Close && (IsBlank(file.Items[end]) || char.IsWhiteSpace(file.Items[end][0]))) end++;
-                while (end > i + 1 && IsBlank(file.Items[end - 1])) end--;
+                while (end < file.Close)
+                {
+                    var current = file.Items[end];
+                    if (IsBlank(current) || char.IsWhiteSpace(current[0])) { end++; continue; }
+                    if (current.StartsWith("#", StringComparison.Ordinal) && IndentedLineFollows(file, end + 1)) { end++; continue; }
+                    break;
+                }
+                while (end > i + 1 && (IsBlank(file.Items[end - 1]) || file.Items[end - 1].StartsWith("#", StringComparison.Ordinal))) end--;
                 return (i, end);
             }
             return null;
+        }
+
+        private static bool IndentedLineFollows(Lines file, int from)
+        {
+            for (var k = from; k < file.Close; k++)
+            {
+                var line = file.Items[k];
+                if (IsBlank(line) || line.StartsWith("#", StringComparison.Ordinal)) continue;
+                return char.IsWhiteSpace(line[0]);
+            }
+            return false;
         }
 
         private static string ChildIndent(IReadOnlyList<string> lines, int from, int to)
         {
             for (var i = from; i < to; i++)
             {
-                if (IsBlank(lines[i]) || lines[i].TrimStart().StartsWith("#")) continue;
+                if (IsBlank(lines[i]) || lines[i].TrimStart().StartsWith("#", StringComparison.Ordinal)) continue;
                 return new string(' ', Indentation(lines[i]));
             }
             return null;

@@ -1883,6 +1883,7 @@
     "STALE": "scaduto (il test è cambiato)",
     "REPLAYING": "Rigioco gli script con dotnet test, senza LLM…",
     "STALE_SKIPPED": "Non rigiocati perché scaduti: {{scripts}}. Esegui di nuovo il test con MarkAgent per rigenerarli.",
-    "REPLAY": "Rigioca gli script"
+    "REPLAY": "Rigioca gli script",
+    "LEAK_REPORTED": "Il valore della credenziale «{{key}}» compare in {{file}}: controlla e sostituiscilo con il nome della chiave (MdExplorer non riscrive i file fuori dalla cartella dell'esecuzione)."
   }
 }

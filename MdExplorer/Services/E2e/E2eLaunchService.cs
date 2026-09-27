@@ -40,6 +40,9 @@ namespace MdExplorer.Services.E2e
         public ProviderType Engine { get; init; }
         public string ModelId { get; init; }
         public string McpGroupsArgument { get; init; }
+
+        /// <summary>The hub connection went away: nothing to restore for it.</summary>
+        public CancellationToken ConnectionAborted { get; init; }
     }
 
     /// <summary>
@@ -114,113 +117,151 @@ namespace MdExplorer.Services.E2e
             var diagnostics = Path.Combine(dataFolder, "diagnostica", Hash(request.ProjectPath));
             Directory.CreateDirectory(diagnostics);
 
+            // One secrets file per launch, with a random name, deleted at the end: the values never stay on
+            // disk outside the credentials file (review of 27/09/2026).
             string secretsFile = null;
             if (plan.Secrets.Count > 0)
             {
-                var content = string.Join("\n", plan.Secrets.OrderBy(k => k.Key, StringComparer.Ordinal).Select(k => k.Key + "=" + k.Value));
-                secretsFile = Path.Combine(dataFolder, "segreti", Hash(content) + ".env");
+                secretsFile = Path.Combine(dataFolder, "segreti", Guid.NewGuid().ToString("N") + ".env");
                 E2eRunPlanner.WriteSecretsFile(secretsFile, plan.Secrets);
             }
 
             var deniedFiles = plan.DeniedPaths.Concat(secretsFile == null ? Array.Empty<string>() : new[] { secretsFile }).ToList();
-            var bans = BannedFor(deniedFiles);
+            var temporaryConfigs = new List<string>();
 
             var index = 0;
             var tabUsed = false;
             try
             {
-            foreach (var item in plan.Items)
-            {
-                ct.ThrowIfCancellationRequested();
-                index++;
-                Directory.CreateDirectory(item.RunFolder);
-
-                var server = E2ePlaywrightServer.For(prerequisites, item.Settings.Headless.Value, secretsFile, diagnostics);
-                var dedicated = item.Settings.DedicatedSession.Value;
-                tabUsed |= !dedicated;
-                var key = dedicated ? request.ConnectionId + "|e2e|" + Guid.NewGuid().ToString("N") : request.ConnectionId;
-                await sink.Event(new { type = "test-start", file = item.RelativeTestFile, index, total = plan.Items.Count, session = dedicated ? "dedicated" : "tab" });
-
-                var answer = new StringBuilder();
-                async Task Forward(string kind, string text)
+                foreach (var item in plan.Items)
                 {
-                    if (kind == "message")
+                    ct.ThrowIfCancellationRequested();
+                    index++;
+                    Directory.CreateDirectory(item.RunFolder);
+                    var runStart = DateTime.UtcNow;
+
+                    var server = E2ePlaywrightServer.For(prerequisites, item.Settings.Headless.Value, secretsFile, diagnostics);
+                    var dedicated = item.Settings.DedicatedSession.Value;
+                    tabUsed |= !dedicated;
+                    var key = dedicated ? request.ConnectionId + "|e2e|" + Guid.NewGuid().ToString("N") : request.ConnectionId;
+                    await sink.Event(new { type = "test-start", file = item.RelativeTestFile, index, total = plan.Items.Count, session = dedicated ? "dedicated" : "tab" });
+
+                    var answer = new StringBuilder();
+                    async Task Forward(string kind, string text)
                     {
-                        answer.Append(text);
-                        await sink.Chunk(text);
+                        if (kind == "message")
+                        {
+                            answer.Append(text);
+                            await sink.Chunk(text);
+                        }
+                        else if (kind == "tool")
+                        {
+                            await sink.Tool(text);
+                        }
                     }
-                    else if (kind == "tool")
-                    {
-                        await sink.Tool(text);
-                    }
-                }
 
-                if (request.Engine == ProviderType.ClaudeCode)
-                    await RunWithClaudeAsync(request, item, server, bans, key, dedicated, Forward, ct);
-                else if (request.Engine == ProviderType.CopilotCli)
-                    await RunWithCopilotAsync(request, item, server, deniedFiles, key, dedicated, Forward, ct);
-                else
-                    await RunWithOpenCodeAsync(request, item, server, deniedFiles, dedicated, Forward, ct);
-
-                _logger.LogInformation("[E2e] {File}: eseguito ({Index}/{Total})", item.RelativeTestFile, index, plan.Items.Count);
-                await sink.Event(new { type = "test-end", file = item.RelativeTestFile, runFolder = item.RelativeRunFolder, answer = answer.ToString() });
-
-                // F5: fingerprints in the scripts, no credential value left on disk — before the commit.
-                var post = E2ePostRun.Process(item, plan.Secrets);
-                await sink.Event(new
-                {
-                    type = "post-run",
-                    file = item.RelativeTestFile,
-                    fingerprinted = post.Fingerprinted.Count,
-                    leaks = post.Leaks.Select(l => new { file = Path.GetRelativePath(request.ProjectPath, l.File).Replace('\\', '/'), key = l.Key }),
-                    problems = post.Problems,
-                });
-                if (post.Leaks.Count > 0)
-                    _logger.LogWarning("[E2e] {File}: valori di credenziali trovati e sostituiti in {Count} punti", item.RelativeTestFile, post.Leaks.Count);
-
-                if (item.Settings.CommitAfterRun.Value)
-                {
-                    // D21, D26: only what the run produced or touched, screenshots included.
-                    E2eCommitResult commit;
                     try
                     {
-                        commit = E2eCommitter.Commit(item);
+                        if (request.Engine == ProviderType.ClaudeCode)
+                            await RunWithClaudeAsync(request, item, server, deniedFiles, key, dedicated, Forward, temporaryConfigs, ct);
+                        else if (request.Engine == ProviderType.CopilotCli)
+                            await RunWithCopilotAsync(request, item, server, deniedFiles, key, dedicated, Forward, ct);
+                        else
+                            await RunWithOpenCodeAsync(request, item, server, deniedFiles, dedicated, Forward, ct);
                     }
-                    catch (Exception ex)
+                    finally
                     {
-                        _logger.LogError(ex, "[E2e] commit dopo {File}", item.RelativeTestFile);
-                        commit = new E2eCommitResult(false, null, null, "il commit non è riuscito: " + ex.Message);
+                        // F5 also after an error or a Stop: whatever the agent already wrote is checked.
+                        await PostRunAsync(request, item, plan, runStart, sink);
                     }
-                    await sink.Event(new
-                    {
-                        type = "commit",
-                        file = item.RelativeTestFile,
-                        committed = commit.Committed,
-                        sha = commit.Sha,
-                        message = commit.Message,
-                        reason = commit.Reason,
-                    });
-                }
-            }
 
+                    _logger.LogInformation("[E2e] {File}: eseguito ({Index}/{Total})", item.RelativeTestFile, index, plan.Items.Count);
+                    await sink.Event(new { type = "test-end", file = item.RelativeTestFile, runFolder = item.RelativeRunFolder, answer = answer.ToString() });
+
+                    if (item.Settings.CommitAfterRun.Value)
+                    {
+                        // D21, D26: only what the run produced or touched, screenshots included.
+                        E2eCommitResult commit;
+                        try
+                        {
+                            commit = E2eCommitter.Commit(item);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "[E2e] commit dopo {File}", item.RelativeTestFile);
+                            commit = new E2eCommitResult(false, null, null, "il commit non è riuscito: " + ex.Message);
+                        }
+                        await sink.Event(new
+                        {
+                            type = "commit",
+                            file = item.RelativeTestFile,
+                            committed = commit.Committed,
+                            sha = commit.Sha,
+                            message = commit.Message,
+                            reason = commit.Reason,
+                        });
+                    }
+                }
             }
             finally
             {
-                // D28: the tab gets its shell back and loses Playwright, keeping the conversation — also
-                // when the launch stops halfway (error, Stop).
-                if (tabUsed && request.Engine == ProviderType.ClaudeCode)
-                    await _claudePool.RestoreChatAsync(request.ConnectionId, ClaudeCodeMcp.ChatOptions(request.McpGroupsArgument), CancellationToken.None);
-                if (tabUsed && request.Engine == ProviderType.CopilotCli)
-                    await _copilotPool.RestoreChatAsync(request.ConnectionId, CancellationToken.None);
+                // D28: the tab gets its shell back and loses Playwright, keeping the conversation — also when
+                // the launch stops halfway. Never for a connection that is gone (it would start an orphan CLI),
+                // and a failed restore must not hide what happened: the next chat turn restores anyway.
+                if (tabUsed && !request.ConnectionAborted.IsCancellationRequested)
+                {
+                    try
+                    {
+                        if (request.Engine == ProviderType.ClaudeCode)
+                            await _claudePool.RestoreChatAsync(request.ConnectionId, ClaudeCodeMcp.ChatOptions(request.McpGroupsArgument), CancellationToken.None);
+                        if (request.Engine == ProviderType.CopilotCli)
+                            await _copilotPool.RestoreChatAsync(request.ConnectionId, CancellationToken.None);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "[E2e] ripristino della chat del tab non riuscito: lo farà il prossimo turno di chat");
+                    }
+                }
+                foreach (var file in temporaryConfigs.Append(secretsFile).Where(f => f != null))
+                {
+                    try { File.Delete(file); } catch (Exception ex) { _logger.LogWarning(ex, "[E2e] non riesco a cancellare {File}", file); }
+                }
             }
 
             await sink.Event(new { type = "done", files = plan.Items.Select(i => i.RelativeTestFile) });
         }
 
-        private async Task RunWithClaudeAsync(E2eLaunchRequest request, E2eRunItem item, E2ePlaywrightServer server,
-            IReadOnlyList<string> bans, string key, bool dedicated, Func<string, string, Task> forward, CancellationToken ct)
+        private async Task PostRunAsync(E2eLaunchRequest request, E2eRunItem item, E2eRunPlan plan, DateTime runStart, E2eLaunchSink sink)
         {
+            try
+            {
+                var post = E2ePostRun.Process(item, plan.Secrets, runStart);
+                await sink.Event(new
+                {
+                    type = "post-run",
+                    file = item.RelativeTestFile,
+                    fingerprinted = post.Fingerprinted.Count,
+                    leaks = post.Leaks.Select(l => new { file = Path.GetRelativePath(request.ProjectPath, l.File).Replace('\\', '/'), key = l.Key, replaced = l.Replaced }),
+                    problems = post.Problems,
+                });
+                if (post.Leaks.Count > 0)
+                    _logger.LogWarning("[E2e] {File}: valori di credenziali trovati in {Count} punti", item.RelativeTestFile, post.Leaks.Count);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[E2e] controlli dopo {File}", item.RelativeTestFile);
+                await sink.Event(new { type = "post-run", file = item.RelativeTestFile, fingerprinted = 0, leaks = Array.Empty<object>(),
+                    problems = new[] { "i controlli dopo l'esecuzione non sono riusciti: " + ex.Message } });
+            }
+        }
+
+        private async Task RunWithClaudeAsync(E2eLaunchRequest request, E2eRunItem item, E2ePlaywrightServer server,
+            IReadOnlyList<string> deniedFiles, string key, bool dedicated, Func<string, string, Task> forward,
+            List<string> temporaryConfigs, CancellationToken ct)
+        {
+            var bans = BannedFor(request.ProjectPath, deniedFiles);
             var mcpConfig = ClaudeCodeMcp.WriteSessionConfig(request.McpGroupsArgument, server);
+            temporaryConfigs.Add(mcpConfig);
             var options = new ClaudeCodeSessionOptions
             {
                 McpConfigPath = mcpConfig,
@@ -270,6 +311,8 @@ namespace MdExplorer.Services.E2e
             {
                 McpServers = servers,
                 DeniedReadPaths = deniedFiles,
+                DeniedReadNames = new[] { CredentialsNamePattern },
+                DeniedWritePaths = ProtectedPaths,
                 DenyShell = true,
                 Key = Hash(string.Join("\n", servers.OrderBy(s => s.Key).Select(s => s.Key + " " + s.Value.Command + " " + string.Join(" ", s.Value.Args)))
                     + "\n" + string.Join("\n", deniedFiles)),
@@ -320,20 +363,32 @@ namespace MdExplorer.Services.E2e
                 };
             }
 
-            var read = new System.Text.Json.Nodes.JsonObject { ["*"] = "allow" };
-            foreach (var file in deniedFiles) read["*" + Path.GetFileName(file)] = "deny";
+            System.Text.Json.Nodes.JsonObject Permissions()
+            {
+                var read = new System.Text.Json.Nodes.JsonObject { ["*"] = "allow", ["*" + CredentialsNamePattern] = "deny" };
+                foreach (var file in deniedFiles) read["*" + Path.GetFileName(file)] = "deny";
+                var edit = new System.Text.Json.Nodes.JsonObject { ["*"] = "allow" };
+                foreach (var p in ProtectedPaths) edit[p.EndsWith("/", StringComparison.Ordinal) ? p + "*" : p] = "deny";
+                return new System.Text.Json.Nodes.JsonObject
+                {
+                    ["bash"] = "ask",
+                    ["edit"] = edit,
+                    ["webfetch"] = "deny",
+                    ["read"] = read,
+                };
+            }
             var config = new System.Text.Json.Nodes.JsonObject
             {
                 // Without it a rejected permission ends the whole turn: the test stopped at the agent's
                 // first shell command (seen 27/09/2026). With it the refusal goes back to the model.
                 ["experimental"] = new System.Text.Json.Nodes.JsonObject { ["continue_loop_on_deny"] = true },
                 ["mcp"] = mcp,
-                ["permission"] = new System.Text.Json.Nodes.JsonObject
+                ["permission"] = Permissions(),
+                // Also on the default agent: a user's global or project configuration with an agent-level
+                // "bash: allow" would win over the top-level permission. Accepted by the free provider (27/09/2026).
+                ["agent"] = new System.Text.Json.Nodes.JsonObject
                 {
-                    ["bash"] = "ask",
-                    ["edit"] = "allow",
-                    ["webfetch"] = "deny",
-                    ["read"] = read,
+                    ["build"] = new System.Text.Json.Nodes.JsonObject { ["permission"] = Permissions() },
                 },
             };
 
@@ -349,26 +404,73 @@ namespace MdExplorer.Services.E2e
 
             await using var session = new OpenCodeSession(_loggerFactory.CreateLogger<OpenCodeSession>(), e2eServer,
                 request.ProjectPath, request.ModelId, existing, rejectPermissions: true);
-            await foreach (var chunk in session.PromptAsync(item.Prompt, ct))
-                await forward(chunk.Kind, chunk.Text);
+            try
+            {
+                await foreach (var chunk in session.PromptAsync(item.Prompt, ct))
+                    await forward(chunk.Kind, chunk.Text);
+            }
+            catch (OperationCanceledException)
+            {
+                // Stop: the turn must end on THIS server before it goes away, or a tool call left pending in the
+                // tab's session could be run later by the shared server, which has the shell.
+                using var grace = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                try { await session.AbortAsync(grace.Token); } catch (Exception ex) { _logger.LogWarning(ex, "[E2e] interruzione opencode"); }
+                throw;
+            }
         }
 
+        /// <summary>The naming convention of the skill for credentials files: every one of them is off limits.</summary>
+        public const string CredentialsNamePattern = "credenziali-*.txt";
+
         /// <summary>
-        /// What the agent must not do during a launch: run shell commands (a <c>cat</c> would read the
-        /// credentials past any file rule) and read or search the credentials and secrets files. Claude Code
-        /// writes an absolute path as <c>//path</c> (verified 27/09/2026 on Linux).
+        /// The agents' own configuration, relative to the project: written by an agent steered by a page, a
+        /// hook or a setting would run with the shell in the next session (review of 27/09/2026).
         /// </summary>
-        public static IReadOnlyList<string> BannedFor(IEnumerable<string> files)
+        public static readonly IReadOnlyList<string> ProtectedPaths = new[]
+        {
+            ".claude/", ".github/", ".opencode/", ".vscode/", ".md/", "opencode.json", ".mcp.json", "CLAUDE.md", "AGENTS.md",
+        };
+
+        /// <summary>
+        /// Claude Code rules for a launch: no shell (a <c>cat</c> would read the credentials past any file rule),
+        /// no reading or searching of the credentials and secrets files — every <c>credenziali-*.txt</c> of the
+        /// project, not only this launch's — and no writing of the agents' configuration. Files of the project
+        /// are written relative to it (<c>./…</c>, the form verified on Linux, and the same on every system);
+        /// a file outside it as <c>//path</c> (verified on Linux; on Windows still to verify, F8).
+        /// </summary>
+        public static IReadOnlyList<string> BannedFor(string projectPath, IEnumerable<string> files)
         {
             var bans = new List<string> { "Bash" };
+            void Deny(string target)
+            {
+                bans.Add($"Read({target})");
+                bans.Add($"Grep({target})");
+            }
+            Deny("./**/" + CredentialsNamePattern);
             foreach (var file in files)
             {
-                var path = "/" + file.Replace('\\', '/').TrimStart('/');
-                // TODO F8: the form for a Windows path (//C:/…) is still to be verified on Windows.
-                bans.Add($"Read(/{path})");
-                bans.Add($"Grep(/{path})");
+                if (E2eRunPlanner.IsInside(file, projectPath))
+                    Deny("./" + Path.GetRelativePath(projectPath, file).Replace('\\', '/'));
+                else
+                    Deny("//" + Path.GetFullPath(file).Replace('\\', '/').TrimStart('/'));
+            }
+            foreach (var p in ProtectedPaths)
+            {
+                var target = p.EndsWith("/", StringComparison.Ordinal) ? "./" + p + "**" : "./" + p;
+                bans.Add($"Edit({target})");
+                bans.Add($"Write({target})");
             }
             return bans;
+        }
+
+        /// <summary>"mde-e2e v&lt;n&gt;" of the skill MdExplorer installs: scripts written by another version are stale.</summary>
+        public static string CurrentGenerator()
+        {
+            using var stream = typeof(E2eLaunchService).Assembly.GetManifestResourceStream("MdExplorer.Service.skills.mde_e2e.SKILL.md");
+            if (stream == null) return null;
+            using var reader = new StreamReader(stream);
+            var version = MdeSkillUpdater.ExtractMdeMarker(reader.ReadToEnd()).Version;
+            return version == null ? null : "mde-e2e v" + version;
         }
 
         private static string DataFolder()

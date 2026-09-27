@@ -35,7 +35,12 @@ namespace MdExplorer.Features.E2e
     {
         private static readonly XNamespace Trx = "http://microsoft.com/schemas/VisualStudio/TeamTest/2010";
 
-        public static async Task<E2eReplayFileResult> RunAsync(E2eRunItem item, string browserArgument, string dotnet, DateTime now, CancellationToken ct)
+        private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(15);
+
+        /// <param name="secrets">Credential values: removed from the messages before they are written or returned.</param>
+        /// <param name="currentGenerator">"mde-e2e v&lt;n&gt;" of the installed skill: scripts of another version are stale.</param>
+        public static async Task<E2eReplayFileResult> RunAsync(E2eRunItem item, string browserArgument, string dotnet, DateTime now,
+            IReadOnlyDictionary<string, string> secrets, string currentGenerator, CancellationToken ct)
         {
             var folder = Path.GetDirectoryName(item.TestFile)!;
             var relative = item.RelativeTestFile;
@@ -45,7 +50,7 @@ namespace MdExplorer.Features.E2e
             if (browserArgument is not ("chrome" or "msedge"))
                 return new E2eReplayFileResult { File = relative, Problem = "il rigioco degli script usa Chrome o Edge installati: il Chromium di Playwright non va bene per la libreria .NET." };
 
-            var scripts = E2ePostRun.Scripts(item);
+            var scripts = E2ePostRun.Scripts(item, currentGenerator);
             var stale = scripts.Where(s => s.Stale).Select(s => Path.GetFileName(s.Path)).ToList();
             var runnable = scripts.Where(s => !s.Stale).ToList();
             if (runnable.Count == 0)
@@ -62,7 +67,8 @@ namespace MdExplorer.Features.E2e
             if (classes.Count == 0)
                 return new E2eReplayFileResult { File = relative, Stale = stale, Problem = "negli script non trovo namespace e classe (vedi lo scheletro della skill mde-e2e)." };
 
-            var runFolder = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(runnable[0].Path)!)!, "esecuzioni", now.ToString("yyyy-MM-dd_HH-mm") + "_script");
+            var runFolder = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(runnable[0].Path)!)!, "esecuzioni",
+                now.ToString("yyyy-MM-dd_HH-mm", System.Globalization.CultureInfo.InvariantCulture) + "_script");
             Directory.CreateDirectory(runFolder);
             var trx = Path.Combine(Path.GetTempPath(), "mde-e2e-" + Guid.NewGuid().ToString("N") + ".trx");
 
@@ -85,22 +91,38 @@ namespace MdExplorer.Features.E2e
             start.Environment.Remove("ELECTRON_RUN_AS_NODE");
 
             using var process = Process.Start(start)!;
-            var stdout = process.StandardOutput.ReadToEndAsync(ct);
-            var stderr = process.StandardError.ReadToEndAsync(ct);
-            await process.WaitForExitAsync(ct);
-            var output = (await stdout) + (await stderr);
+            using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            limit.CancelAfter(Timeout);
+            var stdout = process.StandardOutput.ReadToEndAsync(limit.Token);
+            var stderr = process.StandardError.ReadToEndAsync(limit.Token);
+            try
+            {
+                await process.WaitForExitAsync(limit.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // dotnet test and the browser it started must not outlive the request.
+                try { process.Kill(entireProcessTree: true); } catch { /* already gone */ }
+                if (ct.IsCancellationRequested) throw;
+                return new E2eReplayFileResult { File = relative, Stale = stale, RunFolder = runFolder,
+                    Problem = $"dotnet test non ha finito entro {Timeout.TotalMinutes:0} minuti: interrotto." };
+            }
+            var output = E2ePostRun.Redact((await stdout) + (await stderr), secrets);
 
             if (!File.Exists(trx))
                 return new E2eReplayFileResult { File = relative, Stale = stale, RunFolder = runFolder,
                     Problem = "dotnet test non ha prodotto risultati (compilazione fallita?): " + Tail(output) };
 
-            var outcomes = ReadTrx(trx, classes);
+            var outcomes = ReadTrx(trx, classes)
+                .Select(o => o with { Message = E2ePostRun.Redact(o.Message, secrets) }).ToList();
             File.Delete(trx);
 
-            var date = now.ToString("yyyy-MM-dd HH:mm");
+            var date = now.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+            var states = runnable.ToDictionary(r => r.TestNumber, r => r.State);
             var link = Path.GetRelativePath(folder, runFolder).Replace('\\', '/') + "/";
             var rows = outcomes.OrderByDescending(o => o.Test).Select(o => new E2eResultRow(date, o.Test,
-                o.Passed ? "✅ superato (script)" : "❌ fallito (script)",
+                o.Passed ? "✅ superato (script)"
+                    : states.TryGetValue(o.Test, out var state) && state == "incompleto" ? "⚠️ incompleto (script)" : "❌ fallito (script)",
                 (o.Passed ? "" : FirstLine(o.Message) + " — ") + $"[screenshot]({link})")).ToList();
             var markdown = await File.ReadAllTextAsync(item.TestFile, ct);
             await File.WriteAllTextAsync(item.TestFile, E2eResultsTable.AddRows(markdown, rows), ct);

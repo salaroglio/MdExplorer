@@ -1883,6 +1883,7 @@
     "STALE": "stale (the test changed)",
     "REPLAYING": "Replaying the scripts with dotnet test, no LLM…",
     "STALE_SKIPPED": "Not replayed because stale: {{scripts}}. Run the test again with MarkAgent to rewrite them.",
-    "REPLAY": "Replay the scripts"
+    "REPLAY": "Replay the scripts",
+    "LEAK_REPORTED": "The value of the credential «{{key}}» appears in {{file}}: check it and replace it with the key (MdExplorer does not rewrite files outside the run folder)."
   }
 }

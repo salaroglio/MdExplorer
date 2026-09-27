@@ -63,9 +63,7 @@ namespace MdExplorer.Features.E2e
         private static E2eRunSettings ReadFile(string path) =>
             E2eFrontMatter.ReadRunSettings(File.ReadAllText(path), Path.GetFileName(path));
 
-        private static bool IsInside(string path, string root) =>
-            string.Equals(Path.TrimEndingDirectorySeparator(path), root, PathComparison)
-            || path.StartsWith(root + Path.DirectorySeparatorChar, PathComparison);
+        private static bool IsInside(string path, string root) => E2eRunPlanner.IsInside(path, root);
 
         private static StringComparison PathComparison =>
             OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;

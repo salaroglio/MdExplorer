@@ -109,6 +109,11 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
             if (_disposed) throw new ObjectDisposedException(nameof(CopilotChatSessionPool));
             if (string.IsNullOrEmpty(connectionId)) throw new ArgumentException("connectionId required", nameof(connectionId));
 
+            // A session still carrying an e2e test profile (no shell, Playwright with the credentials) is never
+            // used for a chat turn: back to the chat configuration first, resuming the conversation (D28).
+            if (_sessions.TryGetValue(connectionId, out var profiled) && profiled.Session.ProfileKey != null)
+                await RestoreChatAsync(connectionId, ct).ConfigureAwait(false);
+
             // Read once per request: the answer decides both whether the cached session still
             // fits and, if not, what to build in its place.
             var transport = _transportSource.Current();

@@ -90,9 +90,9 @@ namespace MdExplorer.Features.E2e
     /// </summary>
     public static class E2eTestParser
     {
-        private static readonly Regex TestHeading = new(@"^## T(\d+)\s*[—–-]\s*(.+?)\s*$");
+        private static readonly Regex TestHeading = new(@"^## T([0-9]{1,6})\s*[—–-]\s*(.+?)\s*$");
         private static readonly Regex OtherHeading = new(@"^#{1,2} ");
-        private static readonly Regex StepLine = new(@"^(\d+)\.\s+(.+?)\s*$");
+        private static readonly Regex StepLine = new(@"^([0-9]{1,4})\.\s+(.+?)\s*$");
         private static readonly Regex Fence = new(@"^\s*(```|~~~)");
         private static readonly Regex CredentialKey = new(@"\{\{\s*([^}\s]+)\s*\}\}");
 
@@ -104,8 +104,8 @@ namespace MdExplorer.Features.E2e
             (new Regex(@"^Il titolo della pagina è ""(?<expected>.+)""$"), E2eCheckKind.TitleIs),
             (new Regex(@"^Il campo ""(?<target>.+?)"" vale ""(?<expected>.*)""$"), E2eCheckKind.FieldValue),
             (new Regex(@"^Il bottone ""(?<target>.+)"" è disabilitato$"), E2eCheckKind.ButtonDisabled),
-            (new Regex(@"^Ci sono esattamente (?<count>\d+) bottoni ""(?<target>.+)""$"), E2eCheckKind.ButtonCount),
-            (new Regex(@"^Ci sono esattamente (?<count>\d+) link ""(?<target>.+)""$"), E2eCheckKind.LinkCount),
+            (new Regex(@"^Ci sono esattamente (?<count>[0-9]{1,4}) bottoni ""(?<target>.+)""$"), E2eCheckKind.ButtonCount),
+            (new Regex(@"^Ci sono esattamente (?<count>[0-9]{1,4}) link ""(?<target>.+)""$"), E2eCheckKind.LinkCount),
         };
 
         public static E2eTestDocument Parse(string markdown, string fileName)
@@ -146,10 +146,12 @@ namespace MdExplorer.Features.E2e
         public static E2eStep ReadStep(int number, string text)
         {
             var keys = CredentialKey.Matches(text).Select(m => m.Groups[1].Value).Distinct(StringComparer.Ordinal).ToList();
-            if (!text.StartsWith("✔"))
+            if (!text.StartsWith("✔", StringComparison.Ordinal))
                 return new E2eStep { Number = number, Text = text, CredentialKeys = keys };
 
-            var check = text.Substring(1).Trim();
+            // "✔️" (with the emoji variation selector, what many editors and LLMs write) is the same mark;
+            // typographic quotes are the same quotes.
+            var check = text.Substring(1).TrimStart('\uFE0F').Trim().Replace('“', '"').Replace('”', '"');
             foreach (var (pattern, kind) in CheckForms)
             {
                 var m = pattern.Match(check);
@@ -249,8 +251,8 @@ namespace MdExplorer.Features.E2e
                     {
                         Close();
                         var name = line.TrimStart('#').Trim();
-                        if (line.StartsWith("## ") && name == "Artefatti") HasArtifactsSection = true;
-                        if (line.StartsWith("## ") && name == "Esiti") HasResultsSection = true;
+                        if (line.StartsWith("## ", StringComparison.Ordinal) && name == "Artefatti") HasArtifactsSection = true;
+                        if (line.StartsWith("## ", StringComparison.Ordinal) && name == "Esiti") HasResultsSection = true;
                         continue;
                     }
                     if (number == null) continue;

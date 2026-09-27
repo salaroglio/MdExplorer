@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.IO;
 using GitHub.Copilot;
@@ -56,21 +57,34 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 if (request is PermissionRequestRead read && IsDenied(read.Path, workingDirectory, profile))
                     return new Verdict(false, "leggere " + read.Path,
                         "è un file di credenziali: durante i test e2e le usa solo il server Playwright");
+                if (request is PermissionRequestWrite write && IsProtected(write.FileName, workingDirectory, profile))
+                    return new Verdict(false, "scrivere " + write.FileName,
+                        "durante i test e2e la configurazione degli agenti non si modifica");
             }
             return Decide(request, workingDirectory);
         }
 
+        private static string Full(string path, string workingDirectory) =>
+            Path.GetFullPath(Path.IsPathRooted(path) || string.IsNullOrWhiteSpace(workingDirectory) ? path : Path.Combine(workingDirectory, path));
+
         private static bool IsDenied(string path, string workingDirectory, CopilotChat.CopilotSessionProfile profile)
         {
             if (string.IsNullOrWhiteSpace(path)) return false;
-            var full = Path.GetFullPath(Path.IsPathRooted(path) || string.IsNullOrWhiteSpace(workingDirectory) ? path : Path.Combine(workingDirectory, path));
-            foreach (var denied in profile.DeniedReadPaths)
-            {
-                var target = Path.GetFullPath(denied);
-                if (string.Equals(full, target, StringComparison.OrdinalIgnoreCase)) return true;
-                // A read of the folder that holds it (a directory listing) is not a read of the file.
-            }
-            return false;
+            var full = Full(path, workingDirectory);
+            if (profile.DeniedReadPaths.Any(d => string.Equals(full, Path.GetFullPath(d), StringComparison.OrdinalIgnoreCase))) return true;
+            var name = Path.GetFileName(full);
+            return profile.DeniedReadNames.Any(pattern => System.Text.RegularExpressions.Regex.IsMatch(name,
+                "^" + System.Text.RegularExpressions.Regex.Escape(pattern).Replace("\\*", ".*") + "$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase));
+        }
+
+        private static bool IsProtected(string path, string workingDirectory, CopilotChat.CopilotSessionProfile profile)
+        {
+            if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(workingDirectory)) return false;
+            var relative = Path.GetRelativePath(Path.GetFullPath(workingDirectory), Full(path, workingDirectory)).Replace('\\', '/');
+            return profile.DeniedWritePaths.Any(p => p.EndsWith("/", StringComparison.Ordinal)
+                ? relative.StartsWith(p, StringComparison.OrdinalIgnoreCase)
+                : string.Equals(relative, p, StringComparison.OrdinalIgnoreCase));
         }
 
         public static Verdict Decide(PermissionRequest request, string workingDirectory)

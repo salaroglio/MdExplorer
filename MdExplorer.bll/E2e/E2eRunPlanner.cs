@@ -95,7 +95,7 @@ namespace MdExplorer.Features.E2e
             if (files.Count == 0)
                 return Refused(root, $"Nella cartella '{Relative(root, full)}' non ci sono file .e2e.md.");
 
-            var stamp = now.ToString("yyyy-MM-dd_HH-mm");
+            var stamp = now.ToString("yyyy-MM-dd_HH-mm", System.Globalization.CultureInfo.InvariantCulture);
             var items = new List<E2eRunItem>();
             var secrets = new Dictionary<string, string>(StringComparer.Ordinal);
             var secretSource = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -103,7 +103,16 @@ namespace MdExplorer.Features.E2e
             foreach (var file in files)
             {
                 var relative = Relative(root, file);
-                var preflight = E2ePreflight.Check(file);
+                E2ePreflightResult preflight;
+                try
+                {
+                    preflight = E2ePreflight.Check(file);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or LibGit2Sharp.LibGit2SharpException)
+                {
+                    errors.Add($"{relative}: non riesco a controllarlo ({ex.Message}).");
+                    continue;
+                }
                 errors.AddRange(preflight.Errors);
                 warnings.AddRange(preflight.Warnings);
                 if (preflight.Document == null) continue;
@@ -113,7 +122,7 @@ namespace MdExplorer.Features.E2e
                 {
                     settings = E2eRunSettingsResolver.Resolve(file, root);
                 }
-                catch (E2eFormatException ex)
+                catch (Exception ex) when (ex is E2eFormatException or ArgumentException or IOException)
                 {
                     errors.Add(ex.Message);
                     continue;
@@ -127,14 +136,23 @@ namespace MdExplorer.Features.E2e
                     if (!IsInside(artifacts, root))
                         errors.Add($"{relative}: 'e2e.artifacts' ({preflight.Document.Artifacts}) porta fuori dal progetto.");
                     else
-                        runFolder = Path.Combine(artifacts, "esecuzioni", stamp);
+                        runFolder = FreeRunFolder(Path.Combine(artifacts, "esecuzioni"), stamp);
                 }
+                if (preflight.Document.SiteMap != null && !IsInside(Path.GetFullPath(Path.Combine(folder, preflight.Document.SiteMap)), root))
+                    errors.Add($"{relative}: 'e2e.siteMap' ({preflight.Document.SiteMap}) porta fuori dal progetto.");
 
                 string credentials = null;
                 if (preflight.Document.Credentials != null)
                 {
                     credentials = Path.GetFullPath(Path.Combine(folder, preflight.Document.Credentials));
-                    if (File.Exists(credentials))
+                    // A test cloned from somebody else could point at any file of this computer (a cloud key)
+                    // and have its values typed into the author's site: only files of the project.
+                    if (!IsInside(credentials, root))
+                    {
+                        errors.Add($"{relative}: 'e2e.credentials' ({preflight.Document.Credentials}) porta fuori dal progetto: il file delle credenziali deve stare nel progetto.");
+                        credentials = null;
+                    }
+                    else if (File.Exists(credentials))
                     {
                         foreach (var (key, value) in ReadCredentials(credentials))
                         {
@@ -188,7 +206,7 @@ namespace MdExplorer.Features.E2e
                 if (value.IndexOfAny(new[] { '\n', '\r' }) >= 0)
                     throw new InvalidOperationException($"La credenziale '{key}' contiene un a capo: non si può passare al server Playwright.");
                 var needsQuotes = value.Length > 0 && (char.IsWhiteSpace(value[0]) || char.IsWhiteSpace(value[^1]))
-                    || value.Contains('#') || value.StartsWith("\"") || value.StartsWith("'") || value.StartsWith("`");
+                    || value.Contains('#') || value.StartsWith("\"", StringComparison.Ordinal) || value.StartsWith("'", StringComparison.Ordinal) || value.StartsWith("`", StringComparison.Ordinal);
                 string written;
                 if (!needsQuotes) written = value;
                 else if (!value.Contains('\'')) written = "'" + value + "'";
@@ -207,7 +225,7 @@ namespace MdExplorer.Features.E2e
         private static IEnumerable<(string Key, string Value)> ReadCredentials(string path) =>
             File.ReadAllLines(path)
                 .Select(l => l.Trim())
-                .Where(l => l.Length > 0 && !l.StartsWith("#") && l.IndexOf('=') > 0)
+                .Where(l => l.Length > 0 && !l.StartsWith("#", StringComparison.Ordinal) && l.IndexOf('=') > 0)
                 .Select(l => (l.Substring(0, l.IndexOf('=')).Trim(), l.Substring(l.IndexOf('=') + 1).Trim()));
 
         private static IEnumerable<string> TestFilesUnder(string folder)
@@ -217,7 +235,7 @@ namespace MdExplorer.Features.E2e
             foreach (var sub in Directory.GetDirectories(folder).OrderBy(d => d, StringComparer.Ordinal))
             {
                 var name = Path.GetFileName(sub);
-                if (name.StartsWith(".") || name is "bin" or "obj" or "node_modules") continue;
+                if (name.StartsWith(".", StringComparison.Ordinal) || name is "bin" or "obj" or "node_modules") continue;
                 foreach (var file in TestFilesUnder(sub)) yield return file;
             }
         }
@@ -233,11 +251,22 @@ namespace MdExplorer.Features.E2e
 
         private static string Relative(string root, string path) => Path.GetRelativePath(root, path).Replace('\\', '/');
 
-        private static bool IsInside(string path, string root)
+        /// <summary>The run folder of this minute; with a suffix when a launch of the same minute already has it.</summary>
+        private static string FreeRunFolder(string runs, string stamp)
+        {
+            var candidate = Path.Combine(runs, stamp);
+            for (var n = 2; Directory.Exists(candidate); n++) candidate = Path.Combine(runs, stamp + "-" + n);
+            return candidate;
+        }
+
+        public static bool IsInside(string path, string root)
         {
             var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-            return string.Equals(Path.TrimEndingDirectorySeparator(path), root, comparison)
-                || path.StartsWith(root + Path.DirectorySeparatorChar, comparison);
+            var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+            var trimmedRoot = Path.TrimEndingDirectorySeparator(root);
+            // A project on a drive root ("D:\", "/") keeps its separator: do not add a second one.
+            var prefix = trimmedRoot.EndsWith(Path.DirectorySeparatorChar) ? trimmedRoot : trimmedRoot + Path.DirectorySeparatorChar;
+            return string.Equals(full, trimmedRoot, comparison) || full.StartsWith(prefix, comparison);
         }
     }
 }

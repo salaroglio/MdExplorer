@@ -77,6 +77,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             if (_disposed) throw new ObjectDisposedException(nameof(ClaudeCodeSessionPool));
             if (string.IsNullOrEmpty(connectionId))
                 throw new ArgumentException("connectionId obbligatoria", nameof(connectionId));
+            options ??= ClaudeCodeSessionOptions.Default;
 
             if (_sessions.TryGetValue(connectionId, out var fast) && Matches(fast, workingDirectory, modelId) && ProfileFits(fast, options))
             {
@@ -193,11 +194,13 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         }
 
         /// <summary>
-        /// A chat turn (no profile) uses whatever the session has; a test launch needs the session started
-        /// with its own profile (server, secrets, bans).
+        /// The session must have been started with the profile asked for: a test launch needs its own (server,
+        /// secrets, bans); a chat turn needs none — a session still carrying a test profile (no shell,
+        /// Playwright with the credentials) is restarted with the chat options, resuming the conversation, even
+        /// when the restore at the end of the launch did not happen (D28).
         /// </summary>
         private static bool ProfileFits(ClaudeCodeSession session, ClaudeCodeSessionOptions options) =>
-            options?.ProfileKey == null || string.Equals(session.ProfileKey, options.ProfileKey, StringComparison.Ordinal);
+            string.Equals(session.ProfileKey, options?.ProfileKey, StringComparison.Ordinal);
 
         private static bool OnlyModelDiffers(ClaudeCodeSession session, string workingDirectory, string modelId) =>
             session.IsAlive &&

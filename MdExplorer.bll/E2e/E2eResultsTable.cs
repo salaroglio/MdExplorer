@@ -33,10 +33,10 @@ namespace MdExplorer.Features.E2e
                 return string.Join(newline, lines);
             }
 
-            var end = lines.FindIndex(section + 1, l => l.StartsWith("#"));
+            var end = lines.FindIndex(section + 1, l => l.StartsWith("#", StringComparison.Ordinal));
             if (end < 0) end = lines.Count;
-            var header = lines.FindIndex(section + 1, end - section - 1, l => l.TrimStart().StartsWith("|") && l.Contains("Esito"));
-            if (header >= 0 && header + 1 < end && lines[header + 1].TrimStart().StartsWith("|"))
+            var header = lines.FindIndex(section + 1, end - section - 1, l => l.TrimStart().StartsWith("|", StringComparison.Ordinal) && l.Contains("Esito"));
+            if (header >= 0 && header + 1 < end && lines[header + 1].TrimStart().StartsWith("|", StringComparison.Ordinal))
             {
                 lines.InsertRange(header + 2, rendered);
             }
