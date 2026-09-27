@@ -935,16 +935,11 @@ namespace MdExplorer.Hubs
             // MdExplorer's own MCP server, whatever harness the project declares: before, the Claude
             // Code chat never had MdExplorer's tools (McpConfigPath was never set). Null when the MCP
             // executable cannot be found: the session starts without it, and the log says why.
-            var options = new ClaudeCodeSessionOptions
-            {
-                // I gruppi di funzionalita' MCP scelti per QUESTO progetto: i tool dei gruppi spenti
-                // non entrano nel contesto della sessione. Il file si riscrive a ogni sessione, quindi
-                // un cambio nelle impostazioni vale dalla prossima chat.
-                McpConfigPath = MdExplorer.Utilities.ClaudeCodeMcp.WriteSessionConfig(
-                    MdExplorer.Service.ProjectsManager.McpGroupsArgument(_userSettingsDB, projectPath)),
-                // Connected is not usable: in dontAsk an MCP tool nobody authorized is denied.
-                AllowedMcpServers = new[] { MdExplorer.Utilities.ClaudeCodeMcp.ServerName },
-            };
+            // I gruppi di funzionalita' MCP scelti per QUESTO progetto: i tool dei gruppi spenti non
+            // entrano nel contesto della sessione. Il file si riscrive a ogni sessione, quindi un cambio
+            // nelle impostazioni vale dalla prossima chat.
+            var options = MdExplorer.Utilities.ClaudeCodeMcp.ChatOptions(
+                MdExplorer.Service.ProjectsManager.McpGroupsArgument(_userSettingsDB, projectPath));
             var session = await _claudeCodePool.GetOrCreateAsync(
                 Context.ConnectionId, projectPath, effectiveModel, options);
 

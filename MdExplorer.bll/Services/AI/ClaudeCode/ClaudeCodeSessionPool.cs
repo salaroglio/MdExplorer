@@ -155,6 +155,44 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         }
 
         /// <summary>
+        /// Gives a session started for a test launch its chat configuration back (D28: the shell and no
+        /// Playwright), resuming the same conversation. Nothing to do when the session has no test profile.
+        /// </summary>
+        public async Task RestoreChatAsync(string connectionId, ClaudeCodeSessionOptions chatOptions, CancellationToken ct = default)
+        {
+            if (!_sessions.TryGetValue(connectionId, out var current) || current.ProfileKey == null) return;
+
+            var gate = _gates.GetOrAdd(connectionId, _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (!_sessions.TryGetValue(connectionId, out var existing) || existing.ProfileKey == null) return;
+                var options = existing.SessionId != null ? chatOptions.WithResume(existing.SessionId) : chatOptions;
+                var workingDirectory = existing.WorkingDirectory;
+                var modelId = existing.ModelId;
+                await ReleaseAsync(connectionId).ConfigureAwait(false);
+
+                var session = new ClaudeCodeSession(_loggerFactory.CreateLogger<ClaudeCodeSession>(), workingDirectory, modelId, options);
+                try
+                {
+                    await session.StartAsync(ct).ConfigureAwait(false);
+                }
+                catch
+                {
+                    await session.DisposeAsync().ConfigureAwait(false);
+                    throw;
+                }
+                _sessions[connectionId] = session;
+                _logger.LogInformation("[ClaudeCodeSessionPool] Sessione di {ConnectionId} riportata alla chat normale {Resume}",
+                    connectionId, options.ResumeSessionId != null ? "riprendendo la conversazione" : "da capo");
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }
+
+        /// <summary>
         /// A chat turn (no profile) uses whatever the session has; a test launch needs the session started
         /// with its own profile (server, secrets, bans).
         /// </summary>

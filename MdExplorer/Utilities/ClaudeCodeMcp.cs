@@ -159,6 +159,17 @@ namespace MdExplorer.Utilities
         }
 
         /// <summary>
+        /// The options of a normal MarkAgent Claude Code chat: MdExplorer's MCP server with the project's
+        /// feature groups, usable (in dontAsk an MCP tool nobody authorized is denied). One place for the chat
+        /// and for the e2e launch, which gives the tab this configuration back after a test run (D28).
+        /// </summary>
+        public static ClaudeCodeSessionOptions ChatOptions(string mcpGroupsArgument) => new ClaudeCodeSessionOptions
+        {
+            McpConfigPath = WriteSessionConfig(mcpGroupsArgument),
+            AllowedMcpServers = new[] { ServerName },
+        };
+
+        /// <summary>
         /// The <c>--mcp-config</c> file for a MarkAgent Claude Code session, in MdExplorer's own data folder
         /// (never in the project). With <paramref name="playwright"/> the session also gets the Playwright
         /// server of the e2e tests (F4b). Null — and said — when there is no server to declare: the MCP

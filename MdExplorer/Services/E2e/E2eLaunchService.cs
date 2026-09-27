@@ -116,6 +116,9 @@ namespace MdExplorer.Services.E2e
             var bans = BannedFor(plan.DeniedPaths.Concat(secretsFile == null ? Array.Empty<string>() : new[] { secretsFile }));
 
             var index = 0;
+            var tabUsed = false;
+            try
+            {
             foreach (var item in plan.Items)
             {
                 ct.ThrowIfCancellationRequested();
@@ -136,6 +139,7 @@ namespace MdExplorer.Services.E2e
                 };
 
                 var dedicated = item.Settings.DedicatedSession.Value;
+                tabUsed |= !dedicated;
                 var key = dedicated ? request.ConnectionId + "|e2e|" + Guid.NewGuid().ToString("N") : request.ConnectionId;
                 await sink.Event(new { type = "test-start", file = item.RelativeTestFile, index, total = plan.Items.Count, session = dedicated ? "dedicated" : "tab" });
 
@@ -163,6 +167,15 @@ namespace MdExplorer.Services.E2e
 
                 _logger.LogInformation("[E2e] {File}: eseguito ({Index}/{Total})", item.RelativeTestFile, index, plan.Items.Count);
                 await sink.Event(new { type = "test-end", file = item.RelativeTestFile, runFolder = item.RelativeRunFolder, answer = answer.ToString() });
+            }
+
+            }
+            finally
+            {
+                // D28: the tab gets its shell back and loses Playwright, keeping the conversation — also
+                // when the launch stops halfway (error, Stop).
+                if (tabUsed)
+                    await _claudePool.RestoreChatAsync(request.ConnectionId, ClaudeCodeMcp.ChatOptions(request.McpGroupsArgument), CancellationToken.None);
             }
 
             await sink.Event(new { type = "done", files = plan.Items.Select(i => i.RelativeTestFile) });
