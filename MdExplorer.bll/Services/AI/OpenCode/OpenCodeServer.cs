@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using System.Diagnostics;
 using System.Net.Http;
@@ -51,9 +52,21 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         private string _password;
         private readonly StringBuilder _startupLog = new();
 
+        private readonly IReadOnlyDictionary<string, string> _extraEnvironment;
+
         public OpenCodeServer(ILogger<OpenCodeServer> logger)
         {
             _logger = logger;
+        }
+
+        /// <summary>
+        /// A server of its own with extra environment variables: the one MdExplorer starts for a test
+        /// launch (F4d), configured with <c>OPENCODE_CONFIG_CONTENT</c>. Dispose it when the launch ends.
+        /// </summary>
+        public OpenCodeServer(ILogger<OpenCodeServer> logger, IReadOnlyDictionary<string, string> extraEnvironment)
+        {
+            _logger = logger;
+            _extraEnvironment = extraEnvironment;
         }
 
         /// <summary>Il server è acceso adesso? Non lo avvia: è una domanda, non un ordine.</summary>
@@ -142,7 +155,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             _password = Convert.ToHexString(RandomNumberGenerator.GetBytes(24));
             _startupLog.Clear();
 
-            var psi = OpenCodeProcessLauncher.BuildServeStartInfo(_password);
+            var psi = OpenCodeProcessLauncher.BuildServeStartInfo(_password, _extraEnvironment);
             var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
 
             var listening = new TaskCompletionSource<Uri>(TaskCreationOptions.RunContinuationsAsynchronously);

@@ -2,6 +2,7 @@ using MdExplorer.Abstractions.Models.AI;
 using MdExplorer.Features.E2e;
 using MdExplorer.Features.Services.AI.ClaudeCode;
 using MdExplorer.Features.Services.AI.CopilotChat;
+using MdExplorer.Features.Services.AI.OpenCode;
 using MdExplorer.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
@@ -52,14 +53,18 @@ namespace MdExplorer.Services.E2e
         private readonly E2eEnvironment _environment;
         private readonly ClaudeCodeSessionPool _claudePool;
         private readonly CopilotChatSessionPool _copilotPool;
+        private readonly OpenCodeSessionPool _openCodePool;
+        private readonly ILoggerFactory _loggerFactory;
         private readonly ILogger<E2eLaunchService> _logger;
 
         public E2eLaunchService(E2eEnvironment environment, ClaudeCodeSessionPool claudePool, CopilotChatSessionPool copilotPool,
-            ILogger<E2eLaunchService> logger)
+            OpenCodeSessionPool openCodePool, ILoggerFactory loggerFactory, ILogger<E2eLaunchService> logger)
         {
             _environment = environment;
             _claudePool = claudePool;
             _copilotPool = copilotPool;
+            _openCodePool = openCodePool;
+            _loggerFactory = loggerFactory;
             _logger = logger;
         }
 
@@ -88,12 +93,12 @@ namespace MdExplorer.Services.E2e
                 return;
             }
 
-            if (request.Engine is not (ProviderType.ClaudeCode or ProviderType.CopilotCli))
+            if (request.Engine is not (ProviderType.ClaudeCode or ProviderType.CopilotCli or ProviderType.OpenCode))
             {
                 await sink.Event(new
                 {
                     type = "refused",
-                    errors = new[] { $"I test e2e con il motore {request.Engine} non sono ancora disponibili: per ora eseguili con Claude Code o Copilot (opencode arriva nella fase F4d)." },
+                    errors = new[] { $"I test e2e si eseguono con Claude Code, Copilot o opencode: il motore {request.Engine} non sa guidare un browser." },
                 });
                 return;
             }
@@ -152,8 +157,10 @@ namespace MdExplorer.Services.E2e
 
                 if (request.Engine == ProviderType.ClaudeCode)
                     await RunWithClaudeAsync(request, item, server, bans, key, dedicated, Forward, ct);
-                else
+                else if (request.Engine == ProviderType.CopilotCli)
                     await RunWithCopilotAsync(request, item, server, deniedFiles, key, dedicated, Forward, ct);
+                else
+                    await RunWithOpenCodeAsync(request, item, server, deniedFiles, dedicated, Forward, ct);
 
                 _logger.LogInformation("[E2e] {File}: eseguito ({Index}/{Total})", item.RelativeTestFile, index, plan.Items.Count);
                 await sink.Event(new { type = "test-end", file = item.RelativeTestFile, runFolder = item.RelativeRunFolder, answer = answer.ToString() });
@@ -240,6 +247,73 @@ namespace MdExplorer.Services.E2e
             {
                 if (dedicated) await _copilotPool.ReleaseAsync(key);
             }
+        }
+
+        /// <summary>
+        /// opencode (F4d): a server of its own for the launch, configured only through
+        /// <c>OPENCODE_CONFIG_CONTENT</c> — MdExplorer's and Playwright's MCP servers, the shell on "ask" and
+        /// every ask rejected (the free provider refuses requests where the shell is removed, verified
+        /// 27/09/2026), the credentials and secrets files not readable. In the MarkAgent tab it works on the
+        /// tab's own conversation: opencode keeps sessions in a database every server shares, and the shared
+        /// server never gets Playwright, so D28 holds by itself.
+        /// </summary>
+        private async Task RunWithOpenCodeAsync(E2eLaunchRequest request, E2eRunItem item, E2ePlaywrightServer server,
+            IReadOnlyList<string> deniedFiles, bool dedicated, Func<string, string, Task> forward, CancellationToken ct)
+        {
+            var mcp = new System.Text.Json.Nodes.JsonObject
+            {
+                [E2ePlaywrightServer.Name] = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["type"] = "local",
+                    ["command"] = new System.Text.Json.Nodes.JsonArray(new[] { server.Command }.Concat(server.Args).Select(a => (System.Text.Json.Nodes.JsonNode)a).ToArray()),
+                    ["environment"] = new System.Text.Json.Nodes.JsonObject(server.Env.Select(e => KeyValuePair.Create(e.Key, (System.Text.Json.Nodes.JsonNode)e.Value))),
+                    ["enabled"] = true,
+                },
+            };
+            var mcpExecutable = MdExplorer.Service.ProjectsManager.ResolveMcpExecutable(AppDomain.CurrentDomain.BaseDirectory);
+            if (mcpExecutable != null)
+            {
+                var command = new List<string> { mcpExecutable };
+                if (!string.IsNullOrWhiteSpace(request.McpGroupsArgument)) command.AddRange(new[] { "--groups", request.McpGroupsArgument });
+                mcp[ClaudeCodeMcp.ServerName] = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["type"] = "local",
+                    ["command"] = new System.Text.Json.Nodes.JsonArray(command.Select(a => (System.Text.Json.Nodes.JsonNode)a).ToArray()),
+                    ["enabled"] = true,
+                };
+            }
+
+            var read = new System.Text.Json.Nodes.JsonObject { ["*"] = "allow" };
+            foreach (var file in deniedFiles) read["*" + Path.GetFileName(file)] = "deny";
+            var config = new System.Text.Json.Nodes.JsonObject
+            {
+                // Without it a rejected permission ends the whole turn: the test stopped at the agent's
+                // first shell command (seen 27/09/2026). With it the refusal goes back to the model.
+                ["experimental"] = new System.Text.Json.Nodes.JsonObject { ["continue_loop_on_deny"] = true },
+                ["mcp"] = mcp,
+                ["permission"] = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["bash"] = "ask",
+                    ["edit"] = "allow",
+                    ["webfetch"] = "deny",
+                    ["read"] = read,
+                },
+            };
+
+            using var e2eServer = new OpenCodeServer(_loggerFactory.CreateLogger<OpenCodeServer>(),
+                new Dictionary<string, string> { ["OPENCODE_CONFIG_CONTENT"] = config.ToJsonString() });
+
+            string existing = null;
+            if (!dedicated)
+            {
+                var tab = await _openCodePool.GetOrCreateAsync(request.ConnectionId, request.ProjectPath, request.ModelId, ct);
+                existing = await tab.EnsureStartedAsync(ct);
+            }
+
+            await using var session = new OpenCodeSession(_loggerFactory.CreateLogger<OpenCodeSession>(), e2eServer,
+                request.ProjectPath, request.ModelId, existing, rejectPermissions: true);
+            await foreach (var chunk in session.PromptAsync(item.Prompt, ct))
+                await forward(chunk.Kind, chunk.Text);
         }
 
         /// <summary>

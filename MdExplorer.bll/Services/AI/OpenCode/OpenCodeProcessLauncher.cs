@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -79,7 +80,7 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         /// prendersela.
         /// </summary>
         /// <param name="password">Valore per <see cref="PasswordVariable"/>.</param>
-        public static ProcessStartInfo BuildServeStartInfo(string password)
+        public static ProcessStartInfo BuildServeStartInfo(string password, IReadOnlyDictionary<string, string> extraEnvironment = null)
         {
             if (string.IsNullOrWhiteSpace(password))
                 throw new ArgumentException("Il server opencode va avviato con una password.", nameof(password));
@@ -108,6 +109,10 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             psi.ArgumentList.Add("--hostname");
             psi.ArgumentList.Add("127.0.0.1");   // mai esposto fuori dalla macchina
             psi.Environment[PasswordVariable] = password;
+            // Test e2e (F4d): a server of its own, configured only here (OPENCODE_CONFIG_CONTENT),
+            // without touching the user's files or the shared server.
+            if (extraEnvironment != null)
+                foreach (var (key, value) in extraEnvironment) psi.Environment[key] = value;
             return psi;
         }
     }

@@ -52,6 +52,8 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         private readonly SemaphoreSlim _turnGate = new(1, 1);
 
         private HttpClient _client;
+        private readonly string _existingSessionId;
+        private readonly bool _rejectPermissions;
         private CancellationTokenSource _streamCts;
         private Task _streamTask;
         private volatile bool _disposed;
@@ -83,7 +85,20 @@ namespace MdExplorer.Features.Services.AI.OpenCode
         }
 
         public OpenCodeSession(ILogger logger, OpenCodeServer server, string workingDirectory, string model)
+            : this(logger, server, workingDirectory, model, null, false)
         {
+        }
+
+        /// <param name="existingSessionId">Work on this session instead of creating one: the MarkAgent tab's
+        /// conversation, continued by the server of a test launch (F4d, D25). Sessions live in opencode's
+        /// database, shared by every server of the machine (verified 27/09/2026).</param>
+        /// <param name="rejectPermissions">Answer "reject" to every permission the agent asks for: in a test
+        /// launch the shell is on "ask" (the free provider refuses requests without it) and must not run.</param>
+        public OpenCodeSession(ILogger logger, OpenCodeServer server, string workingDirectory, string model,
+            string existingSessionId, bool rejectPermissions)
+        {
+            _existingSessionId = existingSessionId;
+            _rejectPermissions = rejectPermissions;
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _server = server ?? throw new ArgumentNullException(nameof(server));
 
@@ -353,6 +368,14 @@ namespace MdExplorer.Features.Services.AI.OpenCode
 
             _client = await _server.CreateClientAsync(ct).ConfigureAwait(false);
 
+            if (_existingSessionId != null)
+            {
+                SessionId = _existingSessionId;
+                _logger.LogInformation("[opencode] sessione esistente {Session} su {Dir}", SessionId, WorkingDirectory);
+                StartEventStream();
+                return;
+            }
+
             var url = $"/session?directory={Uri.EscapeDataString(WorkingDirectory)}";
             using var res = await _client.PostAsJsonAsync(url, new { }, ct).ConfigureAwait(false);
             var payload = await res.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
@@ -418,6 +441,30 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             }
         }
 
+        /// <summary>
+        /// Makes sure the session exists on the server and returns its id: a test launch in the MarkAgent
+        /// tab (F4d) needs the tab's conversation even when nobody has written in it yet.
+        /// </summary>
+        public async Task<string> EnsureStartedAsync(CancellationToken ct = default)
+        {
+            await EnsureSessionAsync(ct).ConfigureAwait(false);
+            return SessionId;
+        }
+
+        private async Task RejectPermissionAsync(string permissionId, string what)
+        {
+            try
+            {
+                var url = $"/session/{SessionId}/permissions/{permissionId}?directory={Uri.EscapeDataString(WorkingDirectory)}";
+                using var res = await _client.PostAsJsonAsync(url, new { response = "reject" }).ConfigureAwait(false);
+                _logger.LogInformation("[opencode] permesso {What} negato ({Status})", what, (int)res.StatusCode);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[opencode] non sono riuscito a negare il permesso {What}", what);
+            }
+        }
+
         private void HandleEvent(string json)
         {
             using var doc = JsonDocument.Parse(json);
@@ -432,6 +479,15 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             var turn = _turn;
             switch (typeEl.GetString())
             {
+                case "permission.asked":
+                    if (!_rejectPermissions) return;
+                    var permissionId = props.TryGetProperty("id", out var perId) ? perId.GetString() : null;
+                    var what = props.TryGetProperty("permission", out var perKind) ? perKind.GetString() : "?";
+                    if (permissionId == null) return;
+                    _ = RejectPermissionAsync(permissionId, what);
+                    turn?.Channel.Writer.TryWrite(new OpenCodeChunk(OpenCodeChunk.KindTool, $"{what} · negato durante i test"));
+                    return;
+
                 case "message.part.delta":
                     if (turn == null) return;
                     var partId = props.TryGetProperty("partID", out var pid2) ? pid2.GetString() : null;
