@@ -1875,6 +1875,8 @@
     "RUN_TESTS": "Run the tests",
     "RUN_AGAIN": "Run again",
     "COMMITTED": "✔ Commit {{sha}}: {{message}}",
-    "NOT_COMMITTED": "{{file}}: no commit, {{reason}}"
+    "NOT_COMMITTED": "{{file}}: no commit, {{reason}}",
+    "FINGERPRINTED": "✔ Test fingerprint written in {{count}} scripts",
+    "LEAK": "The value of the credential «{{key}}» had ended up in {{file}}: replaced with the key."
   }
 }

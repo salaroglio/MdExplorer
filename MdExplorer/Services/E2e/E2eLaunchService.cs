@@ -165,6 +165,19 @@ namespace MdExplorer.Services.E2e
                 _logger.LogInformation("[E2e] {File}: eseguito ({Index}/{Total})", item.RelativeTestFile, index, plan.Items.Count);
                 await sink.Event(new { type = "test-end", file = item.RelativeTestFile, runFolder = item.RelativeRunFolder, answer = answer.ToString() });
 
+                // F5: fingerprints in the scripts, no credential value left on disk — before the commit.
+                var post = E2ePostRun.Process(item, plan.Secrets);
+                await sink.Event(new
+                {
+                    type = "post-run",
+                    file = item.RelativeTestFile,
+                    fingerprinted = post.Fingerprinted.Count,
+                    leaks = post.Leaks.Select(l => new { file = Path.GetRelativePath(request.ProjectPath, l.File).Replace('\\', '/'), key = l.Key }),
+                    problems = post.Problems,
+                });
+                if (post.Leaks.Count > 0)
+                    _logger.LogWarning("[E2e] {File}: valori di credenziali trovati e sostituiti in {Count} punti", item.RelativeTestFile, post.Leaks.Count);
+
                 if (item.Settings.CommitAfterRun.Value)
                 {
                     // D21, D26: only what the run produced or touched, screenshots included.

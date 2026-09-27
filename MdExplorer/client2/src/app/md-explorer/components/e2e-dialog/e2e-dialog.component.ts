@@ -240,6 +240,15 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
         }];
         this.addLog('step', this.translate.instant('E2E.ENDED', { file: event.file }));
         break;
+      case 'post-run':
+        if (event.fingerprinted > 0) {
+          this.addLog('step', this.translate.instant('E2E.FINGERPRINTED', { count: event.fingerprinted }));
+        }
+        for (const leak of event.leaks || []) {
+          this.runErrors = [...this.runErrors, this.translate.instant('E2E.LEAK', { key: leak.key, file: leak.file })];
+        }
+        this.runErrors = [...this.runErrors, ...(event.problems || [])];
+        break;
       case 'commit':
         if (event.committed) {
           this.addLog('step', this.translate.instant('E2E.COMMITTED', { sha: String(event.sha || '').slice(0, 8), message: event.message }));
