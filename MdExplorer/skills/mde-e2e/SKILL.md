@@ -119,6 +119,11 @@ Le verifiche si scrivono in una di queste forme, così diventano asserzioni prec
 | ✔ Il titolo della pagina è "…" | `Expect(Page).ToHaveTitleAsync("…")` |
 | ✔ Il campo "Etichetta" vale "…" | `Expect(Page.GetByLabel("Etichetta")).ToHaveValueAsync("…")` |
 | ✔ Il bottone "…" è disabilitato | `Expect(Page.GetByRole(AriaRole.Button, new() { Name = "…" })).ToBeDisabledAsync()` |
+| ✔ Ci sono esattamente N bottoni "…" | `Expect(Page.GetByRole(AriaRole.Button, new() { Name = "…" })).ToHaveCountAsync(N)` |
+| ✔ Ci sono esattamente N link "…" | `Expect(Page.GetByRole(AriaRole.Link, new() { Name = "…" })).ToHaveCountAsync(N)` |
+
+Se il testo di «Compare il testo» si trova in più punti della pagina, lo script usa il primo:
+`Expect(Page.GetByText("…").First)`. Senza `.First` Playwright si ferma perché non sa quale scegliere.
 
 Una verifica scritta in altro modo («✔ La pagina sembra in ordine») è una **verifica a giudizio**: la valuti tu
 guardando la pagina, e nello script diventa un commento `// verifica a giudizio: …` senza asserzione.
@@ -160,7 +165,8 @@ Indirizzo: `https://the-internet.herokuapp.com`. Ultimo aggiornamento: 2026-09-2
 - link "Logout" → `/login`, testo "You logged out of the secure area!"
 ````
 
-Aggiorna la mappa aggiungendo o correggendo, non riscrivendola da capo. Se una cosa scritta non è più vera,
+Aggiorna la mappa aggiungendo o correggendo, non riscrivendola da capo. Ogni fatto va sotto la **pagina** a cui
+appartiene; in «Elementi comuni» solo ciò che vale per tutte le pagine. Se una cosa scritta non è più vera,
 correggila e scrivi accanto la data.
 
 ## Le credenziali
@@ -258,8 +264,9 @@ Dopo l'esecuzione scrivi uno script per **ogni** test, anche se è fallito, in
 
 Le regole, tutte obbligatorie:
 
-- **segui lo scheletro qui sotto alla lettera**: stessi `using`, stesso namespace `MdeE2e.<NomeTest>`, una classe
-  per test che eredita `PageTest`, un solo metodo `Esegui`;
+- **segui lo scheletro qui sotto alla lettera**: stessi `using`, stesso namespace `MdeE2e.<NomeFile>`, una classe
+  `Test_T<n>` per test che eredita `PageTest`, un solo metodo `T<n>_<Titolo>` (così l'esito di
+  `dotnet test` dice quale test è);
 - le credenziali si leggono **solo** con `E2e.Credential(Credentials, "<chiave>")`, mai scritte nello script;
 - gli screenshot si fanno **solo** con `E2e.Screenshot(Page, Artifacts, "<nome>")`, mai con percorsi scritti a mano;
 - ogni passo e ogni verifica hanno sopra un commento con la riga del test, numero compreso;
@@ -285,14 +292,14 @@ using MdeE2e;
 namespace MdeE2e.Login
 {
     [TestFixture]
-    public class T1_LoginRiuscito : PageTest
+    public class Test_T1 : PageTest
     {
         private const string BaseUrl = "https://the-internet.herokuapp.com";
         private const string Artifacts = "login.e2e";
         private const string Credentials = "credenziali-the-internet.txt";
 
         [Test]
-        public async Task Esegui()
+        public async Task T1_LoginRiuscito()
         {
             // 1. Apri `/login`
             await Page.GotoAsync(BaseUrl + "/login");
