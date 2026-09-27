@@ -13911,6 +13911,10 @@ __webpack_require__.r(__webpack_exports__);
 
 
 class AiChatService {
+  /** The engine the MarkAgent tab chose for this connection, as sent to the hub; null if none yet. */
+  get chatMode() {
+    return this._lastChatMode;
+  }
   constructor(http, serverMessages) {
     this.http = http;
     this.serverMessages = serverMessages;
@@ -13987,6 +13991,9 @@ class AiChatService {
     // that automatic reconnect assigns — otherwise the reconnected hub has no provider and
     // every prompt fails with "Copilot not available".
     this._lastChatMode = null;
+    this._connectionLost$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
+    /** The hub connection dropped (reconnecting or closed): runs on the old connection are lost. */
+    this.connectionLost$ = this._connectionLost$.asObservable();
     /** Cached models from DB — populated by getCachedModels() */
     this._cachedModels = null;
     this._refreshInFlight = null;
@@ -14126,6 +14133,10 @@ class AiChatService {
     // (chat mode, project mapping, ACP session) for the old one in OnDisconnectedAsync.
     // Re-register everything the hub needs, or every subsequent prompt would fail with
     // "provider not available".
+    // A reconnection gets a new connectionId: whatever ran on the old one (an e2e launch) will never
+    // report again on this client. The e2e dialog listens to this to stop waiting (second review, 27/09/2026).
+    this.hubConnection.onreconnecting(() => this._connectionLost$.next());
+    this.hubConnection.onclose(() => this._connectionLost$.next());
     this.hubConnection.onreconnected(() => {
       console.log('[AiChatService] Reconnected — replaying project connection and chat mode');
       this.sendProjectConnectionId();
@@ -17911,8 +17922,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.27.6',
-  buildTime: '2026.09.27 14:33:43'
+  version: '2026.09.27.8',
+  buildTime: '2026.09.27 17:58:23'
 };
 
 /***/ }),
@@ -17946,4 +17957,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.430b0621450f8211.js.map
+//# sourceMappingURL=main.7605a0c9d8e04f1f.js.map

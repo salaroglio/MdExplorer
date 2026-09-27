@@ -27,6 +27,11 @@ namespace MdExplorer.Features.E2e
 
         /// <summary>The credentials file of this test, when it has one: the agent must not read it.</summary>
         public string CredentialsFile { get; init; }
+
+        /// <summary>What stops this file (its checks, paths outside the project): the other files still run.</summary>
+        public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
+
+        public bool CanRun => Errors.Count == 0;
     }
 
     /// <summary>
@@ -46,7 +51,13 @@ namespace MdExplorer.Features.E2e
         /// <summary>Every credential of every test of the launch, for the server's <c>--secrets</c> file.</summary>
         public IReadOnlyDictionary<string, string> Secrets { get; init; }
 
-        public bool CanRun => Errors.Count == 0 && Items.Count > 0;
+        /// <summary>
+        /// Errors that concern the launch as a whole (conflicting credential keys, mixed headless settings in the
+        /// MarkAgent tab): with any of them nothing runs. The errors of a single file are in its item.
+        /// </summary>
+        public IReadOnlyList<string> LaunchErrors { get; init; } = Array.Empty<string>();
+
+        public bool CanRun => LaunchErrors.Count == 0 && Items.Any(i => i.CanRun);
 
         public IEnumerable<string> DeniedPaths =>
             Items.Select(i => i.CredentialsFile).Where(f => f != null).Distinct(StringComparer.Ordinal);
@@ -56,6 +67,28 @@ namespace MdExplorer.Features.E2e
     public sealed record E2ePlaywrightServer(string Command, IReadOnlyList<string> Args, IReadOnlyDictionary<string, string> Env)
     {
         public const string Name = "playwright";
+
+        /// <summary>
+        /// Tools of @playwright/mcp 0.0.82 no agent may use during a test (second review, 27/09/2026):
+        /// <c>browser_run_code_unsafe</c> runs arbitrary code in the server (it can read any file, the
+        /// credentials included, past every file rule) and <c>browser_evaluate</c> can read a field back after
+        /// the server typed a secret into it — the redaction replaces only the exact value, so a value returned
+        /// split or encoded reaches the LLM (seen: character codes read back in the dotenv probe).
+        /// </summary>
+        public static readonly IReadOnlyList<string> BannedTools = new[] { "browser_evaluate", "browser_run_code_unsafe" };
+
+        /// <summary>
+        /// The tools of @playwright/mcp 0.0.82 an agent may use: an explicit list, so a tool a newer version adds
+        /// stays out until it is looked at.
+        /// </summary>
+        public static readonly IReadOnlyList<string> AllowedTools = new[]
+        {
+            "browser_click", "browser_close", "browser_console_messages", "browser_drag", "browser_drop",
+            "browser_emulate_media", "browser_file_upload", "browser_fill_form", "browser_find", "browser_handle_dialog",
+            "browser_hover", "browser_navigate", "browser_navigate_back", "browser_network_request",
+            "browser_network_requests", "browser_press_key", "browser_resize", "browser_select_option",
+            "browser_snapshot", "browser_tabs", "browser_take_screenshot", "browser_type", "browser_wait_for",
+        };
 
         /// <param name="outputDir">Only the server's diagnostic files go there: screenshots go where the agent
         /// names them, relative to the project (verified 27/09/2026). Always given, or the server writes
@@ -100,9 +133,11 @@ namespace MdExplorer.Features.E2e
             var secrets = new Dictionary<string, string>(StringComparer.Ordinal);
             var secretSource = new Dictionary<string, string>(StringComparer.Ordinal);
 
+            var launchErrors = new List<string>();
             foreach (var file in files)
             {
                 var relative = Relative(root, file);
+                var itemErrors = new List<string>();
                 E2ePreflightResult preflight;
                 try
                 {
@@ -113,7 +148,7 @@ namespace MdExplorer.Features.E2e
                     errors.Add($"{relative}: non riesco a controllarlo ({ex.Message}).");
                     continue;
                 }
-                errors.AddRange(preflight.Errors);
+                itemErrors.AddRange(preflight.Errors);
                 warnings.AddRange(preflight.Warnings);
                 if (preflight.Document == null) continue;
 
@@ -134,12 +169,12 @@ namespace MdExplorer.Features.E2e
                 {
                     var artifacts = Path.GetFullPath(Path.Combine(folder, preflight.Document.Artifacts));
                     if (!IsInside(artifacts, root))
-                        errors.Add($"{relative}: 'e2e.artifacts' ({preflight.Document.Artifacts}) porta fuori dal progetto.");
+                        itemErrors.Add($"{relative}: 'e2e.artifacts' ({preflight.Document.Artifacts}) porta fuori dal progetto.");
                     else
                         runFolder = FreeRunFolder(Path.Combine(artifacts, "esecuzioni"), stamp);
                 }
                 if (preflight.Document.SiteMap != null && !IsInside(Path.GetFullPath(Path.Combine(folder, preflight.Document.SiteMap)), root))
-                    errors.Add($"{relative}: 'e2e.siteMap' ({preflight.Document.SiteMap}) porta fuori dal progetto.");
+                    itemErrors.Add($"{relative}: 'e2e.siteMap' ({preflight.Document.SiteMap}) porta fuori dal progetto.");
 
                 string credentials = null;
                 if (preflight.Document.Credentials != null)
@@ -149,7 +184,7 @@ namespace MdExplorer.Features.E2e
                     // and have its values typed into the author's site: only files of the project.
                     if (!IsInside(credentials, root))
                     {
-                        errors.Add($"{relative}: 'e2e.credentials' ({preflight.Document.Credentials}) porta fuori dal progetto: il file delle credenziali deve stare nel progetto.");
+                        itemErrors.Add($"{relative}: 'e2e.credentials' ({preflight.Document.Credentials}) porta fuori dal progetto: il file delle credenziali deve stare nel progetto.");
                         credentials = null;
                     }
                     else if (File.Exists(credentials))
@@ -157,7 +192,7 @@ namespace MdExplorer.Features.E2e
                         foreach (var (key, value) in ReadCredentials(credentials))
                         {
                             if (secrets.TryGetValue(key, out var existing) && existing != value)
-                                errors.Add($"La chiave '{key}' ha valori diversi in '{Relative(root, secretSource[key])}' e in '{Relative(root, credentials)}': in un lancio le chiavi devono essere uniche. Rinominane una.");
+                                launchErrors.Add($"La chiave '{key}' ha valori diversi in '{Relative(root, secretSource[key])}' e in '{Relative(root, credentials)}': in un lancio le chiavi devono essere uniche. Rinominane una.");
                             else
                             {
                                 secrets[key] = value;
@@ -177,20 +212,25 @@ namespace MdExplorer.Features.E2e
                     RunFolder = runFolder,
                     RelativeRunFolder = relativeRun,
                     CredentialsFile = credentials,
+                    Errors = itemErrors,
                     Prompt = relativeRun == null ? null : $"Esegui i test di {relative}.\nCartella dell'esecuzione: {relativeRun}/\n",
                 });
             }
 
             // In the MarkAgent tab there is one Playwright server, started with or without --headless (D25).
-            var inTab = items.Where(i => !i.Settings.DedicatedSession.Value).ToList();
+            var inTab = items.Where(i => i.CanRun && !i.Settings.DedicatedSession.Value).ToList();
             if (inTab.Select(i => i.Settings.Headless.Value).Distinct().Count() > 1)
             {
-                errors.Add("Questi test girano nella sessione del tab MarkAgent, dove il browser è uno solo, ma alcuni chiedono il browser nascosto e altri visibile: "
+                launchErrors.Add("Questi test girano nella sessione del tab MarkAgent, dove il browser è uno solo, ma alcuni chiedono il browser nascosto e altri visibile: "
                     + string.Join(", ", inTab.Select(i => $"{i.RelativeTestFile} ({(i.Settings.Headless.Value ? "nascosto" : "visibile")})"))
                     + ". Uniforma l'impostazione headless (per esempio sulla cartella) oppure usa sessioni dedicate.");
             }
 
-            return new E2eRunPlan { ProjectRoot = root, Items = items, Errors = errors, Warnings = warnings, Secrets = secrets };
+            // Errors shows everything (for the dialog): files that could not be read, each file's own problems,
+            // the launch-wide ones.
+            errors.AddRange(items.SelectMany(i => i.Errors));
+            errors.AddRange(launchErrors);
+            return new E2eRunPlan { ProjectRoot = root, Items = items, Errors = errors, Warnings = warnings, Secrets = secrets, LaunchErrors = launchErrors };
         }
 
         /// <summary>
@@ -228,6 +268,31 @@ namespace MdExplorer.Features.E2e
                 .Where(l => l.Length > 0 && !l.StartsWith("#", StringComparison.Ordinal) && l.IndexOf('=') > 0)
                 .Select(l => (l.Substring(0, l.IndexOf('=')).Trim(), l.Substring(l.IndexOf('=') + 1).Trim()));
 
+        /// <summary>
+        /// Every credentials file named by any <c>.e2e.md</c> of the project, whatever its name: a launch denies
+        /// the agent all of them, not only its own (second review, 27/09/2026). Unreadable test files are skipped.
+        /// </summary>
+        public static IReadOnlyList<string> CredentialFilesInProject(string projectRoot)
+        {
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectRoot));
+            var found = new List<string>();
+            foreach (var test in TestFilesUnder(root))
+            {
+                try
+                {
+                    var e2e = E2eFrontMatter.ReadMapping(File.ReadAllText(test), Path.GetFileName(test));
+                    if (e2e != null && e2e.Children.TryGetValue(new YamlDotNet.RepresentationModel.YamlScalarNode("credentials"), out var node)
+                        && node is YamlDotNet.RepresentationModel.YamlScalarNode scalar && !string.IsNullOrWhiteSpace(scalar.Value))
+                    {
+                        var path = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(test)!, scalar.Value.Trim()));
+                        if (IsInside(path, root)) found.Add(path);
+                    }
+                }
+                catch (Exception ex) when (ex is E2eFormatException or IOException) { /* its own preflight says it */ }
+            }
+            return found.Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal).ToList();
+        }
+
         private static IEnumerable<string> TestFilesUnder(string folder)
         {
             foreach (var file in Directory.GetFiles(folder, "*.e2e.md").OrderBy(f => f, StringComparer.Ordinal))
@@ -242,6 +307,7 @@ namespace MdExplorer.Features.E2e
 
         private static E2eRunPlan Refused(string root, string error) => new()
         {
+            LaunchErrors = new[] { error },
             ProjectRoot = root,
             Items = Array.Empty<E2eRunItem>(),
             Errors = new[] { error },

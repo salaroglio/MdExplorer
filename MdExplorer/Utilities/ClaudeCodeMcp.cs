@@ -175,7 +175,8 @@ namespace MdExplorer.Utilities
         /// server of the e2e tests (F4b). Null — and said — when there is no server to declare: the MCP
         /// executable cannot be found and no Playwright server is asked.
         /// </summary>
-        public static string WriteSessionConfig(string mcpGroupsArgument = null, Features.E2e.E2ePlaywrightServer playwright = null)
+        public static string WriteSessionConfig(string mcpGroupsArgument = null, Features.E2e.E2ePlaywrightServer playwright = null,
+            string nonce = null)
         {
             var mcpExecutable = ProjectsManager.ResolveMcpExecutable(AppDomain.CurrentDomain.BaseDirectory);
             if (mcpExecutable == null)
@@ -195,7 +196,7 @@ namespace MdExplorer.Utilities
                 return null;
             }
 
-            return WriteSessionConfig(mcpExecutable, Path.Combine(appData, "MdExplorer"), mcpGroupsArgument, playwright);
+            return WriteSessionConfig(mcpExecutable, Path.Combine(appData, "MdExplorer"), mcpGroupsArgument, playwright, nonce);
         }
 
         /// <summary>
@@ -204,7 +205,7 @@ namespace MdExplorer.Utilities
         /// comes from the content, so two sessions with different test settings never overwrite each other.
         /// </summary>
         public static string WriteSessionConfig(string mcpExecutable, string directory, string mcpGroupsArgument = null,
-            Features.E2e.E2ePlaywrightServer playwright = null)
+            Features.E2e.E2ePlaywrightServer playwright = null, string nonce = null)
         {
             Directory.CreateDirectory(directory);
 
@@ -238,7 +239,8 @@ namespace MdExplorer.Utilities
             var json = new JsonObject { ["mcpServers"] = servers }.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
             var fileName = playwright == null
                 ? SessionConfigFileName
-                : "claude-code-mcp-e2e-" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(json))).Substring(0, 12).ToLowerInvariant() + ".json";
+                : "claude-code-mcp-e2e-" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(json))).Substring(0, 12).ToLowerInvariant()
+                  + (nonce == null ? "" : "-" + nonce) + ".json";
             var path = Path.Combine(directory, fileName);
 
             // Atomic: two sessions starting together must not read a half-written file.

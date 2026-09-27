@@ -15,6 +15,18 @@
   </div>
 
   <ng-container *ngIf="!loading && settings">
+    <!-- Motore: quello del tab MarkAgent su questa connessione -->
+    <section class="e2e-section">
+      <h3>{{ 'E2E.ENGINE' | translate }}</h3>
+      <div *ngIf="engine" class="e2e-item"><mat-icon class="e2e-ok">smart_toy</mat-icon><span>{{ engineLabel }}</span></div>
+      <ng-container *ngIf="!engine">
+        <label class="e2e-label" for="e2e-engine">{{ 'E2E.ENGINE_CHOOSE' | translate }}</label>
+        <mat-button-toggle-group id="e2e-engine" (change)="chooseEngine($event.value)">
+          <mat-button-toggle *ngFor="let e of engines" [value]="e.id">{{ e.label }}</mat-button-toggle>
+        </mat-button-toggle-group>
+      </ng-container>
+    </section>
+
     <!-- Impostazioni: il particolare vince sul generale -->
     <section class="e2e-section">
       <h3>{{ 'E2E.SETTINGS' | translate }}</h3>
@@ -52,6 +64,9 @@
         <mat-icon class="e2e-ok">description</mat-icon>
         <span><code>{{ item.file }}</code> — {{ 'E2E.TESTS_COUNT' | translate: { count: item.tests } }}</span>
       </div>
+      <button *ngIf="needsGitIgnore" mat-stroked-button color="primary" (click)="addToGitIgnore()">
+        <mat-icon>visibility_off</mat-icon> {{ 'E2E.ADD_GITIGNORE' | translate }}
+      </button>
       <div *ngIf="plan.canRun" class="e2e-message e2e-success">
         <mat-icon>check_circle</mat-icon><span>{{ 'E2E.CHECKS_OK' | translate }}</span>
       </div>
@@ -125,7 +140,7 @@
         <mat-icon>error_outline</mat-icon><span>{{ e }}</span>
       </div>
       <div *ngIf="finished && results.length > 0" class="e2e-message e2e-success">
-        <mat-icon>forum</mat-icon><span>{{ 'E2E.SUMMARY_SENT' | translate }}</span>
+        <mat-icon>forum</mat-icon><span>{{ summaryText }}</span>
       </div>
     </section>
   </ng-container>
@@ -133,6 +148,9 @@
 
 <mat-dialog-actions align="end">
   <button mat-button [disabled]="running || replaying" (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
+  <button mat-button [disabled]="running || replaying || loading" (click)="refresh()">
+    <mat-icon>refresh</mat-icon> {{ 'E2E.RECHECK' | translate }}
+  </button>
   <button *ngIf="running" mat-stroked-button color="warn" (click)="stop()">
     <mat-icon>stop</mat-icon> {{ 'E2E.STOP' | translate }}
   </button>

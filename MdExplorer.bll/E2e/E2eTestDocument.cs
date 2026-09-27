@@ -122,6 +122,12 @@ namespace MdExplorer.Features.E2e
                 return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
             }
 
+            string OptionalKey(string key)
+            {
+                var value = e2e.Children.TryGetValue(new YamlScalarNode(key), out var node) ? (node as YamlScalarNode)?.Value : null;
+                return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+            }
+
             var baseUrl = Key("baseUrl");
             if (baseUrl != null && !(Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)))
                 problems.Add($"{fileName}: 'e2e.baseUrl' vale '{baseUrl}': serve un indirizzo completo che inizia con http:// o https://.");
@@ -133,8 +139,10 @@ namespace MdExplorer.Features.E2e
             {
                 BaseUrl = baseUrl,
                 SiteMap = Key("siteMap"),
-                Credentials = Key("credentials"),
-                Artifacts = Key("artifacts"),
+                // Only needed when the test uses {{keys}}: checked by the preflight.
+                Credentials = OptionalKey("credentials"),
+                // D18: the default folder is the test's name without ".md" (login.e2e.md → login.e2e/).
+                Artifacts = OptionalKey("artifacts") ?? DefaultArtifacts(fileName),
                 Run = E2eFrontMatter.ReadRunSettings(markdown, fileName),
                 Tests = document.Tests,
                 HasArtifactsSection = document.HasArtifactsSection,
@@ -142,6 +150,10 @@ namespace MdExplorer.Features.E2e
                 Problems = problems,
             };
         }
+
+        /// <summary>The artifacts folder when the front matter does not name one: <c>login.e2e.md</c> → <c>login.e2e/</c>.</summary>
+        public static string DefaultArtifacts(string fileName) =>
+            (fileName.EndsWith(".md", StringComparison.OrdinalIgnoreCase) ? fileName.Substring(0, fileName.Length - 3) : fileName) + "/";
 
         public static E2eStep ReadStep(int number, string text)
         {

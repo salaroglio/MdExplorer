@@ -57,6 +57,8 @@ namespace MdExplorer.Features.E2e
                 warnings.Add($"{fileName}: la mappa del sito '{document.SiteMap}' non esiste ancora: la creerà l'agente alla prima esecuzione.");
 
             var keys = document.CredentialKeys.ToList();
+            if (document.Credentials == null && keys.Count > 0)
+                errors.Add($"{fileName}: il test usa delle credenziali ({string.Join(", ", keys)}) ma nel front matter manca 'e2e.credentials' (il file .txt con le righe chiave=valore).");
             if (document.Credentials != null)
             {
                 var credentialsPath = Path.Combine(folder, document.Credentials);
@@ -67,6 +69,8 @@ namespace MdExplorer.Features.E2e
                     // then type the key's name (@playwright/mcp 0.0.82, utilsBundle.js). Checked here instead.
                     foreach (var key in keys.Concat(known).Distinct().Where(k => !ValidKey.IsMatch(k)))
                         errors.Add($"{fileName}: la chiave '{key}' ha caratteri che il server Playwright non accetta: usa solo lettere, cifre, '_', '.' e '-' (senza accenti).");
+                    foreach (var key in keys.Where(k => known.Contains(k) && EmptyValue(credentialsPath, k)))
+                        errors.Add($"{fileName}: la chiave '{key}' in '{document.Credentials}' non ha un valore.");
                     foreach (var key in keys.Where(k => !known.Contains(k)))
                         errors.Add($"{fileName}: la chiave '{key}' non c'è in '{document.Credentials}'. Aggiungi la riga '{key}=<valore>' oppure correggi il nome nel test.");
                     CheckNotInGit(credentialsPath, document.Credentials, fileName, errors);
@@ -88,6 +92,19 @@ namespace MdExplorer.Features.E2e
                 .Select(l => l.Substring(0, l.IndexOf('=')).Trim())
                 .ToHashSet(StringComparer.Ordinal);
 
+        /// <summary>The .gitignore line that excludes a credentials file: the skill's pattern when the name follows it.</summary>
+        public static string GitIgnoreLine(string credentialsName)
+        {
+            var name = Path.GetFileName(credentialsName);
+            return System.Text.RegularExpressions.Regex.IsMatch(name, @"^credenziali-.+\.txt$", System.Text.RegularExpressions.RegexOptions.IgnoreCase)
+                ? "credenziali-*.txt" : name;
+        }
+
+        private static bool EmptyValue(string path, string key) =>
+            File.ReadAllLines(path).Select(l => l.Trim())
+                .Where(l => !l.StartsWith("#", StringComparison.Ordinal) && l.IndexOf('=') > 0)
+                .Any(l => l.Substring(0, l.IndexOf('=')).Trim() == key && l.Substring(l.IndexOf('=') + 1).Trim().Length == 0);
+
         private static void CheckNotInGit(string credentialsPath, string credentialsName, string fileName, List<string> errors)
         {
             var gitDir = Repository.Discover(Path.GetDirectoryName(credentialsPath));
@@ -99,7 +116,7 @@ namespace MdExplorer.Features.E2e
             if (repo.Index[relative] != null)
                 errors.Add($"{fileName}: il file delle credenziali '{credentialsName}' è già nel repository git. Toglilo dall'indice (git rm --cached \"{relative}\") e aggiungi 'credenziali-*.txt' al .gitignore.");
             else if (!repo.Ignore.IsPathIgnored(relative))
-                errors.Add($"{fileName}: il file delle credenziali '{credentialsName}' non è escluso da git. Aggiungi la riga 'credenziali-*.txt' al .gitignore del progetto.");
+                errors.Add($"{fileName}: il file delle credenziali '{credentialsName}' non è escluso da git. Aggiungi la riga '{GitIgnoreLine(credentialsName)}' al .gitignore del progetto (c'è un pulsante nella finestra dei test).");
         }
     }
 }

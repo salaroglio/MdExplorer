@@ -153,12 +153,13 @@ namespace MdExplorer.Controllers.E2e
             var results = new System.Collections.Generic.List<E2eReplayFileResult>();
             foreach (var item in plan.Items)
             {
-                if (!item.Preflight.CanRun)
+                if (!item.CanRun)
                 {
-                    results.Add(new E2eReplayFileResult { File = item.RelativeTestFile, Problem = string.Join(" ", item.Preflight.Errors) });
+                    // Its own checks and the planner's (paths outside the project) — second review, 27/09/2026.
+                    results.Add(new E2eReplayFileResult { File = item.RelativeTestFile, Problem = string.Join(" ", item.Errors) });
                     continue;
                 }
-                var result = await E2eReplay.RunAsync(item, prerequisites.BrowserArgument, dotnet, DateTime.Now, plan.Secrets, generator, ct);
+                var result = await E2eReplay.RunAsync(item, root, prerequisites.BrowserArgument, dotnet, DateTime.Now, plan.Secrets, generator, ct);
                 if (item.Settings.CommitAfterRun.Value && result.Problem == null && result.Outcomes.Count > 0)
                 {
                     var ok = result.Outcomes.Count(o => o.Passed);
@@ -186,6 +187,35 @@ namespace MdExplorer.Controllers.E2e
                 problem = r.Problem,
                 commit = r.Commit == null ? null : new { committed = r.Commit.Committed, sha = r.Commit.Sha, message = r.Commit.Message, reason = r.Commit.Reason },
             }));
+        }
+
+        /// <summary>
+        /// Adds to the project's .gitignore the lines that exclude the credentials files of a test or of every test
+        /// of a folder (D12). Asked by the user from the dialog: the checks refuse a launch before that, so the agent
+        /// could never do it itself on a new project (second review, 27/09/2026).
+        /// </summary>
+        [HttpPost("gitignore")]
+        public IActionResult AddToGitIgnore([FromBody] RunSettingsBody body)
+        {
+            if (!TryResolve(body?.Path, body?.ProjectPath, out var full, out var root, out var problem)) return BadRequest(new { error = problem });
+            var gitDir = LibGit2Sharp.Repository.Discover(root);
+            if (gitDir == null) return UnprocessableEntity(new { error = "Il progetto non è un repository git: non serve nessun .gitignore." });
+            using var repo = new LibGit2Sharp.Repository(gitDir);
+            var gitignore = Path.Combine(repo.Info.WorkingDirectory, ".gitignore");
+
+            var plan = E2eRunPlanner.Plan(full, root, DateTime.Now);
+            var lines = plan.Items.Where(i => i.CredentialsFile != null && System.IO.File.Exists(i.CredentialsFile))
+                .Where(i => !repo.Ignore.IsPathIgnored(Path.GetRelativePath(repo.Info.WorkingDirectory, i.CredentialsFile).Replace('\\', '/')))
+                .Select(i => E2ePreflight.GitIgnoreLine(i.CredentialsFile)).Distinct().ToList();
+            if (lines.Count == 0) return Ok(new { added = Array.Empty<string>() });
+
+            var existing = System.IO.File.Exists(gitignore) ? System.IO.File.ReadAllText(gitignore) : "";
+            var newline = existing.Contains("\r\n") ? "\r\n" : "\n";
+            var text = existing.Length > 0 && !existing.EndsWith("\n") ? newline : "";
+            text += "# credenziali dei test e2e (MdExplorer)" + newline + string.Join(newline, lines) + newline;
+            System.IO.File.AppendAllText(gitignore, text);
+            _logger.LogInformation("[E2e] aggiunte a .gitignore: {Lines}", string.Join(", ", lines));
+            return Ok(new { added = lines });
         }
 
         private E2eCommitResult SafeCommit(E2eRunItem item, string message)
@@ -243,9 +273,19 @@ namespace MdExplorer.Controllers.E2e
             var comparisonKnown = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             var asked = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectPath));
             // Materialized first: NHibernate LINQ cannot translate string.IsNullOrWhiteSpace (seen as a 500).
-            var known = _userSettingsDB.GetDal<Abstractions.Entities.UserDB.Project>().GetList().ToList()
-                .Select(p => p.Path).Where(p => !string.IsNullOrWhiteSpace(p))
-                .Any(p => string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(p)), asked, comparisonKnown));
+            // Inside a transaction: a read outside one breaks the next Commit of the shared session (project rule).
+            System.Collections.Generic.List<string> paths;
+            _userSettingsDB.BeginTransaction();
+            try
+            {
+                paths = _userSettingsDB.GetDal<Abstractions.Entities.UserDB.Project>().GetList().ToList()
+                    .Select(p => p.Path).Where(p => !string.IsNullOrWhiteSpace(p)).ToList();
+            }
+            finally
+            {
+                _userSettingsDB.Commit();
+            }
+            var known = paths.Any(p => string.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(p)), asked, comparisonKnown));
             if (!known)
             {
                 problem = "Il percorso indicato non è un progetto di MdExplorer.";

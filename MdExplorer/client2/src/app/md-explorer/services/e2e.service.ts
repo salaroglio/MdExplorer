@@ -96,6 +96,11 @@ export class E2eService {
     return this.http.get<E2ePlan>(`${this.base}/plan`, { params: { path, projectPath } });
   }
 
+  /** Adds to the project's .gitignore the lines that exclude the credentials files of this test/folder (D12). */
+  addToGitIgnore(path: string, projectPath: string): Observable<{ added: string[] }> {
+    return this.http.post<{ added: string[] }>(`${this.base}/gitignore`, { path, projectPath });
+  }
+
   replay(path: string, projectPath: string): Observable<E2eReplayResult[]> {
     return this.http.post<E2eReplayResult[]>(`${this.base}/replay`, { path, projectPath });
   }

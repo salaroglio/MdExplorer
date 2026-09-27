@@ -52,7 +52,7 @@
       <mat-icon>auto_awesome</mat-icon>
       <span>{{ 'MD_TREE.MARK_ASSIST' | translate }}</span>
     </button>
-    <button *ngIf="item.type==='folder' || isE2eFile(item)" mat-menu-item (click)="openE2eTests(item)">
+    <button *ngIf="item.type==='folder' || item.name==='root' || isE2eFile(item)" mat-menu-item (click)="openE2eTests(item)">
       <mat-icon>fact_check</mat-icon>
       <span>{{ 'MD_TREE.E2E_TESTS' | translate }}</span>
     </button>

@@ -69,10 +69,17 @@ namespace MdExplorer.Features.E2e
         }
 
         /// <param name="runStartUtc">Files not written since then are not looked at: they are not this run's.</param>
-        public static E2ePostRunResult Process(E2eRunItem item, IReadOnlyDictionary<string, string> secrets, DateTime runStartUtc)
+        public static E2ePostRunResult Process(E2eRunItem item, IReadOnlyDictionary<string, string> secrets, DateTime runStartUtc,
+            string currentGenerator = null)
         {
             var problems = new List<string>();
             var fingerprinted = new List<string>();
+            var tests = item.Preflight.Document?.Tests ?? (IReadOnlyList<E2eTest>)Array.Empty<E2eTest>();
+
+            // D17: a script for every test.
+            var withScript = Scripts(item).Select(x => x.TestNumber).ToHashSet();
+            foreach (var test in tests.Where(t => !withScript.Contains(t.Number)))
+                problems.Add($"T{test.Number}: manca lo script ({Path.GetFileNameWithoutExtension(item.TestFile)}.T{test.Number}.spec.cs).");
 
             // Only the scripts the agent has just written carry the placeholder. A script left from an older
             // version of the test keeps its old fingerprint, and so stays stale (D17): stamping every script
@@ -91,6 +98,19 @@ namespace MdExplorer.Features.E2e
                     continue;
                 }
                 if (!string.Equals(script.Fingerprint, PendingFingerprint, StringComparison.Ordinal)) continue;
+
+                // D17: the checks come from the .e2e.md, never from what the page showed. A script that does not
+                // carry every expected text of its test is not stamped: it stays stale and is never replayed as
+                // valid (second review, 27/09/2026: a script copying the page would replay green on a regression).
+                var test = tests.First(t => t.Number == script.TestNumber);
+                var missing = MissingExpectations(test, text).ToList();
+                if (missing.Count > 0)
+                {
+                    problems.Add($"{Path.GetFileName(script.Path)}: non verifica {string.Join(", ", missing)} come scritto nel test: resta da rigenerare.");
+                    continue;
+                }
+                if (currentGenerator != null && !string.Equals(script.Generator, currentGenerator, StringComparison.Ordinal))
+                    problems.Add($"{Path.GetFileName(script.Path)}: scritto come «{script.Generator}», la skill installata è «{currentGenerator}».");
                 File.WriteAllText(script.Path, FingerprintLine.Replace(text, "// impronta-sorgente: " + script.CurrentFingerprint, 1));
                 fingerprinted.Add(script.Path);
             }
@@ -120,6 +140,23 @@ namespace MdExplorer.Features.E2e
             }
 
             return new E2ePostRunResult(fingerprinted, leaks, problems);
+        }
+
+        /// <summary>
+        /// The expected texts (and named targets) of the test's deterministic checks that the script does not
+        /// contain as C# string literals. Checks with a <c>{{key}}</c> are skipped: the script reads the value.
+        /// </summary>
+        public static IEnumerable<string> MissingExpectations(E2eTest test, string script)
+        {
+            foreach (var step in test.Steps.Where(s => s.Check != null && s.Check != E2eCheckKind.Judgment))
+            {
+                foreach (var literal in new[] { step.Expected, step.Target }.Where(v => !string.IsNullOrEmpty(v)))
+                {
+                    if (literal.Contains("{{", StringComparison.Ordinal)) continue;
+                    var csharp = "\"" + literal.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+                    if (!script.Contains(csharp, StringComparison.Ordinal)) yield return $"«{literal}» (passo {step.Number})";
+                }
+            }
         }
 
         /// <summary>The credential values in <paramref name="text"/> replaced by their keys (replay messages).</summary>

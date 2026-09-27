@@ -1884,6 +1884,14 @@
     "REPLAYING": "Rigioco gli script con dotnet test, senza LLM…",
     "STALE_SKIPPED": "Non rigiocati perché scaduti: {{scripts}}. Esegui di nuovo il test con MarkAgent per rigenerarli.",
     "REPLAY": "Rigioca gli script",
-    "LEAK_REPORTED": "Il valore della credenziale «{{key}}» compare in {{file}}: controlla e sostituiscilo con il nome della chiave (MdExplorer non riscrive i file fuori dalla cartella dell'esecuzione)."
+    "LEAK_REPORTED": "Il valore della credenziale «{{key}}» compare in {{file}}: controlla e sostituiscilo con il nome della chiave (MdExplorer non riscrive i file fuori dalla cartella dell'esecuzione).",
+    "ENGINE": "Motore",
+    "ENGINE_CHOOSE": "Il tab MarkAgent non ha ancora scelto un motore: sceglilo qui",
+    "ADD_GITIGNORE": "Aggiungi al .gitignore",
+    "RECHECK": "Ricontrolla",
+    "SKIPPED": "⏭ {{file}} saltato: ha dei problemi (vedi sotto)",
+    "TEST_FAILED": "{{file}}: esecuzione non riuscita ({{error}}). Gli altri file proseguono.",
+    "CONNECTION_LOST": "La connessione con MdExplorer si è interrotta durante l'esecuzione: l'esito arriverà nei file, ma non qui. Riapri la finestra per vedere lo stato.",
+    "SUMMARY_SENT_DEDICATED": "Il riepilogo è nel tab MarkAgent come messaggio: le esecuzioni in sessione dedicata non sono nella memoria della sua conversazione."
   }
 }

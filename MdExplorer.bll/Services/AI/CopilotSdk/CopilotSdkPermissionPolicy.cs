@@ -57,6 +57,11 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 if (request is PermissionRequestRead read && IsDenied(read.Path, workingDirectory, profile))
                     return new Verdict(false, "leggere " + read.Path,
                         "è un file di credenziali: durante i test e2e le usa solo il server Playwright");
+                if (request is PermissionRequestMcp tool && profile.DeniedMcpTools.Any(d =>
+                        string.Equals(d, tool.ToolName, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(d, tool.ServerName + "/" + tool.ToolName, StringComparison.OrdinalIgnoreCase)))
+                    return new Verdict(false, $"usare lo strumento MCP {tool.ServerName}/{tool.ToolName}",
+                        "durante i test e2e questo strumento è vietato: può leggere le credenziali aggirando i divieti");
                 if (request is PermissionRequestWrite write && IsProtected(write.FileName, workingDirectory, profile))
                     return new Verdict(false, "scrivere " + write.FileName,
                         "durante i test e2e la configurazione degli agenti non si modifica");
@@ -82,9 +87,11 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         {
             if (string.IsNullOrWhiteSpace(path) || string.IsNullOrWhiteSpace(workingDirectory)) return false;
             var relative = Path.GetRelativePath(Path.GetFullPath(workingDirectory), Full(path, workingDirectory)).Replace('\\', '/');
+            var name = Path.GetFileName(relative);
             return profile.DeniedWritePaths.Any(p => p.EndsWith("/", StringComparison.Ordinal)
                 ? relative.StartsWith(p, StringComparison.OrdinalIgnoreCase)
-                : string.Equals(relative, p, StringComparison.OrdinalIgnoreCase));
+                // A file entry protects that name wherever it is: CLAUDE.md, AGENTS.md are read in every folder.
+                : string.Equals(relative, p, StringComparison.OrdinalIgnoreCase) || string.Equals(name, p, StringComparison.OrdinalIgnoreCase));
         }
 
         public static Verdict Decide(PermissionRequest request, string workingDirectory)

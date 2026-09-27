@@ -49,6 +49,16 @@ namespace MdExplorer.Features.E2e
             return string.Join(newline, lines);
         }
 
+        /// <summary>
+        /// The «Ultima esecuzione» line of <c>## Artefatti</c> pointing at <paramref name="link"/> (the skill keeps it
+        /// current; the replay does the same). Only that line changes; nothing is added if there is none.
+        /// </summary>
+        public static string SetLastRun(string markdown, string date, string link)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(markdown, @"^(- Ultima esecuzione: )\[[^\]]*\]\([^)]*\)[^\r\n]*", System.Text.RegularExpressions.RegexOptions.Multiline);
+            return m.Success ? markdown.Substring(0, m.Index) + m.Groups[1].Value + $"[{date}]({link})" + markdown.Substring(m.Index + m.Length) : markdown;
+        }
+
         private static string Cell(string text) => (text ?? "").Replace("|", "\\|").Replace("\r", " ").Replace("\n", " ").Trim();
     }
 }

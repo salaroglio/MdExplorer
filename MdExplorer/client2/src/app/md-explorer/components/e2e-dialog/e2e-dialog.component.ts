@@ -47,6 +47,15 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
     { key: 'playwrightMcp', label: 'E2E.REQ_PLAYWRIGHT' },
   ];
 
+  /** The engines that can run the tests: the MarkAgent engine of this connection, chosen here if not yet. */
+  readonly engines: { id: string; label: string }[] = [
+    { id: 'claudecode', label: 'Claude Code' },
+    { id: 'copilotcli', label: 'Copilot' },
+    { id: 'opencode', label: 'opencode' },
+  ];
+  engine: { provider: string; modelId: string | null } | null = null;
+  engineLabel = '';
+
   settings: E2eSettingsState | null = null;
   choices: Record<SettingKey, Choice> = { dedicatedSession: 'inherit', commitAfterRun: 'inherit', headless: 'inherit' };
   plan: E2ePlan | null = null;
@@ -63,7 +72,9 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
   currentFile: string | null = null;
   progress = '';
   log: LogLine[] = [];
-  results: { file: string; runFolder: string; answer: string }[] = [];
+  results: { file: string; runFolder: string; answer: string; tab: boolean }[] = [];
+  private currentInTab = false;
+  private lostSub: Subscription | null = null;
   replaying = false;
   replayResults: E2eReplayResult[] | null = null;
   private answer = '';
@@ -81,16 +92,52 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.readEngine();
     this.refresh();
+    // A dropped connection never reports the end of a run started on it: stop waiting and say so.
+    this.lostSub = this.aiChat.connectionLost$.subscribe(() => {
+      if (!this.running) return;
+      this.runErrors = [...this.runErrors, this.translate.instant('E2E.CONNECTION_LOST')];
+      this.running = false;
+      this.finished = true;
+      this.channelSub?.unsubscribe();
+      this.channelSub = null;
+    });
   }
 
   ngOnDestroy(): void {
     this.channelSub?.unsubscribe();
+    this.lostSub?.unsubscribe();
+  }
+
+  private readEngine(): void {
+    this.engine = this.aiChat.chatMode;
+    const known = this.engines.find(e => e.id === this.engine?.provider);
+    this.engineLabel = known ? known.label + (this.engine?.modelId ? ` (${this.engine.modelId})` : '') : '';
+  }
+
+  /** Sets the MarkAgent engine of this connection: needed when the MarkAgent tab was never opened. */
+  chooseEngine(id: string): void {
+    this.aiChat.setProvider(id, null);
+    this.readEngine();
+  }
+
+  /** The credentials file must be excluded from git before a run (D12): MdExplorer adds the line. */
+  get needsGitIgnore(): boolean {
+    return (this.plan?.errors || []).some(e => e.includes('non è escluso da git'));
+  }
+
+  addToGitIgnore(): void {
+    this.e2e.addToGitIgnore(this.data.path, this.data.projectPath).subscribe({
+      next: () => this.refresh(),
+      error: err => this.error = err?.error?.error || err?.message || String(err),
+    });
   }
 
   /** Scripts that can be replayed: at least one script still matching its test, and a .NET SDK. */
   get canReplay(): boolean {
-    return !!this.plan?.dotnet?.ok && !!this.prerequisites?.browser?.ok && !this.running && !this.replaying && !this.loading
+    const browser = this.prerequisites?.browserArgument;
+    return !!this.plan?.dotnet?.ok && (browser === 'chrome' || browser === 'msedge') && !this.running && !this.replaying && !this.loading
       && (this.plan?.items || []).some(i => (i.scripts || []).some(s => !s.stale));
   }
 
@@ -112,8 +159,13 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Where the summary went: only a run in the tab session is known to MarkAgent's conversation. */
+  get summaryText(): string {
+    return this.translate.instant(this.results.some(r => r.tab) ? 'E2E.SUMMARY_SENT' : 'E2E.SUMMARY_SENT_DEDICATED');
+  }
+
   get canRun(): boolean {
-    return !!this.plan?.canRun && !!this.prerequisites?.readyToRun && !this.running && !this.replaying && !this.loading && !this.saving;
+    return !!this.plan?.canRun && !!this.prerequisites?.readyToRun && !!this.engine && !this.running && !this.replaying && !this.loading && !this.saving;
   }
 
   refresh(): void {
@@ -253,7 +305,15 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
         this.prerequisites = event.report;
         this.runErrors = [...this.runErrors, this.translate.instant('E2E.MISSING_PREREQUISITES')];
         break;
+      case 'skipped':
+        this.addLog('step', this.translate.instant('E2E.SKIPPED', { file: event.file }));
+        this.runErrors = [...this.runErrors, ...(event.errors || [])];
+        break;
+      case 'test-failed':
+        this.runErrors = [...this.runErrors, this.translate.instant('E2E.TEST_FAILED', { file: event.file, error: event.error })];
+        break;
       case 'test-start':
+        this.currentInTab = event.session === 'tab';
         this.currentFile = event.file;
         this.progress = `${event.index}/${event.total}`;
         this.answer = '';
@@ -265,6 +325,7 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
           file: event.file,
           runFolder: event.runFolder,
           answer: (this.conclusion.trim() || event.answer || this.answer || '').trim(),
+          tab: this.currentInTab,
         }];
         this.addLog('step', this.translate.instant('E2E.ENDED', { file: event.file }));
         break;

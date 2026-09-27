@@ -39,14 +39,22 @@ namespace MdExplorer.Features.E2e
 
         /// <param name="secrets">Credential values: removed from the messages before they are written or returned.</param>
         /// <param name="currentGenerator">"mde-e2e v&lt;n&gt;" of the installed skill: scripts of another version are stale.</param>
-        public static async Task<E2eReplayFileResult> RunAsync(E2eRunItem item, string browserArgument, string dotnet, DateTime now,
+        public static async Task<E2eReplayFileResult> RunAsync(E2eRunItem item, string projectRoot, string browserArgument, string dotnet, DateTime now,
             IReadOnlyDictionary<string, string> secrets, string currentGenerator, CancellationToken ct)
         {
             var folder = Path.GetDirectoryName(item.TestFile)!;
             var relative = item.RelativeTestFile;
-            var project = Path.Combine(folder, "E2eTests.csproj");
-            if (!File.Exists(project))
-                return new E2eReplayFileResult { File = relative, Problem = "manca E2eTests.csproj accanto al test: esegui prima i test con MarkAgent, che crea i file di supporto." };
+            // The tests project next to the test or in a folder above it, up to the project root: nested test
+            // folders share one project (two would compile the same scripts twice).
+            string project = null;
+            for (var dir = folder; dir != null && E2eRunPlanner.IsInside(dir, projectRoot); dir = Path.GetDirectoryName(dir))
+            {
+                var candidate = Path.Combine(dir, "E2eTests.csproj");
+                if (File.Exists(candidate)) { project = candidate; break; }
+            }
+            if (project == null)
+                return new E2eReplayFileResult { File = relative, Problem = "manca E2eTests.csproj (accanto al test o in una cartella sopra): esegui prima i test con MarkAgent, che crea i file di supporto." };
+            var projectFolder = Path.GetDirectoryName(project)!;
             if (browserArgument is not ("chrome" or "msedge"))
                 return new E2eReplayFileResult { File = relative, Problem = "il rigioco degli script usa Chrome o Edge installati: il Chromium di Playwright non va bene per la libreria .NET." };
 
@@ -74,13 +82,13 @@ namespace MdExplorer.Features.E2e
 
             var start = new ProcessStartInfo(dotnet)
             {
-                WorkingDirectory = folder,
+                WorkingDirectory = projectFolder,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
             };
-            foreach (var a in new[] { "test", project, "--settings", Path.Combine(folder, "e2e.runsettings"),
+            foreach (var a in new[] { "test", project, "--settings", Path.Combine(projectFolder, "e2e.runsettings"),
                          "--logger", "trx;LogFileName=" + trx,
                          "--filter", string.Join("|", classes.Keys.Select(c => "FullyQualifiedName~" + c + ".")),
                          "--", "Playwright.LaunchOptions.Channel=" + browserArgument,
@@ -103,6 +111,7 @@ namespace MdExplorer.Features.E2e
             {
                 // dotnet test and the browser it started must not outlive the request.
                 try { process.Kill(entireProcessTree: true); } catch { /* already gone */ }
+                try { File.Delete(trx); } catch { /* not written */ }
                 if (ct.IsCancellationRequested) throw;
                 return new E2eReplayFileResult { File = relative, Stale = stale, RunFolder = runFolder,
                     Problem = $"dotnet test non ha finito entro {Timeout.TotalMinutes:0} minuti: interrotto." };
@@ -125,7 +134,9 @@ namespace MdExplorer.Features.E2e
                     : states.TryGetValue(o.Test, out var state) && state == "incompleto" ? "⚠️ incompleto (script)" : "❌ fallito (script)",
                 (o.Passed ? "" : FirstLine(o.Message) + " — ") + $"[screenshot]({link})")).ToList();
             var markdown = await File.ReadAllTextAsync(item.TestFile, ct);
-            await File.WriteAllTextAsync(item.TestFile, E2eResultsTable.AddRows(markdown, rows), ct);
+            markdown = E2eResultsTable.AddRows(markdown, rows);
+            markdown = E2eResultsTable.SetLastRun(markdown, date, link);
+            await File.WriteAllTextAsync(item.TestFile, markdown, ct);
 
             return new E2eReplayFileResult { File = relative, RunFolder = runFolder, Outcomes = outcomes, Stale = stale };
         }

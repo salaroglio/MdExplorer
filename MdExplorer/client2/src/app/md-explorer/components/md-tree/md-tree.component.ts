@@ -988,9 +988,13 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const lastSeg = node.isCompacted && node.compactedSegments?.length
       ? node.compactedSegments[node.compactedSegments.length - 1]
       : null;
-    const path = lastSeg ? lastSeg.fullPath : node.fullPath;
-    const name = lastSeg ? lastSeg.name : node.name;
-    const projectPath = this.projectsService.currentProjects$.value?.path || '';
+    const project = this.projectsService.currentProjects$.value;
+    const projectPath = project?.path || '';
+    // The project root (onRightClick builds the "root" item with fullPath "root", not a real path):
+    // settings for every test of the project.
+    const isRoot = node.name === 'root' && (!node.fullPath || node.fullPath === 'root');
+    const path = isRoot ? projectPath : (lastSeg ? lastSeg.fullPath : node.fullPath);
+    const name = isRoot ? (project?.name || projectPath) : (lastSeg ? lastSeg.name : node.name);
     this.dialog.open(E2eDialogComponent, {
       data: { path, name, projectPath } as E2eDialogData,
       width: '860px',

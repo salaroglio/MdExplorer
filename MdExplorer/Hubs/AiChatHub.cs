@@ -300,7 +300,32 @@ namespace MdExplorer.Hubs
             return header + "\n\n" + string.Join("\n", parts);
         }
 
+        /// <summary>Chat turns in flight per connection: a test launch does not start over one (it would cancel it).</summary>
+        private static readonly ConcurrentDictionary<string, int> _chatTurnsInFlight = new();
+
         public async Task SendMessage(string message, string channelId = "default")
+        {
+            // A test launch is running on this connection: a chat turn would cancel it (one Stop slot per
+            // connection) or restart the tab session under it. Said, not done.
+            if (_e2eLaunch != null && _e2eLaunch.IsRunning(Context.ConnectionId))
+            {
+                await Clients.Caller.SendAsync("ReceiveError",
+                    "È in corso un lancio di test e2e: aspetta che finisca o interrompilo dalla finestra dei test.", string.IsNullOrEmpty(channelId) ? "default" : channelId);
+                await Clients.Caller.SendAsync("StreamComplete", string.IsNullOrEmpty(channelId) ? "default" : channelId);
+                return;
+            }
+            _chatTurnsInFlight.AddOrUpdate(Context.ConnectionId, 1, (_, n) => n + 1);
+            try
+            {
+                await SendMessageCore(message, channelId);
+            }
+            finally
+            {
+                _chatTurnsInFlight.AddOrUpdate(Context.ConnectionId, 0, (_, n) => Math.Max(0, n - 1));
+            }
+        }
+
+        private async Task SendMessageCore(string message, string channelId)
         {
             // ANNULLAMENTO: un solo punto, fuori dal try così è visibile anche al finally.
             // Prima esisteva solo dentro il ramo Copilot ACP: su OpenAI/Gemini/locale il
@@ -774,10 +799,16 @@ namespace MdExplorer.Hubs
                 await client.SendAsync("StreamComplete", channelId);
                 return;
             }
+            if (_chatTurnsInFlight.TryGetValue(connectionId, out var turns) && turns > 0)
+            {
+                await client.SendAsync("ReceiveE2eEvent", new { type = "refused", errors = new[] { "MarkAgent sta rispondendo in chat: aspetta la fine della risposta, poi lancia i test." } }, channelId);
+                await client.SendAsync("StreamComplete", channelId);
+                return;
+            }
             var chatMode = GetChatMode();
             if (!chatMode.ProviderType.HasValue)
             {
-                await client.SendAsync("ReceiveE2eEvent", new { type = "refused", errors = new[] { "Scegli prima il motore di MarkAgent (Claude Code, Copilot o opencode) nel tab MarkAgent." } }, channelId);
+                await client.SendAsync("ReceiveE2eEvent", new { type = "refused", errors = new[] { "Scegli prima il motore di MarkAgent (Claude Code, Copilot o opencode): nella finestra dei test o nel tab MarkAgent." } }, channelId);
                 await client.SendAsync("StreamComplete", channelId);
                 return;
             }

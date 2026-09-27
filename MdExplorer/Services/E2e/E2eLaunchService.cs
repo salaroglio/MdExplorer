@@ -71,7 +71,30 @@ namespace MdExplorer.Services.E2e
             _logger = logger;
         }
 
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> _active = new();
+
+        /// <summary>A launch is running for this connection: the chat and a second launch must wait for it.</summary>
+        public bool IsRunning(string connectionId) => _active.ContainsKey(connectionId);
+
         public async Task RunAsync(E2eLaunchRequest request, E2eLaunchSink sink, CancellationToken ct)
+        {
+            // One launch per connection: two would restart the same tab session under each other.
+            if (!_active.TryAdd(request.ConnectionId, 0))
+            {
+                await sink.Event(new { type = "refused", errors = new[] { "C'è già un lancio di test in corso: aspetta che finisca o interrompilo." } });
+                return;
+            }
+            try
+            {
+                await RunLaunchAsync(request, sink, ct);
+            }
+            finally
+            {
+                _active.TryRemove(request.ConnectionId, out _);
+            }
+        }
+
+        private async Task RunLaunchAsync(E2eLaunchRequest request, E2eLaunchSink sink, CancellationToken ct)
         {
             var target = Path.IsPathRooted(request.Target) ? request.Target : Path.Combine(request.ProjectPath, request.Target);
             var plan = E2eRunPlanner.Plan(target, request.ProjectPath, DateTime.Now);
@@ -126,8 +149,15 @@ namespace MdExplorer.Services.E2e
                 E2eRunPlanner.WriteSecretsFile(secretsFile, plan.Secrets);
             }
 
-            var deniedFiles = plan.DeniedPaths.Concat(secretsFile == null ? Array.Empty<string>() : new[] { secretsFile }).ToList();
-            var temporaryConfigs = new List<string>();
+            var deniedFiles = plan.DeniedPaths
+                .Concat(E2eRunPlanner.CredentialFilesInProject(request.ProjectPath))
+                .Concat(secretsFile == null ? Array.Empty<string>() : new[] { secretsFile })
+                .Distinct().ToList();
+            // Claude's --mcp-config per launch and per Playwright configuration: unique to this launch (two
+            // launches with the same content must not delete each other's file), shared by its items (the tab
+            // session is not restarted between items with the same settings).
+            var temporaryConfigs = new Dictionary<string, string>(StringComparer.Ordinal);
+            var launchNonce = Guid.NewGuid().ToString("N").Substring(0, 8);
 
             var index = 0;
             var tabUsed = false;
@@ -137,8 +167,15 @@ namespace MdExplorer.Services.E2e
                 {
                     ct.ThrowIfCancellationRequested();
                     index++;
+                    if (!item.CanRun)
+                    {
+                        // A file with its own problems is skipped; the others run (second review, 27/09/2026).
+                        await sink.Event(new { type = "skipped", file = item.RelativeTestFile, index, total = plan.Items.Count, errors = item.Errors });
+                        continue;
+                    }
                     Directory.CreateDirectory(item.RunFolder);
-                    var runStart = DateTime.UtcNow;
+                    // A little earlier: FAT/exFAT and network drives keep times to 2 s or worse.
+                    var runStart = DateTime.UtcNow.AddSeconds(-5);
 
                     var server = E2ePlaywrightServer.For(prerequisites, item.Settings.Headless.Value, secretsFile, diagnostics);
                     var dedicated = item.Settings.DedicatedSession.Value;
@@ -147,6 +184,7 @@ namespace MdExplorer.Services.E2e
                     await sink.Event(new { type = "test-start", file = item.RelativeTestFile, index, total = plan.Items.Count, session = dedicated ? "dedicated" : "tab" });
 
                     var answer = new StringBuilder();
+                    var unreplacedLeak = false;
                     async Task Forward(string kind, string text)
                     {
                         if (kind == "message")
@@ -162,8 +200,10 @@ namespace MdExplorer.Services.E2e
 
                     try
                     {
+                    try
+                    {
                         if (request.Engine == ProviderType.ClaudeCode)
-                            await RunWithClaudeAsync(request, item, server, deniedFiles, key, dedicated, Forward, temporaryConfigs, ct);
+                            await RunWithClaudeAsync(request, item, server, deniedFiles, key, dedicated, Forward, temporaryConfigs, launchNonce, ct);
                         else if (request.Engine == ProviderType.CopilotCli)
                             await RunWithCopilotAsync(request, item, server, deniedFiles, key, dedicated, Forward, ct);
                         else
@@ -172,13 +212,29 @@ namespace MdExplorer.Services.E2e
                     finally
                     {
                         // F5 also after an error or a Stop: whatever the agent already wrote is checked.
-                        await PostRunAsync(request, item, plan, runStart, sink);
+                        unreplacedLeak = await PostRunAsync(request, item, plan, runStart, sink);
+                    }
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        // One file failing (CLI crash, a session that cannot start) does not stop the others.
+                        _logger.LogError(ex, "[E2e] {File}: esecuzione non riuscita", item.RelativeTestFile);
+                        await sink.Event(new { type = "test-failed", file = item.RelativeTestFile, error = E2ePostRun.Redact(ex.Message, plan.Secrets) });
+                        continue;
                     }
 
                     _logger.LogInformation("[E2e] {File}: eseguito ({Index}/{Total})", item.RelativeTestFile, index, plan.Items.Count);
-                    await sink.Event(new { type = "test-end", file = item.RelativeTestFile, runFolder = item.RelativeRunFolder, answer = answer.ToString() });
+                    // The answer goes to the MarkAgent chat as the summary: no credential value in it.
+                    await sink.Event(new { type = "test-end", file = item.RelativeTestFile, runFolder = item.RelativeRunFolder,
+                        answer = E2ePostRun.Redact(answer.ToString(), plan.Secrets) });
 
-                    if (item.Settings.CommitAfterRun.Value)
+                    if (item.Settings.CommitAfterRun.Value && unreplacedLeak)
+                    {
+                        // A value left in a file outside the run folder would go into git history for good.
+                        await sink.Event(new { type = "commit", file = item.RelativeTestFile, committed = false, sha = (string)null, message = (string)null,
+                            reason = "un valore delle credenziali è ancora in un file del lancio (vedi sopra): toglilo e fai tu il commit." });
+                    }
+                    else if (item.Settings.CommitAfterRun.Value)
                     {
                         // D21, D26: only what the run produced or touched, screenshots included.
                         E2eCommitResult commit;
@@ -222,7 +278,7 @@ namespace MdExplorer.Services.E2e
                         _logger.LogError(ex, "[E2e] ripristino della chat del tab non riuscito: lo farà il prossimo turno di chat");
                     }
                 }
-                foreach (var file in temporaryConfigs.Append(secretsFile).Where(f => f != null))
+                foreach (var file in temporaryConfigs.Values.Append(secretsFile).Where(f => f != null))
                 {
                     try { File.Delete(file); } catch (Exception ex) { _logger.LogWarning(ex, "[E2e] non riesco a cancellare {File}", file); }
                 }
@@ -231,11 +287,12 @@ namespace MdExplorer.Services.E2e
             await sink.Event(new { type = "done", files = plan.Items.Select(i => i.RelativeTestFile) });
         }
 
-        private async Task PostRunAsync(E2eLaunchRequest request, E2eRunItem item, E2eRunPlan plan, DateTime runStart, E2eLaunchSink sink)
+        /// <returns>True when a credential value was found and left in place (outside the run folder).</returns>
+        private async Task<bool> PostRunAsync(E2eLaunchRequest request, E2eRunItem item, E2eRunPlan plan, DateTime runStart, E2eLaunchSink sink)
         {
             try
             {
-                var post = E2ePostRun.Process(item, plan.Secrets, runStart);
+                var post = E2ePostRun.Process(item, plan.Secrets, runStart, CurrentGenerator());
                 await sink.Event(new
                 {
                     type = "post-run",
@@ -246,22 +303,28 @@ namespace MdExplorer.Services.E2e
                 });
                 if (post.Leaks.Count > 0)
                     _logger.LogWarning("[E2e] {File}: valori di credenziali trovati in {Count} punti", item.RelativeTestFile, post.Leaks.Count);
+                return post.Leaks.Any(l => !l.Replaced);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[E2e] controlli dopo {File}", item.RelativeTestFile);
                 await sink.Event(new { type = "post-run", file = item.RelativeTestFile, fingerprinted = 0, leaks = Array.Empty<object>(),
                     problems = new[] { "i controlli dopo l'esecuzione non sono riusciti: " + ex.Message } });
+                return true; // unknown: no automatic commit
             }
         }
 
         private async Task RunWithClaudeAsync(E2eLaunchRequest request, E2eRunItem item, E2ePlaywrightServer server,
             IReadOnlyList<string> deniedFiles, string key, bool dedicated, Func<string, string, Task> forward,
-            List<string> temporaryConfigs, CancellationToken ct)
+            Dictionary<string, string> temporaryConfigs, string launchNonce, CancellationToken ct)
         {
             var bans = BannedFor(request.ProjectPath, deniedFiles);
-            var mcpConfig = ClaudeCodeMcp.WriteSessionConfig(request.McpGroupsArgument, server);
-            temporaryConfigs.Add(mcpConfig);
+            var configKey = string.Join("\u0001", server.Args);
+            if (!temporaryConfigs.TryGetValue(configKey, out var mcpConfig))
+            {
+                mcpConfig = ClaudeCodeMcp.WriteSessionConfig(request.McpGroupsArgument, server, launchNonce);
+                temporaryConfigs[configKey] = mcpConfig;
+            }
             var options = new ClaudeCodeSessionOptions
             {
                 McpConfigPath = mcpConfig,
@@ -293,7 +356,7 @@ namespace MdExplorer.Services.E2e
         {
             var servers = new Dictionary<string, CopilotMcpServer>
             {
-                [E2ePlaywrightServer.Name] = new CopilotMcpServer(server.Command, server.Args, server.Env),
+                [E2ePlaywrightServer.Name] = new CopilotMcpServer(server.Command, server.Args, server.Env, E2ePlaywrightServer.AllowedTools),
             };
             var mcpExecutable = MdExplorer.Service.ProjectsManager.ResolveMcpExecutable(AppDomain.CurrentDomain.BaseDirectory);
             if (mcpExecutable != null)
@@ -313,6 +376,7 @@ namespace MdExplorer.Services.E2e
                 DeniedReadPaths = deniedFiles,
                 DeniedReadNames = new[] { CredentialsNamePattern },
                 DeniedWritePaths = ProtectedPaths,
+                DeniedMcpTools = E2ePlaywrightServer.BannedTools,
                 DenyShell = true,
                 Key = Hash(string.Join("\n", servers.OrderBy(s => s.Key).Select(s => s.Key + " " + s.Value.Command + " " + string.Join(" ", s.Value.Args)))
                     + "\n" + string.Join("\n", deniedFiles)),
@@ -369,20 +433,27 @@ namespace MdExplorer.Services.E2e
                 foreach (var file in deniedFiles) read["*" + Path.GetFileName(file)] = "deny";
                 var edit = new System.Text.Json.Nodes.JsonObject { ["*"] = "allow" };
                 foreach (var p in ProtectedPaths) edit[p.EndsWith("/", StringComparison.Ordinal) ? p + "*" : p] = "deny";
-                return new System.Text.Json.Nodes.JsonObject
+                foreach (var name in ProtectedFileNames) edit["*" + name] = "deny";
+                var permissions = new System.Text.Json.Nodes.JsonObject
                 {
                     ["bash"] = "ask",
                     ["edit"] = edit,
                     ["webfetch"] = "deny",
                     ["read"] = read,
                 };
+                foreach (var banned in E2ePlaywrightServer.BannedTools) permissions[E2ePlaywrightServer.Name + "_" + banned] = "deny";
+                return permissions;
             }
+            var disabledTools = new System.Text.Json.Nodes.JsonObject();
+            foreach (var banned in E2ePlaywrightServer.BannedTools) disabledTools[E2ePlaywrightServer.Name + "_" + banned] = false;
             var config = new System.Text.Json.Nodes.JsonObject
             {
                 // Without it a rejected permission ends the whole turn: the test stopped at the agent's
                 // first shell command (seen 27/09/2026). With it the refusal goes back to the model.
                 ["experimental"] = new System.Text.Json.Nodes.JsonObject { ["continue_loop_on_deny"] = true },
                 ["mcp"] = mcp,
+                // The two dangerous Playwright tools removed and denied (both accepted by the free provider, 27/09/2026).
+                ["tools"] = disabledTools,
                 ["permission"] = Permissions(),
                 // Also on the default agent: a user's global or project configuration with an agent-level
                 // "bash: allow" would win over the top-level permission. Accepted by the free provider (27/09/2026).
@@ -431,6 +502,9 @@ namespace MdExplorer.Services.E2e
             ".claude/", ".github/", ".opencode/", ".vscode/", ".md/", "opencode.json", ".mcp.json", "CLAUDE.md", "AGENTS.md",
         };
 
+        /// <summary>Instruction files the agents read in any folder they work in: protected wherever they are.</summary>
+        public static readonly IReadOnlyList<string> ProtectedFileNames = new[] { "CLAUDE.md", "AGENTS.md" };
+
         /// <summary>
         /// Claude Code rules for a launch: no shell (a <c>cat</c> would read the credentials past any file rule),
         /// no reading or searching of the credentials and secrets files — every <c>credenziali-*.txt</c> of the
@@ -454,12 +528,14 @@ namespace MdExplorer.Services.E2e
                 else
                     Deny("//" + Path.GetFullPath(file).Replace('\\', '/').TrimStart('/'));
             }
-            foreach (var p in ProtectedPaths)
+            foreach (var target in ProtectedPaths.Select(p => p.EndsWith("/", StringComparison.Ordinal) ? "./" + p + "**" : "./" + p)
+                         .Concat(ProtectedFileNames.Select(n => "./**/" + n)))
             {
-                var target = p.EndsWith("/", StringComparison.Ordinal) ? "./" + p + "**" : "./" + p;
                 bans.Add($"Edit({target})");
                 bans.Add($"Write({target})");
             }
+            // The two dangerous Playwright tools: removed from the session (verified: 23 of 25 tools left).
+            bans.AddRange(E2ePlaywrightServer.BannedTools.Select(t => $"mcp__{E2ePlaywrightServer.Name}__{t}"));
             return bans;
         }
 

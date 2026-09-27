@@ -150,6 +150,15 @@ export class AiChatService {
   // every prompt fails with "Copilot not available".
   private _lastChatMode: { provider: string; modelId: string | null } | null = null;
 
+  private readonly _connectionLost$ = new Subject<void>();
+  /** The hub connection dropped (reconnecting or closed): runs on the old connection are lost. */
+  readonly connectionLost$ = this._connectionLost$.asObservable();
+
+  /** The engine the MarkAgent tab chose for this connection, as sent to the hub; null if none yet. */
+  get chatMode(): { provider: string; modelId: string | null } | null {
+    return this._lastChatMode;
+  }
+
   constructor(
     private http: HttpClient,
     @Inject(forwardRef(() => MdServerMessagesService)) private serverMessages: MdServerMessagesService
@@ -288,6 +297,11 @@ export class AiChatService {
     // (chat mode, project mapping, ACP session) for the old one in OnDisconnectedAsync.
     // Re-register everything the hub needs, or every subsequent prompt would fail with
     // "provider not available".
+    // A reconnection gets a new connectionId: whatever ran on the old one (an e2e launch) will never
+    // report again on this client. The e2e dialog listens to this to stop waiting (second review, 27/09/2026).
+    this.hubConnection.onreconnecting(() => this._connectionLost$.next());
+    this.hubConnection.onclose(() => this._connectionLost$.next());
+
     this.hubConnection.onreconnected(() => {
       console.log('[AiChatService] Reconnected — replaying project connection and chat mode');
       this.sendProjectConnectionId();

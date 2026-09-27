@@ -52,17 +52,24 @@ test-e2e/                              ← la cartella dei test (il nome è libe
 ```
 
 Se mancano `E2eTests.csproj`, `E2eSupport.cs` o `e2e.runsettings`, creali **esattamente** con il contenuto della
-sezione *«I file di supporto»*. Se esistono, non toccarli.
+sezione *«I file di supporto»*. Se esistono, non toccarli. **Uno solo per albero di test**: se in una cartella
+sopra quella del test c'è già un `E2eTests.csproj`, non crearne un altro (compilerebbe due volte gli stessi script).
 
-Nel `.gitignore` del progetto devono esserci queste righe; aggiungile se mancano:
+Nel `.gitignore` del progetto aggiungi, se mancano, le cartelle di compilazione:
 
 ```text
-credenziali-*.txt
 test-e2e/bin/
 test-e2e/obj/
 ```
 
-(adatta `test-e2e/` al nome vero della cartella dei test).
+(adatta `test-e2e/` al nome vero della cartella dei test). La riga che esclude il file delle credenziali
+(`credenziali-*.txt`) la controlla MdExplorer **prima** di lanciarti: se manca, l'utente la aggiunge dalla finestra
+dei test.
+
+**Esegui i test solo se hai gli strumenti del server playwright** (`browser_navigate`, `browser_snapshot`, …). Se
+non li hai, non sei stato lanciato da MdExplorer: non eseguire niente con altri mezzi e di' all'utente di usare il
+tasto destro sul file → «Test e2e…». Gli strumenti `browser_evaluate` e `browser_run_code_unsafe` non ci sono di
+proposito: non cercarli.
 
 ## Il file di test
 
@@ -128,12 +135,16 @@ Se il testo di «Compare il testo» si trova in più punti della pagina, lo scri
 Una verifica scritta in altro modo («✔ La pagina sembra in ordine») è una **verifica a giudizio**: la valuti tu
 guardando la pagina, e nello script diventa un commento `// verifica a giudizio: …` senza asserzione.
 
+Nel front matter `siteMap` e `baseUrl` sono obbligatori; `artifacts` se manca vale il nome del test senza `.md`
+(`login.e2e.md` → `login.e2e/`); `credentials` serve solo se il test usa delle `{{chiavi}}`.
+
 Quando l'utente ti chiede di scrivere un test, usa queste forme. Se una frase è ambigua (quale bottone? quale
 testo esatto?) chiedi, oppure apri il sito e guarda la mappa del sito prima di scrivere.
 
 ## La mappa del sito
 
-La mappa del sito è la memoria di ciò che si sa del sito: la leggi **prima** di eseguire, la aggiorni **dopo**.
+La mappa del sito è la memoria di ciò che si sa del sito: la leggi **prima** di eseguire, la aggiorni **dopo**
+(se il file non esiste ancora, crealo tu al primo giro, nel percorso indicato da `siteMap`).
 Ci va solo ciò che serve a eseguire e scrivere test futuri, e che resta vero nel tempo:
 
 - per ogni **pagina**: indirizzo, titolo, a cosa serve;
@@ -193,6 +204,13 @@ Se una chiave sembra non funzionare (il login fallisce, il campo contiene il nom
 altri nomi e non chiedere il valore: dai l'esito ⚠️ e scrivi quale chiave hai usato.
 
 ## Eseguire i test
+
+Quando MdExplorer ti lancia, nessuno risponde alle tue domande: se un passo è ambiguo non chiedere, dai l'esito
+⚠️ e scrivi nel report cosa non era chiaro.
+
+I percorsi: la cartella dell'esecuzione che MdExplorer ti dà è relativa **al progetto** (usala così per gli
+screenshot); i link che scrivi nel `.e2e.md` sono relativi **al file di test**, quelli nel `report.md` relativi
+**al report**.
 
 1. Leggi il `.e2e.md` e la mappa del sito indicata nel front matter (il file delle credenziali no: vedi
    *«Le credenziali»*).
@@ -274,7 +292,8 @@ Dopo l'esecuzione scrivi uno script per **ogni** test, anche se è fallito, in
 
 Le regole, tutte obbligatorie:
 
-- **segui lo scheletro qui sotto alla lettera**: stessi `using`, stesso namespace `MdeE2e.<NomeFile>`, una classe
+- **segui lo scheletro qui sotto alla lettera**: stessi `using`, stesso namespace `MdeE2e.<NomeFile>` (il nome del file di test senza `.e2e.md`, in PascalCase, senza trattini né
+  punti: `login-admin.e2e.md` → `MdeE2e.LoginAdmin`), una classe
   `Test_T<n>` per test che eredita `PageTest`, un solo metodo `T<n>_<Titolo>` (così l'esito di
   `dotnet test` dice quale test è);
 - le credenziali si leggono **solo** con `E2e.Credential(Credentials, "<chiave>")`, mai scritte nello script:

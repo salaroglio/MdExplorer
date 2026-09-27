@@ -4,7 +4,9 @@ using System.Collections.Generic;
 namespace MdExplorer.Features.Services.AI.CopilotChat
 {
     /// <summary>An MCP server started by the Copilot session itself (stdio).</summary>
-    public sealed record CopilotMcpServer(string Command, IReadOnlyList<string> Args, IReadOnlyDictionary<string, string> Env);
+    /// <param name="Tools">The tools the session may use of this server; null = all of them.</param>
+    public sealed record CopilotMcpServer(string Command, IReadOnlyList<string> Args, IReadOnlyDictionary<string, string> Env,
+        IReadOnlyList<string> Tools = null);
 
     /// <summary>
     /// The configuration of a Copilot SDK session that runs e2e tests (sprint
@@ -34,5 +36,8 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         public IReadOnlyList<string> DeniedWritePaths { get; init; } = Array.Empty<string>();
 
         public bool DenyShell { get; init; } = true;
+
+        /// <summary>MCP tools refused by the permission callback, as <c>server/tool</c> or just <c>tool</c>.</summary>
+        public IReadOnlyList<string> DeniedMcpTools { get; init; } = Array.Empty<string>();
     }
 }

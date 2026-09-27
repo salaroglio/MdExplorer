@@ -15,7 +15,8 @@ namespace MdExplorer.Features.Tests.E2e
         private string _scripts;
 
         private const string Script =
-            "// stato: valido\n// sorgente: login.e2e.md, T1 — Uno\n// impronta-sorgente: da calcolare\n// generatore: mde-e2e v1\n// data: 2026-09-27 10:30\nnamespace MdeE2e.Login { }\n";
+            "// stato: valido\n// sorgente: login.e2e.md, T1 — Uno\n// impronta-sorgente: da calcolare\n// generatore: mde-e2e v1\n// data: 2026-09-27 10:30\n" +
+            "namespace MdeE2e.Login { class Test_T1 { void T1_Uno() { Expect(Page.GetByText(\"ok\")); } } }\n";
 
         private static readonly DateTime LongAgo = new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -65,6 +66,27 @@ namespace MdExplorer.Features.Tests.E2e
             WriteTest("Compare il testo \"OK\"");
             Assert.AreEqual(0, E2ePostRun.Process(Item(), Secrets, LongAgo).Fingerprinted.Count, "an old fingerprint is never overwritten");
             Assert.IsTrue(E2ePostRun.Scripts(Item()).Single().Stale, "the expected text changed");
+        }
+
+        [TestMethod]
+        public void Not_stamp_a_script_that_does_not_check_what_the_test_expects()
+        {
+            // D17: an assertion copied from the page ("OK!" shown instead of "ok") must not become a valid script.
+            File.WriteAllText(Path.Combine(_scripts, "login.T1.spec.cs"), Script.Replace("\"ok\"", "\"OK!\""));
+
+            var result = E2ePostRun.Process(Item(), Secrets, LongAgo);
+
+            Assert.AreEqual(0, result.Fingerprinted.Count);
+            Assert.IsTrue(result.Problems.Any(p => p.Contains("non verifica") && p.Contains("«ok»")), string.Join("\n", result.Problems));
+            Assert.IsTrue(E2ePostRun.Scripts(Item()).Single().Stale, "left to be regenerated, never replayed as valid");
+        }
+
+        [TestMethod]
+        public void Report_a_test_without_its_script()
+        {
+            File.Delete(Path.Combine(_scripts, "login.T1.spec.cs"));
+            var problems = E2ePostRun.Process(Item(), Secrets, LongAgo).Problems;
+            Assert.IsTrue(problems.Any(p => p.StartsWith("T1: manca lo script", StringComparison.Ordinal)), string.Join("\n", problems));
         }
 
         [TestMethod]

@@ -178,7 +178,18 @@ namespace MdExplorer.Features.E2e
             {
                 // A flow-style 'e2e: { … }' cannot be edited, but it must not stop the regeneration of the
                 // folder's summary nor vanish: carried over as it is, the tests' checks will report it.
-                block = oldFile.Replace("\r\n", "\n").Split('\n').FirstOrDefault(l => l.StartsWith("e2e:", StringComparison.Ordinal));
+                // Carried over as it is, up to the line that closes its braces (a flow mapping over several lines).
+                var lines = oldFile.Replace("\r\n", "\n").Split('\n');
+                var first = Array.FindIndex(lines, l => l.StartsWith("e2e:", StringComparison.Ordinal));
+                var taken = new List<string>();
+                var depth = 0;
+                for (var k = first; k >= 0 && k < lines.Length; k++)
+                {
+                    taken.Add(lines[k]);
+                    depth += lines[k].Count(c => c == '{') - lines[k].Count(c => c == '}');
+                    if (depth <= 0) break;
+                }
+                block = first < 0 ? null : string.Join("\n", taken);
             }
             if (block == null) return newFile;
 

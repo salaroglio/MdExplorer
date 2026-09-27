@@ -1884,6 +1884,14 @@
     "REPLAYING": "Replaying the scripts with dotnet test, no LLM…",
     "STALE_SKIPPED": "Not replayed because stale: {{scripts}}. Run the test again with MarkAgent to rewrite them.",
     "REPLAY": "Replay the scripts",
-    "LEAK_REPORTED": "The value of the credential «{{key}}» appears in {{file}}: check it and replace it with the key (MdExplorer does not rewrite files outside the run folder)."
+    "LEAK_REPORTED": "The value of the credential «{{key}}» appears in {{file}}: check it and replace it with the key (MdExplorer does not rewrite files outside the run folder).",
+    "ENGINE": "Engine",
+    "ENGINE_CHOOSE": "The MarkAgent tab has not chosen an engine yet: choose it here",
+    "ADD_GITIGNORE": "Add to .gitignore",
+    "RECHECK": "Check again",
+    "SKIPPED": "⏭ {{file}} skipped: it has problems (see below)",
+    "TEST_FAILED": "{{file}}: run failed ({{error}}). The other files go on.",
+    "CONNECTION_LOST": "The connection with MdExplorer dropped during the run: the results will be in the files, not here. Reopen the window to see the state.",
+    "SUMMARY_SENT_DEDICATED": "The summary is in the MarkAgent tab as a message: runs in a dedicated session are not in its conversation's memory."
   }
 }

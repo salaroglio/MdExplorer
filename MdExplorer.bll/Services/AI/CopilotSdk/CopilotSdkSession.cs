@@ -241,7 +241,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                             Command = s.Value.Command,
                             Args = s.Value.Args.ToList(),
                             Env = s.Value.Env.ToDictionary(e => e.Key, e => e.Value),
-                            Tools = new List<string> { "*" },
+                            Tools = s.Value.Tools?.ToList() ?? new List<string> { "*" },
                         });
                 }
             }
