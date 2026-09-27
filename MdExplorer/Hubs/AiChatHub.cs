@@ -763,6 +763,7 @@ namespace MdExplorer.Hubs
             channelId = string.IsNullOrEmpty(channelId) ? "e2e" : channelId;
             using var cts = System.Threading.CancellationTokenSource.CreateLinkedTokenSource(Context.ConnectionAborted);
             _claudeCodePool?.RegisterActivePrompt(Context.ConnectionId, cts);
+            _copilotChatPool?.RegisterActivePrompt(Context.ConnectionId, cts);
             try
             {
                 var projectPath = GetProjectPath(out var whyNoProject);
@@ -785,7 +786,9 @@ namespace MdExplorer.Hubs
                     ProjectPath = projectPath,
                     Target = targetPath,
                     Engine = chatMode.ProviderType.Value,
-                    ModelId = string.IsNullOrEmpty(chatMode.ModelId) ? "sonnet" : chatMode.ModelId,
+                    // Claude needs a model ("sonnet" as in the chat); for Copilot no model means "the CLI chooses".
+                    ModelId = string.IsNullOrEmpty(chatMode.ModelId) && chatMode.ProviderType == Abstractions.Models.AI.ProviderType.ClaudeCode
+                        ? "sonnet" : chatMode.ModelId,
                     McpGroupsArgument = MdExplorer.Service.ProjectsManager.McpGroupsArgument(_userSettingsDB, projectPath),
                 }, new Services.E2e.E2eLaunchSink
                 {

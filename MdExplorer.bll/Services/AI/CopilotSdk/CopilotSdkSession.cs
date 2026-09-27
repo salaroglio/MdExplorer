@@ -55,6 +55,8 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         private readonly ILogger _logger;
         private readonly string _workingDirectory;
         private readonly PlantumlBlockVerifier _plantumlVerifier;
+        private readonly CopilotChat.CopilotSessionProfile _profile;
+        private readonly string _resumeSessionId;
         private string _modelId;
 
         private CopilotClient _client;
@@ -148,12 +150,26 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         /// check tool. Sprint: docs-internal/Sprints/2026-09-11-MarkAgent-Verifica-PlantUML.md.
         /// </param>
         public CopilotSdkSession(ILogger logger, string workingDirectory, string modelId, PlantumlBlockVerifier plantumlVerifier)
+            : this(logger, workingDirectory, modelId, plantumlVerifier, null, null)
+        {
+        }
+
+        /// <param name="profile">An e2e test session (F4c): its own MCP servers, no shell, files it must
+        /// not read. Null for a normal chat.</param>
+        /// <param name="resumeSessionId">The conversation to resume instead of starting a new one.</param>
+        public CopilotSdkSession(ILogger logger, string workingDirectory, string modelId, PlantumlBlockVerifier plantumlVerifier,
+            CopilotChat.CopilotSessionProfile profile, string resumeSessionId)
         {
             _logger = logger;
             _workingDirectory = workingDirectory;
             _modelId = modelId;
             _plantumlVerifier = plantumlVerifier ?? throw new ArgumentNullException(nameof(plantumlVerifier));
+            _profile = profile;
+            _resumeSessionId = resumeSessionId;
         }
+
+        /// <summary>The e2e configuration the session started with; null for a normal chat.</summary>
+        public string ProfileKey => _profile?.Key;
 
         /// <summary>
         /// Where the session loads skills from: the project's <c>.github/skills</c>, where MdExplorer
@@ -193,31 +209,55 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
 
             await _client.StartAsync(timeout.Token).ConfigureAwait(false);
 
-            var config = new SessionConfig
+            void Fill(SessionConfigBase config)
             {
-                WorkingDirectory = _workingDirectory,
-                Streaming = true,
-                OnEvent = HandleEvent,
+                config.WorkingDirectory = _workingDirectory;
+                config.Streaming = true;
+                config.OnEvent = HandleEvent;
                 // Without this the SDK refuses every tool call, and Copilot cannot even read a
                 // file of the project it is working in. See CopilotSdkPermissionPolicy.
-                OnPermissionRequest = DecidePermissionAsync,
-                Hooks = new SessionHooks
+                config.OnPermissionRequest = DecidePermissionAsync;
+                config.Hooks = new SessionHooks
                 {
                     OnPostToolUse = OnPostToolUseAsync,
                     OnAgentStop = OnAgentStopAsync,
-                },
-                SkillDirectories = SkillDirectoriesFor(_workingDirectory),
-            };
+                };
+                config.SkillDirectories = SkillDirectoriesFor(_workingDirectory);
 
-            // No model = the CLI picks its own. Deliberate: which models exist is a property of
-            // the INSTALLATION, so writing an id here would be wrong on some machines — the same
-            // reason CopilotCliProvider has no default model constant.
-            if (!string.IsNullOrWhiteSpace(_modelId))
-            {
-                config.Model = _modelId;
+                // No model = the CLI picks its own. Deliberate: which models exist is a property of
+                // the INSTALLATION, so writing an id here would be wrong on some machines — the same
+                // reason CopilotCliProvider has no default model constant.
+                if (!string.IsNullOrWhiteSpace(_modelId))
+                {
+                    config.Model = _modelId;
+                }
+
+                if (_profile != null)
+                {
+                    config.McpServers = _profile.McpServers.ToDictionary(
+                        s => s.Key,
+                        s => (McpServerConfig)new McpStdioServerConfig
+                        {
+                            Command = s.Value.Command,
+                            Args = s.Value.Args.ToList(),
+                            Env = s.Value.Env.ToDictionary(e => e.Key, e => e.Value),
+                            Tools = new List<string> { "*" },
+                        });
+                }
             }
 
-            _session = await _client.CreateSessionAsync(config, timeout.Token).ConfigureAwait(false);
+            if (_resumeSessionId != null)
+            {
+                var resume = new ResumeSessionConfig();
+                Fill(resume);
+                _session = await _client.ResumeSessionAsync(_resumeSessionId, resume, timeout.Token).ConfigureAwait(false);
+            }
+            else
+            {
+                var config = new SessionConfig();
+                Fill(config);
+                _session = await _client.CreateSessionAsync(config, timeout.Token).ConfigureAwait(false);
+            }
 
             await ReadStartQuotaAsync(timeout.Token).ConfigureAwait(false);
 
@@ -729,7 +769,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
 #pragma warning disable GHCP001
         private Task<PermissionDecision> DecidePermissionAsync(PermissionRequest request, PermissionInvocation invocation)
         {
-            var verdict = CopilotSdkPermissionPolicy.Decide(request, _workingDirectory);
+            var verdict = CopilotSdkPermissionPolicy.Decide(request, _workingDirectory, _profile);
             if (verdict.Approved)
             {
                 _logger.LogInformation("[CopilotSdkSession] permesso concesso: {What}", verdict.What);

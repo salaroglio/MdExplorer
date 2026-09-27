@@ -69,6 +69,12 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         string AnsweredModel { get; }
 
         /// <summary>
+        /// The e2e test configuration the session started with (F4c); null for a normal chat and for
+        /// the transports that cannot run tests.
+        /// </summary>
+        string ProfileKey => null;
+
+        /// <summary>
         /// Whether <see cref="SetModelAsync"/> changes the model of the live conversation, keeping
         /// its memory. When false, the only way to change model is a new session — and the
         /// conversation goes with the old one.

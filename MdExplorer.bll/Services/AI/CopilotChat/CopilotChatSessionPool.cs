@@ -186,6 +186,93 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
             }
         }
 
+        /// <summary>
+        /// The session of <paramref name="connectionId"/> started with <paramref name="profile"/> (e2e tests,
+        /// F4c). A session with another configuration is restarted resuming the same conversation — the MCP
+        /// servers and the bans are fixed when the session starts. Only the SDK transport can do it.
+        /// </summary>
+        public async Task<ICopilotChatSession> GetOrCreateAsync(
+            string connectionId, string workingDirectory, string modelId, CopilotSessionProfile profile, CancellationToken ct = default)
+        {
+            if (profile == null) return await GetOrCreateAsync(connectionId, workingDirectory, modelId, ct).ConfigureAwait(false);
+            if (_transportSource.Current() != CopilotChatTransport.Sdk)
+                throw new InvalidOperationException(
+                    "I test e2e con Copilot richiedono il trasporto SDK: l'impostazione CopilotChatTransport è su ACP, che non sa aggiungere server MCP né negare la shell.");
+
+            if (_sessions.TryGetValue(connectionId, out var fast) && Matches(fast.Session, workingDirectory, modelId, CopilotChatTransport.Sdk)
+                && fast.Session.ProfileKey == profile.Key)
+                return fast.Session;
+
+            var gate = _gates.GetOrAdd(connectionId, _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                string resume = null;
+                if (_sessions.TryGetValue(connectionId, out var existing))
+                {
+                    if (Matches(existing.Session, workingDirectory, modelId, CopilotChatTransport.Sdk) && existing.Session.ProfileKey == profile.Key)
+                        return existing.Session;
+                    if (existing.Session.Transport == CopilotChatTransport.Sdk && existing.Session.SessionId != null &&
+                        string.Equals(existing.Session.WorkingDirectory, workingDirectory, StringComparison.OrdinalIgnoreCase))
+                        resume = existing.Session.SessionId;
+                    _logger.LogInformation("[CopilotChatSessionPool] Configurazione dei test diversa per {ConnectionId}: riavvio {Resume}",
+                        connectionId, resume != null ? "riprendendo la conversazione" : "da capo");
+                    await ReleaseAsync(connectionId).ConfigureAwait(false);
+                }
+
+                if (_sessions.Count >= _maxSessions) EvictOldest();
+                return await StartAndRegisterAsync(connectionId, NewSdkSession(workingDirectory, modelId, profile, resume), ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }
+
+        /// <summary>
+        /// Gives a session started for a test launch its chat configuration back (D28), resuming the same
+        /// conversation. Nothing to do when the session has no test profile.
+        /// </summary>
+        public async Task RestoreChatAsync(string connectionId, CancellationToken ct = default)
+        {
+            if (!_sessions.TryGetValue(connectionId, out var current) || current.Session.ProfileKey == null) return;
+
+            var gate = _gates.GetOrAdd(connectionId, _ => new SemaphoreSlim(1, 1));
+            await gate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                if (!_sessions.TryGetValue(connectionId, out var existing) || existing.Session.ProfileKey == null) return;
+                var (workingDirectory, modelId, resume) = (existing.Session.WorkingDirectory, existing.Session.ModelId, existing.Session.SessionId);
+                await ReleaseAsync(connectionId).ConfigureAwait(false);
+                await StartAndRegisterAsync(connectionId, NewSdkSession(workingDirectory, modelId, null, resume), ct).ConfigureAwait(false);
+                _logger.LogInformation("[CopilotChatSessionPool] Sessione di {ConnectionId} riportata alla chat normale {Resume}",
+                    connectionId, resume != null ? "riprendendo la conversazione" : "da capo");
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }
+
+        private ICopilotChatSession NewSdkSession(string workingDirectory, string modelId, CopilotSessionProfile profile, string resumeSessionId)
+            => new CopilotSdkSession(_loggerFactory.CreateLogger<CopilotSdkSession>(), workingDirectory, modelId,
+                new PlantumlBlockVerifier(_plantumlServer.CheckAsync), profile, resumeSessionId);
+
+        private async Task<ICopilotChatSession> StartAndRegisterAsync(string connectionId, ICopilotChatSession session, CancellationToken ct)
+        {
+            try
+            {
+                await session.StartAsync(ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                await session.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
+            _sessions[connectionId] = new Entry(session);
+            return session;
+        }
+
         private static bool Matches(ICopilotChatSession session, string workingDirectory, string modelId, CopilotChatTransport transport)
             => session.IsAlive &&
                session.Transport == transport &&

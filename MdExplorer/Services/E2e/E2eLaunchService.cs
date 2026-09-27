@@ -1,6 +1,7 @@
 using MdExplorer.Abstractions.Models.AI;
 using MdExplorer.Features.E2e;
 using MdExplorer.Features.Services.AI.ClaudeCode;
+using MdExplorer.Features.Services.AI.CopilotChat;
 using MdExplorer.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
@@ -50,12 +51,15 @@ namespace MdExplorer.Services.E2e
     {
         private readonly E2eEnvironment _environment;
         private readonly ClaudeCodeSessionPool _claudePool;
+        private readonly CopilotChatSessionPool _copilotPool;
         private readonly ILogger<E2eLaunchService> _logger;
 
-        public E2eLaunchService(E2eEnvironment environment, ClaudeCodeSessionPool claudePool, ILogger<E2eLaunchService> logger)
+        public E2eLaunchService(E2eEnvironment environment, ClaudeCodeSessionPool claudePool, CopilotChatSessionPool copilotPool,
+            ILogger<E2eLaunchService> logger)
         {
             _environment = environment;
             _claudePool = claudePool;
+            _copilotPool = copilotPool;
             _logger = logger;
         }
 
@@ -84,12 +88,12 @@ namespace MdExplorer.Services.E2e
                 return;
             }
 
-            if (request.Engine != ProviderType.ClaudeCode)
+            if (request.Engine is not (ProviderType.ClaudeCode or ProviderType.CopilotCli))
             {
                 await sink.Event(new
                 {
                     type = "refused",
-                    errors = new[] { $"I test e2e con il motore {request.Engine} non sono ancora disponibili: per ora eseguili con Claude Code (Copilot e opencode arrivano nelle fasi F4c e F4d)." },
+                    errors = new[] { $"I test e2e con il motore {request.Engine} non sono ancora disponibili: per ora eseguili con Claude Code o Copilot (opencode arriva nella fase F4d)." },
                 });
                 return;
             }
@@ -113,7 +117,8 @@ namespace MdExplorer.Services.E2e
                 E2eRunPlanner.WriteSecretsFile(secretsFile, plan.Secrets);
             }
 
-            var bans = BannedFor(plan.DeniedPaths.Concat(secretsFile == null ? Array.Empty<string>() : new[] { secretsFile }));
+            var deniedFiles = plan.DeniedPaths.Concat(secretsFile == null ? Array.Empty<string>() : new[] { secretsFile }).ToList();
+            var bans = BannedFor(deniedFiles);
 
             var index = 0;
             var tabUsed = false;
@@ -126,44 +131,29 @@ namespace MdExplorer.Services.E2e
                 Directory.CreateDirectory(item.RunFolder);
 
                 var server = E2ePlaywrightServer.For(prerequisites, item.Settings.Headless.Value, secretsFile, diagnostics);
-                var mcpConfig = ClaudeCodeMcp.WriteSessionConfig(request.McpGroupsArgument, server);
-                var options = new ClaudeCodeSessionOptions
-                {
-                    McpConfigPath = mcpConfig,
-                    AllowedMcpServers = new[] { ClaudeCodeMcp.ServerName, E2ePlaywrightServer.Name },
-                    DisallowedTools = bans,
-                    // The skill writes the report, the scripts, the results and the site map: only
-                    // inside the project (the session's working directory).
-                    AllowedTools = new[] { "Edit(./**)", "Write(./**)" },
-                    ProfileKey = Path.GetFileName(mcpConfig) + "|" + Hash(string.Join("\n", bans)),
-                };
-
                 var dedicated = item.Settings.DedicatedSession.Value;
                 tabUsed |= !dedicated;
                 var key = dedicated ? request.ConnectionId + "|e2e|" + Guid.NewGuid().ToString("N") : request.ConnectionId;
                 await sink.Event(new { type = "test-start", file = item.RelativeTestFile, index, total = plan.Items.Count, session = dedicated ? "dedicated" : "tab" });
 
                 var answer = new StringBuilder();
-                try
+                async Task Forward(string kind, string text)
                 {
-                    var session = await _claudePool.GetOrCreateAsync(key, request.ProjectPath, request.ModelId, options, ct);
-                    await foreach (var chunk in session.PromptAsync(item.Prompt, ct))
+                    if (kind == "message")
                     {
-                        if (chunk.Kind == ClaudeCodeChunk.KindMessage)
-                        {
-                            answer.Append(chunk.Text);
-                            await sink.Chunk(chunk.Text);
-                        }
-                        else if (chunk.Kind == ClaudeCodeChunk.KindTool)
-                        {
-                            await sink.Tool(chunk.Text);
-                        }
+                        answer.Append(text);
+                        await sink.Chunk(text);
+                    }
+                    else if (kind == "tool")
+                    {
+                        await sink.Tool(text);
                     }
                 }
-                finally
-                {
-                    if (dedicated) await _claudePool.ReleaseAsync(key);
-                }
+
+                if (request.Engine == ProviderType.ClaudeCode)
+                    await RunWithClaudeAsync(request, item, server, bans, key, dedicated, Forward, ct);
+                else
+                    await RunWithCopilotAsync(request, item, server, deniedFiles, key, dedicated, Forward, ct);
 
                 _logger.LogInformation("[E2e] {File}: eseguito ({Index}/{Total})", item.RelativeTestFile, index, plan.Items.Count);
                 await sink.Event(new { type = "test-end", file = item.RelativeTestFile, runFolder = item.RelativeRunFolder, answer = answer.ToString() });
@@ -174,11 +164,82 @@ namespace MdExplorer.Services.E2e
             {
                 // D28: the tab gets its shell back and loses Playwright, keeping the conversation — also
                 // when the launch stops halfway (error, Stop).
-                if (tabUsed)
+                if (tabUsed && request.Engine == ProviderType.ClaudeCode)
                     await _claudePool.RestoreChatAsync(request.ConnectionId, ClaudeCodeMcp.ChatOptions(request.McpGroupsArgument), CancellationToken.None);
+                if (tabUsed && request.Engine == ProviderType.CopilotCli)
+                    await _copilotPool.RestoreChatAsync(request.ConnectionId, CancellationToken.None);
             }
 
             await sink.Event(new { type = "done", files = plan.Items.Select(i => i.RelativeTestFile) });
+        }
+
+        private async Task RunWithClaudeAsync(E2eLaunchRequest request, E2eRunItem item, E2ePlaywrightServer server,
+            IReadOnlyList<string> bans, string key, bool dedicated, Func<string, string, Task> forward, CancellationToken ct)
+        {
+            var mcpConfig = ClaudeCodeMcp.WriteSessionConfig(request.McpGroupsArgument, server);
+            var options = new ClaudeCodeSessionOptions
+            {
+                McpConfigPath = mcpConfig,
+                AllowedMcpServers = new[] { ClaudeCodeMcp.ServerName, E2ePlaywrightServer.Name },
+                DisallowedTools = bans,
+                // The skill writes the report, the scripts, the results and the site map: only
+                // inside the project (the session's working directory).
+                AllowedTools = new[] { "Edit(./**)", "Write(./**)" },
+                ProfileKey = Path.GetFileName(mcpConfig) + "|" + Hash(string.Join("\n", bans)),
+            };
+            try
+            {
+                var session = await _claudePool.GetOrCreateAsync(key, request.ProjectPath, request.ModelId, options, ct);
+                await foreach (var chunk in session.PromptAsync(item.Prompt, ct))
+                    await forward(chunk.Kind == ClaudeCodeChunk.KindMessage ? "message" : chunk.Kind == ClaudeCodeChunk.KindTool ? "tool" : chunk.Kind, chunk.Text);
+            }
+            finally
+            {
+                if (dedicated) await _claudePool.ReleaseAsync(key);
+            }
+        }
+
+        /// <summary>
+        /// Copilot SDK (F4c): MdExplorer's and Playwright's MCP servers declared in the session itself, no
+        /// shell (D29), no reading of the credentials and secrets files (the permission callback).
+        /// </summary>
+        private async Task RunWithCopilotAsync(E2eLaunchRequest request, E2eRunItem item, E2ePlaywrightServer server,
+            IReadOnlyList<string> deniedFiles, string key, bool dedicated, Func<string, string, Task> forward, CancellationToken ct)
+        {
+            var servers = new Dictionary<string, CopilotMcpServer>
+            {
+                [E2ePlaywrightServer.Name] = new CopilotMcpServer(server.Command, server.Args, server.Env),
+            };
+            var mcpExecutable = MdExplorer.Service.ProjectsManager.ResolveMcpExecutable(AppDomain.CurrentDomain.BaseDirectory);
+            if (mcpExecutable != null)
+            {
+                servers[ClaudeCodeMcp.ServerName] = new CopilotMcpServer(mcpExecutable,
+                    string.IsNullOrWhiteSpace(request.McpGroupsArgument) ? Array.Empty<string>() : new[] { "--groups", request.McpGroupsArgument },
+                    new Dictionary<string, string>());
+            }
+            else
+            {
+                _logger.LogWarning("[E2e] MdExplorer.Mcp non trovato: la sessione Copilot dei test parte senza gli strumenti di MdExplorer");
+            }
+
+            var profile = new CopilotSessionProfile
+            {
+                McpServers = servers,
+                DeniedReadPaths = deniedFiles,
+                DenyShell = true,
+                Key = Hash(string.Join("\n", servers.OrderBy(s => s.Key).Select(s => s.Key + " " + s.Value.Command + " " + string.Join(" ", s.Value.Args)))
+                    + "\n" + string.Join("\n", deniedFiles)),
+            };
+            try
+            {
+                var session = await _copilotPool.GetOrCreateAsync(key, request.ProjectPath, request.ModelId, profile, ct);
+                await foreach (var chunk in session.PromptAsync(item.Prompt, ct))
+                    await forward(chunk.Kind, chunk.Text);
+            }
+            finally
+            {
+                if (dedicated) await _copilotPool.ReleaseAsync(key);
+            }
         }
 
         /// <summary>

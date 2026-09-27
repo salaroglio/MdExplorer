@@ -42,6 +42,37 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             public string Reason { get; }
         }
 
+        /// <summary>
+        /// The same policy, with the restrictions of an e2e test session on top (F4c): no shell (D29)
+        /// and no reading of the credentials and secrets files. Everything else as <see cref="Decide(PermissionRequest, string)"/>.
+        /// </summary>
+        public static Verdict Decide(PermissionRequest request, string workingDirectory, CopilotChat.CopilotSessionProfile profile)
+        {
+            if (profile != null)
+            {
+                if (profile.DenyShell && request is PermissionRequestShell shell)
+                    return new Verdict(false, "eseguire: " + shell.FullCommandText,
+                        "durante i test e2e la shell è disattivata, per proteggere le credenziali");
+                if (request is PermissionRequestRead read && IsDenied(read.Path, workingDirectory, profile))
+                    return new Verdict(false, "leggere " + read.Path,
+                        "è un file di credenziali: durante i test e2e le usa solo il server Playwright");
+            }
+            return Decide(request, workingDirectory);
+        }
+
+        private static bool IsDenied(string path, string workingDirectory, CopilotChat.CopilotSessionProfile profile)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return false;
+            var full = Path.GetFullPath(Path.IsPathRooted(path) || string.IsNullOrWhiteSpace(workingDirectory) ? path : Path.Combine(workingDirectory, path));
+            foreach (var denied in profile.DeniedReadPaths)
+            {
+                var target = Path.GetFullPath(denied);
+                if (string.Equals(full, target, StringComparison.OrdinalIgnoreCase)) return true;
+                // A read of the folder that holds it (a directory listing) is not a read of the file.
+            }
+            return false;
+        }
+
         public static Verdict Decide(PermissionRequest request, string workingDirectory)
         {
             switch (request)
