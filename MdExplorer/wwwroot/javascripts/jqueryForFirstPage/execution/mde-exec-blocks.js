@@ -598,8 +598,23 @@
             return b;
         }
 
+        // Electron's preload-detached.js: the main process minimizes, maximizes and closes the
+        // window. Absent in a plain web tab, where only Refresh and window.close() apply.
+        var win = window.mdeDetachedWindow;
+
         bar.appendChild(mkBtn('&#x21bb;', 'Refresh', function () { location.reload(); }, false));
-        bar.appendChild(mkBtn('&#x2715;', 'Close', function () { window.close(); }, true));
+        if (win) {
+            bar.appendChild(mkBtn('&#x2500;', 'Minimize', function () { win.minimize(); }, false));
+            var maxBtn = mkBtn('&#x2610;', 'Maximize', function () { win.maximizeToggle(); }, false);
+            bar.appendChild(maxBtn);
+            win.onMaximizedChange(function (isMaximized) {
+                maxBtn.innerHTML = isMaximized ? '&#x2750;' : '&#x2610;';
+                maxBtn.title = isMaximized ? 'Restore' : 'Maximize';
+            });
+        }
+        bar.appendChild(mkBtn('&#x2715;', 'Close', function () {
+            if (win) { win.close(); } else { window.close(); }
+        }, true));
 
         document.body.appendChild(bar);
         // Push page content below the fixed bar (once).
