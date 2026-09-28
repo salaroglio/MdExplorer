@@ -3,6 +3,7 @@ import { Injectable, Injector } from '@angular/core';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { tap, catchError, map } from 'rxjs/operators';
 import { MdFile } from '../models/md-file';
+import { CompactSegment } from '../models/IFileInfoNode';
 import { IDocumentSettings } from './Types/IDocumentSettings';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 import { SpecialFolder, Drive } from '../../commons/components/show-file-system/file-explorer.models';
@@ -445,8 +446,11 @@ export class MdFileService {
     }
 
     // Raccogli i segmenti della catena
-    const segments: { name: string; fullPath: string; level: number }[] = [
-      { name: node.name, fullPath: node.fullPath, level: node.level }
+    // Ogni segmento porta il SUO flag hasExtraContent: la riga compattata nasconde i figli dei
+    // segmenti intermedi (es. `scripts/` sotto `login.e2e` in `login.e2e / esecuzioni / <data>`),
+    // e senza il flag il loro occhio non poteva comparire (bug segnalato il 28/09/2026).
+    const segments: CompactSegment[] = [
+      { name: node.name, fullPath: node.fullPath, level: node.level, hasExtraContent: node.hasExtraContent, hasToc: node.hasToc }
     ];
     let current = node;
     let lastCompactedLevel = node.level;
@@ -455,7 +459,7 @@ export class MdFileService {
     while (current.childrens?.length === 1 && current.childrens[0].type === 'folder') {
       current = current.childrens[0] as MdFile;
       lastCompactedLevel++;
-      segments.push({ name: current.name, fullPath: current.fullPath, level: lastCompactedLevel });
+      segments.push({ name: current.name, fullPath: current.fullPath, level: lastCompactedLevel, hasExtraContent: current.hasExtraContent, hasToc: current.hasToc });
     }
 
     // Se abbiamo compresso almeno 2 livelli
@@ -471,10 +475,9 @@ export class MdFileService {
       node.hasToc = current.hasToc;
       // Idem per l'occhio "reveal contenuto extra": la riga compattata mostra i figli
       // dell'ultimo segmento, e revealFolderExtras() punta a quel segmento. Riflettiamo
-      // quindi l'ultimo segmento. NOTA: eventuale contenuto extra nei segmenti INTERMEDI
-      // (es. un file non-.md dentro un anello compattato) non viene segnalato qui — è una
-      // mancata scoperta, non una promessa falsa (il reveal restituisce sempre e solo ciò
-      // che l'occhio annuncia per il segmento profondo).
+      // quindi l'ultimo segmento. I segmenti INTERMEDI hanno il loro flag in compactedSegments:
+      // il menù del segmento mostra il loro occhio, e il reveal spezza la catena lì
+      // (addFileToParent → breakCompactFolderAt).
       node.hasExtraContent = current.hasExtraContent;
       // Il fullPath del nodo diventa quello dell'ultimo segmento per le operazioni di default
       // Ma manteniamo il path originale per la visualizzazione
@@ -508,8 +511,17 @@ export class MdFileService {
       return true;
     }
 
+    // Il parent è un segmento NON finale di una riga compattata (es. `login.e2e` in
+    // `login.e2e / esecuzioni / <data>`): la catena si spezza lì PRIMA di cercare. La riga
+    // compattata ha il fullPath del primo segmento, quindi findFolderInDataStore la trovava
+    // "direttamente" e il file finiva tra i figli dell'ultimo segmento (visto il 28/09/2026
+    // con l'occhio su `login.e2e`: `scripts/` compariva sotto `<data>` accanto a report.md).
+    const brokenAtParent = this.findCompactIntermediateNode(this.dataStore.mdFiles, parentFullPath)
+      ? this.breakCompactFolderAt(this.dataStore.mdFiles, parentFullPath)
+      : null;
+
     // Cerca la cartella parent nel dataStore (incluse compact folders)
-    const parentFolder = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
+    const parentFolder = brokenAtParent ?? this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
 
     if (parentFolder) {
       // Assicura proprietà di indicizzazione
@@ -622,11 +634,10 @@ export class MdFileService {
       if (node.fullPath && node.fullPath.toLowerCase() === target) {
         return node;
       }
-      if (node.isCompacted && node.compactedSegments) {
-        const lastSegment = node.compactedSegments[node.compactedSegments.length - 1];
-        if (lastSegment && lastSegment.fullPath.toLowerCase() === target) {
-          return node;
-        }
+      // Qualunque segmento di una riga compattata esiste già nel tree (anche gli intermedi:
+      // senza, il reveal di un segmento reinseriva la cartella intermedia come doppione).
+      if (node.isCompacted && node.compactedSegments?.some(s => s.fullPath.toLowerCase() === target)) {
+        return node;
       }
       if (node.childrens && node.childrens.length > 0) {
         const found = this.findNodeInDataStore(node.childrens as MdFile[], targetFullPath);
@@ -740,6 +751,10 @@ export class MdFileService {
     tailNode.isLoading = false;
     tailNode.index = 0;
 
+    // La coda mostra i figli dell'ultimo segmento: il suo occhio è quello dell'ultimo segmento.
+    tailNode.hasExtraContent = segments[segments.length - 1].hasExtraContent ?? compactNode.hasExtraContent;
+    tailNode.hasToc = segments[segments.length - 1].hasToc ?? compactNode.hasToc;
+
     if (tailSegments.length > 1) {
       tailNode.isCompacted = true;
       tailNode.compactedSegments = tailSegments;
@@ -767,6 +782,9 @@ export class MdFileService {
       compactNode.name = headSegments[0].name;
     }
     compactNode.fullPath = lastHeadSeg.fullPath;
+    // La testa ora mostra i figli del segmento dove si è spezzata: occhio e TOC sono i suoi.
+    compactNode.hasExtraContent = lastHeadSeg.hasExtraContent;
+    compactNode.hasToc = !!lastHeadSeg.hasToc;
 
     // Head's children become just the tail node (new files will be pushed alongside)
     compactNode.childrens = [tailNode];

@@ -3,6 +3,8 @@ export interface CompactSegment {
   name: string;       // Single folder name: "src", "main", "java"
   fullPath: string;   // Full path: "C:\project\src\main\java"
   level: number;      // Level in original tree
+  hasExtraContent?: boolean; // This folder holds non-.md files or markdown-empty subfolders (the eye reveals them)
+  hasToc?: boolean;          // This folder has its <name>.md.directory
 }
 
 // implementation of this interface is MDFile

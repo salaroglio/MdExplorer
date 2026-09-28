@@ -581,12 +581,15 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         segmentItem.relativePath = `${baseRel}/${extra}`;
       }
 
-      // Occhio "reveal contenuto extra" sul segmento FOGLIA: compactSingleNode copia su
-      // node.hasExtraContent proprio il flag dell'ultimo segmento, e reveal/hide/lookup
-      // nel dataStore risolvono solo il path del segmento profondo. I segmenti intermedi
-      // sono assorbiti dalla compattazione (nessun flag, reveal non supportato) → niente occhio.
-      if (idx === node.compactedSegments.length - 1) {
-        segmentItem.hasExtraContent = node.hasExtraContent;
+      // Occhio "reveal contenuto extra" su OGNI segmento che ha contenuto nascosto: l'ultimo
+      // prende il flag della riga (compactSingleNode ci copia quello del segmento profondo), gli
+      // intermedi il proprio da compactedSegments. Il reveal di un intermedio spezza la catena
+      // in quel punto (addFileToParent → breakCompactFolderAt): prima del 28/09/2026 l'occhio
+      // c'era solo sull'ultimo, e `scripts/` sotto `login.e2e` restava irraggiungibile.
+      if (idx >= 0) {
+        segmentItem.hasExtraContent = idx === node.compactedSegments.length - 1
+          ? node.hasExtraContent
+          : !!node.compactedSegments[idx].hasExtraContent;
         segmentItem.extraLoaded = this.folderHasRevealedExtras(segmentItem);
       }
     }
@@ -1631,7 +1634,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // le righe → lascerebbe nel DOM le righe vecchie e ne appenderebbe di nuove,
   // duplicando l'intera struttura (copia "morta" + copia "viva").
   trackByPath(index: number, node: MdFile): string {
-    return node.fullPath || `${node.path || ''}_${node.level || 0}`;
+    // La forma della compattazione fa parte dell'identità della riga: il CDK tree (v15) riusa
+    // la riga con lo stesso trackBy SENZA aggiornarne i dati, e una catena spezzata al primo
+    // segmento tiene lo stesso fullPath → restava disegnata come `a / b / c` (28/09/2026).
+    // L'espansione resta chiavata sul solo fullPath (treeControl), quindi non si perde.
+    const key = node.fullPath || `${node.path || ''}_${node.level || 0}`;
+    return node.isCompacted ? `${key}|${node.compactedPath}` : key;
   }
   
   // Helper per verificare se un nodo è selezionato
