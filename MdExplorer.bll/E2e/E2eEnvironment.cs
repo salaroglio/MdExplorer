@@ -124,12 +124,23 @@ namespace MdExplorer.Features.E2e
         /// <summary>
         /// Downloads <c>@playwright/mcp</c> and its dependencies into <see cref="PlaywrightMcpFolder"/>. Every
         /// version must be exact (no ranges) and every archive must match the registry's sha512: anything
-        /// else stops the installation, and nothing is left half-installed.
+        /// else stops the installation.
+        /// <para>
+        /// The files go straight into the final folder and <c>mde-installed.json</c> is written last: without it
+        /// the folder counts as not installed (<see cref="CheckPlaywrightMcp"/>) and the next attempt starts from
+        /// scratch. No staging folder renamed at the end: on Windows that rename failed with «Access to the path
+        /// is denied» (28/09/2026) — the antivirus still holds the files just written, and a folder with open
+        /// files cannot be moved.
+        /// </para>
         /// </summary>
         public async Task<IReadOnlyList<string>> InstallPlaywrightMcpAsync(HttpClient http, CancellationToken ct = default)
         {
-            var staging = PlaywrightMcpFolder + ".download-" + Guid.NewGuid().ToString("N").Substring(0, 8);
+            var target = PlaywrightMcpFolder;
             var installed = new List<string>();
+            var completed = false;
+            // A previous attempt left something: an installed folder always has the marker, so this is debris.
+            if (Directory.Exists(target)) Directory.Delete(target, true);
+            RemoveOldStagingFolders();
             try
             {
                 var pending = new Queue<(string Name, string Version)>();
@@ -150,7 +161,7 @@ namespace MdExplorer.Features.E2e
 
                     var bytes = await http.GetByteArrayAsync(tarball, ct);
                     VerifyIntegrity(bytes, integrity, name, version);
-                    ExtractPackage(bytes, Path.Combine(staging, "node_modules", name.Replace('/', Path.DirectorySeparatorChar)));
+                    ExtractPackage(bytes, Path.Combine(target, "node_modules", name.Replace('/', Path.DirectorySeparatorChar)));
                     installed.Add($"{name}@{version}");
 
                     if (meta["dependencies"] is JsonObject deps)
@@ -166,7 +177,7 @@ namespace MdExplorer.Features.E2e
                     }
                 }
 
-                File.WriteAllText(Path.Combine(staging, InstalledMarker), JsonSerializer.Serialize(new
+                File.WriteAllText(Path.Combine(target, InstalledMarker), JsonSerializer.Serialize(new
                 {
                     package = "@playwright/mcp",
                     version = PlaywrightMcpVersion,
@@ -174,14 +185,32 @@ namespace MdExplorer.Features.E2e
                     date = DateTime.UtcNow.ToString("o"),
                 }, new JsonSerializerOptions { WriteIndented = true }));
 
-                if (Directory.Exists(PlaywrightMcpFolder)) Directory.Delete(PlaywrightMcpFolder, true);
-                Directory.CreateDirectory(Path.GetDirectoryName(PlaywrightMcpFolder)!);
-                Directory.Move(staging, PlaywrightMcpFolder);
+                completed = true;
                 return installed;
             }
             finally
             {
-                if (Directory.Exists(staging)) Directory.Delete(staging, true);
+                // A failed attempt: its files go, if the antivirus lets them. If it does not, what stays has no
+                // marker, counts as not installed, and the next attempt deletes it first.
+                if (!completed)
+                {
+                    try { if (Directory.Exists(target)) Directory.Delete(target, true); }
+                    catch (IOException) { }
+                    catch (UnauthorizedAccessException) { }
+                }
+            }
+        }
+
+        /// <summary>The <c>&lt;version&gt;.download-*</c> folders of the installer before 28/09/2026, left by a failed rename.</summary>
+        private void RemoveOldStagingFolders()
+        {
+            var parent = Path.GetDirectoryName(PlaywrightMcpFolder)!;
+            if (!Directory.Exists(parent)) return;
+            foreach (var old in Directory.GetDirectories(parent, PlaywrightMcpVersion + ".download-*"))
+            {
+                try { Directory.Delete(old, true); }
+                catch (IOException) { }
+                catch (UnauthorizedAccessException) { }
             }
         }
 
