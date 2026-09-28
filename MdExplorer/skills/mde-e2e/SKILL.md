@@ -3,7 +3,7 @@ name: mde-e2e
 description: "Scrive ed esegue test end-to-end di siti web descritti in markdown (file *.e2e.md) con MdExplorer, e ne registra esiti, screenshot e script Playwright rigiocabili. Use when: test e2e, end-to-end, test di un sito, test dell'interfaccia web, collaudo, verificare che il sito funzioni, file .e2e.md, eseguire i test, rilanciare i test, esito dei test, mappa del sito, credenziali di test, script Playwright, regressione, smoke test, login di prova."
 mde:
   origin: mdexplorer
-  version: 2
+  version: 3
   updatePolicy: replace
 ---
 
@@ -22,7 +22,8 @@ file alone.
 Un test end-to-end è **un file markdown** che finisce in `.e2e.md`. Descrive, in italiano semplice, cosa fa un
 utente su un sito e cosa deve vedere. Tu lo esegui su un browser vero con gli strumenti del server MCP
 **playwright** (`browser_navigate`, `browser_snapshot`, `browser_click`, `browser_type`, `browser_fill_form`,
-`browser_take_screenshot`, …), poi registri l'esito nel file stesso.
+`browser_take_screenshot`, `browser_console_messages`, `browser_network_requests`, …), poi registri l'esito nel
+file stesso.
 
 Ogni esecuzione lascia tre cose, tutte collegate dal `.e2e.md`:
 
@@ -30,11 +31,17 @@ Ogni esecuzione lascia tre cose, tutte collegate dal `.e2e.md`:
 - gli **screenshot** e un **report** dell'esecuzione;
 - uno **script Playwright C#** per ogni test, che si rigioca senza di te in pochi secondi.
 
+Lo script va molto più veloce di te: dove tu, tra un passo e l'altro, vedi la pagina finire di caricare, lo
+script prosegue subito. Per questo ogni passo che fa caricare qualcosa ha nello script un'**attesa** esplicita,
+e ciò che scopri su come il sito carica resta scritto nelle **schede di pagina** (*«Le attese»*).
+
 ## I file
 
 ```text
 test-e2e/                              ← la cartella dei test (il nome è libero)
 ├── mappa-sito-the-internet.md         ← mappa del sito: una per sito, condivisa dai test
+├── mappa-sito-the-internet/           ← le schede di pagina: stesso nome della mappa, senza .md
+│   └── login.md                       ← una scheda per pagina
 ├── credenziali-the-internet.txt       ← credenziali: una per sito, MAI in git
 ├── login.e2e.md                       ← un file di test
 ├── login.e2e/                         ← i suoi artefatti: stesso nome del test, senza .md
@@ -52,7 +59,9 @@ test-e2e/                              ← la cartella dei test (il nome è libe
 ```
 
 Se mancano `E2eTests.csproj`, `E2eSupport.cs` o `e2e.runsettings`, creali **esattamente** con il contenuto della
-sezione *«I file di supporto»*. Se esistono, non toccarli. **Uno solo per albero di test**: se in una cartella
+sezione *«I file di supporto»*. Se esistono, non toccarli, con un'eccezione: se `E2eSupport.cs` non ha la riga
+`// versione-supporto: 2` della sezione, sostituiscilo con quello della sezione (gli script nuovi usano funzioni
+che il vecchio non ha). **Uno solo per albero di test**: se in una cartella
 sopra quella del test c'è già un `E2eTests.csproj`, non crearne un altro (compilerebbe due volte gli stessi script).
 
 Nel `.gitignore` del progetto aggiungi, se mancano, le cartelle di compilazione:
@@ -120,7 +129,7 @@ Le verifiche si scrivono in una di queste forme, così diventano asserzioni prec
 
 | Verifica | Asserzione nello script |
 |---|---|
-| ✔ Compare il testo "…" | `Expect(Page.GetByText("…")).ToBeVisibleAsync()` |
+| ✔ Compare il testo "…" | `Expect(Page.GetByText("…").Filter(new() { Visible = true }).First).ToBeVisibleAsync()` |
 | ✔ Non compare il testo "…" | `Expect(Page.GetByText("…")).ToBeHiddenAsync()` |
 | ✔ L'URL contiene "…" | `Expect(Page).ToHaveURLAsync(new Regex(Regex.Escape("…")))` |
 | ✔ Il titolo della pagina è "…" | `Expect(Page).ToHaveTitleAsync("…")` |
@@ -129,8 +138,14 @@ Le verifiche si scrivono in una di queste forme, così diventano asserzioni prec
 | ✔ Ci sono esattamente N bottoni "…" | `Expect(Page.GetByRole(AriaRole.Button, new() { Name = "…" })).ToHaveCountAsync(N)` |
 | ✔ Ci sono esattamente N link "…" | `Expect(Page.GetByRole(AriaRole.Link, new() { Name = "…" })).ToHaveCountAsync(N)` |
 
-Se il testo di «Compare il testo» si trova in più punti della pagina, lo script usa il primo:
-`Expect(Page.GetByText("…").First)`. Senza `.First` Playwright si ferma perché non sa quale scegliere.
+«Compare il testo» vuol dire: **almeno un** elemento **visibile** contiene quel testo. Lo stesso testo si trova
+spesso in più punti, anche nascosti (le opzioni di una select, le viste non attive di una pagina a linguette):
+senza `.Filter(new() { Visible = true })` il primo trovato può essere nascosto e la verifica fallisce; senza
+`.First` Playwright si ferma perché non sa quale scegliere.
+
+Ogni test deve avere **almeno una verifica ✔**: senza, lo script rigiocato risulta sempre superato, anche quando
+la pagina fa tutt'altro. Se esegui un test senza verifiche, scrivilo nei dettagli dell'esito
+(«⚠️ nessuna verifica ✔: il rigioco non può accorgersi di un errore»).
 
 Una verifica scritta in altro modo («✔ La pagina sembra in ordine») è una **verifica a giudizio**: la valuti tu
 guardando la pagina, e nello script diventa un commento `// verifica a giudizio: …` senza asserzione.
@@ -159,7 +174,11 @@ http://localhost:4200»):
    (almeno il caso che riesce e uno che fallisce, se ha senso), verifiche con **✔** nelle forme della tabella,
    `## Artefatti` e `## Esiti` vuote.
 4. **La mappa del sito**: se hai il codice sorgente, puoi crearne una prima versione (pagine dalle route, campi e
-   bottoni dai template) con le regole di *«La mappa del sito»*; altrimenti la crei al primo giro.
+   bottoni dai template) con le regole di *«La mappa del sito»*; altrimenti la crei al primo giro. Se il sito è
+   un'**applicazione a pagina singola** (un solo indirizzo, le «pagine» sono viste, linguette, pannelli), **chiedi
+   all'utente** quali sono le pagine, proponendo quelle che vedi: ogni pagina avrà la sua scheda
+   (*«Le schede di pagina»*). Dal sorgente puoi anche anticipare nelle schede quali chiamate fa ogni azione,
+   scritte come *«dal sorgente, da confermare»* finché un'esecuzione non le osserva.
 5. **Le credenziali, senza valori.** Scegli le chiavi (`<sito>.utente`, `<sito>.password`, …). Prima aggiungi al
    `.gitignore` del progetto la riga `credenziali-*.txt`, se manca. Poi, **solo se il file non esiste**, crealo
    con le chiavi e i valori vuoti:
@@ -214,7 +233,46 @@ Indirizzo: `https://the-internet.herokuapp.com`. Ultimo aggiornamento: 2026-09-2
 
 Aggiorna la mappa aggiungendo o correggendo, non riscrivendola da capo. Ogni fatto va sotto la **pagina** a cui
 appartiene; in «Elementi comuni» solo ciò che vale per tutte le pagine. Se una cosa scritta non è più vera,
-correggila e scrivi accanto la data.
+correggila e scrivi accanto la data. Per ogni pagina che ha una scheda, la mappa ha il link alla scheda.
+
+## Le schede di pagina
+
+Accanto alla mappa c'è una cartella con lo stesso nome (senza `.md`) e dentro **una scheda per pagina**: dice
+**come la pagina carica** e quindi cosa deve aspettare uno script. La leggi prima di eseguire un test che passa
+da quella pagina, la aggiorni dopo. In un'applicazione a pagina singola la «pagina» è la vista che l'utente
+percepisce come un posto diverso, e quali siano le pagine lo decide l'utente.
+
+````markdown esempio=scheda
+# Login
+
+Si apre da: `/login`. Ultimo aggiornamento: 2026-09-28, da `login.e2e.md`.
+
+## Azioni e chiamate
+
+### Premi "Login"
+- Attesa: navigazione a `/secure` (il modulo si invia con un POST e la pagina cambia).
+- Osservato: `POST /authenticate` → 303 verso `/secure`, 180 ms, 1,2 KB.
+- Tempo massimo: 10 s.
+- Rumore da ignorare: nessuno.
+- Fine del lavoro: compare `link "Logout"`.
+
+## Da tenere d'occhio
+- Il bottone "Login" ha un'icona nel nome accessibile: cercarlo per nome parziale.
+
+## Storia dei problemi
+- 2026-09-28: nessun problema.
+````
+
+Le regole della scheda:
+
+- **Solo ciò che hai osservato**, con il dato che lo prova: durata e dimensione lette da `browser_network_request`,
+  l'elemento visto nello snapshot, la riga della console. Un'ipotesi (perché è lenta, cosa fa il server) si
+  scrive come tale: «ipotesi: …». Una scheda sbagliata fa sbagliare tutti gli script che verranno.
+- Per ogni azione che carica: cosa aspettare (segnale, chiamata, navigazione), a cosa serve, dimensione e durata
+  osservate, tempo massimo, rumore da ignorare, fine del lavoro.
+- **Storia dei problemi**: quando un rigioco fallisce e se ne capisce il perché, una riga con la data, cosa è
+  successo e cosa è cambiato nella scheda. Non cancellare le righe vecchie.
+- Aggiorna aggiungendo o correggendo, non riscrivendo da capo; una cosa non più vera si corregge con la data.
 
 ## Le credenziali
 
@@ -254,7 +312,9 @@ screenshot); i link che scrivi nel `.e2e.md` sono relativi **al file di test**, 
 2. La **cartella dell'esecuzione** è `<artifacts>/esecuzioni/<AAAA-MM-GG_hh-mm>/`: te la indica chi lancia i
    test; se nessuno la indica, usa data e ora correnti. Creala se non c'è.
 3. Per ogni test, in ordine, esegui i passi con gli strumenti playwright. Prima di cliccare o scrivere, guarda
-   la pagina con `browser_snapshot` e scegli l'elemento per **ruolo e nome**.
+   la pagina con `browser_snapshot` e scegli l'elemento per **ruolo e nome**. Prima di un test leggi le schede
+   delle pagine che attraversa; dopo ogni passo che può far caricare qualcosa (apertura, selezione, clic che
+   cambia vista o dati) scopri **cosa aspettare**, come dice *«Le attese»*.
 4. Dopo ogni verifica ✔ fai uno screenshot con `browser_take_screenshot`, nome
    `T<n>-<nn>-<descrizione-breve>.png` (`<nn>` = numero del passo, a due cifre), nella cartella dell'esecuzione.
 5. Confronta sempre con il **testo atteso scritto nel test**, mai con quello che ti aspetteresti tu. Se il sito
@@ -270,6 +330,43 @@ screenshot); i link che scrivi nel `.e2e.md` sono relativi **al file di test**, 
 Un test ❌ o ⚠️ non ferma gli altri: passa al test successivo.
 
 7. Chiudi il browser con `browser_close` alla fine.
+
+## Le attese
+
+Tre livelli, dal più sicuro. Per ogni passo che carica usa il primo che il sito permette.
+
+1. **Il segnale del sito.** Alcuni siti annunciano da soli quando hanno finito (convenzione dei segnali di
+   MdExplorer). Dopo il passo leggi `browser_console_messages`: righe come `[mde] start grafo cob:bs522` e poi
+   `[mde] ready grafo cob:bs522` (o `[mde] error …`) sono il segnale `grafo` con chiave `cob:bs522`. Nello script:
+   `await E2e.EnableSignals(Context);` prima di aprire il sito, e dopo l'azione
+   `await E2e.Signal(Page, "grafo", "cob:bs522", TimeSpan.FromSeconds(<tempo massimo>));`.
+2. **La chiamata e la fine del lavoro.** Senza segnale, leggi `browser_network_requests`: le chiamate sono
+   numerate, quelle del passo sono quelle con il numero più alto dell'ultimo che avevi visto. Distingui la
+   chiamata che porta i dati del passo dal **rumore** (chiamate periodiche, telemetria, pubblicità): il nome
+   dell'indirizzo, il momento e il senso dell'azione ti dicono qual è. Leggi durata e dimensione con
+   `browser_network_request` passando **solo il numero**, senza `part`: la durata sta nella sezione «General»
+   (`duration`), la dimensione in `content-length`; con `part` la sezione «General» non c'è. Poi confronta lo snapshot di prima e di dopo e trova la **fine del lavoro**: qualcosa
+   che esiste solo quando la pagina ha finito di usare quei dati (un elemento nuovo, un nome che cambia: un filtro
+   che prima era "Tabella DB2" e dopo "Tabella DB2 (12)"). Arrivata la risposta, la pagina può lavorare ancora a
+   lungo: la sola chiamata non basta. Nello script, l'attesa della chiamata si registra **prima** dell'azione:
+
+   ```csharp
+   await Page.RunAndWaitForResponseAsync(
+       () => Page.Locator("#program-selector").SelectOptionAsync("cob:bs522"),
+       r => r.Url.Contains("/api/graph/") && r.Ok, new() { Timeout = 15_000 });
+   await Expect(Page.GetByRole(AriaRole.Checkbox, new() { NameRegex = new Regex(@"^Tabella DB2 \(\d+\)$") }))
+       .ToBeVisibleAsync(new() { Timeout = 15_000 });
+   ```
+3. **Niente da sorvegliare.** Il passo non fa chiamate e non ha segnale, ma la pagina cambia (un calcolo solo nel
+   browser, una vista già caricata): aspetta la fine del lavoro osservata, come al livello 2. Se non trovi
+   nemmeno quella, scrivilo nel commento dell'attesa: `// attesa: nessuna trovata`.
+
+Il **tempo massimo** lo stimi da durata e dimensione osservate, con ampio margine (il PC di chi rigioca può
+essere più lento, i dati possono crescere): l'attesa finisce al primo che arriva tra l'evento e il tempo massimo.
+Se un segnale non arriva entro il tempo massimo, il test fallisce (`E2e.Signal` lo fa da solo). **Mai pause
+fisse**: `Task.Delay`, `WaitForTimeoutAsync` e simili non si usano.
+
+Quello che hai scoperto va nella scheda della pagina (*«Le schede di pagina»*), così il prossimo test lo sa già.
 
 ## Registrare l'esito
 
@@ -325,7 +422,10 @@ Poi aggiorna la mappa del sito con ciò che hai imparato.
 
 Dopo l'esecuzione scrivi uno script per **ogni** test, anche se è fallito, in
 `<artifacts>/scripts/<nome>.T<n>.spec.cs`. Il server playwright ti restituisce, per ogni azione, il blocco
-`Ran Playwright code` in C#: usalo per i passi.
+`Ran Playwright code` in C#: usalo per i passi, e **copia il localizzatore esattamente com'è**. Non
+accorciarlo e non riscriverlo a memoria: il server lo sceglie perché trovi un solo elemento, anche contando quelli
+nascosti (una linguetta con lo stesso testo in un'altra vista); un localizzatore accorciato ne trova più di uno e
+il rigioco si ferma. Aggiungi solo attese, credenziali e screenshot.
 
 Le regole, tutte obbligatorie:
 
@@ -338,18 +438,24 @@ Le regole, tutte obbligatorie:
   sostituiscilo;
 - gli screenshot si fanno **solo** con `E2e.Screenshot(Page, Artifacts, "<nome>")`, mai con percorsi scritti a mano;
 - ogni passo e ogni verifica hanno sopra un commento con la riga del test, numero compreso;
+- ogni passo che carica ha la sua **attesa** (*«Le attese»*), con sopra un commento
+  `// attesa: segnale <nome>`, `// attesa: <METODO> <indirizzo> + fine lavoro <cosa>`,
+  `// attesa: fine lavoro <cosa>` oppure `// attesa: nessuna trovata`, e la scheda da cui viene; mai pause fisse;
+- ogni passo dello script deve fare **quello che dice il test**. Se non riesci a tradurlo fedelmente (un clic su un
+  disegno, un trascinamento, un'azione che hai fatto in un altro modo), lo script è `incompleto` e al posto del
+  passo c'è `Assert.Fail("passo <n> non riproducibile: <motivo>")`;
 - le asserzioni usano il **testo atteso del test** (tabella delle verifiche), mai quello osservato;
 - l'intestazione dice lo stato: `valido` (test ✅), `riproduce un difetto` (test ❌: l'asserzione che fallisce
-  resta quella giusta), `incompleto` (test ⚠️: scrivi i passi fino a dove sei arrivato e un
-  `Assert.Fail("esecuzione non riuscita al passo <n>: <motivo>")`);
+  resta quella giusta), `incompleto` (test ⚠️, oppure un passo non riproducibile: scrivi i passi fino a dove sei
+  arrivato e un `Assert.Fail("esecuzione non riuscita al passo <n>: <motivo>")`);
 - il campo `impronta-sorgente` lo calcola MdExplorer: scrivi `da calcolare`.
 
 ```csharp esempio=script
 // stato: valido
 // sorgente: login.e2e.md, T1 — Login riuscito
 // impronta-sorgente: da calcolare
-// generatore: mde-e2e v1
-// data: 2026-09-27 10:30
+// generatore: mde-e2e v2
+// data: 2026-09-28 10:30
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Playwright;
@@ -379,10 +485,13 @@ namespace MdeE2e.Login
             await Page.GetByRole(AriaRole.Textbox, new() { Name = "Password" }).FillAsync(E2e.Credential(Credentials, "the-internet.password"));
 
             // 4. Premi "Login"
+            // attesa: navigazione a /secure + fine lavoro link "Logout" (scheda mappa-sito-the-internet/login.md)
             await Page.GetByRole(AriaRole.Button, new() { Name = "Login" }).ClickAsync();
+            await Page.WaitForURLAsync(new Regex(Regex.Escape("/secure")), new() { Timeout = 10_000 });
+            await Expect(Page.GetByRole(AriaRole.Link, new() { Name = "Logout" })).ToBeVisibleAsync(new() { Timeout = 10_000 });
 
             // 5. ✔ Compare il testo "You logged into a secure area!"
-            await Expect(Page.GetByText("You logged into a secure area!")).ToBeVisibleAsync();
+            await Expect(Page.GetByText("You logged into a secure area!").Filter(new() { Visible = true }).First).ToBeVisibleAsync();
             await E2e.Screenshot(Page, Artifacts, "T1-05-messaggio-login");
 
             // 6. ✔ L'URL contiene "/secure"
@@ -433,12 +542,14 @@ namespace MdeE2e.Login
 
 ```csharp esempio=supporto
 // MdExplorer, skill mde-e2e: supporto comune agli script dei test *.e2e.md. Non modificare.
+// versione-supporto: 2
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.Playwright;
+using NUnit.Framework;
 
 namespace MdeE2e
 {
@@ -479,6 +590,30 @@ namespace MdeE2e
 
         public static Task Screenshot(IPage page, string artifacts, string name, [CallerFilePath] string caller = "") =>
             page.ScreenshotAsync(new PageScreenshotOptions { Path = Path.Combine(RunDir(artifacts, caller), name + ".png") });
+
+        /// <summary>Accende i segnali del sito (chiave mde-e2e in localStorage): prima di aprire il sito.</summary>
+        public static Task EnableSignals(IBrowserContext context) =>
+            context.AddInitScriptAsync("try { localStorage.setItem('mde-e2e', '1'); } catch (e) { }");
+
+        /// <summary>
+        /// Aspetta il segnale <paramref name="name"/> con chiave <paramref name="key"/>: «ready» → prosegue;
+        /// «error» → il test fallisce; nessuno dei due entro <paramref name="max"/> → il test fallisce col motivo.
+        /// </summary>
+        public static async Task Signal(IPage page, string name, string key, TimeSpan max)
+        {
+            var attribute = "data-mde-" + name;
+            var done = page.Locator($"[{attribute}=\"ready:{key}\"], [{attribute}=\"error:{key}\"]").First;
+            try
+            {
+                await done.WaitForAsync(new() { State = WaitForSelectorState.Attached, Timeout = (float)max.TotalMilliseconds });
+            }
+            catch (TimeoutException)
+            {
+                Assert.Fail($"segnale {name} {key} non arrivato entro {max.TotalSeconds} s");
+            }
+            if ((await done.GetAttributeAsync(attribute))?.StartsWith("error:") == true)
+                Assert.Fail($"il sito ha segnalato un errore su {name} {key}");
+        }
     }
 }
 ```
@@ -494,6 +629,9 @@ scarica MdExplorer solo quando l'utente lo chiede dalla stessa finestra: non lan
   chieda.
 - Non scrivere mai il valore di una credenziale fuori dal file delle credenziali.
 - Non usare comandi di shell per eseguire i test: il browser si guida solo con gli strumenti playwright.
+- Non mettere pause fisse negli script (`Task.Delay`, `WaitForTimeoutAsync`): si aspetta un evento, con un tempo
+  massimo.
+- Non scrivere nelle schede supposizioni come se fossero fatti.
 - Non cancellare esecuzioni, righe di esito o script vecchi: si accumulano.
 - Non toccare le righe di `## Esiti` marcate «(script)» né le cartelle `esecuzioni/<data>_script`: le scrive
   MdExplorer quando rigioca gli script senza di te.
