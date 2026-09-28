@@ -282,6 +282,7 @@
     <EmbeddedResource Include="skills\mde-plantuml\SKILL.md" />
     <EmbeddedResource Include="skills\mde-slide\SKILL.md" />
     <EmbeddedResource Include="skills\mde-e2e\SKILL.md" />
+    <EmbeddedResource Include="skills\mde-e2e-signals\SKILL.md" />
     <EmbeddedResource Include="skills\mde-skillcreator\agent.body.md" />
     <EmbeddedResource Include="skills\mde-skillcreator\agent.copilot.yml" />
     <EmbeddedResource Include="skills\mde-skillcreator\agent.opencode.yml" />

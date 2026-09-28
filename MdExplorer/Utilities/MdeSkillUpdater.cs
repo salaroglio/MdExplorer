@@ -160,6 +160,7 @@ namespace MdExplorer.Utilities
             new CatalogEntry("mde-plantuml", Shared("MdExplorer.Service.skills.mde_plantuml.SKILL.md")),
             new CatalogEntry("mde-slide", Shared("MdExplorer.Service.skills.mde_slide.SKILL.md")),
             new CatalogEntry("mde-e2e", Shared("MdExplorer.Service.skills.mde_e2e.SKILL.md")),
+            new CatalogEntry("mde-e2e-signals", Shared("MdExplorer.Service.skills.mde_e2e_signals.SKILL.md")),
         };
 
         /// <summary>

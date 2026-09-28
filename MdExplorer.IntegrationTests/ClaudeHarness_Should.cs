@@ -82,6 +82,7 @@ namespace MdExplorer.IntegrationTests
                     ".claude/commands/mde-mark-folder-synthesis.md",
                     ".claude/commands/mde-mark-summarize.md",
                     ".claude/skills/mde-doc/SKILL.md",
+                    ".claude/skills/mde-e2e-signals/SKILL.md",
                     ".claude/skills/mde-e2e/SKILL.md",
                     ".claude/skills/mde-features/SKILL.md",
                     ".claude/skills/mde-plantuml/SKILL.md",

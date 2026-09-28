@@ -3,7 +3,7 @@ name: mde-e2e
 description: "Scrive ed esegue test end-to-end di siti web descritti in markdown (file *.e2e.md) con MdExplorer, e ne registra esiti, screenshot e script Playwright rigiocabili. Use when: test e2e, end-to-end, test di un sito, test dell'interfaccia web, collaudo, verificare che il sito funzioni, file .e2e.md, eseguire i test, rilanciare i test, esito dei test, mappa del sito, credenziali di test, script Playwright, regressione, smoke test, login di prova."
 mde:
   origin: mdexplorer
-  version: 3
+  version: 4
   updatePolicy: replace
 ---
 
@@ -367,6 +367,10 @@ Se un segnale non arriva entro il tempo massimo, il test fallisce (`E2e.Signal` 
 fisse**: `Task.Delay`, `WaitForTimeoutAsync` e simili non si usano.
 
 Quello che hai scoperto va nella scheda della pagina (*«Le schede di pagina»*), così il prossimo test lo sa già.
+
+Se hai dovuto dedurre un'attesa (livello 2 o 3) e il **codice sorgente del sito è nel progetto**, alla fine
+suggerisci all'utente di aggiungere i segnali a quelle azioni con la skill **`mde-e2e-signals`**: elenca i passi e
+le pagine. Durante un'esecuzione non modificare il sito.
 
 ## Registrare l'esito
 
