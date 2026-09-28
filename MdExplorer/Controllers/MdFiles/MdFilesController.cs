@@ -2313,36 +2313,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
         }
 
-        private bool FolderHasRevealableContent(string folder, string projectPath)
-        {
-            try
-            {
-                foreach (var f in Directory.GetFiles(folder))
-                {
-                    if (f.EndsWith(".md.directory", StringComparison.OrdinalIgnoreCase))
-                        continue;
-                    if (Path.GetExtension(f) == ".md")
-                    {
-                        if (!_mdIgnoreService.ShouldIgnorePath(f, projectPath))
-                            return true;
-                    }
-                    else
-                    {
-                        return true;
-                    }
-                }
-                foreach (var d in Directory.GetDirectories(folder).Where(_ => !_.Contains(".md")))
-                {
-                    if (!_foldersIgnoreService.ShouldIgnoreFolderForProject(d, projectPath))
-                        return true;
-                }
-            }
-            catch
-            {
-                // Unreadable folder → no eye rather than a lie.
-            }
-            return false;
-        }
+        private bool FolderHasRevealableContent(string folder, string projectPath) =>
+            FolderRevealableContent.Has(folder, projectPath, _mdIgnoreService, _foldersIgnoreService);
 
         /// <summary>
         /// Resolves a client-supplied path (relative to the project root, or an absolute path
@@ -2969,12 +2941,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
         /// <c>GetFolderExtraContent</c> use this predicate so the eye never promises content the
         /// reveal call would not return.</para>
         /// </summary>
-        private static bool IsRevealableExtraFile(string filePath)
-        {
-            if (Path.GetExtension(filePath) == ".md") return false;
-            if (filePath.EndsWith(".md.directory", StringComparison.OrdinalIgnoreCase)) return false;
-            return true;
-        }
+        private static bool IsRevealableExtraFile(string filePath) => FolderRevealableContent.IsExtraFile(filePath);
 
         /// <summary>
         /// True when the folder owns its generated TOC file (<c>&lt;dirname&gt;.md.directory</c>).

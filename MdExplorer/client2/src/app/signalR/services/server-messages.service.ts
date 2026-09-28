@@ -179,6 +179,7 @@ export class MdServerMessagesService {
   public folderCreated$ = new Subject<any>();                // 'folderCreated'
   public folderDeleted$ = new Subject<any>();                // 'folderDeleted'
   public folderRenamed$ = new Subject<any>();                // 'folderRenamed'
+  public folderContentChanged$ = new Subject<any>();         // 'folderContentChanged' (non-.md content of a folder changed)
   public fileSystemStorm$ = new Subject<any[]>();            // 'fileSystemStorm'
   public fileIndexed$ = new Subject<any>();                  // 'fileIndexed'
   public folderIndexingStart$ = new Subject<any>();          // 'folderIndexingStart'
@@ -371,6 +372,9 @@ export class MdServerMessagesService {
       this.hubConnection.on('folderCreated', (data) => {
         console.log('📁 [SignalR] folderCreated:', data?.fullPath || data?.FullPath);
         this.folderCreated$.next(data);
+      });
+      this.hubConnection.on('folderContentChanged', (data) => {
+        this.folderContentChanged$.next(data);
       });
       this.hubConnection.on('folderDeleted', (data) => {
         console.log('🗑️ [SignalR] folderDeleted:', data?.fullPath || data?.FullPath);

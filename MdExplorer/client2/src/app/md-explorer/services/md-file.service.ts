@@ -391,6 +391,9 @@ export class MdFileService {
   // the older one, leaving a stale tree. The last REQUEST must win.
   private _loadAllEpoch = 0;
 
+  /** Una riga compattata è stata spezzata: le chiavi di espansione (fullPath) prima e dopo. */
+  public readonly compactChainBroken$ = new Subject<{ rowKey: string; headKey: string; tailKey: string }>();
+
   loadAll(callback: (data: any, objectThis: any) => any, objectThis: any) {
     const epoch = ++this._loadAllEpoch;
     console.warn(`🔄 [loadAll] epoch ${epoch} started at:`, new Date().toISOString());
@@ -604,6 +607,74 @@ export class MdFileService {
    * (portandosi via l'eventuale sottoalbero rivelato sotto di essi).
    * I figli .md reali non sono mai isExtra → restano.
    */
+  /**
+   * Aggiorna il contenuto extra GIÀ rivelato di una cartella dopo un cambiamento sul disco
+   * (evento folderContentChanged): aggiunge i file nuovi e toglie i nodi extra che non ci sono
+   * più. I figli .md reali non sono mai isExtra → restano. Prima del 28/09/2026 un occhio aperto
+   * non vedeva i file scritti dopo (screenshot e script di un lancio e2e).
+   */
+  refreshFolderExtras(parentFullPath: string): Observable<MdFile[]> {
+    return this.loadFolderExtraContent(parentFullPath).pipe(
+      tap(children => {
+        const kids = children || [];
+        const present = new Set(kids.map(c => (c.fullPath || '').toLowerCase()));
+        const parent = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
+        if (parent?.childrens) {
+          parent.childrens = parent.childrens.filter(c =>
+            !(c as MdFile).isExtra || present.has(((c as MdFile).fullPath || '').toLowerCase())) as MdFile[];
+        }
+        kids.forEach(child => {
+          child.isExtra = true;
+          this.addFileToParent(child, parentFullPath);
+        });
+        this._mdFiles.next([...this.dataStore.mdFiles]);
+      })
+    );
+  }
+
+  /**
+   * Imposta il flag "ha contenuto per l'occhio" della cartella, anche quando è un segmento di una
+   * riga compattata (intermedio: il flag del segmento; ultimo: anche quello della riga).
+   * Restituisce false se la cartella non è nel tree (mai caricata): nulla da aggiornare.
+   */
+  setFolderExtraContent(folderFullPath: string, hasExtraContent: boolean, hasRevealableContent: boolean): boolean {
+    const holder = this.findExtraFlagHolder(this.dataStore.mdFiles, folderFullPath);
+    if (!holder) return false;
+    // Una cartella rivelata (verde) non mostra niente di suo: per lei conta tutto, markdown compresi
+    // (la regola del server per le cartelle rivelate). Per le cartelle del tree, solo ciò che è nascosto.
+    if (!holder.segment && holder.node.isExtra) hasExtraContent = hasRevealableContent;
+    if (holder.segment) holder.segment.hasExtraContent = hasExtraContent;
+    if (holder.isRowFlag) holder.node.hasExtraContent = hasExtraContent;
+    return true;
+  }
+
+  /** Il flag "ha contenuto per l'occhio" della cartella come lo conosce il tree ORA; undefined se non c'è. */
+  getFolderExtraContent(folderFullPath: string): boolean | undefined {
+    const holder = this.findExtraFlagHolder(this.dataStore.mdFiles, folderFullPath);
+    if (!holder) return undefined;
+    return holder.segment ? !!holder.segment.hasExtraContent : !!holder.node.hasExtraContent;
+  }
+
+  private findExtraFlagHolder(nodes: MdFile[], folderFullPath: string):
+      { node: MdFile; segment?: CompactSegment; isRowFlag: boolean } | null {
+    if (!nodes || !folderFullPath) return null;
+    const target = folderFullPath.toLowerCase();
+    for (const node of nodes) {
+      if (node.type !== 'folder') continue;
+      if (node.isCompacted && node.compactedSegments?.length) {
+        const i = node.compactedSegments.findIndex(s => s.fullPath.toLowerCase() === target);
+        if (i >= 0) {
+          return { node, segment: node.compactedSegments[i], isRowFlag: i === node.compactedSegments.length - 1 };
+        }
+      } else if (node.fullPath?.toLowerCase() === target) {
+        return { node, isRowFlag: true };
+      }
+      const found = this.findExtraFlagHolder(node.childrens as MdFile[], folderFullPath);
+      if (found) return found;
+    }
+    return null;
+  }
+
   hideFolderExtras(parentFullPath: string): void {
     const parent = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
     if (!parent || !parent.childrens) {
@@ -736,6 +807,8 @@ export class MdFileService {
     if (!result) return null;
 
     const { compactNode, segmentIndex } = result;
+    // Chiave di espansione della riga PRIMA della spaccatura (il treeControl espande per fullPath).
+    const rowKey = compactNode.fullPath;
     const segments = compactNode.compactedSegments!;
 
     // Tail segments: from segmentIndex+1 to end
@@ -788,6 +861,11 @@ export class MdFileService {
 
     // Head's children become just the tail node (new files will be pushed alongside)
     compactNode.childrens = [tailNode];
+
+    // Testa e coda hanno fullPath nuovi: se la riga era aperta, il tree deve aprire anche loro,
+    // altrimenti la riga si chiude e i suoi file spariscono (visto il 28/09/2026 quando un lancio
+    // e2e creava una nuova cartella di esecuzione sotto `login.e2e / esecuzioni / <data>`).
+    this.compactChainBroken$.next({ rowKey, headKey: compactNode.fullPath, tailKey: tailNode.fullPath });
 
     return compactNode;
   }

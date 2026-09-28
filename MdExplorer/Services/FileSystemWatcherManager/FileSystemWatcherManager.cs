@@ -45,6 +45,10 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         // Per-connection debounce timers coalescing text-file FS bursts into a single
         // incremental text reindex (isolated session → never contends with the md path).
         private readonly ConcurrentDictionary<string, System.Threading.Timer> _textReindexTimers = new();
+        // Per-folder debounce of "folderContentChanged": a test run writes screenshots and scripts in bursts,
+        // and the tree needs one update per folder, not one per file.
+        private readonly ConcurrentDictionary<string, System.Threading.Timer> _folderContentTimers = new();
+        private static readonly TimeSpan FolderContentDebounce = TimeSpan.FromMilliseconds(400);
 
         public FileSystemWatcherManager(
             IHubContext<MonitorMDHub> hubContext,
@@ -883,6 +887,81 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         #region Event Handlers
 
         /// <summary>
+        /// A file that is not markdown, or a folder, appeared, disappeared or was renamed at
+        /// <paramref name="path"/>: the folder holding it may now have — or no longer have — content for the
+        /// tree's eye, and an eye already open must show the new files (bug reported on 28/09/2026: files
+        /// written by an e2e run never showed up). Sends <c>folderContentChanged</c> for that folder, once per
+        /// burst, with the flag recomputed by the same rule as the folder load. Markdown files have their own
+        /// events; ignored folders and <c>.git</c> never reach the tree.
+        /// </summary>
+        private void NotifyFolderContentChanged(WatcherContext context, string path)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(path) || Path.GetExtension(path).Equals(".md", StringComparison.OrdinalIgnoreCase))
+                    return;
+                var folder = Path.GetDirectoryName(path);
+                if (string.IsNullOrEmpty(folder) || !folder.StartsWith(context.ProjectPath, StringComparison.OrdinalIgnoreCase))
+                    return;
+                var relative = GetRelativePath(context, path).Replace(Path.DirectorySeparatorChar, '/');
+                if (relative.Split('/').Any(segment => segment.Equals(".git", StringComparison.OrdinalIgnoreCase)))
+                    return;
+                if (folder.Length > context.ProjectPath.TrimEnd(Path.DirectorySeparatorChar).Length &&
+                    (IsFolderIgnored(context, GetRelativePath(context, folder))
+                     || IsInIgnoredFolderChain(folder, context.ProjectPath)
+                     || _mdIgnoreService.ShouldIgnorePath(folder, context.ProjectPath)))
+                    return;
+
+                ScheduleFolderContentChanged(context, folder);
+                // A folder just created: its own content too. The files written right after it can be
+                // missed by the watcher (on Linux the watch on a new subfolder starts late: verified on
+                // 28/09/2026, a screenshot written at once in a new run folder never raised an event);
+                // computed after the debounce, the folder is read as it is then.
+                if (Directory.Exists(path)
+                    && !IsInIgnoredFolderChain(path, context.ProjectPath)
+                    && !_mdIgnoreService.ShouldIgnorePath(path, context.ProjectPath))
+                    ScheduleFolderContentChanged(context, path);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[{ConnectionId}] folderContentChanged not scheduled for {Path}", context.ConnectionId, path);
+            }
+        }
+
+        private void ScheduleFolderContentChanged(WatcherContext context, string folder)
+        {
+            var key = context.ConnectionId + "|" + folder.ToLowerInvariant();
+            var connectionId = context.ConnectionId;
+            var projectPath = context.ProjectPath;
+            _folderContentTimers.AddOrUpdate(key,
+                _ => new System.Threading.Timer(_ => SendFolderContentChanged(key, connectionId, projectPath, folder), null, FolderContentDebounce, System.Threading.Timeout.InfiniteTimeSpan),
+                (_, timer) => { timer.Change(FolderContentDebounce, System.Threading.Timeout.InfiniteTimeSpan); return timer; });
+        }
+
+        private async void SendFolderContentChanged(string key, string connectionId, string projectPath, string folder)
+        {
+            if (_folderContentTimers.TryRemove(key, out var timer)) timer.Dispose();
+            try
+            {
+                // Two flags, as the load has two rules: a folder of the tree hides only what is not markdown
+                // (and folders without markdown); a revealed (green) folder shows everything. The client
+                // knows which kind the folder is, the server does not.
+                var exists = Directory.Exists(folder);
+                var foldersIgnore = GetFoldersIgnoreService();
+                await _hubContext.Clients.Client(connectionId).SendAsync("folderContentChanged", new
+                {
+                    FolderFullPath = folder,
+                    HasExtraContent = exists && FolderRevealableContent.HasHidden(folder, projectPath, _mdIgnoreService, foldersIgnore),
+                    HasRevealableContent = exists && FolderRevealableContent.Has(folder, projectPath, _mdIgnoreService, foldersIgnore),
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[{ConnectionId}] folderContentChanged not sent for {Folder}", connectionId, folder);
+            }
+        }
+
+        /// <summary>
         /// Città degli agenti (§6): se il path è un <c>.agent.md</c>, notifica il
         /// registry perché rilegga le "Pagine Gialle" del progetto (cache event-driven).
         /// Risoluzione lazy via provider — come il CommitWatcher — per non aggiungere
@@ -1183,6 +1262,8 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     return;
                 }
 
+                NotifyFolderContentChanged(context, e.FullPath);
+
                 var fileExtension = Path.GetExtension(e.FullPath);
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
                 var isDirectory = Directory.Exists(e.FullPath);
@@ -1311,6 +1392,9 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     _logger.LogDebug($"[{context.ConnectionId}] OnFileRenamed skipped - watcher temporarily disabled");
                     return;
                 }
+
+                NotifyFolderContentChanged(context, e.OldFullPath);
+                NotifyFolderContentChanged(context, e.FullPath);
 
                 bool oldIsMarkdown = Path.GetExtension(e.OldFullPath).Equals(".md", StringComparison.OrdinalIgnoreCase);
                 bool newIsMarkdown = Path.GetExtension(e.FullPath).Equals(".md", StringComparison.OrdinalIgnoreCase);
@@ -1504,6 +1588,8 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     _logger.LogDebug($"[{context.ConnectionId}] OnFileDeleted skipped - watcher temporarily disabled");
                     return;
                 }
+
+                NotifyFolderContentChanged(context, e.FullPath);
 
                 var fileExtension = Path.GetExtension(e.FullPath);
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);

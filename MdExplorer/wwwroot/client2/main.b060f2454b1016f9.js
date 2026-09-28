@@ -11409,6 +11409,8 @@ class MdFileService {
     // succession) raced and whichever HTTP response landed LAST won — possibly
     // the older one, leaving a stale tree. The last REQUEST must win.
     this._loadAllEpoch = 0;
+    /** Una riga compattata è stata spezzata: le chiavi di espansione (fullPath) prima e dopo. */
+    this.compactChainBroken$ = new rxjs__WEBPACK_IMPORTED_MODULE_3__.Subject();
     // Termine da cercare dentro il documento appena l'iframe lo carica.
     // Settato dalla search-box (click su un risultato "Content"), consumato
     // da main-content nel load handler dell'iframe (one-shot).
@@ -11901,6 +11903,73 @@ class MdFileService {
    * (portandosi via l'eventuale sottoalbero rivelato sotto di essi).
    * I figli .md reali non sono mai isExtra → restano.
    */
+  /**
+   * Aggiorna il contenuto extra GIÀ rivelato di una cartella dopo un cambiamento sul disco
+   * (evento folderContentChanged): aggiunge i file nuovi e toglie i nodi extra che non ci sono
+   * più. I figli .md reali non sono mai isExtra → restano. Prima del 28/09/2026 un occhio aperto
+   * non vedeva i file scritti dopo (screenshot e script di un lancio e2e).
+   */
+  refreshFolderExtras(parentFullPath) {
+    return this.loadFolderExtraContent(parentFullPath).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_7__.tap)(children => {
+      const kids = children || [];
+      const present = new Set(kids.map(c => (c.fullPath || '').toLowerCase()));
+      const parent = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
+      if (parent?.childrens) {
+        parent.childrens = parent.childrens.filter(c => !c.isExtra || present.has((c.fullPath || '').toLowerCase()));
+      }
+      kids.forEach(child => {
+        child.isExtra = true;
+        this.addFileToParent(child, parentFullPath);
+      });
+      this._mdFiles.next([...this.dataStore.mdFiles]);
+    }));
+  }
+  /**
+   * Imposta il flag "ha contenuto per l'occhio" della cartella, anche quando è un segmento di una
+   * riga compattata (intermedio: il flag del segmento; ultimo: anche quello della riga).
+   * Restituisce false se la cartella non è nel tree (mai caricata): nulla da aggiornare.
+   */
+  setFolderExtraContent(folderFullPath, hasExtraContent, hasRevealableContent) {
+    const holder = this.findExtraFlagHolder(this.dataStore.mdFiles, folderFullPath);
+    if (!holder) return false;
+    // Una cartella rivelata (verde) non mostra niente di suo: per lei conta tutto, markdown compresi
+    // (la regola del server per le cartelle rivelate). Per le cartelle del tree, solo ciò che è nascosto.
+    if (!holder.segment && holder.node.isExtra) hasExtraContent = hasRevealableContent;
+    if (holder.segment) holder.segment.hasExtraContent = hasExtraContent;
+    if (holder.isRowFlag) holder.node.hasExtraContent = hasExtraContent;
+    return true;
+  }
+  /** Il flag "ha contenuto per l'occhio" della cartella come lo conosce il tree ORA; undefined se non c'è. */
+  getFolderExtraContent(folderFullPath) {
+    const holder = this.findExtraFlagHolder(this.dataStore.mdFiles, folderFullPath);
+    if (!holder) return undefined;
+    return holder.segment ? !!holder.segment.hasExtraContent : !!holder.node.hasExtraContent;
+  }
+  findExtraFlagHolder(nodes, folderFullPath) {
+    if (!nodes || !folderFullPath) return null;
+    const target = folderFullPath.toLowerCase();
+    for (const node of nodes) {
+      if (node.type !== 'folder') continue;
+      if (node.isCompacted && node.compactedSegments?.length) {
+        const i = node.compactedSegments.findIndex(s => s.fullPath.toLowerCase() === target);
+        if (i >= 0) {
+          return {
+            node,
+            segment: node.compactedSegments[i],
+            isRowFlag: i === node.compactedSegments.length - 1
+          };
+        }
+      } else if (node.fullPath?.toLowerCase() === target) {
+        return {
+          node,
+          isRowFlag: true
+        };
+      }
+      const found = this.findExtraFlagHolder(node.childrens, folderFullPath);
+      if (found) return found;
+    }
+    return null;
+  }
   hideFolderExtras(parentFullPath) {
     const parent = this.findFolderInDataStore(this.dataStore.mdFiles, parentFullPath);
     if (!parent || !parent.childrens) {
@@ -12021,6 +12090,8 @@ class MdFileService {
       compactNode,
       segmentIndex
     } = result;
+    // Chiave di espansione della riga PRIMA della spaccatura (il treeControl espande per fullPath).
+    const rowKey = compactNode.fullPath;
     const segments = compactNode.compactedSegments;
     // Tail segments: from segmentIndex+1 to end
     const tailSegments = segments.slice(segmentIndex + 1);
@@ -12066,6 +12137,14 @@ class MdFileService {
     compactNode.hasToc = !!lastHeadSeg.hasToc;
     // Head's children become just the tail node (new files will be pushed alongside)
     compactNode.childrens = [tailNode];
+    // Testa e coda hanno fullPath nuovi: se la riga era aperta, il tree deve aprire anche loro,
+    // altrimenti la riga si chiude e i suoi file spariscono (visto il 28/09/2026 quando un lancio
+    // e2e creava una nuova cartella di esecuzione sotto `login.e2e / esecuzioni / <data>`).
+    this.compactChainBroken$.next({
+      rowKey,
+      headKey: compactNode.fullPath,
+      tailKey: tailNode.fullPath
+    });
     return compactNode;
   }
   /**
@@ -17400,6 +17479,7 @@ class MdServerMessagesService {
     this.folderCreated$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderCreated'
     this.folderDeleted$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderDeleted'
     this.folderRenamed$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderRenamed'
+    this.folderContentChanged$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderContentChanged' (non-.md content of a folder changed)
     this.fileSystemStorm$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'fileSystemStorm'
     this.fileIndexed$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'fileIndexed'
     this.folderIndexingStart$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject(); // 'folderIndexingStart'
@@ -17567,6 +17647,9 @@ class MdServerMessagesService {
         this.hubConnection.on('folderCreated', data => {
           console.log('📁 [SignalR] folderCreated:', data?.fullPath || data?.FullPath);
           this.folderCreated$.next(data);
+        });
+        this.hubConnection.on('folderContentChanged', data => {
+          this.folderContentChanged$.next(data);
         });
         this.hubConnection.on('folderDeleted', data => {
           console.log('🗑️ [SignalR] folderDeleted:', data?.fullPath || data?.FullPath);
@@ -17939,8 +18022,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.28.3',
-  buildTime: '2026.09.28 10:09:39'
+  version: '2026.09.28.5',
+  buildTime: '2026.09.28 10:57:40'
 };
 
 /***/ }),
@@ -17974,4 +18057,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.7048ddffca7ba2cc.js.map
+//# sourceMappingURL=main.b060f2454b1016f9.js.map

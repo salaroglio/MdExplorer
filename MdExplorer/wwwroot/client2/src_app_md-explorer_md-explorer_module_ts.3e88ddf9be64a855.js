@@ -25411,6 +25411,20 @@ class MdTreeComponent {
     this.mdServerMessages.folderCreated$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_35__.takeUntil)(this.destroy$)).subscribe(data => {
       this.enqueueEvent(() => this.handleFolderCreated(data), 'folderCreated');
     });
+    // Contenuto non-.md di una cartella cambiato sul disco (queued + debounced): occhio e file rivelati.
+    this.mdServerMessages.folderContentChanged$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_35__.takeUntil)(this.destroy$)).subscribe(data => {
+      this.enqueueEvent(() => this.handleFolderContentChanged(data), 'folderContentChanged');
+    });
+    // Riga compattata spezzata: se era aperta, restano aperte testa e coda (le chiavi cambiano).
+    this.mdFileService.compactChainBroken$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_35__.takeUntil)(this.destroy$)).subscribe(({
+      rowKey,
+      headKey,
+      tailKey
+    }) => {
+      // trackBy del treeControl = fullPath: a runtime l'expansionModel contiene stringhe.
+      const model = this.treeControl.expansionModel;
+      if (model.isSelected(rowKey)) model.select(headKey, tailKey);
+    });
     // Cancellazione cartella (queued + debounced)
     this.mdServerMessages.folderDeleted$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_35__.takeUntil)(this.destroy$)).subscribe(data => {
       this.enqueueEvent(() => this.handleFolderDeleted(data), 'folderDeleted');
@@ -25587,6 +25601,10 @@ class MdTreeComponent {
     // on a mutated-and-propagated flag) makes the toggle deterministic — the eye_off appears iff
     // the folder currently shows revealed isExtra children.
     if (item && item.type === 'folder') {
+      // Il flag dell'occhio dal dataStore, non dalla riga: il CDK tree riusa la riga con i dati
+      // vecchi, e un flag cambiato sul disco (folderContentChanged) non ci arriverebbe.
+      const known = this.mdFileService.getFolderExtraContent(this.getFolderRevealPath(item));
+      if (known !== undefined) item.hasExtraContent = known;
       item.extraLoaded = this.folderHasRevealedExtras(item);
     }
     // we open the menu
@@ -25634,7 +25652,7 @@ class MdTreeComponent {
       // in quel punto (addFileToParent → breakCompactFolderAt): prima del 28/09/2026 l'occhio
       // c'era solo sull'ultimo, e `scripts/` sotto `login.e2e` restava irraggiungibile.
       if (idx >= 0) {
-        segmentItem.hasExtraContent = idx === node.compactedSegments.length - 1 ? node.hasExtraContent : !!node.compactedSegments[idx].hasExtraContent;
+        segmentItem.hasExtraContent = this.mdFileService.getFolderExtraContent(segment.fullPath) ?? (idx === node.compactedSegments.length - 1 ? node.hasExtraContent : !!node.compactedSegments[idx].hasExtraContent);
         segmentItem.extraLoaded = this.folderHasRevealedExtras(segmentItem);
       }
     }
@@ -27077,6 +27095,24 @@ class MdTreeComponent {
       return;
     }
     console.log('✅ [handleFolderCreated] Cartella aggiunta al tree:', name);
+    this.changeDetectorRef.markForCheck();
+  }
+  /**
+   * Il contenuto non-.md di una cartella è cambiato sul disco (file creati, cancellati, rinominati;
+   * cartelle senza markdown). Il flag dell'occhio arriva già ricalcolato dal server; se l'occhio
+   * è aperto, i file rivelati si aggiornano. Cartella non nel tree (mai espansa): niente da fare,
+   * il flag arriverà giusto al caricamento.
+   */
+  handleFolderContentChanged(data) {
+    const folder = data?.folderFullPath || data?.FolderFullPath;
+    const hasExtra = !!(data?.hasExtraContent ?? data?.HasExtraContent);
+    const hasRevealable = !!(data?.hasRevealableContent ?? data?.HasRevealableContent);
+    if (!folder || !this.mdFileService.setFolderExtraContent(folder, hasExtra, hasRevealable)) return;
+    if (this.mdFileService.hasRevealedExtras(folder)) {
+      this.mdFileService.refreshFolderExtras(folder).subscribe({
+        error: err => console.error('[MdTreeComponent] refreshFolderExtras failed:', err)
+      });
+    }
     this.changeDetectorRef.markForCheck();
   }
   // Handler per la cancellazione di una cartella
@@ -39497,4 +39533,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.fc37d79895737bd5.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.3e88ddf9be64a855.js.map
