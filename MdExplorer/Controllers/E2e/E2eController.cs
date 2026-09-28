@@ -377,10 +377,16 @@ namespace MdExplorer.Controllers.E2e
                 _logger.LogInformation("[E2e] Installed {What}: {Detail}", what, detail);
                 return Ok(new { detail, report = await _environment.CheckAsync() });
             }
-            catch (Exception ex) when (ex is InvalidOperationException or HttpRequestException)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
+                // Every failure says what it is: on Windows the first one seen (28/09/2026) came back as a bare
+                // 500, with nothing in the dialog to act on. File errors (a folder locked by the antivirus, access
+                // denied) are not InvalidOperationException, and the dialog must show them all the same.
                 _logger.LogError(ex, "[E2e] Installing {What} failed", what);
-                return StatusCode(502, new { error = ex.Message });
+                var message = ex is InvalidOperationException or HttpRequestException
+                    ? ex.Message
+                    : $"{ex.GetType().Name}: {ex.Message}";
+                return StatusCode(502, new { error = $"Installazione di {what} non riuscita: {message}" });
             }
             finally
             {
