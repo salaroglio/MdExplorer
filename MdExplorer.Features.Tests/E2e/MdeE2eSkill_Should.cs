@@ -110,8 +110,10 @@ namespace MdExplorer.Features.Tests.E2e
             foreach (var header in new[] { "// stato: ", "// sorgente: ", "// impronta-sorgente: ", "// generatore: ", "// data: " })
                 StringAssert.Contains(script, header);
 
-            var version = Regex.Match(File.ReadAllText(SkillPath()), @"^  version: (\d+)$", RegexOptions.Multiline).Groups[1].Value;
-            StringAssert.Contains(script, $"// generatore: mde-e2e v{version}", "the script example must carry the skill's own version");
+            // The generator version (what makes old scripts stale) is the skeleton's own line, apart from the skill's
+            // `mde: version`, which rises with any change of text so that projects receive the new skill.
+            Assert.AreEqual(1, Regex.Matches(File.ReadAllText(SkillPath()), @"^// generatore: mde-e2e v\d+$", RegexOptions.Multiline).Count,
+                "exactly one generator line, in the script skeleton");
         }
 
         [TestMethod]

@@ -539,14 +539,20 @@ namespace MdExplorer.Services.E2e
             return bans;
         }
 
-        /// <summary>"mde-e2e v&lt;n&gt;" of the skill MdExplorer installs: scripts written by another version are stale.</summary>
+        /// <summary>The generator of the scripts the installed skill teaches ("mde-e2e v&lt;n&gt;", the skeleton's line): scripts written by another one are stale.</summary>
         public static string CurrentGenerator()
         {
             using var stream = typeof(E2eLaunchService).Assembly.GetManifestResourceStream("MdExplorer.Service.skills.mde_e2e.SKILL.md");
             if (stream == null) return null;
             using var reader = new StreamReader(stream);
-            var version = MdeSkillUpdater.ExtractMdeMarker(reader.ReadToEnd()).Version;
-            return version == null ? null : "mde-e2e v" + version;
+            // The emitter's version is the `// generatore:` line of the script skeleton the agent copies, not the
+            // skill's `mde: version`: that one rises for any change of text (so projects get the new skill), and
+            // must not make every script stale. Raise the skeleton's line when the rules for scripts change.
+            var m = System.Text.RegularExpressions.Regex.Match(reader.ReadToEnd(), @"^// generatore: (.+?)\s*$",
+                System.Text.RegularExpressions.RegexOptions.Multiline);
+            if (!m.Success)
+                throw new InvalidOperationException("La skill mde-e2e incorporata non ha la riga '// generatore:' nello scheletro degli script.");
+            return m.Groups[1].Value;
         }
 
         private static string DataFolder()

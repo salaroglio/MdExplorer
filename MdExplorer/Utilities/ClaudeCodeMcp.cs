@@ -162,11 +162,18 @@ namespace MdExplorer.Utilities
         /// The options of a normal MarkAgent Claude Code chat: MdExplorer's MCP server with the project's
         /// feature groups, usable (in dontAsk an MCP tool nobody authorized is denied). One place for the chat
         /// and for the e2e launch, which gives the tab this configuration back after a test run (D28).
+        /// <para>
+        /// Edit and Write inside the project, as the Copilot chat (its policy approves writes inside the project)
+        /// and opencode: without them dontAsk refused every file the skills ask to write (slides, documents, the
+        /// first setup of e2e tests) — seen on 28/09/2026, MarkAgent answered "nessuna scrittura su disco è
+        /// consentita". Paths relative to the session folder, the project.
+        /// </para>
         /// </summary>
         public static ClaudeCodeSessionOptions ChatOptions(string mcpGroupsArgument) => new ClaudeCodeSessionOptions
         {
             McpConfigPath = WriteSessionConfig(mcpGroupsArgument),
             AllowedMcpServers = new[] { ServerName },
+            AllowedTools = new[] { "Edit(./**)", "Write(./**)" },
         };
 
         /// <summary>
