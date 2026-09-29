@@ -98,16 +98,7 @@ namespace MdExplorer.Services.MarkDiagram
                 {
                     case MarkAgentEngine.Claude:
                     {
-                        var options = new ClaudeCodeSessionOptions
-                        {
-                            // Read-only: no execution, and nothing written (dontAsk denies what is not granted; the
-                            // explicit bans make it obvious in the arguments too).
-                            ToolPolicy = ClaudeCodeToolPolicy.NoExecution,
-                            DisallowedTools = new[] { "Edit", "Write", "NotebookEdit", "Bash" },
-                            AllowedTools = Array.Empty<string>(),
-                            ProfileKey = ProfileKey,
-                            ResumeSessionId = resume,
-                        };
+                        var options = LlmSessions.ReadOnlyEngineSessions.ClaudeOptions(ProfileKey, resume);
                         var session = await _claude.GetOrCreateAsync(PoolKey(connectionId), projectPath, model, options, ct).ConfigureAwait(false);
                         await foreach (var chunk in session.PromptAsync(prompt, ct).ConfigureAwait(false))
                             if (chunk.Kind == ClaudeCodeChunk.KindMessage) yield return chunk.Text;
@@ -116,14 +107,7 @@ namespace MdExplorer.Services.MarkDiagram
                     }
                     case MarkAgentEngine.Copilot:
                     {
-                        var profile = new CopilotSessionProfile
-                        {
-                            Key = ProfileKey,
-                            DenyShell = true,
-                            DenyWrite = true,
-                            DenyReason = ReadOnlyReason,
-                            ResumeSessionId = resume,
-                        };
+                        var profile = LlmSessions.ReadOnlyEngineSessions.CopilotProfile(ProfileKey, ReadOnlyReason, resume);
                         var session = await _copilot.GetOrCreateAsync(PoolKey(connectionId), projectPath, model, profile, ct).ConfigureAwait(false);
                         await foreach (var chunk in session.PromptAsync(prompt, ct).ConfigureAwait(false))
                             if (chunk.Kind == CopilotChatChunk.KindMessage) yield return chunk.Text;
@@ -138,7 +122,7 @@ namespace MdExplorer.Services.MarkDiagram
                             // project's (edit allowed). Conversations live in opencode's database, shared by every
                             // server: the document's one is resumed by its id.
                             state.OpenCodeServer = new OpenCodeServer(_loggerFactory.CreateLogger<OpenCodeServer>(),
-                                new Dictionary<string, string> { ["OPENCODE_CONFIG_CONTENT"] = ReadOnlyOpenCodeConfig() });
+                                new Dictionary<string, string> { ["OPENCODE_CONFIG_CONTENT"] = LlmSessions.ReadOnlyEngineSessions.OpenCodeConfig() });
                             state.OpenCodeSession = new OpenCodeSession(_loggerFactory.CreateLogger<OpenCodeSession>(),
                                 state.OpenCodeServer, projectPath, model, resume, rejectPermissions: true);
                         }
@@ -209,32 +193,6 @@ namespace MdExplorer.Services.MarkDiagram
                     break;
             }
             state.LiveDocument = null;
-        }
-
-        /// <summary>
-        /// opencode configuration of a diagram session: writing and the shell on "ask", and every ask rejected by the
-        /// session (rejectPermissions) — not "deny": the free provider refuses requests where the shell is removed
-        /// (measured with the e2e tests, 27/09/2026). No web. Without continue_loop_on_deny a rejected permission ends
-        /// the whole turn: the refusal goes back to the model instead.
-        /// </summary>
-        internal static string ReadOnlyOpenCodeConfig()
-        {
-            System.Text.Json.Nodes.JsonObject Permissions() => new()
-            {
-                ["edit"] = "ask",
-                ["bash"] = "ask",
-                ["webfetch"] = "deny",
-            };
-            var config = new System.Text.Json.Nodes.JsonObject
-            {
-                ["experimental"] = new System.Text.Json.Nodes.JsonObject { ["continue_loop_on_deny"] = true },
-                ["permission"] = Permissions(),
-                ["agent"] = new System.Text.Json.Nodes.JsonObject
-                {
-                    ["build"] = new System.Text.Json.Nodes.JsonObject { ["permission"] = Permissions() },
-                },
-            };
-            return config.ToJsonString();
         }
 
         public async ValueTask DisposeAsync()

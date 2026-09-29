@@ -10315,7 +10315,9 @@ class MarkAssistantService {
       case 'cancelled':
         return t('MARK.FOLDER.PROGRESS.CANCELLED');
       case 'error':
-        return t(p.message === 'no-provider' ? 'MARK.FOLDER.PROGRESS.NO_PROVIDER' : 'MARK.FOLDER.PROGRESS.ERROR');
+        // The project's engine cannot answer: the server says why (sprint 2026-09-29-Motore-LLM-Unico, D6).
+        if (p.message === 'no-engine' && p.detail) return p.detail;
+        return t('MARK.FOLDER.PROGRESS.ERROR');
       default:
         return this._text.getValue();
     }
@@ -18077,8 +18079,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.29.11',
-  buildTime: '2026.09.29 12:29:20'
+  version: '2026.09.29.12',
+  buildTime: '2026.09.29 12:37:38'
 };
 
 /***/ }),
@@ -18112,4 +18114,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.8f7f78ce5dd1e32e.js.map
+//# sourceMappingURL=main.405c7df93527bc6d.js.map

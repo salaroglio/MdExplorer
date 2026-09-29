@@ -653,39 +653,14 @@ namespace MdExplorer.Services.MarkDiagram
         private bool TryResolveEngine(string projectPath, out MarkAgentEngine engine, out string? modelId, out string? whyNot)
         {
             (engine, modelId) = ReadProjectEngine(projectPath);
-            whyNot = null;
-            var resolvable = engine switch
-            {
-                MarkAgentEngine.Claude => MdExplorer.Features.Services.AI.ClaudeCode.ClaudeCodeProcessLauncher.IsResolvable(),
-                MarkAgentEngine.Copilot => MdExplorer.Features.Services.AI.CopilotAcp.CopilotProcessLauncher.IsResolvable(),
-                MarkAgentEngine.OpenCode => MdExplorer.Features.Services.AI.OpenCode.OpenCodeProcessLauncher.IsResolvable(),
-                _ => (bool?)null,
-            };
-            if (resolvable == null)
-            {
-                whyNot = "Il progetto non ha un motore di MarkAgent: sceglilo nelle impostazioni del progetto.";
-                return false;
-            }
-            if (resolvable == false)
-            {
-                whyNot = $"Il motore del progetto ({MarkAgentEngines.CommandOf(engine)}) non si trova nel PATH del servizio: " +
-                         "se l'hai installato con nvm, avvia MdExplorer da una shell che carica nvm.";
-                return false;
-            }
+            whyNot = LlmSessions.ReadOnlyEngineSessions.WhyNot(engine);
+            if (whyNot != null) return false;
             return true;
         }
 
-        private static string EngineLabel(MarkAgentEngine engine, string? modelId)
-        {
-            var name = engine switch
-            {
-                MarkAgentEngine.Claude => "Claude Code",
-                MarkAgentEngine.Copilot => "Copilot",
-                MarkAgentEngine.OpenCode => "opencode",
-                _ => engine.ToString(),
-            };
-            return string.IsNullOrWhiteSpace(modelId) ? name : $"{name} ({modelId})";
-        }
+        private static string EngineLabel(MarkAgentEngine engine, string? modelId) =>
+            LlmSessions.ReadOnlyEngineSessions.Label(engine, modelId);
+
 
         /// <summary>
         /// Il motore del progetto. Una riga che non si trova vale <see cref="MarkAgentEngine.None"/>

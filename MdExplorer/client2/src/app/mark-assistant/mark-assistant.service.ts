@@ -738,9 +738,9 @@ export class MarkAssistantService {
       case 'cancelled':
         return t('MARK.FOLDER.PROGRESS.CANCELLED');
       case 'error':
-        return t(p.message === 'no-provider'
-          ? 'MARK.FOLDER.PROGRESS.NO_PROVIDER'
-          : 'MARK.FOLDER.PROGRESS.ERROR');
+        // The project's engine cannot answer: the server says why (sprint 2026-09-29-Motore-LLM-Unico, D6).
+        if (p.message === 'no-engine' && p.detail) return p.detail;
+        return t('MARK.FOLDER.PROGRESS.ERROR');
       default:
         return this._text.getValue();
     }
