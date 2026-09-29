@@ -59,6 +59,18 @@ namespace MdExplorer.Features.Tests.E2e
         }
 
         [TestMethod]
+        public void Carry_the_whole_failure_message_of_the_script()
+        {
+            // Its first line does not say which check failed: the lines after it do (29/09/2026).
+            var outcome = new E2eReplayOutcome(1, "login.T1.spec.cs", false,
+                "Microsoft.Playwright.PlaywrightException : Locator expected to be visible\nCall log:\n  - Expect \"ToBeVisibleAsync\" GetByText(\"Filtri attivi: 4\")");
+            var md = E2eReplayLog.Build(1, Har, Console, "https://example.org", outcome);
+            StringAssert.Contains(md, "## Esito dello script");
+            StringAssert.Contains(md, "GetByText(\"Filtri attivi: 4\")");
+            StringAssert.Contains(E2eReplayLog.Build(2, Har, Console, "https://example.org", new E2eReplayOutcome(2, "x", true, null)), "✅ superato");
+        }
+
+        [TestMethod]
         public void Leave_out_headers_cookies_and_bodies()
         {
             var md = E2eReplayLog.Build(1, Har, Console, "https://example.org");

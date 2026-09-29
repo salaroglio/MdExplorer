@@ -3,7 +3,7 @@ name: mde-e2e
 description: "Scrive ed esegue test end-to-end di siti web descritti in markdown (file *.e2e.md) con MdExplorer, e ne registra esiti, screenshot e script Playwright rigiocabili. Use when: test e2e, end-to-end, test di un sito, test dell'interfaccia web, collaudo, verificare che il sito funzioni, file .e2e.md, eseguire i test, rilanciare i test, esito dei test, mappa del sito, credenziali di test, script Playwright, regressione, smoke test, login di prova."
 mde:
   origin: mdexplorer
-  version: 6
+  version: 7
   updatePolicy: replace
 ---
 
@@ -687,7 +687,8 @@ MarkAgent»: il messaggio dice il file di test, i test falliti con script e mess
 Lo scopo è capire **perché**, insieme all'utente, e lasciare scritto ciò che si è capito.
 
 1. **Leggi**: il `.e2e.md`, lo script, il **registro** del rigioco (`registro.T<n>.md` nella cartella del
-   rigioco: ogni chiamata con inizio, durata e dimensione, e la console, con i tempi dall'inizio del test), le
+   rigioco: l'esito dello script con il messaggio d'errore completo, ogni chiamata con inizio, durata e
+   dimensione, e la console, con i tempi dall'inizio del test), le
    schede delle pagine che il test attraversa, e se serve il `report.md` dell'ultima esecuzione con te.
 2. **Trova la causa** confrontando ciò che lo script aspetta con ciò che il registro mostra. Le cause tipiche:
    - l'**attesa** manca o aspetta la cosa sbagliata: lo script prosegue prima che la pagina abbia finito (nel

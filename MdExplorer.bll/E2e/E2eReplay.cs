@@ -122,15 +122,17 @@ namespace MdExplorer.Features.E2e
                     Problem = $"dotnet test non ha finito entro {Timeout.TotalMinutes:0} minuti: interrotto." };
             }
             var output = E2ePostRun.Redact((await stdout) + (await stderr), secrets);
+            var outcomes = File.Exists(trx)
+                ? ReadTrx(trx, classes).Select(o => o with { Message = E2ePostRun.Redact(o.Message, secrets) }).ToList()
+                : new List<E2eReplayOutcome>();
+            // The whole failure message goes in the log too: its first line («Locator expected to be visible») does
+            // not say which check failed, the lines after it do (seen in the app on 29/09/2026).
             var logs = E2eReplayLog.Process(runFolder, classes.ToDictionary(c => c.Key, c => c.Value.TestNumber), secrets,
-                item.Preflight.Document?.BaseUrl);
+                item.Preflight.Document?.BaseUrl, outcomes);
 
             if (!File.Exists(trx))
                 return new E2eReplayFileResult { File = relative, Stale = stale, RunFolder = runFolder, Logs = logs,
                     Problem = "dotnet test non ha prodotto risultati (compilazione fallita?): " + Tail(output) };
-
-            var outcomes = ReadTrx(trx, classes)
-                .Select(o => o with { Message = E2ePostRun.Redact(o.Message, secrets) }).ToList();
             File.Delete(trx);
 
             var date = now.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture);

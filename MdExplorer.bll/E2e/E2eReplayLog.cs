@@ -20,6 +20,7 @@ namespace MdExplorer.Features.E2e
         private const string HarSuffix = ".har";
         private const string ConsoleSuffix = ".console.tsv";
         private const int MaxText = 300;
+        private const int MaxMessage = 4000;
 
         /// <summary>Resources a page loads to show itself, not data it asks for: counted, not listed.</summary>
         private static readonly HashSet<string> StaticKinds = new(StringComparer.OrdinalIgnoreCase)
@@ -31,7 +32,7 @@ namespace MdExplorer.Features.E2e
         /// also those of unknown classes. Returns the names of the logs written.
         /// </summary>
         public static IReadOnlyList<string> Process(string runFolder, IReadOnlyDictionary<string, int> testNumbers,
-            IReadOnlyDictionary<string, string> secrets, string baseUrl)
+            IReadOnlyDictionary<string, string> secrets, string baseUrl, IReadOnlyList<E2eReplayOutcome> outcomes = null)
         {
             var written = new List<string>();
             if (!Directory.Exists(runFolder)) return written;
@@ -44,7 +45,8 @@ namespace MdExplorer.Features.E2e
                     if (!File.Exists(har) && !File.Exists(console)) continue;
                     var name = "registro.T" + number + ".md";
                     var text = Build(number, File.Exists(har) ? File.ReadAllText(har) : null,
-                        File.Exists(console) ? File.ReadAllLines(console) : Array.Empty<string>(), baseUrl);
+                        File.Exists(console) ? File.ReadAllLines(console) : Array.Empty<string>(), baseUrl,
+                        outcomes?.FirstOrDefault(o => o.Test == number));
                     File.WriteAllText(Path.Combine(runFolder, name), E2ePostRun.Redact(text, secrets));
                     written.Add(name);
                 }
@@ -66,7 +68,8 @@ namespace MdExplorer.Features.E2e
                 File.Delete(file);
         }
 
-        public static string Build(int testNumber, string harJson, IReadOnlyList<string> consoleLines, string baseUrl)
+        public static string Build(int testNumber, string harJson, IReadOnlyList<string> consoleLines, string baseUrl,
+            E2eReplayOutcome outcome = null)
         {
             var calls = ReadCalls(harJson);
             var console = consoleLines.Select(ReadConsole).Where(c => c != null).ToList();
@@ -76,6 +79,18 @@ namespace MdExplorer.Features.E2e
             md.Append("# Registro del rigioco — T").Append(testNumber).Append("\n\n");
             md.Append("Chiamate di rete e console del test durante il rigioco dello script; i tempi sono in secondi dall'inizio.\n");
             md.Append("Scritto da MdExplorer, senza intestazioni, cookie e corpi delle chiamate.\n\n");
+
+            if (outcome != null)
+            {
+                md.Append("## Esito dello script\n\n");
+                if (outcome.Passed) md.Append("✅ superato\n\n");
+                else
+                {
+                    var message = (outcome.Message ?? "").Trim();
+                    if (message.Length > MaxMessage) message = message.Substring(0, MaxMessage) + "\n…";
+                    md.Append("❌ fallito:\n\n```text\n").Append(message.Replace("```", "'''")).Append("\n```\n\n");
+                }
+            }
 
             md.Append("## Chiamate\n\n");
             var listed = calls.Where(c => !StaticKinds.Contains(c.Kind)).ToList();

@@ -17272,9 +17272,17 @@ class E2eDialogComponent {
       const line = (text || '').trim().split('\n')[0] || '';
       return line.length > 300 ? line.slice(0, 300) + '…' : line;
     };
+    // The first line of a Playwright failure («Locator expected to be visible») does not say which check failed:
+    // the lines naming the expectation do (seen in the app on 29/09/2026). The whole message is in the log.
+    const essential = text => {
+      const lines = (text || '').trim().split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      const picked = [lines[0] || '', ...lines.slice(1).filter(l => /^(- )?(Expect|waiting for|Error:)/.test(l)).slice(0, 2)];
+      const joined = picked.join(' — ');
+      return joined.length > 500 ? joined.slice(0, 500) + '…' : joined;
+    };
     const lines = [`Analizza il rigioco fallito degli script di \`${r.file}\` (skill mde-e2e, «Analizzare un rigioco fallito»).`];
     for (const o of (r.outcomes || []).filter(x => !x.passed)) {
-      lines.push(`- T${o.test} (\`${o.script}\`): ${firstLine(o.message)}`);
+      lines.push(`- T${o.test} (\`${o.script}\`): ${essential(o.message)}`);
     }
     if (r.problem) lines.push(`- Problema del rigioco: ${firstLine(r.problem)}`);
     if (r.runFolder) {
@@ -39626,4 +39634,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.439bdc520c534ebe.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.aba8161a6a40cb19.js.map
