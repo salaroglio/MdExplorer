@@ -102,7 +102,7 @@ namespace MdExplorer.Features.Tests.E2e
         public void Follow_in_the_script_the_rules_the_skill_gives()
         {
             var script = Examples()["script"];
-            StringAssert.Contains(script, "public class Test_T1 : PageTest");
+            StringAssert.Contains(script, "public class Test_T1 : E2eTest");
             StringAssert.Contains(script, "public async Task T1_");
             StringAssert.Contains(script, "E2e.Screenshot(Page, Artifacts, ");
             Assert.IsFalse(script.Contains("GetEnvironmentVariable"), "credentials come from E2e.Credential, not from environment variables");
@@ -125,6 +125,7 @@ namespace MdExplorer.Features.Tests.E2e
             StringAssert.Contains(support, "public static Task Screenshot(IPage page, string artifacts, string name");
             StringAssert.Contains(support, "public static Task EnableSignals(IBrowserContext context)");
             StringAssert.Contains(support, "public static async Task Signal(IPage page, string name, string key, TimeSpan max)");
+            StringAssert.Contains(support, "public abstract class E2eTest : PageTest");
             StringAssert.Contains(Examples()["csproj"], "<ImplicitUsings>disable</ImplicitUsings>");
             StringAssert.Contains(Examples()["csproj"], "\"Microsoft.Playwright.NUnit\"");
             StringAssert.Contains(Examples()["runsettings"], "<Channel>chrome</Channel>");
@@ -143,13 +144,12 @@ namespace MdExplorer.Features.Tests.E2e
     
 
         [TestMethod]
-        public void Replace_an_old_support_file_by_the_version_line_the_skill_names()
+        public void Give_MdExplorer_the_support_files_it_writes()
         {
-            // An E2eSupport.cs written by an older skill lacks E2e.Signal: the skill tells the agent to replace a
-            // support file without this exact line, so the line in the text and in the example must be the same.
-            var line = Regex.Match(Examples()["supporto"], @"^// versione-supporto: \d+$", RegexOptions.Multiline).Value;
-            Assert.AreNotEqual("", line, "the support example has no version line");
-            StringAssert.Contains(File.ReadAllText(SkillPath()), "`" + line + "`");
+            // P4: MdExplorer writes E2eTests.csproj, E2eSupport.cs and e2e.runsettings from these very examples.
+            var files = MdExplorer.Features.E2e.E2eSupportFiles.FromSkill(File.ReadAllText(SkillPath()));
+            CollectionAssert.AreEquivalent(new[] { "E2eTests.csproj", "E2eSupport.cs", "e2e.runsettings" }, files.Keys.ToArray());
+            StringAssert.Contains(File.ReadAllText(SkillPath()), "li **scrive MdExplorer**");
         }
 
         [TestMethod]

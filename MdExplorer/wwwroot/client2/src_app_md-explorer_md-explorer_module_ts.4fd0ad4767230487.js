@@ -17430,6 +17430,21 @@ class E2eDialogComponent {
           file: event.file
         }));
         break;
+      case 'support':
+        {
+          const written = [...(event.created || []), ...(event.updated || [])];
+          if (written.length > 0) {
+            this.addLog('step', this.translate.instant('E2E.SUPPORT_WRITTEN', {
+              files: written.join(', ')
+            }));
+          }
+          if ((event.customized || []).length > 0) {
+            this.runErrors = [...this.runErrors, this.translate.instant('E2E.SUPPORT_CUSTOMIZED', {
+              files: event.customized.join(', ')
+            })];
+          }
+          break;
+        }
       case 'post-run':
         if (event.fingerprinted > 0) {
           this.addLog('step', this.translate.instant('E2E.FINGERPRINTED', {
@@ -39533,4 +39548,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.3e88ddf9be64a855.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.4fd0ad4767230487.js.map

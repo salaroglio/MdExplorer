@@ -93,7 +93,10 @@ namespace MdExplorer.Features.E2e
         /// <param name="outputDir">Only the server's diagnostic files go there: screenshots go where the agent
         /// names them, relative to the project (verified 27/09/2026). Always given, or the server writes
         /// <c>.playwright-mcp/</c> in the project.</param>
-        public static E2ePlaywrightServer For(E2ePrerequisitesReport prerequisites, bool headless, string secretsFile, string outputDir)
+        /// <param name="initScript">A script run in every page before the page's own (<c>--init-script</c>): it
+        /// switches on the signals of the sites instrumented with the mde-e2e-signals skill, without
+        /// <c>browser_evaluate</c> (banned).</param>
+        public static E2ePlaywrightServer For(E2ePrerequisitesReport prerequisites, bool headless, string secretsFile, string outputDir, string initScript = null)
         {
             if (!prerequisites.ReadyToRun)
                 throw new InvalidOperationException("Mancano dei prerequisiti per i test e2e: apri il wizard di installazione.");
@@ -104,6 +107,7 @@ namespace MdExplorer.Features.E2e
             if (headless) args.Add("--headless");
             args.AddRange(new[] { "--isolated", "--codegen", "csharp", "--output-dir", outputDir });
             if (secretsFile != null) args.AddRange(new[] { "--secrets", secretsFile });
+            if (initScript != null) args.AddRange(new[] { "--init-script", initScript });
 
             return new E2ePlaywrightServer(prerequisites.ElectronPath, args,
                 new Dictionary<string, string> { ["ELECTRON_RUN_AS_NODE"] = "1" });

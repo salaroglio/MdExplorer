@@ -149,6 +149,9 @@ namespace MdExplorer.Controllers.E2e
             // which the replay never uses) must not stop this one.
             var plan = E2eRunPlanner.Plan(full, root, DateTime.Now);
             if (plan.Items.Count == 0) return UnprocessableEntity(new { error = string.Join("\n", plan.Errors) });
+            // Support files of an older MdExplorer brought up to date before compiling (P4); none created here.
+            var support = Services.E2e.E2eLaunchService.EnsureSupportFiles(plan.Items.Select(i => i.TestFile), root, create: false);
+            if (support.Updated.Count > 0) _logger.LogInformation("[E2e] file di supporto aggiornati: {Files}", string.Join(", ", support.Updated));
             var generator = Services.E2e.E2eLaunchService.CurrentGenerator();
 
             var results = new System.Collections.Generic.List<E2eReplayFileResult>();
@@ -187,6 +190,7 @@ namespace MdExplorer.Controllers.E2e
                 stale = r.Stale,
                 problem = r.Problem,
                 needsRestore = r.NeedsRestore,
+                logs = r.Logs,
                 commit = r.Commit == null ? null : new { committed = r.Commit.Committed, sha = r.Commit.Sha, message = r.Commit.Message, reason = r.Commit.Reason },
             }));
         }
@@ -202,7 +206,10 @@ namespace MdExplorer.Controllers.E2e
             var (dotnetRequirement, dotnet) = await _environment.CheckDotnetAsync(ct);
             if (dotnet == null) return UnprocessableEntity(new { error = dotnetRequirement.Detail + " " + dotnetRequirement.Remedy });
 
-            var projects = E2eRunPlanner.Plan(full, root, DateTime.Now).Items
+            var restorePlan = E2eRunPlanner.Plan(full, root, DateTime.Now);
+            // The csproj the packages are for is the current one (P4): updated before restoring, not after.
+            Services.E2e.E2eLaunchService.EnsureSupportFiles(restorePlan.Items.Select(i => i.TestFile), root, create: false);
+            var projects = restorePlan.Items
                 .Select(i => E2eReplay.FindProject(i, root)).Where(p => p != null && !E2eReplay.PackagesRestored(p))
                 .Distinct().ToList();
             if (projects.Count == 0) return Ok(new { restored = Array.Empty<string>() });

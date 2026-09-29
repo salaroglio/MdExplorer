@@ -53,6 +53,10 @@ namespace MdExplorer.Features.E2e
 
             var folder = Path.GetDirectoryName(Path.GetFullPath(testFilePath));
 
+            // P7: without a check the script can assert, its replay passes whatever the page does (seen on 28/09/2026).
+            foreach (var test in document.Tests.Where(t => !t.Steps.Any(s => s.Check is { } kind && kind != E2eCheckKind.Judgment)))
+                warnings.Add($"{fileName}: T{test.Number} non ha verifiche ✔ che lo script possa controllare: il rigioco risulterà superato qualunque cosa faccia la pagina. Aggiungi almeno una verifica nelle forme della skill mde-e2e (es. ✔ Compare il testo \"…\").");
+
             if (document.SiteMap != null && !File.Exists(Path.Combine(folder, document.SiteMap)))
                 warnings.Add($"{fileName}: la mappa del sito '{document.SiteMap}' non esiste ancora: la creerà l'agente alla prima esecuzione.");
 

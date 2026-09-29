@@ -25,6 +25,9 @@ namespace MdExplorer.Features.E2e
         /// <summary>The packages of the tests project are not restored: the user must agree to the download.</summary>
         public bool NeedsRestore { get; init; }
         public E2eCommitResult Commit { get; init; }
+
+        /// <summary>The logs of the replay (<c>registro.T&lt;n&gt;.md</c>) in <see cref="RunFolder"/>.</summary>
+        public IReadOnlyList<string> Logs { get; init; } = Array.Empty<string>();
     }
 
     /// <summary>
@@ -112,14 +115,18 @@ namespace MdExplorer.Features.E2e
                 // dotnet test and the browser it started must not outlive the request.
                 try { process.Kill(entireProcessTree: true); } catch { /* already gone */ }
                 try { File.Delete(trx); } catch { /* not written */ }
+                // The recordings hold form bodies and cookies: never left behind (P3).
+                E2eReplayLog.DeleteRaw(runFolder);
                 if (ct.IsCancellationRequested) throw;
                 return new E2eReplayFileResult { File = relative, Stale = stale, RunFolder = runFolder,
                     Problem = $"dotnet test non ha finito entro {Timeout.TotalMinutes:0} minuti: interrotto." };
             }
             var output = E2ePostRun.Redact((await stdout) + (await stderr), secrets);
+            var logs = E2eReplayLog.Process(runFolder, classes.ToDictionary(c => c.Key, c => c.Value.TestNumber), secrets,
+                item.Preflight.Document?.BaseUrl);
 
             if (!File.Exists(trx))
-                return new E2eReplayFileResult { File = relative, Stale = stale, RunFolder = runFolder,
+                return new E2eReplayFileResult { File = relative, Stale = stale, RunFolder = runFolder, Logs = logs,
                     Problem = "dotnet test non ha prodotto risultati (compilazione fallita?): " + Tail(output) };
 
             var outcomes = ReadTrx(trx, classes)
@@ -138,7 +145,7 @@ namespace MdExplorer.Features.E2e
             markdown = E2eResultsTable.SetLastRun(markdown, date, link);
             await File.WriteAllTextAsync(item.TestFile, markdown, ct);
 
-            return new E2eReplayFileResult { File = relative, RunFolder = runFolder, Outcomes = outcomes, Stale = stale };
+            return new E2eReplayFileResult { File = relative, RunFolder = runFolder, Outcomes = outcomes, Stale = stale, Logs = logs };
         }
 
         public const string PackagesMissing =
@@ -149,9 +156,12 @@ namespace MdExplorer.Features.E2e
         /// it, up to the project root (nested test folders share one project: two would compile the same scripts
         /// twice). Null when there is none yet.
         /// </summary>
-        public static string FindProject(E2eRunItem item, string projectRoot)
+        public static string FindProject(E2eRunItem item, string projectRoot) => FindProject(item.TestFile, projectRoot);
+
+        /// <inheritdoc cref="FindProject(E2eRunItem, string)"/>
+        public static string FindProject(string testFile, string projectRoot)
         {
-            for (var dir = Path.GetDirectoryName(item.TestFile); dir != null && E2eRunPlanner.IsInside(dir, projectRoot); dir = Path.GetDirectoryName(dir))
+            for (var dir = Path.GetDirectoryName(testFile); dir != null && E2eRunPlanner.IsInside(dir, projectRoot); dir = Path.GetDirectoryName(dir))
             {
                 var candidate = Path.Combine(dir, "E2eTests.csproj");
                 if (File.Exists(candidate)) return candidate;

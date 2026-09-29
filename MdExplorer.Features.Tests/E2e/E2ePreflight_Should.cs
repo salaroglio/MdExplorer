@@ -47,6 +47,18 @@ namespace MdExplorer.Features.Tests.E2e
         }
 
         [TestMethod]
+        public void Warn_about_a_test_the_script_cannot_check()
+        {
+            // P7 (28/09/2026): the user's T1 had no check, and its replay passed while the page undid the filters.
+            Credentials("x.utente=u\nx.password=p\n");
+            File.WriteAllText(_test, TestFile.Replace("\n## Artefatti", "\n## T2 — Senza verifiche\n1. Apri `/`\n2. ✔ La pagina sembra in ordine\n\n## Artefatti"));
+            var result = E2ePreflight.Check(_test);
+            Assert.IsTrue(result.CanRun, "a warning, not an error");
+            Assert.AreEqual(1, result.Warnings.Count, string.Join("\n", result.Warnings));
+            StringAssert.Contains(result.Warnings[0], "T2 non ha verifiche ✔");
+        }
+
+        [TestMethod]
         public void Stop_on_a_key_the_credentials_file_does_not_have()
         {
             // The Playwright server would type the key's name, in silence (verified 27/09/2026).

@@ -170,6 +170,9 @@ namespace MdExplorer.Features.Tests.E2e
             Assert.AreEqual("1", server.Env["ELECTRON_RUN_AS_NODE"]);
             Assert.IsTrue(E2ePlaywrightServer.For(ready, true, null, "/diag").Args.Contains("--headless"));
             Assert.ThrowsException<ArgumentException>(() => E2ePlaywrightServer.For(ready, true, null, ""));
+            CollectionAssert.AreEqual(new[] { "--init-script", "/diag/segnali.js" },
+                E2ePlaywrightServer.For(ready, true, null, "/diag", "/diag/segnali.js").Args.TakeLast(2).ToArray(),
+                "the signals of the site switched on without browser_evaluate");
         }
     }
 }

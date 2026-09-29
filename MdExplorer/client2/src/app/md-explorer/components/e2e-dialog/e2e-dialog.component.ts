@@ -351,6 +351,16 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
         }];
         this.addLog('step', this.translate.instant('E2E.ENDED', { file: event.file }));
         break;
+      case 'support': {
+        const written = [...(event.created || []), ...(event.updated || [])];
+        if (written.length > 0) {
+          this.addLog('step', this.translate.instant('E2E.SUPPORT_WRITTEN', { files: written.join(', ') }));
+        }
+        if ((event.customized || []).length > 0) {
+          this.runErrors = [...this.runErrors, this.translate.instant('E2E.SUPPORT_CUSTOMIZED', { files: event.customized.join(', ') })];
+        }
+        break;
+      }
       case 'post-run':
         if (event.fingerprinted > 0) {
           this.addLog('step', this.translate.instant('E2E.FINGERPRINTED', { count: event.fingerprinted }));

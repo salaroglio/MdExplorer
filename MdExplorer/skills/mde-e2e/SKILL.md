@@ -3,7 +3,7 @@ name: mde-e2e
 description: "Scrive ed esegue test end-to-end di siti web descritti in markdown (file *.e2e.md) con MdExplorer, e ne registra esiti, screenshot e script Playwright rigiocabili. Use when: test e2e, end-to-end, test di un sito, test dell'interfaccia web, collaudo, verificare che il sito funzioni, file .e2e.md, eseguire i test, rilanciare i test, esito dei test, mappa del sito, credenziali di test, script Playwright, regressione, smoke test, login di prova."
 mde:
   origin: mdexplorer
-  version: 4
+  version: 5
   updatePolicy: replace
 ---
 
@@ -58,11 +58,10 @@ test-e2e/                              ← la cartella dei test (il nome è libe
 └── e2e.runsettings                    ← browser usato per rigiocare gli script
 ```
 
-Se mancano `E2eTests.csproj`, `E2eSupport.cs` o `e2e.runsettings`, creali **esattamente** con il contenuto della
-sezione *«I file di supporto»*. Se esistono, non toccarli, con un'eccezione: se `E2eSupport.cs` non ha la riga
-`// versione-supporto: 2` della sezione, sostituiscilo con quello della sezione (gli script nuovi usano funzioni
-che il vecchio non ha). **Uno solo per albero di test**: se in una cartella
-sopra quella del test c'è già un `E2eTests.csproj`, non crearne un altro (compilerebbe due volte gli stessi script).
+`E2eTests.csproj`, `E2eSupport.cs` ed `e2e.runsettings` li **scrive MdExplorer** prima di lanciarti, con il
+contenuto della sezione *«I file di supporto»*, e li aggiorna quando cambia: **non crearli e non modificarli**.
+Ce n'è uno solo per albero di test: se in una cartella sopra quella del test c'è già un `E2eTests.csproj`, vale
+quello.
 
 Nel `.gitignore` del progetto aggiungi, se mancano, le cartelle di compilazione:
 
@@ -435,7 +434,7 @@ Le regole, tutte obbligatorie:
 
 - **segui lo scheletro qui sotto alla lettera**: stessi `using`, stesso namespace `MdeE2e.<NomeFile>` (il nome del file di test senza `.e2e.md`, in PascalCase, senza trattini né
   punti: `login-admin.e2e.md` → `MdeE2e.LoginAdmin`), una classe
-  `Test_T<n>` per test che eredita `PageTest`, un solo metodo `T<n>_<Titolo>` (così l'esito di
+  `Test_T<n>` per test che eredita `E2eTest` (nel rigioco registra chiamate e console del test), un solo metodo `T<n>_<Titolo>` (così l'esito di
   `dotnet test` dice quale test è);
 - le credenziali si leggono **solo** con `E2e.Credential(Credentials, "<chiave>")`, mai scritte nello script:
   il codice che il server restituisce per quei passi usa `Environment.GetEnvironmentVariable("<chiave>")`,
@@ -458,7 +457,7 @@ Le regole, tutte obbligatorie:
 // stato: valido
 // sorgente: login.e2e.md, T1 — Login riuscito
 // impronta-sorgente: da calcolare
-// generatore: mde-e2e v2
+// generatore: mde-e2e v3
 // data: 2026-09-28 10:30
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -470,7 +469,7 @@ using MdeE2e;
 namespace MdeE2e.Login
 {
     [TestFixture]
-    public class Test_T1 : PageTest
+    public class Test_T1 : E2eTest
     {
         private const string BaseUrl = "https://the-internet.herokuapp.com";
         private const string Artifacts = "login.e2e";
@@ -532,6 +531,7 @@ namespace MdeE2e.Login
 
 ```xml esempio=runsettings
 <RunSettings>
+  <!-- MdExplorer, skill mde-e2e: browser usato per rigiocare gli script. Lo scrive MdExplorer: non modificare. -->
   <Playwright>
     <BrowserName>chromium</BrowserName>
     <LaunchOptions>
@@ -545,14 +545,15 @@ namespace MdeE2e.Login
 `E2eSupport.cs`:
 
 ```csharp esempio=supporto
-// MdExplorer, skill mde-e2e: supporto comune agli script dei test *.e2e.md. Non modificare.
-// versione-supporto: 2
+// MdExplorer, skill mde-e2e: supporto comune agli script dei test *.e2e.md. Lo scrive MdExplorer: non modificare.
+// versione-supporto: 3
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Microsoft.Playwright;
+using Microsoft.Playwright.NUnit;
 using NUnit.Framework;
 
 namespace MdeE2e
@@ -617,6 +618,52 @@ namespace MdeE2e
             }
             if ((await done.GetAttributeAsync(attribute))?.StartsWith("error:") == true)
                 Assert.Fail($"il sito ha segnalato un errore su {name} {key}");
+        }
+    }
+
+    /// <summary>
+    /// Base degli script. Quando MdExplorer rigioca (E2E_RUN_DIR impostata) registra le chiamate di rete (HAR) e
+    /// la console del test nella cartella dell'esecuzione: MdExplorer le riduce a un registro e cancella il resto.
+    /// </summary>
+    public abstract class E2eTest : PageTest
+    {
+        private readonly object _lock = new();
+        private StreamWriter? _console;
+
+        private static string? Dir => Environment.GetEnvironmentVariable("E2E_RUN_DIR");
+
+        public override BrowserNewContextOptions ContextOptions()
+        {
+            var options = base.ContextOptions() ?? new BrowserNewContextOptions();
+            if (Dir != null)
+            {
+                Directory.CreateDirectory(Dir);
+                options.RecordHarPath = Path.Combine(Dir, TestContext.CurrentContext.Test.ClassName + ".har");
+                options.RecordHarContent = HarContentPolicy.Omit;
+            }
+            return options;
+        }
+
+        [SetUp]
+        public void RecordConsole()
+        {
+            if (Dir == null) return;
+            _console = new StreamWriter(Path.Combine(Dir, TestContext.CurrentContext.Test.ClassName + ".console.tsv"));
+            Page.Console += (_, message) =>
+            {
+                lock (_lock)
+                    _console?.WriteLine(DateTime.UtcNow.ToString("O") + "\t" + message.Type + "\t" + message.Text.Replace('\t', ' ').Replace('\n', ' '));
+            };
+        }
+
+        [TearDown]
+        public void CloseConsole()
+        {
+            lock (_lock)
+            {
+                _console?.Dispose();
+                _console = null;
+            }
         }
     }
 }

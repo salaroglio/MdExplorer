@@ -139,6 +139,13 @@ namespace MdExplorer.Services.E2e
             var dataFolder = DataFolder();
             var diagnostics = Path.Combine(dataFolder, "diagnostica", Hash(request.ProjectPath));
             Directory.CreateDirectory(diagnostics);
+            var initScript = Path.Combine(diagnostics, "mde-e2e-segnali.js");
+            await File.WriteAllTextAsync(initScript, SignalsInitScript, ct);
+
+            // The support files of the scripts are MdExplorer's (P4): written before the agent starts.
+            var support = EnsureSupportFiles(plan.Items.Where(i => i.CanRun).Select(i => i.TestFile), request.ProjectPath, create: true);
+            if (support.Created.Count + support.Updated.Count + support.Customized.Count > 0)
+                await sink.Event(new { type = "support", created = support.Created, updated = support.Updated, customized = support.Customized });
 
             // One secrets file per launch, with a random name, deleted at the end: the values never stay on
             // disk outside the credentials file (review of 27/09/2026).
@@ -177,7 +184,7 @@ namespace MdExplorer.Services.E2e
                     // A little earlier: FAT/exFAT and network drives keep times to 2 s or worse.
                     var runStart = DateTime.UtcNow.AddSeconds(-5);
 
-                    var server = E2ePlaywrightServer.For(prerequisites, item.Settings.Headless.Value, secretsFile, diagnostics);
+                    var server = E2ePlaywrightServer.For(prerequisites, item.Settings.Headless.Value, secretsFile, diagnostics, initScript);
                     var dedicated = item.Settings.DedicatedSession.Value;
                     tabUsed |= !dedicated;
                     var key = dedicated ? request.ConnectionId + "|e2e|" + Guid.NewGuid().ToString("N") : request.ConnectionId;
@@ -542,18 +549,44 @@ namespace MdExplorer.Services.E2e
         /// <summary>The generator of the scripts the installed skill teaches ("mde-e2e v&lt;n&gt;", the skeleton's line): scripts written by another one are stale.</summary>
         public static string CurrentGenerator()
         {
-            using var stream = typeof(E2eLaunchService).Assembly.GetManifestResourceStream("MdExplorer.Service.skills.mde_e2e.SKILL.md");
-            if (stream == null) return null;
-            using var reader = new StreamReader(stream);
+            var skill = EmbeddedSkill();
+            if (skill == null) return null;
             // The emitter's version is the `// generatore:` line of the script skeleton the agent copies, not the
             // skill's `mde: version`: that one rises for any change of text (so projects get the new skill), and
             // must not make every script stale. Raise the skeleton's line when the rules for scripts change.
-            var m = System.Text.RegularExpressions.Regex.Match(reader.ReadToEnd(), @"^// generatore: (.+?)\s*$",
+            var m = System.Text.RegularExpressions.Regex.Match(skill, @"^// generatore: (.+?)\s*$",
                 System.Text.RegularExpressions.RegexOptions.Multiline);
             if (!m.Success)
                 throw new InvalidOperationException("La skill mde-e2e incorporata non ha la riga '// generatore:' nello scheletro degli script.");
             return m.Groups[1].Value;
         }
+
+        /// <summary>The mde-e2e skill MdExplorer carries (the one it installs in the projects); null if missing.</summary>
+        private static string EmbeddedSkill()
+        {
+            using var stream = typeof(E2eLaunchService).Assembly.GetManifestResourceStream("MdExplorer.Service.skills.mde_e2e.SKILL.md");
+            if (stream == null) return null;
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
+
+        /// <summary>
+        /// Writes or updates the support files of the scripts for <paramref name="testFiles"/> (P4): created only
+        /// with <paramref name="create"/> (a launch), otherwise only brought up to date where a tests project exists
+        /// (a replay: without scripts there is nothing to compile).
+        /// </summary>
+        public static E2eSupportUpdate EnsureSupportFiles(IEnumerable<string> testFiles, string projectRoot, bool create)
+        {
+            var skill = EmbeddedSkill()
+                ?? throw new InvalidOperationException("La skill mde-e2e incorporata non c'è: non posso scrivere i file di supporto degli script.");
+            return E2eSupportFiles.Ensure(testFiles, projectRoot, E2eSupportFiles.FromSkill(skill), create);
+        }
+
+        /// <summary>
+        /// The init script of the Playwright server: switches on the signals of the sites that follow the convention
+        /// of the mde-e2e-signals skill (the key the scripts set with E2e.EnableSignals), before any script of the page.
+        /// </summary>
+        public const string SignalsInitScript = "try { localStorage.setItem('mde-e2e', '1'); } catch (e) { }\n";
 
         private static string DataFolder()
         {

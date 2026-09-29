@@ -1877,6 +1877,8 @@
     "COMMITTED": "✔ Commit {{sha}}: {{message}}",
     "NOT_COMMITTED": "{{file}}: no commit, {{reason}}",
     "FINGERPRINTED": "✔ Test fingerprint written in {{count}} scripts",
+    "SUPPORT_WRITTEN": "Script support files written by MdExplorer: {{files}}",
+    "SUPPORT_CUSTOMIZED": "{{files}}: support file edited by hand, not updated. If the scripts do not compile, delete it: MdExplorer writes it again.",
     "LEAK": "The value of the credential «{{key}}» had ended up in {{file}}: replaced with the key.",
     "SCRIPTS": "Playwright scripts",
     "NO_SCRIPTS": "no scripts: they are written by the first run with MarkAgent.",
