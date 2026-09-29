@@ -1,3 +1,4 @@
+import { AiChatService } from '../../../services/ai-chat.service';
 import { Component, Inject, OnInit } from '@angular/core';
 import {
   MatLegacyDialog as MatDialog,
@@ -138,6 +139,7 @@ export class AgentLaunchDialogComponent implements OnInit {
     private snackBar: MatSnackBar,
     private translate: TranslateService,
     private agentQueueService: AgentQueueService,
+    private aiChat: AiChatService,
   ) {
     // Precedence: the per-user local draft (UserDB) wins; if there is none, seed from
     // the shared template stored inside the .agent.md (travels with git).
@@ -251,30 +253,38 @@ export class AgentLaunchDialogComponent implements OnInit {
     });
   }
 
-  normalizeWithCopilot(): void {
+  /**
+   * «Normalize»: MarkAgent rewrites the prompt following the mde-prompt-for-agents skill, in the MarkAgent tab's own
+   * session (a channel of the AI chat, as the AI commit message): the project's engine, whatever it is (sprint
+   * 2026-09-29-Motore-LLM-Unico, F3). The server builds the prompt and cleans the answer.
+   */
+  async normalize(): Promise<void> {
     if (!this.prompt || !this.prompt.trim()) {
       return;
     }
     this.isNormalizing = true;
     this.aiError = null;
-
-    this.agentLaunchService.normalize(this.data.projectPath, this.composeFull()).subscribe({
-      next: (response) => {
-        this.isNormalizing = false;
-        if (response.success && response.normalizedPrompt) {
-          this.applyNormalized(response.normalizedPrompt);
-          this.setParameters(response.parameters || []);
-          this.saveDraft();
-        } else {
-          this.aiError = response.error || this.translate.instant('AGENT_LAUNCH.NORMALIZE_ERROR');
-        }
-      },
-      error: (err) => {
-        this.isNormalizing = false;
-        this.aiError = err?.error?.error || this.translate.instant('AGENT_LAUNCH.NORMALIZE_ERROR');
-        console.error('Error normalizing agent prompt:', err);
-      },
-    });
+    try {
+      const built = await firstValueFrom(this.agentLaunchService.normalizePrompt(this.data.projectPath, this.composeFull()));
+      if (!built.success || !built.prompt) {
+        this.aiError = built.error || this.translate.instant('AGENT_LAUNCH.NORMALIZE_ERROR');
+        return;
+      }
+      const raw = await this.aiChat.askOnChannel(`agent-normalize-${Date.now()}`, built.prompt);
+      const response = await firstValueFrom(this.agentLaunchService.normalizeClean(raw));
+      if (response.success && response.normalizedPrompt) {
+        this.applyNormalized(response.normalizedPrompt);
+        this.setParameters(response.parameters || []);
+        this.saveDraft();
+      } else {
+        this.aiError = response.error || this.translate.instant('AGENT_LAUNCH.NORMALIZE_ERROR');
+      }
+    } catch (err: any) {
+      this.aiError = err?.error?.error || err?.message || this.translate.instant('AGENT_LAUNCH.NORMALIZE_ERROR');
+      console.error('Error normalizing agent prompt:', err);
+    } finally {
+      this.isNormalizing = false;
+    }
   }
 
   /** Re-detects parameters after manual edits to the prompt. */

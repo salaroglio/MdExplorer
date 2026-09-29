@@ -54,7 +54,7 @@
     <button
       mat-stroked-button
       color="accent"
-      (click)="normalizeWithCopilot()"
+      (click)="normalize()"
       [disabled]="isNormalizing || isLaunching || !prompt || !prompt.trim()">
       <mat-icon>auto_fix_high</mat-icon>
       {{ (isNormalizing ? 'AGENT_LAUNCH.NORMALIZING' : 'AGENT_LAUNCH.NORMALIZE') | translate }}

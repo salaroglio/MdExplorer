@@ -9,6 +9,7 @@ yamlAutoGeneration:
   enabled: true
   excludePaths:
   - .github
+  - .claude
 externalBrowser:
   enabled: false
   openAllExternal: false
@@ -16,4 +17,4 @@ externalBrowser:
 project:
   participants: []
 harness:
-  target: copilot
+  target: claude

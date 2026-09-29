@@ -32,11 +32,20 @@ export interface LaunchAgentResponse {
 export class AgentLaunchService {
   constructor(private http: HttpClient) {}
 
-  normalize(projectPath: string, prompt: string): Observable<NormalizeAgentPromptResponse> {
-    return this.http.post<NormalizeAgentPromptResponse>('/api/AgentPrompts/normalize', {
+  /**
+   * «Normalize», step 1: the prompt MarkAgent answers in the MarkAgent tab's session (sprint
+   * 2026-09-29-Motore-LLM-Unico, F3: the project's engine, not a Copilot chosen here).
+   */
+  normalizePrompt(projectPath: string, prompt: string): Observable<{ success: boolean; prompt?: string; error?: string }> {
+    return this.http.post<{ success: boolean; prompt?: string; error?: string }>('/api/AgentPrompts/normalize-prompt', {
       projectPath,
       prompt,
     });
+  }
+
+  /** «Normalize», step 2: the answer cleaned, with its parameters. */
+  normalizeClean(raw: string): Observable<NormalizeAgentPromptResponse> {
+    return this.http.post<NormalizeAgentPromptResponse>('/api/AgentPrompts/normalize-clean', { raw });
   }
 
   extractParams(prompt: string): Observable<{ parameters: AgentParam[] }> {

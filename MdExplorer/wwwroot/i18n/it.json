@@ -1609,7 +1609,7 @@
     "PROMPT_LABEL": "Prompt di lancio",
     "PROMPT_PLACEHOLDER": "Descrivi cosa deve fare l'agente, citando i markdown che gli servono...",
     "PROMPT_HINT": "Scrivi liberamente, poi lascia che Copilot lo riscriva nella convenzione MdExplorer",
-    "NORMALIZE": "Normalizza con Copilot",
+    "NORMALIZE": "Normalizza con MarkAgent",
     "NORMALIZING": "Normalizzazione...",
     "NORMALIZE_ERROR": "Normalizzazione del prompt fallita",
     "PARAMS_HEADER": "Parametri",

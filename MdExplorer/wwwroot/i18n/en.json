@@ -1609,7 +1609,7 @@
     "PROMPT_LABEL": "Launch prompt",
     "PROMPT_PLACEHOLDER": "Describe what the agent must do, mentioning the markdown files it needs...",
     "PROMPT_HINT": "Write freely, then let Copilot rewrite it in the MdExplorer convention",
-    "NORMALIZE": "Normalize with Copilot",
+    "NORMALIZE": "Normalize with MarkAgent",
     "NORMALIZING": "Normalizing...",
     "NORMALIZE_ERROR": "Prompt normalization failed",
     "PARAMS_HEADER": "Parameters",

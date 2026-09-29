@@ -465,3 +465,7 @@ llama-cpp-b8255/
 .md/mark-search/
 # MDE — posti di lavoro degli agenti: aree di lavoro, non contenuto
 .worktrees/
+# MDE per-install artifacts — managed by MdExplorer, do not commit
+# (skill/prompt/agent files generated under .claude vary by the
+#  installed MDE version, and the MCP config is instance-specific)
+.claude/**/mde-*

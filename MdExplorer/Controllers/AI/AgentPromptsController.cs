@@ -32,42 +32,32 @@ namespace MdExplorer.Controllers.AI
         /// </summary>
         private const string SkillName = "mde-prompt-for-agents";
 
-        private readonly IEnumerable<IAiProvider> _aiProviders;
         private readonly MdExplorer.Services.AgentRun.IAgentRunJobService _agentRunJobService;
         private readonly IUserSettingsDB _session;
         private readonly ILogger<AgentPromptsController> _logger;
 
         public AgentPromptsController(
-            IEnumerable<IAiProvider> aiProviders,
             MdExplorer.Services.AgentRun.IAgentRunJobService agentRunJobService,
             IUserSettingsDB session,
             ILogger<AgentPromptsController> logger)
         {
-            _aiProviders = aiProviders;
             _agentRunJobService = agentRunJobService;
             _session = session;
             _logger = logger;
         }
 
-        [HttpPost("normalize")]
-        public async Task<IActionResult> Normalize([FromBody] NormalizeAgentPromptRequest request)
+        /// <summary>
+        /// «Normalize», step 1: the prompt MarkAgent answers in the MarkAgent tab's own session (a channel of the AI
+        /// chat, as the AI commit message) — the project's engine, never a CLI chosen here (sprint
+        /// 2026-09-29-Motore-LLM-Unico, F3). It cites the skill that holds the convention, by its real path.
+        /// </summary>
+        [HttpPost("normalize-prompt")]
+        public IActionResult NormalizePrompt([FromBody] NormalizeAgentPromptRequest request)
         {
             if (string.IsNullOrWhiteSpace(request?.ProjectPath) || !Directory.Exists(request.ProjectPath))
-            {
-                return BadRequest(new NormalizeAgentPromptResponse
-                {
-                    Success = false,
-                    Error = $"Project path is required and must exist. Got: '{request?.ProjectPath}'"
-                });
-            }
+                return BadRequest(new NormalizeAgentPromptResponse { Success = false, Error = $"Project path is required and must exist. Got: '{request?.ProjectPath}'" });
             if (string.IsNullOrWhiteSpace(request.Prompt))
-            {
-                return BadRequest(new NormalizeAgentPromptResponse
-                {
-                    Success = false,
-                    Error = "Prompt is required"
-                });
-            }
+                return BadRequest(new NormalizeAgentPromptResponse { Success = false, Error = "Prompt is required" });
 
             // Il percorso serve due volte: per verificare che il file ci sia e per CITARLO nel
             // meta-prompt qui sotto. Deve quindi essere quello vero del progetto, non un
@@ -81,64 +71,26 @@ namespace MdExplorer.Controllers.AI
             {
                 // The skill is installed by MdeSkillUpdater at project open; if it is missing
                 // something is off — say it, don't improvise a convention inline.
-                return Ok(new NormalizeAgentPromptResponse
-                {
-                    Success = false,
-                    Error = ex.Message
-                });
+                return Ok(new NormalizeAgentPromptResponse { Success = false, Error = ex.Message });
             }
 
-            var copilot = _aiProviders?
-                .FirstOrDefault(p => p.GetProviderType() == ProviderType.CopilotCli) as CopilotCliProvider;
-            if (copilot == null || !copilot.IsAvailable())
-            {
-                return Ok(new NormalizeAgentPromptResponse
-                {
-                    Success = false,
-                    Error = "Copilot CLI is not installed or not authenticated. Install it and run 'copilot' once to log in."
-                });
-            }
+            var metaPrompt =
+                $"Read the file `{skillRelativePath}` in the current working directory. " +
+                "Rewrite the prompt below following that convention EXACTLY. " +
+                "Return only the rewritten prompt, with no commentary and no surrounding code fence.\n\n" +
+                "---\n\n" + request.Prompt;
+            _logger.LogInformation("[AgentPrompts] Normalize prompt built for project {ProjectPath}", request.ProjectPath);
+            return Ok(new { success = true, prompt = metaPrompt });
+        }
 
-            try
-            {
-                copilot.WorkingDirectory = request.ProjectPath;
-                var metaPrompt =
-                    $"Read the file `{skillRelativePath}` in the current working directory. " +
-                    "Rewrite the prompt below following that convention EXACTLY. " +
-                    "Return only the rewritten prompt, with no commentary and no surrounding code fence.\n\n" +
-                    "---\n\n" + request.Prompt;
-
-                _logger.LogInformation("[AgentPrompts] Normalizing prompt for project {ProjectPath}", request.ProjectPath);
-                // ChatRawAsync (JSONL mode) keeps the markdown byte-for-byte: the default
-                // text mode renders it for the terminal, destroying headings and fences.
-                var raw = await copilot.ChatRawAsync(metaPrompt, request.ModelId);
-                var normalized = StripWrappingFence(raw);
-
-                if (string.IsNullOrWhiteSpace(normalized))
-                {
-                    return Ok(new NormalizeAgentPromptResponse
-                    {
-                        Success = false,
-                        Error = "Copilot returned an empty response — try again."
-                    });
-                }
-
-                return Ok(new NormalizeAgentPromptResponse
-                {
-                    Success = true,
-                    NormalizedPrompt = normalized,
-                    Parameters = ExtractParams(normalized)
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[AgentPrompts] Normalization failed for {ProjectPath}", request.ProjectPath);
-                return StatusCode(500, new NormalizeAgentPromptResponse
-                {
-                    Success = false,
-                    Error = $"Normalization failed: {ex.Message}"
-                });
-            }
+        /// <summary>«Normalize», step 2: MarkAgent's answer, without a fence around it, and its parameters.</summary>
+        [HttpPost("normalize-clean")]
+        public IActionResult NormalizeClean([FromBody] NormalizeCleanRequest request)
+        {
+            var normalized = StripWrappingFence(request?.Raw ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(normalized))
+                return Ok(new NormalizeAgentPromptResponse { Success = false, Error = "MarkAgent returned an empty response — try again." });
+            return Ok(new NormalizeAgentPromptResponse { Success = true, NormalizedPrompt = normalized, Parameters = ExtractParams(normalized) });
         }
 
         [HttpPost("launch")]
@@ -381,6 +333,11 @@ namespace MdExplorer.Controllers.AI
             inner = inner.Substring(0, inner.Length - 3);
             return inner.Trim();
         }
+    }
+
+    public class NormalizeCleanRequest
+    {
+        public string? Raw { get; set; }
     }
 
     public class NormalizeAgentPromptRequest
