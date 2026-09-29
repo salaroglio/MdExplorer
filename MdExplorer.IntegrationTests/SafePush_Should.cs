@@ -4,7 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using MdExplorer.IntegrationTests.Infrastructure;
+using MdExplorer.Services.AgentRun;
 using MdExplorer.Services.Git;
+using MdExplorer.Services.Git.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -103,7 +105,75 @@ namespace MdExplorer.IntegrationTests
                 "chi pubblica deve sapere cosa resta indietro.");
         }
 
+        [TestMethod]
+        public async Task Not_say_that_committed_work_stays_behind()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var (path, _, _) = SetupWithSubmodule(ctx, "push-committato");
+
+            // Committato e non ancora pubblicato: il push lo porta via, quindi NON resta indietro.
+            // Prima il messaggio diceva «6 file non committati» subito dopo un commit (29/09/2026).
+            File.WriteAllText(Path.Combine(path, "nuovo.md"), "# nuovo\n");
+            Git(path, "add -A"); Git(path, "commit -m nuovo");
+
+            var result = await Push(ctx, path);
+
+            Assert.IsTrue(result.Success, string.Join(" | ", result.Steps.Select(s => s.Repo + ": " + s.Outcome)));
+            Assert.AreEqual(0, result.LeftBehind.Count, string.Join(" | ", result.LeftBehind));
+        }
+
+        [TestMethod]
+        public async Task Tell_committed_but_unpushed_files_apart_from_those_to_commit()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var (path, _, _) = SetupWithSubmodule(ctx, "vista-committato");
+            File.WriteAllText(Path.Combine(path, "nuovo.md"), "# nuovo\n");
+            Git(path, "add -A"); Git(path, "commit -m nuovo");
+
+            var root = (await View(ctx, path)).Repos.Single(r => r.Depth == 0);
+
+            Assert.AreEqual(0, root.Uncommitted.Count, "dopo un commit non c'e' niente da committare");
+            Assert.IsTrue(root.Files.Any(f => f.Path == "nuovo.md"), "il lavoro rispetto al ramo di riferimento lo contiene ancora (revisione)");
+            Assert.AreEqual(1, root.Ahead);
+        }
+
+        [TestMethod]
+        public async Task Keep_a_staged_submodule_pointer_as_work_to_commit_and_commit_it()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var (path, sub, _) = SetupWithSubmodule(ctx, "puntatore-in-stage");
+            File.WriteAllText(Path.Combine(sub, "codice.md"), "# codice\nv2\n");
+            Git(sub, "add -A"); Git(sub, "commit -m v2");
+            // Il puntatore in stage ma non committato: era sparito dalla vista (contava solo il flag 'C').
+            Git(path, "add figlio");
+
+            var child = (await View(ctx, path)).Repos.Single(r => r.Depth == 1);
+            Assert.IsTrue(child.PointerMoved, "un puntatore in stage e' ancora lavoro da committare nel progetto");
+
+            // Il commit della toolbar diceva «No changes to commit» e lo lasciava in stage (29/09/2026).
+            using (var scope = ctx.Factory.Services.CreateScope())
+            {
+                var git = scope.ServiceProvider.GetRequiredService<IModernGitService>();
+                var res = await git.CommitAsync(path, "registra il figlio", new GitAuthor { Name = "prova", Email = "prova@example.com" });
+                Assert.IsTrue(res.Success, res.ErrorMessage);
+                Assert.IsNotNull(res.CommitHash, "il puntatore va committato: " + res.Message);
+            }
+            Assert.AreEqual(string.Empty, Git(path, "status --porcelain").Out.Trim());
+        }
+
         // ---- infrastruttura ----
+
+        private static async Task<WorkingChangesView> View(AgentCityContext ctx, string projectPath)
+        {
+            using var scope = ctx.Factory.Services.CreateScope();
+            return await scope.ServiceProvider.GetRequiredService<IWorkingChangesService>().GetAsync(projectPath, null);
+        }
 
         private static async Task<SafePushResult> Push(AgentCityContext ctx, string projectPath)
         {

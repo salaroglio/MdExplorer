@@ -64,6 +64,14 @@ namespace MdExplorer.Services.AgentRun
         public IReadOnlyList<WorkingChange> Unpushed { get; init; } = Array.Empty<WorkingChange>();
 
         /// <summary>
+        /// Solo cio' che <c>git status</c> vede: <b>da committare</b>. <see cref="Files"/> contiene anche i
+        /// commit non ancora pubblicati (il lavoro rispetto al ramo di riferimento, che serve alla
+        /// revisione): usato per «da committare» faceva restare accesi, dopo un commit, i file appena
+        /// salvati, e il push li annunciava come «rimasti indietro» (visto il 29/09/2026).
+        /// </summary>
+        public IReadOnlyList<WorkingChange> Uncommitted { get; init; } = Array.Empty<WorkingChange>();
+
+        /// <summary>
         /// Cio' che il ramo di riferimento ha e tu no: <b>da scaricare</b>. Non e' lavoro tuo e
         /// non va committato — sta in un elenco a parte apposta perche' non si confonda.
         /// </summary>
@@ -362,6 +370,7 @@ namespace MdExplorer.Services.AgentRun
 
             // Il lavoro in corso vince su quello gia' committato: se un file e' stato
             // committato e poi toccato di nuovo, quello che conta e' che va salvato.
+            var uncommitted = new List<WorkingChange>();
             var status = await _git.RunAsync(dir, new[] { "status", "--porcelain", "--untracked-files=all", "--ignore-submodules=all" }, ct);
             if (status.Ok)
             {
@@ -369,6 +378,7 @@ namespace MdExplorer.Services.AgentRun
                 {
                     files.RemoveAll(f => string.Equals(f.Path, change.Path, StringComparison.Ordinal));
                     files.Add(change);
+                    uncommitted.Add(change);
                 }
             }
             else _logger.LogDebug("[Changes] status non riuscito in '{Dir}': {Why}", dir, status.Describe());
@@ -377,6 +387,7 @@ namespace MdExplorer.Services.AgentRun
             {
                 files.RemoveAll(f => excludePaths.Contains(f.Path.TrimEnd('/')));
                 unpushed.RemoveAll(f => excludePaths.Contains(f.Path.TrimEnd('/')));
+                uncommitted.RemoveAll(f => excludePaths.Contains(f.Path.TrimEnd('/')));
                 incoming.RemoveAll(f => excludePaths.Contains(f.Path.TrimEnd('/')));
             }
 
@@ -396,6 +407,7 @@ namespace MdExplorer.Services.AgentRun
                 RecordedCommitUnknown = recordedCommitUnknown,
                 Files = files.OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase).ToList(),
                 Unpushed = unpushed.OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase).ToList(),
+                Uncommitted = uncommitted.OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase).ToList(),
                 Incoming = incoming.OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase).ToList(),
                 PushWarnings = pushWarnings ?? Array.Empty<string>(),
                 CommitBlocker = detached
@@ -643,8 +655,14 @@ namespace MdExplorer.Services.AgentRun
                 if (!line.StartsWith("1 ", StringComparison.Ordinal)) continue;
                 var f = line.Split(' ');
                 if (f.Length < 9) continue;
+                // Spostato = il checkout del submodule differisce dall'indice ('C'), OPPURE il nuovo
+                // puntatore e' gia' in stage ma non committato (X di 'XY' diverso da '.'): prima contava
+                // solo 'C', e un puntatore messo in stage — lo fa il commit della toolbar — spariva dalla
+                // vista senza essere mai stato committato (visto il 29/09/2026).
+                var xy = f[1];
                 var sub = f[2];
-                if (sub.Length < 4 || sub[0] != 'S' || sub[1] != 'C') continue;
+                if (sub.Length < 4 || sub[0] != 'S') continue;
+                if (sub[1] != 'C' && (xy.Length < 1 || xy[0] == '.')) continue;
                 // Il percorso e' l'ultimo campo e puo' contenere spazi.
                 set.Add(Unquote(string.Join(" ", f.Skip(8))));
             }

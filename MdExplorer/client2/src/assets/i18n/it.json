@@ -564,7 +564,7 @@
     "DISCARD_CHANGES": "Scarta modifiche",
     "TO_COMMIT": "da committare",
     "TO_PULL": "da pullare",
-    "TO_PUSH": "da pushare",
+    "TO_PUSH": "{{count}} da pushare",
     "SETUP_GITHUB_REMOTE": "Collega a un repository remoto",
     "HISTORY": "Cronologia",
     "BRANCH": "Branch",

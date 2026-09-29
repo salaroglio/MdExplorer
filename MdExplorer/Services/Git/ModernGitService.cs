@@ -309,9 +309,16 @@ public async Task<GitOperationResult> PushAsync(string repositoryPath, string re
                 // Stage all changes
                 Commands.Stage(repo, "*");
 
-                // Check if there are any changes to commit
+                // Check if there are any changes to commit. The status excludes submodules (their dirty
+                // working trees are not this repository's), so it also missed a submodule POINTER that
+                // Stage just put in the index: the commit said «No changes to commit», left the pointer
+                // staged and never recorded it (seen 29/09/2026). What is staged against HEAD, gitlinks
+                // included, is the real question.
                 var status = repo.RetrieveStatus(BuildStatusOptions(repositoryPath));
-                if (!status.IsDirty)
+                var staged = repo.Head.Tip == null
+                    ? 0
+                    : repo.Diff.Compare<TreeChanges>(repo.Head.Tip.Tree, DiffTargets.Index).Count;
+                if (!status.IsDirty && staged == 0)
                 {
                     stopwatch.Stop();
                     return new GitOperationResult

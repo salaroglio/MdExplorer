@@ -15,7 +15,7 @@ import { MatLegacyTabGroup as MatTabGroup } from '@angular/material/legacy-tabs'
 import { ITag } from '../../../git/models/Tag';
 import { ProjectsService } from '../../services/projects.service';
 import { ReviewContextService } from '../../services/review-context.service';
-import { ChangeKind, RepoChanges, SafePushResult, WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
+import { ChangeKind, RepoChanges, SafePushResult, WorkingChange, WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
 import { Router } from '@angular/router';
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
@@ -67,6 +67,10 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   somethingIsToPush: boolean;
   howManyFilesAreToCommit: number;
   howManyCommitAreToPush: number;
+  /** Commit della radice da pubblicare, dai contatori di git (locali, poi dopo il fetch). */
+  private rootCommitsToPush = 0;
+  /** Commit dei submodule da pubblicare, dalla vista per repository. */
+  private submoduleCommitsToPush = 0;
   howManyFilesAreToPull: number;
   branches: IBranch[];
   // Fase 7h: worktree degli agenti del progetto, per il sottomenu "Worktree".
@@ -201,24 +205,21 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     // get current branch name and if the branch has something to commit
     this.gitservice.currentBranch$.subscribe(branch => {
       this.currentBranch = branch.name;
-      this.howManyCommitAreToPush = branch.howManyCommitAreToPush;
+      this.rootCommitsToPush = branch.howManyCommitAreToPush;
+      this.applyPushCount();
       this.connectionIsActive = true;
       // Se c'e' qualcosa da committare NON lo decide piu' questo conteggio: escludeva i
       // submodule, quindi con del lavoro non salvato dentro uno di essi il pulsante restava
       // spento. Lo decide la vista per repository, che e' anche cio' che il pannello mostra:
       // una fonte sola, e i due numeri non possono piu' contraddirsi.
       this.loadChangedFiles();
-      // Quanti commit restano da pubblicare lo dicono i ref LOCALI (AheadBy): dopo un commit
-      // il pulsante deve comparire subito. Aspettare il fetch dal remoto lo teneva nascosto
-      // proprio nel momento in cui serviva.
-      this.somethingIsToPush = branch.howManyCommitAreToPush > 0;
     });
 
     this.gitservice.commmitsToPull$.subscribe(_ => {
       this.somethingIsToPull = _.somethingIsToPull;
-      this.somethingIsToPush = _.howManyCommitAreToPush > 0;
+      this.rootCommitsToPush = _.howManyCommitAreToPush;
+      this.applyPushCount();
       this.howManyFilesAreToPull = _.howManyFilesAreToPull;
-      this.howManyCommitAreToPush = _.howManyCommitAreToPush;
       this.connectionIsActive = _.connectionIsActive;
       this.isCheckingConnection = false;
       this.filesAndAuthors = _.whatFilesWillBeChanged;
@@ -360,6 +361,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     this.somethingIsToPush = false;
     this.howManyFilesAreToCommit = 0;
     this.howManyCommitAreToPush = 0;
+    this.rootCommitsToPush = 0;
+    this.submoduleCommitsToPush = 0;
     this.howManyFilesAreToPull = 0;
 
     // Reset arrays
@@ -1219,18 +1222,39 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   private applyChangeSummary(view: WorkingChangesView | null): void {
     const repos = view?.repos || [];
     this.reposToCommit = repos.filter(r => this.repoHasWork(r));
-    this.howManyFilesAreToCommit = this.reposToCommit.reduce((n, r) => n + r.files.length, 0);
+    this.howManyFilesAreToCommit = this.reposToCommit.reduce((n, r) => n + this.toCommit(r).length, 0);
     this.somethingIsChangedInTheBranch = this.reposToCommit.length > 0;
+    // I submodule contano per «da pushare» quanto la radice: «Pubblica» porta anche loro.
+    this.submoduleCommitsToPush = repos.filter(r => r.depth > 0).reduce((n, r) => n + (r.ahead || 0), 0);
+    this.applyPushCount();
+  }
+
+  /**
+   * «Da pushare» = commit della radice (dai contatori di git, locali o dopo il fetch) + commit dei
+   * submodule (dalla vista per repository). Prima contava solo la radice: dopo un commit dentro un
+   * submodule il pulsante non compariva (visto il 29/09/2026).
+   */
+  private applyPushCount(): void {
+    this.howManyCommitAreToPush = (this.rootCommitsToPush || 0) + this.submoduleCommitsToPush;
+    this.somethingIsToPush = this.howManyCommitAreToPush > 0;
+  }
+
+  /**
+   * Cio' che e' DA COMMITTARE: solo quello che git status vede. `files` contiene anche i commit non
+   * ancora pubblicati, e dopo un commit teneva acceso «da committare» sui file appena salvati.
+   */
+  private toCommit(repo: RepoChanges): WorkingChange[] {
+    return repo.uncommitted ?? repo.files;
   }
 
   /** Qualcosa da fare QUI: file da salvare, oppure un riferimento a submodule da registrare. */
   repoHasWork(repo: RepoChanges): boolean {
-    return repo.files.length > 0 || repo.pointerMoved;
+    return this.toCommit(repo).length > 0 || repo.pointerMoved;
   }
 
   /** Quanti file di un tipo in un repository: i numeri della riga. */
   countIn(repo: RepoChanges, change: ChangeKind): number {
-    return repo.files.filter(f => f.change === change).length;
+    return this.toCommit(repo).filter(f => f.change === change).length;
   }
 
   /**
@@ -1261,15 +1285,17 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     this.waitingDialogService.showMessageBox(info);
 
     this.workingChanges.pushAll(projectPath, this.reviewAgent).subscribe({
+      // Dopo il push si rileggono ANCHE i contatori della radice (refreshLocalGitCounters, che ricarica
+      // pure la vista): rileggere solo la vista lasciava acceso «da pushare» con il numero di prima.
       next: result => {
         this.waitingDialogService.closeMessageBox();
         this.reportPush(result);
-        this.loadChangedFiles();
+        this.refreshLocalGitCounters();
       },
       error: err => {
         this.waitingDialogService.closeMessageBox();
         const result: SafePushResult = err?.error?.refused !== undefined ? err.error : null;
-        if (result) { this.reportPush(result); this.loadChangedFiles(); return; }
+        if (result) { this.reportPush(result); this.refreshLocalGitCounters(); return; }
         this._snackBar.open(
           this.translate.instant('TOOLBAR.PUSH_FAILED', { error: err?.message || '' }), 'OK',
           { duration: 8000, verticalPosition: 'top', panelClass: ['error-snackbar'] });

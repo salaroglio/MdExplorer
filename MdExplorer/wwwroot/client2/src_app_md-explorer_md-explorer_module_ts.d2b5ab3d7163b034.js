@@ -30422,6 +30422,10 @@ class ToolbarComponent {
     this.agentCityState = agentCityState;
     // Esponiamo console per il template
     this.console = console;
+    /** Commit della radice da pubblicare, dai contatori di git (locali, poi dopo il fetch). */
+    this.rootCommitsToPush = 0;
+    /** Commit dei submodule da pubblicare, dalla vista per repository. */
+    this.submoduleCommitsToPush = 0;
     // Fase 7h: worktree degli agenti del progetto, per il sottomenu "Worktree".
     this.worktreeList = [];
     // Impersonazione utente (test città): identità effettiva + lista padroni.
@@ -30514,23 +30518,20 @@ class ToolbarComponent {
     // get current branch name and if the branch has something to commit
     this.gitservice.currentBranch$.subscribe(branch => {
       this.currentBranch = branch.name;
-      this.howManyCommitAreToPush = branch.howManyCommitAreToPush;
+      this.rootCommitsToPush = branch.howManyCommitAreToPush;
+      this.applyPushCount();
       this.connectionIsActive = true;
       // Se c'e' qualcosa da committare NON lo decide piu' questo conteggio: escludeva i
       // submodule, quindi con del lavoro non salvato dentro uno di essi il pulsante restava
       // spento. Lo decide la vista per repository, che e' anche cio' che il pannello mostra:
       // una fonte sola, e i due numeri non possono piu' contraddirsi.
       this.loadChangedFiles();
-      // Quanti commit restano da pubblicare lo dicono i ref LOCALI (AheadBy): dopo un commit
-      // il pulsante deve comparire subito. Aspettare il fetch dal remoto lo teneva nascosto
-      // proprio nel momento in cui serviva.
-      this.somethingIsToPush = branch.howManyCommitAreToPush > 0;
     });
     this.gitservice.commmitsToPull$.subscribe(_ => {
       this.somethingIsToPull = _.somethingIsToPull;
-      this.somethingIsToPush = _.howManyCommitAreToPush > 0;
+      this.rootCommitsToPush = _.howManyCommitAreToPush;
+      this.applyPushCount();
       this.howManyFilesAreToPull = _.howManyFilesAreToPull;
-      this.howManyCommitAreToPush = _.howManyCommitAreToPush;
       this.connectionIsActive = _.connectionIsActive;
       this.isCheckingConnection = false;
       this.filesAndAuthors = _.whatFilesWillBeChanged;
@@ -30650,6 +30651,8 @@ class ToolbarComponent {
     this.somethingIsToPush = false;
     this.howManyFilesAreToCommit = 0;
     this.howManyCommitAreToPush = 0;
+    this.rootCommitsToPush = 0;
+    this.submoduleCommitsToPush = 0;
     this.howManyFilesAreToPull = 0;
     // Reset arrays
     this.filesAndAuthors = [];
@@ -31441,16 +31444,35 @@ class ToolbarComponent {
   applyChangeSummary(view) {
     const repos = view?.repos || [];
     this.reposToCommit = repos.filter(r => this.repoHasWork(r));
-    this.howManyFilesAreToCommit = this.reposToCommit.reduce((n, r) => n + r.files.length, 0);
+    this.howManyFilesAreToCommit = this.reposToCommit.reduce((n, r) => n + this.toCommit(r).length, 0);
     this.somethingIsChangedInTheBranch = this.reposToCommit.length > 0;
+    // I submodule contano per «da pushare» quanto la radice: «Pubblica» porta anche loro.
+    this.submoduleCommitsToPush = repos.filter(r => r.depth > 0).reduce((n, r) => n + (r.ahead || 0), 0);
+    this.applyPushCount();
+  }
+  /**
+   * «Da pushare» = commit della radice (dai contatori di git, locali o dopo il fetch) + commit dei
+   * submodule (dalla vista per repository). Prima contava solo la radice: dopo un commit dentro un
+   * submodule il pulsante non compariva (visto il 29/09/2026).
+   */
+  applyPushCount() {
+    this.howManyCommitAreToPush = (this.rootCommitsToPush || 0) + this.submoduleCommitsToPush;
+    this.somethingIsToPush = this.howManyCommitAreToPush > 0;
+  }
+  /**
+   * Cio' che e' DA COMMITTARE: solo quello che git status vede. `files` contiene anche i commit non
+   * ancora pubblicati, e dopo un commit teneva acceso «da committare» sui file appena salvati.
+   */
+  toCommit(repo) {
+    return repo.uncommitted ?? repo.files;
   }
   /** Qualcosa da fare QUI: file da salvare, oppure un riferimento a submodule da registrare. */
   repoHasWork(repo) {
-    return repo.files.length > 0 || repo.pointerMoved;
+    return this.toCommit(repo).length > 0 || repo.pointerMoved;
   }
   /** Quanti file di un tipo in un repository: i numeri della riga. */
   countIn(repo, change) {
-    return repo.files.filter(f => f.change === change).length;
+    return this.toCommit(repo).filter(f => f.change === change).length;
   }
   /**
    * Cosa scrivere sul pulsante. Il numero da solo mentirebbe quando il lavoro e' sparso: quei
@@ -31478,17 +31500,19 @@ class ToolbarComponent {
     info.message = this.translate.instant('TOOLBAR.PUSHING_ALL');
     this.waitingDialogService.showMessageBox(info);
     this.workingChanges.pushAll(projectPath, this.reviewAgent).subscribe({
+      // Dopo il push si rileggono ANCHE i contatori della radice (refreshLocalGitCounters, che ricarica
+      // pure la vista): rileggere solo la vista lasciava acceso «da pushare» con il numero di prima.
       next: result => {
         this.waitingDialogService.closeMessageBox();
         this.reportPush(result);
-        this.loadChangedFiles();
+        this.refreshLocalGitCounters();
       },
       error: err => {
         this.waitingDialogService.closeMessageBox();
         const result = err?.error?.refused !== undefined ? err.error : null;
         if (result) {
           this.reportPush(result);
-          this.loadChangedFiles();
+          this.refreshLocalGitCounters();
           return;
         }
         this._snackBar.open(this.translate.instant('TOOLBAR.PUSH_FAILED', {
@@ -39847,4 +39871,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.310ec3e25cb0fa44.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.d2b5ab3d7163b034.js.map

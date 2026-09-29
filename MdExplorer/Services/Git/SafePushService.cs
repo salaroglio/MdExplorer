@@ -124,9 +124,14 @@ namespace MdExplorer.Services.Git
             }
 
             var steps = new List<PushStep>();
+            // Solo cio' che il push NON porta via: i file non committati e i puntatori non registrati nel
+            // progetto. Prima si contava Files, che include i commit che questo stesso push sta per
+            // pubblicare: dopo un commit il messaggio diceva «resta indietro» di file appena pubblicati.
             var leftBehind = view.Repos
-                .Where(r => r.Files.Count > 0)
-                .Select(r => $"{r.Files.Count} file non committati in '{(string.IsNullOrEmpty(r.Path) ? r.Label : r.Path)}'")
+                .Where(r => r.Uncommitted.Count > 0)
+                .Select(r => $"{r.Uncommitted.Count} file non committati in '{(string.IsNullOrEmpty(r.Path) ? r.Label : r.Path)}'")
+                .Concat(view.Repos.Where(r => r.PointerMoved)
+                    .Select(r => $"il nuovo commit di '{r.Path}' non è ancora registrato nel progetto (va committato lì)"))
                 .ToList();
 
             // ---- 2) i figli, dal più profondo: un submodule dentro un submodule va prima del suo ----
