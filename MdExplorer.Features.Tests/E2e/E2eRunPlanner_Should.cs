@@ -85,19 +85,21 @@ namespace MdExplorer.Features.Tests.E2e
         }
 
         [TestMethod]
-        public void Refuse_mixing_hidden_and_visible_browser_in_the_markagent_tab()
+        public void Run_tests_with_different_browsers_and_engines_each_in_its_own_session()
         {
-            Test("test-e2e/a.e2e.md", run: "    dedicatedSession: false\n    headless: true\n");
-            Test("test-e2e/b.e2e.md", run: "    dedicatedSession: false\n    headless: false\n");
-            Test("test-e2e/c.e2e.md", run: "    dedicatedSession: true\n    headless: false\n");
+            // D10 of sprint 2026-09-29-Motore-LLM-Unico: no MarkAgent tab session, so no shared browser to agree on.
+            Test("test-e2e/a.e2e.md", run: "    engine: claude\n    headless: true\n");
+            Test("test-e2e/b.e2e.md", run: "    engine: copilot\n    headless: false\n");
+            Test("test-e2e/c.e2e.md", run: "    dedicatedSession: false\n");
             Credentials("test-e2e/credenziali-x.txt", "x.password=segreta\n");
 
             var plan = E2eRunPlanner.Plan(Path.Combine(_root, "test-e2e"), _root, Now);
 
-            var error = plan.Errors.Single();
-            StringAssert.Contains(error, "test-e2e/a.e2e.md (nascosto)");
-            StringAssert.Contains(error, "test-e2e/b.e2e.md (visibile)");
-            Assert.IsFalse(error.Contains("c.e2e.md"), "a dedicated session has its own browser");
+            Assert.AreEqual(0, plan.Errors.Count, string.Join("\n", plan.Errors));
+            Assert.AreEqual("claude", plan.Items.Single(i => i.RelativeTestFile.EndsWith("a.e2e.md")).Settings.Engine.Value);
+            Assert.AreEqual("copilot", plan.Items.Single(i => i.RelativeTestFile.EndsWith("b.e2e.md")).Settings.Engine.Value);
+            Assert.IsTrue(plan.Warnings.Any(w => w.Contains("c.e2e.md") && w.Contains("dedicatedSession")),
+                "an old dedicatedSession is read, ignored and said");
         }
 
         [TestMethod]

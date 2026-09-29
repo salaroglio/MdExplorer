@@ -797,8 +797,9 @@ namespace MdExplorer.Hubs
         }
         
         /// <summary>
-        /// Runs the e2e tests of a <c>.e2e.md</c> or of a folder with the engine of the MarkAgent tab
-        /// (sprint docs-internal/Sprints/2026-09-26-Test-E2E-Da-Markdown.md, F4). Everything is sent on
+        /// Runs the e2e tests of a <c>.e2e.md</c> or of a folder, each in a session of its own with its engine — the
+        /// test's <c>e2e.run.engine</c>, otherwise the project's — never the MarkAgent tab's (D10 of sprint
+        /// 2026-09-29-Motore-LLM-Unico; first built in 2026-09-26-Test-E2E-Da-Markdown, F4). Everything is sent on
         /// <paramref name="channelId"/>: <c>ReceiveE2eEvent</c> for the structured steps, the usual
         /// <c>ReceiveStreamChunk</c> and <c>ReceiveToolActivity</c> for the agent, <c>StreamComplete</c> at the end.
         /// </summary>
@@ -821,23 +822,15 @@ namespace MdExplorer.Hubs
                 await client.SendAsync("StreamComplete", channelId);
                 return;
             }
-            var chatMode = GetChatMode();
-            if (!chatMode.ProviderType.HasValue)
-            {
-                await client.SendAsync("ReceiveE2eEvent", new { type = "refused", errors = new[] { "Scegli prima il motore di MarkAgent (Claude Code, Copilot o opencode): nella finestra dei test o nel tab MarkAgent." } }, channelId);
-                await client.SendAsync("StreamComplete", channelId);
-                return;
-            }
+            var (projectEngine, projectModel) = MdExplorer.Service.ProjectsManager.ProjectEngine(_userSettingsDB, projectPath);
 
             var request = new Services.E2e.E2eLaunchRequest
             {
                 ConnectionId = connectionId,
                 ProjectPath = projectPath,
                 Target = targetPath,
-                Engine = chatMode.ProviderType.Value,
-                // Claude needs a model (the default of the chat); for Copilot no model means "the CLI chooses".
-                ModelId = string.IsNullOrEmpty(chatMode.ModelId) && chatMode.ProviderType == Abstractions.Models.AI.ProviderType.ClaudeCode
-                    ? MdExplorer.Utilities.MarkAgentEngines.ClaudeDefaultModel : chatMode.ModelId,
+                ProjectEngine = projectEngine,
+                ProjectModel = projectModel,
                 McpGroupsArgument = MdExplorer.Service.ProjectsManager.McpGroupsArgument(_userSettingsDB, projectPath),
                 ConnectionAborted = Context.ConnectionAborted,
             };

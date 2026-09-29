@@ -53,6 +53,10 @@ namespace MdExplorer.Features.E2e
 
             var folder = Path.GetDirectoryName(Path.GetFullPath(testFilePath));
 
+            // D10 of sprint 2026-09-29-Motore-LLM-Unico: the tests always run in a session of their own.
+            if (document.Run?.ObsoleteDedicatedSession == true)
+                warnings.Add($"{fileName}: 'e2e.run.dedicatedSession' non si usa più: i test girano sempre in una sessione dedicata. Puoi togliere la riga (la finestra dei test la toglie quando salva).");
+
             // P7: without a check the script can assert, its replay passes whatever the page does (seen on 28/09/2026).
             foreach (var test in document.Tests.Where(t => !t.Steps.Any(s => s.Check is { } kind && kind != E2eCheckKind.Judgment)))
                 warnings.Add($"{fileName}: T{test.Number} non ha verifiche ✔ che lo script possa controllare: il rigioco risulterà superato qualunque cosa faccia la pagina. Aggiungi almeno una verifica nelle forme della skill mde-e2e (es. ✔ Compare il testo \"…\").");

@@ -563,6 +563,28 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         /// sarebbe peggio: l'AI non saprebbe di avere strumenti che invece esistono.
         /// </para>
         /// </summary>
+        /// <summary>
+        /// The engine and model of the project (sprint 2026-09-29-Motore-LLM-Unico, D1): <c>Project.MarkAgentEngine</c>
+        /// (NULL = the harness of the repository) and the model chosen for it in the MarkAgent tab, or the engine's default.
+        /// <see cref="MarkAgentEngine.None"/> when the project is not registered.
+        /// </summary>
+        internal static (MdExplorer.Utilities.MarkAgentEngine Engine, string Model) ProjectEngine(IUserSettingsDB db, string projectPath)
+        {
+            if (db == null || string.IsNullOrWhiteSpace(projectPath)) return (MdExplorer.Utilities.MarkAgentEngine.None, null);
+            db.BeginTransaction();
+            try
+            {
+                var project = FindProjectByPath(db, projectPath);
+                if (project == null) return (MdExplorer.Utilities.MarkAgentEngine.None, null);
+                var engine = MdExplorer.Utilities.MarkAgentEngines.Resolve(project.MarkAgentEngine, projectPath, out _);
+                return (engine, MdExplorer.Utilities.MarkAgentEngines.ModelOf(project, engine));
+            }
+            finally
+            {
+                db.Commit();
+            }
+        }
+
         internal static string McpGroupsArgument(IServiceProvider serviceProvider, string projectPath)
             => McpGroupsArgument(serviceProvider?.GetService<IUserSettingsDB>(), projectPath);
 

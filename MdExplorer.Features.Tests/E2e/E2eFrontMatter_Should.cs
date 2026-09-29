@@ -19,9 +19,31 @@ namespace MdExplorer.Features.Tests.E2e
             "# Login\n";
 
         [TestMethod]
-        public void Read_the_run_settings_and_leave_unsaid_keys_null()
+        public void Read_an_old_dedicatedSession_as_obsolete_and_leave_unsaid_keys_null()
         {
-            Assert.AreEqual(new E2eRunSettings(false, null, null), E2eFrontMatter.ReadRunSettings(Test, "t.e2e.md"));
+            // D10 of sprint 2026-09-29-Motore-LLM-Unico: the tests always run in a session of their own; an old file
+            // still runs, and says so.
+            Assert.AreEqual(new E2eRunSettings(null, null, null, null) { ObsoleteDedicatedSession = true },
+                E2eFrontMatter.ReadRunSettings(Test, "t.e2e.md"));
+        }
+
+        [TestMethod]
+        public void Write_and_read_back_the_engine_and_its_model()
+        {
+            var written = E2eFrontMatter.WriteRunSettings("# x\n", new E2eRunSettings("opencode", "anthropic/claude-sonnet-5", null, null), "x.e2e.md");
+            StringAssert.Contains(written, "    engine: opencode\n    model: \"anthropic/claude-sonnet-5\"\n");
+            Assert.AreEqual(new E2eRunSettings("opencode", "anthropic/claude-sonnet-5", null, null), E2eFrontMatter.ReadRunSettings(written, "x.e2e.md"));
+        }
+
+        [TestMethod]
+        public void Refuse_a_model_without_an_engine_and_an_unknown_engine_saying_what_to_write()
+        {
+            var noEngine = Assert.ThrowsException<E2eFormatException>(() =>
+                E2eFrontMatter.ReadRunSettings("---\ne2e:\n  run:\n    model: gpt-5\n---\n", "t.e2e.md"));
+            StringAssert.Contains(noEngine.Message, "scrivi anche il motore");
+            var unknown = Assert.ThrowsException<E2eFormatException>(() =>
+                E2eFrontMatter.ReadRunSettings("---\ne2e:\n  run:\n    engine: gemini\n---\n", "t.e2e.md"));
+            StringAssert.Contains(unknown.Message, "claude, copilot, opencode");
         }
 
         [TestMethod]
@@ -34,7 +56,8 @@ namespace MdExplorer.Features.Tests.E2e
         [TestMethod]
         public void Replace_the_run_block_and_touch_nothing_else()
         {
-            var written = E2eFrontMatter.WriteRunSettings(Test, new E2eRunSettings(null, true, false), "t.e2e.md");
+            // The old dedicatedSession goes away when the dialog saves (D10).
+            var written = E2eFrontMatter.WriteRunSettings(Test, new E2eRunSettings(null, null, true, false), "t.e2e.md");
 
             Assert.AreEqual(
                 "---\n" +
@@ -65,14 +88,14 @@ namespace MdExplorer.Features.Tests.E2e
         public void Add_an_e2e_block_to_a_front_matter_that_has_none_keeping_its_line_endings()
         {
             var crlf = "---\r\ntitle: cartella\r\n---\r\n# cartella\n| a | b |\n";
-            var written = E2eFrontMatter.WriteRunSettings(crlf, new E2eRunSettings(true, null, null), "c.md.directory");
-            Assert.AreEqual("---\r\ntitle: cartella\r\ne2e:\r\n  run:\r\n    dedicatedSession: true\r\n---\r\n# cartella\n| a | b |\n", written);
+            var written = E2eFrontMatter.WriteRunSettings(crlf, new E2eRunSettings("claude", "sonnet", null, null), "c.md.directory");
+            Assert.AreEqual("---\r\ntitle: cartella\r\ne2e:\r\n  run:\r\n    engine: claude\r\n    model: \"sonnet\"\r\n---\r\n# cartella\n| a | b |\n", written);
         }
 
         [TestMethod]
         public void Give_a_front_matter_to_a_file_without_one()
         {
-            var written = E2eFrontMatter.WriteRunSettings("# titolo\n", new E2eRunSettings(null, null, true), "x.md");
+            var written = E2eFrontMatter.WriteRunSettings("# titolo\n", new E2eRunSettings(null, null, null, true), "x.md");
             Assert.AreEqual("---\ne2e:\n  run:\n    headless: true\n---\n# titolo\n", written);
         }
 

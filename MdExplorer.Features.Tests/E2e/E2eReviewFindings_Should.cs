@@ -42,7 +42,7 @@ namespace MdExplorer.Features.Tests.E2e
             Assert.IsTrue(mapping.Children.Keys.Select(k => k.ToString()).Contains("credentials"));
             Assert.AreEqual(false, E2eFrontMatter.ReadRunSettings(markdown, "t.e2e.md").Headless);
 
-            var written = E2eFrontMatter.WriteRunSettings(markdown, new E2eRunSettings(null, true, false), "t.e2e.md");
+            var written = E2eFrontMatter.WriteRunSettings(markdown, new E2eRunSettings(null, null, true, false), "t.e2e.md");
             Assert.AreEqual(1, written.Split('\n').Count(l => l.Trim() == "run:"), "no second run: block");
         }
 

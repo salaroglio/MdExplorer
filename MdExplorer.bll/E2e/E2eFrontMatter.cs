@@ -18,11 +18,20 @@ namespace MdExplorer.Features.E2e
     /// The execution settings under <c>e2e.run</c>. A null value means "not said here": it is inherited
     /// from the folders above (D22, D23).
     /// </summary>
-    public sealed record E2eRunSettings(bool? DedicatedSession, bool? CommitAfterRun, bool? Headless)
+    /// <param name="Engine">The engine that runs the tests (claude, copilot, opencode); null = the project's (D10 of
+    /// sprint 2026-09-29-Motore-LLM-Unico: the tests have an engine of their own, their session is always dedicated).</param>
+    /// <param name="Model">The model of <paramref name="Engine"/>: said only together with it.</param>
+    public sealed record E2eRunSettings(string Engine, string Model, bool? CommitAfterRun, bool? Headless)
     {
-        public static readonly E2eRunSettings None = new(null, null, null);
+        public static readonly E2eRunSettings None = new(null, null, null, null);
 
-        public bool IsEmpty => DedicatedSession == null && CommitAfterRun == null && Headless == null;
+        /// <summary>
+        /// The file still says <c>dedicatedSession</c>, which no longer exists: the tests always run in a session of
+        /// their own. Read and ignored, so the tests still run; the dialog drops it when it saves.
+        /// </summary>
+        public bool ObsoleteDedicatedSession { get; init; }
+
+        public bool IsEmpty => Engine == null && Model == null && CommitAfterRun == null && Headless == null;
     }
 
     /// <summary>
@@ -38,7 +47,13 @@ namespace MdExplorer.Features.E2e
     /// </summary>
     public static class E2eFrontMatter
     {
-        public const string DedicatedSessionKey = "dedicatedSession";
+        /// <summary>No longer used (D10): read so that an old file still runs, never written.</summary>
+        public const string ObsoleteDedicatedSessionKey = "dedicatedSession";
+        public const string EngineKey = "engine";
+        public const string ModelKey = "model";
+
+        /// <summary>The engines a test can ask for.</summary>
+        public static readonly IReadOnlyList<string> Engines = new[] { "claude", "copilot", "opencode" };
         public const string CommitAfterRunKey = "commitAfterRun";
         public const string HeadlessKey = "headless";
 
@@ -88,16 +103,26 @@ namespace MdExplorer.Features.E2e
             if (runNode is YamlScalarNode empty && string.IsNullOrEmpty(empty.Value))
                 return E2eRunSettings.None;
             if (runNode is not YamlMappingNode run)
-                throw new E2eFormatException($"{fileName}: 'e2e.run' deve contenere delle chiavi ({DedicatedSessionKey}, {CommitAfterRunKey}, {HeadlessKey}).");
+                throw new E2eFormatException($"{fileName}: 'e2e.run' deve contenere delle chiavi ({EngineKey}, {ModelKey}, {CommitAfterRunKey}, {HeadlessKey}).");
 
-            var known = new[] { DedicatedSessionKey, CommitAfterRunKey, HeadlessKey };
+            var known = new[] { EngineKey, ModelKey, CommitAfterRunKey, HeadlessKey };
             foreach (var key in run.Children.Keys.OfType<YamlScalarNode>().Select(k => k.Value))
             {
-                if (!known.Contains(key))
+                if (!known.Contains(key) && key != ObsoleteDedicatedSessionKey)
                     throw new E2eFormatException($"{fileName}: chiave sconosciuta 'e2e.run.{key}'. Chiavi ammesse: {string.Join(", ", known)}.");
             }
 
-            return new E2eRunSettings(Bool(run, DedicatedSessionKey, fileName), Bool(run, CommitAfterRunKey, fileName), Bool(run, HeadlessKey, fileName));
+            var engine = Text(run, EngineKey)?.ToLowerInvariant();
+            if (engine != null && !Engines.Contains(engine))
+                throw new E2eFormatException($"{fileName}: 'e2e.run.{EngineKey}' vale '{engine}': scrivi {string.Join(", ", Engines)}, o togli la riga per usare il motore del progetto.");
+            var model = Text(run, ModelKey);
+            if (model != null && engine == null)
+                throw new E2eFormatException($"{fileName}: 'e2e.run.{ModelKey}' senza '{EngineKey}': un modello vale per un motore, scrivi anche il motore (o togli il modello).");
+
+            return new E2eRunSettings(engine, model, Bool(run, CommitAfterRunKey, fileName), Bool(run, HeadlessKey, fileName))
+            {
+                ObsoleteDedicatedSession = run.Children.ContainsKey(new YamlScalarNode(ObsoleteDedicatedSessionKey)),
+            };
         }
 
         /// <summary>
@@ -199,6 +224,13 @@ namespace MdExplorer.Features.E2e
             return target.Render();
         }
 
+        private static string Text(YamlMappingNode run, string key)
+        {
+            if (!run.Children.TryGetValue(new YamlScalarNode(key), out var node)) return null;
+            var value = (node as YamlScalarNode)?.Value?.Trim();
+            return string.IsNullOrEmpty(value) ? null : value;
+        }
+
         private static bool? Bool(YamlMappingNode run, string key, string fileName)
         {
             if (!run.Children.TryGetValue(new YamlScalarNode(key), out var node)) return null;
@@ -216,7 +248,9 @@ namespace MdExplorer.Features.E2e
             {
                 if (value != null) lines.Add(indent + indent + key + ": " + (value.Value ? "true" : "false"));
             }
-            Add(DedicatedSessionKey, run.DedicatedSession);
+            if (run.Engine != null) lines.Add(indent + indent + EngineKey + ": " + run.Engine);
+            // Quoted: a model id may hold ':' or '/' (anthropic/claude-sonnet-5).
+            if (run.Model != null) lines.Add(indent + indent + ModelKey + ": \"" + run.Model.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"");
             Add(CommitAfterRunKey, run.CommitAfterRun);
             Add(HeadlessKey, run.Headless);
             return lines;

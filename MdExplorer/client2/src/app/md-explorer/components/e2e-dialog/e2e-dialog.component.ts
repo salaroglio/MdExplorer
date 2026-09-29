@@ -15,7 +15,8 @@ export interface E2eDialogData {
 }
 
 type Choice = 'inherit' | 'yes' | 'no';
-type SettingKey = keyof E2eOwnSettings;
+type SettingKey = 'commitAfterRun' | 'headless';
+type EngineChoice = 'inherit' | 'claude' | 'copilot' | 'opencode';
 
 interface LogLine {
   kind: 'tool' | 'step' | 'error';
@@ -37,7 +38,6 @@ interface LogLine {
 export class E2eDialogComponent implements OnInit, OnDestroy {
   /** Fixed list: the template iterates it, nothing allocates per change detection. */
   readonly settingRows: { key: SettingKey; label: string; hint: string }[] = [
-    { key: 'dedicatedSession', label: 'E2E.DEDICATED_SESSION', hint: 'E2E.DEDICATED_SESSION_HINT' },
     { key: 'commitAfterRun', label: 'E2E.COMMIT_AFTER_RUN', hint: 'E2E.COMMIT_AFTER_RUN_HINT' },
     { key: 'headless', label: 'E2E.HEADLESS', hint: 'E2E.HEADLESS_HINT' },
   ];
@@ -47,17 +47,22 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
     { key: 'playwrightMcp', label: 'E2E.REQ_PLAYWRIGHT' },
   ];
 
-  /** The engines that can run the tests: the MarkAgent engine of this connection, chosen here if not yet. */
-  readonly engines: { id: string; label: string }[] = [
-    { id: 'claudecode', label: 'Claude Code' },
-    { id: 'copilotcli', label: 'Copilot' },
+  /**
+   * The engines that can run the tests (D10 of sprint 2026-09-29-Motore-LLM-Unico): the tests have an engine of
+   * their own, always in a session of their own; «inherit» ends up at the project's. Never the MarkAgent tab's.
+   */
+  readonly engines: { id: EngineChoice; label: string }[] = [
+    { id: 'claude', label: 'Claude Code' },
+    { id: 'copilot', label: 'Copilot' },
     { id: 'opencode', label: 'opencode' },
   ];
-  engine: { provider: string; modelId: string | null } | null = null;
-  engineLabel = '';
+  engineChoice: EngineChoice = 'inherit';
+  modelText = '';
+  /** «= Claude Code (sonnet), dal progetto»: computed when the settings arrive, not in a getter. */
+  engineEffective = '';
 
   settings: E2eSettingsState | null = null;
-  choices: Record<SettingKey, Choice> = { dedicatedSession: 'inherit', commitAfterRun: 'inherit', headless: 'inherit' };
+  choices: Record<SettingKey, Choice> = { commitAfterRun: 'inherit', headless: 'inherit' };
   plan: E2ePlan | null = null;
   prerequisites: E2ePrerequisites | null = null;
 
@@ -93,7 +98,6 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.readEngine();
     this.refresh();
     // A dropped connection never reports the end of a run started on it: stop waiting and say so.
     this.lostSub = this.aiChat.connectionLost$.subscribe(() => {
@@ -109,18 +113,6 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.channelSub?.unsubscribe();
     this.lostSub?.unsubscribe();
-  }
-
-  private readEngine(): void {
-    this.engine = this.aiChat.chatMode;
-    const known = this.engines.find(e => e.id === this.engine?.provider);
-    this.engineLabel = known ? known.label + (this.engine?.modelId ? ` (${this.engine.modelId})` : '') : '';
-  }
-
-  /** Sets the MarkAgent engine of this connection: needed when the MarkAgent tab was never opened. */
-  chooseEngine(id: string): void {
-    this.aiChat.setProvider(id, null);
-    this.readEngine();
   }
 
   /** The credentials file must be excluded from git before a run (D12): MdExplorer adds the line. */
@@ -235,7 +227,7 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
   }
 
   get canRun(): boolean {
-    return !!this.plan?.canRun && !!this.prerequisites?.readyToRun && !!this.engine && !this.running && !this.replaying && !this.loading && !this.saving;
+    return !!this.plan?.canRun && !!this.prerequisites?.readyToRun && !this.running && !this.replaying && !this.loading && !this.saving;
   }
 
   refresh(): void {
@@ -275,8 +267,29 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
   choose(key: SettingKey, choice: Choice): void {
     if (this.choices[key] === choice || this.running) return;
     this.choices = { ...this.choices, [key]: choice };
+    this.save();
+  }
+
+  /** The engine of the tests (D10): «inherit» removes it, and its model with it. */
+  chooseEngine(choice: EngineChoice): void {
+    if (this.engineChoice === choice || this.running) return;
+    this.engineChoice = choice;
+    this.modelText = '';
+    this.save();
+  }
+
+  /** The model, saved when the field is left or Enter is pressed; empty = the engine's. */
+  saveModel(): void {
+    if (this.running || this.engineChoice === 'inherit') return;
+    const wanted = this.modelText.trim() || null;
+    if (wanted === (this.settings?.own.model ?? null)) return;
+    this.save();
+  }
+
+  private save(): void {
     const own: E2eOwnSettings = {
-      dedicatedSession: this.toValue(this.choices.dedicatedSession),
+      engine: this.engineChoice === 'inherit' ? null : this.engineChoice,
+      model: this.engineChoice === 'inherit' ? null : (this.modelText.trim() || null),
       commitAfterRun: this.toValue(this.choices.commitAfterRun),
       headless: this.toValue(this.choices.headless),
     };
@@ -464,10 +477,29 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
   private applySettings(settings: E2eSettingsState): void {
     this.settings = settings;
     this.choices = {
-      dedicatedSession: this.toChoice(settings.own.dedicatedSession),
       commitAfterRun: this.toChoice(settings.own.commitAfterRun),
       headless: this.toChoice(settings.own.headless),
     };
+    this.engineChoice = (settings.own.engine as EngineChoice) || 'inherit';
+    this.modelText = settings.own.model || '';
+    this.engineEffective = this.describeEngine(settings);
+  }
+
+  /** The engine the tests will use, with its model, and where it comes from. */
+  private describeEngine(settings: E2eSettingsState): string {
+    const label = (id: string | null) => this.engines.find(e => e.id === id)?.label ?? null;
+    const engine = settings.effective.engine;
+    if (engine.value) {
+      const model = settings.effective.model.value;
+      const where = engine.source === settings.settingsFile
+        ? this.translate.instant('E2E.SOURCE_HERE')
+        : this.translate.instant('E2E.SOURCE_FROM', { source: engine.source });
+      return `${label(engine.value)}${model ? ` (${model})` : ''}, ${where}`;
+    }
+    const project = label(settings.project?.engine ?? null);
+    if (!project) return this.translate.instant('E2E.ENGINE_NONE');
+    const model = settings.project.model;
+    return `${project}${model ? ` (${model})` : ''}, ${this.translate.instant('E2E.SOURCE_PROJECT')}`;
   }
 
   private toChoice(value: boolean | null): Choice {

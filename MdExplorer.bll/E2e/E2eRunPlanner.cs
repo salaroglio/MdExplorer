@@ -221,15 +221,7 @@ namespace MdExplorer.Features.E2e
                 });
             }
 
-            // In the MarkAgent tab there is one Playwright server, started with or without --headless (D25).
-            var inTab = items.Where(i => i.CanRun && !i.Settings.DedicatedSession.Value).ToList();
-            if (inTab.Select(i => i.Settings.Headless.Value).Distinct().Count() > 1)
-            {
-                launchErrors.Add("Questi test girano nella sessione del tab MarkAgent, dove il browser è uno solo, ma alcuni chiedono il browser nascosto e altri visibile: "
-                    + string.Join(", ", inTab.Select(i => $"{i.RelativeTestFile} ({(i.Settings.Headless.Value ? "nascosto" : "visibile")})"))
-                    + ". Uniforma l'impostazione headless (per esempio sulla cartella) oppure usa sessioni dedicate.");
-            }
-
+            // The tests always run in a session of their own (D10): no shared browser to agree on.
             // Errors shows everything (for the dialog): files that could not be read, each file's own problems,
             // the launch-wide ones.
             errors.AddRange(items.SelectMany(i => i.Errors));

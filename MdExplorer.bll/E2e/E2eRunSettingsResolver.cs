@@ -6,7 +6,12 @@ namespace MdExplorer.Features.E2e
     /// <summary>A resolved setting and where it comes from: a file path, or null for MdExplorer's default.</summary>
     public sealed record E2eSetting(bool Value, string Source);
 
-    public sealed record E2eEffectiveRunSettings(E2eSetting DedicatedSession, E2eSetting CommitAfterRun, E2eSetting Headless);
+    /// <summary>A resolved text setting and where it comes from; a null value = the project's (engine, model).</summary>
+    public sealed record E2eTextSetting(string Value, string Source);
+
+    /// <param name="Engine">The engine of the tests (D10): null = the project's.</param>
+    /// <param name="Model">The model, taken from the same place as <paramref name="Engine"/>: null = the engine's.</param>
+    public sealed record E2eEffectiveRunSettings(E2eTextSetting Engine, E2eTextSetting Model, E2eSetting CommitAfterRun, E2eSetting Headless);
 
     /// <summary>
     /// The settings a run of a test uses (D21-D24): each key is taken, one by one, from the first place
@@ -16,7 +21,7 @@ namespace MdExplorer.Features.E2e
     /// </summary>
     public static class E2eRunSettingsResolver
     {
-        public static readonly E2eRunSettings Defaults = new(DedicatedSession: true, CommitAfterRun: false, Headless: true);
+        public static readonly E2eRunSettings Defaults = new(Engine: null, Model: null, CommitAfterRun: false, Headless: true);
 
         /// <summary>The settings file of a folder: <c>&lt;folder&gt;/&lt;folder name&gt;.md.directory</c>.</summary>
         public static string FolderSettingsPath(string folder)
@@ -35,10 +40,16 @@ namespace MdExplorer.Features.E2e
             if (!IsInside(full, root))
                 throw new ArgumentException($"'{full}' non è dentro il progetto '{root}'.", nameof(path));
 
-            E2eSetting session = null, commit = null, headless = null;
+            E2eTextSetting engine = null, model = null;
+            E2eSetting commit = null, headless = null;
             void Take(E2eRunSettings run, string source)
             {
-                if (session == null && run.DedicatedSession != null) session = new E2eSetting(run.DedicatedSession.Value, source);
+                // Engine and model travel together: a Copilot model inherited under Claude would mean nothing.
+                if (engine == null && run.Engine != null)
+                {
+                    engine = new E2eTextSetting(run.Engine, source);
+                    model = new E2eTextSetting(run.Model, source);
+                }
                 if (commit == null && run.CommitAfterRun != null) commit = new E2eSetting(run.CommitAfterRun.Value, source);
                 if (headless == null && run.Headless != null) headless = new E2eSetting(run.Headless.Value, source);
             }
@@ -50,12 +61,13 @@ namespace MdExplorer.Features.E2e
             {
                 var settings = FolderSettingsPath(folder);
                 if (File.Exists(settings)) Take(ReadFile(settings), settings);
-                if (string.Equals(folder, root, PathComparison) || session != null && commit != null && headless != null) break;
+                if (string.Equals(folder, root, PathComparison) || engine != null && commit != null && headless != null) break;
                 folder = Path.TrimEndingDirectorySeparator(Path.GetDirectoryName(folder));
             }
 
             return new E2eEffectiveRunSettings(
-                session ?? new E2eSetting(Defaults.DedicatedSession.Value, null),
+                engine ?? new E2eTextSetting(null, null),
+                model ?? new E2eTextSetting(null, null),
                 commit ?? new E2eSetting(Defaults.CommitAfterRun.Value, null),
                 headless ?? new E2eSetting(Defaults.Headless.Value, null));
         }

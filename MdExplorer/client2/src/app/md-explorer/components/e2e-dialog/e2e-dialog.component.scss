@@ -147,3 +147,14 @@
 .e2e-analyze {
   margin: 4px 0 8px;
 }
+
+.e2e-model {
+  width: 100%;
+  max-width: 360px;
+  padding: 6px 8px;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--mde-border, #9aa0a6);
+  border-radius: 4px;
+}

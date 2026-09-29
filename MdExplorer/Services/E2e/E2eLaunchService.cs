@@ -37,8 +37,12 @@ namespace MdExplorer.Services.E2e
         /// <summary>A <c>.e2e.md</c> or a folder, absolute or relative to the project.</summary>
         public string Target { get; init; }
 
-        public ProviderType Engine { get; init; }
-        public string ModelId { get; init; }
+        /// <summary>
+        /// The project's engine and model: those of a test that does not ask for its own (D10 of sprint
+        /// 2026-09-29-Motore-LLM-Unico). Never the MarkAgent tab's connection: the tests are on their own.
+        /// </summary>
+        public MdExplorer.Utilities.MarkAgentEngine ProjectEngine { get; init; }
+        public string ProjectModel { get; init; }
         public string McpGroupsArgument { get; init; }
 
         /// <summary>The hub connection went away: nothing to restore for it.</summary>
@@ -108,7 +112,8 @@ namespace MdExplorer.Services.E2e
                 {
                     file = i.RelativeTestFile,
                     runFolder = i.RelativeRunFolder,
-                    dedicatedSession = i.Settings.DedicatedSession,
+                    engine = i.Settings.Engine,
+                    model = i.Settings.Model,
                     commitAfterRun = i.Settings.CommitAfterRun,
                     headless = i.Settings.Headless,
                 }),
@@ -116,16 +121,6 @@ namespace MdExplorer.Services.E2e
             if (!plan.CanRun)
             {
                 await sink.Event(new { type = "refused", errors = plan.Errors });
-                return;
-            }
-
-            if (request.Engine is not (ProviderType.ClaudeCode or ProviderType.CopilotCli or ProviderType.OpenCode))
-            {
-                await sink.Event(new
-                {
-                    type = "refused",
-                    errors = new[] { $"I test e2e si eseguono con Claude Code, Copilot o opencode: il motore {request.Engine} non sa guidare un browser." },
-                });
                 return;
             }
 
@@ -167,7 +162,6 @@ namespace MdExplorer.Services.E2e
             var launchNonce = Guid.NewGuid().ToString("N").Substring(0, 8);
 
             var index = 0;
-            var tabUsed = false;
             try
             {
                 foreach (var item in plan.Items)
@@ -185,10 +179,16 @@ namespace MdExplorer.Services.E2e
                     var runStart = DateTime.UtcNow.AddSeconds(-5);
 
                     var server = E2ePlaywrightServer.For(prerequisites, item.Settings.Headless.Value, secretsFile, diagnostics, initScript);
-                    var dedicated = item.Settings.DedicatedSession.Value;
-                    tabUsed |= !dedicated;
-                    var key = dedicated ? request.ConnectionId + "|e2e|" + Guid.NewGuid().ToString("N") : request.ConnectionId;
-                    await sink.Event(new { type = "test-start", file = item.RelativeTestFile, index, total = plan.Items.Count, session = dedicated ? "dedicated" : "tab" });
+                    // Always a session of its own (D10), with the test's engine and model, or the project's.
+                    var (engine, modelId, whyNot) = EngineFor(request, item);
+                    if (whyNot != null)
+                    {
+                        await sink.Event(new { type = "skipped", file = item.RelativeTestFile, index, total = plan.Items.Count, errors = new[] { whyNot } });
+                        continue;
+                    }
+                    var key = request.ConnectionId + "|e2e|" + Guid.NewGuid().ToString("N");
+                    await sink.Event(new { type = "test-start", file = item.RelativeTestFile, index, total = plan.Items.Count, session = "dedicated",
+                        engine = MdExplorer.Utilities.MarkAgentEngines.IdOf(engine), model = modelId });
 
                     var answer = new StringBuilder();
                     var unreplacedLeak = false;
@@ -209,12 +209,12 @@ namespace MdExplorer.Services.E2e
                     {
                     try
                     {
-                        if (request.Engine == ProviderType.ClaudeCode)
-                            await RunWithClaudeAsync(request, item, server, deniedFiles, key, dedicated, Forward, temporaryConfigs, launchNonce, ct);
-                        else if (request.Engine == ProviderType.CopilotCli)
-                            await RunWithCopilotAsync(request, item, server, deniedFiles, key, dedicated, Forward, ct);
+                        if (engine == MdExplorer.Utilities.MarkAgentEngine.Claude)
+                            await RunWithClaudeAsync(request, item, server, deniedFiles, key, modelId, Forward, temporaryConfigs, launchNonce, ct);
+                        else if (engine == MdExplorer.Utilities.MarkAgentEngine.Copilot)
+                            await RunWithCopilotAsync(request, item, server, deniedFiles, key, modelId, Forward, ct);
                         else
-                            await RunWithOpenCodeAsync(request, item, server, deniedFiles, dedicated, Forward, ct);
+                            await RunWithOpenCodeAsync(request, item, server, deniedFiles, modelId, Forward, ct);
                     }
                     finally
                     {
@@ -268,23 +268,6 @@ namespace MdExplorer.Services.E2e
             }
             finally
             {
-                // D28: the tab gets its shell back and loses Playwright, keeping the conversation — also when
-                // the launch stops halfway. Never for a connection that is gone (it would start an orphan CLI),
-                // and a failed restore must not hide what happened: the next chat turn restores anyway.
-                if (tabUsed && !request.ConnectionAborted.IsCancellationRequested)
-                {
-                    try
-                    {
-                        if (request.Engine == ProviderType.ClaudeCode)
-                            await _claudePool.RestoreChatAsync(request.ConnectionId, ClaudeCodeMcp.ChatOptions(request.McpGroupsArgument), CancellationToken.None);
-                        if (request.Engine == ProviderType.CopilotCli)
-                            await _copilotPool.RestoreChatAsync(request.ConnectionId, CancellationToken.None);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "[E2e] ripristino della chat del tab non riuscito: lo farà il prossimo turno di chat");
-                    }
-                }
                 foreach (var file in temporaryConfigs.Values.Append(secretsFile).Where(f => f != null))
                 {
                     try { File.Delete(file); } catch (Exception ex) { _logger.LogWarning(ex, "[E2e] non riesco a cancellare {File}", file); }
@@ -292,6 +275,36 @@ namespace MdExplorer.Services.E2e
             }
 
             await sink.Event(new { type = "done", files = plan.Items.Select(i => i.RelativeTestFile) });
+        }
+
+        /// <summary>
+        /// The engine and model of a test (D10): its own <c>e2e.run.engine</c>/<c>model</c>, otherwise the project's
+        /// engine; a test asking for the project's engine without a model gets the project's model, another engine its
+        /// default. Its CLI must be found: otherwise the test is skipped, saying why.
+        /// </summary>
+        private static (MdExplorer.Utilities.MarkAgentEngine Engine, string Model, string WhyNot) EngineFor(E2eLaunchRequest request, E2eRunItem item)
+        {
+            var asked = item.Settings.Engine.Value;
+            MdExplorer.Utilities.MarkAgentEngine engine;
+            if (asked == null) engine = request.ProjectEngine;
+            else if (!MdExplorer.Utilities.MarkAgentEngines.TryParseId(asked, out engine))
+                return (engine, null, $"{item.RelativeTestFile}: motore '{asked}' sconosciuto.");
+            if (engine == MdExplorer.Utilities.MarkAgentEngine.None)
+                return (engine, null, $"{item.RelativeTestFile}: il progetto non ha un motore di MarkAgent e il test non ne indica uno: " +
+                                      "sceglilo nelle impostazioni del progetto o nella finestra dei test.");
+
+            var model = item.Settings.Model.Value
+                ?? (engine == request.ProjectEngine ? request.ProjectModel : MdExplorer.Utilities.MarkAgentEngines.DefaultModelOf(engine));
+
+            var resolvable = engine switch
+            {
+                MdExplorer.Utilities.MarkAgentEngine.Claude => MdExplorer.Features.Services.AI.ClaudeCode.ClaudeCodeProcessLauncher.IsResolvable(),
+                MdExplorer.Utilities.MarkAgentEngine.Copilot => MdExplorer.Features.Services.AI.CopilotAcp.CopilotProcessLauncher.IsResolvable(),
+                _ => MdExplorer.Features.Services.AI.OpenCode.OpenCodeProcessLauncher.IsResolvable(),
+            };
+            if (!resolvable)
+                return (engine, model, $"{item.RelativeTestFile}: il CLI di {MdExplorer.Utilities.MarkAgentEngines.CommandOf(engine)} non si trova nel PATH del servizio.");
+            return (engine, model, null);
         }
 
         /// <returns>True when a credential value was found and left in place (outside the run folder).</returns>
@@ -322,7 +335,7 @@ namespace MdExplorer.Services.E2e
         }
 
         private async Task RunWithClaudeAsync(E2eLaunchRequest request, E2eRunItem item, E2ePlaywrightServer server,
-            IReadOnlyList<string> deniedFiles, string key, bool dedicated, Func<string, string, Task> forward,
+            IReadOnlyList<string> deniedFiles, string key, string modelId, Func<string, string, Task> forward,
             Dictionary<string, string> temporaryConfigs, string launchNonce, CancellationToken ct)
         {
             var bans = BannedFor(request.ProjectPath, deniedFiles);
@@ -344,13 +357,13 @@ namespace MdExplorer.Services.E2e
             };
             try
             {
-                var session = await _claudePool.GetOrCreateAsync(key, request.ProjectPath, request.ModelId, options, ct);
+                var session = await _claudePool.GetOrCreateAsync(key, request.ProjectPath, modelId, options, ct);
                 await foreach (var chunk in session.PromptAsync(item.Prompt, ct))
                     await forward(chunk.Kind == ClaudeCodeChunk.KindMessage ? "message" : chunk.Kind == ClaudeCodeChunk.KindTool ? "tool" : chunk.Kind, chunk.Text);
             }
             finally
             {
-                if (dedicated) await _claudePool.ReleaseAsync(key);
+                await _claudePool.ReleaseAsync(key);
             }
         }
 
@@ -359,7 +372,7 @@ namespace MdExplorer.Services.E2e
         /// shell (D29), no reading of the credentials and secrets files (the permission callback).
         /// </summary>
         private async Task RunWithCopilotAsync(E2eLaunchRequest request, E2eRunItem item, E2ePlaywrightServer server,
-            IReadOnlyList<string> deniedFiles, string key, bool dedicated, Func<string, string, Task> forward, CancellationToken ct)
+            IReadOnlyList<string> deniedFiles, string key, string modelId, Func<string, string, Task> forward, CancellationToken ct)
         {
             var servers = new Dictionary<string, CopilotMcpServer>
             {
@@ -390,13 +403,13 @@ namespace MdExplorer.Services.E2e
             };
             try
             {
-                var session = await _copilotPool.GetOrCreateAsync(key, request.ProjectPath, request.ModelId, profile, ct);
+                var session = await _copilotPool.GetOrCreateAsync(key, request.ProjectPath, modelId, profile, ct);
                 await foreach (var chunk in session.PromptAsync(item.Prompt, ct))
                     await forward(chunk.Kind, chunk.Text);
             }
             finally
             {
-                if (dedicated) await _copilotPool.ReleaseAsync(key);
+                await _copilotPool.ReleaseAsync(key);
             }
         }
 
@@ -409,7 +422,7 @@ namespace MdExplorer.Services.E2e
         /// server never gets Playwright, so D28 holds by itself.
         /// </summary>
         private async Task RunWithOpenCodeAsync(E2eLaunchRequest request, E2eRunItem item, E2ePlaywrightServer server,
-            IReadOnlyList<string> deniedFiles, bool dedicated, Func<string, string, Task> forward, CancellationToken ct)
+            IReadOnlyList<string> deniedFiles, string modelId, Func<string, string, Task> forward, CancellationToken ct)
         {
             var mcp = new System.Text.Json.Nodes.JsonObject
             {
@@ -474,14 +487,9 @@ namespace MdExplorer.Services.E2e
                 new Dictionary<string, string> { ["OPENCODE_CONFIG_CONTENT"] = config.ToJsonString() });
 
             string existing = null;
-            if (!dedicated)
-            {
-                var tab = await _openCodePool.GetOrCreateAsync(request.ConnectionId, request.ProjectPath, request.ModelId, ct);
-                existing = await tab.EnsureStartedAsync(ct);
-            }
 
             await using var session = new OpenCodeSession(_loggerFactory.CreateLogger<OpenCodeSession>(), e2eServer,
-                request.ProjectPath, request.ModelId, existing, rejectPermissions: true);
+                request.ProjectPath, modelId, existing, rejectPermissions: true);
             try
             {
                 await foreach (var chunk in session.PromptAsync(item.Prompt, ct))

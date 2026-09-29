@@ -43,7 +43,10 @@ namespace MdExplorer.Controllers.E2e
         {
             public string Path { get; set; }
             public string ProjectPath { get; set; }
-            public bool? DedicatedSession { get; set; }
+            /// <summary>claude, copilot, opencode; null = the project's engine (D10).</summary>
+            public string? Engine { get; set; }
+            /// <summary>The model of <see cref="Engine"/>; null = the engine's (the project's, for the project's engine).</summary>
+            public string? Model { get; set; }
             public bool? CommitAfterRun { get; set; }
             public bool? Headless { get; set; }
         }
@@ -58,7 +61,7 @@ namespace MdExplorer.Controllers.E2e
             if (!TryResolve(path, projectPath, out var full, out var root, out var problem)) return BadRequest(new { error = problem });
             try
             {
-                return Ok(Describe(full, root));
+                return Ok(Describe(full, root, _userSettingsDB));
             }
             catch (E2eFormatException ex)
             {
@@ -91,9 +94,11 @@ namespace MdExplorer.Controllers.E2e
             {
                 var text = await System.IO.File.ReadAllTextAsync(settingsFile, ct);
                 var written = E2eFrontMatter.WriteRunSettings(text,
-                    new E2eRunSettings(body.DedicatedSession, body.CommitAfterRun, body.Headless), Path.GetFileName(settingsFile));
+                    new E2eRunSettings(string.IsNullOrWhiteSpace(body.Engine) ? null : body.Engine.Trim().ToLowerInvariant(),
+                        string.IsNullOrWhiteSpace(body.Engine) || string.IsNullOrWhiteSpace(body.Model) ? null : body.Model.Trim(),
+                        body.CommitAfterRun, body.Headless), Path.GetFileName(settingsFile));
                 if (written != text) await System.IO.File.WriteAllTextAsync(settingsFile, written, ct);
-                return Ok(Describe(full, root));
+                return Ok(Describe(full, root, _userSettingsDB));
             }
             catch (E2eFormatException ex)
             {
@@ -122,7 +127,8 @@ namespace MdExplorer.Controllers.E2e
                     file = i.RelativeTestFile,
                     runFolder = i.RelativeRunFolder,
                     tests = i.Preflight.Document?.Tests.Count ?? 0,
-                    dedicatedSession = Setting(i.Settings.DedicatedSession, root),
+                    engine = TextSetting(i.Settings.Engine, root),
+                    model = TextSetting(i.Settings.Model, root),
                     commitAfterRun = Setting(i.Settings.CommitAfterRun, root),
                     headless = Setting(i.Settings.Headless, root),
                     scripts = E2ePostRun.Scripts(i, Services.E2e.E2eLaunchService.CurrentGenerator()).Select(s => new { test = s.TestNumber, file = Path.GetFileName(s.Path), state = s.State, stale = s.Stale }),
@@ -275,7 +281,7 @@ namespace MdExplorer.Controllers.E2e
             }
         }
 
-        private static object Describe(string full, string root)
+        private static object Describe(string full, string root, Abstractions.DB.IUserSettingsDB db)
         {
             var isFolder = Directory.Exists(full);
             var settingsFile = isFolder ? E2eRunSettingsResolver.FolderSettingsPath(full) : full;
@@ -289,10 +295,14 @@ namespace MdExplorer.Controllers.E2e
                 path = Relative(root, full),
                 settingsFile = Relative(root, settingsFile),
                 settingsFileExists = System.IO.File.Exists(settingsFile),
-                own = new { dedicatedSession = own.DedicatedSession, commitAfterRun = own.CommitAfterRun, headless = own.Headless },
+                own = new { engine = own.Engine, model = own.Model, commitAfterRun = own.CommitAfterRun, headless = own.Headless,
+                    obsoleteDedicatedSession = own.ObsoleteDedicatedSession },
+                // What «inherit» ends up at when nobody says an engine (D10): the project's, the MarkAgent tab's.
+                project = ProjectEngineOf(db, root),
                 effective = new
                 {
-                    dedicatedSession = Setting(effective.DedicatedSession, root),
+                    engine = TextSetting(effective.Engine, root),
+                    model = TextSetting(effective.Model, root),
                     commitAfterRun = Setting(effective.CommitAfterRun, root),
                     headless = Setting(effective.Headless, root),
                 },
@@ -301,6 +311,15 @@ namespace MdExplorer.Controllers.E2e
 
         private static object Setting(E2eSetting setting, string root) =>
             new { value = setting.Value, source = setting.Source == null ? null : Relative(root, setting.Source) };
+
+        private static object TextSetting(E2eTextSetting setting, string root) =>
+            new { value = setting.Value, source = setting.Source == null ? null : Relative(root, setting.Source) };
+
+        private static object ProjectEngineOf(Abstractions.DB.IUserSettingsDB db, string root)
+        {
+            var (engine, model) = MdExplorer.Service.ProjectsManager.ProjectEngine(db, root);
+            return new { engine = engine == MdExplorer.Utilities.MarkAgentEngine.None ? null : MdExplorer.Utilities.MarkAgentEngines.IdOf(engine), model };
+        }
 
         private static string Relative(string root, string path) => Path.GetRelativePath(root, path).Replace('\\', '/');
 

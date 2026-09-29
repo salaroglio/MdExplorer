@@ -8,8 +8,17 @@ export interface E2eSetting {
   source: string | null;
 }
 
+/** A text setting (engine, model) and where it comes from; value null = the project's. */
+export interface E2eTextSetting {
+  value: string | null;
+  source: string | null;
+}
+
 export interface E2eOwnSettings {
-  dedicatedSession: boolean | null;
+  /** claude | copilot | opencode; null = inherited, in the end the project's engine (D10). */
+  engine: string | null;
+  /** The model of that engine; null = the engine's (the project's, for the project's engine). */
+  model: string | null;
   commitAfterRun: boolean | null;
   headless: boolean | null;
 }
@@ -19,8 +28,10 @@ export interface E2eSettingsState {
   path: string;
   settingsFile: string;
   settingsFileExists: boolean;
-  own: E2eOwnSettings;
-  effective: { dedicatedSession: E2eSetting; commitAfterRun: E2eSetting; headless: E2eSetting };
+  own: E2eOwnSettings & { obsoleteDedicatedSession?: boolean };
+  /** The project's engine and model: what «inherit» ends up at when nobody says an engine. */
+  project: { engine: string | null; model: string | null };
+  effective: { engine: E2eTextSetting; model: E2eTextSetting; commitAfterRun: E2eSetting; headless: E2eSetting };
 }
 
 export interface E2eScriptInfo {
@@ -35,7 +46,8 @@ export interface E2ePlanItem {
   scripts: E2eScriptInfo[];
   runFolder: string;
   tests: number;
-  dedicatedSession: E2eSetting;
+  engine: E2eTextSetting;
+  model: E2eTextSetting;
   commitAfterRun: E2eSetting;
   headless: E2eSetting;
   /** The tests project (E2eTests.csproj) and whether its packages are downloaded; null before the first run. */

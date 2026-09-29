@@ -15,18 +15,6 @@
   </div>
 
   <ng-container *ngIf="!loading && settings">
-    <!-- Motore: quello del tab MarkAgent su questa connessione -->
-    <section class="e2e-section">
-      <h3>{{ 'E2E.ENGINE' | translate }}</h3>
-      <div *ngIf="engine" class="e2e-item"><mat-icon class="e2e-ok">smart_toy</mat-icon><span>{{ engineLabel }}</span></div>
-      <ng-container *ngIf="!engine">
-        <label class="e2e-label" for="e2e-engine">{{ 'E2E.ENGINE_CHOOSE' | translate }}</label>
-        <mat-button-toggle-group id="e2e-engine" (change)="chooseEngine($event.value)">
-          <mat-button-toggle *ngFor="let e of engines" [value]="e.id">{{ e.label }}</mat-button-toggle>
-        </mat-button-toggle-group>
-      </ng-container>
-    </section>
-
     <!-- Impostazioni: il particolare vince sul generale -->
     <section class="e2e-section">
       <h3>{{ 'E2E.SETTINGS' | translate }}</h3>
@@ -34,6 +22,24 @@
         {{ (settings.target === 'folder' ? 'E2E.SETTINGS_FOLDER_NOTE' : 'E2E.SETTINGS_FILE_NOTE') | translate }}
         <code>{{ settings.settingsFile }}</code>
       </p>
+      <!-- Motore dei test (D10): suo, sempre in una sessione dedicata; «Eredita» porta a quello del progetto -->
+      <div class="e2e-setting">
+        <label class="e2e-label" for="e2e-engine">{{ 'E2E.ENGINE' | translate }}</label>
+        <div class="e2e-setting-line">
+          <mat-button-toggle-group id="e2e-engine" [value]="engineChoice" [disabled]="saving || running"
+                                   (change)="chooseEngine($event.value)">
+            <mat-button-toggle value="inherit">{{ 'E2E.INHERIT' | translate }}</mat-button-toggle>
+            <mat-button-toggle *ngFor="let e of engines" [value]="e.id">{{ e.label }}</mat-button-toggle>
+          </mat-button-toggle-group>
+          <span class="e2e-effective">= <b>{{ engineEffective }}</b></span>
+        </div>
+        <div class="e2e-hint">{{ 'E2E.ENGINE_HINT' | translate }}</div>
+      </div>
+      <div class="e2e-setting" *ngIf="engineChoice !== 'inherit'">
+        <label class="e2e-label" for="e2e-model">{{ 'E2E.MODEL' | translate }}</label>
+        <input id="e2e-model" class="e2e-model" [(ngModel)]="modelText" [disabled]="saving || running"
+               [placeholder]="'E2E.MODEL_PLACEHOLDER' | translate" (blur)="saveModel()" (keyup.enter)="saveModel()">
+      </div>
       <div *ngFor="let row of settingRows" class="e2e-setting">
         <label class="e2e-label" [attr.for]="'e2e-' + row.key">{{ row.label | translate }}</label>
         <div class="e2e-setting-line">

@@ -38,7 +38,8 @@ namespace MdExplorer.Features.Tests.E2e
             File.WriteAllText(_test, "---\ne2e:\n  baseUrl: https://example.org\n---\n");
             var settings = E2eRunSettingsResolver.Resolve(_test, _root);
 
-            Assert.AreEqual(new E2eSetting(true, null), settings.DedicatedSession);
+            Assert.AreEqual(new E2eTextSetting(null, null), settings.Engine, "the project's engine (D10)");
+            Assert.AreEqual(new E2eTextSetting(null, null), settings.Model);
             Assert.AreEqual(new E2eSetting(false, null), settings.CommitAfterRun);
             Assert.AreEqual(new E2eSetting(true, null), settings.Headless);
         }
@@ -48,13 +49,14 @@ namespace MdExplorer.Features.Tests.E2e
         {
             var rootSettings = E2eRunSettingsResolver.FolderSettingsPath(_root);
             var middleSettings = E2eRunSettingsResolver.FolderSettingsPath(Path.Combine(_root, "test-e2e"));
-            Write(rootSettings, "    dedicatedSession: false\n    commitAfterRun: true\n    headless: false\n");
+            Write(rootSettings, "    engine: copilot\n    model: gpt-5\n    commitAfterRun: true\n    headless: false\n");
             Write(middleSettings, "    commitAfterRun: false\n");
-            Write(_test, "    headless: true\n");
+            Write(_test, "    engine: claude\n    headless: true\n");
 
             var settings = E2eRunSettingsResolver.Resolve(_test, _root);
 
-            Assert.AreEqual(new E2eSetting(false, rootSettings), settings.DedicatedSession, "only the root says it");
+            Assert.AreEqual(new E2eTextSetting("claude", _test), settings.Engine, "the test wins over every folder");
+            Assert.AreEqual(new E2eTextSetting(null, _test), settings.Model, "engine and model travel together: gpt-5 is Copilot's, not Claude's");
             Assert.AreEqual(new E2eSetting(false, middleSettings), settings.CommitAfterRun, "the nearer folder wins over the root");
             Assert.AreEqual(new E2eSetting(true, _test), settings.Headless, "the test wins over every folder");
         }
@@ -89,7 +91,7 @@ namespace MdExplorer.Features.Tests.E2e
             var service = new TocGenerationService(NullLogger<TocGenerationService>.Instance, new FixedYaml(), null);
 
             Assert.IsTrue(await service.GenerateTocAsync(folder, toc));
-            File.WriteAllText(toc, E2eFrontMatter.WriteRunSettings(File.ReadAllText(toc), new E2eRunSettings(null, true, null), "toc"));
+            File.WriteAllText(toc, E2eFrontMatter.WriteRunSettings(File.ReadAllText(toc), new E2eRunSettings(null, null, true, null), "toc"));
 
             Assert.IsTrue(await service.GenerateTocAsync(folder, toc));
             Assert.AreEqual(new E2eSetting(true, toc), E2eRunSettingsResolver.Resolve(folder, _root).CommitAfterRun);
