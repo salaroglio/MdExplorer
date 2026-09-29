@@ -442,6 +442,21 @@ export class AiChatService {
     }
   }
 
+  /** A prompt of the default channel is streaming: a new sendMessage() would be ignored. */
+  get isStreaming(): boolean {
+    return this._isStreaming$.value;
+  }
+
+  /**
+   * Brings the MarkAgent tab to the front. Set by whoever declares the tabs (the sidenav): only it knows
+   * where the tab is and whether it exists (it needs a git repository). Returns false when it cannot.
+   */
+  showTabHandler: (() => boolean) | null = null;
+
+  showTab(): boolean {
+    return this.showTabHandler ? this.showTabHandler() : false;
+  }
+
   // Chat functionality
   sendMessage(message: string): void {
     if (!message.trim()) return;

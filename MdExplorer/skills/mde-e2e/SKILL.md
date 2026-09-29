@@ -3,7 +3,7 @@ name: mde-e2e
 description: "Scrive ed esegue test end-to-end di siti web descritti in markdown (file *.e2e.md) con MdExplorer, e ne registra esiti, screenshot e script Playwright rigiocabili. Use when: test e2e, end-to-end, test di un sito, test dell'interfaccia web, collaudo, verificare che il sito funzioni, file .e2e.md, eseguire i test, rilanciare i test, esito dei test, mappa del sito, credenziali di test, script Playwright, regressione, smoke test, login di prova."
 mde:
   origin: mdexplorer
-  version: 5
+  version: 6
   updatePolicy: replace
 ---
 
@@ -49,10 +49,13 @@ test-e2e/                              ← la cartella dei test (il nome è libe
 │   │   ├── login.T1.spec.cs
 │   │   └── login.T2.spec.cs
 │   └── esecuzioni/
-│       └── 2026-09-27_10-30/          ← una cartella per esecuzione
-│           ├── report.md
-│           ├── T1-03-messaggio-login.png
-│           └── T2-03-errore-password.png
+│       ├── 2026-09-27_10-30/          ← una cartella per esecuzione
+│       │   ├── report.md
+│       │   ├── T1-03-messaggio-login.png
+│       │   └── T2-03-errore-password.png
+│       └── 2026-09-28_09-15_script/   ← un rigioco degli script, scritto da MdExplorer
+│           ├── registro.T1.md         ← chiamate di rete e console del test, con i tempi
+│           └── T1-05-messaggio-login.png
 ├── E2eTests.csproj                    ← progetto che compila gli script (uno per cartella di test)
 ├── E2eSupport.cs                      ← supporto comune agli script
 └── e2e.runsettings                    ← browser usato per rigiocare gli script
@@ -546,7 +549,7 @@ namespace MdeE2e.Login
 
 ```csharp esempio=supporto
 // MdExplorer, skill mde-e2e: supporto comune agli script dei test *.e2e.md. Lo scrive MdExplorer: non modificare.
-// versione-supporto: 3
+// versione-supporto: 4
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -657,8 +660,11 @@ namespace MdeE2e
         }
 
         [TearDown]
-        public void CloseConsole()
+        public async Task CloseRecording()
         {
+            // Playwright chiude il contesto, e quindi salva l'HAR, solo quando il test passa: qui sempre, perché
+            // il registro serve soprattutto quando il test fallisce.
+            if (Dir != null) await Context.CloseAsync();
             lock (_lock)
             {
                 _console?.Dispose();
@@ -673,6 +679,34 @@ Gli script si rigiocano dalla finestra dei test di MdExplorer («Rigioca gli scr
 `dotnet test E2eTests.csproj --no-restore --settings e2e.runsettings`. I pacchetti (circa 230 MB la prima volta) li
 scarica MdExplorer solo quando l'utente lo chiede dalla stessa finestra: non lanciare `dotnet restore` né
 `dotnet build` tu.
+
+## Analizzare un rigioco fallito
+
+Quando uno script rigiocato fallisce, l'utente te lo chiede in chat (dalla finestra dei test, «Analizza con
+MarkAgent»: il messaggio dice il file di test, i test falliti con script e messaggio, la cartella del rigioco).
+Lo scopo è capire **perché**, insieme all'utente, e lasciare scritto ciò che si è capito.
+
+1. **Leggi**: il `.e2e.md`, lo script, il **registro** del rigioco (`registro.T<n>.md` nella cartella del
+   rigioco: ogni chiamata con inizio, durata e dimensione, e la console, con i tempi dall'inizio del test), le
+   schede delle pagine che il test attraversa, e se serve il `report.md` dell'ultima esecuzione con te.
+2. **Trova la causa** confrontando ciò che lo script aspetta con ciò che il registro mostra. Le cause tipiche:
+   - l'**attesa** manca o aspetta la cosa sbagliata: lo script prosegue prima che la pagina abbia finito (nel
+     registro la chiamata o il `[mde] ready` arrivano dopo il passo che fallisce);
+   - il **tempo massimo** è troppo basso per la durata che il registro mostra;
+   - il **localizzatore** trova più elementi (strict mode) o nessuno;
+   - il **sito è cambiato** o **sbaglia**: una chiamata fallita, un errore in console, un testo diverso. Questo è
+     un **difetto del sito**, cioè proprio ciò che il test deve scoprire: dillo, e non correggere lo script per
+     farlo passare.
+3. **Spiega** all'utente in poche righe, citando le righe del registro e dello script che lo mostrano.
+4. **Proponi** la correzione, e applicala **solo quando l'utente è d'accordo**:
+   - la **scheda** della pagina: cosa aspettare, tempo massimo, trappole; e una riga in «Storia dei problemi» con
+     la data, cosa è successo e cosa è cambiato;
+   - lo **script**: l'attesa, il tempo massimo o il localizzatore, con il commento `// attesa: …` aggiornato. Se la
+     correzione richiede di guardare di nuovo il sito (un localizzatore nuovo, una chiamata che non conosci),
+     proponi invece di rieseguire il test con MarkAgent (tasto destro → «Test e2e…»): lo script si rigenera
+     seguendo la scheda corretta.
+5. Se l'attesa era **dedotta** (chiamata o fine del lavoro) e il codice sorgente del sito è nel progetto, suggerisci
+   i segnali con la skill `mde-e2e-signals`.
 
 ## Cosa non fare
 

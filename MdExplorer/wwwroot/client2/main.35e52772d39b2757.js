@@ -14090,6 +14090,11 @@ class AiChatService {
     this._connectionLost$ = new rxjs__WEBPACK_IMPORTED_MODULE_4__.Subject();
     /** The hub connection dropped (reconnecting or closed): runs on the old connection are lost. */
     this.connectionLost$ = this._connectionLost$.asObservable();
+    /**
+     * Brings the MarkAgent tab to the front. Set by whoever declares the tabs (the sidenav): only it knows
+     * where the tab is and whether it exists (it needs a git repository). Returns false when it cannot.
+     */
+    this.showTabHandler = null;
     /** Cached models from DB — populated by getCachedModels() */
     this._cachedModels = null;
     this._refreshInFlight = null;
@@ -14355,6 +14360,13 @@ class AiChatService {
         }
       }
     })();
+  }
+  /** A prompt of the default channel is streaming: a new sendMessage() would be ignored. */
+  get isStreaming() {
+    return this._isStreaming$.value;
+  }
+  showTab() {
+    return this.showTabHandler ? this.showTabHandler() : false;
   }
   // Chat functionality
   sendMessage(message) {
@@ -18022,8 +18034,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.29.1',
-  buildTime: '2026.09.29 08:55:58'
+  version: '2026.09.29.2',
+  buildTime: '2026.09.29 09:03:36'
 };
 
 /***/ }),
@@ -18057,4 +18069,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.05ab0195453a8cf1.js.map
+//# sourceMappingURL=main.35e52772d39b2757.js.map

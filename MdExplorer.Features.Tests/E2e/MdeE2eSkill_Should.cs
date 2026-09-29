@@ -126,6 +126,9 @@ namespace MdExplorer.Features.Tests.E2e
             StringAssert.Contains(support, "public static Task EnableSignals(IBrowserContext context)");
             StringAssert.Contains(support, "public static async Task Signal(IPage page, string name, string key, TimeSpan max)");
             StringAssert.Contains(support, "public abstract class E2eTest : PageTest");
+            // Playwright NUnit closes the context, and so saves the HAR, only when the test passes (29/09/2026):
+            // the log of a failed replay — the one worth analysing — would be empty.
+            StringAssert.Contains(support, "if (Dir != null) await Context.CloseAsync();");
             StringAssert.Contains(Examples()["csproj"], "<ImplicitUsings>disable</ImplicitUsings>");
             StringAssert.Contains(Examples()["csproj"], "\"Microsoft.Playwright.NUnit\"");
             StringAssert.Contains(Examples()["runsettings"], "<Channel>chrome</Channel>");
@@ -181,6 +184,19 @@ namespace MdExplorer.Features.Tests.E2e
                 Assert.IsTrue(Regex.IsMatch(sheet, "^" + Regex.Escape(section) + "$", RegexOptions.Multiline), $"missing section {section}");
             foreach (var field in new[] { "- Attesa:", "- Osservato:", "- Tempo massimo:", "- Rumore da ignorare:", "- Fine del lavoro:" })
                 StringAssert.Contains(sheet, field);
+        }
+    
+
+        [TestMethod]
+        public void Name_the_section_the_analysis_message_of_the_dialog_points_to()
+        {
+            // e2e-dialog.component.ts builds «… (skill mde-e2e, «Analizzare un rigioco fallito»)».
+            var skill = File.ReadAllText(SkillPath());
+            Assert.IsTrue(Regex.IsMatch(skill, "^## Analizzare un rigioco fallito$", RegexOptions.Multiline));
+            var dialog = File.ReadAllText(Path.Combine(SlidePage.RepositoryRoot(), "MdExplorer", "client2", "src", "app",
+                "md-explorer", "components", "e2e-dialog", "e2e-dialog.component.ts"));
+            StringAssert.Contains(dialog, "«Analizzare un rigioco fallito»");
+            StringAssert.Contains(skill, "registro.T<n>.md");
         }
     }
 }

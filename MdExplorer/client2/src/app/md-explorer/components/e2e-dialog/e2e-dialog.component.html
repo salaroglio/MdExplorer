@@ -109,6 +109,11 @@
         <div *ngIf="r.stale.length" class="e2e-message e2e-warning">
           <mat-icon>update</mat-icon><span>{{ 'E2E.STALE_SKIPPED' | translate: { scripts: r.stale.join(', ') } }}</span>
         </div>
+        <div *ngIf="canAnalyze(r)" class="e2e-analyze">
+          <button mat-stroked-button color="primary" (click)="analyze(r)">
+            <mat-icon>psychology</mat-icon> {{ 'E2E.ANALYZE' | translate }}
+          </button>
+        </div>
         <div *ngIf="r.commit" class="e2e-hint">
           {{ r.commit.committed ? ('E2E.COMMITTED' | translate: { sha: (r.commit.sha || '').slice(0, 8), message: r.commit.message })
                                 : ('E2E.NOT_COMMITTED' | translate: { file: r.file, reason: r.commit.reason }) }}

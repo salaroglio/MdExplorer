@@ -143,6 +143,46 @@ export class E2eDialogComponent implements OnInit, OnDestroy {
       && (this.plan?.items || []).some(i => (i.scripts || []).some(s => !s.stale));
   }
 
+  /** A replayed file with a failed test or a problem: its analysis can go to MarkAgent (D6). */
+  canAnalyze(r: E2eReplayResult): boolean {
+    return !!r.problem || (r.outcomes || []).some(o => !o.passed);
+  }
+
+  /**
+   * «Analizza con MarkAgent»: the analysis is a conversation with the user (D4), so the message goes to the chat of
+   * the MarkAgent tab, same session. The message only says where things are; how to analyse is in the mde-e2e skill.
+   * Never sent in silence: a busy tab or a missing one is said here.
+   */
+  analyze(r: E2eReplayResult): void {
+    if (this.aiChat.isStreaming) {
+      this.runErrors = [...this.runErrors, this.translate.instant('E2E.ANALYZE_BUSY')];
+      return;
+    }
+    if (!this.aiChat.showTab()) {
+      this.runErrors = [...this.runErrors, this.translate.instant('E2E.ANALYZE_NO_TAB')];
+      return;
+    }
+    this.dialogRef.close();
+    this.aiChat.sendMessage(this.analysisPrompt(r));
+  }
+
+  private analysisPrompt(r: E2eReplayResult): string {
+    const firstLine = (text: string | null) => {
+      const line = (text || '').trim().split('\n')[0] || '';
+      return line.length > 300 ? line.slice(0, 300) + '…' : line;
+    };
+    const lines = [`Analizza il rigioco fallito degli script di \`${r.file}\` (skill mde-e2e, «Analizzare un rigioco fallito»).`];
+    for (const o of (r.outcomes || []).filter(x => !x.passed)) {
+      lines.push(`- T${o.test} (\`${o.script}\`): ${firstLine(o.message)}`);
+    }
+    if (r.problem) lines.push(`- Problema del rigioco: ${firstLine(r.problem)}`);
+    if (r.runFolder) {
+      const logs = (r.logs || []).length > 0 ? ` — registri: ${r.logs.join(', ')}` : ' — nessun registro';
+      lines.push(`Cartella del rigioco: \`${r.runFolder}\`${logs}`);
+    }
+    return lines.join('\n');
+  }
+
   /** A tests project whose packages are not downloaded: the replay waits for the user's consent (D3, D7). */
   get replayPackagesMissing(): boolean {
     return (this.plan?.items || []).some(i => !!i.replayPackages && !i.replayPackages.restored);

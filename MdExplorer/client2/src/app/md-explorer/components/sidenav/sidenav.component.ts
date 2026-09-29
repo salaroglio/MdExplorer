@@ -16,6 +16,7 @@ import { LayoutService } from '../../services/layout.service';
 import { ClipboardPasteService } from '../../services/clipboard-paste.service';
 import { EmbeddedAppStateService } from '../../services/embedded-app-state.service';
 import { TranslateService } from '@ngx-translate/core';
+import { AiChatService } from '../../../services/ai-chat.service';
 
 
 
@@ -49,6 +50,11 @@ export class SidenavComponent implements OnInit, OnDestroy {
    */
   private changesTabIndex(): number {
     return 1;
+  }
+
+  /** The MarkAgent tab follows the changes tab, and exists only in a git repository (see the template). */
+  private markAgentTabIndex(): number {
+    return this.currentBranch != null ? 2 : -1;
   }
   @ViewChild('sidenav', { static: false }) sidenav: MatSidenav;
 
@@ -84,7 +90,8 @@ export class SidenavComponent implements OnInit, OnDestroy {
     private http: HttpClient,
     private clipboardPasteService: ClipboardPasteService,
     private embeddedAppState: EmbeddedAppStateService,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private aiChat: AiChatService
   ) {
     this.setupResizeListeners();
 
@@ -148,6 +155,7 @@ export class SidenavComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.aiChat.showTabHandler = null;
     // Remove event listeners to prevent memory leaks
     if (this.mouseMoveListener) {
       document.removeEventListener("mousemove", this.mouseMoveListener);
@@ -220,6 +228,14 @@ export class SidenavComponent implements OnInit, OnDestroy {
       const index = this.changesTabIndex();
       if (index >= 0) this.selectedTabIndex = index;
     });
+
+    // «Analizza con MarkAgent» from the e2e dialog: the analysis is a conversation in the MarkAgent tab.
+    this.aiChat.showTabHandler = () => {
+      const index = this.markAgentTabIndex();
+      if (index < 0) return false;
+      this.selectedTabIndex = index;
+      return true;
+    };
 
     this.breakpointObserver.observe([`(max-width:${SMALL_WIDTH_BREAKPOINT}px)`])
       .subscribe((state: BreakpointState) => {

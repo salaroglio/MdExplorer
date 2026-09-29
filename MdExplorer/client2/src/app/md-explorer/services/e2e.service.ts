@@ -66,6 +66,8 @@ export interface E2eReplayResult {
   problem: string | null;
   needsRestore: boolean;
   commit: { committed: boolean; sha: string | null; message: string | null; reason: string | null } | null;
+  /** registro.T<n>.md in runFolder: network calls and console of each replayed test. */
+  logs: string[];
 }
 
 export interface E2ePrerequisites {
