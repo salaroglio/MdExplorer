@@ -39,5 +39,20 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
 
         /// <summary>MCP tools refused by the permission callback, as <c>server/tool</c> or just <c>tool</c>.</summary>
         public IReadOnlyList<string> DeniedMcpTools { get; init; } = Array.Empty<string>();
+
+        /// <summary>
+        /// No file may be written: a read-only session, whose changes go through a proposal the user confirms
+        /// (the diagram sessions, sprint 2026-09-29-Motore-LLM-Unico D8).
+        /// </summary>
+        public bool DenyWrite { get; init; }
+
+        /// <summary>Why the shell and the writes are refused, as the refusal tells the model; null = the e2e tests' reason.</summary>
+        public string DenyReason { get; init; }
+
+        /// <summary>
+        /// The conversation to resume when the session starts (a diagram session of a document the user comes back
+        /// to); null = a new one, or the one of the session being restarted.
+        /// </summary>
+        public string ResumeSessionId { get; init; }
     }
 }

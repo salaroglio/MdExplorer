@@ -42,6 +42,16 @@ namespace MdExplorer.Services.MarkDiagram
         /// <returns><c>false</c> se non c'è nessuna proposta in attesa.</returns>
         Task<bool> ApplyEditAsync(string connectionId, CancellationToken ct = default);
 
+        /// <summary>
+        /// «Nuova conversazione»: la conversazione del documento aperto si dimentica, la prossima domanda riparte
+        /// da capo (sprint 2026-09-29-Motore-LLM-Unico, D8).
+        /// </summary>
+        /// <returns><c>false</c> se per questa connessione non c'è nessuna conversazione.</returns>
+        Task<bool> NewConversationAsync(string connectionId);
+
+        /// <summary>La connessione è chiusa (app chiusa o ricaricata): le sue sessioni se ne vanno con lei.</summary>
+        Task ForgetConnectionAsync(string connectionId);
+
         /// <summary>Butta via la proposta senza applicarla.</summary>
         Task<bool> DiscardEditAsync(string connectionId);
     }

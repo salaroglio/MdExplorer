@@ -202,7 +202,7 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
             if (profile == null) return await GetOrCreateAsync(connectionId, workingDirectory, modelId, ct).ConfigureAwait(false);
             if (_transportSource.Current() != CopilotChatTransport.Sdk)
                 throw new InvalidOperationException(
-                    "I test e2e con Copilot richiedono il trasporto SDK: l'impostazione CopilotChatTransport è su ACP, che non sa aggiungere server MCP né negare la shell.");
+                    "Questa funzione con Copilot richiede il trasporto SDK: l'impostazione CopilotChatTransport è su ACP, che non sa aggiungere server MCP, negare la shell o la scrittura, né riprendere una conversazione.");
 
             if (_sessions.TryGetValue(connectionId, out var fast) && Matches(fast.Session, workingDirectory, modelId, CopilotChatTransport.Sdk)
                 && fast.Session.ProfileKey == profile.Key)
@@ -212,14 +212,15 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
             await gate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                string resume = null;
+                // A diagram session of a document the user comes back to resumes that document's conversation.
+                string resume = profile.ResumeSessionId;
                 if (_sessions.TryGetValue(connectionId, out var existing))
                 {
                     if (Matches(existing.Session, workingDirectory, modelId, CopilotChatTransport.Sdk) && existing.Session.ProfileKey == profile.Key)
                         return existing.Session;
                     if (existing.Session.Transport == CopilotChatTransport.Sdk && existing.Session.SessionId != null &&
                         string.Equals(existing.Session.WorkingDirectory, workingDirectory, StringComparison.OrdinalIgnoreCase))
-                        resume = existing.Session.SessionId;
+                        resume ??= existing.Session.SessionId;
                     _logger.LogInformation("[CopilotChatSessionPool] Configurazione dei test diversa per {ConnectionId}: riavvio {Resume}",
                         connectionId, resume != null ? "riprendendo la conversazione" : "da capo");
                     await ReleaseAsync(connectionId).ConfigureAwait(false);

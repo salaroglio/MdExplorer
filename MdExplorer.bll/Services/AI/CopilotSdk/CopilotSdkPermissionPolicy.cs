@@ -53,7 +53,10 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             {
                 if (profile.DenyShell && request is PermissionRequestShell shell)
                     return new Verdict(false, "eseguire: " + shell.FullCommandText,
-                        "durante i test e2e la shell è disattivata, per proteggere le credenziali");
+                        profile.DenyReason ?? "durante i test e2e la shell è disattivata, per proteggere le credenziali");
+                if (profile.DenyWrite && request is PermissionRequestWrite anyWrite)
+                    return new Verdict(false, "scrivere " + anyWrite.FileName,
+                        profile.DenyReason ?? "questa sessione è in sola lettura");
                 if (request is PermissionRequestRead read && IsDenied(read.Path, workingDirectory, profile))
                     return new Verdict(false, "leggere " + read.Path,
                         "è un file di credenziali: durante i test e2e le usa solo il server Playwright");

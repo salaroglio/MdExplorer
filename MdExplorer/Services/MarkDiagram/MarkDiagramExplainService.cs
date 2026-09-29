@@ -32,24 +32,23 @@ namespace MdExplorer.Services.MarkDiagram
 
         private readonly ILogger<MarkDiagramExplainService> _logger;
         private readonly IHubContext<MonitorMDHub> _hubContext;
-        private readonly IEnumerable<IAiProvider> _aiProviders;
+        private readonly MarkDiagramSessions _sessions;
         private readonly IServiceScopeFactory _scopeFactory;
 
         /// <summary>One explanation in flight per connection: a new box supersedes the old one.</summary>
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
 
         /// <summary>
-        /// Conversazione aperta per connessione: quale box, quale sessione del CLI.
-        /// Un box nuovo apre una sessione nuova — la spiegazione riparte da zero, come
-        /// deciso; le domande di seguito invece restano dentro quella sessione.
-        /// Volatile come il resto: chiuso il documento, non resta niente.
+        /// Conversazione aperta per connessione: quale box, di quale documento. La sessione del CLI è quella del
+        /// <b>documento</b> (<see cref="MarkDiagramSessions"/>, D8): box diversi dello stesso documento e le
+        /// domande di seguito si ricordano l'uno dell'altro.
         /// </summary>
         private readonly ConcurrentDictionary<string, DiagramConversation> _conversations = new();
 
         private sealed record DiagramConversation(
             MarkDiagramContextDto Context,
             string ProjectPath,
-            string SessionId);
+            string Document);
 
         /// <summary>
         /// Proposta di modifica in attesa di conferma, per connessione. Vive qui e non nel
@@ -62,12 +61,12 @@ namespace MdExplorer.Services.MarkDiagram
         public MarkDiagramExplainService(
             ILogger<MarkDiagramExplainService> logger,
             IHubContext<MonitorMDHub> hubContext,
-            IEnumerable<IAiProvider> aiProviders,
+            MarkDiagramSessions sessions,
             IServiceScopeFactory scopeFactory)
         {
             _logger = logger;
             _hubContext = hubContext;
-            _aiProviders = aiProviders;
+            _sessions = sessions;
             _scopeFactory = scopeFactory;
         }
 
@@ -89,9 +88,9 @@ namespace MdExplorer.Services.MarkDiagram
 
             var boxName = context?.Box?.Name;
 
-            // Sessione nuova per ogni box: le spiegazioni non si contaminano fra loro.
-            var sessionId = Guid.NewGuid().ToString();
-            _conversations[connectionId] = new DiagramConversation(context, projectPath, sessionId);
+            // La conversazione è quella del documento (D8): un box nuovo dello stesso documento continua lì.
+            var document = ResolveDocumentPath(context, projectPath) ?? context?.DocumentPath ?? string.Empty;
+            _conversations[connectionId] = new DiagramConversation(context, projectPath, document);
 
             // Una proposta lasciata in sospeso non deve sopravvivere: l'utente ha cambiato
             // box, quindi non e' piu' quella che gli era stata mostrata. Una conferma che
@@ -104,18 +103,14 @@ namespace MdExplorer.Services.MarkDiagram
 
                 await SendStatusAsync(connectionId, boxName, "Cerco il motore AI configurato...");
 
-                var provider = ResolveConfiguredProvider(projectPath, out var modelId, out var whyNot);
-                if (provider == null)
+                if (!TryResolveEngine(projectPath, out var engine, out var modelId, out var whyNot))
                 {
-                    // No silent fallback to "some other provider that happens to work":
-                    // the user configured a reference LLM, or did not. Say which.
+                    // No silent fallback to "some other engine that happens to work": say why.
                     await SendAsync(connectionId, new { phase = "error", box = boxName, message = whyNot });
                     return;
                 }
 
-                var engineLabel = string.IsNullOrWhiteSpace(modelId)
-                    ? provider.GetName()
-                    : $"{provider.GetName()} ({modelId})";
+                var engineLabel = EngineLabel(engine, modelId);
 
                 var documentName = System.IO.Path.GetFileName(context?.DocumentPath ?? string.Empty);
                 await SendStatusAsync(connectionId, boxName,
@@ -148,7 +143,7 @@ namespace MdExplorer.Services.MarkDiagram
                     $"({relationCount} relazioni, {documentText.Length / 1000} KB di documento)...");
 
                 var answer = new StringBuilder();
-                await foreach (var chunk in StreamAsync(provider, userPrompt, modelId, sessionId, cts.Token))
+                await foreach (var chunk in _sessions.AskAsync(connectionId, projectPath, document, engine, modelId, userPrompt, cts.Token))
                 {
                     if (cts.Token.IsCancellationRequested) return;
                     if (string.IsNullOrEmpty(chunk)) continue;
@@ -216,14 +211,13 @@ namespace MdExplorer.Services.MarkDiagram
                 await SendAsync(connectionId, new { phase = "start", box = boxName });
                 await SendStatusAsync(connectionId, boxName, "Riprendo il filo del discorso...");
 
-                var provider = ResolveConfiguredProvider(conversation.ProjectPath, out var modelId, out var whyNot);
-                if (provider == null)
+                if (!TryResolveEngine(conversation.ProjectPath, out var engine, out var modelId, out var whyNot))
                 {
                     await SendAsync(connectionId, new { phase = "error", box = boxName, message = whyNot });
                     return true;
                 }
 
-                var engineLabel = string.IsNullOrWhiteSpace(modelId) ? provider.GetName() : $"{provider.GetName()} ({modelId})";
+                var engineLabel = EngineLabel(engine, modelId);
                 await SendStatusAsync(connectionId, boxName, $"Chiedo a {engineLabel}...");
 
                 // Nella sessione il modello ha ancora davanti diagramma, documento e
@@ -238,7 +232,7 @@ namespace MdExplorer.Services.MarkDiagram
                     MarkDiagramPromptBuilder.BuildEditInstructions();
 
                 var answer = new StringBuilder();
-                await foreach (var chunk in StreamAsync(provider, followUpPrompt, modelId, conversation.SessionId, cts.Token))
+                await foreach (var chunk in _sessions.AskAsync(connectionId, conversation.ProjectPath, conversation.Document, engine, modelId, followUpPrompt, cts.Token))
                 {
                     if (cts.Token.IsCancellationRequested) return true;
                     if (string.IsNullOrEmpty(chunk)) continue;
@@ -299,32 +293,6 @@ namespace MdExplorer.Services.MarkDiagram
                     _running.TryRemove(connectionId, out _);
                 cts.Dispose();
             }
-        }
-
-        /// <summary>
-        /// Stream della risposta, dentro una sessione del CLI quando il provider ne ha una.
-        ///
-        /// <para>
-        /// Non tutti i provider hanno il concetto di sessione: Copilot CLI e Claude Code sì
-        /// (<c>--session-id</c>), le API di Gemini e OpenAI no. Dove manca, la domanda di
-        /// seguito parte comunque, ma <b>senza il filo del discorso</b> — e questo viene
-        /// scritto nel log, perché è una differenza che si sente nelle risposte e chi
-        /// legge un comportamento strano deve poterne trovare la ragione.
-        /// </para>
-        /// </summary>
-        private IAsyncEnumerable<string> StreamAsync(
-            IAiProvider provider, string prompt, string modelId, string sessionId, CancellationToken ct)
-        {
-            if (provider is CopilotCliProvider copilot && !string.IsNullOrWhiteSpace(sessionId))
-                return copilot.StreamChatInSessionAsync(prompt, modelId, sessionId, ct);
-
-            if (!string.IsNullOrWhiteSpace(sessionId))
-            {
-                _logger.LogInformation(
-                    "[MarkDiagram] Il provider '{Provider}' non ha sessioni: le domande di seguito " +
-                    "partiranno senza il filo del discorso precedente.", provider.GetName());
-            }
-            return provider.StreamChatAsync(prompt, modelId, ct);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -499,6 +467,25 @@ namespace MdExplorer.Services.MarkDiagram
             }
         }
 
+        public async Task<bool> NewConversationAsync(string connectionId)
+        {
+            _pendingEdits.TryRemove(connectionId, out _);
+            if (!_conversations.TryRemove(connectionId, out var conversation)) return false;
+            await _sessions.NewConversationAsync(connectionId, conversation.Document);
+            return true;
+        }
+
+        public async Task ForgetConnectionAsync(string connectionId)
+        {
+            if (_running.TryRemove(connectionId, out var running))
+            {
+                try { running.Cancel(); } catch { /* già finita */ }
+            }
+            _pendingEdits.TryRemove(connectionId, out _);
+            _conversations.TryRemove(connectionId, out _);
+            await _sessions.ForgetConnectionAsync(connectionId);
+        }
+
         public Task<bool> DiscardEditAsync(string connectionId)
             => Task.FromResult(_pendingEdits.TryRemove(connectionId, out _));
 
@@ -614,114 +601,44 @@ namespace MdExplorer.Services.MarkDiagram
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Returns the LLM the user actually chose, and only that one: the engine and the model of the
-        /// project (<c>Project.MarkAgentEngine</c>, NULL = the harness of the repository; the model chosen in
-        /// the MarkAgent tab), the same ones the tab uses. The global <c>AI_DefaultProvider</c> preference
-        /// no longer decides anything (sprint 2026-09-29-Motore-LLM-Unico, D1).
-        ///
-        /// La risoluzione del motore sta tutta in <c>MarkAgentEngines</c>, la stessa che usa
-        /// MdProjectsController: due posti non devono arbitrare diversamente.
-        ///
-        /// What this method still refuses to do is walk a chain of substitutes: if the
-        /// chosen engine is missing or unavailable, MarkAgent says so instead of answering
-        /// through a model the user never picked.
+        /// The engine and model of the project — the ones of the MarkAgent tab (sprint 2026-09-29-Motore-LLM-Unico,
+        /// D1) — and whether its CLI can be found. Never a substitute: if the chosen engine cannot run, say why.
         /// </summary>
-        private IAiProvider? ResolveConfiguredProvider(string projectPath, out string? modelId, out string? whyNot)
+        private bool TryResolveEngine(string projectPath, out MarkAgentEngine engine, out string? modelId, out string? whyNot)
         {
-            modelId = null;
+            (engine, modelId) = ReadProjectEngine(projectPath);
             whyNot = null;
-
-            var byKey = _aiProviders?
-                .Where(p => p != null)
-                .GroupBy(p => ProviderKey(p.GetProviderType()))
-                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
-
-            if (byKey == null || byKey.Count == 0)
+            var resolvable = engine switch
             {
-                whyNot = "Nessun provider AI risulta registrato in questa installazione.";
-                return null;
-            }
-
-            // La preferenza globale AI_DefaultProvider non decide più niente: motore e modello sono quelli
-            // del progetto, gli stessi del tab (sprint 2026-09-29-Motore-LLM-Unico, D1).
-            var (engine, projectModel) = ReadProjectEngine(projectPath);
-
-            if (engine == MarkAgentEngine.Claude)
+                MarkAgentEngine.Claude => MdExplorer.Features.Services.AI.ClaudeCode.ClaudeCodeProcessLauncher.IsResolvable(),
+                MarkAgentEngine.Copilot => MdExplorer.Features.Services.AI.CopilotAcp.CopilotProcessLauncher.IsResolvable(),
+                MarkAgentEngine.OpenCode => MdExplorer.Features.Services.AI.OpenCode.OpenCodeProcessLauncher.IsResolvable(),
+                _ => (bool?)null,
+            };
+            if (resolvable == null)
             {
-                if (!byKey.TryGetValue("claudecode", out var claude))
-                {
-                    whyNot = "Il progetto usa Claude Code, ma il provider non risulta registrato in questa installazione.";
-                    return null;
-                }
-                if (!IsUsable(claude, projectPath, out var whyClaude))
-                {
-                    whyNot = whyClaude;
-                    return null;
-                }
-                // Il modello del progetto (quello scelto nel tab), non uno scritto qui.
-                modelId = projectModel;
-                return claude;
+                whyNot = "Il progetto non ha un motore di MarkAgent: sceglilo nelle impostazioni del progetto.";
+                return false;
             }
-
-            if (engine == MarkAgentEngine.OpenCode)
+            if (resolvable == false)
             {
-                // Motore scelto, canale non ancora scritto (fase F4 dello sprint). Si dice, invece
-                // di rispondere in silenzio con un altro CLI che l'utente non ha scelto.
-                whyNot = "Il progetto usa opencode come motore, che «spiega il diagramma» non sa ancora pilotare.";
-                return null;
+                whyNot = $"Il motore del progetto ({MarkAgentEngines.CommandOf(engine)}) non si trova nel PATH del servizio: " +
+                         "se l'hai installato con nvm, avvia MdExplorer da una shell che carica nvm.";
+                return false;
             }
-
-            if (engine == MarkAgentEngine.Copilot && byKey.TryGetValue("copilotcli", out var copilot))
-            {
-                if (IsUsable(copilot, projectPath, out var whyCopilot))
-                {
-                    // Il modello di Copilot scelto nel tab per questo progetto; null = il flag --model
-                    // viene omesso e sceglie il CLI. Nessuna costante qui: quali modelli esistano è una
-                    // proprietà DELL'INSTALLAZIONE (verificato il 04/09/2026 con Copilot CLI 1.0.82:
-                    // claude-sonnet-5, gpt-5 e claude-haiku-4.5 rifiutati, passa solo 'auto').
-                    modelId = projectModel;
-                    return copilot;
-                }
-                // Il progetto ha scelto Copilot CLI ma non è utilizzabile: dire perché è
-                // più utile del generico "nessun LLM configurato".
-                whyNot = whyCopilot;
-                return null;
-            }
-
-            whyNot = "Non ho un LLM di riferimento configurato. Impostalo nelle preferenze AI, "
-                   + "oppure scegli un ambiente agentico nelle impostazioni del progetto.";
-            return null;
+            return true;
         }
 
-        /// <summary>
-        /// Availability check. The CLI providers answer differently depending on the
-        /// directory they run in, so the project path is handed to them first — the same
-        /// thing MdProjectsController does when the project is opened.
-        /// </summary>
-        private bool IsUsable(IAiProvider provider, string projectPath, out string? whyNot)
+        private static string EngineLabel(MarkAgentEngine engine, string? modelId)
         {
-            whyNot = null;
-            var key = ProviderKey(provider.GetProviderType());
-            try
+            var name = engine switch
             {
-                if (!string.IsNullOrWhiteSpace(projectPath))
-                {
-                    if (provider is CopilotCliProvider copilot) copilot.WorkingDirectory = projectPath;
-                    else if (provider is ClaudeCodeProvider claude) claude.WorkingDirectory = projectPath;
-                }
-
-                if (provider.IsAvailable()) return true;
-
-                whyNot = $"Il motore configurato ('{key}') non è al momento disponibile su questa macchina: " +
-                         "il suo CLI non è nel PATH del servizio (se l'hai installato con nvm, avvia MdExplorer da una shell che carica nvm).";
-                return false;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[MarkDiagram] Availability check failed for '{Key}'", key);
-                whyNot = $"Non riesco a contattare il motore configurato ('{key}'): {ex.Message}";
-                return false;
-            }
+                MarkAgentEngine.Claude => "Claude Code",
+                MarkAgentEngine.Copilot => "Copilot",
+                MarkAgentEngine.OpenCode => "opencode",
+                _ => engine.ToString(),
+            };
+            return string.IsNullOrWhiteSpace(modelId) ? name : $"{name} ({modelId})";
         }
 
         /// <summary>
@@ -760,16 +677,6 @@ namespace MdExplorer.Services.MarkDiagram
                 return (MarkAgentEngine.None, null);
             }
         }
-
-        private static string ProviderKey(ProviderType type) => type switch
-        {
-            ProviderType.CopilotCli => "copilotcli",
-            ProviderType.Gemini => "gemini",
-            ProviderType.OpenAI => "openai",
-            ProviderType.Local => "local",
-            _ => type.ToString().ToLowerInvariant()
-        };
-
 
         /// <summary>
         /// Racconta all'utente cosa sta succedendo mentre aspetta.

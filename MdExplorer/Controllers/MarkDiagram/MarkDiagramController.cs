@@ -138,6 +138,20 @@ namespace MdExplorer.Controllers.MarkDiagram
             return Ok(new { started = true });
         }
 
+        /// <summary>
+        /// «Nuova conversazione» nella finestrella di Mark: la conversazione del documento aperto si dimentica
+        /// (sprint 2026-09-29-Motore-LLM-Unico, D8).
+        /// </summary>
+        [HttpPost("new-conversation")]
+        public async Task<IActionResult> NewConversation([FromBody] MarkDiagramApplyRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.ConnectionId))
+                return BadRequest("connectionId is required");
+
+            var reset = await _explainService.NewConversationAsync(request.ConnectionId);
+            return Ok(new { reset });
+        }
+
         [HttpPost("discard-edit")]
         public async Task<IActionResult> DiscardEdit([FromBody] MarkDiagramApplyRequest request)
         {
