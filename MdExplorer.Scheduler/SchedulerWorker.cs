@@ -9,25 +9,17 @@ namespace MdExplorer.Scheduler;
 /// The scheduling loop: every 30 s reload the enabled+trusted cron schedules from the
 /// user DB (polling, NOT an FSW on the DB file — watching the -wal is hopelessly noisy
 /// and misses checkpointed writes; 30 s of pickup latency is irrelevant for cron
-/// granularity), compute the next occurrence with Cronos, fire what is due.
-/// Composition contract: the stored PreparedPrompt is READY TO RUN (parameters already
-/// substituted and the params block stripped by the Service at save time) — the final
-/// prompt is just agent-file content + separator + prepared prompt, mirror of
-/// AgentPromptComposer.ComposeRunPrompt in MdExplorer.bll.
+/// granularity), compute the next occurrence with Cronos, hand what is due to the Service
+/// (<see cref="ServiceClient"/>, D13 of sprint 2026-09-29-Motore-LLM-Unico): the Service composes
+/// the prompt and runs the agent on the engine of its card or of the project.
 /// </summary>
 public class SchedulerWorker : BackgroundService
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(30);
 
-    // Mirror of AgentPromptComposer.TemplateBlockRegex (MdExplorer.bll): the
-    // machine-managed shared-prompt-template section, stripped before a scheduled run.
-    private static readonly System.Text.RegularExpressions.Regex PromptTemplateBlockRegex = new(
-        @"\r?\n*[\t ]*<!-- mde:prompt-template:start -->.*?<!-- mde:prompt-template:end -->[\t ]*(?:\r?\n|$)",
-        System.Text.RegularExpressions.RegexOptions.Compiled | System.Text.RegularExpressions.RegexOptions.Singleline);
-
     private readonly ILogger<SchedulerWorker> _logger;
     private readonly SchedulerDb _db;
-    private readonly CopilotRunner _runner;
+    private readonly ServiceClient _service;
 
     // scheduleId → next planned occurrence (UTC). Rebuilt on every poll from the DB;
     // an entry only survives a rebuild with its firing time intact so edits reschedule.
@@ -37,11 +29,11 @@ public class SchedulerWorker : BackgroundService
     // Guard against overlapping runs of the same schedule (a run may outlast a tick).
     private readonly ConcurrentDictionary<Guid, Task> _runningJobs = new();
 
-    public SchedulerWorker(ILogger<SchedulerWorker> logger, SchedulerDb db, CopilotRunner runner)
+    public SchedulerWorker(ILogger<SchedulerWorker> logger, SchedulerDb db, ServiceClient service)
     {
         _logger = logger;
         _db = db;
-        _runner = runner;
+        _service = service;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -160,73 +152,37 @@ public class SchedulerWorker : BackgroundService
             return;
         }
 
-        Guid logId;
+        // D13 (sprint 2026-09-29-Motore-LLM-Unico): the Service runs it, with the engine of the card or of the
+        // project, and writes the execution log — the Scheduler writes nothing while the Service holds the DB.
+        FireResult result;
         try
         {
-            logId = _db.InsertRunningLog(schedule);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "[Scheduler] Could not insert log row for '{Name}' — skipping firing", schedule.Name);
-            return;
-        }
-
-        try
-        {
-            string status;
-            string? outputTail = null;
-            string? error = null;
-
-            if (!_runner.IsCopilotAvailable())
-            {
-                // Transient environment issue (unlike orphan paths): the run fails but
-                // the schedule stays enabled.
-                status = "error";
-                error = "Copilot CLI is not installed or not on PATH";
-                _logger.LogError("[Scheduler] {Error}", error);
-            }
-            else
-            {
-                var agentContent = await File.ReadAllTextAsync(schedule.AgentFilePath, ct);
-                if (string.IsNullOrWhiteSpace(agentContent))
-                {
-                    status = "error";
-                    error = $"Agent file is empty: {schedule.AgentFilePath}";
-                }
-                else
-                {
-                    // Mirror of AgentPromptComposer.ComposeRunPrompt (MdExplorer.bll):
-                    // strip the machine-managed prompt-template section (dialog metadata,
-                    // not a runtime instruction) before composing the run prompt.
-                    //
-                    // DIVERGENZA CONSAPEVOLE (§6 città degli agenti): il Service inietta qui
-                    // anche la "rubrica" dei colleghi trusted (parametro roster di
-                    // ComposeRunPrompt). Il satellite NON la inietta di proposito: vive in
-                    // un processo separato senza AgentRegistryService, e il trigger cron non
-                    // è una conversazione tra agenti (la rubrica serve al risveglio da
-                    // messaggio, Fase 3). Un run schedulato resta agente + task, senza rubrica.
-                    var body = PromptTemplateBlockRegex.Replace(agentContent, string.Empty);
-                    var composed = body.TrimEnd() + "\n\n---\n\n# Task\n\n" + schedule.PreparedPrompt.Trim() + "\n";
-                    var result = await _runner.RunAsync(composed, schedule.ProjectPath, ct);
-                    status = result.Status;
-                    outputTail = result.OutputTail;
-                    error = result.Error;
-                }
-            }
-
-            _db.CompleteLog(logId, status, outputTail, error);
-            _db.UpdateScheduleLastRun(schedule.Id, status, error);
-            _logger.LogInformation("[Scheduler] '{Name}' finished: {Status}", schedule.Name, status);
+            result = await _service.FireAsync(schedule.Id, ct);
         }
         catch (OperationCanceledException)
         {
-            TryComplete(logId, "cancelled", null, "Scheduler shutting down");
+            return;
         }
-        catch (Exception ex)
+
+        switch (result.Outcome)
         {
-            _logger.LogError(ex, "[Scheduler] Run of '{Name}' crashed", schedule.Name);
-            TryComplete(logId, "error", null, ex.Message);
-            try { _db.UpdateScheduleLastRun(schedule.Id, "error", ex.Message); } catch { /* best effort */ }
+            case FireOutcome.Delegated:
+                _logger.LogInformation("[Scheduler] '{Name}' handed to the Service: {Detail}", schedule.Name, result.Detail);
+                break;
+            case FireOutcome.Busy:
+                _logger.LogWarning("[Scheduler] '{Name}' skipped: the agent is already running ({Detail})", schedule.Name, result.Detail);
+                break;
+            case FireOutcome.Refused:
+                _logger.LogError("[Scheduler] '{Name}' refused by the Service: {Detail}", schedule.Name, result.Detail);
+                break;
+            case FireOutcome.ServiceOff:
+                // No fallback on a local engine: the run is skipped, and it says so in the history.
+                var reason = $"MdExplorer non era in esecuzione: esecuzione saltata ({result.Detail}). " +
+                             "Le pianificazioni partono tramite MdExplorer, con il motore della scheda o del progetto.";
+                _logger.LogWarning("[Scheduler] '{Name}': {Reason}", schedule.Name, reason);
+                TryLogInstant(schedule, "skipped", reason);
+                try { _db.UpdateScheduleLastRun(schedule.Id, "skipped", reason); } catch (Exception ex) { _logger.LogWarning(ex, "[Scheduler] Could not update last run"); }
+                break;
         }
     }
 
@@ -238,22 +194,18 @@ public class SchedulerWorker : BackgroundService
         _knownCronExpression.Remove(scheduleId);
     }
 
-    private void TryLogInstantError(ScheduleRow schedule, string error)
+    private void TryLogInstantError(ScheduleRow schedule, string error) => TryLogInstant(schedule, "error", error);
+
+    private void TryLogInstant(ScheduleRow schedule, string status, string error)
     {
         try
         {
             var logId = _db.InsertRunningLog(schedule);
-            _db.CompleteLog(logId, "error", null, error);
+            _db.CompleteLog(logId, status, null, error);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "[Scheduler] Could not write orphan error log row");
         }
-    }
-
-    private void TryComplete(Guid logId, string status, string? output, string? error)
-    {
-        try { _db.CompleteLog(logId, status, output, error); }
-        catch (Exception ex) { _logger.LogWarning(ex, "[Scheduler] Could not complete log row"); }
     }
 }

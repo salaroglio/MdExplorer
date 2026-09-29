@@ -203,7 +203,12 @@ namespace MdExplorer
             // Seam provider-agnostico del run LLM headless (§7) + risveglio da messaggio (R1+R2):
             // il runner reale lancia Copilot; il waker conia il RunToken, compone il prompt di
             // risveglio (messaggio come DATO fra delimitatori) e revoca il token a fine run.
-            services.AddSingleton<MdExplorer.Features.Agents.IAgentTurnRunner, Services.AgentRun.CopilotTurnRunner>();
+            // Sprint 2026-09-29-Motore-LLM-Unico, F5: the engine of an agent's turn is the card's or the dialog's,
+            // otherwise the project's; one runner per engine, chosen by EngineTurnRunner.
+            services.AddSingleton<Services.AgentRun.CopilotTurnRunner>();
+            services.AddSingleton<Services.AgentRun.ClaudeCodeTurnRunner>();
+            services.AddSingleton<Services.AgentRun.OpenCodeTurnRunner>();
+            services.AddSingleton<MdExplorer.Features.Agents.IAgentTurnRunner, Services.AgentRun.EngineTurnRunner>();
             // Ponte verso il nostro stesso server MCP: i tool della citta' arrivano da li',
             // filtrati dal catalogo (manifesto tools: x trust). Una sola definizione, quella
             // che serve anche Copilot.

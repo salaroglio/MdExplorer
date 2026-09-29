@@ -4,8 +4,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MdExplorer.Scheduler — lightweight satellite that fires the TEMPORAL (cron)
-// triggers of *.agent.md schedules while the full MdExplorer Service may be off.
+// MdExplorer.Scheduler — lightweight satellite that watches the TEMPORAL (cron)
+// triggers of *.agent.md schedules and hands each due run to the MdExplorer Service,
+// which runs it on the engine of the card or of the project (D13 of sprint
+// 2026-09-29-Motore-LLM-Unico). With the Service off, the run is skipped and logged.
 // Event triggers (commit / projectOpen) belong to the Service, never here —
 // that split is what prevents double execution.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,7 +38,7 @@ builder.Logging.AddSimpleConsole(o =>
     o.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
 });
 builder.Services.AddSingleton<SchedulerDb>();
-builder.Services.AddSingleton<CopilotRunner>();
+builder.Services.AddSingleton<ServiceClient>();
 builder.Services.AddHostedService<SchedulerWorker>();
 
 // Diagnostic pidfile next to the DB (the mutex is the real guard).

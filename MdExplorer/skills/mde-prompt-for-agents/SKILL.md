@@ -3,7 +3,7 @@ name: mde-prompt-for-agents
 description: Rewrite a free-text agent launch prompt into MdExplorer's normalized agent-prompt convention. The normalized prompt declares every input/output file as a parameter that MdExplorer can detect, so the user gets file-picker buttons in the Agent Launch dialog and the agent can later run unattended (scheduled) with those values substituted.
 mde:
   origin: mdexplorer
-  version: 1
+  version: 2
   updatePolicy: replace
 ---
 
@@ -80,6 +80,26 @@ The rewritten `## Task` must survive unattended execution:
   project is fine.
 - If a precondition fails (an input file is missing or empty), the agent must write the error into
   the output file rather than stopping silently.
+
+## Which engine runs the agent (not part of the prompt)
+
+The engine is **not** written in the launch prompt. MdExplorer chooses it, in this order:
+
+1. The **Engine** selector of the Agent Launch dialog, for that single launch.
+2. The `runtime:` block in the front matter of the `.agent.md` file, outside `a2a:` and `tools:`:
+
+   ```yaml
+   runtime:
+     provider: claude      # claude | copilot | opencode
+     model: sonnet         # optional; opencode wants provider/model, e.g. opencode/big-pickle
+   ```
+
+3. The project's engine, the one selected in the MarkAgent tab.
+
+A model left empty means the project's model when the engine is the project's, otherwise the
+engine's default. An unknown engine fails the run and says so; MdExplorer never picks another one.
+Schedules and messages between agents use steps 2 and 3. Do not add engine or model lines to the
+rewritten prompt.
 
 ## Output contract (for you, the rewriter)
 

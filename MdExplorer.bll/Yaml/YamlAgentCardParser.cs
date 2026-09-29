@@ -72,9 +72,11 @@ namespace MdExplorer.Features.Yaml
             if (wrapper.A2a == null)
             {
                 // chiave a2a: presente ma vuota/null → cittadino dichiarato senza contenuto
+                // runtime: vale anche per un agente che non è un cittadino: lanciato a mano o da una
+                // pianificazione, gira sul motore che dichiara (sprint 2026-09-29-Motore-LLM-Unico, F5).
                 return declaresA2a
                     ? Invalid("Blocco 'a2a:' presente ma vuoto: manca 'name'.")
-                    : NotACitizen();
+                    : NotACitizen(wrapper.Runtime);
             }
 
             return Validate(wrapper.A2a, wrapper.Tools, wrapper.Runtime);
@@ -145,8 +147,8 @@ namespace MdExplorer.Features.Yaml
             return duplicates;
         }
 
-        private static AgentCardParseResult NotACitizen()
-            => new AgentCardParseResult { HasA2aBlock = false, IsValid = true };
+        private static AgentCardParseResult NotACitizen(AgentRuntimeDescriptor runtime = null)
+            => new AgentCardParseResult { HasA2aBlock = false, IsValid = true, Runtime = runtime };
 
         private static AgentCardParseResult Invalid(string reason)
             => new AgentCardParseResult { HasA2aBlock = true, IsValid = false, RegistrationError = reason };

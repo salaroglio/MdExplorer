@@ -101,6 +101,24 @@
 <!-- DOVE lavora l'agente in questo lancio. Il default lo da' l'impostazione del progetto,
      ma i due gesti sono diversi: un ritocco veloce lo vuoi qui sotto gli occhi, un lavoro
      vero lo vuoi isolato — altrimenti finisce mescolato al tuo, sul tuo ramo. -->
+<!-- CON CHE MOTORE gira l'agente in questo lancio (D3/D12): parte dalla scheda o dal progetto, vince la scelta fatta qui. -->
+<div class="engine-choice">
+  <label class="engine-label" for="agent-engine">{{ 'AGENT_LAUNCH.ENGINE' | translate }}</label>
+  <div class="engine-line">
+    <mat-button-toggle-group id="agent-engine" [value]="engineChoice" [disabled]="isLaunching"
+                             (change)="chooseEngine($event.value)">
+      <mat-button-toggle *ngFor="let e of engines" [value]="e.id">{{ e.label }}</mat-button-toggle>
+    </mat-button-toggle-group>
+  </div>
+  <p class="engine-hint">{{ engineSource }}</p>
+  <label class="engine-label engine-model-label" for="agent-model">{{ 'AGENT_LAUNCH.MODEL' | translate }}</label>
+  <input id="agent-model" class="engine-model" [(ngModel)]="modelText" [disabled]="isLaunching || !engineChoice"
+         [placeholder]="'AGENT_LAUNCH.MODEL_PLACEHOLDER' | translate">
+  <p class="engine-hint engine-warning" *ngIf="engineInfo?.card && !engineInfo?.card?.valid">
+    {{ 'AGENT_LAUNCH.ENGINE_CARD_INVALID' | translate: { provider: engineInfo?.card?.provider } }}
+  </p>
+</div>
+
 <div class="isolation-choice" *ngIf="canIsolate">
   <mat-checkbox [(ngModel)]="useWorktree" [disabled]="isLaunching">
     {{ 'AGENT_LAUNCH.ISOLATE' | translate }}

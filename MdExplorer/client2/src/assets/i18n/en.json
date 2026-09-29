@@ -1631,7 +1631,15 @@
     "SAVE_SCHEDULE_TOOLTIP": "Save and open the scheduling dialog (time-based run)",
     "ISOLATE": "Work in an isolated workplace",
     "ISOLATE_ON": "The agent works on its own branch, in a copy of the project: it signs its own commit and asks your permission to merge. Your work is untouched.",
-    "ISOLATE_OFF": "The agent writes here, on your branch: you see the result straight away, but its changes mix with yours and you sign them when you commit."
+    "ISOLATE_OFF": "The agent writes here, on your branch: you see the result straight away, but its changes mix with yours and you sign them when you commit.",
+    "ENGINE": "Engine",
+    "MODEL": "Model",
+    "MODEL_PLACEHOLDER": "engine's default model",
+    "ENGINE_FROM_CARD": "From the agent's card (runtime:). You can change it for this launch.",
+    "ENGINE_FROM_PROJECT": "The project's engine, the MarkAgent tab's. You can change it for this launch.",
+    "ENGINE_CHOSEN": "Chosen for this launch: the card and the project stay as they are.",
+    "ENGINE_NONE": "The project has no engine and the card declares none: choose one.",
+    "ENGINE_CARD_INVALID": "The card declares an unknown engine (“{{provider}}”): fix runtime.provider (claude, copilot, opencode)."
   },
   "AGENT_SCHEDULE": {
     "TITLE": "Agent scheduling",

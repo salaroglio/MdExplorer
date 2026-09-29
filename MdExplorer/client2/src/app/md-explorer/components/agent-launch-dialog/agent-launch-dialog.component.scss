@@ -160,3 +160,46 @@ h2[mat-dialog-title] {
     line-height: 1.35;
   }
 }
+
+// Motore di questo lancio (sprint 2026-09-29-Motore-LLM-Unico, D12).
+.engine-choice {
+  padding: 0 24px 8px;
+
+  .engine-label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .engine-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .engine-model-label {
+    margin-top: 8px;
+  }
+
+  .engine-model {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--mde-border, #ccc);
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+  }
+
+  .engine-hint {
+    margin: 4px 0 0;
+    font-size: 12px;
+    opacity: 0.75;
+  }
+
+  .engine-warning {
+    color: var(--mde-warn, #e53935);
+    opacity: 1;
+  }
+}

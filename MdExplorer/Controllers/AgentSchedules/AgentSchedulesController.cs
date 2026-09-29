@@ -23,10 +23,63 @@ namespace MdExplorer.Controllers.AgentSchedules
         private readonly IUserSettingsDB _session;
         private readonly ILogger<AgentSchedulesController> _logger;
 
-        public AgentSchedulesController(IUserSettingsDB session, ILogger<AgentSchedulesController> logger)
+        private readonly MdExplorer.Services.AgentRun.IAgentRunJobService _agentRunJobService;
+
+        public AgentSchedulesController(IUserSettingsDB session, MdExplorer.Services.AgentRun.IAgentRunJobService agentRunJobService,
+            ILogger<AgentSchedulesController> logger)
         {
             _session = session;
+            _agentRunJobService = agentRunJobService;
             _logger = logger;
+        }
+
+        /// <summary>
+        /// A cron schedule that came due, handed over by the satellite Scheduler (sprint 2026-09-29-Motore-LLM-Unico,
+        /// D13): the Service runs it as a manual launch runs — the engine of the card or of the project, RunToken,
+        /// worktree, git identity — and writes its execution log. Only enabled, trusted cron schedules. 409 when the
+        /// agent is already running: the Scheduler records the firing as skipped.
+        /// </summary>
+        [HttpPost("{id}/fire")]
+        public IActionResult Fire(Guid id)
+        {
+            AgentSchedule schedule;
+            _session.BeginTransaction();
+            try
+            {
+                schedule = _session.GetDal<AgentSchedule>().GetList().ToList().FirstOrDefault(s => s.Id == id);
+            }
+            finally
+            {
+                _session.Commit();
+            }
+            if (schedule == null)
+                return NotFound(new { error = $"Schedule not found: {id}" });
+            if (schedule.TriggerType != "cron" || !schedule.Enabled || !schedule.Trusted)
+                return BadRequest(new { error = $"La pianificazione '{schedule.Name}' non è una pianificazione cron attiva e fidata." });
+
+            var runRequest = new MdExplorer.Services.AgentRun.AgentRunRequestModel
+            {
+                ProjectPath = schedule.ProjectPath,
+                AgentFilePath = schedule.AgentFilePath,
+                PreparedPrompt = schedule.PreparedPrompt,
+                TriggerSource = "cron",
+                ScheduleId = schedule.Id,
+            };
+            try
+            {
+                // Fire-and-forget: the job service logs the run and updates the schedule's last run.
+                _ = _agentRunJobService.RunAsync(runRequest);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { error = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+            _logger.LogInformation("[AgentSchedules] '{Name}': esecuzione cron ricevuta dallo Scheduler, runId={RunId}", schedule.Name, runRequest.RunId);
+            return Accepted(new { runId = runRequest.RunId });
         }
 
         [HttpGet]
@@ -182,7 +235,8 @@ namespace MdExplorer.Controllers.AgentSchedules
                         finishedAt = l.FinishedAt,
                         status = l.Status,
                         outputSummary = l.OutputSummary,
-                        error = l.Error
+                        error = l.Error,
+                        engine = l.Engine
                     })
                     .ToList();
                 return Ok(new { executions });

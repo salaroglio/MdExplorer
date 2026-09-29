@@ -186,6 +186,13 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         /// </summary>
         public string ProfileKey { get; init; }
 
+        /// <summary>
+        /// Variabili d'ambiente in più per il processo del CLI (e quindi per la shell e i server MCP che lancia):
+        /// è il canale del RunToken e dell'identità git di un agente (sprint 2026-09-29-Motore-LLM-Unico, F5).
+        /// Null per una chat.
+        /// </summary>
+        public IReadOnlyDictionary<string, string> Environment { get; init; }
+
         public static readonly ClaudeCodeSessionOptions Default = new ClaudeCodeSessionOptions();
 
         /// <summary>Le stesse opzioni, riprendendo la conversazione <paramref name="sessionId"/>.</summary>
@@ -199,6 +206,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             DisallowedTools = DisallowedTools,
             AllowedTools = AllowedTools,
             ProfileKey = ProfileKey,
+            Environment = Environment,
         };
     }
 }

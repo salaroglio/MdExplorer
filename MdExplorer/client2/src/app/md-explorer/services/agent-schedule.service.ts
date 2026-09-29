@@ -45,6 +45,8 @@ export interface AgentExecution {
   status: string;
   outputSummary?: string;
   error?: string;
+  /** Engine and model the run used ("Claude Code (sonnet)"); absent for older rows. */
+  engine?: string;
 }
 
 /** HTTP client for per-user *.agent.md schedules (UserDB) and their execution history. */

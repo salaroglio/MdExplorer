@@ -606,8 +606,13 @@ Always provide clear, concise, and well-formatted responses using proper markdow
             }
             else
             {
+                // `--prompt=<testo>`, attaccato, e non `-p <testo>`: un prompt che comincia con '-'
+                // — ogni scheda di agente, che si apre col `---` del front matter — preso come
+                // argomento a sé viene letto dal CLI come un'opzione, e rifiutato con «Invalid
+                // command format … your prompt was not quoted». Misurato il 29/09/2026 su Copilot
+                // CLI 1.0.89: `-p "---\n…"` esce con 1, `--prompt="---\n…"` risponde.
                 var escapedPrompt = prompt.Replace("\"", "\\\"");
-                args.Append($"-p \"{escapedPrompt}\" ");
+                args.Append($"--prompt=\"{escapedPrompt}\" ");
             }
             args.Append("--no-color ");
             if (outputFormatJson)

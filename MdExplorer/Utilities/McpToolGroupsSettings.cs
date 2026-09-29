@@ -246,5 +246,18 @@ namespace MdExplorer.Utilities
             if (groups == null || groups.Count == 0) return null;
             return groups.Count == Catalog().Count ? null : string.Join(",", groups);
         }
+
+        /// <summary>
+        /// The <c>--groups</c> of an agent's turn: the project's, plus the agents' city (messages, interventions,
+        /// memory) — the tools a RunToken exists for. Without it, on a project that turned the group off for the
+        /// chat, an agent launched by hand did not see them (seen on 29/09/2026, sprint 2026-09-29-Motore-LLM-Unico).
+        /// Null stays null: every group.
+        /// </summary>
+        public static string WithAgents(string groupsArgument)
+        {
+            if (string.IsNullOrWhiteSpace(groupsArgument)) return groupsArgument;
+            var groups = groupsArgument.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            return groups.Contains("agents", StringComparer.OrdinalIgnoreCase) ? groupsArgument : string.Join(",", groups.Append("agents"));
+        }
     }
 }

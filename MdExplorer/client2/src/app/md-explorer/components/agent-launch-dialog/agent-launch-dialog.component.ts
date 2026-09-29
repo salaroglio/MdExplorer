@@ -9,7 +9,7 @@ import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 
-import { AgentLaunchService, AgentParam } from '../../services/agent-launch.service';
+import { AgentEngineInfo, AgentLaunchService, AgentParam } from '../../services/agent-launch.service';
 import { ProjectSettingsService } from '../../../projects/services/project-settings.service';
 import { AgentScheduleService } from '../../services/agent-schedule.service';
 import { AgentQueue, AgentQueueService } from '../../services/agent-queue.service';
@@ -61,6 +61,19 @@ export class AgentLaunchDialogComponent implements OnInit {
   useWorktree = false;
   /** Senza git non ci sono rami né posti di lavoro: la spunta non ha nulla da offrire. */
   canIsolate = false;
+
+  /**
+   * Il motore di QUESTO lancio (sprint 2026-09-29-Motore-LLM-Unico, D3/D12): parte dal runtime: della
+   * scheda, altrimenti dal motore del progetto (quello del tab MarkAgent); la scelta fatta qui vince.
+   */
+  readonly engines = [
+    { id: 'claude', label: 'Claude Code' },
+    { id: 'copilot', label: 'Copilot' },
+    { id: 'opencode', label: 'opencode' },
+  ];
+  engineInfo: AgentEngineInfo | null = null;
+  engineChoice: string | null = null;
+  modelText = '';
   aiError: string | null = null;
 
   // Splits a normalized prompt at its `## Task` heading. Header = everything before it
@@ -90,6 +103,41 @@ export class AgentLaunchDialogComponent implements OnInit {
   ngOnInit(): void {
     this.loadQueue();
     this.loadIsolationDefault();
+    this.loadEngine();
+  }
+
+  private loadEngine(): void {
+    this.agentLaunchService.engineInfo(this.data.projectPath, this.data.agentFilePath).subscribe({
+      next: (info) => {
+        this.engineInfo = info;
+        this.engineChoice = info.card?.engine || info.project?.engine || null;
+        this.modelText = this.defaultModelFor(this.engineChoice);
+      },
+      // Senza l'informazione il lancio non passa un motore: decide il servizio (scheda, poi progetto).
+      error: () => { this.engineInfo = null; this.engineChoice = null; },
+    });
+  }
+
+  /** Il modello da cui parte un motore: quello della scheda se è il suo, quello del progetto se è il suo. */
+  private defaultModelFor(engine: string | null): string {
+    if (!engine || !this.engineInfo) return '';
+    if (this.engineInfo.card?.engine === engine && this.engineInfo.card.model) return this.engineInfo.card.model;
+    if (this.engineInfo.project?.engine === engine && this.engineInfo.project.model) return this.engineInfo.project.model;
+    return '';
+  }
+
+  chooseEngine(engine: string): void {
+    this.engineChoice = engine;
+    this.modelText = this.defaultModelFor(engine);
+  }
+
+  /** Da dove viene il motore scelto, per la riga sotto il selettore. */
+  get engineSource(): string {
+    if (!this.engineChoice) return this.translate.instant('AGENT_LAUNCH.ENGINE_NONE');
+    if (this.engineInfo?.card?.engine === this.engineChoice) return this.translate.instant('AGENT_LAUNCH.ENGINE_FROM_CARD');
+    if (!this.engineInfo?.card?.engine && this.engineInfo?.project?.engine === this.engineChoice)
+      return this.translate.instant('AGENT_LAUNCH.ENGINE_FROM_PROJECT');
+    return this.translate.instant('AGENT_LAUNCH.ENGINE_CHOSEN');
   }
 
   /**
@@ -343,7 +391,7 @@ export class AgentLaunchDialogComponent implements OnInit {
 
     this.agentLaunchService
       .launch(this.data.projectPath, this.data.agentFilePath, this.composeFull(), this.paramValues,
-              this.useWorktree)
+              this.useWorktree, this.engineChoice || undefined, this.modelText.trim() || undefined)
       .subscribe({
         next: (response) => {
           this.isLaunching = false;

@@ -802,6 +802,7 @@ namespace MdExplorer.Services.AgentRun
                     Status = outcome.Success ? "success" : "error",
                     OutputSummary = outcome.Success ? Truncate(outcome.Output) : null,
                     Error = outcome.Success ? null : outcome.Error,
+                    Engine = outcome.Engine,
                 });
                 db.Commit();
             }

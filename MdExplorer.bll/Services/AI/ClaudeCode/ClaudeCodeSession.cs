@@ -237,6 +237,10 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             psi.StandardErrorEncoding = Encoding.UTF8;
             // Senza, su Windows gli accenti del prompt arrivano al CLI come U+FFFD.
             psi.StandardInputEncoding = AiCliEncoding.PromptStdin;
+            if (_options.Environment != null)
+            {
+                foreach (var (key, value) in _options.Environment) psi.Environment[key] = value;
+            }
 
             if (!string.IsNullOrEmpty(_workingDirectory) && Directory.Exists(_workingDirectory))
             {

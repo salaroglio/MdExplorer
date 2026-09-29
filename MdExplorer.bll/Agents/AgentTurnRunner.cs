@@ -34,8 +34,8 @@ namespace MdExplorer.Features.Agents
         public bool Trusted { get; set; }
 
         /// <summary>
-        /// Provider e modello richiesti dal blocco <c>runtime:</c> della card. Vuoti = si usa il
-        /// predefinito. Se valorizzati e il runner non può soddisfarli, il turno deve
+        /// Provider e modello richiesti dal blocco <c>runtime:</c> della card, o scelti nella finestra di lancio
+        /// (D12 dello sprint 2026-09-29-Motore-LLM-Unico). Vuoti = motore e modello del progetto. Se valorizzati e il runner non può soddisfarli, il turno deve
         /// <b>fallire dicendolo</b>: mai ripiegare su un altro modello, perché un agente che
         /// gira su un motore diverso da quello dichiarato produce un lavoro che nessuno ha
         /// autorizzato e che sembra riuscito.
@@ -100,6 +100,16 @@ namespace MdExplorer.Features.Agents
         public string Diagnostic { get; init; }
 
         public bool IsSuccess => Outcome == AgentTurnOutcome.Completed;
+
+        /// <summary>
+        /// Engine and model the turn ran on, readable ("Claude Code (sonnet)"): set by the runner that chooses the
+        /// engine, written in the execution log. Null when the turn never got to choose one.
+        /// </summary>
+        public string Engine { get; init; }
+
+        /// <summary>The same result, saying which engine ran it.</summary>
+        public AgentTurnResult WithEngine(string engine)
+            => new() { Outcome = Outcome, Text = Text, Iterations = Iterations, Diagnostic = Diagnostic, Engine = engine };
 
         public static AgentTurnResult Completed(string text, int? iterations = null)
             => new() { Outcome = AgentTurnOutcome.Completed, Text = text, Iterations = iterations };

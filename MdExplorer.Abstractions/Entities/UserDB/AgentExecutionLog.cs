@@ -34,5 +34,8 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual string OutputSummary { get; set; }
 
         public virtual string Error { get; set; }
+
+        /// <summary>Engine and model the run used, readable ("Claude Code (sonnet)"); null before the choice.</summary>
+        public virtual string Engine { get; set; }
     }
 }

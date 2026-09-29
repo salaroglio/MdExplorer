@@ -93,6 +93,38 @@ namespace MdExplorer.Controllers.AI
             return Ok(new NormalizeAgentPromptResponse { Success = true, NormalizedPrompt = normalized, Parameters = ExtractParams(normalized) });
         }
 
+        /// <summary>
+        /// What the launch dialog's engine selector starts from (sprint 2026-09-29-Motore-LLM-Unico, D12): the card's
+        /// <c>runtime:</c> if it declares one, otherwise the project's engine (the MarkAgent tab's).
+        /// </summary>
+        [HttpGet("engine")]
+        public IActionResult Engine([FromQuery] string projectPath, [FromQuery] string agentFilePath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath) || string.IsNullOrWhiteSpace(agentFilePath) || !System.IO.File.Exists(agentFilePath))
+                return BadRequest(new { error = "projectPath e agentFilePath (esistente) sono obbligatori." });
+            var runtime = new MdExplorer.Features.Yaml.YamlAgentCardParser().GetDescriptor(System.IO.File.ReadAllText(agentFilePath)).Runtime;
+            var (engine, model) = MdExplorer.Service.ProjectsManager.ProjectEngine(_session, projectPath);
+            string cardEngine = null;
+            if (!string.IsNullOrWhiteSpace(runtime?.Provider)
+                && MdExplorer.Services.AgentRun.AgentEngineChoice.TryParseProvider(runtime.Provider, out var parsed))
+                cardEngine = MdExplorer.Utilities.MarkAgentEngines.IdOf(parsed);
+            return Ok(new
+            {
+                card = runtime == null || runtime.IsEmpty ? null : new
+                {
+                    provider = runtime.Provider,
+                    engine = cardEngine,
+                    model = runtime.Model,
+                    valid = string.IsNullOrWhiteSpace(runtime.Provider) || cardEngine != null,
+                },
+                project = new
+                {
+                    engine = engine == MdExplorer.Utilities.MarkAgentEngine.None ? null : MdExplorer.Utilities.MarkAgentEngines.IdOf(engine),
+                    model,
+                },
+            });
+        }
+
         [HttpPost("launch")]
         public IActionResult Launch([FromBody] LaunchAgentRequest request)
         {
@@ -117,6 +149,10 @@ namespace MdExplorer.Controllers.AI
                 });
             }
 
+            if (!string.IsNullOrWhiteSpace(request.Engine)
+                && !MdExplorer.Services.AgentRun.AgentEngineChoice.TryParseProvider(request.Engine, out _))
+                return BadRequest(new { success = false, error = $"Motore '{request.Engine}' sconosciuto: i valori ammessi sono claude, copilot, opencode." });
+
             var runRequest = new MdExplorer.Services.AgentRun.AgentRunRequestModel
             {
                 ProjectPath = request.ProjectPath,
@@ -125,6 +161,8 @@ namespace MdExplorer.Controllers.AI
                 TriggerSource = "manual",
                 ConnectionId = request.ConnectionId,
                 UseWorktree = request.UseWorktree,
+                Engine = request.Engine,
+                Model = request.Model,
             };
 
             try
@@ -387,6 +425,9 @@ namespace MdExplorer.Controllers.AI
         /// progetto, sul ramo dell'utente. Assente = come dice l'impostazione del progetto.
         /// </summary>
         public bool? UseWorktree { get; set; }
+        /// <summary>The engine chosen in the dialog (claude, copilot, opencode) and its model; absent = the card's, then the project's.</summary>
+        public string? Engine { get; set; }
+        public string? Model { get; set; }
     }
 
     public class AgentParamDto

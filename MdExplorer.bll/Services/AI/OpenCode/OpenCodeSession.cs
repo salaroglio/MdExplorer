@@ -301,7 +301,23 @@ namespace MdExplorer.Features.Services.AI.OpenCode
             if (root.TryGetProperty("info", out var info))
             {
                 LastTurnUsage = ReadUsage(info);
+                ThrowOnModelError(info);
             }
+        }
+
+        /// <summary>
+        /// A failed model call comes back as a 200 with <c>info.error</c> (a missing model, a refused key): without this
+        /// check it looked like an empty answer that went well. An abort is ours (Stop), not a failure.
+        /// </summary>
+        public static void ThrowOnModelError(JsonElement info)
+        {
+            if (!info.TryGetProperty("error", out var error) || error.ValueKind != JsonValueKind.Object) return;
+            var name = error.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String ? n.GetString() : "errore";
+            if (name == "MessageAbortedError") return;
+            var message = error.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object
+                          && data.TryGetProperty("message", out var m) && m.ValueKind == JsonValueKind.String
+                ? m.GetString() : error.GetRawText();
+            throw new InvalidOperationException($"opencode ha chiuso il turno in errore ({name}): {Truncate(message, 400)}");
         }
 
         private static OpenCodeTurnUsage ReadUsage(JsonElement info)

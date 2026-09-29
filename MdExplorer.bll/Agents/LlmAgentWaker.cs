@@ -66,11 +66,14 @@ namespace MdExplorer.Features.Agents
         /// <summary>Iterazioni di tool calling consumate, se il runner sa contarle.</summary>
         public int? Iterations { get; private set; }
 
-        public static LlmWakeOutcome Ok(string output, int? iterations = null)
-            => new LlmWakeOutcome { Success = true, Output = output, Outcome = AgentTurnOutcome.Completed, Iterations = iterations };
+        /// <summary>Engine and model the turn ran on ("Claude Code (sonnet)"), for the execution log.</summary>
+        public string Engine { get; private set; }
 
-        public static LlmWakeOutcome Fail(string error, AgentTurnOutcome outcome = AgentTurnOutcome.ProviderError, int? iterations = null)
-            => new LlmWakeOutcome { Success = false, Error = error, Outcome = outcome, Iterations = iterations };
+        public static LlmWakeOutcome Ok(string output, int? iterations = null, string engine = null)
+            => new LlmWakeOutcome { Success = true, Output = output, Outcome = AgentTurnOutcome.Completed, Iterations = iterations, Engine = engine };
+
+        public static LlmWakeOutcome Fail(string error, AgentTurnOutcome outcome = AgentTurnOutcome.ProviderError, int? iterations = null, string engine = null)
+            => new LlmWakeOutcome { Success = false, Error = error, Outcome = outcome, Iterations = iterations, Engine = engine };
     }
 
     public interface ILlmAgentWaker
@@ -168,10 +171,10 @@ namespace MdExplorer.Features.Agents
                 // Un turno può fallire SENZA sollevare (tetto di iterazioni, tool in errore):
                 // l'esito lo dice il runner, non l'assenza di eccezioni.
                 return result.IsSuccess
-                    ? LlmWakeOutcome.Ok(result.Text, result.Iterations)
+                    ? LlmWakeOutcome.Ok(result.Text, result.Iterations, result.Engine)
                     : LlmWakeOutcome.Fail(
                         result.Diagnostic ?? $"turno concluso come {result.Outcome}",
-                        result.Outcome, result.Iterations);
+                        result.Outcome, result.Iterations, result.Engine);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {

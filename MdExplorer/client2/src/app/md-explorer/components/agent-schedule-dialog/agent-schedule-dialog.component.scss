@@ -148,7 +148,7 @@ h2[mat-dialog-title] {
       font-weight: 600;
 
       &.status-success { color: #2e7d32; }
-      &.status-error, &.status-timeout { color: var(--mde-warn, #e53935); }
+      &.status-error, &.status-timeout, &.status-skipped { color: var(--mde-warn, #e53935); }
       &.status-running { color: var(--mde-icon-accent-blue); }
     }
 

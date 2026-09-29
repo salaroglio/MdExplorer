@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 namespace MdExplorer.Services.AgentRun
 {
     /// <summary>
-    /// Request to execute a <c>*.agent.md</c> agent headless (Copilot CLI) inside a project.
+    /// Request to execute a <c>*.agent.md</c> agent headless (Copilot CLI, Claude Code or opencode) inside a project.
     /// </summary>
     public class AgentRunRequestModel
     {
@@ -38,6 +38,14 @@ namespace MdExplorer.Services.AgentRun
         /// </para>
         /// </summary>
         public bool? UseWorktree { get; set; }
+
+        /// <summary>
+        /// The engine chosen in the launch dialog (<c>claude</c>, <c>copilot</c>, <c>opencode</c>) and its model: it wins
+        /// over the card's <c>runtime:</c> (sprint 2026-09-29-Motore-LLM-Unico, D12). Null = the card's, then the
+        /// project's.
+        /// </summary>
+        public string Engine { get; set; }
+        public string Model { get; set; }
     }
 
     /// <summary>

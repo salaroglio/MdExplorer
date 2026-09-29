@@ -106,7 +106,7 @@
       <div class="execution-row" *ngFor="let e of executions">
         <span class="exec-status" [ngClass]="'status-' + e.status">{{ e.status }}</span>
         <span class="exec-when">{{ e.startedAt | date:'short' }}</span>
-        <span class="exec-trigger">{{ e.triggerSource }} · {{ e.executedBy }}</span>
+        <span class="exec-trigger">{{ e.triggerSource }} · {{ e.executedBy }}<ng-container *ngIf="e.engine"> · {{ e.engine }}</ng-container></span>
         <span class="exec-error" *ngIf="e.error" [matTooltip]="e.error">{{ e.error }}</span>
       </div>
       <div *ngIf="executions.length === 0" class="no-executions">

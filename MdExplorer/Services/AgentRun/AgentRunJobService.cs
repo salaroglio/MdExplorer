@@ -319,11 +319,17 @@ namespace MdExplorer.Services.AgentRun
                 foreach (var kv in AgentGitIdentity.EnvFor(gitName))
                     env[kv.Key] = kv.Value;
 
+                // Il motore (sprint 2026-09-29-Motore-LLM-Unico, D3/D12): la scelta della finestra di lancio,
+                // altrimenti il runtime: della scheda, altrimenti — lo decide l'esecutore — quello del progetto.
+                var (provider, model) = RequestedEngine(request, agentContent);
+
                 AgentTurnResult turn;
                 try
                 {
                     turn = await _turnRunner.RunTurnAsync(new AgentTurnRequest
                     {
+                        RequestedProvider = provider,
+                        RequestedModel = model,
                         ComposedPrompt = composedPrompt,
                         AgentName = a2aName,
                         ProjectPath = request.ProjectPath,
@@ -354,7 +360,7 @@ namespace MdExplorer.Services.AgentRun
                     _logger.LogWarning(
                         "[AgentRun] FAILED agent='{Agent}' runId={RunId} outcome={Outcome}: {Why}",
                         agentName, request.RunId, turn.Outcome, why);
-                    CompleteLogRow(logId, request, "error", Tail(turn.Text), why);
+                    CompleteLogRow(logId, request, "error", Tail(turn.Text), why, turn.Engine);
                     await SendAsync(request, new
                     {
                         runId = request.RunId,
@@ -374,7 +380,7 @@ namespace MdExplorer.Services.AgentRun
                     "[AgentRun] COMPLETED agent='{Agent}' runId={RunId} outputChars={Chars}",
                     agentName, request.RunId, output?.Length ?? 0);
 
-                CompleteLogRow(logId, request, "success", Tail(output), null);
+                CompleteLogRow(logId, request, "success", Tail(output), null, turn.Engine);
                 await SendAsync(request, new
                 {
                     runId = request.RunId,
@@ -460,7 +466,19 @@ namespace MdExplorer.Services.AgentRun
             }
         }
 
-        private void CompleteLogRow(Guid? logId, AgentRunRequestModel request, string status, string outputSummary, string error)
+        /// <summary>
+        /// The engine asked for the run: the launch dialog's choice (D12: the user's choice wins), otherwise the card's
+        /// <c>runtime:</c>. Empty = the project's, resolved by the turn runner.
+        /// </summary>
+        public static (string Provider, string Model) RequestedEngine(AgentRunRequestModel request, string agentContent)
+        {
+            if (!string.IsNullOrWhiteSpace(request.Engine))
+                return (request.Engine.Trim(), string.IsNullOrWhiteSpace(request.Model) ? null : request.Model.Trim());
+            var runtime = new MdExplorer.Features.Yaml.YamlAgentCardParser().GetDescriptor(agentContent).Runtime;
+            return (runtime?.Provider, runtime?.Model);
+        }
+
+        private void CompleteLogRow(Guid? logId, AgentRunRequestModel request, string status, string outputSummary, string error, string engine = null)
         {
             try
             {
@@ -477,6 +495,7 @@ namespace MdExplorer.Services.AgentRun
                     row.Status = status;
                     row.OutputSummary = outputSummary;
                     row.Error = error;
+                    row.Engine = engine;
                     logDal.Save(row);
                 }
 

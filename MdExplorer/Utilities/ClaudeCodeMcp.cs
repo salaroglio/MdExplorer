@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -183,7 +184,7 @@ namespace MdExplorer.Utilities
         /// executable cannot be found and no Playwright server is asked.
         /// </summary>
         public static string WriteSessionConfig(string mcpGroupsArgument = null, Features.E2e.E2ePlaywrightServer playwright = null,
-            string nonce = null)
+            string nonce = null, IReadOnlyDictionary<string, string> mdexplorerEnvironment = null)
         {
             var mcpExecutable = ProjectsManager.ResolveMcpExecutable(AppDomain.CurrentDomain.BaseDirectory);
             if (mcpExecutable == null)
@@ -203,16 +204,18 @@ namespace MdExplorer.Utilities
                 return null;
             }
 
-            return WriteSessionConfig(mcpExecutable, Path.Combine(appData, "MdExplorer"), mcpGroupsArgument, playwright, nonce);
+            return WriteSessionConfig(mcpExecutable, Path.Combine(appData, "MdExplorer"), mcpGroupsArgument, playwright, nonce, mdexplorerEnvironment);
         }
 
         /// <summary>
         /// Writes <c>{ "mcpServers": { "mdexplorer": …, "playwright": … } }</c> in <paramref name="directory"/>;
         /// returns its path. Without Playwright the file is the one every chat shares; with it, the name
         /// comes from the content, so two sessions with different test settings never overwrite each other.
+        /// With <paramref name="mdexplorerEnvironment"/> (an agent's turn: its RunToken) the file is the turn's own,
+        /// named by <paramref name="nonce"/>, and the caller deletes it after the turn.
         /// </summary>
         public static string WriteSessionConfig(string mcpExecutable, string directory, string mcpGroupsArgument = null,
-            Features.E2e.E2ePlaywrightServer playwright = null, string nonce = null)
+            Features.E2e.E2ePlaywrightServer playwright = null, string nonce = null, IReadOnlyDictionary<string, string> mdexplorerEnvironment = null)
         {
             Directory.CreateDirectory(directory);
 
@@ -229,6 +232,12 @@ namespace MdExplorer.Utilities
                         ? new JsonArray()
                         : new JsonArray("--groups", mcpGroupsArgument),
                 };
+                if (mdexplorerEnvironment != null)
+                {
+                    var env = new JsonObject();
+                    foreach (var (key, value) in mdexplorerEnvironment) env[key] = value;
+                    servers[ServerName]["env"] = env;
+                }
             }
             if (playwright != null)
             {
@@ -244,7 +253,11 @@ namespace MdExplorer.Utilities
             }
 
             var json = new JsonObject { ["mcpServers"] = servers }.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
-            var fileName = playwright == null
+            if (mdexplorerEnvironment != null && string.IsNullOrWhiteSpace(nonce))
+                throw new ArgumentException("A configuration with an environment is a turn's own: it needs a nonce.", nameof(nonce));
+            var fileName = mdexplorerEnvironment != null
+                ? "claude-code-mcp-agent-" + nonce + ".json"
+                : playwright == null
                 ? SessionConfigFileName
                 : "claude-code-mcp-e2e-" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(json))).Substring(0, 12).ToLowerInvariant()
                   + (nonce == null ? "" : "-" + nonce) + ".json";
