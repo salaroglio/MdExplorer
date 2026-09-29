@@ -215,6 +215,8 @@ export class SidenavComponent implements OnInit, OnDestroy {
         this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
         this.router.navigate(['/projects']);
         this.projectService.currentProjects$.next(null);
+        // Nessun progetto aperto: il polling git non deve continuare sul path del progetto chiuso.
+        this.gitService.setProjectPath('');
       }
     });
   }
