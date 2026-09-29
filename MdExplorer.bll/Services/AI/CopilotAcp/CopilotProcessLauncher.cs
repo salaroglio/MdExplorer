@@ -40,16 +40,38 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
         /// answer to "is it installed?" — runtime startup time is a different concern.
         /// </para>
         /// </summary>
+        /// <summary>
+        /// On Linux and macOS the CLI installed with npm lives in npm's global folder, which is in the
+        /// PATH of an interactive shell (nvm adds it from .bashrc) but not necessarily in the PATH of a
+        /// service started otherwise: the message says so, since that is the usual cause.
+        /// </summary>
+        private const string PosixNotFound =
+            "Copilot CLI non trovato nel PATH del servizio. Installalo con 'npm install -g @github/copilot'; " +
+            "se è già installato (per esempio con nvm), avvia MdExplorer da una shell che abbia la cartella di npm nel PATH.";
+
+        /// <summary>The absolute path of "copilot" in the PATH (POSIX), or null.</summary>
+        private static string PosixPath()
+        {
+            var posixPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+            foreach (var raw in posixPath.Split(Path.PathSeparator))
+            {
+                if (string.IsNullOrWhiteSpace(raw)) continue;
+                string candidate;
+                try { candidate = Path.Combine(raw.Trim(), "copilot"); }
+                catch (ArgumentException) { continue; }
+                if (File.Exists(candidate)) return candidate;
+            }
+            return null;
+        }
+
         public static bool IsResolvable()
         {
             if (!OperatingSystem.IsWindows())
             {
-                // POSIX: rely on which-style probe? We don't have one here without spawn.
-                // For now assume non-Windows path resolution is handled by the shell at
-                // launch time. The bool answer for "is installed" returns true and lets
-                // the actual launcher fail later if absent. Refine if a Linux user reports
-                // a false positive.
-                return true;
+                // POSIX: a real look in the PATH. Answering «yes» blindly made the launch fail later
+                // with a bare «No such file or directory» (29/09/2026: service started without nvm's
+                // folder in its PATH, «spiega il diagramma» tried a copilot it could not find).
+                return PosixPath() != null;
             }
 
             var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
@@ -96,15 +118,7 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
                 // Si verifica che ci sia davvero, invece di restituirlo alla cieca: così
                 // l'errore dice "installalo" invece di un "No such file or directory" che
                 // costringe chi legge a indovinare di cosa si parla.
-                var posixPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-                foreach (var raw in posixPath.Split(Path.PathSeparator))
-                {
-                    if (string.IsNullOrWhiteSpace(raw)) continue;
-                    var candidate = Path.Combine(raw.Trim(), "copilot");
-                    if (File.Exists(candidate)) return (candidate, new List<string>());
-                }
-                throw new InvalidOperationException(
-                    "Copilot CLI non trovato nel PATH. Installalo con 'npm install -g @github/copilot'.");
+                return (PosixPath() ?? throw new InvalidOperationException(PosixNotFound), new List<string>());
             }
 
             string exeMatch = null, cmdMatch = null, ps1Match = null;
@@ -148,7 +162,12 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
         {
             if (!OperatingSystem.IsWindows())
             {
-                return new ProcessStartInfo { FileName = "copilot", Arguments = copilotArgs ?? string.Empty };
+                // The absolute path, found in the PATH: never a bare "copilot" for Process.Start to fail on.
+                return new ProcessStartInfo
+                {
+                    FileName = PosixPath() ?? throw new InvalidOperationException(PosixNotFound),
+                    Arguments = copilotArgs ?? string.Empty,
+                };
             }
 
             string exeMatch = null;

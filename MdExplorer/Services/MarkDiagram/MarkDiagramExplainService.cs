@@ -749,7 +749,8 @@ namespace MdExplorer.Services.MarkDiagram
 
                 if (provider.IsAvailable()) return true;
 
-                whyNot = $"Il motore configurato ('{key}') non è al momento disponibile su questa macchina.";
+                whyNot = $"Il motore configurato ('{key}') non è al momento disponibile su questa macchina: " +
+                         "il suo CLI non è nel PATH del servizio (se l'hai installato con nvm, avvia MdExplorer da una shell che carica nvm).";
                 return false;
             }
             catch (Exception ex)
