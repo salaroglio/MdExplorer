@@ -6789,7 +6789,6 @@ class UnifiedSettingsDialogComponent {
           this.gpuEnabled = response.gpuEnabled;
           this.gpuLayerCount = response.gpuLayerCount || 0;
         }
-        this.aiService.saveDefaultAiPreferences('local', model.id).subscribe();
         this.loadAiModels();
       },
       error: () => {
@@ -6883,7 +6882,6 @@ class UnifiedSettingsDialogComponent {
     this.selectedProvider = 'gemini';
     this.aiService.setProvider('gemini', modelId);
     this.aiService.notifyGeminiConnected(modelId);
-    this.aiService.saveDefaultAiPreferences('gemini', modelId).subscribe();
     this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.CONNECTED_GEMINI', {
       model: modelId
     }), '', {
@@ -6936,7 +6934,6 @@ class UnifiedSettingsDialogComponent {
     if (this.useGemini) this.disconnectGemini();
     this.aiService.setProvider('openai', modelId);
     this.aiService.notifyOpenAiConnected(modelId);
-    this.aiService.saveDefaultAiPreferences('openai', modelId).subscribe();
     this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.CONNECTED_OPENAI', {
       model: modelId
     }), '', {
@@ -15000,16 +14997,6 @@ class AiChatService {
   getGitAiStatus() {
     return this.http.get('/api/GitAi/ai-status');
   }
-  // AI Preferences methods
-  getDefaultAiPreferences() {
-    return this.http.get('/api/AiPreferences/default');
-  }
-  saveDefaultAiPreferences(provider, model) {
-    return this.http.post('/api/AiPreferences/default', {
-      provider,
-      model
-    });
-  }
   clearDefaultAiPreferences() {
     return this.http.delete('/api/AiPreferences/default');
   }
@@ -18034,8 +18021,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.29.3',
-  buildTime: '2026.09.29 09:22:05'
+  version: '2026.09.29.4',
+  buildTime: '2026.09.29 11:01:47'
 };
 
 /***/ }),
@@ -18069,4 +18056,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.0fa5039f79f8be1d.js.map
+//# sourceMappingURL=main.554ede04c66f6be8.js.map

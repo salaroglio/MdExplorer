@@ -93,6 +93,37 @@ namespace MdExplorer.Utilities
         /// Il valore salvato non è fra quelli ammessi. Non si indovina e non si torna a un default: un
         /// progetto con un motore illeggibile lo dice, con il valore trovato e quelli ammessi.
         /// </exception>
+        /// <summary>
+        /// Il modello di Claude Code quando il progetto non ne ha scelto uno: l'alias, non il nome pieno,
+        /// così punta sempre all'ultimo Sonnet e non invecchia. Un solo posto: prima era scritto a mano in
+        /// cinque punti (sprint 2026-09-29-Motore-LLM-Unico, D1).
+        /// </summary>
+        public const string ClaudeDefaultModel = "sonnet";
+
+        /// <summary>
+        /// Il modello predefinito di un motore. Copilot e opencode: <c>null</c>, lo sceglie il CLI o il
+        /// server, perché i modelli disponibili dipendono dall'installazione e un nome scritto qui sarebbe
+        /// sbagliato altrove.
+        /// </summary>
+        public static string DefaultModelOf(MarkAgentEngine engine) =>
+            engine == MarkAgentEngine.Claude ? ClaudeDefaultModel : null;
+
+        /// <summary>
+        /// Il modello del progetto per quel motore: quello scelto nel tab MarkAgent (salvato nel progetto),
+        /// altrimenti il predefinito del motore. È la stessa risposta per ogni punto d'accesso all'LLM (D1).
+        /// </summary>
+        public static string ModelOf(MdExplorer.Abstractions.Entities.UserDB.Project project, MarkAgentEngine engine)
+        {
+            var chosen = engine switch
+            {
+                MarkAgentEngine.Copilot => project?.CopilotChatModel,
+                MarkAgentEngine.Claude => project?.ClaudeCodeChatModel,
+                MarkAgentEngine.OpenCode => project?.OpenCodeChatModel,
+                _ => null,
+            };
+            return string.IsNullOrWhiteSpace(chosen) ? DefaultModelOf(engine) : chosen.Trim();
+        }
+
         public static MarkAgentEngine Resolve(string stored, string projectPath, out bool linked)
         {
             if (!string.IsNullOrWhiteSpace(stored))

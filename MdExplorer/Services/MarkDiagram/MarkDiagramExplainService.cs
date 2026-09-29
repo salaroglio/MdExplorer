@@ -29,8 +29,6 @@ namespace MdExplorer.Services.MarkDiagram
     public class MarkDiagramExplainService : IMarkDiagramExplainService
     {
         private const string StreamEvent = "markDiagramExplain";
-        private const string DefaultProviderKey = "AI_DefaultProvider";
-        private const string DefaultModelKey = "AI_DefaultModel";
 
         private readonly ILogger<MarkDiagramExplainService> _logger;
         private readonly IHubContext<MonitorMDHub> _hubContext;
@@ -616,21 +614,13 @@ namespace MdExplorer.Services.MarkDiagram
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Returns the LLM the user actually chose, and only that one.
+        /// Returns the LLM the user actually chose, and only that one: the engine and the model of the
+        /// project (<c>Project.MarkAgentEngine</c>, NULL = the harness of the repository; the model chosen in
+        /// the MarkAgent tab), the same ones the tab uses. The global <c>AI_DefaultProvider</c> preference
+        /// no longer decides anything (sprint 2026-09-29-Motore-LLM-Unico, D1).
         ///
-        /// MdExplorer expresses that choice in TWO independent places, and both count:
-        ///
-        ///   1. <c>Setting.AI_DefaultProvider</c> / <c>AI_DefaultModel</c> — global, set
-        ///      explicitly from the AI preferences. Wins when present.
-        ///   2. <c>Project.MarkAgentEngine</c> — il motore del progetto, che quando vale NULL
-        ///      è quello dell'ambiente agentico dichiarato dal repository.
-        ///
-        /// Leggere solo la prima era un bug: un progetto ha un motore anche senza che nessuno
-        /// abbia mai aperto le preferenze AI — e MarkAgent era l'unico posto a dire di no.
-        ///
-        /// La risoluzione del motore sta tutta in <c>MarkAgentEngines.Resolve</c>, la stessa che
-        /// usa MdProjectsController: due posti non devono arbitrare diversamente. Prima erano due
-        /// booleani con la regola «accesi entrambi → vince Claude» ricopiata qui.
+        /// La risoluzione del motore sta tutta in <c>MarkAgentEngines</c>, la stessa che usa
+        /// MdProjectsController: due posti non devono arbitrare diversamente.
         ///
         /// What this method still refuses to do is walk a chain of substitutes: if the
         /// chosen engine is missing or unavailable, MarkAgent says so instead of answering
@@ -652,26 +642,9 @@ namespace MdExplorer.Services.MarkDiagram
                 return null;
             }
 
-            // 1 ─ Preferenza globale esplicita.
-            var (preferredKey, preferredModel) = ReadDefaultPreferences();
-            if (!string.IsNullOrWhiteSpace(preferredKey))
-            {
-                if (!byKey.TryGetValue(preferredKey, out var chosen))
-                {
-                    whyNot = $"Il provider configurato ('{preferredKey}') non risulta registrato in questa installazione.";
-                    return null;
-                }
-                if (!IsUsable(chosen, projectPath, out var why))
-                {
-                    whyNot = why;
-                    return null;
-                }
-                modelId = preferredModel;
-                return chosen;
-            }
-
-            // 2 ─ Il motore del progetto, risolto una volta sola.
-            var engine = ReadProjectEngine(projectPath);
+            // La preferenza globale AI_DefaultProvider non decide più niente: motore e modello sono quelli
+            // del progetto, gli stessi del tab (sprint 2026-09-29-Motore-LLM-Unico, D1).
+            var (engine, projectModel) = ReadProjectEngine(projectPath);
 
             if (engine == MarkAgentEngine.Claude)
             {
@@ -685,8 +658,8 @@ namespace MdExplorer.Services.MarkDiagram
                     whyNot = whyClaude;
                     return null;
                 }
-                // Alias, non nome pieno: punta sempre all'ultimo Sonnet e non invecchia.
-                modelId = "sonnet";
+                // Il modello del progetto (quello scelto nel tab), non uno scritto qui.
+                modelId = projectModel;
                 return claude;
             }
 
@@ -702,21 +675,11 @@ namespace MdExplorer.Services.MarkDiagram
             {
                 if (IsUsable(copilot, projectPath, out var whyCopilot))
                 {
-                    // Nessun modello: il flag --model viene omesso e sceglie il CLI.
-                    //
-                    // Quali modelli esistano è una proprietà DELL'INSTALLAZIONE, non del
-                    // programma: nessuna costante scritta qui può essere giusta ovunque.
-                    // Verificato il 04/09/2026 — su questa macchina (Copilot CLI 1.0.82)
-                    // claude-sonnet-5, gpt-5 e claude-haiku-4.5 sono tutti rifiutati con
-                    // "Model ... is not available" e passa solo 'auto', mentre su altre
-                    // installazioni esistono modelli che qui non ci sono. È lo stesso
-                    // motivo per cui CopilotCliProvider non ha una costante di default.
-                    //
-                    // Chi vuole UN modello preciso lo dichiara nelle preferenze AI
-                    // (AI_DefaultProvider + AI_DefaultModel): vivono nel DB utente, quindi
-                    // hanno la stessa granularità del problema — per installazione. Quel
-                    // ramo sta più in alto e vince su questo.
-                    modelId = null;
+                    // Il modello di Copilot scelto nel tab per questo progetto; null = il flag --model
+                    // viene omesso e sceglie il CLI. Nessuna costante qui: quali modelli esistano è una
+                    // proprietà DELL'INSTALLAZIONE (verificato il 04/09/2026 con Copilot CLI 1.0.82:
+                    // claude-sonnet-5, gpt-5 e claude-haiku-4.5 rifiutati, passa solo 'auto').
+                    modelId = projectModel;
                     return copilot;
                 }
                 // Il progetto ha scelto Copilot CLI ma non è utilizzabile: dire perché è
@@ -766,14 +729,14 @@ namespace MdExplorer.Services.MarkDiagram
         /// e non il default dell'entità: il default descrive un progetto che esiste, e inventarne uno
         /// farebbe rinascere il fallback silenzioso.
         /// </summary>
-        private MarkAgentEngine ReadProjectEngine(string projectPath)
+        private (MarkAgentEngine Engine, string? Model) ReadProjectEngine(string projectPath)
         {
-            if (string.IsNullOrWhiteSpace(projectPath)) return MarkAgentEngine.None;
+            if (string.IsNullOrWhiteSpace(projectPath)) return (MarkAgentEngine.None, null);
             try
             {
                 using var scope = _scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetService<IUserSettingsDB>();
-                if (db == null) return MarkAgentEngine.None;
+                if (db == null) return (MarkAgentEngine.None, null);
 
                 db.BeginTransaction();
                 var projects = db.GetDal<Project>().GetList().ToList();
@@ -785,15 +748,16 @@ namespace MdExplorer.Services.MarkDiagram
                 if (project == null)
                 {
                     _logger.LogWarning("[MarkDiagram] No Project row for path {Path}", projectPath);
-                    return MarkAgentEngine.None;
+                    return (MarkAgentEngine.None, null);
                 }
 
-                return MarkAgentEngines.Resolve(project.MarkAgentEngine, projectPath, out _);
+                var engine = MarkAgentEngines.Resolve(project.MarkAgentEngine, projectPath, out _);
+                return (engine, MarkAgentEngines.ModelOf(project, engine));
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "[MarkDiagram] Could not read the project MarkAgent engine");
-                return MarkAgentEngine.None;
+                return (MarkAgentEngine.None, null);
             }
         }
 
@@ -806,34 +770,6 @@ namespace MdExplorer.Services.MarkDiagram
             _ => type.ToString().ToLowerInvariant()
         };
 
-        /// <summary>
-        /// IUserSettingsDB is a shared NHibernate session: even a read must sit inside
-        /// an explicit transaction, or another controller's Commit() breaks. Hence the
-        /// short-lived scope.
-        /// </summary>
-        private (string? provider, string? model) ReadDefaultPreferences()
-        {
-            try
-            {
-                using var scope = _scopeFactory.CreateScope();
-                var db = scope.ServiceProvider.GetService<IUserSettingsDB>();
-                if (db == null) return (null, null);
-
-                db.BeginTransaction();
-                var settings = db.GetDal<Setting>().GetList().ToList();
-                db.Commit();
-
-                return (
-                    settings.FirstOrDefault(s => s.Name == DefaultProviderKey)?.ValueString,
-                    settings.FirstOrDefault(s => s.Name == DefaultModelKey)?.ValueString
-                );
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "[MarkDiagram] Could not read the AI default preferences");
-                return (null, null);
-            }
-        }
 
         /// <summary>
         /// Racconta all'utente cosa sta succedendo mentre aspetta.

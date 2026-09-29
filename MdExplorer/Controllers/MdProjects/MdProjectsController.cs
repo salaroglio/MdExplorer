@@ -879,7 +879,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     copilotProvider.WorkingDirectory = request.Path;
                     // Il modello scelto per questo progetto; null = lo sceglie il CLI. Letto
                     // dall'entita' gia' in memoria: nessuna query in piu' sulla sessione condivisa.
-                    copilotCliDefaultModel = project.CopilotChatModel;
+                    copilotCliDefaultModel = MdExplorer.Utilities.MarkAgentEngines.ModelOf(project, MdExplorer.Utilities.MarkAgentEngine.Copilot);
                     copilotCliAvailable = copilotProvider.IsAvailable();
                     logger?.LogInformation(
                         "🤖 CopilotCli: available={Available}, model={Model}, cwd={Cwd}",
@@ -903,9 +903,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     claudeProvider.WorkingDirectory = request.Path;
                     // Il modello scelto per questo progetto. Mai scelto = `sonnet`, come prima che la scelta
                     // esistesse: un progetto che c'è già non deve passare in silenzio a un modello più caro.
-                    claudeCodeDefaultModel = string.IsNullOrWhiteSpace(project.ClaudeCodeChatModel)
-                        ? "sonnet"
-                        : project.ClaudeCodeChatModel;
+                    claudeCodeDefaultModel = MdExplorer.Utilities.MarkAgentEngines.ModelOf(project, MdExplorer.Utilities.MarkAgentEngine.Claude);
                     claudeCodeAvailable = claudeProvider.IsAvailable();
                     logger?.LogInformation(
                         "🤖 ClaudeCode: available={Available}, model={Model}, cwd={Cwd}",
@@ -925,7 +923,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     // Mai scelto = null: lo decide il server, che dichiara il proprio default in
                     // /config/providers. Un nome scritto qui sarebbe sbagliato su meta' delle
                     // installazioni, perche' i modelli dipendono dai provider collegati.
-                    openCodeDefaultModel = project.OpenCodeChatModel;
+                    openCodeDefaultModel = MdExplorer.Utilities.MarkAgentEngines.ModelOf(project, MdExplorer.Utilities.MarkAgentEngine.OpenCode);
                     logger?.LogInformation(
                         "🤖 opencode: available={Available}, model={Model}, cwd={Cwd}",
                         openCodeAvailable, openCodeDefaultModel ?? "(default del server)", request.Path);

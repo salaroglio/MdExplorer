@@ -2,6 +2,8 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, Output, EventEmitter }
 import { AiChatService, ModelInfo, DownloadProgress, GpuInfo } from '../services/ai-chat.service';
 import { TocGenerationService } from '../md-explorer/services/toc-generation.service';
 import { TranslateService } from '@ngx-translate/core';
+import { ProjectsService } from '../md-explorer/services/projects.service';
+import { ProjectSettingsService } from '../projects/services/project-settings.service';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
@@ -85,7 +87,9 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     private aiService: AiChatService,
     private tocService: TocGenerationService,
     private cdr: ChangeDetectorRef,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private projectsService: ProjectsService,
+    private projectSettingsService: ProjectSettingsService
   ) {}
 
   ngOnInit(): void {
@@ -99,7 +103,6 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     this.checkCopilotCliConfiguration();
     this.checkClaudeCodeConfiguration();
     this.loadAvailableProviders();
-    this.loadDefaultPreferences();
 
     // Subscribe to download progress
     this.aiService.downloadProgress$
@@ -208,7 +211,6 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
         this.loadGpuInfo();
 
         // Save as default preference
-        this.saveCurrentPreference('local', model.id);
       },
       error: (err) => {
         console.error(`[ModelManager] Error loading ${model.name}:`, err);
@@ -431,7 +433,6 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     console.log('[ModelManager] notifyGeminiConnected called successfully');
 
     // Save as default preference
-    this.saveCurrentPreference('gemini', modelId);
 
     alert(this.translate.instant('MODEL_MANAGER.CONNECTED_GEMINI', { name: this.geminiModels.find(m => m.id === modelId)?.name }));
   }
@@ -613,7 +614,6 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     console.log('[ModelManager] OpenAI model connected successfully');
 
     // Save as default preference
-    this.saveCurrentPreference('openai', modelId);
 
     alert(this.translate.instant('MODEL_MANAGER.CONNECTED_OPENAI', { name: this.openAiModels.find(m => m.id === modelId)?.name || modelId }));
   }
@@ -695,67 +695,28 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     this.contentChanged.emit();
   }
 
-  // Preference management methods
-  loadDefaultPreferences(): void {
-    this.aiService.getDefaultAiPreferences().subscribe({
-      next: (response: any) => {
-        console.log('[ModelManager] Loaded preferences:', response);
-        if (response.hasDefault && response.provider && response.model) {
-          this.autoConnectToDefaultProvider(response.provider, response.model);
-        }
+  /**
+   * Claude Code or Copilot connected from here: engine and model become the project's, the one source every
+   * access to the LLM reads (sprint 2026-09-29-Motore-LLM-Unico, D1 and D5). The global AI_DefaultProvider
+   * preference is no longer written nor read to connect on its own: it overrode the project's engine.
+   */
+  private saveToProject(engine: 'claude' | 'copilot', modelId: string): void {
+    const projectPath = this.projectsService.currentProjects$.getValue()?.path;
+    if (!projectPath) {
+      console.warn('[ModelManager] Nessun progetto aperto: il motore scelto vale solo per questa connessione');
+      return;
+    }
+    this.projectSettingsService.setMarkAgentEngine(engine, projectPath).subscribe({
+      next: () => {
+        const save = engine === 'claude'
+          ? this.projectSettingsService.setClaudeCodeChatModelSetting(modelId, projectPath)
+          : this.projectSettingsService.setCopilotChatModelSetting(modelId, projectPath);
+        save.subscribe({
+          next: () => console.log('[ModelManager] Motore e modello salvati nel progetto:', engine, modelId),
+          error: err => console.error('[ModelManager] Salvataggio del modello nel progetto fallito:', err)
+        });
       },
-      error: (err) => {
-        console.error('Error loading AI preferences:', err);
-      }
-    });
-  }
-
-  autoConnectToDefaultProvider(provider: string, model: string): void {
-    console.log('[ModelManager] Auto-connecting to provider:', provider, 'model:', model);
-
-    // Wait for configurations to load
-    setTimeout(() => {
-      switch (provider.toLowerCase()) {
-        case 'gemini':
-          if (this.geminiConfigured && this.geminiModels.length > 0) {
-            this.connectGeminiModel(model);
-          }
-          break;
-        case 'openai':
-          if (this.openAiConfigured && this.openAiModels.length > 0) {
-            this.connectOpenAiModel(model);
-          }
-          break;
-        case 'claudecode':
-          if (this.claudeCodeAvailable) {
-            this.connectClaudeCodeModel(model);
-          }
-          break;
-        case 'copilotcli':
-          if (this.copilotCliAvailable && this.copilotCliModels.length > 0) {
-            this.connectCopilotCliModel(model);
-          }
-          break;
-        case 'local':
-          // For local models, find the model and load it
-          const localModel = this.availableModels.find(m => m.id === model);
-          if (localModel && localModel.isInstalled) {
-            this.loadModel(localModel);
-          }
-          break;
-      }
-    }, 1000); // Give time for configurations and models to load
-  }
-
-  saveCurrentPreference(provider: string, model: string): void {
-    console.log('[ModelManager] Saving preference:', provider, model);
-    this.aiService.saveDefaultAiPreferences(provider, model).subscribe({
-      next: (response: any) => {
-        console.log('[ModelManager] Preference saved successfully:', response);
-      },
-      error: (err) => {
-        console.error('Error saving AI preference:', err);
-      }
+      error: err => console.error('[ModelManager] Salvataggio del motore nel progetto fallito:', err)
     });
   }
 
@@ -847,8 +808,8 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
     // Only mark the model as loaded AFTER the backend has registered it.
     this.aiService.notifyCopilotCliConnected(modelId);
 
-    // Save as default preference
-    this.saveCurrentPreference('copilotcli', modelId);
+    // The choice belongs to the project, as from the tab (sprint 2026-09-29-Motore-LLM-Unico, D5).
+    this.saveToProject('copilot', modelId);
 
     alert(this.translate.instant('MODEL_MANAGER.CONNECTED_COPILOT', { name: this.copilotCliModels.find(m => m.id === modelId)?.name || modelId }));
   }
@@ -924,7 +885,7 @@ export class ModelManagerComponent implements OnInit, OnDestroy {
 
     // "Caricato" solo DOPO che il backend ha registrato il provider.
     this.aiService.notifyClaudeCodeConnected(modelId);
-    this.saveCurrentPreference('claudecode', modelId);
+    this.saveToProject('claude', modelId);
 
     alert(this.translate.instant('MODEL_MANAGER.CONNECTED_CLAUDE_CODE', {
       name: this.claudeCodeModels.find(m => m.id === modelId)?.name || modelId

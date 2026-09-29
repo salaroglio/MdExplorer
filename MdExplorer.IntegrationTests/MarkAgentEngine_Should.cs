@@ -125,5 +125,27 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(MarkAgentEngine.None, MarkAgentEngines.Resolve(null, _root, out var linked));
             Assert.IsTrue(linked);
         }
+
+        [TestMethod]
+        public void Give_the_model_chosen_for_the_project_or_the_engine_default()
+        {
+            // One answer for every access to the LLM (sprint 2026-09-29-Motore-LLM-Unico, D1): before, "sonnet"
+            // was written by hand in five places.
+            var project = new MdExplorer.Abstractions.Entities.UserDB.Project();
+            Assert.AreEqual(MarkAgentEngines.ClaudeDefaultModel, MarkAgentEngines.ModelOf(project, MarkAgentEngine.Claude));
+            Assert.IsNull(MarkAgentEngines.ModelOf(project, MarkAgentEngine.Copilot), "Copilot: the CLI chooses");
+            Assert.IsNull(MarkAgentEngines.ModelOf(project, MarkAgentEngine.OpenCode), "opencode: the server chooses");
+
+            project.ClaudeCodeChatModel = " opus ";
+            project.CopilotChatModel = "gpt-5";
+            project.OpenCodeChatModel = "anthropic/claude-sonnet-5";
+            Assert.AreEqual("opus", MarkAgentEngines.ModelOf(project, MarkAgentEngine.Claude));
+            Assert.AreEqual("gpt-5", MarkAgentEngines.ModelOf(project, MarkAgentEngine.Copilot));
+            Assert.AreEqual("anthropic/claude-sonnet-5", MarkAgentEngines.ModelOf(project, MarkAgentEngine.OpenCode));
+            Assert.IsNull(MarkAgentEngines.ModelOf(project, MarkAgentEngine.None));
+
+            project.ClaudeCodeChatModel = "   ";
+            Assert.AreEqual(MarkAgentEngines.ClaudeDefaultModel, MarkAgentEngines.ModelOf(project, MarkAgentEngine.Claude));
+        }
     }
 }

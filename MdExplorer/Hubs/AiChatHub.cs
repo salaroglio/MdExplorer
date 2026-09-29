@@ -754,8 +754,7 @@ namespace MdExplorer.Hubs
                     break;
                 case "claudecode":
                     chatMode.ProviderType = Abstractions.Models.AI.ProviderType.ClaudeCode;
-                    // Alias, non nome pieno: punta sempre all'ultimo Sonnet e non invecchia.
-                    chatMode.ModelId = modelId ?? "sonnet";
+                    chatMode.ModelId = modelId ?? MdExplorer.Utilities.MarkAgentEngines.ClaudeDefaultModel;
                     break;
                 case "opencode":
                     chatMode.ProviderType = Abstractions.Models.AI.ProviderType.OpenCode;
@@ -819,9 +818,9 @@ namespace MdExplorer.Hubs
                 ProjectPath = projectPath,
                 Target = targetPath,
                 Engine = chatMode.ProviderType.Value,
-                // Claude needs a model ("sonnet" as in the chat); for Copilot no model means "the CLI chooses".
+                // Claude needs a model (the default of the chat); for Copilot no model means "the CLI chooses".
                 ModelId = string.IsNullOrEmpty(chatMode.ModelId) && chatMode.ProviderType == Abstractions.Models.AI.ProviderType.ClaudeCode
-                    ? "sonnet" : chatMode.ModelId,
+                    ? MdExplorer.Utilities.MarkAgentEngines.ClaudeDefaultModel : chatMode.ModelId,
                 McpGroupsArgument = MdExplorer.Service.ProjectsManager.McpGroupsArgument(_userSettingsDB, projectPath),
                 ConnectionAborted = Context.ConnectionAborted,
             };
@@ -990,7 +989,7 @@ namespace MdExplorer.Hubs
                     + $"{whyNoProject}. Riapri il progetto.");
             }
 
-            var effectiveModel = string.IsNullOrEmpty(modelId) ? "sonnet" : modelId;
+            var effectiveModel = string.IsNullOrEmpty(modelId) ? MdExplorer.Utilities.MarkAgentEngines.ClaudeDefaultModel : modelId;
             // MdExplorer's own MCP server, whatever harness the project declares: before, the Claude
             // Code chat never had MdExplorer's tools (McpConfigPath was never set). Null when the MCP
             // executable cannot be found: the session starts without it, and the log says why.
