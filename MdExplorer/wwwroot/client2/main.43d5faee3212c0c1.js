@@ -14713,13 +14713,6 @@ class AiChatService {
   getModelsByProvider(providerType) {
     return this.http.get(`/api/aiproviders/models/${providerType}`);
   }
-  testChatWithProvider(providerType, message, modelId) {
-    return this.http.post('/api/aiproviders/test-chat', {
-      providerType,
-      message,
-      modelId
-    });
-  }
   // OpenAI API methods
   checkOpenAiConfiguration() {
     return this.http.get('/api/openai/configured');
@@ -15035,12 +15028,6 @@ class AiChatService {
     // farebbe credere che quei numeri riguardino ancora la chat aperta.
     this._claudeUsage$.next(null);
     console.log('[AiChatService] ClaudeCode disconnesso');
-  }
-  getGitAiStatus() {
-    return this.http.get('/api/GitAi/ai-status');
-  }
-  clearDefaultAiPreferences() {
-    return this.http.delete('/api/AiPreferences/default');
   }
   /**
    * Set the current document context for AI.
@@ -18079,8 +18066,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.29.13',
-  buildTime: '2026.09.29 13:13:38'
+  version: '2026.09.29.14',
+  buildTime: '2026.09.29 14:41:18'
 };
 
 /***/ }),
@@ -18114,4 +18101,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.474f8be700f4d294.js.map
+//# sourceMappingURL=main.43d5faee3212c0c1.js.map

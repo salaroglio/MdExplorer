@@ -212,7 +212,6 @@ namespace MdExplorer
             // Ponte verso il nostro stesso server MCP: i tool della citta' arrivano da li',
             // filtrati dal catalogo (manifesto tools: x trust). Una sola definizione, quella
             // che serve anche Copilot.
-            services.AddSingleton<Services.AgentRun.IAgentMcpToolProvider, Services.AgentRun.AgentMcpToolProvider>();
             services.AddSingleton<MdExplorer.Features.Agents.ILlmAgentWaker, MdExplorer.Features.Agents.LlmAgentWaker>();
 
             // Shell execution for fenced code blocks (bash/sh/powershell/pwsh/cmd)

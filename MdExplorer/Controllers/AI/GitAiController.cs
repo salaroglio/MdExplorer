@@ -17,22 +17,13 @@ namespace MdExplorer.Controllers.AI
     public class GitAiController : ControllerBase
     {
         private readonly IGitCommitAiService _gitCommitAiService;
-        private readonly IAiChatService _aiChatService;
-        private readonly IGeminiApiService _geminiService;
-        private readonly IEnumerable<IAiProvider> _aiProviders;
         private readonly ILogger<GitAiController> _logger;
 
         public GitAiController(
             IGitCommitAiService gitCommitAiService,
-            IAiChatService aiChatService,
-            IGeminiApiService geminiService,
-            IEnumerable<IAiProvider> aiProviders,
             ILogger<GitAiController> logger)
         {
             _gitCommitAiService = gitCommitAiService;
-            _aiChatService = aiChatService;
-            _geminiService = geminiService;
-            _aiProviders = aiProviders;
             _logger = logger;
         }
 
@@ -69,40 +60,6 @@ namespace MdExplorer.Controllers.AI
         public class CleanCommitMessageRequest
         {
             public string? Raw { get; set; }
-        }
-
-        [HttpGet("ai-status")]
-        public IActionResult GetAiStatus()
-        {
-            try
-            {
-                var geminiConfigured = _geminiService.IsConfigured();
-                var localModelLoaded = _aiChatService.IsModelLoaded();
-                var currentModel = _aiChatService.GetCurrentModelName();
-                var copilotCliAvailable = _aiProviders?
-                    .FirstOrDefault(p => p.GetProviderType() == ProviderType.CopilotCli)?.IsAvailable() == true;
-
-                string preferred;
-                if (copilotCliAvailable) preferred = "CopilotCli";
-                else if (geminiConfigured) preferred = "Gemini";
-                else if (localModelLoaded) preferred = "Local";
-                else preferred = "None";
-
-                return Ok(new
-                {
-                    geminiConfigured,
-                    localModelLoaded,
-                    copilotCliAvailable,
-                    currentModel,
-                    hasAnyAi = geminiConfigured || localModelLoaded || copilotCliAvailable,
-                    preferredService = preferred
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting AI status");
-                return StatusCode(500, new { error = "Error getting AI status" });
-            }
         }
     }
 

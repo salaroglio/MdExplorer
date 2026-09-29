@@ -789,14 +789,6 @@ export class AiChatService {
     return this.http.get(`/api/aiproviders/models/${providerType}`);
   }
 
-  testChatWithProvider(providerType: string, message: string, modelId?: string): Observable<any> {
-    return this.http.post('/api/aiproviders/test-chat', {
-      providerType,
-      message,
-      modelId
-    });
-  }
-
   // OpenAI API methods
   checkOpenAiConfiguration(): Observable<any> {
     return this.http.get('/api/openai/configured');
@@ -1143,15 +1135,6 @@ export class AiChatService {
     console.log('[AiChatService] ClaudeCode disconnesso');
   }
 
-  
-  getGitAiStatus(): Observable<any> {
-    return this.http.get('/api/GitAi/ai-status');
-  }
-
-
-  clearDefaultAiPreferences(): Observable<any> {
-    return this.http.delete('/api/AiPreferences/default');
-  }
 
   /**
    * Set the current document context for AI.
