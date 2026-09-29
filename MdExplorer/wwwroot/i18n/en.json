@@ -1215,6 +1215,9 @@
   "PROMPTLAB": {
     "TITLE": "PromptLab",
     "LOADING_MODELS": "Loading models...",
+    "ENGINE": "Engine",
+    "ENGINE_HINT": "The project's engine, the same as the MarkAgent tab: change it from the tab or the project settings.",
+    "ENGINE_NONE": "none: open the MarkAgent tab",
     "PROMPT_MODE": "Prompt",
     "AGENT_MODE": "Agent",
     "ADD_CARD": "+ Card",

@@ -17,7 +17,8 @@ import { TranslateService } from '@ngx-translate/core';
 export class PromptLabComponent implements OnInit, OnDestroy {
 
   mode: PromptLabMode = 'prompt';
-  selectedModel = 'claude-sonnet-4';
+  /** The engine PromptLab talks to: the project's, the MarkAgent tab's (D7); read-only. */
+  engineLabel = '';
   sessionTitle = '';
   cards: PromptLabCard[] = [];
   templateName = 'template.md';
@@ -39,14 +40,9 @@ export class PromptLabComponent implements OnInit, OnDestroy {
   /** Settings panel */
   showSettings = false;
   systemPrompt = DEFAULT_SYSTEM_PROMPT;
-  systemPromptModel = '';
   sequencePrompt = DEFAULT_SEQUENCE_PROMPT;
-  sequencePromptModel = '';
   workflowPrompt = DEFAULT_WORKFLOW_PROMPT;
-  workflowPromptModel = '';
 
-  models: { value: string; label: string }[] = [];
-  isLoadingModels = true;
 
   private destroy$ = new Subject<void>();
 
@@ -71,7 +67,6 @@ export class PromptLabComponent implements OnInit, OnDestroy {
     ).subscribe(session => {
       if (session) {
         this.sessionTitle = session.title || this.translate.instant('PROMPTLAB.NEW_SESSION');
-        this.selectedModel = session.model || 'gpt-4o';
         this.mode = session.mode || 'prompt';
         this.cards = session.cards || [];
         this.templateName = session.templatePath
@@ -80,9 +75,6 @@ export class PromptLabComponent implements OnInit, OnDestroy {
         this.systemPrompt = session.systemPrompt || DEFAULT_SYSTEM_PROMPT;
         this.sequencePrompt = session.sequencePrompt || DEFAULT_SEQUENCE_PROMPT;
         this.workflowPrompt = session.workflowPrompt || DEFAULT_WORKFLOW_PROMPT;
-        this.systemPromptModel = session.systemPromptModel || '';
-        this.sequencePromptModel = session.sequencePromptModel || '';
-        this.workflowPromptModel = session.workflowPromptModel || '';
         this.agentDefinition = session.agentDefinition || {
           identity: '',
           objectives: '',
@@ -122,7 +114,7 @@ export class PromptLabComponent implements OnInit, OnDestroy {
     }
 
     // 4. Load available models from Copilot CLI
-    this.loadModels();
+    this.engineLabel = this.promptLabService.engineLabel();
 
   }
 
@@ -131,56 +123,6 @@ export class PromptLabComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-
-  private loadModels(): void {
-    // 1. Try in-memory cache from the service (instant, no HTTP)
-    const memoryCached = this.aiChatService.cachedModels;
-    if (memoryCached?.length) {
-      this.models = memoryCached;
-      this.isLoadingModels = false;
-      this.syncSelectedModel();
-      this.cdr.markForCheck();
-    } else {
-      this.isLoadingModels = true;
-    }
-
-    // 2. Load from DB cache (fast, <50ms) — populates combo immediately
-    this.aiChatService.getCachedModels().subscribe({
-      next: (models) => {
-        if (models.length) {
-          this.models = models;
-          this.isLoadingModels = false;
-          this.syncSelectedModel();
-          this.cdr.markForCheck();
-        }
-      },
-      error: () => { /* ignore — will try refresh next */ }
-    });
-
-    // 3. Background refresh via Copilot CLI discovery (~5s) — updates DB + memory cache
-    this.aiChatService.refreshCopilotCliModels().subscribe({
-      next: () => {
-        const refreshed = this.aiChatService.cachedModels;
-        if (refreshed?.length) {
-          this.models = refreshed;
-          this.syncSelectedModel();
-        }
-        this.isLoadingModels = false;
-        this.cdr.markForCheck();
-      },
-      error: () => {
-        this.isLoadingModels = false;
-        this.cdr.markForCheck();
-      }
-    });
-  }
-
-  private syncSelectedModel(): void {
-    if (this.models.length && !this.models.find(m => m.value === this.selectedModel)) {
-      this.selectedModel = this.models[0].value;
-      this.promptLabService.setModel(this.selectedModel);
-    }
-  }
 
   private loadFileAsSession(fullPath: string): void {
     const url = `/api/MdExplorerEditorReact/${fullPath}`;
@@ -258,10 +200,6 @@ export class PromptLabComponent implements OnInit, OnDestroy {
     this.promptLabService.setAgentDefinition(def);
   }
 
-  onModelChange(model: string): void {
-    this.promptLabService.setModel(model);
-  }
-
   openSettings(): void {
     this.showSettings = true;
     this.cdr.markForCheck();
@@ -303,28 +241,6 @@ export class PromptLabComponent implements OnInit, OnDestroy {
     this.workflowPrompt = DEFAULT_WORKFLOW_PROMPT;
     this.promptLabService.setWorkflowPrompt(DEFAULT_WORKFLOW_PROMPT);
     this.cdr.markForCheck();
-  }
-
-  onPromptModelChange(promptKey: 'system' | 'sequence' | 'workflow', value: string): void {
-    const session = this.promptLabService.currentSession();
-    if (!session) return;
-
-    switch (promptKey) {
-      case 'system':
-        this.systemPromptModel = value;
-        session.systemPromptModel = value;
-        break;
-      case 'sequence':
-        this.sequencePromptModel = value;
-        session.sequencePromptModel = value;
-        break;
-      case 'workflow':
-        this.workflowPromptModel = value;
-        session.workflowPromptModel = value;
-        break;
-    }
-    session.updatedAt = new Date();
-    this.promptLabService.updateSession(session);
   }
 
   onSettingsBackdropClick(event: MouseEvent): void {

@@ -1519,7 +1519,9 @@ class AiChatComponent {
         return;
       }
       if (config.autoSelect && config.available) {
-        const model = config.defaultModel || 'sonnet';
+        // The project's model, always sent by the server (MarkAgentEngines.ModelOf: the chosen one or «sonnet»):
+        // no default written here too (sprint 2026-09-29-Motore-LLM-Unico, D1).
+        const model = config.defaultModel;
         console.log('[AiChatComponent] Auto-selecting Claude Code with model:', model);
         this.claudeCodeUnavailable = false;
         this.claudeCodeAutoSelected = true;
@@ -39675,4 +39677,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.4068734697d23e57.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.af6cfa24b6a52f47.js.map

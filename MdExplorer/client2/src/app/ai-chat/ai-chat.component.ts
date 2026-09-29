@@ -327,7 +327,9 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
           return;
         }
         if (config.autoSelect && config.available) {
-          const model = config.defaultModel || 'sonnet';
+          // The project's model, always sent by the server (MarkAgentEngines.ModelOf: the chosen one or «sonnet»):
+          // no default written here too (sprint 2026-09-29-Motore-LLM-Unico, D1).
+          const model = config.defaultModel;
           console.log('[AiChatComponent] Auto-selecting Claude Code with model:', model);
           this.claudeCodeUnavailable = false;
           this.claudeCodeAutoSelected = true;
