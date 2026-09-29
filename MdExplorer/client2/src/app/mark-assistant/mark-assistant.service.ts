@@ -887,7 +887,10 @@ export class MarkAssistantService {
           {
             labelKey: 'MARK.DIAGRAM.APPLY',
             icon: '\u2713',
-            handler: () => { this._actions.next(null); this.diagramApplyEdit?.(); },
+            // The server confirms on the same stream the proposal came from ('done' with the message): listen
+            // again, as for a follow-up question — before 29/09/2026 the confirmation was never read and
+            // «New conversation» did not come back after an applied change.
+            handler: () => { this._actions.next(null); this.beginDiagramFollowUp(); this.diagramApplyEdit?.(); },
           },
           {
             labelKey: 'MARK.DIAGRAM.DISCARD',
@@ -897,6 +900,7 @@ export class MarkAssistantService {
               this.diagramDiscardEdit?.();
               this._text.next(this.translate.instant('MARK.DIAGRAM.DISCARDED'));
               this._continueArrow.next(true);
+              if (this.diagramKind === 'box') this.offerNewDiagramConversation();
             },
           },
         ]);

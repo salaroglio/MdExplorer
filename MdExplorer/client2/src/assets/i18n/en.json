@@ -1608,7 +1608,7 @@
     "QUEUE_FED_WAITING": "federated — awaiting your authorization",
     "PROMPT_LABEL": "Launch prompt",
     "PROMPT_PLACEHOLDER": "Describe what the agent must do, mentioning the markdown files it needs...",
-    "PROMPT_HINT": "Write freely, then let Copilot rewrite it in the MdExplorer convention",
+    "PROMPT_HINT": "Write freely, then let MarkAgent rewrite it in the MdExplorer convention",
     "NORMALIZE": "Normalize with MarkAgent",
     "NORMALIZING": "Normalizing...",
     "NORMALIZE_ERROR": "Prompt normalization failed",

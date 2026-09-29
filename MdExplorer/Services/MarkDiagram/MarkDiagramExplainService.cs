@@ -530,9 +530,10 @@ namespace MdExplorer.Services.MarkDiagram
         private static string DescriviModifica(MarkDiagramEditProposal proposal)
         {
             var quante = proposal.TextEdits?.Count ?? 0;
+            var punti = quante == 1 ? "1 punto del testo" : $"{quante} punti del testo";
             return !string.IsNullOrWhiteSpace(proposal.NewPlantuml)
-                ? (quante > 0 ? $"diagramma e {quante} punti del testo" : "diagramma")
-                : $"{quante} punti del testo";
+                ? (quante > 0 ? $"diagramma e {punti}" : "diagramma")
+                : punti;
         }
 
         private static int ContaOccorrenze(string testo, string frammento)

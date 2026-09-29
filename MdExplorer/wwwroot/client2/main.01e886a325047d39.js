@@ -10454,8 +10454,12 @@ class MarkAssistantService {
           this._actions.next([{
             labelKey: 'MARK.DIAGRAM.APPLY',
             icon: '\u2713',
+            // The server confirms on the same stream the proposal came from ('done' with the message): listen
+            // again, as for a follow-up question — before 29/09/2026 the confirmation was never read and
+            // «New conversation» did not come back after an applied change.
             handler: () => {
               this._actions.next(null);
+              this.beginDiagramFollowUp();
               this.diagramApplyEdit?.();
             }
           }, {
@@ -10466,6 +10470,7 @@ class MarkAssistantService {
               this.diagramDiscardEdit?.();
               this._text.next(this.translate.instant('MARK.DIAGRAM.DISCARDED'));
               this._continueArrow.next(true);
+              if (this.diagramKind === 'box') this.offerNewDiagramConversation();
             }
           }]);
           this.diagramBoxInFlight = null;
@@ -18066,8 +18071,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.29.14',
-  buildTime: '2026.09.29 14:41:18'
+  version: '2026.09.29.16',
+  buildTime: '2026.09.29 15:13:05'
 };
 
 /***/ }),
@@ -18101,4 +18106,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.43d5faee3212c0c1.js.map
+//# sourceMappingURL=main.01e886a325047d39.js.map
