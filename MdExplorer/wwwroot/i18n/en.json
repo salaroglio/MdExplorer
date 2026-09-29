@@ -1032,6 +1032,7 @@
     "EXIT_FULLSCREEN": "Exit full screen",
     "FULLSCREEN": "Full screen",
     "NEW_SESSION": "New chat session",
+    "BRIEFINGS_TOOLTIP": "{{count}} briefings waiting: they will reach MarkAgent with your next message in this chat.",
     "MODEL_MANAGER": "Model Manager",
     "START_CONVERSATION": "Start a conversation with the AI assistant",
     "LOAD_MODEL_HINT": "Please load a model first using the settings button above",
@@ -1448,7 +1449,9 @@
       "THINKING_POINT": "Looking in the project for what explains «{{point}}»...",
       "APPLY": "Apply",
       "DISCARD": "Leave it",
-      "DISCARDED": "All right, I changed nothing."
+      "DISCARDED": "All right, I changed nothing.",
+      "NEW_CONVERSATION": "New conversation",
+      "NEW_CONVERSATION_DONE": "Starting over: the next question on this document starts from scratch."
     }
   },
   "UNIFIED_SETTINGS": {

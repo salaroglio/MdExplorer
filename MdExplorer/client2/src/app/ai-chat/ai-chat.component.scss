@@ -911,3 +911,25 @@
 
   span { flex: 1; }
 }
+
+/* «Ragguagli» waiting for the tab (D9): small, next to the header buttons. */
+.briefings {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-right: 4px;
+  font-size: 13px;
+  cursor: default;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* The tooltip lists the briefings one per line. */
+::ng-deep .briefings-tooltip {
+  white-space: pre-line;
+  max-width: 420px !important;
+}

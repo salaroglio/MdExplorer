@@ -7,7 +7,7 @@ import { ParsingProjectProvider } from '../../signalR/dialogs/parsing-project/pa
 import { PlantumlWorkingProvider } from '../../signalR/dialogs/plantuml-working/plantuml-working.provider';
 import { connect } from 'net';
 import { OpeningApplicationProvider } from '../dialogs/opening-application/opening-application.provider';
-import { Subject, ReplaySubject } from 'rxjs';
+import { Subject, BehaviorSubject, ReplaySubject } from 'rxjs';
 
 interface linkSignalREvent_Component {
   key: string
@@ -58,6 +58,12 @@ export class MdServerMessagesService {
     textEdits?: number,
     otherDocuments?: string[],
   }>();
+
+  /**
+   * «Ragguagli» waiting for the MarkAgent tab (sprint 2026-09-29-Motore-LLM-Unico, D9): what was done in parallel
+   * (a change confirmed from «spiega il diagramma»), given to the tab's LLM with the user's next message.
+   */
+  public markAgentBriefings$ = new BehaviorSubject<{ count: number; items: string[] }>({ count: 0, items: [] });
 
   // Observable for *.agent.md headless runs (AgentRunJobService): started/completed/failed
   public agentJobProgress$ = new Subject<{
@@ -279,6 +285,11 @@ export class MdServerMessagesService {
       // "Ask to MarkAgent" diagram explanation, streamed chunk by chunk
       this.hubConnection.on('markDiagramExplain', (data) => {
         this.markDiagramExplain$.next(data);
+      });
+
+      // Briefings waiting for the MarkAgent tab (D9)
+      this.hubConnection.on('markAgentBriefings', (data) => {
+        this.markAgentBriefings$.next({ count: data?.count ?? 0, items: data?.items ?? [] });
       });
 
       // *.agent.md headless run progress (manual launch, schedule, hook)

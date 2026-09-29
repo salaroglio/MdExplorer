@@ -187,6 +187,19 @@ export class MarkAssistantService {
     this.diagramDiscardEdit = discard;
   }
 
+  /** «Nuova conversazione» on the document's diagram session: registered by MarkDiagramService, same reason. */
+  private diagramNewConversation: (() => void) | null = null;
+
+  registerDiagramNewConversation(reset: () => void): void {
+    this.diagramNewConversation = reset;
+  }
+
+  /**
+   * A box of a document is explained in the document's own session on the server (sprint
+   * 2026-09-29-Motore-LLM-Unico, D8), which the user can start again; a point of a slide in the tab's.
+   */
+  private diagramKind: 'box' | 'point' = 'box';
+
   constructor(
     private translate: TranslateService,
     private projectsService: ProjectsService,
@@ -750,6 +763,7 @@ export class MarkAssistantService {
   beginDiagramExplanation(context: { documentPath: string; box: { name: string } }, kind: 'box' | 'point' = 'box'): boolean {
     const key = this.diagramKey(context.documentPath, context.box.name);
     const cached = this.diagramAnswers.get(key);
+    this.diagramKind = kind;
     this.diagramConversation = { documentPath: context.documentPath, boxName: context.box.name };
 
     this.takeOverDialog();
@@ -912,6 +926,7 @@ export class MarkAssistantService {
         // Il pensiero ha esaurito il suo compito: si dissolve da solo, così non
         // resta a ingombrare accanto alla risposta.
         this.fadeThinkingAway();
+        if (this.diagramKind === 'box') this.offerNewDiagramConversation();
         break;
       }
 
@@ -919,6 +934,24 @@ export class MarkAssistantService {
         this.showDiagramError(evt.box, evt.message || 'Non sono riuscito a spiegarlo.');
         break;
     }
+  }
+
+  /**
+   * After an answer on a box of a document: the conversation of that document goes on (other boxes, questions,
+   * changes) until the user starts it again.
+   */
+  private offerNewDiagramConversation(): void {
+    if (!this.diagramNewConversation) return;
+    this._actions.next([{
+      labelKey: 'MARK.DIAGRAM.NEW_CONVERSATION',
+      icon: '\u21BA',
+      handler: () => {
+        this._actions.next(null);
+        this.diagramNewConversation?.();
+        this._text.next(this.translate.instant('MARK.DIAGRAM.NEW_CONVERSATION_DONE'));
+        this._continueArrow.next(true);
+      },
+    }]);
   }
 
   /**

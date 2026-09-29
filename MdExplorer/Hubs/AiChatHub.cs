@@ -94,8 +94,10 @@ namespace MdExplorer.Hubs
             OpenCodeSessionPool openCodePool,
             Abstractions.DB.IUserSettingsDB userSettingsDB,
             Services.E2e.E2eLaunchService e2eLaunch,
-            IHubContext<AiChatHub> hubContext)
+            IHubContext<AiChatHub> hubContext,
+            Services.MarkDiagram.MarkAgentBriefings briefings)
         {
+            _briefings = briefings;
             _e2eLaunch = e2eLaunch;
             _hubContext = hubContext;
             _aiChatService = aiChatService;
@@ -300,6 +302,9 @@ namespace MdExplorer.Hubs
             return header + "\n\n" + string.Join("\n", parts);
         }
 
+        /// <summary>«Ragguagli» from the diagram sessions, put at the head of the tab's next message (D9).</summary>
+        private readonly Services.MarkDiagram.MarkAgentBriefings _briefings;
+
         /// <summary>Chat turns in flight per connection: a test launch does not start over one (it would cancel it).</summary>
         private static readonly ConcurrentDictionary<string, int> _chatTurnsInFlight = new();
 
@@ -313,6 +318,18 @@ namespace MdExplorer.Hubs
                     "È in corso un lancio di test e2e: aspetta che finisca o interrompilo dalla finestra dei test.", string.IsNullOrEmpty(channelId) ? "default" : channelId);
                 await Clients.Caller.SendAsync("StreamComplete", string.IsNullOrEmpty(channelId) ? "default" : channelId);
                 return;
+            }
+            // What was done in parallel (a change confirmed from «spiega il diagramma») reaches the tab's LLM at the
+            // head of the user's message, in the tab's own conversation only: no turn of its own (D9).
+            if ((string.IsNullOrEmpty(channelId) || channelId == "default") && _briefings != null
+                && _connectionProjectConnectionIds.TryGetValue(Context.ConnectionId, out var monitorConnectionId))
+            {
+                var briefings = _briefings.TakeAll(monitorConnectionId);
+                if (briefings.Count > 0)
+                {
+                    _logger.LogInformation("[SendMessage] {Count} ragguagli in testa al messaggio del tab", briefings.Count);
+                    message = Services.MarkDiagram.MarkAgentBriefings.Block(briefings) + message;
+                }
             }
             _chatTurnsInFlight.AddOrUpdate(Context.ConnectionId, 1, (_, n) => n + 1);
             try

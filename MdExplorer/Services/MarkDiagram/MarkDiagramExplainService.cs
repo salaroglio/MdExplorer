@@ -33,6 +33,7 @@ namespace MdExplorer.Services.MarkDiagram
         private readonly ILogger<MarkDiagramExplainService> _logger;
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly MarkDiagramSessions _sessions;
+        private readonly MarkAgentBriefings _briefings;
         private readonly IServiceScopeFactory _scopeFactory;
 
         /// <summary>One explanation in flight per connection: a new box supersedes the old one.</summary>
@@ -48,7 +49,14 @@ namespace MdExplorer.Services.MarkDiagram
         private sealed record DiagramConversation(
             MarkDiagramContextDto Context,
             string ProjectPath,
-            string Document);
+            string Document)
+        {
+            /// <summary>
+            /// A confirmed change was written: the session still has the old text, so the next question carries the
+            /// current one — a «find» copied from the old text would not be found.
+            /// </summary>
+            public bool DocumentChanged { get; set; }
+        }
 
         /// <summary>
         /// Proposta di modifica in attesa di conferma, per connessione. Vive qui e non nel
@@ -62,8 +70,10 @@ namespace MdExplorer.Services.MarkDiagram
             ILogger<MarkDiagramExplainService> logger,
             IHubContext<MonitorMDHub> hubContext,
             MarkDiagramSessions sessions,
+            MarkAgentBriefings briefings,
             IServiceScopeFactory scopeFactory)
         {
+            _briefings = briefings;
             _logger = logger;
             _hubContext = hubContext;
             _sessions = sessions;
@@ -224,7 +234,17 @@ namespace MdExplorer.Services.MarkDiagram
                 // spiegazione appena data: si manda solo la domanda, non di nuovo tutto.
                 // Il promemoria del limite invece va ripetuto — è la regola che il modello
                 // dimentica per prima quando la conversazione si allunga.
+                var updatedDocument = "";
+                if (conversation.DocumentChanged)
+                {
+                    var current = ReadDocument(conversation.Context, conversation.ProjectPath, out var cut);
+                    updatedDocument = "Il documento è stato modificato con la proposta che l'utente ha confermato. " +
+                                      "Questo è il testo ATTUALE: le prossime \"find\" vanno copiate da qui" +
+                                      (cut ? " (troncato)" : "") + ".\n---\n" + current + "\n---\n\n";
+                    conversation.DocumentChanged = false;
+                }
                 var followUpPrompt =
+                    updatedDocument +
                     $"{question}\n\n" +
                     $"(Ricorda: stiamo parlando del box \"{boxName}\" del diagramma. " +
                     $"Rispondi in non più di {MarkDiagramPromptBuilder.MaxSentences} frasi, " +
@@ -370,6 +390,10 @@ namespace MdExplorer.Services.MarkDiagram
                 foreach (var r in trovati)
                 {
                     if (string.Equals(r.FileName, documentoCorrente, StringComparison.OrdinalIgnoreCase)) continue;
+                    // Hidden folders (.claude, .github, .opencode, .md) hold the agents' configuration and the files
+                    // MdExplorer installs (the skills): not documents of the project (seen 29/09/2026: «SKILL.md
+                    // nomina la stessa entità»).
+                    if (InHiddenFolder(r.Path, conversation.ProjectPath)) continue;
                     if (!risultati.Contains(r.FileName)) risultati.Add(r.FileName);
                 }
             }
@@ -380,6 +404,16 @@ namespace MdExplorer.Services.MarkDiagram
                 _logger.LogWarning(ex, "[MarkDiagram] Ricerca degli impatti fuori documento non riuscita");
             }
             return risultati;
+        }
+
+        private static bool InHiddenFolder(string? path, string projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return false;
+            var relative = System.IO.Path.IsPathRooted(path) && !string.IsNullOrWhiteSpace(projectPath)
+                ? System.IO.Path.GetRelativePath(projectPath, path)
+                : path;
+            return relative.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries)
+                .Any(segment => segment.StartsWith(".", StringComparison.Ordinal) && segment != "." && segment != "..");
         }
 
         public async Task<bool> ApplyEditAsync(string connectionId, CancellationToken ct = default)
@@ -442,11 +476,15 @@ namespace MdExplorer.Services.MarkDiagram
                     throw new InvalidOperationException("La modifica non cambierebbe nulla nel documento.");
 
                 ScriviInModoAtomico(fullPath, updated);
+                conversation.DocumentChanged = true;
 
-                var quante = (proposal.TextEdits?.Count ?? 0);
-                var cosa = !string.IsNullOrWhiteSpace(proposal.NewPlantuml)
-                    ? (quante > 0 ? $"diagramma e {quante} punti del testo" : "diagramma")
-                    : $"{quante} punti del testo";
+                // The tab's LLM hears of it at the user's next message there (D9).
+                var where = System.IO.Path.GetRelativePath(conversation.ProjectPath, fullPath).Replace('\\', '/');
+                _briefings.Add(connectionId,
+                    $"«Spiega il diagramma» su {where} (box \"{boxName}\"): l'utente ha confermato una modifica — " +
+                    $"{(proposal.Summary ?? "").Trim()} Toccati: {DescriviModifica(proposal)}.");
+
+                var cosa = DescriviModifica(proposal);
 
                 var messaggio = $"Fatto: ho aggiornato {cosa}.";
                 if (proposal.OtherDocuments is { Count: > 0 })
@@ -488,6 +526,14 @@ namespace MdExplorer.Services.MarkDiagram
 
         public Task<bool> DiscardEditAsync(string connectionId)
             => Task.FromResult(_pendingEdits.TryRemove(connectionId, out _));
+
+        private static string DescriviModifica(MarkDiagramEditProposal proposal)
+        {
+            var quante = proposal.TextEdits?.Count ?? 0;
+            return !string.IsNullOrWhiteSpace(proposal.NewPlantuml)
+                ? (quante > 0 ? $"diagramma e {quante} punti del testo" : "diagramma")
+                : $"{quante} punti del testo";
+        }
 
         private static int ContaOccorrenze(string testo, string frammento)
         {

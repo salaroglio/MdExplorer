@@ -29,6 +29,11 @@
       <mat-icon>{{ isChatFullScreen ? 'fullscreen_exit' : 'fullscreen' }}</mat-icon>
     </button>
 
+    <span class="briefings" *ngIf="briefingsCount > 0" [matTooltip]="briefingsTooltip" matTooltipClass="briefings-tooltip"
+          [attr.aria-label]="briefingsTooltip">
+      <mat-icon>mark_email_unread</mat-icon>{{ briefingsCount }}
+    </span>
+
     <button mat-icon-button (click)="newSession()" [matTooltip]="'AI_CHAT.NEW_SESSION' | translate">
       <mat-icon>add_comment</mat-icon>
     </button>

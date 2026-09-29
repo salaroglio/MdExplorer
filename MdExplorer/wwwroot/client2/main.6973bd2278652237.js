@@ -9697,6 +9697,9 @@ class MarkAssistantService {
     this.diagramApplyEdit = apply;
     this.diagramDiscardEdit = discard;
   }
+  registerDiagramNewConversation(reset) {
+    this.diagramNewConversation = reset;
+  }
   constructor(translate, projectsService, router, injector, serverMessages, markActions, sanitizer) {
     this.translate = translate;
     this.projectsService = projectsService;
@@ -9809,6 +9812,13 @@ class MarkAssistantService {
     /** Registrate dallo stesso servizio, per la stessa ragione: niente ciclo di import. */
     this.diagramApplyEdit = null;
     this.diagramDiscardEdit = null;
+    /** «Nuova conversazione» on the document's diagram session: registered by MarkDiagramService, same reason. */
+    this.diagramNewConversation = null;
+    /**
+     * A box of a document is explained in the document's own session on the server (sprint
+     * 2026-09-29-Motore-LLM-Unico, D8), which the user can start again; a point of a slide in the tab's.
+     */
+    this.diagramKind = 'box';
     this.scheduleSpotlightRecompute = () => {
       if (this.rafScheduled) return;
       if (!this.currentSpotlightSelector) return;
@@ -10326,6 +10336,7 @@ class MarkAssistantService {
   beginDiagramExplanation(context, kind = 'box') {
     const key = this.diagramKey(context.documentPath, context.box.name);
     const cached = this.diagramAnswers.get(key);
+    this.diagramKind = kind;
     this.diagramConversation = {
       documentPath: context.documentPath,
       boxName: context.box.name
@@ -10480,12 +10491,30 @@ class MarkAssistantService {
           // Il pensiero ha esaurito il suo compito: si dissolve da solo, così non
           // resta a ingombrare accanto alla risposta.
           this.fadeThinkingAway();
+          if (this.diagramKind === 'box') this.offerNewDiagramConversation();
           break;
         }
       case 'error':
         this.showDiagramError(evt.box, evt.message || 'Non sono riuscito a spiegarlo.');
         break;
     }
+  }
+  /**
+   * After an answer on a box of a document: the conversation of that document goes on (other boxes, questions,
+   * changes) until the user starts it again.
+   */
+  offerNewDiagramConversation() {
+    if (!this.diagramNewConversation) return;
+    this._actions.next([{
+      labelKey: 'MARK.DIAGRAM.NEW_CONVERSATION',
+      icon: '\u21BA',
+      handler: () => {
+        this._actions.next(null);
+        this.diagramNewConversation?.();
+        this._text.next(this.translate.instant('MARK.DIAGRAM.NEW_CONVERSATION_DONE'));
+        this._continueArrow.next(true);
+      }
+    }]);
   }
   /**
    * A point of a slide is explained from a search in the project: the answer says with which
@@ -10839,6 +10868,7 @@ class MarkDiagramService {
     // registerDiagramFollowUpSender.
     this.mark.registerDiagramFollowUpSender(q => this.pointContext ? this.runPoint(this.pointContext, q) : this.askFollowUp(q));
     this.mark.registerDiagramEditActions(() => this.applyEdit(), () => this.discardEdit());
+    this.mark.registerDiagramNewConversation(() => this.newConversation());
   }
   setupIframeListener() {
     window.addEventListener('message', event => {
@@ -10995,6 +11025,16 @@ class MarkDiagramService {
       connectionId
     }).subscribe({
       error: err => this.mark.showDiagramError('', err?.error?.message || 'Non sono riuscito ad applicare la modifica.')
+    });
+  }
+  /** «Nuova conversazione»: la conversazione del documento si dimentica sul server (D8). */
+  newConversation() {
+    const connectionId = this.serverMessages.connectionId;
+    if (!connectionId) return;
+    this.http.post(`${this.baseUrl}/new-conversation`, {
+      connectionId
+    }).subscribe({
+      error: err => this.mark.showDiagramError('', err?.error?.message || 'Non sono riuscito a ricominciare la conversazione.')
     });
   }
   /** Butta via la modifica proposta. */
@@ -17392,7 +17432,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _microsoft_signalr__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @microsoft/signalr */ 3509);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs */ 6067);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs */ 228);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs */ 6317);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var _signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../signalR/dialogs/parsing-project/parsing-project.provider */ 5765);
 /* harmony import */ var _signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../signalR/dialogs/plantuml-working/plantuml-working.provider */ 1957);
 /* harmony import */ var _signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../signalR/dialogs/connection-lost/connection-lost.provider */ 4198);
@@ -17431,6 +17472,14 @@ class MdServerMessagesService {
     // Observable for the "Ask to MarkAgent" diagram explanation stream
     // (MarkDiagramController). Phases: start | chunk | done | error.
     this.markDiagramExplain$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    /**
+     * «Ragguagli» waiting for the MarkAgent tab (sprint 2026-09-29-Motore-LLM-Unico, D9): what was done in parallel
+     * (a change confirmed from «spiega il diagramma»), given to the tab's LLM with the user's next message.
+     */
+    this.markAgentBriefings$ = new rxjs__WEBPACK_IMPORTED_MODULE_8__.BehaviorSubject({
+      count: 0,
+      items: []
+    });
     // Observable for *.agent.md headless runs (AgentRunJobService): started/completed/failed
     this.agentJobProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for agent→user mailbox messages (§13 Fase 4a). Emitted by
@@ -17551,6 +17600,13 @@ class MdServerMessagesService {
         // "Ask to MarkAgent" diagram explanation, streamed chunk by chunk
         this.hubConnection.on('markDiagramExplain', data => {
           this.markDiagramExplain$.next(data);
+        });
+        // Briefings waiting for the MarkAgent tab (D9)
+        this.hubConnection.on('markAgentBriefings', data => {
+          this.markAgentBriefings$.next({
+            count: data?.count ?? 0,
+            items: data?.items ?? []
+          });
         });
         // *.agent.md headless run progress (manual launch, schedule, hook)
         this.hubConnection.on('agentJobProgress', data => {
@@ -17967,11 +18023,11 @@ class MdServerMessagesService {
   }
   static {
     this.ɵfac = function MdServerMessagesService_Factory(t) {
-      return new (t || MdServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_1__.ParsingProjectProvider), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_2__.PlantumlWorkingProvider), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__.ConnectionLostProvider), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_4__.OpeningApplicationProvider), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_8__.Injector));
+      return new (t || MdServerMessagesService)(_angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_signalR_dialogs_parsing_project_parsing_project_provider__WEBPACK_IMPORTED_MODULE_1__.ParsingProjectProvider), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_signalR_dialogs_plantuml_working_plantuml_working_provider__WEBPACK_IMPORTED_MODULE_2__.PlantumlWorkingProvider), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_signalR_dialogs_connection_lost_connection_lost_provider__WEBPACK_IMPORTED_MODULE_3__.ConnectionLostProvider), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_dialogs_opening_application_opening_application_provider__WEBPACK_IMPORTED_MODULE_4__.OpeningApplicationProvider), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_git_services_gitservice_service__WEBPACK_IMPORTED_MODULE_5__.GITService), _angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_9__.Injector));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_9__["ɵɵdefineInjectable"]({
       token: MdServerMessagesService,
       factory: MdServerMessagesService.ɵfac,
       providedIn: 'root'
@@ -18021,8 +18077,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.29.4',
-  buildTime: '2026.09.29 11:01:47'
+  version: '2026.09.29.6',
+  buildTime: '2026.09.29 11:56:02'
 };
 
 /***/ }),
@@ -18056,4 +18112,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.554ede04c66f6be8.js.map
+//# sourceMappingURL=main.6973bd2278652237.js.map

@@ -1032,6 +1032,7 @@
     "EXIT_FULLSCREEN": "Esci da schermo intero",
     "FULLSCREEN": "Schermo intero",
     "NEW_SESSION": "Nuova sessione chat",
+    "BRIEFINGS_TOOLTIP": "{{count}} ragguagli in attesa: arriveranno a MarkAgent con il tuo prossimo messaggio in questa chat.",
     "MODEL_MANAGER": "Gestione Modelli",
     "START_CONVERSATION": "Inizia una conversazione con l'assistente AI",
     "LOAD_MODEL_HINT": "Carica prima un modello usando il pulsante impostazioni sopra",
@@ -1448,7 +1449,9 @@
       "THINKING_POINT": "Cerco nel progetto cosa spiega «{{point}}»...",
       "APPLY": "Applica",
       "DISCARD": "Lascia stare",
-      "DISCARDED": "Va bene, non ho toccato nulla."
+      "DISCARDED": "Va bene, non ho toccato nulla.",
+      "NEW_CONVERSATION": "Nuova conversazione",
+      "NEW_CONVERSATION_DONE": "Ricominciamo da capo: la prossima domanda su questo documento parte da zero."
     }
   },
   "UNIFIED_SETTINGS": {

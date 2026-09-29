@@ -10,6 +10,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { ProjectsService } from '../md-explorer/services/projects.service';
 import { ProjectSettingsService } from '../projects/services/project-settings.service';
 import { SpeechService, VoiceRecording } from '../services/speech.service';
+import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 
 type CopilotModelChoice = { id: string; name: string; unavailable: boolean };
 type ClaudeModel = { id: string; name: string; description: string | null };
@@ -144,10 +145,24 @@ export class AiChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     private translate: TranslateService,
     private projectsService: ProjectsService,
     private projectSettingsService: ProjectSettingsService,
-    private speech: SpeechService
+    private speech: SpeechService,
+    private serverMessages: MdServerMessagesService
   ) {}
 
+  /** «Ragguagli» waiting for this tab (D9): how many, and their text for the tooltip. */
+  briefingsCount = 0;
+  briefingsTooltip = '';
+
   ngOnInit(): void {
+    this.serverMessages.markAgentBriefings$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(b => {
+        this.briefingsCount = b.count;
+        this.briefingsTooltip = b.count > 0
+          ? this.translate.instant('AI_CHAT.BRIEFINGS_TOOLTIP', { count: b.count }) + '\n\n• ' + b.items.join('\n\n• ')
+          : '';
+      });
+
     // Il microfono compare solo se il Service ha un modello di dettatura installato.
     this.loadDictationAvailability();
 

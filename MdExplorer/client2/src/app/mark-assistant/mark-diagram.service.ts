@@ -75,6 +75,7 @@ export class MarkDiagramService {
       () => this.applyEdit(),
       () => this.discardEdit(),
     );
+    this.mark.registerDiagramNewConversation(() => this.newConversation());
   }
 
   private setupIframeListener(): void {
@@ -219,6 +220,16 @@ export class MarkDiagramService {
     this.http.post(`${this.baseUrl}/apply-edit`, { connectionId }).subscribe({
       error: (err) => this.mark.showDiagramError('',
         err?.error?.message || 'Non sono riuscito ad applicare la modifica.'),
+    });
+  }
+
+  /** «Nuova conversazione»: la conversazione del documento si dimentica sul server (D8). */
+  newConversation(): void {
+    const connectionId = this.serverMessages.connectionId;
+    if (!connectionId) return;
+    this.http.post(`${this.baseUrl}/new-conversation`, { connectionId }).subscribe({
+      error: (err) => this.mark.showDiagramError('',
+        err?.error?.message || 'Non sono riuscito a ricominciare la conversazione.'),
     });
   }
 

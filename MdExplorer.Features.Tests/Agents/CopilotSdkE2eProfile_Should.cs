@@ -40,6 +40,21 @@ namespace MdExplorer.Features.Tests.Agents
         };
 
         [TestMethod]
+        public void Refuse_every_write_and_the_shell_in_a_read_only_session_saying_why()
+        {
+            // The diagram sessions (sprint 2026-09-29-Motore-LLM-Unico, D8): changes go through the proposal the user
+            // confirms; measured 29/09/2026: «permesso negato: scrivere …/scrittura-copilot.txt — la sessione dei diagrammi…».
+            var readOnly = new CopilotSessionProfile { Key = "mark-diagram", DenyShell = true, DenyWrite = true, DenyReason = "sola lettura" };
+            var write = Decide(Write("docs/qualunque.md"), readOnly);
+            Assert.IsFalse(write.Approved);
+            Assert.AreEqual("sola lettura", write.Reason);
+            Assert.AreEqual("sola lettura", Decide(Shell("echo ciao"), readOnly).Reason);
+            Assert.IsTrue(Decide(Read("docs/qualunque.md"), readOnly).Approved, "reading the project stays allowed");
+            Assert.IsTrue(Decide(Write("docs/qualunque.md"), new CopilotSessionProfile { Key = "k", DenyShell = true }).Approved,
+                "without DenyWrite a profile writes as before");
+        }
+
+        [TestMethod]
         public void Refuse_the_shell_during_a_test()
         {
             Assert.IsFalse(Decide(Shell("cat test-e2e/credenziali-x.txt")).Approved);
