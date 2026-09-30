@@ -89,13 +89,34 @@
         });
     }
 
+    // Every 500 ms for 40 s, then every 2 s up to 5 minutes: the text was seen coming right after 2 minutes.
+    // What is measured is the LAYOUT (sizes, positions in the DOM), not what is painted: if the text comes right
+    // on screen with no line here, the pixels were stale while the layout was already right.
     var polls = 0;
-    var poll = setInterval(function () {
+    function pollOnce() {
         polls++;
         snapshot('poll');
         if (polls === 10 || polls === 30 || polls === 60) resources(polls / 2 + 's');
-        if (polls >= 80) clearInterval(poll);   // 40 s
-    }, 500);
+        if (polls === 80) { log('polling every 2 s from now, up to 5 minutes'); clearInterval(poll); poll = setInterval(pollOnce, 2000); }
+        if (polls >= 80 + 130) clearInterval(poll);
+    }
+    var poll = setInterval(pollOnce, 500);
+
+    // What may coincide with the text coming right on screen: the first pointer move over the deck, the keyboard,
+    // the window losing or getting the focus, being hidden or shown, a message from the app around it.
+    var firstMove = true;
+    document.addEventListener('mousemove', function () { if (firstMove) { firstMove = false; log('first mouse move over the deck'); } }, true);
+    document.addEventListener('mousedown', function (e) { log('mousedown on ' + (e.target.tagName || '?')); }, true);
+    document.addEventListener('keydown', function (e) { log('keydown ' + e.key); }, true);
+    window.addEventListener('focus', function () { log('window focus'); });
+    window.addEventListener('blur', function () { log('window blur'); });
+    document.addEventListener('visibilitychange', function () { log('visibility ' + document.visibilityState); });
+    window.addEventListener('message', function (e) { var d = e.data; log('message from the app: ' + (d && (d.type || d.action || (typeof d === 'string' ? d.slice(0, 40) : JSON.stringify(d).slice(0, 60))))); });
+    if (window.matchMedia) {
+        var dpr = window.devicePixelRatio;
+        log('devicePixelRatio=' + dpr);
+        setInterval(function () { if (window.devicePixelRatio !== dpr) { dpr = window.devicePixelRatio; log('devicePixelRatio changed: ' + dpr); } }, 1000);
+    }
 
     // ---- resources: what was slow or failed ----
     function resources(when) {
