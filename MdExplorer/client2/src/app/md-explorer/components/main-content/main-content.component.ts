@@ -414,6 +414,12 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   /** The pages of the deck on screen, as the link that opened it asked (`2,6-9`); empty: the whole deck. */
   private currentSlidePages = '';
 
+  /** Whether this relative path is the file the view shows now (separators and case aside). */
+  private isCurrentFile(relativePath: string): boolean {
+    const normalize = (p: string | undefined) => (p || '').replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+    return !!this.contentState$.value.currentPath && normalize(this.contentState$.value.currentPath) === normalize(relativePath);
+  }
+
   /** `&pages=…` for the deck's URL: a reload (a save, a theme change) shows the same pages. */
   private pagesQuery(): string {
     return this.currentSlidePages ? `&pages=${encodeURIComponent(this.currentSlidePages)}` : '';
@@ -501,7 +507,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     const current = normalize(currentPath);
     if (changedFiles.some(p => normalize(p) === current)) {
       console.log(`[MainContent] 🔄 Open document was changed by ${source} — reloading`);
-      this.loadMarkdownFile({ relativePath: currentPath } as MdFile);
+      this.loadMarkdownFile({ relativePath: currentPath, slidePages: this.currentSlidePages || undefined } as MdFile);
     }
   }
 
@@ -527,16 +533,24 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
         return;
       }
 
+      // The server's event does not know which pages of a deck the link asked for: the file that
+      // changed is the one on screen, so it comes back with its own pages (a deck opened with
+      // ?pages=2- must not turn into the whole deck when a list item is moved, or a save).
+      const sameFileOnScreen = objectThis.isCurrentFile(relativePath);
+      const reloaded = sameFileOnScreen && objectThis.currentSlidePages
+        ? { ...data, slidePages: objectThis.currentSlidePages }
+        : data;
+
       // Update service state (legacy compatibility)
       objectThis.service.navigationArray = [];
-      objectThis.service.setSelectedMdFileFromServer(data);
-      objectThis.service.setSelectedMdFileFromSideNav(data);
+      objectThis.service.setSelectedMdFileFromServer(reloaded);
+      objectThis.service.setSelectedMdFileFromSideNav(reloaded);
 
       // Create file object and trigger loading
       const fileData: MdFile = {
         relativePath: relativePath.replace(/\\/g, '/'),
         // Add other properties from data if available
-        ...data
+        ...reloaded
       };
 
       objectThis.loadMarkdownFile(fileData);

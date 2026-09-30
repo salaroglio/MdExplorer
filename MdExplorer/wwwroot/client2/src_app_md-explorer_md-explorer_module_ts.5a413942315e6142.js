@@ -21789,6 +21789,11 @@ class MainContentComponent {
   static isSlidePosition(hash) {
     return !!hash && /^#\/\d+(\/\d+)?$/.test(hash);
   }
+  /** Whether this relative path is the file the view shows now (separators and case aside). */
+  isCurrentFile(relativePath) {
+    const normalize = p => (p || '').replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+    return !!this.contentState$.value.currentPath && normalize(this.contentState$.value.currentPath) === normalize(relativePath);
+  }
   /** `&pages=…` for the deck's URL: a reload (a save, a theme change) shows the same pages. */
   pagesQuery() {
     return this.currentSlidePages ? `&pages=${encodeURIComponent(this.currentSlidePages)}` : '';
@@ -21869,7 +21874,8 @@ class MainContentComponent {
     if (changedFiles.some(p => normalize(p) === current)) {
       console.log(`[MainContent] 🔄 Open document was changed by ${source} — reloading`);
       this.loadMarkdownFile({
-        relativePath: currentPath
+        relativePath: currentPath,
+        slidePages: this.currentSlidePages || undefined
       });
     }
   }
@@ -21893,15 +21899,23 @@ class MainContentComponent {
         });
         return;
       }
+      // The server's event does not know which pages of a deck the link asked for: the file that
+      // changed is the one on screen, so it comes back with its own pages (a deck opened with
+      // ?pages=2- must not turn into the whole deck when a list item is moved, or a save).
+      const sameFileOnScreen = objectThis.isCurrentFile(relativePath);
+      const reloaded = sameFileOnScreen && objectThis.currentSlidePages ? {
+        ...data,
+        slidePages: objectThis.currentSlidePages
+      } : data;
       // Update service state (legacy compatibility)
       objectThis.service.navigationArray = [];
-      objectThis.service.setSelectedMdFileFromServer(data);
-      objectThis.service.setSelectedMdFileFromSideNav(data);
+      objectThis.service.setSelectedMdFileFromServer(reloaded);
+      objectThis.service.setSelectedMdFileFromSideNav(reloaded);
       // Create file object and trigger loading
       const fileData = {
         relativePath: relativePath.replace(/\\/g, '/'),
         // Add other properties from data if available
-        ...data
+        ...reloaded
       };
       objectThis.loadMarkdownFile(fileData);
     } catch (error) {
@@ -39887,4 +39901,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.a3745e296251c34a.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.5a413942315e6142.js.map
