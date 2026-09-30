@@ -3,7 +3,7 @@ name: mde-slide
 description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF, immagine o GIF trovata in rete, gif animata, scarica un'immagine."
 mde:
   origin: mdexplorer
-  version: 7
+  version: 8
   updatePolicy: replace
 ---
 
@@ -247,11 +247,17 @@ danno il cambio si animano insieme, ognuna con la propria. Il valore scritto su 
 deck; una slide dentro una pila verticale (`--`) lo usa per i passaggi in verticale, mentre quello in orizzontale è
 della pila e segue il deck.
 
-L'utente non deve scriverlo a mano: nella vista di MdExplorer la **barra delle slide** ha un pulsante 🎬 con
-l'elenco delle scelte e un'anteprima animata di ognuna, per «questa slide» o per «tutto il deck»; MdExplorer scrive
-il commento `<!-- .slide: data-transition="…" -->` sulla prima riga della slide, o `transition` in `reveal.config`,
-e rifiuta con un motivo se il file è scritto in un modo che non sa modificare in sicurezza (per esempio un commento
-`.slide:` su più righe).
+L'utente non deve scriverlo a mano: nella vista di MdExplorer la **barra delle slide** ha un pulsante 🎬 (visibile
+con «Modifica» acceso) con l'elenco delle scelte e un'anteprima animata di ognuna, per «questa slide» o per «tutto il
+deck»; MdExplorer scrive il commento `<!-- .slide: data-transition="…" -->` sulla prima riga della slide, o
+`transition` in `reveal.config`, e rifiuta con un motivo se il file è scritto in un modo che non sa modificare in
+sicurezza (per esempio un commento `.slide:` su più righe). La transizione scelta per ultima viene riproposta, a un
+clic, sulla slide successiva.
+
+**Quando aggiungi una slide a una presentazione che c'è già**, falle seguire lo stile delle vicine: se la slide che la
+precede ha un suo `<!-- .slide: data-transition="…" -->`, scrivi lo **stesso** sulla nuova (la scelta dell'utente è nel
+file, è lì che si legge: quella ricordata dal browser tu non la vedi). Se la precedente non ne ha, **non aggiungerne**:
+la nuova segue il deck, come le altre. Non inventare una transizione che il resto della presentazione non usa.
 
 ### «Voglio degli approfondimenti che si possono saltare»
 

@@ -1,7 +1,7 @@
 /**
  * MdExplorer - Choosing the transition of a slide or of the whole deck
  * =====================================================================
- * A button on the bar (slide-toolbar.js) opens a panel with the transitions reveal.js documents, each with a
+ * A button on the bar (slide-toolbar.js, shown while "Modifica" is on) opens a panel with the transitions reveal.js documents, each with a
  * small animation that shows what it does (hover or focus an option and it plays). Two scopes:
  *
  *  - "Questa slide": how THAT slide enters and leaves. reveal.js has no transition "between A and B": each
@@ -43,6 +43,22 @@
     /** reveal.js's own default, when the deck says nothing. */
     var DEFAULT_TRANSITION = 'slide';
     var CYCLE_MS = 1700;
+    /** The last transition chosen, kept in the browser: it is offered again on the next slide. */
+    var LAST_KEY = 'mdexplorer_slide_last_transition';
+
+    function rememberLast(value) {
+        try { window.localStorage.setItem(LAST_KEY, value); } catch (e) { /* no storage: it forgets, it works */ }
+    }
+
+    /** The last transition chosen, or null (nothing chosen yet, or a value that is no longer one of the list). */
+    function recallLast() {
+        try {
+            var value = window.localStorage.getItem(LAST_KEY);
+            return value && LABELS[value] ? value : null;
+        } catch (e) {
+            return null;
+        }
+    }
 
     var panel = null;
     var scope = 'slide';
@@ -141,11 +157,28 @@
 
         var list = el('div', 'mde-tr-list');
         var current = scope === 'deck' ? deckValue() : slideValue();
+        var last = recallLast();
+
+        // The next slide: the last transition chosen is one click away, without looking for it in the list.
+        if (scope === 'slide' && last && current !== last) {
+            var suggest = el('button', 'mde-tr-suggest', 'Usa l\'ultima scelta: ' + LABELS[last]);
+            suggest.type = 'button';
+            suggest.setAttribute('data-value', last);
+            suggest.title = 'La transizione scelta per ultima, anche su un\'altra slide';
+            suggest.addEventListener('click', function () { apply(last); });
+            panel.appendChild(suggest);
+        }
+
         if (scope === 'slide') {
             list.appendChild(option(null, 'Come il deck (' + (LABELS[deckValue()] || deckValue()) + ')', deckValue(), current === null));
         }
         CHOICES.forEach(function (choice) {
-            list.appendChild(option(choice.value, choice.label, choice.value, current === choice.value));
+            var one = option(choice.value, choice.label, choice.value, current === choice.value);
+            if (choice.value === last) {
+                one.classList.add('mde-tr-last');
+                one.title = 'Ultima scelta';
+            }
+            list.appendChild(one);
         });
         panel.appendChild(list);
 
@@ -233,6 +266,8 @@
         }).then(function (response) {
             return response.json().catch(function () { return {}; }).then(function (result) {
                 // The file is written; the view reloads by itself. On a refusal the deck stays as it was.
+                // What was chosen is remembered (not "Come il deck", which is no transition): the next slide is offered it.
+                if (response.ok && value) rememberLast(value);
                 if (!response.ok) showNotice(result.message || result.error || ('Non sono riuscito a cambiare la transizione (HTTP ' + response.status + ').'));
             });
         }).catch(function (error) {
@@ -262,7 +297,19 @@
 
     button = window.mdeSlideToolbar.addButton({
         text: '\uD83C\uDFAC',
+        className: 'mde-tb-transitions',
         title: 'Transizione delle slide',
         onClick: function () { if (panel) close(); else open(); }
     });
+
+    // The transitions are a way of editing: the button is there with "Modifica", not in "Presenta" (a bar with
+    // two buttons to choose from is a bar one can read). Leaving the mode, or full screen, closes the panel.
+    function follow() {
+        var editing = window.mdeSlideToolbar.isEditMode();
+        button.hidden = !editing;
+        if (!editing) close();
+    }
+    window.addEventListener('mde-edit-mode', follow);
+    document.addEventListener('fullscreenchange', function () { if (document.fullscreenElement) close(); });
+    follow();
 })();

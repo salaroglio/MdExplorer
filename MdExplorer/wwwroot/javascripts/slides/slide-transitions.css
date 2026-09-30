@@ -48,6 +48,45 @@
     font-size: 12px;
 }
 
+/* L'ultima scelta, a un clic, per la slide dopo. */
+.mde-tr-suggest {
+    display: block;
+    width: 100%;
+    margin: 0 0 8px;
+    padding: 7px 10px;
+    border: 1px dashed #1a73e8;
+    border-radius: 8px;
+    background: rgba(26, 115, 232, 0.08);
+    color: #0b57d0;
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+.mde-tr-suggest:hover,
+.mde-tr-suggest:focus-visible {
+    background: rgba(26, 115, 232, 0.18);
+    outline: none;
+}
+
+/* Nell'elenco, la scelta fatta per ultima ha un punto in alto a destra. */
+.mde-tr-option.mde-tr-last {
+    position: relative;
+}
+
+.mde-tr-option.mde-tr-last::after {
+    content: "";
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #1a73e8;
+    box-shadow: 0 0 0 2px #fff;
+}
+
 .mde-tr-list {
     display: grid;
     grid-template-columns: 1fr 1fr;
