@@ -414,7 +414,17 @@ namespace MdExplorer.Features.Slides
 <script src=""/javascripts/slides/slide-svg-zoom.js""></script>
 <script src=""/javascripts/slides/slide-ink.js""></script>
 <script>
-Reveal.initialize(Object.assign({Configuration(settings.Config).ToJsonString()}, {{ plugins: [RevealHighlight, RevealNotes, RevealMath.KaTeX, RevealSearch, RevealZoom] }}));
+// Inside MdExplorer's view the iframe is hidden while the page loads, so the window is 0x0: initialized then,
+// reveal.js laid the deck out at its smallest scale (0.2) and again, at the real one, when the iframe showed.
+// On Windows the text of the diagrams kept the first layout for 15-20 s (measured 30/09/2026): laid out once,
+// when the window has a size.
+(function startWhenSized() {{
+    if ((window.innerWidth === 0 || window.innerHeight === 0) && window.parent !== window) {{
+        setTimeout(startWhenSized, 50);
+        return;
+    }}
+    Reveal.initialize(Object.assign({Configuration(settings.Config).ToJsonString()}, {{ plugins: [RevealHighlight, RevealNotes, RevealMath.KaTeX, RevealSearch, RevealZoom] }}));
+}})();
 </script>
 </body>
 </html>
