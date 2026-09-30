@@ -9,7 +9,8 @@
  *    server (measured, sprint F0). Outside MdExplorer (detached window, browser) a link stays a link.
  *
  *    A link to an HTML page of the project (.html/.htm) is opened by Angular the same way, so it
- *    shows in MdExplorer's view and enters the navigation history.
+ *    shows in MdExplorer's view and enters the navigation history; the page shows the breadcrumb
+ *    of the way that led to it (html-page-trail.js, added to the page by the server).
  *
  *    A link to another site (http/https) opens in the system browser, as in a document
  *    (navigation-history.js: POST /api/MdFiles/OpenUrlInBrowser): followed in the iframe, a site
@@ -30,6 +31,7 @@
     var TRAIL = 'mde.slideTrail';
     var JUMP = 'mde.slideJump';
     var SHOWN = 'mde.slideShown';
+    var HTML_JUMP = 'mde.slideHtmlJump';
     var PAGE_PREFIX = /^\/api\/mdexplorer\//i;
     var inMdExplorer = window.parent !== window;
 
@@ -130,6 +132,13 @@
             var page = htmlPagePathOf(url);
             if (page && inMdExplorer) {
                 event.preventDefault();
+                // The page shows the way that led to it (html-page-trail.js): the decks up to here.
+                write(HTML_JUMP, {
+                    to: page,
+                    trail: (read(TRAIL) || []).concat([{
+                        path: here, deck: document.title, slide: slideTitle(Reveal.getCurrentSlide()), hash: position()
+                    }])
+                });
                 open(page, null);
                 return;
             }
@@ -156,6 +165,7 @@
         var shownBefore = read(SHOWN);
         write(JUMP, null);
         write(SHOWN, here);
+        write(HTML_JUMP, null);
         if (!jump && shownBefore === here) return trail;
         var onTheWay = trail.map(function (step) { return step.path; }).indexOf(here);
         if (onTheWay >= 0) return trail.slice(0, onTheWay);

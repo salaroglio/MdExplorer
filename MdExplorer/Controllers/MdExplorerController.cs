@@ -138,6 +138,12 @@ namespace MdExplorer.Controllers
                     return NotFound($"File not found: {relativePathFile}");
                 }
 
+                // An HTML page shown in MdExplorer's view carries the breadcrumb of the deck it came from.
+                if (source == "angular" && (relativePathExtension == ".html" || relativePathExtension == ".htm"))
+                {
+                    responseForNotMdFile.FileContents = MdExplorer.Features.Slides.HtmlPageTrail.AddTo(responseForNotMdFile.FileContents);
+                }
+
                 // Invia documentNavigated SOLO per file HTML (non per immagini, PDF, etc.)
                 if (isIframeLinkClick && !string.IsNullOrEmpty(connectionId)
                     && (relativePathExtension == ".html" || relativePathExtension == ".htm"))
