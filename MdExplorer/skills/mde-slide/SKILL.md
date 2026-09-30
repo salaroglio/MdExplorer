@@ -1,9 +1,9 @@
 ---
 name: mde-slide
-description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF, immagine o GIF trovata in rete, gif animata, scarica un'immagine."
+description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF, esportare in HTML, mandare la presentazione a chi non ha MdExplorer, immagine o GIF trovata in rete, gif animata, scarica un'immagine."
 mde:
   origin: mdexplorer
-  version: 13
+  version: 14
   updatePolicy: replace
 ---
 
@@ -520,6 +520,26 @@ qui sotto e di' all'utente di premere **PDF**. Due cose da sapere:
 - ogni passo degli effetti a comparsa diventa una pagina: una slide con tre punti a comparsa diventa quattro
   pagine. Per una pagina sola per slide: `pdfSeparateFragments: false` in `reveal.config`;
 - le note del relatore nel PDF: `showNotes: separate-page` in `reveal.config`.
+
+### «La devo mandare a qualcuno che non ha MdExplorer»
+
+Il pulsante **Esporta in HTML** della barra (l'icona della cartella zip, accanto al PDF, solo sulle
+presentazioni) produce **uno zip**: un sito web locale che si apre con un doppio clic su `index.html`, senza
+MdExplorer e senza rete. Dentro ci sono la presentazione e **tutto ciò che i suoi link raggiungono, a qualsiasi
+profondità**: gli altri deck (con `?pages=` e `#/3`), i documenti markdown (diventano pagine HTML), le pagine
+HTML del progetto e i file che caricano, le immagini, gli sfondi, i video. Restano animazioni, transizioni,
+formule, diagrammi interattivi, vista relatore, annotazioni e breadcrumb; la modifica no. Un'AI non può
+premere il pulsante: prepara la presentazione così e di' all'utente di premere **Esporta in HTML**:
+
+- **link relativi a file del progetto** (`costi.md`, `../docs/analisi.md`, `img/grafico.png`): un file fuori
+  dalla cartella del progetto non entra nello zip;
+- i **diagrammi PlantUML** entrano come l'SVG che MdExplorer ha già generato: se un diagramma è stato appena
+  cambiato, l'utente apra la presentazione in MdExplorer prima di esportare;
+- **niente mermaid**: non entra nello zip, il blocco resterebbe testo;
+- una risorsa su un altro sito (immagine, font) funziona solo con internet: meglio scaricarla nel progetto
+  (vedi sopra).
+
+Quello che non è potuto entrare è scritto in `_mde/resoconto.html` dentro lo zip, e l'app lo dice al termine.
 
 ## Errori che MdExplorer segnala
 

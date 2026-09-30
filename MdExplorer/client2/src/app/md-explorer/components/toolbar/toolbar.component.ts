@@ -654,6 +654,50 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** An HTML export is running: the button waits for it (a big project takes a while). */
+  staticSiteExporting = false;
+
+  /**
+   * The slide deck on screen, and everything its links reach (decks, documents, HTML pages, their
+   * files), as a static web site in a zip to open without MdExplorer. Electron asks where to save
+   * it (next to the markdown file by default), the backend writes it and reports what could not be
+   * carried (sprint docs-internal/Sprints/2026-09-30-Slide-Export-HTML.md). The zip is written to
+   * disk: in a browser there is no such save, and the button says so.
+   */
+  async exportStaticSite(): Promise<void> {
+    if (!this.relativePath) {
+      return;
+    }
+    const electronAPI = (window as any).electronAPI;
+    if (!electronAPI?.exportStaticSite) {
+      this._snackBar.open(this.translate.instant('TOOLBAR.STATIC_SITE_DESKTOP_ONLY'), 'OK', { duration: 6000, verticalPosition: 'top' });
+      return;
+    }
+    const connectionId = this.connectionId ?? this.monitorMDService.connectionId ?? '';
+    const url = `${window.location.origin}/api/MdStaticSite/Export?ConnectionId=${encodeURIComponent(connectionId)}`;
+    const request = {
+      relativePath: this.relativePath.replace(/^[\/\\]+/, ''),
+      theme: this.themeService.getResolvedTheme(),
+    };
+    const suggestedPath = this.absolutePath ? this.absolutePath.replace(/\.md$/i, '') + '.zip' : undefined;
+
+    this.staticSiteExporting = true;
+    try {
+      const result = await electronAPI.exportStaticSite(url, request, suggestedPath);
+      if (result?.success) {
+        const issues = result.report?.issues?.length ?? 0;
+        const params = { path: result.filePath, pages: result.report?.pages, files: result.report?.files, issues };
+        this._snackBar.open(
+          this.translate.instant(issues ? 'TOOLBAR.STATIC_SITE_SAVED_WITH_ISSUES' : 'TOOLBAR.STATIC_SITE_SAVED', params),
+          'OK', { duration: issues ? undefined : 8000, verticalPosition: 'top' });
+      } else if (!result?.canceled) {
+        this._snackBar.open(this.translate.instant('TOOLBAR.STATIC_SITE_FAILED', { error: result?.error ?? '' }), 'OK', { verticalPosition: 'top' });
+      }
+    } finally {
+      this.staticSiteExporting = false;
+    }
+  }
+
   /**
    * Reload the currently open document in the main viewer. The actual iframe
    * reload lives in MainContentComponent.refreshCurrentFile(); we only signal it

@@ -24,6 +24,9 @@
     <button *ngIf="slideDeckShown" mat-icon-button [matTooltip]="'TOOLBAR.EXPORT_SLIDES_PDF' | translate" (click)="exportSlidesPdf()" class="toolbar-btn btn-slides-pdf">
       <mat-icon>picture_as_pdf</mat-icon>
     </button>
+    <button *ngIf="slideDeckShown" mat-icon-button [matTooltip]="'TOOLBAR.EXPORT_STATIC_SITE' | translate" [disabled]="staticSiteExporting" (click)="exportStaticSite()" class="toolbar-btn btn-static-site">
+      <mat-icon>folder_zip</mat-icon>
+    </button>
     <!-- Comandi della città degli agenti: visibili solo dove il progetto ha
          agentCity.enabled acceso (.development.yml). -->
     <button *ngIf="cityEnabled" mat-icon-button [matTooltip]="'TOOLBAR.AGENT_REGISTRY' | translate" (click)="openAgentRegistry()" class="toolbar-btn btn-agents">
