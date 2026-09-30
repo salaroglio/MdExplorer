@@ -3,7 +3,7 @@ name: mde-slide
 description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF, immagine o GIF trovata in rete, gif animata, scarica un'immagine."
 mde:
   origin: mdexplorer
-  version: 8
+  version: 9
   updatePolicy: replace
 ---
 
@@ -51,6 +51,13 @@ Se non puoi chiedere, decidi e dillo all'utente quando consegni:
 - **dimensioni**: reveal.js parte da 960×700. Per uno schermo 16:9 scrivi `width: 1280` e `height: 720` in
   `reveal.config`;
 - **effetti a comparsa** solo se la presenta parlando; **note del relatore** sempre, se la presenta parlando.
+
+## Se la presentazione esiste già
+
+**Rileggi il file subito prima di modificarlo.** L'utente lo cambia anche a mano dalla pagina — trascina le voci,
+corregge un testo, sceglie le transizioni — e ogni gesto scrive nel `.md`. Ciò che hai letto o scritto qualche
+messaggio fa può essere vecchio: se riscrivi partendo da quello, **cancelli il suo lavoro**. Cambia solo le righe che
+ti servono, a partire da ciò che leggi adesso.
 
 ## Lo scheletro
 
