@@ -16,16 +16,16 @@ namespace MdExplorer.Features.Tests.SourceMapping
         private static void Moves(string expected, string text, int line, int to)
         {
             var move = Move(text, line, to);
-            Assert.IsTrue(move.Applied, move.Refusal);
+            Assert.IsTrue(move.Applied, move.Refusal + ": " + move.Detail);
             Assert.AreEqual(expected, move.NewText);
         }
 
-        private static void Refuses(string text, int line, int to, string because = null)
+        private static void Refuses(string text, int line, int to, ListItemMoveRefusal because)
         {
             var move = Move(text, line, to);
             Assert.IsFalse(move.Applied, "it must not write: " + move.NewText);
-            if (because != null) StringAssert.Contains(move.Refusal, because);
-            Assert.IsNotNull(move.Refusal, "a refusal says why");
+            Assert.AreEqual(because, move.Refusal, move.Detail);
+            Assert.IsNotNull(move.Detail, "a refusal says why");
         }
 
         [TestMethod]
@@ -92,7 +92,7 @@ namespace MdExplorer.Features.Tests.SourceMapping
         public void RefuseWhenTheMarkerWouldChangeWidth()
         {
             // "10. " is a column wider than "9. ": the item's continuation lines would no longer line up.
-            Refuses("9. a\n10. b\n11. c\n", 1, 1, "different width");
+            Refuses("9. a\n10. b\n11. c\n", 1, 1, ListItemMoveRefusal.MarkerWidthDiffers);
             Moves("9. a\n10. c\n11. b\n", "9. a\n10. b\n11. c\n", 2, 2);
         }
 
@@ -131,12 +131,37 @@ namespace MdExplorer.Features.Tests.SourceMapping
         [TestMethod]
         public void RefuseWhatIsNotAMovableItem()
         {
-            Refuses("- a\n- b\n", 5, 0, "not the start of a list item");
-            Refuses("- a\n", 1, 0, "one item only");
-            Refuses("- a\n- b\n", 1, 2, "does not exist");
-            Refuses("- a\n- b\n", 1, 0, "already there");
-            Refuses("-\n  a\n- b\n", 1, 1, "nothing on the line of its marker");
-            Refuses("- a\n* b\n", 1, 1, "one item only");
+            Refuses("- a\n- b\n", 5, 0, ListItemMoveRefusal.NotAListItem);
+            Refuses("- a\n", 1, 0, ListItemMoveRefusal.SingleItem);
+            Refuses("- a\n- b\n", 1, 2, ListItemMoveRefusal.PositionOutOfRange);
+            Refuses("-\n  a\n- b\n", 1, 1, ListItemMoveRefusal.EmptyFirstLine);
+            Refuses("- a\n* b\n", 1, 1, ListItemMoveRefusal.SingleItem);
+        }
+
+        [TestMethod]
+        public void DoNothingWhenTheItemIsAlreadyThere()
+        {
+            var move = Move("- a\n- b\n", 1, 0);
+
+            Assert.IsFalse(move.Applied);
+            Assert.IsTrue(move.NoChange);
+            Assert.IsNull(move.Refusal, "it is not a refusal");
+        }
+
+        [TestMethod]
+        public void RefuseAListWhoseFragmentOrderIsWrittenOnTheItems()
+        {
+            // The index stays with the item: the order of appearance would not change.
+            var text = "- a <!-- .element: class=\"fragment\" data-fragment-index=\"2\" -->\n- b <!-- .element: class=\"fragment\" data-fragment-index=\"1\" -->\n";
+
+            Refuses(text, 1, 1, ListItemMoveRefusal.FragmentOrderFixed);
+        }
+
+        [TestMethod]
+        public void RefuseByItselfWhatWouldChangeTheFile()
+        {
+            // A loose list in a quote: the "blank" line is ">", the lines would not be cut right.
+            Refuses("> - a\n>\n> - b\n", 1, 1, ListItemMoveRefusal.ChangesOtherBlocks);
         }
     }
 }

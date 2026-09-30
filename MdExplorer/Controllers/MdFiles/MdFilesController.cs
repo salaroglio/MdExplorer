@@ -3748,6 +3748,125 @@ namespace MdExplorer.Service.Controllers.MdFiles
             return Ok(new { status = edit.BlockDeleted ? "deleted" : "applied", sourceHash = MarkdownFileEditor.SourceHash(edit.NewContent) });
         }
 
+        /// <summary>
+        /// Sposta una voce di un elenco tra le sue sorelle (trascinamento sulla slide,
+        /// <see cref="ListItemReorderer"/>): il file cambia solo nell'ordine delle voci, i marcatori
+        /// restano ai loro posti (un elenco numerato resta numerato).
+        /// <para>
+        /// 409 <c>document-changed</c> se il file non è più quello da cui la pagina è stata costruita;
+        /// 422 <c>refused</c>, con il motivo, quando non si può fare in modo sicuro. In entrambi i casi
+        /// non si scrive nulla. La risposta porta l'impronta nuova: le righe sotto la voce non cambiano,
+        /// ma la pagina non deve rimanere con quella vecchia.
+        /// </para>
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> MoveListItem([FromBody] MoveListItemRequest request)
+        {
+            if (string.IsNullOrEmpty(request.ConnectionId))
+            {
+                return BadRequest(new { error = "ConnectionId is required" });
+            }
+            if (string.IsNullOrWhiteSpace(request.SourceHash))
+            {
+                return BadRequest(new { error = "SourceHash is required" });
+            }
+            if (request.Line < 1)
+            {
+                return BadRequest(new { error = "Line must be the data-mde-line-start of the list item (1 or more)" });
+            }
+            if (request.ToIndex < 0)
+            {
+                return BadRequest(new { error = "ToIndex is the 0-based position among the siblings" });
+            }
+
+            var pathError = ValidateProjectMarkdownPath(request.DocumentPath, request.ConnectionId, out var fullPath);
+            if (pathError != null)
+            {
+                return pathError;
+            }
+
+            var text = MarkdownFileEditor.ReadText(fullPath);
+            var plan = ListItemMovePlanner.Plan(text, request.SourceHash, request.Line, request.ToIndex, BuildDocumentViewPipeline());
+
+            switch (plan.Status)
+            {
+                case ListItemMovePlanStatus.DocumentChanged:
+                    _logger.LogWarning("[MoveListItem] Rifiutato per {File}: il file è cambiato dopo il caricamento della pagina", fullPath);
+                    return Conflict(new
+                    {
+                        error = "document-changed",
+                        message = "Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova."
+                    });
+                case ListItemMovePlanStatus.NoChange:
+                    return Ok(new { status = "no-change", sourceHash = request.SourceHash });
+                case ListItemMovePlanStatus.Refused:
+                    _logger.LogWarning("[MoveListItem] Rifiutato per {File}, riga {Line}: {Refusal} — {Detail}", fullPath, request.Line, plan.Refusal, plan.Detail);
+                    return UnprocessableEntity(new
+                    {
+                        error = "refused",
+                        refusal = plan.Refusal.ToString(),
+                        detail = plan.Detail,
+                        message = ListItemMoveRefusalMessage(plan.Refusal.Value)
+                    });
+            }
+
+            var hasUtf8Bom = MarkdownFileEditor.HasUtf8Bom(fullPath);
+            SetFileSystemWatcherEnabled(false, request.ConnectionId);
+            try
+            {
+                await MarkdownFileEditor.WriteAsync(fullPath, plan.NewText, hasUtf8Bom);
+            }
+            finally
+            {
+                SetFileSystemWatcherEnabled(true, request.ConnectionId);
+            }
+            _logger.LogInformation("[MoveListItem] Spostata la voce alla riga {Line} di {File} in posizione {To}", request.Line, fullPath, request.ToIndex);
+
+            try
+            {
+                var projectPath = GetProjectPath(request.ConnectionId);
+                var relativePath = fullPath
+                    .Replace(projectPath, string.Empty)
+                    .TrimStart(Path.DirectorySeparatorChar)
+                    .Replace("\\", "/");
+                await _hubContext.Clients.Client(request.ConnectionId).SendAsync("markdownfileischanged", new MonitoredMDModel
+                {
+                    Path = relativePath,
+                    Name = Path.GetFileName(fullPath),
+                    RelativePath = relativePath,
+                    FullPath = fullPath,
+                    FullDirectoryPath = Path.GetDirectoryName(fullPath)
+                });
+            }
+            catch (Exception signalrEx)
+            {
+                // The file is written: the page just does not reload by itself.
+                _logger.LogWarning(signalrEx, "[MoveListItem] Notifica markdownfileischanged non inviata per {File}", fullPath);
+            }
+
+            return Ok(new { status = "applied", sourceHash = plan.NewSourceHash });
+        }
+
+        /// <summary>Perché la voce non è stata spostata, detto a chi l'ha trascinata: la pagina la lascia dov'era.</summary>
+        private static string ListItemMoveRefusalMessage(ListItemMoveRefusal refusal) => refusal switch
+        {
+            ListItemMoveRefusal.NotAListItem =>
+                "Non trovo più questa voce nel file: ricarica la pagina e riprova.",
+            ListItemMoveRefusal.SingleItem =>
+                "L'elenco ha una voce sola: non c'è dove spostarla.",
+            ListItemMoveRefusal.PositionOutOfRange =>
+                "Quella posizione non esiste nell'elenco: ricarica la pagina e riprova.",
+            ListItemMoveRefusal.MarkerWidthDiffers =>
+                "In questo elenco numerato lo spostamento cambierebbe la larghezza del numero (da 9 a 10 o viceversa) e le righe della voce non sarebbero più allineate: spostala nel file.",
+            ListItemMoveRefusal.EmptyFirstLine =>
+                "Questa voce inizia con la riga vuota: spostala nel file.",
+            ListItemMoveRefusal.ChangesOtherBlocks =>
+                "Spostare questa voce cambierebbe altro nel file (un elenco impaginato diversamente, un altro blocco): spostala nel file.",
+            ListItemMoveRefusal.FragmentOrderFixed =>
+                "Le voci di questo elenco hanno un data-fragment-index scritto a mano: spostarle non cambierebbe l'ordine in cui compaiono. Cambia gli indici nel file.",
+            _ => throw new ArgumentOutOfRangeException(nameof(refusal), refusal, "Motivo di rifiuto senza messaggio")
+        };
+
         private static List<RenderedRun> ToRenderedRuns(IEnumerable<RenderedRunDto> runs)
             => runs.Select(run => new RenderedRun { Text = run.Text, Object = run.Object, Path = run.Path }).ToList();
 
@@ -3983,6 +4102,26 @@ public class EditRenderedTextRequest
 
     public List<RenderedRunDto>? Before { get; set; }
     public List<RenderedRunDto>? After { get; set; }
+}
+
+/// <summary>
+/// <c>POST api/mdfiles/MoveListItem</c>: una voce di elenco trascinata sulla pagina. Tutto nullable
+/// dove è una stringa (un campo non nullable in un progetto con Nullable annotations è un [Required]
+/// implicito).
+/// </summary>
+public class MoveListItemRequest
+{
+    public string? ConnectionId { get; set; }
+    public string? DocumentPath { get; set; }
+
+    /// <summary>Il <c>data-mde-source-hash</c> della pagina.</summary>
+    public string? SourceHash { get; set; }
+
+    /// <summary>Il <c>data-mde-line-start</c> della voce (1-based).</summary>
+    public int Line { get; set; }
+
+    /// <summary>La posizione tra le voci sorelle a cui va, da 0.</summary>
+    public int ToIndex { get; set; }
 }
 
 /// <summary>Un nodo di testo del blocco o un elemento senza testo (<c>img</c>, <c>br</c>, <c>input</c>).</summary>

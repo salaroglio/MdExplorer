@@ -7,14 +7,35 @@ using System.Text;
 
 namespace MdExplorer.Features.Services.SourceMapping
 {
-    /// <summary>The outcome of moving a list item: the new text, or why nothing was written.</summary>
-    public sealed record ListItemMove(string NewText, string Refusal)
+    /// <summary>Why a list item was not moved.</summary>
+    public enum ListItemMoveRefusal
+    {
+        /// <summary>The line is not the start of a list item (the file changed, or a generated block).</summary>
+        NotAListItem,
+        /// <summary>The list has one item only.</summary>
+        SingleItem,
+        /// <summary>The position asked for does not exist in the list.</summary>
+        PositionOutOfRange,
+        /// <summary>A marker of the list would change width (<c>9.</c> ↔ <c>10.</c>): the item's lines would no longer line up.</summary>
+        MarkerWidthDiffers,
+        /// <summary>The item has nothing on the line of its marker.</summary>
+        EmptyFirstLine,
+        /// <summary>The new file, read again, is not the old one with the items in another order.</summary>
+        ChangesOtherBlocks,
+        /// <summary>An item has an explicit <c>data-fragment-index</c>: it stays with the item, the order of appearance would not change.</summary>
+        FragmentOrderFixed,
+    }
+
+    /// <summary>The outcome of moving a list item: the new text, nothing to do, or why nothing was written.</summary>
+    public sealed record ListItemMove(string NewText, ListItemMoveRefusal? Refusal, string Detail, bool NoChange = false)
     {
         public bool Applied => NewText != null;
 
-        public static ListItemMove Done(string text) => new(text, null);
+        public static ListItemMove Done(string text) => new(text, null, null);
 
-        public static ListItemMove Refused(string reason) => new(null, reason);
+        public static ListItemMove Unchanged() => new(null, null, "The item is already there.", true);
+
+        public static ListItemMove Refused(ListItemMoveRefusal reason, string detail) => new(null, reason, detail);
     }
 
     /// <summary>
@@ -47,17 +68,17 @@ namespace MdExplorer.Features.Services.SourceMapping
             var document = Markdown.Parse(text, pipeline);
             var item = document.Descendants().OfType<ListItemBlock>().FirstOrDefault(i => i.Line == itemLine - 1);
             if (item == null)
-                return ListItemMove.Refused($"Line {itemLine} is not the start of a list item.");
+                return ListItemMove.Refused(ListItemMoveRefusal.NotAListItem, $"Line {itemLine} is not the start of a list item.");
 
             var list = (ListBlock)item.Parent;
             var items = list.OfType<ListItemBlock>().ToList();
             var from = items.IndexOf(item);
             if (items.Count < 2)
-                return ListItemMove.Refused("The list has one item only.");
+                return ListItemMove.Refused(ListItemMoveRefusal.SingleItem, "The list has one item only.");
             if (toIndex < 0 || toIndex >= items.Count)
-                return ListItemMove.Refused($"The list has {items.Count} items: position {toIndex} does not exist.");
+                return ListItemMove.Refused(ListItemMoveRefusal.PositionOutOfRange, $"The list has {items.Count} items: position {toIndex} does not exist.");
             if (toIndex == from)
-                return ListItemMove.Refused("The item is already there.");
+                return ListItemMove.Unchanged();
 
             var starts = MarkdownSourceMapService.BuildLineStartOffsets(text);
             string Line(int line) => text.Substring(starts[line], (line + 1 < starts.Length ? starts[line + 1] : text.Length) - starts[line]);
@@ -72,6 +93,10 @@ namespace MdExplorer.Features.Services.SourceMapping
             var count = items.Count;
             var firsts = items.Select(i => i.Line).ToArray();
             var lastLine = LineOf(items[count - 1].Span.End);
+            // A reveal.js fragment index written on an item stays with the item: moving the item
+            // would not change the order things appear in, and the move would look ignored.
+            if (Enumerable.Range(firsts[0], lastLine + 1 - firsts[0]).Any(l => Line(l).Contains("data-fragment-index", StringComparison.Ordinal)))
+                return ListItemMove.Refused(ListItemMoveRefusal.FragmentOrderFixed, "An item of the list has an explicit data-fragment-index.");
             var bodies = new List<List<string>>();
             var separators = new List<string>();
             var prefixes = new List<string>();
@@ -86,7 +111,7 @@ namespace MdExplorer.Features.Services.SourceMapping
 
                 var child = items[i].Count > 0 ? items[i][0] : null;
                 if (child == null || child.Line != firsts[i])
-                    return ListItemMove.Refused("An item with nothing on the line of its marker cannot be moved.");
+                    return ListItemMove.Refused(ListItemMoveRefusal.EmptyFirstLine, "An item with nothing on the line of its marker cannot be moved.");
                 prefixes.Add(text.Substring(starts[firsts[i]], child.Span.Start - starts[firsts[i]]));
             }
 
@@ -96,7 +121,7 @@ namespace MdExplorer.Features.Services.SourceMapping
             for (var position = 0; position < count; position++)
             {
                 if (prefixes[order[position]].Length != prefixes[position].Length)
-                    return ListItemMove.Refused($"The marker \"{prefixes[order[position]].Trim()}\" and \"{prefixes[position].Trim()}\" have a different width: the item's lines would no longer line up.");
+                    return ListItemMove.Refused(ListItemMoveRefusal.MarkerWidthDiffers, $"The marker \"{prefixes[order[position]].Trim()}\" and \"{prefixes[position].Trim()}\" have a different width: the item's lines would no longer line up.");
             }
 
             var eol = text.Contains("\r\n") ? "\r\n" : "\n";
@@ -136,7 +161,7 @@ namespace MdExplorer.Features.Services.SourceMapping
                 || !OutsideSignature(document, text, list).SequenceEqual(OutsideSignature(newLists, newText, newList))
                 || !expectedItems.SequenceEqual(newItems.Select(i => ItemSignature(i, newText))))
             {
-                return ListItemMove.Refused("Moving the item would change something else in the file (a list laid out differently, another block): nothing was written.");
+                return ListItemMove.Refused(ListItemMoveRefusal.ChangesOtherBlocks, "Moving the item would change something else in the file (a list laid out differently, another block): nothing was written.");
             }
             return ListItemMove.Done(newText);
         }
