@@ -442,6 +442,14 @@ reveal:
             StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-transitions.css\">");
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-toolbar.js") < page.IndexOf("/javascripts/slides/slide-transitions.js"));
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-transitions.js") < page.IndexOf("Reveal.initialize("));
+            // The zoom buttons over a diagram: they read the state the diagram scripts (slide-diagrams.js) leave on the svg.
+            StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-svg-zoom.css\">");
+            Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-diagrams.js") < page.IndexOf("/javascripts/slides/slide-svg-zoom.js"));
+            Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-svg-zoom.js") < page.IndexOf("Reveal.initialize("));
+            // The annotations add a button to the bar and read the mode: after the bar, before reveal.js starts.
+            StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-ink.css\">");
+            Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-toolbar.js") < page.IndexOf("/javascripts/slides/slide-ink.js"));
+            Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-ink.js") < page.IndexOf("Reveal.initialize("));
             // slide-diagrams.js registers on Reveal's ready event: it must come before Reveal.initialize.
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-diagrams.js") < page.IndexOf("Reveal.initialize("));
             Assert.IsFalse(page.Contains("jquery-3"), "the diagram scripts do not need jQuery");

@@ -74,7 +74,7 @@ namespace MdExplorer.Features.Tests.Slides
             var files = new[]
             {
                 Path.Combine("slides", "slide-toolbar.js"), Path.Combine("slides", "slide-transitions.js"), Path.Combine("slides", "slide-list-drag.js"),
-                Path.Combine("slides", "slide-edit.js"), Path.Combine("slides", "slide-navigation.js"),
+                Path.Combine("slides", "slide-edit.js"), Path.Combine("slides", "slide-navigation.js"), Path.Combine("slides", "slide-svg-zoom.js"), Path.Combine("slides", "slide-ink.js"),
                 Path.Combine("jqueryForFirstPage", "inline-edit", "inline-edit.js"), Path.Combine("jqueryForFirstPage", "clipboard", "clipboard-paste.js"),
             };
 
@@ -97,6 +97,19 @@ namespace MdExplorer.Features.Tests.Slides
             {
                 Assert.IsTrue(it.ContainsKey("tr." + value) && en.ContainsKey("tr." + value), $"the name of the transition '{value}'");
             }
+        }
+
+        [TestMethod]
+        public void HaveTheTextsOfTheAnnotations()
+        {
+            // Asked through arrays and 'ink.' + colour, which the scan of the scripts does not follow.
+            var (it, en) = Texts();
+            var keys = new[] { "ink.button", "ink.pen", "ink.highlighter", "ink.eraser", "ink.reset", "ink.resetTitle", "ink.close", "ink.colors", "ink.color" }
+                .Concat(new[] { "yellow", "red", "green", "blue", "orange", "purple" }.Select(c => "ink." + c));
+
+            var missing = keys.Where(k => !it.ContainsKey(k) || !en.ContainsKey(k)).ToList();
+
+            Assert.AreEqual(0, missing.Count, "texts of the annotations missing: " + string.Join(", ", missing));
         }
 
         [TestMethod]

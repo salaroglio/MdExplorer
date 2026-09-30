@@ -376,6 +376,8 @@ namespace MdExplorer.Features.Slides
                 + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-toolbar.css\">\n"
                 + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-edit-mode.css\">\n"
                 + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-transitions.css\">\n"
+                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-svg-zoom.css\">\n"
+                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-ink.css\">\n"
                 // Text correction: the document's script and styles, its menu's look.
                 + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/inline-edit/inline-edit.css\">\n"
                 + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.css\">\n";
@@ -408,6 +410,8 @@ namespace MdExplorer.Features.Slides
 <script src=""/javascripts/slides/slide-toolbar.js""></script>
 <script src=""/javascripts/slides/slide-edit-mode.js""></script>
 <script src=""/javascripts/slides/slide-transitions.js""></script>
+<script src=""/javascripts/slides/slide-svg-zoom.js""></script>
+<script src=""/javascripts/slides/slide-ink.js""></script>
 <script>
 Reveal.initialize(Object.assign({Configuration(settings.Config).ToJsonString()}, {{ plugins: [RevealHighlight, RevealNotes, RevealMath.KaTeX, RevealSearch, RevealZoom] }}));
 </script>

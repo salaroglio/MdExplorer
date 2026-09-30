@@ -95,7 +95,25 @@ var TOOLBAR_TEXTS = {
         "nav.linkFailed": "The link could not be opened in the browser: {href}",
         "paste.menuPaste": "Paste image here",
         "paste.failed": "Paste failed: {detail}",
-        "paste.line": "the image will go here"
+        "paste.line": "the image will go here",
+        "svg.zoomIn": "Zoom in on the diagram",
+        "svg.zoomOut": "Zoom out of the diagram",
+        "svg.zoomReset": "Back to the original size",
+        "ink.button": "Annotate the slide: pen, highlighter, eraser (key A)",
+        "ink.pen": "Pen",
+        "ink.highlighter": "Highlighter",
+        "ink.eraser": "Eraser (key E)",
+        "ink.reset": "Clear",
+        "ink.resetTitle": "Erase the annotations of this slide (key C)",
+        "ink.close": "Close the annotations (Esc)",
+        "ink.colors": "Colours",
+        "ink.color": "Colour: {name}",
+        "ink.yellow": "yellow",
+        "ink.red": "red",
+        "ink.green": "green",
+        "ink.blue": "blue",
+        "ink.orange": "orange",
+        "ink.purple": "purple"
     },
     it: {
         lightOn: 'Accendi la luce (vedi il diagramma a colori chiari)',
@@ -179,7 +197,25 @@ var TOOLBAR_TEXTS = {
         "nav.linkFailed": "Non sono riuscito ad aprire il link nel browser: {href}",
         "paste.menuPaste": "Incolla immagine qui",
         "paste.failed": "Incolla non riuscito: {detail}",
-        "paste.line": "l'immagine andrà qui"
+        "paste.line": "l'immagine andrà qui",
+        "svg.zoomIn": "Ingrandisci il diagramma",
+        "svg.zoomOut": "Riduci il diagramma",
+        "svg.zoomReset": "Torna alla dimensione originale",
+        "ink.button": "Annota la slide: penna, evidenziatore, gomma (tasto A)",
+        "ink.pen": "Penna",
+        "ink.highlighter": "Evidenziatore",
+        "ink.eraser": "Gomma (tasto E)",
+        "ink.reset": "Azzera",
+        "ink.resetTitle": "Cancella le annotazioni di questa slide (tasto C)",
+        "ink.close": "Chiudi le annotazioni (Esc)",
+        "ink.colors": "Colori",
+        "ink.color": "Colore: {name}",
+        "ink.yellow": "giallo",
+        "ink.red": "rosso",
+        "ink.green": "verde",
+        "ink.blue": "azzurro",
+        "ink.orange": "arancione",
+        "ink.purple": "viola"
     }
 };
 

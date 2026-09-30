@@ -85,8 +85,11 @@ var InteractiveSvgSequence = (function() {
             // Capture current rendered size as zoom base on first wheel event
             if (!data.zoomBaseW) {
                 var renderRect = svg.getBoundingClientRect();
-                data.zoomBaseW = renderRect.width;
-                data.zoomBaseH = renderRect.height;
+                // In CSS pixels, not on screen: the size written below is a CSS one, and inside a slide reveal.js scales it
+                // (Reveal.getScale(), 1 in a document): taken from the screen the first step was ~11% too big.
+                var pageScale = (window.Reveal && typeof Reveal.getScale === 'function' && Reveal.getScale()) || 1;
+                data.zoomBaseW = renderRect.width / pageScale;
+                data.zoomBaseH = renderRect.height / pageScale;
             }
 
             // Capture cursor position as fraction of SVG before resizing

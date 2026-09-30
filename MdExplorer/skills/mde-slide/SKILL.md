@@ -3,7 +3,7 @@ name: mde-slide
 description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF, immagine o GIF trovata in rete, gif animata, scarica un'immagine."
 mde:
   origin: mdexplorer
-  version: 9
+  version: 10
   updatePolicy: replace
 ---
 
@@ -58,6 +58,15 @@ Se non puoi chiedere, decidi e dillo all'utente quando consegni:
 corregge un testo, sceglie le transizioni — e ogni gesto scrive nel `.md`. Ciò che hai letto o scritto qualche
 messaggio fa può essere vecchio: se riscrivi partendo da quello, **cancelli il suo lavoro**. Cambia solo le righe che
 ti servono, a partire da ciò che leggi adesso.
+
+## Quando l'utente presenta
+
+Nella vista di MdExplorer la barra delle slide ha **▶ Presenta** (lo stato all'apertura, con i link che funzionano) e
+**✏ Modifica**, più **⛶ schermo intero**. In Presenta c'è **🖍**, per **annotare** la slide mentre si presenta: penna,
+evidenziatore, gomma, sei colori e «Azzera». Le annotazioni **non finiscono nel file**: restano sulla slide finché la
+pagina non si ricarica. A schermo intero la barra sparisce e si usano i tasti **A** (annotazioni sì/no), **E**
+(gomma) e **C** (cancella la slide). Sopra un diagramma, al passaggio del mouse, ci sono i pulsanti di **zoom**
+(− percentuale +; la percentuale riporta alla dimensione originale). Se l'utente chiede come fare, dillo così.
 
 ## Lo scheletro
 

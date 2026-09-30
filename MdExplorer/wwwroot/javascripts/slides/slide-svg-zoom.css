@@ -1,0 +1,30 @@
+/* I pulsanti di zoom sopra un diagramma di una slide (slide-svg-zoom.js): stessa barra di immagini e diagrammi
+   (.mde-img-toolbar), sulla pagina e non sulla slide, quindi non si ingrandisce con lei. */
+
+.mde-svg-zoom {
+    position: fixed;
+    z-index: 40;
+    opacity: 0.92;
+}
+
+.mde-svg-zoom[hidden] {
+    display: none;
+}
+
+.mde-svg-zoom button {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+/* La percentuale: un pulsante più largo, con la cifra. */
+.mde-svg-zoom .mde-svg-zoom-level {
+    width: auto;
+    padding: 0 8px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+html.reveal-print .mde-svg-zoom,
+html.print-pdf .mde-svg-zoom {
+    display: none !important;
+}
