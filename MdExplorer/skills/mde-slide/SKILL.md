@@ -3,7 +3,7 @@ name: mde-slide
 description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF, immagine o GIF trovata in rete, gif animata, scarica un'immagine."
 mde:
   origin: mdexplorer
-  version: 6
+  version: 7
   updatePolicy: replace
 ---
 
@@ -241,6 +241,17 @@ nome che compare nel breadcrumb.
 
 Transizioni: `none`, `fade`, `slide`, `convex`, `concave`, `zoom`. Per cambiarle a tutta la presentazione
 usa `transition` in `reveal.config`.
+
+Ogni slide comanda **come entra e come esce lei**: non esiste «la transizione fra A e B», le due slide che si
+danno il cambio si animano insieme, ognuna con la propria. Il valore scritto su una slide **vale più** di quello del
+deck; una slide dentro una pila verticale (`--`) lo usa per i passaggi in verticale, mentre quello in orizzontale è
+della pila e segue il deck.
+
+L'utente non deve scriverlo a mano: nella vista di MdExplorer la **barra delle slide** ha un pulsante 🎬 con
+l'elenco delle scelte e un'anteprima animata di ognuna, per «questa slide» o per «tutto il deck»; MdExplorer scrive
+il commento `<!-- .slide: data-transition="…" -->` sulla prima riga della slide, o `transition` in `reveal.config`,
+e rifiuta con un motivo se il file è scritto in un modo che non sa modificare in sicurezza (per esempio un commento
+`.slide:` su più righe).
 
 ### «Voglio degli approfondimenti che si possono saltare»
 

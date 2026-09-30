@@ -54,6 +54,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using MdExplorer.Features.Services.SourceMapping;
+using MdExplorer.Features.Slides;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -3867,6 +3868,122 @@ namespace MdExplorer.Service.Controllers.MdFiles
             _ => throw new ArgumentOutOfRangeException(nameof(refusal), refusal, "Motivo di rifiuto senza messaggio")
         };
 
+        /// <summary>
+        /// Cambia la transizione di una slide (<c>&lt;!-- .slide: data-transition="zoom" --&gt;</c> nelle sue righe) o di tutta
+        /// la presentazione (<c>reveal.config.transition</c> nel front matter): il file cambia solo lì
+        /// (<see cref="SlideTransitionEditor"/>). Con <c>Scope</c> = "slide" serve <c>Line</c>, il
+        /// <c>data-mde-line-start</c> della <c>&lt;section&gt;</c>; <c>Transition</c> null toglie quella della slide.
+        /// <para>
+        /// 409 <c>document-changed</c> se il file non è più quello da cui la pagina è stata costruita; 422
+        /// <c>refused</c>, con il motivo, quando non si può fare in modo sicuro. In entrambi i casi non si
+        /// scrive nulla.
+        /// </para>
+        /// </summary>
+        [HttpPost]
+        public async Task<IActionResult> SetSlideTransition([FromBody] SetSlideTransitionRequest request)
+        {
+            if (string.IsNullOrEmpty(request.ConnectionId))
+            {
+                return BadRequest(new { error = "ConnectionId is required" });
+            }
+            if (string.IsNullOrWhiteSpace(request.SourceHash))
+            {
+                return BadRequest(new { error = "SourceHash is required" });
+            }
+            var scope = (request.Scope ?? "slide").ToLowerInvariant();
+            if (scope != "slide" && scope != "deck")
+            {
+                return BadRequest(new { error = "Scope is 'slide' or 'deck'" });
+            }
+            if (scope == "slide" && request.Line < 1)
+            {
+                return BadRequest(new { error = "Line must be the data-mde-line-start of the slide's section (1 or more)" });
+            }
+
+            var pathError = ValidateProjectMarkdownPath(request.DocumentPath, request.ConnectionId, out var fullPath);
+            if (pathError != null)
+            {
+                return pathError;
+            }
+
+            var text = MarkdownFileEditor.ReadText(fullPath);
+            var plan = SlideTransitionPlanner.Plan(text, request.SourceHash, scope, request.Line, request.Transition, BuildDocumentViewPipeline());
+
+            switch (plan.Status)
+            {
+                case SlideTransitionPlanStatus.DocumentChanged:
+                    _logger.LogWarning("[SetSlideTransition] Rifiutato per {File}: il file è cambiato dopo il caricamento della pagina", fullPath);
+                    return Conflict(new
+                    {
+                        error = "document-changed",
+                        message = "Il documento è cambiato dopo che la pagina è stata caricata: ricaricala e riprova."
+                    });
+                case SlideTransitionPlanStatus.NoChange:
+                    return Ok(new { status = "no-change", sourceHash = request.SourceHash });
+                case SlideTransitionPlanStatus.Refused:
+                    _logger.LogWarning("[SetSlideTransition] Rifiutato per {File}, {Scope} riga {Line}: {Refusal} — {Detail}", fullPath, scope, request.Line, plan.Refusal, plan.Detail);
+                    return UnprocessableEntity(new
+                    {
+                        error = "refused",
+                        refusal = plan.Refusal.ToString(),
+                        detail = plan.Detail,
+                        message = SlideTransitionRefusalMessage(plan.Refusal.Value)
+                    });
+            }
+
+            var hasUtf8Bom = MarkdownFileEditor.HasUtf8Bom(fullPath);
+            SetFileSystemWatcherEnabled(false, request.ConnectionId);
+            try
+            {
+                await MarkdownFileEditor.WriteAsync(fullPath, plan.NewText, hasUtf8Bom);
+            }
+            finally
+            {
+                SetFileSystemWatcherEnabled(true, request.ConnectionId);
+            }
+            _logger.LogInformation("[SetSlideTransition] Transizione {Transition} ({Scope}, riga {Line}) scritta in {File}", request.Transition ?? "(quella del deck)", scope, request.Line, fullPath);
+
+            try
+            {
+                var projectPath = GetProjectPath(request.ConnectionId);
+                var relativePath = fullPath
+                    .Replace(projectPath, string.Empty)
+                    .TrimStart(Path.DirectorySeparatorChar)
+                    .Replace("\\", "/");
+                await _hubContext.Clients.Client(request.ConnectionId).SendAsync("markdownfileischanged", new MonitoredMDModel
+                {
+                    Path = relativePath,
+                    Name = Path.GetFileName(fullPath),
+                    RelativePath = relativePath,
+                    FullPath = fullPath,
+                    FullDirectoryPath = Path.GetDirectoryName(fullPath)
+                });
+            }
+            catch (Exception signalrEx)
+            {
+                // The file is written: the page just does not reload by itself.
+                _logger.LogWarning(signalrEx, "[SetSlideTransition] Notifica markdownfileischanged non inviata per {File}", fullPath);
+            }
+
+            return Ok(new { status = "applied", sourceHash = plan.NewSourceHash });
+        }
+
+        /// <summary>Perché la transizione non è stata scritta, detto a chi l'ha scelta: la presentazione resta com'era.</summary>
+        private static string SlideTransitionRefusalMessage(SlideTransitionRefusal refusal) => refusal switch
+        {
+            SlideTransitionRefusal.UnknownTransition =>
+                "Questa transizione non esiste: scegline una dell'elenco.",
+            SlideTransitionRefusal.NotADeck =>
+                "Questo file non è una presentazione (manca il front matter con document_type: slides).",
+            SlideTransitionRefusal.NotASlide =>
+                "Non trovo più questa slide nel file (forse è stata scritta da un comando): ricarica la pagina e riprova.",
+            SlideTransitionRefusal.UnsupportedLayout =>
+                "Il file è scritto in una forma che da qui non si modifica in modo sicuro (un commento .slide: su più righe, o il front matter su una riga): cambia la transizione nel file.",
+            SlideTransitionRefusal.ChangesOtherContent =>
+                "Scrivere la transizione cambierebbe altro nella presentazione: cambiala nel file.",
+            _ => throw new ArgumentOutOfRangeException(nameof(refusal), refusal, "Motivo di rifiuto senza messaggio")
+        };
+
         private static List<RenderedRun> ToRenderedRuns(IEnumerable<RenderedRunDto> runs)
             => runs.Select(run => new RenderedRun { Text = run.Text, Object = run.Object, Path = run.Path }).ToList();
 
@@ -4122,6 +4239,29 @@ public class MoveListItemRequest
 
     /// <summary>La posizione tra le voci sorelle a cui va, da 0.</summary>
     public int ToIndex { get; set; }
+}
+
+/// <summary>
+/// <c>POST api/mdfiles/SetSlideTransition</c>: la transizione scelta dalla barra delle slide. Le stringhe sono
+/// nullable (un campo non nullable in un progetto con Nullable annotations è un [Required] implicito, e
+/// <c>Transition</c> null è una scelta: «quella del deck»).
+/// </summary>
+public class SetSlideTransitionRequest
+{
+    public string? ConnectionId { get; set; }
+    public string? DocumentPath { get; set; }
+
+    /// <summary>Il <c>data-mde-source-hash</c> della pagina.</summary>
+    public string? SourceHash { get; set; }
+
+    /// <summary>"slide" (default) o "deck".</summary>
+    public string? Scope { get; set; }
+
+    /// <summary>Per "slide": il <c>data-mde-line-start</c> della sua <c>&lt;section&gt;</c> (1-based).</summary>
+    public int Line { get; set; }
+
+    /// <summary>none, fade, slide, convex, concave, zoom; null per una slide = quella del deck.</summary>
+    public string? Transition { get; set; }
 }
 
 /// <summary>Un nodo di testo del blocco o un elemento senza testo (<c>img</c>, <c>br</c>, <c>input</c>).</summary>

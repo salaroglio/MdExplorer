@@ -30,6 +30,30 @@ namespace MdExplorer.Features.Tests.Slides
 
         private static JsonObject Config(string page) => SlidePage.Config(page);
 
+        // ---- the file line of each slide, for the toolbar's transitions ----
+
+        [TestMethod]
+        public void Write_the_file_line_each_slide_starts_on_on_its_section()
+        {
+            // Lines: 5 "# Uno", 8 "" (own lines of slide 2 start after the separator), 15 "" (after the "--" of the stack).
+            var deck = "---\ntitle: T\ndocument_type: slides\n---\n# Uno\n\n---\n\n## Due\n\n- a\n- b\n\n--\n\n## Due bis\n";
+            var page = SlideDeckRenderer.Render(deck, new SlideDeckRenderOptions { Pipeline = DocumentViewPipeline.Build(null), SourceHash = "x" });
+
+            var lines = SlidePage.Slides(page).Descendants("section").Select(s => s.GetAttributeValue("data-mde-line-start", "-")).ToArray();
+
+            // The stack's own section has none; its slides have their own.
+            CollectionAssert.AreEqual(new[] { "5", "-", "8", "15" }, lines);
+        }
+
+        [TestMethod]
+        public void Not_write_a_line_on_the_sections_when_the_page_has_no_fingerprint()
+        {
+            var deck = "---\ntitle: T\ndocument_type: slides\n---\n# Uno\n";
+            var page = SlideDeckRenderer.Render(deck, new SlideDeckRenderOptions { Pipeline = DocumentViewPipeline.Build(null) });
+
+            Assert.IsFalse(page.Contains("data-mde-line-start"));
+        }
+
         // ---- slides ----
 
         [TestMethod]
@@ -414,6 +438,10 @@ reveal:
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-list-drag.js") < page.IndexOf("/javascripts/slides/slide-edit-mode.js"));
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-toolbar.js") < page.IndexOf("/javascripts/slides/slide-edit-mode.js"));
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-edit-mode.js") < page.IndexOf("Reveal.initialize("));
+            // The transitions' button is added to the bar, and reads Reveal.getConfig(): after the bar, and it starts on ready.
+            StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-transitions.css\">");
+            Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-toolbar.js") < page.IndexOf("/javascripts/slides/slide-transitions.js"));
+            Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-transitions.js") < page.IndexOf("Reveal.initialize("));
             // slide-diagrams.js registers on Reveal's ready event: it must come before Reveal.initialize.
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-diagrams.js") < page.IndexOf("Reveal.initialize("));
             Assert.IsFalse(page.Contains("jquery-3"), "the diagram scripts do not need jQuery");

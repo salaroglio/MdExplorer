@@ -5,7 +5,7 @@
  * grip: image-toolbar.css): the grip is the only place it is dragged from, so a click on a button
  * stays a click. It starts in the top right corner and goes where the user puts it.
  *
- * The first button turns "Modifica veloce" on and off. On, the body carries `mde-edit-mode` and
+ * The first button turns "Modifica veloce" on and off; other scripts add theirs (mdeSlideToolbar.addButton). On, the body carries `mde-edit-mode` and
  * the window gets an `mde-edit-mode` event ({detail: {on}}): what the mode does on the page
  * (highlighting, click to correct, dragging the items) is done by the scripts that listen to it.
  * Off, the page is the one of a deck without this bar.
@@ -189,7 +189,26 @@
         setEditMode(false);
     }, true);
 
-    window.mdeSlideToolbar = { isEditMode: isEditMode, setEditMode: setEditMode };
+    /**
+     * Another button on the bar (slide-transitions.js): {text, title, onClick(button, event)}. The bar is
+     * placed again, its width changed. Returns the button.
+     */
+    function addButton(options) {
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = options.text;
+        button.title = options.title || '';
+        button.addEventListener('click', function (event) {
+            options.onClick(button, event);
+            // The keys go back to the deck: a focused button would also take Space and Enter.
+            button.blur();
+        });
+        bar.appendChild(button);
+        place();
+        return button;
+    }
+
+    window.mdeSlideToolbar = { isEditMode: isEditMode, setEditMode: setEditMode, addButton: addButton, element: bar };
 
     // The mode the user left on before the deck reloaded.
     if (recall(MODE_KEY) === '1') setEditMode(true);

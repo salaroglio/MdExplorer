@@ -212,6 +212,17 @@ namespace MdExplorer.Features.Slides
                 .ToArray();
         }
 
+        /// <summary>
+        /// <c>data-mde-line-start</c> of the slide's <c>&lt;section&gt;</c>: the file line (1-based) its own lines
+        /// start on — what the toolbar sends to change the slide's transition. Nothing when the page carries no
+        /// lines (no fingerprint), or when that line was written by a command and is not in the file.
+        /// </summary>
+        private static string SectionLineAttribute(SlideSource slide, int[] fileLines)
+        {
+            if (fileLines == null || slide.FirstLine >= fileLines.Length || fileLines[slide.FirstLine] < 0) return string.Empty;
+            return $" data-mde-line-start=\"{fileLines[slide.FirstLine] + 1}\"";
+        }
+
         private static string RenderSlide(SlideSource slide, SlideDeckRenderOptions options, int[] fileLines)
         {
             var content = options.AfterMarkdown(ToHtml(slide.Markdown, options.Pipeline, SlideLines(slide, fileLines)));
@@ -224,7 +235,7 @@ namespace MdExplorer.Features.Slides
             var hasDiagrams = content.Contains("data-diagram-type");
             if (!hasComments && !rewriteUrls && !hasDiagrams)
             {
-                return $"<section>{content}{notes}</section>";
+                return $"<section{SectionLineAttribute(slide, fileLines)}>{content}{notes}</section>";
             }
 
             var document = new HtmlDocument { OptionOutputOriginalCase = true };
@@ -239,7 +250,7 @@ namespace MdExplorer.Features.Slides
             FreeDiagramSize(section);
             var attributes = string.Concat(section.Attributes.Select(a =>
                 $" {a.OriginalName}=\"{WebUtility.HtmlEncode(a.Value)}\""));
-            return $"<section{attributes}>{section.InnerHtml}{notes}</section>";
+            return $"<section{SectionLineAttribute(slide, fileLines)}{attributes}>{section.InnerHtml}{notes}</section>";
         }
 
         private static string ToHtml(string markdown, MarkdownPipeline pipeline, int[] fileLines = null)
@@ -364,6 +375,7 @@ namespace MdExplorer.Features.Slides
                 + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-list-drag.css\">\n"
                 + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-toolbar.css\">\n"
                 + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-edit-mode.css\">\n"
+                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-transitions.css\">\n"
                 // Text correction: the document's script and styles, its menu's look.
                 + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/inline-edit/inline-edit.css\">\n"
                 + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.css\">\n";
@@ -395,6 +407,7 @@ namespace MdExplorer.Features.Slides
 <script src=""/javascripts/slides/slide-list-drag.js""></script>
 <script src=""/javascripts/slides/slide-toolbar.js""></script>
 <script src=""/javascripts/slides/slide-edit-mode.js""></script>
+<script src=""/javascripts/slides/slide-transitions.js""></script>
 <script>
 Reveal.initialize(Object.assign({Configuration(settings.Config).ToJsonString()}, {{ plugins: [RevealHighlight, RevealNotes, RevealMath.KaTeX, RevealSearch, RevealZoom] }}));
 </script>
