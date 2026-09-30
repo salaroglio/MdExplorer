@@ -135,8 +135,10 @@ namespace MdExplorer.Features.Commands
                 var checkIfThereIsCSS = GetMdPlantuml(itemMatch.Groups[0].Value);
                 var plantumlHasClass = checkIfThereIsCSS?.Value.Contains("linkHasClass:true;")??false;
                 var linkClassHasCSS = checkIfThereIsCSS?.Value.Contains("linkClassHasCSS:true;") ?? false;
-                var currentSvg = $".md{Path.DirectorySeparatorChar}{Path.DirectorySeparatorChar}{stringMatchedHash}.svg";
-                
+                // From the project's root, not the process's current folder: a read-only render (worktree
+                // review, static export) never sets it, and read the .md/ of whatever project was last set.
+                var currentSvg = Path.Combine(requestInfo.CurrentRoot, ".md", $"{stringMatchedHash}.svg");
+
                 doc.Load(currentSvg);
                 var nodeToParse = doc.LastChild;
                 XmlNamespaceManager m = new XmlNamespaceManager(doc.NameTable);
@@ -319,7 +321,8 @@ namespace MdExplorer.Features.Commands
                     }
                     else
                     {
-                        referenceUrl = "<pre class=\"mde-readonly-note\">(diagramma PlantUML non renderizzato nell'anteprima read-only del worktree)</pre>";
+                        // data-mde-missing-diagram: the static export lists it in its report.
+                        referenceUrl = "<pre class=\"mde-readonly-note\" data-mde-missing-diagram=\"true\">(diagramma PlantUML non ancora generato: apri il documento in MdExplorer per generarlo)</pre>";
                     }
                 }
                 catch (Exception ex)

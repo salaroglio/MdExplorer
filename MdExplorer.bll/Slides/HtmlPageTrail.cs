@@ -13,7 +13,8 @@ namespace MdExplorer.Features.Slides
     /// </summary>
     public static class HtmlPageTrail
     {
-        private const string Tags =
+        /// <summary>The tags added to the page; the static export adds them to its copy too.</summary>
+        public const string Tags =
             // The page is marked as one of the project's HTML pages: the deck's bar shows its tools (annotations, full
             // screen) and none of its states, and the annotations take the whole document as their surface.
             "\n<script>document.documentElement.setAttribute(\"data-mde-html-page\", \"\");</script>" +

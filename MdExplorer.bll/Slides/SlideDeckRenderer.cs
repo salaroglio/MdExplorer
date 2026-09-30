@@ -65,6 +65,20 @@ namespace MdExplorer.Features.Slides
         /// empty: the whole deck.
         /// </summary>
         public string Pages { get; init; }
+
+        /// <summary>
+        /// The page is for the static HTML export (sprint 2026-09-30-Slide-Export-HTML.md): a file in a zip,
+        /// opened without MdExplorer. Only the scripts that show the deck are loaded — none that correct it,
+        /// none that ask the service — and the pages a link asks for (<c>?pages=</c>) are taken out by the
+        /// page itself (<c>slide-export-pages.js</c>), since no service reads the query.
+        /// </summary>
+        public bool StaticExport { get; init; }
+
+        /// <summary>
+        /// Where KaTeX is, as written in <c>reveal.config.katex.local</c>: the math plugin loads it by
+        /// itself, so it is not an address the export can rewrite on the page. <c>/katex</c> when null.
+        /// </summary>
+        public string KatexBase { get; init; }
     }
 
     /// <summary>
@@ -362,26 +376,61 @@ namespace MdExplorer.Features.Slides
             return attributes.ToString();
         }
 
+        /// <summary>
+        /// The page's own styles, in their order; <c>true</c> for those of correcting the deck, which a static
+        /// export leaves out. The legend's rows use the document toolbar's classes.
+        /// </summary>
+        private static readonly (string Href, bool Correcting)[] PageStyles =
+        {
+            ("/javascripts/jqueryForFirstPage/images/image-toolbar.css", false),
+            ("/javascripts/slides/slide-diagrams.css", false),
+            ("/javascripts/slides/slide-navigation.css", false),
+            ("/javascripts/slides/slide-edit.css", true),
+            ("/javascripts/slides/slide-list-drag.css", true),
+            ("/javascripts/slides/slide-toolbar.css", false),
+            ("/javascripts/slides/slide-edit-mode.css", true),
+            ("/javascripts/slides/slide-transitions.css", true),
+            ("/javascripts/slides/slide-svg-zoom.css", false),
+            ("/javascripts/slides/slide-ink.css", false),
+            // Text correction: the document's script and styles, its menu's look.
+            ("/javascripts/jqueryForFirstPage/inline-edit/inline-edit.css", true),
+            ("/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.css", true),
+        };
+
+        /// <summary>The page's own scripts after the diagrams' ones, in their order (<see cref="PageStyles"/>).</summary>
+        private static readonly (string Src, bool Correcting)[] PageScripts =
+        {
+            ("/javascripts/jqueryForFirstPage/images/toolbar-shared.js", false),
+            ("/javascripts/slides/slide-diagrams.js", false),
+            ("/javascripts/slides/slide-navigation.js", false),
+            ("/javascripts/jqueryForFirstPage/inline-edit/inline-edit.js", true),
+            ("/javascripts/slides/slide-edit.js", true),
+            ("/javascripts/slides/slide-list-drag.js", true),
+            ("/javascripts/slides/slide-toolbar.js", false),
+            ("/javascripts/slides/slide-edit-mode.js", true),
+            ("/javascripts/slides/slide-transitions.js", true),
+            ("/javascripts/slides/slide-svg-zoom.js", false),
+            ("/javascripts/slides/slide-ink.js", false),
+        };
+
+        /// <summary>
+        /// The diagram scripts a static export loads: not "Ask to MarkAgent", which asks the service.
+        /// </summary>
+        private static IEnumerable<string> DiagramScriptsFor(SlideDeckRenderOptions options)
+            => options.StaticExport ? DiagramScripts.Where(s => s != "mark-diagram-context") : DiagramScripts;
+
         private static string Page(SlideDeckSettings settings, string slides, SlideDeckRenderOptions options)
         {
             var title = WebUtility.HtmlEncode(settings.Title ?? "Slides");
             var scripts = string.Concat(Plugins.Select(p => $"<script src=\"/reveal/dist/plugin/{p}.js\"></script>\n"));
-            // The legend's rows use the document toolbar's classes; its texts come from toolbar-shared.js.
-            var diagramStyles = string.Concat(DiagramScripts.Select(s => $"<link rel=\"stylesheet\" href=\"{DiagramScriptsFolder}{s}.css\">\n"))
-                + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/images/image-toolbar.css\">\n"
-                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-diagrams.css\">\n"
-                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-navigation.css\">\n"
-                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-edit.css\">\n"
-                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-list-drag.css\">\n"
-                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-toolbar.css\">\n"
-                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-edit-mode.css\">\n"
-                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-transitions.css\">\n"
-                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-svg-zoom.css\">\n"
-                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-ink.css\">\n"
-                // Text correction: the document's script and styles, its menu's look.
-                + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/inline-edit/inline-edit.css\">\n"
-                + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.css\">\n";
-            var diagramScripts = string.Concat(DiagramScripts.Select(s => $"<script src=\"{DiagramScriptsFolder}{s}.js\"></script>\n"));
+            var diagramStyles = string.Concat(DiagramScriptsFor(options).Select(s => $"<link rel=\"stylesheet\" href=\"{DiagramScriptsFolder}{s}.css\">\n"))
+                + string.Concat(PageStyles.Where(s => !(options.StaticExport && s.Correcting)).Select(s => $"<link rel=\"stylesheet\" href=\"{s.Href}\">\n"));
+            var diagramScripts = string.Concat(DiagramScriptsFor(options).Select(s => $"<script src=\"{DiagramScriptsFolder}{s}.js\"></script>\n"))
+                + string.Concat(PageScripts.Where(s => !(options.StaticExport && s.Correcting)).Select(s => $"<script src=\"{s.Src}\"></script>\n"));
+            // The diagnostics of the slides' loading inside MdExplorer's view: never in an export.
+            var diagnostics = options.StaticExport ? string.Empty : "<script src=\"/javascripts/slides/slide-diag.js\"></script>\n";
+            // In an export no service reads ?pages=: the page takes the other slides out before reveal.js starts.
+            var exportPages = options.StaticExport ? "<script src=\"/javascripts/slides/slide-export-pages.js\"></script>\n" : string.Empty;
             return $@"<!DOCTYPE html>
 <html>
 <head>
@@ -400,20 +449,8 @@ namespace MdExplorer.Features.Slides
 <body{BodyAttributes(options)}>
 <div class=""reveal""><div class=""slides"" data-mde-content>
 {slides}</div></div>
-<script src=""/javascripts/slides/slide-diag.js""></script>
-<script src=""/reveal/dist/reveal.js""></script>
-{scripts}{diagramScripts}<script src=""/javascripts/jqueryForFirstPage/images/toolbar-shared.js""></script>
-<script src=""/javascripts/slides/slide-diagrams.js""></script>
-<script src=""/javascripts/slides/slide-navigation.js""></script>
-<script src=""/javascripts/jqueryForFirstPage/inline-edit/inline-edit.js""></script>
-<script src=""/javascripts/slides/slide-edit.js""></script>
-<script src=""/javascripts/slides/slide-list-drag.js""></script>
-<script src=""/javascripts/slides/slide-toolbar.js""></script>
-<script src=""/javascripts/slides/slide-edit-mode.js""></script>
-<script src=""/javascripts/slides/slide-transitions.js""></script>
-<script src=""/javascripts/slides/slide-svg-zoom.js""></script>
-<script src=""/javascripts/slides/slide-ink.js""></script>
-<script>
+{diagnostics}<script src=""/reveal/dist/reveal.js""></script>
+{scripts}{diagramScripts}{exportPages}<script>
 // Inside MdExplorer's view the iframe is hidden while the page loads, so the window is 0x0: initialized then,
 // reveal.js laid the deck out at its smallest scale (0.2) and again, at the real one, when the iframe showed.
 // On Windows the text of the diagrams kept the first layout for 15-20 s (measured 30/09/2026): laid out once,
@@ -423,7 +460,7 @@ namespace MdExplorer.Features.Slides
         setTimeout(startWhenSized, 50);
         return;
     }}
-    Reveal.initialize(Object.assign({Configuration(settings.Config).ToJsonString()}, {{ plugins: [RevealHighlight, RevealNotes, RevealMath.KaTeX, RevealSearch, RevealZoom] }}));
+    Reveal.initialize(Object.assign({Configuration(settings.Config, options.KatexBase).ToJsonString()}, {{ plugins: [RevealHighlight, RevealNotes, RevealMath.KaTeX, RevealSearch, RevealZoom] }}));
 }})();
 </script>
 </body>
@@ -436,7 +473,7 @@ namespace MdExplorer.Features.Slides
         /// the plugins (functions, which YAML cannot write) and where KaTeX comes from, which is
         /// <c>wwwroot/katex</c>: without <c>local</c> the math plugin downloads KaTeX from a CDN.
         /// </summary>
-        public static JsonObject Configuration(JsonObject config)
+        public static JsonObject Configuration(JsonObject config, string katexBase = null)
         {
             var result = new JsonObject
             {
@@ -468,7 +505,7 @@ namespace MdExplorer.Features.Slides
                 throw new SlideDeckException(
                     "'reveal.config.katex.local' is set by MdExplorer, which ships KaTeX: remove it.");
             }
-            katex["local"] = "/katex";
+            katex["local"] = katexBase ?? "/katex";
             if (!katex.ContainsKey("delimiters"))
             {
                 // What Markdig writes for $…$ and $$…$$: a '$' in the text stays a '$'.

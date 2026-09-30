@@ -36,5 +36,12 @@ namespace MdExplorer.Abstractions.Models
         /// </summary>
         public bool SlideDeck { get; set; }
 
+        /// <summary>
+        /// Render for the static HTML export (always with <see cref="ReadOnly"/>): the page will be a file in a
+        /// zip, opened without MdExplorer. A command that turns a link into a call to the service or to the
+        /// desktop (open in the application) leaves it a plain link: the export copies the file it points to.
+        /// </summary>
+        public bool StaticExport { get; set; }
+
     }
 }

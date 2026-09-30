@@ -54,6 +54,43 @@ namespace MdExplorer.Features.Tests.Slides
             Assert.IsFalse(page.Contains("data-mde-line-start"));
         }
 
+        // ---- the static HTML export ----
+
+        private static string[] Scripts(string page)
+        {
+            var document = new HtmlDocument();
+            document.LoadHtml(page);
+            return document.DocumentNode.Descendants("script").Select(s => s.GetAttributeValue("src", "")).Where(s => s.Length > 0).ToArray();
+        }
+
+        [TestMethod]
+        public void Load_in_an_export_only_the_scripts_that_show_the_deck()
+        {
+            var shown = Scripts(SlideDeckRenderer.Render(FrontMatter + "# A\n", new SlideDeckRenderOptions { Pipeline = DocumentViewPipeline.Build(null) }));
+            var exported = Scripts(SlideDeckRenderer.Render(FrontMatter + "# A\n", new SlideDeckRenderOptions { Pipeline = DocumentViewPipeline.Build(null), StaticExport = true }));
+
+            foreach (var correcting in new[] { "slide-edit.js", "slide-list-drag.js", "slide-edit-mode.js", "slide-transitions.js", "inline-edit.js", "mark-diagram-context.js", "slide-diag.js" })
+            {
+                Assert.IsTrue(shown.Any(s => s.EndsWith("/" + correcting)), $"{correcting} is on MdExplorer's page");
+                Assert.IsFalse(exported.Any(s => s.EndsWith("/" + correcting)), $"{correcting} is not in an export");
+            }
+            foreach (var showing in new[] { "reveal.js", "slide-navigation.js", "slide-toolbar.js", "slide-ink.js", "slide-svg-zoom.js", "interactive-svg.js" })
+            {
+                Assert.IsTrue(exported.Any(s => s.EndsWith("/" + showing)), $"{showing} is in an export");
+            }
+            // The pages of a link are taken out by the page, before reveal.js starts.
+            Assert.IsTrue(exported.Any(s => s.EndsWith("/slide-export-pages.js")));
+            Assert.IsFalse(shown.Any(s => s.EndsWith("/slide-export-pages.js")));
+        }
+
+        [TestMethod]
+        public void Tell_reveal_where_KaTeX_is_in_an_export()
+        {
+            var page = SlideDeckRenderer.Render(FrontMatter + "# A\n", new SlideDeckRenderOptions { Pipeline = DocumentViewPipeline.Build(null), StaticExport = true, KatexBase = "../_mde/katex" });
+
+            Assert.AreEqual("../_mde/katex", Config(page)["katex"]["local"].GetValue<string>());
+        }
+
         // ---- slides ----
 
         [TestMethod]
