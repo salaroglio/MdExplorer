@@ -26,6 +26,19 @@
 
     // The document's content area, or one a page declares as its own (the slides of a deck).
     var CONTENT_SELECTOR = '.mdeItemMainPageCenter, [data-mde-content]';
+
+    /**
+     * The words, in the app's language (toolbar-shared.js: common.js loads it on a document, the slide page
+     * before this). If it is not there the key shows instead of the text: seen, not silent.
+     */
+    function T(key, params) {
+        return typeof _toolbarText === 'function' ? _toolbarText(key, params) : key;
+    }
+
+    /** Why the server refused, from the code it sends; null when it has no words for it here. */
+    function serverMessage(result) {
+        return typeof _toolbarServerMessage === 'function' ? _toolbarServerMessage('EditRenderedText', result) : null;
+    }
     var LEAF_SELECTOR = 'p, h1, h2, h3, h4, h5, h6, li, td, th';
     var OBJECT_TAGS = { img: true, br: true, input: true };
     // Blocks inside the one being corrected (the sub-list of a list item) are not its text.
@@ -143,7 +156,7 @@
         if (!target) return;
         var before = runsOf(block);
         if (!hasText(before)) {
-            showToast('Qui non c\'è testo da correggere.');
+            showToast(T('edit.noText'));
             return;
         }
 
@@ -178,7 +191,7 @@
         document.addEventListener('mousedown', onMouseDownOutside, true);
         window.addEventListener('blur', onWindowBlur);
 
-        showHint(block, 'Invio o clic fuori: salva · Esc: annulla');
+        showHint(block, T('edit.hint'));
         block.focus();
         placeCaret(block, clientX, clientY);
     }
@@ -283,7 +296,7 @@
         edit.range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null;
         edit.block.setAttribute('contenteditable', 'false');
         edit.block.classList.add('mde-inline-saving');
-        showHint(edit.block, 'Salvataggio…');
+        showHint(edit.block, T('edit.saving'));
 
         var body = {
             connectionId: document.body.getAttribute('ConnectionId'),
@@ -326,7 +339,7 @@
             }
 
             console.warn('[inline-edit.js] Correction refused:', response.status, result);
-            var message = (result && result.message) || ('Correzione non salvata (HTTP ' + response.status + ')');
+            var message = serverMessage(result) || (result && result.message) || T('edit.notSaved', { detail: 'HTTP ' + response.status });
             if (response.status === 422) {
                 // What was typed is not lost: the message says what to change, Enter tries again.
                 resume(edit);
@@ -338,7 +351,7 @@
         } catch (error) {
             console.error('[inline-edit.js] Error calling EditRenderedText:', error);
             resume(edit);
-            showToast('Correzione non salvata: ' + error.message);
+            showToast(T('edit.notSaved', { detail: error.message }));
         }
     }
 
@@ -348,7 +361,7 @@
         edit.saving = false;
         edit.block.setAttribute('contenteditable', 'true');
         edit.block.classList.remove('mde-inline-saving');
-        showHint(edit.block, 'Correggi e premi Invio · Esc: annulla');
+        showHint(edit.block, T('edit.retry'));
         edit.block.focus();
         if (edit.range) {
             var selection = window.getSelection();

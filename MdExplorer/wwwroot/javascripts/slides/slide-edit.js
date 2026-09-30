@@ -169,7 +169,7 @@
 
         var hint = document.createElement('div');
         hint.className = 'mde-paste-menu-hint';
-        hint.textContent = 'Shift + tasto destro: menu del browser';
+        hint.textContent = _toolbarText('edit.menuHint');
         menu.appendChild(hint);
 
         document.body.appendChild(menu);
@@ -186,11 +186,11 @@
 
         var editable = canCorrect() ? window.mdeInlineEdit.blockAt(event.target) : null;
         if (editable) {
-            items.push({ icon: '✏️', text: 'Modifica testo', onClick: function () { window.mdeInlineEdit.start(editable, x, y); } });
+            items.push({ icon: '✏️', text: _toolbarText('edit.menuEdit'), onClick: function () { window.mdeInlineEdit.start(editable, x, y); } });
         }
         var point = canAsk() ? pointAt(event.target) : null;
         if (point) {
-            items.push({ icon: '💬', text: 'Chiedi a MarkAgent', onClick: function () { askMarkAgent(point); } });
+            items.push({ icon: '💬', text: _toolbarText('edit.menuAsk'), onClick: function () { askMarkAgent(point); } });
         }
 
         if (!items.length) return;

@@ -30,16 +30,21 @@
     if (!window.mdeSlideToolbar || !window.Reveal) return;
 
     var PANEL_ID = 'mde-slide-transition-panel';
-    var CHOICES = [
-        { value: 'none', label: 'Nessuna' },
-        { value: 'fade', label: 'Dissolvenza' },
-        { value: 'slide', label: 'Scorrimento' },
-        { value: 'convex', label: 'Convessa' },
-        { value: 'concave', label: 'Concava' },
-        { value: 'zoom', label: 'Zoom' }
-    ];
-    var LABELS = {};
-    CHOICES.forEach(function (choice) { LABELS[choice.value] = choice.label; });
+    // The words are in toolbar-shared.js (IT/EN), read when they are used: 'tr.<value>'.
+    var VALUES = ['none', 'fade', 'slide', 'convex', 'concave', 'zoom'];
+
+    function T(key, params) {
+        return _toolbarText(key, params);
+    }
+
+    function isChoice(value) {
+        return VALUES.indexOf(value) >= 0;
+    }
+
+    /** The name of a transition in the app's language; a value that is not in the list is shown as written. */
+    function labelOf(value) {
+        return isChoice(value) ? T('tr.' + value) : value;
+    }
     /** reveal.js's own default, when the deck says nothing. */
     var DEFAULT_TRANSITION = 'slide';
     var CYCLE_MS = 1700;
@@ -54,7 +59,7 @@
     function recallLast() {
         try {
             var value = window.localStorage.getItem(LAST_KEY);
-            return value && LABELS[value] ? value : null;
+            return value && isChoice(value) ? value : null;
         } catch (e) {
             return null;
         }
@@ -135,24 +140,20 @@
         if (scope === 'slide' && !canSlide) scope = 'deck';
 
         var scopes = el('div', 'mde-tr-scopes');
-        [['slide', 'Questa slide'], ['deck', 'Tutto il deck']].forEach(function (pair) {
+        [['slide', T('tr.scopeSlide')], ['deck', T('tr.scopeDeck')]].forEach(function (pair) {
             var tab = el('button', 'mde-tr-scope', pair[1]);
             tab.type = 'button';
             tab.setAttribute('aria-pressed', scope === pair[0] ? 'true' : 'false');
             if (pair[0] === 'slide' && !canSlide) {
                 tab.disabled = true;
-                tab.title = 'Questa slide non si può cambiare da qui: la scrive un comando, non è nel file.';
+                tab.title = T('tr.slideNotInFile');
             }
             tab.addEventListener('click', function () { scope = pair[0]; render(); });
             scopes.appendChild(tab);
         });
         panel.appendChild(scopes);
 
-        var hint = scope === 'deck'
-            ? 'Vale per le slide che non hanno una transizione propria.'
-            : (inStack()
-                ? 'Come entra ed esce questa slide. In una pila vale per i passaggi in verticale; in orizzontale conta quella del deck.'
-                : 'Come entra ed esce questa slide.');
+        var hint = scope === 'deck' ? T('tr.hintDeck') : (inStack() ? T('tr.hintStack') : T('tr.hintSlide'));
         panel.appendChild(el('div', 'mde-tr-hint', hint));
 
         var list = el('div', 'mde-tr-list');
@@ -161,29 +162,29 @@
 
         // The next slide: the last transition chosen is one click away, without looking for it in the list.
         if (scope === 'slide' && last && current !== last) {
-            var suggest = el('button', 'mde-tr-suggest', 'Usa l\'ultima scelta: ' + LABELS[last]);
+            var suggest = el('button', 'mde-tr-suggest', T('tr.useLast', { name: labelOf(last) }));
             suggest.type = 'button';
             suggest.setAttribute('data-value', last);
-            suggest.title = 'La transizione scelta per ultima, anche su un\'altra slide';
+            suggest.title = T('tr.useLastTitle');
             suggest.addEventListener('click', function () { apply(last); });
             panel.appendChild(suggest);
         }
 
         if (scope === 'slide') {
-            list.appendChild(option(null, 'Come il deck (' + (LABELS[deckValue()] || deckValue()) + ')', deckValue(), current === null));
+            list.appendChild(option(null, T('tr.asDeck', { name: labelOf(deckValue()) }), deckValue(), current === null));
         }
-        CHOICES.forEach(function (choice) {
-            var one = option(choice.value, choice.label, choice.value, current === choice.value);
-            if (choice.value === last) {
+        VALUES.forEach(function (value) {
+            var one = option(value, labelOf(value), value, current === value);
+            if (value === last) {
                 one.classList.add('mde-tr-last');
-                one.title = 'Ultima scelta';
+                one.title = T('tr.lastMark');
             }
             list.appendChild(one);
         });
         panel.appendChild(list);
 
-        var custom = scope === 'slide' && current && !LABELS[current];
-        if (custom) panel.appendChild(el('div', 'mde-tr-hint', 'Scritta a mano nel file: «' + current + '». Sceglierne una la sostituisce.'));
+        var custom = scope === 'slide' && current && !isChoice(current);
+        if (custom) panel.appendChild(el('div', 'mde-tr-hint', T('tr.custom', { value: current })));
         place();
     }
 
@@ -268,11 +269,11 @@
                 // The file is written; the view reloads by itself. On a refusal the deck stays as it was.
                 // What was chosen is remembered (not "Come il deck", which is no transition): the next slide is offered it.
                 if (response.ok && value) rememberLast(value);
-                if (!response.ok) showNotice(result.message || result.error || ('Non sono riuscito a cambiare la transizione (HTTP ' + response.status + ').'));
+                if (!response.ok) showNotice(_toolbarServerMessage('SlideTransition', result) || result.message || T('tr.failed', { detail: 'HTTP ' + response.status }));
             });
         }).catch(function (error) {
             console.error('[slide-transitions] The transition could not be changed:', error);
-            showNotice('Non sono riuscito a cambiare la transizione: ' + error.message);
+            showNotice(T('tr.failed', { detail: error.message }));
         });
     }
 
@@ -298,7 +299,7 @@
     button = window.mdeSlideToolbar.addButton({
         text: '\uD83C\uDFAC',
         className: 'mde-tb-transitions',
-        title: 'Transizione delle slide',
+        title: T('tr.button'),
         onClick: function () { if (panel) close(); else open(); }
     });
 

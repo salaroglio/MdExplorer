@@ -220,17 +220,22 @@
             }
         } catch (error) {
             console.error('[clipboard-paste.js] Error calling API:', error);
-            showToast('Incolla non riuscito: ' + error.message);
+            showToast(T('paste.failed', { detail: error.message }));
         }
+    }
+
+    /** The words, in the app's language (toolbar-shared.js); if it is not there the key shows: seen, not silent. */
+    function T(key, params) {
+        return typeof _toolbarText === 'function' ? _toolbarText(key, params) : key;
     }
 
     function readableError(errorText, status) {
         try {
             const parsed = JSON.parse(errorText);
             if (parsed.message) return parsed.message;
-            if (parsed.error) return 'Incolla non riuscito: ' + parsed.error;
+            if (parsed.error) return T('paste.failed', { detail: parsed.error });
         } catch (e) { /* not JSON */ }
-        return 'Incolla non riuscito (HTTP ' + status + ')';
+        return T('paste.failed', { detail: 'HTTP ' + status });
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -251,7 +256,10 @@
         line.style.top = (y + window.scrollY) + 'px';
         line.style.left = (rect.left + window.scrollX) + 'px';
         line.style.width = rect.width + 'px';
-        line.innerHTML = '<span class="mde-paste-line-label">l\'immagine andrà qui</span>';
+        var label = document.createElement('span');
+        label.className = 'mde-paste-line-label';
+        label.textContent = T('paste.line');
+        line.appendChild(label);
         document.body.appendChild(line);
     }
 
@@ -293,10 +301,10 @@
         // The browser's menu is one key away: say so, since this one replaced it.
         var hint = document.createElement('div');
         hint.className = 'mde-paste-menu-hint';
-        hint.textContent = 'Shift + tasto destro: menu del browser';
+        hint.textContent = T('edit.menuHint');
 
-        if (onPaste) menu.appendChild(menuItem('📋', 'Incolla immagine qui', onPaste));
-        if (onEdit) menu.appendChild(menuItem('✏️', 'Modifica testo', onEdit));
+        if (onPaste) menu.appendChild(menuItem('📋', T('paste.menuPaste'), onPaste));
+        if (onEdit) menu.appendChild(menuItem('✏️', T('edit.menuEdit'), onEdit));
         menu.appendChild(hint);
         document.body.appendChild(menu);
 

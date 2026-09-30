@@ -113,7 +113,7 @@
             if (!response.ok) throw new Error('HTTP ' + response.status);
         }).catch(function (error) {
             console.error('[slide-navigation] The link could not be opened in the browser:', href, error);
-            showNotice('Non sono riuscito ad aprire il link nel browser: ' + href);
+            showNotice(_toolbarText('nav.linkFailed', { href: href }));
         });
     }
 

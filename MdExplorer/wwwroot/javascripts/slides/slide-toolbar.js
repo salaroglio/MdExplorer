@@ -56,6 +56,10 @@
             && !!document.body.getAttribute('ConnectionId');
     }
     if (!enabled()) return;
+    if (typeof _toolbarText !== 'function') {
+        console.error('[slide-toolbar] toolbar-shared.js is not loaded: no texts, no bar.');
+        return;
+    }
 
     // ---- what is remembered ----
 
@@ -90,14 +94,14 @@
     var grip = document.createElement('span');
     grip.className = 'mde-img-toolbar-grip';
     grip.textContent = '\u2807';
-    grip.title = 'Trascina la barra';
+    grip.title = _toolbarText('slide.grip');
     bar.appendChild(grip);
 
     // The two states: exactly one is on. The names are on the buttons: a bare icon did not say it was a mode.
     var modes = document.createElement('div');
     modes.className = 'mde-tb-modes';
     modes.setAttribute('role', 'group');
-    modes.setAttribute('aria-label', 'Modalità');
+    modes.setAttribute('aria-label', _toolbarText('slide.modes'));
 
     function modeButton(className, icon, label, title) {
         var b = document.createElement('button');
@@ -115,9 +119,9 @@
         return b;
     }
 
-    var presentButton = modeButton('mde-tb-present active', '\u25B6', 'Presenta', 'Presenta: la presentazione com\'è, con i link e il passaggio da un deck all\'altro');
+    var presentButton = modeButton('mde-tb-present active', '\u25B6', _toolbarText('slide.present'), _toolbarText('slide.presentTitle'));
     presentButton.setAttribute('aria-pressed', 'true');
-    var editButton = modeButton('mde-tb-edit', '\u270F\uFE0F', 'Modifica', 'Modifica veloce: clic per correggere il testo, trascina le voci (Esc per uscire)');
+    var editButton = modeButton('mde-tb-edit', '\u270F\uFE0F', _toolbarText('slide.edit'), _toolbarText('slide.editTitle'));
     editButton.setAttribute('aria-pressed', 'false');
     modes.appendChild(presentButton);
     modes.appendChild(editButton);
@@ -127,7 +131,7 @@
     var fullscreenButton = document.createElement('button');
     fullscreenButton.type = 'button';
     fullscreenButton.className = 'mde-tb-fullscreen';
-    fullscreenButton.title = 'Schermo intero (Esc per uscire)';
+    fullscreenButton.title = _toolbarText('slide.fullscreen');
     fullscreenButton.innerHTML = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     bar.appendChild(fullscreenButton);
 
@@ -242,12 +246,12 @@
             return;
         }
         if (!document.documentElement.requestFullscreen) {
-            showNotice('Lo schermo intero non è disponibile qui.');
+            showNotice(_toolbarText('slide.fullscreenNo'));
             return;
         }
         document.documentElement.requestFullscreen().catch(function (error) {
             console.error('[slide-toolbar] Full screen was refused:', error);
-            showNotice('Lo schermo intero non è disponibile qui.');
+            showNotice(_toolbarText('slide.fullscreenNo'));
         });
     });
 

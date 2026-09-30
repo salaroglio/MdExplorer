@@ -53,6 +53,10 @@
             && !!document.body.getAttribute('ConnectionId');
     }
     if (!enabled()) return;
+    if (typeof _toolbarText !== 'function') {
+        console.error('[slide-list-drag] toolbar-shared.js is not loaded: no texts, no handle.');
+        return;
+    }
 
     var content = document.querySelector('[data-mde-content]');
     if (!content) return;
@@ -60,7 +64,7 @@
     var handle = document.createElement('div');
     handle.className = 'mde-list-handle';
     handle.textContent = '\u22EE\u22EE';
-    handle.title = 'Trascina per spostare la voce';
+    handle.title = _toolbarText('drag.handle');
     handle.hidden = true;
     document.body.appendChild(handle);
 
@@ -324,11 +328,11 @@
                     place(item, siblings, to);
                     return;
                 }
-                showNotice(result.message || result.error || ('Non sono riuscito a spostare la voce (HTTP ' + response.status + ').'));
+                showNotice(_toolbarServerMessage('MoveListItem', result) || result.message || _toolbarText('drag.failed', { detail: 'HTTP ' + response.status }));
             });
         }).catch(function (error) {
             console.error('[slide-list-drag] The item could not be moved:', error);
-            showNotice('Non sono riuscito a spostare la voce: ' + error.message);
+            showNotice(_toolbarText('drag.failed', { detail: error.message }));
         });
     }
 
