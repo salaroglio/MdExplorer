@@ -16,6 +16,8 @@
  *    are keys reveal.js does not use; nothing happens while something is being typed.
  *  - reveal.js keeps its arrows while drawing (the panel does not hold the keys): the strokes are the slide's,
  *    the presenter moves on. Esc closes the panel.
+ *  - A diagram shown on the whole page (the eye of slide-svg-zoom.js) is a surface of its own: what is drawn on it
+ *    stays with it, relative to the diagram, and is not on the slide when the diagram goes back.
  *  - With "Modifica" on the annotations are off and the button is not there: one thing at a time.
  *
  * Only inside MdExplorer's view, as the bar.
@@ -67,9 +69,16 @@
 
     // ---- the slide: which one, and where ----
 
+    /** A diagram shown on the whole page (slide-svg-zoom.js): what is drawn then is drawn on it, not on the slide. */
+    function fullPageDiagram() {
+        return document.querySelector('.mde-svg-fullpage');
+    }
+
     function slideKey() {
         var i = Reveal.getIndices();
-        return i.h + '/' + (i.v || 0);
+        var key = i.h + '/' + (i.v || 0);
+        var diagram = fullPageDiagram();
+        return diagram ? key + '#' + (diagram.getAttribute('data-mde-ink-key') || 'diagram') : key;
     }
 
     function current() {
@@ -77,9 +86,11 @@
         return strokes[key] || (strokes[key] = []);
     }
 
-    /** The box reveal.js scales: what the strokes are relative to. */
+    /** What the strokes are relative to: the box reveal.js scales, or the diagram shown on the whole page. */
     function box() {
-        return Reveal.getSlidesElement().getBoundingClientRect();
+        var diagram = fullPageDiagram();
+        var svg = diagram && diagram.querySelector('svg');
+        return (svg || Reveal.getSlidesElement()).getBoundingClientRect();
     }
 
     function scale() {
@@ -419,6 +430,8 @@
     }, true);
 
     Reveal.on('slidechanged', function () { drawing = null; redraw(); });
+    // A diagram went to the whole page, or came back, or was fitted again: another surface, or the same one elsewhere.
+    window.addEventListener('mde-svg-fullpage', function () { drawing = null; redraw(); });
     Reveal.on('resize', redraw);
     Reveal.on('overviewshown', redraw);
     Reveal.on('overviewhidden', redraw);

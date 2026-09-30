@@ -15,6 +15,13 @@
  * they get the same zoom (same step and limits, state in svg._genericZoomPan as there), so the bar is on
  * every diagram of the deck.
  *
+ * The eye shows the diagram on the whole page: the svg itself is moved into a layer over the page (its
+ * listeners go with it, so a click on a box still lights its links) and sized to fit the window; the eye again,
+ * or Esc, puts it back in its slide at its original size. The bar of the deck stays above the layer, so the
+ * annotations (slide-ink.js) can be drawn on the large diagram: they are kept apart from the slide's own, and
+ * relative to the diagram. While it is on, reveal.js leaves the keys alone (the layer holds them) and the zoom
+ * is off: the diagram already fills the page.
+ *
  * Documents have their own bar over a diagram (image-transform.js); the slides' had none, by choice of the
  * first sprint (Slide-SVG-Interattivi): the bar is tied to jQuery and to the document's layout.
  *
@@ -48,8 +55,14 @@
     var reset = button('100%', 'svg.zoomReset');
     reset.className = 'mde-svg-zoom-level';
     var zoomIn = button('+', 'svg.zoomIn');
-    [out, reset, zoomIn].forEach(function (b) { bar.appendChild(b); });
+    // A diagram on the whole page, and back.
+    var eye = button('\uD83D\uDC41\uFE0F', 'svg.fullPage');
+    eye.className = 'mde-svg-zoom-eye';
+    [out, reset, zoomIn, eye].forEach(function (b) { bar.appendChild(b); });
     document.body.appendChild(bar);
+
+    /** The diagram shown on the whole page: {svg, placeholder, cssText, layer, observer}; null when none is. */
+    var full = null;
 
     var current = null;
     var hideTimer = null;
@@ -104,6 +117,11 @@
         return (state && state.zoomLevel) || 1;
     }
 
+    function resetZoom(svg) {
+        var steps = Math.round((levelOf(svg) - 1) / STEP);
+        for (var i = 0; i < Math.abs(steps); i++) step(svg, steps > 0 ? -1 : 1);
+    }
+
     function zoomableAt(target) {
         var el = target && target.nodeType === Node.ELEMENT_NODE ? target : (target && target.parentElement);
         var svg = el && el.closest && el.closest('svg');
@@ -134,13 +152,13 @@
     var overBar = false;
 
     function refresh() {
-        if (!current) return;
+        if (!current || full) return;
         reset.textContent = Math.round(levelOf(current) * 100) + '%';
         if (!overBar) place();
     }
 
     bar.addEventListener('mouseenter', function () { overBar = true; });
-    bar.addEventListener('mouseleave', function () { overBar = false; if (current) place(); });
+    bar.addEventListener('mouseleave', function () { overBar = false; if (current && !full) place(); });
 
     function place() {
         if (!current) return;
@@ -171,6 +189,7 @@
     }
 
     function hide() {
+        if (full) return;   // pinned while a diagram is on the whole page
         cancelHide();
         current = null;
         overBar = false;
@@ -188,7 +207,7 @@
     }
 
     document.addEventListener('mouseover', function (event) {
-        if (isPrint()) return;
+        if (isPrint() || full) return;
         if (bar.contains(event.target)) { cancelHide(); return; }
         var svg = zoomableAt(event.target);
         if (svg) show(svg);
@@ -201,10 +220,121 @@
     zoomIn.addEventListener('click', function () { if (current) { step(current, 1); refresh(); } });
     reset.addEventListener('click', function () {
         if (!current) return;
-        var steps = Math.round((levelOf(current) - 1) / STEP);
-        for (var i = 0; i < Math.abs(steps); i++) step(current, steps > 0 ? -1 : 1);
+        resetZoom(current);
         refresh();
     });
+
+    // ---- the diagram on the whole page ----
+
+    /** Room left around the diagram: the deck's bar is at the top. */
+    var FULL_MARGIN = { top: 56, side: 24, bottom: 24 };
+
+    /** The diagram as large as the window allows, keeping its shape. */
+    function fit() {
+        if (!full) return;
+        var svg = full.svg;
+        var view = svg.viewBox && svg.viewBox.baseVal;
+        var w = view && view.width > 0 ? view.width : svg.getBoundingClientRect().width;
+        var h = view && view.height > 0 ? view.height : svg.getBoundingClientRect().height;
+        if (!(w > 0 && h > 0)) return;
+        var scale = Math.min((window.innerWidth - 2 * FULL_MARGIN.side) / w, (window.innerHeight - FULL_MARGIN.top - FULL_MARGIN.bottom) / h);
+        var width = Math.max(1, Math.round(w * scale)) + 'px', height = Math.max(1, Math.round(h * scale)) + 'px';
+        // Written only when it changes: the observer below watches the style.
+        if (svg.style.width !== width || svg.style.height !== height || svg.style.maxWidth !== 'none' || svg.style.maxHeight !== 'none') {
+            svg.style.maxWidth = 'none';
+            svg.style.maxHeight = 'none';
+            svg.style.width = width;
+            svg.style.height = height;
+        }
+        // Whoever draws over the diagram (slide-ink.js) follows its new place.
+        window.dispatchEvent(new CustomEvent('mde-svg-fullpage', { detail: { on: true } }));
+    }
+
+    function enterFull(svg) {
+        if (full || !svg) return;
+        // Back in the slide it must be at its original size: the zoom goes to 100% first.
+        resetZoom(svg);
+        var slide = Reveal.getCurrentSlide();
+        var index = slide ? Array.prototype.indexOf.call(slide.querySelectorAll('svg[data-diagram-type]'), svg) : 0;
+        var placeholder = document.createComment('mde-svg-fullpage');
+        svg.parentNode.insertBefore(placeholder, svg);
+
+        var layer = document.createElement('div');
+        layer.className = 'mde-svg-fullpage';
+        // reveal.js leaves the keys alone while this is here (slide-diagrams.js): the arrows do not change the slide under it.
+        layer.setAttribute('data-mde-holds-keys', '');
+        // The annotations drawn on it are its own, not the slide's (slide-ink.js).
+        layer.setAttribute('data-mde-ink-key', 'diagram' + Math.max(0, index));
+        var background = window.getComputedStyle(document.body).backgroundColor;
+        layer.style.background = !background || /rgba\(0, 0, 0, 0\)|transparent/.test(background) ? '#fff' : background;
+        // The zoom is off here: Ctrl + wheel does not reach the diagram's script.
+        layer.addEventListener('wheel', function (event) {
+            if (!event.ctrlKey) return;
+            event.preventDefault();
+            event.stopPropagation();
+        }, { capture: true, passive: false });
+
+        full = { svg: svg, placeholder: placeholder, cssText: svg.style.cssText, layer: layer, observer: null };
+        layer.appendChild(svg);
+        document.body.appendChild(layer);
+        document.body.classList.add('mde-svg-fullpage-on');
+
+        // A tree that folds (YAML, JSON) is resized by its script: fitted again.
+        if (window.MutationObserver) {
+            full.observer = new MutationObserver(fit);
+            full.observer.observe(svg, { attributes: true, attributeFilter: ['style', 'viewBox', 'width', 'height'] });
+        }
+
+        cancelHide();
+        current = svg;
+        overBar = false;
+        [out, reset, zoomIn].forEach(function (b) { b.hidden = true; });
+        eye.classList.add('active');
+        eye.title = _toolbarText('svg.fullPageExit');
+        bar.classList.add('mde-svg-zoom-pinned');
+        bar.hidden = false;
+        bar.style.left = '12px';
+        bar.style.top = '8px';
+        fit();
+    }
+
+    function exitFull() {
+        if (!full) return;
+        var was = full;
+        full = null;
+        if (was.observer) was.observer.disconnect();
+        was.svg.style.cssText = was.cssText;
+        if (was.placeholder.parentNode) {
+            was.placeholder.parentNode.insertBefore(was.svg, was.placeholder);
+            was.placeholder.remove();
+        }
+        was.layer.remove();
+        document.body.classList.remove('mde-svg-fullpage-on');
+        // reveal.js centres a slide by its content: laid out while the diagram was away (a window resized), the
+        // slide was centred without it, and the diagram came back lower than it was (measured: 205 px).
+        Reveal.layout();
+        [out, reset, zoomIn].forEach(function (b) { b.hidden = false; });
+        eye.classList.remove('active');
+        eye.title = _toolbarText('svg.fullPage');
+        bar.classList.remove('mde-svg-zoom-pinned');
+        hide();
+        window.dispatchEvent(new CustomEvent('mde-svg-fullpage', { detail: { on: false } }));
+    }
+
+    eye.addEventListener('click', function () {
+        if (full) exitFull();
+        else if (current) enterFull(current);
+    });
+
+    // Esc puts it back — after whoever else is waiting for it (the annotations close first, a menu, a correction).
+    window.addEventListener('keydown', function (event) {
+        if (event.key !== 'Escape' || !full || event.defaultPrevented) return;
+        if (document.body.classList.contains('mde-ink-active')) return;
+        if (document.querySelector('[data-mde-holds-keys]:not(.mde-svg-fullpage)') || document.body.hasAttribute('data-mde-inline-editing')) return;
+        event.preventDefault();
+        event.stopPropagation();
+        exitFull();
+    }, true);
 
     // What the page does around the diagram: a click on a button is not a click on the diagram (or the slide).
     bar.addEventListener('mousedown', function (event) {
@@ -218,7 +348,10 @@
         if (event.ctrlKey && current) setTimeout(refresh, 0);
     }, true);
 
-    Reveal.on('slidechanged', hide);
-    Reveal.on('overviewshown', hide);
-    window.addEventListener('resize', function () { if (current) refresh(); });
+    Reveal.on('slidechanged', function () { exitFull(); hide(); });
+    Reveal.on('overviewshown', function () { exitFull(); hide(); });
+    window.addEventListener('resize', function () {
+        if (full) fit();
+        else if (current) refresh();
+    });
 })();
