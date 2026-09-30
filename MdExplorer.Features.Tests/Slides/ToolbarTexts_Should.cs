@@ -104,7 +104,7 @@ namespace MdExplorer.Features.Tests.Slides
         {
             // Asked through arrays and 'ink.' + colour, which the scan of the scripts does not follow.
             var (it, en) = Texts();
-            var keys = new[] { "ink.button", "ink.pen", "ink.highlighter", "ink.eraser", "ink.reset", "ink.resetTitle", "ink.close", "ink.colors", "ink.color" }
+            var keys = new[] { "ink.button", "ink.buttonPage", "ink.pen", "ink.highlighter", "ink.eraser", "ink.reset", "ink.resetTitle", "ink.close", "ink.colors", "ink.color" }
                 .Concat(new[] { "yellow", "red", "green", "blue", "orange", "purple" }.Select(c => "ink." + c));
 
             var missing = keys.Where(k => !it.ContainsKey(k) || !en.ContainsKey(k)).ToList();

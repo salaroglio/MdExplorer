@@ -18,6 +18,8 @@
  *  - A diagram shown on the whole page (the eye of slide-svg-zoom.js) is a surface of its own: what is drawn on it
  *    stays with it, relative to the diagram, and is not on the slide when the diagram goes back.
  *  - With "Modifica" on the annotations are off and the button is not there: one thing at a time.
+ *  - On an HTML page of the project shown in MdExplorer's view (no reveal.js) the surface is the whole document:
+ *    the strokes are relative to it and scroll with it.
  *
  * Only inside MdExplorer's view, as the bar.
  *
@@ -26,7 +28,10 @@
 (function () {
     'use strict';
 
-    if (!window.mdeSlideToolbar || !window.Reveal) return;
+    if (!window.mdeSlideToolbar) return;
+    /** An HTML page of the project: no reveal.js, the document is the one surface. */
+    var htmlPage = !window.Reveal && document.documentElement.hasAttribute('data-mde-html-page');
+    if (!window.Reveal && !htmlPage) return;
     if (typeof _toolbarText !== 'function') {
         console.error('[slide-ink] toolbar-shared.js is not loaded: no texts, no annotations.');
         return;
@@ -74,6 +79,7 @@
     }
 
     function slideKey() {
+        if (htmlPage) return 'page';
         var i = Reveal.getIndices();
         var key = i.h + '/' + (i.v || 0);
         var diagram = fullPageDiagram();
@@ -89,11 +95,17 @@
     function box() {
         var diagram = fullPageDiagram();
         var svg = diagram && diagram.querySelector('svg');
-        return (svg || Reveal.getSlidesElement()).getBoundingClientRect();
+        if (svg) return svg.getBoundingClientRect();
+        if (htmlPage) {
+            // The whole document, in the viewport's coordinates: what scrolls away has a negative top.
+            var root = document.documentElement;
+            return { left: -window.scrollX, top: -window.scrollY, width: Math.max(root.scrollWidth, root.clientWidth), height: Math.max(root.scrollHeight, root.clientHeight) };
+        }
+        return Reveal.getSlidesElement().getBoundingClientRect();
     }
 
     function scale() {
-        return Reveal.getScale() || 1;
+        return htmlPage ? 1 : (Reveal.getScale() || 1);
     }
 
     function toSlide(x, y) {
@@ -159,7 +171,7 @@
 
     function redraw() {
         ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-        if (Reveal.isOverview()) return;
+        if (!htmlPage && Reveal.isOverview()) return;
         (strokes[slideKey()] || []).forEach(function (stroke) { paint(stroke); });
         if (drawing) paint(drawing);
     }
@@ -388,7 +400,7 @@
     var button = window.mdeSlideToolbar.addButton({
         text: '🖍️',
         className: 'mde-tb-ink',
-        title: T('ink.button'),
+        title: T(htmlPage ? 'ink.buttonPage' : 'ink.button'),
         onClick: function () { setActive(!active); }
     });
 
@@ -430,13 +442,20 @@
         }
     }, true);
 
-    Reveal.on('slidechanged', function () { drawing = null; redraw(); });
-    // A diagram went to the whole page, or came back, or was fitted again: another surface, or the same one elsewhere.
-    window.addEventListener('mde-svg-fullpage', function () { drawing = null; redraw(); });
-    Reveal.on('resize', redraw);
-    Reveal.on('overviewshown', redraw);
-    Reveal.on('overviewhidden', redraw);
-    Reveal.on('ready', function () { fit(); redraw(); });
+    if (htmlPage) {
+        // The strokes are the document's: they scroll with it.
+        window.addEventListener('scroll', redraw, { passive: true });
+        fit();
+        redraw();
+    } else {
+        Reveal.on('slidechanged', function () { drawing = null; redraw(); });
+        // A diagram went to the whole page, or came back, or was fitted again: another surface, or the same one elsewhere.
+        window.addEventListener('mde-svg-fullpage', function () { drawing = null; redraw(); });
+        Reveal.on('resize', redraw);
+        Reveal.on('overviewshown', redraw);
+        Reveal.on('overviewhidden', redraw);
+        Reveal.on('ready', function () { fit(); redraw(); });
+    }
     window.addEventListener('resize', function () { fit(); redraw(); if (!panel.hidden) place(); });
 
     fit();

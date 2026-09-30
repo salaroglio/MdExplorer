@@ -27,6 +27,10 @@
  * Only inside MdExplorer's view (its page around the slide is the app, /client2/): not in the
  * speaker view, not in a detached window, not in print (as slide-edit.js).
  *
+ * An HTML page of the project shown in MdExplorer's view (HtmlPageTrail.cs marks it with
+ * data-mde-html-page on <html> and adds these scripts) has the same bar without the two states — there is
+ * nothing to present or correct — with the annotations and full screen.
+ *
  * Sprint: docs-internal/Sprints/2026-09-30-Slide-Barra-Strumenti.md
  */
 (function () {
@@ -51,9 +55,13 @@
         return /print-pdf|view=print/.test(window.location.search);
     }
 
+    /** An HTML page of the project, not a deck: no states, the tools only. */
+    var htmlPage = document.documentElement.hasAttribute('data-mde-html-page');
+
     function enabled() {
-        return inMdExplorerView() && !isPrint()
-            && !!document.body.getAttribute('data-mde-source-hash')
+        if (!inMdExplorerView() || isPrint()) return false;
+        if (htmlPage) return true;
+        return !!document.body.getAttribute('data-mde-source-hash')
             && !!document.body.getAttribute('DocumentPath')
             && !!document.body.getAttribute('ConnectionId');
     }
@@ -127,7 +135,7 @@
     editButton.setAttribute('aria-pressed', 'false');
     modes.appendChild(presentButton);
     modes.appendChild(editButton);
-    bar.appendChild(modes);
+    if (!htmlPage) bar.appendChild(modes);
 
     // Full screen: an icon of four corners, drawn here (a character for it is missing in some fonts).
     var fullscreenButton = document.createElement('button');
@@ -208,7 +216,7 @@
     }
 
     function setEditMode(on) {
-        on = !!on;
+        on = !!on && !htmlPage;
         if (on === isEditMode()) return;
         document.body.classList.toggle(EDIT_MODE, on);
         editButton.classList.toggle('active', on);
@@ -301,5 +309,5 @@
     window.mdeSlideToolbar = { isEditMode: isEditMode, setEditMode: setEditMode, addButton: addButton, element: bar };
 
     // The mode the user left on before the deck reloaded.
-    if (recall(MODE_KEY) === '1') setEditMode(true);
+    if (!htmlPage && recall(MODE_KEY) === '1') setEditMode(true);
 })();

@@ -3,7 +3,7 @@ name: mde-slide
 description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF, immagine o GIF trovata in rete, gif animata, scarica un'immagine."
 mde:
   origin: mdexplorer
-  version: 12
+  version: 13
   updatePolicy: replace
 ---
 
@@ -65,7 +65,8 @@ Nella vista di MdExplorer la barra delle slide ha **▶ Presenta** (lo stato all
 **✏ Modifica**, più **⛶ schermo intero**. In Presenta c'è **🖍**, per **annotare** la slide mentre si presenta: penna,
 evidenziatore, gomma, sei colori e «Azzera». Le annotazioni **non finiscono nel file**: restano sulla slide finché la
 pagina non si ricarica. **A schermo intero la barra resta**: si continua a presentare, correggere e annotare. Ci sono
-anche i tasti **A** (annotazioni sì/no), **E** (gomma) e **C** (cancella la slide). Sopra un diagramma, al passaggio del mouse, ci sono i pulsanti di **zoom**
+anche i tasti **A** (annotazioni sì/no), **E** (gomma) e **C** (cancella la slide). Una **pagina HTML del progetto** aperta da una slide ha la stessa barra con 🖍 e ⛶ (senza Presenta/Modifica): si annota
+e si mette a schermo intero anche lei. Sopra un diagramma, al passaggio del mouse, ci sono i pulsanti di **zoom**
 (− percentuale +; la percentuale riporta alla dimensione originale) e l'**occhio 👁**, che mostra il diagramma **a tutta
 pagina** (lì si può ancora annotare con 🖍); l'occhio di nuovo, o Esc, lo riporta nella slide. Se l'utente chiede come fare, dillo così.
 

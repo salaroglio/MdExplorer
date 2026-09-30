@@ -18,6 +18,13 @@ namespace MdExplorer.Features.Tests.Slides
             var added = Encoding.ASCII.GetString(result[page.Length..]);
             StringAssert.Contains(added, "/javascripts/slides/html-page-trail.js");
             StringAssert.Contains(added, "/javascripts/slides/slide-navigation.css");
+            // The bar with the tools: marked as an HTML page, texts first, the bar before what adds to it.
+            StringAssert.Contains(added, "setAttribute(\"data-mde-html-page\"");
+            Assert.IsTrue(added.IndexOf("toolbar-shared.js") < added.IndexOf("/javascripts/slides/slide-toolbar.js"));
+            Assert.IsTrue(added.IndexOf("/javascripts/slides/slide-toolbar.js") < added.IndexOf("/javascripts/slides/slide-ink.js"));
+            StringAssert.Contains(added, "/javascripts/slides/slide-toolbar.css");
+            StringAssert.Contains(added, "/javascripts/slides/slide-ink.css");
+            StringAssert.Contains(added, "/javascripts/jqueryForFirstPage/images/image-toolbar.css");
         }
     }
 }
