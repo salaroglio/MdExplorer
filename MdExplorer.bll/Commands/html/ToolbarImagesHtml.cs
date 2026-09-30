@@ -149,17 +149,20 @@ namespace MdExplorer.Features.Commands.html
                     $"</div>";
                 var newDivContainer = $"\r\n<div {classForDivContainer} {styleTopDivContainer} >";
                 var newDivToolbar = $"\r\n<div id=\"{guidToDisplayToolbar}\" class=\"mde-img-toolbar\" onmouseenter=\"showImageToolbar('{guidToDisplayToolbar}')\" onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\" style=\" display:none;\">"; 
-                var newButtonForResize = linkHash != null ?  $"\r\n<button onclick =\"activateResize('{linkHash}')\" class=\"btn btn-md btn-primary-outline\"><img src=\"/assets/resize.png\"/></button>"
+                // Static export: no service to save a size or a position, to present a diagram or to copy it.
+                // What only shows stays (see it whole, search its text).
+                var viewOnly = requestInfo.StaticExport;
+                var newButtonForResize = linkHash != null && !viewOnly ?  $"\r\n<button onclick =\"activateResize('{linkHash}')\" class=\"btn btn-md btn-primary-outline\"><img src=\"/assets/resize.png\"/></button>"
                     :string.Empty;
-                var newButtonForMove = linkHash !=null? $"\r\n<button onclick=\"activateMove(this,'{linkHash}','{guidToDisplayToolbar}')\"  class=\"btn btn-md btn-primary-outline\"><img src=\"/assets/move.png\"/></button>"
+                var newButtonForMove = linkHash !=null && !viewOnly ? $"\r\n<button onclick=\"activateMove(this,'{linkHash}','{guidToDisplayToolbar}')\"  class=\"btn btn-md btn-primary-outline\"><img src=\"/assets/move.png\"/></button>"
                     :string.Empty;
-                var newButtonForDynamicPlantuml = isPlantumlDynamic ? 
+                var newButtonForDynamicPlantuml = isPlantumlDynamic && !viewOnly ? 
                     $@"<button id=""forwardArrow{stringMatchedHash}"" data-step=""1"" onclick=""presentationSVG('{prepareCurrentQueryRequest}','{stringMatchedHash}')"" class=""btn btn-md btn-primary-outline""><img src=""/assets/green_right_arrow.png""/></button>" :string.Empty;
                 var imageLinkPath = itemImg.Groups[2].Value;
                 var isSvgImage = imageLinkPath.IndexOf(".svg", StringComparison.OrdinalIgnoreCase) >= 0;
-                var newButtonForPlantumlCopy = isPlantumlCopy ?
+                var newButtonForPlantumlCopy = isPlantumlCopy && !viewOnly ?
                     $@"<button alt=""copy into clipboard"" onclick = ""copyToClipboard('/api/mdexplorer/{currentPng}', '{prepareCurrentQueryRequest}', '{stringMatchedHash}', 0)"" ><img src = ""/assets/clipboard.png""/></button>" : string.Empty;
-                var newButtonForImageCopy = (!isPlantumlCopy && !string.IsNullOrEmpty(imageLinkPath)) ?
+                var newButtonForImageCopy = (!isPlantumlCopy && !string.IsNullOrEmpty(imageLinkPath) && !viewOnly) ?
                     $@"<button alt=""copy into clipboard"" onclick=""copyImageToClipboard('{imageLinkPath}')""><img src=""/assets/clipboard.png""/></button>" : string.Empty;
                 var newButtonEyes = $@"<button alt=""see original size"" onclick=""toggleSeeMe('{stringMatchedHash}')""><img src = ""/assets/eyes.png""/></button>";
                 var newButtonMagnifier = isSvgImage ? $@"<button alt=""search text"" onclick=""toggleMagnifier('{stringMatchedHash}')""><img src = ""/assets/magnifier.svg""/></button>" : string.Empty;
@@ -226,7 +229,8 @@ namespace MdExplorer.Features.Commands.html
                     $"onmouseleave=\"hideImageToolbar('{guidToDisplayToolbar}')\" " +
                     $"style=\"display:none;\">";
                 var newButtonEyes = $@"<button alt=""see original size"" onclick=""toggleSeeMe('{imageHash}')""><img src=""/assets/eyes.png""/></button>";
-                var newButtonCopy = $@"<button alt=""copy into clipboard"" onclick=""copyImageToClipboard('{imagePath}')""><img src=""/assets/clipboard.png""/></button>";
+                // Static export: copying asks the service.
+                var newButtonCopy = requestInfo.StaticExport ? string.Empty : $@"<button alt=""copy into clipboard"" onclick=""copyImageToClipboard('{imagePath}')""><img src=""/assets/clipboard.png""/></button>";
                 var endDivForToolbar = "</div>";
                 var endDivContainer = "</div>";
 

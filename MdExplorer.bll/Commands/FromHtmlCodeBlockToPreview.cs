@@ -144,7 +144,8 @@ namespace MdExplorer.Features.Commands
                         htmlContent = Encoding.UTF8.GetString(Convert.FromBase64String(payload));
                     }
 
-                    var tabbedHtml = BuildTabbedHtml(guid, htmlContent, filePath);
+                    // Static export: no path of this disk on the page, and no buttons that ask the service for it.
+                    var tabbedHtml = BuildTabbedHtml(guid, htmlContent, requestInfo.StaticExport ? null : filePath);
                     html = html.Replace(match.Value, tabbedHtml);
                 }
                 catch (Exception ex)

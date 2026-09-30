@@ -31,6 +31,9 @@
  * data-mde-html-page on <html> and adds these scripts) has the same bar without the two states — there is
  * nothing to present or correct — with the annotations and full screen.
  *
+ * A page of the static export (data-mde-export on <html>: a zip opened without MdExplorer) has the same bar
+ * without the states too: nothing is corrected there. Not in the speaker view's previews of the slides.
+ *
  * Sprint: docs-internal/Sprints/2026-09-30-Slide-Barra-Strumenti.md
  */
 (function () {
@@ -58,7 +61,19 @@
     /** An HTML page of the project, not a deck: no states, the tools only. */
     var htmlPage = document.documentElement.hasAttribute('data-mde-html-page');
 
+    /** A page of the static export: no MdExplorer around it, nothing to correct. */
+    var exported = document.documentElement.hasAttribute('data-mde-export');
+
+    /** The tools only (annotations, full screen), without the Presenta/Modifica states. */
+    var toolsOnly = htmlPage || exported;
+
+    /** A slide shown inside the speaker view (reveal.js's notes plugin loads the deck with ?receiver). */
+    function isSpeakerPreview() {
+        return /receiver/i.test(window.location.search);
+    }
+
     function enabled() {
+        if (exported) return !isPrint() && !isSpeakerPreview();
         if (!inMdExplorerView() || isPrint()) return false;
         if (htmlPage) return true;
         return !!document.body.getAttribute('data-mde-source-hash')
@@ -135,7 +150,7 @@
     editButton.setAttribute('aria-pressed', 'false');
     modes.appendChild(presentButton);
     modes.appendChild(editButton);
-    if (!htmlPage) bar.appendChild(modes);
+    if (!toolsOnly) bar.appendChild(modes);
 
     // Full screen: an icon of four corners, drawn here (a character for it is missing in some fonts).
     var fullscreenButton = document.createElement('button');
@@ -216,7 +231,7 @@
     }
 
     function setEditMode(on) {
-        on = !!on && !htmlPage;
+        on = !!on && !toolsOnly;
         if (on === isEditMode()) return;
         document.body.classList.toggle(EDIT_MODE, on);
         editButton.classList.toggle('active', on);
@@ -309,5 +324,5 @@
     window.mdeSlideToolbar = { isEditMode: isEditMode, setEditMode: setEditMode, addButton: addButton, element: bar };
 
     // The mode the user left on before the deck reloaded.
-    if (!htmlPage && recall(MODE_KEY) === '1') setEditMode(true);
+    if (!toolsOnly && recall(MODE_KEY) === '1') setEditMode(true);
 })();

@@ -27,7 +27,12 @@
  *    a theme change reload it) keeps it; a deck opened some other way (the file tree, the arrows)
  *    starts a new one.
  *
+ * 3. In a static export (a zip opened without MdExplorer, data-mde-export-root on <html>) the pages are
+ *    files: a link is followed by the browser, and the export marks what it opens
+ *    (data-mde-export-kind: markdown, page). The way is kept the same, with the zip's paths.
+ *
  * Sprint: docs-internal/Sprints/2026-09-24-Slide-Breadcrumb-Tra-Presentazioni.md
+ * Export: docs-internal/Sprints/2026-09-30-Slide-Export-HTML.md
  */
 (function () {
     'use strict';
@@ -38,6 +43,22 @@
     var HTML_JUMP = 'mde.slideHtmlJump';
     var PAGE_PREFIX = /^\/api\/mdexplorer\//i;
     var inMdExplorer = window.parent !== window;
+    var exportRoot = document.documentElement.getAttribute('data-mde-export-root');
+    var inExport = exportRoot !== null;
+    /** The zip's root, as an address: the pages' paths are relative to it. */
+    var rootUrl = inExport ? new URL(exportRoot || './', window.location.href) : null;
+    if (inExport) inMdExplorer = false;
+
+    /** The zip path of an address of the export, or null (another site, outside the zip). */
+    function exportPathOf(url) {
+        if (url.protocol !== rootUrl.protocol || url.host !== rootUrl.host || url.pathname.indexOf(rootUrl.pathname) !== 0) return null;
+        return decodeURIComponent(url.pathname.substring(rootUrl.pathname.length));
+    }
+
+    /** What the export says a link opens: 'markdown' (a deck or a document), 'page' (an HTML page), 'file'. */
+    function exportKindOf(link) {
+        return link ? link.getAttribute('data-mde-export-kind') : null;
+    }
 
     function read(key) {
         try { return JSON.parse(window.sessionStorage.getItem(key)); } catch (e) { return null; }
@@ -51,20 +72,22 @@
     }
 
     /** The project-relative path of the markdown file a page URL shows, or null if it is not one. */
-    function markdownPathOf(url) {
+    function markdownPathOf(url, link) {
+        if (inExport) return exportKindOf(link) === 'markdown' ? exportPathOf(url) : null;
         if (url.origin !== window.location.origin || !PAGE_PREFIX.test(url.pathname)) return null;
         var path = decodeURIComponent(url.pathname.replace(PAGE_PREFIX, ''));
         return /\.md$/i.test(path) ? path : null;
     }
 
     /** The project-relative path of an HTML page of the project a link points to, or null. */
-    function htmlPagePathOf(url) {
+    function htmlPagePathOf(url, link) {
+        if (inExport) return exportKindOf(link) === 'page' ? exportPathOf(url) : null;
         if (url.origin !== window.location.origin || !PAGE_PREFIX.test(url.pathname)) return null;
         var path = decodeURIComponent(url.pathname.replace(PAGE_PREFIX, ''));
         return /\.html?$/i.test(path) ? path : null;
     }
 
-    var here = markdownPathOf(new URL(window.location.href));
+    var here = inExport ? document.documentElement.getAttribute('data-mde-export-path') : markdownPathOf(new URL(window.location.href));
     /** The pages of this deck the link that opened it asked for (2,6-9), or null: the whole deck. */
     var herePages = new URL(window.location.href).searchParams.get('pages');
 
@@ -83,6 +106,11 @@
      * (?pages=2,6-9) when given, the way this page was opened.
      */
     function open(path, hash, pages) {
+        if (inExport) {
+            window.location.href = rootUrl.href + path.split('/').map(encodeURIComponent).join('/') +
+                (pages ? '?pages=' + encodeURIComponent(pages) : '') + (hash || '');
+            return;
+        }
         if (inMdExplorer) {
             window.parent.postMessage({
                 type: 'md-navigate',
@@ -139,9 +167,8 @@
             // A page of the project (.html): opened by Angular, like a click in the tree, so it
             // shows in MdExplorer's view and enters the history (the arrows bring the deck back on
             // its slide). Followed by the iframe itself it left a black page.
-            var page = htmlPagePathOf(url);
-            if (page && inMdExplorer) {
-                event.preventDefault();
+            var page = htmlPagePathOf(url, link);
+            if (page && (inMdExplorer || inExport)) {
                 // The page shows the way that led to it (html-page-trail.js): the decks up to here.
                 write(HTML_JUMP, {
                     to: page,
@@ -149,10 +176,14 @@
                         path: here, deck: document.title, slide: slideTitle(Reveal.getCurrentSlide()), hash: position(), pages: herePages
                     }])
                 });
-                open(page, null);
+                // In an export the browser follows the link; in MdExplorer's view Angular opens the page.
+                if (inMdExplorer) {
+                    event.preventDefault();
+                    open(page, null);
+                }
                 return;
             }
-            var target = markdownPathOf(url);
+            var target = markdownPathOf(url, link);
             // Another slide of this deck (#/3) is reveal.js's business.
             if (!target || target === here) return;
 

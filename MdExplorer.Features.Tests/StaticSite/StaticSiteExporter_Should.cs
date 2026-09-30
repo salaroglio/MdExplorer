@@ -28,7 +28,7 @@ namespace MdExplorer.Features.Tests.StaticSite
             _project = Path.Combine(_root, "project");
             _web = Path.Combine(_root, "wwwroot");
             Web("reveal/dist/reveal.js", "// reveal");
-            Web("reveal/dist/theme/white.css", "@import url(./fonts/source.css); .reveal { background: url(\"img/bg.png\"); }");
+            Web("reveal/dist/theme/white.css", "/* see url(%22nowhere.png%22) */ @import url(./fonts/source.css); .reveal { background: url(\"img/bg.png\"); }");
             Web("reveal/dist/theme/fonts/source.css", "@font-face { src: url(source.woff); }");
             Web("reveal/dist/theme/fonts/source.woff", "font");
             Web("reveal/dist/theme/img/bg.png", "png");
@@ -190,6 +190,7 @@ namespace MdExplorer.Features.Tests.StaticSite
             StringAssert.Contains(Text(export, "_mde/reveal/dist/theme/white.css"), "url(\"img/bg.png\")");
             Assert.IsTrue(export.Files.ContainsKey("_mde/reveal/dist/theme/img/bg.png"));
             Assert.IsTrue(export.Files.ContainsKey("_mde/reveal/dist/theme/fonts/source.woff"));
+            Assert.AreEqual(0, export.Report.Issues.Count, "An address in a comment of a style sheet is not read.");
         }
 
         [TestMethod]

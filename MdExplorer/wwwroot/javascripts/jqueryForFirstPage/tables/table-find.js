@@ -150,7 +150,7 @@
         btn.className = 'mde-tfind-btn';
         btn.title = 'Cerca nella tabella';
         var img = document.createElement('img');
-        img.src = '/assets/magnifier.svg';
+        img.src = mdeAsset('assets/magnifier.svg');
         img.alt = 'cerca';
         btn.appendChild(img);
         document.body.appendChild(btn);

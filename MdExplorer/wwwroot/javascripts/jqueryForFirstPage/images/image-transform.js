@@ -632,6 +632,9 @@ var cumulativeOffset = function (element) {
  */
 function resizeImage(currentDiv) {
 
+    // A static export has no service to save to (window.mdeStaticExport, core/globals.js).
+    if (window.mdeStaticExport) return;
+
     // Skip saving for SVG/PlantUML images - they don't need position/size persistence
     if (currentDiv && currentDiv.querySelector && currentDiv.querySelector('svg')) {
         console.log('Skipping resizeImage for SVG/PlantUML element');

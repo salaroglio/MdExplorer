@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MdExplorer.Features.Slides;
+using MdExplorer.Features.StaticSite;
+using Microsoft.AspNetCore.Hosting;
 using System;
 using System.Net;
 using System.Collections.Generic;
@@ -453,7 +455,8 @@ namespace MdExplorer.Controllers
         private async Task<string> ProcessAsSlideTypeDocument(string markdownTxt,
                         string relativePathFile, string fullPathFile, string connectionId,
                         MonitoredMDModel monitoredMd, string theme,
-                        string explicitRoot = null, bool readOnly = false)
+                        string explicitRoot = null, bool readOnly = false,
+                        bool staticExport = false, string katexBase = null)
         {
             var root = string.IsNullOrEmpty(explicitRoot) ? GetProjectPath() : explicitRoot;
             var requestInfo = new RequestInfo()
@@ -466,6 +469,7 @@ namespace MdExplorer.Controllers
                 BaseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}",
                 ReadOnly = readOnly,
                 SlideDeck = true,
+                StaticExport = staticExport,
             };
             var isPlantuml = markdownTxt.Contains("```plantuml") && !readOnly;
             if (isPlantuml)
@@ -486,9 +490,13 @@ namespace MdExplorer.Controllers
                     // The file as read: a text correction made on the slides is refused if it has
                     // changed since. Not in a read-only review, where nothing is corrected.
                     SourceHash = readOnly ? null : MarkdownFileEditor.SourceHash(markdownTxt),
-                    // [Costi](vendite.md?pages=2,6-9): the pages the link asks for.
-                    Pages = Request.Query["pages"].ToString(),
-                    ResourceQuery = readOnly
+                    // [Costi](vendite.md?pages=2,6-9): the pages the link asks for. In an export the page
+                    // reads them itself (slide-export-pages.js): the whole deck is written.
+                    Pages = staticExport ? null : Request.Query["pages"].ToString(),
+                    StaticExport = staticExport,
+                    KatexBase = katexBase,
+                    // An export keeps relative addresses as written: the zip has the project's folders.
+                    ResourceQuery = staticExport ? null : readOnly
                         ? $"agent={Uri.EscapeDataString(Request.Query["agent"].ToString())}&connectionId={Uri.EscapeDataString(connectionId ?? string.Empty)}"
                         : $"connectionId={Uri.EscapeDataString(connectionId ?? string.Empty)}",
                     BeforeMarkdown = body => _commandRunner.TransformInNewMDFromMD(body, requestInfo),
@@ -524,6 +532,127 @@ namespace MdExplorer.Controllers
 <h2>The slides of {file} cannot be shown</h2>
 <p>{WebUtility.HtmlEncode(message)}</p>
 </body></html>";
+        }
+
+        /// <summary>What the toolbar's «Esporta HTML» sends.</summary>
+        public sealed class StaticSiteExportRequestDto
+        {
+            /// <summary>The deck on screen, relative to the project.</summary>
+            public string RelativePath { get; set; }
+
+            /// <summary>The theme MdExplorer shows (light, dark, milan): the pages are written with it.</summary>
+            public string Theme { get; set; }
+
+            /// <summary>Where to write the zip (chosen in the save dialog).</summary>
+            public string OutputPath { get; set; }
+        }
+
+        /// <summary>
+        /// «Esporta HTML»: the deck on screen and everything its links reach, as a local web site in a zip
+        /// (sprint docs-internal/Sprints/2026-09-30-Slide-Export-HTML.md). Pages are rendered as for a read-only
+        /// review — no SignalR, no cache, no database, PlantUML from the SVGs already in <c>.md/</c> — and the
+        /// report of what could not be carried comes back with the zip's path.
+        /// </summary>
+        [HttpPost("/api/MdStaticSite/Export")]
+        public IActionResult ExportStaticSite([FromBody] StaticSiteExportRequestDto request)
+        {
+            var projectPath = GetProjectPath();
+            if (string.IsNullOrEmpty(projectPath))
+            {
+                return BadRequest(new { error = "No project is open for this window (ConnectionId)." });
+            }
+            if (string.IsNullOrWhiteSpace(request?.RelativePath))
+            {
+                return BadRequest(new { error = "Which deck to export: RelativePath is empty." });
+            }
+            var output = request.OutputPath;
+            if (string.IsNullOrWhiteSpace(output) || !Path.IsPathRooted(output)
+                || !output.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
+                || !Directory.Exists(Path.GetDirectoryName(output)))
+            {
+                return BadRequest(new { error = $"The zip must be written to an existing folder, with a .zip name: '{output}'." });
+            }
+
+            var connectionId = Request.Query["ConnectionId"].ToString();
+            var theme = string.IsNullOrWhiteSpace(request.Theme) ? "light" : request.Theme;
+            var webRoot = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
+            try
+            {
+                var site = StaticSiteExporter.Export(new StaticSiteRequest
+                {
+                    ProjectRoot = projectPath,
+                    WebRoot = webRoot,
+                    Entry = request.RelativePath.Replace('\\', '/').TrimStart('/'),
+                    Render = (path, katexBase) => RenderForStaticExport(projectPath, path, connectionId, theme, katexBase),
+                });
+
+                // Written next to the target, then moved over it: a zip half written is never left under the chosen name.
+                var partial = output + ".partial";
+                using (var file = new FileStream(partial, FileMode.Create, FileAccess.Write))
+                {
+                    site.WriteZip(file);
+                }
+                System.IO.File.Move(partial, output, overwrite: true);
+                _logger.LogInformation("📦 [StaticSite] {Entry} → {Output}: {Pages} pages, {Files} files, {Issues} issues",
+                    request.RelativePath, output, site.Report.Pages, site.Report.Files, site.Report.Issues.Count);
+
+                return Ok(new
+                {
+                    outputPath = output,
+                    startPage = site.Report.StartPage,
+                    pages = site.Report.Pages,
+                    files = site.Report.Files,
+                    bytes = site.Report.Bytes,
+                    issues = site.Report.Issues.Select(i => new { kind = i.Kind.ToString(), page = i.Page, address = i.Address, detail = i.Detail }),
+                });
+            }
+            catch (StaticSiteException ex)
+            {
+                _logger.LogWarning("⚠️ [StaticSite] {Entry}: {Message}", request.RelativePath, ex.Message);
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>A markdown file of the project as the static export writes it: deck or document, read-only.</summary>
+        private RenderedMarkdown RenderForStaticExport(string root, string path, string connectionId, string theme, string katexBase)
+        {
+            var relativePathFile = path.Replace('/', Path.DirectorySeparatorChar);
+            var fullPathFile = Path.Combine(root, relativePathFile);
+            string markdownTxt;
+            using (var fs = new FileStream(fullPathFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var sr = new StreamReader(fs, Encoding.UTF8))
+            {
+                markdownTxt = sr.ReadToEnd();
+            }
+            var monitoredMd = new MonitoredMDModel
+            {
+                Path = fullPathFile,
+                Name = Path.GetFileName(fullPathFile),
+                RelativePath = relativePathFile,
+                FullPath = fullPathFile,
+                FullDirectoryPath = Path.GetDirectoryName(fullPathFile),
+            };
+
+            if (IsSlideDeck(_yamlDocumentDescriptor.GetDescriptor(markdownTxt)))
+            {
+                var deck = ProcessAsSlideTypeDocument(markdownTxt, relativePathFile, fullPathFile, connectionId, monitoredMd, theme,
+                    explicitRoot: root, readOnly: true, staticExport: true, katexBase: katexBase).GetAwaiter().GetResult();
+                return new RenderedMarkdown { Html = deck, IsDeck = true };
+            }
+
+            var doc1 = ProcessAsMarkdownTypeDocument(markdownTxt, relativePathFile, fullPathFile, connectionId, monitoredMd, theme,
+                explicitRoot: root, readOnly: true, staticExport: true).GetAwaiter().GetResult();
+            var html = doc1.DocumentElement != null && doc1.DocumentElement.GetAttribute("_html_fallback") == "true"
+                ? doc1.DocumentElement.InnerText
+                : doc1.InnerXml;
+            return new RenderedMarkdown { Html = html, IsDeck = false };
+        }
+
+        /// <summary>The scripts and styles of an exported document, read from wwwroot/common.js.</summary>
+        private string StaticExportDocumentHead()
+        {
+            var webRoot = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
+            return DocumentViewAssets.HeadTags(System.IO.File.ReadAllText(Path.Combine(webRoot, "common.js")));
         }
 
         private string ManageIfThePathContainsExtensionMdOrNot(string rootPathSystem, string relativePathFile, string relativePathExtension)
@@ -686,7 +815,8 @@ namespace MdExplorer.Controllers
                 MonitoredMDModel monitoredMd,
                 string theme = "light",
                 string explicitRoot = null,
-                bool readOnly = false)
+                bool readOnly = false,
+                bool staticExport = false)
         {
             // Impronta del file COM'È su disco, prima di qualunque trasformazione: la pagina la porta
             // (data-mde-source-hash), e un'azione che punta a "riga N" viene rifiutata se il file non
@@ -704,6 +834,7 @@ namespace MdExplorer.Controllers
                 ConnectionId = connectionId,
                 BaseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}",
                 ReadOnly = readOnly,   // Fase 7h: i comandi non scrivono su disco né cambiano cwd
+                StaticExport = staticExport,
             };
             var isPlantuml = false;
             if (readText.Contains("```plantuml"))
@@ -821,7 +952,8 @@ namespace MdExplorer.Controllers
             var btnNavForward = AddButtonOnLowerBar("navigateForward()", "/assets/nav-forward.svg", "navForward", "mdeLowerBarButton mdeNavButton");
             var btnSearch = AddButtonOnLowerBar("toggleSearch()", "/assets/magnifier.svg", "searchButton", "mdeLowerBarButton mdeSearchButton");
             var btnTOC = AddButtonTextOnVerticalBar("toggleTOC()", "TOC", "btnToc");
-            var btnRefs = AddButtonTextOnVerticalBar("openKnowledgeGraph()", "K.G.", "btnRefs");
+            // The knowledge graph asks the service: not in a static export.
+            var btnRefs = staticExport ? string.Empty : AddButtonTextOnVerticalBar("openKnowledgeGraph()", "K.G.", "btnRefs");
             var resultToParse = $@"    
                    
                     <div  class=""mdeTocSticky-top"">                        
@@ -869,7 +1001,8 @@ namespace MdExplorer.Controllers
                      
                     ";
             XmlDocument doc1 = new XmlDocument();
-            CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId, root, theme, sourceHash);
+            CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId, root, theme, sourceHash,
+                exportHead: staticExport ? StaticExportDocumentHead() : null);
 
             try
             {
@@ -916,7 +1049,9 @@ namespace MdExplorer.Controllers
 
         /// <param name="viewKind">"text" for a text file shown as source: the page scripts that edit a
         /// markdown document (paste an image, …) stay off there.</param>
-        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId, string projectPath = "", string theme = "light", string sourceHash = "", string viewKind = null)
+        /// <param name="exportHead">For the static export: the page's scripts and styles listed one by one
+        /// (<see cref="DocumentViewAssets"/>) instead of common.js, which loads them by itself.</param>
+        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId, string projectPath = "", string theme = "light", string sourceHash = "", string viewKind = null, string exportHead = null)
         {
             var isDark = theme == "dark" || theme == "milan";
             var html = doc1.CreateElement("html");
@@ -973,10 +1108,11 @@ namespace MdExplorer.Controllers
             html.AppendChild(body);
 
             var darkThemeLink = isDark ? @"<link rel=""stylesheet"" href=""/dark-theme.css"" />" : "";
+            var scripts = exportHead ?? @"<script src=""/common.js""></script>";
             head.InnerXml = $@"
             <link rel=""stylesheet"" href=""/common.css"" />
             {darkThemeLink}
-            <script src=""/common.js""></script>";
+            {scripts}";
 
             try
             {
@@ -998,7 +1134,7 @@ namespace MdExplorer.Controllers
     <link href=""/MdCustomCSS.css"" rel=""stylesheet"" />
     <link rel=""stylesheet"" href=""/common.css"" />
     {darkLink}
-    <script src=""/common.js""></script>
+    {exportHead ?? @"<script src=""/common.js""></script>"}
 </head>
 <body Id=""MdBody"" ConnectionId=""{connectionId}"" DocumentPath=""{filePathSystem1}"" ProjectPath=""{projectPath}"" data-mde-source-hash=""{sourceHash}""{viewAttribute}{darkClass} style=""overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;"">
 {resultToParse}

@@ -82,11 +82,12 @@ namespace MdExplorer.Features.StaticSite
         /// </summary>
         private static readonly string[] LocalAttributes =
         {
-            "DocumentPath", "ProjectPath", "ConnectionId", "data-mde-source-hash", "mdeFullPathDocument",
+            "DocumentPath", "ProjectPath", "ConnectionId", "data-mde-source-hash", "mdeFullPathDocument", "md-path-file",
         };
 
         private static readonly Regex Scheme = new(@"^[a-zA-Z][a-zA-Z0-9+.\-]*:", RegexOptions.Compiled);
         private static readonly Regex CssUrl = new(@"url\(\s*(['""]?)([^'"")]+?)\1\s*\)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex CssComment = new(@"/\*.*?\*/", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex CssImport = new(@"@import\s+(['""])([^'""]+)\1", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private const string ServicePages = "/api/mdexplorer/";
@@ -242,6 +243,14 @@ namespace MdExplorer.Features.StaticSite
                     {
                         // The math plugin loads KaTeX by itself: not an address on the page.
                         EnqueueAssetFolder("katex", output);
+                    }
+                    else
+                    {
+                        // Icons the document's scripts swap by themselves (mdeAsset).
+                        foreach (var asset in DocumentViewAssets.ScriptAssets)
+                        {
+                            EnqueueAsset(asset, output);
+                        }
                     }
                     var html = ExportPage(rendered.Html, projectPath, output, htmlPage: false);
                     _files[output] = Encoding.UTF8.GetBytes(html);
@@ -565,7 +574,23 @@ namespace MdExplorer.Features.StaticSite
                 return null;
             }
 
+            /// <summary>
+            /// The addresses of a style sheet rewritten (<c>url()</c>, <c>@import</c>), outside its comments: the
+            /// browser does not read a comment (jQuery UI's header holds a ThemeRoller address full of url(…)).
+            /// </summary>
             private string RewriteCss(string css, Context context)
+            {
+                var result = new StringBuilder();
+                var at = 0;
+                foreach (Match comment in CssComment.Matches(css))
+                {
+                    result.Append(RewriteCssCode(css.Substring(at, comment.Index - at), context)).Append(comment.Value);
+                    at = comment.Index + comment.Length;
+                }
+                return result.Append(RewriteCssCode(css.Substring(at), context)).ToString();
+            }
+
+            private string RewriteCssCode(string css, Context context)
             {
                 css = CssUrl.Replace(css, m => $"url({m.Groups[1].Value}{RewriteAddress(m.Groups[2].Value, context, null)}{m.Groups[1].Value})");
                 return CssImport.Replace(css, m => $"@import {m.Groups[1].Value}{RewriteAddress(m.Groups[2].Value, context, null)}{m.Groups[1].Value}");
