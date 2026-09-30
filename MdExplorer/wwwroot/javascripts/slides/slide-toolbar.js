@@ -7,8 +7,10 @@
  *
  * Two states, one of them always on, with their names on them: "Presenta" (the deck as it always was: links
  * and moving between decks work, nothing is corrected by a click — it is the state a deck opens in) and
- * "Modifica" ("Modifica veloce": the page is for correcting). Then ⛶, full screen: the bar and every tool are
- * hidden and Esc comes back (the deck's iframe has allowfullscreen). Other scripts add their buttons
+ * "Modifica" ("Modifica veloce": the page is for correcting). Then ⛶, full screen: the deck takes the whole screen
+ * and the bar stays, with the state it had — presenting, correcting and annotating go on there (the user asked for
+ * it: at first the bar and the tools were hidden); the button again, or Esc, comes back (the deck's iframe has
+ * allowfullscreen). Other scripts add their buttons
  * (mdeSlideToolbar.addButton), that come before ⛶. On, the body carries `mde-edit-mode` and
  * the window gets an `mde-edit-mode` event ({detail: {on}}): what the mode does on the page
  * (highlighting, click to correct, dragging the items) is done by the scripts that listen to it.
@@ -255,11 +257,14 @@
         });
     });
 
-    // Full screen, from the button or from reveal.js's own key (F): the bar and the tools go away, and it is a presentation.
+    // Full screen, from the button or from reveal.js's own key (F): the bar stays as it is, its button says how to come back.
     document.addEventListener('fullscreenchange', function () {
         var on = !!document.fullscreenElement;
         document.body.classList.toggle('mde-fullscreen', on);
-        if (on) setEditMode(false);
+        fullscreenButton.classList.toggle('active', on);
+        fullscreenButton.title = _toolbarText(on ? 'slide.fullscreenExit' : 'slide.fullscreen');
+        // The window changed size under the bar.
+        place();
     });
 
     window.addEventListener('keydown', function (event) {

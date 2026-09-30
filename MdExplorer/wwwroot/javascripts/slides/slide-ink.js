@@ -11,9 +11,8 @@
  *    when the slide or the size changes.
  *  - Pen and highlighter draw; the eraser takes away the whole stroke it touches (a stroke is what was drawn
  *    without lifting the pointer); "Azzera" takes away the annotations of the slide on screen.
- *  - Full screen hides the bar (slide-toolbar.js) but not this panel, and A opens and closes it from the
- *    keyboard, so it can be used while presenting: A annotations on/off, E eraser, C clear the slide. Those
- *    are keys reveal.js does not use; nothing happens while something is being typed.
+ *  - From the keyboard too, while presenting: A annotations on/off, E eraser, C clear the slide. Those are keys
+ *    reveal.js does not use; nothing happens while something is being typed.
  *  - reveal.js keeps its arrows while drawing (the panel does not hold the keys): the strokes are the slide's,
  *    the presenter moves on. Esc closes the panel.
  *  - A diagram shown on the whole page (the eye of slide-svg-zoom.js) is a surface of its own: what is drawn on it
@@ -411,7 +410,7 @@
     }
     window.addEventListener('mde-edit-mode', follow);
 
-    // Keys reveal.js does not use, for when the bar is hidden (full screen). Not while something is being typed.
+    // Keys reveal.js does not use, to annotate without going to the bar. Not while something is being typed.
     window.addEventListener('keydown', function (event) {
         if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return;
         var target = event.target;

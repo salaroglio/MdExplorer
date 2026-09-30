@@ -75,12 +75,7 @@
     color: #555;
 }
 
-/* A schermo intero è una presentazione: niente barra, niente strumenti. */
-body.mde-fullscreen .mde-slide-toolbar,
-body.mde-fullscreen .mde-list-handle,
-body.mde-fullscreen .mde-tr-panel {
-    display: none !important;
-}
+/* A schermo intero la barra e gli strumenti restano: si presenta, si corregge e si annota anche lì. */
 
 /* Nel PDF non serve. */
 html.reveal-print .mde-slide-toolbar,
