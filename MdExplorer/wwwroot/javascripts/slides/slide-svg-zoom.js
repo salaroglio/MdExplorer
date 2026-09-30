@@ -19,8 +19,9 @@
  * listeners go with it, so a click on a box still lights its links) and sized to fit the window; the eye again,
  * or Esc, puts it back in its slide at its original size. The bar of the deck stays above the layer, so the
  * annotations (slide-ink.js) can be drawn on the large diagram: they are kept apart from the slide's own, and
- * relative to the diagram. While it is on, reveal.js leaves the keys alone (the layer holds them) and the zoom
- * is off: the diagram already fills the page.
+ * relative to the diagram. While it is on, reveal.js leaves the keys alone (the layer holds them). The zoom works
+ * there too (buttons and Ctrl + wheel, 100% = the diagram filling the window) — its own, not the scripts', whose
+ * sizes are the slide's; larger than the window, the diagram is dragged or scrolled with the wheel.
  *
  * Documents have their own bar over a diagram (image-transform.js); the slides' had none, by choice of the
  * first sprint (Slide-SVG-Interattivi): the bar is tied to jQuery and to the document's layout.
@@ -216,9 +217,16 @@
 
     document.documentElement.addEventListener('mouseleave', hide);
 
-    out.addEventListener('click', function () { if (current) { step(current, -1); refresh(); } });
-    zoomIn.addEventListener('click', function () { if (current) { step(current, 1); refresh(); } });
+    out.addEventListener('click', function () {
+        if (full) zoomFull(-1);
+        else if (current) { step(current, -1); refresh(); }
+    });
+    zoomIn.addEventListener('click', function () {
+        if (full) zoomFull(1);
+        else if (current) { step(current, 1); refresh(); }
+    });
     reset.addEventListener('click', function () {
+        if (full) { zoomFull(0); return; }
         if (!current) return;
         resetZoom(current);
         refresh();
@@ -229,25 +237,56 @@
     /** Room left around the diagram: the deck's bar is at the top. */
     var FULL_MARGIN = { top: 56, side: 24, bottom: 24 };
 
-    /** The diagram as large as the window allows, keeping its shape. */
-    function fit() {
-        if (!full) return;
-        var svg = full.svg;
+    /** The size at which the diagram fills the window, keeping its shape: its 100% while it is on the whole page. */
+    function fitSize(svg) {
         var view = svg.viewBox && svg.viewBox.baseVal;
         var w = view && view.width > 0 ? view.width : svg.getBoundingClientRect().width;
         var h = view && view.height > 0 ? view.height : svg.getBoundingClientRect().height;
-        if (!(w > 0 && h > 0)) return;
+        if (!(w > 0 && h > 0)) return null;
         var scale = Math.min((window.innerWidth - 2 * FULL_MARGIN.side) / w, (window.innerHeight - FULL_MARGIN.top - FULL_MARGIN.bottom) / h);
-        var width = Math.max(1, Math.round(w * scale)) + 'px', height = Math.max(1, Math.round(h * scale)) + 'px';
+        return { w: w * scale, h: h * scale };
+    }
+
+    /**
+     * The diagram at its size on the whole page: the one that fills the window, times the zoom. The point of the
+     * diagram under the anchor (the pointer for the wheel, the middle of the window for the buttons) stays there:
+     * larger than the window, the layer scrolls.
+     */
+    function fit(anchor) {
+        if (!full) return;
+        var svg = full.svg, layer = full.layer;
+        var size = fitSize(svg);
+        if (!size) return;
+        var ax = anchor ? anchor.x : window.innerWidth / 2, ay = anchor ? anchor.y : window.innerHeight / 2;
+        var before = svg.getBoundingClientRect();
+        var fx = before.width > 0 ? (ax - before.left) / before.width : 0.5;
+        var fy = before.height > 0 ? (ay - before.top) / before.height : 0.5;
+        var width = Math.max(1, Math.round(size.w * full.level)) + 'px', height = Math.max(1, Math.round(size.h * full.level)) + 'px';
         // Written only when it changes: the observer below watches the style.
         if (svg.style.width !== width || svg.style.height !== height || svg.style.maxWidth !== 'none' || svg.style.maxHeight !== 'none') {
             svg.style.maxWidth = 'none';
             svg.style.maxHeight = 'none';
             svg.style.width = width;
             svg.style.height = height;
+            var after = svg.getBoundingClientRect();
+            layer.scrollLeft += (after.left + fx * after.width) - ax;
+            layer.scrollTop += (after.top + fy * after.height) - ay;
         }
-        // Whoever draws over the diagram (slide-ink.js) follows its new place.
-        window.dispatchEvent(new CustomEvent('mde-svg-fullpage', { detail: { on: true } }));
+        reset.textContent = Math.round(full.level * 100) + '%';
+        notifyFull();
+    }
+
+    /** Whoever draws over the diagram (slide-ink.js) follows its new place and size. */
+    function notifyFull() {
+        window.dispatchEvent(new CustomEvent('mde-svg-fullpage', { detail: { on: !!full } }));
+    }
+
+    /** The zoom while on the whole page: the same step and limits as in the slide. */
+    function zoomFull(direction, anchor) {
+        if (!full) return;
+        var level = direction === 0 ? 1 : full.level + direction * STEP;
+        full.level = Math.round(Math.max(0.2, Math.min(5.0, level)) * 10) / 10;
+        fit(anchor);
     }
 
     function enterFull(svg) {
@@ -267,28 +306,31 @@
         layer.setAttribute('data-mde-ink-key', 'diagram' + Math.max(0, index));
         var background = window.getComputedStyle(document.body).backgroundColor;
         layer.style.background = !background || /rgba\(0, 0, 0, 0\)|transparent/.test(background) ? '#fff' : background;
-        // The zoom is off here: Ctrl + wheel does not reach the diagram's script.
+        // Ctrl + wheel zooms here too, around the pointer — this zoom, not the script's (its sizes are the slide's).
+        // The wheel alone scrolls the layer, when the diagram is larger than the window.
         layer.addEventListener('wheel', function (event) {
             if (!event.ctrlKey) return;
             event.preventDefault();
             event.stopPropagation();
+            zoomFull(event.deltaY < 0 ? 1 : -1, { x: event.clientX, y: event.clientY });
         }, { capture: true, passive: false });
+        layer.addEventListener('scroll', notifyFull);
+        panByDrag(layer);
 
-        full = { svg: svg, placeholder: placeholder, cssText: svg.style.cssText, layer: layer, observer: null };
+        full = { svg: svg, placeholder: placeholder, cssText: svg.style.cssText, layer: layer, observer: null, level: 1 };
         layer.appendChild(svg);
         document.body.appendChild(layer);
         document.body.classList.add('mde-svg-fullpage-on');
 
         // A tree that folds (YAML, JSON) is resized by its script: fitted again.
         if (window.MutationObserver) {
-            full.observer = new MutationObserver(fit);
+            full.observer = new MutationObserver(function () { fit(); });
             full.observer.observe(svg, { attributes: true, attributeFilter: ['style', 'viewBox', 'width', 'height'] });
         }
 
         cancelHide();
         current = svg;
         overBar = false;
-        [out, reset, zoomIn].forEach(function (b) { b.hidden = true; });
         eye.classList.add('active');
         eye.title = _toolbarText('svg.fullPageExit');
         bar.classList.add('mde-svg-zoom-pinned');
@@ -313,12 +355,38 @@
         // reveal.js centres a slide by its content: laid out while the diagram was away (a window resized), the
         // slide was centred without it, and the diagram came back lower than it was (measured: 205 px).
         Reveal.layout();
-        [out, reset, zoomIn].forEach(function (b) { b.hidden = false; });
         eye.classList.remove('active');
         eye.title = _toolbarText('svg.fullPage');
         bar.classList.remove('mde-svg-zoom-pinned');
         hide();
-        window.dispatchEvent(new CustomEvent('mde-svg-fullpage', { detail: { on: false } }));
+        notifyFull();
+    }
+
+    /**
+     * Press and move on the large diagram: it is dragged under the pointer (the layer scrolls). A press without a
+     * move stays a click — the diagram's own scripts light a box on it, and drop the click that ends a drag.
+     */
+    function panByDrag(layer) {
+        var from = null, dragged = false;
+        layer.addEventListener('mousedown', function (event) {
+            if (event.button !== 0) return;
+            from = { x: event.clientX, y: event.clientY, left: layer.scrollLeft, top: layer.scrollTop };
+            dragged = false;
+        });
+        document.addEventListener('mousemove', function (event) {
+            if (!from || !full || full.layer !== layer) return;
+            if (event.buttons === 0) { from = null; layer.classList.remove('mde-svg-fullpage-panning'); return; }
+            var dx = event.clientX - from.x, dy = event.clientY - from.y;
+            if (!dragged && Math.hypot(dx, dy) < 4) return;
+            dragged = true;
+            layer.classList.add('mde-svg-fullpage-panning');
+            layer.scrollLeft = from.left - dx;
+            layer.scrollTop = from.top - dy;
+        });
+        document.addEventListener('mouseup', function () {
+            from = null;
+            layer.classList.remove('mde-svg-fullpage-panning');
+        });
     }
 
     eye.addEventListener('click', function () {

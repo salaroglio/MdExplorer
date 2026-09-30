@@ -47,13 +47,26 @@
     box-sizing: border-box;
     padding: 56px 24px 24px;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
+    /* Ingrandito oltre la finestra si scorre (rotella) o si trascina; senza barre di scorrimento. */
+    overflow: auto;
+    scrollbar-width: none;
 }
 
+.mde-svg-fullpage::-webkit-scrollbar {
+    display: none;
+}
+
+/* Al centro quando ci sta; con «margin: auto» (e non con align/justify: center) quando è più grande della
+   finestra si arriva a scorrere fino al suo bordo in alto e a sinistra. */
 .mde-svg-fullpage > svg {
     flex: none;
+    margin: auto;
+}
+
+.mde-svg-fullpage.mde-svg-fullpage-panning,
+.mde-svg-fullpage.mde-svg-fullpage-panning * {
+    cursor: grabbing !important;
+    user-select: none;
 }
 
 html.reveal-print .mde-svg-fullpage,

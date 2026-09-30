@@ -133,7 +133,8 @@
         ctx.strokeStyle = stroke.color;
         ctx.fillStyle = stroke.color;
         ctx.globalAlpha = stroke.tool === 'highlighter' ? HIGHLIGHT_ALPHA : 1;
-        var width = stroke.width * scale();
+        // A share of the surface's width: on a diagram zoomed on the whole page the stroke grows with what it marks.
+        var width = stroke.widthShare * box().width;
         ctx.lineWidth = width;
         var first = toScreen(pts[0]);
         if (count === 1) {
@@ -176,7 +177,7 @@
     function erase(x, y) {
         var list = current();
         var kept = list.filter(function (stroke) {
-            var reach = ERASER_RADIUS + (stroke.width * scale()) / 2;
+            var reach = ERASER_RADIUS + (stroke.widthShare * box().width) / 2;
             var pts = stroke.points.map(toScreen);
             if (pts.length === 1) return Math.hypot(x - pts[0][0], y - pts[0][1]) > reach;
             for (var i = 1; i < pts.length; i++) {
@@ -201,8 +202,9 @@
             erase(event.clientX, event.clientY);
             return;
         }
-        // The width is the slide's (scaled when painted): a stroke is the same on a bigger window.
-        drawing = { tool: tool, color: color, width: WIDTH[tool], points: [toSlide(event.clientX, event.clientY)] };
+        // The width is kept as a share of the surface's width (the slide, or the diagram on the whole page): a stroke
+        // is the same on a bigger window, and follows a diagram that is zoomed.
+        drawing = { tool: tool, color: color, widthShare: (WIDTH[tool] * scale()) / box().width, points: [toSlide(event.clientX, event.clientY)] };
         paint(drawing);
     }
 
