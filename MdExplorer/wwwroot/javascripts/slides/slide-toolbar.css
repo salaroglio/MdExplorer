@@ -1,0 +1,36 @@
+/* La barra delle slide (slide-toolbar.js): l'aspetto è quello della barra di immagini e diagrammi
+   (.mde-img-toolbar, image-toolbar.css); qui solo ciò che è delle slide. Sta sulla pagina, non sulla
+   slide, e non si ingrandisce con lei. */
+
+.mde-slide-toolbar {
+    position: fixed;
+    z-index: 45;
+    /* Discreta finché non ci si passa sopra, come il breadcrumb. */
+    opacity: 0.75;
+    transition: opacity 0.2s;
+}
+
+.mde-slide-toolbar:hover,
+.mde-slide-toolbar.mde-img-toolbar-dragging {
+    opacity: 1;
+}
+
+.mde-slide-toolbar button {
+    font-size: 15px;
+}
+
+/* La modalità è accesa. */
+.mde-slide-toolbar button.active {
+    background: rgba(26, 115, 232, 0.2);
+    box-shadow: inset 0 0 0 1px rgba(26, 115, 232, 0.7);
+}
+
+.mde-slide-toolbar button.active:hover {
+    background: rgba(26, 115, 232, 0.3);
+}
+
+/* Nel PDF non serve. */
+html.reveal-print .mde-slide-toolbar,
+html.print-pdf .mde-slide-toolbar {
+    display: none !important;
+}

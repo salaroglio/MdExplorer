@@ -403,6 +403,11 @@ reveal:
             StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-list-drag.css\">");
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-diagrams.js") < page.IndexOf("/javascripts/slides/slide-list-drag.js"));
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-list-drag.js") < page.IndexOf("Reveal.initialize("));
+            // The toolbar with "Modifica veloce": its Esc rule reads what the other scripts hold, so it comes after them.
+            StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-toolbar.css\">");
+            StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/images/image-toolbar.css\">");
+            Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-list-drag.js") < page.IndexOf("/javascripts/slides/slide-toolbar.js"));
+            Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-toolbar.js") < page.IndexOf("Reveal.initialize("));
             // slide-diagrams.js registers on Reveal's ready event: it must come before Reveal.initialize.
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-diagrams.js") < page.IndexOf("Reveal.initialize("));
             Assert.IsFalse(page.Contains("jquery-3"), "the diagram scripts do not need jQuery");

@@ -362,6 +362,7 @@ namespace MdExplorer.Features.Slides
                 + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-navigation.css\">\n"
                 + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-edit.css\">\n"
                 + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-list-drag.css\">\n"
+                + "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-toolbar.css\">\n"
                 // Text correction: the document's script and styles, its menu's look.
                 + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/inline-edit/inline-edit.css\">\n"
                 + "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.css\">\n";
@@ -391,6 +392,7 @@ namespace MdExplorer.Features.Slides
 <script src=""/javascripts/jqueryForFirstPage/inline-edit/inline-edit.js""></script>
 <script src=""/javascripts/slides/slide-edit.js""></script>
 <script src=""/javascripts/slides/slide-list-drag.js""></script>
+<script src=""/javascripts/slides/slide-toolbar.js""></script>
 <script>
 Reveal.initialize(Object.assign({Configuration(settings.Config).ToJsonString()}, {{ plugins: [RevealHighlight, RevealNotes, RevealMath.KaTeX, RevealSearch, RevealZoom] }}));
 </script>
