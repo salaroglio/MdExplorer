@@ -10,6 +10,11 @@
  * svg._interactiveSvgData, _sequenceData or _yamlData). Going back to the original size is the same number of
  * steps the other way: the scripts move by 0.2 from 1.0, so it lands on 1.0 exactly.
  *
+ * The diagrams none of the three scripts takes (activity, mindmap, gantt…) had no zoom at all in a slide: in a
+ * document core/init.js gives them a generic one, and the slide page does not load it (it is jQuery's). Here
+ * they get the same zoom (same step and limits, state in svg._genericZoomPan as there), so the bar is on
+ * every diagram of the deck.
+ *
  * Documents have their own bar over a diagram (image-transform.js); the slides' had none, by choice of the
  * first sprint (Slide-SVG-Interattivi): the bar is tied to jQuery and to the document's layout.
  *
@@ -55,8 +60,44 @@
 
     /** The zoom state of a diagram, kept by whichever script drew it; null when it is not one of them. */
     function stateOf(svg) {
-        return svg._interactiveSvgData || svg._sequenceData || svg._yamlData || null;
+        return svg._interactiveSvgData || svg._sequenceData || svg._yamlData || svg._genericZoomPan || null;
     }
+
+    /**
+     * The zoom of a diagram no script took, as core/init.js gives it in a document: Ctrl + wheel, 0.2 a step,
+     * between 0.2 and 5. The base is the size in CSS pixels (the slide is scaled by reveal.js).
+     */
+    function giveGenericZoom(svg) {
+        var state = svg._genericZoomPan = { zoomLevel: 1.0, zoomBaseW: null, zoomBaseH: null };
+        svg.addEventListener('wheel', function (event) {
+            if (!event.ctrlKey) return;
+            event.preventDefault();
+            if (!state.zoomBaseW) {
+                var rect = svg.getBoundingClientRect();
+                var pageScale = Reveal.getScale() || 1;
+                state.zoomBaseW = rect.width / pageScale;
+                state.zoomBaseH = rect.height / pageScale;
+            }
+            state.zoomLevel = Math.max(0.2, Math.min(5.0, state.zoomLevel + (event.deltaY < 0 ? 1 : -1) * STEP));
+            // Float noise (0.2 * 3) would show as 60.00000000000001%.
+            state.zoomLevel = Math.round(state.zoomLevel * 10) / 10;
+            svg.style.maxWidth = 'none';
+            svg.style.width = Math.round(state.zoomBaseW * state.zoomLevel) + 'px';
+            svg.style.height = Math.round(state.zoomBaseH * state.zoomLevel) + 'px';
+        }, { passive: false });
+    }
+
+    // After the diagram scripts have taken theirs (slide-diagrams.js registered on 'ready' before this file).
+    Reveal.on('ready', function () {
+        var any = false;
+        document.querySelectorAll('.slides svg[data-diagram-type]').forEach(function (svg) {
+            if (stateOf(svg)) return;
+            giveGenericZoom(svg);
+            any = true;
+        });
+        // Ctrl + wheel beside the diagram must not zoom the whole page (the three scripts do the same for theirs).
+        if (any) window.addEventListener('wheel', function (event) { if (event.ctrlKey) event.preventDefault(); }, { passive: false });
+    });
 
     function levelOf(svg) {
         var state = stateOf(svg);
@@ -85,11 +126,21 @@
         }));
     }
 
+    /**
+     * The pointer is on the bar: the bar stays where it is, whatever the diagram does under it. It follows the
+     * diagram's corner, and each click changes the diagram's size: moved at once, the next click without moving
+     * the mouse landed on another button, or on nothing (and the bar, left behind, went away).
+     */
+    var overBar = false;
+
     function refresh() {
         if (!current) return;
         reset.textContent = Math.round(levelOf(current) * 100) + '%';
-        place();
+        if (!overBar) place();
     }
+
+    bar.addEventListener('mouseenter', function () { overBar = true; });
+    bar.addEventListener('mouseleave', function () { overBar = false; if (current) place(); });
 
     function place() {
         if (!current) return;
@@ -122,6 +173,7 @@
     function hide() {
         cancelHide();
         current = null;
+        overBar = false;
         bar.hidden = true;
     }
 
