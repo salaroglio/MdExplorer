@@ -486,6 +486,8 @@ namespace MdExplorer.Controllers
                     // The file as read: a text correction made on the slides is refused if it has
                     // changed since. Not in a read-only review, where nothing is corrected.
                     SourceHash = readOnly ? null : MarkdownFileEditor.SourceHash(markdownTxt),
+                    // [Costi](vendite.md?pages=2,6-9): the pages the link asks for.
+                    Pages = Request.Query["pages"].ToString(),
                     ResourceQuery = readOnly
                         ? $"agent={Uri.EscapeDataString(Request.Query["agent"].ToString())}&connectionId={Uri.EscapeDataString(connectionId ?? string.Empty)}"
                         : $"connectionId={Uri.EscapeDataString(connectionId ?? string.Empty)}",

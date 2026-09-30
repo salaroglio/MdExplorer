@@ -58,6 +58,13 @@ namespace MdExplorer.Features.Slides
         /// from (<c>data-mde-line-start</c>/<c>-end</c>), as a document page's do. Null: neither.
         /// </summary>
         public string SourceHash { get; init; }
+
+        /// <summary>
+        /// The pages of the deck to show (<see cref="SlidePages"/>), as written in the link that
+        /// opened it: the others are not on the page, and reveal.js never knows them. Null or
+        /// empty: the whole deck.
+        /// </summary>
+        public string Pages { get; init; }
     }
 
     /// <summary>
@@ -100,8 +107,17 @@ namespace MdExplorer.Features.Slides
             var transformed = options.BeforeMarkdown(body);
             var fileLines = string.IsNullOrEmpty(options.SourceHash) ? null : FileLines(markdown, body, transformed);
             var slides = new StringBuilder();
-            foreach (var stack in SlideSplitter.Split(transformed))
+            var stacks = SlideSplitter.Split(transformed);
+            var pages = SlidePages.Parse(options.Pages);
+            pages?.CheckAgainst(stacks.Count);
+            var page = 0;
+            foreach (var stack in stacks)
             {
+                page++;
+                if (pages != null && !pages.Includes(page))
+                {
+                    continue;
+                }
                 if (stack.Count == 1)
                 {
                     slides.Append(RenderSlide(stack[0], options, fileLines));

@@ -74,7 +74,8 @@ namespace MdExplorer.Features.Commands
 
                 // Process links that need connectionId: absolute paths, relative paths (..), or .md files
                 bool isAbsoluteOrRelative = linkValue.StartsWith("/") || linkValue.StartsWith("../");
-                bool isMdFile = linkValue.EndsWith(".md") || linkValue.Contains(".md#");
+                // .md alone, with an anchor (.md#/3) or with a query (.md?pages=2,6-9)
+                bool isMdFile = Regex.IsMatch(linkValue, @"\.md(?=[?#]|$)");
 
                 if (isAbsoluteOrRelative || isMdFile)
                 {
@@ -101,7 +102,9 @@ namespace MdExplorer.Features.Commands
                     var firstPart = matchesSharp.First().Groups[1].Value;
                     var secondPart = matchesSharp.First().Groups[2]?.Value;
 
-                    newlink = $@"{firstPart}" + "?connectionId=" + requestInfo.ConnectionId + secondPart;
+                    // A link that already has a query (?pages=2,6-9) takes connectionId after it.
+                    var queryStart = firstPart.Contains('?') ? "&" : "?";
+                    newlink = $@"{firstPart}" + queryStart + "connectionId=" + requestInfo.ConnectionId + secondPart;
 
                     // Build new link preserving original text: [originalText](newUrl)
                     var linkText = link.Groups[1].Value;

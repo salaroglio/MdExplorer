@@ -34,5 +34,18 @@ namespace MdExplorer.Features.Tests.Commands
         {
             Assert.AreEqual("[p](/api/mdexplorer/assets/pagina.html?connectionId=c1)", Rewrite("[p](/assets/pagina.html)"));
         }
+
+        [TestMethod]
+        public void AddConnectionIdAfterThePagesOfALinkToADeck()
+        {
+            Assert.AreEqual("[c](vendite.md?pages=2,6-9&connectionId=c1)", Rewrite("[c](vendite.md?pages=2,6-9)"));
+            Assert.AreEqual("[c](../vendite.md?pages=2-&connectionId=c1#/1)", Rewrite("[c](../vendite.md?pages=2-#/1)"));
+        }
+
+        [TestMethod]
+        public void LeaveAPlainFileLinkAlone()
+        {
+            Assert.AreEqual("[c](dati.json)", Rewrite("[c](dati.json)"));
+        }
     }
 }

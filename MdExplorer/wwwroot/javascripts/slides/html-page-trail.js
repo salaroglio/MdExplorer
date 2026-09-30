@@ -24,7 +24,8 @@
             type: 'md-navigate',
             relativePath: step.path,
             name: step.path.split('/').pop(),
-            slideHash: step.hash || undefined
+            slideHash: step.hash || undefined,
+            pages: step.pages || undefined
         }, '*');
     }
 

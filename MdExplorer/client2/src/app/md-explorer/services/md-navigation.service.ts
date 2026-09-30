@@ -45,7 +45,9 @@ export class MdNavigationService {
     }
     if (
       (this.navigationGhost.length - 1) >= 0 //check its not at beginning of navigation
-      && currentMdFile.fullPath == this.navigationGhost[this.navigationGhost.length - 1].fullPath) {
+      && currentMdFile.fullPath == this.navigationGhost[this.navigationGhost.length - 1].fullPath
+      // The same deck shown with other pages is another entry.
+      && (currentMdFile.slidePages || '') == (this.navigationGhost[this.navigationGhost.length - 1].slidePages || '')) {
       // Same file as current, skipping
       return; //DO NOTHING
     }

@@ -42,6 +42,10 @@ export class MdFile implements IFileInfoNode {
   // breadcrumb between decks and by the history of the title-bar arrows.
   slideHash?: string;
 
+  // The pages of a slide deck a link asks for ('2,6-9'): [Costi](vendite.md?pages=2,6-9). The
+  // same deck opened with other pages is another history entry.
+  slidePages?: string;
+
   // Compact folder properties (VS Code-style)
   isCompacted?: boolean;
   compactedPath?: string;

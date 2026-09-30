@@ -12697,7 +12697,9 @@ class MdNavigationService {
       // Checking if current file matches last in navigation
     }
     if (this.navigationGhost.length - 1 >= 0 //check its not at beginning of navigation
-    && currentMdFile.fullPath == this.navigationGhost[this.navigationGhost.length - 1].fullPath) {
+    && currentMdFile.fullPath == this.navigationGhost[this.navigationGhost.length - 1].fullPath
+    // The same deck shown with other pages is another entry.
+    && (currentMdFile.slidePages || '') == (this.navigationGhost[this.navigationGhost.length - 1].slidePages || '')) {
       // Same file as current, skipping
       return; //DO NOTHING
     }
@@ -18071,8 +18073,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.09.29.19',
-  buildTime: '2026.09.29 16:12:19'
+  version: '2026.09.30.1',
+  buildTime: '2026.09.30 11:11:51'
 };
 
 /***/ }),
@@ -18106,4 +18108,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.355c62ef1e55503b.js.map
+//# sourceMappingURL=main.1461e867eb0fdf60.js.map

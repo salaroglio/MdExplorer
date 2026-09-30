@@ -64,6 +64,12 @@ namespace MdExplorer.Features.Tests.Slides
                 var links = SlidePage.Sections(page)[0].SelectNodes(".//a").Select(a => a.GetAttributeValue("href", null)).ToArray();
                 CollectionAssert.AreEqual(new[] { "sezioni/vendite.md", "sezioni/acquisti.md", "sezioni/acquisti.md#/3" }, links);
             },
+            ["pagine"] = page =>
+            {
+                // The pages travel in the link's query: the deck opened by it shows only those (SlidePages).
+                var links = SlidePage.Sections(page)[0].SelectNodes(".//a").Select(a => a.GetAttributeValue("href", null)).ToArray();
+                CollectionAssert.AreEqual(new[] { "sezioni/vendite.md?pages=2-", "sezioni/vendite.md?pages=2,6-9" }, links);
+            },
             ["transizione"] = page =>
                 Assert.AreEqual("zoom", SlidePage.Sections(page)[0].GetAttributeValue("data-transition", null)),
             ["verticali"] = page =>

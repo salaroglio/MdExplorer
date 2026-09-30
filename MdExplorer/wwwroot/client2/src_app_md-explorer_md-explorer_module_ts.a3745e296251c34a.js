@@ -21545,6 +21545,8 @@ class MainContentComponent {
     this.maxRetries = 3;
     this.retryDelay = 1000; // Start with 1 second delay
     this.iframeListenersAdded = false;
+    /** The pages of the deck on screen, as the link that opened it asked (`2,6-9`); empty: the whole deck. */
+    this.currentSlidePages = '';
     // Initialize observables from state
     this.currentState$ = this.contentState$.asObservable();
     this.isLoading$ = this.contentState$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_16__.map)(state => {
@@ -21596,7 +21598,7 @@ class MainContentComponent {
       if (currentState.currentPath && currentState.status === 'loaded') {
         const dateTime = new Date().getTime() / 1000;
         const cleanPath = this.cleanRelativePath(currentState.currentPath);
-        this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`);
+        this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}`);
       }
     });
     // Fase 7h — review read-only: mostra il documento CORRENTE dal worktree dell'agente scelto.
@@ -21607,7 +21609,7 @@ class MainContentComponent {
       }
       const cleanPath = this.cleanRelativePath(currentPath);
       const dateTime = new Date().getTime() / 1000;
-      this.htmlSource = `../api/MdExplorerWorktree/render/${cleanPath}?agent=${encodeURIComponent(agent)}&time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&theme=${this.themeService.getResolvedTheme()}`;
+      this.htmlSource = `../api/MdExplorerWorktree/render/${cleanPath}?agent=${encodeURIComponent(agent)}&time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}`;
     });
     // Enhanced subscription with loading state management
     this.service.selectedMdFileFromSideNav.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_18__.takeUntil)(this.destroy$), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_19__.debounceTime)(100) // Prevent rapid-fire selections
@@ -21787,6 +21789,10 @@ class MainContentComponent {
   static isSlidePosition(hash) {
     return !!hash && /^#\/\d+(\/\d+)?$/.test(hash);
   }
+  /** `&pages=…` for the deck's URL: a reload (a save, a theme change) shows the same pages. */
+  pagesQuery() {
+    return this.currentSlidePages ? `&pages=${encodeURIComponent(this.currentSlidePages)}` : '';
+  }
   /**
    * A slide deck (reveal.js, `hash: true`) keeps its current slide in the iframe's hash
    * (`#/2/1`). Reloading the same file — a save, a theme change — would restart it from the
@@ -21801,7 +21807,9 @@ class MainContentComponent {
       // Resolved as the iframe resolves its src: against <base href>, not the route's address.
       const next = new URL(url, document.baseURI);
       const samePath = decodeURIComponent(next.pathname).toLowerCase() === decodeURIComponent(current.pathname).toLowerCase();
-      return samePath ? url + current.hash : url;
+      // Other pages of the same deck: the slide numbers no longer mean the same, it starts over.
+      const samePages = (next.searchParams.get('pages') || '') === (new URLSearchParams(current.search).get('pages') || '');
+      return samePath && samePages ? url + current.hash : url;
     } catch {
       // Not the same origin (about:blank, an external page): nothing to keep.
       return url;
@@ -21820,7 +21828,8 @@ class MainContentComponent {
     if (node?.relativePath) {
       const dateTime = new Date().getTime() / 1000;
       const cleanPath = this.cleanRelativePath(node.relativePath);
-      const url = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
+      this.currentSlidePages = node.slidePages || '';
+      const url = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}`;
       // A deck asked on a given slide opens there; otherwise a reload of the same deck keeps its slide.
       const newHtmlSource = MainContentComponent.isSlidePosition(node.slideHash) ? url + node.slideHash : this.keepCurrentSlide(url);
       // Only update if URL actually changed to prevent unnecessary reloads
@@ -22007,7 +22016,7 @@ class MainContentComponent {
       if (currentState.currentPath) {
         const dateTime = new Date().getTime() / 1000;
         const cleanPath = this.cleanRelativePath(currentState.currentPath);
-        this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}&retry=${currentState.retryCount + 1}`);
+        this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}&retry=${currentState.retryCount + 1}`);
       }
     });
   }
@@ -22052,7 +22061,7 @@ class MainContentComponent {
     // Update the URL to point to the new path
     const dateTime = new Date().getTime() / 1000;
     const cleanPath = this.cleanRelativePath(newPath);
-    this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
+    this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}`;
   }
   /**
    * Handle file deleted event — show "file deleted" message if the deleted file is currently being viewed
@@ -22084,7 +22093,7 @@ class MainContentComponent {
       // Force reload with new timestamp
       const dateTime = new Date().getTime() / 1000;
       const cleanPath = this.cleanRelativePath(currentPath);
-      this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}&refreshed=true`);
+      this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}&refreshed=true`);
     }
   }
   /**
@@ -22252,7 +22261,8 @@ class MainContentComponent {
       index: 0,
       isLoading: false,
       childrens: [],
-      slideHash: data.slideHash
+      slideHash: data.slideHash,
+      slidePages: data.pages || undefined
     };
     this.navService.setNewNavigation(mdFile);
     // Through the selected file, as the tree and the title-bar arrows do: this view loads it (its
@@ -39877,4 +39887,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.f0ffe026e96b070e.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.a3745e296251c34a.js.map

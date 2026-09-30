@@ -8,6 +8,10 @@
  *    iframe itself it was loaded twice — once by the link, once more by Angular, told by the
  *    server (measured, sprint F0). Outside MdExplorer (detached window, browser) a link stays a link.
  *
+ *    [Costi](vendite.md?pages=2,6-9) opens that deck showing only those pages: the server leaves
+ *    the others out (SlidePages.cs) and reveal.js never knows them. The pages travel with the jump
+ *    and with the breadcrumb, so coming back shows the deck as it was left.
+ *
  *    A link to an HTML page of the project (.html/.htm) is opened by Angular the same way, so it
  *    shows in MdExplorer's view and enters the navigation history; the page shows the breadcrumb
  *    of the way that led to it (html-page-trail.js, added to the page by the server).
@@ -61,6 +65,8 @@
     }
 
     var here = markdownPathOf(new URL(window.location.href));
+    /** The pages of this deck the link that opened it asked for (2,6-9), or null: the whole deck. */
+    var herePages = new URL(window.location.href).searchParams.get('pages');
 
     function position() {
         var i = Reveal.getIndices();
@@ -72,19 +78,23 @@
         return heading ? heading.textContent.trim() : '';
     }
 
-    /** Opens a deck, on a slide when a position is given, the way this page was opened. */
-    function open(path, hash) {
+    /**
+     * Opens a deck, on a slide when a position is given, showing the pages a link asked for
+     * (?pages=2,6-9) when given, the way this page was opened.
+     */
+    function open(path, hash, pages) {
         if (inMdExplorer) {
             window.parent.postMessage({
                 type: 'md-navigate',
                 relativePath: path,
                 name: path.split('/').pop(),
-                slideHash: hash || undefined
+                slideHash: hash || undefined,
+                pages: pages || undefined
             }, '*');
         } else {
             var connectionId = document.body.getAttribute('ConnectionId') || '';
             window.location.href = '/api/mdexplorer/' + path.split('/').map(encodeURIComponent).join('/') +
-                '?connectionId=' + encodeURIComponent(connectionId) + (hash || '');
+                '?connectionId=' + encodeURIComponent(connectionId) + (pages ? '&pages=' + encodeURIComponent(pages) : '') + (hash || '');
         }
     }
 
@@ -136,7 +146,7 @@
                 write(HTML_JUMP, {
                     to: page,
                     trail: (read(TRAIL) || []).concat([{
-                        path: here, deck: document.title, slide: slideTitle(Reveal.getCurrentSlide()), hash: position()
+                        path: here, deck: document.title, slide: slideTitle(Reveal.getCurrentSlide()), hash: position(), pages: herePages
                     }])
                 });
                 open(page, null);
@@ -148,12 +158,12 @@
 
             write(JUMP, {
                 to: target,
-                from: { path: here, deck: document.title, slide: slideTitle(Reveal.getCurrentSlide()), hash: position() }
+                from: { path: here, deck: document.title, slide: slideTitle(Reveal.getCurrentSlide()), hash: position(), pages: herePages }
             });
             if (inMdExplorer) {
                 event.preventDefault();
                 // [Costi](vendite.md#/3) opens that deck on that slide.
-                open(target, /^#\/\d+(\/\d+)?$/.test(url.hash) ? url.hash : null);
+                open(target, /^#\/\d+(\/\d+)?$/.test(url.hash) ? url.hash : null, url.searchParams.get('pages'));
             }
         }, true);
     }
@@ -187,7 +197,7 @@
             back.addEventListener('click', function (event) {
                 event.preventDefault();
                 event.stopPropagation();
-                open(step.path, step.hash);
+                open(step.path, step.hash, step.pages);
             });
             bar.appendChild(back);
             var separator = document.createElement('span');

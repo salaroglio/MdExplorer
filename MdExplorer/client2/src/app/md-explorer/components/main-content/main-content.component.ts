@@ -182,7 +182,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       if (currentState.currentPath && currentState.status === 'loaded') {
         const dateTime = new Date().getTime() / 1000;
         const cleanPath = this.cleanRelativePath(currentState.currentPath);
-        this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`);
+        this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}`);
       }
     });
 
@@ -194,7 +194,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       if (!currentPath || !agent) { return; }
       const cleanPath = this.cleanRelativePath(currentPath);
       const dateTime = new Date().getTime() / 1000;
-      this.htmlSource = `../api/MdExplorerWorktree/render/${cleanPath}?agent=${encodeURIComponent(agent)}&time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&theme=${this.themeService.getResolvedTheme()}`;
+      this.htmlSource = `../api/MdExplorerWorktree/render/${cleanPath}?agent=${encodeURIComponent(agent)}&time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}`;
     });
 
     // Enhanced subscription with loading state management
@@ -411,6 +411,14 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     return !!hash && /^#\/\d+(\/\d+)?$/.test(hash);
   }
 
+  /** The pages of the deck on screen, as the link that opened it asked (`2,6-9`); empty: the whole deck. */
+  private currentSlidePages = '';
+
+  /** `&pages=…` for the deck's URL: a reload (a save, a theme change) shows the same pages. */
+  private pagesQuery(): string {
+    return this.currentSlidePages ? `&pages=${encodeURIComponent(this.currentSlidePages)}` : '';
+  }
+
   /**
    * A slide deck (reveal.js, `hash: true`) keeps its current slide in the iframe's hash
    * (`#/2/1`). Reloading the same file — a save, a theme change — would restart it from the
@@ -425,7 +433,9 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       // Resolved as the iframe resolves its src: against <base href>, not the route's address.
       const next = new URL(url, document.baseURI);
       const samePath = decodeURIComponent(next.pathname).toLowerCase() === decodeURIComponent(current.pathname).toLowerCase();
-      return samePath ? url + current.hash : url;
+      // Other pages of the same deck: the slide numbers no longer mean the same, it starts over.
+      const samePages = (next.searchParams.get('pages') || '') === (new URLSearchParams(current.search).get('pages') || '');
+      return samePath && samePages ? url + current.hash : url;
     } catch {
       // Not the same origin (about:blank, an external page): nothing to keep.
       return url;
@@ -446,7 +456,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     if (node?.relativePath) {
       const dateTime = new Date().getTime() / 1000;
       const cleanPath = this.cleanRelativePath(node.relativePath);
-      const url = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
+      this.currentSlidePages = node.slidePages || '';
+      const url = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}`;
       // A deck asked on a given slide opens there; otherwise a reload of the same deck keeps its slide.
       const newHtmlSource = MainContentComponent.isSlidePosition(node.slideHash) ? url + node.slideHash : this.keepCurrentSlide(url);
 
@@ -659,7 +670,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       if (currentState.currentPath) {
         const dateTime = new Date().getTime() / 1000;
         const cleanPath = this.cleanRelativePath(currentState.currentPath);
-        this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}&retry=${currentState.retryCount + 1}`);
+        this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}&retry=${currentState.retryCount + 1}`);
       }
     });
   }
@@ -711,7 +722,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     // Update the URL to point to the new path
     const dateTime = new Date().getTime() / 1000;
     const cleanPath = this.cleanRelativePath(newPath);
-    this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
+    this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}`;
   }
 
   /**
@@ -749,7 +760,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       // Force reload with new timestamp
       const dateTime = new Date().getTime() / 1000;
       const cleanPath = this.cleanRelativePath(currentPath);
-      this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}&refreshed=true`);
+      this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}&refreshed=true`);
     }
   }
 
@@ -912,7 +923,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    * only loaded, and ← → skipped it (measured 17/09/2026). Through here a text file opens as
    * colored source, as from the tree.
    */
-  private handleMdNavigate(data: { relativePath: string; name: string; fullPath?: string; slideHash?: string }): void {
+  private handleMdNavigate(data: { relativePath: string; name: string; fullPath?: string; slideHash?: string; pages?: string }): void {
     const relativePath = (data.relativePath || '').replace(/\\/g, '/').replace(/^\/+/, '');
     const mdFile: MdFile = {
       name: data.name,
@@ -928,7 +939,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       index: 0,
       isLoading: false,
       childrens: [],
-      slideHash: data.slideHash
+      slideHash: data.slideHash,
+      slidePages: data.pages || undefined
     };
     this.navService.setNewNavigation(mdFile);
     // Through the selected file, as the tree and the title-bar arrows do: this view loads it (its

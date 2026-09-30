@@ -3,7 +3,7 @@ name: mde-slide
 description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF."
 mde:
   origin: mdexplorer
-  version: 3
+  version: 4
   updatePolicy: replace
 ---
 
@@ -196,6 +196,21 @@ arriva direttamente alla slide `n+1` (si conta da 0).
 - [Acquisti](sezioni/acquisti.md)
 - [Acquisti: i costi](sezioni/acquisti.md#/3)
 ````
+
+Di una sezione si possono mostrare **solo alcune pagine** con `?pages=` nel link: utile quando la prima slide è il
+titolo (già detto dal link) o quando si compone un documento da pezzi di altri. Una «pagina» è una slide
+orizzontale, numerata **da 1** come è scritta nel file (una pila verticale `--` conta come una sola pagina).
+
+````markdown esempio=pagine
+- [Vendite, senza il titolo](sezioni/vendite.md?pages=2-)
+- [Vendite, solo il riepilogo](sezioni/vendite.md?pages=2,6-9)
+````
+
+- `2` una pagina · `6-9` da 6 a 9 · `2-` dalla 2 alla fine · si separano con la virgola;
+- le altre pagine **non ci sono** per la presentazione: sono tolte dal server, e la frase «dalla slide `n+1`» di
+  `#/n` conta le pagine *mostrate*;
+- una pagina che non esiste (`pages=12` in un file di 9) è un errore mostrato al posto della presentazione;
+- vale solo per il link: la stessa presentazione aperta dall'albero dei file si vede intera.
 
 Cosa fa MdExplorer, senza che serva scrivere altro:
 
