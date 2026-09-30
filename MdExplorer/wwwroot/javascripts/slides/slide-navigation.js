@@ -8,6 +8,9 @@
  *    iframe itself it was loaded twice — once by the link, once more by Angular, told by the
  *    server (measured, sprint F0). Outside MdExplorer (detached window, browser) a link stays a link.
  *
+ *    A link to an HTML page of the project (.html/.htm) is opened by Angular the same way, so it
+ *    shows in MdExplorer's view and enters the navigation history.
+ *
  *    A link to another site (http/https) opens in the system browser, as in a document
  *    (navigation-history.js: POST /api/MdFiles/OpenUrlInBrowser): followed in the iframe, a site
  *    that forbids being framed left a black page in MdExplorer's view.
@@ -46,6 +49,13 @@
         if (url.origin !== window.location.origin || !PAGE_PREFIX.test(url.pathname)) return null;
         var path = decodeURIComponent(url.pathname.replace(PAGE_PREFIX, ''));
         return /\.md$/i.test(path) ? path : null;
+    }
+
+    /** The project-relative path of an HTML page of the project a link points to, or null. */
+    function htmlPagePathOf(url) {
+        if (url.origin !== window.location.origin || !PAGE_PREFIX.test(url.pathname)) return null;
+        var path = decodeURIComponent(url.pathname.replace(PAGE_PREFIX, ''));
+        return /\.html?$/i.test(path) ? path : null;
     }
 
     var here = markdownPathOf(new URL(window.location.href));
@@ -112,6 +122,15 @@
             if (/^https?:$/.test(url.protocol) && url.origin !== window.location.origin) {
                 event.preventDefault();
                 openOutside(url.href);
+                return;
+            }
+            // A page of the project (.html): opened by Angular, like a click in the tree, so it
+            // shows in MdExplorer's view and enters the history (the arrows bring the deck back on
+            // its slide). Followed by the iframe itself it left a black page.
+            var page = htmlPagePathOf(url);
+            if (page && inMdExplorer) {
+                event.preventDefault();
+                open(page, null);
                 return;
             }
             var target = markdownPathOf(url);
