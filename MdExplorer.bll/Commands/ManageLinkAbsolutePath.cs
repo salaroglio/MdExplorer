@@ -80,14 +80,16 @@ namespace MdExplorer.Features.Commands
                 {
                     string newlink;
 
-                    if (isAbsoluteOrRelative)
+                    if (linkValue.StartsWith("/"))
                     {
-                        // Absolute or parent-relative paths: prepend /api/mdexplorer
+                        // Project-absolute path: prepend /api/mdexplorer
                         newlink = "/api/mdexplorer" + linkValue;
                     }
                     else
                     {
-                        // Simple relative .md links: just add connectionId query param
+                        // Relative to the document's folder (../x, x.md): the browser resolves it against
+                        // the document's own address; only connectionId is added. Prefixed it became
+                        // "/api/mdexplorer../x" (404).
                         newlink = linkValue;
                     }
 
