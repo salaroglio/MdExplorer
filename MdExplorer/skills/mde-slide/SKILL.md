@@ -3,7 +3,7 @@ name: mde-slide
 description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF."
 mde:
   origin: mdexplorer
-  version: 4
+  version: 5
   updatePolicy: replace
 ---
 
@@ -219,6 +219,12 @@ Cosa fa MdExplorer, senza che serva scrivere altro:
 - anche le frecce **← →** della barra di MdExplorer riaprono ogni presentazione sulla slide dove era stata
   lasciata;
 - il breadcrumb si azzera quando una presentazione si apre dall'albero dei file, e non compare nel PDF.
+
+Un link a una **pagina HTML del progetto** (`[Il prototipo](../assets/prototipo.html)`, percorso relativo al file) si
+apre dentro MdExplorer, come un clic nell'albero dei file: entra nella cronologia (le frecce **← →** riportano alla
+presentazione, sulla slide dove era) e in alto a sinistra compare lo stesso breadcrumb
+(`principale › Prototipo`), con un clic si torna alla presentazione. Il file `.html` su disco non viene modificato.
+Un link a un sito esterno (`https://…`) si apre invece nel browser di sistema.
 
 Ogni sezione è una presentazione completa (front matter con `document_type: slides`), con il suo `title`: è il
 nome che compare nel breadcrumb.
