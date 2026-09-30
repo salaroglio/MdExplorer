@@ -1,9 +1,9 @@
 ---
 name: mde-slide
-description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF."
+description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF, immagine o GIF trovata in rete, gif animata, scarica un'immagine."
 mde:
   origin: mdexplorer
-  version: 5
+  version: 6
   updatePolicy: replace
 ---
 
@@ -456,6 +456,24 @@ reveal:
 - Senza `theme` la presentazione segue il tema di MdExplorer: `white` se è chiaro, `black` se è scuro.
 - `highlight_theme` (colori del codice): `monokai` o `zenburn`.
 - `theme` e `highlight_theme` stanno sotto `reveal:`, **non** sotto `config`.
+
+### «Un'immagine o una GIF trovata in rete»
+
+Quando l'utente chiede un'immagine, una GIF o un'animazione «che trovi in rete», **non mettere mai nella slide
+l'indirizzo esterno** (`![](https://…)`): un link a un altro sito può sparire, non funziona senza rete, e non finisce nel
+PDF né nel commit. Si **scarica nel progetto** e la slide punta al file:
+
+1. scarica con la shell nella cartella `assets/` del progetto (o quella già usata per le immagini), per esempio
+   `curl -L -o assets/samurai.gif "<url diretto al file>"`;
+2. controlla che sia davvero un'immagine (`file assets/samurai.gif`) e che la dimensione sia ragionevole (una GIF di
+   decine di MB rallenta la presentazione);
+3. scrivi il percorso **relativo al file**: `![samurai](assets/samurai.gif)`, dove serve anche accanto al testo con
+   le due colonne (ricetta «Due colonne»);
+4. preferisci fonti con licenza chiara (Wikimedia Commons, con la sua API interrogabile con `curl`, dice licenza e
+   autore) e scrivila in una nota o nella didascalia; Giphy e Tenor hanno condizioni d'uso per l'uso in un progetto.
+
+Se non trovi un indirizzo affidabile dillo all'utente, **senza inventare un URL**: può darti lui l'indirizzo diretto
+del file.
 
 ### «Mi serve il PDF»
 

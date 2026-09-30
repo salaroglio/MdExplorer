@@ -1,9 +1,9 @@
 ---
 name: mde-features
-description: Reference of MdExplorer-specific markdown extensions beyond CommonMark — text() file include, html() preview, runnable code blocks (bash/sh/pwsh/cmd), and PlantUML interactive SVG. Consult this skill when writing or editing any `.md` document in an MDE project to know which rendering features you can leverage. Triggers on "embed a file in markdown", "include source file inline", "show file content in doc", "make a script runnable in docs", "preview HTML in markdown", "draw a diagram in markdown".
+description: Reference of MdExplorer-specific markdown extensions beyond CommonMark — text() file include, html() preview, runnable code blocks (bash/sh/pwsh/cmd), and PlantUML interactive SVG. Consult this skill when writing or editing any `.md` document in an MDE project to know which rendering features you can leverage. Triggers on "embed a file in markdown", "include source file inline", "show file content in doc", "make a script runnable in docs", "preview HTML in markdown", "draw a diagram in markdown", "add an image / GIF found on the internet".
 mde:
   origin: mdexplorer
-  version: 2
+  version: 3
   updatePolicy: replace
 ---
 
@@ -388,6 +388,24 @@ ex:foo a ex:Bar .
 ````
 
 If you need a language not in the list above, the code block still renders without highlighting — content is preserved.
+
+---
+
+## 6. Images and GIFs found on the web — download them into the project
+
+When the user asks for an image, a GIF or an animation "found on the internet", **never write the external address
+in the document** (`![](https://…)`): a link to another site can vanish, does not work offline, and does not reach the
+PDF/Word export or the commit. Download the file into the project and point the document at it:
+
+1. download with the shell into the project's `assets/` folder (or the folder the project already uses for images),
+   e.g. `curl -L -o assets/samurai.gif "<direct url to the file>"`;
+2. check it really is an image (`file assets/samurai.gif`) and that its size is reasonable;
+3. reference it with a path **relative to the markdown file**: `![samurai](assets/samurai.gif)`;
+4. prefer sources with a clear licence (Wikimedia Commons: its API can be queried with `curl` and returns licence and
+   author) and note the source in a caption or a note; Giphy and Tenor have terms of use for reuse in a project.
+
+If no reliable address can be found, say so instead of inventing a URL: the user can give the direct address of the
+file.
 
 ---
 
