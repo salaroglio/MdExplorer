@@ -399,6 +399,10 @@ reveal:
             StringAssert.Contains(page, "<div class=\"slides\" data-mde-content>");
             Assert.IsTrue(page.IndexOf("/inline-edit/inline-edit.js") < page.IndexOf("/javascripts/slides/slide-edit.js"));
             StringAssert.Contains(page, "/javascripts/jqueryForFirstPage/clipboard/clipboard-paste.css");
+            // The handle to drag the items of a list; after slide-diagrams.js, whose keyboard rule it relies on for Esc.
+            StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-list-drag.css\">");
+            Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-diagrams.js") < page.IndexOf("/javascripts/slides/slide-list-drag.js"));
+            Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-list-drag.js") < page.IndexOf("Reveal.initialize("));
             // slide-diagrams.js registers on Reveal's ready event: it must come before Reveal.initialize.
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-diagrams.js") < page.IndexOf("Reveal.initialize("));
             Assert.IsFalse(page.Contains("jquery-3"), "the diagram scripts do not need jQuery");
