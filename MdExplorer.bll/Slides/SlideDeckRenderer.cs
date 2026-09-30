@@ -400,6 +400,7 @@ namespace MdExplorer.Features.Slides
 <body{BodyAttributes(options)}>
 <div class=""reveal""><div class=""slides"" data-mde-content>
 {slides}</div></div>
+<script src=""/javascripts/slides/slide-diag.js""></script>
 <script src=""/reveal/dist/reveal.js""></script>
 {scripts}{diagramScripts}<script src=""/javascripts/jqueryForFirstPage/images/toolbar-shared.js""></script>
 <script src=""/javascripts/slides/slide-diagrams.js""></script>
