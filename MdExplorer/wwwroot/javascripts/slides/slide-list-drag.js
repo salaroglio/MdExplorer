@@ -1,7 +1,9 @@
 /**
  * MdExplorer - Dragging the items of a list in a slide
  * =====================================================
- * A handle (⋮⋮) appears at the left of the list item under the pointer. Dragged up or down, the
+ * With "Modifica veloce" on (slide-toolbar.js), a handle (⋮⋮) appears at the left of the list item
+ * under the pointer, and the item can also be dragged from its own text (slide-edit-mode.js, through
+ * window.mdeListDrag.begin). Dragged up or down, the
  * item goes to another place among its siblings — the items of the same list, with the sub-items
  * it holds — and is dropped where the line shows. The server moves the lines in the .md
  * (POST api/mdfiles/MoveListItem, ListItemReorderer) and writes only if the file, read again, is
@@ -66,6 +68,11 @@
     dropLine.className = 'mde-list-drop';
     dropLine.hidden = true;
     document.body.appendChild(dropLine);
+
+    /** The mode of slide-toolbar.js: with it off there is no handle and nothing to drag. */
+    function inMode() {
+        return document.body.classList.contains('mde-edit-mode');
+    }
 
     var current = null;   // the item the handle is shown for
     var drag = null;      // {item, siblings, from, to}
@@ -133,6 +140,10 @@
 
     document.addEventListener('mouseover', function (event) {
         if (drag || busy()) return;
+        if (!inMode()) {
+            if (current) hideHandle();
+            return;
+        }
         if (handle.contains(event.target)) { cancelHide(); return; }
         var item = event.target.closest && event.target.closest(ITEM);
         if (item && movable(item)) {
@@ -199,15 +210,18 @@
         hideHandle();
     }
 
-    handle.addEventListener('pointerdown', function (event) {
-        if (event.button !== 0 || !current || !movable(current)) return;
-        event.preventDefault();
-        event.stopPropagation();
+    /**
+     * Starts dragging the item, the pointer being already down: from the handle, or from the item's own
+     * text (slide-edit-mode.js). Returns false when it cannot be moved.
+     */
+    function begin(item, event) {
+        if (drag || !movable(item)) return false;
+        current = item;
         // Cancelling pointerdown also cancels the mousedown that would give this page the keyboard: without
         // this, if the last click was in the app around the slide, Esc would go there and not cancel the drag.
         try { window.focus(); } catch (e) { /* the keys stay where they were */ }
-        var siblings = siblingsOf(current);
-        drag = { item: current, siblings: siblings, from: siblings.indexOf(current), to: null };
+        var siblings = siblingsOf(item);
+        drag = { item: item, siblings: siblings, from: siblings.indexOf(item), to: null };
         drag.item.classList.add(DRAGGING);
         document.body.classList.add(DRAGGING);
         // reveal.js leaves the keys alone while this is here (slide-diagrams.js): Esc is ours.
@@ -219,7 +233,32 @@
         document.addEventListener('pointercancel', endDrag, true);
         try { handle.setPointerCapture(event.pointerId); } catch (e) { /* the document's listeners carry on */ }
         onMove(event);
+        return true;
+    }
+
+    handle.addEventListener('pointerdown', function (event) {
+        if (event.button !== 0 || !current || !movable(current)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        begin(current, event);
     });
+
+    // The mode went off (the button, or Esc): no handle, and a drag in progress is dropped.
+    window.addEventListener('mde-edit-mode', function (event) {
+        if (event.detail && event.detail.on) return;
+        if (drag) endDrag();
+        hideHandle();
+    });
+
+    window.mdeListDrag = {
+        /** The item that can be moved at this element (a list item with its file line, in a list of two or more), or null. */
+        itemAt: function (target) {
+            var el = target && target.nodeType === Node.ELEMENT_NODE ? target : (target && target.parentElement);
+            var item = el && el.closest(ITEM);
+            return item && movable(item) ? item : null;
+        },
+        begin: begin
+    };
 
     function onMove(event) {
         if (!drag) return;

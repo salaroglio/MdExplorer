@@ -408,6 +408,12 @@ reveal:
             StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/jqueryForFirstPage/images/image-toolbar.css\">");
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-list-drag.js") < page.IndexOf("/javascripts/slides/slide-toolbar.js"));
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-toolbar.js") < page.IndexOf("Reveal.initialize("));
+            // What the mode does: it needs inline-edit.js, slide-list-drag.js (its APIs) and the bar (its event) before it.
+            StringAssert.Contains(page, "<link rel=\"stylesheet\" href=\"/javascripts/slides/slide-edit-mode.css\">");
+            Assert.IsTrue(page.IndexOf("/inline-edit/inline-edit.js") < page.IndexOf("/javascripts/slides/slide-edit-mode.js"));
+            Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-list-drag.js") < page.IndexOf("/javascripts/slides/slide-edit-mode.js"));
+            Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-toolbar.js") < page.IndexOf("/javascripts/slides/slide-edit-mode.js"));
+            Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-edit-mode.js") < page.IndexOf("Reveal.initialize("));
             // slide-diagrams.js registers on Reveal's ready event: it must come before Reveal.initialize.
             Assert.IsTrue(page.IndexOf("/javascripts/slides/slide-diagrams.js") < page.IndexOf("Reveal.initialize("));
             Assert.IsFalse(page.Contains("jquery-3"), "the diagram scripts do not need jQuery");
