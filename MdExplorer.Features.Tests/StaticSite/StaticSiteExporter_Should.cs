@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net;
 using System.Text;
 
 namespace MdExplorer.Features.Tests.StaticSite
@@ -251,6 +252,43 @@ namespace MdExplorer.Features.Tests.StaticSite
             Assert.IsTrue(issues.Any(i => i.Kind == StaticSiteIssueKind.NeedsNetwork && i.Address == "https://cdn.example.com/x.png"));
             Assert.IsFalse(issues.Any(i => i.Address == "https://example.com"), "A link to a site is a link, not a missing resource.");
             Assert.AreEqual("https://example.com", Node(export, "master.html", "//a").GetAttributeValue("href", null));
+        }
+
+        [TestMethod]
+        public void Report_an_address_as_it_reads_not_with_the_pages_entities()
+        {
+            Project("master.md", Page("<img src=\"https://cdn.example.com/x.png?a=1&amp;b=2\">", deck: true));
+
+            var export = Export("master.md");
+
+            Assert.IsTrue(export.Report.Issues.Any(i => i.Kind == StaticSiteIssueKind.NeedsNetwork && i.Address == "https://cdn.example.com/x.png?a=1&b=2"));
+        }
+
+        [TestMethod]
+        public void Play_a_YouTube_video_through_the_relay_on_the_web_site_because_YouTube_refuses_a_page_on_disk()
+        {
+            Project("master.md", Page(
+                "<iframe src=\"https://www.youtube.com/embed/EuvWKcG19eY?autoplay=1&amp;mute=1&amp;loop=1&amp;playlist=EuvWKcG19eY\"></iframe>" +
+                "<section data-background-iframe=\"https://www.youtube-nocookie.com/embed/abcdefghijk\"></section>" +
+                "<a href=\"https://www.youtube.com/watch?v=EuvWKcG19eY\">guarda</a>", deck: true));
+
+            var export = Export("master.md");
+
+            var frame = Node(export, "master.html", "//iframe");
+            Assert.AreEqual(StaticSiteExporter.YouTubeRelay + "?v=EuvWKcG19eY&autoplay=1&mute=1&loop=1&playlist=EuvWKcG19eY",
+                WebUtility.HtmlDecode(frame.GetAttributeValue("src", null)));
+            StringAssert.Contains(frame.GetAttributeValue("allow", ""), "autoplay", "The relay's own frame can autoplay only if the page lets it.");
+            StringAssert.Contains(frame.GetAttributeValue("allow", ""), "fullscreen");
+            Assert.AreEqual(StaticSiteExporter.YouTubeRelay + "?v=abcdefghijk",
+                Node(export, "master.html", "//section").GetAttributeValue("data-background-iframe", null));
+            Assert.AreEqual("https://www.youtube.com/watch?v=EuvWKcG19eY", Node(export, "master.html", "//a").GetAttributeValue("href", null),
+                "A link to YouTube opens YouTube: it works from disk.");
+
+            var issues = export.Report.Issues;
+            Assert.AreEqual(2, issues.Count(i => i.Kind == StaticSiteIssueKind.YouTubeRelay));
+            Assert.IsTrue(issues.Any(i => i.Kind == StaticSiteIssueKind.YouTubeRelay
+                && i.Address == "https://www.youtube.com/embed/EuvWKcG19eY?autoplay=1&mute=1&loop=1&playlist=EuvWKcG19eY"));
+            Assert.IsFalse(issues.Any(i => i.Kind == StaticSiteIssueKind.NeedsNetwork));
         }
 
         [TestMethod]

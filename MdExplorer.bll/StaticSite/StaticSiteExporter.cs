@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -91,6 +92,17 @@ namespace MdExplorer.Features.StaticSite
         private static readonly Regex CssImport = new(@"@import\s+(['""])([^'""]+)\1", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         private const string ServicePages = "/api/mdexplorer/";
+
+        /// <summary>
+        /// YouTube refuses an embedded player on a page opened from disk (Error 153: a <c>file://</c> page sends no
+        /// address, and no page can make one up). Its frames point here instead: a page of MdExplorer's web site
+        /// (<c>mdExplorerWebSite/embed/youtube.html</c>) that has an address and embeds the video.
+        /// </summary>
+        public const string YouTubeRelay = "https://www.mdexplorer.net/embed/youtube.html";
+
+        private static readonly Regex YouTubeEmbed = new(
+            @"^(?:https?:)?//(?:www\.)?(?:youtube\.com|youtube-nocookie\.com)/embed/([A-Za-z0-9_-]{11})(?:\?([^#]*))?(?:#.*)?$",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         public static StaticSiteExport Export(StaticSiteRequest request)
         {
@@ -351,6 +363,17 @@ namespace MdExplorer.Features.StaticSite
                         if (attribute == null) continue;
                         var isLink = name == "href" && node.Name == "a";
                         attribute.Value = RewriteAddress(attribute.Value, context, isLink ? node : null);
+                        if (name == "src" && node.Name == "iframe" && WebUtility.HtmlDecode(attribute.Value).StartsWith(YouTubeRelay, StringComparison.Ordinal))
+                        {
+                            // The relay embeds the player in a frame of its own: it may autoplay and go full screen only if this page lets it.
+                            var allow = node.GetAttributeValue("allow", string.Empty);
+                            foreach (var feature in new[] { "autoplay", "fullscreen" })
+                            {
+                                if (!allow.Contains(feature, StringComparison.OrdinalIgnoreCase)) allow = (allow.TrimEnd(' ', ';') + "; " + feature).TrimStart(' ', ';');
+                            }
+                            node.SetAttributeValue("allow", allow);
+                            node.SetAttributeValue("allowfullscreen", "");
+                        }
                     }
                     var videos = node.Attributes[VideoAttribute];
                     if (videos != null)
@@ -438,11 +461,18 @@ namespace MdExplorer.Features.StaticSite
                     case TargetKind.External:
                         if (link == null)
                         {
-                            _report.Add(StaticSiteIssueKind.NeedsNetwork, context.Output, value.Trim());
+                            var video = YouTubeEmbed.Match(WebUtility.HtmlDecode(value.Trim()));
+                            if (video.Success)
+                            {
+                                _report.Add(StaticSiteIssueKind.YouTubeRelay, context.Output, Readable(value));
+                                var query = video.Groups[2].Value;
+                                return WebUtility.HtmlEncode($"{YouTubeRelay}?v={video.Groups[1].Value}{(query.Length > 0 ? "&" + query : string.Empty)}");
+                            }
+                            _report.Add(StaticSiteIssueKind.NeedsNetwork, context.Output, Readable(value));
                         }
                         return value;
                     case TargetKind.Service:
-                        _report.Add(StaticSiteIssueKind.NeedsService, context.Output, value.Trim());
+                        _report.Add(StaticSiteIssueKind.NeedsService, context.Output, Readable(value));
                         return value;
                     case TargetKind.Missing:
                         _report.Add(StaticSiteIssueKind.Missing, context.Output, Readable(value));
@@ -455,9 +485,9 @@ namespace MdExplorer.Features.StaticSite
                 }
             }
 
-            /// <summary>An address without MdExplorer's own query (connectionId), as the report shows it.</summary>
+            /// <summary>An address as the report shows it: as it reads (no <c>&amp;amp;</c>), without MdExplorer's own query (connectionId).</summary>
             private static string Readable(string value)
-                => Regex.Replace(value.Trim(), @"[?&]connectionId=[^&#]*", string.Empty, RegexOptions.IgnoreCase);
+                => Regex.Replace(WebUtility.HtmlDecode(value.Trim()), @"[?&]connectionId=[^&#]*", string.Empty, RegexOptions.IgnoreCase);
 
             private Target Resolve(string value, Context context)
             {

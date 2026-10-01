@@ -3,7 +3,7 @@ name: mde-slide
 description: "Scrive presentazioni (slide reveal.js) in markdown per MdExplorer, e le fa venire come l'utente le immagina. Use when: slide, presentazione, deck, diapositive, powerpoint, ppt, keynote, reveal.js, fare una presentazione, aggiungere una slide, punti che compaiono uno alla volta, fragment, animazione, transizione, sfondo della slide, note del relatore, slide verticali, codice evidenziato riga per riga, formula nelle slide, diagramma nelle slide, tema della presentazione, esportare le slide in PDF, esportare in HTML, mandare la presentazione a chi non ha MdExplorer, immagine o GIF trovata in rete, gif animata, scarica un'immagine."
 mde:
   origin: mdexplorer
-  version: 14
+  version: 15
   updatePolicy: replace
 ---
 
@@ -536,6 +536,9 @@ premere il pulsante: prepara la presentazione così e di' all'utente di premere 
 - i **diagrammi PlantUML** entrano come l'SVG che MdExplorer ha già generato: se un diagramma è stato appena
   cambiato, l'utente apra la presentazione in MdExplorer prima di esportare;
 - **niente mermaid**: non entra nello zip, il blocco resterebbe testo;
+- un **video YouTube** incorporato (`<iframe src="https://www.youtube.com/embed/…">`) resta un video dentro la
+  slide: da una pagina aperta dal disco YouTube lo rifiuterebbe (errore 153), quindi nello zip passa da
+  `www.mdexplorer.net`. Serve internet; un link a YouTube resta un link;
 - una risorsa su un altro sito (immagine, font) funziona solo con internet: meglio scaricarla nel progetto
   (vedi sopra).
 

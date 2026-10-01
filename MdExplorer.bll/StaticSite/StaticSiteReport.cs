@@ -26,6 +26,8 @@ namespace MdExplorer.Features.StaticSite
         StartPageRenamed,
         /// <summary>The page still names a folder of this computer (the project's path).</summary>
         LocalPath,
+        /// <summary>A YouTube video: from disk YouTube refuses it (Error 153), so it plays through MdExplorer's web site.</summary>
+        YouTubeRelay,
     }
 
     public sealed class StaticSiteIssue
@@ -77,6 +79,7 @@ namespace MdExplorer.Features.StaticSite
             StaticSiteIssueKind.RenderFailed => "Il documento non è stato trasformato in pagina.",
             StaticSiteIssueKind.StartPageRenamed => "Il progetto ha già un index.html: la pagina di avvio ha un altro nome.",
             StaticSiteIssueKind.LocalPath => "La pagina contiene un percorso di questo computer: chi la riceve lo vede.",
+            StaticSiteIssueKind.YouTubeRelay => "Video YouTube: da una pagina aperta dal disco YouTube lo rifiuta (errore 153), quindi passa da www.mdexplorer.net. Serve internet.",
             _ => kind.ToString(),
         };
 
