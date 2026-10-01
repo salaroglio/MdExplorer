@@ -30985,10 +30985,10 @@ class ToolbarComponent {
   }
   /**
    * The slide deck on screen, and everything its links reach (decks, documents, HTML pages, their
-   * files), as a static web site in a zip to open without MdExplorer. Electron asks where to save
-   * it (next to the markdown file by default), the backend writes it and reports what could not be
-   * carried (sprint docs-internal/Sprints/2026-09-30-Slide-Export-HTML.md). The zip is written to
-   * disk: in a browser there is no such save, and the button says so.
+   * files), as a static web site in a zip to open without MdExplorer (sprint
+   * docs-internal/Sprints/2026-09-30-Slide-Export-HTML.md). The backend builds the zip and sends it
+   * as a download: Electron asks where to save it with its own dialog, a browser saves it as it
+   * saves any download. What could not be carried is in _mde/resoconto.html inside the zip.
    */
   exportStaticSite() {
     var _this2 = this;
@@ -30996,43 +30996,46 @@ class ToolbarComponent {
       if (!_this2.relativePath) {
         return;
       }
-      const electronAPI = window.electronAPI;
-      if (!electronAPI?.exportStaticSite) {
-        _this2._snackBar.open(_this2.translate.instant('TOOLBAR.STATIC_SITE_DESKTOP_ONLY'), 'OK', {
-          duration: 6000,
-          verticalPosition: 'top'
-        });
-        return;
-      }
       const connectionId = _this2.connectionId ?? _this2.monitorMDService.connectionId ?? '';
-      const url = `${window.location.origin}/api/MdStaticSite/Export?ConnectionId=${encodeURIComponent(connectionId)}`;
-      const request = {
-        relativePath: _this2.relativePath.replace(/^[\/\\]+/, ''),
-        theme: _this2.themeService.getResolvedTheme()
-      };
-      const suggestedPath = _this2.absolutePath ? _this2.absolutePath.replace(/\.md$/i, '') + '.zip' : undefined;
+      const relativePath = _this2.relativePath.replace(/^[\/\\]+/, '');
       _this2.staticSiteExporting = true;
       try {
-        const result = yield electronAPI.exportStaticSite(url, request, suggestedPath);
-        if (result?.success) {
-          const issues = result.report?.issues?.length ?? 0;
-          const params = {
-            path: result.filePath,
-            pages: result.report?.pages,
-            files: result.report?.files,
-            issues
-          };
-          _this2._snackBar.open(_this2.translate.instant(issues ? 'TOOLBAR.STATIC_SITE_SAVED_WITH_ISSUES' : 'TOOLBAR.STATIC_SITE_SAVED', params), 'OK', {
-            duration: issues ? undefined : 8000,
-            verticalPosition: 'top'
-          });
-        } else if (!result?.canceled) {
-          _this2._snackBar.open(_this2.translate.instant('TOOLBAR.STATIC_SITE_FAILED', {
-            error: result?.error ?? ''
-          }), 'OK', {
-            verticalPosition: 'top'
-          });
+        const response = yield fetch(`${window.location.origin}/api/MdStaticSite/Export?ConnectionId=${encodeURIComponent(connectionId)}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            relativePath,
+            theme: _this2.themeService.getResolvedTheme()
+          })
+        });
+        if (!response.ok) {
+          const body = yield response.json().catch(() => ({}));
+          throw new Error(body.error ?? `HTTP ${response.status}`);
         }
+        const zip = yield response.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(zip);
+        link.download = relativePath.split(/[\/\\]/).pop().replace(/\.md$/i, '') + '.zip';
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 60000);
+        const issues = Number(response.headers.get('X-Mde-Issues') ?? 0);
+        const params = {
+          pages: response.headers.get('X-Mde-Pages'),
+          files: response.headers.get('X-Mde-Files'),
+          issues
+        };
+        _this2._snackBar.open(_this2.translate.instant(issues ? 'TOOLBAR.STATIC_SITE_SAVED_WITH_ISSUES' : 'TOOLBAR.STATIC_SITE_SAVED', params), 'OK', {
+          duration: issues ? undefined : 8000,
+          verticalPosition: 'top'
+        });
+      } catch (err) {
+        _this2._snackBar.open(_this2.translate.instant('TOOLBAR.STATIC_SITE_FAILED', {
+          error: err?.message ?? ''
+        }), 'OK', {
+          verticalPosition: 'top'
+        });
       } finally {
         _this2.staticSiteExporting = false;
       }
@@ -39980,4 +39983,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.96e641e53d10247e.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.125f40f731779103.js.map

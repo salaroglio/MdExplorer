@@ -659,40 +659,43 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   /**
    * The slide deck on screen, and everything its links reach (decks, documents, HTML pages, their
-   * files), as a static web site in a zip to open without MdExplorer. Electron asks where to save
-   * it (next to the markdown file by default), the backend writes it and reports what could not be
-   * carried (sprint docs-internal/Sprints/2026-09-30-Slide-Export-HTML.md). The zip is written to
-   * disk: in a browser there is no such save, and the button says so.
+   * files), as a static web site in a zip to open without MdExplorer (sprint
+   * docs-internal/Sprints/2026-09-30-Slide-Export-HTML.md). The backend builds the zip and sends it
+   * as a download: Electron asks where to save it with its own dialog, a browser saves it as it
+   * saves any download. What could not be carried is in _mde/resoconto.html inside the zip.
    */
   async exportStaticSite(): Promise<void> {
     if (!this.relativePath) {
       return;
     }
-    const electronAPI = (window as any).electronAPI;
-    if (!electronAPI?.exportStaticSite) {
-      this._snackBar.open(this.translate.instant('TOOLBAR.STATIC_SITE_DESKTOP_ONLY'), 'OK', { duration: 6000, verticalPosition: 'top' });
-      return;
-    }
     const connectionId = this.connectionId ?? this.monitorMDService.connectionId ?? '';
-    const url = `${window.location.origin}/api/MdStaticSite/Export?ConnectionId=${encodeURIComponent(connectionId)}`;
-    const request = {
-      relativePath: this.relativePath.replace(/^[\/\\]+/, ''),
-      theme: this.themeService.getResolvedTheme(),
-    };
-    const suggestedPath = this.absolutePath ? this.absolutePath.replace(/\.md$/i, '') + '.zip' : undefined;
+    const relativePath = this.relativePath.replace(/^[\/\\]+/, '');
 
     this.staticSiteExporting = true;
     try {
-      const result = await electronAPI.exportStaticSite(url, request, suggestedPath);
-      if (result?.success) {
-        const issues = result.report?.issues?.length ?? 0;
-        const params = { path: result.filePath, pages: result.report?.pages, files: result.report?.files, issues };
-        this._snackBar.open(
-          this.translate.instant(issues ? 'TOOLBAR.STATIC_SITE_SAVED_WITH_ISSUES' : 'TOOLBAR.STATIC_SITE_SAVED', params),
-          'OK', { duration: issues ? undefined : 8000, verticalPosition: 'top' });
-      } else if (!result?.canceled) {
-        this._snackBar.open(this.translate.instant('TOOLBAR.STATIC_SITE_FAILED', { error: result?.error ?? '' }), 'OK', { verticalPosition: 'top' });
+      const response = await fetch(`${window.location.origin}/api/MdStaticSite/Export?ConnectionId=${encodeURIComponent(connectionId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ relativePath, theme: this.themeService.getResolvedTheme() }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${response.status}`);
       }
+      const zip = await response.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(zip);
+      link.download = relativePath.split(/[\/\\]/).pop()!.replace(/\.md$/i, '') + '.zip';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(link.href), 60000);
+
+      const issues = Number(response.headers.get('X-Mde-Issues') ?? 0);
+      const params = { pages: response.headers.get('X-Mde-Pages'), files: response.headers.get('X-Mde-Files'), issues };
+      this._snackBar.open(
+        this.translate.instant(issues ? 'TOOLBAR.STATIC_SITE_SAVED_WITH_ISSUES' : 'TOOLBAR.STATIC_SITE_SAVED', params),
+        'OK', { duration: issues ? undefined : 8000, verticalPosition: 'top' });
+    } catch (err: any) {
+      this._snackBar.open(this.translate.instant('TOOLBAR.STATIC_SITE_FAILED', { error: err?.message ?? '' }), 'OK', { verticalPosition: 'top' });
     } finally {
       this.staticSiteExporting = false;
     }

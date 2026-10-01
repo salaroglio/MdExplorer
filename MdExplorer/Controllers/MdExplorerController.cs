@@ -538,20 +538,19 @@ namespace MdExplorer.Controllers
         public sealed class StaticSiteExportRequestDto
         {
             /// <summary>The deck on screen, relative to the project.</summary>
-            public string RelativePath { get; set; }
+            public string? RelativePath { get; set; }
 
             /// <summary>The theme MdExplorer shows (light, dark, milan): the pages are written with it.</summary>
-            public string Theme { get; set; }
-
-            /// <summary>Where to write the zip (chosen in the save dialog).</summary>
-            public string OutputPath { get; set; }
+            public string? Theme { get; set; }
         }
 
         /// <summary>
         /// «Esporta HTML»: the deck on screen and everything its links reach, as a local web site in a zip
         /// (sprint docs-internal/Sprints/2026-09-30-Slide-Export-HTML.md). Pages are rendered as for a read-only
-        /// review — no SignalR, no cache, no database, PlantUML from the SVGs already in <c>.md/</c> — and the
-        /// report of what could not be carried comes back with the zip's path.
+        /// review — no SignalR, no cache, no database, PlantUML from the SVGs already in <c>.md/</c>. The zip
+        /// comes back as a download (the browser, or Electron, asks where to save it): the service never writes
+        /// where a request says. The numbers of the report travel in <c>X-Mde-*</c> headers; the report itself
+        /// is <c>_mde/resoconto.html</c> inside the zip.
         /// </summary>
         [HttpPost("/api/MdStaticSite/Export")]
         public IActionResult ExportStaticSite([FromBody] StaticSiteExportRequestDto request)
@@ -564,13 +563,6 @@ namespace MdExplorer.Controllers
             if (string.IsNullOrWhiteSpace(request?.RelativePath))
             {
                 return BadRequest(new { error = "Which deck to export: RelativePath is empty." });
-            }
-            var output = request.OutputPath;
-            if (string.IsNullOrWhiteSpace(output) || !Path.IsPathRooted(output)
-                || !output.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)
-                || !Directory.Exists(Path.GetDirectoryName(output)))
-            {
-                return BadRequest(new { error = $"The zip must be written to an existing folder, with a .zip name: '{output}'." });
             }
 
             var connectionId = Request.Query["ConnectionId"].ToString();
@@ -586,25 +578,18 @@ namespace MdExplorer.Controllers
                     Render = (path, katexBase) => RenderForStaticExport(projectPath, path, connectionId, theme, katexBase),
                 });
 
-                // Written next to the target, then moved over it: a zip half written is never left under the chosen name.
-                var partial = output + ".partial";
-                using (var file = new FileStream(partial, FileMode.Create, FileAccess.Write))
-                {
-                    site.WriteZip(file);
-                }
-                System.IO.File.Move(partial, output, overwrite: true);
-                _logger.LogInformation("📦 [StaticSite] {Entry} → {Output}: {Pages} pages, {Files} files, {Issues} issues",
-                    request.RelativePath, output, site.Report.Pages, site.Report.Files, site.Report.Issues.Count);
+                // A temporary file, not memory: a deck with videos makes a big zip. Deleted when the response is sent.
+                var zip = new FileStream(Path.Combine(Path.GetTempPath(), $"mde-export-{Guid.NewGuid():N}.zip"),
+                    FileMode.Create, FileAccess.ReadWrite, FileShare.None, 81920, FileOptions.DeleteOnClose);
+                site.WriteZip(zip);
+                zip.Position = 0;
+                _logger.LogInformation("📦 [StaticSite] {Entry}: {Pages} pages, {Files} files, {Issues} issues, {Bytes} bytes zipped",
+                    request.RelativePath, site.Report.Pages, site.Report.Files, site.Report.Issues.Count, zip.Length);
 
-                return Ok(new
-                {
-                    outputPath = output,
-                    startPage = site.Report.StartPage,
-                    pages = site.Report.Pages,
-                    files = site.Report.Files,
-                    bytes = site.Report.Bytes,
-                    issues = site.Report.Issues.Select(i => new { kind = i.Kind.ToString(), page = i.Page, address = i.Address, detail = i.Detail }),
-                });
+                Response.Headers["X-Mde-Pages"] = site.Report.Pages.ToString();
+                Response.Headers["X-Mde-Files"] = site.Report.Files.ToString();
+                Response.Headers["X-Mde-Issues"] = site.Report.Issues.Count.ToString();
+                return File(zip, "application/zip", Path.GetFileNameWithoutExtension(request.RelativePath) + ".zip");
             }
             catch (StaticSiteException ex)
             {
