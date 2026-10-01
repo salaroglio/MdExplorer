@@ -13,6 +13,11 @@ namespace MdExplorer.Services.Git.Interfaces
         public bool Success { get; set; }
         public string Message { get; set; }
         public string ErrorMessage { get; set; }
+        /// <summary>
+        /// Cose andate diversamente da come ci si aspetterebbe, a operazione riuscita: per esempio un
+        /// submodule lasciato dov'era perché diverge dalla versione registrata. Vanno dette all'utente.
+        /// </summary>
+        public IReadOnlyList<string> Warnings { get; set; } = Array.Empty<string>();
         public string CommitHash { get; set; }
         /// <summary>
         /// True when the operation moved HEAD (new content arrived), regardless

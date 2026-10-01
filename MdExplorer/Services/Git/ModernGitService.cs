@@ -33,7 +33,9 @@ namespace MdExplorer.Services.Git
             IOptions<GitAuthenticationOptions> authOptions = null,
             IOptions<GitOperationOptions> operationOptions = null,
             IProjectSubmoduleInitializer submodules = null,
-            ISubmoduleBranchAttacher attacher = null)
+            ISubmoduleBranchAttacher attacher = null,
+            ISubmoduleAligner aligner = null,
+            IRepoWorkflowGuard guard = null)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport), "INativeGitTransport non registrato: push, pull, fetch e clone passano di lì");
             _logger = logger;
@@ -42,7 +44,19 @@ namespace MdExplorer.Services.Git
             _operationOptions = operationOptions?.Value ?? new GitOperationOptions();
             _submodules = submodules;
             _attacher = attacher;
+            _aligner = aligner;
+            _guard = guard;
         }
+
+        /// <summary>
+        /// Chi porta i submodule al commit registrato dopo uno scaricamento o un cambio di ramo,
+        /// senza mai riportarli indietro da soli. Opzionale come gli altri due: il servizio git
+        /// viene costruito anche fuori dal grafo completo.
+        /// </summary>
+        private readonly ISubmoduleAligner _aligner;
+
+        /// <summary>I controlli del flusso: unione rimasta a metà, submodule più indietro del registrato.</summary>
+        private readonly IRepoWorkflowGuard _guard;
 
         /// <summary>
         /// Chi popola i submodule. Clone e pull passano di qui invece di farlo per conto loro,
@@ -133,6 +147,16 @@ public async Task<GitOperationResult> PullAsync(string repositoryPath)
                 };
                 }
 
+                if (_guard != null && (await _guard.ReadMergeAsync(repositoryPath)).InProgress)
+                {
+                    return new GitOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = "C'è un'unione rimasta a metà: va conclusa con un commit, oppure annullata, prima di scaricare ancora.",
+                        Duration = stopwatch.Elapsed
+                    };
+                }
+
                 string headCommitBefore;
                 using (var before = new Repository(repositoryPath))
                     headCommitBefore = before.Head.Tip?.Sha;
@@ -166,11 +190,19 @@ public async Task<GitOperationResult> PullAsync(string repositoryPath)
                 _logger.LogInformation("Pull operation completed, HasChanges: {HasChanges}, Duration: {Duration}ms",
                     hasChanges, stopwatch.ElapsedMilliseconds);
 
-                // Populate/refresh submodules after pull (native git; no-op when .gitmodules absent)
-                var submoduleResult = await EnsureSubmodulesAsync(repositoryPath);
-                if (!submoduleResult.Success)
+                // I submodule seguono il progetto, ma solo in avanti: uno che avevi portato più avanti
+                // resta dov'è, uno che diverge resta dov'è e lo si dice (vedi SubmoduleAligner).
+                var warnings = new List<string>();
+                if (_aligner != null)
                 {
-                    message += $" (warning: submodule update failed: {submoduleResult.ErrorMessage})";
+                    var aligned = await _aligner.AlignAsync(repositoryPath, SubmoduleAlignMode.Forward);
+                    warnings.AddRange(aligned.Notes);
+                }
+                else
+                {
+                    var submoduleResult = await EnsureSubmodulesAsync(repositoryPath);
+                    if (!submoduleResult.Success)
+                        warnings.Add($"I submodule non sono stati aggiornati: {submoduleResult.ErrorMessage}");
                 }
 
                 _lastUsedAuthMethod = AuthenticationMethod.GitCredentialHelper;
@@ -178,6 +210,7 @@ public async Task<GitOperationResult> PullAsync(string repositoryPath)
                 {
                     Success = true,
                     Message = message,
+                    Warnings = warnings,
                     HasChanges = hasChanges,
                     Changes = changes,
                     Duration = stopwatch.Elapsed,
@@ -302,6 +335,22 @@ public async Task<GitOperationResult> PushAsync(string repositoryPath, string re
                         ErrorMessage = "Commit message cannot be empty",
                         Duration = stopwatch.Elapsed
                     };
+                }
+
+                // Prima di mettere in stage: lo stage di tutto segnerebbe come risolti i file ancora
+                // in conflitto, e registrerebbe la versione vecchia di un submodule rimasto indietro.
+                if (_guard != null)
+                {
+                    var blocker = await _guard.CommitBlockerAsync(repositoryPath);
+                    if (blocker != null)
+                    {
+                        return new GitOperationResult
+                        {
+                            Success = false,
+                            ErrorMessage = blocker,
+                            Duration = stopwatch.Elapsed
+                        };
+                    }
                 }
 
                 using var repo = new Repository(repositoryPath);
@@ -921,6 +970,31 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
                 _logger.LogInformation("Starting checkout operation for repository: {RepositoryPath}, Branch: {Branch}",
                     repositoryPath, branchName);
 
+                // Si cambia ramo solo da pulito: e' l'unico caso in cui un submodule puo' andare a
+                // una versione precedente, quindi non deve avere lavoro che sparirebbe dalla vista.
+                if (_guard != null && (await _guard.ReadMergeAsync(repositoryPath)).InProgress)
+                {
+                    return new GitOperationResult
+                    {
+                        Success = false,
+                        ErrorMessage = "C'è un'unione rimasta a metà: va conclusa con un commit, oppure annullata, prima di cambiare ramo.",
+                        Duration = stopwatch.Elapsed
+                    };
+                }
+                if (_aligner != null)
+                {
+                    var blockers = await _aligner.SwitchBlockersAsync(repositoryPath);
+                    if (blockers.Count > 0)
+                    {
+                        return new GitOperationResult
+                        {
+                            Success = false,
+                            ErrorMessage = "Il ramo non è stato cambiato. " + string.Join(" ", blockers),
+                            Duration = stopwatch.Elapsed
+                        };
+                    }
+                }
+
                 using var repo = new Repository(repositoryPath);
 
                 var headCommitBefore = repo.Head.Tip?.Sha;
@@ -981,6 +1055,15 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
                     }
                 }
 
+                // I submodule vanno al commit che il ramo nuovo registra: senza, restano a quello del
+                // ramo di prima e compaiono come «da committare» (provato in sandbox l'01/10/2026).
+                var switchWarnings = new List<string>();
+                if (_aligner != null)
+                {
+                    var aligned = await _aligner.AlignAsync(repositoryPath, SubmoduleAlignMode.Exact);
+                    switchWarnings.AddRange(aligned.Notes);
+                }
+
                 stopwatch.Stop();
 
                 // Verify the current branch with a fresh repository instance to avoid caching issues
@@ -1004,6 +1087,7 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
                 {
                     Success = true,
                     Message = $"Successfully checked out branch '{branchName}'",
+                    Warnings = switchWarnings,
                     BranchName = currentBranchName,  // Return verified branch name
                     HasChanges = headMoved,
                     Changes = headMoved ? changedPaths : new string[0],

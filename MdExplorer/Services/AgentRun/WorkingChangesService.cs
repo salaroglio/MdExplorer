@@ -107,6 +107,48 @@ namespace MdExplorer.Services.AgentRun
 
         public IReadOnlyList<WorkingChange> Files { get; init; }
 
+        /// <summary>Il commit che il repository contenitore registra per questo submodule. <c>null</c> sulla radice.</summary>
+        public string RecordedCommit { get; init; }
+        /// <summary>Il commit in checkout qui.</summary>
+        public string HeadCommit { get; init; }
+        /// <summary>
+        /// Dove sta il commit in checkout rispetto a quello registrato: <c>same</c>, <c>ahead</c>
+        /// (versione nuova da registrare), <c>behind</c> (va allineato), <c>diverged</c>,
+        /// <c>unknown</c> (il registrato non è ancora stato scaricato). <c>null</c> sulla radice.
+        /// <para>
+        /// <see cref="PointerMoved"/> da solo non basta: git usa la stessa sigla nei due versi, e
+        /// committare il progetto con un submodule più indietro registra la versione vecchia.
+        /// </para>
+        /// </summary>
+        public string Relation { get; init; }
+
+        /// <summary>
+        /// I submodule di questo repository che hanno una versione nuova <b>da registrare qui</b>
+        /// con un commit: è lavoro di questo repository, non del submodule.
+        /// </summary>
+        public IReadOnlyList<string> PointersToRegister { get; init; } = Array.Empty<string>();
+
+        /// <summary>Un'unione rimasta a metà dopo uno scaricamento.</summary>
+        public bool MergeInProgress { get; init; }
+        /// <summary>I percorsi in conflitto dell'unione in corso.</summary>
+        public IReadOnlyList<string> Conflicts { get; init; } = Array.Empty<string>();
+
+        /// <summary>
+        /// Con HEAD staccato: il ramo su cui «Aggiorna all'ultima» rimetterebbe questo submodule.
+        /// <c>null</c> = non c'è un ramo su cui tornare senza perdere di vista il commit in checkout.
+        /// </summary>
+        public string DetachedTarget { get; init; }
+
+        /// <summary>Perché l'ultima interrogazione del remoto non è riuscita. <c>null</c> = è riuscita, o non c'è stata.</summary>
+        public string RemoteProblem { get; init; }
+
+        /// <summary>Perché da qui non si può pubblicare. <c>null</c> = si può.</summary>
+        public string PushBlocker { get; init; }
+        /// <summary>Perché qui non si può scaricare dal remoto. <c>null</c> = si può.</summary>
+        public string PullBlocker { get; init; }
+        /// <summary>Perché questo submodule non si può allineare alla versione registrata. <c>null</c> = si può.</summary>
+        public string AlignBlocker { get; init; }
+
         /// <summary>
         /// Perché qui non si può committare. <c>null</c> = si può. Il pulsante si disabilita
         /// sempre <b>con questo motivo scritto</b>: mai spento in silenzio.
@@ -193,17 +235,26 @@ namespace MdExplorer.Services.AgentRun
     {
         private readonly INativeGitRunner _git;
         private readonly IAgentWorktreeManager _worktree;
+        private readonly IRepoWorkflowGuard _guard;
+        private readonly IRepoRemoteState _remotes;
         private readonly ILogger<WorkingChangesService> _logger;
 
         public WorkingChangesService(
             INativeGitRunner git,
             IAgentWorktreeManager worktree,
+            IRepoWorkflowGuard guard,
+            IRepoRemoteState remotes,
             ILogger<WorkingChangesService> logger)
         {
             _git = git;
             _worktree = worktree;
+            _guard = guard;
+            _remotes = remotes;
             _logger = logger;
         }
+
+        private const string AgentDeskPullBlocker =
+            "Nel posto di lavoro di un agente gli scaricamenti li decide il run, non si fanno da qui.";
 
         public async Task<WorkingChangesView> GetAsync(string projectPath, string agentName, CancellationToken ct = default)
         {
@@ -238,19 +289,35 @@ namespace MdExplorer.Services.AgentRun
             // DEL PADRE, che si committa nel padre — non del submodule.
             var moved = await ReadMovedPointersAsync(root, ct);
 
-            // I submodule PRIMA della radice: gli avvisi sul push del padre si calcolano da come
-            // stanno loro, e la radice va costruita gia' completa (i campi sono init-only).
-            var subRepos = new List<RepoChanges>();
-            foreach (var s in subs.OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase))
+            // Le versioni di ogni submodule viste dal repository che lo contiene. Si leggono PRIMA
+            // di costruire le righe: una riga deve sapere dei suoi figli (cosa c'e' da registrare,
+            // cosa blocca il commit), e i campi sono init-only.
+            var entries = subs.OrderBy(x => x.Path, StringComparer.OrdinalIgnoreCase).ToList();
+            var pointers = new Dictionary<string, SubmodulePointer>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in entries)
+            {
+                if (s.NotInitialized) continue;
+                var dir = DirOf(root, s.Path);
+                if (!Directory.Exists(dir)) continue;
+                var (parentPath, relative) = ParentOf(s.Path, subPaths);
+                pointers[s.Path] = await _guard.ReadPointerAsync(DirOf(root, parentPath), relative, dir, ct);
+            }
+
+            var agentDesk = kind == ChangesContextKind.Agent;
+
+            // I submodule PRIMA della radice, e i piu' profondi prima dei loro contenitori: gli
+            // avvisi e i blocchi di un repository si calcolano da come stanno i suoi figli.
+            var built = new Dictionary<string, RepoChanges>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in entries.OrderByDescending(x => x.Path.Count(c => c == '/')))
             {
                 var depth = 1 + subs.Count(o => !ReferenceEquals(o, s) &&
                                                 s.Path.StartsWith(o.Path + "/", StringComparison.OrdinalIgnoreCase));
 
                 if (s.NotInitialized)
                 {
-                    // Dichiarato e mai popolato: non e' pulito e non e' un errore. C'e' gia' chi lo
-                    // popola (ProjectSubmoduleInitializer), quindi e' una condizione risolvibile.
-                    subRepos.Add(new RepoChanges
+                    // Dichiarato e mai popolato: non e' pulito e non e' un errore. «Allinea» lo
+                    // scarica, quindi e' una condizione risolvibile.
+                    built[s.Path] = new RepoChanges
                     {
                         Path = s.Path, Label = s.Path, Depth = depth,
                         NotInitialized = true,
@@ -258,34 +325,45 @@ namespace MdExplorer.Services.AgentRun
                         Files = Array.Empty<WorkingChange>(),
                         PushWarnings = Array.Empty<string>(),
                         CommitBlocker = "Submodule non popolato: non c'e' niente da committare finche' non viene scaricato.",
-                    });
+                        PushBlocker = "Submodule non popolato: non c'e' niente da pubblicare.",
+                        PullBlocker = "Submodule non popolato: prima va scaricato con «Allinea».",
+                        AlignBlocker = agentDesk ? AgentDeskPullBlocker : null,
+                    };
                     continue;
                 }
 
-                var dir = Path.Combine(root, s.Path.Replace('/', Path.DirectorySeparatorChar));
+                var dir = DirOf(root, s.Path);
                 if (!Directory.Exists(dir))
                 {
-                    subRepos.Add(new RepoChanges
+                    built[s.Path] = new RepoChanges
                     {
                         Path = s.Path, Label = s.Path, Depth = depth,
                         NotInitialized = true,
                         Files = Array.Empty<WorkingChange>(),
                         PushWarnings = Array.Empty<string>(),
                         CommitBlocker = $"La cartella '{s.Path}' non esiste sul disco.",
-                    });
+                        PushBlocker = $"La cartella '{s.Path}' non esiste sul disco.",
+                        PullBlocker = $"La cartella '{s.Path}' non esiste sul disco.",
+                        AlignBlocker = agentDesk ? AgentDeskPullBlocker : null,
+                    };
                     continue;
                 }
 
-                var (unpublished, unknown) = await IsRecordedCommitUnpublishedAsync(root, dir, s.Path, ct);
-                subRepos.Add(await ReadRepoAsync(dir, s.Path, s.Path, depth, null, moved.Contains(s.Path),
-                                                 Array.Empty<string>(), unpublished, unknown, ct));
+                pointers.TryGetValue(s.Path, out var pointer);
+                var (unpublished, unknown) = await IsRecordedCommitUnpublishedAsync(dir, s.Path, pointer?.Recorded, ct);
+                var children = ChildrenOf(s.Path, entries, subPaths).Select(c => built[c]).ToList();
+                built[s.Path] = await ReadRepoAsync(dir, s.Path, s.Path, depth, null, moved.Contains(s.Path),
+                                                    Array.Empty<string>(), unpublished, unknown, pointer, children, agentDesk, ct);
             }
+
+            var subRepos = entries.Select(s => built[s.Path]).ToList();
+            var rootChildren = ChildrenOf(string.Empty, entries, subPaths).Select(c => built[c]).ToList();
 
             var repos = new List<RepoChanges>
             {
                 await ReadRepoAsync(root, string.Empty,
                                     Path.GetFileName(root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)),
-                                    0, subPaths, false, PushWarningsForRoot(subRepos), false, null, ct),
+                                    0, subPaths, false, PushWarningsForRoot(subRepos), false, null, null, rootChildren, agentDesk, ct),
             };
             repos.AddRange(subRepos);
 
@@ -308,17 +386,71 @@ namespace MdExplorer.Services.AgentRun
         /// </summary>
         private async Task<RepoChanges> ReadRepoAsync(
             string dir, string relativePath, string label, int depth,
-            ISet<string> excludePaths, bool pointerMoved, CancellationToken ct)
-            => await ReadRepoAsync(dir, relativePath, label, depth, excludePaths, pointerMoved,
-                                   Array.Empty<string>(), false, null, ct);
-
-        private async Task<RepoChanges> ReadRepoAsync(
-            string dir, string relativePath, string label, int depth,
             ISet<string> excludePaths, bool pointerMoved, IReadOnlyList<string> pushWarnings,
-            bool recordedCommitUnpublished, string recordedCommitUnknown, CancellationToken ct)
+            bool recordedCommitUnpublished, string recordedCommitUnknown,
+            SubmodulePointer pointer, IReadOnlyList<RepoChanges> children, bool agentDesk, CancellationToken ct)
         {
             var (branch, detached, upstream, ahead, behind) = await ReadBranchAsync(dir, ct);
             var baseRef = await ResolveBaseRefAsync(dir, ct);
+
+            var merge = await _guard.ReadMergeAsync(dir, ct);
+
+            // Con HEAD staccato non c'e' un ramo di cui essere indietro: si guarda il ramo su cui
+            // «Aggiorna all'ultima» rimetterebbe il submodule, se ce n'e' uno.
+            string detachedTarget = null;
+            if (detached && depth > 0)
+            {
+                detachedTarget = await _guard.DetachedTargetAsync(dir, ct);
+                if (detachedTarget != null)
+                {
+                    var count = await _git.RunAsync(dir, new[] { "rev-list", "--count", $"HEAD..origin/{detachedTarget}" }, ct);
+                    if (count.Ok && int.TryParse(count.Stdout?.Trim(), out var n)) behind = n;
+                }
+            }
+
+            // Cosa c'e' da registrare qui, e cosa impedisce di committare: lo dicono i figli.
+            children ??= Array.Empty<RepoChanges>();
+            var toRegister = children.Where(c => c.Relation == SubmoduleRelation.Ahead).Select(c => c.Path).ToList();
+            var pointerBlocker = children
+                .Select(c => RepoWorkflowGuard.PointerCommitBlocker(c.Path, c.Relation))
+                .FirstOrDefault(b => b != null);
+
+            var mergeMessage = merge.InProgress
+                ? "Unione in corso: va conclusa con un commit, oppure annullata."
+                : null;
+
+            var commitBlocker =
+                detached ? "HEAD staccato: un commit fatto qui non finirebbe su nessun ramo e resterebbe orfano."
+                : RepoWorkflowGuard.MergeCommitBlocker(merge) ?? pointerBlocker;
+
+            var unpublishedChild = children.FirstOrDefault(c => c.RecordedCommitUnknown != null || c.RecordedCommitUnpublished);
+            var pushBlocker =
+                detached ? "HEAD staccato: non c'e' un ramo da pubblicare."
+                : mergeMessage != null ? mergeMessage
+                : upstream == null ? "Nessun ramo remoto configurato: non c'e' dove pubblicare."
+                : behind > 0 ? $"Il remoto ha {behind} commit che qui mancano: prima scarica, poi pubblica."
+                : unpublishedChild != null
+                    ? unpublishedChild.RecordedCommitUnknown
+                      ?? $"Prima pubblica '{unpublishedChild.Path}': qui si registra un suo commit che non e' ancora sul suo remoto."
+                : null;
+
+            string pullBlocker;
+            if (agentDesk) pullBlocker = AgentDeskPullBlocker;
+            else if (mergeMessage != null) pullBlocker = mergeMessage;
+            else if (detached)
+                pullBlocker = depth == 0
+                    ? "HEAD staccato: non c'e' un ramo da aggiornare."
+                    : detachedTarget == null
+                        ? "HEAD staccato su un commit che non sta sul ramo principale di questo submodule: va rimesso su un ramo a mano."
+                        : null;
+            else if (upstream == null) pullBlocker = "Nessun ramo remoto configurato: non c'e' da dove scaricare.";
+            else if (behind > 0 && ahead > 0 && children.Count > 0)
+                // Tu e il remoto avete spostato lo stesso submodule? Scaricando adesso git si
+                // fermerebbe con un conflitto sulla cartella (provato in sandbox l'01/10/2026).
+                pullBlocker = await _guard.PointerConflictAheadAsync(dir, upstream, ct);
+            else pullBlocker = null;
+
+            var alignBlocker = depth == 0 ? null : agentDesk ? AgentDeskPullBlocker : mergeMessage;
 
             // Tre domande diverse, tre elenchi diversi. Prima erano un mucchio solo, e il
             // mucchio mentiva: 'diff <base>' senza i tre punti confronta il ramo remoto con la
@@ -405,16 +537,49 @@ namespace MdExplorer.Services.AgentRun
                 PointerMoved = pointerMoved,
                 RecordedCommitUnpublished = recordedCommitUnpublished,
                 RecordedCommitUnknown = recordedCommitUnknown,
+                RecordedCommit = pointer?.Recorded,
+                HeadCommit = pointer?.CheckedOut,
+                Relation = pointer?.Relation,
+                PointersToRegister = toRegister,
+                MergeInProgress = merge.InProgress,
+                Conflicts = merge.Conflicts,
+                DetachedTarget = detachedTarget,
+                RemoteProblem = _remotes.Get(dir),
+                PushBlocker = pushBlocker,
+                PullBlocker = pullBlocker,
+                AlignBlocker = alignBlocker,
                 Files = files.OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase).ToList(),
                 Unpushed = unpushed.OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase).ToList(),
                 Uncommitted = uncommitted.OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase).ToList(),
                 Incoming = incoming.OrderBy(f => f.Path, StringComparer.OrdinalIgnoreCase).ToList(),
                 PushWarnings = pushWarnings ?? Array.Empty<string>(),
-                CommitBlocker = detached
-                    ? "HEAD staccato: un commit fatto qui non finirebbe su nessun ramo e resterebbe orfano."
-                    : null,
+                CommitBlocker = commitBlocker,
             };
         }
+
+        private static string DirOf(string root, string relativePath)
+            => string.IsNullOrEmpty(relativePath)
+                ? root
+                : Path.Combine(root, relativePath.Replace('/', Path.DirectorySeparatorChar));
+
+        /// <summary>
+        /// Il repository che contiene un submodule, e il percorso del submodule <b>dentro di lui</b>:
+        /// per un submodule annidato non è la radice, e la radice non sa nemmeno che esiste.
+        /// </summary>
+        private static (string ParentPath, string Relative) ParentOf(string path, ISet<string> allSubmodules)
+        {
+            var parent = string.Empty;
+            foreach (var other in allSubmodules)
+            {
+                if (other.Length > parent.Length && path.StartsWith(other + "/", StringComparison.OrdinalIgnoreCase))
+                    parent = other;
+            }
+            return (parent, parent.Length == 0 ? path : path.Substring(parent.Length + 1));
+        }
+
+        private static IEnumerable<string> ChildrenOf(string parentPath, IEnumerable<SubmoduleEntry> entries, ISet<string> allSubmodules)
+            => entries.Select(e => e.Path)
+                      .Where(p => string.Equals(ParentOf(p, allSubmodules).ParentPath, parentPath, StringComparison.OrdinalIgnoreCase));
 
         public async Task<string> DiffAsync(string projectPath, string agentName, string relativePath,
             string repoPath = null, string oldPath = null, CancellationToken ct = default)
@@ -684,11 +849,9 @@ namespace MdExplorer.Services.AgentRun
         /// </para>
         /// </summary>
         private async Task<(bool Unpublished, string Unknown)> IsRecordedCommitUnpublishedAsync(
-            string root, string dir, string submodulePath, CancellationToken ct)
+            string dir, string submodulePath, string sha, CancellationToken ct)
         {
-            var recorded = await _git.RunAsync(root, new[] { "rev-parse", $"HEAD:{submodulePath}" }, ct);
-            var sha = recorded.Stdout?.Trim();
-            if (!recorded.Ok || string.IsNullOrEmpty(sha))
+            if (string.IsNullOrEmpty(sha))
                 return (false, null);   // il padre non registra ancora niente: non c'è un rischio da segnalare
 
             var probe = await _git.RunAsync(dir, new[] { "rev-list", "--max-count=1", sha, "--not", "--remotes" }, ct);

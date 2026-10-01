@@ -140,6 +140,13 @@ namespace MdExplorer
             // e l'apertura del progetto: chi apre una cartella clonata da fuori li trovava
             // popolati ma con HEAD staccato, quindi inservibili per committare.
             services.AddSingleton<Services.Git.ISubmoduleBranchAttacher, Services.Git.SubmoduleBranchAttacher>();
+            // Il flusso di lavoro git per repository: i controlli (cosa si puo' fare qui e perche' no),
+            // l'esito dell'ultima interrogazione dei remoti, l'allineamento dei submodule che non
+            // torna mai indietro da solo, e le azioni per riga.
+            services.AddSingleton<Services.Git.IRepoWorkflowGuard, Services.Git.RepoWorkflowGuard>();
+            services.AddSingleton<Services.Git.IRepoRemoteState, Services.Git.RepoRemoteState>();
+            services.AddScoped<Services.Git.ISubmoduleAligner, Services.Git.SubmoduleAligner>();
+            services.AddScoped<Services.Git.IRepoSyncService, Services.Git.RepoSyncService>();
             // La vista delle differenze del tab: interroga git, non il FileSystemWatcher.
             services.AddSingleton<Services.AgentRun.IWorkingChangesService, Services.AgentRun.WorkingChangesService>();
             // Scoped e non singleton: dipende da IModernGitService, che e' scoped (le credenziali

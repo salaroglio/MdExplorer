@@ -73,7 +73,7 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
-        public async Task Leave_it_detached_when_no_branch_points_there()
+        public async Task Stop_at_the_recorded_commit_on_the_branch_when_the_branch_has_gone_further()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
 
@@ -107,12 +107,17 @@ namespace MdExplorer.IntegrationTests
 
             await Pull(ctx, path);
 
-            // Agganciare 'main' qui vorrebbe dire portarsi a v3, cioe' spostare i file: si lascia
-            // staccato, e la vista per repository lo dice con il motivo scritto.
-            Assert.AreEqual("HEAD", Branch(sub),
-                "nessun ramo ha la punta sul commit registrato: agganciarne uno sposterebbe il contenuto.");
+            // Fino all'01/10/2026 qui si restava con HEAD staccato: 'submodule update' metteva il
+            // figlio sul commit registrato e nessun ramo aveva la punta li'. Ora il figlio, che era
+            // sul suo ramo, AVANZA sul ramo fino al commit registrato e si ferma li': il contenuto e'
+            // quello che il progetto registra (v2, non v3) e si puo' continuare a committare. Cio' che
+            // il ramo remoto ha in piu' resta «disponibile», da prendere con una scelta esplicita.
+            Assert.AreEqual("main", Branch(sub),
+                "il figlio avanza sul suo ramo: HEAD non si stacca.");
             StringAssert.Contains(File.ReadAllText(Path.Combine(sub, "codice.md")), "v2",
-                "e il contenuto deve restare quello che il progetto registra.");
+                "e il contenuto deve restare quello che il progetto registra, non la punta del ramo.");
+            StringAssert.Contains(Git(sub, "status --porcelain=v2 --branch").Out, "# branch.ab +0 -1",
+                "la versione successiva resta da scaricare: non la si prende da soli.");
         }
 
         [TestMethod]

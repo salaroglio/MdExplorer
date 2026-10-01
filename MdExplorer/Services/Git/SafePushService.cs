@@ -60,10 +60,10 @@ namespace MdExplorer.Services.Git
     /// </para>
     /// <para>
     /// git offre <c>push --recurse-submodules=on-demand</c>, che fa esattamente questo (verificato
-    /// in sandbox il 18/08). <b>Non lo usiamo</b>: passerebbe da git nativo, e le credenziali di
-    /// MdExplorer sono cablate in LibGit2Sharp — cambiarle era il rischio R7 dello sprint. La
-    /// proprietà che serve è l'ordine, e l'ordine possiamo imporlo noi tenendo il percorso delle
-    /// credenziali intatto.
+    /// in sandbox il 18/08). <b>Non lo usiamo</b>: l'ordine lo imponiamo noi, un repository alla
+    /// volta, così ogni passo ha il suo esito e ci si ferma al primo che non riesce. (Quando è
+    /// nato, il motivo era un altro: le credenziali erano cablate in LibGit2Sharp. Dal 22/09/2026
+    /// il push passa da git nativo.)
     /// </para>
     /// </summary>
     public sealed class SafePushService : ISafePushService
@@ -123,6 +123,16 @@ namespace MdExplorer.Services.Git
                     return Refuse("Il progetto non ha un ramo remoto configurato: non c'è dove pubblicare.");
             }
 
+            // Prima si scarica, poi si pubblica: un repository che è anche indietro verrebbe rifiutato
+            // dal suo remoto a metà del giro. Meglio dirlo prima di toccarne uno.
+            foreach (var r in view.Repos)
+            {
+                if (r.MergeInProgress)
+                    return Refuse($"'{r.Label}' ha un'unione rimasta a metà: va conclusa con un commit, oppure annullata, prima di pubblicare.");
+                if (r.Ahead > 0 && r.Behind > 0)
+                    return Refuse($"'{r.Label}' ha {r.Behind} commit da scaricare: prima scarica, poi pubblica.");
+            }
+
             var steps = new List<PushStep>();
             // Solo cio' che il push NON porta via: i file non committati e i puntatori non registrati nel
             // progetto. Prima si contava Files, che include i commit che questo stesso push sta per
@@ -130,7 +140,8 @@ namespace MdExplorer.Services.Git
             var leftBehind = view.Repos
                 .Where(r => r.Uncommitted.Count > 0)
                 .Select(r => $"{r.Uncommitted.Count} file non committati in '{(string.IsNullOrEmpty(r.Path) ? r.Label : r.Path)}'")
-                .Concat(view.Repos.Where(r => r.PointerMoved)
+                // Solo se il submodule e' piu' AVANTI: uno rimasto indietro va allineato, non registrato.
+                .Concat(view.Repos.Where(r => r.PointerMoved && (r.Relation == null || r.Relation == SubmoduleRelation.Ahead))
                     .Select(r => $"il nuovo commit di '{r.Path}' non è ancora registrato nel progetto (va committato lì)"))
                 .ToList();
 
