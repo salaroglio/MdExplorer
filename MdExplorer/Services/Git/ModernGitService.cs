@@ -1045,13 +1045,25 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
                 _logger.LogInformation("Checking out branch: {BranchName}", branchName);
                 Commands.Checkout(repo, branch);
 
-                // STEP 4: If it has a remote tracking branch, pull latest changes (native git; non-fatal)
+                // STEP 4: se il ramo segue un ramo remoto, lo si porta in cima — ma SOLO se e' un
+                // avanzamento semplice. Fino all'01/10/2026 qui c'era un pull: con commit locali che
+                // toccavano le stesse righe di quelli remoti lasciava un'unione a meta', in silenzio,
+                // come effetto collaterale di un cambio di ramo (visto nell'app). Se il ramo e il suo
+                // remoto divergono si resta dove si e': lo dice il pannello «da pullare», e unire e'
+                // una scelta di chi lavora.
                 if (branch.TrackedBranch != null)
                 {
-                    var pull = await _transport.PullAsync(repositoryPath);
-                    if (!pull.Ok)
+                    var fetch = await _transport.FetchAsync(repositoryPath, "origin");
+                    if (!fetch.Ok)
                     {
-                        _logger.LogWarning("Pull after checkout of {Branch} failed (non-fatal): {Error}", branchName, pull.Error);
+                        _logger.LogWarning("Fetch after checkout of {Branch} failed (non-fatal): {Error}", branchName, fetch.Error);
+                    }
+                    else
+                    {
+                        var forward = await RunNativeGitAsync(repositoryPath, "merge --ff-only @{upstream}");
+                        if (forward.ExitCode != 0)
+                            _logger.LogInformation("Branch {Branch} not fast-forwarded after checkout (it diverges from its remote, or has local changes): {Why}",
+                                branchName, forward.Stderr?.Trim());
                     }
                 }
 

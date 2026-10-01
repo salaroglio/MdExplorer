@@ -91,65 +91,89 @@
     </span>
 
     <span style="display:flex; flex-direction:row" *ngIf="currentBranch && currentBranch.length > 0">
-      <div style="display:flex; flex-direction:column">
-        <!-- Commit button with hover panel -->
-        <div class="commit-menu-container" *ngIf="somethingIsChangedInTheBranch">
-          <button class="smallMessagesToCommit"
-                  (click)="commit()"
-                  (mouseenter)="showCommitMenu=true; loadChangedFiles()">
+      <!-- Tre pannelli uguali — da committare, da scaricare, da pubblicare — con una riga per
+           repository e il suo pulsante. I pulsanti della toolbar NON agiscono: dicono quanto c'e'
+           e aprono il pannello. Un'azione sola per tutti i repository direbbe che basta un gesto,
+           e con i submodule non e' vero. -->
+      <div class="git-panels" #gitPanels>
+
+        <!-- Il nome di un repository, il suo ramo e l'eventuale HEAD staccato: uguale nei tre pannelli. -->
+        <ng-template #repoHead let-r>
+          <mat-icon class="r-icon">{{ r.depth === 0 ? 'folder_special' : 'account_tree' }}</mat-icon>
+          <span class="r-label">{{ r.label }}</span>
+          <span class="r-branch" *ngIf="r.branch">{{ r.branch }}</span>
+          <span class="r-branch r-detached" *ngIf="r.detached">{{ 'CHANGES.DETACHED' | translate }}</span>
+        </ng-template>
+
+        <!-- DA COMMITTARE -->
+        <div class="git-panel-anchor" *ngIf="somethingIsChangedInTheBranch"
+             (mouseenter)="hoverPanel('commit')" (mouseleave)="leavePanel('commit')">
+          <button class="smallMessagesToCommit" [class.pinned]="pinnedPanel === 'commit'"
+                  [matTooltip]="'GITFLOW.COMMIT_BUTTON_TIP' | translate"
+                  (click)="togglePin('commit', $event)">
             {{ toCommitLabel() }}
           </button>
-          <div class="commit-menu"
-               *ngIf="showCommitMenu"
-               (mouseleave)="showCommitMenu=false">
+          <div class="git-panel" *ngIf="isPanelOpen('commit')">
             <!-- L'intestazione dice di CHI e' il lavoro: in revisione i numeri e il commit
                  sono quelli dell'agente, non i tuoi. -->
             <div class="commit-menu-header">
               <mat-icon *ngIf="reviewAgent" class="ctx-icon">smart_toy</mat-icon>
               {{ reviewAgent
                  ? ('TOOLBAR.TO_COMMIT_AGENT' | translate:{ agent: reviewAgent })
-                 : ('TOOLBAR.TO_COMMIT' | translate) }}
+                 : ('GITFLOW.TO_COMMIT_TITLE' | translate) }}
             </div>
             <div *ngIf="isLoadingChangedFiles" class="commit-menu-loading">
               {{ 'COMMON.LOADING' | translate }}
             </div>
 
-            <!-- Una riga per repository, perche' e' l'unita' in cui si committa: un totale
-                 unico direbbe che basta un commit, e non e' vero. La lista dei file sta nel
-                 tab, dove si vede il diff prima di scartare. -->
+            <!-- I submodule sopra il progetto: si salva dal basso. La lista dei file sta nel tab,
+                 dove si vede il diff prima di scartare. -->
             <div *ngIf="!isLoadingChangedFiles && changesView && !changesView.problem" class="commit-repos">
-              <div class="commit-repo" *ngFor="let r of reposToCommit; trackBy: trackByRepo">
-                <mat-icon class="r-icon">{{ r.depth === 0 ? 'folder_special' : 'account_tree' }}</mat-icon>
-                <span class="r-label">{{ r.label }}</span>
-                <span class="r-branch" *ngIf="r.branch">{{ r.branch }}</span>
-                <span class="r-branch r-detached" *ngIf="r.detached">{{ 'CHANGES.DETACHED' | translate }}</span>
-                <span class="flexExpand"></span>
-                <span class="r-badge" *ngIf="r.pointerMoved">{{ 'CHANGES.POINTER_MOVED' | translate }}</span>
-                <span class="r-counts">
-                  <span class="agg-added" *ngIf="countIn(r, 'added') || countIn(r, 'untracked')">+{{ countIn(r, 'added') + countIn(r, 'untracked') }}</span>
-                  <span class="agg-modified" *ngIf="countIn(r, 'modified')">~{{ countIn(r, 'modified') }}</span>
-                  <span class="agg-deleted" *ngIf="countIn(r, 'deleted')">&minus;{{ countIn(r, 'deleted') }}</span>
-                  <span class="agg-renamed" *ngIf="countIn(r, 'renamed')">&rarr;{{ countIn(r, 'renamed') }}</span>
-                </span>
+              <div class="repo-row" *ngFor="let r of reposToCommit; trackBy: trackByRepo">
+                <div class="commit-repo">
+                  <ng-container *ngTemplateOutlet="repoHead; context: { $implicit: r }"></ng-container>
+                  <span class="flexExpand"></span>
+                  <span class="r-badge r-merge" *ngIf="r.mergeInProgress">
+                    {{ 'GITFLOW.MERGE_IN_PROGRESS' | translate:{ count: r.conflicts?.length || 0 } }}
+                  </span>
+                  <span class="r-badge" *ngIf="r.pointersToRegister?.length"
+                        [matTooltip]="'GITFLOW.NEW_VERSION_TIP' | translate">
+                    {{ 'GITFLOW.NEW_VERSION_OF' | translate:{ list: r.pointersToRegister.join(', ') } }}
+                  </span>
+                  <span class="r-counts">
+                    <span class="agg-added" *ngIf="countIn(r, 'added') || countIn(r, 'untracked')">+{{ countIn(r, 'added') + countIn(r, 'untracked') }}</span>
+                    <span class="agg-modified" *ngIf="countIn(r, 'modified')">~{{ countIn(r, 'modified') }}</span>
+                    <span class="agg-deleted" *ngIf="countIn(r, 'deleted')">&minus;{{ countIn(r, 'deleted') }}</span>
+                    <span class="agg-renamed" *ngIf="countIn(r, 'renamed')">&rarr;{{ countIn(r, 'renamed') }}</span>
+                  </span>
 
-                <!-- Un commit per repository, perche' e' li' che il commit va a finire. Mai
-                     disabilitato in silenzio: il motivo sta nel tooltip. -->
-                <button mat-stroked-button class="r-commit"
-                        [disabled]="!!r.commitBlocker"
-                        [matTooltip]="r.commitBlocker || ('TOOLBAR.COMMIT_HERE_TIP' | translate:{ repo: r.label })"
-                        matTooltipPosition="left"
-                        (click)="commitRepo(r, $event)">
-                  <mat-icon>{{ r.commitBlocker ? 'block' : 'check' }}</mat-icon>
-                  {{ 'TOOLBAR.COMMIT_HERE' | translate }}
-                </button>
+                  <!-- Le uscite dagli stati a meta': un'unione si annulla, un HEAD staccato torna sul ramo. -->
+                  <button mat-stroked-button class="r-commit" *ngIf="r.mergeInProgress && !reviewAgent"
+                          [matTooltip]="'GITFLOW.ABORT_MERGE_TIP' | translate" matTooltipPosition="left"
+                          (click)="abortMerge(r, $event)">
+                    <mat-icon>undo</mat-icon>
+                    {{ 'GITFLOW.ABORT_MERGE' | translate }}
+                  </button>
+                  <button mat-stroked-button class="r-commit" *ngIf="r.detached && r.detachedTarget && !reviewAgent"
+                          [matTooltip]="'GITFLOW.BACK_ON_BRANCH_TIP' | translate:{ branch: r.detachedTarget }" matTooltipPosition="left"
+                          (click)="pullRepo(r, $event)">
+                    <mat-icon>call_merge</mat-icon>
+                    {{ 'GITFLOW.BACK_ON_BRANCH' | translate:{ branch: r.detachedTarget } }}
+                  </button>
+
+                  <!-- Un commit per repository, perche' e' li' che il commit va a finire. -->
+                  <button mat-stroked-button class="r-commit"
+                          [disabled]="!!r.commitBlocker"
+                          [matTooltip]="r.commitBlocker || ('TOOLBAR.COMMIT_HERE_TIP' | translate:{ repo: r.label })"
+                          matTooltipPosition="left"
+                          (click)="commitRepo(r, $event)">
+                    <mat-icon>{{ r.commitBlocker ? 'block' : 'check' }}</mat-icon>
+                    {{ 'TOOLBAR.COMMIT_HERE' | translate }}
+                  </button>
+                </div>
+                <!-- Mai spento in silenzio: il motivo si legge sotto la riga, non solo nel tooltip. -->
+                <div class="repo-why" *ngIf="r.commitBlocker"><mat-icon>info</mat-icon><span>{{ r.commitBlocker }}</span></div>
               </div>
-            </div>
-
-            <!-- Perche' pushare adesso romperebbe il repository per gli altri: si legge PRIMA. -->
-            <div class="commit-push-warn"
-                 *ngIf="!isLoadingChangedFiles && changesView?.repos?.length && changesView.repos[0].pushWarnings?.length">
-              <mat-icon>warning</mat-icon>
-              <span>{{ changesView.repos[0].pushWarnings[0] }}</span>
             </div>
 
             <div *ngIf="!isLoadingChangedFiles && changesView?.problem" class="commit-menu-empty">
@@ -170,25 +194,131 @@
           </div>
         </div>
 
-        <!-- Pull button with hover panel -->
-        <div class="menu-container">
-          <button class="smallMessagesToPull" (click)="pull()"
-                  (mouseover)="showMenu=true"
-                  *ngIf="somethingIsToPull">
-            {{ 'TOOLBAR.TO_PULL' | translate:{ count: howManyFilesAreToPull } }}
+        <!-- DA SCARICARE — non in revisione: nel posto di lavoro di un agente lo decide il run. -->
+        <div class="git-panel-anchor" *ngIf="somethingIsToPull && !reviewAgent"
+             (mouseenter)="hoverPanel('pull')" (mouseleave)="leavePanel('pull')">
+          <button class="smallMessagesToPull" [class.pinned]="pinnedPanel === 'pull'"
+                  (click)="togglePin('pull', $event)">
+            {{ toPullLabel() }}
           </button>
-          <div class="menu" *ngIf="showMenu" (mouseleave)="showMenu=false">
+          <div class="git-panel" *ngIf="isPanelOpen('pull')">
+            <div class="commit-menu-header">
+              <span>{{ 'GITFLOW.TO_PULL_TITLE' | translate }}</span>
+              <span class="flexExpand"></span>
+              <button class="panel-icon-btn" [matTooltip]="'GITFLOW.ASK_REMOTES_TIP' | translate"
+                      (click)="refreshRemotes(true); $event.stopPropagation()">
+                <mat-icon [class.spinning]="isFetchingRemotes">sync</mat-icon>
+              </button>
+            </div>
+
+            <!-- Il progetto sopra i submodule: si scarica dall'alto. -->
+            <div class="commit-repos">
+              <div class="repo-row" *ngFor="let r of reposToPull; trackBy: trackByRepo">
+                <div class="commit-repo">
+                  <ng-container *ngTemplateOutlet="repoHead; context: { $implicit: r }"></ng-container>
+                  <span class="flexExpand"></span>
+                  <span class="r-badge" *ngIf="r.notInitialized">{{ 'CHANGES.NOT_INITIALIZED' | translate }}</span>
+                  <span class="r-badge" *ngIf="!r.notInitialized && needsAlign(r)"
+                        [matTooltip]="'GITFLOW.BEHIND_PROJECT_TIP' | translate">
+                    {{ 'GITFLOW.BEHIND_PROJECT' | translate }}
+                  </span>
+                  <span class="r-what" *ngIf="r.behind > 0">
+                    {{ (r.depth === 0 ? 'GITFLOW.COMMITS' : (r.behind === 1 ? 'GITFLOW.AVAILABLE_ONE' : 'GITFLOW.AVAILABLE')) | translate:{ count: r.behind } }}
+                  </span>
+
+                  <!-- Due azioni con due nomi: «Allinea» porta alla versione che il progetto
+                       registra, «Aggiorna all'ultima» cambia versione ed e' una scelta. -->
+                  <button mat-stroked-button class="r-commit" *ngIf="needsAlign(r)"
+                          [disabled]="!!r.alignBlocker"
+                          [matTooltip]="r.alignBlocker || ('GITFLOW.ALIGN_TIP' | translate:{ repo: r.label })" matTooltipPosition="left"
+                          (click)="alignRepo(r, $event)">
+                    <mat-icon>{{ r.alignBlocker ? 'block' : 'vertical_align_bottom' }}</mat-icon>
+                    {{ 'GITFLOW.ALIGN' | translate }}
+                  </button>
+                  <button mat-stroked-button class="r-commit" *ngIf="r.behind > 0"
+                          [disabled]="!!r.pullBlocker"
+                          [matTooltip]="r.pullBlocker || ((r.depth === 0 ? 'GITFLOW.PULL_TIP' : 'GITFLOW.UPDATE_LATEST_TIP') | translate:{ repo: r.label })"
+                          matTooltipPosition="left"
+                          (click)="pullRepo(r, $event)">
+                    <mat-icon>{{ r.pullBlocker ? 'block' : 'download' }}</mat-icon>
+                    {{ (r.depth === 0 ? 'GITFLOW.PULL' : 'GITFLOW.UPDATE_LATEST') | translate }}
+                  </button>
+                </div>
+                <div class="repo-why" *ngIf="r.behind > 0 && r.pullBlocker"><mat-icon>info</mat-icon><span>{{ r.pullBlocker }}</span></div>
+                <div class="repo-why" *ngIf="needsAlign(r) && r.alignBlocker && r.alignBlocker !== r.pullBlocker"><mat-icon>info</mat-icon><span>{{ r.alignBlocker }}</span></div>
+              </div>
+            </div>
+
+            <!-- Chi ha cambiato cosa nel progetto: arriva con «Scarica». -->
+            <div class="incoming-files" *ngIf="filesAndAuthors?.length && rootIsBehind">
               <table>
-                <tr *ngFor="let fileAndAuthor of filesAndAuthors"><td style="color:blue;">{{fileAndAuthor.author}}</td><td>{{fileAndAuthor.fileName}}</td></tr>
+                <tr *ngFor="let fileAndAuthor of filesAndAuthors">
+                  <td class="incoming-author">{{ fileAndAuthor.author }}</td><td>{{ fileAndAuthor.fileName }}</td>
+                </tr>
               </table>
+            </div>
+
+            <!-- Un remoto che non risponde lo dice qui, e non ferma gli altri. -->
+            <div class="repo-why warn" *ngFor="let r of reposWithRemoteProblem; trackBy: trackByRepo">
+              <mat-icon>cloud_off</mat-icon><span>{{ r.label }}: {{ r.remoteProblem }}</span>
+            </div>
+
+            <div class="commit-menu-actions">
+              <button mat-stroked-button [matTooltip]="'GITFLOW.PULL_ALL_TIP' | translate"
+                      (click)="pullEverything(); $event.stopPropagation()">
+                <mat-icon>download</mat-icon>
+                {{ 'GITFLOW.PULL_ALL' | translate }}
+              </button>
+            </div>
           </div>
         </div>
-        <!-- Pubblica il progetto E i suoi submodule, nell'ordine che non puo' rompere niente:
-             i figli prima, il padre per ultimo. -->
-        <button class="smallMessagesToPush" (click)="pushEverything()" *ngIf="somethingIsToPush"
-                [matTooltip]="'TOOLBAR.PUSH_ALL_TIP' | translate">
-          {{ 'TOOLBAR.TO_PUSH' | translate:{ count: howManyCommitAreToPush } }}
-        </button>
+
+        <!-- DA PUBBLICARE -->
+        <div class="git-panel-anchor" *ngIf="somethingIsToPush"
+             (mouseenter)="hoverPanel('push')" (mouseleave)="leavePanel('push')">
+          <button class="smallMessagesToPush" [class.pinned]="pinnedPanel === 'push'"
+                  (click)="togglePin('push', $event)">
+            {{ toPushLabel() }}
+          </button>
+          <div class="git-panel" *ngIf="isPanelOpen('push')">
+            <div class="commit-menu-header">
+              <mat-icon *ngIf="reviewAgent" class="ctx-icon">smart_toy</mat-icon>
+              {{ 'GITFLOW.TO_PUSH_TITLE' | translate }}
+            </div>
+
+            <!-- I submodule sopra il progetto: si pubblica dal basso. Il progetto resta spento
+                 finche' registra una versione di submodule che sul remoto non c'e' ancora. -->
+            <div class="commit-repos">
+              <div class="repo-row" *ngFor="let r of reposToPush; trackBy: trackByRepo">
+                <div class="commit-repo">
+                  <ng-container *ngTemplateOutlet="repoHead; context: { $implicit: r }"></ng-container>
+                  <span class="flexExpand"></span>
+                  <span class="r-what">{{ 'GITFLOW.COMMITS' | translate:{ count: r.ahead } }}</span>
+                  <button mat-stroked-button class="r-commit"
+                          [disabled]="!!r.pushBlocker"
+                          [matTooltip]="r.pushBlocker || ('GITFLOW.PUSH_TIP' | translate:{ repo: r.label })" matTooltipPosition="left"
+                          (click)="pushRepo(r, $event)">
+                    <mat-icon>{{ r.pushBlocker ? 'block' : 'upload' }}</mat-icon>
+                    {{ 'GITFLOW.PUSH' | translate }}
+                  </button>
+                </div>
+                <div class="repo-why" *ngIf="r.pushBlocker"><mat-icon>info</mat-icon><span>{{ r.pushBlocker }}</span></div>
+              </div>
+            </div>
+
+            <div class="commit-menu-empty" *ngIf="!reposToPush.length">{{ 'COMMON.LOADING' | translate }}</div>
+
+            <!-- Pubblica il progetto E i suoi submodule, nell'ordine che non puo' rompere niente:
+                 i figli prima, il padre per ultimo. -->
+            <div class="commit-menu-actions">
+              <button mat-stroked-button [matTooltip]="'TOOLBAR.PUSH_ALL_TIP' | translate"
+                      (click)="pushEverything(); $event.stopPropagation()">
+                <mat-icon>upload</mat-icon>
+                {{ 'GITFLOW.PUSH_ALL' | translate }}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
       <button mat-button [matMenuTriggerFor]="tagsAndBranches" #branchMenuTrigger="matMenuTrigger"
               (menuOpened)="loadWorktrees()"

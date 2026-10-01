@@ -124,7 +124,12 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
     return repo.files.length > 0
         || (repo.unpushed?.length ?? 0) > 0
         || (repo.incoming?.length ?? 0) > 0
-        || repo.pointerMoved || repo.notInitialized;
+        || repo.pointerMoved || repo.notInitialized || !!repo.mergeInProgress;
+  }
+
+  /** Il submodule e' piu' indietro della versione che il progetto registra: va allineato, non committato. */
+  isBehindProject(repo: RepoChanges): boolean {
+    return repo.relation === 'behind' || repo.relation === 'unknown';
   }
 
   /** Quanti commit locali attendono un push, in file. */

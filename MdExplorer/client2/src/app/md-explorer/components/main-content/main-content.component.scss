@@ -18,6 +18,11 @@
   flex-direction: column;
   flex: 1 1 auto;
   min-width: 0; // Important for flex items to shrink properly
+  // Gli stati a tutta area qui dentro (caricamento, indicizzazione, errore, file eliminato) hanno
+  // z-index 1000 per coprire il documento. Senza un contesto di sovrapposizione proprio
+  // gareggiavano alla pari con i pannelli della toolbar e, venendo dopo nel DOM, li coprivano:
+  // sulla schermata «file non più disponibile» del pannello git si vedeva solo l'intestazione.
+  isolation: isolate;
 }
 
 // Legacy classes maintained for backward compatibility

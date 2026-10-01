@@ -11,6 +11,28 @@ export interface WorkingChange {
   oldPath?: string;
 }
 
+export type SubmoduleRelation = 'same' | 'ahead' | 'behind' | 'diverged' | 'unknown';
+
+/** Com'è andata un'azione su un repository (pubblica, scarica, allinea, annulla l'unione). */
+export interface RepoActionResult {
+  success: boolean;
+  /** Perché non si è nemmeno partiti: il motivo che la riga mostrava già sul pulsante spento. */
+  refused: string | null;
+  message: string | null;
+  /** Cose da dire a operazione riuscita: un submodule lasciato dov'era, e perché. */
+  warnings: string[];
+  changedFiles: string[];
+  contentChanged: boolean;
+}
+
+export interface RepoFetchOutcome {
+  repo: string;
+  label: string;
+  ok: boolean;
+  skipped: boolean;
+  error: string | null;
+}
+
 /**
  * Un repository dentro il contesto: il progetto stesso, o uno dei suoi submodule.
  * È l'unità di cui si parla perché è l'unità in cui si **committa**.
@@ -51,8 +73,33 @@ export interface RepoChanges {
   /** Ciò che il ramo di riferimento ha e tu no: da scaricare. Non è lavoro tuo. */
   incoming?: WorkingChange[];
 
+  /** Il commit che il repository contenitore registra per questo submodule. `null` sulla radice. */
+  recordedCommit?: string | null;
+  /** Il commit in checkout qui. */
+  headCommit?: string | null;
+  /**
+   * Dove sta il commit in checkout rispetto a quello registrato. `pointerMoved` da solo non dice
+   * il verso: `ahead` = versione nuova da registrare, `behind` = va allineato.
+   */
+  relation?: SubmoduleRelation | null;
+  /** I submodule che hanno una versione nuova da registrare QUI con un commit. */
+  pointersToRegister?: string[];
+  /** Un'unione rimasta a metà dopo uno scaricamento. */
+  mergeInProgress?: boolean;
+  conflicts?: string[];
+  /** Con HEAD staccato: il ramo su cui «Aggiorna all'ultima» rimetterebbe il submodule. */
+  detachedTarget?: string | null;
+  /** Perché l'ultima interrogazione del remoto non è riuscita. */
+  remoteProblem?: string | null;
+
   /** Perché qui non si può committare. `null` = si può. Mai disabilitare senza dirlo. */
   commitBlocker: string | null;
+  /** Perché da qui non si può pubblicare. `null` = si può. */
+  pushBlocker?: string | null;
+  /** Perché qui non si può scaricare dal remoto. `null` = si può. */
+  pullBlocker?: string | null;
+  /** Perché questo submodule non si può allineare alla versione registrata. `null` = si può. */
+  alignBlocker?: string | null;
   /** Perché pushare questo repository romperebbe qualcosa per gli altri. */
   pushWarnings: string[];
 }
@@ -130,6 +177,37 @@ export class WorkingChangesService {
     return this.http.post<SafePushResult>('../api/WorkingChanges/push-all', {
       projectPath, agent: agent || null,
     });
+  }
+
+  // ---- le azioni per riga dei pannelli git: una per repository ----
+
+  /** Chiede a ogni remoto cosa c'è di nuovo: solo dopo i submodule sanno di essere indietro. */
+  fetchAll(projectPath: string): Observable<RepoFetchOutcome[]> {
+    return this.http.post<RepoFetchOutcome[]>('../api/RepoSync/fetch-all', { projectPath });
+  }
+
+  pushRepo(projectPath: string, agent: string | null, repo: string): Observable<RepoActionResult> {
+    return this.http.post<RepoActionResult>('../api/RepoSync/push', { projectPath, agent: agent || null, repo: repo || null });
+  }
+
+  /** Sulla radice: scarica il progetto e allinea i submodule. Su un submodule: «Aggiorna all'ultima». */
+  pullRepo(projectPath: string, repo: string, connectionId: string): Observable<RepoActionResult> {
+    return this.http.post<RepoActionResult>('../api/RepoSync/pull', { projectPath, repo: repo || null, connectionId });
+  }
+
+  /** Porta un submodule alla versione che il progetto registra, solo in avanti. */
+  alignRepo(projectPath: string, repo: string, connectionId: string): Observable<RepoActionResult> {
+    return this.http.post<RepoActionResult>('../api/RepoSync/align', { projectPath, repo: repo || null, connectionId });
+  }
+
+  /** Scarica il progetto, se c'è da scaricare, e allinea i submodule. */
+  pullAll(projectPath: string, connectionId: string): Observable<RepoActionResult> {
+    return this.http.post<RepoActionResult>('../api/RepoSync/pull-all', { projectPath, connectionId });
+  }
+
+  /** Annulla un'unione rimasta a metà: si torna a prima dello scaricamento. */
+  abortMerge(projectPath: string, repo: string, connectionId: string): Observable<RepoActionResult> {
+    return this.http.post<RepoActionResult>('../api/RepoSync/abort-merge', { projectPath, repo: repo || null, connectionId });
   }
 
   discard(projectPath: string, agent: string | null, path: string, repo = ''): Observable<{ path: string; outcome: string }> {

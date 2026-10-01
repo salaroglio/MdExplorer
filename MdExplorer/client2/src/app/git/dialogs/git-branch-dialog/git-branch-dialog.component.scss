@@ -383,3 +383,31 @@ mat-dialog-actions {
     margin-right: 16px;
   }
 }
+
+// Cosa comporta il cambio di ramo, e perché è stato rifiutato: testo da leggere, non un tooltip.
+.switch-note,
+.switch-refusal {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.35;
+
+  mat-icon { font-size: 16px; width: 16px; height: 16px; flex: 0 0 auto; margin-top: 1px; }
+}
+
+.switch-note {
+  background: var(--mde-bg-tertiary);
+  color: var(--mde-text-secondary);
+}
+
+.switch-refusal {
+  background: var(--mde-warning-bg);
+  border-left: 3px solid var(--mde-warning-fg);
+  color: var(--mde-text-primary);
+
+  mat-icon { color: var(--mde-warning-fg); }
+}

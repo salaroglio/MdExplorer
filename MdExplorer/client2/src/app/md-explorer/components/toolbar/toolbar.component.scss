@@ -412,3 +412,136 @@ mat-toolbar button.git-menu-btn {
   .repo-header .branch.detached,
   .commit-repo .r-branch.r-detached { animation: none !important; }
 }
+
+// ---- I tre pannelli git: da committare, da scaricare, da pubblicare ----
+// Stessa forma per tutti e tre: una riga per repository, col suo pulsante e, se e' spento, il
+// motivo scritto sotto.
+
+.git-panels {
+  display: flex;
+  flex-direction: column;
+}
+
+.git-panel-anchor {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+}
+
+// Il pannello resta aperto anche a mouse lontano: si vede che e' fissato.
+.smallMessagesToCommit.pinned,
+.smallMessagesToPull.pinned,
+.smallMessagesToPush.pinned {
+  outline: 2px solid var(--mde-accent-primary, currentColor);
+  outline-offset: -2px;
+}
+
+.git-panel {
+  color: var(--mde-text-primary);
+  font-size: 12px;
+  line-height: 1.4;
+  position: absolute;
+  top: 20px;
+  right: 0;
+  background-color: var(--mde-bg-secondary);
+  min-width: 460px;
+  max-width: 720px;
+  max-height: 70vh;
+  overflow-y: auto;
+  box-shadow: 0px 8px 16px 0px var(--mde-shadow-color);
+  z-index: 1000;
+  border-radius: 4px;
+
+  .commit-menu-header {
+    display: flex;
+    align-items: center;
+  }
+}
+
+.repo-row + .repo-row {
+  border-top: 1px solid var(--mde-border-subtle, var(--mde-border-strong));
+}
+
+.commit-repo .r-what {
+  font-size: 11.5px;
+  opacity: .85;
+}
+
+// Un'unione a meta' non e' uno stato fra gli altri: finche' c'e', il resto e' fermo.
+.commit-repo .r-badge.r-merge {
+  background: var(--mde-warning-bg);
+  color: var(--mde-warning-fg);
+  font-weight: 600;
+}
+
+// Perche' il pulsante della riga e' spento. Sta scritto, non nascosto in un tooltip.
+.repo-why {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 0 10px 6px 29px;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: normal;
+  color: var(--mde-text-secondary);
+
+  mat-icon { font-size: 13px; width: 13px; height: 13px; flex: 0 0 auto; margin-top: 1px; }
+
+  &.warn {
+    padding-left: 10px;
+    color: var(--mde-warning-fg);
+  }
+}
+
+.panel-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+
+  &:hover { background: var(--mde-bg-tertiary); }
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+  mat-icon.spinning { animation: mde-panel-spin 1s linear infinite; }
+}
+
+@keyframes mde-panel-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(-360deg); }
+}
+
+.incoming-files {
+  max-height: 140px;
+  overflow-y: auto;
+  margin: 0 8px 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--mde-bg-tertiary);
+  font-size: 11px;
+  white-space: nowrap;
+
+  td { padding: 1px 6px 1px 0; }
+  .incoming-author { color: var(--mde-accent-secondary); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel-icon-btn mat-icon.spinning { animation: none !important; }
+}
+
+// Tre pulsanti impilati nei 48px della riga: a 20px l'uno il primo usciva dall'alto.
+.git-panels .git-panel-anchor > button {
+  height: 16px;
+  line-height: 14px;
+  font-size: 11px;
+  padding: 0 6px;
+}
+
+.git-panels .git-panel {
+  top: 16px;
+}

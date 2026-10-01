@@ -65,9 +65,22 @@
           <mat-icon>link_off</mat-icon>{{ 'CHANGES.DETACHED' | translate }}
         </span>
 
-        <span class="badge b-pointer" *ngIf="r.pointerMoved"
+        <!-- git segna «commit cambiato» nei due versi con la stessa sigla: qui si dice quale.
+             Piu' avanti = versione nuova da registrare nel progetto; piu' indietro = va allineato. -->
+        <span class="badge b-pointer" *ngIf="r.pointerMoved && !isBehindProject(r) && r.relation !== 'diverged'"
               [matTooltip]="'CHANGES.POINTER_MOVED_TIP' | translate">
           {{ 'CHANGES.POINTER_MOVED' | translate }}
+        </span>
+        <span class="badge b-behind" *ngIf="isBehindProject(r)"
+              [matTooltip]="'GITFLOW.BEHIND_PROJECT_TIP' | translate">
+          {{ 'GITFLOW.BEHIND_PROJECT' | translate }}
+        </span>
+        <span class="badge b-behind" *ngIf="r.relation === 'diverged'"
+              [matTooltip]="'GITFLOW.DIVERGED_TIP' | translate">
+          {{ 'GITFLOW.DIVERGED' | translate }}
+        </span>
+        <span class="badge b-missing" *ngIf="r.mergeInProgress" [matTooltip]="r.commitBlocker || ''">
+          {{ 'GITFLOW.MERGE_IN_PROGRESS' | translate:{ count: r.conflicts?.length || 0 } }}
         </span>
         <span class="badge b-missing" *ngIf="r.notInitialized"
               [matTooltip]="r.commitBlocker || ''">
@@ -100,8 +113,14 @@
 
         <!-- Il puntatore spostato NON e' un file di questo repository: e' lavoro del padre.
              Dirlo qui, dove si guarda il submodule, evita di cercarlo dove non c'e'. -->
-        <div class="repo-note" *ngIf="r.pointerMoved">
+        <div class="repo-note" *ngIf="r.pointerMoved && !isBehindProject(r) && r.relation !== 'diverged'">
           {{ 'CHANGES.POINTER_MOVED_NOTE' | translate }}
+        </div>
+        <div class="repo-note" *ngIf="isBehindProject(r)">
+          {{ 'GITFLOW.BEHIND_PROJECT_NOTE' | translate }}
+        </div>
+        <div class="repo-note" *ngIf="r.relation === 'diverged'">
+          {{ 'GITFLOW.DIVERGED_TIP' | translate }}
         </div>
 
         <div class="repo-note" *ngIf="r.files.length === 0 && !r.notInitialized">

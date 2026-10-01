@@ -473,6 +473,8 @@ namespace MdExplorer.Controllers.ModernGit
                         message = result.Message,
                         durationMs = result.Duration.TotalMilliseconds,
                         branchName = result.BranchName,
+                        // Un submodule non portato alla versione del ramo nuovo, e perche': va detto.
+                        warnings = result.Warnings ?? Array.Empty<string>(),
                         fileCount = fileCount
                     });
                 }

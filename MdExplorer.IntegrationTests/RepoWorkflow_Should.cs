@@ -428,6 +428,55 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Not_start_a_merge_as_a_side_effect_of_changing_branch()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var (path, _, _, parentOrigin) = Setup(ctx, "flusso-ramo-unione");
+            var (collega, _) = Colleague(ctx, "flusso-ramo-unione", parentOrigin);
+
+            // 'main' ha un commit mio e uno del collega sulla stessa riga: divergono.
+            SameLineOnBothSides(ctx, path, collega);
+            Git(path, "branch altra HEAD~1");
+            Assert.IsTrue((await Checkout(ctx, path, "altra")).Success);
+
+            // Fino all'01/10/2026 tornare su 'main' faceva un pull: qui lasciava un'unione a metà,
+            // in silenzio, come effetto collaterale di un cambio di ramo (visto nell'app vera).
+            var back = await Checkout(ctx, path, "main");
+            Assert.IsTrue(back.Success, back.ErrorMessage);
+            Assert.AreNotEqual(0, Git(path, "rev-parse -q --verify MERGE_HEAD").Code, "cambiare ramo non unisce niente.");
+            StringAssert.Contains(File.ReadAllText(Path.Combine(path, "README.md")), "riga mia");
+
+            var root = (await View(ctx, path)).Repos[0];
+            Assert.IsFalse(root.MergeInProgress);
+            Assert.AreEqual(1, root.Ahead);
+            Assert.AreEqual(1, root.Behind, "ciò che il remoto ha in più resta da scaricare: lo decide chi lavora.");
+        }
+
+        [TestMethod]
+        public async Task Bring_a_branch_up_to_date_when_changing_to_it_if_it_only_has_to_move_forward()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var (path, _, _, parentOrigin) = Setup(ctx, "flusso-ramo-avanti");
+            var (collega, _) = Colleague(ctx, "flusso-ramo-avanti", parentOrigin);
+
+            Git(path, "branch altra");
+            Assert.IsTrue((await Checkout(ctx, path, "altra")).Success);
+
+            File.WriteAllText(Path.Combine(collega, "README.md"), "# doc\nriga del collega\n");
+            Git(collega, "commit -am collega"); Git(collega, "push -q origin main");
+
+            // Nessun commit mio su 'main': tornandoci lo si porta in cima, senza unire niente.
+            var back = await Checkout(ctx, path, "main");
+            Assert.IsTrue(back.Success, back.ErrorMessage);
+            StringAssert.Contains(File.ReadAllText(Path.Combine(path, "README.md")), "riga del collega");
+            Assert.AreEqual(0, (await View(ctx, path)).Repos[0].Behind);
+        }
+
+        [TestMethod]
         public async Task Put_a_detached_submodule_back_on_its_branch_with_update_to_latest()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }

@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
@@ -15,7 +15,7 @@ import { MatLegacyTabGroup as MatTabGroup } from '@angular/material/legacy-tabs'
 import { ITag } from '../../../git/models/Tag';
 import { ProjectsService } from '../../services/projects.service';
 import { ReviewContextService } from '../../services/review-context.service';
-import { ChangeKind, RepoChanges, SafePushResult, WorkingChange, WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
+import { ChangeKind, RepoActionResult, RepoChanges, SafePushResult, WorkingChange, WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
 import { Router } from '@angular/router';
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
@@ -27,6 +27,7 @@ import { AgentMailboxNotificationService } from '../../../services/agent-mailbox
 import { AgentCityStateService } from '../../services/agent-city-state.service';
 import { GitHistoryDialogComponent } from '../../../git/dialogs/git-history-dialog/git-history-dialog.component';
 import { GitBranchDialogComponent } from '../../../git/dialogs/git-branch-dialog/git-branch-dialog.component';
+import { GitDialogRepo } from '../../../git/components/git-repo-picker/git-repo-picker.component';
 import { GitSetupRemoteGenericDialogComponent } from '../../../git/dialogs/git-setup-remote-generic-dialog/git-setup-remote-generic-dialog.component';
 import { GitAddSubmoduleDialogComponent } from '../../../git/dialogs/git-add-submodule-dialog/git-add-submodule-dialog.component';
 import { BookmarksService } from '../../services/bookmarks.service';
@@ -34,7 +35,8 @@ import { DocumentRefreshService } from '../../services/document-refresh.service'
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { Bookmark } from '../../services/Types/Bookmark';
 import { MdNavigationService } from '../../services/md-navigation.service';
-import { Subscription, forkJoin } from 'rxjs';
+import { Observable, Subscription, forkJoin } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { FileNameAndAuthor } from '../../../git/models/DataToPull';
 import { TocGenerationService } from '../../services/toc-generation.service';
 import { TocProgressService } from '../../services/toc-progress.service';
@@ -43,6 +45,9 @@ import { ConfirmDialogComponent, ConfirmDialogData } from '../../../commons/comp
 import { TranslateService } from '@ngx-translate/core';
 import _ from 'lodash';
 
+
+/** I tre pannelli git della toolbar: stessa forma, una riga per repository. */
+type GitPanel = 'commit' | 'pull' | 'push';
 
 @Component({
   selector: 'app-toolbar',
@@ -90,8 +95,6 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   public isCheckingConnection: boolean = false;
   public filesAndAuthors: FileNameAndAuthor[];
   subscriptionserverSelectedMdFile: Subscription;
-  public showMenu: boolean = false;
-  public showCommitMenu: boolean = false;
 
   /**
    * Gli aggregati della finestrella, e di CHI sono.
@@ -104,6 +107,29 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   public changesView: WorkingChangesView | null = null;
   /** I repository che hanno davvero qualcosa da committare: le righe del pannello. */
   public reposToCommit: RepoChanges[] = [];
+  /** Quelli che hanno qualcosa da scaricare: commit sul remoto, o un submodule da allineare. */
+  public reposToPull: RepoChanges[] = [];
+  /** Quelli che hanno commit non ancora pubblicati. */
+  public reposToPush: RepoChanges[] = [];
+  /** Quelli il cui remoto non ha risposto all'ultima interrogazione. */
+  public reposWithRemoteProblem: RepoChanges[] = [];
+  public howManyAreToPull = 0;
+  /** Il progetto stesso ha commit da scaricare: solo allora ha senso l'elenco di chi ha cambiato cosa. */
+  public rootIsBehind = false;
+
+  /**
+   * I tre pannelli si aprono al passaggio del mouse; il clic sul pulsante della toolbar lo
+   * FISSA aperto e non fa altro. Prima il clic sul pulsante del commit committava nella radice:
+   * con il lavoro sparso fra i repository lasciava fuori i file dei submodule senza dirlo.
+   */
+  public hoveredPanel: GitPanel | null = null;
+  public pinnedPanel: GitPanel | null = null;
+  @ViewChild('gitPanels') gitPanels?: ElementRef<HTMLElement>;
+
+  /** I remoti dei submodule si interrogano a parte: il fetch del progetto non dice niente su di loro. */
+  public isFetchingRemotes = false;
+  private lastRemotesFetch = 0;
+  private remotesAskedFor: string | null = null;
   public isLoadingChangedFiles: boolean = false;
   public hasRemoteConfigured: boolean = true; // Default true to hide menu initially
   public currentRemoteUrl: string = '';
@@ -218,13 +244,17 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     }));
 
     this.citySubscriptions.add(this.gitservice.commmitsToPull$.subscribe(_ => {
-      this.somethingIsToPull = _.somethingIsToPull;
       this.rootCommitsToPush = _.howManyCommitAreToPush;
       this.applyPushCount();
       this.howManyFilesAreToPull = _.howManyFilesAreToPull;
       this.connectionIsActive = _.connectionIsActive;
       this.isCheckingConnection = false;
       this.filesAndAuthors = _.whatFilesWillBeChanged;
+      // Se c'e' da scaricare lo dice la vista per repository, come per il commit: il polling ha
+      // appena interrogato il remoto del progetto, quindi la si rilegge. I remoti dei submodule
+      // si interrogano una volta per progetto aperto, e poi quando si apre il pannello.
+      this.loadChangedFiles();
+      if (_.connectionIsActive) this.askRemotesNowAndThen();
     }));
     
     // Mailbox non-letti (§13 Fase 4a): il badge segue il conteggio autoritativo.
@@ -366,6 +396,15 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     this.rootCommitsToPush = 0;
     this.submoduleCommitsToPush = 0;
     this.howManyFilesAreToPull = 0;
+    this.howManyAreToPull = 0;
+    this.reposToCommit = [];
+    this.reposToPull = [];
+    this.reposToPush = [];
+    this.reposWithRemoteProblem = [];
+    this.changesView = null;
+    this.hoveredPanel = null;
+    this.pinnedPanel = null;
+    this.remotesAskedFor = null;
 
     // Reset arrays
     this.filesAndAuthors = [];
@@ -726,42 +765,6 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   }
 
-  pull(): void {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return;
-    
-    let info = new WaitingDialogInfo();
-    info.message = "Please wait... Pulling branch"
-    this.waitingDialogService.showMessageBox(info);
-    
-    console.log('[DEBUG] Pull operation started with projectPath:', projectPath);
-    
-    // Use modern Git service with native SSH authentication
-    this.gitservice.modernPull(projectPath).subscribe(
-      responseFromPull => {
-        console.log('[DEBUG] Pull response received:', responseFromPull);
-        this.handleGitResponse(responseFromPull, 'pull');
-        this.waitingDialogService.closeMessageBox();
-      },
-      error => {
-        console.error('[DEBUG] Pull error:', error);
-        console.error('[DEBUG] Error status:', error.status);
-        console.error('[DEBUG] Error message:', error.message);
-        console.error('[DEBUG] Error response body:', error.error);
-        
-        this.waitingDialogService.closeMessageBox();
-        
-        // Show error to user
-        const errorMessage = error.error?.errorMessage || error.message || '';
-        this._snackBar.open(this.translate.instant('TOOLBAR.PULL_FAILED', { error: errorMessage }), 'OK', {
-          duration: 5000,
-          verticalPosition: 'top',
-          panelClass: ['error-snackbar']
-        });
-      }
-    );
-  }
-
   /**
    * Handles Git operation responses for both legacy and modern services
    */
@@ -842,148 +845,6 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     }
     
     return currentProject.path;
-  }
-
-  commit(): void {
-    // In revisione il commit agisce nel posto di lavoro dell'agente: e' li' che hai
-    // modificato i file, e committare nel progetto non salverebbe nulla di quel lavoro.
-    const projectPath = this.commitRootPath();
-    if (!projectPath) return;
-
-    // Ask user for commit message using Material Dialog
-    const dialogRef = this.dialog.open(CommitMessageDialogComponent, {
-      width: '500px',
-      data: { 
-        defaultMessage: 'Update from MdExplorer',
-        projectPath: projectPath
-      }
-    });
-
-    dialogRef.afterClosed().subscribe(commitMessage => {
-      if (commitMessage === null || commitMessage === undefined) {
-        // User cancelled
-        return;
-      }
-      
-      let info = new WaitingDialogInfo();
-      info.message = "Please wait... committing changes";
-      this.waitingDialogService.showMessageBox(info);
-      
-      console.log('[DEBUG] Commit operation started with projectPath:', projectPath, 'and message:', commitMessage);
-      
-      // Use modern Git service with native SSH authentication (commit only)
-      this.gitservice.modernCommit(projectPath, commitMessage).subscribe(
-        response => {
-          console.log('[DEBUG] Commit response received:', response);
-          this.handleGitResponse(response, 'commit');
-          this.waitingDialogService.closeMessageBox();
-          this.matMenuTrigger?.closeMenu();
-        },
-        error => {
-          console.error('[DEBUG] Commit error:', error);
-          console.error('[DEBUG] Error status:', error.status);
-          console.error('[DEBUG] Error message:', error.message);
-          console.error('[DEBUG] Error response body:', error.error);
-          
-          this.waitingDialogService.closeMessageBox();
-          
-          // Show error to user
-          const errorMessage = error.error?.errorMessage || error.message || '';
-          this._snackBar.open(this.translate.instant('TOOLBAR.COMMIT_FAILED', { error: errorMessage }), 'OK', {
-            duration: 5000,
-            verticalPosition: 'top',
-            panelClass: ['error-snackbar']
-          });
-        }
-      );
-    });
-  }
-
-  push(): void {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return;
-    
-    let info = new WaitingDialogInfo();
-    info.message = "Please wait... pushing changes";
-    this.waitingDialogService.showMessageBox(info);
-    
-    console.log('[DEBUG] Push operation started with projectPath:', projectPath);
-    
-    // Use modern Git service with native SSH authentication
-    this.gitservice.modernPush(projectPath).subscribe(
-      response => {
-        console.log('[DEBUG] Push response received:', response);
-        this.handleGitResponse(response, 'push');
-        this.waitingDialogService.closeMessageBox();
-        this.matMenuTrigger?.closeMenu();
-      },
-      error => {
-        console.error('[DEBUG] Push error:', error);
-        console.error('[DEBUG] Error status:', error.status);
-        console.error('[DEBUG] Error message:', error.message);
-        console.error('[DEBUG] Error response body:', error.error);
-        
-        this.waitingDialogService.closeMessageBox();
-        
-        // Show error to user
-        const errorMessage = error.error?.errorMessage || error.message || '';
-        this._snackBar.open(this.translate.instant('TOOLBAR.PUSH_FAILED', { error: errorMessage }), 'OK', {
-          duration: 5000,
-          verticalPosition: 'top',
-          panelClass: ['error-snackbar']
-        });
-      }
-    );
-  }
-
-  commitAndPush(): void {
-    const projectPath = this.getProjectPath();
-    if (!projectPath) return;
-    
-    // Ask user for commit message using Material Dialog
-    const dialogRef = this.dialog.open(CommitMessageDialogComponent, {
-      width: '500px',
-      data: { defaultMessage: 'Update from MdExplorer' }
-    });
-
-    dialogRef.afterClosed().subscribe(commitMessage => {
-      if (commitMessage === null || commitMessage === undefined) {
-        // User cancelled
-        return;
-      }
-      
-      let info = new WaitingDialogInfo();
-      info.message = "Please wait... committing and pushing changes";
-      this.waitingDialogService.showMessageBox(info);
-      
-      console.log('[DEBUG] Commit and push operation started with projectPath:', projectPath, 'and message:', commitMessage);
-      
-      // Use modern Git service with native SSH authentication (commit and push)
-      this.gitservice.modernCommitAndPush(projectPath, commitMessage).subscribe(
-        response => {
-          console.log('[DEBUG] Commit and push response received:', response);
-          this.handleGitResponse(response, 'commit and push');
-          this.waitingDialogService.closeMessageBox();
-          this.matMenuTrigger?.closeMenu();
-        },
-        error => {
-          console.error('[DEBUG] Commit and push error:', error);
-          console.error('[DEBUG] Error status:', error.status);
-          console.error('[DEBUG] Error message:', error.message);
-          console.error('[DEBUG] Error response body:', error.error);
-          
-          this.waitingDialogService.closeMessageBox();
-          
-          // Show error to user
-          const errorMessage = error.error?.errorMessage || error.message || '';
-          this._snackBar.open(this.translate.instant('TOOLBAR.COMMIT_PUSH_FAILED', { error: errorMessage }), 'OK', {
-            duration: 5000,
-            verticalPosition: 'top',
-            panelClass: ['error-snackbar']
-          });
-        }
-      );
-    });
   }
 
   openBranch(branch: IBranch): void {
@@ -1080,7 +941,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       height: '700px',
       data: {
         projectPath: projectPath,
-        projectName: projectName
+        projectName: projectName,
+        repos: this.dialogRepos()
       }
     });
 
@@ -1090,6 +952,30 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     });
 
     this.matMenuTrigger?.closeMenu();
+  }
+
+  /**
+   * Il progetto e i suoi submodule, per il selettore dei dialoghi di cronologia e rami: ognuno
+   * ha la SUA storia e i SUOI rami. In revisione del lavoro di un agente no: li' cronologia e
+   * rami restano quelli del progetto, e il ramo del posto di lavoro lo decide il run.
+   */
+  private dialogRepos(): GitDialogRepo[] {
+    if (this.reviewAgent) return [];
+    return this.toDialogRepos(this.changesView);
+  }
+
+  private toDialogRepos(view: WorkingChangesView | null): GitDialogRepo[] {
+    if (!view?.repos?.length) return [];
+    return view.repos
+      .filter(r => !r.notInitialized)
+      .map(r => ({
+        path: this.absolutePathIn(view.rootPath, r),
+        label: r.label,
+        branch: r.branch,
+        detached: r.detached,
+        isRoot: r.depth === 0,
+        recordedCommit: r.recordedCommit || null,
+      }));
   }
 
   openBranchDialog(): void {
@@ -1103,13 +989,17 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       width: '600px',
       data: {
         projectPath: projectPath,
-        projectName: projectName
+        projectName: projectName,
+        repos: this.dialogRepos(),
+        // Un cambio di ramo del progetto sposta anche i submodule: il selettore li rilegge.
+        reloadRepos: () => this.workingChanges.list(projectPath).pipe(map(view => this.toDialogRepos(view)))
       }
     });
 
-    dialogRef.afterClosed().subscribe(result => {
-      // Handle any result if needed
-      console.log('Branch dialog closed');
+    dialogRef.afterClosed().subscribe(() => {
+      // Un cambio di ramo — del progetto o di un submodule — cambia cosa c'e' da committare,
+      // da scaricare e da pubblicare: i tre pannelli si rileggono.
+      this.refreshLocalGitCounters();
     });
 
     this.matMenuTrigger?.closeMenu();
@@ -1249,7 +1139,9 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     const projectPath = this.getProjectPath(true);
     if (!projectPath) return;
 
-    this.isLoadingChangedFiles = true;
+    // «Carico…» solo la prima volta: a ogni rilettura le righe restano dove sono, altrimenti il
+    // pannello aperto lampeggerebbe sotto il mouse.
+    this.isLoadingChangedFiles = !this.changesView;
     // Stessa fonte del tab — git — cosi' i numeri della finestrella e la lista che vedi
     // cliccando «vedi le differenze» non possono raccontare due storie diverse.
     this.workingChanges.list(projectPath, this.reviewAgent).subscribe({
@@ -1267,23 +1159,40 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Il pulsante si accende se ALMENO UN repository ha qualcosa — la radice o un submodule,
-   * indifferentemente: un commit e' comunque un lavoro che ti resta da fare.
+   * Un pulsante si accende se ALMENO UN repository ha qualcosa di quel tipo — la radice o un
+   * submodule, indifferentemente. Tutti e tre leggono la STESSA vista, cosi' non possono
+   * raccontare tre storie diverse.
    */
   private applyChangeSummary(view: WorkingChangesView | null): void {
     const repos = view?.repos || [];
-    this.reposToCommit = repos.filter(r => this.repoHasWork(r));
-    this.howManyFilesAreToCommit = this.reposToCommit.reduce((n, r) => n + this.toCommit(r).length, 0);
+    const submodules = repos.filter(r => r.depth > 0);
+    const roots = repos.filter(r => r.depth === 0);
+
+    // Si salva e si pubblica dal basso: i submodule sopra il progetto.
+    const bottomUp = [...submodules, ...roots];
+    this.reposToCommit = bottomUp.filter(r => this.repoHasWork(r));
+    this.howManyFilesAreToCommit = this.reposToCommit.reduce(
+      (n, r) => n + this.toCommit(r).length + (r.pointersToRegister?.length || 0), 0);
     this.somethingIsChangedInTheBranch = this.reposToCommit.length > 0;
-    // I submodule contano per «da pushare» quanto la radice: «Pubblica» porta anche loro.
-    this.submoduleCommitsToPush = repos.filter(r => r.depth > 0).reduce((n, r) => n + (r.ahead || 0), 0);
+
+    // Si scarica dall'alto: il progetto sopra i submodule. In revisione niente: nel posto di
+    // lavoro di un agente gli scaricamenti li decide il run.
+    this.reposToPull = this.reviewAgent ? [] : repos.filter(r => this.repoHasIncoming(r));
+    this.howManyAreToPull = this.reposToPull.reduce((n, r) => n + (r.behind || 0) + (this.needsAlign(r) ? 1 : 0), 0);
+    this.somethingIsToPull = this.reposToPull.length > 0;
+    this.reposWithRemoteProblem = repos.filter(r => !!r.remoteProblem);
+    this.rootIsBehind = roots.some(r => (r.behind || 0) > 0);
+
+    this.reposToPush = bottomUp.filter(r => (r.ahead || 0) > 0);
+    // I submodule contano per «da pushare» quanto la radice: «Pubblica tutto» porta anche loro.
+    this.submoduleCommitsToPush = submodules.reduce((n, r) => n + (r.ahead || 0), 0);
+    if (roots.length) this.rootCommitsToPush = roots[0].ahead || 0;
     this.applyPushCount();
   }
 
   /**
-   * «Da pushare» = commit della radice (dai contatori di git, locali o dopo il fetch) + commit dei
-   * submodule (dalla vista per repository). Prima contava solo la radice: dopo un commit dentro un
-   * submodule il pulsante non compariva (visto il 29/09/2026).
+   * «Da pushare» = commit della radice + commit dei submodule. Prima contava solo la radice: dopo
+   * un commit dentro un submodule il pulsante non compariva (visto il 29/09/2026).
    */
   private applyPushCount(): void {
     this.howManyCommitAreToPush = (this.rootCommitsToPush || 0) + this.submoduleCommitsToPush;
@@ -1298,9 +1207,29 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     return repo.uncommitted ?? repo.files;
   }
 
-  /** Qualcosa da fare QUI: file da salvare, oppure un riferimento a submodule da registrare. */
+  /**
+   * Qualcosa da fare QUI: file da salvare, la versione nuova di un submodule da registrare,
+   * oppure un'unione rimasta a meta' — che si chiude proprio con un commit.
+   *
+   * Un submodule piu' avanti del registrato NON e' lavoro del submodule: e' lavoro di chi lo
+   * contiene, ed e' li' che compare. Prima la riga si accendeva sul submodule, col suo
+   * «Committa» che dentro il submodule non aveva niente da committare.
+   */
   repoHasWork(repo: RepoChanges): boolean {
-    return this.toCommit(repo).length > 0 || repo.pointerMoved;
+    return this.toCommit(repo).length > 0 || (repo.pointersToRegister?.length || 0) > 0 || !!repo.mergeInProgress;
+  }
+
+  /**
+   * Il submodule e' piu' indietro della versione che il progetto registra (o non e' mai stato
+   * scaricato): va ALLINEATO. Non e' una versione nuova da registrare — git usa la stessa sigla
+   * nei due versi, e committando il progetto adesso si registrerebbe quella vecchia.
+   */
+  needsAlign(repo: RepoChanges): boolean {
+    return repo.depth > 0 && (repo.notInitialized || repo.relation === 'behind' || repo.relation === 'unknown');
+  }
+
+  repoHasIncoming(repo: RepoChanges): boolean {
+    return (repo.behind || 0) > 0 || this.needsAlign(repo);
   }
 
   /** Quanti file di un tipo in un repository: i numeri della riga. */
@@ -1314,10 +1243,196 @@ export class ToolbarComponent implements OnInit, OnDestroy {
    * l'informazione che manca, quindi si dice.
    */
   toCommitLabel(): string {
-    const spread = this.reposToCommit.length;
-    return spread > 1
-      ? this.translate.instant('TOOLBAR.TO_COMMIT_SPREAD', { count: this.howManyFilesAreToCommit, repos: spread })
-      : this.translate.instant('TOOLBAR.TO_COMMIT_HERE', { count: this.howManyFilesAreToCommit });
+    return this.panelLabel('COMMIT', this.howManyFilesAreToCommit, this.reposToCommit.length);
+  }
+
+  toPullLabel(): string {
+    return this.panelLabel('PULL', this.howManyAreToPull, this.reposToPull.length);
+  }
+
+  toPushLabel(): string {
+    return this.panelLabel('PUSH', this.howManyCommitAreToPush, Math.max(1, this.reposToPush.length));
+  }
+
+  private panelLabel(kind: 'COMMIT' | 'PULL' | 'PUSH', count: number, repos: number): string {
+    return repos > 1
+      ? this.translate.instant(`GITFLOW.LABEL_${kind}_SPREAD`, { count, repos })
+      : this.translate.instant(`GITFLOW.LABEL_${kind}`, { count });
+  }
+
+  // ---- apertura dei pannelli ----
+
+  /** Aperto se ci sei sopra, oppure se e' fissato e non stai guardando un altro pannello. */
+  isPanelOpen(panel: GitPanel): boolean {
+    return this.hoveredPanel === panel || (this.pinnedPanel === panel && this.hoveredPanel === null);
+  }
+
+  hoverPanel(panel: GitPanel): void {
+    this.hoveredPanel = panel;
+    // Cio' che il pannello mostra si rilegge quando lo si apre. Per «da scaricare» serve anche
+    // chiedere ai remoti dei submodule, che nessun altro interroga.
+    if (panel === 'pull') this.refreshRemotes(false);
+    else this.loadChangedFiles();
+  }
+
+  leavePanel(panel: GitPanel): void {
+    if (this.hoveredPanel === panel) this.hoveredPanel = null;
+  }
+
+  /** Il clic sul pulsante della toolbar fissa il pannello. Non committa, non scarica, non pubblica. */
+  togglePin(panel: GitPanel, event: MouseEvent): void {
+    event.stopPropagation();
+    this.pinnedPanel = this.pinnedPanel === panel ? null : panel;
+  }
+
+  /** Un clic altrove chiude il pannello fissato — ma non un clic dentro un dialogo aperto da una riga. */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.pinnedPanel) return;
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    if (this.gitPanels?.nativeElement.contains(target)) return;
+    if (target.closest('.cdk-overlay-container')) return;
+    this.pinnedPanel = null;
+  }
+
+  // ---- i remoti dei submodule ----
+
+  /**
+   * Chiamato a ogni giro di polling riuscito: interroga i remoti dei submodule appena si apre un
+   * progetto, e poi ogni cinque minuti. Senza la seconda parte, chi tiene aperto MdExplorer tutto
+   * il giorno non verrebbe mai a sapere che un submodule ha una versione nuova: il pulsante «da
+   * pullare» non si accenderebbe, e senza pulsante il pannello non si puo' nemmeno aprire.
+   */
+  private askRemotesNowAndThen(): void {
+    const projectPath = this.getProjectPath(true);
+    if (!projectPath) return;
+    const firstTime = this.remotesAskedFor !== projectPath;
+    if (!firstTime && Date.now() - this.lastRemotesFetch < 5 * 60 * 1000) return;
+    this.remotesAskedFor = projectPath;
+    this.refreshRemotes(true);
+  }
+
+  /**
+   * Chiede a ogni remoto cosa c'e' di nuovo, poi rilegge la vista. Non sta nel polling: sono
+   * tanti processi git verso remoti diversi, e senza credenziale ognuno aprirebbe un login.
+   * Parte all'apertura del progetto, quando si apre «da scaricare» e dopo ogni scaricamento.
+   */
+  refreshRemotes(force: boolean): void {
+    const projectPath = this.getProjectPath(true);
+    if (!projectPath || this.reviewAgent) { this.loadChangedFiles(); return; }
+    // Senza una connessione buona al remoto del progetto non si prova nemmeno con gli altri.
+    if (!this.connectionIsActive || this.authenticationMissing || this.authenticationFailed) {
+      this.loadChangedFiles();
+      return;
+    }
+    const now = Date.now();
+    if (this.isFetchingRemotes || (!force && now - this.lastRemotesFetch < 30000)) {
+      this.loadChangedFiles();
+      return;
+    }
+
+    this.isFetchingRemotes = true;
+    this.lastRemotesFetch = now;
+    this.workingChanges.fetchAll(projectPath).subscribe({
+      next: () => { this.isFetchingRemotes = false; this.loadChangedFiles(); },
+      error: () => { this.isFetchingRemotes = false; this.loadChangedFiles(); },
+    });
+  }
+
+  // ---- le azioni per riga ----
+
+  /** Pubblica UN repository. Il progetto resta spento finche' punta a un submodule non pubblicato. */
+  pushRepo(repo: RepoChanges, event: MouseEvent): void {
+    event.stopPropagation();
+    if (repo.pushBlocker) return;   // il pulsante e' gia' disabilitato: qui e' solo una rete
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+    this.runRepoAction('GITFLOW.PUSHING', repo.label,
+      this.workingChanges.pushRepo(projectPath, this.reviewAgent, repo.path), false);
+  }
+
+  /** Sulla radice: scarica il progetto e allinea i submodule. Su un submodule: «Aggiorna all'ultima». */
+  pullRepo(repo: RepoChanges, event: MouseEvent): void {
+    event.stopPropagation();
+    if (repo.pullBlocker) return;
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+    this.runRepoAction(repo.depth === 0 ? 'GITFLOW.PULLING' : 'GITFLOW.UPDATING', repo.label,
+      this.workingChanges.pullRepo(projectPath, repo.path, this.currentConnectionId()), true);
+  }
+
+  /** Porta un submodule alla versione che il progetto registra, solo in avanti. */
+  alignRepo(repo: RepoChanges, event: MouseEvent): void {
+    event.stopPropagation();
+    if (repo.alignBlocker) return;
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+    this.runRepoAction('GITFLOW.ALIGNING', repo.label,
+      this.workingChanges.alignRepo(projectPath, repo.path, this.currentConnectionId()), true);
+  }
+
+  /** Scarica il progetto, se c'e' da scaricare, e allinea i submodule. Non cambia versione a nessuno. */
+  pullEverything(): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+    this.runRepoAction('GITFLOW.PULLING_ALL', '',
+      this.workingChanges.pullAll(projectPath, this.currentConnectionId()), true);
+  }
+
+  /** L'uscita da un'unione rimasta a meta': si torna a prima dello scaricamento. */
+  abortMerge(repo: RepoChanges, event: MouseEvent): void {
+    event.stopPropagation();
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+    this.runRepoAction('GITFLOW.ABORTING_MERGE', repo.label,
+      this.workingChanges.abortMerge(projectPath, repo.path, this.currentConnectionId()), true);
+  }
+
+  private currentConnectionId(): string {
+    return this.connectionId || this.monitorMDService.connectionId || '';
+  }
+
+  /**
+   * Esegue un'azione su un repository e racconta com'e' andata. Un rifiuto NON e' un errore da
+   * nascondere: e' il motivo che la riga mostrava gia', ripetuto da chi ha rifiutato davvero.
+   */
+  private runRepoAction(waitingKey: string, repoLabel: string, action: Observable<RepoActionResult>, touchesRemote: boolean): void {
+    const info = new WaitingDialogInfo();
+    info.message = this.translate.instant(waitingKey, { repo: repoLabel });
+    this.waitingDialogService.showMessageBox(info);
+
+    const done = (result: RepoActionResult | null, fallback: string) => {
+      this.waitingDialogService.closeMessageBox();
+      this.reportRepoAction(result, fallback);
+      // Prima i numeri locali, subito; poi cio' che dipende dal remoto.
+      this.refreshLocalGitCounters();
+      if (touchesRemote) this.refreshRemotes(true);
+    };
+
+    action.subscribe({
+      next: result => done(result, ''),
+      error: err => done(err?.error?.refused !== undefined ? err.error : null, err?.error?.error || err?.message || ''),
+    });
+  }
+
+  private reportRepoAction(result: RepoActionResult | null, fallback: string): void {
+    if (!result) {
+      this._snackBar.open(this.translate.instant('GITFLOW.ACTION_FAILED', { error: fallback }), 'OK',
+        { duration: 10000, verticalPosition: 'top', panelClass: ['error-snackbar'] });
+      return;
+    }
+    if (result.refused) {
+      this._snackBar.open(result.refused, 'OK', { duration: 14000, verticalPosition: 'top' });
+      return;
+    }
+    const text = [result.message, ...(result.warnings || [])].filter(x => !!x).join(' ');
+    this._snackBar.open(text, 'OK', {
+      // Con un avviso da leggere resta finche' non lo si chiude: dice cosa NON e' stato spostato.
+      duration: result.success && !(result.warnings || []).length ? 6000 : undefined,
+      verticalPosition: 'top',
+      panelClass: result.success ? [] : ['error-snackbar'],
+    });
   }
 
   trackByRepo = (_: number, r: RepoChanges) => r.path;
@@ -1342,6 +1457,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         this.waitingDialogService.closeMessageBox();
         this.reportPush(result);
         this.refreshLocalGitCounters();
+        this.refreshRemotes(true);
       },
       error: err => {
         this.waitingDialogService.closeMessageBox();
@@ -1381,7 +1497,10 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   /** Dove sta questo repository sul disco: la radice del contesto, piu' il suo percorso. */
   repoAbsolutePath(repo: RepoChanges): string {
-    const root = this.changesView?.rootPath || '';
+    return this.absolutePathIn(this.changesView?.rootPath || '', repo);
+  }
+
+  private absolutePathIn(root: string, repo: RepoChanges): string {
     if (!repo.path) return root;
     const sep = root.includes('\\') ? '\\' : '/';
     return root.replace(/[\\/]+$/, '') + sep + repo.path.replace(/\//g, sep);
@@ -1433,20 +1552,10 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   /** Porta al tab delle differenze, dove si guarda file per file e si scarta. */
   seeTheDifferences(): void {
-    this.showCommitMenu = false;
+    this.pinnedPanel = null;
+    this.hoveredPanel = null;
     this.reviewContext.showChanges();
   }
-
-  /**
-   * Dove agisce il commit: il progetto, o il posto di lavoro dell'agente quando sei in
-   * revisione. Senza questo committeresti nel tuo progetto delle modifiche che hai fatto
-   * dentro il worktree di un altro — cioe' non committeresti niente.
-   */
-  private commitRootPath(): string | null {
-    if (this.reviewAgent && this.changesView?.rootPath) return this.changesView.rootPath;
-    return this.getProjectPath();
-  }
-
 
   isTocDirectoryFile(): boolean {
     return this.currentMdFile?.name?.endsWith('.md.directory') || false;

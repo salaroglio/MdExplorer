@@ -324,8 +324,8 @@ namespace MdExplorer.Services.AgentRun
                         PointerMoved = moved.Contains(s.Path),
                         Files = Array.Empty<WorkingChange>(),
                         PushWarnings = Array.Empty<string>(),
-                        CommitBlocker = "Submodule non popolato: non c'e' niente da committare finche' non viene scaricato.",
-                        PushBlocker = "Submodule non popolato: non c'e' niente da pubblicare.",
+                        CommitBlocker = "Submodule non popolato: non c'è niente da committare finché non viene scaricato.",
+                        PushBlocker = "Submodule non popolato: non c'è niente da pubblicare.",
                         PullBlocker = "Submodule non popolato: prima va scaricato con «Allinea».",
                         AlignBlocker = agentDesk ? AgentDeskPullBlocker : null,
                     };
@@ -425,13 +425,13 @@ namespace MdExplorer.Services.AgentRun
 
             var unpublishedChild = children.FirstOrDefault(c => c.RecordedCommitUnknown != null || c.RecordedCommitUnpublished);
             var pushBlocker =
-                detached ? "HEAD staccato: non c'e' un ramo da pubblicare."
+                detached ? "HEAD staccato: non c'è un ramo da pubblicare."
                 : mergeMessage != null ? mergeMessage
-                : upstream == null ? "Nessun ramo remoto configurato: non c'e' dove pubblicare."
+                : upstream == null ? "Nessun ramo remoto configurato: non c'è dove pubblicare."
                 : behind > 0 ? $"Il remoto ha {behind} commit che qui mancano: prima scarica, poi pubblica."
                 : unpublishedChild != null
                     ? unpublishedChild.RecordedCommitUnknown
-                      ?? $"Prima pubblica '{unpublishedChild.Path}': qui si registra un suo commit che non e' ancora sul suo remoto."
+                      ?? $"Prima pubblica '{unpublishedChild.Path}': qui si registra un suo commit che non è ancora sul suo remoto."
                 : null;
 
             string pullBlocker;
@@ -439,11 +439,11 @@ namespace MdExplorer.Services.AgentRun
             else if (mergeMessage != null) pullBlocker = mergeMessage;
             else if (detached)
                 pullBlocker = depth == 0
-                    ? "HEAD staccato: non c'e' un ramo da aggiornare."
+                    ? "HEAD staccato: non c'è un ramo da aggiornare."
                     : detachedTarget == null
                         ? "HEAD staccato su un commit che non sta sul ramo principale di questo submodule: va rimesso su un ramo a mano."
                         : null;
-            else if (upstream == null) pullBlocker = "Nessun ramo remoto configurato: non c'e' da dove scaricare.";
+            else if (upstream == null) pullBlocker = "Nessun ramo remoto configurato: non c'è da dove scaricare.";
             else if (behind > 0 && ahead > 0 && children.Count > 0)
                 // Tu e il remoto avete spostato lo stesso submodule? Scaricando adesso git si
                 // fermerebbe con un conflitto sulla cartella (provato in sandbox l'01/10/2026).
@@ -743,7 +743,7 @@ namespace MdExplorer.Services.AgentRun
 
             var probe = await _git.RunAsync(dir, new[] { "rev-parse", "--is-inside-work-tree" }, ct);
             if (!probe.Ok)
-                throw new ArgumentException($"'{repoPath}' non e' un repository git.", nameof(repoPath));
+                throw new ArgumentException($"'{repoPath}' non è un repository git.", nameof(repoPath));
 
             return dir;
         }
@@ -925,7 +925,7 @@ namespace MdExplorer.Services.AgentRun
                     // Il caso che rompe il repository per gli altri, e l'unico che va detto sempre:
                     // vale anche con HEAD staccato, dove 'Ahead' e' 0 e non segnalerebbe niente.
                     warnings.Add(s.Detached
-                        ? $"'{s.Path}' ha HEAD staccato e il commit registrato non e' su nessun remoto: non e' pubblicabile finche' non lo metti su un ramo."
+                        ? $"'{s.Path}' ha HEAD staccato e il commit registrato non è su nessun remoto: non è pubblicabile finché non lo metti su un ramo."
                         : $"'{s.Path}' punta a un commit non pubblicato: va pubblicato per primo, altrimenti chi clona trova un riferimento inesistente.");
                 }
                 else if (s.Ahead > 0)
@@ -934,7 +934,7 @@ namespace MdExplorer.Services.AgentRun
                 }
                 else if (!s.NotInitialized && s.Upstream == null && s.Branch != null)
                 {
-                    warnings.Add($"'{s.Path}' non ha un ramo remoto configurato: il suo lavoro non e' pubblicabile cosi' com'e'.");
+                    warnings.Add($"'{s.Path}' non ha un ramo remoto configurato: il suo lavoro non è pubblicabile così com'è.");
                 }
             }
             return warnings;

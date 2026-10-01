@@ -1,6 +1,7 @@
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GitMessagesComponent } from './components/git-messages/git-messages.component';
+import { GitRepoPickerComponent } from './components/git-repo-picker/git-repo-picker.component';
 import { CommitMessageDialogComponent } from './dialogs/commit-message-dialog/commit-message-dialog.component';
 import { GitHistoryDialogComponent } from './dialogs/git-history-dialog/git-history-dialog.component';
 import { GitBranchDialogComponent } from './dialogs/git-branch-dialog/git-branch-dialog.component';
@@ -16,6 +17,7 @@ import { TranslateModule } from '@ngx-translate/core';
 @NgModule({
   declarations: [
     GitMessagesComponent,
+    GitRepoPickerComponent,
     CommitMessageDialogComponent,
     GitHistoryDialogComponent,
     GitBranchDialogComponent,
