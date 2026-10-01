@@ -1926,7 +1926,6 @@
     "SUMMARY_SENT_DEDICATED": "Il riepilogo è nel tab MarkAgent come messaggio: le esecuzioni in sessione dedicata non sono nella memoria della sua conversazione."
   },
   "GITFLOW": {
-    "COMMIT_BUTTON_TIP": "Apre l'elenco dei repository con qualcosa da committare. Si committa da ogni riga, un repository alla volta.",
     "TO_COMMIT_TITLE": "Da committare",
     "TO_PULL_TITLE": "Da pullare",
     "TO_PUSH_TITLE": "Da pushare",

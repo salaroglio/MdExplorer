@@ -1926,7 +1926,6 @@
     "SUMMARY_SENT_DEDICATED": "The summary is in the MarkAgent tab as a message: runs in a dedicated session are not in its conversation's memory."
   },
   "GITFLOW": {
-    "COMMIT_BUTTON_TIP": "Opens the list of repositories with something to commit. You commit from each row, one repository at a time.",
     "TO_COMMIT_TITLE": "To commit",
     "TO_PULL_TITLE": "To pull",
     "TO_PUSH_TITLE": "To push",
