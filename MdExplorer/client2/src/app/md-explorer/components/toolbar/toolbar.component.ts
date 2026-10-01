@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
-import { Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { MAT_LEGACY_TOOLTIP_DEFAULT_OPTIONS } from '@angular/material/legacy-tooltip';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { RenameFileComponent } from '../refactoring/rename-file/rename-file.component';
@@ -53,6 +54,15 @@ type GitPanel = 'commit' | 'pull' | 'push';
   selector: 'app-toolbar',
   templateUrl: './toolbar.component.html',
   styleUrls: ['./toolbar.component.scss'],
+  providers: [
+    // Un tooltip di Material cattura il mouse: passandoci sopra il puntatore esce dall'area del
+    // pannello git e il pannello si chiude prima di arrivare al pulsante (provato l'01/10/2026).
+    // Nella toolbar i tooltip si leggono e basta: il mouse li attraversa.
+    {
+      provide: MAT_LEGACY_TOOLTIP_DEFAULT_OPTIONS,
+      useValue: { showDelay: 0, hideDelay: 0, touchendHideDelay: 1500, disableTooltipInteractivity: true },
+    },
+  ],
 })
 export class ToolbarComponent implements OnInit, OnDestroy {
   // Esponiamo console per il template
@@ -118,13 +128,14 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   public rootIsBehind = false;
 
   /**
-   * I tre pannelli si aprono al passaggio del mouse; il clic sul pulsante della toolbar lo
-   * FISSA aperto e non fa altro. Prima il clic sul pulsante del commit committava nella radice:
-   * con il lavoro sparso fra i repository lasciava fuori i file dei submodule senza dirlo.
+   * I tre pannelli si aprono al passaggio del mouse e si chiudono poco dopo che il mouse e'
+   * uscito: il tempo di tornarci sopra. Il pulsante della toolbar non agisce e non fissa niente.
+   * Prima il clic sul pulsante del commit committava nella radice: con il lavoro sparso fra i
+   * repository lasciava fuori i file dei submodule senza dirlo.
    */
   public hoveredPanel: GitPanel | null = null;
-  public pinnedPanel: GitPanel | null = null;
-  @ViewChild('gitPanels') gitPanels?: ElementRef<HTMLElement>;
+  private panelCloseTimer: ReturnType<typeof setTimeout> | null = null;
+  private static readonly PANEL_CLOSE_DELAY_MS = 400;
 
   /** I remoti dei submodule si interrogano a parte: il fetch del progetto non dice niente su di loro. */
   public isFetchingRemotes = false;
@@ -335,6 +346,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     console.log("ngOnDestroy toolbar");
+    this.cancelPanelClose();
     this.subscriptionserverSelectedMdFile.unsubscribe();
     this.citySubscriptions.unsubscribe();
     this.slideDeckSubscription?.unsubscribe();
@@ -402,8 +414,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     this.reposToPush = [];
     this.reposWithRemoteProblem = [];
     this.changesView = null;
-    this.hoveredPanel = null;
-    this.pinnedPanel = null;
+    this.closePanels();
     this.remotesAskedFor = null;
 
     // Reset arrays
@@ -1262,12 +1273,14 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   // ---- apertura dei pannelli ----
 
-  /** Aperto se ci sei sopra, oppure se e' fissato e non stai guardando un altro pannello. */
   isPanelOpen(panel: GitPanel): boolean {
-    return this.hoveredPanel === panel || (this.pinnedPanel === panel && this.hoveredPanel === null);
+    return this.hoveredPanel === panel;
   }
 
   hoverPanel(panel: GitPanel): void {
+    this.cancelPanelClose();
+    // Rientrare nel pannello gia' aperto non lo rilegge: resta com'e' sotto il mouse.
+    if (this.hoveredPanel === panel) return;
     this.hoveredPanel = panel;
     // Cio' che il pannello mostra si rilegge quando lo si apre. Per «da scaricare» serve anche
     // chiedere ai remoti dei submodule, che nessun altro interroga.
@@ -1275,25 +1288,28 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     else this.loadChangedFiles();
   }
 
+  /**
+   * Il pannello non si chiude nell'istante in cui il mouse esce: scendendo dal pulsante in
+   * diagonale si passa per un attimo fuori, e il pannello spariva prima di arrivarci.
+   */
   leavePanel(panel: GitPanel): void {
-    if (this.hoveredPanel === panel) this.hoveredPanel = null;
+    if (this.hoveredPanel !== panel) return;
+    this.cancelPanelClose();
+    this.panelCloseTimer = setTimeout(() => {
+      this.panelCloseTimer = null;
+      if (this.hoveredPanel === panel) this.hoveredPanel = null;
+    }, ToolbarComponent.PANEL_CLOSE_DELAY_MS);
   }
 
-  /** Il clic sul pulsante della toolbar fissa il pannello. Non committa, non scarica, non pubblica. */
-  togglePin(panel: GitPanel, event: MouseEvent): void {
-    event.stopPropagation();
-    this.pinnedPanel = this.pinnedPanel === panel ? null : panel;
+  private cancelPanelClose(): void {
+    if (this.panelCloseTimer === null) return;
+    clearTimeout(this.panelCloseTimer);
+    this.panelCloseTimer = null;
   }
 
-  /** Un clic altrove chiude il pannello fissato — ma non un clic dentro un dialogo aperto da una riga. */
-  @HostListener('document:click', ['$event'])
-  onDocumentClick(event: MouseEvent): void {
-    if (!this.pinnedPanel) return;
-    const target = event.target as HTMLElement | null;
-    if (!target) return;
-    if (this.gitPanels?.nativeElement.contains(target)) return;
-    if (target.closest('.cdk-overlay-container')) return;
-    this.pinnedPanel = null;
+  private closePanels(): void {
+    this.cancelPanelClose();
+    this.hoveredPanel = null;
   }
 
   // ---- i remoti dei submodule ----
@@ -1552,8 +1568,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
   /** Porta al tab delle differenze, dove si guarda file per file e si scarta. */
   seeTheDifferences(): void {
-    this.pinnedPanel = null;
-    this.hoveredPanel = null;
+    this.closePanels();
     this.reviewContext.showChanges();
   }
 

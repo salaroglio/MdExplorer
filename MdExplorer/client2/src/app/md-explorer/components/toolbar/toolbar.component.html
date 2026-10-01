@@ -95,7 +95,7 @@
            repository e il suo pulsante. I pulsanti della toolbar NON agiscono: dicono quanto c'e'
            e aprono il pannello. Un'azione sola per tutti i repository direbbe che basta un gesto,
            e con i submodule non e' vero. -->
-      <div class="git-panels" #gitPanels>
+      <div class="git-panels">
 
         <!-- Il nome di un repository, il suo ramo e l'eventuale HEAD staccato: uguale nei tre pannelli. -->
         <ng-template #repoHead let-r>
@@ -108,8 +108,7 @@
         <!-- DA COMMITTARE -->
         <div class="git-panel-anchor" *ngIf="somethingIsChangedInTheBranch"
              (mouseenter)="hoverPanel('commit')" (mouseleave)="leavePanel('commit')">
-          <button class="smallMessagesToCommit" [class.pinned]="pinnedPanel === 'commit'"
-                  (click)="togglePin('commit', $event)">
+          <button class="smallMessagesToCommit" type="button">
             {{ toCommitLabel() }}
           </button>
           <div class="git-panel" *ngIf="isPanelOpen('commit')">
@@ -196,8 +195,7 @@
         <!-- DA SCARICARE — non in revisione: nel posto di lavoro di un agente lo decide il run. -->
         <div class="git-panel-anchor" *ngIf="somethingIsToPull && !reviewAgent"
              (mouseenter)="hoverPanel('pull')" (mouseleave)="leavePanel('pull')">
-          <button class="smallMessagesToPull" [class.pinned]="pinnedPanel === 'pull'"
-                  (click)="togglePin('pull', $event)">
+          <button class="smallMessagesToPull" type="button">
             {{ toPullLabel() }}
           </button>
           <div class="git-panel" *ngIf="isPanelOpen('pull')">
@@ -275,8 +273,7 @@
         <!-- DA PUBBLICARE -->
         <div class="git-panel-anchor" *ngIf="somethingIsToPush"
              (mouseenter)="hoverPanel('push')" (mouseleave)="leavePanel('push')">
-          <button class="smallMessagesToPush" [class.pinned]="pinnedPanel === 'push'"
-                  (click)="togglePin('push', $event)">
+          <button class="smallMessagesToPush" type="button">
             {{ toPushLabel() }}
           </button>
           <div class="git-panel" *ngIf="isPanelOpen('push')">
