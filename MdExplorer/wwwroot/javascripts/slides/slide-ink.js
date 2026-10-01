@@ -171,7 +171,8 @@
 
     function redraw() {
         ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-        if (!htmlPage && Reveal.isOverview()) return;
+        // Before reveal.js is ready (a resize while the deck loads) there is no slide yet: 'ready' redraws.
+        if (!htmlPage && (!Reveal.isReady() || Reveal.isOverview())) return;
         (strokes[slideKey()] || []).forEach(function (stroke) { paint(stroke); });
         if (drawing) paint(drawing);
     }
