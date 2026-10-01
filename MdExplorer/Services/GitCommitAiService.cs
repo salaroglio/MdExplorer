@@ -24,7 +24,10 @@ namespace MdExplorer.Services
         /// <summary>The prompt for the changes of <paramref name="repositoryPath"/>; null when there is nothing to commit.</summary>
         Task<string> BuildCommitPromptAsync(string repositoryPath, string language);
 
-        /// <summary>The agent's answer as a commit message (the seven rules); empty when nothing is left.</summary>
+        /// <summary>
+        /// The agent's answer as a commit message: a Conventional Commits header, a blank line, the
+        /// body wrapped at 72. Empty when nothing is left.
+        /// </summary>
         string CleanCommitMessage(string aiResponse);
     }
 
@@ -34,6 +37,17 @@ namespace MdExplorer.Services
         private readonly IModernGitService _modernGitService;
         private const int MaxDiffLinesPerFile = 100;
         private const int MaxFilesToAnalyze = 20;
+        private const int MaxHeaderLength = 72;
+
+        /// <summary>The types of Conventional Commits the prompt asks for and the cleaning recognises.</summary>
+        private static readonly string[] ConventionalTypes =
+            { "feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore", "revert" };
+        private static readonly string ConventionalTypesList = string.Join(", ", ConventionalTypes);
+
+        /// <summary><c>type(scope)!: description</c> — the header of a Conventional Commit.</summary>
+        private static readonly System.Text.RegularExpressions.Regex ConventionalHeaderRegex =
+            new System.Text.RegularExpressions.Regex(
+                @"^(?<type>[A-Za-z]+)\s*(?:\(\s*(?<scope>[^()]*?)\s*\))?\s*(?<bang>!)?\s*:\s*(?<description>\S.*)$");
 
         public GitCommitAiService(
             ILogger<GitCommitAiService> logger,
@@ -204,34 +218,45 @@ namespace MdExplorer.Services
             var labels = GetPromptLabels(isIt);
             var prompt = new StringBuilder();
 
+            // The format is the user's decision of 01/10/2026: the language chosen in the app, a
+            // Conventional Commits header (the short line a log shows) and a body of two very short
+            // sentences. Type and scope stay in English in every language: they are the convention's
+            // keywords, tools read them.
             if (isIt)
             {
-                prompt.AppendLine("Analizza questi cambiamenti Git e genera un messaggio di commit in ITALIANO.");
-                prompt.AppendLine("DEVI seguire le 7 regole di un buon commit message (Chris Beams):");
-                prompt.AppendLine("  1. Separa il subject dal body con una riga vuota.");
-                prompt.AppendLine("  2. Limita il subject a 50 caratteri (massimo assoluto).");
-                prompt.AppendLine("  3. Inizia il subject con lettera maiuscola.");
-                prompt.AppendLine("  4. Non terminare il subject con un punto.");
-                prompt.AppendLine("  5. Usa il modo imperativo nel subject (es. \"Aggiungi\", \"Correggi\", \"Rimuovi\", non \"Aggiunto\"/\"Aggiunge\").");
-                prompt.AppendLine("  6. Wrappa il body a 72 caratteri per riga.");
-                prompt.AppendLine("  7. Nel body spiega COSA e PERCHÉ, non COME.");
+                prompt.AppendLine("Analizza questi cambiamenti Git e scrivi il messaggio di commit.");
                 prompt.AppendLine();
-                prompt.AppendLine("Il body è opzionale: ometti l'intero body (subject only) se le modifiche sono minori o auto-esplicative.");
+                prompt.AppendLine("LINGUA: scrivi in ITALIANO la descrizione e il corpo, anche se la nostra conversazione è in un'altra lingua.");
+                prompt.AppendLine("Restano in inglese solo il tipo e lo scope, che sono parole chiave della convenzione.");
+                prompt.AppendLine();
+                prompt.AppendLine("FORMATO: Conventional Commits 1.0.0.");
+                prompt.AppendLine("  1. Prima riga: <tipo>(<scope>): <descrizione>. È la frase sintetica che si legge nell'elenco dei commit.");
+                prompt.AppendLine($"  2. Il tipo è uno fra: {ConventionalTypesList}.");
+                prompt.AppendLine("     feat = funzione nuova, fix = correzione di un difetto, docs = solo documentazione, refactor = stesso comportamento.");
+                prompt.AppendLine("  3. Lo scope è facoltativo: una parola minuscola che dice l'area toccata. Se non c'è un'area chiara, omettilo insieme alle parentesi.");
+                prompt.AppendLine("  4. La descrizione è al modo imperativo (\"aggiungi\", \"correggi\", \"rimuovi\"), con iniziale minuscola e senza punto finale.");
+                prompt.AppendLine($"  5. L'intera prima riga non supera {MaxHeaderLength} caratteri.");
+                prompt.AppendLine("  6. Se la modifica rompe la compatibilità, metti \"!\" subito prima dei due punti.");
+                prompt.AppendLine("  7. Poi una riga vuota e il corpo: ESATTAMENTE due frasi molto sintetiche, al massimo 15 parole l'una.");
+                prompt.AppendLine("     La prima dice COSA cambia, la seconda PERCHÉ. Niente elenchi, niente nomi di file in fila, niente terza frase.");
                 prompt.AppendLine();
             }
             else
             {
-                prompt.AppendLine("Analyze these Git changes and generate a commit message in ENGLISH.");
-                prompt.AppendLine("You MUST follow the 7 rules of a great Git commit message (Chris Beams):");
-                prompt.AppendLine("  1. Separate subject from body with a blank line.");
-                prompt.AppendLine("  2. Limit the subject line to 50 characters (hard cap).");
-                prompt.AppendLine("  3. Capitalize the subject line.");
-                prompt.AppendLine("  4. Do not end the subject line with a period.");
-                prompt.AppendLine("  5. Use the imperative mood in the subject (e.g. \"Add\", \"Fix\", \"Remove\" — not \"Added\"/\"Adds\").");
-                prompt.AppendLine("  6. Wrap the body at 72 characters.");
-                prompt.AppendLine("  7. Use the body to explain WHAT and WHY vs. HOW.");
+                prompt.AppendLine("Analyze these Git changes and write the commit message.");
                 prompt.AppendLine();
-                prompt.AppendLine("The body is optional: omit it (subject only) when the change is small or self-explanatory.");
+                prompt.AppendLine("LANGUAGE: write the description and the body in ENGLISH, even if our conversation is in another language.");
+                prompt.AppendLine();
+                prompt.AppendLine("FORMAT: Conventional Commits 1.0.0.");
+                prompt.AppendLine("  1. First line: <type>(<scope>): <description>. It is the short sentence shown in the list of commits.");
+                prompt.AppendLine($"  2. The type is one of: {ConventionalTypesList}.");
+                prompt.AppendLine("     feat = new feature, fix = bug fix, docs = documentation only, refactor = same behaviour.");
+                prompt.AppendLine("  3. The scope is optional: one lowercase word for the area touched. With no clear area, omit it and its parentheses.");
+                prompt.AppendLine("  4. The description is in the imperative mood (\"add\", \"fix\", \"remove\"), starts lowercase, has no trailing period.");
+                prompt.AppendLine($"  5. The whole first line is at most {MaxHeaderLength} characters.");
+                prompt.AppendLine("  6. For a breaking change, put \"!\" right before the colon.");
+                prompt.AppendLine("  7. Then a blank line and the body: EXACTLY two very short sentences, 15 words each at most.");
+                prompt.AppendLine("     The first says WHAT changes, the second WHY. No lists, no rows of file names, no third sentence.");
                 prompt.AppendLine();
             }
 
@@ -296,36 +321,36 @@ namespace MdExplorer.Services
             if (isIt)
             {
                 prompt.AppendLine("Il PERCHÉ: se nella nostra conversazione abbiamo fatto o discusso queste modifiche, usa quello che");
-                prompt.AppendLine("sai (lo scopo, la decisione presa, il problema risolto) per scrivere il body. Non inventare: se non ne");
+                prompt.AppendLine("sai (lo scopo, la decisione presa, il problema risolto) per la seconda frase. Non inventare: se non ne");
                 prompt.AppendLine("sai niente, descrivi solo quello che si vede dalle modifiche. Non usare i tuoi tool: le modifiche sono qui.");
                 prompt.AppendLine();
                 prompt.AppendLine("Vincoli aggiuntivi:");
-                prompt.AppendLine("  - Niente prefissi tipo \"commit:\", \"git:\", \"message:\".");
+                prompt.AppendLine("  - Niente etichette davanti al messaggio, tipo \"commit:\" o \"messaggio:\".");
                 prompt.AppendLine("  - Niente blocchi markdown, backtick di apertura/chiusura, virgolette di contorno.");
                 prompt.AppendLine("  - Niente frasi introduttive tipo \"Ecco il messaggio:\" o \"Il commit message è:\".");
-                prompt.AppendLine("  - NON aggiungere trailer tipo \"Co-authored-by:\", \"Signed-off-by:\", \"Generated by:\" o link \"(mailto:...)\". SOLO subject e body puri.");
+                prompt.AppendLine("  - NON aggiungere trailer tipo \"Co-authored-by:\", \"Signed-off-by:\", \"Generated by:\" o link \"(mailto:...)\".");
                 prompt.AppendLine();
                 prompt.AppendLine("Formato della risposta (ESATTO, nient'altro):");
-                prompt.AppendLine("<Subject in imperativo, ≤50 char, prima lettera maiuscola, senza punto finale>");
+                prompt.AppendLine("<tipo>(<scope>): <descrizione in italiano>");
                 prompt.AppendLine("");
-                prompt.AppendLine("<Body opzionale: paragrafi che spiegano COSA e PERCHÉ, righe ≤72 char. Ometti se non serve.>");
+                prompt.AppendLine("<Prima frase: cosa cambia.> <Seconda frase: perché.>");
             }
             else
             {
                 prompt.AppendLine("The WHY: if these changes were made or discussed in our conversation, use what you know (the aim,");
-                prompt.AppendLine("the decision taken, the problem solved) to write the body. Do not invent: if you know nothing about");
+                prompt.AppendLine("the decision taken, the problem solved) for the second sentence. Do not invent: if you know nothing about");
                 prompt.AppendLine("them, describe only what the changes show. Do not use your tools: the changes are here.");
                 prompt.AppendLine();
                 prompt.AppendLine("Additional constraints:");
-                prompt.AppendLine("  - No prefixes like \"commit:\", \"git:\", \"message:\".");
+                prompt.AppendLine("  - No labels in front of the message, like \"commit:\" or \"message:\".");
                 prompt.AppendLine("  - No markdown fences, wrapping backticks or quotes.");
                 prompt.AppendLine("  - No lead-ins like \"Here's the commit message:\" or \"Commit message:\".");
-                prompt.AppendLine("  - DO NOT append trailers like \"Co-authored-by:\", \"Signed-off-by:\", \"Generated by:\" or \"(mailto:...)\" links. Output ONLY the pure subject and body.");
+                prompt.AppendLine("  - DO NOT append trailers like \"Co-authored-by:\", \"Signed-off-by:\", \"Generated by:\" or \"(mailto:...)\" links.");
                 prompt.AppendLine();
                 prompt.AppendLine("Response format (EXACT — nothing else):");
-                prompt.AppendLine("<Imperative subject, ≤50 chars, capitalized, no trailing period>");
+                prompt.AppendLine("<type>(<scope>): <description in English>");
                 prompt.AppendLine("");
-                prompt.AppendLine("<Optional body: paragraphs explaining WHAT and WHY, lines ≤72 chars. Omit if unnecessary.>");
+                prompt.AppendLine("<First sentence: what changes.> <Second sentence: why.>");
             }
 
             return prompt.ToString();
@@ -403,13 +428,12 @@ namespace MdExplorer.Services
 
             if (rawLines.Count == 0) return string.Empty;
 
-            // --- Subject (rules 1-5): capitalize, strip trailing punctuation, no leading markers
+            // --- Header: no leading markers, no trailing punctuation. A Conventional Commits header
+            // is put in its canonical spelling (lowercase type and scope, one space after the colon);
+            // anything else is left as the agent wrote it, for the user to see and correct in the box.
             var subject = rawLines[0].Trim().TrimStart('-', '*', '•', ' ', '\t');
             subject = subject.TrimEnd('.', '!', '?', ';', ':', ' ');
-            if (subject.Length > 0 && char.IsLower(subject[0]))
-            {
-                subject = char.ToUpper(subject[0]) + subject.Substring(1);
-            }
+            subject = NormalizeConventionalHeader(subject);
 
             // Pull body lines (skip blank separator)
             var bodyLines = rawLines.Skip(1).ToList();
@@ -421,9 +445,23 @@ namespace MdExplorer.Services
                 return subject;
             }
 
-            // --- Body (rules 1, 6, 7): blank line separator + wrap at 72 chars
+            // --- Body: blank line separator + wrap at 72 chars
             var wrappedBody = WrapBody(bodyLines, 72);
             return subject + "\n\n" + wrappedBody;
+        }
+
+        private static string NormalizeConventionalHeader(string subject)
+        {
+            var match = ConventionalHeaderRegex.Match(subject);
+            if (!match.Success) return subject;
+            var type = match.Groups["type"].Value.ToLowerInvariant();
+            if (!ConventionalTypes.Contains(type)) return subject;
+
+            var scope = match.Groups["scope"].Success ? match.Groups["scope"].Value.Trim().ToLowerInvariant() : string.Empty;
+            var header = type;
+            if (scope.Length > 0) header += "(" + scope + ")";
+            if (match.Groups["bang"].Success) header += "!";
+            return header + ": " + match.Groups["description"].Value.Trim();
         }
 
         private static readonly System.Text.RegularExpressions.Regex TrailerRegex =
