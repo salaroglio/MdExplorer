@@ -1,7 +1,7 @@
 "use strict";
 (self["webpackChunkclient2"] = self["webpackChunkclient2"] || []).push([["src_app_promptlab_promptlab_module_ts"],{
 
-/***/ 4060:
+/***/ 9106:
 /*!*********************************************************************************************!*\
   !*** ./src/app/promptlab/components/promptlab-agent-card/promptlab-agent-card.component.ts ***!
   \*********************************************************************************************/
@@ -11,10 +11,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "PromptLabAgentCardComponent": () => (/* binding */ PromptLabAgentCardComponent)
 /* harmony export */ });
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/forms */ 2508);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/core */ 543);
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/common */ 8284);
+/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/forms */ 7652);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @ngx-translate/core */ 6882);
 
 
 
@@ -200,7 +200,7 @@ class PromptLabAgentCardComponent {
 
 /***/ }),
 
-/***/ 748:
+/***/ 6227:
 /*!*********************************************************************************!*\
   !*** ./src/app/promptlab/components/promptlab-card/promptlab-card.component.ts ***!
   \*********************************************************************************/
@@ -210,23 +210,23 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "PromptLabCardComponent": () => (/* binding */ PromptLabCardComponent)
 /* harmony export */ });
-/* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs */ 228);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs/operators */ 8951);
-/* harmony import */ var _commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../commons/components/show-file-system/show-file-system.component */ 4699);
-/* harmony import */ var _commons_components_show_file_system_show_file_metadata__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../commons/components/show-file-system/show-file-metadata */ 4625);
-/* harmony import */ var _models_promptlab_models__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../models/promptlab.models */ 241);
-/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/platform-browser */ 4497);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/common/http */ 8987);
-/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
-/* harmony import */ var _services_promptlab_service__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../services/promptlab.service */ 3819);
-/* harmony import */ var _services_promptlab_distillation_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../services/promptlab-distillation.service */ 6479);
-/* harmony import */ var _services_ai_chat_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../../services/ai-chat.service */ 9109);
-/* harmony import */ var _md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../../../md-explorer/services/projects.service */ 9753);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @angular/forms */ 2508);
+/* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../../../MdExplorer/client2/node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 9173);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/core */ 543);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs */ 5942);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs/operators */ 5205);
+/* harmony import */ var _commons_components_show_file_system_show_file_system_component__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../../commons/components/show-file-system/show-file-system.component */ 9600);
+/* harmony import */ var _commons_components_show_file_system_show_file_metadata__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../commons/components/show-file-system/show-file-metadata */ 2140);
+/* harmony import */ var _models_promptlab_models__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../models/promptlab.models */ 6151);
+/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/platform-browser */ 9531);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/common/http */ 157);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 9423);
+/* harmony import */ var _services_promptlab_service__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../services/promptlab.service */ 5441);
+/* harmony import */ var _services_promptlab_distillation_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../../services/promptlab-distillation.service */ 6553);
+/* harmony import */ var _services_ai_chat_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../../../services/ai-chat.service */ 7128);
+/* harmony import */ var _md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ../../../md-explorer/services/projects.service */ 941);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @ngx-translate/core */ 6882);
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/common */ 8284);
+/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @angular/forms */ 7652);
 
 
 
@@ -1776,7 +1776,7 @@ class PromptLabCardComponent {
 
 /***/ }),
 
-/***/ 1381:
+/***/ 3418:
 /*!*******************************************************************************************!*\
   !*** ./src/app/promptlab/components/promptlab-doc-panel/promptlab-doc-panel.component.ts ***!
   \*******************************************************************************************/
@@ -1786,9 +1786,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "PromptLabDocPanelComponent": () => (/* binding */ PromptLabDocPanelComponent)
 /* harmony export */ });
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @angular/core */ 543);
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/common */ 8284);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @ngx-translate/core */ 6882);
 
 
 
@@ -1917,7 +1917,7 @@ class PromptLabDocPanelComponent {
 
 /***/ }),
 
-/***/ 6739:
+/***/ 8633:
 /*!***********************************************************************!*\
   !*** ./src/app/promptlab/components/promptlab/promptlab.component.ts ***!
   \***********************************************************************/
@@ -1927,21 +1927,21 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "PromptLabComponent": () => (/* binding */ PromptLabComponent)
 /* harmony export */ });
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs */ 228);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs/operators */ 8951);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs/operators */ 116);
-/* harmony import */ var _models_promptlab_models__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../models/promptlab.models */ 241);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/common/http */ 8987);
-/* harmony import */ var _services_promptlab_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../services/promptlab.service */ 3819);
-/* harmony import */ var _md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../md-explorer/services/md-file.service */ 4169);
-/* harmony import */ var _services_ai_chat_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../services/ai-chat.service */ 9109);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/forms */ 2508);
-/* harmony import */ var _promptlab_doc_panel_promptlab_doc_panel_component__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../promptlab-doc-panel/promptlab-doc-panel.component */ 1381);
-/* harmony import */ var _promptlab_agent_card_promptlab_agent_card_component__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../promptlab-agent-card/promptlab-agent-card.component */ 4060);
-/* harmony import */ var _promptlab_card_promptlab_card_component__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../promptlab-card/promptlab-card.component */ 748);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs */ 5942);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs/operators */ 5205);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs/operators */ 4005);
+/* harmony import */ var _models_promptlab_models__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../models/promptlab.models */ 6151);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 543);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! @angular/common/http */ 157);
+/* harmony import */ var _services_promptlab_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../services/promptlab.service */ 5441);
+/* harmony import */ var _md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../../md-explorer/services/md-file.service */ 2756);
+/* harmony import */ var _services_ai_chat_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../../../services/ai-chat.service */ 7128);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @ngx-translate/core */ 6882);
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/common */ 8284);
+/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @angular/forms */ 7652);
+/* harmony import */ var _promptlab_doc_panel_promptlab_doc_panel_component__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../promptlab-doc-panel/promptlab-doc-panel.component */ 3418);
+/* harmony import */ var _promptlab_agent_card_promptlab_agent_card_component__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../promptlab-agent-card/promptlab-agent-card.component */ 9106);
+/* harmony import */ var _promptlab_card_promptlab_card_component__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../promptlab-card/promptlab-card.component */ 6227);
 
 
 
@@ -2517,7 +2517,7 @@ class PromptLabComponent {
 
 /***/ }),
 
-/***/ 241:
+/***/ 6151:
 /*!******************************************************!*\
   !*** ./src/app/promptlab/models/promptlab.models.ts ***!
   \******************************************************/
@@ -2564,7 +2564,7 @@ Return ONLY the PlantUML code between @startuml and @enduml, nothing else.`;
 
 /***/ }),
 
-/***/ 5342:
+/***/ 6917:
 /*!*******************************************************!*\
   !*** ./src/app/promptlab/promptlab-routing.module.ts ***!
   \*******************************************************/
@@ -2574,9 +2574,9 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "PromptLabRoutingModule": () => (/* binding */ PromptLabRoutingModule)
 /* harmony export */ });
-/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/router */ 124);
-/* harmony import */ var _components_promptlab_promptlab_component__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./components/promptlab/promptlab.component */ 6739);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! @angular/router */ 8485);
+/* harmony import */ var _components_promptlab_promptlab_component__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./components/promptlab/promptlab.component */ 8633);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ 543);
 
 
 
@@ -2611,7 +2611,7 @@ class PromptLabRoutingModule {
 
 /***/ }),
 
-/***/ 6157:
+/***/ 3123:
 /*!***********************************************!*\
   !*** ./src/app/promptlab/promptlab.module.ts ***!
   \***********************************************/
@@ -2621,16 +2621,16 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "PromptLabModule": () => (/* binding */ PromptLabModule)
 /* harmony export */ });
-/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common */ 4666);
-/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/forms */ 2508);
-/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
-/* harmony import */ var _promptlab_routing_module__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./promptlab-routing.module */ 5342);
-/* harmony import */ var _components_promptlab_promptlab_component__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./components/promptlab/promptlab.component */ 6739);
-/* harmony import */ var _components_promptlab_doc_panel_promptlab_doc_panel_component__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./components/promptlab-doc-panel/promptlab-doc-panel.component */ 1381);
-/* harmony import */ var _components_promptlab_agent_card_promptlab_agent_card_component__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./components/promptlab-agent-card/promptlab-agent-card.component */ 4060);
-/* harmony import */ var _components_promptlab_card_promptlab_card_component__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./components/promptlab-card/promptlab-card.component */ 748);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_common__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common */ 8284);
+/* harmony import */ var _angular_forms__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/forms */ 7652);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 9423);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @ngx-translate/core */ 6882);
+/* harmony import */ var _promptlab_routing_module__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./promptlab-routing.module */ 6917);
+/* harmony import */ var _components_promptlab_promptlab_component__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./components/promptlab/promptlab.component */ 8633);
+/* harmony import */ var _components_promptlab_doc_panel_promptlab_doc_panel_component__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./components/promptlab-doc-panel/promptlab-doc-panel.component */ 3418);
+/* harmony import */ var _components_promptlab_agent_card_promptlab_agent_card_component__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./components/promptlab-agent-card/promptlab-agent-card.component */ 9106);
+/* harmony import */ var _components_promptlab_card_promptlab_card_component__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./components/promptlab-card/promptlab-card.component */ 6227);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/core */ 543);
 
 
 
@@ -2667,7 +2667,7 @@ class PromptLabModule {
 
 /***/ }),
 
-/***/ 6479:
+/***/ 6553:
 /*!**********************************************************************!*\
   !*** ./src/app/promptlab/services/promptlab-distillation.service.ts ***!
   \**********************************************************************/
@@ -2677,11 +2677,11 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "PromptLabDistillationService": () => (/* binding */ PromptLabDistillationService)
 /* harmony export */ });
-/* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs */ 228);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs/operators */ 8951);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _services_ai_chat_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../services/ai-chat.service */ 9109);
+/* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../../../MdExplorer/client2/node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 9173);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs */ 5942);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs/operators */ 5205);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/core */ 543);
+/* harmony import */ var _services_ai_chat_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../services/ai-chat.service */ 7128);
 
 
 
@@ -2901,7 +2901,7 @@ ${conversationText}`;
 
 /***/ }),
 
-/***/ 2349:
+/***/ 984:
 /*!*********************************************************************!*\
   !*** ./src/app/promptlab/services/promptlab-persistence.service.ts ***!
   \*********************************************************************/
@@ -2911,8 +2911,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "PromptLabPersistenceService": () => (/* binding */ PromptLabPersistenceService)
 /* harmony export */ });
-/* harmony import */ var _models_promptlab_models__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../models/promptlab.models */ 241);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _models_promptlab_models__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../models/promptlab.models */ 6151);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @angular/core */ 543);
 
 
 class PromptLabPersistenceService {
@@ -3407,7 +3407,7 @@ class PromptLabPersistenceService {
 
 /***/ }),
 
-/***/ 3819:
+/***/ 5441:
 /*!*********************************************************!*\
   !*** ./src/app/promptlab/services/promptlab.service.ts ***!
   \*********************************************************/
@@ -3417,21 +3417,21 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "PromptLabService": () => (/* binding */ PromptLabService)
 /* harmony export */ });
-/* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 6317);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs */ 228);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs/operators */ 8951);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs/operators */ 7260);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs/operators */ 116);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs/operators */ 1989);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! rxjs/operators */ 9295);
-/* harmony import */ var _models_promptlab_models__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../models/promptlab.models */ 241);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _services_ai_chat_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../services/ai-chat.service */ 9109);
-/* harmony import */ var _promptlab_persistence_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./promptlab-persistence.service */ 2349);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/common/http */ 8987);
-/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../signalR/services/server-messages.service */ 8635);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../../../../MdExplorer/client2/node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 9173);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs */ 9742);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs */ 5942);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! rxjs/operators */ 5205);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs/operators */ 6017);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs/operators */ 4005);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs/operators */ 1414);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! rxjs/operators */ 7439);
+/* harmony import */ var _models_promptlab_models__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../models/promptlab.models */ 6151);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/core */ 543);
+/* harmony import */ var _services_ai_chat_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../../services/ai-chat.service */ 7128);
+/* harmony import */ var _promptlab_persistence_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./promptlab-persistence.service */ 984);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/common/http */ 157);
+/* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../../signalR/services/server-messages.service */ 7945);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! @ngx-translate/core */ 6882);
 
 
 
@@ -3896,4 +3896,4 @@ class PromptLabService {
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_promptlab_promptlab_module_ts.0b1c368550cba69a.js.map
+//# sourceMappingURL=src_app_promptlab_promptlab_module_ts.c01b60438f562ab2.js.map

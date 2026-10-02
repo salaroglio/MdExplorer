@@ -66,6 +66,13 @@ export interface MarkStep {
    * lesson's async loop, so awaiting works as expected.
    */
   autoExecute?: () => Promise<void>;
+  /**
+   * Decides the step at the moment the lesson reaches it, for steps whose text or buttons
+   * depend on something an earlier step found out (the demo tour: which agentic environments
+   * this computer has). Returns the fields to override, or `null` to skip the step entirely.
+   * Called once per run of the lesson, before the step's text is typed.
+   */
+  resolve?: () => Partial<Pick<MarkStep, 'textKey' | 'textParams' | 'actions' | 'durationMs'>> | null;
 }
 
 /**

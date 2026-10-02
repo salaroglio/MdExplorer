@@ -1425,7 +1425,20 @@
         "FILL_URL": "Filling in the URL of a small public markdown demo repo...",
         "SET_PATH": "Picking a local folder under your Documents directory.",
         "PRESS_CLONE": "Pressing Clone... let's wait for the backend to download.",
-        "DONE": "Done! The project is open. From here you can navigate the markdown files at will."
+        "PROBE": "First I'll check which AI agents this computer has: Copilot CLI, Claude Code, opencode...",
+        "FOUND_ONE": "I found {{name}}, ready to use. I'll set up the demo project for it.",
+        "FOUND_MANY": "I found more than one, all ready. Which one do you want to try the demo with?",
+        "FOUND_NONE": "I found no AI agent on this computer. I'll open the demo without one: when you install one, pick it in Project Settings, AI & RAG tab.",
+        "NOT_READY": {
+          "NOT_LOGGED_IN": "I found {{name}}, but you haven't signed in yet. I'll open the demo without an agent: sign in, then pick it in Project Settings, AI & RAG tab.",
+          "NO_MODELS": "I found {{name}}, but it has no model connected. I'll open the demo without an agent: connect a provider, then pick it in Project Settings, AI & RAG tab.",
+          "TIMEOUT": "I found {{name}}, but it didn't answer in time. I'll open the demo without an agent: you can pick it later in Project Settings, AI & RAG tab.",
+          "ERROR": "I found {{name}}, but I couldn't check it: {{detail}} I'll open the demo without an agent.",
+          "SEVERAL": "I found {{names}}, but none is ready to use. I'll open the demo without an agent: when one is ready, pick it in Project Settings, AI & RAG tab."
+        },
+        "PROBE_FAILED": "I couldn't check the AI agents of this computer: {{error}}. I'll open the demo without an agent: you'll pick it in Project Settings, AI & RAG tab.",
+        "DONE": "Done! The demo project is open and set up for {{name}}: the Mark Agent tab is waiting for you.",
+        "DONE_NO_ENVIRONMENT": "Done! The demo project is open, without an AI agent. From here you can navigate the markdown files at will."
       }
     },
     "INPUT": {
@@ -1438,6 +1451,11 @@
     "UNDOCK": "Detach into floating window",
     "REDOCK": "Re-attach to app",
     "PROSEGUI": "Continue",
+    "ENVIRONMENT": {
+      "COPILOT": "GitHub Copilot",
+      "CLAUDE": "Claude Code",
+      "OPENCODE": "opencode"
+    },
     "CLOSE_COMM": "Close comm",
     "MENU": {
       "PROMPT": "I'm here. What's up?",

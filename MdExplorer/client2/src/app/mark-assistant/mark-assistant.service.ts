@@ -212,6 +212,7 @@ export class MarkAssistantService {
     this.lessonRegistry = buildLessonRegistry({
       launch: (id: string) => this.launch(id),
       launchNextMicroTip: () => this.launchNextMicroTip(),
+      setHarnessForPath: (path: string, harness: string) => this.projectsService.setHarnessForPath(path, harness),
     });
     this.registerInputHandlers();
     this.subscribeRouteChanges();
@@ -531,8 +532,17 @@ export class MarkAssistantService {
     }
 
     // 4. Iterate steps
-    for (const step of lesson.steps) {
+    for (const declared of lesson.steps) {
       if (this.abortFlag) return;
+
+      // A step may be decided only now (see MarkStep.resolve): it overrides its own text and
+      // buttons, or drops out of this run.
+      let step: MarkStep = declared;
+      if (declared.resolve) {
+        const resolved = declared.resolve();
+        if (resolved === null) continue;
+        step = { ...declared, ...resolved };
+      }
 
       // Place spotlight (anchored — recomputeSpotlight() will keep it in sync
       // with the target as the user scrolls or resizes the window).

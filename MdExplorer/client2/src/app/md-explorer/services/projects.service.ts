@@ -91,13 +91,47 @@ export class ProjectsService {
     await this.http.post<any>(url, mdProject).toPromise();
   }
 
+  /**
+   * L'ambiente agentico con cui aprire UN percorso preciso, alla prossima apertura fatta da
+   * setNewFolderProject. Lo imposta il tour di Mark dopo il probe del computer, prima di clonare
+   * il progetto demo: la finestra di clone apre il progetto con setNewFolderProject e non sa
+   * niente di ambienti.
+   * Legato al percorso e consumato una volta sola: se il clone del demo fallisce, la scelta non
+   * finisce sul prossimo progetto che l'utente apre.
+   * Sprint: docs-internal/Sprints/2026-10-02-Demo-Ambiente-Agentico-Rilevato.md.
+   */
+  private pendingHarness: { path: string; harness: string } | null = null;
+
+  setHarnessForPath(path: string, harness: string): void {
+    this.pendingHarness = { path: ProjectsService.comparablePath(path), harness: harness };
+  }
+
+  private static comparablePath(path: string): string {
+    return (path || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+  }
+
+  /** L'ambiente in attesa per questo percorso, tolto dall'attesa in ogni caso. */
+  private takeHarnessFor(path: string): string | null {
+    const pending = this.pendingHarness;
+    this.pendingHarness = null;
+    return pending && pending.path === ProjectsService.comparablePath(path) ? pending.harness : null;
+  }
+
   setNewFolderProject(path: string):void {
     this.projectChangingSubject.next(); // Notifica cambio progetto in corso
 
     // Close previous project if any
     this.notifyProjectClosed();
 
-    this.http.post<any>('../api/MdProjects/SetFolderProject', { path: path }).subscribe(async response => {
+    // Come nella creazione di un progetto: quando la richiesta porta un ambiente, il servizio lo
+    // scrive nel .development.yml e installa skill, istruzioni e server MCP per quello.
+    const request: { path: string; harness?: string } = { path: path };
+    const harness = this.takeHarnessFor(path);
+    if (harness) {
+      request.harness = harness;
+    }
+
+    this.http.post<any>('../api/MdProjects/SetFolderProject', request).subscribe(async response => {
       this.currentProjects$.next(response);
 
       // Update window title for Electron taskbar preview

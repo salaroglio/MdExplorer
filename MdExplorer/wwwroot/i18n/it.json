@@ -1404,6 +1404,11 @@
     "UNDOCK": "Sgancia in finestra separata",
     "REDOCK": "Riaggancia all'app",
     "PROSEGUI": "Prosegui",
+    "ENVIRONMENT": {
+      "COPILOT": "GitHub Copilot",
+      "CLAUDE": "Claude Code",
+      "OPENCODE": "opencode"
+    },
     "CLOSE_COMM": "Chiudi comunicazione",
     "MENU": {
       "PROMPT": "Sono qui. Cosa ti va di fare?",
@@ -1440,7 +1445,20 @@
         "FILL_URL": "Inserisco l'URL del repo demo (un piccolo progetto markdown pubblico)...",
         "SET_PATH": "Scelgo io una cartella locale dove salvarlo, sotto Documenti.",
         "PRESS_CLONE": "Premo Clone... aspettiamo che il backend faccia il download.",
-        "DONE": "Eccoci! Il progetto è aperto. Da qui puoi navigare i markdown a piacere."
+        "PROBE": "Prima guardo quali agenti AI ci sono su questo computer: Copilot CLI, Claude Code, opencode...",
+        "FOUND_ONE": "Ho trovato {{name}}, pronto all'uso. Configuro il progetto demo per lui.",
+        "FOUND_MANY": "Ne ho trovati più di uno, tutti pronti. Con quale vuoi provare il demo?",
+        "FOUND_NONE": "Su questo computer non ho trovato nessun agente AI. Apro il demo senza: quando ne installi uno, lo scegli nelle Impostazioni Progetto, scheda «AI & RAG».",
+        "NOT_READY": {
+          "NOT_LOGGED_IN": "Ho trovato {{name}}, ma non hai ancora fatto l'accesso. Apro il demo senza agente: fai l'accesso, poi sceglilo nelle Impostazioni Progetto, scheda «AI & RAG».",
+          "NO_MODELS": "Ho trovato {{name}}, ma non ha nessun modello collegato. Apro il demo senza agente: collega un fornitore, poi sceglilo nelle Impostazioni Progetto, scheda «AI & RAG».",
+          "TIMEOUT": "Ho trovato {{name}}, ma non mi ha risposto in tempo. Apro il demo senza agente: puoi sceglierlo dopo nelle Impostazioni Progetto, scheda «AI & RAG».",
+          "ERROR": "Ho trovato {{name}}, ma non sono riuscito a controllarlo: {{detail}} Apro il demo senza agente.",
+          "SEVERAL": "Ho trovato {{names}}, ma nessuno è pronto all'uso. Apro il demo senza agente: quando uno è pronto, lo scegli nelle Impostazioni Progetto, scheda «AI & RAG»."
+        },
+        "PROBE_FAILED": "Non sono riuscito a controllare gli agenti AI di questo computer: {{error}}. Apro il demo senza agente: lo sceglierai nelle Impostazioni Progetto, scheda «AI & RAG».",
+        "DONE": "Eccoci! Il progetto demo è aperto e configurato per {{name}}: la scheda «Mark Agent» ti aspetta.",
+        "DONE_NO_ENVIRONMENT": "Eccoci! Il progetto demo è aperto, senza agente AI. Da qui puoi navigare i markdown a piacere."
       }
     },
     "TIPS": {
