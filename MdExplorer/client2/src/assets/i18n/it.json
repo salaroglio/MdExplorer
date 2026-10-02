@@ -1443,6 +1443,7 @@
         "INTRO": "Adesso ti faccio vedere come si clona un repo pubblico — non serve un account GitHub: i repo pubblici si scaricano in anonimo.",
         "OPEN_DIALOG": "Apro io il dialog di clone... eccolo!",
         "FILL_URL": "Inserisco l'URL del repo demo (un piccolo progetto markdown pubblico)...",
+        "SET_BRANCH": "Il demo c'è in più lingue. Scelgo la versione in italiano: il ramo «{{branch}}».",
         "SET_PATH": "Scelgo io una cartella locale dove salvarlo, sotto Documenti.",
         "PRESS_CLONE": "Premo Clone... aspettiamo che il backend faccia il download.",
         "PROBE": "Prima guardo quali agenti AI ci sono su questo computer: Copilot CLI, Claude Code, opencode...",

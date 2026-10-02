@@ -91,6 +91,7 @@
       <mat-form-field appearance="outline" class="full-width">
         <mat-label>{{ 'CLONE.BRANCH_OPTIONAL' | translate }}</mat-label>
         <input matInput
+               data-test="clone-branch-input"
                [(ngModel)]="cloneRequest.branchName"
                [placeholder]="'CLONE.BRANCH_PLACEHOLDER' | translate">
         <mat-hint>{{ 'CLONE.BRANCH_HINT' | translate }}</mat-hint>

@@ -1423,6 +1423,7 @@
         "INTRO": "Let me show you how to clone a public repo — no GitHub account needed: public repos are anonymously downloadable.",
         "OPEN_DIALOG": "I'll open the clone dialog for you... here it is!",
         "FILL_URL": "Filling in the URL of a small public markdown demo repo...",
+        "SET_BRANCH": "The demo comes in several languages. I'm picking the English version: the «{{branch}}» branch.",
         "SET_PATH": "Picking a local folder under your Documents directory.",
         "PRESS_CLONE": "Pressing Clone... let's wait for the backend to download.",
         "PROBE": "First I'll check which AI agents this computer has: Copilot CLI, Claude Code, opencode...",

@@ -54,12 +54,26 @@ import {
 const DEMO_REPO_URL = 'https://github.com/salaroglio/mdexplorer-demo.git';
 
 /**
+ * The demo exists in one version per language, each on its own branch of the same repository.
+ * Mark downloads the one of the language MdExplorer is set to. To add a language: translate the
+ * demo on a new branch and add a line here.
+ */
+const DEMO_BRANCH_BY_LANGUAGE: { [language: string]: string } = {
+  it: 'main',
+  en: 'en',
+};
+/** MdExplorer's own default language is English (LanguageService): the demo follows the same rule. */
+const DEMO_BRANCH_DEFAULT = 'en';
+const demoBranchFor = (language: string): string => DEMO_BRANCH_BY_LANGUAGE[language] || DEMO_BRANCH_DEFAULT;
+
+/**
  * Selector helpers — all relative to the open Modern Clone dialog.
  * The dialog uses .modern-clone-dialog as the root class.
  */
 const ROOT = '.modern-clone-dialog';
 const URL_INPUT = `${ROOT} mat-form-field:nth-of-type(1) input[matInput]`;     // first form field = repo URL
 const PATH_INPUT = `${ROOT} input[readonly]`;                                  // localPath is the only readonly one
+const BRANCH_INPUT = `${ROOT} input[data-test="clone-branch-input"]`;          // optional branch
 const CLONE_BTN = `${ROOT} mat-dialog-actions button[color="primary"]`;        // primary action button
 
 /** Product names: the same in every language. */
@@ -91,6 +105,8 @@ const emptyState = (): DemoTourState => ({ environments: [], usable: [], probeEr
  */
 export function buildDemoCloneTour(deps: {
   setHarnessForPath: (path: string, harness: string) => void;
+  /** Language MdExplorer is set to ('it', 'en'): it decides which branch of the demo is downloaded. */
+  currentLanguage: () => string;
 }): MarkLesson {
   let state = emptyState();
 
@@ -221,6 +237,19 @@ export function buildDemoCloneTour(deps: {
           await sleep(800);
           await setInputValue(URL_INPUT, DEMO_REPO_URL);
           // ngModelChange triggers detectProviderFromUrl → "GitHub" badge appears
+          await sleep(800);
+        },
+      },
+
+      // Step 3b — choose the branch: the demo in the language MdExplorer is set to
+      {
+        textKey: 'MARK.TOUR.DEMO_CLONE.SET_BRANCH',
+        targetSelector: BRANCH_INPUT,
+        durationMs: 0,
+        resolve: () => ({ textParams: { branch: demoBranchFor(deps.currentLanguage()) } }),
+        autoExecute: async () => {
+          await sleep(600);
+          await setInputValue(BRANCH_INPUT, demoBranchFor(deps.currentLanguage()));
           await sleep(800);
         },
       },

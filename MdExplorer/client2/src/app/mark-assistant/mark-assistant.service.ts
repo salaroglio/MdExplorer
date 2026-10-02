@@ -213,6 +213,7 @@ export class MarkAssistantService {
       launch: (id: string) => this.launch(id),
       launchNextMicroTip: () => this.launchNextMicroTip(),
       setHarnessForPath: (path: string, harness: string) => this.projectsService.setHarnessForPath(path, harness),
+      currentLanguage: () => this.translate.currentLang || this.translate.defaultLang || 'en',
     });
     this.registerInputHandlers();
     this.subscribeRouteChanges();
