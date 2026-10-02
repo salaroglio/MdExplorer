@@ -322,6 +322,20 @@ namespace MdExplorer
             services.AddSingleton<MdExplorer.Features.Services.AI.OpenCode.OpenCodeModelSource>();
             services.AddSingleton<IModelDiscoveryProvider, OpenCodeModelDiscovery>();
 
+            // Probe degli ambienti agentici del computer (Copilot CLI, Claude Code, opencode): lo usa
+            // Mark per aprire il progetto demo già configurato. L'ordine qui è l'ordine in cui gli
+            // esiti arrivano al client.
+            services.AddSingleton<MdExplorer.Features.Services.AI.AgenticEnvironments.IAgenticEnvironmentCheck,
+                MdExplorer.Features.Services.AI.AgenticEnvironments.CopilotEnvironmentCheck>();
+            services.AddSingleton<MdExplorer.Features.Services.AI.AgenticEnvironments.IAgenticEnvironmentCheck,
+                MdExplorer.Features.Services.AI.AgenticEnvironments.ClaudeCodeEnvironmentCheck>();
+            services.AddSingleton<MdExplorer.Features.Services.AI.AgenticEnvironments.IAgenticEnvironmentCheck,
+                MdExplorer.Features.Services.AI.AgenticEnvironments.OpenCodeEnvironmentCheck>();
+            services.AddSingleton<MdExplorer.Features.Services.AI.AgenticEnvironments.IAgenticEnvironmentProbe>(sp =>
+                new MdExplorer.Features.Services.AI.AgenticEnvironments.AgenticEnvironmentProbe(
+                    sp.GetServices<MdExplorer.Features.Services.AI.AgenticEnvironments.IAgenticEnvironmentCheck>(),
+                    sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<MdExplorer.Features.Services.AI.AgenticEnvironments.AgenticEnvironmentProbe>>()));
+
             // Add AI Tool Calling services
             // PathValidator is now created dynamically by ToolExecutor with the current workspace root
             services.AddScoped<Abstractions.Services.IAiFileOperationNotifier, Services.AiFileOperationNotifier>();
