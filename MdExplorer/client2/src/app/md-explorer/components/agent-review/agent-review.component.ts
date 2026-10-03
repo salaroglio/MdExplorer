@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
-import { AgentReviewService, ChangedFile, MergeRequest } from '../../services/agent-review.service';
+import { AgentReviewService, ApproveChoice, ChangedFile, MergeRequest, NotifyCandidate } from '../../services/agent-review.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { ProjectsService } from '../../services/projects.service';
 import { ReviewContextService } from '../../services/review-context.service';
@@ -25,6 +25,12 @@ export class AgentReviewComponent implements OnInit, OnDestroy {
   loading = false;
   busyId: string | null = null;
   projectPath = '';
+
+  /** Valore della scelta «nessun avviso»: non può coincidere con il nome di un agente (kebab-case). */
+  readonly NOBODY = '__nobody__';
+
+  /** La scelta della persona per ogni richiesta: nome del collega o NOBODY. Assente = non ha ancora scelto. */
+  choice: { [requestId: string]: string } = {};
 
   private sub: Subscription;
   private projectSub: Subscription;
@@ -65,19 +71,59 @@ export class AgentReviewComponent implements OnInit, OnDestroy {
     if (!this.projectPath) return;
     this.loading = true;
     this.review.pending(this.projectPath).subscribe({
-      next: (res) => { this.requests = res?.requests || []; this.loading = false; },
+      next: (res) => { this.requests = res?.requests || []; this.preselect(); this.loading = false; },
       error: () => { this.loading = false; },
     });
   }
 
+  /**
+   * Con un solo collega raggiungibile la scelta è già fatta (si può cambiare in «nessuno»); con più di uno
+   * la persona deve scegliere: il pulsante resta spento finché non lo fa. Una scelta già espressa si tiene.
+   */
+  private preselect(): void {
+    const next: { [id: string]: string } = {};
+    for (const r of this.requests) {
+      const c = r.notifyCandidates || [];
+      if (c.length === 0) continue;
+      const kept = this.choice[r.id];
+      if (kept && (kept === this.NOBODY || c.some(x => x.name === kept && x.available))) { next[r.id] = kept; continue; }
+      const open = c.filter(x => x.available);
+      if (c.length === 1 && open.length === 1) next[r.id] = open[0].name;
+    }
+    this.choice = next;
+  }
+
+  hasRecipients(r: MergeRequest): boolean { return (r.notifyCandidates || []).length > 0; }
+
+  /** «Autorizza» è disponibile solo se la persona ha scelto (o se non c'è nessuno da avvisare). */
+  canApprove(r: MergeRequest): boolean { return !this.hasRecipients(r) || !!this.choice[r.id]; }
+
   approve(r: MergeRequest): void {
     this.busyId = r.id;
-    this.review.approve(r.id).subscribe({
-      next: () => { this.busyId = null; this.toast('AGENT_REVIEW.MERGED'); this.refresh(); },
+    const picked = this.choice[r.id];
+    const choice: ApproveChoice = !picked ? {} : picked === this.NOBODY ? { nobody: true } : { notify: picked };
+    this.review.approve(r.id, choice).subscribe({
+      next: (res) => {
+        this.busyId = null;
+        const n = res?.notice;
+        if (!n) this.toast('AGENT_REVIEW.MERGED');
+        else if (n.notified)
+          this.snackBar.open(this.translate.instant('AGENT_REVIEW.MERGED_AND_NOTIFIED', { name: n.recipient }), 'OK', { duration: 8000 });
+        else
+          // Fuso, ma l'avviso non è partito: la persona deve saperlo, il lavoro non è passato di mano.
+          this.snackBar.open(this.translate.instant('AGENT_REVIEW.MERGED_NOT_NOTIFIED', { name: n.recipient, reason: n.error }), 'OK', { duration: 20000 });
+        this.refresh();
+      },
       error: (err) => {
         this.busyId = null;
+        // Nessuna scelta o scelta non valida: non si è fuso niente. Si aggiorna l'elenco e si dice il perché.
+        if (err?.error?.code === 'choose-recipient' || err?.error?.code?.startsWith('recipient-')) {
+          this.snackBar.open(err.error.error, 'OK', { duration: 12000 });
+          this.refresh();
+          return;
+        }
         // Autorizzata ma non fusa (tipicamente un conflitto): dirlo, non nasconderlo.
-        const note = err?.error?.note || this.translate.instant('AGENT_REVIEW.MERGE_FAILED');
+        const note = err?.error?.note || err?.error?.error || this.translate.instant('AGENT_REVIEW.MERGE_FAILED');
         this.snackBar.open(note, 'OK', { duration: 12000 });
         this.refresh();
       },

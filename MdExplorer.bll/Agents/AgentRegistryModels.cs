@@ -57,6 +57,13 @@ namespace MdExplorer.Features.Agents
 
         /// <summary>Override del limite hop del destinatario (<c>a2a.max_hops</c>); null = default.</summary>
         public int? MaxHops { get; set; }
+
+        /// <summary>
+        /// Agenti che «Approva» può avvisare dopo una consegna di questo agente
+        /// (<c>a2a.on_approval_notify</c>); vuota = nessun avviso.
+        /// </summary>
+        public IList<string> OnApprovalNotify { get; set; } = new List<string>();
+
     }
 
     /// <summary>
@@ -104,6 +111,13 @@ namespace MdExplorer.Features.Agents
 
         /// <summary>Override del limite hop conversazione del destinatario (<c>max_hops</c>); null = default.</summary>
         public int? MaxHops { get; set; }
+
+        /// <summary>
+        /// Agenti che «Approva» può avvisare dopo una consegna di questo agente
+        /// (<c>a2a.on_approval_notify</c>); vuota = nessun avviso.
+        /// </summary>
+        public IList<string> OnApprovalNotify { get; set; } = new List<string>();
+
 
         /// <summary>Trust confermato dall'umano (dal record <c>AgentIdentity</c>).</summary>
         public bool Trusted { get; set; }

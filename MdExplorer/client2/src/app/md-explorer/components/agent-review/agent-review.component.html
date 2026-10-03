@@ -51,9 +51,27 @@
       </li>
     </ul>
 
+    <!-- Chi riceve il lavoro dopo «Autorizza»: lo dichiara la scheda dell'agente. Con più di un collega
+         sceglie la persona; nessuno si sveglia da solo, l'avviso parte dal suo gesto. -->
+    <div class="handover" *ngIf="hasRecipients(r) && !r.sessionOpen">
+      <div class="handover-title">
+        <mat-icon>forward_to_inbox</mat-icon> {{ 'AGENT_REVIEW.HANDOVER_TITLE' | translate }}
+      </div>
+      <mat-radio-group class="handover-list" [(ngModel)]="choice[r.id]" [disabled]="busyId === r.id">
+        <mat-radio-button *ngFor="let c of r.notifyCandidates" [value]="c.name" [disabled]="!c.available"
+                          [matTooltip]="c.reason || ''" [matTooltipDisabled]="c.available">
+          <span class="who">{{ c.name }}</span>
+          <span class="role" *ngIf="c.role"> — {{ c.role }}</span>
+          <span class="why" *ngIf="!c.available"> · {{ c.reason }}</span>
+        </mat-radio-button>
+        <mat-radio-button [value]="NOBODY">{{ 'AGENT_REVIEW.HANDOVER_NOBODY' | translate }}</mat-radio-button>
+      </mat-radio-group>
+      <p class="handover-hint" *ngIf="!choice[r.id]">{{ 'AGENT_REVIEW.HANDOVER_CHOOSE' | translate }}</p>
+    </div>
+
     <!-- Sessione aperta: ci stai già lavorando, quindi le scelte sono altre. -->
     <div class="actions" *ngIf="!r.sessionOpen">
-      <button mat-stroked-button color="primary" [disabled]="busyId === r.id" (click)="approve(r)">
+      <button mat-stroked-button color="primary" [disabled]="busyId === r.id || !canApprove(r)" (click)="approve(r)">
         <mat-icon>merge</mat-icon> {{ 'AGENT_REVIEW.APPROVE' | translate }}
       </button>
       <button mat-stroked-button [disabled]="busyId === r.id" (click)="take(r)"

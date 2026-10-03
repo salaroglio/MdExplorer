@@ -64,5 +64,14 @@ namespace MdExplorer.Features.Tests.Agents
                 AgentTrustHasher.ComputeHash(b, null),
                 "allargare accepts_messages_from deve far decadere il trust (R3)");
         }
+
+        [TestMethod]
+        public void Keep_the_hash_of_cards_that_do_not_declare_on_approval_notify()
+        {
+            // Impronta calcolata PRIMA di aggiungere on_approval_notify alla scheda: aggiungere un campo
+            // opzionale non deve far decadere la fiducia di nessun agente già confermato.
+            var h = AgentTrustHasher.ComputeHash(Card(), new[] { "read", "write" });
+            Assert.AreEqual("53ae5899133d493c5ec63d1b4d84518634a1c7224fecd1f04c17b73785d04348", h);
+        }
     }
 }

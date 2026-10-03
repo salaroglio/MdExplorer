@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using YamlDotNet.Serialization;
 
 namespace MdExplorer.Features.Yaml.Models
 {
@@ -30,6 +31,20 @@ namespace MdExplorer.Features.Yaml.Models
         /// Null = default harness. Il cap (16) è applicato a valle, dal registry.
         /// </summary>
         public int? MaxHops { get; set; }
+
+        /// <summary>
+        /// A chi passa il lavoro quando la persona approva una consegna di questo agente
+        /// (<c>a2a.on_approval_notify</c>): i nomi degli agenti che il pulsante «Approva» può
+        /// avvisare. Uno solo = va a quello; più di uno = la persona sceglie. Null = nessun avviso
+        /// (comportamento di sempre).
+        /// <para>
+        /// Sta nel blocco <c>a2a:</c>, quindi cambiarlo fa decadere la fiducia (R3): non si cambia la
+        /// destinazione del lavoro senza che la persona se ne accorga. <b>OmitNull</b>: se non è
+        /// dichiarato non compare nell'impronta, e le schede già fidate restano fidate.
+        /// </para>
+        /// </summary>
+        [YamlMember(DefaultValuesHandling = DefaultValuesHandling.OmitNull)]
+        public IList<string> OnApprovalNotify { get; set; }
     }
 
     /// <summary>Una skill dichiarata nella Agent Card (<c>a2a.skills[]</c>).</summary>

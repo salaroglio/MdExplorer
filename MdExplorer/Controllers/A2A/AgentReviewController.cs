@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using MdExplorer.Abstractions.Entities.UserDB;
+using MdExplorer.Features.Agents;
 using MdExplorer.Services.AgentRun;
 using MdExplorer.Utilities;
 using Microsoft.AspNetCore.Mvc;
@@ -26,17 +27,20 @@ namespace MdExplorer.Controllers.A2A
         private readonly IAgentMergeRequestService _requests;
         private readonly IAgentWorktreeManager _worktree;
         private readonly IAgentWorktreeHoldService _sessions;
+        private readonly IAgentApprovalNotifier _notifier;
         private readonly ILogger<AgentReviewController> _logger;
 
         public AgentReviewController(
             IAgentMergeRequestService requests,
             IAgentWorktreeManager worktree,
             IAgentWorktreeHoldService sessions,
+            IAgentApprovalNotifier notifier,
             ILogger<AgentReviewController> logger)
         {
             _requests = requests;
             _worktree = worktree;
             _sessions = sessions;
+            _notifier = notifier;
             _logger = logger;
         }
 
@@ -51,20 +55,82 @@ namespace MdExplorer.Controllers.A2A
             return Ok(new { requests = list });
         }
 
-        /// <summary>Autorizza: la richiesta viene fusa nel ramo principale.</summary>
+        /// <summary>
+        /// Autorizza: la richiesta viene fusa nel ramo principale e, se la scheda dell'agente lo dichiara
+        /// (<c>on_approval_notify</c>), la persona avvisa il collega.
+        /// <para>
+        /// Con <b>più di un destinatario</b> la persona deve scegliere (<c>notify</c>) oppure dire che non
+        /// avvisa nessuno (<c>nobody</c>): senza scelta non si fonde niente e la risposta elenca i candidati.
+        /// La scelta si controlla <b>prima</b> del merge, così non resta un lavoro fuso a metà strada.
+        /// </para>
+        /// </summary>
         [HttpPost("requests/{id}/approve")]
-        public async Task<IActionResult> Approve(Guid id)
+        public async Task<IActionResult> Approve(Guid id, [FromBody] ApproveRequest? body = null)
         {
             try
             {
+                var request = _requests.Get(id);
+                if (request == null)
+                    return UnprocessableEntity(new { error = $"Richiesta di merge {id} inesistente." });
+
+                var candidates = _notifier.CandidatesFor(request.ProjectPath, request.AgentName);
+                string recipient = null;
+
+                if (candidates.Count > 0 && body?.Nobody != true)
+                {
+                    if (!string.IsNullOrWhiteSpace(body?.Notify))
+                    {
+                        var chosen = candidates.FirstOrDefault(c =>
+                            string.Equals(c.Name, body.Notify.Trim(), StringComparison.OrdinalIgnoreCase));
+                        if (chosen == null)
+                            return UnprocessableEntity(new
+                            {
+                                error = $"'{body.Notify}' non è tra i destinatari di '{request.AgentName}'.",
+                                code = "recipient-unknown",
+                                candidates = candidates.Select(ToCandidateDto).ToList(),
+                            });
+                        if (!chosen.Available)
+                            return UnprocessableEntity(new
+                            {
+                                error = chosen.Reason,
+                                code = "recipient-unavailable",
+                                candidates = candidates.Select(ToCandidateDto).ToList(),
+                            });
+                        recipient = chosen.Name;
+                    }
+                    else if (candidates.Count == 1 && candidates[0].Available)
+                    {
+                        recipient = candidates[0].Name;
+                    }
+                    else
+                    {
+                        // Più destinatari, o l'unico non raggiungibile: la decisione è della persona.
+                        return Conflict(new
+                        {
+                            error = candidates.Count == 1
+                                ? candidates[0].Reason
+                                : $"'{request.AgentName}' può passare il lavoro a più colleghi: scegli a chi, o approva senza avvisare nessuno.",
+                            code = "choose-recipient",
+                            needsChoice = true,
+                            candidates = candidates.Select(ToCandidateDto).ToList(),
+                        });
+                    }
+                }
+
                 var r = await _requests.ApproveAsync(id, HttpContext.RequestAborted);
                 if (r.Status != AgentMergeRequest.StatusEnum.Merged)
                 {
                     // Autorizzata ma non fusa: e' una condizione da dire, non da nascondere
-                    // dietro un 200 che sembra un successo.
+                    // dietro un 200 che sembra un successo. Se non e' fusa, nessuno viene avvisato.
                     return StatusCode(409, ToDto(r));
                 }
-                return Ok(ToDto(r));
+
+                ApprovalNotice notice = null;
+                if (recipient != null)
+                    notice = _notifier.Notify(r.ProjectPath, r.AgentName, recipient,
+                        _requests.FilesOf(r).Select(f => f.Path));
+
+                return Ok(ToDto(r, notice));
             }
             catch (InvalidOperationException ex)
             {
@@ -137,7 +203,15 @@ namespace MdExplorer.Controllers.A2A
             return Ok(new { result.Closed, result.Requeued, result.Message });
         }
 
-        private object ToDto(AgentMergeRequest r) => new
+        private static object ToCandidateDto(ApprovalRecipient c) => new
+        {
+            name = c.Name,
+            role = c.Role,
+            available = c.Available,
+            reason = c.Reason,
+        };
+
+        private object ToDto(AgentMergeRequest r, ApprovalNotice notice = null) => new
         {
             id = r.Id,
             agentName = r.AgentName,
@@ -150,7 +224,23 @@ namespace MdExplorer.Controllers.A2A
             // "ci stai lavorando" invece di riproporre "prendi in mano".
             sessionOpen = _sessions.IsHeld(r.ProjectPath, r.AgentName),
             files = _requests.FilesOf(r).Select(f => new { change = f.Change, path = f.Path }).ToList(),
+            // A chi può passare il lavoro la persona che approva (vuota = nessun avviso): la UI la mostra
+            // PRIMA di «Approva» e chiede la scelta se i candidati sono più d'uno.
+            notifyCandidates = r.Status == AgentMergeRequest.StatusEnum.Pending
+                ? _notifier.CandidatesFor(r.ProjectPath, r.AgentName).Select(ToCandidateDto).ToList()
+                : new System.Collections.Generic.List<object>(),
+            // Esito dell'avviso dopo «Approva»; assente se non c'era nessuno da avvisare.
+            notice = notice == null ? null : new { notified = notice.Notified, recipient = notice.Recipient, error = notice.Error },
         };
+
+        public class ApproveRequest
+        {
+            /// <summary>A quale collega passare il lavoro (obbligatorio se i candidati sono più d'uno).</summary>
+            public string? Notify { get; set; }
+
+            /// <summary>Approva senza avvisare nessuno.</summary>
+            public bool Nobody { get; set; }
+        }
 
         public class RejectRequest
         {

@@ -93,6 +93,38 @@
     .f-renamed mat-icon { color: #6a1b9a; }
   }
 
+  // A chi passa il lavoro dopo «Autorizza»: la scelta è della persona, quindi si vede prima del pulsante.
+  .handover {
+    margin: 0 0 8px;
+    padding: 6px 8px;
+    border: 1px solid rgba(128, 128, 128, .35);
+    border-radius: 6px;
+
+    .handover-title {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 4px;
+
+      mat-icon { font-size: 14px; height: 14px; width: 14px; }
+    }
+
+    .handover-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      font-size: 11px;
+
+      .who { font-weight: 600; }
+      .role { opacity: .75; }
+      .why { color: #c62828; }
+    }
+
+    .handover-hint { margin: 4px 0 0; font-size: 11px; color: #ef6c00; }
+  }
+
   .actions {
     display: flex;
     flex-wrap: wrap;

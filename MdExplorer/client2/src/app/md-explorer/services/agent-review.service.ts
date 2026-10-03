@@ -26,6 +26,25 @@ export interface MergeRequest {
   /** C'è una sessione d'intervento aperta su questo agente: ci stai già lavorando. */
   sessionOpen: boolean;
   files: ChangedFile[];
+  /** A chi può passare il lavoro chi approva (scheda dell'agente: `on_approval_notify`). Vuota = nessun avviso. */
+  notifyCandidates: NotifyCandidate[];
+  /** Esito dell'avviso, presente solo nella risposta a «Autorizza». */
+  notice?: { notified: boolean; recipient: string; error: string | null } | null;
+}
+
+/** Un collega a cui «Autorizza» può passare il lavoro, e se oggi è raggiungibile. */
+export interface NotifyCandidate {
+  name: string;
+  role: string | null;
+  available: boolean;
+  /** Perché non è raggiungibile (non esiste, non è fidato…); null se lo è. */
+  reason: string | null;
+}
+
+/** La scelta di chi approva: un collega, oppure nessuno. */
+export interface ApproveChoice {
+  notify?: string;
+  nobody?: boolean;
 }
 
 export interface TakeResult {
@@ -45,8 +64,8 @@ export class AgentReviewService {
     });
   }
 
-  approve(id: string): Observable<MergeRequest> {
-    return this.http.post<MergeRequest>(`../api/AgentReview/requests/${id}/approve`, {});
+  approve(id: string, choice: ApproveChoice = {}): Observable<MergeRequest> {
+    return this.http.post<MergeRequest>(`../api/AgentReview/requests/${id}/approve`, choice);
   }
 
   reject(id: string, note?: string): Observable<MergeRequest> {

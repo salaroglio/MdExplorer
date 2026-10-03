@@ -50,6 +50,7 @@ namespace MdExplorer.Features.Agents
                     RuntimeProvider = d.RuntimeProvider,
                     RuntimeModel = d.RuntimeModel,
                     AcceptsMessagesFrom = d.AcceptsMessagesFrom ?? new List<string>(),
+                    OnApprovalNotify = d.OnApprovalNotify ?? new List<string>(),
                     MaxHops = d.MaxHops,
                     CurrentA2ABlockHash = d.CurrentA2ABlockHash,
                 };
