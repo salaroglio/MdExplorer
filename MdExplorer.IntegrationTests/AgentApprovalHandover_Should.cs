@@ -55,6 +55,8 @@ namespace MdExplorer.IntegrationTests
             public ApprovalNotice Result;
             public readonly List<string> Notified = new();
 
+            public string Summary;
+            public string SummaryOf(string projectPath, string agentName) => Summary;
             public IReadOnlyList<ApprovalRecipient> CandidatesFor(string projectPath, string producerAgent) => Candidates;
             public ApprovalNotice Notify(string projectPath, string producerAgent, string recipient, IEnumerable<string> files)
             {
@@ -198,6 +200,19 @@ namespace MdExplorer.IntegrationTests
             var notice = body.GetProperty("notice");
             Assert.IsFalse(notice.GetProperty("notified").GetBoolean());
             Assert.AreEqual("mailbox piena", notice.GetProperty("error").GetString());
+        }
+
+        [TestMethod]
+        public void Show_what_the_agent_does_next_to_the_approval()
+        {
+            var (c, req, n) = Build();
+            n.Summary = "Controlla le fatture contro il contratto.";
+            var item = Read(c.Pending("/p")).body.GetProperty("requests")[0];
+            Assert.AreEqual("Controlla le fatture contro il contratto.", item.GetProperty("agentSummary").GetString());
+
+            n.Summary = null;
+            item = Read(c.Pending("/p")).body.GetProperty("requests")[0];
+            Assert.AreEqual(JsonValueKind.Null, item.GetProperty("agentSummary").ValueKind, "una scheda senza riassunto non ne inventa uno");
         }
 
         [TestMethod]

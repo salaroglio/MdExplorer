@@ -1813,7 +1813,38 @@
     "TRUST_ERROR": "Impossibile aggiornare il trust dell'agente.",
     "UNTRUST_TITLE": "Revocare il trust?",
     "UNTRUST_MESSAGE": "L'agente \"{{agent}}\" smetterà di partecipare finché non gli viene riconcesso il trust.",
-    "UNTRUST_CONFIRM": "Revoca"
+    "UNTRUST_CONFIRM": "Revoca",
+    "WHERE": "Potrà partecipare alle conversazioni e lavorare dentro {{project}}.",
+    "WHAT_IT_DOES": "Che cosa fa",
+    "DECLARED": "scritto dall'autore, non verificato",
+    "NO_SUMMARY": "L'autore non ha scritto nessun riassunto: non sai cosa fa. Controlla la scheda dell'agente prima di fidarti.",
+    "ON_YOUR_COMPUTER": "Cosa può fare sul tuo computer",
+    "COMPUTED": "calcolato dall'app",
+    "HANDOVER": "Quando approvi il suo lavoro puoi passarlo a: {{names}}.",
+    "LIMITS": "L'app limita i comandi e la scrittura di file. Altri strumenti del motore (Copilot, Claude Code, opencode) dipendono dal motore scelto.",
+    "CANCEL": "Annulla",
+    "EFFECTS": {
+      "read-files": {
+        "YES": "Legge i file del progetto",
+        "NO": "Non legge i file del progetto"
+      },
+      "search-documents": {
+        "YES": "Cerca nei documenti del progetto",
+        "NO": "Non usa la ricerca nei documenti"
+      },
+      "write-files": {
+        "YES": "Crea e modifica file nel progetto (le consegne passano dalla tua approvazione)",
+        "NO": "Non modifica file"
+      },
+      "run-commands": {
+        "YES": "Esegue comandi sul computer",
+        "NO": "Non esegue comandi"
+      },
+      "message-others": {
+        "YES": "Può scrivere agli altri agenti e a te",
+        "NO": "Non scrive a nessuno"
+      }
+    }
   },
   "AGENT_REVIEW": {
     "TITLE": "Lavoro degli agenti da rivedere",

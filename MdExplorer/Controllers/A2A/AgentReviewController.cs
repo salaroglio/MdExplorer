@@ -224,6 +224,8 @@ namespace MdExplorer.Controllers.A2A
             // "ci stai lavorando" invece di riproporre "prendi in mano".
             sessionOpen = _sessions.IsHeld(r.ProjectPath, r.AgentName),
             files = _requests.FilesOf(r).Select(f => new { change = f.Change, path = f.Path }).ToList(),
+            // Che cosa fa l'agente che ha consegnato (dalla sua scheda): chi approva deve poterlo rileggere qui.
+            agentSummary = _notifier.SummaryOf(r.ProjectPath, r.AgentName),
             // A chi può passare il lavoro la persona che approva (vuota = nessun avviso): la UI la mostra
             // PRIMA di «Approva» e chiede la scelta se i candidati sono più d'uno.
             notifyCandidates = r.Status == AgentMergeRequest.StatusEnum.Pending

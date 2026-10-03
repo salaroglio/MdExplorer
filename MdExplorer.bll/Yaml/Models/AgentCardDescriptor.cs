@@ -45,6 +45,21 @@ namespace MdExplorer.Features.Yaml.Models
         /// </summary>
         [YamlMember(DefaultValuesHandling = DefaultValuesHandling.OmitNull)]
         public IList<string> OnApprovalNotify { get; set; }
+
+        /// <summary>Lunghezza massima del riassunto: è testo che la persona legge prima di fidarsi, deve restare breve.</summary>
+        public const int SummaryMaxLength = 500;
+
+        /// <summary>
+        /// Che cosa fa l'agente, in poche righe (<c>a2a.summary</c>): è ciò che la persona legge nella finestra di fiducia.
+        /// <para>
+        /// È una <b>dichiarazione dell'autore</b>, non una garanzia: la UI la mostra distinta da ciò che l'app calcola e
+        /// fa rispettare (gli strumenti). Sta nel blocco <c>a2a:</c>, quindi cambiarlo fa decadere la fiducia: la persona
+        /// non può aver letto una descrizione e trovarsene un'altra. <b>OmitNull</b>: una scheda senza riassunto ha la
+        /// stessa impronta di prima.
+        /// </para>
+        /// </summary>
+        [YamlMember(DefaultValuesHandling = DefaultValuesHandling.OmitNull)]
+        public string Summary { get; set; }
     }
 
     /// <summary>Una skill dichiarata nella Agent Card (<c>a2a.skills[]</c>).</summary>

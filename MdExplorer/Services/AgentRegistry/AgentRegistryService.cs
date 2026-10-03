@@ -272,6 +272,7 @@ namespace MdExplorer.Services.AgentRegistry
                         OnApprovalNotify = (parsed.Card.OnApprovalNotify ?? new List<string>())
                             .Select(n => n?.Trim()).Where(n => !string.IsNullOrEmpty(n))
                             .Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
+                        Summary = parsed.Card.Summary,
                         // R3: impronta del blocco a2a: + tools: per la decadenza del trust.
                         CurrentA2ABlockHash = AgentTrustHasher.ComputeHash(parsed.Card, parsed.Tools),
                     });

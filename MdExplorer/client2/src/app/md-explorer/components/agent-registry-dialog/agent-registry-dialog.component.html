@@ -41,6 +41,7 @@
       </div>
 
       <div *ngIf="agent.role" class="agent-role">{{ agent.role }}</div>
+      <div *ngIf="agent.summary" class="agent-summary" [title]="'AGENT_TRUST.DECLARED' | translate">{{ agent.summary }}</div>
 
       <div *ngIf="agent.skills?.length" class="agent-section">
         <span class="section-label">{{ 'AGENT_REGISTRY.SKILLS' | translate }}:</span>

@@ -27,6 +27,8 @@
       <span class="when" [title]="r.createdAt">{{ r.createdAt | date:'short' }}</span>
     </div>
 
+    <p class="agent-summary" *ngIf="r.agentSummary" [title]="r.agentSummary">{{ r.agentSummary }}</p>
+
     <!-- Il nome del branch racconta il lavoro: padrone, agente, data, cosa ha toccato. -->
     <div class="branch" [matTooltip]="'AGENT_REVIEW.BRANCH_TOOLTIP' | translate">
       <mat-icon>alt_route</mat-icon> {{ r.branch }}

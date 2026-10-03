@@ -27,6 +27,9 @@ namespace MdExplorer.Services.AgentRun
         /// <summary>I destinatari possibili per le consegne di <paramref name="producerAgent"/> (vuota = nessun avviso).</summary>
         IReadOnlyList<ApprovalRecipient> CandidatesFor(string projectPath, string producerAgent);
 
+        /// <summary>Che cosa fa l'agente che consegna (<c>a2a.summary</c>), per mostrarlo accanto ad «Autorizza»; null se non lo dichiara.</summary>
+        string SummaryOf(string projectPath, string agentName);
+
         /// <summary>Accoda l'avviso a <paramref name="recipient"/>. Rivalida il destinatario dalle fonti.</summary>
         ApprovalNotice Notify(string projectPath, string producerAgent, string recipient, IEnumerable<string> files);
     }
@@ -46,6 +49,10 @@ namespace MdExplorer.Services.AgentRun
 
         public IReadOnlyList<ApprovalRecipient> CandidatesFor(string projectPath, string producerAgent)
             => ApprovalRoute.Candidates(_registry.RefreshCatalog(projectPath), producerAgent);
+
+        public string SummaryOf(string projectPath, string agentName)
+            => _registry.RefreshCatalog(projectPath)
+                .FirstOrDefault(e => e.IsCitizen && string.Equals(e.Name, agentName, StringComparison.OrdinalIgnoreCase))?.Summary;
 
         public ApprovalNotice Notify(string projectPath, string producerAgent, string recipient, IEnumerable<string> files)
         {

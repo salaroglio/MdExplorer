@@ -89,6 +89,14 @@ namespace MdExplorer.Features.Yaml
                 return Invalid(error);
 
             card.Name = card.Name.Trim();
+            if (card.Summary != null)
+            {
+                card.Summary = card.Summary.Trim();
+                if (card.Summary.Length == 0) card.Summary = null;
+                else if (card.Summary.Length > AgentCardDescriptor.SummaryMaxLength)
+                    return Invalid($"'summary' è lungo {card.Summary.Length} caratteri: il massimo è {AgentCardDescriptor.SummaryMaxLength}. " +
+                                   "Chi autorizza l'agente lo legge per intero, deve restare breve.");
+            }
             card.Skills ??= new List<AgentCardSkill>();
             card.AcceptsMessagesFrom ??= new List<string>();
             return new AgentCardParseResult

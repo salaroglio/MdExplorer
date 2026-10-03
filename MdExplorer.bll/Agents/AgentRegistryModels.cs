@@ -64,6 +64,9 @@ namespace MdExplorer.Features.Agents
         /// </summary>
         public IList<string> OnApprovalNotify { get; set; } = new List<string>();
 
+        /// <summary>Che cosa fa l'agente, dalla sua scheda (<c>a2a.summary</c>): dichiarazione dell'autore, non verificata.</summary>
+        public string Summary { get; set; }
+
     }
 
     /// <summary>
@@ -117,6 +120,15 @@ namespace MdExplorer.Features.Agents
         /// (<c>a2a.on_approval_notify</c>); vuota = nessun avviso.
         /// </summary>
         public IList<string> OnApprovalNotify { get; set; } = new List<string>();
+
+        /// <summary>Che cosa fa l'agente, dalla sua scheda (<c>a2a.summary</c>): dichiarazione dell'autore, non verificata.</summary>
+        public string Summary { get; set; }
+
+        /// <summary>
+        /// Cosa può fare sul computer, <b>calcolato dagli strumenti dichiarati</b> (gli unici che l'app fa rispettare).
+        /// La finestra di fiducia lo mostra distinto dal riassunto scritto dall'autore.
+        /// </summary>
+        public IList<AgentEffect> Effects => AgentEffects.For(Tools);
 
 
         /// <summary>Trust confermato dall'umano (dal record <c>AgentIdentity</c>).</summary>

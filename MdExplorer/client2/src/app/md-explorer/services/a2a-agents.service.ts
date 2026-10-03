@@ -8,6 +8,14 @@ export interface AgentSkill {
   description: string;
 }
 
+/** Una cosa che l'agente può (o esplicitamente non può) fare sul computer; la frase sta nelle traduzioni. */
+export interface AgentEffect {
+  id: string;
+  granted: boolean;
+  /** Esce dalla sola lettura: la UI la evidenzia. */
+  danger: boolean;
+}
+
 /**
  * Una voce del catalogo del registry ("Pagine Gialle" del progetto, §6).
  * `registrationError` non-null ⇒ voce esclusa (fail-loud, visibile in UI).
@@ -17,8 +25,14 @@ export interface AgentRegistryEntry {
   kind: string; // 'llm' | 'algorithmic'
   agentFilePath?: string;
   role?: string;
+  /** Che cosa fa, scritto dall'autore (a2a.summary): una dichiarazione, non verificata. */
+  summary?: string;
   skills: AgentSkill[];
   tools: string[];
+  /** Cosa può fare sul computer: calcolato dall'app dagli strumenti dichiarati. */
+  effects?: AgentEffect[];
+  /** A chi passa il lavoro «Autorizza» (a2a.on_approval_notify). */
+  onApprovalNotify?: string[];
   trusted: boolean;
   enabled: boolean;
   trustDecayed: boolean;

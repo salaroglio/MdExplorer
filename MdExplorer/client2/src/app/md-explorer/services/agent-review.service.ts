@@ -26,6 +26,8 @@ export interface MergeRequest {
   /** C'è una sessione d'intervento aperta su questo agente: ci stai già lavorando. */
   sessionOpen: boolean;
   files: ChangedFile[];
+  /** Che cosa fa l'agente che ha consegnato (dalla sua scheda); assente se non lo dichiara. */
+  agentSummary?: string | null;
   /** A chi può passare il lavoro chi approva (scheda dell'agente: `on_approval_notify`). Vuota = nessun avviso. */
   notifyCandidates: NotifyCandidate[];
   /** Esito dell'avviso, presente solo nella risposta a «Autorizza». */

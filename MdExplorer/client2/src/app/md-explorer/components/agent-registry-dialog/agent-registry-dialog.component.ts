@@ -9,6 +9,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { A2aAgentsService, AgentRegistryEntry } from '../../services/a2a-agents.service';
 import { ConfirmDialogComponent } from '../../../commons/components/confirm-dialog/confirm-dialog.component';
+import { AgentTrustDialogComponent, AgentTrustDialogData } from '../agent-trust-dialog/agent-trust-dialog.component';
 
 export interface AgentRegistryDialogData {
   projectPath: string;
@@ -77,29 +78,12 @@ export class AgentRegistryDialogComponent implements OnInit {
   }
 
   async trust(agent: AgentRegistryEntry): Promise<void> {
-    const toolsDisplay = agent.tools && agent.tools.length
-      ? agent.tools.map((t) => (this.isDangerous(t) ? `${t} ⚠` : t)).join(', ')
-      : this.translate.instant('AGENT_REGISTRY.NO_TOOLS');
-    const hasDangerous = (agent.tools || []).some((t) => this.isDangerous(t));
-
-    let message = this.translate.instant('AGENT_TRUST.MESSAGE', {
-      agent: agent.name,
-      project: this.data.projectPath,
-      tools: toolsDisplay,
-    });
-    if (hasDangerous) {
-      message += '\n\n' + this.translate.instant('AGENT_TRUST.DANGER_WARNING');
-    }
-
+    // Cosa fa l'agente e cosa può fare sul computer, prima del «Mi fido».
     const confirmed = await firstValueFrom(
       this.dialog
-        .open(ConfirmDialogComponent, {
-          width: '520px',
-          data: {
-            title: this.translate.instant('AGENT_TRUST.TITLE'),
-            message,
-            confirmText: this.translate.instant('AGENT_TRUST.CONFIRM'),
-          },
+        .open(AgentTrustDialogComponent, {
+          width: '560px',
+          data: { agent, projectPath: this.data.projectPath } as AgentTrustDialogData,
         })
         .afterClosed(),
     );

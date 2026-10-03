@@ -1813,7 +1813,38 @@
     "TRUST_ERROR": "Could not update the agent's trust.",
     "UNTRUST_TITLE": "Revoke trust?",
     "UNTRUST_MESSAGE": "The agent \"{{agent}}\" will stop participating in conversations until trusted again.",
-    "UNTRUST_CONFIRM": "Revoke"
+    "UNTRUST_CONFIRM": "Revoke",
+    "WHERE": "It will be able to take part in conversations and work inside {{project}}.",
+    "WHAT_IT_DOES": "What it does",
+    "DECLARED": "written by the author, not verified",
+    "NO_SUMMARY": "The author wrote no summary: you can't tell what it does. Check the agent's card before trusting it.",
+    "ON_YOUR_COMPUTER": "What it can do on your computer",
+    "COMPUTED": "computed by the app",
+    "HANDOVER": "When you approve its work you can hand it over to: {{names}}.",
+    "LIMITS": "The app limits commands and file writing. Other engine tools (Copilot, Claude Code, opencode) depend on the engine you chose.",
+    "CANCEL": "Cancel",
+    "EFFECTS": {
+      "read-files": {
+        "YES": "Reads the project's files",
+        "NO": "Does not read the project's files"
+      },
+      "search-documents": {
+        "YES": "Searches the project's documents",
+        "NO": "Does not use document search"
+      },
+      "write-files": {
+        "YES": "Creates and edits files in the project (its deliveries go through your approval)",
+        "NO": "Does not edit files"
+      },
+      "run-commands": {
+        "YES": "Runs commands on the computer",
+        "NO": "Does not run commands"
+      },
+      "message-others": {
+        "YES": "Can write to other agents and to you",
+        "NO": "Writes to nobody"
+      }
+    }
   },
   "AGENT_REVIEW": {
     "TITLE": "Agent work to review",
