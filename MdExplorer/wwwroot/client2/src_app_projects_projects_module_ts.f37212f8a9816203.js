@@ -6430,7 +6430,6 @@ class ProjectSettingsComponent {
     this.agentWorktreeSlots = 2;
     this.agentWorktreeDefaultSlots = 2;
     this.agentWorktreeMaxSlots = 8;
-    this.agentAutoMergeDeliverables = false;
     /** Senza git non esistono worktree né merge: le due opzioni restano spente e non toccabili. */
     this.projectIsGit = false;
     // Relay della federazione (per progetto). La chiave non arriva mai dal server:
@@ -6898,7 +6897,6 @@ class ProjectSettingsComponent {
         this.agentCityEnabled = !!res?.enabled;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
-        this.agentAutoMergeDeliverables = !!res?.autoMergeAgentDeliverables;
         this.projectIsGit = !!res?.isGitRepository;
       },
       error: err => console.error('Error loading Agent City settings:', err)
@@ -7133,17 +7131,15 @@ class ProjectSettingsComponent {
     this.saving = true;
     this.projectSettingsService.setAgentCity(this.projectPath, {
       enabled: this.agentCityEnabled,
-      ownershipDoc: this.agentCityOwnershipDoc?.trim() || undefined,
-      // Inviato sempre esplicito: il server preserva i valori solo quando il campo è assente,
-      // quindi mandarlo evita ambiguità fra "non deciso" e "spento apposta". Il worktree NON
-      // passa di qui: è una preferenza di macchina, ha il suo endpoint.
-      autoMergeAgentDeliverables: this.agentAutoMergeDeliverables
+      ownershipDoc: this.agentCityOwnershipDoc?.trim() || undefined
+      // Solo ciò che questa schermata decide. L'auto-merge dei deliverable è ritirato (la sua casella
+      // non c'è più) e il worktree è una preferenza di macchina con un endpoint suo: mandarli, anche
+      // a `false`, scriveva nel `.development.yml` scelte che nessuno aveva fatto e sporcava il progetto.
     }).subscribe({
       next: res => {
         this.saving = false;
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
-        this.agentAutoMergeDeliverables = !!res?.autoMergeAgentDeliverables;
         // La toolbar mostra i comandi della città in base a questo flag: allineala
         // subito, altrimenti resterebbe ferma fino alla riapertura del progetto.
         // Il service ignora il salvataggio se riguarda un progetto non aperto.
@@ -9585,4 +9581,4 @@ class NgDialogAnimationService {
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_projects_projects_module_ts.be9dac825cf3c75c.js.map
+//# sourceMappingURL=src_app_projects_projects_module_ts.f37212f8a9816203.js.map

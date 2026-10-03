@@ -347,6 +347,10 @@ namespace MdExplorer.Services.AgentRun
                         // progetto vero, altrimenti l'agente parlerebbe a nome di un worktree.
                         WorkingDirectory = workDir,
                         Environment = env,
+                        // Il manifesto `tools:` della scheda vale anche per chi è lanciato a mano: prima passava
+                        // solo dal dispatcher, e un agente con `tools: [read, search]` eseguiva comandi di shell
+                        // se lo lanciavi dalla UI.
+                        DeclaredTools = DeclaredToolsOf(agentContent),
                     }, cts.Token);
                 }
                 finally
@@ -480,6 +484,18 @@ namespace MdExplorer.Services.AgentRun
         /// The engine asked for the run: the launch dialog's choice (D12: the user's choice wins), otherwise the card's
         /// <c>runtime:</c>. Empty = the project's, resolved by the turn runner.
         /// </summary>
+        /// <summary>
+        /// Il manifesto <c>tools:</c> che il motore deve far rispettare. Un cittadino (blocco <c>a2a:</c>) senza
+        /// <c>tools:</c> è in sola lettura, come per i risvegli da messaggio; un agente senza manifesto e non
+        /// cittadino (<c>null</c>) gira come prima: il limite vale per chi ha una dichiarazione da far rispettare.
+        /// </summary>
+        public static IReadOnlyList<string> DeclaredToolsOf(string agentContent)
+        {
+            var parsed = new MdExplorer.Features.Yaml.YamlAgentCardParser().GetDescriptor(agentContent);
+            if (parsed.Tools != null) return parsed.Tools.ToList();
+            return parsed.IsCitizen ? new List<string>() : null;
+        }
+
         public static (string Provider, string Model) RequestedEngine(AgentRunRequestModel request, string agentContent)
         {
             if (!string.IsNullOrWhiteSpace(request.Engine))

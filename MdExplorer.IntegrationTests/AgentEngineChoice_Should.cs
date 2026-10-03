@@ -220,6 +220,33 @@ namespace MdExplorer.IntegrationTests
             }
         }
 
+        // ---- i lanci a mano leggono il manifesto dalla scheda ----
+
+        [TestMethod]
+        public void Read_the_declared_tools_of_a_manually_launched_agent_from_its_card()
+        {
+            var card = "---\ntools: [read, search]\na2a:\n  name: x\n---\ncorpo";
+
+            CollectionAssert.AreEqual(new[] { "read", "search" }, AgentRunJobService.DeclaredToolsOf(card).ToArray());
+        }
+
+        [TestMethod]
+        public void Keep_a_citizen_without_tools_read_only_when_launched_by_hand()
+        {
+            var card = "---\na2a:\n  name: x\n---\ncorpo";
+
+            Assert.AreEqual(0, AgentRunJobService.DeclaredToolsOf(card).Count,
+                "un cittadino senza manifesto non può scrivere né eseguire");
+        }
+
+        [TestMethod]
+        public void Leave_a_plain_agent_without_a_manifest_unrestricted()
+        {
+            Assert.IsNull(AgentRunJobService.DeclaredToolsOf("---\ndescription: un agente\n---\ncorpo"),
+                "gli agenti schedulati senza manifesto girano come prima");
+            Assert.IsNull(AgentRunJobService.DeclaredToolsOf("solo testo"));
+        }
+
         [TestMethod]
         public void Fail_an_opencode_turn_whose_model_call_failed_instead_of_an_empty_success()
         {

@@ -52,7 +52,6 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   agentWorktreeSlots: number = 2;
   agentWorktreeDefaultSlots: number = 2;
   agentWorktreeMaxSlots: number = 8;
-  agentAutoMergeDeliverables: boolean = false;
   /** Senza git non esistono worktree né merge: le due opzioni restano spente e non toccabili. */
   projectIsGit: boolean = false;
 
@@ -585,7 +584,6 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.agentCityEnabled = !!res?.enabled;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
-        this.agentAutoMergeDeliverables = !!res?.autoMergeAgentDeliverables;
         this.projectIsGit = !!(res as any)?.isGitRepository;
       },
       error: (err) => console.error('Error loading Agent City settings:', err)
@@ -826,16 +824,14 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.projectSettingsService.setAgentCity(this.projectPath, {
       enabled: this.agentCityEnabled,
       ownershipDoc: this.agentCityOwnershipDoc?.trim() || undefined,
-      // Inviato sempre esplicito: il server preserva i valori solo quando il campo è assente,
-      // quindi mandarlo evita ambiguità fra "non deciso" e "spento apposta". Il worktree NON
-      // passa di qui: è una preferenza di macchina, ha il suo endpoint.
-      autoMergeAgentDeliverables: this.agentAutoMergeDeliverables,
+      // Solo ciò che questa schermata decide. L'auto-merge dei deliverable è ritirato (la sua casella
+      // non c'è più) e il worktree è una preferenza di macchina con un endpoint suo: mandarli, anche
+      // a `false`, scriveva nel `.development.yml` scelte che nessuno aveva fatto e sporcava il progetto.
     }).subscribe({
       next: (res) => {
         this.saving = false;
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
-        this.agentAutoMergeDeliverables = !!res?.autoMergeAgentDeliverables;
         // La toolbar mostra i comandi della città in base a questo flag: allineala
         // subito, altrimenti resterebbe ferma fino alla riapertura del progetto.
         // Il service ignora il salvataggio se riguarda un progetto non aperto.
