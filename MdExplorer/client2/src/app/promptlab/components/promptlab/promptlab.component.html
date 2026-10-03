@@ -4,18 +4,10 @@
   <span class="badge">{{ 'PROMPTLAB.TITLE' | translate }}</span>
   <span class="spacer"></span>
 
-  <!-- Model selector -->
-  <div class="model-selector-wrapper">
-    <select class="model-selector"
-            [(ngModel)]="selectedModel"
-            (ngModelChange)="onModelChange($event)"
-            [style.display]="isLoadingModels ? 'none' : 'inline-block'">
-      <option *ngFor="let m of models" [value]="m.value">{{ m.label }}</option>
-    </select>
-    <span class="model-loading" *ngIf="isLoadingModels">
-      <span class="spinner"></span> {{ 'PROMPTLAB.LOADING_MODELS' | translate }}
-    </span>
-  </div>
+  <!-- The engine: the project's, the MarkAgent tab's (sprint 2026-09-29-Motore-LLM-Unico, D7); read-only -->
+  <span class="engine-label" [title]="'PROMPTLAB.ENGINE_HINT' | translate">
+    {{ 'PROMPTLAB.ENGINE' | translate }}: {{ engineLabel || ('PROMPTLAB.ENGINE_NONE' | translate) }}
+  </span>
 
   <!-- Mode toggle -->
   <div class="mode-toggle">
@@ -84,12 +76,6 @@
         <div class="settings-section-header">
           <label class="settings-label">{{ 'PROMPTLAB.SYSTEM_PROMPT' | translate }}</label>
           <div class="settings-section-actions">
-            <select class="settings-model-select"
-                    [ngModel]="systemPromptModel"
-                    (ngModelChange)="onPromptModelChange('system', $event)">
-              <option value="">{{ 'PROMPTLAB.DEFAULT' | translate }} ({{ selectedModel || '—' }})</option>
-              <option *ngFor="let m of models" [value]="m.value">{{ m.label }}</option>
-            </select>
             <button class="settings-reset-btn" (click)="resetSystemPrompt()" [title]="'PROMPTLAB.RESET_DEFAULT' | translate">&#8634; {{ 'PROMPTLAB.DEFAULT' | translate }}</button>
           </div>
         </div>
@@ -107,12 +93,6 @@
         <div class="settings-section-header">
           <label class="settings-label">{{ 'PROMPTLAB.SEQUENCE_DIAGRAM' | translate }}</label>
           <div class="settings-section-actions">
-            <select class="settings-model-select"
-                    [ngModel]="sequencePromptModel"
-                    (ngModelChange)="onPromptModelChange('sequence', $event)">
-              <option value="">{{ 'PROMPTLAB.DEFAULT' | translate }} ({{ selectedModel || '—' }})</option>
-              <option *ngFor="let m of models" [value]="m.value">{{ m.label }}</option>
-            </select>
             <button class="settings-reset-btn" (click)="resetSequencePrompt()" [title]="'PROMPTLAB.RESET_DEFAULT' | translate">&#8634; {{ 'PROMPTLAB.DEFAULT' | translate }}</button>
           </div>
         </div>
@@ -130,12 +110,6 @@
         <div class="settings-section-header">
           <label class="settings-label">{{ 'PROMPTLAB.WORKFLOW_DIAGRAM' | translate }}</label>
           <div class="settings-section-actions">
-            <select class="settings-model-select"
-                    [ngModel]="workflowPromptModel"
-                    (ngModelChange)="onPromptModelChange('workflow', $event)">
-              <option value="">{{ 'PROMPTLAB.DEFAULT' | translate }} ({{ selectedModel || '—' }})</option>
-              <option *ngFor="let m of models" [value]="m.value">{{ m.label }}</option>
-            </select>
             <button class="settings-reset-btn" (click)="resetWorkflowPrompt()" [title]="'PROMPTLAB.RESET_DEFAULT' | translate">&#8634; {{ 'PROMPTLAB.DEFAULT' | translate }}</button>
           </div>
         </div>

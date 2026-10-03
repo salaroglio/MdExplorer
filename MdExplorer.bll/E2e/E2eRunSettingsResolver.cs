@@ -1,0 +1,83 @@
+using System;
+using System.IO;
+
+namespace MdExplorer.Features.E2e
+{
+    /// <summary>A resolved setting and where it comes from: a file path, or null for MdExplorer's default.</summary>
+    public sealed record E2eSetting(bool Value, string Source);
+
+    /// <summary>A resolved text setting and where it comes from; a null value = the project's (engine, model).</summary>
+    public sealed record E2eTextSetting(string Value, string Source);
+
+    /// <param name="Engine">The engine of the tests (D10): null = the project's.</param>
+    /// <param name="Model">The model, taken from the same place as <paramref name="Engine"/>: null = the engine's.</param>
+    public sealed record E2eEffectiveRunSettings(E2eTextSetting Engine, E2eTextSetting Model, E2eSetting CommitAfterRun, E2eSetting Headless);
+
+    /// <summary>
+    /// The settings a run of a test uses (D21-D24): each key is taken, one by one, from the first place
+    /// that says it — the test's own front matter, then the <c>&lt;folder&gt;.md.directory</c> of its
+    /// folder, then of every folder above it up to the project root — and otherwise from MdExplorer's
+    /// defaults. The particular wins over the general.
+    /// </summary>
+    public static class E2eRunSettingsResolver
+    {
+        public static readonly E2eRunSettings Defaults = new(Engine: null, Model: null, CommitAfterRun: false, Headless: true);
+
+        /// <summary>The settings file of a folder: <c>&lt;folder&gt;/&lt;folder name&gt;.md.directory</c>.</summary>
+        public static string FolderSettingsPath(string folder)
+        {
+            var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
+            return Path.Combine(full, Path.GetFileName(full) + ".md.directory");
+        }
+
+        /// <summary>The settings for a test file; for a folder pass <paramref name="path"/> = the folder.</summary>
+        public static E2eEffectiveRunSettings Resolve(string path, string projectRoot)
+        {
+            var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectRoot));
+            var full = Path.GetFullPath(path);
+            var isFolder = Directory.Exists(full);
+
+            if (!IsInside(full, root))
+                throw new ArgumentException($"'{full}' non è dentro il progetto '{root}'.", nameof(path));
+
+            E2eTextSetting engine = null, model = null;
+            E2eSetting commit = null, headless = null;
+            void Take(E2eRunSettings run, string source)
+            {
+                // Engine and model travel together: a Copilot model inherited under Claude would mean nothing.
+                if (engine == null && run.Engine != null)
+                {
+                    engine = new E2eTextSetting(run.Engine, source);
+                    model = new E2eTextSetting(run.Model, source);
+                }
+                if (commit == null && run.CommitAfterRun != null) commit = new E2eSetting(run.CommitAfterRun.Value, source);
+                if (headless == null && run.Headless != null) headless = new E2eSetting(run.Headless.Value, source);
+            }
+
+            if (!isFolder) Take(ReadFile(full), full);
+
+            var folder = Path.TrimEndingDirectorySeparator(isFolder ? full : Path.GetDirectoryName(full));
+            while (true)
+            {
+                var settings = FolderSettingsPath(folder);
+                if (File.Exists(settings)) Take(ReadFile(settings), settings);
+                if (string.Equals(folder, root, PathComparison) || engine != null && commit != null && headless != null) break;
+                folder = Path.TrimEndingDirectorySeparator(Path.GetDirectoryName(folder));
+            }
+
+            return new E2eEffectiveRunSettings(
+                engine ?? new E2eTextSetting(null, null),
+                model ?? new E2eTextSetting(null, null),
+                commit ?? new E2eSetting(Defaults.CommitAfterRun.Value, null),
+                headless ?? new E2eSetting(Defaults.Headless.Value, null));
+        }
+
+        private static E2eRunSettings ReadFile(string path) =>
+            E2eFrontMatter.ReadRunSettings(File.ReadAllText(path), Path.GetFileName(path));
+
+        private static bool IsInside(string path, string root) => E2eRunPlanner.IsInside(path, root);
+
+        private static StringComparison PathComparison =>
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+    }
+}

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 
@@ -39,16 +40,38 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
         /// answer to "is it installed?" — runtime startup time is a different concern.
         /// </para>
         /// </summary>
+        /// <summary>
+        /// On Linux and macOS the CLI installed with npm lives in npm's global folder, which is in the
+        /// PATH of an interactive shell (nvm adds it from .bashrc) but not necessarily in the PATH of a
+        /// service started otherwise: the message says so, since that is the usual cause.
+        /// </summary>
+        private const string PosixNotFound =
+            "Copilot CLI non trovato nel PATH del servizio. Installalo con 'npm install -g @github/copilot'; " +
+            "se è già installato (per esempio con nvm), avvia MdExplorer da una shell che abbia la cartella di npm nel PATH.";
+
+        /// <summary>The absolute path of "copilot" in the PATH (POSIX), or null.</summary>
+        private static string PosixPath()
+        {
+            var posixPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+            foreach (var raw in posixPath.Split(Path.PathSeparator))
+            {
+                if (string.IsNullOrWhiteSpace(raw)) continue;
+                string candidate;
+                try { candidate = Path.Combine(raw.Trim(), "copilot"); }
+                catch (ArgumentException) { continue; }
+                if (File.Exists(candidate)) return candidate;
+            }
+            return null;
+        }
+
         public static bool IsResolvable()
         {
             if (!OperatingSystem.IsWindows())
             {
-                // POSIX: rely on which-style probe? We don't have one here without spawn.
-                // For now assume non-Windows path resolution is handled by the shell at
-                // launch time. The bool answer for "is installed" returns true and lets
-                // the actual launcher fail later if absent. Refine if a Linux user reports
-                // a false positive.
-                return true;
+                // POSIX: a real look in the PATH. Answering «yes» blindly made the launch fail later
+                // with a bare «No such file or directory» (29/09/2026: service started without nvm's
+                // folder in its PATH, «spiega il diagramma» tried a copilot it could not find).
+                return PosixPath() != null;
             }
 
             var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
@@ -65,6 +88,73 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
         }
 
         /// <summary>
+        /// Risolve il CLI nella forma che vuole l'SDK ufficiale: un eseguibile lanciabile
+        /// direttamente più gli argomenti che devono precedere quelli dell'SDK
+        /// (<c>RuntimeConnection.ForStdio(path, prefixArgs)</c> — verificato il 04/09/2026:
+        /// quegli argomenti sono un <b>prefisso</b>, l'SDK accoda i propri).
+        ///
+        /// <para>
+        /// Esiste separata da <see cref="BuildStartInfo"/> perché l'SDK non accetta una
+        /// riga di comando ma una coppia percorso + argomenti; la <i>logica di ricerca</i>
+        /// però è la stessa e resta qui, in un posto solo. Su Windows npm non installa un
+        /// <c>copilot.exe</c> ma degli shim, e uno shim non si lancia direttamente: per
+        /// quelli si passa da <c>cmd.exe /c</c> o da PowerShell, esattamente come fa
+        /// <see cref="BuildStartInfo"/>.
+        /// </para>
+        ///
+        /// <para>
+        /// Volutamente <b>non</b> si ripiega sul CLI incluso nel pacchetto NuGet dell'SDK:
+        /// MdExplorer ha sempre usato l'installazione dell'utente, che porta con sé la sua
+        /// autenticazione. Usarne un'altra vorrebbe dire chiedergli di rifare il login per
+        /// una funzione che prima andava.
+        /// </para>
+        /// </summary>
+        /// <exception cref="InvalidOperationException">Se il CLI non si trova nel PATH.</exception>
+        public static (string Path, List<string> PrefixArgs) ResolveStdioTarget()
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                // POSIX: "copilot" nel PATH è un eseguibile vero (loader npm con shebang).
+                // Si verifica che ci sia davvero, invece di restituirlo alla cieca: così
+                // l'errore dice "installalo" invece di un "No such file or directory" che
+                // costringe chi legge a indovinare di cosa si parla.
+                return (PosixPath() ?? throw new InvalidOperationException(PosixNotFound), new List<string>());
+            }
+
+            string exeMatch = null, cmdMatch = null, ps1Match = null;
+            var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+            foreach (var raw in pathEnv.Split(Path.PathSeparator))
+            {
+                if (string.IsNullOrWhiteSpace(raw)) continue;
+                var dir = raw.Trim().Trim('"');
+                if (dir.Length == 0) continue;
+                if (exeMatch == null && File.Exists(Path.Combine(dir, "copilot.exe"))) exeMatch = Path.Combine(dir, "copilot.exe");
+                if (cmdMatch == null && File.Exists(Path.Combine(dir, "copilot.cmd"))) cmdMatch = Path.Combine(dir, "copilot.cmd");
+                if (ps1Match == null && File.Exists(Path.Combine(dir, "copilot.ps1"))) ps1Match = Path.Combine(dir, "copilot.ps1");
+                if (exeMatch != null) break; // l'eseguibile vero vince
+            }
+
+            if (exeMatch != null) return (exeMatch, new List<string>());
+
+            if (cmdMatch != null)
+            {
+                var comspec = Environment.GetEnvironmentVariable("ComSpec");
+                if (string.IsNullOrEmpty(comspec)) comspec = "cmd.exe";
+                return (comspec, new List<string> { "/d", "/s", "/c", cmdMatch });
+            }
+
+            if (ps1Match != null)
+            {
+                return ("powershell.exe",
+                    new List<string> { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1Match });
+            }
+
+            throw new InvalidOperationException(
+                "Copilot CLI executable not found in PATH. Install it via 'winget install GitHub.Copilot' " +
+                "or 'npm install -g @github/copilot'. Looked for copilot.exe, copilot.cmd, copilot.ps1.");
+        }
+
+        /// <summary>
         /// Builds a <see cref="ProcessStartInfo"/> that runs <c>copilot</c> with the given args.
         /// Caller is responsible for additional settings (RedirectStandardOutput, WorkingDirectory, ...).
         /// </summary>
@@ -72,7 +162,12 @@ namespace MdExplorer.Features.Services.AI.CopilotAcp
         {
             if (!OperatingSystem.IsWindows())
             {
-                return new ProcessStartInfo { FileName = "copilot", Arguments = copilotArgs ?? string.Empty };
+                // The absolute path, found in the PATH: never a bare "copilot" for Process.Start to fail on.
+                return new ProcessStartInfo
+                {
+                    FileName = PosixPath() ?? throw new InvalidOperationException(PosixNotFound),
+                    Arguments = copilotArgs ?? string.Empty,
+                };
             }
 
             string exeMatch = null;

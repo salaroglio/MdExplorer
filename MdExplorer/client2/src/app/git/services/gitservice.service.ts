@@ -1,4 +1,5 @@
 import { HttpClient } from '@angular/common/http';
+import { GenericSetupRemoteRequest, GenericSetupRemoteResponse } from '../models/remote-setup.models';
 import { Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
@@ -19,8 +20,6 @@ import {
   GitHistoryRequest,
   GitHistoryResponse,
   RemoteStatus,
-  SetupRemoteRequest,
-  SetupRemoteResponse,
   ChangedFilesResponse,
   GitChangedFile,
   DiscardFileResponse
@@ -36,6 +35,18 @@ export class GITService implements OnDestroy {
   private readonly ACTIVE_POLLING_INTERVAL = 60000; // 60 secondi quando attivo
   private readonly INACTIVE_POLLING_INTERVAL = 300000; // 5 minuti quando inattivo
   private currentProjectPath: string = null;
+  /**
+   * Il polling non tocca la rete finché git non ha una credenziale. Su Windows ogni tentativo senza
+   * credenziale apre un login di Git Credential Manager nel browser: se l'utente l'ha chiuso, il
+   * polling ne riaprirebbe uno ogni minuto. Si riparte solo da un'azione dell'utente
+   * (checkConnection della toolbar: apertura progetto, «riprova», dopo push/pull/collega).
+   */
+  private remotePollingPaused = false;
+
+  /** Chiamato da un'azione dell'utente: il polling può tornare a chiedere al remoto. */
+  resumeRemotePolling(): void {
+    this.remotePollingPaused = false;
+  }
   
   public currentBranch$: BehaviorSubject<IBranch> = new BehaviorSubject<IBranch>(
     {
@@ -103,10 +114,23 @@ export class GITService implements OnDestroy {
    * IMPORTANT: Checks remote status first to authenticate, then fetches Git data using cached credentials
    */
   private performPoll(): void {
+    if (this.currentProjectPath && this.remotePollingPaused) {
+      // Solo i numeri locali: niente processi git verso il remoto, quindi niente login.
+      this.modernGetBranchStatus(this.currentProjectPath).subscribe(
+        branch => this.currentBranch$.next(branch),
+        error => console.error('Error in modern branch status:', error));
+      return;
+    }
     if (this.currentProjectPath) {
       // Step 1: Check remote status first (authenticates and caches credentials)
       this.checkRemoteStatus(this.currentProjectPath).subscribe(
         remoteStatus => {
+          // Credenziale mancante o rifiutata: ogni nuovo tentativo aprirebbe un login. La rete
+          // irraggiungibile (VPN spenta) invece NON ferma il polling: deve riprendersi da solo.
+          const networkDown = (remoteStatus.authenticationFailureReason || '').startsWith('Cannot connect');
+          if (remoteStatus.hasRemote && (remoteStatus.authenticationMissing || (remoteStatus.authenticationFailed && !networkDown))) {
+            this.remotePollingPaused = true;
+          }
           // Only proceed with Git operations if authentication is successful
           if (remoteStatus.hasRemote && remoteStatus.canAuthenticate) {
             // Step 2: Now fetch Git data (will use cached credentials, no additional auth)
@@ -553,33 +577,6 @@ export class GITService implements OnDestroy {
     );
   }
 
-  /**
-   * Setup GitHub remote for repository (legacy - GitHub specific)
-   */
-  setupGitHubRemote(projectPath: string, organization: string, repositoryName: string,
-                    saveOrganization: boolean = true, pushAfterAdd: boolean = true,
-                    repositoryDescription?: string, isPrivate?: boolean): Observable<SetupRemoteResponse> {
-    const request: SetupRemoteRequest = {
-      repositoryPath: projectPath,
-      organization: organization,
-      repositoryName: repositoryName,
-      repositoryDescription: repositoryDescription,
-      isPrivate: isPrivate !== undefined ? isPrivate : true,
-      saveOrganization: saveOrganization,
-      pushAfterAdd: pushAfterAdd
-    };
-    const url = '../api/ModernGit/setup-remote';
-
-    return this.http.post<SetupRemoteResponse>(url, request).pipe(
-      catchError(error => {
-        console.error('Error setting up remote:', error);
-        return of({
-          success: false,
-          error: error.error?.error || error.message || 'Failed to setup remote'
-        });
-      })
-    );
-  }
 
   // #region Generic Remote Setup Methods
 
@@ -600,149 +597,45 @@ export class GITService implements OnDestroy {
     );
   }
 
-  /**
-   * Validate remote with credentials
-   */
-  validateRemoteAuth(request: {
-    remoteUrl: string;
-    username?: string;
-    password?: string;
-    authMethod?: string;
-  }): Observable<any> {
-    const url = '../api/ModernGit/validate-remote-auth';
 
-    return this.http.post<any>(url, request).pipe(
+  /**
+   * «Collega a un repository remoto»: solo URL, account per l'host e primo push. `success`
+   * è vero solo se il remote è scritto E, se richiesto, il push è passato; `error` è lo
+   * stderr di git così com'è.
+   */
+  setupRemoteGeneric(request: GenericSetupRemoteRequest): Observable<GenericSetupRemoteResponse> {
+    const url = '../api/ModernGit/setup-remote-generic';
+    return this.http.post<GenericSetupRemoteResponse>(url, request).pipe(
       catchError(error => {
-        console.error('Error validating remote auth:', error);
+        console.error('Error setting up remote:', error);
+        const body = error.error || {};
         return of({
-          isReachable: false,
-          credentialsValid: false,
-          error: error.error?.error || error.message || 'Failed to validate credentials'
-        });
+          success: false,
+          message: body.message,
+          error: body.error || error.message || 'Failed to setup remote',
+          remoteUrl: request.remoteUrl,
+          pushAttempted: !!body.pushAttempted,
+          pushSucceeded: !!body.pushSucceeded,
+          durationMs: body.durationMs || 0
+        } as GenericSetupRemoteResponse);
       })
     );
   }
 
-  /**
-   * Setup generic remote (supports any Git provider)
-   */
-  setupRemoteGeneric(request: {
-    repositoryPath: string;
-    remoteUrl: string;
-    remoteName?: string;
-    authMethod?: string;
-    username?: string;
-    password?: string;
-    token?: string;
-    saveCredentials?: boolean;
-    pushAfterAdd?: boolean;
-    createRemoteRepo?: boolean;
-    repoDescription?: string;
-    isPrivate?: boolean;
-  }): Observable<any> {
-    const url = '../api/ModernGit/setup-remote-generic';
-
-    return this.http.post<any>(url, request).pipe(
-      catchError(error => {
-        console.error('Error setting up generic remote:', error);
-        return of({
-          success: false,
-          error: error.error?.error || error.message || 'Failed to setup remote'
-        });
-      })
+  /** L'esito del trasloco delle credenziali dal DB di MdExplorer al credential manager di git. */
+  getCredentialMoveReport(): Observable<{ moved: number; failed: number; nothingLeft: boolean; entries: Array<{ source: string; repositoryPath?: string; url?: string; username?: string; moved: boolean; reason?: string }> }> {
+    return this.http.get<any>('../api/ModernGit/credential-move').pipe(
+      catchError(() => of({ moved: 0, failed: 0, nothingLeft: true, entries: [] }))
     );
   }
 
   // #endregion
 
-  /**
-   * Get saved GitHub organization
-   */
-  getGitHubOrganization(): Observable<string> {
-    const url = '../api/ModernGit/github-organization';
 
-    return this.http.get<{ organization: string }>(url).pipe(
-      map(response => response.organization || ''),
-      catchError(error => {
-        console.error('Error getting GitHub organization:', error);
-        return of('');
-      })
-    );
-  }
 
-  /**
-   * Sets the GitHub personal access token
-   */
-  setGitHubToken(token: string): Observable<any> {
-    const url = '../api/ModernGit/github-token';
 
-    return this.http.post<any>(url, { token: token }).pipe(
-      map(response => response),
-      catchError(error => {
-        console.error('Error setting GitHub token:', error);
-        return of({ success: false });
-      })
-    );
-  }
 
-  /**
-   * Gets the GitHub token status (masked)
-   */
-  getGitHubToken(): Observable<any> {
-    const url = '../api/ModernGit/github-token';
 
-    return this.http.get<any>(url).pipe(
-      catchError(error => {
-        console.error('Error getting GitHub token:', error);
-        return of({ hasToken: false, maskedToken: '', tokenValid: false });
-      })
-    );
-  }
-
-  /**
-   * Tests the GitHub token validity
-   */
-  testGitHubToken(): Observable<any> {
-    const url = '../api/ModernGit/test-github-token';
-
-    return this.http.post<any>(url, {}).pipe(
-      map(response => response),
-      catchError(error => {
-        console.error('Error testing GitHub token:', error);
-        return of({ success: false, tokenValid: false });
-      })
-    );
-  }
-
-  /**
-   * Deletes the stored GitHub token
-   */
-  deleteGitHubToken(): Observable<any> {
-    const url = '../api/ModernGit/github-token';
-
-    return this.http.delete<any>(url).pipe(
-      map(response => response),
-      catchError(error => {
-        console.error('Error deleting GitHub token:', error);
-        throw error;
-      })
-    );
-  }
-
-  /**
-   * Save GitHub organization for future use
-   */
-  saveGitHubOrganization(organization: string): Observable<boolean> {
-    const url = '../api/ModernGit/github-organization';
-
-    return this.http.post<{ success: boolean }>(url, { organization: organization }).pipe(
-      map(response => response.success),
-      catchError(error => {
-        console.error('Error saving GitHub organization:', error);
-        return of(false);
-      })
-    );
-  }
 
   /**
    * Get list of all branches (local and remote)
@@ -905,34 +798,8 @@ export class GITService implements OnDestroy {
     };
   }
 
-  // ==================== Git Account Management ====================
 
-  /**
-   * Gets all unique usernames for a specific account type (GitHub, GitLab, etc.)
-   * Used by the clone UI to show available accounts for a provider
-   */
-  getUsernamesByType(accountType: string): Observable<Array<{ id: string; username: string; accountName: string }>> {
-    return this.http.get<Array<{ id: string; username: string; accountName: string }>>(
-      `../api/GitAccount/usernames-by-type?accountType=${encodeURIComponent(accountType)}`
-    ).pipe(
-      catchError(err => {
-        console.error('[GITService] Error getting usernames by type:', err);
-        return of([]);
-      })
-    );
-  }
 
-  /**
-   * Deletes a git account by ID
-   */
-  deleteGitAccount(id: string): Observable<{ success: boolean; message?: string }> {
-    return this.http.delete<{ success: boolean; message?: string }>(`../api/GitAccount/${id}`).pipe(
-      catchError(err => {
-        console.error('[GITService] Error deleting git account:', err);
-        return of({ success: false, message: err.error?.error || 'Failed to delete account' });
-      })
-    );
-  }
 
   /**
    * Cleanup quando il service viene distrutto

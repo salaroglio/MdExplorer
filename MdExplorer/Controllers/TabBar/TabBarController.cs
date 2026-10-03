@@ -20,6 +20,8 @@ using AutoMapper;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Features.Configuration.Interfaces;
+using MdExplorer.Features.Services.KnowledgeGraph;
 
 namespace MdExplorer.Service.Controllers.TabBar
 {
@@ -33,6 +35,7 @@ namespace MdExplorer.Service.Controllers.TabBar
         private readonly IHubContext<MonitorMDHub> _hubContext;
         private readonly IUserSettingsDB _sessionDB;
         private readonly ICommandRunner _commandRunner;
+        private readonly IApplicationExtensionConfiguration _extensionConfiguration;
 
         public TabBarController(ILogger<TabBarController> logger,
                                     IMapper mapper,
@@ -43,6 +46,7 @@ namespace MdExplorer.Service.Controllers.TabBar
                                     IWorkLink[] modifiers,
                                     IHelper helper,
                                     ICommandRunnerHtml commandRunner,
+                                    IApplicationExtensionConfiguration extensionConfiguration,
                                     IDatabaseManager databaseManager = null) : base(logger, options, hubContext, session, engineDB, commandRunner,modifiers,helper, databaseManager)
         {
             _logger = logger;
@@ -51,6 +55,7 @@ namespace MdExplorer.Service.Controllers.TabBar
             _hubContext = hubContext;
             _sessionDB = session;
             _commandRunner = commandRunner;
+            _extensionConfiguration = extensionConfiguration;
         }
 
         [HttpGet]
@@ -187,7 +192,9 @@ namespace MdExplorer.Service.Controllers.TabBar
             if (depth < 1) depth = 1;
             if (depth > 3) depth = 3;
 
-            string NormPath(string p) => string.IsNullOrEmpty(p) ? p : p.Replace("\\\\", "\\");
+            // Linked paths are stored as built when indexing — on Linux with "\", with ".." for
+            // relative links: normalized before any comparison (KnowledgeGraphFiles).
+            string NormPath(string p) => KnowledgeGraphFiles.NormalizePath(p);
 
             static bool IsExternalUrl(string p)
             {
@@ -246,6 +253,13 @@ namespace MdExplorer.Service.Controllers.TabBar
 
             var dal = GetEngineDB().GetDal<LinkInsideMarkdown>();
             var allLinks = dal.GetList().ToList();
+            // Normalized once per link: the walk below compares every link at every hop.
+            var normalizedLinks = allLinks.Select(l => new
+            {
+                Link = l,
+                Target = NormPath(l.FullPath),
+                Source = NormPath(l.MarkdownFile?.Path),
+            }).ToList();
 
             // Build a path -> TLDR lookup so we can attach TLDR text to every local node.
             // Uses normalized paths (deduped backslashes) as keys; falls back to case-insensitive comparison.
@@ -258,18 +272,9 @@ namespace MdExplorer.Service.Controllers.TabBar
                 tldrByPath[k] = mf.Tldr;
             }
 
-            string ToRelative(string full)
-            {
-                if (string.IsNullOrEmpty(full)) return full;
-                var fullN = NormPath(full);
-                if (!string.IsNullOrEmpty(projectRoot)
-                    && fullN.StartsWith(projectRoot, StringComparison.OrdinalIgnoreCase))
-                {
-                    var rel = fullN.Substring(projectRoot.Length).TrimStart('\\', '/');
-                    return rel.Replace('\\', '/');
-                }
-                return fullN.Replace('\\', '/');
-            }
+            // Null outside the project: such a node has no page to open (it used to come out
+            // absolute, and the page refused to navigate to it).
+            string ToRelative(string full) => KnowledgeGraphFiles.ToProjectRelative(full, projectRoot);
 
             var graph = new KnowledgeGraphDto { CenterId = normalizedCenter };
             var nodeMap = new Dictionary<string, KnowledgeGraphNodeDto>(StringComparer.OrdinalIgnoreCase);
@@ -282,6 +287,8 @@ namespace MdExplorer.Service.Controllers.TabBar
                 if (!nodeMap.TryGetValue(key, out var node))
                 {
                     tldrByPath.TryGetValue(fullPath, out var tldr);
+                    var relativePath = ToRelative(fullPath);
+                    var file = KnowledgeGraphFiles.Describe(fullPath, _extensionConfiguration.IsExtensionSupported);
                     node = new KnowledgeGraphNodeDto
                     {
                         Id = key,
@@ -289,8 +296,14 @@ namespace MdExplorer.Service.Controllers.TabBar
                         Label = string.IsNullOrWhiteSpace(label) ? System.IO.Path.GetFileName(fullPath) : label,
                         MdContext = mdContext,
                         IsCenter = isCenter,
-                        RelativePath = ToRelative(fullPath),
+                        RelativePath = relativePath,
                         Tldr = tldr,
+                        Kind = file.Kind,
+                        Exists = file.Exists,
+                        // The page can only open what is inside the project.
+                        OpenWith = file.OpenWith == KnowledgeGraphFiles.OpenInPage && relativePath == null
+                            ? KnowledgeGraphFiles.CannotOpen
+                            : file.OpenWith,
                     };
                     nodeMap[key] = node;
                 }
@@ -318,6 +331,9 @@ namespace MdExplorer.Service.Controllers.TabBar
                         ExternalUrl = key,
                         Cluster = ExternalCluster(key),
                         RelativePath = null,
+                        Kind = "web",
+                        OpenWith = KnowledgeGraphFiles.OpenInBrowser,
+                        Exists = true,
                     };
                     nodeMap[key] = node;
                 }
@@ -358,9 +374,9 @@ namespace MdExplorer.Service.Controllers.TabBar
                     //       so for external URLs it becomes a franken-path like
                     //       "C:\proj\https:\github.com\salaroglio\MdExplorer". The reliable
                     //       way to recognize external links is therefore link.Path.
-                    var inbound = allLinks.Where(l => l.FullPath != null
-                        && !IsExternalUrl(l.Path)
-                        && NormPath(l.FullPath).IndexOf(current, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+                    var inbound = normalizedLinks.Where(n => n.Target != null
+                        && !IsExternalUrl(n.Link.Path)
+                        && n.Target.IndexOf(current, StringComparison.OrdinalIgnoreCase) >= 0).Select(n => n.Link).ToList();
                     foreach (var link in inbound)
                     {
                         var srcFile = NormPath(link.MarkdownFile?.Path);
@@ -370,8 +386,8 @@ namespace MdExplorer.Service.Controllers.TabBar
                         if (!visited.Contains(srcFile)) { visited.Add(srcFile); nextFrontier.Add(srcFile); }
                     }
 
-                    var outbound = allLinks.Where(l => l.MarkdownFile != null && l.MarkdownFile.Path != null
-                        && NormPath(l.MarkdownFile.Path).IndexOf(current, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+                    var outbound = normalizedLinks.Where(n => n.Source != null
+                        && n.Source.IndexOf(current, StringComparison.OrdinalIgnoreCase) >= 0).Select(n => n.Link).ToList();
                     foreach (var link in outbound)
                     {
                         if (IsExternalUrl(link.Path))

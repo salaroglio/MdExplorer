@@ -87,12 +87,40 @@
     </div>
   </div>
 
+  <!-- La differenza di un file: qui, dove si guarda il documento, non in una colonna stretta. -->
+  <div class="diff-view" *ngIf="diffRequest">
+    <div class="diff-view-header">
+      <mat-icon>difference</mat-icon>
+      <span class="dv-repo" *ngIf="diffRequest.repo">{{ diffRequest.repoLabel }}</span>
+      <span class="dv-path">{{ diffRequest.path }}</span>
+      <span class="flexExpand"></span>
+      <span class="dv-base" *ngIf="diffRequest.agent">{{ diffRequest.agent }}</span>
+      <button mat-icon-button (click)="closeDiff()" [matTooltip]="'CHANGES.CLOSE_DIFF' | translate">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div class="diff-view-body">
+      <div *ngIf="diffLoading" class="dv-center"><mat-spinner diameter="28"></mat-spinner></div>
+      <div *ngIf="!diffLoading && diffError" class="dv-center dv-problem">
+        <mat-icon>error_outline</mat-icon>
+        <p>{{ diffError }}</p>
+      </div>
+      <div *ngIf="!diffLoading && !diffError && !diffText" class="dv-center">
+        <p>{{ 'CHANGES.DIFF_EMPTY' | translate }}</p>
+      </div>
+      <pre *ngIf="!diffLoading && !diffError && diffText" class="dv-diff"><span
+        *ngFor="let l of diffLines()" [ngClass]="'d-' + l.kind">{{ l.text }}
+</span></pre>
+    </div>
+  </div>
+
   <!-- Main Iframe Content -->
   <iframe #iframe
           id="mdIframe"
           name="mdIframe"
           class="content-iframe"
-          [hidden]="_HideIFrame || (isLoading$ | async) || (hasError$ | async) || (currentState$ | async)?.status === 'indexing' || (currentState$ | async)?.status === 'idle' || (currentState$ | async)?.status === 'deleted'"
+          [hidden]="diffRequest || _HideIFrame || (isLoading$ | async) || (hasError$ | async) || (currentState$ | async)?.status === 'indexing' || (currentState$ | async)?.status === 'idle' || (currentState$ | async)?.status === 'deleted'"
           [src]="htmlSource | safe"
           tabindex="0"
           role="document"

@@ -2,11 +2,24 @@
   display: block;
   padding: 0 16px;
   flex-shrink: 0;
+
+  /* ── Accenti componente — valori LIGHT ── */
+  --pdp-panel-bg: #f7f8fa;
+  --pdp-accent-fg: #ef6c00;
+  --pdp-accent-bg: #fff3e0;
+}
+
+:host-context(body.dark-theme),
+:host-context(body.milan-theme) {
+  /* ── Valori DARK originali, invariati ── */
+  --pdp-panel-bg: #1a1d21;
+  --pdp-accent-fg: #ff9800;
+  --pdp-accent-bg: #33280a;
 }
 
 .doc-template {
-  background: #1a1d21;
-  border: 2px solid #ff9800;
+  background: var(--pdp-panel-bg);
+  border: 2px solid var(--pdp-accent-fg);
   border-radius: 8px;
   margin: 16px 0;
   overflow: hidden;
@@ -17,17 +30,17 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: #252526;
-  border-bottom: 1px solid #3c3c3c;
+  background: var(--mde-bg-secondary);
+  border-bottom: 1px solid var(--mde-border-color);
 }
 
 .doc-icon {
-  color: #ff9800;
+  color: var(--pdp-accent-fg);
   font-size: 16px;
 }
 
 .doc-name {
-  color: #fff;
+  color: var(--mde-text-primary);
   font-size: 13px;
   font-weight: 600;
 }
@@ -38,14 +51,14 @@
 
 .doc-status {
   font-size: 10px;
-  color: #888;
+  color: var(--mde-text-hint);
   display: flex;
   align-items: center;
   gap: 4px;
 
   .count {
-    background: #33280a;
-    color: #ff9800;
+    background: var(--pdp-accent-bg);
+    color: var(--pdp-accent-fg);
     padding: 1px 6px;
     border-radius: 8px;
     font-weight: 600;
@@ -55,7 +68,7 @@
 .collapse-btn {
   background: none;
   border: none;
-  color: #888;
+  color: var(--mde-text-hint);
   font-size: 14px;
   cursor: pointer;
   padding: 2px 6px;
@@ -63,8 +76,8 @@
   transition: transform 0.2s;
 
   &:hover {
-    color: #fff;
-    background: #3c3c3c;
+    color: var(--mde-text-primary);
+    background: var(--mde-bg-hover);
   }
 }
 
@@ -78,7 +91,7 @@
 
 .empty-slots {
   padding: 16px;
-  color: #555;
+  color: var(--mde-text-hint);
   font-style: italic;
   font-size: 12px;
   text-align: center;
@@ -87,7 +100,7 @@
 .doc-prompt-slot {
   display: flex;
   padding: 10px 16px;
-  border-bottom: 1px solid #2a2a2a;
+  border-bottom: 1px solid var(--mde-bg-tertiary);
   gap: 12px;
   align-items: flex-start;
   transition: background 0.15s;
@@ -98,7 +111,7 @@
   }
 
   &:hover {
-    background: #252526;
+    background: var(--mde-bg-secondary);
   }
 }
 
@@ -107,8 +120,8 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #33280a;
-  color: #ff9800;
+  background: var(--pdp-accent-bg);
+  color: var(--pdp-accent-fg);
   font-size: 11px;
   font-weight: 700;
   display: flex;
@@ -124,18 +137,18 @@
 
 .slot-title {
   font-size: 11px;
-  color: #aaa;
+  color: var(--mde-text-secondary);
   margin-bottom: 4px;
 
   .card-link {
-    color: #ff9800;
+    color: var(--pdp-accent-fg);
     font-weight: 600;
   }
 }
 
 .slot-prompt {
   font-size: 12px;
-  color: #ccc;
+  color: var(--mde-text-secondary);
   line-height: 1.5;
   white-space: pre-wrap;
   overflow: hidden;
@@ -146,7 +159,7 @@
 
 .slot-arrow {
   flex-shrink: 0;
-  color: #555;
+  color: var(--mde-text-hint);
   font-size: 14px;
   margin-top: 4px;
 }

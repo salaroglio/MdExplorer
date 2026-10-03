@@ -1,0 +1,185 @@
+<h2 mat-dialog-title>
+  <mat-icon class="title-icon">fact_check</mat-icon>
+  {{ 'E2E.TITLE' | translate }} — {{ data.name }}
+</h2>
+
+<mat-dialog-content class="e2e-content">
+  <div *ngIf="loading" class="e2e-loading">
+    <mat-spinner diameter="24" strokeWidth="3"></mat-spinner>
+    <span>{{ 'E2E.LOADING' | translate }}</span>
+  </div>
+
+  <div *ngIf="error" class="e2e-message e2e-error">
+    <mat-icon>error_outline</mat-icon>
+    <span>{{ error }}</span>
+  </div>
+
+  <ng-container *ngIf="!loading && settings">
+    <!-- Impostazioni: il particolare vince sul generale -->
+    <section class="e2e-section">
+      <h3>{{ 'E2E.SETTINGS' | translate }}</h3>
+      <p class="e2e-note">
+        {{ (settings.target === 'folder' ? 'E2E.SETTINGS_FOLDER_NOTE' : 'E2E.SETTINGS_FILE_NOTE') | translate }}
+        <code>{{ settings.settingsFile }}</code>
+      </p>
+      <!-- Motore dei test (D10): suo, sempre in una sessione dedicata; «Eredita» porta a quello del progetto -->
+      <div class="e2e-setting">
+        <label class="e2e-label" for="e2e-engine">{{ 'E2E.ENGINE' | translate }}</label>
+        <div class="e2e-setting-line">
+          <mat-button-toggle-group id="e2e-engine" [value]="engineChoice" [disabled]="saving || running"
+                                   (change)="chooseEngine($event.value)">
+            <mat-button-toggle value="inherit">{{ 'E2E.INHERIT' | translate }}</mat-button-toggle>
+            <mat-button-toggle *ngFor="let e of engines" [value]="e.id">{{ e.label }}</mat-button-toggle>
+          </mat-button-toggle-group>
+          <span class="e2e-effective">= <b>{{ engineEffective }}</b></span>
+        </div>
+        <div class="e2e-hint">{{ 'E2E.ENGINE_HINT' | translate }}</div>
+      </div>
+      <div class="e2e-setting" *ngIf="engineChoice !== 'inherit'">
+        <label class="e2e-label" for="e2e-model">{{ 'E2E.MODEL' | translate }}</label>
+        <input id="e2e-model" class="e2e-model" [(ngModel)]="modelText" [disabled]="saving || running"
+               [placeholder]="'E2E.MODEL_PLACEHOLDER' | translate" (blur)="saveModel()" (keyup.enter)="saveModel()">
+      </div>
+      <div *ngFor="let row of settingRows" class="e2e-setting">
+        <label class="e2e-label" [attr.for]="'e2e-' + row.key">{{ row.label | translate }}</label>
+        <div class="e2e-setting-line">
+          <mat-button-toggle-group [id]="'e2e-' + row.key" [value]="choices[row.key]" [disabled]="saving || running"
+                                   (change)="choose(row.key, $event.value)">
+            <mat-button-toggle value="inherit">{{ 'E2E.INHERIT' | translate }}</mat-button-toggle>
+            <mat-button-toggle value="yes">{{ 'E2E.YES' | translate }}</mat-button-toggle>
+            <mat-button-toggle value="no">{{ 'E2E.NO' | translate }}</mat-button-toggle>
+          </mat-button-toggle-group>
+          <span class="e2e-effective" *ngIf="effective(row.key) as eff">
+            = <b>{{ (eff.value ? 'E2E.YES' : 'E2E.NO') | translate }}</b>, {{ sourceText(row.key) }}
+          </span>
+        </div>
+        <div class="e2e-hint">{{ row.hint | translate }}</div>
+      </div>
+    </section>
+
+    <!-- Controlli prima del lancio -->
+    <section class="e2e-section" *ngIf="plan">
+      <h3>{{ 'E2E.CHECKS' | translate }}</h3>
+      <div *ngFor="let e of plan.errors" class="e2e-message e2e-error">
+        <mat-icon>block</mat-icon><span>{{ e }}</span>
+      </div>
+      <div *ngFor="let w of plan.warnings" class="e2e-message e2e-warning">
+        <mat-icon>warning_amber</mat-icon><span>{{ w }}</span>
+      </div>
+      <div *ngFor="let item of plan.items" class="e2e-item">
+        <mat-icon class="e2e-ok">description</mat-icon>
+        <span><code>{{ item.file }}</code> — {{ 'E2E.TESTS_COUNT' | translate: { count: item.tests } }}</span>
+      </div>
+      <button *ngIf="needsGitIgnore" mat-stroked-button color="primary" (click)="addToGitIgnore()">
+        <mat-icon>visibility_off</mat-icon> {{ 'E2E.ADD_GITIGNORE' | translate }}
+      </button>
+      <div *ngIf="plan.canRun" class="e2e-message e2e-success">
+        <mat-icon>check_circle</mat-icon><span>{{ 'E2E.CHECKS_OK' | translate }}</span>
+      </div>
+    </section>
+
+    <!-- Script: rigioco senza LLM (F5) -->
+    <section class="e2e-section" *ngIf="plan && plan.items.length > 0">
+      <h3>{{ 'E2E.SCRIPTS' | translate }}</h3>
+      <ng-container *ngFor="let item of plan.items">
+        <div *ngIf="!item.scripts?.length" class="e2e-hint">
+          <code>{{ item.file }}</code>: {{ 'E2E.NO_SCRIPTS' | translate }}
+        </div>
+        <div *ngFor="let s of item.scripts" class="e2e-item">
+          <mat-icon [class.e2e-ok]="!s.stale" [class.e2e-ko]="s.stale">{{ s.stale ? 'update' : 'code' }}</mat-icon>
+          <span><code>{{ s.file }}</code> — {{ s.state || '?' }}<span *ngIf="s.stale">, {{ 'E2E.STALE' | translate }}</span></span>
+        </div>
+      </ng-container>
+      <div *ngIf="plan.dotnet && !plan.dotnet.ok" class="e2e-hint">{{ plan.dotnet.detail }} {{ plan.dotnet.remedy }}</div>
+      <div *ngIf="plan.dotnet?.ok && replayPackagesMissing" class="e2e-message e2e-warning">
+        <mat-icon>cloud_download</mat-icon>
+        <span>{{ 'E2E.REPLAY_PACKAGES_MISSING' | translate }}</span>
+        <button mat-stroked-button color="primary" [disabled]="restoring || running || replaying" (click)="restoreReplayPackages()">
+          <mat-icon>download</mat-icon> {{ 'E2E.REPLAY_PACKAGES_DOWNLOAD' | translate }}
+        </button>
+      </div>
+      <div *ngIf="restoring" class="e2e-loading">
+        <mat-spinner diameter="20" strokeWidth="2"></mat-spinner>
+        <span>{{ 'E2E.REPLAY_PACKAGES_DOWNLOADING' | translate }}</span>
+      </div>
+      <div *ngIf="replaying" class="e2e-loading">
+        <mat-spinner diameter="20" strokeWidth="2"></mat-spinner>
+        <span>{{ 'E2E.REPLAYING' | translate }}</span>
+      </div>
+      <ng-container *ngFor="let r of replayResults || []">
+        <div *ngIf="r.problem" class="e2e-message e2e-error"><mat-icon>error_outline</mat-icon><span><code>{{ r.file }}</code>: {{ r.problem }}</span></div>
+        <div *ngFor="let o of r.outcomes" class="e2e-message" [class.e2e-success]="o.passed" [class.e2e-error]="!o.passed">
+          <mat-icon>{{ o.passed ? 'check_circle' : 'cancel' }}</mat-icon>
+          <span>T{{ o.test }} ({{ o.script }}){{ o.passed ? '' : ': ' + o.message }}</span>
+        </div>
+        <div *ngIf="r.stale.length" class="e2e-message e2e-warning">
+          <mat-icon>update</mat-icon><span>{{ 'E2E.STALE_SKIPPED' | translate: { scripts: r.stale.join(', ') } }}</span>
+        </div>
+        <div *ngIf="canAnalyze(r)" class="e2e-analyze">
+          <button mat-stroked-button color="primary" (click)="analyze(r)">
+            <mat-icon>psychology</mat-icon> {{ 'E2E.ANALYZE' | translate }}
+          </button>
+        </div>
+        <div *ngIf="r.commit" class="e2e-hint">
+          {{ r.commit.committed ? ('E2E.COMMITTED' | translate: { sha: (r.commit.sha || '').slice(0, 8), message: r.commit.message })
+                                : ('E2E.NOT_COMMITTED' | translate: { file: r.file, reason: r.commit.reason }) }}
+        </div>
+      </ng-container>
+    </section>
+
+    <!-- Prerequisiti: il wizard secondario (D7) -->
+    <section class="e2e-section" *ngIf="prerequisites">
+      <h3>{{ 'E2E.PREREQUISITES' | translate }}</h3>
+      <div *ngFor="let row of requirementRows" class="e2e-requirement">
+        <ng-container *ngIf="requirement(row.key) as req">
+          <mat-icon [class.e2e-ok]="req.ok" [class.e2e-ko]="!req.ok">{{ req.ok ? 'check_circle' : 'cancel' }}</mat-icon>
+          <div class="e2e-requirement-text">
+            <b>{{ row.label | translate }}</b>: {{ req.detail }}
+            <div *ngIf="!req.ok && req.remedy" class="e2e-hint">{{ req.remedy }}</div>
+          </div>
+          <button *ngIf="!req.ok && req.installable && row.key !== 'electron'" mat-stroked-button color="primary"
+                  [disabled]="!!installing || running" (click)="install(row.key === 'browser' ? 'browser' : 'playwrightMcp')">
+            <mat-spinner *ngIf="installing === row.key" diameter="16" strokeWidth="2" class="inline-spinner"></mat-spinner>
+            {{ (row.key === 'browser' ? 'E2E.INSTALL_CHROMIUM' : 'E2E.INSTALL_PLAYWRIGHT') | translate }}
+          </button>
+        </ng-container>
+      </div>
+    </section>
+
+    <!-- Esecuzione -->
+    <section class="e2e-section" *ngIf="running || finished">
+      <h3>{{ 'E2E.RUN' | translate }}
+        <span *ngIf="running && progress" class="e2e-progress">{{ progress }}</span>
+      </h3>
+      <div *ngIf="running" class="e2e-loading">
+        <mat-spinner diameter="20" strokeWidth="2"></mat-spinner>
+        <span *ngIf="currentFile">{{ 'E2E.RUNNING' | translate: { file: currentFile } }}</span>
+      </div>
+      <div class="e2e-log">
+        <div *ngFor="let line of log" [class.e2e-log-step]="line.kind === 'step'">{{ line.text }}</div>
+      </div>
+      <div *ngFor="let e of runErrors" class="e2e-message e2e-error">
+        <mat-icon>error_outline</mat-icon><span>{{ e }}</span>
+      </div>
+      <div *ngIf="finished && results.length > 0" class="e2e-message e2e-success">
+        <mat-icon>forum</mat-icon><span>{{ summaryText }}</span>
+      </div>
+    </section>
+  </ng-container>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button [disabled]="running || replaying || restoring" (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
+  <button mat-button [disabled]="running || replaying || loading" (click)="refresh()">
+    <mat-icon>refresh</mat-icon> {{ 'E2E.RECHECK' | translate }}
+  </button>
+  <button *ngIf="running" mat-stroked-button color="warn" (click)="stop()">
+    <mat-icon>stop</mat-icon> {{ 'E2E.STOP' | translate }}
+  </button>
+  <button mat-stroked-button color="primary" [disabled]="!canReplay" (click)="replay()">
+    <mat-icon>replay</mat-icon> {{ 'E2E.REPLAY' | translate }}
+  </button>
+  <button mat-raised-button color="primary" [disabled]="!canRun" (click)="run()">
+    <mat-icon>play_arrow</mat-icon> {{ (finished ? 'E2E.RUN_AGAIN' : 'E2E.RUN_TESTS') | translate }}
+  </button>
+</mat-dialog-actions>

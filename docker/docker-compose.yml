@@ -1,0 +1,79 @@
+# MdExplorer — headless container
+#
+# Run from this folder:
+#   docker compose build
+#   docker compose up -d
+#   open http://127.0.0.1:5000/client2/index.html
+#
+# The container is bound to 127.0.0.1 on the host: NOT reachable from the LAN.
+# To stop:
+#   docker compose down
+
+services:
+  mde:
+    build:
+      context: ..           # repo root — Dockerfile needs source from multiple csproj folders
+      dockerfile: docker/Dockerfile
+    image: mdexplorer:dev
+    container_name: mde
+    restart: unless-stopped
+
+    # Run an init process (tini) as PID 1 instead of dotnet. dotnet-as-PID-1 has
+    # special signal semantics that make .NET's child-process exit detection
+    # (EnableRaisingEvents / SIGCHLD) unreliable — PlantUml.Net's renderer spawns
+    # `java`, reads its output, then accesses Process.ExitCode; under PID 1 that
+    # getter can throw before the exit is observed, killing the renderer's
+    # TaskCompletionSource callback and hanging the request forever.
+    init: true
+
+    # Loopback-only mapping on the host. Even though the container listens on
+    # 0.0.0.0:5000 internally, Docker only publishes to 127.0.0.1:5000 → MdE is
+    # reachable solely from the user's browser on this machine, exactly like
+    # the Electron build. Do NOT change to "5000:5000" unless auth is added.
+    ports:
+      - "127.0.0.1:5000:5000"
+
+    volumes:
+      # User's markdown project(s) — anything inside is what MdE will index.
+      # Inside MdE, open the project at "/workspace".
+      - ./workspace:/workspace
+
+      # Persistent app data: UserDB (MdExplorer.db), EngineDB (MdEngine_*.db),
+      # llama model cache, port.txt, etc. Survives image rebuilds.
+      - ./data:/data
+
+    environment:
+      # Belt-and-suspenders: ASPNETCORE_URLS is overridden by Program.UseUrls,
+      # but we set it anyway in case future code respects it.
+      ASPNETCORE_URLS: "http://0.0.0.0:5000"
+      ASPNETCORE_ENVIRONMENT: "Production"
+
+      # --- Docker mode flag + path translation for the editor button --------
+      # MDE_DOCKER=1 tells AppSettingsController.OpenFile to skip Process.Start
+      # (which would try to launch the editor INSIDE the container) and instead
+      # return a "vscode://file/<host-path>" URL. The user's browser receives
+      # it and the host OS hands it to the native VS Code on Windows.
+      MDE_DOCKER: "1"
+      MDE_CONTAINER_WORKSPACE: "/workspace"
+      # Absolute path on the *host* of the ./workspace bind mount. The container
+      # itself can't know what the host calls this folder, so we pass it in.
+      #   - macOS / Linux: bash/zsh expose $PWD in the process environment, so
+      #     the ${PWD}/workspace fallback resolves automatically — nothing to
+      #     configure, "docker compose up" just works.
+      #   - Windows (PowerShell / cmd): $PWD is NOT propagated to child
+      #     processes as an env var, so the fallback would be empty. Use the
+      #     `.env` file in this folder to set MDE_HOST_WORKSPACE explicitly.
+      MDE_HOST_WORKSPACE: "${MDE_HOST_WORKSPACE:-${PWD}/workspace}"
+
+      # --- GitHub Copilot CLI authentication (headless) --------------------
+      # The in-app AI chat spawns `copilot --acp` inside the container. Copilot
+      # reads a token from (in order) COPILOT_GITHUB_TOKEN, GH_TOKEN,
+      # GITHUB_TOKEN and, when present, authenticates in the BACKGROUND — no
+      # interactive login, no browser. Use a fine-grained PAT with the
+      # "Copilot Requests" permission (or a classic PAT with user:email +
+      # read:org). Set it in the .env file in this folder.
+      #
+      # Leave it blank to log in interactively instead:
+      #   docker compose exec mde copilot   →   type /login   (device flow).
+      # Credentials persist because ~/.copilot is symlinked onto ./data.
+      COPILOT_GITHUB_TOKEN: "${COPILOT_GITHUB_TOKEN:-}"

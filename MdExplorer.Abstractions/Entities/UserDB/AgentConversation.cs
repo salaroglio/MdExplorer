@@ -1,0 +1,94 @@
+using System;
+
+namespace MdExplorer.Abstractions.Entities.UserDB
+{
+    /// <summary>
+    /// Il thread di una conversazione tra cittadini (§8 Agent-Harness-A2A). Correlata 1:1
+    /// con il <c>contextId</c> A2A: l'id (<see cref="Id"/>) è il contextId, così i messaggi
+    /// in ingresso si agganciano al thread. Vive nella UserDB globale.
+    /// </summary>
+    public class AgentConversation
+    {
+        /// <summary>PK = conversationId A2A (contextId). GuidComb — mai pre-assegnare.</summary>
+        public virtual Guid Id { get; set; }
+
+        public virtual string ProjectPath { get; set; }
+
+        /// <summary>Chi ha avviato il thread: <c>a2a.name</c> di un agente oppure <c>user</c>.</summary>
+        public virtual string StartedBy { get; set; }
+
+        /// <summary>"active" | "completed" | "killed" | "exhausted".</summary>
+        public virtual string Status { get; set; }
+
+        /// <summary>
+        /// Conteggio hop (§9): incrementato a ogni messaggio tra agenti, fan-out incluso;
+        /// i messaggi da/verso <c>user</c> sono esenti. <c>HopCount &gt;= HopLimit</c> →
+        /// conversazione <c>exhausted</c>.
+        /// </summary>
+        public virtual int HopCount { get; set; }
+
+        /// <summary>Limite hop: default 8, override da <c>max_hops</c> (cap harness 16).</summary>
+        public virtual int HopLimit { get; set; }
+
+        public virtual DateTime StartedAt { get; set; }
+        public virtual DateTime LastActivityAt { get; set; }
+
+        /// <summary>
+        /// Correlazione federata (§12.6 / Fase 6c): identificativo condiviso tra i due lati di
+        /// una conversazione tra città diverse (lo conia la città d'origine e viaggia con la
+        /// richiesta). <c>null</c> = conversazione puramente locale. A destinazione si apre
+        /// una conversazione locale con budget hop proprio, ma legata all'origine da qui.
+        /// </summary>
+        public virtual Guid? FederationId { get; set; }
+
+        /// <summary>
+        /// Idempotency key della singola emissione federata (Fase 7a): sul lato DESTINAZIONE è
+        /// copiata dal <see cref="FederationRequest.RequestId"/> all'approvazione, così l'agente
+        /// bersaglio può citarla ESATTA nell'<c>intervention-result</c> senza risalire per
+        /// <see cref="FederationId"/> (ambiguo con più richieste sulla stessa federazione).
+        /// <c>null</c> = conversazione non federata o richiesta d'origine senza RequestId.
+        /// </summary>
+        public virtual Guid? RequestId { get; set; }
+
+        /// <summary>La città remota controparte: <c>gitEmail</c>/ownerId del padrone (federate only).</summary>
+        public virtual string RemoteOwner { get; set; }
+
+        /// <summary>L'agente remoto coinvolto (nome qualificato <c>agente@gitEmail</c>), federate only.</summary>
+        public virtual string RemoteAgent { get; set; }
+
+        /// <summary>
+        /// Ambito di ownership che ha generato questa conversazione (delega interna o federata).
+        /// Null = conversazione ordinaria. Serve a non perdere il <i>perché</i> di un risveglio:
+        /// senza, una delega instradata sulla mappa di ownership sarebbe indistinguibile da un
+        /// messaggio qualunque.
+        /// </summary>
+        public virtual string Scope { get; set; }
+
+        /// <summary>
+        /// Fase 7d.5 — riferimento di handoff (branch ref completo dell'origine) copiato dalla
+        /// <see cref="FederationRequest"/> all'approvazione; il dispatcher lo passa a
+        /// <c>PrepareForRunAsync</c> perché B si sincronizzi al lavoro dell'origine. <c>null</c> = nessun handoff.
+        /// </summary>
+        public virtual string HandoffRef { get; set; }
+
+        /// <summary>Fase 7d.5 — sha di testa a cui B deve sincronizzarsi (testa di <see cref="HandoffRef"/>).</summary>
+        public virtual string BaseCommit { get; set; }
+
+        /// <summary>
+        /// Il ramo su cui vive questa catena, quando è <b>locale</b>: il destinatario eredita la
+        /// scrivania e il ramo del mittente invece di aprirne di suoi, perché «analizza e poi
+        /// implementa» è un solo lavoro e merita una richiesta di merge sola.
+        /// <para><c>null</c> = nessuna catena, il destinatario prepara un posto suo.</para>
+        /// </summary>
+        public virtual string ChainBranch { get; set; }
+
+        /// <summary>Valori ammessi per <see cref="Status"/>.</summary>
+        public static class StatusEnum
+        {
+            public const string Active = "active";
+            public const string Completed = "completed";
+            public const string Killed = "killed";
+            public const string Exhausted = "exhausted";
+        }
+    }
+}

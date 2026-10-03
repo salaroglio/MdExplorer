@@ -5,7 +5,7 @@
       <mat-card-subtitle>
         <span *ngIf="isModelLoaded && currentModel">
           <span *ngIf="currentModel.startsWith('OpenAI')">
-            <mat-icon inline="true" style="vertical-align: middle; color: #10a37f;">psychology</mat-icon>
+            <mat-icon inline="true" class="brand-openai-fg" style="vertical-align: middle;">psychology</mat-icon>
             {{ 'MODEL_MANAGER.CONNECTED_TO' | translate }} {{ currentModel }}
           </span>
           <span *ngIf="currentModel.startsWith('Gemini')">
@@ -13,10 +13,13 @@
             {{ 'MODEL_MANAGER.CONNECTED_TO' | translate }} {{ currentModel }}
           </span>
           <span *ngIf="currentModel.startsWith('CopilotCli')">
-            <mat-icon inline="true" style="vertical-align: middle; color: #24292e;">terminal</mat-icon>
+            <mat-icon inline="true" class="brand-github-fg" style="vertical-align: middle;">terminal</mat-icon>
             {{ 'MODEL_MANAGER.CONNECTED_TO' | translate }} {{ currentModel }}
           </span>
-          <span *ngIf="!currentModel.startsWith('Gemini') && !currentModel.startsWith('OpenAI') && !currentModel.startsWith('CopilotCli')">
+          <span *ngIf="currentModel.startsWith('ClaudeCode')">
+            {{ currentModel }}
+          </span>
+          <span *ngIf="!currentModel.startsWith('Gemini') && !currentModel.startsWith('OpenAI') && !currentModel.startsWith('CopilotCli') && !currentModel.startsWith('ClaudeCode')">
             {{ 'MODEL_MANAGER.LOCAL_MODEL' | translate }} {{ currentModel }}
             <span *ngIf="gpuEnabled" class="gpu-indicator">
               <mat-icon inline="true">memory</mat-icon>
@@ -32,8 +35,8 @@
     
     <mat-card-content style="overflow: visible !important;">
       <!-- AI Engine (llama.cpp Backend) -->
-      <mat-card *ngIf="backendStatus && !backendStatus.isInstalled" class="backend-card"
-                style="margin-bottom: 20px; border: 2px solid #ff9800; background: #fff8e1;">
+      <mat-card *ngIf="backendStatus && !backendStatus.isInstalled" class="backend-card engine-warning-card"
+                style="margin-bottom: 20px;">
         <mat-card-header>
           <mat-card-title>
             <mat-icon color="warn">warning</mat-icon>
@@ -89,11 +92,11 @@
       </mat-card>
 
       <!-- Installed Backend Info -->
-      <mat-card *ngIf="backendStatus && backendStatus.isInstalled" class="backend-card"
-                style="margin-bottom: 20px; border-left: 4px solid #4caf50;">
+      <mat-card *ngIf="backendStatus && backendStatus.isInstalled" class="backend-card engine-installed-card"
+                style="margin-bottom: 20px;">
         <mat-card-header>
           <mat-card-title>
-            <mat-icon style="color: #4caf50;">check_circle</mat-icon>
+            <mat-icon class="success-icon">check_circle</mat-icon>
             {{ 'MODEL_MANAGER.AI_ENGINE' | translate:{ name: getBackendVariantName(backendStatus.installedVariant) } }}
           </mat-card-title>
           <mat-card-subtitle>
@@ -161,11 +164,11 @@
         </button>
         <button mat-raised-button (click)="editApplicationPrompt()"
                 [disabled]="editingApplicationPrompt"
-                style="background-color: #5c6bc0; color: white;">
+                class="app-prompt-button">
           <mat-icon>tune</mat-icon>
           {{ 'MODEL_MANAGER.APP_PROMPT' | translate }}
         </button>
-        <button mat-raised-button style="background-color: #10a37f; color: white;" (click)="toggleOpenAiConfig()">
+        <button mat-raised-button class="brand-openai-bg" (click)="toggleOpenAiConfig()">
           <mat-icon>psychology</mat-icon>
           {{ (showOpenAiConfig ? 'MODEL_MANAGER.HIDE_OPENAI' : 'MODEL_MANAGER.CONFIGURE_OPENAI') | translate }}
         </button>
@@ -173,9 +176,13 @@
           <mat-icon>cloud</mat-icon>
           {{ (showGeminiConfig ? 'MODEL_MANAGER.HIDE_GEMINI' : 'MODEL_MANAGER.CONFIGURE_GEMINI') | translate }}
         </button>
-        <button mat-raised-button style="background-color: #24292e; color: white;" (click)="toggleCopilotCliConfig()">
+        <button mat-raised-button class="brand-github-bg" (click)="toggleCopilotCliConfig()">
           <mat-icon>terminal</mat-icon>
           {{ (showCopilotCliConfig ? 'MODEL_MANAGER.HIDE_COPILOT' : 'MODEL_MANAGER.CONFIGURE_COPILOT') | translate }}
+        </button>
+        <button mat-raised-button color="primary" (click)="toggleClaudeCodeConfig()">
+          <mat-icon>terminal</mat-icon>
+          {{ (showClaudeCodeConfig ? 'MODEL_MANAGER.HIDE_CLAUDE_CODE' : 'MODEL_MANAGER.CONFIGURE_CLAUDE_CODE') | translate }}
         </button>
       </div>
 
@@ -256,7 +263,7 @@
               <mat-hint [innerHTML]="'MODEL_MANAGER.OPENAI_API_KEY_HINT' | translate"></mat-hint>
             </mat-form-field>
             <div style="margin-top: 16px;">
-              <button mat-raised-button style="background-color: #10a37f; color: white;" (click)="saveOpenAiApiKey()"
+              <button mat-raised-button class="brand-openai-bg" (click)="saveOpenAiApiKey()"
                       [disabled]="loading || !openAiApiKey.trim()">
                 <mat-icon>save</mat-icon>
                 {{ 'MODEL_MANAGER.SAVE_API_KEY' | translate }}
@@ -272,7 +279,7 @@
 
           <div *ngIf="openAiConfigured">
             <mat-chip-list style="margin-bottom: 16px;">
-              <mat-chip style="background-color: #10a37f; color: white;" selected>
+              <mat-chip class="brand-openai-bg" selected>
                 <mat-icon>check_circle</mat-icon>
                 {{ 'MODEL_MANAGER.API_KEY_CONFIGURED' | translate }}
               </mat-chip>
@@ -300,7 +307,7 @@
                 </mat-card-content>
 
                 <mat-card-actions>
-                  <button mat-raised-button style="background-color: #10a37f; color: white;"
+                  <button mat-raised-button class="brand-openai-bg"
                           *ngIf="!useOpenAi || selectedOpenAiModel !== model.id"
                           (click)="connectOpenAiModel(model.id)">
                     <mat-icon>psychology</mat-icon>
@@ -449,6 +456,78 @@
       </mat-card>
 
       <!-- Copilot CLI Configuration Card -->
+      <mat-card *ngIf="showClaudeCodeConfig" class="copilotcli-config-card" style="margin: 20px 0;">
+        <mat-card-header>
+          <mat-card-title>
+            <mat-icon>terminal</mat-icon>
+            {{ 'MODEL_MANAGER.CLAUDE_CODE_CONFIG' | translate }}
+          </mat-card-title>
+          <mat-card-subtitle>
+            {{ 'MODEL_MANAGER.CLAUDE_CODE_CONFIG_DESC' | translate }}
+          </mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngIf="!claudeCodeAvailable">
+            <mat-chip-list style="margin-bottom: 16px;">
+              <mat-chip color="warn" selected>
+                <mat-icon>warning</mat-icon>
+                {{ 'MODEL_MANAGER.CLAUDE_CODE_NOT_INSTALLED' | translate }}
+              </mat-chip>
+            </mat-chip-list>
+            <p>{{ 'MODEL_MANAGER.CLAUDE_CODE_INSTALL_DESC' | translate }}</p>
+            <code>npm install -g &#64;anthropic-ai/claude-code</code>
+          </div>
+
+          <div *ngIf="claudeCodeAvailable">
+            <mat-chip-list style="margin-bottom: 16px;">
+              <mat-chip color="accent" selected>
+                <mat-icon>check_circle</mat-icon>
+                {{ 'MODEL_MANAGER.CLAUDE_CODE_AVAILABLE' | translate }}
+              </mat-chip>
+            </mat-chip-list>
+
+            <h4 style="margin: 0 0 12px 0;">{{ 'MODEL_MANAGER.AVAILABLE_MODELS' | translate }}</h4>
+            <div class="models-grid">
+              <mat-card *ngFor="let model of claudeCodeModels" class="model-card">
+                <mat-card-header>
+                  <mat-card-title>{{ model.name }}</mat-card-title>
+                  <mat-card-subtitle>
+                    {{ 'MODEL_MANAGER.VIA_CLAUDE_CODE' | translate }} | {{ (model.inputTokenLimit || 200000) / 1000 }}K input / {{ (model.outputTokenLimit || 64000) / 1000 }}K output
+                  </mat-card-subtitle>
+                </mat-card-header>
+
+                <mat-card-content>
+                  <p class="model-description">{{ model.description }}</p>
+
+                  <mat-chip-list *ngIf="useClaudeCode && selectedClaudeCodeModel === model.id">
+                    <mat-chip color="accent" selected>
+                      <mat-icon>check_circle</mat-icon>
+                      {{ 'MODEL_MANAGER.CONNECTED' | translate }}
+                    </mat-chip>
+                  </mat-chip-list>
+                </mat-card-content>
+
+                <mat-card-actions>
+                  <button mat-raised-button color="primary"
+                          *ngIf="!useClaudeCode || selectedClaudeCodeModel !== model.id"
+                          (click)="connectClaudeCodeModel(model.id)">
+                    <mat-icon>terminal</mat-icon>
+                    {{ 'COMMON.CONNECT' | translate }}
+                  </button>
+
+                  <button mat-button
+                          *ngIf="useClaudeCode && selectedClaudeCodeModel === model.id"
+                          (click)="disconnectClaudeCode()">
+                    <mat-icon>cloud_off</mat-icon>
+                    {{ 'COMMON.DISCONNECT' | translate }}
+                  </button>
+                </mat-card-actions>
+              </mat-card>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
       <mat-card *ngIf="showCopilotCliConfig" class="copilotcli-config-card" style="margin: 20px 0;">
         <mat-card-header>
           <mat-card-title>
@@ -473,7 +552,7 @@
 
           <div *ngIf="copilotCliAvailable">
             <mat-chip-list style="margin-bottom: 16px;">
-              <mat-chip style="background-color: #2ea44f; color: white;" selected>
+              <mat-chip class="brand-github-green-bg" selected>
                 <mat-icon>check_circle</mat-icon>
                 {{ 'MODEL_MANAGER.COPILOT_AVAILABLE' | translate }}
               </mat-chip>
@@ -508,7 +587,7 @@
                 </mat-card-content>
 
                 <mat-card-actions>
-                  <button mat-raised-button style="background-color: #24292e; color: white;"
+                  <button mat-raised-button class="brand-github-bg"
                           *ngIf="!useCopilotCli || selectedCopilotCliModel !== model.id"
                           (click)="connectCopilotCliModel(model.id)">
                     <mat-icon>terminal</mat-icon>

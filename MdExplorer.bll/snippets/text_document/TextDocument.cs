@@ -46,7 +46,7 @@ namespace MdExplorer.Features.snippets.text_document
             doc.Email = _gitService.GetCurrentUserEmail(projectPath);
             doc.DocumentType = docType;
             var title = string.Empty;
-            if (docType == "document")
+            if (docType == "document" || docType == "slides")
             {
                 title = (string)parameters[ParameterName.StringDocumentTitle];
             }

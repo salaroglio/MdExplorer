@@ -1,141 +1,16 @@
-/* You can add global styles to this file, and also import other style files */
-@import '@angular/material/prebuilt-themes/indigo-pink.css';
-
-// === DARK MODE CSS VARIABLES ===
-:root {
-  --mde-bg-primary: #ffffff;
-  --mde-bg-secondary: #fafafa;
-  --mde-bg-tertiary: #f5f5f5;
-  --mde-bg-hover: #e8e8e8;
-  --mde-bg-selected: #e3f2fd;
-  --mde-text-primary: rgba(0, 0, 0, 0.87);
-  --mde-text-secondary: rgba(0, 0, 0, 0.6);
-  --mde-text-hint: #999999;
-  --mde-text-on-primary: #ffffff;
-  --mde-border-color: #e0e0e0;
-  --mde-border-strong: #cccccc;
-  --mde-accent-primary: #1976d2;
-  --mde-accent-hover: #1565c0;
-  --mde-accent-light: #e3f2fd;
-  --mde-accent-secondary: #3f51b5;
-  --mde-accent-secondary-hover: #303f9f;
-  --mde-shadow-color: rgba(0, 0, 0, 0.08);
-  --mde-titlebar-bg: #1976d2;
-  --mde-titlebar-border: #1565c0;
-  --mde-scrollbar-track: #f1f1f1;
-  --mde-scrollbar-thumb: #bbbbbb;
-  --mde-scrollbar-hover: #999999;
-  --mde-input-border: #bbbbbb;
-  --mde-icon-color: #666666;
-  --mde-checkbox-border: #757575;
-  --mde-toggle-track: #bdbdbd;
-  --mde-toggle-thumb: #fafafa;
-  --mde-chip-bg: #e0e0e0;
-  --mde-progress-bg: #e0e0e0;
-  --mde-progress-buffer: #bbdefb;
-  --mde-disabled-bg: #bdbdbd;
-  --mde-disabled-text: #9e9e9e;
-  --mde-hover-overlay: rgba(0, 0, 0, 0.04);
-  --mde-slider-track-bg: rgba(0, 0, 0, 0.26);
-  --mde-outline-color: rgba(0, 0, 0, 0.12);
-  --mde-success-fg: #2e7d32;
-  --mde-success-bg: #e8f5e9;
-  --mde-warning-fg: #ff9800;
-  --mde-warning-bg: #fff3e0;
-  --mde-error-fg: #f44336;
-  --mde-error-bg: #ffebee;
-}
-
-// === MILAN THEME ===
-// Base scura con tonalità bordeaux e accenti rosso rubino / oro sommesso.
-// Chrome (titlebar + toolbar Angular) in borgogna profondo.
-body.milan-theme {
-  --mde-bg-primary: #1a0d10;
-  --mde-bg-secondary: #221014;
-  --mde-bg-tertiary: #2a1418;
-  --mde-bg-hover: #3a1c22;
-  --mde-bg-selected: #5a1e28;
-  --mde-text-primary: #ffffff;
-  --mde-text-secondary: #cccccc;
-  --mde-text-hint: #999999;
-  --mde-text-on-primary: #ffffff;
-  --mde-border-color: #3a1c22;
-  --mde-border-strong: #5a2a30;
-  --mde-accent-primary: #ff1744;
-  --mde-accent-hover: #ff4d60;
-  --mde-accent-light: #3a1419;
-  --mde-accent-secondary: #d4a25c;
-  --mde-accent-secondary-hover: #e5b76e;
-  --mde-shadow-color: rgba(0, 0, 0, 0.5);
-  --mde-titlebar-bg: #c8102e;
-  --mde-titlebar-border: #8b0a1f;
-  --mde-scrollbar-track: #2a1418;
-  --mde-scrollbar-thumb: #5a2a30;
-  --mde-scrollbar-hover: #c8102e;
-  --mde-input-border: #5a2a30;
-  --mde-icon-color: #cccccc;
-  --mde-checkbox-border: #a06a70;
-  --mde-toggle-track: #5a2a30;
-  --mde-toggle-thumb: #ffffff;
-  --mde-chip-bg: #3a1c22;
-  --mde-progress-bg: #3a1c22;
-  --mde-progress-buffer: #5a1e28;
-  --mde-disabled-bg: #5a2a30;
-  --mde-disabled-text: #8a6060;
-  --mde-hover-overlay: rgba(230, 57, 80, 0.1);
-  --mde-slider-track-bg: rgba(230, 57, 80, 0.3);
-  --mde-outline-color: rgba(230, 57, 80, 0.15);
-  --mde-success-fg: #81c784;
-  --mde-success-bg: #1b3a1e;
-  --mde-warning-fg: #ffb74d;
-  --mde-warning-bg: #3a2c14;
-  --mde-error-fg: #ff6b6b;
-  --mde-error-bg: #4a1a1a;
-}
-
-body.dark-theme {
-  --mde-bg-primary: #1e1e1e;
-  --mde-bg-secondary: #252526;
-  --mde-bg-tertiary: #2d2d2d;
-  --mde-bg-hover: #3c3c3c;
-  --mde-bg-selected: #264f78;
-  --mde-text-primary: #cccccc;
-  --mde-text-secondary: #999999;
-  --mde-text-hint: #777777;
-  --mde-text-on-primary: #ffffff;
-  --mde-border-color: #3c3c3c;
-  --mde-border-strong: #555555;
-  --mde-accent-primary: #4fc3f7;
-  --mde-accent-hover: #29b6f6;
-  --mde-accent-light: #1a3a4f;
-  --mde-accent-secondary: #7986cb;
-  --mde-accent-secondary-hover: #5c6bc0;
-  --mde-shadow-color: rgba(0, 0, 0, 0.3);
-  --mde-titlebar-bg: #1e1e1e;
-  --mde-titlebar-border: #333333;
-  --mde-scrollbar-track: #2d2d2d;
-  --mde-scrollbar-thumb: #555555;
-  --mde-scrollbar-hover: #777777;
-  --mde-input-border: #555555;
-  --mde-icon-color: #999999;
-  --mde-checkbox-border: #888888;
-  --mde-toggle-track: #555555;
-  --mde-toggle-thumb: #cccccc;
-  --mde-chip-bg: #3c3c3c;
-  --mde-progress-bg: #3c3c3c;
-  --mde-progress-buffer: #1a3a4f;
-  --mde-disabled-bg: #555555;
-  --mde-disabled-text: #777777;
-  --mde-hover-overlay: rgba(255, 255, 255, 0.06);
-  --mde-slider-track-bg: rgba(255, 255, 255, 0.3);
-  --mde-outline-color: rgba(255, 255, 255, 0.15);
-  --mde-success-fg: #81c784;
-  --mde-success-bg: #1b3a1e;
-  --mde-warning-fg: #ffb74d;
-  --mde-warning-bg: #3a2c14;
-  --mde-error-fg: #ef5350;
-  --mde-error-bg: #3a1a1a;
-}
+// ============================================================
+// STILI GLOBALI MdExplorer
+//
+// L'ordine conta:
+//  1. styles/material-theme  → tema Material nativo ×3 (light/dark/milan)
+//  2. styles/theme-tokens    → design token --mde-* per gli stili app
+//  3. il resto di questo file → SOLO stili app-specifici (layout,
+//     scrollbar, icone semantiche, varianti snackbar, fix strutturali
+//     dei componenti legacy). I COLORI dei componenti Material vivono
+//     nel tema: qui non si forzano più con !important.
+// ============================================================
+@use './styles/material-theme';
+@use './styles/theme-tokens';
 
 html, body {
   height: 100%;
@@ -150,81 +25,48 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-// Icona folder color oro arancione - sempre gold, anche in dark mode
-mat-icon.folder-icon,
+// ------------------------------------------------------------
+// ICONE SEMANTICHE — colori con significato, uguali in ogni tema
+// (o adattati via token). Uniche eccezioni ammesse al tema.
+// ------------------------------------------------------------
+
+// Icona folder color oro arancione — sempre gold, in tutti i temi.
 .mat-icon.folder-icon,
-mat-icon.gold-icon,
 .mat-icon.gold-icon,
-.gold-icon,
-body.dark-theme mat-icon.folder-icon,
-body.dark-theme .mat-icon.folder-icon,
-body.dark-theme mat-icon.gold-icon,
-body.dark-theme .mat-icon.gold-icon,
-body.dark-theme .gold-icon,
-body.milan-theme mat-icon.folder-icon,
-body.milan-theme .mat-icon.folder-icon,
-body.milan-theme mat-icon.gold-icon,
-body.milan-theme .mat-icon.gold-icon,
-body.milan-theme .gold-icon {
-  color: #E69500 !important;
+.gold-icon {
+  color: var(--mde-icon-accent-gold) !important;
 }
 
-// Fix menu contestuali
-.mat-menu-panel,
-.mat-mdc-menu-panel,
-.cdk-overlay-pane .mat-menu-panel,
-.cdk-overlay-pane .mat-mdc-menu-panel {
-  background-color: var(--mde-bg-primary) !important;
-  background: var(--mde-bg-primary) !important;
+// Icone colorate menu git (toolbar.component.html): tinte piene in light,
+// pastello nei temi scuri — il valore vive nei token.
+.mat-icon.history-icon,
+.mat-icon.retry-icon {
+  color: var(--mde-icon-accent-blue) !important;
 }
 
-// Reset degli stili nativi del browser sui <button mat-menu-item>.
-// Material 15 prebuilt theme stila solo i button MDC; l'app usa MatLegacyMenu,
-// quindi senza reset spunta l'appearance di default del browser (bg #f0f0f0,
-// border bianco, font Arial). Così ereditano il bg del panel e la tipografia.
+.mat-icon.branch-icon {
+  color: var(--mde-icon-accent-green) !important;
+}
+
+.mat-icon.manage-remote-icon {
+  color: var(--mde-icon-accent-orange) !important;
+}
+
+// ------------------------------------------------------------
+// FIX STRUTTURALI (non-colore) per i componenti Material legacy
+// ------------------------------------------------------------
+
+// Reset degli stili nativi del browser sui <button mat-menu-item>:
+// senza reset può spuntare l'appearance di default del browser
+// (bg #f0f0f0, border bianco, font Arial).
 button.mat-menu-item,
 button.mat-mdc-menu-item {
-  background: transparent !important;
-  background-color: transparent !important;
-  border: none !important;
-  font-family: inherit !important;
+  background: transparent;
+  border: none;
+  font-family: inherit;
 }
 
-// Icone colorate menu git toolbar — classi usate solo in toolbar.component.html
-// Coprono entrambe le varianti panel (legacy .mat-menu-panel e MDC .mat-mdc-menu-panel)
-// per sicurezza, ma al momento l'app usa MatLegacyMenuModule.
-.mat-menu-panel .mat-icon.history-icon,
-.mat-menu-panel .mat-icon.retry-icon,
-.mat-mdc-menu-panel .mat-icon.history-icon,
-.mat-mdc-menu-panel .mat-icon.retry-icon { color: #1976d2 !important; }
-.mat-menu-panel .mat-icon.branch-icon,
-.mat-mdc-menu-panel .mat-icon.branch-icon { color: #388e3c !important; }
-.mat-menu-panel .mat-icon.manage-remote-icon,
-.mat-mdc-menu-panel .mat-icon.manage-remote-icon { color: #f57c00 !important; }
-
-body.dark-theme .mat-menu-panel .mat-icon.history-icon,
-body.dark-theme .mat-menu-panel .mat-icon.retry-icon,
-body.dark-theme .mat-mdc-menu-panel .mat-icon.history-icon,
-body.dark-theme .mat-mdc-menu-panel .mat-icon.retry-icon,
-body.milan-theme .mat-menu-panel .mat-icon.history-icon,
-body.milan-theme .mat-menu-panel .mat-icon.retry-icon,
-body.milan-theme .mat-mdc-menu-panel .mat-icon.history-icon,
-body.milan-theme .mat-mdc-menu-panel .mat-icon.retry-icon { color: #64b5f6 !important; }
-body.dark-theme .mat-menu-panel .mat-icon.branch-icon,
-body.dark-theme .mat-mdc-menu-panel .mat-icon.branch-icon,
-body.milan-theme .mat-menu-panel .mat-icon.branch-icon,
-body.milan-theme .mat-mdc-menu-panel .mat-icon.branch-icon { color: #81c784 !important; }
-body.dark-theme .mat-menu-panel .mat-icon.manage-remote-icon,
-body.dark-theme .mat-mdc-menu-panel .mat-icon.manage-remote-icon,
-body.milan-theme .mat-menu-panel .mat-icon.manage-remote-icon,
-body.milan-theme .mat-mdc-menu-panel .mat-icon.manage-remote-icon { color: #ffb74d !important; }
-
-.mat-menu-content,
-.mat-mdc-menu-content {
-  background-color: var(--mde-bg-primary) !important;
-}
-
-// Rimuovi sfondo grigio dai bottoni con icone
+// Niente sfondo/ripple grigio sui bottoni-icona: scelta di design MDE.
 button.mat-icon-button,
 button.mat-mdc-icon-button,
 .mat-icon-button,
@@ -247,55 +89,30 @@ button.mat-mdc-icon-button,
   }
 }
 
-// Fix tooltip Angular Material 15 Legacy - sfondo scuro con testo bianco
+// Tooltip più leggibili (dimensione, non colore: quello lo dà il tema).
 .mat-mdc-tooltip,
 .mat-tooltip {
-  background-color: #424242 !important;
-  color: white !important;
   font-size: 12px !important;
 }
 
-.mat-mdc-tooltip .mdc-tooltip__surface {
-  background-color: #424242 !important;
-  color: white !important;
-}
-
-// Fix per Angular Material 15 Legacy Dialog (classi legacy senza mdc)
-.cdk-overlay-pane {
-  .mat-dialog-container {
-    background-color: var(--mde-bg-primary) !important;
-    background: var(--mde-bg-primary) !important;
-    border-radius: 8px !important;
-    padding: 24px !important;
-    box-shadow: 0 11px 15px -7px var(--mde-shadow-color),
-                0 24px 38px 3px var(--mde-shadow-color),
-                0 9px 46px 8px var(--mde-shadow-color) !important;
-  }
-}
-
+// Dialog legacy: geometria e scroll (i colori arrivano dal tema).
 .mat-dialog-container {
-  background-color: var(--mde-bg-primary) !important;
-  background: var(--mde-bg-primary) !important;
   border-radius: 8px !important;
   padding: 24px !important;
 }
 
-// Fix dialog title, content, actions (legacy)
 .mat-dialog-title {
   padding: 0 0 16px 0 !important;
   margin: 0 !important;
   font-size: 20px !important;
   font-weight: 500 !important;
-  color: var(--mde-text-primary) !important;
 }
 
 .mat-dialog-content {
   padding: 0 !important;
   margin: 0 0 16px 0 !important;
-  color: var(--mde-text-secondary) !important;
   max-height: 65vh !important;
   overflow: auto !important;
-  background-color: var(--mde-bg-primary) !important;
 }
 
 .mat-dialog-actions {
@@ -303,26 +120,10 @@ button.mat-mdc-icon-button,
   margin: 0 !important;
   justify-content: flex-end !important;
   gap: 8px !important;
-  background-color: var(--mde-bg-primary) !important;
 }
 
-// Fix slider visibility (legacy)
-.mat-slider {
-  .mat-slider-track-fill {
-    background-color: var(--mde-accent-secondary) !important;
-  }
-  .mat-slider-track-background {
-    background-color: var(--mde-slider-track-bg) !important;
-  }
-  .mat-slider-thumb {
-    background-color: var(--mde-accent-secondary) !important;
-  }
-  .mat-slider-thumb-label {
-    background-color: var(--mde-accent-secondary) !important;
-  }
-}
-
-// Fix form field (legacy) - evita sovrapposizione hint e label
+// Form field legacy: evita sovrapposizione hint/label e sistema il
+// floating della label. Solo struttura, zero colori.
 .mat-form-field {
   .mat-form-field-wrapper {
     padding-bottom: 1.5em !important;
@@ -339,15 +140,6 @@ button.mat-mdc-icon-button,
   .mat-form-field-infix {
     border-top: 0.84375em solid transparent !important;
   }
-  .mat-form-field-label {
-    color: var(--mde-text-secondary) !important;
-  }
-  .mat-form-field-outline {
-    color: var(--mde-outline-color) !important;
-  }
-  &.mat-form-field-appearance-outline .mat-form-field-outline-thick {
-    color: var(--mde-accent-secondary) !important;
-  }
 
   // Fix label floating quando il campo ha valore
   &.mat-form-field-should-float .mat-form-field-label {
@@ -361,6 +153,20 @@ button.mat-mdc-icon-button,
   }
 }
 
+// Slide-toggle: via il ripple gigante attorno al pallino.
+.mat-slide-toggle,
+.mat-mdc-slide-toggle {
+  .mat-slide-toggle-ripple,
+  .mat-mdc-slide-toggle-ripple,
+  .mdc-switch__ripple {
+    display: none !important;
+  }
+}
+
+// ------------------------------------------------------------
+// LAYOUT APP-SPECIFICO
+// ------------------------------------------------------------
+
 // PromptLab components must fill their flex container parents
 app-promptlab {
   display: flex;
@@ -370,120 +176,8 @@ app-promptlab {
   overflow: hidden;
 }
 
-
-// RunCommandDialog: dark-mode overrides for Material 15 legacy form-field +
-// checkbox. The dialog component scss can't reach Material-generated DOM (it's
-// outside the component's ViewEncapsulation scope), so the rules live here.
-body.dark-theme app-run-command-dialog {
-  .mat-form-field {
-    input.mat-input-element,
-    .mat-input-element {
-      color: #f0f3f9 !important;
-      caret-color: #f0f3f9 !important;
-    }
-
-    .mat-form-field-label,
-    .mat-form-field-label-wrapper label {
-      color: #b0b8c4 !important;
-    }
-
-    .mat-hint {
-      color: #9aa4b2 !important;
-    }
-
-    .mat-form-field-outline {
-      color: rgba(255, 255, 255, 0.18) !important;
-    }
-
-    &.mat-focused {
-      .mat-form-field-outline-thick {
-        color: #4b8bf5 !important;
-      }
-      .mat-form-field-label {
-        color: #8ab9ff !important;
-      }
-    }
-  }
-
-  // Eye toggle (secret) inside the param row
-  .param-row button.mat-icon-button .mat-icon {
-    color: #b0b8c4;
-  }
-
-  // Checkbox label inside the trust banner
-  .mat-checkbox .mat-checkbox-layout .mat-checkbox-label,
-  .mat-checkbox-label {
-    color: #e0ceac !important;
-  }
-
-  .mat-checkbox-frame {
-    border-color: #b37400 !important;
-  }
-}
-
-// Global fix: floating labels of mat-form-field / mat-mdc-form-field are invisible
-// in dark mode (Angular Material 15 MDC defaults the label color to a near-black
-// that disappears on dark backgrounds). Same root cause as the menu-panel fix
-// recorded in memory (dark_mode_menu_styling). Component-scoped overrides for
-// app-run-command-dialog and .explorer-header still win by specificity where they
-// apply; everywhere else, these rules provide a sensible default.
-body.dark-theme .mat-form-field,
-body.dark-theme .mat-mdc-form-field {
-  input.mat-input-element,
-  input.mat-mdc-input-element,
-  .mat-input-element,
-  .mat-mdc-input-element {
-    color: var(--mde-text-primary);
-    caret-color: var(--mde-text-primary);
-  }
-
-  .mat-form-field-label,
-  .mat-mdc-floating-label,
-  .mdc-floating-label,
-  .mat-form-field-label-wrapper label {
-    color: var(--mde-text-secondary);
-  }
-
-  .mat-mdc-form-field-hint,
-  .mat-hint {
-    color: var(--mde-text-hint);
-  }
-
-  .mat-form-field-outline,
-  .mdc-notched-outline__leading,
-  .mdc-notched-outline__notch,
-  .mdc-notched-outline__trailing {
-    border-color: rgba(255, 255, 255, 0.24);
-  }
-
-  &.mat-focused,
-  &.mdc-text-field--focused {
-    .mat-form-field-outline-thick,
-    .mdc-notched-outline__leading,
-    .mdc-notched-outline__notch,
-    .mdc-notched-outline__trailing {
-      border-color: #4b8bf5;
-    }
-    .mat-form-field-label,
-    .mat-mdc-floating-label,
-    .mdc-floating-label {
-      color: #8ab9ff;
-    }
-  }
-}
-
-// Dialog action buttons in dark mode — Cancel button stays readable.
-body.dark-theme .mat-dialog-container app-run-command-dialog ~ * .mat-button,
-body.dark-theme app-run-command-dialog + .mat-dialog-actions .mat-button,
-body.dark-theme .mat-dialog-container .mat-dialog-actions button.mat-button {
-  color: #c0c7d4 !important;
-
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.06) !important;
-  }
-}
-
-// Fix ShowFileSystem dialog filter input - white text on green header
+// ShowFileSystem: input di filtro sull'header verde — superficie "on-color"
+// deliberata, il testo resta bianco in ogni tema.
 .resizable-dialog-container .explorer-header,
 .mat-dialog-container .explorer-header {
   .mat-form-field-appearance-outline,
@@ -542,14 +236,14 @@ body.dark-theme .mat-dialog-container .mat-dialog-actions button.mat-button {
   }
 }
 
-// New Markdown dialog - custom panel (no Material chrome)
+// New Markdown dialog — pannello custom senza chrome Material, segue il tema.
 .new-markdown-dialog {
   .mat-dialog-container {
     padding: 0 !important;
-    background-color: #2d2d2d !important;
-    background: #2d2d2d !important;
+    background-color: var(--mde-bg-tertiary) !important;
+    background: var(--mde-bg-tertiary) !important;
     border-radius: 6px !important;
-    border: 1px solid #555 !important;
+    border: 1px solid var(--mde-border-strong) !important;
     overflow: hidden !important;
   }
 }
@@ -563,7 +257,11 @@ body.dark-theme .mat-dialog-container .mat-dialog-actions button.mat-button {
   }
 }
 
-// Fix snackbar default
+// ------------------------------------------------------------
+// SNACKBAR — l'app NON usa l'inversione Material (snackbar scura su
+// tema chiaro): il contenitore segue il tema, le varianti semantiche
+// sotto usano colori di stato espliciti.
+// ------------------------------------------------------------
 .mat-snack-bar-container,
 .mat-mdc-snack-bar-container {
   background-color: var(--mde-bg-primary) !important;
@@ -572,7 +270,6 @@ body.dark-theme .mat-dialog-container .mat-dialog-actions button.mat-button {
   box-shadow: 0 3px 5px -1px var(--mde-shadow-color), 0 6px 10px 0 var(--mde-shadow-color), 0 1px 18px 0 var(--mde-shadow-color) !important;
 }
 
-// Fix snackbar action button
 .mat-simple-snackbar-action,
 .mat-mdc-snack-bar-action {
   button, .mat-button, .mat-mdc-button {
@@ -592,42 +289,45 @@ body.dark-theme .mat-dialog-container .mat-dialog-actions button.mat-button {
   }
 }
 
-// Minimal snackbar styles - base
-.subtle-snackbar, .success-snackbar {
-  .mat-snack-bar-container {
-    border-radius: 6px !important;
-    font-size: 14px !important;
-    font-weight: 400 !important;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15) !important;
-    min-width: auto !important;
-    padding: 12px 16px !important;
-    margin: 16px !important;
-    
-    .mat-button-wrapper {
-      line-height: 1.2 !important;
-    }
+// Minimal snackbar styles - base.
+// NB: panelClass viene applicata ALL'ELEMENTO CONTAINER stesso (verificato in
+// snack-bar-container.mjs), quindi i selettori devono essere COMPOUND
+// (.mat-snack-bar-container.success-snackbar), mai discendenti.
+.mat-snack-bar-container.subtle-snackbar,
+.mat-snack-bar-container.success-snackbar,
+.mat-mdc-snack-bar-container.subtle-snackbar,
+.mat-mdc-snack-bar-container.success-snackbar {
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15) !important;
+  min-width: auto !important;
+  padding: 12px 16px !important;
+  margin: 16px !important;
+
+  .mat-button-wrapper {
+    line-height: 1.2 !important;
   }
-  
+
   // Remove action button since we don't need it
-  .mat-snack-bar-action {
+  .mat-snack-bar-action,
+  .mat-mdc-snack-bar-action {
     display: none !important;
   }
 }
 
 // Neutral snackbar (for "kept unchanged")
-.subtle-snackbar {
-  .mat-snack-bar-container {
-    background: #333 !important;
-    color: #fff !important;
-  }
+.mat-snack-bar-container.subtle-snackbar,
+.mat-mdc-snack-bar-container.subtle-snackbar {
+  background: #333 !important;
+  color: #fff !important;
 }
 
 // Success snackbar (for "renamed successfully")
-.success-snackbar {
-  .mat-snack-bar-container {
-    background: #2e7d32 !important;
-    color: #fff !important;
-  }
+.mat-snack-bar-container.success-snackbar,
+.mat-mdc-snack-bar-container.success-snackbar {
+  background: #2e7d32 !important;
+  color: #fff !important;
 }
 
 // Building knowledge snackbar — UNA sola istanza in basso a destra durante
@@ -635,35 +335,24 @@ body.dark-theme .mat-dialog-container .mat-dialog-actions button.mat-button {
 // con IndexingProgressSnackComponent (vedi md-tree.component.ts).
 // Lo stile interno del componente è in indexing-progress-snack.component.scss;
 // qui modelliamo SOLO il contenitore esterno Material (dimensioni, padding).
-.indexing-progress-snackbar {
-  .mat-snack-bar-container,
-  .mat-mdc-snack-bar-container {
-    background: var(--mde-bg-primary, #fff) !important;
-    color: var(--mde-text-primary, #212121) !important;
-    border-radius: 8px !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
-    padding: 14px 18px !important;
-    min-width: 320px !important;
-    border-left: 4px solid #1976d2;
-  }
-}
-
-// Dark theme refinement — usa colori tema esistenti
-body.dark-theme .indexing-progress-snackbar {
-  .mat-snack-bar-container,
-  .mat-mdc-snack-bar-container {
-    border-left-color: #42a5f5;
-  }
+.mat-snack-bar-container.indexing-progress-snackbar,
+.mat-mdc-snack-bar-container.indexing-progress-snackbar {
+  background: var(--mde-bg-primary, #fff) !important;
+  color: var(--mde-text-primary, #212121) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
+  padding: 14px 18px !important;
+  min-width: 320px !important;
+  border-left: 4px solid var(--mde-icon-accent-blue);
 }
 
 // Warning snackbar (for YAML auto-generated)
-.warning-snackbar {
-  .mat-snack-bar-container {
-    background: #fff3cd !important;
-    color: #856404 !important;
-    border: 1px solid #ffeaa7 !important;
-  }
-  
+.mat-snack-bar-container.warning-snackbar,
+.mat-mdc-snack-bar-container.warning-snackbar {
+  background: #fff3cd !important;
+  color: #856404 !important;
+  border: 1px solid #ffeaa7 !important;
+
   .mat-simple-snackbar-action {
     color: #856404 !important;
     font-weight: bold !important;
@@ -671,12 +360,11 @@ body.dark-theme .indexing-progress-snackbar {
 }
 
 // Error snackbar (for AI operation failures)
-.error-snackbar {
-  .mat-snack-bar-container {
-    background: #c62828 !important;
-    color: #fff !important;
-    border: 1px solid #b71c1c !important;
-  }
+.mat-snack-bar-container.error-snackbar,
+.mat-mdc-snack-bar-container.error-snackbar {
+  background: #c62828 !important;
+  color: #fff !important;
+  border: 1px solid #b71c1c !important;
 
   .mat-simple-snackbar-action {
     color: #ffcdd2 !important;
@@ -685,501 +373,21 @@ body.dark-theme .indexing-progress-snackbar {
 }
 
 // P2P snackbar (for peer connections)
-.p2p-snackbar {
-  .mat-snack-bar-container {
-    background: #1565c0 !important;
-    color: #fff !important;
-    border-radius: 6px !important;
-    font-size: 13px !important;
-  }
+.mat-snack-bar-container.p2p-snackbar,
+.mat-mdc-snack-bar-container.p2p-snackbar {
+  background: #1565c0 !important;
+  color: #fff !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
 
   .mat-simple-snackbar-action {
     color: #90caf9 !important;
   }
 }
 
-// ============================================================
-// GLOBAL MATERIAL CONTROLS FIX - Solid backgrounds, clear UI
-// ============================================================
-
-// --- MAT-SELECT (Combobox) ---
-.mat-select,
-.mat-mdc-select {
-  background-color: var(--mde-bg-primary) !important;
-}
-
-.mat-select-panel,
-.mat-mdc-select-panel {
-  background-color: var(--mde-bg-primary) !important;
-  border: 1px solid var(--mde-border-strong) !important;
-  border-radius: 4px !important;
-  box-shadow: 0 4px 12px var(--mde-shadow-color) !important;
-}
-
-.mat-option,
-.mat-mdc-option {
-  background-color: var(--mde-bg-primary) !important;
-  color: var(--mde-text-primary) !important;
-
-  &:hover:not(.mat-option-disabled),
-  &:hover:not(.mat-mdc-option-disabled) {
-    background-color: var(--mde-accent-light) !important;
-  }
-
-  &.mat-selected:not(.mat-option-multiple),
-  &.mat-mdc-option-active,
-  &.mdc-list-item--selected {
-    background-color: var(--mde-accent-light) !important;
-    color: var(--mde-accent-primary) !important;
-  }
-
-  &.mat-active,
-  &.mat-mdc-option-active {
-    background-color: var(--mde-bg-tertiary) !important;
-  }
-}
-
-.mat-select-value,
-.mat-mdc-select-value {
-  color: var(--mde-text-primary) !important;
-}
-
-.mat-select-arrow,
-.mat-mdc-select-arrow {
-  color: var(--mde-icon-color) !important;
-}
-
-// --- MAT-FORM-FIELD (Input containers) ---
-.mat-form-field-appearance-outline,
-.mat-mdc-form-field {
-  .mat-form-field-outline,
-  .mdc-notched-outline {
-    background-color: var(--mde-bg-primary) !important;
-  }
-
-  .mat-form-field-outline-start,
-  .mat-form-field-outline-gap,
-  .mat-form-field-outline-end,
-  .mdc-notched-outline__leading,
-  .mdc-notched-outline__notch,
-  .mdc-notched-outline__trailing {
-    border-color: var(--mde-input-border) !important;
-  }
-
-  &.mat-focused,
-  &.mat-form-field-invalid {
-    .mat-form-field-outline-start,
-    .mat-form-field-outline-gap,
-    .mat-form-field-outline-end,
-    .mdc-notched-outline__leading,
-    .mdc-notched-outline__notch,
-    .mdc-notched-outline__trailing {
-      border-color: var(--mde-accent-primary) !important;
-      border-width: 2px !important;
-    }
-  }
-}
-
-// Input text color
-.mat-input-element,
-.mat-mdc-input-element,
-input.mat-input-element,
-textarea.mat-input-element {
-  color: var(--mde-text-primary) !important;
-  caret-color: var(--mde-accent-primary) !important;
-
-  &::placeholder {
-    color: var(--mde-text-hint) !important;
-  }
-}
-
-// Label color
-.mat-form-field-label,
-.mat-mdc-floating-label,
-.mdc-floating-label {
-  color: var(--mde-icon-color) !important;
-}
-
-// Hint text
-.mat-hint,
-.mat-mdc-form-field-hint {
-  color: var(--mde-text-hint) !important;
-}
-
-// --- MAT-BUTTON variants ---
-.mat-raised-button,
-.mat-mdc-raised-button,
-.mat-flat-button,
-.mat-mdc-unelevated-button {
-  &.mat-primary {
-    background-color: var(--mde-accent-primary) !important;
-    color: var(--mde-text-on-primary) !important;
-
-    &:hover {
-      background-color: var(--mde-accent-hover) !important;
-    }
-
-    &:disabled {
-      background-color: var(--mde-disabled-bg) !important;
-      color: var(--mde-disabled-text) !important;
-    }
-  }
-
-  &.mat-accent {
-    background-color: #ff4081 !important;
-    color: white !important;
-  }
-
-  &.mat-warn {
-    background-color: #f44336 !important;
-    color: white !important;
-  }
-}
-
-.mat-stroked-button,
-.mat-mdc-outlined-button {
-  border-color: var(--mde-input-border) !important;
-  color: var(--mde-text-primary) !important;
-  background-color: var(--mde-bg-primary) !important;
-
-  &:hover {
-    background-color: var(--mde-bg-tertiary) !important;
-  }
-
-  &.mat-primary {
-    border-color: var(--mde-accent-primary) !important;
-    color: var(--mde-accent-primary) !important;
-  }
-}
-
-.mat-button,
-.mat-mdc-button {
-  color: var(--mde-text-primary) !important;
-
-  &.mat-primary {
-    color: var(--mde-accent-primary) !important;
-  }
-
-  &:hover {
-    background-color: var(--mde-hover-overlay) !important;
-  }
-}
-
-// --- MAT-CHECKBOX ---
-.mat-checkbox,
-.mat-mdc-checkbox {
-  .mat-checkbox-frame,
-  .mdc-checkbox__background {
-    border-color: var(--mde-checkbox-border) !important;
-  }
-
-  &.mat-checkbox-checked,
-  &.mat-mdc-checkbox-checked {
-    .mat-checkbox-background,
-    .mdc-checkbox__background {
-      background-color: var(--mde-accent-primary) !important;
-      border-color: var(--mde-accent-primary) !important;
-    }
-  }
-
-  .mat-checkbox-label,
-  .mdc-label {
-    color: var(--mde-text-primary) !important;
-  }
-}
-
-// --- MAT-RADIO ---
-.mat-radio-button,
-.mat-mdc-radio-button {
-  .mat-radio-outer-circle,
-  .mdc-radio__outer-circle {
-    border-color: var(--mde-checkbox-border) !important;
-  }
-
-  &.mat-radio-checked,
-  &.mat-mdc-radio-checked {
-    .mat-radio-outer-circle,
-    .mdc-radio__outer-circle {
-      border-color: var(--mde-accent-primary) !important;
-    }
-    .mat-radio-inner-circle,
-    .mdc-radio__inner-circle {
-      background-color: var(--mde-accent-primary) !important;
-    }
-  }
-
-  .mat-radio-label-content {
-    color: var(--mde-text-primary) !important;
-  }
-}
-
-// --- MAT-SLIDE-TOGGLE ---
-.mat-slide-toggle,
-.mat-mdc-slide-toggle {
-  // Track (barra)
-  .mat-slide-toggle-bar,
-  .mdc-switch__track {
-    background-color: var(--mde-toggle-track) !important;
-    height: 14px !important;
-    border-radius: 7px !important;
-  }
-
-  // Track quando attivo
-  &.mat-checked,
-  &.mat-mdc-slide-toggle-checked {
-    .mat-slide-toggle-bar,
-    .mdc-switch__track {
-      background-color: rgba(25, 118, 210, 0.5) !important;
-    }
-
-    .mat-slide-toggle-thumb,
-    .mdc-switch__handle {
-      background-color: var(--mde-accent-primary) !important;
-    }
-  }
-
-  // Thumb (pallino)
-  .mat-slide-toggle-thumb,
-  .mdc-switch__handle {
-    background-color: var(--mde-toggle-thumb) !important;
-    box-shadow: 0 2px 4px var(--mde-shadow-color) !important;
-  }
-
-  // Nascondi ripple gigante
-  .mat-slide-toggle-ripple,
-  .mat-mdc-slide-toggle-ripple,
-  .mdc-switch__ripple {
-    display: none !important;
-  }
-}
-
-// --- MAT-TABS ---
-.mat-tab-group,
-.mat-mdc-tab-group {
-  background-color: var(--mde-bg-primary) !important;
-}
-
-.mat-tab-header,
-.mat-mdc-tab-header {
-  background-color: var(--mde-bg-secondary) !important;
-  border-bottom: 1px solid var(--mde-border-color) !important;
-}
-
-.mat-tab-label,
-.mat-mdc-tab {
-  color: var(--mde-icon-color) !important;
-  opacity: 1 !important;
-
-  &.mat-tab-label-active,
-  &.mdc-tab--active {
-    color: var(--mde-accent-primary) !important;
-    font-weight: 500 !important;
-  }
-
-  &:hover {
-    background-color: var(--mde-hover-overlay) !important;
-  }
-}
-
-.mat-ink-bar,
-.mat-mdc-tab-indicator {
-  background-color: var(--mde-accent-primary) !important;
-}
-
-.mat-tab-body-wrapper {
-  background-color: var(--mde-bg-primary) !important;
-}
-
-// --- MAT-CARD ---
-.mat-card,
-.mat-mdc-card {
-  background-color: var(--mde-bg-primary) !important;
-  border: 1px solid var(--mde-border-color) !important;
-  box-shadow: 0 2px 4px var(--mde-shadow-color) !important;
-
-  .mat-card-title,
-  .mat-mdc-card-title {
-    color: var(--mde-text-primary) !important;
-  }
-
-  .mat-card-subtitle,
-  .mat-mdc-card-subtitle {
-    color: var(--mde-text-secondary) !important;
-  }
-
-  .mat-card-content,
-  .mat-mdc-card-content {
-    color: var(--mde-text-primary) !important;
-  }
-}
-
-// --- MAT-LIST ---
-.mat-list,
-.mat-mdc-list,
-.mat-nav-list,
-.mat-mdc-nav-list {
-  background-color: var(--mde-bg-primary) !important;
-}
-
-.mat-list-item,
-.mat-mdc-list-item {
-  background-color: var(--mde-bg-primary) !important;
-  color: var(--mde-text-primary) !important;
-
-  &:hover {
-    background-color: var(--mde-bg-tertiary) !important;
-  }
-
-  &.mat-list-item-focus,
-  &.mdc-list-item--selected {
-    background-color: var(--mde-accent-light) !important;
-  }
-}
-
-// --- MAT-EXPANSION-PANEL ---
-.mat-expansion-panel,
-.mat-mdc-expansion-panel {
-  background-color: var(--mde-bg-primary) !important;
-  border: 1px solid var(--mde-border-color) !important;
-  box-shadow: none !important;
-
-  .mat-expansion-panel-header,
-  .mat-mdc-expansion-panel-header {
-    background-color: var(--mde-bg-secondary) !important;
-    color: var(--mde-text-primary) !important;
-
-    &:hover {
-      background-color: var(--mde-bg-hover) !important;
-    }
-  }
-
-  .mat-expansion-panel-header-title,
-  .mat-mdc-expansion-panel-header-title {
-    color: var(--mde-text-primary) !important;
-  }
-
-  .mat-expansion-panel-header-description,
-  .mat-mdc-expansion-panel-header-description {
-    color: var(--mde-text-secondary) !important;
-  }
-
-  .mat-expansion-indicator::after {
-    color: var(--mde-icon-color) !important;
-  }
-}
-
-// --- MAT-PROGRESS-BAR ---
-.mat-progress-bar,
-.mat-mdc-progress-bar {
-  .mat-progress-bar-background,
-  .mdc-linear-progress__buffer {
-    background-color: var(--mde-progress-bg) !important;
-  }
-
-  .mat-progress-bar-buffer,
-  .mdc-linear-progress__buffer-bar {
-    background-color: var(--mde-progress-buffer) !important;
-  }
-
-  .mat-progress-bar-fill::after,
-  .mdc-linear-progress__bar-inner {
-    background-color: var(--mde-accent-primary) !important;
-  }
-}
-
-// --- MAT-PROGRESS-SPINNER ---
-.mat-progress-spinner,
-.mat-mdc-progress-spinner {
-  circle {
-    stroke: var(--mde-accent-primary) !important;
-  }
-}
-
-// --- MAT-CHIP ---
-.mat-chip,
-.mat-mdc-chip {
-  background-color: var(--mde-chip-bg) !important;
-  color: var(--mde-text-primary) !important;
-
-  &.mat-primary {
-    background-color: var(--mde-accent-light) !important;
-    color: var(--mde-accent-primary) !important;
-  }
-}
-
-// --- MAT-AUTOCOMPLETE ---
-.mat-autocomplete-panel,
-.mat-mdc-autocomplete-panel {
-  background-color: var(--mde-bg-primary) !important;
-  border: 1px solid var(--mde-border-strong) !important;
-  border-radius: 4px !important;
-  box-shadow: 0 4px 12px var(--mde-shadow-color) !important;
-}
-
-// --- MAT-DATEPICKER ---
-.mat-datepicker-content,
-.mat-mdc-datepicker-content {
-  background-color: var(--mde-bg-primary) !important;
-  border: 1px solid var(--mde-border-strong) !important;
-  box-shadow: 0 4px 12px var(--mde-shadow-color) !important;
-}
-
-.mat-calendar-body-cell-content,
-.mat-mdc-calendar-body-cell-content {
-  color: var(--mde-text-primary) !important;
-
-  &:hover {
-    background-color: var(--mde-accent-light) !important;
-  }
-}
-
-.mat-calendar-body-selected {
-  background-color: var(--mde-accent-primary) !important;
-  color: var(--mde-text-on-primary) !important;
-}
-
-// --- MAT-TABLE ---
-.mat-table,
-.mat-mdc-table {
-  background-color: var(--mde-bg-primary) !important;
-}
-
-.mat-header-row,
-.mat-mdc-header-row {
-  background-color: var(--mde-bg-secondary) !important;
-}
-
-.mat-header-cell,
-.mat-mdc-header-cell {
-  color: var(--mde-text-primary) !important;
-  font-weight: 600 !important;
-  border-bottom: 2px solid var(--mde-border-color) !important;
-}
-
-.mat-row,
-.mat-mdc-row {
-  background-color: var(--mde-bg-primary) !important;
-
-  &:hover {
-    background-color: var(--mde-bg-tertiary) !important;
-  }
-}
-
-.mat-cell,
-.mat-mdc-cell {
-  color: var(--mde-text-primary) !important;
-  border-bottom: 1px solid var(--mde-border-color) !important;
-}
-
-// --- MAT-PAGINATOR ---
-.mat-paginator,
-.mat-mdc-paginator {
-  background-color: var(--mde-bg-primary) !important;
-  color: var(--mde-text-primary) !important;
-  border-top: 1px solid var(--mde-border-color) !important;
-}
-
-// --- SCROLLBAR STYLING ---
+// ------------------------------------------------------------
+// SCROLLBAR
+// ------------------------------------------------------------
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -1196,141 +404,5 @@ textarea.mat-input-element {
 
   &:hover {
     background: var(--mde-scrollbar-hover);
-  }
-}
-
-// --- MAT-TREE / MAT-SIDENAV / MAT-TOOLBAR: dark-based themes ---
-// Shared between dark-theme and milan-theme (both are dark-based and need
-// Material's light default chrome to be overridden on tree/sidenav/menu/toolbar).
-body.dark-theme,
-body.milan-theme {
-  .mat-tree {
-    background-color: var(--mde-bg-primary) !important;
-    color: var(--mde-text-primary) !important;
-  }
-
-  .mat-tree-node,
-  .mat-nested-tree-node {
-    color: var(--mde-text-primary) !important;
-
-    .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon) {
-      color: var(--mde-icon-color) !important;
-    }
-
-    // Preserve Material color="primary" on buttons and their icons
-    button.mat-primary .mat-icon,
-    button.mat-mdc-icon-button.mat-primary .mat-icon {
-      color: var(--mde-accent-primary) !important;
-    }
-
-    button.mat-icon-button:not(.mat-primary),
-    button.mat-mdc-icon-button:not(.mat-primary) {
-      color: var(--mde-text-primary) !important;
-    }
-  }
-
-  // Menu contestuale in dark mode: forza bg scuro + testo bianco con specificità
-  // alta (body.dark-theme + cdk-overlay-pane) per battere eventuali override del
-  // theme Material. Preserva inline "color:" custom (viola RAG, teal P2P, arancione).
-  .mat-mdc-menu-panel,
-  .mat-menu-panel,
-  .cdk-overlay-pane .mat-mdc-menu-panel,
-  .cdk-overlay-pane .mat-menu-panel {
-    background-color: var(--mde-bg-primary) !important;
-    background: var(--mde-bg-primary) !important;
-  }
-  .mat-mdc-menu-content,
-  .mat-menu-content,
-  .cdk-overlay-pane .mat-mdc-menu-content,
-  .cdk-overlay-pane .mat-menu-content {
-    background-color: var(--mde-bg-primary) !important;
-  }
-
-  .mat-mdc-menu-panel,
-  .mat-menu-panel {
-    .mat-mdc-menu-item:not([style*="color:"]),
-    .mat-menu-item:not([style*="color:"]) {
-      color: #ffffff !important;
-    }
-
-    // Material 15 MDC avvolge la label in <span class="mdc-list-item__primary-text">.
-    // inherit → prende dal button (nero default o inline-style custom).
-    .mat-mdc-menu-item,
-    .mat-menu-item {
-      .mdc-list-item__primary-text,
-      > span,
-      > b,
-      > span > b {
-        color: inherit !important;
-      }
-    }
-
-    button.mat-primary .mat-icon,
-    button.mat-mdc-icon-button.mat-primary .mat-icon,
-    button.mat-accent .mat-icon,
-    button.mat-mdc-icon-button.mat-accent .mat-icon {
-      color: var(--mde-accent-primary);
-    }
-
-    button.mat-warn .mat-icon,
-    button.mat-mdc-icon-button.mat-warn .mat-icon {
-      color: #ef5350;
-    }
-  }
-
-  .mat-sidenav,
-  .mat-drawer,
-  .mat-mdc-sidenav {
-    background-color: var(--mde-bg-primary) !important;
-    color: var(--mde-text-primary) !important;
-  }
-
-  .mat-sidenav-container,
-  .mat-drawer-container {
-    background-color: var(--mde-bg-primary) !important;
-    color: var(--mde-text-primary) !important;
-  }
-
-  .mat-toolbar,
-  .mat-mdc-toolbar {
-    background-color: var(--mde-bg-tertiary) !important;
-    color: var(--mde-text-primary) !important;
-  }
-}
-
-// === MILAN CHROME: titlebar already red via --mde-titlebar-bg; here we
-// paint the Angular mat-toolbar instances with the same burgundy signature
-// and swap their inner text/icons to champagne-white for contrast. ===
-body.milan-theme {
-  .mat-toolbar,
-  .mat-mdc-toolbar {
-    background-color: var(--mde-titlebar-bg) !important;
-    color: var(--mde-text-on-primary) !important;
-
-    .mat-icon:not(.folder-icon):not(.gold-icon):not(.terminal-icon) {
-      color: var(--mde-text-on-primary) !important;
-    }
-
-    button.mat-icon-button:not(.mat-primary):not(.mat-accent):not(.mat-warn),
-    button.mat-mdc-icon-button:not(.mat-primary):not(.mat-accent):not(.mat-warn) {
-      color: var(--mde-text-on-primary) !important;
-    }
-
-    // Slightly lift icon buttons on hover so they read as clickable
-    // against the burgundy chrome.
-    button.mat-icon-button:hover,
-    button.mat-mdc-icon-button:hover {
-      background-color: rgba(255, 255, 255, 0.08) !important;
-    }
-  }
-}
-
-// --- GLOBAL OVERLAY PANELS ---
-.cdk-overlay-pane {
-  .mat-select-panel,
-  .mat-autocomplete-panel,
-  .mat-menu-panel,
-  .mat-datepicker-content {
-    background-color: var(--mde-bg-primary) !important;
   }
 }

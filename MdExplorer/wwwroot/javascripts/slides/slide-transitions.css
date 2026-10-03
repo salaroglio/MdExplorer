@@ -1,0 +1,178 @@
+/* Il pannello delle transizioni (slide-transitions.js). Sta sulla pagina, non sulla slide. */
+
+.mde-tr-panel {
+    position: fixed;
+    z-index: 46;
+    width: 300px;
+    box-sizing: border-box;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.14);
+    background: rgba(252, 252, 252, 0.98);
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.25);
+    font: 13px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #222;
+}
+
+.mde-tr-scopes {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.mde-tr-scope {
+    flex: 1;
+    padding: 5px 8px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    background: #fff;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.mde-tr-scope[aria-pressed="true"] {
+    background: rgba(26, 115, 232, 0.14);
+    border-color: #1a73e8;
+    font-weight: 600;
+}
+
+.mde-tr-scope:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.mde-tr-hint {
+    margin: 0 0 8px;
+    color: #555;
+    font-size: 12px;
+}
+
+/* L'ultima scelta, a un clic, per la slide dopo. */
+.mde-tr-suggest {
+    display: block;
+    width: 100%;
+    margin: 0 0 8px;
+    padding: 7px 10px;
+    border: 1px dashed #1a73e8;
+    border-radius: 8px;
+    background: rgba(26, 115, 232, 0.08);
+    color: #0b57d0;
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+.mde-tr-suggest:hover,
+.mde-tr-suggest:focus-visible {
+    background: rgba(26, 115, 232, 0.18);
+    outline: none;
+}
+
+/* Nell'elenco, la scelta fatta per ultima ha un punto in alto a destra. */
+.mde-tr-option.mde-tr-last {
+    position: relative;
+}
+
+.mde-tr-option.mde-tr-last::after {
+    content: "";
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #1a73e8;
+    box-shadow: 0 0 0 2px #fff;
+}
+
+.mde-tr-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.mde-tr-option {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 5px;
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    border-radius: 8px;
+    background: #fff;
+    color: inherit;
+    font: inherit;
+    text-align: center;
+    cursor: pointer;
+}
+
+.mde-tr-option:hover,
+.mde-tr-option:focus-visible {
+    border-color: #1a73e8;
+    outline: none;
+}
+
+.mde-tr-option[aria-pressed="true"] {
+    border-color: #1a73e8;
+    background: rgba(26, 115, 232, 0.12);
+    box-shadow: inset 0 0 0 1px #1a73e8;
+}
+
+.mde-tr-name {
+    font-size: 12px;
+}
+
+/* La miniatura: la stessa animazione che reveal.js fa per ogni transizione (stesse trasformazioni, stessa
+   curva e durata), su due riquadri. A è in scena, B aspetta; poi A esce e B entra, e ritorno. */
+.mde-tr-demo {
+    position: relative;
+    height: 50px;
+    overflow: hidden;
+    border-radius: 5px;
+    background: rgba(0, 0, 0, 0.06);
+    perspective: 600px;
+}
+
+.mde-tr-s {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 18px;
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.8s cubic-bezier(0.26, 0.86, 0.44, 0.985), opacity 0.8s cubic-bezier(0.26, 0.86, 0.44, 0.985), visibility 0.8s cubic-bezier(0.26, 0.86, 0.44, 0.985);
+}
+
+.mde-tr-a { background: #1a73e8; }
+.mde-tr-b { background: #e8710a; }
+.mde-tr-s.present { opacity: 1; }
+
+/* slide (e «Come il deck» quando il deck è slide) */
+.mde-tr-demo[data-t="slide"] .mde-tr-s.past { transform: translate(-150%); }
+.mde-tr-demo[data-t="slide"] .mde-tr-s.future { transform: translate(150%); }
+
+.mde-tr-demo[data-t="convex"] .mde-tr-s.past { transform: translate(-100%) rotateY(-90deg) translate(-100%); }
+.mde-tr-demo[data-t="convex"] .mde-tr-s.future { transform: translate(100%) rotateY(90deg) translate(100%); }
+
+.mde-tr-demo[data-t="concave"] .mde-tr-s.past { transform: translate(-100%) rotateY(90deg) translate(-100%); }
+.mde-tr-demo[data-t="concave"] .mde-tr-s.future { transform: translate(100%) rotateY(-90deg) translate(100%); }
+
+.mde-tr-demo[data-t="zoom"] .mde-tr-s { transition-timing-function: ease; }
+.mde-tr-demo[data-t="zoom"] .mde-tr-s.past { visibility: hidden; transform: scale(16); }
+.mde-tr-demo[data-t="zoom"] .mde-tr-s.future { visibility: hidden; transform: scale(0.2); }
+
+.mde-tr-demo[data-t="fade"] .mde-tr-s { transition: opacity 0.5s; transform: none; }
+
+.mde-tr-demo[data-t="none"] .mde-tr-s { transition: none; transform: none; }
+.mde-tr-demo[data-t="none"] .mde-tr-s:not(.present) { visibility: hidden; }
+
+html.reveal-print .mde-tr-panel,
+html.print-pdf .mde-tr-panel {
+    display: none !important;
+}

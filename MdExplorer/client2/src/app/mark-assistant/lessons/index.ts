@@ -23,14 +23,13 @@
 import { MarkLesson } from '../mark-types';
 import { WELCOME_TOUR } from './welcome-tour';
 import { buildIdleMenu } from './idle-menu';
-import { DEMO_CLONE_TOUR } from './demo-clone-tour';
+import { buildDemoCloneTour } from './demo-clone-tour';
 import { MICRO_TIPS, MICRO_TIPS_DONE } from './micro-tips';
 
 /** Pure / static lessons — safe to import as constants. */
 const STATIC_LESSONS: { [id: string]: MarkLesson } = (() => {
   const out: { [id: string]: MarkLesson } = {
     [WELCOME_TOUR.id]: WELCOME_TOUR,
-    [DEMO_CLONE_TOUR.id]: DEMO_CLONE_TOUR,
     [MICRO_TIPS_DONE.id]: MICRO_TIPS_DONE,
   };
   for (const tip of MICRO_TIPS) {
@@ -47,11 +46,15 @@ const STATIC_LESSONS: { [id: string]: MarkLesson } = (() => {
 export function buildLessonRegistry(deps: {
   launch: (id: string) => void | Promise<void>;
   launchNextMicroTip: () => void | Promise<void>;
+  setHarnessForPath: (path: string, harness: string) => void;
+  currentLanguage: () => string;
 }): { [id: string]: MarkLesson } {
   const idleMenu = buildIdleMenu(deps);
+  const demoCloneTour = buildDemoCloneTour(deps);
   return {
     ...STATIC_LESSONS,
     [idleMenu.id]: idleMenu,
+    [demoCloneTour.id]: demoCloneTour,
   };
 }
 

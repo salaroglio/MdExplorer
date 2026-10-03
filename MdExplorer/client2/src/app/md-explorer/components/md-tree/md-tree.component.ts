@@ -1,4 +1,5 @@
 import { FlatTreeControl } from '@angular/cdk/tree';
+import { E2eDialogComponent, E2eDialogData } from '../e2e-dialog/e2e-dialog.component';
 import { Component, OnInit, ViewChild, ChangeDetectorRef, ChangeDetectionStrategy, AfterViewInit, OnDestroy } from '@angular/core';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { MatLegacyMenuTrigger as MatMenuTrigger } from '@angular/material/legacy-menu';
@@ -30,6 +31,8 @@ import { ProjectSettingsService } from '../../../projects/services/project-setti
 import { ShowFileSystemComponent } from '../../../commons/components/show-file-system/show-file-system.component';
 import { ShowFileMetadata } from '../../../commons/components/show-file-system/show-file-metadata';
 import { InstallWizardDialogComponent, InstallWizardData } from '../dialogs/install-wizard/install-wizard.component';
+import { AgentLaunchDialogComponent } from '../agent-launch-dialog/agent-launch-dialog.component';
+import { AgentScheduleDialogComponent } from '../agent-schedule-dialog/agent-schedule-dialog.component';
 import { AppStoreService } from '../../services/app-store.service';
 import { BulkExportProgressService } from '../../services/bulk-export-progress.service';
 import { FileEventsService } from '../../services/file-events.service';
@@ -124,10 +127,14 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       developmentTags: node.developmentTags,
       // True when the folder owns a generated TOC file (drives the TOC icon)
       hasToc: node.hasToc,
+      // *.agent.md detection is purely name-based: no backend round-trip needed
+      isAgentFile: (node.type === 'mdFile' || node.type === 'mdFileTimer')
+        && !!node.name && node.name.toLowerCase().endsWith('.agent.md'),
       // Folder "reveal extra content" (eye) state
       hasExtraContent: node.hasExtraContent,
       extraLoaded: node.extraLoaded,
       isExtra: node.isExtra,
+      isTextFile: node.isTextFile,
       // Compact folder properties
       isCompacted: node.isCompacted,
       compactedPath: node.compactedPath,
@@ -320,6 +327,18 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Creazione cartella (queued + debounced)
     this.mdServerMessages.folderCreated$.pipe(takeUntil(this.destroy$)).subscribe(data => {
       this.enqueueEvent(() => this.handleFolderCreated(data), 'folderCreated');
+    });
+
+    // Contenuto non-.md di una cartella cambiato sul disco (queued + debounced): occhio e file rivelati.
+    this.mdServerMessages.folderContentChanged$.pipe(takeUntil(this.destroy$)).subscribe(data => {
+      this.enqueueEvent(() => this.handleFolderContentChanged(data), 'folderContentChanged');
+    });
+
+    // Riga compattata spezzata: se era aperta, restano aperte testa e coda (le chiavi cambiano).
+    this.mdFileService.compactChainBroken$.pipe(takeUntil(this.destroy$)).subscribe(({ rowKey, headKey, tailKey }) => {
+      // trackBy del treeControl = fullPath: a runtime l'expansionModel contiene stringhe.
+      const model = this.treeControl.expansionModel as unknown as { isSelected(k: string): boolean; select(...k: string[]): void };
+      if (model.isSelected(rowKey)) model.select(headKey, tailKey);
     });
 
     // Cancellazione cartella (queued + debounced)
@@ -524,6 +543,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // on a mutated-and-propagated flag) makes the toggle deterministic — the eye_off appears iff
     // the folder currently shows revealed isExtra children.
     if (item && item.type === 'folder') {
+      // Il flag dell'occhio dal dataStore, non dalla riga: il CDK tree riusa la riga con i dati
+      // vecchi, e un flag cambiato sul disco (folderContentChanged) non ci arriverebbe.
+      const known = this.mdFileService.getFolderExtraContent(this.getFolderRevealPath(item));
+      if (known !== undefined) item.hasExtraContent = known;
       item.extraLoaded = this.folderHasRevealedExtras(item);
     }
 
@@ -572,6 +595,19 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       } else if (idx > 0) {
         const extra = node.compactedSegments.slice(1, idx + 1).map(s => s.name).join('/');
         segmentItem.relativePath = `${baseRel}/${extra}`;
+      }
+
+      // Occhio "reveal contenuto extra" su OGNI segmento che ha contenuto nascosto: l'ultimo
+      // prende il flag della riga (compactSingleNode ci copia quello del segmento profondo), gli
+      // intermedi il proprio da compactedSegments. Il reveal di un intermedio spezza la catena
+      // in quel punto (addFileToParent → breakCompactFolderAt): prima del 28/09/2026 l'occhio
+      // c'era solo sull'ultimo, e `scripts/` sotto `login.e2e` restava irraggiungibile.
+      if (idx >= 0) {
+        segmentItem.hasExtraContent = this.mdFileService.getFolderExtraContent(segment.fullPath)
+          ?? (idx === node.compactedSegments.length - 1
+            ? node.hasExtraContent
+            : !!node.compactedSegments[idx].hasExtraContent);
+        segmentItem.extraLoaded = this.folderHasRevealedExtras(segmentItem);
       }
     }
 
@@ -952,6 +988,41 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.markAssistant.launchFolderActions({ folderFullPath, folderName });
   }
 
+  /** A test written in markdown (sprint 2026-09-26-Test-E2E-Da-Markdown): recognised by its name. */
+  isE2eFile(node: MdFile): boolean {
+    return !!node && (node.type === 'mdFile' || node.type === 'mdFileTimer') && /\.e2e\.md$/i.test(node.name || '');
+  }
+
+  /** The fact_check icon next to a .e2e.md: opens its tests window, not the document. */
+  openE2eFromIcon(node: MdFile, event: MouseEvent) {
+    event.stopPropagation();
+    this.openE2eTests(node);
+  }
+
+  /**
+   * The e2e tests window of a .e2e.md or of a folder (all the tests below it): settings (the particular
+   * wins over the general), checks, prerequisites, launch.
+   */
+  openE2eTests(node: MdFile) {
+    if (node == null) return;
+    const lastSeg = node.isCompacted && node.compactedSegments?.length
+      ? node.compactedSegments[node.compactedSegments.length - 1]
+      : null;
+    const project = this.projectsService.currentProjects$.value;
+    const projectPath = project?.path || '';
+    // The project root (onRightClick builds the "root" item with fullPath "root", not a real path):
+    // settings for every test of the project.
+    const isRoot = node.name === 'root' && (!node.fullPath || node.fullPath === 'root');
+    const path = isRoot ? projectPath : (lastSeg ? lastSeg.fullPath : node.fullPath);
+    const name = isRoot ? (project?.name || projectPath) : (lastSeg ? lastSeg.name : node.name);
+    this.dialog.open(E2eDialogComponent, {
+      data: { path, name, projectPath } as E2eDialogData,
+      width: '860px',
+      maxWidth: '95vw',
+      disableClose: true,
+    });
+  }
+
   /**
    * Opens the folder's existing TOC file (<dirname>.md.directory) directly,
    * without regenerating it. Wired to the document icon shown on folder nodes
@@ -961,6 +1032,37 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Stop the click from bubbling to the folder row (which would toggle it).
     event.stopPropagation();
     this.navigateToTocFile(node);
+  }
+
+  /**
+   * Opens the Agent Launch dialog for a *.agent.md file. Wired to the robot icon
+   * shown on nodes whose node.isAgentFile === true.
+   */
+  openAgentLaunchDialog(node: MdFile, event: MouseEvent) {
+    // Stop the click from bubbling to the row (which would open the document).
+    event.stopPropagation();
+    const projectPath = this.projectsService.currentProjects$.value?.path || '';
+    this.dialog.open(AgentLaunchDialogComponent, {
+      width: '700px',
+      data: {
+        projectPath,
+        agentFilePath: node.fullPath,
+        agentName: node.name,
+      },
+    });
+  }
+
+  /** Per-user scheduling of a *.agent.md agent (context-menu entry). */
+  openAgentScheduling(node: MdFile) {
+    const projectPath = this.projectsService.currentProjects$.value?.path || '';
+    this.dialog.open(AgentScheduleDialogComponent, {
+      width: '760px',
+      data: {
+        projectPath,
+        agentFilePath: node.fullPath,
+        agentName: node.name,
+      },
+    });
   }
 
   /**
@@ -990,7 +1092,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   revealFolderExtras(node: MdFile) {
     const parentFullPath = this.getFolderRevealPath(node);
     this.mdFileService.revealFolderExtras(parentFullPath).subscribe({
-      next: () => { this.treeControl.expand(node); },
+      // Espande il flat node REALE del tree, non `node` com'era prima: quando il reveal parte
+      // dal menù di un segmento compattato, `node` è un MdFile sintetico il cui fullPath è
+      // quello del segmento foglia, mentre l'expansionModel (trackBy fullPath) conosce la riga
+      // compatta con il fullPath del PRIMO segmento → expand(node) non apriva la riga.
+      next: () => { this.treeControl.expand(this.findFlatFolder(parentFullPath) ?? node); },
       error: (err) => {
         console.error('[MdTreeComponent] revealFolderExtras failed:', err);
         this.snackBar.open(this.translate.instant('MD_TREE.REVEAL_ERROR'), 'OK', { duration: 3000 });
@@ -1016,6 +1122,19 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   /** True when the folder currently shows revealed extra content (isExtra children). */
   private folderHasRevealedExtras(node: MdFile): boolean {
     return this.mdFileService.hasRevealedExtras(this.getFolderRevealPath(node));
+  }
+
+  /**
+   * Flat node of the rendered tree representing the folder at `path` — direct fullPath match
+   * or, for compact rows, a match on any compacted segment. Needed because the expansion
+   * model is keyed by the row's own fullPath (first segment for compact rows).
+   */
+  private findFlatFolder(path: string): IFileInfoNode | null {
+    const target = path.toLowerCase();
+    return this.treeControl.dataNodes?.find(n => n.type === 'folder' && (
+      n.fullPath?.toLowerCase() === target ||
+      (n.isCompacted && n.compactedSegments?.some(s => s.fullPath.toLowerCase() === target))
+    )) ?? null;
   }
   
   exportFolderToWord(node: MdFile) {
@@ -1532,7 +1651,12 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // le righe → lascerebbe nel DOM le righe vecchie e ne appenderebbe di nuove,
   // duplicando l'intera struttura (copia "morta" + copia "viva").
   trackByPath(index: number, node: MdFile): string {
-    return node.fullPath || `${node.path || ''}_${node.level || 0}`;
+    // La forma della compattazione fa parte dell'identità della riga: il CDK tree (v15) riusa
+    // la riga con lo stesso trackBy SENZA aggiornarne i dati, e una catena spezzata al primo
+    // segmento tiene lo stesso fullPath → restava disegnata come `a / b / c` (28/09/2026).
+    // L'espansione resta chiavata sul solo fullPath (treeControl), quindi non si perde.
+    const key = node.fullPath || `${node.path || ''}_${node.level || 0}`;
+    return node.isCompacted ? `${key}|${node.compactedPath}` : key;
   }
   
   // Helper per verificare se un nodo è selezionato
@@ -1678,6 +1802,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // ── Storm batch processing ──
 
   private processStormChanges(changes: any[]): void {
+    let createdFilesCount = 0;
+    let lastCreatedFile: any = null;
     for (const change of changes) {
       try {
         const action = change.action; // 'created', 'deleted', 'changed', 'renamed'
@@ -1688,7 +1814,11 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
             if (isDir) {
               this.handleFolderCreated(change);
             } else {
-              this.handleNewMarkdownFileCreated(change);
+              // suppressNavigation: durante una raffica non si naviga a ogni
+              // file creato (N navigazioni + N snackbar), si aggiunge solo al tree.
+              this.handleNewMarkdownFileCreated(change, true);
+              createdFilesCount++;
+              lastCreatedFile = change;
             }
             break;
 
@@ -1717,7 +1847,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
               if (change.oldFullPath) {
                 this.handleMarkdownFileDeleted({ fullPath: change.oldFullPath, name: '' });
               }
-              this.handleNewMarkdownFileCreated(change);
+              this.handleNewMarkdownFileCreated(change, true);
             }
             break;
         }
@@ -1726,12 +1856,63 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     }
     this.changeDetectorRef.markForCheck();
+
+    if (createdFilesCount > 0) {
+      // Il pulsante d'azione apre l'ultimo file inserito dalla raffica
+      // (i change sono ordinati per timestamp dal backend).
+      const snackRef = this.snackBar.open(
+        this.translate.instant('MD_TREE.STORM_FILES_CREATED', { count: createdFilesCount }),
+        this.translate.instant('MD_TREE.OPEN_LAST_CREATED', { name: lastCreatedFile.name }),
+        {
+          duration: 8000,
+          horizontalPosition: 'right',
+          verticalPosition: 'bottom',
+          panelClass: ['success-snackbar']
+        }
+      );
+      snackRef.onAction().pipe(takeUntil(this.destroy$)).subscribe(() => {
+        this.openStormCreatedFile(lastCreatedFile);
+      });
+    }
+  }
+
+  /**
+   * Apre un file creato durante una raffica (azione della snackbar riassuntiva):
+   * espande il tree fino al file, lo seleziona e naviga al documento —
+   * gli stessi STEP 7-10 di handleNewMarkdownFileCreated nel caso singolo.
+   */
+  private openStormCreatedFile(change: any): void {
+    const mdFileForNavigation: MdFile = {
+      name: change.name,
+      path: change.path,
+      relativePath: change.relativePath,
+      fullPath: change.fullPath,
+      fullDirectoryPath: this.getParentDirPath(change.fullPath),
+      type: 'mdFile',
+      level: change.level ?? 0,
+      expandable: false,
+      isLoading: false,
+      childrens: [],
+      index: 0,
+      isIndexed: true,
+      indexingStatus: 'completed'
+    };
+
+    this.mdFileService.setSelectedMdFileFromServer(mdFileForNavigation);
+    this.activeNode = mdFileForNavigation;
+    this.selectedNode = mdFileForNavigation;
+    this.changeDetectorRef.markForCheck();
+    this.mdFileService.setSelectedMdFileFromSideNav(mdFileForNavigation);
+    this.navService.setNewNavigation(mdFileForNavigation);
+    this.router.navigate(['/main/navigation/document']);
   }
 
   // ── SignalR event handlers ──
 
-  // Gestisce la creazione di un nuovo file markdown
-  private handleNewMarkdownFileCreated(fileData: any): void {
+  // Gestisce la creazione di un nuovo file markdown.
+  // suppressNavigation=true (batch storm): il file viene solo aggiunto al tree,
+  // senza navigare al documento né mostrare la snackbar per-file.
+  private handleNewMarkdownFileCreated(fileData: any, suppressNavigation: boolean = false): void {
     // Skip if this event is from our own DnD move (FSW buffered event leak)
     if (this.dndMovingPaths && fileData.fullPath?.toLowerCase() === this.dndMovingPaths.newPath?.toLowerCase()) {
       console.log('[DnD] Suppressing FSW-leaked markdownFileCreated for:', fileData.fullPath);
@@ -1798,6 +1979,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // STEP 6: Forza change detection per aggiornare il tree
     this.changeDetectorRef.detectChanges();
+
+    if (suppressNavigation) {
+      return;
+    }
 
     // STEP 7: Crea un MdFile valido per la navigazione
     const mdFileForNavigation: MdFile = {
@@ -1962,6 +2147,25 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     console.log('✅ [handleFolderCreated] Cartella aggiunta al tree:', name);
+    this.changeDetectorRef.markForCheck();
+  }
+
+  /**
+   * Il contenuto non-.md di una cartella è cambiato sul disco (file creati, cancellati, rinominati;
+   * cartelle senza markdown). Il flag dell'occhio arriva già ricalcolato dal server; se l'occhio
+   * è aperto, i file rivelati si aggiornano. Cartella non nel tree (mai espansa): niente da fare,
+   * il flag arriverà giusto al caricamento.
+   */
+  private handleFolderContentChanged(data: any): void {
+    const folder = data?.folderFullPath || data?.FolderFullPath;
+    const hasExtra = !!(data?.hasExtraContent ?? data?.HasExtraContent);
+    const hasRevealable = !!(data?.hasRevealableContent ?? data?.HasRevealableContent);
+    if (!folder || !this.mdFileService.setFolderExtraContent(folder, hasExtra, hasRevealable)) return;
+    if (this.mdFileService.hasRevealedExtras(folder)) {
+      this.mdFileService.refreshFolderExtras(folder).subscribe({
+        error: err => console.error('[MdTreeComponent] refreshFolderExtras failed:', err),
+      });
+    }
     this.changeDetectorRef.markForCheck();
   }
 

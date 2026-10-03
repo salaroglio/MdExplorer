@@ -242,6 +242,32 @@ body.dark-theme .mdeSearchInput {
   border-color: #555;
 }
 
+body.dark-theme .mdeSearchResultCount {
+  color: #cccccc;
+}
+
+body.dark-theme .mdeSearchResultCount.mdeNoResults {
+  color: #888888;
+}
+
+body.dark-theme .mdeSearchNavButton {
+  color: #cccccc;
+  border-color: #555;
+}
+
+body.dark-theme .mdeSearchNavButton:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: #777;
+}
+
+body.dark-theme .mdeSearchNavButton:active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+body.dark-theme .mdeSearchCloseButton {
+  color: #aaaaaa;
+}
+
 /* Images */
 body.dark-theme .resizableImg {
   background: #2d2d2d;

@@ -18,7 +18,7 @@ interface RunRequestPayload {
   blockId: string;
   lang: string;
   code: string;
-  params: Array<{ name: string; defaultValue: string; isSecret: boolean; description?: string; kind?: string }>;
+  params: Array<{ name: string; defaultValue: string; isSecret: boolean; description?: string; kind?: string; options?: string[] }>;
   paramsInline?: boolean;
   projectPath: string;
   documentPath?: string;

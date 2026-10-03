@@ -134,3 +134,45 @@ export async function buildDemoClonePath(repoName = 'mdexplorer-demo'): Promise<
     ? `C:\\Users\\Public\\Documents\\${repoName}-${stamp}`
     : `/tmp/${repoName}-${stamp}`;
 }
+
+/** One agentic environment as the service's probe reports it (GET /api/AgenticEnvironments/Probe). */
+export interface AgenticEnvironmentStatus {
+  /** Same id as the project's harness: 'copilot' | 'claude' | 'opencode'. */
+  id: string;
+  installed: boolean;
+  path: string | null;
+  /** Installed AND ready to answer: the only ones Mark may choose. */
+  usable: boolean;
+  /** 'not-installed' | 'not-logged-in' | 'no-models' | 'timeout' | 'error', or null when usable. */
+  reason: string | null;
+  detail: string | null;
+  elapsedMs: number;
+}
+
+export interface AgenticEnvironmentsProbe {
+  environments: AgenticEnvironmentStatus[];
+  usable: string[];
+}
+
+/**
+ * Asks the service which agentic environments (Copilot CLI, Claude Code, opencode) this computer
+ * can actually use. No guess when the call fails: it throws, and the caller says so — answering
+ * "none found" for a probe that did not run would send the user to install something he may
+ * already have.
+ */
+export async function probeAgenticEnvironments(): Promise<AgenticEnvironmentsProbe> {
+  const res = await fetch('/api/AgenticEnvironments/Probe');
+  if (!res.ok) {
+    let message = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body?.error) message = body.error;
+    } catch { /* no JSON body: the status is all we know */ }
+    throw new Error(message);
+  }
+  const body = await res.json();
+  if (!body || !Array.isArray(body.environments) || !Array.isArray(body.usable)) {
+    throw new Error('unexpected answer from /api/AgenticEnvironments/Probe');
+  }
+  return body as AgenticEnvironmentsProbe;
+}

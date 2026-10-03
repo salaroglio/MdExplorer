@@ -23,6 +23,15 @@ namespace MdExplorer.Service.Controllers.TabBar.Automapper
         public string ExternalUrl { get; set; }
         public string Cluster { get; set; }
         public string Tldr { get; set; }
+
+        /// <summary>markdown, json, text, word, powerpoint, excel, pdf, image, web, other — the icon of the box.</summary>
+        public string Kind { get; set; }
+
+        /// <summary>page | application | browser | none — what a click on the node does.</summary>
+        public string OpenWith { get; set; }
+
+        /// <summary>Whether the linked file is on disk (a broken link does not open).</summary>
+        public bool Exists { get; set; }
     }
 
     public class KnowledgeGraphLinkDto

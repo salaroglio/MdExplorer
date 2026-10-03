@@ -551,6 +551,150 @@ namespace MdExplorer.Utilities
         }
 
         /// <summary>
+        /// Puts plain text into the system clipboard.
+        /// <para>
+        /// Text always travels over the child process' stdin as raw UTF-8 bytes: passing it as a
+        /// command-line argument would mangle newlines, quotes and non-ASCII characters, and a
+        /// runnable script is full of all three.
+        /// </para>
+        /// </summary>
+        public static async Task<ClipboardResult> SetTextAsync(string text)
+        {
+            text ??= string.Empty;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return await SetTextWindows(text);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                return await SetTextLinux(text);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                return await PipeTextTo("pbcopy", string.Empty, text);
+            }
+            else
+            {
+                return new ClipboardResult
+                {
+                    Success = false,
+                    ErrorMessage = "Unsupported operating system"
+                };
+            }
+        }
+
+        private static async Task<ClipboardResult> SetTextWindows(string text)
+        {
+            // clip.exe would re-encode stdin with the console code page and destroy accented
+            // characters, so the text goes through a UTF-8 temp file read back by PowerShell.
+            // Set-Clipboard also needs no STA message pump, unlike Windows.Forms.Clipboard.
+            var tempFile = Path.Combine(Path.GetTempPath(), $"mde-clip-{Guid.NewGuid():N}.txt");
+            try
+            {
+                await File.WriteAllTextAsync(tempFile, text, new System.Text.UTF8Encoding(false));
+                var escapedPath = tempFile.Replace("'", "''");
+                var script = $"Set-Clipboard -Value ([IO.File]::ReadAllText('{escapedPath}', [Text.Encoding]::UTF8))";
+
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -NonInteractive -Command \"{script}\"",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using (var process = Process.Start(psi))
+                {
+                    var stderr = await process.StandardError.ReadToEndAsync();
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0)
+                        return new ClipboardResult { Success = true };
+
+                    return new ClipboardResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"PowerShell Set-Clipboard failed: {stderr}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ClipboardResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Error setting clipboard text: {ex.Message}"
+                };
+            }
+            finally
+            {
+                try { if (File.Exists(tempFile)) File.Delete(tempFile); } catch { /* temp file, best effort */ }
+            }
+        }
+
+        private static async Task<ClipboardResult> SetTextLinux(string text)
+        {
+            if (await CheckCommandAvailable("xclip"))
+                return await PipeTextTo("xclip", "-selection clipboard -i", text);
+
+            if (await CheckCommandAvailable("wl-copy"))
+                return await PipeTextTo("wl-copy", string.Empty, text);
+
+            return new ClipboardResult
+            {
+                Success = false,
+                ErrorMessage = "No clipboard tool found",
+                PlatformHint = "Install xclip (X11) with 'sudo apt-get install xclip' or wl-clipboard (Wayland) with 'sudo apt-get install wl-clipboard'"
+            };
+        }
+
+        private static async Task<ClipboardResult> PipeTextTo(string fileName, string arguments, string text)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = fileName,
+                    Arguments = arguments,
+                    RedirectStandardInput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+
+                using (var process = Process.Start(psi))
+                {
+                    var bytes = System.Text.Encoding.UTF8.GetBytes(text);
+                    await process.StandardInput.BaseStream.WriteAsync(bytes, 0, bytes.Length);
+                    await process.StandardInput.BaseStream.FlushAsync();
+                    process.StandardInput.Close();
+                    process.WaitForExit();
+
+                    if (process.ExitCode == 0)
+                        return new ClipboardResult { Success = true };
+
+                    var error = await process.StandardError.ReadToEndAsync();
+                    return new ClipboardResult
+                    {
+                        Success = false,
+                        ErrorMessage = $"{fileName} failed: {error}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new ClipboardResult
+                {
+                    Success = false,
+                    ErrorMessage = $"Error setting clipboard text: {ex.Message}"
+                };
+            }
+        }
+
+        /// <summary>
         /// Copies a file to the system clipboard as a file drop list,
         /// so it can be pasted into apps like Teams, Explorer, etc.
         /// </summary>

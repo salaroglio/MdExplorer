@@ -13,6 +13,11 @@ namespace MdExplorer.Services.Git.Interfaces
         public bool Success { get; set; }
         public string Message { get; set; }
         public string ErrorMessage { get; set; }
+        /// <summary>
+        /// Cose andate diversamente da come ci si aspetterebbe, a operazione riuscita: per esempio un
+        /// submodule lasciato dov'era perché diverge dalla versione registrata. Vanno dette all'utente.
+        /// </summary>
+        public IReadOnlyList<string> Warnings { get; set; } = Array.Empty<string>();
         public string CommitHash { get; set; }
         /// <summary>
         /// True when the operation moved HEAD (new content arrived), regardless
@@ -189,12 +194,6 @@ namespace MdExplorer.Services.Git.Interfaces
         /// <returns>Result of the remove remote operation</returns>
         Task<GitOperationResult> RemoveRemoteAsync(string repositoryPath, string remoteName = "origin");
 
-        /// <summary>
-        /// Clears all cached credentials for a specific repository
-        /// Useful when changing credentials for a project
-        /// </summary>
-        /// <param name="repositoryPath">Path to the local repository</param>
-        void ClearProjectCache(string repositoryPath);
 
         /// <summary>
         /// Discards changes to a specific file (equivalent to git restore/checkout -- file)

@@ -206,7 +206,7 @@
                 [disabled]="!isModelLoaded">
           <mat-icon>edit</mat-icon> {{ 'UNIFIED_SETTINGS.SYSTEM_PROMPT' | translate }}
         </button>
-        <button mat-raised-button style="background-color: #10a37f; color: white;" (click)="toggleOpenAiConfig()">
+        <button mat-raised-button class="brand-openai-bg" (click)="toggleOpenAiConfig()">
           <mat-icon>psychology</mat-icon> {{ showOpenAiConfig ? ('UNIFIED_SETTINGS.HIDE' | translate) : '' }} {{ 'UNIFIED_SETTINGS.OPENAI' | translate }}
         </button>
         <button mat-raised-button color="warn" (click)="toggleGeminiConfig()">
@@ -244,7 +244,7 @@
               <mat-label>{{ 'UNIFIED_SETTINGS.OPENAI_API_KEY' | translate }}</mat-label>
               <input matInput type="password" [(ngModel)]="openAiApiKey" [placeholder]="'UNIFIED_SETTINGS.OPENAI_KEY_PLACEHOLDER' | translate">
             </mat-form-field>
-            <button mat-raised-button style="background-color: #10a37f; color: white;"
+            <button mat-raised-button class="brand-openai-bg"
                     (click)="saveOpenAiApiKey()" [disabled]="!openAiApiKey.trim()">
               <mat-icon>save</mat-icon> {{ 'UNIFIED_SETTINGS.SAVE_KEY' | translate }}
             </button>
@@ -257,7 +257,7 @@
                   <mat-card-title>{{ model.name }}</mat-card-title>
                 </mat-card-header>
                 <mat-card-actions>
-                  <button mat-raised-button style="background-color: #10a37f; color: white;"
+                  <button mat-raised-button class="brand-openai-bg"
                           *ngIf="!useOpenAi || selectedOpenAiModel !== model.id"
                           (click)="connectOpenAiModel(model.id)">{{ 'COMMON.CONNECT' | translate }}</button>
                   <button mat-button *ngIf="useOpenAi && selectedOpenAiModel === model.id"

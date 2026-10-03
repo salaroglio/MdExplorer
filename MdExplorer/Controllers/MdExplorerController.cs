@@ -8,7 +8,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MdExplorer.Features.Slides;
+using MdExplorer.Features.StaticSite;
+using Microsoft.AspNetCore.Hosting;
 using System;
+using System.Net;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -35,6 +40,7 @@ using DocumentFormat.OpenXml.Wordprocessing;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using Microsoft.Extensions.DependencyInjection;
 using MdExplorer.Services.DatabaseManager;
+using MdExplorer.Features.Services.SourceMapping;
 
 namespace MdExplorer.Controllers
 {
@@ -42,9 +48,11 @@ namespace MdExplorer.Controllers
     [Route("/api/MdExplorer/{*url}")]
     public class MdExplorerController : MdControllerBase<MdExplorerController>//ControllerBase
     {
-        private readonly IGoodMdRule<FileInfoNode>[] _goodRules;        
+        private readonly IGoodMdRule<FileInfoNode>[] _goodRules;
         private readonly IYamlParser<MdExplorerDocumentDescriptor> _yamlDocumentDescriptor;
         private readonly IYamlDefaultGenerator _yamlDefaultGenerator;
+        private readonly MarkdownSourceMapService _sourceMapService;
+        private readonly MdExplorer.Services.AgentRun.IAgentWorktreeManager _worktree;
 
         public MdExplorerController(ILogger<MdExplorerController> logger,
             IOptions<MdExplorerAppSettings> options,
@@ -57,13 +65,17 @@ namespace MdExplorer.Controllers
             IYamlParser<MdExplorerDocumentDescriptor> yamlDocumentDescriptor,
             IYamlDefaultGenerator yamlDefaultGenerator,
             IWorkLink[] modifiers,
+            MarkdownSourceMapService sourceMapService,
+            MdExplorer.Services.AgentRun.IAgentWorktreeManager worktree,
             IDatabaseManager databaseManager = null
             ) : base(logger, options, hubContext, session, engineDB, commandRunner,modifiers, helper, databaseManager)
         {
             _goodRules = GoodRules;
-            
+
             _yamlDocumentDescriptor = yamlDocumentDescriptor;
             _yamlDefaultGenerator = yamlDefaultGenerator;
+            _sourceMapService = sourceMapService;
+            _worktree = worktree;
         }
 
         /// <summary>
@@ -106,6 +118,18 @@ namespace MdExplorer.Controllers
 
             _logger.LogInformation($"🔍 [MdExplorer] Navigation source: {(isIframeLinkClick ? "iframe link click" : "Angular navigation")}");
 
+            // A text file opened as the document (a click in the md-tree, a detached window):
+            // colored source, not raw bytes. What a page asks for — an image, a link to a .json —
+            // comes without "source" and stays raw, as always.
+            if (!isIframeLinkClick)
+            {
+                var textFile = TextFileToShow(rootPathSystem, relativePathFile, relativePathExtension);
+                if (textFile != null)
+                {
+                    return await ShowTextFile(textFile, rootPathSystem, connectionId, theme, isDetached);
+                }
+            }
+
             if (relativePathExtension != "" && relativePathExtension != ".md" && !relativePathFile.EndsWith(".md.directory"))
             {
                 var responseForNotMdFile = CreateAResponseForNotMdFile(rootPathSystem,
@@ -114,6 +138,12 @@ namespace MdExplorer.Controllers
                 if (responseForNotMdFile == null)
                 {
                     return NotFound($"File not found: {relativePathFile}");
+                }
+
+                // An HTML page shown in MdExplorer's view carries the breadcrumb of the deck it came from.
+                if (source == "angular" && (relativePathExtension == ".html" || relativePathExtension == ".htm"))
+                {
+                    responseForNotMdFile.FileContents = MdExplorer.Features.Slides.HtmlPageTrail.AddTo(responseForNotMdFile.FileContents);
                 }
 
                 // Invia documentNavigated SOLO per file HTML (non per immagini, PDF, etc.)
@@ -201,14 +231,17 @@ namespace MdExplorer.Controllers
             var textHash = _helper.GetHashString(markdownTxt, Encoding.UTF8);
             var cacheName = Path.GetFileName(fullPathFile) + textHash + ".html";
             XmlDocument doc1 = null;
+            string slideDeckHtml = null;
             // parse type of document. Choose between MarkdownType: slides, MarkdownType: document
-            if (descriptor!= null &&  descriptor.DocumentType == "slides")
+            if (IsSlideDeck(descriptor))
             {
-                doc1 = await ProcessAsSlideTypeDocument(
+                slideDeckHtml = await ProcessAsSlideTypeDocument(
                     markdownTxt,
                     relativePathFile,
                     fullPathFile,
-                    monitoredMd);
+                    connectionId,
+                    monitoredMd,
+                    theme);
             }
             else
             {
@@ -246,7 +279,11 @@ namespace MdExplorer.Controllers
 
             // Get HTML content - check if using fallback mode
             string htmlContent;
-            if (doc1.DocumentElement != null &&
+            if (slideDeckHtml != null)
+            {
+                htmlContent = slideDeckHtml;
+            }
+            else if (doc1.DocumentElement != null &&
                 doc1.DocumentElement.GetAttribute("_html_fallback") == "true")
             {
                 // Using string-based fallback
@@ -295,60 +332,312 @@ namespace MdExplorer.Controllers
             return toReturn;
         }
 
-        private async Task<XmlDocument> ProcessAsSlideTypeDocument(string markdownTxt, 
-                        string relativePathFile, string fullPathFile, MonitoredMDModel monitoredMd)
+        /// <summary>
+        /// Fase 7h — elenco dei worktree degli agenti del progetto aperto (agente → path).
+        /// Read-only: alimenta il sottomenu "Worktree" del toolbar.
+        /// </summary>
+        [HttpGet("/api/MdExplorerWorktree/list")]
+        public async Task<IActionResult> ListAgentWorktrees()
         {
+            var projectPath = GetProjectPath();
+            if (string.IsNullOrEmpty(projectPath))
+                return Ok(new { worktrees = Array.Empty<object>() });
+            // Il nome della cartella non dice più chi ci lavora: i posti si chiamano slot-1,
+            // slot-2, e l'occupante lo si chiede a git (il branch in checkout).
+            var list = (await _worktree.ListSlotsAsync(projectPath))
+                .Where(x => x.Agent != null)
+                .Select(x => new { agent = x.Agent, path = x.Path, slot = x.Index })
+                .OrderBy(x => x.agent, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            return Ok(new { worktrees = list });
+        }
 
-            Regex rx = new Regex(@"-{3}([^-{3}]*)-{3}(.*)",
-                               RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
-            var matches = rx.Matches(markdownTxt);
+        /// <summary>
+        /// Fase 7h — render READ-ONLY di un documento dal worktree di un agente (review di ciò
+        /// che l'agente ha prodotto). NESSUNA scrittura: né cache <c>.md/</c>, né EngineDB, né
+        /// eventi SignalR, né <c>SetCurrentDirectory</c>. La root è il worktree, risolto dal
+        /// progetto aperto (connectionId); il progetto principale resta intatto.
+        /// </summary>
+        [HttpGet("/api/MdExplorerWorktree/render/{*url}")]
+        public async Task<IActionResult> GetWorktreeReadOnlyAsync(string url)
+        {
+            var agent = Request.Query["agent"].ToString();
+            var connectionId = Request.Query["ConnectionId"].ToString();
+            var theme = Request.Query["theme"].FirstOrDefault() ?? "light";
+            if (string.IsNullOrWhiteSpace(agent))
+                return BadRequest("Parametro 'agent' richiesto.");
 
-            var innerXML = matches[0].Groups[2].Value;
+            var projectPath = GetProjectPath();
+            if (string.IsNullOrEmpty(projectPath))
+                return NotFound("Nessun progetto aperto per risolvere il worktree.");
 
-            var doc1 = new XmlDocument();
-            var html = doc1.CreateElement("html");
-            doc1.AppendChild(html);
-            var head = doc1.CreateElement("head");
-            html.AppendChild(head);
-            var body = doc1.CreateElement("body");
-            html.AppendChild(body);
+            string worktreeRoot;
+            try { worktreeRoot = await _worktree.FindAgentWorktreeAsync(projectPath, agent); }
+            catch (ArgumentException) { return BadRequest($"Agente '{agent}' non valido."); }
+            if (worktreeRoot == null || !Directory.Exists(worktreeRoot))
+                return NotFound($"Nessun worktree per l'agente '{agent}'.");
 
-            head.InnerXml = $@"
-            <link rel=""stylesheet"" href=""/commonSlide.css"" />            
-            "; //<script src=""/commonSlide.js""></script>
+            var rootPathSystem = worktreeRoot + Path.DirectorySeparatorChar;
+            var relativePathFile = "/" + (url ?? string.Empty);
+            var relativePathExtension = Path.GetExtension(relativePathFile);
 
-            // add final div and script
+            // Anti-traversal (§7h fix): il path risolto DEVE restare sotto la root del worktree.
+            // Blocca '..%2F..' nel catch-all che altrimenti servirebbe file arbitrari dal disco.
+            if (!IsUnderRoot(worktreeRoot, Path.GetFullPath(Path.Combine(rootPathSystem, relativePathFile.TrimStart('/', '\\')))))
+            {
+                _logger.LogWarning("❌ [MdExplorerWorktree] path traversal bloccato: '{Rel}' fuori da '{Root}'", relativePathFile, worktreeRoot);
+                return BadRequest("Percorso non valido.");
+            }
 
-            var finalExecutionScript = @"
-                <script src=""/reveal/dist/reveal.js""></script>
-                <script src =""/reveal/plugin/zoom/zoom.js""></script>
-                <script src =""/reveal/plugin/notes/notes.js""></script>
-                <script src =""/reveal/plugin/search/search.js""></script>
-                <script src =""/reveal/plugin/markdown/markdown.js""></script>
-                <script src =""/reveal/plugin/highlight/highlight.js""></script>
-                ";
+            // Asset non-md (immagini, ecc.): risolti dalla root del WORKTREE.
+            if (relativePathExtension != "" && relativePathExtension != ".md" && !relativePathFile.EndsWith(".md.directory"))
+            {
+                var asset = CreateAResponseForNotMdFile(rootPathSystem, relativePathFile, relativePathExtension);
+                return asset == null ? NotFound($"File non trovato nel worktree: {relativePathFile}") : (IActionResult)asset;
+            }
 
-            var execScript = @"
-            <script>
-			// Also available as an ES module, see:
-			// https://revealjs.com/initialization/
-			Reveal.initialize({
-				controls: true,
-				progress: true,
-				center: true,
-				hash: true,
+            var fullPathFile = ManageIfThePathContainsExtensionMdOrNot(rootPathSystem, relativePathFile, relativePathExtension);
+            if (!System.IO.File.Exists(fullPathFile))
+                return NotFound($"'{relativePathFile}' non presente nel worktree di '{agent}'.");
 
-				// Learn about plugins: https://revealjs.com/plugins/
-				plugins: [ RevealZoom, RevealNotes, RevealSearch, RevealMarkdown, RevealHighlight ]
-			});
+            string markdownTxt;
+            using (var fs = new FileStream(fullPathFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var sr = new StreamReader(fs, Encoding.UTF8))
+                markdownTxt = sr.ReadToEnd();
 
-            </script>
-            ";
+            var monitoredMd = new MonitoredMDModel
+            {
+                Path = fullPathFile,
+                Name = Path.GetFileName(fullPathFile),
+                RelativePath = relativePathFile.TrimStart(Path.DirectorySeparatorChar, '/'),
+                FullPath = fullPathFile,
+                FullDirectoryPath = Path.GetDirectoryName(fullPathFile),
+            };
 
-            var xmlForBody = string.Concat(innerXML, finalExecutionScript, execScript);
-            body.InnerXml += xmlForBody;
+            if (IsSlideDeck(_yamlDocumentDescriptor.GetDescriptor(markdownTxt)))
+            {
+                var deck = await ProcessAsSlideTypeDocument(
+                    markdownTxt, relativePathFile, fullPathFile, connectionId, monitoredMd, theme,
+                    explicitRoot: worktreeRoot, readOnly: true);
+                return new ContentResult { ContentType = "text/html; charset=utf-8", Content = deck };
+            }
 
-            return doc1;            
+            var doc1 = await ProcessAsMarkdownTypeDocument(
+                markdownTxt, relativePathFile, fullPathFile, connectionId, monitoredMd, theme,
+                explicitRoot: worktreeRoot, readOnly: true);
+
+            var htmlContent = (doc1.DocumentElement != null &&
+                doc1.DocumentElement.GetAttribute("_html_fallback") == "true")
+                ? doc1.DocumentElement.InnerText
+                : doc1.InnerXml;
+
+            // NESSUNA scrittura cache/EngineDB, NESSUN evento SignalR: read-only puro.
+            return new ContentResult { ContentType = "text/html; charset=utf-8", Content = htmlContent };
+        }
+
+        /// <summary>Il path risolto <paramref name="candidate"/> è dentro <paramref name="root"/>? (anti-traversal).</summary>
+        private static bool IsUnderRoot(string root, string candidate)
+        {
+            var normRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, '/');
+            var normCand = Path.GetFullPath(candidate);
+            return string.Equals(normCand, normRoot, StringComparison.OrdinalIgnoreCase)
+                || normCand.StartsWith(normRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsSlideDeck(MdExplorerDocumentDescriptor descriptor)
+            => descriptor?.DocumentType == "slides";
+
+        /// <summary>
+        /// A markdown slide deck as a reveal.js page (<see cref="SlideDeckRenderer"/>). The markdown
+        /// goes through the document view's Markdig pipeline and MdExplorer's commands, as a document
+        /// does. A deck that cannot be rendered as written shows what to change instead.
+        /// </summary>
+        private async Task<string> ProcessAsSlideTypeDocument(string markdownTxt,
+                        string relativePathFile, string fullPathFile, string connectionId,
+                        MonitoredMDModel monitoredMd, string theme,
+                        string explicitRoot = null, bool readOnly = false,
+                        bool staticExport = false, string katexBase = null)
+        {
+            var root = string.IsNullOrEmpty(explicitRoot) ? GetProjectPath() : explicitRoot;
+            var requestInfo = new RequestInfo()
+            {
+                CurrentQueryRequest = relativePathFile,
+                CurrentRoot = root,
+                AbsolutePathFile = fullPathFile,
+                RootQueryRequest = relativePathFile,
+                ConnectionId = connectionId,
+                BaseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}",
+                ReadOnly = readOnly,
+                SlideDeck = true,
+                StaticExport = staticExport,
+            };
+            var isPlantuml = markdownTxt.Contains("```plantuml") && !readOnly;
+            if (isPlantuml)
+            {
+                await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStart", monitoredMd);
+            }
+            try
+            {
+                return SlideDeckRenderer.Render(markdownTxt, new SlideDeckRenderOptions
+                {
+                    Pipeline = BuildDocumentViewPipeline(),
+                    DarkTheme = theme == "dark" || theme == "milan",
+                    // What the service needs to find the deck's own files (images written in HTML,
+                    // backgrounds): the project, and for a worktree the agent too.
+                    DocumentPath = fullPathFile,
+                    ProjectPath = root,
+                    ConnectionId = connectionId,
+                    // The file as read: a text correction made on the slides is refused if it has
+                    // changed since. Not in a read-only review, where nothing is corrected.
+                    SourceHash = readOnly ? null : MarkdownFileEditor.SourceHash(markdownTxt),
+                    // [Costi](vendite.md?pages=2,6-9): the pages the link asks for. In an export the page
+                    // reads them itself (slide-export-pages.js): the whole deck is written.
+                    Pages = staticExport ? null : Request.Query["pages"].ToString(),
+                    StaticExport = staticExport,
+                    KatexBase = katexBase,
+                    // An export keeps relative addresses as written: the zip has the project's folders.
+                    ResourceQuery = staticExport ? null : readOnly
+                        ? $"agent={Uri.EscapeDataString(Request.Query["agent"].ToString())}&connectionId={Uri.EscapeDataString(connectionId ?? string.Empty)}"
+                        : $"connectionId={Uri.EscapeDataString(connectionId ?? string.Empty)}",
+                    BeforeMarkdown = body => _commandRunner.TransformInNewMDFromMD(body, requestInfo),
+                    AfterMarkdown = html =>
+                    {
+                        // The commands read the diagrams from ".md/" relative to the project, as for
+                        // a document (and, as there, not in a read-only render).
+                        if (!readOnly) Directory.SetCurrentDirectory(root);
+                        return _commandRunner.TransformAfterConversion(html, requestInfo);
+                    },
+                });
+            }
+            catch (SlideDeckException ex)
+            {
+                _logger.LogWarning("⚠️ [Slides] {File}: {Message}", fullPathFile, ex.Message);
+                return SlideDeckErrorPage(fullPathFile, ex.Message);
+            }
+            finally
+            {
+                if (isPlantuml)
+                {
+                    await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStop", monitoredMd);
+                }
+            }
+        }
+
+        private static string SlideDeckErrorPage(string fullPathFile, string message)
+        {
+            var file = WebUtility.HtmlEncode(Path.GetFileName(fullPathFile));
+            return $@"<!DOCTYPE html>
+<html><head><meta charset=""utf-8""><title>{file}</title></head>
+<body style=""font-family: sans-serif; padding: 2em; line-height: 1.5"">
+<h2>The slides of {file} cannot be shown</h2>
+<p>{WebUtility.HtmlEncode(message)}</p>
+</body></html>";
+        }
+
+        /// <summary>What the toolbar's «Esporta HTML» sends.</summary>
+        public sealed class StaticSiteExportRequestDto
+        {
+            /// <summary>The deck on screen, relative to the project.</summary>
+            public string? RelativePath { get; set; }
+
+            /// <summary>The theme MdExplorer shows (light, dark, milan): the pages are written with it.</summary>
+            public string? Theme { get; set; }
+        }
+
+        /// <summary>
+        /// «Esporta HTML»: the deck on screen and everything its links reach, as a local web site in a zip
+        /// (sprint docs-internal/Sprints/2026-09-30-Slide-Export-HTML.md). Pages are rendered as for a read-only
+        /// review — no SignalR, no cache, no database, PlantUML from the SVGs already in <c>.md/</c>. The zip
+        /// comes back as a download (the browser, or Electron, asks where to save it): the service never writes
+        /// where a request says. The numbers of the report travel in <c>X-Mde-*</c> headers; the report itself
+        /// is <c>_mde/resoconto.html</c> inside the zip.
+        /// </summary>
+        [HttpPost("/api/MdStaticSite/Export")]
+        public IActionResult ExportStaticSite([FromBody] StaticSiteExportRequestDto request)
+        {
+            var projectPath = GetProjectPath();
+            if (string.IsNullOrEmpty(projectPath))
+            {
+                return BadRequest(new { error = "No project is open for this window (ConnectionId)." });
+            }
+            if (string.IsNullOrWhiteSpace(request?.RelativePath))
+            {
+                return BadRequest(new { error = "Which deck to export: RelativePath is empty." });
+            }
+
+            var connectionId = Request.Query["ConnectionId"].ToString();
+            var theme = string.IsNullOrWhiteSpace(request.Theme) ? "light" : request.Theme;
+            var webRoot = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
+            try
+            {
+                var site = StaticSiteExporter.Export(new StaticSiteRequest
+                {
+                    ProjectRoot = projectPath,
+                    WebRoot = webRoot,
+                    Entry = request.RelativePath.Replace('\\', '/').TrimStart('/'),
+                    Render = (path, katexBase) => RenderForStaticExport(projectPath, path, connectionId, theme, katexBase),
+                });
+
+                // A temporary file, not memory: a deck with videos makes a big zip. Deleted when the response is sent.
+                var zip = new FileStream(Path.Combine(Path.GetTempPath(), $"mde-export-{Guid.NewGuid():N}.zip"),
+                    FileMode.Create, FileAccess.ReadWrite, FileShare.None, 81920, FileOptions.DeleteOnClose);
+                site.WriteZip(zip);
+                zip.Position = 0;
+                _logger.LogInformation("📦 [StaticSite] {Entry}: {Pages} pages, {Files} files, {Issues} issues, {Bytes} bytes zipped",
+                    request.RelativePath, site.Report.Pages, site.Report.Files, site.Report.Issues.Count, zip.Length);
+
+                Response.Headers["X-Mde-Pages"] = site.Report.Pages.ToString();
+                Response.Headers["X-Mde-Files"] = site.Report.Files.ToString();
+                Response.Headers["X-Mde-Issues"] = site.Report.Issues.Count.ToString();
+                return File(zip, "application/zip", Path.GetFileNameWithoutExtension(request.RelativePath) + ".zip");
+            }
+            catch (StaticSiteException ex)
+            {
+                _logger.LogWarning("⚠️ [StaticSite] {Entry}: {Message}", request.RelativePath, ex.Message);
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        /// <summary>A markdown file of the project as the static export writes it: deck or document, read-only.</summary>
+        private RenderedMarkdown RenderForStaticExport(string root, string path, string connectionId, string theme, string katexBase)
+        {
+            var relativePathFile = path.Replace('/', Path.DirectorySeparatorChar);
+            var fullPathFile = Path.Combine(root, relativePathFile);
+            string markdownTxt;
+            using (var fs = new FileStream(fullPathFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (var sr = new StreamReader(fs, Encoding.UTF8))
+            {
+                markdownTxt = sr.ReadToEnd();
+            }
+            var monitoredMd = new MonitoredMDModel
+            {
+                Path = fullPathFile,
+                Name = Path.GetFileName(fullPathFile),
+                RelativePath = relativePathFile,
+                FullPath = fullPathFile,
+                FullDirectoryPath = Path.GetDirectoryName(fullPathFile),
+            };
+
+            if (IsSlideDeck(_yamlDocumentDescriptor.GetDescriptor(markdownTxt)))
+            {
+                var deck = ProcessAsSlideTypeDocument(markdownTxt, relativePathFile, fullPathFile, connectionId, monitoredMd, theme,
+                    explicitRoot: root, readOnly: true, staticExport: true, katexBase: katexBase).GetAwaiter().GetResult();
+                return new RenderedMarkdown { Html = deck, IsDeck = true };
+            }
+
+            var doc1 = ProcessAsMarkdownTypeDocument(markdownTxt, relativePathFile, fullPathFile, connectionId, monitoredMd, theme,
+                explicitRoot: root, readOnly: true, staticExport: true).GetAwaiter().GetResult();
+            var html = doc1.DocumentElement != null && doc1.DocumentElement.GetAttribute("_html_fallback") == "true"
+                ? doc1.DocumentElement.InnerText
+                : doc1.InnerXml;
+            return new RenderedMarkdown { Html = html, IsDeck = false };
+        }
+
+        /// <summary>The scripts and styles of an exported document, read from wwwroot/common.js.</summary>
+        private string StaticExportDocumentHead()
+        {
+            var webRoot = HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().WebRootPath;
+            return DocumentViewAssets.HeadTags(System.IO.File.ReadAllText(Path.Combine(webRoot, "common.js")));
         }
 
         private string ManageIfThePathContainsExtensionMdOrNot(string rootPathSystem, string relativePathFile, string relativePathExtension)
@@ -366,6 +655,82 @@ namespace MdExplorer.Controllers
             }
 
             return fullPathFile;
+        }
+
+        // Shown as the browser renders them, never as source: an HTML page opened from a link
+        // comes back through the navigation history (source=angular) and must stay a page.
+        private static readonly HashSet<string> RenderedByTheBrowser =
+            new(StringComparer.OrdinalIgnoreCase) { ".html", ".htm", ".svg" };
+
+        /// <summary>
+        /// The full path of the text file to show as colored source, or null when the request is
+        /// for something else: a markdown document (also asked without ".md"), a page or image the
+        /// browser renders, a binary file, a path outside the project.
+        /// </summary>
+        private string TextFileToShow(string rootPathSystem, string relativePathFile, string extension)
+        {
+            if (extension == ".md" || relativePathFile.EndsWith(".md.directory") || RenderedByTheBrowser.Contains(extension))
+            {
+                return null;
+            }
+
+            var fullPath = Path.GetFullPath(Path.Combine(rootPathSystem, relativePathFile.TrimStart(Path.DirectorySeparatorChar, '/', '\\')));
+            var root = Path.GetFullPath(rootPathSystem);
+            if (!fullPath.StartsWith(root, StringComparison.Ordinal))
+            {
+                return null;
+            }
+            // Without extension the app asks for "doc" meaning "doc.md": the document wins.
+            if (extension == "" && System.IO.File.Exists(fullPath + ".md"))
+            {
+                return null;
+            }
+            if (!System.IO.File.Exists(fullPath))
+            {
+                return null;
+            }
+            return TextFileView.IsText(fullPath) ? fullPath : null;
+        }
+
+        /// <summary>
+        /// The document page for a text file: the same box as <c>```text(path)</c>, colored by
+        /// Prism, with the app's theme. Read-only: nothing is cached, indexed or written.
+        /// </summary>
+        private async Task<IActionResult> ShowTextFile(string fullPath, string rootPathSystem, string connectionId, string theme, bool isDetached)
+        {
+            var size = new FileInfo(fullPath).Length;
+            string body;
+            if (size > TextFileView.MaxBytes)
+            {
+                body = $@"<div class=""mde-text-file-view""><p class=""mde-text-file-too-big"">{System.Web.HttpUtility.HtmlEncode(Path.GetFileName(fullPath))}: " +
+                       $@"{size / 1024:N0} KB, troppo grande per mostrarlo qui (limite {TextFileView.MaxBytes / 1024} KB). Aprilo con l'editor esterno (matita nella barra).</p></div>";
+            }
+            else
+            {
+                var content = TextFileView.ReadText(fullPath);
+                body = $@"<div class=""mde-text-file-view"">{TextFileView.ContainerHtml(Guid.NewGuid().ToString("N"), fullPath, TextFileView.LanguageFor(fullPath), content)}</div>";
+            }
+
+            var monitoredMd = new MonitoredMDModel
+            {
+                Path = fullPath,
+                Name = Path.GetFileName(fullPath),
+                RelativePath = Path.GetRelativePath(rootPathSystem, fullPath),
+                FullPath = fullPath,
+                FullDirectoryPath = Path.GetDirectoryName(fullPath)
+            };
+            // The document toolbar acts on the file the panel shows, whatever its kind.
+            if (!isDetached)
+            {
+                await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("markdownfileisprocessed", monitoredMd);
+            }
+
+            var doc1 = new XmlDocument();
+            CreateHTMLBody(body, doc1, fullPath, connectionId, GetProjectPath(), theme, sourceHash: "", viewKind: "text");
+            var htmlContent = doc1.DocumentElement != null && doc1.DocumentElement.GetAttribute("_html_fallback") == "true"
+                ? doc1.DocumentElement.InnerText
+                : doc1.InnerXml;
+            return new ContentResult { ContentType = "text/html; charset=utf-8", Content = htmlContent };
         }
 
         private FileContentResult CreateAResponseForNotMdFile(string rootPathSystem, string relativePathFile, string relativePathExtension)
@@ -418,41 +783,68 @@ namespace MdExplorer.Controllers
             return notMdFile;
         }
 
+        /// <summary>
+        /// Renderizza un documento markdown in HTML. Fase 7h: <paramref name="explicitRoot"/> e
+        /// <paramref name="readOnly"/> abilitano il render <b>read-only da una root esplicita</b>
+        /// (worktree di un agente). Con i default (root = <see cref="MdControllerBase{T}.GetProjectPath"/>,
+        /// readOnly = false) il comportamento è IDENTICO a prima. In readonly si saltano gli effetti
+        /// collaterali che muterebbero lo stato della main window / del progetto aperto: eventi
+        /// SignalR, valutazione Rule#1 (che è solo un evento) e <c>SetCurrentDirectory</c> (hazard
+        /// globale). Le scritture EngineDB/cache restano fuori da qui (le fa il chiamante).
+        /// </summary>
         private async Task<XmlDocument> ProcessAsMarkdownTypeDocument(
                 string readText,
                 string relativePathFileSystem,
                 string fullPathFile,
                 string connectionId,
                 MonitoredMDModel monitoredMd,
-                string theme = "light")
+                string theme = "light",
+                string explicitRoot = null,
+                bool readOnly = false,
+                bool staticExport = false)
         {
+            // Impronta del file COM'È su disco, prima di qualunque trasformazione: la pagina la porta
+            // (data-mde-source-hash), e un'azione che punta a "riga N" viene rifiutata se il file non
+            // è più quello da cui la pagina è stata costruita — le righe punterebbero altrove.
+            var sourceHash = MarkdownFileEditor.SourceHash(readText);
+
+            // Root unica per tutto il metodo: il progetto aperto (normale) o il worktree (readonly).
+            var root = string.IsNullOrEmpty(explicitRoot) ? GetProjectPath() : explicitRoot;
             var requestInfo = new RequestInfo()
             {
                 CurrentQueryRequest = relativePathFileSystem,
-                CurrentRoot = GetProjectPath(),
+                CurrentRoot = root,
                 AbsolutePathFile = fullPathFile,
                 RootQueryRequest = relativePathFileSystem,
                 ConnectionId = connectionId,
                 BaseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}",
+                ReadOnly = readOnly,   // Fase 7h: i comandi non scrivono su disco né cambiano cwd
+                StaticExport = staticExport,
             };
             var isPlantuml = false;
             if (readText.Contains("```plantuml"))
             {
                 isPlantuml = true;
-                await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStart", monitoredMd);
+                if (!readOnly)
+                    await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStart", monitoredMd);
             }
 
             try
             {
+            // Kept for the AI-selection source map: Markdig spans refer to the transformed
+            // text, the data-mde-line-* attributes must point at the file on disk.
+            var originalText = readText;
             readText = _commandRunner.TransformInNewMDFromMD(readText, requestInfo);
 
-            // Check if Rule #1 is enabled for current project
+            // Check if Rule #1 is enabled for current project.
+            // Readonly (worktree review): Rule#1 produce SOLO un evento SignalR verso la main
+            // window e legge il ProjectDB del progetto aperto (non del worktree) → si salta.
             var isRule1Enabled = false;
             try
             {
                 // Check if Rule #1 is enabled in project settings (stored in ProjectDB)
                 // Get IProjectDB from services
-                var projectDB = HttpContext.RequestServices.GetService<IProjectDB>();
+                var projectDB = readOnly ? null : HttpContext.RequestServices.GetService<IProjectDB>();
                 if (projectDB != null)
                 {
                     var projectSettingsDal = projectDB.GetDal<MdExplorer.Abstractions.Entities.ProjectDB.ProjectSetting>();
@@ -507,38 +899,32 @@ namespace MdExplorer.Controllers
                 _logger.LogInformation($"⏭️ [MdExplorer] Skipping Rule #1 check for .md.directory file: {fullPathFile}");
             }
 
-            var settingDal = _userSettingsDB.GetDal<Setting>();
-            var jiraUrl = settingDal.GetList().Where(_ => _.Name == "JiraServer").FirstOrDefault()?.ValueString;
-            var jiraEnabled = settingDal.GetList().Where(_ => _.Name == "JiraEnabled").FirstOrDefault()?.ValueInt == 1;
-
-            var pipelineBuilder = new MarkdownPipelineBuilder()
-                .UseAdvancedExtensions()
-                .UseDiagrams()
-                .UsePipeTables()
-                .UseBootstrap();
-
-            if (jiraEnabled && !string.IsNullOrWhiteSpace(jiraUrl))
-            {
-                pipelineBuilder.UseJiraLinks(new JiraLinkOptions(jiraUrl));
-            }
-
-            var pipeline = pipelineBuilder
-                .UseEmojiAndSmiley()
-                .UseYamlFrontMatter()
-                .UseGenericAttributes()
-                .Build();
+            // Shared with the corrections made on the page, which must read the file as it is rendered here.
+            var pipeline = BuildDocumentViewPipeline();
 
             string result;
             try
             {
-                result = Markdown.ToHtml(readText, pipeline);
-                Directory.SetCurrentDirectory(GetProjectPath());
+                try
+                {
+                    result = _sourceMapService.RenderHtmlWithSourceMap(originalText, readText, pipeline);
+                }
+                catch (Exception sourceMapEx)
+                {
+                    // The document must always render; the AI-selection feature degrades
+                    // detectably (no data-mde-line-* attributes → no button).
+                    _logger.LogError(sourceMapEx, "❌ [SourceMap] Source mapping failed for: {File} — rendering without source map, AI selection disabled on this document", fullPathFile);
+                    result = Markdown.ToHtml(readText, pipeline);
+                }
+                // SetCurrentDirectory è un hazard GLOBALE (cwd di processo): in readonly si salta
+                // per non corrompere render concorrenti del progetto aperto.
+                if (!readOnly) Directory.SetCurrentDirectory(root);
                 result = _commandRunner.TransformAfterConversion(result, requestInfo);
             }
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, $"⚠️ [MdExplorer] Markdown rendering failed for: {fullPathFile}");
-                Directory.SetCurrentDirectory(GetProjectPath());
+                if (!readOnly) Directory.SetCurrentDirectory(root);
                 result = BuildMarkdownRenderingErrorHtml(fullPathFile, readText, ex);
             }
 
@@ -551,7 +937,8 @@ namespace MdExplorer.Controllers
             var btnNavForward = AddButtonOnLowerBar("navigateForward()", "/assets/nav-forward.svg", "navForward", "mdeLowerBarButton mdeNavButton");
             var btnSearch = AddButtonOnLowerBar("toggleSearch()", "/assets/magnifier.svg", "searchButton", "mdeLowerBarButton mdeSearchButton");
             var btnTOC = AddButtonTextOnVerticalBar("toggleTOC()", "TOC", "btnToc");
-            var btnRefs = AddButtonTextOnVerticalBar("openKnowledgeGraph()", "K.G.", "btnRefs");
+            // The knowledge graph asks the service: not in a static export.
+            var btnRefs = staticExport ? string.Empty : AddButtonTextOnVerticalBar("openKnowledgeGraph()", "K.G.", "btnRefs");
             var resultToParse = $@"    
                    
                     <div  class=""mdeTocSticky-top"">                        
@@ -599,8 +986,8 @@ namespace MdExplorer.Controllers
                      
                     ";
             XmlDocument doc1 = new XmlDocument();
-            var projectPath = GetProjectPath();
-            CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId, projectPath, theme);
+            CreateHTMLBody(resultToParse, doc1, fullPathFile, connectionId, root, theme, sourceHash,
+                exportHead: staticExport ? StaticExportDocumentHead() : null);
 
             try
             {
@@ -638,14 +1025,18 @@ namespace MdExplorer.Controllers
             }
             finally
             {
-                if (isPlantuml)
+                if (isPlantuml && !readOnly)
                 {
                     await _hubContext.Clients.Client(connectionId: connectionId).SendAsync("plantumlWorkStop", monitoredMd);
                 }
             }
         }
 
-        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId, string projectPath = "", string theme = "light")
+        /// <param name="viewKind">"text" for a text file shown as source: the page scripts that edit a
+        /// markdown document (paste an image, …) stay off there.</param>
+        /// <param name="exportHead">For the static export: the page's scripts and styles listed one by one
+        /// (<see cref="DocumentViewAssets"/>) instead of common.js, which loads them by itself.</param>
+        private static void CreateHTMLBody(string resultToParse, XmlDocument doc1, string filePathSystem1, string connectionId, string projectPath = "", string theme = "light", string sourceHash = "", string viewKind = null, string exportHead = null)
         {
             var isDark = theme == "dark" || theme == "milan";
             var html = doc1.CreateElement("html");
@@ -673,16 +1064,25 @@ namespace MdExplorer.Controllers
             var ConnectionId = doc1.CreateAttribute("ConnectionId");
             var DocumentPath = doc1.CreateAttribute("DocumentPath");
             var ProjectPath = doc1.CreateAttribute("ProjectPath");
+            var SourceHash = doc1.CreateAttribute("data-mde-source-hash");
             var bodyStyle = doc1.CreateAttribute("style");
             bodyStyle.Value = "overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;";
             BodyId.Value = "MdBody";
             ConnectionId.Value = connectionId;
             DocumentPath.Value = filePathSystem1;
             ProjectPath.Value = projectPath ?? "";
+            SourceHash.Value = sourceHash ?? "";
             body.Attributes.Append(BodyId);
             body.Attributes.Append(ConnectionId);
             body.Attributes.Append(DocumentPath);
             body.Attributes.Append(ProjectPath);
+            body.Attributes.Append(SourceHash);
+            if (!string.IsNullOrEmpty(viewKind))
+            {
+                var view = doc1.CreateAttribute("data-mde-view");
+                view.Value = viewKind;
+                body.Attributes.Append(view);
+            }
             body.Attributes.Append(bodyStyle);
             if (isDark)
             {
@@ -693,10 +1093,11 @@ namespace MdExplorer.Controllers
             html.AppendChild(body);
 
             var darkThemeLink = isDark ? @"<link rel=""stylesheet"" href=""/dark-theme.css"" />" : "";
+            var scripts = exportHead ?? @"<script src=""/common.js""></script>";
             head.InnerXml = $@"
             <link rel=""stylesheet"" href=""/common.css"" />
             {darkThemeLink}
-            <script src=""/common.js""></script>";
+            {scripts}";
 
             try
             {
@@ -711,15 +1112,16 @@ namespace MdExplorer.Controllers
 
                 // Build complete HTML document as string
                 var darkClass = isDark ? @" class=""dark-theme""" : "";
+                var viewAttribute = string.IsNullOrEmpty(viewKind) ? "" : $@" data-mde-view=""{viewKind}""";
                 var darkLink = isDark ? @"<link rel=""stylesheet"" href=""/dark-theme.css"" />" : "";
                 var htmlString = $@"<html style=""overflow: auto; height: auto; min-height: 100%;"">
 <head>
     <link href=""/MdCustomCSS.css"" rel=""stylesheet"" />
     <link rel=""stylesheet"" href=""/common.css"" />
     {darkLink}
-    <script src=""/common.js""></script>
+    {exportHead ?? @"<script src=""/common.js""></script>"}
 </head>
-<body Id=""MdBody"" ConnectionId=""{connectionId}"" DocumentPath=""{filePathSystem1}"" ProjectPath=""{projectPath}""{darkClass} style=""overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;"">
+<body Id=""MdBody"" ConnectionId=""{connectionId}"" DocumentPath=""{filePathSystem1}"" ProjectPath=""{projectPath}"" data-mde-source-hash=""{sourceHash}""{viewAttribute}{darkClass} style=""overflow: visible; height: auto; min-height: 100vh; margin: 0; padding: 0;"">
 {resultToParse}
 </body>
 </html>";

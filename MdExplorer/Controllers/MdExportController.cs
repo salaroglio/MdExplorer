@@ -344,7 +344,7 @@ namespace MdExplorer.Service.Controllers
 
                 // Enumera tutti i .md ricorsivamente, escludendo cartelle speciali
                 var excludedDirs = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-                    { ".md", ".mdword", ".git", "node_modules" };
+                    { ".md", ".mdword", ".git", "node_modules", ".worktrees" };
 
                 var mdFiles = Directory.EnumerateFiles(folderAbsolutePath, "*.md", SearchOption.AllDirectories)
                     .Where(f =>
@@ -553,6 +553,38 @@ namespace MdExplorer.Service.Controllers
                     {
                         _logger.LogError($"Pandoc error: {error}");
                     }
+
+                    // Pandoc scrive l'immagine in un paragrafo senza allineamento, che eredita
+                    // quello del corpo del testo: a sinistra. Qui il documento è già finito
+                    // (leggere stdout e stderr fino in fondo vuol dire aspettarne la fine),
+                    // quindi si può correggere.
+                    if (_createPandocCommand.Extension == "docx")
+                    {
+                        CenterImages(currentFilePdfPath);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Mette al centro le immagini del documento appena prodotto. Un errore qui non fa
+            /// fallire l'export: il documento c'è ed è valido, solo con le immagini a sinistra —
+            /// e il motivo finisce nel log invece che in faccia all'utente.
+            /// </summary>
+            private void CenterImages(string docxPath)
+            {
+                try
+                {
+                    if (!System.IO.File.Exists(docxPath))
+                    {
+                        _logger.LogWarning("[MdExport] {Path} non c'è: immagini non centrate", docxPath);
+                        return;
+                    }
+                    var quante = MdExplorer.Features.Exports.WordImageLayout.CenterStandaloneImages(docxPath);
+                    _logger.LogInformation("[MdExport] {Count} immagini centrate in {Path}", quante, docxPath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[MdExport] non sono riuscito a centrare le immagini di {Path}", docxPath);
                 }
             }
             
@@ -566,6 +598,25 @@ namespace MdExplorer.Service.Controllers
                 throw new InvalidOperationException($"Invalid pandoc command: {command}");
             }
         }
+
+        /// <summary>
+        /// Il dialetto markdown che si dà a Pandoc, uno solo per Word e PDF.
+        /// <para>
+        /// <c>lists_without_preceding_blankline</c> c'è perché MdExplorer mostra i documenti con
+        /// Markdig, che segue <b>CommonMark</b>: lì un elenco che comincia subito sotto una riga di
+        /// testo — il caso tipico del TL;DR, «…nel modo giusto:» e sotto i trattini — è un elenco.
+        /// Il dialetto <c>markdown</c> di Pandoc invece pretende una riga vuota, e senza quella si
+        /// mangia i trattini dentro il paragrafo: nel .docx uscivano 0 voci di elenco vere
+        /// (nessun <c>w:numPr</c>), tutto appiattito in una riga sola. Misurato il 22/09/2026 su
+        /// pandoc 2.9.2.1; con l'estensione il risultato torna identico a quello del visualizzatore.
+        /// </para>
+        /// <para>
+        /// Vale anche per gli elenchi numerati, e vale anche per il PDF: è lo stesso sorgente,
+        /// mostrato dallo stesso visualizzatore, e non ha senso che i due export lo leggano
+        /// in due modi diversi.
+        /// </para>
+        /// </summary>
+        private const string PandocMarkdownDialect = "markdown+implicit_figures+lists_without_preceding_blankline";
 
         private interface ICreatePandocCommand<R, P>
         {
@@ -598,7 +649,7 @@ namespace MdExplorer.Service.Controllers
                     Path.DirectorySeparatorChar}templates{
                     Path.DirectorySeparatorChar}pdf{
                     Path.DirectorySeparatorChar}eisvogel.tex";
-                var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from markdown+implicit_figures {setPdf}";
+                var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from {PandocMarkdownDialect} {setPdf}";
                 return processCommand;
             }
         }
@@ -646,7 +697,7 @@ namespace MdExplorer.Service.Controllers
                     throw new FileNotFoundException($"Template Word non trovato: {absoluteTemplatePath}. Percorso relativo: {currentReferencePath}");
                 }
                   
-                var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from markdown+implicit_figures {createTocScriptCommand} --reference-doc ""{currentReferencePath}""";
+                var processCommand = $@"pandoc ""{commandParam.CurrentFilePath}"" -o ""{commandParam.CurrentFilePdfPath}"" --from {PandocMarkdownDialect} {createTocScriptCommand} --reference-doc ""{currentReferencePath}""";
                 return processCommand;
             }
         }
