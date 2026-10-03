@@ -161,6 +161,24 @@ h2[mat-dialog-title] {
     }
   }
 
+  .exec-output-toggle {
+    margin-left: auto;
+    font-size: 12px;
+    min-width: 0;
+    line-height: 24px;
+  }
+
+  .exec-output {
+    margin: 2px 6px 6px;
+    padding: 8px;
+    max-height: 180px;
+    overflow: auto;
+    font-size: 11px;
+    white-space: pre-wrap;
+    border-radius: 4px;
+    background: rgba(128, 128, 128, 0.12);
+  }
+
   .no-executions {
     font-size: 12px;
     opacity: 0.7;

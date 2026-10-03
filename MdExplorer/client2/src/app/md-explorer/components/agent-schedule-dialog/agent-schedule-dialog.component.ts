@@ -51,6 +51,8 @@ export class AgentScheduleDialogComponent implements OnInit {
   isSaving = false;
   error: string | null = null;
   showExecutions = false;
+  /** L'esecuzione di cui si sta leggendo l'output (una alla volta). */
+  openExecutionId: string | null = null;
 
   constructor(
     public dialogRef: MatDialogRef<AgentScheduleDialogComponent>,
@@ -236,5 +238,9 @@ export class AgentScheduleDialogComponent implements OnInit {
 
   close(): void {
     this.dialogRef.close(null);
+  }
+
+  toggleExecutionOutput(id: string): void {
+    this.openExecutionId = this.openExecutionId === id ? null : id;
   }
 }

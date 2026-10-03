@@ -536,6 +536,17 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
                 var fileCount = EnsureBranchCheckedOutAfterClone(localPath);
                 var cloneMessage = $"Successfully cloned repository ({fileCount} items)";
 
+                // Chi chiede un ramo preciso (il demo in inglese vive in `en`) lavora su QUEL ramo: git però
+                // lascia origin/HEAD sul ramo predefinito del remoto, e da lì partono i posti di lavoro
+                // degli agenti, la richiesta di revisione e l'«Autorizza». Senza questo gli agenti leggevano
+                // i documenti di `main` (in italiano) mentre il progetto aperto era quello in inglese.
+                if (!string.IsNullOrWhiteSpace(branchName))
+                {
+                    var head = await _transport.SetRemoteHeadAsync(localPath, "origin", branchName.Trim());
+                    if (!head.Ok)
+                        cloneMessage += $" (warning: origin/HEAD non spostato su '{branchName.Trim()}': {head.Error}; gli agenti partiranno dal ramo predefinito del remoto)";
+                }
+
                 // Populate submodules after clone (native git; no-op when .gitmodules absent)
                 var submoduleUpdateResult = await EnsureSubmodulesAsync(localPath);
                 if (!submoduleUpdateResult.Success)

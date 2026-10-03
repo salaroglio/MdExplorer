@@ -103,12 +103,19 @@
       {{ 'AGENT_SCHEDULE.EXECUTIONS' | translate }} ({{ executions.length }})
     </button>
     <div *ngIf="showExecutions" class="executions-list">
-      <div class="execution-row" *ngFor="let e of executions">
-        <span class="exec-status" [ngClass]="'status-' + e.status">{{ e.status }}</span>
-        <span class="exec-when">{{ e.startedAt | date:'short' }}</span>
-        <span class="exec-trigger">{{ e.triggerSource }} · {{ e.executedBy }}<ng-container *ngIf="e.engine"> · {{ e.engine }}</ng-container></span>
-        <span class="exec-error" *ngIf="e.error" [matTooltip]="e.error">{{ e.error }}</span>
-      </div>
+      <ng-container *ngFor="let e of executions">
+        <div class="execution-row">
+          <span class="exec-status" [ngClass]="'status-' + e.status">{{ e.status }}</span>
+          <span class="exec-when">{{ e.startedAt | date:'short' }}</span>
+          <span class="exec-trigger">{{ e.triggerSource }} · {{ e.executedBy }}<ng-container *ngIf="e.engine"> · {{ e.engine }}</ng-container></span>
+          <span class="exec-error" *ngIf="e.error" [matTooltip]="e.error">{{ e.error }}</span>
+          <!-- L'output dell'agente: senza, chi lancia un agente a mano non ha dove leggere la sua risposta. -->
+          <button mat-button class="exec-output-toggle" *ngIf="e.outputSummary" (click)="toggleExecutionOutput(e.id)">
+            {{ (openExecutionId === e.id ? 'AGENT_SCHEDULE.HIDE_OUTPUT' : 'AGENT_SCHEDULE.SHOW_OUTPUT') | translate }}
+          </button>
+        </div>
+        <pre class="exec-output" *ngIf="openExecutionId === e.id && e.outputSummary">{{ e.outputSummary }}</pre>
+      </ng-container>
       <div *ngIf="executions.length === 0" class="no-executions">
         {{ 'AGENT_SCHEDULE.NO_EXECUTIONS' | translate }}
       </div>

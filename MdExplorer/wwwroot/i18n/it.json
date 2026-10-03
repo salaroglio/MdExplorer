@@ -1696,7 +1696,9 @@
     "UPDATE_BUTTON": "Aggiorna schedulazione",
     "NEW_BUTTON": "Nuova",
     "EXECUTIONS": "Esecuzioni",
-    "NO_EXECUTIONS": "Nessuna esecuzione"
+    "NO_EXECUTIONS": "Nessuna esecuzione",
+    "SHOW_OUTPUT": "Mostra l'output",
+    "HIDE_OUTPUT": "Nascondi l'output"
   },
   "AGENT_MEMORY": {
     "TITLE": "Memoria degli agenti",

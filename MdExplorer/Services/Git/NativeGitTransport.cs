@@ -71,6 +71,10 @@ namespace MdExplorer.Services.Git
         /// <summary><c>git ls-remote --heads</c>: la prova più leggera che il remoto risponde e la credenziale è buona.</summary>
         Task<NativeGitOutcome> LsRemoteAsync(string workingDirectory, string remoteNameOrUrl, CancellationToken ct = default);
         Task<NativeGitOutcome> CloneAsync(string url, string localPath, string branchName, CancellationToken ct = default);
+        /// <summary>
+        /// <c>git remote set-head</c>: fa puntare <c>origin/HEAD</c> a un ramo. Operazione solo locale, niente rete.
+        /// </summary>
+        Task<NativeGitOutcome> SetRemoteHeadAsync(string repositoryPath, string remoteName, string branchName, CancellationToken ct = default);
         /// <summary>Consegna al credential helper di git una credenziale digitata dall'utente. Non verifica: quello lo fa l'operazione dopo.</summary>
         Task<NativeGitOutcome> ApproveCredentialAsync(string url, string username, string password, CancellationToken ct = default);
         /// <summary>Fa dimenticare a git una credenziale che il server ha rifiutato, così non la ripropone.</summary>
@@ -119,6 +123,9 @@ namespace MdExplorer.Services.Git
             var parent = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(localPath)) ?? System.IO.Path.GetTempPath();
             return Gated(url, () => Run(parent, args.ToArray(), ct), ct);
         }
+
+        public Task<NativeGitOutcome> SetRemoteHeadAsync(string repositoryPath, string remoteName, string branchName, CancellationToken ct = default)
+            => Run(repositoryPath, new[] { "remote", "set-head", string.IsNullOrEmpty(remoteName) ? "origin" : remoteName, branchName }, ct);
 
         // ------------------------------------------------------------------ un login alla volta
 

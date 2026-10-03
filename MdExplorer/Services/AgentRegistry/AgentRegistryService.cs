@@ -210,6 +210,10 @@ namespace MdExplorer.Services.AgentRegistry
                 var files = engineDb.GetDal<MarkdownFile>().GetList().ToList()
                     .Where(f => f.Path != null &&
                                 f.Path.EndsWith(".agent.md", StringComparison.OrdinalIgnoreCase))
+                    // La copia di una scheda dentro un posto di lavoro non è un agente: registrarla darebbe lo
+                    // stesso nome due volte, e un nome duplicato esclude TUTTI quelli che lo portano. Sul clone del
+                    // demo inglese la rubrica si è svuotata e nessun agente poteva più scrivere a un collega.
+                    .Where(f => !MdExplorer.Service.Services.FoldersIgnoreService.IsInsideAgentWorktrees(f.Path, projectPath))
                     .ToList();
 
                 foreach (var f in files)

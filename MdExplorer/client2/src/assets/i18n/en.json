@@ -1696,7 +1696,9 @@
     "UPDATE_BUTTON": "Update schedule",
     "NEW_BUTTON": "New",
     "EXECUTIONS": "Executions",
-    "NO_EXECUTIONS": "No executions yet"
+    "NO_EXECUTIONS": "No executions yet",
+    "SHOW_OUTPUT": "Show output",
+    "HIDE_OUTPUT": "Hide output"
   },
   "AGENT_MEMORY": {
     "TITLE": "Agent memory",
