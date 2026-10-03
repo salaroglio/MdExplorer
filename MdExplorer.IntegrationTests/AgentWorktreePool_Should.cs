@@ -196,14 +196,87 @@ namespace MdExplorer.IntegrationTests
 
             // Altri due agenti si prendono i posti: quello di alfa viene riciclato.
             m.ReleaseSlot(a.WorktreePath);
-            m.ReleaseSlot((await m.PrepareForRunAsync(path, "beta", "att1")).WorktreePath);
-            m.ReleaseSlot((await m.PrepareForRunAsync(path, "gamma", "att1")).WorktreePath);
+            await RecycleAllSlotsAsync(m, path, "beta", "gamma");
             Assert.IsNull(await m.FindAgentWorktreeAsync(path, "alfa"), "alfa non occupa più nessun posto");
 
             // Ma il lavoro non è perso: è un branch, e "ci metto mano" lo rimette su un posto.
             var back = await m.MaterializeForReviewAsync(path, "alfa", push.LocalBranch);
             Assert.IsTrue(File.Exists(Path.Combine(back, "lavoro-di-alfa.md")),
                 "il lavoro di alfa deve tornare disponibile per la revisione");
+        }
+
+        [TestMethod]
+        public async Task Merge_the_work_even_when_its_workplace_was_recycled()
+        {
+            // Il difetto visto con il caso della gara: due posti, quattro agenti. Il responsabile delivery consegna,
+            // altri agenti si prendono i posti, e quando la persona approva la sua scrivania non c'è più. Il merge
+            // cercava proprio quella scrivania e falliva: l'approvazione andava persa, e non si poteva ripetere.
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var (_, path) = SetupGitProject(ctx, "pool-fusione");
+            var m = Manager(ctx);
+
+            var a = await m.PrepareForRunAsync(path, "alfa", "att1");
+            File.WriteAllText(Path.Combine(a.WorktreePath, "lavoro-di-alfa.md"), "# fatto da alfa\n");
+            var push = await m.CommitAndPushBranchAsync(path, "alfa", "lavoro di alfa");
+            Assert.IsNotNull(push);
+            m.ReleaseSlot(a.WorktreePath);
+            await RecycleAllSlotsAsync(m, path, "beta", "gamma");
+            Assert.IsNull(await m.FindAgentWorktreeAsync(path, "alfa"), "alfa non occupa più nessun posto");
+
+            var outcome = await m.MergeDeliverableIntoDefaultAsync(path, "alfa", push.LocalBranch);
+
+            Assert.AreEqual(DeliverableMergeOutcome.Merged, outcome);
+            Git(path, "fetch origin");
+            Assert.AreEqual("# fatto da alfa", Git(path, "show origin/main:lavoro-di-alfa.md").Out.Trim(),
+                "il lavoro è su origin/main");
+            // Il posto temporaneo non resta in giro e non ha portato via nessuna scrivania.
+            StringAssert.DoesNotMatch(Git(path, "worktree list").Out, new System.Text.RegularExpressions.Regex("mde-merge-"));
+            Assert.AreEqual(2, (await m.ListSlotsAsync(path)).Count, "i posti degli agenti sono sempre due");
+        }
+
+        [TestMethod]
+        public async Task Merge_two_works_of_recycled_agents_one_after_the_other()
+        {
+            // L'ordine delle approvazioni del caso: due consegne di file diversi, entrambe senza scrivania.
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var (_, path) = SetupGitProject(ctx, "pool-due-fusioni");
+            var m = Manager(ctx);
+
+            var pushes = new System.Collections.Generic.Dictionary<string, HandoffPushResult>();
+            foreach (var name in new[] { "alfa", "beta" })
+            {
+                var d = await m.PrepareForRunAsync(path, name, "att1");
+                File.WriteAllText(Path.Combine(d.WorktreePath, $"lavoro-di-{name}.md"), $"# {name}\n");
+                pushes[name] = await m.CommitAndPushBranchAsync(path, name, $"lavoro di {name}");
+                m.ReleaseSlot(d.WorktreePath);
+            }
+            await RecycleAllSlotsAsync(m, path, "gamma", "delta");
+            Assert.IsNull(await m.FindAgentWorktreeAsync(path, "alfa"), "alfa non occupa più nessun posto");
+            Assert.IsNull(await m.FindAgentWorktreeAsync(path, "beta"), "beta non occupa più nessun posto");
+
+            Assert.AreEqual(DeliverableMergeOutcome.Merged, await m.MergeDeliverableIntoDefaultAsync(path, "alfa", pushes["alfa"].LocalBranch));
+            Assert.AreEqual(DeliverableMergeOutcome.Merged, await m.MergeDeliverableIntoDefaultAsync(path, "beta", pushes["beta"].LocalBranch));
+
+            Git(path, "fetch origin");
+            Assert.AreEqual("# alfa", Git(path, "show origin/main:lavoro-di-alfa.md").Out.Trim());
+            Assert.AreEqual("# beta", Git(path, "show origin/main:lavoro-di-beta.md").Out.Trim());
+        }
+
+        /// <summary>
+        /// Fa riciclare TUTTI i posti. Si tengono occupati entrambi i posti mentre si riassegnano: se il primo agente
+        /// rilasciasse prima che arrivi il secondo, quale posto prende il secondo dipenderebbe dall'ordine in cui il
+        /// pool li sceglie (a parità di istante), e il test passerebbe o fallirebbe a caso.
+        /// </summary>
+        private static async Task RecycleAllSlotsAsync(IAgentWorktreeManager m, string path, string first, string second)
+        {
+            var a = await m.PrepareForRunAsync(path, first, "att1");
+            var b = await m.PrepareForRunAsync(path, second, "att1");
+            m.ReleaseSlot(a.WorktreePath);
+            m.ReleaseSlot(b.WorktreePath);
         }
 
         // ---- infrastruttura ----

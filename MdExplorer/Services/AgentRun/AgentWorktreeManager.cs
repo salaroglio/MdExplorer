@@ -203,6 +203,14 @@ namespace MdExplorer.Services.AgentRun
         /// <summary>Ramo in checkout in un posto di lavoro; <c>null</c> se detached o indeterminato.</summary>
         Task<string> CurrentBranchAsync(string worktreePath, CancellationToken ct = default);
 
+        /// <summary>
+        /// Il posto di lavoro dell'agente ha qualcosa da passare? Vero se ci sono file non committati (anche nuovi) o
+        /// commit non ancora in <c>origin/&lt;default&gt;</c>. Falso per un posto appena preparato, e anche quando
+        /// l'agente non ha un posto. Serve a decidere se una catena ha senso: chi non ha scritto niente non ha niente
+        /// da far ereditare al destinatario.
+        /// </summary>
+        Task<bool> HasWorkToHandOverAsync(string projectPath, string agentName, CancellationToken ct = default);
+
         /// <summary>I posti esistenti e chi li occupa, per la vista di revisione e per il reaper.</summary>
         Task<IReadOnlyList<WorktreeSlot>> ListSlotsAsync(string projectPath, CancellationToken ct = default);
 
@@ -536,6 +544,19 @@ namespace MdExplorer.Services.AgentRun
             var (_, outp, _) = await GitAsync(worktreePath, new[] { "rev-parse", "--abbrev-ref", "HEAD" }, ct);
             var branch = (outp ?? string.Empty).Trim();
             return branch.Length == 0 || branch == "HEAD" ? null : branch;
+        }
+
+        public async Task<bool> HasWorkToHandOverAsync(string projectPath, string agentName, CancellationToken ct = default)
+        {
+            var worktreePath = await FindAgentWorktreeAsync(projectPath, agentName, ct);
+            if (worktreePath == null || !Directory.Exists(worktreePath)) return false;
+
+            var (sc, status, _) = await GitAsync(worktreePath, new[] { "status", "--porcelain" }, ct);
+            if (sc == 0 && !string.IsNullOrWhiteSpace(status)) return true;
+
+            var baseBranch = await ResolveDefaultBranchAsync(worktreePath, ct);
+            var (rc, ahead, _) = await GitAsync(worktreePath, new[] { "rev-list", "--count", $"origin/{baseBranch}..HEAD" }, ct);
+            return rc == 0 && int.TryParse((ahead ?? string.Empty).Trim(), out var n) && n > 0;
         }
 
         public async Task<IReadOnlyList<WorktreeSlot>> ListSlotsAsync(string projectPath, CancellationToken ct = default)
@@ -955,9 +976,21 @@ namespace MdExplorer.Services.AgentRun
 
         public async Task<DeliverableMergeOutcome> MergeDeliverableIntoDefaultAsync(string projectPath, string agentName, string activityBranch, CancellationToken ct = default)
         {
-            var worktreePath = await FindAgentWorktreeAsync(projectPath, agentName, ct);
-            if (worktreePath == null || !Directory.Exists(worktreePath) || string.IsNullOrWhiteSpace(activityBranch))
+            if (string.IsNullOrWhiteSpace(activityBranch))
                 return DeliverableMergeOutcome.Failed;
+
+            var worktreePath = await FindAgentWorktreeAsync(projectPath, agentName, ct);
+            string temporary = null;
+            if (worktreePath == null || !Directory.Exists(worktreePath))
+            {
+                // La scrivania dell'agente è stata riciclata: i posti sono pochi e gli agenti molti, e un agente che
+                // ha consegnato non la tiene finché la persona non approva. Il suo lavoro però è un ramo, e per
+                // fonderlo basta un posto qualunque: se ne apre uno temporaneo invece di perdere l'approvazione
+                // (la richiesta risultava «fallita» e non si poteva ripetere).
+                temporary = await CreateTemporaryMergeWorktreeAsync(projectPath, ct);
+                if (temporary == null) return DeliverableMergeOutcome.Failed;
+                worktreePath = temporary;
+            }
 
             var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
             await gate.WaitAsync(ct);
@@ -972,7 +1005,9 @@ namespace MdExplorer.Services.AgentRun
                 var (cc, _, ce) = await GitAsync(worktreePath, new[] { "checkout", "--detach", "origin/" + def }, ct);
                 if (cc != 0) { _logger.LogWarning("[Worktree] auto-merge: checkout detached su origin/{Def} fallito: {Err}", def, ce); return DeliverableMergeOutcome.Failed; }
 
-                var (mc, _, me) = await GitAsync(worktreePath, new[] { "merge", "--no-edit", activityBranch }, ct);
+                // Il commit di merge, se serve, porta la firma dell'agente: lo stesso che ha scritto il lavoro.
+                var (mc, _, me) = await GitAsync(worktreePath, new[] { "merge", "--no-edit", activityBranch }, ct,
+                    AgentGitIdentity.EnvFor(agentName));
                 if (mc != 0)
                 {
                     await GitAsync(worktreePath, new[] { "merge", "--abort" }, ct);
@@ -992,7 +1027,54 @@ namespace MdExplorer.Services.AgentRun
                 _logger.LogWarning(ex, "[Worktree] auto-merge fallito per '{Agent}'", agentName);
                 return DeliverableMergeOutcome.Failed;
             }
-            finally { gate.Release(); }
+            finally
+            {
+                gate.Release();
+                if (temporary != null) await RemoveTemporaryMergeWorktreeAsync(projectPath, temporary);
+            }
+        }
+
+        /// <summary>
+        /// Un posto fuori dai posti degli agenti, solo per fondere un ramo. Non occupa nessuna scrivania (non può
+        /// restare senza posto, né portarne via uno a un agente che lavora) e sparisce a merge finito.
+        /// </summary>
+        private async Task<string> CreateTemporaryMergeWorktreeAsync(string projectPath, CancellationToken ct)
+        {
+            var path = Path.Combine(Path.GetTempPath(), "mde-merge-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var def = await ResolveDefaultBranchAsync(projectPath, ct);
+                var (c, _, e) = await GitAsync(projectPath, new[] { "worktree", "add", "--detach", path, "origin/" + def }, ct);
+                if (c != 0)
+                {
+                    _logger.LogWarning("[Worktree] posto temporaneo per il merge non creato: {Err}", e);
+                    return null;
+                }
+                return path;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogWarning(ex, "[Worktree] posto temporaneo per il merge non creato.");
+                return null;
+            }
+        }
+
+        private async Task RemoveTemporaryMergeWorktreeAsync(string projectPath, string path)
+        {
+            try
+            {
+                var (c, _, e) = await GitAsync(projectPath, new[] { "worktree", "remove", "--force", path }, CancellationToken.None);
+                if (c != 0)
+                {
+                    _logger.LogWarning("[Worktree] 'worktree remove' del posto temporaneo fallito ({Err}): elimino la cartella.", e);
+                    try { Directory.Delete(path, recursive: true); } catch (Exception) { /* best-effort */ }
+                    await GitAsync(projectPath, new[] { "worktree", "prune" }, CancellationToken.None);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Worktree] pulizia del posto temporaneo '{Path}' fallita.", path);
+            }
         }
 
         public async Task DeleteBranchAsync(string projectPath, string branch, bool remoteToo, CancellationToken ct = default)

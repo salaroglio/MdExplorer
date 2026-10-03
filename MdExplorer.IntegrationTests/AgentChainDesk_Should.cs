@@ -54,6 +54,32 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Say_a_desk_has_nothing_to_hand_over_until_something_is_written()
+        {
+            // Un coordinatore che incarica più colleghi senza scrivere niente non ha niente da far ereditare:
+            // se la catena partisse lo stesso, i colleghi si siederebbero tutti sulla sua scrivania e le loro
+            // consegne diventerebbero un lavoro solo, attribuito a lui.
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var path = SetupGitProject(ctx, "catena-vuota");
+            var m = Manager(ctx);
+
+            Assert.IsFalse(await m.HasWorkToHandOverAsync(path, "coordinatore"), "senza posto non c'è niente da passare");
+
+            var desk = await m.PrepareForRunAsync(path, "coordinatore", "att1");
+            Assert.IsTrue(desk.Success, desk.Error);
+            Assert.IsFalse(await m.HasWorkToHandOverAsync(path, "coordinatore"), "un posto appena preparato è vuoto");
+
+            File.WriteAllText(Path.Combine(desk.WorktreePath, "analisi.md"), "# analisi\n");
+            Assert.IsTrue(await m.HasWorkToHandOverAsync(path, "coordinatore"), "un file nuovo non committato è lavoro da passare");
+
+            Git(desk.WorktreePath, "add -A");
+            Git(desk.WorktreePath, "-c user.email=a@b.c -c user.name=A -c commit.gpgsign=false commit -q -m analisi");
+            Assert.IsTrue(await m.HasWorkToHandOverAsync(path, "coordinatore"), "un commit non ancora in origin è lavoro da passare");
+        }
+
+        [TestMethod]
         public async Task Wait_instead_of_stealing_the_desk_from_someone_still_writing()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }

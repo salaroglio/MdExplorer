@@ -181,14 +181,23 @@ namespace MdExplorer.Controllers.A2A
             // gesto umano: su due rami diventerebbero due richieste di merge per una cosa sola,
             // con la seconda che dipende dalla prima. E non c'e' niente da sincronizzare via
             // origin — il lavoro del mittente e' gia' li' dove il destinatario si siedera'.
+            //
+            // MA solo se il mittente ha qualcosa da passare. Un coordinatore che incarica più colleghi senza aver
+            // scritto niente non ha niente da far ereditare: farli sedere tutti sulla sua scrivania li mette sullo
+            // stesso ramo, e le loro consegne diventano un lavoro solo attribuito a lui invece di una per ciascuno.
             if (UseWorktree(claims.ProjectPath))
             {
                 try
                 {
                     var desk = await _worktree.FindAgentWorktreeAsync(claims.ProjectPath, claims.AgentName);
                     var branch = desk != null ? await _worktree.CurrentBranchAsync(desk) : null;
-                    if (!string.IsNullOrWhiteSpace(branch))
+                    if (!string.IsNullOrWhiteSpace(branch)
+                        && await _worktree.HasWorkToHandOverAsync(claims.ProjectPath, claims.AgentName))
                         AttachChainBranchToConversation(result.ConversationId, branch);
+                    else if (!string.IsNullOrWhiteSpace(branch))
+                        _logger.LogInformation(
+                            "[A2A/send] '{From}' non ha lavoro da passare: '{To}' prepara un posto suo, nessuna catena.",
+                            claims.AgentName, to);
                 }
                 catch (Exception ex)
                 {
