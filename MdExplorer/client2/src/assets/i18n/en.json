@@ -2001,5 +2001,8 @@
     "DIVERGED": "diverges from the project",
     "DIVERGED_TIP": "This submodule and the version the project records went two ways: “Update to latest” in here merges the two.",
     "BEHIND_PROJECT_NOTE": "The project records a newer version of this submodule. It is not work to commit: align it from the “to pull” panel."
+  },
+  "DEMO_ORIGIN": {
+    "FAILED": "The demo is open, but I could not prepare the local repository the agents deliver to: {{reason}}"
   }
 }

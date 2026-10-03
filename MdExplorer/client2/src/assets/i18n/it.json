@@ -2001,5 +2001,8 @@
     "DIVERGED": "diverge dal progetto",
     "DIVERGED_TIP": "Questo submodule e la versione che il progetto registra hanno preso due strade: «Aggiorna all'ultima» qui dentro unisce i due lavori.",
     "BEHIND_PROJECT_NOTE": "Il progetto registra una versione più nuova di questo submodule. Non è lavoro da committare: va allineato dal pannello «da pullare»."
+  },
+  "DEMO_ORIGIN": {
+    "FAILED": "Il demo è aperto, ma non sono riuscito a preparare il repository locale su cui gli agenti consegnano: {{reason}}"
   }
 }

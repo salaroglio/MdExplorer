@@ -105,6 +105,8 @@ const emptyState = (): DemoTourState => ({ environments: [], usable: [], probeEr
  */
 export function buildDemoCloneTour(deps: {
   setHarnessForPath: (path: string, harness: string) => void;
+  /** Solo per il demo: alla prossima apertura di questo percorso prepara un origin locale scrivibile. */
+  setDemoOriginForPath: (path: string) => void;
   /** Language MdExplorer is set to ('it', 'en'): it decides which branch of the demo is downloaded. */
   currentLanguage: () => string;
 }): MarkLesson {
@@ -266,6 +268,8 @@ export function buildDemoCloneTour(deps: {
           // The clone dialog opens the project by path and knows nothing about environments:
           // the choice travels bound to this path, and only to it.
           deps.setHarnessForPath(target, state.chosen);
+          // Il demo della città degli agenti scrive: serve un origin locale. Vale solo per questo clone.
+          deps.setDemoOriginForPath(target);
           await sleep(800);
         },
       },

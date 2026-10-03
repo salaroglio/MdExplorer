@@ -8623,6 +8623,8 @@ function buildDemoCloneTour(deps) {
           // The clone dialog opens the project by path and knows nothing about environments:
           // the choice travels bound to this path, and only to it.
           deps.setHarnessForPath(target, state.chosen);
+          // Il demo della città degli agenti scrive: serve un origin locale. Vale solo per questo clone.
+          deps.setDemoOriginForPath(target);
           yield (0,_auto_utils__WEBPACK_IMPORTED_MODULE_1__.sleep)(800);
         });
         return function autoExecute() {
@@ -10048,6 +10050,7 @@ class MarkAssistantService {
       launch: id => this.launch(id),
       launchNextMicroTip: () => this.launchNextMicroTip(),
       setHarnessForPath: (path, harness) => this.projectsService.setHarnessForPath(path, harness),
+      setDemoOriginForPath: path => this.projectsService.setDemoOriginForPath(path),
       currentLanguage: () => this.translate.currentLang || this.translate.defaultLang || 'en'
     });
     this.registerInputHandlers();
@@ -12983,11 +12986,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "ProjectsService": () => (/* binding */ ProjectsService)
 /* harmony export */ });
 /* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/common/http */ 8987);
+/* harmony import */ var _angular_common_http__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/common/http */ 8987);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! rxjs */ 6317);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! rxjs */ 228);
 /* harmony import */ var _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../../models/compatibility-mode.model */ 8316);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 2560);
+
+
 
 
 
@@ -13040,6 +13047,13 @@ class ProjectsService {
      * Sprint: docs-internal/Sprints/2026-10-02-Demo-Ambiente-Agentico-Rilevato.md.
      */
     this.pendingHarness = null;
+    /**
+     * Solo per il progetto demo: chiede alla prossima apertura di QUESTO percorso di preparare un `origin` locale su
+     * cui chi lo prova può scrivere (senza, «Autorizza» non ha dove pubblicare). Stesso schema dell'ambiente
+     * agentico: legato al percorso e consumato una volta sola, quindi non finisce sul prossimo progetto aperto.
+     * Il servizio lo onora solo se il progetto è davvero il clone del demo.
+     */
+    this.pendingDemoOriginPath = null;
     this.dataStore = {
       mdProjects: []
     };
@@ -13067,6 +13081,14 @@ class ProjectsService {
       harness: harness
     };
   }
+  setDemoOriginForPath(path) {
+    this.pendingDemoOriginPath = ProjectsService.comparablePath(path);
+  }
+  takeDemoOriginFor(path) {
+    const pending = this.pendingDemoOriginPath;
+    this.pendingDemoOriginPath = null;
+    return pending !== null && pending === ProjectsService.comparablePath(path);
+  }
   static comparablePath(path) {
     return (path || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
   }
@@ -13090,6 +13112,9 @@ class ProjectsService {
     if (harness) {
       request.harness = harness;
     }
+    if (this.takeDemoOriginFor(path)) {
+      request.prepareDemoOrigin = true;
+    }
     this.http.post('../api/MdProjects/SetFolderProject', request).subscribe(/*#__PURE__*/function () {
       var _ref = (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* (response) {
         _this2.currentProjects$.next(response);
@@ -13105,6 +13130,15 @@ class ProjectsService {
         _this2.emitCopilotCliAutoConfig(response);
         _this2.emitClaudeCodeAutoConfig(response);
         _this2.emitOpenCodeAutoConfig(response);
+        // Solo il demo: se l'origin locale non si è potuto preparare gli agenti non potranno consegnare, e la persona
+        // deve saperlo subito (non solo nel log del servizio).
+        if (response.demoOrigin?.status === 'Failed') {
+          _this2.injector.get(_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_4__.MatLegacySnackBar).open(_this2.injector.get(_ngx_translate_core__WEBPACK_IMPORTED_MODULE_5__.TranslateService).instant('DEMO_ORIGIN.FAILED', {
+            reason: response.demoOrigin.error
+          }), 'OK', {
+            duration: 30000
+          });
+        }
         // Update compatibility mode from response
         if (response.compatibilityMode) {
           const mode = response.compatibilityMode === 'github' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.GitHub : response.compatibilityMode === 'commonmark' ? _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.CommonMark : _models_compatibility_mode_model__WEBPACK_IMPORTED_MODULE_1__.CompatibilityMode.MdExplorer;
@@ -13206,25 +13240,25 @@ class ProjectsService {
     return `../api/MdProjects/ProjectIcon?id=${encodeURIComponent(id)}&v=${v}`;
   }
   getParticipants(projectPath) {
-    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_4__.HttpParams().set('path', projectPath);
+    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', projectPath);
     return this.http.get('../api/MdProjects/GetParticipants', {
       params
     });
   }
   saveParticipants(projectPath, participants) {
-    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_4__.HttpParams().set('path', projectPath);
+    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', projectPath);
     return this.http.put('../api/MdProjects/Participants', participants, {
       params
     });
   }
   getGitAuthors(projectPath) {
-    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_4__.HttpParams().set('path', projectPath);
+    const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams().set('path', projectPath);
     return this.http.get('../api/MdProjects/GitAuthors', {
       params
     });
   }
   getCurrentGitUser(projectPath) {
-    let params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_4__.HttpParams();
+    let params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpParams();
     if (projectPath) {
       params = params.set('path', projectPath);
     }
@@ -13464,11 +13498,11 @@ class ProjectsService {
   }
   static {
     this.ɵfac = function ProjectsService_Factory(t) {
-      return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_4__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_5__.Injector));
+      return new (t || ProjectsService)(_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_7__.Injector));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineInjectable"]({
       token: ProjectsService,
       factory: ProjectsService.ɵfac,
       providedIn: 'root'
@@ -18334,8 +18368,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.03.3',
-  buildTime: '2026.10.03 19:27:26'
+  version: '2026.10.03.5',
+  buildTime: '2026.10.03 19:42:17'
 };
 
 /***/ }),
@@ -18369,4 +18403,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.3ff90be43fe89f65.js.map
+//# sourceMappingURL=main.704e0cfdcdc49137.js.map

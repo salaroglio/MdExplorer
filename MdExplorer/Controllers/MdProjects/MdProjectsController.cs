@@ -700,6 +700,17 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
             try
             {
+                // SOLO per il demo: la richiesta lo porta unicamente dal tour «Crea progetto demo», legata al
+                // percorso del clone. Il servizio comunque non tocca nulla se il progetto non è il clone del
+                // repository del demo (vedi DemoOriginPreparer): un progetto normale non ne sa niente.
+                MdExplorer.Services.Demo.DemoOriginOutcome demoOrigin = null;
+                if (request.PrepareDemoOrigin == true)
+                {
+                    demoOrigin = HttpContext.RequestServices
+                        .GetService<MdExplorer.Services.Demo.IDemoOriginPreparer>()?.Prepare(request.Path);
+                    logPhase("DemoOrigin");
+                }
+
                 // Invalidate FoldersIgnore cache to pick up any changes to .mdFoldersIgnore
                 _foldersIgnoreService.InvalidateCache(request.Path);
                 logPhase("InvalidateCache");
@@ -957,7 +968,14 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     openCodeAvailable = openCodeAvailable,
                     openCodeDefaultModel = openCodeDefaultModel,
                     markAgentEngine = MdExplorer.Utilities.MarkAgentEngines.IdOf(markAgentEngine),
-                    markAgentEngineLinked = markAgentEngineLinked
+                    markAgentEngineLinked = markAgentEngineLinked,
+                    // Presente solo se il tour del demo l'ha chiesto; `failed` va detto alla persona.
+                    demoOrigin = demoOrigin == null ? null : new
+                    {
+                        status = demoOrigin.Status.ToString(),
+                        origin = demoOrigin.Origin,
+                        error = demoOrigin.Error,
+                    }
                 });
             }
             catch (Exception ex)
@@ -1142,6 +1160,13 @@ namespace MdExplorer.Service.Controllers.MdProjects
         /// Mantenuta per i client non ancora aggiornati; <see cref="Harness"/> ha la precedenza.
         /// </summary>
         public bool? AddCopilotInstructions { get; set; }
+
+        /// <summary>
+        /// Solo il tour «Crea progetto demo» la manda: chiede un <c>origin</c> locale su cui chi prova il demo può
+        /// scrivere. <b>Non è una preferenza dei progetti</b>: il servizio la onora solo se il progetto è il clone del
+        /// repository del demo. Nullable come <see cref="Harness"/>: un'apertura normale non la porta.
+        /// </summary>
+        public bool? PrepareDemoOrigin { get; set; }
     }
 }
 

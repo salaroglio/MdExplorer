@@ -5,6 +5,8 @@ import { Participant, GitAuthor, CurrentGitUser } from '../models/participant';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { ProjectCreateConfigOptions } from '../../projects/dialogs/project-create-config/project-create-config.model';
 import { CompatibilityMode } from '../../models/compatibility-mode.model';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 
 interface ProjectOpenedResponse {
   success: boolean;
@@ -106,6 +108,24 @@ export class ProjectsService {
     this.pendingHarness = { path: ProjectsService.comparablePath(path), harness: harness };
   }
 
+  /**
+   * Solo per il progetto demo: chiede alla prossima apertura di QUESTO percorso di preparare un `origin` locale su
+   * cui chi lo prova può scrivere (senza, «Autorizza» non ha dove pubblicare). Stesso schema dell'ambiente
+   * agentico: legato al percorso e consumato una volta sola, quindi non finisce sul prossimo progetto aperto.
+   * Il servizio lo onora solo se il progetto è davvero il clone del demo.
+   */
+  private pendingDemoOriginPath: string | null = null;
+
+  setDemoOriginForPath(path: string): void {
+    this.pendingDemoOriginPath = ProjectsService.comparablePath(path);
+  }
+
+  private takeDemoOriginFor(path: string): boolean {
+    const pending = this.pendingDemoOriginPath;
+    this.pendingDemoOriginPath = null;
+    return pending !== null && pending === ProjectsService.comparablePath(path);
+  }
+
   private static comparablePath(path: string): string {
     return (path || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
   }
@@ -125,10 +145,13 @@ export class ProjectsService {
 
     // Come nella creazione di un progetto: quando la richiesta porta un ambiente, il servizio lo
     // scrive nel .development.yml e installa skill, istruzioni e server MCP per quello.
-    const request: { path: string; harness?: string } = { path: path };
+    const request: { path: string; harness?: string; prepareDemoOrigin?: boolean } = { path: path };
     const harness = this.takeHarnessFor(path);
     if (harness) {
       request.harness = harness;
+    }
+    if (this.takeDemoOriginFor(path)) {
+      request.prepareDemoOrigin = true;
     }
 
     this.http.post<any>('../api/MdProjects/SetFolderProject', request).subscribe(async response => {
@@ -150,6 +173,14 @@ export class ProjectsService {
       this.emitCopilotCliAutoConfig(response);
       this.emitClaudeCodeAutoConfig(response);
       this.emitOpenCodeAutoConfig(response);
+
+      // Solo il demo: se l'origin locale non si è potuto preparare gli agenti non potranno consegnare, e la persona
+      // deve saperlo subito (non solo nel log del servizio).
+      if (response.demoOrigin?.status === 'Failed') {
+        this.injector.get(MatSnackBar).open(
+          this.injector.get(TranslateService).instant('DEMO_ORIGIN.FAILED', { reason: response.demoOrigin.error }),
+          'OK', { duration: 30000 });
+      }
 
       // Update compatibility mode from response
       if (response.compatibilityMode) {

@@ -47,6 +47,8 @@ export function buildLessonRegistry(deps: {
   launch: (id: string) => void | Promise<void>;
   launchNextMicroTip: () => void | Promise<void>;
   setHarnessForPath: (path: string, harness: string) => void;
+  /** Solo per il demo: alla prossima apertura di questo percorso prepara un origin locale scrivibile. */
+  setDemoOriginForPath: (path: string) => void;
   currentLanguage: () => string;
 }): { [id: string]: MarkLesson } {
   const idleMenu = buildIdleMenu(deps);
