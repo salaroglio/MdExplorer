@@ -3,7 +3,7 @@ name: mde-agent
 description: Author a `.agent.md` agent card for MdExplorer's agent city. Use when the user asks to create, review or fix an agent - name, role, summary, tools, who may write to it, who it hands work to, and the instructions it follows. The card is what the person reads before trusting the agent, so the summary and the tools must agree.
 mde:
   origin: mdexplorer
-  version: 1
+  version: 2
   updatePolicy: replace
 ---
 
@@ -42,7 +42,7 @@ tools: [read, edit]
 a2a:
   name: contabile
   role: Administrative lead's assistant
-  summary: Reads the tender and writes a sheet with the economic points (amounts, penalties, payments) for the administrative lead. Writes only in sheets/.
+  summary: "Reads the tender and writes a sheet with the economic points (amounts, penalties, payments) for the administrative lead. Writes only in sheets/."
   skills:
     - id: economic-sheet
       description: Writes sheets/economic.md
@@ -80,6 +80,9 @@ header carefully the first time.
   of action (commands, writing), not the folder. The person sees your summary labelled as "written by the author, not
   verified". Write it honestly and keep it short.
 - Write it in the language of the people who will read it.
+- **Put it in double quotes.** A colon followed by a space (`: `) inside an unquoted YAML value ends the value: the header is
+  no longer valid and the registry **excludes the agent**. Natural sentences contain colons all the time. The same goes for
+  `role` and `description`.
 
 ### `tools:` — the least that works
 
@@ -148,7 +151,7 @@ When you receive a message that starts with `[APPROVED]`:
 ## Checklist before handing the card over
 
 - [ ] `name` is kebab-case and unique; `role` says whose agent it is.
-- [ ] `summary` is at most 500 characters, plain, and agrees with `tools:`.
+- [ ] `summary` is at most 500 characters, **in double quotes**, plain, and agrees with `tools:`.
 - [ ] `tools:` has only what the work needs.
 - [ ] `accepts_messages_from` lists exactly who may write to it (and `user` when the person launches it).
 - [ ] `on_approval_notify` names agents that exist, or is left out.
