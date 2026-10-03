@@ -235,8 +235,12 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     Enabled = request.Enabled,
                     OwnershipDoc = request.OwnershipDoc,
                     RelayUrl = request.RelayUrl,
-                    UseAgentWorktrees = request.UseAgentWorktrees ?? current?.UseAgentWorktrees ?? false,
-                    AutoMergeAgentDeliverables = request.AutoMergeAgentDeliverables ?? current?.AutoMergeAgentDeliverables ?? false,
+                    // Assente resta assente (null): per i worktree vuol dire «decide l'app» (attivi se c'è git),
+                    // e scrivere `false` al primo salvataggio li spegneva in modo esplicito senza che
+                    // nessuno l'avesse chiesto. Così un progetto appena aperto resta a zero «da committare»
+                    // per questi due campi.
+                    UseAgentWorktrees = request.UseAgentWorktrees ?? current?.UseAgentWorktrees,
+                    AutoMergeAgentDeliverables = request.AutoMergeAgentDeliverables ?? current?.AutoMergeAgentDeliverables,
                 });
                 return Ok(ToAgentCityDto(saved, path));
             }

@@ -108,5 +108,52 @@ namespace MdExplorer.Features.Tests.Agents
                 allowed.ToArray(),
                 "un agente non fidato e senza dichiarazione di scrittura vede solo la lettura");
         }
+
+        // ── Strumenti NATIVI del motore: il manifesto è un limite, non un'intenzione ──
+
+        [TestMethod]
+        public void Deny_shell_and_write_when_the_manifest_only_reads()
+        {
+            // L'agente con `tools: [read, search]` ha eseguito comandi di shell nel collaudo del
+            // 03/10/2026: il manifesto arrivava fino al runner e lì veniva ignorato.
+            CollectionAssert.AreEquivalent(new[] { "shell", "write" },
+                AgentToolCatalog.NativeToolsToDeny(new[] { "read", "search" }).ToArray());
+        }
+
+        [TestMethod]
+        public void Deny_everything_native_for_a_citizen_with_an_empty_manifest()
+        {
+            CollectionAssert.AreEquivalent(new[] { "shell", "write" },
+                AgentToolCatalog.NativeToolsToDeny(new string[0]).ToArray(),
+                "la cittadinanza è read-only: senza dichiarazione non si scrive e non si esegue");
+        }
+
+        [TestMethod]
+        public void Leave_write_open_when_the_agent_declared_edit_or_write()
+        {
+            CollectionAssert.AreEquivalent(new[] { "shell" },
+                AgentToolCatalog.NativeToolsToDeny(new[] { "read", "edit" }).ToArray(),
+                "edit vale come write: modificare un file è scriverlo");
+            CollectionAssert.AreEquivalent(new[] { "shell" },
+                AgentToolCatalog.NativeToolsToDeny(new[] { "WRITE" }).ToArray(), "senza distinguere maiuscole");
+        }
+
+        [TestMethod]
+        public void Leave_shell_open_when_the_agent_declared_shell_or_execute()
+        {
+            CollectionAssert.AreEquivalent(new[] { "write" },
+                AgentToolCatalog.NativeToolsToDeny(new[] { "shell" }).ToArray());
+            CollectionAssert.AreEquivalent(new[] { "write" },
+                AgentToolCatalog.NativeToolsToDeny(new[] { "execute" }).ToArray());
+            Assert.AreEqual(0, AgentToolCatalog.NativeToolsToDeny(new[] { "shell", "write" }).Count);
+        }
+
+        [TestMethod]
+        public void Deny_nothing_when_there_is_no_manifest_at_all()
+        {
+            // Un agente senza manifesto (schedulato, non cittadino) gira come prima: il limite
+            // vale per chi ha una dichiarazione da far rispettare, non retroattivamente per tutti.
+            Assert.AreEqual(0, AgentToolCatalog.NativeToolsToDeny(null).Count);
+        }
     }
 }

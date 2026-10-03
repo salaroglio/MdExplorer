@@ -115,6 +115,7 @@ namespace MdExplorer
             // Mailbox + dispatcher della città degli agenti (§8): unico punto di accodamento
             // (guardrail hop/dedup) e consegna at-least-once dei messaggi (hosted service).
             services.AddSingleton<Services.AgentRun.IAgentMailbox, Services.AgentRun.AgentMailbox>();
+            services.AddSingleton<Services.AgentRun.IAgentDeliveryReporter, Services.AgentRun.AgentDeliveryReporter>();
             // Cancello del run LLM (§12.5): tetto istanze Copilot concorrenti → coda differita
             // (deferred:resources) invece di saturare la macchina. Capacità per-installazione.
             // Il tetto dei run insieme non e' piu' un numero suo: sono i posti di lavoro del

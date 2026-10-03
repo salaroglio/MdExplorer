@@ -64,5 +64,27 @@ namespace MdExplorer.IntegrationTests
 
             Assert.AreEqual(false, meta.GetAgentCity(path).AutoMergeAgentDeliverables);
         }
+
+        [TestMethod]
+        public async Task Leave_the_flags_unset_on_the_very_first_save()
+        {
+            using var ctx = new AgentCityContext();
+            var (_, path) = ctx.SeedProject("flag-primo-salvataggio");
+
+            // Nessuno ha mai scritto la sezione: la UI salva solo `enabled`.
+            var query = "?path=" + System.Uri.EscapeDataString(path);
+            var res = await ctx.Client.PostAsync("/api/MdProjects/SetAgentCity" + query,
+                new StringContent("{\"enabled\":true}", Encoding.UTF8, "application/json"));
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, res.StatusCode, await res.Content.ReadAsStringAsync());
+
+            // Si guarda il FILE, non GetAgentCity: in lettura quest'ultimo applica i default
+            // (worktree attivi se c'è git), quindi non può dire «assente».
+            var yml = System.IO.File.ReadAllText(System.IO.Path.Combine(path, ".development.yml"));
+            StringAssert.Contains(yml, "agentCity:");
+            Assert.IsFalse(yml.Contains("useAgentWorktrees"),
+                "i worktree non vanno spenti da un salvataggio che non ne parla: `null` vuol dire «decide l'app»");
+            Assert.IsFalse(yml.Contains("autoMergeAgentDeliverables"),
+                "una scelta che nessuno ha fatto non va scritta nel file del progetto");
+        }
     }
 }

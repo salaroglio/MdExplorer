@@ -626,6 +626,16 @@ Always provide clear, concise, and well-formatted responses using proper markdow
                 args.Append("--screen-reader ");
             }
             args.Append("--allow-all-tools");
+            // Gli strumenti che il manifesto dell'agente non dichiara: il divieto esplicito prevale
+            // su --allow-all-tools. Nomi fissi del nostro vocabolario (shell, write), mai testo libero.
+            if (invocation?.DeniedTools != null)
+            {
+                foreach (var denied in invocation.DeniedTools)
+                {
+                    if (denied is "shell" or "write")
+                        args.Append($" --deny-tool={denied}");
+                }
+            }
             if (!string.IsNullOrWhiteSpace(model))
             {
                 args.Append($" --model {model}");

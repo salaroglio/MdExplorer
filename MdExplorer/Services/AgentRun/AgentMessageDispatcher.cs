@@ -64,6 +64,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly ISubmoduleGateService _submoduleGate;
         private readonly IDeliverableMergeGate _mergeGate;
         private readonly IAgentMergeRequestService _mergeRequests;
+        private readonly IAgentDeliveryReporter _deliveryReporter;
         private readonly MdExplorer.Services.IProjectMetadataService _projectMetadata;
         private readonly MdExplorer.Services.Federation.IFederationSender _federationSender;
         private readonly IHubContext<MonitorMDHub> _hubContext;
@@ -92,6 +93,7 @@ namespace MdExplorer.Services.AgentRun
             ISubmoduleGateService submoduleGate,
             IDeliverableMergeGate mergeGate,
             IAgentMergeRequestService mergeRequests,
+            IAgentDeliveryReporter deliveryReporter,
             MdExplorer.Services.IProjectMetadataService projectMetadata,
             MdExplorer.Services.Federation.IFederationSender federationSender,
             IHubContext<MonitorMDHub> hubContext,
@@ -111,6 +113,7 @@ namespace MdExplorer.Services.AgentRun
             _submoduleGate = submoduleGate;
             _mergeGate = mergeGate;
             _mergeRequests = mergeRequests;
+            _deliveryReporter = deliveryReporter;
             _projectMetadata = projectMetadata;
             _federationSender = federationSender;
             _hubContext = hubContext;
@@ -476,7 +479,7 @@ namespace MdExplorer.Services.AgentRun
                         RetrievedMemory = memory,
                         // Autorizzazione dei tool (Fase B): cosa l'agente ha dichiarato e se
                         // l'umano si fida. Il runner su provider ne deriva i tool da esporre.
-                        DeclaredTools = entry.Tools?.ToList(),
+                        DeclaredTools = entry.Tools?.ToList() ?? new List<string>(),   // cittadino senza manifesto = sola lettura, non «tutto»
                         Trusted = entry.Trusted,
                         RuntimeProvider = entry.RuntimeProvider,
                         RuntimeModel = entry.RuntimeModel,
@@ -538,7 +541,16 @@ namespace MdExplorer.Services.AgentRun
                     catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] rilevamento tocco submodule per '{Agent}' fallito.", entry.Name); }
 
                     HandoffPushResult pushed = null;
-                    try { pushed = await _worktree.CommitAndPushBranchAsync(snapshot.ProjectPath, entry.Name, $"deliverable {entry.Name}", ct); }
+                    try
+                    {
+                        var attempt = await _worktree.TryCommitAndPushBranchAsync(snapshot.ProjectPath, entry.Name, $"deliverable {entry.Name}", ct);
+                        pushed = attempt?.Pushed;
+
+                        // Un lavoro che c'è e non è stato pubblicato si dice all'umano: prima restava solo
+                        // nel log e il run sembrava riuscito senza aver prodotto niente (REGOLA #2).
+                        if (attempt?.Error != null)
+                            _deliveryReporter.ReportNotPublished(snapshot.ProjectPath, entry.Name, attempt, snapshot.ConversationId.ToString());
+                    }
                     catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] push deliverable per '{Agent}' fallito (best-effort).", entry.Name); }
 
                     // Il deliverable-DOC non entra piu' in main da solo: PROPONE. Il gate meccanico

@@ -58,7 +58,10 @@ namespace MdExplorer.Services.AgentRun
 
             // Identità e working dir viaggiano nell'invocation, non sul singleton: isolamento
             // per costruzione tra run concorrenti.
-            var invocation = new CopilotInvocation(request.WorkingDirectory, request.Environment);
+            // Il manifesto `tools:` dell'agente è un limite, non un'intenzione: ciò che non dichiara
+            // (shell, scrittura di file) il CLI lo rifiuta anche con --allow-all-tools.
+            var denied = AgentToolCatalog.NativeToolsToDeny(request.DeclaredTools);
+            var invocation = new CopilotInvocation(request.WorkingDirectory, request.Environment, deniedTools: denied);
 
             // Esito DETTAGLIATO, non solo il testo: `RunHeadlessAsync` solleva solo quando
             // l'uscita è non-zero E stderr non è vuoto, quindi un'uscita non-zero silenziosa

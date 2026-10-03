@@ -101,6 +101,32 @@ namespace MdExplorer.Features.Agents
         };
 
         /// <summary>
+        /// Gli strumenti NATIVI del motore (shell, scrittura di file) che un agente <b>non</b> ha
+        /// dichiarato nel manifesto <c>tools:</c> e che quindi il motore deve rifiutare. È la metà
+        /// dell'enforcement che il catalogo non può fare sui tool MCP: gli strumenti nativi non
+        /// passano dal nostro server, li ferma il motore con un divieto esplicito.
+        /// <para>
+        /// <c>edit</c> vale come <c>write</c> (modificare un file è scriverlo) ed <c>execute</c>
+        /// come <c>shell</c>. Un manifesto vuoto nega entrambi: la cittadinanza è read-only, e
+        /// leggere non si nega a nessuno. Un manifesto assente (<c>null</c>) non è un cittadino
+        /// con una dichiarazione da far rispettare: nessun divieto (agenti schedulati come prima).
+        /// </para>
+        /// </summary>
+        public static IReadOnlyList<string> NativeToolsToDeny(IEnumerable<string> declaredManifest)
+        {
+            if (declaredManifest == null) return Array.Empty<string>();
+
+            var declared = new HashSet<string>(
+                declaredManifest.Where(t => !string.IsNullOrWhiteSpace(t)).Select(t => t.Trim()),
+                StringComparer.OrdinalIgnoreCase);
+
+            var deny = new List<string>();
+            if (!declared.Contains(ManifestShell) && !declared.Contains("execute")) deny.Add(ManifestShell);
+            if (!declared.Contains(ManifestWrite) && !declared.Contains(ManifestEdit)) deny.Add(ManifestWrite);
+            return deny;
+        }
+
+        /// <summary>
         /// Classifica ogni tool offerto. <paramref name="offeredTools"/> sono i nomi che il
         /// runner può realmente fornire (es. quelli che il server MCP dichiara più quelli sui
         /// documenti): il catalogo non inventa nomi, decide su quelli che esistono.

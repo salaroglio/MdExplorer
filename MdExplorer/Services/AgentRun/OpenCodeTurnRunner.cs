@@ -36,12 +36,16 @@ namespace MdExplorer.Services.AgentRun
         }
 
         /// <summary>The configuration of an agent's server: MdExplorer's MCP server with the turn's environment, all allowed.</summary>
-        public static string AgentConfig(string mcpExecutable, string mcpGroupsArgument, IReadOnlyDictionary<string, string> environment)
+        public static string AgentConfig(string mcpExecutable, string mcpGroupsArgument, IReadOnlyDictionary<string, string> environment,
+            IReadOnlyList<string> deniedTools = null)
         {
+            // What the agent's manifest (tools:) does not declare is denied, not merely left unmentioned.
+            var denyWrite = deniedTools?.Contains("write") == true;
+            var denyShell = deniedTools?.Contains("shell") == true;
             JsonObject Permissions() => new()
             {
-                ["edit"] = "allow",
-                ["bash"] = "allow",
+                ["edit"] = denyWrite ? "deny" : "allow",
+                ["bash"] = denyShell ? "deny" : "allow",
                 ["webfetch"] = "allow",
             };
             var config = new JsonObject
@@ -90,7 +94,8 @@ namespace MdExplorer.Services.AgentRun
 
             var serverEnvironment = new Dictionary<string, string>(request.Environment ?? new Dictionary<string, string>())
             {
-                ["OPENCODE_CONFIG_CONTENT"] = AgentConfig(mcpExecutable, groups, request.Environment),
+                ["OPENCODE_CONFIG_CONTENT"] = AgentConfig(mcpExecutable, groups, request.Environment,
+                    MdExplorer.Features.Agents.AgentToolCatalog.NativeToolsToDeny(request.DeclaredTools)),
             };
             var answer = new StringBuilder();
             using var server = new OpenCodeServer(_loggerFactory.CreateLogger<OpenCodeServer>(), serverEnvironment);

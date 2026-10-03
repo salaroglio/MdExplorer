@@ -182,6 +182,44 @@ namespace MdExplorer.IntegrationTests
             Assert.IsTrue(config["experimental"]!["continue_loop_on_deny"]!.GetValue<bool>());
         }
 
+        // ---- il manifesto `tools:` è un limite, anche sugli altri motori ----
+
+        [TestMethod]
+        public void Take_the_shell_and_writing_away_from_a_Claude_agent_that_only_reads()
+        {
+            var options = ClaudeCodeTurnRunner.AgentOptions("/tmp/agent.json",
+                new AgentTurnRequest { Environment = new Dictionary<string, string> { ["MDE_RUN_TOKEN"] = "t" }, DeclaredTools = new[] { "read", "search" } });
+            var arguments = ClaudeCodeSession.BuildArguments("sonnet", options);
+
+            Assert.IsFalse(arguments.Contains("Bash"), arguments);
+            Assert.IsFalse(arguments.Contains("Edit"), arguments);
+            Assert.IsFalse(arguments.Contains("Write"), arguments);
+            StringAssert.Contains(arguments, "mcp__mdexplorer", "gli strumenti della città restano: leggerli è un diritto di cittadinanza");
+        }
+
+        [TestMethod]
+        public void Keep_writing_for_a_Claude_agent_that_declared_edit()
+        {
+            var tools = ClaudeCodeTurnRunner.ToolsFor(new AgentTurnRequest { DeclaredTools = new[] { "read", "edit" } });
+
+            CollectionAssert.Contains(tools, "Edit");
+            CollectionAssert.Contains(tools, "Write");
+            CollectionAssert.DoesNotContain(tools, "Bash");
+        }
+
+        [TestMethod]
+        public void Deny_an_opencode_agent_what_its_manifest_does_not_declare()
+        {
+            var config = JsonNode.Parse(OpenCodeTurnRunner.AgentConfig("/opt/mde/MdExplorer.Mcp", "core",
+                new Dictionary<string, string> { ["MDE_RUN_TOKEN"] = "t" }, new[] { "shell", "write" }))!;
+
+            foreach (var permissions in new[] { config["permission"]!, config["agent"]!["build"]!["permission"]! })
+            {
+                Assert.AreEqual("deny", permissions["bash"]!.GetValue<string>());
+                Assert.AreEqual("deny", permissions["edit"]!.GetValue<string>());
+            }
+        }
+
         [TestMethod]
         public void Fail_an_opencode_turn_whose_model_call_failed_instead_of_an_empty_success()
         {

@@ -40,14 +40,25 @@ namespace MdExplorer.Features.Services.AI
         /// </summary>
         public string SessionId { get; }
 
+        /// <summary>
+        /// Strumenti nativi del CLI da rifiutare (<c>--deny-tool</c>), es. <c>shell</c>, <c>write</c>.
+        /// Il divieto prevale su <c>--allow-all-tools</c> (verificato sul campo su Copilot CLI 1.0.91):
+        /// è così che il manifesto <c>tools:</c> di un agente diventa un limite e non solo un'intenzione.
+        /// Null/vuoto = nessun divieto. Per-chiamata, come il resto: due agenti con manifesti diversi
+        /// non possono scambiarsi i permessi.
+        /// </summary>
+        public IReadOnlyList<string> DeniedTools { get; }
+
         public CopilotInvocation(
             string workingDirectory,
             IReadOnlyDictionary<string, string> environmentOverrides = null,
-            string sessionId = null)
+            string sessionId = null,
+            IReadOnlyList<string> deniedTools = null)
         {
             WorkingDirectory = workingDirectory;
             EnvironmentOverrides = environmentOverrides;
             SessionId = sessionId;
+            DeniedTools = deniedTools;
         }
 
         /// <summary>Contesto vuoto: nessuna working dir esplicita, nessun override d'ambiente.</summary>

@@ -39,6 +39,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentWorktreeManager _worktree;
         private readonly IAgentWorktreePreference _worktreePreference;
         private readonly IAgentMergeRequestService _mergeRequests;
+        private readonly IAgentDeliveryReporter _deliveryReporter;
 
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
 
@@ -51,11 +52,13 @@ namespace MdExplorer.Services.AgentRun
             MdExplorer.Features.Agents.IRunTokenStore tokens,
             IAgentWorktreeManager worktree,
             IAgentWorktreePreference worktreePreference,
-            IAgentMergeRequestService mergeRequests)
+            IAgentMergeRequestService mergeRequests,
+            IAgentDeliveryReporter deliveryReporter)
         {
             _worktree = worktree;
             _worktreePreference = worktreePreference;
             _mergeRequests = mergeRequests;
+            _deliveryReporter = deliveryReporter;
             _logger = logger;
             _hubContext = hubContext;
             _turnRunner = turnRunner;
@@ -127,8 +130,15 @@ namespace MdExplorer.Services.AgentRun
         {
             try
             {
-                var pushed = await _worktree.CommitAndPushBranchAsync(
+                var attempt = await _worktree.TryCommitAndPushBranchAsync(
                     request.ProjectPath, agentName, $"lavoro di {agentName}", ct);
+                if (attempt?.Error != null)
+                {
+                    // Il lavoro c'è e non è stato pubblicato: lo deve sapere l'umano, non solo il log.
+                    _deliveryReporter.ReportNotPublished(request.ProjectPath, agentName, attempt);
+                    return;
+                }
+                var pushed = attempt?.Pushed;
                 if (pushed == null)
                 {
                     // Nessun commit = l'agente non ha toccato niente: è un esito, non un errore.

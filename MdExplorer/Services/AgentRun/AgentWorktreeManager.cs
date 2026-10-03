@@ -68,6 +68,26 @@ namespace MdExplorer.Services.AgentRun
     }
 
     /// <summary>
+    /// Come è andata la consegna del lavoro di un agente: tre esiti che il vecchio <c>null</c>
+    /// confondeva. «Niente da consegnare» è normale (l'agente ha solo letto o risposto); un
+    /// <see cref="Error"/> è un lavoro che c'è e non è stato pubblicato, e l'umano deve saperlo.
+    /// </summary>
+    public sealed class DeliveryAttempt
+    {
+        /// <summary>Il branch pubblicato; non nullo solo se la consegna è riuscita.</summary>
+        public HandoffPushResult Pushed { get; init; }
+
+        /// <summary>L'agente non ha prodotto commit rispetto al default: non c'è nulla da pubblicare né da rivedere.</summary>
+        public bool NothingToDeliver { get; init; }
+
+        /// <summary>Perché il lavoro non è stato pubblicato; null se non c'è stato un fallimento.</summary>
+        public string Error { get; init; }
+
+        /// <summary>Dove sta il lavoro non pubblicato (il suo posto di lavoro), da dire all'umano.</summary>
+        public string WorktreePath { get; init; }
+    }
+
+    /// <summary>
     /// Isolamento d'esecuzione per-agente (Fase 7c, §7bis): ogni agente ha un <b>worktree git
     /// persistente</b> FUORI dal progetto sorvegliato, in <c>{AppData}/MdExplorer/worktrees/
     /// {project-hash}/{agente}</c>. A ogni risveglio il worktree è "preparato" (fetch + reset +
@@ -121,6 +141,13 @@ namespace MdExplorer.Services.AgentRun
         /// fallisce. È il "commit → push" che precede la richiesta federata (§6).
         /// </summary>
         Task<HandoffPushResult> CommitAndPushBranchAsync(string projectPath, string agentName, string commitMessage, CancellationToken ct = default);
+
+        /// <summary>
+        /// Come <see cref="CommitAndPushBranchAsync"/>, ma dice PERCHÉ non c'è un branch pubblicato:
+        /// niente da consegnare, oppure un errore da riferire all'umano. Null solo se l'agente non
+        /// ha un posto di lavoro.
+        /// </summary>
+        Task<DeliveryAttempt> TryCommitAndPushBranchAsync(string projectPath, string agentName, string commitMessage, CancellationToken ct = default);
 
         /// <summary>Fase 7d.1 — merge esplicito <paramref name="sourceRef"/> in <paramref name="intoBranch"/> (native). Metodo base.</summary>
         /// <summary>File toccati dal lavoro dell'agente, per la revisione umana.</summary>
@@ -765,6 +792,9 @@ namespace MdExplorer.Services.AgentRun
         }
 
         public async Task<HandoffPushResult> CommitAndPushBranchAsync(string projectPath, string agentName, string commitMessage, CancellationToken ct = default)
+            => (await TryCommitAndPushBranchAsync(projectPath, agentName, commitMessage, ct))?.Pushed;
+
+        public async Task<DeliveryAttempt> TryCommitAndPushBranchAsync(string projectPath, string agentName, string commitMessage, CancellationToken ct = default)
         {
             var worktreePath = await FindAgentWorktreeAsync(projectPath, agentName, ct);
             if (worktreePath == null || !Directory.Exists(worktreePath))
@@ -788,18 +818,30 @@ namespace MdExplorer.Services.AgentRun
                     if (cc != 0)
                     {
                         _logger.LogError("[Worktree] commit del deliverable di '{Agent}' FALLITO ({Err}): handoff NON pubblicato per non perdere il lavoro dell'agente.", agentName, Describe(cc, ce));
-                        return null;
+                        return new DeliveryAttempt { Error = $"il commit del lavoro è fallito ({FirstLine(Describe(cc, ce))})", WorktreePath = worktreePath };
                     }
                 }
 
                 var (bc, branchOut, _) = await GitAsync(worktreePath, new[] { "rev-parse", "--abbrev-ref", "HEAD" }, ct);
                 var (hc, shaOut, _) = await GitAsync(worktreePath, new[] { "rev-parse", "HEAD" }, ct);
                 if (bc != 0 || hc != 0)
-                    return null;
+                    return new DeliveryAttempt { Error = "non riesco a leggere il ramo di lavoro dell'agente", WorktreePath = worktreePath };
                 var branch = branchOut.Trim();
                 var headSha = shaOut.Trim();
                 if (string.IsNullOrWhiteSpace(branch) || branch == "HEAD")
-                    return null;   // detached: nessun branch d'attività da pushare
+                    return new DeliveryAttempt { NothingToDeliver = true, WorktreePath = worktreePath };   // detached: nessun branch d'attività da pushare
+
+                // Un agente che ha solo letto o risposto non ha prodotto commit rispetto al default:
+                // non c'è niente da pubblicare né da far rivedere. Pubblicare comunque un ramo
+                // identico al default riempiva origin di rami vuoti e la UI di richieste senza file.
+                // Se il confronto non è possibile (nessun origin/<default>) si prosegue come prima.
+                var baseBranch = await ResolveDefaultBranchAsync(worktreePath, ct);
+                var (ac, aheadOut, _) = await GitAsync(worktreePath, new[] { "rev-list", "--count", $"origin/{baseBranch}..HEAD" }, ct);
+                if (ac == 0 && int.TryParse(aheadOut.Trim(), out var ahead) && ahead == 0)
+                {
+                    _logger.LogInformation("[Worktree] '{Agent}': nessun commit rispetto a origin/{Base}, niente da pubblicare.", agentName, baseBranch);
+                    return new DeliveryAttempt { NothingToDeliver = true, WorktreePath = worktreePath };
+                }
 
                 // NOME PUBBLICATO: si decide QUI, non alla creazione del branch. È l'unico
                 // istante in cui l'esito è noto — e non è troppo tardi, perché il push usa una
@@ -813,7 +855,7 @@ namespace MdExplorer.Services.AgentRun
                 if (pc != 0)
                 {
                     _logger.LogWarning("[Worktree] push del branch '{Branch}' per '{Agent}' fallito: {Err}", published, agentName, Describe(pc, pe));
-                    return null;
+                    return new DeliveryAttempt { Error = $"il push del ramo '{published}' su origin è fallito ({FirstLine(Describe(pc, pe))})", WorktreePath = worktreePath };
                 }
 
                 _logger.LogInformation("[Worktree] deliverable di '{Agent}' pubblicato: {Branch}@{Sha} (locale: {Local})",
@@ -821,7 +863,11 @@ namespace MdExplorer.Services.AgentRun
 
                 // Il ref di handoff spedito al collega DEVE essere quello pubblicato: il locale
                 // non esiste su origin, e il peer farebbe 'merge origin/<locale>' senza trovarlo.
-                return new HandoffPushResult { Branch = published, LocalBranch = branch, HeadSha = headSha };
+                return new DeliveryAttempt
+                {
+                    Pushed = new HandoffPushResult { Branch = published, LocalBranch = branch, HeadSha = headSha },
+                    WorktreePath = worktreePath,
+                };
             }
             finally { gate.Release(); }
         }
@@ -1044,6 +1090,13 @@ namespace MdExplorer.Services.AgentRun
         }
 
         private static string RepoKey(string projectPath) => Helper.HGetHashString(projectPath ?? string.Empty);
+
+        /// <summary>
+        /// Solo la prima riga di un messaggio di git: all'umano basta il motivo, non l'elenco dei ref
+        /// respinti e i percorsi interni che seguono.
+        /// </summary>
+        private static string FirstLine(string text)
+            => (text ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? string.Empty;
 
         private static string Describe(int code, string stderr)
             => code == GitNotFoundExit ? "git non trovato nel PATH"

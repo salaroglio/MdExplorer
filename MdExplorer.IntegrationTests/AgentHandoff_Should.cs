@@ -174,6 +174,9 @@ mde_type: ownership
             var m = ctx.Factory.Services.GetRequiredService<IAgentWorktreeManager>();
             var prep = await m.PrepareForRunAsync(path, "analyst", "actOrigin");
             Assert.IsTrue(prep.Success, prep.Error);
+            // Un handoff porta il LAVORO dell'agente: senza nemmeno un file prodotto non c'è nulla
+            // da passare al collega (un ramo identico al default non viene pubblicato).
+            File.WriteAllText(Path.Combine(prep.WorktreePath, "analisi.md"), "# analisi\n");
 
             var convId = ctx.SeedConversation(path);
             var token = ctx.MintRunToken("analyst", path, convId.ToString());

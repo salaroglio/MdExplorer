@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -36,13 +37,26 @@ namespace MdExplorer.Services.AgentRun
             _loggerFactory = loggerFactory;
         }
 
+        /// <summary>
+        /// The tools an agent may use: <see cref="AgentTools"/> minus what its manifest (<c>tools:</c>) does not declare.
+        /// In <c>dontAsk</c> what is not granted is refused, so leaving the shell or writing out of the list is a limit,
+        /// not an intention. A request without a manifest (<c>DeclaredTools</c> null) keeps the whole list.
+        /// </summary>
+        public static string[] ToolsFor(AgentTurnRequest request)
+        {
+            var denied = MdExplorer.Features.Agents.AgentToolCatalog.NativeToolsToDeny(request?.DeclaredTools);
+            return AgentTools.Where(t =>
+                !(denied.Contains("shell") && t == "Bash") &&
+                !(denied.Contains("write") && (t == "Edit" || t == "Write" || t == "NotebookEdit"))).ToArray();
+        }
+
         /// <summary>The options of an agent's session: MdExplorer's MCP server usable, the agent's tools, its environment.</summary>
         public static ClaudeCodeSessionOptions AgentOptions(string mcpConfigPath, AgentTurnRequest request) => new()
         {
             ToolPolicy = ClaudeCodeToolPolicy.Full,
             McpConfigPath = mcpConfigPath,
             AllowedMcpServers = new[] { ClaudeCodeMcp.ServerName },
-            AllowedTools = AgentTools,
+            AllowedTools = ToolsFor(request),
             Environment = request.Environment,
             ProfileKey = "agent",
         };
