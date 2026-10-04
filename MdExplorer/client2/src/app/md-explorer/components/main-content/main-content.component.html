@@ -56,9 +56,10 @@
     </div>
   </div>
 
-  <!-- Empty State (when no file is selected) -->
+  <!-- Empty State (when no file is selected). Non quando si guarda una differenza: sta sopra
+       (z-index 500) e la coprirebbe, cosi' con nessun documento aperto il diff restava invisibile. -->
   <div class="empty-state"
-       *ngIf="(currentState$ | async)?.status === 'idle'"
+       *ngIf="(currentState$ | async)?.status === 'idle' && !diffRequest"
        role="main"
        aria-label="empty state">
     <div class="empty-content">
@@ -109,7 +110,7 @@
       <div *ngIf="!diffLoading && !diffError && !diffText" class="dv-center">
         <p>{{ 'CHANGES.DIFF_EMPTY' | translate }}</p>
       </div>
-      <pre *ngIf="!diffLoading && !diffError && diffText" class="dv-diff"><span
+      <pre *ngIf="!diffLoading && !diffError && diffText" class="dv-diff" [class.dv-prose]="isProseDiff()"><span
         *ngFor="let l of diffLines()" [ngClass]="'d-' + l.kind">{{ l.text }}
 </span></pre>
     </div>

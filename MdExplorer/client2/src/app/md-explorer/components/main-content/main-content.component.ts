@@ -68,6 +68,11 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     }));
   }
 
+  /** Il diff di un documento (markdown o testo) va a capo: è prosa, non codice. */
+  isProseDiff(): boolean {
+    return /\.(md|markdown|txt)$/i.test(this.diffRequest?.path || '');
+  }
+
   closeDiff(): void {
     this.diffViewer.close();
   }

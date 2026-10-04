@@ -574,6 +574,14 @@
   overflow-x: auto;
   color: var(--mde-text-primary);
 
+  // Un documento (markdown, testo) si legge: le sue righe sono paragrafi interi, e fatte scorrere in
+  // orizzontale non si leggono. Il codice resta su una riga, come sopra.
+  &.dv-prose {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    overflow-x: hidden;
+  }
+
   .d-add { color: var(--mde-success-fg); }
   .d-del { color: var(--mde-error-fg); }
   .d-hunk { color: var(--mde-accent-primary); }
