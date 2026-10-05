@@ -278,6 +278,32 @@
           </div>
         </div>
 
+        <!-- AGGIORNAMENTI DALLA SORGENTE — solo nei progetti con un remoto «upstream», e solo se ha del nuovo. -->
+        <div class="git-panel-anchor" *ngIf="upstream && (upstream.behind > 0 || upstream.problem) && !reviewAgent"
+             (mouseenter)="hoverPanel('upstream')" (mouseleave)="leavePanel('upstream')">
+          <button class="smallMessagesUpstream" type="button">
+            <ng-container *ngIf="upstream.behind > 0">{{ 'GITFLOW.UPSTREAM_LABEL' | translate:{ count: upstream.behind } }}</ng-container>
+            <ng-container *ngIf="!upstream.behind">{{ 'GITFLOW.UPSTREAM_LABEL_PROBLEM' | translate }}</ng-container>
+          </button>
+          <div class="git-panel" *ngIf="isPanelOpen('upstream')">
+            <div class="commit-menu-header">
+              <span>{{ 'GITFLOW.UPSTREAM_TITLE' | translate }}</span>
+            </div>
+            <div class="upstream-what">
+              <div>{{ 'GITFLOW.UPSTREAM_WHAT' | translate }}</div>
+              <div class="upstream-url">{{ upstream.url }}</div>
+            </div>
+            <div class="repo-why warn" *ngIf="upstream.problem"><mat-icon>cloud_off</mat-icon><span>{{ upstream.problem }}</span></div>
+            <div class="commit-menu-actions" *ngIf="upstream.behind > 0">
+              <button mat-stroked-button class="btn-pull-upstream" [matTooltip]="'GITFLOW.UPSTREAM_PULL_TIP' | translate"
+                      (click)="pullUpstream(); $event.stopPropagation()">
+                <mat-icon>system_update_alt</mat-icon>
+                {{ 'GITFLOW.UPSTREAM_PULL' | translate }}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- DA PUBBLICARE -->
         <div class="git-panel-anchor" *ngIf="somethingIsToPush"
              (mouseenter)="hoverPanel('push')" (mouseleave)="leavePanel('push')">

@@ -87,6 +87,23 @@ namespace MdExplorer.Controllers.A2A
         public Task<IActionResult> PullAll([FromBody] RepoRequest body)
             => OnDiskAsync(body, "scarica tutto", () => _sync.PullAllAsync(body.ProjectPath));
 
+        /// <summary>
+        /// La «sorgente» del progetto (un remoto <c>upstream</c>): quanti aggiornamenti ha che il progetto non ha.
+        /// Con <c>fetch</c> la interroga prima; quasi nessun progetto ne ha una, e allora la risposta è immediata.
+        /// </summary>
+        [HttpGet("upstream")]
+        public async Task<IActionResult> Upstream([FromQuery] string projectPath, [FromQuery] bool fetch = false)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath))
+                return BadRequest(new { error = "Nessun progetto indicato." });
+            return Ok(await _sync.UpstreamStatusAsync(projectPath, fetch));
+        }
+
+        /// <summary>«Scarica gli aggiornamenti» dalla sorgente, e riallinea <c>origin</c>.</summary>
+        [HttpPost("pull-upstream")]
+        public Task<IActionResult> PullUpstream([FromBody] RepoRequest body)
+            => OnDiskAsync(body, "scarica gli aggiornamenti", () => _sync.PullUpstreamAsync(body.ProjectPath));
+
         /// <summary>Annulla un'unione rimasta a metà: si torna a prima dello scaricamento.</summary>
         [HttpPost("abort-merge")]
         public Task<IActionResult> AbortMerge([FromBody] RepoRequest body)

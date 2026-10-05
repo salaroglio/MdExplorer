@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 /** Come è cambiato un file rispetto al ramo di partenza. */
@@ -14,6 +14,17 @@ export interface WorkingChange {
 export type SubmoduleRelation = 'same' | 'ahead' | 'behind' | 'diverged' | 'unknown';
 
 /** Com'è andata un'azione su un repository (pubblica, scarica, allinea, annulla l'unione). */
+/** La «sorgente» del progetto: un remoto `upstream` da cui si prendono soltanto aggiornamenti. */
+export interface UpstreamStatus {
+  /** false per quasi tutti i progetti: niente da mostrare. */
+  hasUpstream: boolean;
+  url: string | null;
+  branch: string | null;
+  /** Quanti aggiornamenti ha la sorgente che il progetto non ha. */
+  behind: number;
+  problem: string | null;
+}
+
 export interface RepoActionResult {
   success: boolean;
   /** Perché non si è nemmeno partiti: il motivo che la riga mostrava già sul pulsante spento. */
@@ -203,6 +214,17 @@ export class WorkingChangesService {
   /** Scarica il progetto, se c'è da scaricare, e allinea i submodule. */
   pullAll(projectPath: string, connectionId: string): Observable<RepoActionResult> {
     return this.http.post<RepoActionResult>('../api/RepoSync/pull-all', { projectPath, connectionId });
+  }
+
+  /** Cosa ha di nuovo la sorgente (`upstream`). Con `fetch` la interroga prima. */
+  upstreamStatus(projectPath: string, fetch: boolean): Observable<UpstreamStatus> {
+    const params = new HttpParams().set('projectPath', projectPath).set('fetch', String(fetch));
+    return this.http.get<UpstreamStatus>('../api/RepoSync/upstream', { params });
+  }
+
+  /** «Scarica gli aggiornamenti» dalla sorgente, e riallinea origin. */
+  pullUpstream(projectPath: string, connectionId: string): Observable<RepoActionResult> {
+    return this.http.post<RepoActionResult>('../api/RepoSync/pull-upstream', { projectPath, connectionId });
   }
 
   /** Annulla un'unione rimasta a metà: si torna a prima dello scaricamento. */

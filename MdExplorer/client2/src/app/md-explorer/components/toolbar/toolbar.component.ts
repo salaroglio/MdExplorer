@@ -16,7 +16,7 @@ import { MatLegacyTabGroup as MatTabGroup } from '@angular/material/legacy-tabs'
 import { ITag } from '../../../git/models/Tag';
 import { ProjectsService } from '../../services/projects.service';
 import { ReviewContextService } from '../../services/review-context.service';
-import { ChangeKind, RepoActionResult, RepoChanges, SafePushResult, WorkingChange, WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
+import { ChangeKind, RepoActionResult, RepoChanges, SafePushResult, WorkingChange, WorkingChangesService, WorkingChangesView, UpstreamStatus } from '../../services/working-changes.service';
 import { Router } from '@angular/router';
 import { WaitingDialogService } from '../../../commons/waitingdialog/waiting-dialog.service';
 import { WaitingDialogInfo } from '../../../commons/waitingdialog/waiting-dialog/models/WaitingDialogInfo';
@@ -49,7 +49,7 @@ import _ from 'lodash';
 
 
 /** I tre pannelli git della toolbar: stessa forma, una riga per repository. */
-type GitPanel = 'commit' | 'pull' | 'push';
+type GitPanel = 'commit' | 'pull' | 'push' | 'upstream';
 
 @Component({
   selector: 'app-toolbar',
@@ -1294,6 +1294,28 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     return this.panelLabel('COMMIT', this.howManyFilesAreToCommit, this.reposToCommit.length);
   }
 
+  /** La sorgente del progetto (remoto `upstream`): il pulsante compare solo se ha aggiornamenti. */
+  upstream: UpstreamStatus | null = null;
+
+  /** Rilegge cosa ha di nuovo la sorgente; `fetch` la interroga, altrimenti vale l'ultima risposta. */
+  private loadUpstream(fetch: boolean): void {
+    const projectPath = this.getProjectPath(true);
+    if (!projectPath || this.reviewAgent) { this.upstream = null; return; }
+    this.workingChanges.upstreamStatus(projectPath, fetch).subscribe({
+      next: status => this.upstream = status?.hasUpstream ? status : null,
+      // Stato ignoto: il pulsante resta spento, e lo si dichiara.
+      error: err => { console.warn('[Upstream] sorgente non leggibile, pulsante spento:', err); this.upstream = null; },
+    });
+  }
+
+  /** «Scarica gli aggiornamenti»: dalla sorgente nella cartella, e poi su origin. */
+  pullUpstream(): void {
+    const projectPath = this.getProjectPath();
+    if (!projectPath) return;
+    this.runRepoAction('GITFLOW.UPSTREAM_PULLING', '',
+      this.workingChanges.pullUpstream(projectPath, this.currentConnectionId()), true);
+  }
+
   toPullLabel(): string {
     return this.panelLabel('PULL', this.howManyAreToPull, this.reposToPull.length);
   }
@@ -1391,6 +1413,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       next: () => { this.isFetchingRemotes = false; this.loadChangedFiles(); },
       error: () => { this.isFetchingRemotes = false; this.loadChangedFiles(); },
     });
+    // La sorgente si interroga negli stessi momenti dei remoti: all'apertura, ogni tanto, dopo un'azione.
+    this.loadUpstream(true);
   }
 
   // ---- le azioni per riga ----

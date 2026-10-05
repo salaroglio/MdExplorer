@@ -45,8 +45,38 @@ namespace MdExplorer.Services.Git
         public string Error { get; init; }
     }
 
+    /// <summary>
+    /// The «source» of a project: a second remote called <c>upstream</c>, the repository the project was
+    /// taken from (a fork's original, the public demo behind a demo project's local origin). Updates are
+    /// only ever taken from it; nothing is published to it.
+    /// </summary>
+    public sealed class UpstreamStatus
+    {
+        /// <summary>False for almost every project: no remote called <c>upstream</c>, nothing to show.</summary>
+        public bool HasUpstream { get; init; }
+        public string Url { get; init; }
+        public string Branch { get; init; }
+        /// <summary>Commits the source has and this project does not.</summary>
+        public int Behind { get; init; }
+        /// <summary>Why the source could not be asked or compared, for the person.</summary>
+        public string Problem { get; init; }
+    }
+
     public interface IRepoSyncService
     {
+        /// <summary>
+        /// What the project's source has that the project does not. <paramref name="fetch"/> asks the source
+        /// first (network); without it the answer is what was known at the last asking.
+        /// </summary>
+        Task<UpstreamStatus> UpstreamStatusAsync(string projectPath, bool fetch, CancellationToken ct = default);
+
+        /// <summary>
+        /// «Scarica gli aggiornamenti»: merges the source's branch into the project's and brings <c>origin</c>
+        /// level with the result, so that whoever starts from <c>origin</c> (the agents) starts from the new
+        /// version. A merge that conflicts is undone: the project is left as it was.
+        /// </summary>
+        Task<RepoActionResult> PullUpstreamAsync(string projectPath, CancellationToken ct = default);
+
         /// <summary>
         /// Chiede a ogni remoto cosa c'è di nuovo. Senza, un submodule non sa mai di essere
         /// indietro: il fetch del progetto non aggiorna i riferimenti dei figli.
@@ -269,6 +299,93 @@ namespace MdExplorer.Services.Git
             if (root.Behind > 0) return await PullAsync(projectPath, string.Empty, ct);
 
             return await AlignAsync(projectPath, null, ct);
+        }
+
+        public const string UpstreamRemote = "upstream";
+
+        public async Task<UpstreamStatus> UpstreamStatusAsync(string projectPath, bool fetch, CancellationToken ct = default)
+        {
+            var (view, _, refused) = await FindAsync(projectPath, null, string.Empty, ct);
+            if (refused != null) return new UpstreamStatus();
+            var dir = view.RootPath;
+
+            var url = await _runner.RunAsync(dir, new[] { "remote", "get-url", UpstreamRemote }, ct);
+            if (!url.Ok || string.IsNullOrWhiteSpace(url.Stdout)) return new UpstreamStatus();
+
+            var branch = await CurrentBranchAsync(dir, ct);
+            if (branch == null)
+                return new UpstreamStatus { HasUpstream = true, Url = url.Stdout.Trim(), Problem = "Il progetto non è su un ramo: gli aggiornamenti della sorgente si scaricano stando su un ramo." };
+
+            if (fetch)
+            {
+                var fetched = await _transport.FetchAsync(dir, UpstreamRemote, ct);
+                if (!fetched.Ok)
+                    return new UpstreamStatus { HasUpstream = true, Url = url.Stdout.Trim(), Branch = branch, Problem = $"La sorgente non risponde: {fetched.Error}" };
+            }
+
+            var count = await _runner.RunAsync(dir, new[] { "rev-list", "--count", $"HEAD..{UpstreamRemote}/{branch}" }, ct);
+            if (!count.Ok || !int.TryParse(count.Stdout.Trim(), out var behind))
+                // Never asked yet, or the source has no branch with this name: nothing to offer, and no alarm.
+                return new UpstreamStatus { HasUpstream = true, Url = url.Stdout.Trim(), Branch = branch };
+
+            return new UpstreamStatus { HasUpstream = true, Url = url.Stdout.Trim(), Branch = branch, Behind = behind };
+        }
+
+        public async Task<RepoActionResult> PullUpstreamAsync(string projectPath, CancellationToken ct = default)
+        {
+            var (view, row, refused) = await FindAsync(projectPath, null, string.Empty, ct);
+            if (refused != null) return Refuse(refused);
+            if (row.MergeInProgress) return Refuse($"In '{row.Label}' c'è un'unione rimasta a metà: chiudila o annullala prima di scaricare gli aggiornamenti.");
+            var dir = view.RootPath;
+
+            var status = await UpstreamStatusAsync(projectPath, fetch: true, ct);
+            if (!status.HasUpstream) return Refuse("Questo progetto non ha una sorgente da cui scaricare aggiornamenti (un remoto chiamato 'upstream').");
+            if (status.Problem != null) return Fail(status.Problem);
+            if (status.Behind == 0)
+                return new RepoActionResult { Success = true, Message = "Il progetto ha già l'ultima versione della sorgente." };
+
+            var before = await HeadsAsync(view, ct);
+            var merge = await _runner.RunAsync(dir, new[] { "merge", "--no-edit", $"{UpstreamRemote}/{status.Branch}" }, ct);
+            if (!merge.Ok)
+            {
+                // Conflicting with one's own changes is not something to leave half done behind a button
+                // that says «scarica»: back to before, and the person is told which files are in the way.
+                var conflicts = await _runner.RunAsync(dir, new[] { "diff", "--name-only", "--diff-filter=U" }, ct);
+                var merging = await _runner.RunAsync(dir, new[] { "rev-parse", "--quiet", "--verify", "MERGE_HEAD" }, ct);
+                if (merging.Ok) await _runner.RunAsync(dir, new[] { "merge", "--abort" }, ct);
+
+                var files = (conflicts.Stdout ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(f => f.Trim()).ToList();
+                return Fail(files.Count > 0
+                    ? $"Gli aggiornamenti toccano file che hai cambiato anche tu ({string.Join(", ", files)}): non ho scaricato niente e il progetto è com'era. " +
+                      "Committa o annulla le tue modifiche a quei file e riprova."
+                    : $"Gli aggiornamenti non sono stati scaricati e il progetto è com'era: {merge.Describe()}");
+            }
+
+            _logger.LogInformation("[Flusso] '{Repo}': {Count} aggiornamenti dalla sorgente ({Branch}).", row.Label, status.Behind, status.Branch);
+
+            // origin level with the result: the agents' desks start from origin, not from this folder.
+            var warnings = new List<string>();
+            var hasOrigin = await _runner.RunAsync(dir, new[] { "remote", "get-url", "origin" }, ct);
+            if (hasOrigin.Ok)
+            {
+                var push = await _transport.PushAsync(dir, "origin", status.Branch, ct);
+                if (!push.Ok)
+                    warnings.Add($"Gli aggiornamenti sono nella tua cartella, ma non sono riuscito a portarli su 'origin': {push.Error}. Pubblicali dal pannello «da pushare».");
+            }
+
+            return await WithChangesAsync(new RepoActionResult
+            {
+                Success = true,
+                Message = status.Behind == 1 ? "Scaricato 1 aggiornamento dalla sorgente." : $"Scaricati {status.Behind} aggiornamenti dalla sorgente.",
+                Warnings = warnings,
+            }, view, before, ct);
+        }
+
+        /// <summary>The branch HEAD is on; null when detached.</summary>
+        private async Task<string> CurrentBranchAsync(string dir, CancellationToken ct)
+        {
+            var head = await _runner.RunAsync(dir, new[] { "symbolic-ref", "--quiet", "--short", "HEAD" }, ct);
+            return head.Ok && !string.IsNullOrWhiteSpace(head.Stdout) ? head.Stdout.Trim() : null;
         }
 
         public async Task<RepoActionResult> AbortMergeAsync(string projectPath, string repo, CancellationToken ct = default)
