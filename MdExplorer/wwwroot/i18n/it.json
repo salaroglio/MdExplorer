@@ -1765,6 +1765,8 @@
     "EMPTY_ALL": "Nessun messaggio dagli agenti.",
     "NEW": "nuovo",
     "MARK_READ": "Segna letto",
+    "MARK_ALL_READ": "Segna tutti come letti ({{count}})",
+    "MARK_ALL_READ_TIP": "Svuota la posta. I messaggi non vengono cancellati: «mostra tutti» li fa rivedere.",
     "REPLY_LABEL": "La tua risposta",
     "REPLY_PLACEHOLDER": "Scrivi una risposta per risvegliare l'agente…",
     "REPLY_BUTTON": "Rispondi",

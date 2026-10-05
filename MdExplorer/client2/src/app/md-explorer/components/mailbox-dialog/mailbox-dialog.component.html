@@ -66,6 +66,10 @@
       </mat-card>
 
       <div class="tab-actions">
+        <button mat-button class="btn-mark-all-read" *ngIf="unread > 0" (click)="markAllRead()" [disabled]="loading"
+                [matTooltip]="'MAILBOX.MARK_ALL_READ_TIP' | translate">
+          <mat-icon>done_all</mat-icon> {{ 'MAILBOX.MARK_ALL_READ' | translate: { count: unread } }}
+        </button>
         <button mat-button (click)="toggleIncludeRead()">
           {{ (includeRead ? 'MAILBOX.SHOW_UNREAD_ONLY' : 'MAILBOX.SHOW_ALL') | translate }}
         </button>

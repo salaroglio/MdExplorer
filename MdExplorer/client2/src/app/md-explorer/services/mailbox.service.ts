@@ -79,6 +79,12 @@ export class MailboxService {
     return this.http.get<{ unread: number }>('/api/A2A/mailbox/inbox/count', { params });
   }
 
+  /** Segna come letti tutti i messaggi aperti del progetto: la posta si svuota, niente viene cancellato. */
+  markAllRead(projectPath: string): Observable<{ read: number }> {
+    const params = new HttpParams().set('projectPath', projectPath);
+    return this.http.post<{ read: number }>('/api/A2A/mailbox/inbox/read-all', null, { params });
+  }
+
   markRead(messageId: string): Observable<{ read: boolean; readAt: string }> {
     return this.http.post<{ read: boolean; readAt: string }>(
       `/api/A2A/mailbox/inbox/${messageId}/read`, null);

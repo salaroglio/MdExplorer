@@ -114,6 +114,40 @@ namespace MdExplorer.Controllers.A2A
             }
         }
 
+        /// <summary>
+        /// Marca come letti tutti i messaggi <c>to:user</c> ancora aperti di un progetto: la posta si svuota
+        /// in un gesto. Non cancella niente — «mostra tutti» li fa rivedere — e non tocca conversazioni,
+        /// richieste da approvare o messaggi in coda verso gli agenti.
+        /// </summary>
+        [HttpPost("inbox/read-all")]
+        public IActionResult MarkAllRead([FromQuery] string? projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath))
+                return BadRequest(new { error = "projectPath è obbligatorio." });
+            try
+            {
+                var dal = _session.GetDal<AgentMessage>();
+                _session.BeginTransaction();
+                var open = FilterByProject(
+                    dal.GetList().Where(m => m.ToAgent == ConversationHopGuard.UserRecipient && m.ReadAt == null).ToList(),
+                    projectPath).ToList();
+                var now = DateTime.UtcNow;
+                foreach (var message in open)
+                {
+                    message.ReadAt = now;
+                    dal.Save(message);
+                }
+                _session.Commit();
+                return Ok(new { read = open.Count });
+            }
+            catch (Exception ex)
+            {
+                _session.Rollback();
+                _logger.LogError(ex, "[Mailbox] MarkAllRead fallito per {Project}", projectPath);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         /// <summary>Marca un messaggio <c>to:user</c> come letto (toglie dal badge).</summary>
         [HttpPost("inbox/{messageId}/read")]
         public IActionResult MarkRead(Guid messageId)

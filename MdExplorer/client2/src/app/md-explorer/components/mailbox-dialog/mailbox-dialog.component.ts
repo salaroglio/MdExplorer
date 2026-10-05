@@ -99,6 +99,14 @@ export class MailboxDialogComponent implements OnInit {
     this.reload();
   }
 
+  /** Svuota la posta: segna letti tutti i messaggi aperti. Restano visibili con «mostra tutti». */
+  markAllRead(): void {
+    this.mailbox.markAllRead(this.data?.projectPath || '').subscribe({
+      next: () => this.reload(),
+      error: (err) => this.showError(err),
+    });
+  }
+
   markRead(msg: MailboxMessage): void {
     this.mailbox.markRead(msg.id).subscribe({
       next: () => this.reload(),

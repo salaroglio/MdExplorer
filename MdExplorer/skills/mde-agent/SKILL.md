@@ -3,7 +3,7 @@ name: mde-agent
 description: Author a `.agent.md` agent card for MdExplorer's agent city. Use when the user asks to create, review or fix an agent - name, role, summary, tools, who may write to it, who it hands work to, and the instructions it follows. The card is what the person reads before trusting the agent, so the summary and the tools must agree.
 mde:
   origin: mdexplorer
-  version: 2
+  version: 3
   updatePolicy: replace
 ---
 
@@ -107,7 +107,7 @@ For a card written by a person or by you: `mde: {origin: user, version: 1}`.
 
 ## The body — rules that make agents behave
 
-The body is what the agent reads every time it wakes up. Four lessons from real runs:
+The body is what the agent reads every time it wakes up. Six lessons from real runs:
 
 1. **Say which tool to use and who to write to.** Read files directly with the file-reading tool; do not use document
    search or memory unless the project has them on (they fail silently-looking and the agent gives up).
@@ -120,6 +120,17 @@ The body is what the agent reads every time it wakes up. Four lessons from real 
    `toAgent` = `user` and the result as `message`. `user` is not in the list of colleagues (`list_agents`) and the agent
    must be told it can still use it. If the result is only written in the agent's reply, the person never sees it. A turn
    that ends without that call is a failed turn.
+
+5. **Two outputs, never one.** An agent that produces a document has an **artifact** (the file, at a path the card
+   names) and a **message** (a few lines to the person: the indicators and the file's path). Say both, and say they are
+   not interchangeable: the message never contains the document — give it a maximum number of lines — and the document
+   never goes into the message, not even when the file cannot be written. Without this rule an agent that fails to write
+   pastes the whole document into the person's mail, or puts the file somewhere else and reports it as done.
+6. **The artifact's folder must already exist.** Not every engine's file tool creates folders (seen on Windows: «my tool
+   does not create new folders», and the file ended up one level up, next to a leftover probe file). Create the folder
+   in the project with a `README.md` in it, name the full path in the card, and tell the agent: do not create folders, do
+   not write elsewhere, do not create test files; **if you cannot write the file, send one result saying which path and
+   the exact error, and stop.**
 
 When an agent can receive the person's approval of another agent's work, the message starts with `[APPROVATO]`
 and lists the files delivered: it means *it is your turn*. Say what to do when it arrives.

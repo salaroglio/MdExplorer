@@ -1765,6 +1765,8 @@
     "EMPTY_ALL": "No messages from agents yet.",
     "NEW": "new",
     "MARK_READ": "Mark read",
+    "MARK_ALL_READ": "Mark all as read ({{count}})",
+    "MARK_ALL_READ_TIP": "Empties the inbox. Messages are not deleted: “show all” brings them back.",
     "REPLY_LABEL": "Your reply",
     "REPLY_PLACEHOLDER": "Write a reply to wake the agent…",
     "REPLY_BUTTON": "Reply",
