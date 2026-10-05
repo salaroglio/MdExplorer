@@ -32,7 +32,12 @@ namespace MdExplorer.Features.Agents
         /// <summary>Il mittente dell'avviso: la persona che ha premuto «Approva», non l'agente.</summary>
         public const string Sender = ConversationHopGuard.UserRecipient;
 
-        public static IReadOnlyList<ApprovalRecipient> Candidates(IEnumerable<AgentRegistryEntry> catalog, string producerName)
+        /// <param name="worksElsewhere">
+        /// True for an agent that answers to another person: it is not enabled on this computer and does not
+        /// need to be — the notice travels to that person's computer. Null = every agent works here.
+        /// </param>
+        public static IReadOnlyList<ApprovalRecipient> Candidates(IEnumerable<AgentRegistryEntry> catalog, string producerName,
+            Func<AgentRegistryEntry, bool> worksElsewhere = null)
         {
             var citizens = (catalog ?? Enumerable.Empty<AgentRegistryEntry>())
                 .Where(e => e.IsCitizen && string.IsNullOrEmpty(e.RegistrationError))
@@ -49,7 +54,7 @@ namespace MdExplorer.Features.Agents
                     string reason = null;
                     if (target == null)
                         reason = $"'{name}' non esiste fra gli agenti del progetto.";
-                    else if (!target.Trusted)
+                    else if (!target.Trusted && worksElsewhere?.Invoke(target) != true)
                         reason = $"'{name}' non è fidato: concedi la fiducia nel registro.";
                     return new ApprovalRecipient
                     {

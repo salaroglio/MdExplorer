@@ -24,6 +24,8 @@ namespace MdExplorer.Features.Agents
         /// <summary>The responsible's name and git email, when there is exactly one.</summary>
         public string OwnerName { get; init; }
         public string OwnerEmail { get; init; }
+        /// <summary>The ambit of the responsible's row that names the agent: what a message sent to that person's computer is filed under.</summary>
+        public string Scope { get; init; }
         /// <summary>The git emails the table names, when they are more than one.</summary>
         public IReadOnlyList<string> ContestedBy { get; init; } = Array.Empty<string>();
         /// <summary>Who this computer's person is for the project (git email); empty when it has none.</summary>
@@ -86,6 +88,7 @@ namespace MdExplorer.Features.Agents
                 AgentName = name,
                 OwnerName = rows[0].Responsible,
                 OwnerEmail = emails[0],
+                Scope = rows[0].Scope,
                 LocalEmail = local,
             };
         }

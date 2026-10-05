@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Features.Agents;
+using MdExplorer.Features.Federation;
 using MdExplorer.IntegrationTests.Infrastructure;
 using MdExplorer.Service.Models;
 using MdExplorer.Services;
@@ -93,28 +94,127 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
-        public async Task Not_wake_here_the_agent_of_someone_else_and_tell_the_person_once()
+        public async Task Send_a_message_for_someone_elses_agent_to_that_persons_computer()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
             using var ctx = new AgentCityContext();
-            var (key, _) = City(ctx, "sveglia-suo");
+            var (key, path) = City(ctx, "inoltra-suo");
+
+            await GatewayRpc.SendMessage(ctx.Client, key, "suo", "al lavoro");
+
+            var msgs = await ctx.WaitForMessages(m => m.Any(x => x.ToAgent == "suo" && x.State == AgentMessage.StateEnum.Processed));
+            var message = msgs.First(x => x.ToAgent == "suo");
+            Assert.AreEqual(AgentMessage.StateEnum.Processed, message.State, "qui la consegna è conclusa: è partito");
+            Assert.AreEqual(0, ctx.Runner.Calls, "l'agente di Marco non gira sul computer di Anna");
+            Assert.AreEqual(0, NoticesFrom(ctx, "suo"), "è andato a buon fine: niente da segnalare");
+
+            var sent = ctx.FederationSender.LastPayload;
+            Assert.IsNotNull(sent, "il messaggio ha preso la strada tra i computer");
+            Assert.AreEqual(FederationRoom.ComputeUserId("marco@pentagroup.test"), ctx.FederationSender.LastTargetOwnerId);
+            Assert.AreEqual("suo", sent.TargetAgent);
+            Assert.AreEqual("al lavoro", sent.Message);
+            Assert.AreEqual(Me, sent.FromOwner);
+            Assert.AreEqual("Ambito1", sent.Scope, "l'ambito è quello della riga del responsabile");
+            Assert.AreEqual(message.Id.ToString(), sent.RequestId, "la chiave di idempotenza è il messaggio stesso");
+            Assert.IsTrue(ctx.Dispatches().Any(d => d.RequestId == message.Id && d.TargetAgent == "suo"), "il registro delle spedizioni lo ricorda");
+        }
+
+        [TestMethod]
+        public async Task Wait_and_tell_the_person_once_when_the_road_is_down_then_leave_by_itself()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var (key, _) = City(ctx, "strada-chiusa");
+            ctx.FederationSender.Result = false;
 
             await GatewayRpc.SendMessage(ctx.Client, key, "suo", "al lavoro");
 
             var msgs = await ctx.WaitForMessages(m => m.Any(x => x.ToAgent == "suo"
                 && x.DeferredReason == AgentMessage.DeferredReasonEnum.OwnerElsewhere));
             var parked = msgs.First(x => x.ToAgent == "suo");
-            Assert.AreEqual(AgentMessage.DeferredReasonEnum.OwnerElsewhere, parked.DeferredReason);
             Assert.AreEqual(AgentMessage.StateEnum.Pending, parked.State, "aspetta, non fallisce");
             Assert.AreEqual(0, parked.Attempts, "aspettare non consuma tentativi");
 
-            // Il messaggio viene riguardato ogni pochi secondi: l'avviso alla persona resta uno.
+            // Il messaggio viene riprovato ogni pochi secondi: l'avviso alla persona resta uno.
             await Task.Delay(12000);
-            Assert.AreEqual(0, ctx.Runner.Calls, "l'agente di Marco non gira sul computer di Anna");
+            Assert.AreEqual(0, ctx.Runner.Calls, "nessun ripiego su questo computer");
             Assert.AreEqual(1, NoticesFrom(ctx, "suo"));
             var notice = ctx.Messages().First(m => m.FromAgent == "suo" && m.ToAgent == ConversationHopGuard.UserRecipient);
             StringAssert.Contains(notice.Body, "marco@pentagroup.test");
-            StringAssert.Contains(notice.Body, "resta in attesa");
+            StringAssert.Contains(notice.Body, "riparte da solo");
+
+            ctx.FederationSender.Result = true;
+            msgs = await ctx.WaitForMessages(m => m.Any(x => x.ToAgent == "suo" && x.State == AgentMessage.StateEnum.Processed));
+            Assert.AreEqual(AgentMessage.StateEnum.Processed, msgs.First(x => x.ToAgent == "suo").State);
+            Assert.AreEqual(parked.Id.ToString(), ctx.FederationSender.LastPayload.RequestId);
+            Assert.AreEqual(1, ctx.Dispatches().Count(d => d.RequestId == parked.Id), "riprovare non raddoppia la spedizione");
+        }
+
+        [TestMethod]
+        public async Task Wake_the_agent_on_its_owners_computer_only_after_the_owner_accepts()
+        {
+            // I due computer in uno: la richiesta partita da Anna viene consegnata «a Marco» cambiando chi è la
+            // persona di questo computer (l'impersonazione dei test), come farebbe il relay con il computer di Marco.
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var (key, path) = City(ctx, "due-computer");
+
+            await GatewayRpc.SendMessage(ctx.Client, key, "suo", "scrivi la scheda");
+            await ctx.WaitForMessages(m => m.Any(x => x.ToAgent == "suo" && x.State == AgentMessage.StateEnum.Processed));
+            var travelling = ctx.FederationSender.LastPayload;
+            Assert.IsNotNull(travelling);
+
+            var identity = ctx.Factory.Services.GetRequiredService<MdExplorer.Services.Federation.IEffectiveOwnerIdentity>();
+            identity.SetTestMode(true);
+            identity.SetImpersonation(path, "marco@pentagroup.test");
+            try
+            {
+                var gate = ctx.Factory.Services.GetRequiredService<MdExplorer.Services.Federation.IFederatedRequestReceiver>().Receive(path, travelling);
+                await Task.Delay(7000);
+                Assert.AreEqual(0, ctx.Runner.Calls, "arrivata, ma Marco non ha ancora accettato: il suo agente non parte");
+
+                var (status, body) = await ctx.PostJson($"/api/A2A/federation/requests/{gate}/approve", "{}");
+                Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+
+                var deadline = DateTime.UtcNow.AddSeconds(15);
+                while (ctx.Runner.Calls == 0 && DateTime.UtcNow < deadline) await Task.Delay(250);
+                Assert.AreEqual(1, ctx.Runner.Calls, "accettata: l'agente di Marco parte, sul computer di Marco");
+                Assert.AreEqual("suo", ctx.Runner.LastRequest.AgentName);
+                StringAssert.Contains(ctx.Runner.LastRequest.ComposedPrompt, "scrivi la scheda");
+            }
+            finally
+            {
+                identity.ClearImpersonation(path);
+                identity.SetTestMode(false);
+            }
+        }
+
+        [TestMethod]
+        public async Task Let_my_agent_write_to_a_colleagues_agent_that_is_not_enabled_here()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var (_, path) = ctx.SeedProject("scrivi-al-collega");
+            ctx.SetGitEmail(path, Me);
+            foreach (var agent in new[] { "mio", "suo", "orfano" })
+                ctx.WriteLlmCitizen(path, agent, "Ruolo " + agent, new[] { "*" });
+            ctx.IndexAgentFiles(path);
+            ctx.Trust(path, "mio");   // gli altri due qui NON sono abilitati
+            WriteOwnership(path, (Me, "mio"), ("marco@pentagroup.test", "suo"));
+            ctx.Factory.Services.GetRequiredService<IProjectMetadataService>()
+                .SetAgentCity(path, new AgentCityConfig { Enabled = true, OwnershipDoc = "responsabilita.md" });
+            var token = ctx.MintRunToken("mio", path, ctx.SeedConversation(path).ToString());
+
+            var (toColleague, body) = await ctx.SendAuthenticated(token, "suo", "[INCARICO] scrivi la scheda");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, toColleague, body);
+
+            var (toNobody, why) = await ctx.SendAuthenticated(token, "orfano", "[INCARICO] scrivi la scheda");
+            Assert.AreEqual(System.Net.HttpStatusCode.Forbidden, toNobody, "a un agente di nessuno, non abilitato, non si scrive");
+            StringAssert.Contains(why, "trusted");
+
+            await ctx.WaitForMessages(m => m.Any(x => x.ToAgent == "suo" && x.State == AgentMessage.StateEnum.Processed));
+            Assert.AreEqual("mio", ctx.FederationSender.LastPayload.FromAgent);
+            Assert.AreEqual(0, ctx.Runner.Calls);
         }
 
         [TestMethod]

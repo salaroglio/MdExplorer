@@ -66,6 +66,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentMergeRequestService _mergeRequests;
         private readonly IAgentDeliveryReporter _deliveryReporter;
         private readonly IAgentWakeGuard _wakeGuard;
+        private readonly IAgentMessageForwarder _forwarder;
         private readonly IAgentMailbox _mailbox;
         private readonly MdExplorer.Services.IProjectMetadataService _projectMetadata;
         private readonly MdExplorer.Services.Federation.IFederationSender _federationSender;
@@ -97,6 +98,7 @@ namespace MdExplorer.Services.AgentRun
             IAgentMergeRequestService mergeRequests,
             IAgentDeliveryReporter deliveryReporter,
             IAgentWakeGuard wakeGuard,
+            IAgentMessageForwarder forwarder,
             IAgentMailbox mailbox,
             MdExplorer.Services.IProjectMetadataService projectMetadata,
             MdExplorer.Services.Federation.IFederationSender federationSender,
@@ -105,6 +107,7 @@ namespace MdExplorer.Services.AgentRun
         {
             _scopeFactory = scopeFactory;
             _wakeGuard = wakeGuard;
+            _forwarder = forwarder;
             _mailbox = mailbox;
             _registry = registry;
             _algorithmicAgents = algorithmicAgents;
@@ -281,6 +284,13 @@ namespace MdExplorer.Services.AgentRun
             var owner = isLlm ? _wakeGuard.Check(snapshot.ProjectPath, entry.Name) : null;
             if (owner != null && !owner.CanWorkHere)
             {
+                // Di un altro: il messaggio va al suo computer, dove lui lo accetta e il suo agente parte.
+                // Qui la consegna è conclusa. Se la strada non c'è, aspetta — mai un ripiego su questo computer.
+                if (owner.Kind == AgentOwnerKind.SomeoneElse && await ForwardToOwnerAsync(snapshot, owner, ct))
+                {
+                    MarkProcessed(messageId);
+                    return;
+                }
                 ParkForOwner(messageId, snapshot, owner);
                 return;
             }
@@ -408,7 +418,7 @@ namespace MdExplorer.Services.AgentRun
                 return;
             }
 
-            var roster = BuildRoster(catalog, entry.Name);
+            var roster = BuildRoster(catalog, entry.Name, snapshot.ProjectPath);
             // Ownership del progetto (§12.3): iniettata come routing hint SOLO se la
             // federazione è attiva e il doc è valido (il servizio ritorna null altrimenti).
             var ownership = SafeGetOwnership(snapshot.ProjectPath);
@@ -804,11 +814,11 @@ namespace MdExplorer.Services.AgentRun
         }
 
         /// <summary>Rubrica (§6): cittadini fidati del progetto, escluso il destinatario stesso.</summary>
-        private static IReadOnlyList<AgentRosterEntry> BuildRoster(
-            IReadOnlyList<AgentRegistryEntry> catalog, string selfName)
+        private IReadOnlyList<AgentRosterEntry> BuildRoster(
+            IReadOnlyList<AgentRegistryEntry> catalog, string selfName, string projectPath)
         {
             return catalog
-                .Where(e => e.IsCitizen && e.Trusted)
+                .Where(e => _wakeGuard.CanBeWrittenTo(projectPath, e))
                 .Where(e => !string.Equals(e.Name, selfName, StringComparison.OrdinalIgnoreCase))
                 .Select(e => new AgentRosterEntry
                 {
@@ -877,6 +887,16 @@ namespace MdExplorer.Services.AgentRun
         /// dopo una breve attesa. <b>Non</b> tocca <see cref="AgentMessage.Attempts"/> — il
         /// parcheggio non è un fallimento (come lo shutdown, §7).
         /// </summary>
+        private async Task<bool> ForwardToOwnerAsync(AgentMessage snapshot, AgentOwnerVerdict owner, CancellationToken ct)
+        {
+            try { return await _forwarder.ForwardAsync(snapshot, owner, ct); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Dispatcher] inoltro di {Id} verso il computer di {Owner} fallito.", snapshot.Id, owner.OwnerEmail);
+                return false;
+            }
+        }
+
         /// <summary>
         /// Il destinatario non lavora su questo computer (è di un altro, o di nessuno): il messaggio
         /// aspetta senza consumare tentativi e la persona lo viene a sapere, <b>una volta</b> — il
@@ -900,7 +920,9 @@ namespace MdExplorer.Services.AgentRun
                     ProjectPath = snapshot.ProjectPath,
                     FromAgent = snapshot.ToAgent,
                     ToAgent = ConversationHopGuard.UserRecipient,
-                    Body = owner.Explain() + " Il messaggio che gli era stato mandato resta in attesa.",
+                    Body = owner.Explain() + (owner.Kind == AgentOwnerKind.SomeoneElse
+                        ? " Non riesco a mandargli il messaggio adesso: il collegamento tra le città non è attivo. Resta in attesa e riparte da solo."
+                        : " Il messaggio che gli era stato mandato resta in attesa."),
                     ContextId = snapshot.ConversationId.ToString(),
                 });
                 if (!told.Accepted)

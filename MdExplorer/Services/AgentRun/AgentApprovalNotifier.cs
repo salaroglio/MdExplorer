@@ -38,17 +38,20 @@ namespace MdExplorer.Services.AgentRun
     {
         private readonly IAgentRegistryService _registry;
         private readonly IAgentMailbox _mailbox;
+        private readonly IAgentWakeGuard _wakeGuard;
         private readonly ILogger<AgentApprovalNotifier> _logger;
 
-        public AgentApprovalNotifier(IAgentRegistryService registry, IAgentMailbox mailbox, ILogger<AgentApprovalNotifier> logger)
+        public AgentApprovalNotifier(IAgentRegistryService registry, IAgentMailbox mailbox, IAgentWakeGuard wakeGuard,
+            ILogger<AgentApprovalNotifier> logger)
         {
+            _wakeGuard = wakeGuard;
             _registry = registry;
             _mailbox = mailbox;
             _logger = logger;
         }
 
         public IReadOnlyList<ApprovalRecipient> CandidatesFor(string projectPath, string producerAgent)
-            => ApprovalRoute.Candidates(_registry.RefreshCatalog(projectPath), producerAgent);
+            => ApprovalRoute.Candidates(_registry.RefreshCatalog(projectPath), producerAgent, e => _wakeGuard.WorksElsewhere(projectPath, e));
 
         public string SummaryOf(string projectPath, string agentName)
             => _registry.RefreshCatalog(projectPath)
@@ -58,7 +61,7 @@ namespace MdExplorer.Services.AgentRun
         {
             // La cache non è l'autorità (§6/§7): si rilegge il catalogo al momento di avvisare.
             var catalog = _registry.RefreshCatalog(projectPath);
-            var target = ApprovalRoute.Candidates(catalog, producerAgent)
+            var target = ApprovalRoute.Candidates(catalog, producerAgent, e => _wakeGuard.WorksElsewhere(projectPath, e))
                 .FirstOrDefault(c => string.Equals(c.Name, recipient, StringComparison.OrdinalIgnoreCase));
             if (target == null)
                 return Fail(recipient, $"'{recipient}' non è tra i destinatari dichiarati da '{producerAgent}' (on_approval_notify).");

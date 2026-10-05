@@ -89,6 +89,18 @@ namespace MdExplorer.Features.Tests.Agents
         }
 
         [TestMethod]
+        public void Reach_a_colleagues_agent_that_is_not_enabled_on_this_computer()
+        {
+            // L'agente di un collega qui non è fidato e non deve esserlo: lavora sul suo computer, e l'avviso ci arriva.
+            var catalog = new[] { Agent("tecnico", notify: new[] { "account-manager", "legale" }), Agent("account-manager", trusted: false), Agent("legale", trusted: false) };
+
+            var recipients = ApprovalRoute.Candidates(catalog, "tecnico", e => e.Name == "account-manager");
+
+            Assert.IsTrue(recipients.Single(r => r.Name == "account-manager").Available);
+            Assert.IsFalse(recipients.Single(r => r.Name == "legale").Available, "non fidato e di questo computer: resta non raggiungibile");
+        }
+
+        [TestMethod]
         public void Send_the_notice_as_the_person_not_as_an_agent()
         {
             Assert.AreEqual("user", ApprovalRoute.Sender);

@@ -81,7 +81,7 @@ namespace MdExplorer.Services.AgentRun
             {
                 var catalog = _agentRegistry.GetCatalog(projectPath);
                 return catalog
-                    .Where(e => e.IsCitizen && e.Trusted)
+                    .Where(e => _wakeGuard.CanBeWrittenTo(projectPath, e))
                     .Where(e => !PathEquals(e.AgentFilePath, currentAgentFilePath))
                     .Select(e => new AgentRosterEntry
                     {

@@ -49,6 +49,7 @@ namespace MdExplorer.Controllers.A2A
         private readonly MdExplorer.Services.Federation.IEffectiveOwnerIdentity _effectiveIdentity;
         private readonly IHubContext<MdExplorer.Hubs.MonitorMDHub> _hubContext;
         private readonly ILogger<A2AMessagingController> _logger;
+        private readonly MdExplorer.Services.AgentRun.IAgentWakeGuard _wakeGuard;
 
         public A2AMessagingController(
             IRunTokenStore tokens,
@@ -63,8 +64,10 @@ namespace MdExplorer.Controllers.A2A
             IProjectMetadataService projectMetadata,
             MdExplorer.Services.Federation.IEffectiveOwnerIdentity effectiveIdentity,
             IHubContext<MdExplorer.Hubs.MonitorMDHub> hubContext,
-            ILogger<A2AMessagingController> logger)
+            ILogger<A2AMessagingController> logger,
+            MdExplorer.Services.AgentRun.IAgentWakeGuard wakeGuard)
         {
+            _wakeGuard = wakeGuard;
             _hubContext = hubContext;
             _tokens = tokens;
             _registry = registry;
@@ -154,7 +157,10 @@ namespace MdExplorer.Controllers.A2A
                 .FirstOrDefault(e => e.IsCitizen && string.Equals(e.Name, to, StringComparison.OrdinalIgnoreCase));
             if (recipient == null)
                 return NotFound(new { error = $"Destinatario '{to}' non trovato o non cittadino nel progetto." });
-            if (!recipient.Trusted)
+            // L'agente di un collega qui non è abilitato e non deve esserlo: lavora sul computer del collega, e il
+            // messaggio ci arriva (il dispatcher lo inoltra). Non fidato E di questo computer: non gli si scrive.
+            var worksElsewhere = _wakeGuard.WorksElsewhere(claims.ProjectPath, recipient);
+            if (!recipient.Trusted && !worksElsewhere)
                 return StatusCode(403, new { error = $"Destinatario '{to}' non è trusted: non è possibile inviargli messaggi." });
 
             // Il filtro fine del destinatario (§6): la sua whitelist deve ammettere il mittente
@@ -185,7 +191,8 @@ namespace MdExplorer.Controllers.A2A
             // MA solo se il mittente ha qualcosa da passare. Un coordinatore che incarica più colleghi senza aver
             // scritto niente non ha niente da far ereditare: farli sedere tutti sulla sua scrivania li mette sullo
             // stesso ramo, e le loro consegne diventano un lavoro solo attribuito a lui invece di una per ciascuno.
-            if (UseWorktree(claims.ProjectPath))
+            // Solo fra agenti di questo computer: una scrivania non si eredita da un computer all'altro.
+            if (!worksElsewhere && UseWorktree(claims.ProjectPath))
             {
                 try
                 {
@@ -248,7 +255,7 @@ namespace MdExplorer.Controllers.A2A
                 return Unauthorized(new { error = "RunToken assente o non valido." });
 
             var colleagues = _registry.RefreshCatalog(claims.ProjectPath)
-                .Where(e => e.IsCitizen && e.Trusted)
+                .Where(e => _wakeGuard.CanBeWrittenTo(claims.ProjectPath, e))
                 .Where(e => !string.Equals(e.Name, claims.AgentName, StringComparison.OrdinalIgnoreCase))
                 .Select(e => new
                 {

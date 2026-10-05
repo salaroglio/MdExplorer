@@ -34,6 +34,7 @@ namespace MdExplorer.Features.Tests.Agents
             Assert.AreEqual(AgentOwnerKind.SomeoneElse, verdict.Kind);
             Assert.IsFalse(verdict.CanWorkHere);
             StringAssert.Contains(verdict.Explain(), "Marco (marco@pentagroup.it)");
+            Assert.AreEqual("Tecnica", verdict.Scope, "l'ambito sotto cui il messaggio viaggia verso il suo computer");
             StringAssert.Contains(verdict.Explain(), "sei anna@pentagroup.it");
         }
 
