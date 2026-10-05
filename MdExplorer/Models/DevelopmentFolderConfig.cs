@@ -134,23 +134,6 @@ namespace MdExplorer.Service.Models
         /// che permette di avere un default sensato senza impedire di spegnerlo a mano.
         /// </summary>
         public bool? UseAgentWorktrees { get; set; }
-
-        /// <summary>
-        /// Auto-merge dei deliverable-doc degli agenti (Fase 7g): quando <c>true</c>, a un deliverable
-        /// pushato (7d.2) che NON tocca il submodule-codice, un gate meccanico fonde il branch
-        /// d'attività nel default e pusha (doc-CI leggera/assente → auto). <b>Opt-in, default false</b>:
-        /// il merge in main resta manuale. Richiede <see cref="UseAgentWorktrees"/>. Il merge del
-        /// CODICE resta umano (§7e). Conflitto → not-ready (l'agente rilavora).
-        /// </summary>
-        /// <summary>
-        /// ⚠️ <b>RITIRATO (2026-08-02)</b>: non è più letto da nessuno. Il merge automatico dei
-        /// deliverable-doc è stato sostituito dalla <b>richiesta di merge</b> — il gate meccanico
-        /// resta ma propone invece di fondere, e decide l'umano. La proprietà sopravvive solo
-        /// perché i <c>.development.yml</c> esistenti la contengono e la deserializzazione non
-        /// deve rompersi; la spunta corrispondente è stata tolta dalla UI, perché un campo di
-        /// configurazione che il backend non consuma è una bugia verso chi lo spunta.
-        /// </summary>
-        public bool? AutoMergeAgentDeliverables { get; set; }
     }
 
     /// <summary>

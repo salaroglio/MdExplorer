@@ -1157,11 +1157,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 DevelopmentConfig config;
                 if (System.IO.File.Exists(devConfigPath))
                 {
-                    var yamlContent = System.IO.File.ReadAllText(devConfigPath);
-                    var deserializer = new DeserializerBuilder()
-                        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                        .Build();
-                    config = deserializer.Deserialize<DevelopmentConfig>(yamlContent) ?? new DevelopmentConfig();
+                    // Lettura rigida: le righe ritirate si tolgono per nome, ogni altra riga sconosciuta è un errore.
+                    config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(devConfigPath);
                 }
                 else
                 {
@@ -3136,11 +3133,8 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 var devConfigPath = Path.Combine(projectRoot, ".development.yml");
                 if (System.IO.File.Exists(devConfigPath))
                 {
-                    var yamlContent = System.IO.File.ReadAllText(devConfigPath);
-                    var deserializer = new DeserializerBuilder()
-                        .WithNamingConvention(CamelCaseNamingConvention.Instance)
-                        .Build();
-                    var config = deserializer.Deserialize<DevelopmentConfig>(yamlContent);
+                    // Lettura rigida: le righe ritirate si tolgono per nome, ogni altra riga sconosciuta è un errore.
+                    var config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(devConfigPath);
                     if (config?.Folders != null)
                     {
                         folders = config.Folders;

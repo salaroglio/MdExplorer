@@ -407,9 +407,6 @@
     "RELAY_KEY_MISSING": "No key configured: federation for this project stays dormant.",
     "AGENT_WORKTREES": "Isolation: each agent works in its own copy",
     "AGENT_WORKTREES_DESC": "The agent does not write into your working copy: it works in its own git worktree, on a dedicated branch freshly created from origin. Its work reaches you as a published branch. Applies to THIS MACHINE ONLY (it costs disk space: a few hundred MB per agent) and is not imposed on teammates through git.",
-    "AGENT_AUTOMERGE": "Merge documentation deliverables automatically",
-    "AGENT_AUTOMERGE_DESC": "When an agent finishes work that touches documentation only, its branch is merged into the main branch without asking you. Merging CODE always stays yours.",
-    "AGENT_AUTOMERGE_WARN": "Careful: with this option the main branch can change without your intervention. Not the code — the documentation.",
     "AGENT_NEEDS_GIT": "This project is not a git repository: without git there are no worktrees and no merges, so both options stay off.",
     "AGENT_WORKTREE_SLOTS": "Agent workplaces",
     "AGENT_WORKTREE_SLOTS_DESC": "How many agents can work at the same time: each workplace is a copy of the project on disk, and it is also the cap on concurrently running agents. Default {{def}}, maximum {{max}}."

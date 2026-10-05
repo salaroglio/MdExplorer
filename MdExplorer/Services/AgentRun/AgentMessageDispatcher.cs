@@ -736,7 +736,6 @@ namespace MdExplorer.Services.AgentRun
             }
         }
 
-        /// <summary>Auto-merge dei deliverable-doc attivo? (opt-in <c>agentCity.autoMergeAgentDeliverables</c>, Fase 7g).</summary>
         /// <summary>Contesto della conversazione utile al run in worktree (Fase 7c/7d).</summary>
         private sealed class RunWorktreeContext
         {

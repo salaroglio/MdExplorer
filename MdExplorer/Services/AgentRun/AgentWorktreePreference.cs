@@ -15,8 +15,7 @@ namespace MdExplorer.Services.AgentRun
     /// Sta in UserDB e non nel <c>.development.yml</c> per una ragione precisa: non cambia
     /// <i>cosa</i> fanno gli agenti, cambia <i>dove</i> lavorano, e costa spazio disco locale.
     /// Metterlo in git significherebbe imporre al collega col portatile pieno una scelta che non
-    /// ha fatto. L'auto-merge invece resta in git, perché quello decide se il ramo principale può
-    /// cambiare da solo — ed è una regola del repo, non della macchina.
+    /// ha fatto.
     /// </para>
     /// </summary>
     public interface IAgentWorktreePreference

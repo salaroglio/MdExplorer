@@ -105,7 +105,6 @@ namespace MdExplorer.IntegrationTests
                 .SetAgentCity(path, new AgentCityConfig
                 {
                     Enabled = true,
-                    AutoMergeAgentDeliverables = true,
                 });
             ctx.Factory.Services.GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>()
                 .Set(path, true);

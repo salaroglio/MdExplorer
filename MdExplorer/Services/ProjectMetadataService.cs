@@ -241,7 +241,7 @@ namespace MdExplorer.Services
                     .Build();
 
                 var config = deserializer.Deserialize<DevelopmentConfig>(yaml);
-                return ApplyRuntimeDefaults(config?.AgentCity, projectPath);
+                return config?.AgentCity;
             }
             catch (Exception ex)
             {
@@ -251,29 +251,9 @@ namespace MdExplorer.Services
         }
 
         /// <summary>
-        /// Risolve i flag <b>non decisi</b> (null nel yml) con un default che dipende dal
-        /// progetto: se è un repo git, isolamento worktree e auto-merge dei deliverable-doc
-        /// sono accesi; se git non c'è, spenti — senza git non esistono né worktree né merge.
-        /// <para>
-        /// Il default si applica <b>qui</b>, nel punto unico da cui tutti leggono (dispatcher,
-        /// controller, UI): applicarlo altrove significherebbe averne due copie che prima o poi
-        /// divergono. Un valore scritto esplicitamente nel yml vince sempre sul default.
-        /// </para>
-        /// </summary>
-        private static AgentCityConfig ApplyRuntimeDefaults(AgentCityConfig cfg, string projectPath)
-        {
-            if (cfg == null) return null;
-
-            // Il worktree NON si risolve piu' qui: e' una scelta della macchina e vive in
-            // UserDB (IAgentWorktreePreference). Nel yml resta solo per import una-tantum.
-            cfg.AutoMergeAgentDeliverables ??= IsGitWithOrigin(projectPath);
-            return cfg;
-        }
-
-        /// <summary>
         /// Git <b>con un remoto <c>origin</c></b>. Non basta la presenza di <c>.git</c>: il
         /// worktree di un agente si prepara con un <c>fetch</c> e prende il branch base da
-        /// <c>origin/HEAD</c>, e l'auto-merge <b>pusha</b>. Su un repo solo locale il default
+        /// <c>origin/HEAD</c>, e la consegna <b>pusha</b>. Su un repo solo locale il default
         /// acceso farebbe fallire ogni run al prepare — un default che rompe non è un default.
         /// <para>Lettura testuale di <c>.git/config</c>: questo metodo sta su un percorso caldo
         /// (il dispatcher lo interroga per ogni messaggio), aprire il repo sarebbe sproporzionato.</para>
@@ -375,7 +355,6 @@ namespace MdExplorer.Services
                 RelayUrl = string.IsNullOrWhiteSpace(relayUrl) ? null : relayUrl,
                 Maintenance = maintenance,
                 UseAgentWorktrees = config.UseAgentWorktrees,   // Fase 7c: opt-in isolamento worktree
-                AutoMergeAgentDeliverables = config.AutoMergeAgentDeliverables,   // Fase 7g: opt-in auto-merge doc
             };
 
             var serializer = new SerializerBuilder()

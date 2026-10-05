@@ -76,14 +76,7 @@ namespace MdExplorer.IntegrationTests
             ctx.IndexAgentFiles(path);
             ctx.Trust(path, "worker");
             ctx.Factory.Services.GetRequiredService<IProjectMetadataService>()
-                .SetAgentCity(path, new AgentCityConfig
-                {
-                    Enabled = true,
-                    // Auto-merge spento ESPLICITAMENTE: qui si verifica l'isolamento, non la
-                    // fusione. Col default acceso la fusione avviene a fine run nel worktree in
-                    // detached HEAD, e il branch d'attività non sarebbe più osservabile qui.
-                    AutoMergeAgentDeliverables = false,
-                });
+                .SetAgentCity(path, new AgentCityConfig { Enabled = true });
             ctx.OwnAgents(path, "worker");
             // L'isolamento e' una preferenza di MACCHINA (UserDB), non del repo.
             ctx.Factory.Services.GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>()

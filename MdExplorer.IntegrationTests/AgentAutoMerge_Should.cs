@@ -15,7 +15,7 @@ namespace MdExplorer.IntegrationTests
 {
     /// <summary>
     /// Fase 7g — cancello del merge. Il deliverable-doc pushato viene auto-fuso nel default e
-    /// pushato (gate meccanico che auto-approva; opt-in <c>autoMergeAgentDeliverables</c>); un
+    /// pushato (gate meccanico che auto-approva); un
     /// conflitto → not-ready (l'agente rilavora). Il merge gira nel worktree in detached HEAD.
     /// <para>Richiede <c>git</c> nel PATH.</para>
     /// </summary>
@@ -113,7 +113,7 @@ namespace MdExplorer.IntegrationTests
             ctx.IndexAgentFiles(path);
             ctx.Trust(path, "worker");
             ctx.Factory.Services.GetRequiredService<IProjectMetadataService>()
-                .SetAgentCity(path, new AgentCityConfig { Enabled = true, AutoMergeAgentDeliverables = true });
+                .SetAgentCity(path, new AgentCityConfig { Enabled = true });
             ctx.Factory.Services.GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>().Set(path, true);
 
             // Il fake agente scrive un deliverable nel suo worktree.

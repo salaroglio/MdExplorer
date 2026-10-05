@@ -7132,9 +7132,8 @@ class ProjectSettingsComponent {
     this.projectSettingsService.setAgentCity(this.projectPath, {
       enabled: this.agentCityEnabled,
       ownershipDoc: this.agentCityOwnershipDoc?.trim() || undefined
-      // Solo ciò che questa schermata decide. L'auto-merge dei deliverable è ritirato (la sua casella
-      // non c'è più) e il worktree è una preferenza di macchina con un endpoint suo: mandarli, anche
-      // a `false`, scriveva nel `.development.yml` scelte che nessuno aveva fatto e sporcava il progetto.
+      // Solo ciò che questa schermata decide. Il worktree è una preferenza di macchina con un endpoint suo:
+      // mandarlo, anche a `false`, scriveva nel `.development.yml` una scelta che nessuno aveva fatto.
     }).subscribe({
       next: res => {
         this.saving = false;
@@ -9581,4 +9580,4 @@ class NgDialogAnimationService {
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_projects_projects_module_ts.74128d684092458c.js.map
+//# sourceMappingURL=src_app_projects_projects_module_ts.7c9dd190afd3b3a5.js.map

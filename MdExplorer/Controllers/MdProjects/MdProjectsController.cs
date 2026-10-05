@@ -223,9 +223,9 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
             try
             {
-                // I flag opt-in (worktree, auto-merge) sono booleani: non possono distinguere
+                // Il flag opt-in dei worktree è booleano: non può distinguere
                 // "non inviato" da "false". La UI oggi manda solo enabled+ownershipDoc, quindi
-                // senza questa preservazione il primo salvataggio dalle impostazioni li
+                // senza questa preservazione il primo salvataggio dalle impostazioni lo
                 // SPEGNEREBBE in silenzio — stessa forma del difetto gia' chiuso su RelayUrl e
                 // RoomSecret. Nullable nel DTO: null = lascia com'e'.
                 var current = _projectMetadataService.GetAgentCity(path);
@@ -238,9 +238,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
                     // Assente resta assente (null): per i worktree vuol dire «decide l'app» (attivi se c'è git),
                     // e scrivere `false` al primo salvataggio li spegneva in modo esplicito senza che
                     // nessuno l'avesse chiesto. Così un progetto appena aperto resta a zero «da committare»
-                    // per questi due campi.
+                    // per questo campo.
                     UseAgentWorktrees = request.UseAgentWorktrees ?? current?.UseAgentWorktrees,
-                    AutoMergeAgentDeliverables = request.AutoMergeAgentDeliverables ?? current?.AutoMergeAgentDeliverables,
                 });
                 return Ok(ToAgentCityDto(saved, path));
             }
@@ -259,7 +258,6 @@ namespace MdExplorer.Service.Controllers.MdProjects
             relayUrl = cfg?.RelayUrl,
             hasRoomSecret = !string.IsNullOrWhiteSpace(cfg?.RoomSecret),
             useAgentWorktrees = cfg?.UseAgentWorktrees ?? false,
-            autoMergeAgentDeliverables = cfg?.AutoMergeAgentDeliverables ?? false,
             // Senza git non esistono né worktree né merge: la UI disabilita le due opzioni
             // invece di lasciarle spuntabili e poi inerti.
             isGitRepository = !string.IsNullOrWhiteSpace(projectPath)
@@ -281,9 +279,6 @@ namespace MdExplorer.Service.Controllers.MdProjects
 
             /// <summary>Opt-in isolamento worktree (Fase 7c). <c>null</c> = non toccare.</summary>
             public bool? UseAgentWorktrees { get; set; }
-
-            /// <summary>Opt-in auto-merge dei deliverable-doc (Fase 7g). <c>null</c> = non toccare.</summary>
-            public bool? AutoMergeAgentDeliverables { get; set; }
         }
 
         /// <summary>
@@ -710,6 +705,12 @@ namespace MdExplorer.Service.Controllers.MdProjects
                         .GetService<MdExplorer.Services.Demo.IDemoOriginPreparer>()?.Prepare(request.Path);
                     logPhase("DemoOrigin");
                 }
+
+                // Le righe che MdExplorer non ha più si cancellano dal file del progetto, per nome, prima che
+                // qualcuno lo legga: la lettura è rigida, e una riga ritirata non deve farla fallire.
+                MdExplorer.Utilities.DevelopmentConfigCleanup.CleanFile(request.Path,
+                    HttpContext.RequestServices.GetService<ILogger<MdProjectsController>>());
+                logPhase("ConfigCleanup");
 
                 // Invalidate FoldersIgnore cache to pick up any changes to .mdFoldersIgnore
                 _foldersIgnoreService.InvalidateCache(request.Path);
