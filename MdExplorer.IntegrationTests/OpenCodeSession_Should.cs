@@ -85,6 +85,7 @@ namespace MdExplorer.IntegrationTests
             StringAssert.Contains(ex.Message, "non esiste");
         }
 
+        [Ignore("Chiede una risposta vera a opencode, che su questa macchina non risponde: disabilitato il 05/10/2026.")]
         [TestMethod]
         public async Task Answer_streaming_and_tell_what_it_spent()
         {
@@ -124,6 +125,10 @@ namespace MdExplorer.IntegrationTests
         /// «text» — è il nome della proprietà della parte, non la sua natura — e a distinguere
         /// risposta e ragionamento è il <b>tipo della parte</b>.
         /// </summary>
+        // Disabilitato il 05/10/2026 su richiesta dell'utente: chiede una risposta vera a opencode e, dove opencode è
+        // installato ma non risponde, va in scadenza dopo quattro minuti e fa fallire la batteria. Da riaccendere su una
+        // macchina dove opencode è configurato.
+        [Ignore("opencode non risponde su questa macchina: la prova va in scadenza (4 minuti).")]
         [TestMethod]
         public async Task Keep_the_reasoning_out_of_the_answer()
         {
@@ -153,6 +158,7 @@ namespace MdExplorer.IntegrationTests
                 "il ragionamento è finito dentro la risposta");
         }
 
+        [Ignore("Chiede una risposta vera a opencode, che su questa macchina non risponde: disabilitato il 05/10/2026.")]
         [TestMethod]
         public async Task Keep_the_conversation_between_turns()
         {
@@ -171,6 +177,7 @@ namespace MdExplorer.IntegrationTests
                 "la conversazione non ha memoria: " + session.LastTurnText);
         }
 
+        [Ignore("Chiede una risposta vera a opencode, che su questa macchina non risponde: disabilitato il 05/10/2026.")]
         [TestMethod]
         public async Task Say_which_tools_it_is_using()
         {
@@ -192,6 +199,7 @@ namespace MdExplorer.IntegrationTests
             StringAssert.Contains(session.LastTurnText.ToUpperInvariant(), "BAOBAB");
         }
 
+        [Ignore("Chiede una risposta vera a opencode, che su questa macchina non risponde: disabilitato il 05/10/2026.")]
         [TestMethod]
         public async Task Stop_when_the_user_says_stop()
         {
