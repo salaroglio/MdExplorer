@@ -137,7 +137,8 @@
           <!-- Che cosa puoi rispondere. Le risposte le dichiara la scheda dell'agente e le propone il messaggio:
                qui diventano pulsanti. Finché l'artefatto di questo lavoro non è approvato, non si risponde. -->
           <div class="reply">
-            <div class="reply-lock" *ngIf="replyLock() as lock" role="status">
+            <!-- L'avviso serve solo dove c'è qualcosa da rispondere: sotto un messaggio che non chiede niente sarebbe rumore. -->
+            <div class="reply-lock" *ngIf="(selected.message.replies?.length || !selected.message.declaresReplies) && replyLock() as lock" role="status">
               <mat-icon>{{ lock === 'pending' ? 'lock_clock' : 'block' }}</mat-icon>
               <span>{{ (lock === 'pending' ? 'AGENT_MAIL.REPLY_LOCK_PENDING' : 'AGENT_MAIL.REPLY_LOCK_REJECTED') | translate: { agent: selected.from } }}</span>
             </div>

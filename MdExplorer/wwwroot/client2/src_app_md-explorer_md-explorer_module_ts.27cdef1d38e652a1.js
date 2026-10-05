@@ -8128,7 +8128,7 @@ function AgentMailComponent_ng_container_36_div_2_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r24.artifacts.length);
     _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r24.replyLock());
+    _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ((ctx_r24.selected.message.replies == null ? null : ctx_r24.selected.message.replies.length) || !ctx_r24.selected.message.declaresReplies) && ctx_r24.replyLock());
     _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵproperty"]("ngIf", ctx_r24.selected.message.replies == null ? null : ctx_r24.selected.message.replies.length);
     _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵadvance"](1);
@@ -44161,4 +44161,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.207d3944a524f3b9.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.27cdef1d38e652a1.js.map
