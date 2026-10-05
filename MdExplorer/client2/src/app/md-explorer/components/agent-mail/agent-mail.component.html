@@ -1,0 +1,160 @@
+<div class="mail-page">
+
+  <header class="mail-bar">
+    <mat-icon class="bar-icon">forum</mat-icon>
+    <span class="bar-title">{{ 'AGENT_MAIL.TITLE' | translate }}</span>
+    <span class="bar-project">{{ projectName }}</span>
+    <span class="flexExpand"></span>
+    <button mat-button class="btn-mark-all-read" *ngIf="unread > 0" (click)="markAllRead()" [disabled]="loading"
+            [matTooltip]="'MAILBOX.MARK_ALL_READ_TIP' | translate">
+      <mat-icon>done_all</mat-icon> {{ 'MAILBOX.MARK_ALL_READ' | translate: { count: unread } }}
+    </button>
+    <button mat-button (click)="toggleIncludeRead()">
+      {{ (includeRead ? 'MAILBOX.SHOW_UNREAD_ONLY' : 'MAILBOX.SHOW_ALL') | translate }}
+    </button>
+    <button mat-button (click)="openConversations()" [matTooltip]="'AGENT_MAIL.CONVERSATIONS_TIP' | translate">
+      {{ 'MAILBOX.TAB_CONVERSATIONS' | translate }}
+    </button>
+    <button mat-icon-button (click)="reload()" [disabled]="loading" [matTooltip]="'MAILBOX.REFRESH' | translate">
+      <mat-icon [class.spinning]="loading">refresh</mat-icon>
+    </button>
+    <button mat-icon-button class="btn-close-mail" (click)="close()" [matTooltip]="'MAILBOX.CLOSE' | translate">
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  <div *ngIf="error" class="mail-error"><mat-icon>error_outline</mat-icon> {{ error }}</div>
+
+  <div class="mail-body">
+
+    <!-- ============ A sinistra: l'elenco ============ -->
+    <aside class="mail-list">
+      <div *ngIf="!loading && !items.length" class="mail-empty">
+        <mat-icon>mark_email_read</mat-icon>
+        <p>{{ 'AGENT_MAIL.EMPTY' | translate }}</p>
+      </div>
+
+      <button type="button" class="mail-row" *ngFor="let item of items; trackBy: trackItem"
+              [class.selected]="selected === item" [class.unread]="item.unread" [ngClass]="'kind-' + item.kind"
+              (click)="select(item)">
+        <span class="row-dot"></span>
+        <mat-icon class="row-icon">{{ item.kind === 'message' ? 'smart_toy' : item.kind === 'review' ? 'rule' : 'hub' }}</mat-icon>
+        <span class="row-main">
+          <span class="row-top">
+            <span class="row-from">{{ item.from }}</span>
+            <span class="row-when" [title]="item.when">{{ item.when | date:'short' }}</span>
+          </span>
+          <span class="row-kind" *ngIf="item.kind !== 'message'">
+            {{ (item.kind === 'review' ? 'AGENT_MAIL.KIND_REVIEW' : 'AGENT_MAIL.KIND_FEDERATION') | translate }}
+          </span>
+          <span class="row-preview">{{ item.preview }}</span>
+        </span>
+      </button>
+    </aside>
+
+    <!-- ============ A destra: il dettaglio, o il documento aperto ============ -->
+    <section class="mail-detail">
+
+      <!-- Un artefatto aperto prende il posto del dettaglio -->
+      <ng-container *ngIf="document">
+        <div class="doc-bar">
+          <button mat-stroked-button class="btn-back" (click)="closeDocument()">
+            <mat-icon>arrow_back</mat-icon> {{ 'AGENT_MAIL.BACK' | translate }}
+          </button>
+          <span class="doc-path">{{ document.path }}</span>
+          <span class="doc-state" [class.pending]="document.pending">
+            {{ (document.pending ? 'AGENT_MAIL.DOC_PENDING' : 'AGENT_MAIL.DOC_IN_PROJECT') | translate }}
+          </span>
+        </div>
+        <iframe class="doc-frame" [src]="document.url"></iframe>
+      </ng-container>
+
+      <ng-container *ngIf="!document">
+        <div *ngIf="!selected && !loading" class="mail-empty">
+          <mat-icon>inbox</mat-icon>
+          <p>{{ 'AGENT_MAIL.NOTHING_SELECTED' | translate }}</p>
+        </div>
+
+        <!-- Un messaggio -->
+        <div class="detail" *ngIf="selected?.kind === 'message'">
+          <div class="detail-head">
+            <mat-icon class="head-icon">smart_toy</mat-icon>
+            <span class="head-from">{{ selected.from }}</span>
+            <span class="flexExpand"></span>
+            <span class="head-when">{{ selected.when | date:'medium' }}</span>
+          </div>
+          <div class="chips" *ngIf="selected.message.topics?.length">
+            <span class="chip" *ngFor="let t of selected.message.topics">{{ t }}</span>
+          </div>
+
+          <div class="detail-text">{{ selected.message.body }}</div>
+
+          <div class="artifacts" *ngIf="artifacts.length">
+            <div class="artifacts-title">{{ 'AGENT_MAIL.ARTIFACTS' | translate }}</div>
+            <div class="artifact" *ngFor="let a of artifacts" [ngClass]="'state-' + a.state">
+              <mat-icon>{{ a.state === 'missing' ? 'report_problem' : 'description' }}</mat-icon>
+              <span class="artifact-main">
+                <span class="artifact-path">{{ a.path }}</span>
+                <span class="artifact-state">{{ ('AGENT_MAIL.STATE_' + (a.state | uppercase)) | translate }}</span>
+              </span>
+              <button mat-stroked-button class="btn-open-artifact" *ngIf="a.state === 'pending' || a.state === 'inProject'" (click)="openArtifact(a)">
+                <mat-icon>open_in_new</mat-icon> {{ 'AGENT_MAIL.OPEN' | translate }}
+              </button>
+              <button mat-button color="primary" class="btn-go-review" *ngIf="a.state === 'pending'" (click)="goToReview(a)">
+                {{ 'AGENT_MAIL.GO_TO_REVIEW' | translate }}
+              </button>
+            </div>
+          </div>
+
+          <div class="reply">
+            <label class="reply-label" for="agent-mail-reply">{{ 'AGENT_MAIL.REPLY_LABEL' | translate: { agent: selected.from } }}</label>
+            <textarea id="agent-mail-reply" class="reply-text" rows="3" [(ngModel)]="replyDraft"
+                      [placeholder]="'MAILBOX.REPLY_PLACEHOLDER' | translate"></textarea>
+            <div class="reply-actions">
+              <button mat-raised-button color="primary" class="btn-reply" [disabled]="!canReply()" (click)="reply()">
+                <mat-icon>send</mat-icon> {{ 'MAILBOX.REPLY_BUTTON' | translate }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Un lavoro da approvare: i gesti sono quelli di sempre -->
+        <div class="detail" *ngIf="selected?.kind === 'review'">
+          <div class="detail-head">
+            <mat-icon class="head-icon">rule</mat-icon>
+            <span class="head-from">{{ selected.from }}</span>
+            <span class="head-kind">{{ 'AGENT_MAIL.KIND_REVIEW' | translate }}</span>
+            <span class="flexExpand"></span>
+            <span class="head-when">{{ selected.when | date:'medium' }}</span>
+          </div>
+          <p class="detail-hint">{{ 'AGENT_MAIL.REVIEW_HINT' | translate }}</p>
+          <app-agent-review [onlyRequestId]="selected.id" [embedded]="true"
+                            (changed)="reload()" (openFile)="openDelivered($event.request, $event.path)"></app-agent-review>
+        </div>
+
+        <!-- La richiesta di un collega: il suo agente chiede il lavoro del tuo -->
+        <div class="detail" *ngIf="selected?.kind === 'federation'">
+          <div class="detail-head">
+            <mat-icon class="head-icon">hub</mat-icon>
+            <span class="head-from">{{ selected.from }}</span>
+            <span class="head-kind">{{ 'AGENT_MAIL.KIND_FEDERATION' | translate }}</span>
+            <span class="flexExpand"></span>
+            <span class="head-when">{{ selected.when | date:'medium' }}</span>
+          </div>
+          <p class="detail-hint">
+            {{ 'AGENT_MAIL.FEDERATION_HINT' | translate: { from: selected.federation.fromAgent || '?', target: selected.federation.targetAgent } }}
+          </p>
+          <div class="detail-text">{{ selected.federation.message }}</div>
+          <div class="decide">
+            <button mat-stroked-button color="warn" [disabled]="deciding" (click)="rejectFederation(selected.federation)">
+              <mat-icon>block</mat-icon> {{ 'FEDERATION.REJECT' | translate }}
+            </button>
+            <button mat-raised-button color="primary" class="btn-accept-federation" [disabled]="deciding" (click)="approveFederation(selected.federation)">
+              <mat-icon>verified_user</mat-icon> {{ 'FEDERATION.APPROVE' | translate }}
+            </button>
+          </div>
+        </div>
+      </ng-container>
+    </section>
+  </div>
+</div>

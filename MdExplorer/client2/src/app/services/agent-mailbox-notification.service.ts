@@ -6,6 +6,7 @@ import { BehaviorSubject } from 'rxjs';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 import { MailboxService } from '../md-explorer/services/mailbox.service';
 import { MailboxDialogComponent } from '../md-explorer/components/mailbox-dialog/mailbox-dialog.component';
+import { AgentMailComponent } from '../md-explorer/components/agent-mail/agent-mail.component';
 
 /**
  * La metà "la città parla all'umano" della Fase 4a. Ascolta l'evento SignalR
@@ -53,8 +54,26 @@ export class AgentMailboxNotificationService {
     });
   }
 
-  /** Apre il centro notifiche (opzionalmente su un tab: 0 inbox, 1 conversazioni, 2 federazione). */
+  /**
+   * Apre la posta degli agenti: una pagina a tutto schermo, sopra il progetto, con messaggi, lavori da
+   * approvare e richieste dei colleghi in un elenco solo. Le conversazioni (tab 1) restano nella finestra
+   * di prima, che la pagina sa aprire.
+   */
   public open(initialTab: number = 0): void {
+    if (initialTab !== 1) {
+      const page = this.dialog.open(AgentMailComponent, {
+        width: '100vw',
+        height: '100vh',
+        maxWidth: '100vw',
+        maxHeight: '100vh',
+        panelClass: 'agent-mail-page',
+        position: { top: '0', left: '0' },
+        autoFocus: false,
+        data: { projectPath: this.currentProjectPath },
+      });
+      page.afterClosed().subscribe(() => this.refresh());
+      return;
+    }
     const ref = this.dialog.open(MailboxDialogComponent, {
       width: '640px',
       maxHeight: '82vh',

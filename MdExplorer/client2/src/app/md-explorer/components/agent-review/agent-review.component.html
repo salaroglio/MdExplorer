@@ -1,6 +1,6 @@
 <div class="review-panel">
 
-  <div class="review-header">
+  <div class="review-header" *ngIf="!embedded">
     <span class="review-title">{{ 'AGENT_REVIEW.TITLE' | translate }}</span>
     <span class="flexExpand"></span>
     <button mat-icon-button (click)="refresh()" [matTooltip]="'AGENT_REVIEW.REFRESH' | translate">
@@ -50,6 +50,10 @@
       <li *ngFor="let f of r.files" [ngClass]="'f-' + f.change" [title]="f.path">
         <mat-icon>{{ iconFor(f.change) }}</mat-icon>
         <span class="file-path">{{ f.path }}</span>
+        <button mat-button class="btn-open-delivered" *ngIf="embedded && f.change !== 'deleted'"
+                (click)="openFile.emit({ request: r, path: f.path })">
+          <mat-icon>open_in_new</mat-icon> {{ 'AGENT_MAIL.OPEN' | translate }}
+        </button>
       </li>
     </ul>
 

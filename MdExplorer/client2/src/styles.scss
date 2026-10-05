@@ -406,3 +406,11 @@ app-promptlab {
     background: var(--mde-scrollbar-hover);
   }
 }
+
+// La posta degli agenti: una finestra che è una pagina — tutto lo schermo, senza margini né angoli.
+.agent-mail-page .mat-dialog-container,
+.agent-mail-page .mat-mdc-dialog-container {
+  padding: 0;
+  border-radius: 0;
+  overflow: hidden;
+}

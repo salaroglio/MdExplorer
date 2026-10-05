@@ -442,6 +442,68 @@ namespace MdExplorer.Controllers
             return new ContentResult { ContentType = "text/html; charset=utf-8", Content = htmlContent };
         }
 
+        /// <summary>
+        /// Un documento <b>com'è nella consegna di un agente</b> (la richiesta da approvare), in sola lettura:
+        /// il testo viene dal commit consegnato, non dal posto di lavoro — che con due soli posti può essere
+        /// già di un altro agente — ed è quindi esattamente ciò su cui la persona decide. Immagini e altri
+        /// file non markdown sono quelli del progetto. Nessuna scrittura, nessun evento.
+        /// </summary>
+        [HttpGet("/api/MdExplorerWorktree/render-request/{id}/{*url}")]
+        public async Task<IActionResult> GetDeliveredReadOnlyAsync(Guid id, string url)
+        {
+            var connectionId = Request.Query["ConnectionId"].ToString();
+            var theme = Request.Query["theme"].FirstOrDefault() ?? "light";
+
+            var requests = HttpContext.RequestServices.GetService(typeof(MdExplorer.Services.AgentRun.IAgentMergeRequestService))
+                as MdExplorer.Services.AgentRun.IAgentMergeRequestService;
+            var request = requests?.Get(id);
+            if (request == null)
+                return NotFound($"Richiesta '{id}' non trovata.");
+
+            var projectRoot = request.ProjectPath;
+            var relativePathFile = "/" + (url ?? string.Empty);
+            var relativePathExtension = Path.GetExtension(relativePathFile);
+            var fullPathFile = Path.GetFullPath(Path.Combine(projectRoot, relativePathFile.TrimStart('/', '\\')));
+            if (!IsUnderRoot(projectRoot, fullPathFile))
+                return BadRequest("Percorso non valido.");
+
+            if (relativePathExtension != ".md")
+            {
+                var asset = CreateAResponseForNotMdFile(projectRoot + Path.DirectorySeparatorChar, relativePathFile, relativePathExtension);
+                return asset == null ? NotFound($"File non trovato nel progetto: {relativePathFile}") : (IActionResult)asset;
+            }
+
+            var markdownTxt = await _worktree.ReadFileAtAsync(projectRoot, request.HeadSha, relativePathFile);
+            if (markdownTxt == null)
+                return NotFound($"'{relativePathFile.TrimStart('/')}' non fa parte della consegna di '{request.AgentName}'.");
+
+            var monitoredMd = new MonitoredMDModel
+            {
+                Path = fullPathFile,
+                Name = Path.GetFileName(fullPathFile),
+                RelativePath = relativePathFile.TrimStart(Path.DirectorySeparatorChar, '/'),
+                FullPath = fullPathFile,
+                FullDirectoryPath = Path.GetDirectoryName(fullPathFile),
+            };
+
+            if (IsSlideDeck(_yamlDocumentDescriptor.GetDescriptor(markdownTxt)))
+            {
+                var deck = await ProcessAsSlideTypeDocument(
+                    markdownTxt, relativePathFile, fullPathFile, connectionId, monitoredMd, theme,
+                    explicitRoot: projectRoot, readOnly: true);
+                return new ContentResult { ContentType = "text/html; charset=utf-8", Content = deck };
+            }
+
+            var doc1 = await ProcessAsMarkdownTypeDocument(
+                markdownTxt, relativePathFile, fullPathFile, connectionId, monitoredMd, theme,
+                explicitRoot: projectRoot, readOnly: true);
+            var htmlContent = (doc1.DocumentElement != null &&
+                doc1.DocumentElement.GetAttribute("_html_fallback") == "true")
+                ? doc1.DocumentElement.InnerText
+                : doc1.InnerXml;
+            return new ContentResult { ContentType = "text/html; charset=utf-8", Content = htmlContent };
+        }
+
         /// <summary>Il path risolto <paramref name="candidate"/> è dentro <paramref name="root"/>? (anti-traversal).</summary>
         private static bool IsUnderRoot(string root, string candidate)
         {

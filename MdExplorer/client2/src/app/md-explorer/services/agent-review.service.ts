@@ -49,6 +49,16 @@ export interface ApproveChoice {
   nobody?: boolean;
 }
 
+/** Un documento citato in un messaggio, e dove sta: in una consegna da approvare, nel progetto, da nessuna parte. */
+export interface MailArtifact {
+  path: string;
+  /** `toPull` = approvato, sul ramo principale di origin, non ancora scaricato nella cartella. */
+  state: 'pending' | 'inProject' | 'toPull' | 'missing';
+  /** La richiesta da approvare che lo contiene, quando è `pending`. */
+  requestId: string | null;
+  agentName: string | null;
+}
+
 export interface TakeResult {
   worktreePath: string;
   folderOpened: boolean;
@@ -64,6 +74,11 @@ export class AgentReviewService {
     return this.http.get<{ requests: MergeRequest[] }>('../api/AgentReview/requests', {
       params: { projectPath },
     });
+  }
+
+  /** Dove stanno i documenti che un messaggio cita. */
+  artifacts(projectPath: string, agent: string, paths: string[]): Observable<{ artifacts: MailArtifact[] }> {
+    return this.http.post<{ artifacts: MailArtifact[] }>('../api/AgentReview/artifacts', { projectPath, agent, paths });
   }
 
   approve(id: string, choice: ApproveChoice = {}): Observable<MergeRequest> {

@@ -61,6 +61,7 @@ import { AgentRegistryDialogComponent } from './components/agent-registry-dialog
 import { AgentTrustDialogComponent } from './components/agent-trust-dialog/agent-trust-dialog.component';
 import { AgentMemoryDialogComponent } from './components/agent-memory-dialog/agent-memory-dialog.component';
 import { MailboxDialogComponent } from './components/mailbox-dialog/mailbox-dialog.component';
+import { AgentMailComponent } from './components/agent-mail/agent-mail.component';
 
 
 const routes: Routes = [
@@ -139,6 +140,7 @@ const routes: Routes = [
     AgentTrustDialogComponent,
     AgentMemoryDialogComponent,
     MailboxDialogComponent,
+    AgentMailComponent,
     E2eDialogComponent
   ],
   imports: [

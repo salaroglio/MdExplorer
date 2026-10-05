@@ -14370,4 +14370,11 @@ app-promptlab {
   background: var(--mde-scrollbar-hover);
 }
 
-/*# sourceMappingURL=styles.3c3aa92dc22b591f.css.map*/
+.agent-mail-page .mat-dialog-container,
+.agent-mail-page .mat-mdc-dialog-container {
+  padding: 0;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+/*# sourceMappingURL=styles.9aff49a83a1a02d8.css.map*/

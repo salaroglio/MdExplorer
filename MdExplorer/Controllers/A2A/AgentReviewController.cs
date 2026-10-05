@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using MdExplorer.Abstractions.Entities.UserDB;
@@ -53,6 +54,64 @@ namespace MdExplorer.Controllers.A2A
 
             var list = _requests.Pending(projectPath).Select(r => ToDto(r)).ToList();
             return Ok(new { requests = list });
+        }
+
+        /// <summary>
+        /// Dove sono i documenti che un messaggio cita: in una consegna ancora da approvare (e di chi), già
+        /// nel progetto, oppure da nessuna parte. Serve alla posta per mostrare, sotto un messaggio, gli
+        /// artefatti che l'agente dice di aver scritto, e per sapere da dove aprirli.
+        /// </summary>
+        [HttpPost("artifacts")]
+        public async Task<IActionResult> Artifacts([FromBody] ArtifactsRequest body)
+        {
+            if (string.IsNullOrWhiteSpace(body?.ProjectPath))
+                return BadRequest(new { error = "projectPath è obbligatorio" });
+
+            var pending = _requests.Pending(body.ProjectPath)
+                .Select(r => new { Request = r, Files = _requests.FilesOf(r) })
+                .ToList();
+            var root = System.IO.Path.GetFullPath(body.ProjectPath);
+
+            var artifacts = new List<object>();
+            foreach (var path in (body.Paths ?? new List<string>())
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(p => p.Replace('\\', '/').Trim().TrimStart('/'))
+                .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                artifacts.Add(await Locate(path));
+            }
+            return Ok(new { artifacts });
+
+            async Task<object> Locate(string path)
+            {
+                {
+                    // Prima la consegna dello stesso agente, poi quella di chiunque.
+                    var delivery = pending
+                        .Where(x => x.Files.Any(f => string.Equals(f.Path, path, StringComparison.OrdinalIgnoreCase)))
+                        .OrderByDescending(x => string.Equals(x.Request.AgentName, body.Agent, StringComparison.OrdinalIgnoreCase))
+                        .FirstOrDefault();
+                    if (delivery != null)
+                        return (object)new { path, state = "pending", requestId = delivery.Request.Id, agentName = delivery.Request.AgentName };
+
+                    var full = System.IO.Path.GetFullPath(System.IO.Path.Combine(root, path));
+                    var inside = full.StartsWith(root + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+                    if (inside && System.IO.File.Exists(full))
+                        return new { path, state = "inProject", requestId = (Guid?)null, agentName = (string)null };
+
+                    // Approvato ma non ancora nella cartella: sta sul ramo principale di origin, e arriva
+                    // con «Scarica tutto». Dirlo è diverso da «non trovato».
+                    var approved = inside && await _worktree.ReadFileAtAsync(root, "origin/HEAD", path) != null;
+                    return new { path, state = approved ? "toPull" : "missing", requestId = (Guid?)null, agentName = (string)null };
+                }
+            }
+        }
+
+        public sealed class ArtifactsRequest
+        {
+            public string? ProjectPath { get; set; }
+            /// <summary>L'agente che ha scritto il messaggio: a parità di percorso vale la sua consegna.</summary>
+            public string? Agent { get; set; }
+            public List<string>? Paths { get; set; }
         }
 
         /// <summary>

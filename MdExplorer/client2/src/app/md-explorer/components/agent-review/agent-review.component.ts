@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output } from '@angular/core';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
@@ -20,8 +20,18 @@ import { ReviewContextService } from '../../services/review-context.service';
   templateUrl: './agent-review.component.html',
   styleUrls: ['./agent-review.component.scss'],
 })
-export class AgentReviewComponent implements OnInit, OnDestroy {
+export class AgentReviewComponent implements OnInit, OnChanges, OnDestroy {
+  /** Dentro la posta degli agenti: una sola richiesta, quella selezionata nell'elenco. Vuoto = tutte. */
+  @Input() onlyRequestId: string | null = null;
+  /** Dentro un'altra pagina: senza intestazione propria, e con «Apri» sui file. */
+  @Input() embedded = false;
+  /** Una richiesta è stata decisa o presa in mano: chi ospita il pannello rilegge il suo elenco. */
+  @Output() changed = new EventEmitter<void>();
+  /** «Apri» su un file della consegna. */
+  @Output() openFile = new EventEmitter<{ request: MergeRequest; path: string }>();
+
   requests: MergeRequest[] = [];
+  private allRequests: MergeRequest[] = [];
   loading = false;
   busyId: string | null = null;
   projectPath = '';
@@ -62,6 +72,16 @@ export class AgentReviewComponent implements OnInit, OnDestroy {
     this.sub = this.serverMessages.agentMergeRequested$.subscribe(() => this.refresh());
   }
 
+  ngOnChanges(): void {
+    this.show();
+  }
+
+  /** L'elenco mostrato: tutto, oppure la sola richiesta chiesta da chi ospita il pannello. */
+  private show(): void {
+    this.requests = this.onlyRequestId ? this.allRequests.filter(r => r.id === this.onlyRequestId) : this.allRequests;
+    this.preselect();
+  }
+
   ngOnDestroy(): void {
     this.sub?.unsubscribe();
     this.projectSub?.unsubscribe();
@@ -71,7 +91,7 @@ export class AgentReviewComponent implements OnInit, OnDestroy {
     if (!this.projectPath) return;
     this.loading = true;
     this.review.pending(this.projectPath).subscribe({
-      next: (res) => { this.requests = res?.requests || []; this.preselect(); this.loading = false; },
+      next: (res) => { this.allRequests = res?.requests || []; this.show(); this.loading = false; },
       error: () => { this.loading = false; },
     });
   }
@@ -112,20 +132,20 @@ export class AgentReviewComponent implements OnInit, OnDestroy {
         else
           // Fuso, ma l'avviso non è partito: la persona deve saperlo, il lavoro non è passato di mano.
           this.snackBar.open(this.translate.instant('AGENT_REVIEW.MERGED_NOT_NOTIFIED', { name: n.recipient, reason: n.error }), 'OK', { duration: 20000 });
-        this.refresh();
+        this.refresh(); this.changed.emit();
       },
       error: (err) => {
         this.busyId = null;
         // Nessuna scelta o scelta non valida: non si è fuso niente. Si aggiorna l'elenco e si dice il perché.
         if (err?.error?.code === 'choose-recipient' || err?.error?.code?.startsWith('recipient-')) {
           this.snackBar.open(err.error.error, 'OK', { duration: 12000 });
-          this.refresh();
+          this.refresh(); this.changed.emit();
           return;
         }
         // Autorizzata ma non fusa (tipicamente un conflitto): dirlo, non nasconderlo.
         const note = err?.error?.note || err?.error?.error || this.translate.instant('AGENT_REVIEW.MERGE_FAILED');
         this.snackBar.open(note, 'OK', { duration: 12000 });
-        this.refresh();
+        this.refresh(); this.changed.emit();
       },
     });
   }
@@ -133,8 +153,8 @@ export class AgentReviewComponent implements OnInit, OnDestroy {
   reject(r: MergeRequest): void {
     this.busyId = r.id;
     this.review.reject(r.id).subscribe({
-      next: () => { this.busyId = null; this.toast('AGENT_REVIEW.REJECTED'); this.refresh(); },
-      error: () => { this.busyId = null; this.refresh(); },
+      next: () => { this.busyId = null; this.toast('AGENT_REVIEW.REJECTED'); this.refresh(); this.changed.emit(); },
+      error: () => { this.busyId = null; this.refresh(); this.changed.emit(); },
     });
   }
 
@@ -151,7 +171,7 @@ export class AgentReviewComponent implements OnInit, OnDestroy {
             res.folderOpened ? 'AGENT_REVIEW.TAKEN' : 'AGENT_REVIEW.TAKEN_NO_FOLDER',
             { path: res.worktreePath }),
           'OK', { duration: 12000 });
-        this.refresh();
+        this.refresh(); this.changed.emit();
       },
       error: (err) => {
         this.busyId = null;
@@ -170,9 +190,9 @@ export class AgentReviewComponent implements OnInit, OnDestroy {
         // Senza, il tab continuerebbe a mostrare un worktree che l'agente puo' ripulire.
         if (this.context.agent === r.agentName) this.context.backToUser();
         this.snackBar.open(res.message, 'OK', { duration: 10000 });
-        this.refresh();
+        this.refresh(); this.changed.emit();
       },
-      error: () => { this.busyId = null; this.refresh(); },
+      error: () => { this.busyId = null; this.refresh(); this.changed.emit(); },
     });
   }
 

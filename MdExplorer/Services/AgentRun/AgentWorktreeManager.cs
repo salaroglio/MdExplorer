@@ -204,6 +204,13 @@ namespace MdExplorer.Services.AgentRun
         Task<string> CurrentBranchAsync(string worktreePath, CancellationToken ct = default);
 
         /// <summary>
+        /// Il testo di un file com'è in un commit (<c>git show &lt;sha&gt;:&lt;path&gt;</c>): ciò che un agente ha
+        /// consegnato, letto dalla consegna stessa e non dal posto di lavoro — che nel frattempo può essere
+        /// passato a un altro agente. <c>null</c> se il commit non ha quel file.
+        /// </summary>
+        Task<string> ReadFileAtAsync(string projectPath, string commit, string relativePath, CancellationToken ct = default);
+
+        /// <summary>
         /// Il posto di lavoro dell'agente ha qualcosa da passare? Vero se ci sono file non committati (anche nuovi) o
         /// commit non ancora in <c>origin/&lt;default&gt;</c>. Falso per un posto appena preparato, e anche quando
         /// l'agente non ha un posto. Serve a decidere se una catena ha senso: chi non ha scritto niente non ha niente
@@ -536,6 +543,14 @@ namespace MdExplorer.Services.AgentRun
                 return slots.FirstOrDefault(x => string.Equals(x.Agent, name, StringComparison.OrdinalIgnoreCase))?.Path;
             }
             finally { gate.Release(); }
+        }
+
+        public async Task<string> ReadFileAtAsync(string projectPath, string commit, string relativePath, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(commit) || string.IsNullOrWhiteSpace(relativePath)) return null;
+            var path = relativePath.Replace('\\', '/').TrimStart('/');
+            var (code, text, _) = await GitAsync(projectPath, new[] { "show", $"{commit.Trim()}:{path}" }, ct);
+            return code == 0 ? text : null;
         }
 
         public async Task<string> CurrentBranchAsync(string worktreePath, CancellationToken ct = default)
