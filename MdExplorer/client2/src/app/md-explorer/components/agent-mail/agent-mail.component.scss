@@ -127,3 +127,31 @@
   .row-from { font-weight: 600; }
 }
 .mail-row .row-pending { flex: 0 0 auto; font-size: 16px; width: 16px; height: 16px; color: #f29900; }
+
+// Le risposte possibili: un pulsante per risposta, con sotto che cosa succede premendolo.
+.reply-lock {
+  display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; margin-bottom: 10px; border-radius: 6px;
+  background: rgba(242, 153, 0, 0.14); font-size: 13px;
+  mat-icon { flex: 0 0 auto; color: #f29900; }
+}
+.reply-option { margin: 8px 0 14px; }
+.reply-option-description { margin: 6px 0 0; font-size: 13px; line-height: 1.45; opacity: 0.85; max-width: 70ch; }
+.reply-none { font-size: 13px; opacity: 0.75; }
+
+// Le righe di stato dei lavori attesi: lo sfondo dice a che punto è il lavoro, e si accende quando cambia.
+.mail-row.awaited {
+  cursor: default; align-items: center; padding-top: 6px; padding-bottom: 6px;
+  &:hover { background: inherit; }
+  .row-from { font-weight: 500; }
+  .row-state { font-size: 12px; font-weight: 600; }
+  .row-icon { margin-top: 0; opacity: 1; }
+  &.awaited-working, &.awaited-reworking { background: rgba(26, 115, 232, 0.10); .row-icon, .row-state { color: #1a73e8; } }
+  &.awaited-approval { background: rgba(242, 153, 0, 0.16); .row-icon, .row-state { color: #b06000; } }
+  &.awaited-approved, &.awaited-done { background: rgba(24, 128, 56, 0.12); .row-icon, .row-state { color: #188038; } }
+  &.awaited-rejected, &.awaited-failed { background: rgba(217, 48, 37, 0.14); .row-icon, .row-state { color: #d93025; } }
+  &.changed { animation: awaited-flash 1.1s ease-in-out 4; }
+}
+@keyframes awaited-flash {
+  0%, 100% { box-shadow: inset 0 0 0 0 transparent; }
+  50% { box-shadow: inset 0 0 0 2px currentColor, inset 0 0 0 100px rgba(255, 213, 79, 0.45); }
+}

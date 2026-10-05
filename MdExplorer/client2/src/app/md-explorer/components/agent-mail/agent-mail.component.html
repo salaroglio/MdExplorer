@@ -36,25 +36,40 @@
         <p>{{ (showArchive ? 'AGENT_MAIL.EMPTY_ARCHIVE' : 'AGENT_MAIL.EMPTY') | translate }}</p>
       </div>
 
-      <button type="button" class="mail-row" *ngFor="let item of items; trackBy: trackItem"
-              [class.selected]="selected === item" [class.unread]="item.unread" [class.child]="item.child"
-              [ngClass]="'kind-' + item.kind"
-              (click)="select(item)">
-        <span class="row-branch" *ngIf="item.child" aria-hidden="true"></span>
-        <span class="row-dot"></span>
-        <mat-icon class="row-icon">{{ item.kind === 'message' ? 'smart_toy' : item.kind === 'review' ? 'rule' : 'hub' }}</mat-icon>
-        <span class="row-main">
-          <span class="row-top">
-            <span class="row-from">{{ item.child ? ('AGENT_MAIL.CHILD_REVIEW' | translate) : item.from }}</span>
-            <mat-icon class="row-pending" *ngIf="item.hasPending" [matTooltip]="'AGENT_MAIL.HAS_PENDING' | translate">rule</mat-icon>
-            <span class="row-when" [title]="item.when">{{ item.when | date:'short' }}</span>
+      <ng-container *ngFor="let item of items; trackBy: trackItem">
+        <!-- Un lavoro chiesto a un altro agente: una riga di stato per chi lo aspetta. Cambia da sola, e lo sfondo
+             dice a che punto è. Non si seleziona: non c'è niente da decidere qui. -->
+        <div class="mail-row child awaited" *ngIf="item.kind === 'awaited'" role="status"
+             [ngClass]="'awaited-' + item.awaited.state" [class.changed]="item.changed"
+             [title]="item.awaited.note || ''">
+          <span class="row-branch" aria-hidden="true"></span>
+          <mat-icon class="row-icon">{{ awaitedIcon(item.awaited.state) }}</mat-icon>
+          <span class="row-main">
+            <span class="row-from">{{ 'AGENT_MAIL.AWAITED_WORK' | translate: { agent: item.from } }}</span>
+            <span class="row-state">{{ ('AGENT_MAIL.AWAITED_' + item.awaited.state) | translate }}</span>
           </span>
-          <span class="row-kind" *ngIf="item.kind !== 'message' && !item.child">
-            {{ (item.kind === 'review' ? 'AGENT_MAIL.KIND_REVIEW' : 'AGENT_MAIL.KIND_FEDERATION') | translate }}
+        </div>
+
+        <button type="button" class="mail-row" *ngIf="item.kind !== 'awaited'"
+                [class.selected]="selected === item" [class.unread]="item.unread" [class.child]="item.child"
+                [ngClass]="'kind-' + item.kind"
+                (click)="select(item)">
+          <span class="row-branch" *ngIf="item.child" aria-hidden="true"></span>
+          <span class="row-dot"></span>
+          <mat-icon class="row-icon">{{ item.kind === 'message' ? 'smart_toy' : item.kind === 'review' ? 'rule' : 'hub' }}</mat-icon>
+          <span class="row-main">
+            <span class="row-top">
+              <span class="row-from">{{ item.child ? ('AGENT_MAIL.CHILD_REVIEW' | translate) : item.from }}</span>
+              <mat-icon class="row-pending" *ngIf="item.hasPending" [matTooltip]="'AGENT_MAIL.HAS_PENDING' | translate">rule</mat-icon>
+              <span class="row-when" [title]="item.when">{{ item.when | date:'short' }}</span>
+            </span>
+            <span class="row-kind" *ngIf="item.kind !== 'message' && !item.child">
+              {{ (item.kind === 'review' ? 'AGENT_MAIL.KIND_REVIEW' : 'AGENT_MAIL.KIND_FEDERATION') | translate }}
+            </span>
+            <span class="row-preview">{{ item.preview }}</span>
           </span>
-          <span class="row-preview">{{ item.preview }}</span>
-        </span>
-      </button>
+        </button>
+      </ng-container>
     </aside>
 
     <!-- ============ A destra: il dettaglio, o il documento aperto ============ -->
@@ -118,15 +133,40 @@
             </div>
           </div>
 
+          <!-- Che cosa puoi rispondere. Le risposte le dichiara la scheda dell'agente e le propone il messaggio:
+               qui diventano pulsanti. Finché l'artefatto di questo lavoro non è approvato, non si risponde. -->
           <div class="reply">
-            <label class="reply-label" for="agent-mail-reply">{{ 'AGENT_MAIL.REPLY_LABEL' | translate: { agent: selected.from } }}</label>
-            <textarea id="agent-mail-reply" class="reply-text" rows="3" [(ngModel)]="replyDraft"
-                      [placeholder]="'MAILBOX.REPLY_PLACEHOLDER' | translate"></textarea>
-            <div class="reply-actions">
-              <button mat-raised-button color="primary" class="btn-reply" [disabled]="!canReply()" (click)="reply()">
-                <mat-icon>send</mat-icon> {{ 'MAILBOX.REPLY_BUTTON' | translate }}
-              </button>
+            <div class="reply-lock" *ngIf="replyLock() as lock" role="status">
+              <mat-icon>{{ lock === 'pending' ? 'lock_clock' : 'block' }}</mat-icon>
+              <span>{{ (lock === 'pending' ? 'AGENT_MAIL.REPLY_LOCK_PENDING' : 'AGENT_MAIL.REPLY_LOCK_REJECTED') | translate: { agent: selected.from } }}</span>
             </div>
+
+            <ng-container *ngIf="selected.message.replies?.length">
+              <div class="reply-label">{{ 'AGENT_MAIL.REPLIES_LABEL' | translate: { agent: selected.from } }}</div>
+              <div class="reply-option" *ngFor="let r of selected.message.replies">
+                <button mat-raised-button color="primary" class="btn-reply-option"
+                        [disabled]="sending || !!replyLock()" (click)="replyWith(r)">
+                  <mat-icon>send</mat-icon> {{ r.label }}
+                </button>
+                <p class="reply-option-description">{{ r.description }}</p>
+              </div>
+            </ng-container>
+
+            <!-- Il campo libero resta solo per gli agenti che non dichiarano le loro risposte. -->
+            <ng-container *ngIf="!selected.message.declaresReplies">
+              <label class="reply-label" for="agent-mail-reply">{{ 'AGENT_MAIL.REPLY_LABEL' | translate: { agent: selected.from } }}</label>
+              <textarea id="agent-mail-reply" class="reply-text" rows="3" [(ngModel)]="replyDraft" [disabled]="!!replyLock()"
+                        [placeholder]="'MAILBOX.REPLY_PLACEHOLDER' | translate"></textarea>
+              <div class="reply-actions">
+                <button mat-raised-button color="primary" class="btn-reply" [disabled]="!canReply()" (click)="reply()">
+                  <mat-icon>send</mat-icon> {{ 'MAILBOX.REPLY_BUTTON' | translate }}
+                </button>
+              </div>
+            </ng-container>
+
+            <p class="reply-none" *ngIf="selected.message.declaresReplies && !selected.message.replies?.length">
+              {{ 'AGENT_MAIL.REPLIES_NONE' | translate: { agent: selected.from } }}
+            </p>
           </div>
         </div>
 

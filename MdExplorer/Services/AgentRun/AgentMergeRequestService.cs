@@ -38,7 +38,8 @@ namespace MdExplorer.Services.AgentRun
         /// <param name="runId">Il turno di lavoro che ha prodotto l'artefatto. null = non è un turno a pubblicare
         /// (una persona che corregge): la richiesta resta legata al turno che l'ha aperta.</param>
         AgentMergeRequest Open(string projectPath, string agentName, string publishedBranch,
-                               string localBranch, string headSha, IEnumerable<ChangedFile> changed, string runId = null);
+                               string localBranch, string headSha, IEnumerable<ChangedFile> changed, string runId = null,
+                               string triggerMessageId = null);
 
         /// <summary>Richieste ancora da decidere, più recenti prima.</summary>
         IReadOnlyList<AgentMergeRequest> Pending(string projectPath);
@@ -69,7 +70,24 @@ namespace MdExplorer.Services.AgentRun
         /// Rifiuta. <b>Non distrugge nulla</b>: il branch resta e il lavoro è ancora lì — da qui
         /// la strada naturale è aprire il worktree e metterci mano.
         /// </summary>
+        /// <summary>
+        /// Rifiuta, con il motivo (obbligatorio). Rifiutare <b>ferma</b>: niente riparte da solo. Se il lavoro
+        /// l'aveva chiesto un altro agente resta «fermo» finché la persona non lo fa ripartire (<see cref="Rework"/>);
+        /// se l'aveva chiesto la persona è un ramo chiuso.
+        /// </summary>
         AgentMergeRequest Reject(Guid id, string note);
+
+        /// <summary>I lavori rifiutati che qualcuno aspetta e che nessuno sta rifacendo: fermi, in attesa della persona.</summary>
+        IReadOnlyList<AgentMergeRequest> Stopped(string projectPath);
+
+        /// <summary>
+        /// «Fai ripartire»: l'incarico che aveva prodotto il lavoro rifiutato torna in coda, con il motivo del
+        /// rifiuto. È un gesto della persona, che nel frattempo può aver corretto la scheda dell'agente.
+        /// </summary>
+        AgentMergeRequest Rework(Guid id);
+
+        /// <summary>Il lavoro di questa richiesta l'aveva chiesto un altro agente: qualcuno lo aspetta.</summary>
+        bool SomeoneIsWaitingFor(AgentMergeRequest request);
     }
 
     public class AgentMergeRequestService : IAgentMergeRequestService
@@ -89,7 +107,8 @@ namespace MdExplorer.Services.AgentRun
         }
 
         public AgentMergeRequest Open(string projectPath, string agentName, string publishedBranch,
-                                      string localBranch, string headSha, IEnumerable<ChangedFile> changed, string runId = null)
+                                      string localBranch, string headSha, IEnumerable<ChangedFile> changed, string runId = null,
+                                      string triggerMessageId = null)
         {
             if (string.IsNullOrWhiteSpace(projectPath) || string.IsNullOrWhiteSpace(publishedBranch))
                 throw new ArgumentException("projectPath e publishedBranch sono obbligatori");
@@ -120,6 +139,7 @@ namespace MdExplorer.Services.AgentRun
                 request.HeadSha = headSha;
                 request.ChangedFiles = Encode(changed);
                 if (!string.IsNullOrWhiteSpace(runId)) request.RunId = runId;
+                if (!string.IsNullOrWhiteSpace(runId)) request.TriggerMessageId = triggerMessageId;   // il turno nuovo dice chi l'ha chiesto
 
                 if (existing != null)
                 {
@@ -239,8 +259,102 @@ namespace MdExplorer.Services.AgentRun
         }
 
         public AgentMergeRequest Reject(Guid id, string note)
-            => Decide(id, AgentMergeRequest.StatusEnum.Rejected,
-                      string.IsNullOrWhiteSpace(note) ? "Rifiutata dall'umano." : note.Trim());
+        {
+            if (string.IsNullOrWhiteSpace(note))
+                throw new InvalidOperationException("Per rifiutare serve il motivo: è ciò che l'agente legge se il lavoro riparte.");
+            // Rifiutare FERMA. Niente riparte da solo: se la risposta è sballata la causa è spesso nella scheda
+            // dell'agente, e ripartire subito rifarebbe lo stesso errore prima che la persona possa correggerla.
+            return Decide(id, AgentMergeRequest.StatusEnum.Rejected, note.Trim());
+        }
+
+        public bool SomeoneIsWaitingFor(AgentMergeRequest request) => WaitingTrigger(request) != null;
+
+        public IReadOnlyList<AgentMergeRequest> Stopped(string projectPath)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.Clear();
+            db.BeginTransaction();
+            var rejected = db.GetDal<AgentMergeRequest>().GetList().ToList()
+                .Where(r => r.Status == AgentMergeRequest.StatusEnum.Rejected
+                            && !string.IsNullOrEmpty(r.TriggerMessageId)
+                            && AgentPathComparer.Equals(r.ProjectPath, projectPath))
+                .ToList();
+            var messages = db.GetDal<AgentMessage>();
+            var stopped = new List<AgentMergeRequest>();
+            foreach (var r in rejected)
+            {
+                if (!Guid.TryParse(r.TriggerMessageId, out var triggerId)) continue;
+                var trigger = messages.GetList().FirstOrDefault(m => m.Id == triggerId);
+                // Fermo = l'incarico è concluso (nessuno lo sta rifacendo) e l'aveva chiesto un altro agente.
+                if (trigger != null && trigger.State == AgentMessage.StateEnum.Processed && !FromThePerson(trigger))
+                    stopped.Add(r);
+            }
+            db.Commit();
+            return stopped.OrderByDescending(r => r.DecidedAt ?? r.CreatedAt).ToList();
+        }
+
+        public AgentMergeRequest Rework(Guid id)
+        {
+            var request = Get(id) ?? throw new InvalidOperationException($"Richiesta {id} inesistente.");
+            if (request.Status != AgentMergeRequest.StatusEnum.Rejected)
+                throw new InvalidOperationException("Si fa ripartire solo un lavoro rifiutato.");
+            if (WaitingTrigger(request) == null)
+                throw new InvalidOperationException(
+                    "Questo lavoro non l'aveva chiesto un altro agente: non c'è un incarico da rimettere in coda. Per riprovare, rilancia l'agente.");
+            var triggerId = Guid.Parse(request.TriggerMessageId);
+
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.Clear();
+            db.BeginTransaction();
+            try
+            {
+                var dal = db.GetDal<AgentMessage>();
+                var m = dal.GetList().FirstOrDefault(x => x.Id == triggerId)
+                    ?? throw new InvalidOperationException("L'incarico originale non c'è più: non posso rimetterlo in coda.");
+                if (m.State != AgentMessage.StateEnum.Processed)
+                    throw new InvalidOperationException("L'incarico è già in coda o in lavorazione: il lavoro sta ripartendo.");
+                m.State = AgentMessage.StateEnum.Pending;
+                m.ProcessedAt = null;
+                m.NextAttemptAt = null;
+                // Tentativi azzerati: non è un ritentativo dopo un errore, è lo stesso lavoro chiesto di nuovo.
+                m.Attempts = 0;
+                m.Error = null;
+                m.ForcedAt = null;
+                m.ReworkNote = request.Note;
+                dal.Save(m);
+                db.Commit();
+            }
+            catch
+            {
+                db.Rollback();
+                throw;
+            }
+            _logger.LogInformation("[Merge] lavoro di '{Agent}' fatto ripartire dalla persona: l'incarico {Message} torna in coda con il motivo del rifiuto.",
+                request.AgentName, triggerId);
+            return request;
+        }
+
+        private static bool FromThePerson(AgentMessage m)
+            => string.Equals(m.FromAgent, MdExplorer.Features.Agents.ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Il messaggio che ha fatto partire il turno, se viene da un <b>altro agente</b>: allora qualcuno aspetta
+        /// questo artefatto. Un lavoro lanciato dalla persona (a mano, o rispondendo a un messaggio) non ha
+        /// nessuno in attesa: rifiutato, è un ramo chiuso.
+        /// </summary>
+        private AgentMessage WaitingTrigger(AgentMergeRequest request)
+        {
+            if (request == null || !Guid.TryParse(request.TriggerMessageId, out var triggerId)) return null;
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.Clear();
+            db.BeginTransaction();
+            var trigger = db.GetDal<AgentMessage>().GetList().FirstOrDefault(m => m.Id == triggerId);
+            db.Commit();
+            return trigger != null && !FromThePerson(trigger) ? trigger : null;
+        }
 
         private AgentMergeRequest Decide(Guid id, string status, string note)
         {

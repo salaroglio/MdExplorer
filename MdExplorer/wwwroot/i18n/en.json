@@ -1780,6 +1780,10 @@
     "DISABLED": "Memory (Fuseki) is not enabled for this project."
   },
   "AGENT_MAIL": {
+    "REPLIES_LABEL": "What you can reply to {{agent}}",
+    "REPLIES_NONE": "With this message {{agent}} is not asking you anything.",
+    "REPLY_LOCK_PENDING": "First decide on the artefact {{agent}} delivered with this message (the row below it in the list). Until you approve it, the reply does not go out.",
+    "REPLY_LOCK_REJECTED": "You rejected the artefact of this work: it is a closed branch, there is nothing to reply to. To try again, launch {{agent}} again.",
     "CHILD_REVIEW": "To approve: the artefact",
     "HAS_PENDING": "There is an artefact to approve below",
     "ARCHIVE": "Archive",
@@ -1814,7 +1818,16 @@
     "REPLY_LABEL": "Reply to {{agent}}",
     "CONVERSATIONS_TIP": "The agents' threads: who talked to whom, and how to stop them",
     "LOAD_ERROR": "I cannot read the mail.",
-    "ACTION_ERROR": "It did not work."
+    "ACTION_ERROR": "It did not work.",
+    "AWAITED_WORK": "Work of {{agent}}",
+    "AWAITED_working": "working",
+    "AWAITED_approval": "awaiting approval",
+    "AWAITED_approved": "approved",
+    "AWAITED_rejected": "rejected, stopped",
+    "AWAITED_reworking": "being redone",
+    "AWAITED_done": "done",
+    "AWAITED_failed": "failed",
+    "REVIEW_STOPPED": "Rejected: stopped until you restart it"
   },
   "MAILBOX": {
     "TITLE": "Agent messages",
@@ -1924,6 +1937,12 @@
     }
   },
   "AGENT_REVIEW": {
+    "REJECT_EFFECT_REWORK": "Another agent asked for this work and is waiting for it. If you reject it, it stops: {{agent}} does not restart by itself. You can fix its card and then restart it from here.",
+    "REJECT_EFFECT_DEAD": "You asked for this work: if you reject it, it ends here. Usually it is better to «Take over»: fix the artefact and approve it.",
+    "REJECT_NOTE_LABEL": "Reason for rejecting",
+    "REJECT_NOTE_PLACEHOLDER": "What is wrong, and what you expect",
+    "REJECT_CANCEL": "Cancel",
+    "REJECT_CONFIRM": "Reject",
     "TITLE": "Agent work to review",
     "REFRESH": "Refresh",
     "EMPTY": "Nothing waiting: your agents have nothing for you to approve.",
@@ -1949,7 +1968,13 @@
     "MERGE_FAILED": "The merge failed: there is probably a conflict to resolve by hand.",
     "TAKEN": "Folder opened: {{path}} — the agent is queued until you close.",
     "TAKEN_NO_FOLDER": "Session opened, but I could not open the file manager. The folder is: {{path}}",
-    "TAB": "Agent work"
+    "TAB": "Agent work",
+    "STOPPED_TITLE": "Rejected: the work is stopped",
+    "STOPPED_HINT": "Someone is waiting for this artefact, but nothing restarts by itself. If needed, fix the card of {{agent}} first; then restart it: it will receive the same assignment and your reason.",
+    "REWORK": "Restart",
+    "REWORK_STARTED": "Assignment queued again: the agent restarts with your reason.",
+    "REWORK_FAILED": "Could not restart the work.",
+    "REJECTED_STOPPED": "Rejected: the work is stopped until you restart it."
   },
   "CHANGES": {
     "OPEN_AGENT_DOCUMENT": "Open the document from the agent's copy",

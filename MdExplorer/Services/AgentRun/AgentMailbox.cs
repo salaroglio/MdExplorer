@@ -26,6 +26,9 @@ namespace MdExplorer.Services.AgentRun
 
         /// <summary>Il turno di lavoro dell'agente che scrive (dal suo RunToken); null se non scrive un turno.</summary>
         public string RunId { get; set; }
+
+        /// <summary>Le risposte proposte alla persona, già risolte dalla scheda del mittente (JSON); null se nessuna.</summary>
+        public string Replies { get; set; }
         /// <summary>
         /// Etichetta d'audit della causa del risveglio (Fase 7a): valorizzata per i wake speciali
         /// (es. <c>federated-result</c>); <c>null</c> per un messaggio ordinario → il dispatcher
@@ -158,6 +161,7 @@ namespace MdExplorer.Services.AgentRun
                     CreatedAt = now,
                     TriggerSource = request.TriggerSource,
                     RunId = request.RunId,
+                    Replies = request.Replies,
                 };
                 db.GetDal<AgentMessage>().Save(message);
                 db.Commit();

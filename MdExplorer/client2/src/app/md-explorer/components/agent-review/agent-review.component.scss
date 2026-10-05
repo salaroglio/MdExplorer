@@ -154,3 +154,19 @@
     .session-note { margin: 0 0 6px; font-size: 11px; opacity: .8; }
   }
 }
+
+// Il motivo del rifiuto.
+.reject-form {
+  margin-top: 10px; padding: 10px 12px; border-radius: 6px; background: rgba(217, 48, 37, 0.08);
+  .reject-effect { display: flex; align-items: flex-start; gap: 6px; margin: 0 0 8px; font-size: 13px; }
+  .reject-label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+  .reject-note { width: 100%; box-sizing: border-box; font: inherit; padding: 6px 8px; border-radius: 4px; border: 1px solid rgba(127, 127, 127, 0.5); background: transparent; color: inherit; }
+  .reject-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+}
+
+// Un lavoro rifiutato e fermo, in attesa che la persona lo faccia ripartire.
+.stopped {
+  margin-top: 10px; padding: 10px 12px; border-radius: 6px; background: rgba(217, 48, 37, 0.10);
+  .stopped-title { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-weight: 600; mat-icon { color: #d93025; } }
+  .stopped-note, .stopped-hint { margin: 0 0 8px; font-size: 13px; }
+}

@@ -87,11 +87,41 @@ public sealed class AgentTools : McpToolsBase
     public async Task<string> SendAgentMessage(
         [Description("The recipient agent's name (kebab-case), as shown by ListAgents.")] string toAgent,
         [Description("The message body. Plain text; state your intent clearly.")] string message,
-        [Description("Optional topics/tags describing the message, comma-separated (context only).")] string topics = null)
+        [Description("Optional topics/tags describing the message, comma-separated (context only).")] string topics = null,
+        [Description(
+            "Only when toAgent is 'user': the replies you propose to the person, as a JSON array. Each item has the 'id' " +
+            "of a reply DECLARED in your card (a2a.replies) plus one value for each {placeholder} of its texts, e.g. " +
+            "[{\"id\":\"avvia-giro\",\"codice\":\"NC-2027-014\"}]. They become buttons under your message. " +
+            "An undeclared id or a missing value refuses the send with the reason: fix it and send again.")] string replies = null)
     {
         var token = RunToken();
         if (token == null)
             return "Error: SendAgentMessage is only available to an agent woken by a message (no run token in the environment).";
+
+        List<Dictionary<string, string>> proposedReplies = null;
+        if (!string.IsNullOrWhiteSpace(replies))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(replies);
+                if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                    return "Error: replies must be a JSON array, e.g. [{\"id\":\"avvia-giro\",\"codice\":\"NC-2027-014\"}].";
+                proposedReplies = new List<Dictionary<string, string>>();
+                foreach (var item in doc.RootElement.EnumerateArray())
+                {
+                    if (item.ValueKind != JsonValueKind.Object)
+                        return "Error: each reply must be a JSON object with an 'id' and the placeholder values.";
+                    var values = new Dictionary<string, string>();
+                    foreach (var p in item.EnumerateObject())
+                        values[p.Name] = p.Value.ValueKind == JsonValueKind.String ? p.Value.GetString() : p.Value.ToString();
+                    proposedReplies.Add(values);
+                }
+            }
+            catch (JsonException ex)
+            {
+                return $"Error: replies is not valid JSON ({ex.Message}).";
+            }
+        }
         if (string.IsNullOrWhiteSpace(toAgent)) return "Error: toAgent is required.";
         if (string.IsNullOrWhiteSpace(message)) return "Error: message is required.";
 
@@ -105,6 +135,7 @@ public sealed class AgentTools : McpToolsBase
                 topics = string.IsNullOrWhiteSpace(topics)
                     ? new List<string>()
                     : topics.Split(',').Select(t => t.Trim()).Where(t => t.Length > 0).ToList(),
+                replies = proposedReplies,
             };
             var content = new System.Net.Http.StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
             var req = new System.Net.Http.HttpRequestMessage(System.Net.Http.HttpMethod.Post, "/api/A2A/messages/send") { Content = content };

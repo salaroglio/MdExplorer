@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.IntegrationTests.Infrastructure;
 using MdExplorer.Service.Models;
@@ -115,6 +116,96 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(0, Git(path, "cat-file -e origin/main:deliverable.md").Code,
                 "autorizzata, la richiesta fonde davvero");
             Assert.AreEqual(0, svc.Pending(path).Count, "la richiesta esce dall'elenco");
+        }
+
+        [TestMethod]
+        public void Ask_for_the_reason_when_the_human_rejects()
+        {
+            using var ctx = new AgentCityContext();
+            var (_, path) = ctx.SeedProject("mr-motivo");
+            var svc = ctx.Factory.Services.GetRequiredService<IAgentMergeRequestService>();
+            var request = svc.Open(path, "worker", "agent/tizio/worker/2026-10-05-docs-m1", "agent/worker/m1", "deadbeef",
+                new[] { new ChangedFile { Change = "modified", Path = "docs/a.md" } });
+
+            Assert.ThrowsException<InvalidOperationException>(() => svc.Reject(request.Id, "  "),
+                "il motivo è ciò che l'agente legge se il lavoro riparte");
+            Assert.AreEqual(1, svc.Pending(path).Count, "senza motivo non è stato rifiutato niente");
+        }
+
+        [TestMethod]
+        public void Stop_a_rejected_work_someone_is_waiting_for_until_the_human_restarts_it()
+        {
+            using var ctx = new AgentCityContext();
+            var (_, path) = ctx.SeedProject("mr-fermo");
+            var svc = ctx.Factory.Services.GetRequiredService<IAgentMergeRequestService>();
+
+            // L'incarico di un altro agente, già lavorato: è ciò che ha prodotto l'artefatto.
+            var assignment = SeedProcessedMessage(ctx, path, from: "account-manager", to: "tecnico");
+            var request = svc.Open(path, "tecnico", "agent/tizio/tecnico/2026-10-05-schede-f1", "agent/tecnico/f1", "deadbeef",
+                new[] { new ChangedFile { Change = "added", Path = "schede/tecnica.md" } }, "run1", assignment.ToString());
+            Assert.IsTrue(svc.SomeoneIsWaitingFor(request));
+
+            svc.Reject(request.Id, "manca la data");
+
+            // Rifiutare FERMA: l'incarico non torna in coda da solo.
+            Assert.AreEqual(AgentMessage.StateEnum.Processed, ReadMessage(ctx, assignment).State, "niente riparte da solo");
+            Assert.AreEqual(1, svc.Stopped(path).Count, "il lavoro fermo resta visibile: qualcuno lo aspetta");
+
+            svc.Rework(request.Id);
+
+            var queued = ReadMessage(ctx, assignment);
+            Assert.AreEqual(AgentMessage.StateEnum.Pending, queued.State, "«Fai ripartire» rimette in coda lo stesso incarico");
+            Assert.AreEqual("manca la data", queued.ReworkNote, "l'agente riceve il motivo del rifiuto");
+            Assert.AreEqual(0, queued.Attempts, "non è un ritentativo dopo un errore");
+            Assert.AreEqual(0, svc.Stopped(path).Count, "sta ripartendo: non è più fermo");
+            Assert.ThrowsException<InvalidOperationException>(() => svc.Rework(request.Id), "non si fa ripartire due volte");
+        }
+
+        [TestMethod]
+        public void Treat_a_rejected_work_the_human_asked_for_as_a_closed_branch()
+        {
+            using var ctx = new AgentCityContext();
+            var (_, path) = ctx.SeedProject("mr-chiuso");
+            var svc = ctx.Factory.Services.GetRequiredService<IAgentMergeRequestService>();
+
+            // Il turno era partito da una risposta della persona: nessun altro agente aspetta.
+            var fromPerson = SeedProcessedMessage(ctx, path, from: "user", to: "account-manager");
+            var request = svc.Open(path, "account-manager", "agent/tizio/account-manager/2026-10-05-ricerche-c1", "agent/account-manager/c1",
+                "deadbeef", new[] { new ChangedFile { Change = "added", Path = "ricerche/r.md" } }, "run2", fromPerson.ToString());
+            Assert.IsFalse(svc.SomeoneIsWaitingFor(request));
+
+            svc.Reject(request.Id, "ricerca sbagliata");
+
+            Assert.AreEqual(0, svc.Stopped(path).Count, "ramo chiuso: non c'è niente da far ripartire");
+            Assert.ThrowsException<InvalidOperationException>(() => svc.Rework(request.Id));
+        }
+
+        private static Guid SeedProcessedMessage(AgentCityContext ctx, string projectPath, string from, string to)
+        {
+            using var scope = ctx.Factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<MdExplorer.Abstractions.DB.IUserSettingsDB>();
+            db.BeginTransaction();
+            var message = new AgentMessage
+            {
+                ConversationId = Guid.NewGuid(), A2ATaskId = Guid.NewGuid().ToString("N"),
+                FromAgent = from, ToAgent = to, ProjectPath = projectPath, Body = "[INCARICO] scrivi la scheda",
+                State = AgentMessage.StateEnum.Processed, Attempts = 1,
+                CreatedAt = DateTime.UtcNow, ProcessedAt = DateTime.UtcNow,
+            };
+            db.GetDal<AgentMessage>().Save(message);
+            db.Commit();
+            return message.Id;
+        }
+
+        private static AgentMessage ReadMessage(AgentCityContext ctx, Guid id)
+        {
+            using var scope = ctx.Factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<MdExplorer.Abstractions.DB.IUserSettingsDB>();
+            db.Clear();
+            db.BeginTransaction();
+            var m = db.GetDal<AgentMessage>().GetList().First(x => x.Id == id);
+            db.Commit();
+            return m;
         }
 
         [TestMethod]

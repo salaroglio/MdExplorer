@@ -150,10 +150,44 @@ export class AgentReviewComponent implements OnInit, OnChanges, OnDestroy {
     });
   }
 
-  reject(r: MergeRequest): void {
+  /** «Fai ripartire»: l'incarico torna in coda con il motivo del rifiuto. Un gesto, non un automatismo. */
+  rework(r: MergeRequest): void {
     this.busyId = r.id;
-    this.review.reject(r.id).subscribe({
-      next: () => { this.busyId = null; this.toast('AGENT_REVIEW.REJECTED'); this.refresh(); this.changed.emit(); },
+    this.review.rework(r.id).subscribe({
+      next: () => { this.busyId = null; this.toast('AGENT_REVIEW.REWORK_STARTED'); this.refresh(); this.changed.emit(); },
+      error: (err) => {
+        this.busyId = null;
+        this.snackBar.open(err?.error?.error || this.translate.instant('AGENT_REVIEW.REWORK_FAILED'), 'OK', { duration: 7000 });
+        this.refresh(); this.changed.emit();
+      },
+    });
+  }
+
+  /** La richiesta di cui si sta scrivendo il motivo del rifiuto (null = nessuna). */
+  rejectingId: string | null = null;
+  rejectNote = '';
+
+  /** Rifiutare chiede il motivo: è ciò che l'agente legge se deve rifare il lavoro. */
+  askReject(r: MergeRequest): void {
+    this.rejectingId = r.id;
+    this.rejectNote = '';
+  }
+
+  cancelReject(): void {
+    this.rejectingId = null;
+    this.rejectNote = '';
+  }
+
+  reject(r: MergeRequest): void {
+    const note = this.rejectNote.trim();
+    if (!note) return;
+    this.busyId = r.id;
+    this.review.reject(r.id, note).subscribe({
+      next: () => {
+        this.busyId = null; this.cancelReject();
+        this.toast(r.someoneWaiting ? 'AGENT_REVIEW.REJECTED_STOPPED' : 'AGENT_REVIEW.REJECTED');
+        this.refresh(); this.changed.emit();
+      },
       error: () => { this.busyId = null; this.refresh(); this.changed.emit(); },
     });
   }

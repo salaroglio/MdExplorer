@@ -131,8 +131,26 @@ namespace MdExplorer.Controllers.A2A
                         return StatusCode(429, new { error = $"Tetto messaggi verso l'umano raggiunto ({MaxUnreadUserMessagesPerConversation} non letti in questa conversazione): attendi che l'umano legga o risponda." });
                 }
 
+                // Le risposte proposte alla persona: si risolvono ADESSO dalla scheda del mittente. Una risposta
+                // non dichiarata o un valore mancante rifiutano l'invio con il motivo, così l'agente lo corregge:
+                // un pulsante rotto nella posta non lo correggerebbe più nessuno.
+                string repliesJson = null;
+                if (request.Replies != null && request.Replies.Count > 0)
+                {
+                    var sender = _registry.RefreshCatalog(claims.ProjectPath)
+                        .FirstOrDefault(e => string.Equals(e.Name, claims.AgentName, StringComparison.OrdinalIgnoreCase));
+                    var resolved = AgentReplyResolver.Resolve(
+                        sender?.Replies,
+                        request.Replies.Select(r => (IDictionary<string, string>)r),
+                        out var replyError);
+                    if (resolved == null)
+                        return BadRequest(new { error = replyError });
+                    repliesJson = System.Text.Json.JsonSerializer.Serialize(resolved);
+                }
+
                 var toUser = _mailbox.Enqueue(new EnqueueRequest
                 {
+                    Replies = repliesJson,
                     ProjectPath = claims.ProjectPath,
                     FromAgent = claims.AgentName,               // R2: mittente certificato
                     ToAgent = ConversationHopGuard.UserRecipient,
@@ -178,6 +196,7 @@ namespace MdExplorer.Controllers.A2A
                 ContextId = claims.ConversationId,          // stessa conversazione → gli hop si accumulano (anti-loop)
                 HopLimitOverride = recipient.MaxHops,
                 Topics = request.Topics,                    // §8: contesto dichiarato dal mittente
+                RunId = claims.RunId.ToString("N"),         // il turno che incarica: chi aspetta vede lo stato di ciò che ha chiesto
             });
 
             if (!result.Accepted)
@@ -635,5 +654,11 @@ namespace MdExplorer.Controllers.A2A
 
         /// <summary>Argomenti dichiarati dal mittente (§8): metadata di contesto, opzionale.</summary>
         public List<string>? Topics { get; set; }
+
+        /// <summary>
+        /// Solo verso la persona: le risposte che l'agente le propone. Ogni voce ha <c>id</c> (una risposta
+        /// dichiarata in <c>a2a.replies</c> della scheda) più i valori dei segnaposto dei suoi testi.
+        /// </summary>
+        public List<Dictionary<string, string>>? Replies { get; set; }
     }
 }

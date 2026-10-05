@@ -25,6 +25,8 @@ export interface MergeRequest {
   note: string | null;
   /** Il turno di lavoro che ha prodotto l'artefatto: lo stesso scritto sul messaggio dell'agente. */
   runId?: string | null;
+  /** Qualcuno aspetta questo artefatto (l'aveva chiesto un altro agente): rifiutarlo lo fa rifare. */
+  someoneWaiting?: boolean;
   /** C'è una sessione d'intervento aperta su questo agente: ci stai già lavorando. */
   sessionOpen: boolean;
   files: ChangedFile[];
@@ -89,6 +91,11 @@ export class AgentReviewService {
 
   reject(id: string, note?: string): Observable<MergeRequest> {
     return this.http.post<MergeRequest>(`../api/AgentReview/requests/${id}/reject`, { note });
+  }
+
+  /** «Fai ripartire» un lavoro rifiutato che qualcuno aspetta: l'incarico torna in coda con il motivo del rifiuto. */
+  rework(id: string): Observable<MergeRequest> {
+    return this.http.post<MergeRequest>(`../api/AgentReview/requests/${id}/rework`, {});
   }
 
   /** Apre la sessione d'intervento e la cartella del worktree sul filesystem. */

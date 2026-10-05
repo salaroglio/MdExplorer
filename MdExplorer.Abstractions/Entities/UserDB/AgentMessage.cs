@@ -77,6 +77,18 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual string RunId { get; set; }
 
         /// <summary>
+        /// Le risposte che l'agente propone alla persona con questo messaggio (JSON), già risolte dalla sua scheda:
+        /// testo del pulsante, descrizione, messaggio che il pulsante invia. null = nessuna risposta proposta.
+        /// </summary>
+        public virtual string Replies { get; set; }
+
+        /// <summary>
+        /// Perché il lavoro fatto su questo incarico è stato rifiutato da chi ne risponde. Presente quando
+        /// l'incarico è tornato in coda dopo un rifiuto: l'agente lo riceve insieme al messaggio e ne tiene conto.
+        /// </summary>
+        public virtual string ReworkNote { get; set; }
+
+        /// <summary>
         /// Motivo per cui la consegna è <b>parcheggiata</b> (§12.5 coda differita, Fase 6c):
         /// l'agente non è eseguibile adesso ma la richiesta NON fallisce. Valori
         /// <see cref="DeferredReasonEnum"/> (<c>resources</c>/<c>maintenance</c>/<c>user</c>).

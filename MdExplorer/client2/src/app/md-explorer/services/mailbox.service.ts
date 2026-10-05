@@ -18,6 +18,35 @@ export interface MailboxMessage {
   archived?: boolean;
   /** Il turno di lavoro dell'agente che l'ha scritto: lega il messaggio alla richiesta di approvazione dello stesso turno. */
   runId?: string | null;
+  /** Le risposte che l'agente propone: i pulsanti sotto il messaggio. */
+  replies?: MailReply[];
+  /** La scheda dell'agente dichiara le sue risposte: non c'è campo libero. */
+  declaresReplies?: boolean;
+  /** L'artefatto del turno che ha scritto il messaggio: 'pending' = da decidere, 'rejected' = rifiutato; in entrambi i casi non si risponde. */
+  artifact?: string | null;
+  /** I lavori che il turno di questo messaggio ha chiesto ad altri agenti, con il loro stato: per chi li aspetta. */
+  awaited?: AwaitedWork[];
+}
+
+/** Un lavoro chiesto a un altro agente, visto da chi lo aspetta. */
+export interface AwaitedWork {
+  messageId: string;
+  agent: string;
+  /** working = sta lavorando · approval = artefatto in approvazione · approved · rejected = rifiutato, fermo · reworking · done = concluso senza artefatto · failed */
+  state: 'working' | 'approval' | 'approved' | 'rejected' | 'reworking' | 'done' | 'failed';
+  /** Il motivo del rifiuto, quando c'è. */
+  note?: string | null;
+}
+
+/** Una risposta dichiarata dalla scheda dell'agente e proposta con il messaggio. */
+export interface MailReply {
+  id: string;
+  /** Il testo del pulsante. */
+  label: string;
+  /** Che cosa succede premendo: chi viene contattato e per ottenere cosa. */
+  description: string;
+  /** Il messaggio che l'agente riceve. */
+  message: string;
 }
 
 export interface MailboxInbox {

@@ -52,6 +52,12 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// <summary>Il turno di lavoro che ha prodotto questo artefatto: lo stesso scritto sui messaggi di quel turno.</summary>
         public virtual string RunId { get; set; }
 
+        /// <summary>
+        /// Il messaggio che ha fatto partire il turno (null = lanciato a mano o da uno schedule). Se viene da un
+        /// altro agente qualcuno aspetta questo artefatto: un rifiuto rimette in coda quell'incarico.
+        /// </summary>
+        public virtual string TriggerMessageId { get; set; }
+
         public static class StatusEnum
         {
             public const string Pending = "pending";

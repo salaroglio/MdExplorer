@@ -10,7 +10,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { forkJoin, of, Subscription } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 
-import { MailboxMessage, MailboxService } from '../../services/mailbox.service';
+import { MailboxMessage, MailboxService, MailReply, AwaitedWork } from '../../services/mailbox.service';
 import { AgentReviewService, MailArtifact, MergeRequest } from '../../services/agent-review.service';
 import { FederationRequest, FederationService } from '../../services/federation.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
@@ -23,7 +23,7 @@ export interface AgentMailData {
 
 /** Una riga dell'elenco: un messaggio di un agente, un lavoro da approvare, o la richiesta di un collega. */
 export interface MailItem {
-  kind: 'message' | 'review' | 'federation';
+  kind: 'message' | 'review' | 'federation' | 'awaited';
   id: string;
   when: string;
   from: string;
@@ -39,6 +39,10 @@ export interface MailItem {
   child?: boolean;
   /** Per un messaggio: ha sotto di sé qualcosa da decidere. */
   hasPending?: boolean;
+  /** Una riga di stato: un lavoro chiesto a un altro agente, per chi lo aspetta. Non si seleziona. */
+  awaited?: AwaitedWork;
+  /** Lo stato è cambiato dall'ultima lettura: la riga si accende per qualche secondo. */
+  changed?: boolean;
 }
 
 /** Il documento aperto nel riquadro di destra, al posto del dettaglio. */
@@ -103,6 +107,7 @@ export class AgentMailComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.awaitedTimer) clearInterval(this.awaitedTimer);
     this.subs.unsubscribe();
   }
 
@@ -171,11 +176,38 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     }
 
     const ordered: MailItem[] = [];
+    const seen = new Map<string, string>();
     for (const top of [...messages, ...alone, ...federation].sort(newestFirst)) {
       ordered.push(top);
       ordered.push(...(under.get(top) || []).sort(newestFirst));
+      // Ciò che questo turno ha chiesto ad altri: una riga per lavoro, che cambia stato da sola.
+      for (const w of top.message?.awaited || []) {
+        const before = this.awaitedStates.get(w.messageId);
+        seen.set(w.messageId, w.state);
+        ordered.push({
+          kind: 'awaited', id: w.messageId, when: top.when, from: w.agent, preview: '', unread: false, child: true,
+          awaited: w, changed: before !== undefined && before !== w.state,
+        });
+      }
     }
+    this.awaitedStates = seen;
+    this.watchAwaited(ordered);
     return ordered;
+  }
+
+  /** Lo stato visto all'ultima lettura, per lavoro atteso: serve a far notare un cambio. */
+  private awaitedStates = new Map<string, string>();
+  private awaitedTimer: any = null;
+
+  /** Finché c'è un lavoro atteso non ancora concluso, l'elenco si rilegge da solo: lo stato cambia senza che nessuno scriva. */
+  private watchAwaited(items: MailItem[]): void {
+    const open = items.some(i => i.awaited && ['working', 'approval', 'reworking', 'rejected'].includes(i.awaited.state));
+    if (open && !this.awaitedTimer) this.awaitedTimer = setInterval(() => { if (!this.loading) this.reload(); }, 15000);
+    if (!open && this.awaitedTimer) { clearInterval(this.awaitedTimer); this.awaitedTimer = null; }
+  }
+
+  awaitedIcon(state: string): string {
+    return ({ working: 'hourglass_top', approval: 'rule', approved: 'check_circle', rejected: 'block', reworking: 'replay', done: 'check', failed: 'error' } as any)[state] || 'help';
   }
 
   private fromMessage(m: MailboxMessage): MailItem {
@@ -186,7 +218,9 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     const count = (r.files || []).length;
     return {
       kind: 'review', id: r.id, when: r.createdAt, from: r.agentName, unread: true, request: r,
-      preview: this.translate.instant(count === 1 ? 'AGENT_MAIL.REVIEW_PREVIEW_ONE' : 'AGENT_MAIL.REVIEW_PREVIEW', { count }),
+      preview: r.status === 'rejected'
+        ? this.translate.instant('AGENT_MAIL.REVIEW_STOPPED')
+        : this.translate.instant(count === 1 ? 'AGENT_MAIL.REVIEW_PREVIEW_ONE' : 'AGENT_MAIL.REVIEW_PREVIEW', { count }),
     };
   }
 
@@ -256,7 +290,20 @@ export class AgentMailComponent implements OnInit, OnDestroy {
   }
 
   canReply(): boolean {
-    return this.selected?.kind === 'message' && this.replyDraft.trim().length > 0 && !this.sending;
+    return this.selected?.kind === 'message' && this.replyDraft.trim().length > 0 && !this.sending && !this.replyLock();
+  }
+
+  /** Perché a questo messaggio non si può rispondere adesso (null = si può). L'ordine lo impone anche il servizio. */
+  replyLock(): 'pending' | 'rejected' | null {
+    const artifact = this.selected?.message?.artifact;
+    return artifact === 'pending' || artifact === 'rejected' ? artifact : null;
+  }
+
+  /** Un pulsante di risposta: invia il messaggio che la scheda dell'agente dichiara per quella risposta. */
+  replyWith(r: MailReply): void {
+    if (this.sending || this.replyLock()) return;
+    this.replyDraft = r.message;
+    this.reply();
   }
 
   reply(): void {

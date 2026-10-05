@@ -83,10 +83,9 @@ namespace MdExplorer.Controllers.A2A
                         .ToList();
                 _session.Commit();
 
-                var items = FilterByProject(fetched, projectPath)
-                    .Take(Math.Clamp(take, 1, 500))
-                    .Select(ToInboxDto)
-                    .ToList();
+                var page = FilterByProject(fetched, projectPath).Take(Math.Clamp(take, 1, 500)).ToList();
+                var context = ReadMailContext(page);
+                var items = page.Select(m => ToInboxDto(m, context)).ToList();
                 var unread = FilterByProject(unreadAll, projectPath).Count();
 
                 return Ok(new { messages = items, unread });
@@ -301,6 +300,21 @@ namespace MdExplorer.Controllers.A2A
                 return UnprocessableEntity(new { error = "In questo thread nessun agente ha scritto a 'user': non c'è un destinatario a cui rispondere." });
 
             var toAgent = lastToUser.FromAgent;
+
+            // L'ordine lo garantisce il servizio, non l'agente: finché l'artefatto del turno che ha scritto quel
+            // messaggio non è approvato, la risposta non parte. Rispondere prima farebbe proseguire un lavoro
+            // la cui base nessuno ha ancora approvato; rifiutato, quel ramo è chiuso.
+            if (!string.IsNullOrEmpty(lastToUser.RunId))
+            {
+                _session.BeginTransaction();
+                var artifact = _session.GetDal<AgentMergeRequest>().GetList().ToList()
+                    .FirstOrDefault(r => string.Equals(r.RunId, lastToUser.RunId, StringComparison.OrdinalIgnoreCase));
+                _session.Commit();
+                if (artifact?.Status == AgentMergeRequest.StatusEnum.Pending)
+                    return Conflict(new { error = $"Prima decidi sull'artefatto che '{toAgent}' ha consegnato con questo messaggio: finché non lo approvi, la risposta non parte." });
+                if (artifact?.Status == AgentMergeRequest.StatusEnum.Rejected)
+                    return Conflict(new { error = $"Hai rifiutato l'artefatto di questo lavoro di '{toAgent}': è un ramo chiuso, non c'è niente a cui rispondere. Per riprovare, rilancia l'agente." });
+            }
 
             // Ri-validazione del destinatario dalle fonti (§6/§7): la cache non è mai l'autorità.
             var recipient = _registry.RefreshCatalog(conversation.ProjectPath)
@@ -588,8 +602,91 @@ namespace MdExplorer.Controllers.A2A
                 ? messages
                 : messages.Where(m => AgentPathComparer.Equals(m.ProjectPath, projectPath));
 
-        private object ToInboxDto(AgentMessage m) => new
+        /// <summary>Ciò che serve a dire, per ogni messaggio, cosa la persona può rispondere e se può farlo adesso.</summary>
+        private sealed class MailContext
         {
+            /// <summary>Per turno di lavoro: lo stato della richiesta di approvazione del suo artefatto.</summary>
+            public Dictionary<string, string> ArtifactByRun { get; } = new(StringComparer.OrdinalIgnoreCase);
+            /// <summary>Gli agenti la cui scheda dichiara risposte (chiave: progetto + nome).</summary>
+            public HashSet<string> DeclaresReplies { get; } = new(StringComparer.OrdinalIgnoreCase);
+            /// <summary>Per turno di lavoro: i lavori che quel turno ha chiesto ad altri agenti, con lo stato di ciascuno.</summary>
+            public Dictionary<string, List<object>> AwaitedByRun { get; } = new(StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// A che punto è un lavoro chiesto a un altro agente, per chi lo aspetta. Deriva da due fatti certi: lo
+        /// stato dell'incarico e la richiesta di approvazione che quell'incarico ha prodotto.
+        /// </summary>
+        private static string AwaitedState(AgentMessage assignment, AgentMergeRequest artifact)
+        {
+            var running = assignment.State == AgentMessage.StateEnum.Pending || assignment.State == AgentMessage.StateEnum.Delivered;
+            if (artifact?.Status == AgentMergeRequest.StatusEnum.Rejected) return running ? "reworking" : "rejected";
+            if (running) return "working";
+            if (assignment.State == AgentMessage.StateEnum.Failed) return "failed";
+            if (artifact == null) return "done";
+            if (artifact.Status == AgentMergeRequest.StatusEnum.Pending) return "approval";
+            if (artifact.Status == AgentMergeRequest.StatusEnum.Merged) return "approved";
+            return "failed";
+        }
+
+        private MailContext ReadMailContext(IReadOnlyCollection<AgentMessage> messages)
+        {
+            var context = new MailContext();
+            var runs = messages.Select(m => m.RunId).Where(r => !string.IsNullOrEmpty(r)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            if (runs.Count > 0)
+            {
+                _session.BeginTransaction();
+                foreach (var r in _session.GetDal<AgentMergeRequest>().GetList().ToList()
+                             .Where(r => !string.IsNullOrEmpty(r.RunId) && runs.Contains(r.RunId)))
+                    context.ArtifactByRun[r.RunId] = r.Status;
+                _session.Commit();
+            }
+            if (runs.Count > 0)
+            {
+                // Ciò che ogni turno ha chiesto ad altri agenti, e a che punto è: per chi aspetta.
+                _session.BeginTransaction();
+                var assignments = _session.GetDal<AgentMessage>().GetList().ToList()
+                    .Where(m => !string.IsNullOrEmpty(m.RunId) && runs.Contains(m.RunId)
+                                && !string.Equals(m.ToAgent, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(m => m.CreatedAt).ToList();
+                var byTrigger = _session.GetDal<AgentMergeRequest>().GetList().ToList()
+                    .Where(r => !string.IsNullOrEmpty(r.TriggerMessageId))
+                    .GroupBy(r => r.TriggerMessageId, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.CreatedAt).First(), StringComparer.OrdinalIgnoreCase);
+                _session.Commit();
+                foreach (var a in assignments)
+                {
+                    byTrigger.TryGetValue(a.Id.ToString(), out var artifact);
+                    if (!context.AwaitedByRun.TryGetValue(a.RunId, out var list))
+                        context.AwaitedByRun[a.RunId] = list = new List<object>();
+                    list.Add(new { messageId = a.Id, agent = a.ToAgent, state = AwaitedState(a, artifact), note = artifact?.Status == AgentMergeRequest.StatusEnum.Rejected ? artifact.Note : null });
+                }
+            }
+
+            foreach (var projectPath in messages.Select(m => m.ProjectPath).Where(p => !string.IsNullOrEmpty(p)).Distinct())
+                foreach (var e in _registry.GetCatalog(projectPath).Where(e => e.Replies != null && e.Replies.Count > 0))
+                    context.DeclaresReplies.Add(projectPath + "\n" + e.Name);
+            return context;
+        }
+
+        private object ToInboxDto(AgentMessage m) => ToInboxDto(m, null);
+
+        private object ToInboxDto(AgentMessage m, MailContext context) => new
+        {
+            // Le risposte che l'agente propone: i pulsanti sotto il messaggio.
+            replies = string.IsNullOrWhiteSpace(m.Replies)
+                ? new List<MdExplorer.Features.Agents.ResolvedReply>()
+                : System.Text.Json.JsonSerializer.Deserialize<List<MdExplorer.Features.Agents.ResolvedReply>>(m.Replies),
+            // La scheda dell'agente dichiara le sue risposte: allora non c'è un campo libero, perché promettere
+            // una conversazione a un agente che accetta solo quelle sarebbe falso.
+            declaresReplies = context != null && context.DeclaresReplies.Contains(m.ProjectPath + "\n" + m.FromAgent),
+            // L'artefatto del turno che ha scritto questo messaggio: pending = ancora da decidere, rejected =
+            // rifiutato. In entrambi i casi non si risponde (vedi Reply). null = nessun artefatto.
+            artifact = context != null && !string.IsNullOrEmpty(m.RunId) && context.ArtifactByRun.TryGetValue(m.RunId, out var artifactStatus)
+                ? artifactStatus : null,
+            // I lavori che questo turno ha chiesto ad altri agenti, con il loro stato: per chi li aspetta.
+            awaited = context != null && !string.IsNullOrEmpty(m.RunId) && context.AwaitedByRun.TryGetValue(m.RunId, out var awaitedWorks)
+                ? awaitedWorks : new List<object>(),
             id = m.Id,
             conversationId = m.ConversationId,
             fromAgent = m.FromAgent,

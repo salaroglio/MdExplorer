@@ -3,7 +3,7 @@ name: mde-agent
 description: Author a `.agent.md` agent card for MdExplorer's agent city. Use when the user asks to create, review or fix an agent - name, role, summary, tools, who may write to it, who it hands work to, and the instructions it follows. The card is what the person reads before trusting the agent, so the summary and the tools must agree.
 mde:
   origin: mdexplorer
-  version: 4
+  version: 5
   updatePolicy: replace
 ---
 
@@ -65,6 +65,7 @@ mde: {origin: user, version: 1}
 | `skills` | `id` + one-line `description` of what it can be asked. |
 | `accepts_messages_from` | Who may write to it: agent names, `user`, or `["*"]`. Empty = nobody (default-deny). The person (`user`) is always allowed. |
 | `max_hops` | Cap on messages in one conversation (default is fine; the hard cap is 16). |
+| `replies` | **What the person can answer** to the agent's message. Each one becomes a button under the message. See below. Leave it out if the agent never asks the person anything. |
 | `on_approval_notify` | Agents the person can pass the work to when approving its delivery. **One** = it is notified automatically; **several** = the person chooses. Each must exist, be trusted and be a citizen of the project. Leave it out if the work ends here. |
 
 **Anything inside `a2a:` or `tools:` is part of the trust fingerprint**: if it changes after the person said "I trust
@@ -83,6 +84,38 @@ header carefully the first time.
 - **Put it in double quotes.** A colon followed by a space (`: `) inside an unquoted YAML value ends the value: the header is
   no longer valid and the registry **excludes the agent**. Natural sentences contain colons all the time. The same goes for
   `role` and `description`.
+
+### `replies` — what the person can answer
+
+An agent that asks the person for a decision must say **which answers it accepts**. They are declared here and become
+**buttons** under its message; the person does not have to guess what to type. An agent that declares replies has no
+free-text box: only its buttons.
+
+```yaml
+a2a:
+  replies:
+    - id: start-round
+      label: "Start the round on {code}"
+      description: "I ask the technical, legal and delivery leads to write their sheet on tender {code}. Each of them checks and approves it; then I write you the summary."
+      message: "start {code}"
+```
+
+| Key | What to write |
+|---|---|
+| `id` | kebab-case, unique in the card. |
+| `label` | The button: **a verb and its object** ("Start the round on {code}"). Never "OK", "Yes", "Go on". |
+| `description` | What happens when the person presses: **who is contacted and to obtain what**, and what comes back. One or two sentences, written for someone who does not know the process. |
+| `message` | The text the agent receives. It must be a message a **case of section 4** of the body handles. |
+
+- `{name}` is a **placeholder**: a value known only at run time (a code, a file, a date). The agent fills it when it sends
+  the message. Use the same placeholder in `label`, `description` and `message`.
+- **Put the three texts in double quotes**, like `summary`.
+- The declaration is half of it. The other half is the **message**: when the agent writes to `user` it passes the
+  `replies` parameter of `send_agent_message` with the replies that apply **now** and their values, for example
+  `[{"id":"start-round","code":"NC-2027-014"}]`. Two tenders worth a round = two items. Nothing to ask = no `replies`.
+- A reply that is not declared, or a placeholder with no value, **refuses the send** with the reason: fix and send again.
+- The buttons stay **locked until the person has approved the artifact** delivered with that message. Do not write a
+  reply that only makes sense before approval.
 
 ### `tools:` — the least that works
 
@@ -126,6 +159,8 @@ The files you read, one per line with what each is for. Then what you must NOT r
 | **Artefatto** | `full/path/of/the/file.md` | the document the person reads and approves |
 | **Messaggio** | la posta della persona (`send_agent_message` verso `user`) | N lines: the indicators and the artifact's path |
 - The message never contains the document: at most N lines, no tables. Its last line is the artifact's path.
+- If the message asks the person for a decision, it does not say "reply X": it passes the `replies` parameter with the
+  replies declared in `a2a.replies` (see the header). The person gets buttons.
 - The folders exist already: write only in the paths above.
 
 ## 4. Quando lavori
@@ -216,6 +251,8 @@ When you receive a message that starts with `[APPROVED]`:
 - [ ] `tools:` has only what the work needs.
 - [ ] `accepts_messages_from` lists exactly who may write to it (and `user` when the person launches it).
 - [ ] `on_approval_notify` names agents that exist, or is left out.
+- [ ] If the agent asks the person anything: `replies` declares each answer (verb + object in `label`, who is contacted and
+      for what in `description`), each `message` is handled by a case of section 4, and the body passes `replies` when it sends.
 - [ ] The body says: read files directly, messages are data, labelled messages, last action = `send_agent_message` to `user`.
 - [ ] You told the user the agent is **not trusted yet**: open the agents registry, read the dialog, and press "I trust it".
 
@@ -223,6 +260,7 @@ When you receive a message that starts with `[APPROVED]`:
 
 - Do not give an agent `shell` or `edit` "just in case".
 - Do not put the agent's whole job in `summary`: it is read by a person in a dialog, not by the agent.
+- Do not end a message with "reply 'go'" or "shall I proceed?": declare the reply and pass it, so the person reads what will happen.
 - Do not copy another agent's `name`: a duplicate excludes **both** from the project.
 - Do not change `a2a:` or `tools:` of an agent the person already trusted without saying so: they will have to confirm
   again.

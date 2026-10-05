@@ -519,7 +519,7 @@ namespace MdExplorer.Services.AgentRun
                         WorkingDirectory = workingDirectory,
                         ConversationId = snapshot.ConversationId.ToString(),
                         FromAgent = snapshot.FromAgent,
-                        MessageBody = snapshot.Body,
+                        MessageBody = WithReworkNote(snapshot),
                         Topics = AgentTopics.Split(snapshot.Topics),
                         Roster = roster,
                         Ownership = ownership,
@@ -612,7 +612,8 @@ namespace MdExplorer.Services.AgentRun
                             {
                                 var changed = await _worktree.ChangedFilesAsync(snapshot.ProjectPath, entry.Name, ct);
                                 _mergeRequests.Open(snapshot.ProjectPath, entry.Name,
-                                    pushed.Branch, pushed.LocalBranch, pushed.HeadSha, changed, runId.ToString("N"));
+                                    pushed.Branch, pushed.LocalBranch, pushed.HeadSha, changed, runId.ToString("N"),
+                                    messageId.ToString());
 
                                 // La UI si accende: c'e' qualcosa da decidere.
                                 try
@@ -1044,6 +1045,16 @@ namespace MdExplorer.Services.AgentRun
             }
         }
 
+        /// <summary>
+        /// Un incarico tornato in coda dopo un rifiuto: l'agente riceve lo stesso messaggio, più il motivo per cui
+        /// il lavoro di prima non è stato accettato. Senza, rifarebbe la stessa cosa.
+        /// </summary>
+        private static string WithReworkNote(AgentMessage m)
+            => string.IsNullOrWhiteSpace(m.ReworkNote)
+                ? m.Body
+                : m.Body + "\n\n---\nIl lavoro che avevi fatto su questo incarico è stato RIFIUTATO da chi ne risponde. " +
+                  "Motivo: " + m.ReworkNote.Trim() + "\nRifai il lavoro tenendone conto.";
+
         private static AgentMessage Clone(AgentMessage m) => new AgentMessage
         {
             Id = m.Id,
@@ -1059,6 +1070,7 @@ namespace MdExplorer.Services.AgentRun
             CreatedAt = m.CreatedAt,
             ForcedAt = m.ForcedAt,
             DeferredReason = m.DeferredReason,
+            ReworkNote = m.ReworkNote,
         };
 
         private static string SafeName(IAlgorithmicAgent a)

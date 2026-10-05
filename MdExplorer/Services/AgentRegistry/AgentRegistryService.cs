@@ -273,6 +273,10 @@ namespace MdExplorer.Services.AgentRegistry
                             .Select(n => n?.Trim()).Where(n => !string.IsNullOrEmpty(n))
                             .Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                         Summary = parsed.Card.Summary,
+                        Replies = (parsed.Card.Replies ?? new List<MdExplorer.Features.Yaml.Models.AgentCardReply>())
+                            .Where(r => !string.IsNullOrWhiteSpace(r?.Id))
+                            .Select(r => new AgentRegistryReply { Id = r.Id.Trim(), Label = r.Label, Description = r.Description, Message = r.Message })
+                            .ToList(),
                         // R3: impronta del blocco a2a: + tools: per la decadenza del trust.
                         CurrentA2ABlockHash = AgentTrustHasher.ComputeHash(parsed.Card, parsed.Tools),
                     });

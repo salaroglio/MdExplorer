@@ -59,7 +59,17 @@
 
     <!-- Chi riceve il lavoro dopo «Autorizza»: lo dichiara la scheda dell'agente. Con più di un collega
          sceglie la persona; nessuno si sveglia da solo, l'avviso parte dal suo gesto. -->
-    <div class="handover" *ngIf="hasRecipients(r) && !r.sessionOpen">
+    <!-- Rifiutato e fermo: qualcuno lo aspetta, ma riparte solo quando lo dici tu. -->
+    <div class="stopped" *ngIf="r.status === 'rejected'">
+      <p class="stopped-title"><mat-icon>block</mat-icon> {{ 'AGENT_REVIEW.STOPPED_TITLE' | translate }}</p>
+      <p class="stopped-note" *ngIf="r.note"><strong>{{ 'AGENT_REVIEW.REJECT_NOTE_LABEL' | translate }}:</strong> {{ r.note }}</p>
+      <p class="stopped-hint">{{ 'AGENT_REVIEW.STOPPED_HINT' | translate: { agent: r.agentName } }}</p>
+      <button mat-flat-button color="primary" class="btn-rework" [disabled]="busyId === r.id" (click)="rework(r)">
+        <mat-icon>replay</mat-icon> {{ 'AGENT_REVIEW.REWORK' | translate }}
+      </button>
+    </div>
+
+    <div class="handover" *ngIf="hasRecipients(r) && !r.sessionOpen && r.status !== 'rejected'">
       <div class="handover-title">
         <mat-icon>forward_to_inbox</mat-icon> {{ 'AGENT_REVIEW.HANDOVER_TITLE' | translate }}
       </div>
@@ -76,7 +86,7 @@
     </div>
 
     <!-- Sessione aperta: ci stai già lavorando, quindi le scelte sono altre. -->
-    <div class="actions" *ngIf="!r.sessionOpen">
+    <div class="actions" *ngIf="!r.sessionOpen && r.status !== 'rejected'">
       <button mat-stroked-button color="primary" [disabled]="busyId === r.id || !canApprove(r)" (click)="approve(r)">
         <mat-icon>merge</mat-icon> {{ 'AGENT_REVIEW.APPROVE' | translate }}
       </button>
@@ -84,9 +94,26 @@
               [matTooltip]="'AGENT_REVIEW.TAKE_TOOLTIP' | translate">
         <mat-icon>build</mat-icon> {{ 'AGENT_REVIEW.TAKE' | translate }}
       </button>
-      <button mat-stroked-button color="warn" [disabled]="busyId === r.id" (click)="reject(r)">
+      <button mat-stroked-button color="warn" class="btn-ask-reject" [disabled]="busyId === r.id" (click)="askReject(r)">
         <mat-icon>block</mat-icon> {{ 'AGENT_REVIEW.REJECT' | translate }}
       </button>
+    </div>
+
+    <!-- Il rifiuto è l'eccezione: chiede il motivo e dice cosa succede dopo. -->
+    <div class="reject-form" *ngIf="rejectingId === r.id">
+      <p class="reject-effect">
+        <mat-icon>{{ r.someoneWaiting ? 'replay' : 'block' }}</mat-icon>
+        {{ (r.someoneWaiting ? 'AGENT_REVIEW.REJECT_EFFECT_REWORK' : 'AGENT_REVIEW.REJECT_EFFECT_DEAD') | translate: { agent: r.agentName } }}
+      </p>
+      <label class="reject-label" [attr.for]="'reject-note-' + r.id">{{ 'AGENT_REVIEW.REJECT_NOTE_LABEL' | translate }}</label>
+      <textarea class="reject-note" [id]="'reject-note-' + r.id" rows="3" [(ngModel)]="rejectNote"
+                [placeholder]="'AGENT_REVIEW.REJECT_NOTE_PLACEHOLDER' | translate"></textarea>
+      <div class="reject-actions">
+        <button mat-button (click)="cancelReject()">{{ 'AGENT_REVIEW.REJECT_CANCEL' | translate }}</button>
+        <button mat-flat-button color="warn" class="btn-confirm-reject" [disabled]="!rejectNote.trim() || busyId === r.id" (click)="reject(r)">
+          {{ 'AGENT_REVIEW.REJECT_CONFIRM' | translate }}
+        </button>
+      </div>
     </div>
 
     <div class="actions session" *ngIf="r.sessionOpen">

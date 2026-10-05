@@ -1780,6 +1780,10 @@
     "DISABLED": "La memoria (Fuseki) non è abilitata per questo progetto."
   },
   "AGENT_MAIL": {
+    "REPLIES_LABEL": "Che cosa puoi rispondere a {{agent}}",
+    "REPLIES_NONE": "Con questo messaggio {{agent}} non ti chiede niente.",
+    "REPLY_LOCK_PENDING": "Prima decidi sull'artefatto che {{agent}} ha consegnato con questo messaggio (la riga qui sotto nell'elenco). Finché non lo approvi, la risposta non parte.",
+    "REPLY_LOCK_REJECTED": "Hai rifiutato l'artefatto di questo lavoro: è un ramo chiuso, non c'è niente a cui rispondere. Per riprovare, rilancia {{agent}}.",
     "CHILD_REVIEW": "Da approvare: l'artefatto",
     "HAS_PENDING": "Sotto c'è un artefatto da approvare",
     "ARCHIVE": "Archivia",
@@ -1814,7 +1818,16 @@
     "REPLY_LABEL": "Rispondi a {{agent}}",
     "CONVERSATIONS_TIP": "I thread degli agenti: chi ha parlato con chi, e come fermarli",
     "LOAD_ERROR": "Non riesco a leggere la posta.",
-    "ACTION_ERROR": "Non è andata a buon fine."
+    "ACTION_ERROR": "Non è andata a buon fine.",
+    "AWAITED_WORK": "Lavoro di {{agent}}",
+    "AWAITED_working": "sta lavorando",
+    "AWAITED_approval": "in approvazione",
+    "AWAITED_approved": "approvato",
+    "AWAITED_rejected": "rifiutato, fermo",
+    "AWAITED_reworking": "in rilavorazione",
+    "AWAITED_done": "concluso",
+    "AWAITED_failed": "non riuscito",
+    "REVIEW_STOPPED": "Rifiutato: fermo finché non lo fai ripartire"
   },
   "MAILBOX": {
     "TITLE": "Messaggi degli agenti",
@@ -1924,6 +1937,12 @@
     }
   },
   "AGENT_REVIEW": {
+    "REJECT_EFFECT_REWORK": "Questo lavoro l'aveva chiesto un altro agente, che lo sta aspettando. Se lo rifiuti si ferma: {{agent}} non riparte da solo. Potrai correggere la sua scheda e poi farlo ripartire da qui.",
+    "REJECT_EFFECT_DEAD": "Questo lavoro l'avevi chiesto tu: se lo rifiuti si chiude qui. Di solito conviene «Ci metto mano»: correggi l'artefatto e lo approvi.",
+    "REJECT_NOTE_LABEL": "Motivo del rifiuto",
+    "REJECT_NOTE_PLACEHOLDER": "Che cosa non va, e che cosa ti aspetti",
+    "REJECT_CANCEL": "Annulla",
+    "REJECT_CONFIRM": "Rifiuta",
     "TITLE": "Lavoro degli agenti da rivedere",
     "REFRESH": "Aggiorna",
     "EMPTY": "Nessuna richiesta in attesa: gli agenti non hanno nulla da farti approvare.",
@@ -1949,7 +1968,13 @@
     "MERGE_FAILED": "Il merge non è riuscito: probabilmente c'è un conflitto da risolvere a mano.",
     "TAKEN": "Cartella aperta: {{path}} — l'agente è in coda finché non chiudi.",
     "TAKEN_NO_FOLDER": "Sessione aperta, ma non sono riuscito ad aprire il file manager. La cartella è: {{path}}",
-    "TAB": "Lavoro degli agenti"
+    "TAB": "Lavoro degli agenti",
+    "STOPPED_TITLE": "Rifiutato: il lavoro è fermo",
+    "STOPPED_HINT": "Qualcuno aspetta questo artefatto, ma niente riparte da solo. Se serve, correggi prima la scheda di {{agent}}; poi fallo ripartire: riceverà lo stesso incarico e il tuo motivo.",
+    "REWORK": "Fai ripartire",
+    "REWORK_STARTED": "Incarico rimesso in coda: l'agente riparte con il tuo motivo.",
+    "REWORK_FAILED": "Non riesco a far ripartire il lavoro.",
+    "REJECTED_STOPPED": "Rifiutato: il lavoro è fermo finché non lo fai ripartire."
   },
   "CHANGES": {
     "OPEN_AGENT_DOCUMENT": "Apri il documento dalla copia dell'agente",

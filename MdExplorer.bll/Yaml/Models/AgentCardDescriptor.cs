@@ -60,9 +60,32 @@ namespace MdExplorer.Features.Yaml.Models
         /// </summary>
         [YamlMember(DefaultValuesHandling = DefaultValuesHandling.OmitNull)]
         public string Summary { get; set; }
+
+        /// <summary>
+        /// Le risposte che la persona può dare a questo agente (<c>a2a.replies</c>). Stanno nel blocco coperto dalla
+        /// fiducia: un pulsante può inviare solo ciò che la scheda dichiara. null = nessuna dichiarata (e l'impronta
+        /// delle schede che non le usano non cambia).
+        /// </summary>
+        [YamlMember(DefaultValuesHandling = DefaultValuesHandling.OmitNull)]
+        public IList<AgentCardReply> Replies { get; set; }
     }
 
     /// <summary>Una skill dichiarata nella Agent Card (<c>a2a.skills[]</c>).</summary>
+    /// <summary>
+    /// Una risposta che la persona può dare all'agente (<c>a2a.replies</c>): diventa un pulsante sotto il messaggio.
+    /// I testi possono contenere segnaposto <c>{nome}</c>, che l'agente riempie quando propone la risposta.
+    /// </summary>
+    public class AgentCardReply
+    {
+        public string Id { get; set; }
+        /// <summary>Il testo del pulsante: un verbo e il suo oggetto.</summary>
+        public string Label { get; set; }
+        /// <summary>Che cosa succede premendo: chi viene contattato e per ottenere cosa.</summary>
+        public string Description { get; set; }
+        /// <summary>Il messaggio che l'agente riceve: lo stesso che la sua scheda sa trattare.</summary>
+        public string Message { get; set; }
+    }
+
     public class AgentCardSkill
     {
         public string Id { get; set; }

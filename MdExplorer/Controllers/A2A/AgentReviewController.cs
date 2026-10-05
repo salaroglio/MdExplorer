@@ -52,7 +52,8 @@ namespace MdExplorer.Controllers.A2A
             if (string.IsNullOrWhiteSpace(projectPath))
                 return BadRequest(new { error = "projectPath è obbligatorio" });
 
-            var list = _requests.Pending(projectPath).Select(r => ToDto(r)).ToList();
+            // Da decidere, più i lavori rifiutati che qualcuno aspetta: sono fermi, e a farli ripartire è la persona.
+            var list = _requests.Pending(projectPath).Concat(_requests.Stopped(projectPath)).Select(r => ToDto(r)).ToList();
             return Ok(new { requests = list });
         }
 
@@ -206,6 +207,16 @@ namespace MdExplorer.Controllers.A2A
         }
 
         /// <summary>
+        /// «Fai ripartire» un lavoro rifiutato che qualcuno aspetta: l'incarico torna in coda con il motivo del rifiuto.
+        /// </summary>
+        [HttpPost("requests/{id}/rework")]
+        public IActionResult Rework(Guid id)
+        {
+            try { return Ok(ToDto(_requests.Rework(id))); }
+            catch (InvalidOperationException ex) { return UnprocessableEntity(new { error = ex.Message }); }
+        }
+
+        /// <summary>
         /// «Ci metto mano»: apre la sessione d'intervento (l'agente va in coda) e apre la
         /// directory del worktree nel file manager, dove il branch è già in check-out.
         /// </summary>
@@ -281,6 +292,8 @@ namespace MdExplorer.Controllers.A2A
             note = r.Note,
             // Il turno di lavoro che l'ha prodotta: lo stesso scritto sul messaggio dell'agente.
             runId = r.RunId,
+            // Qualcuno aspetta questo artefatto (l'aveva chiesto un altro agente): rifiutarlo lo fa rifare.
+            someoneWaiting = _requests.SomeoneIsWaitingFor(r),
             // Sessione d'intervento in corso su questo agente: la UI deve poter mostrare
             // "ci stai lavorando" invece di riproporre "prendi in mano".
             sessionOpen = _sessions.IsHeld(r.ProjectPath, r.AgentName),
@@ -307,7 +320,7 @@ namespace MdExplorer.Controllers.A2A
 
         public class RejectRequest
         {
-            /// <summary>Nullable di proposito: la UI può rifiutare senza motivare.</summary>
+            /// <summary>Il motivo del rifiuto: obbligatorio, è ciò che l'agente legge per rifare il lavoro.</summary>
             public string? Note { get; set; }
         }
     }

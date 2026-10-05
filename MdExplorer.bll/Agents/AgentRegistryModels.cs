@@ -10,6 +10,15 @@ namespace MdExplorer.Features.Agents
         public string Description { get; set; }
     }
 
+    /// <summary>Una risposta dichiarata nella scheda (<c>a2a.replies</c>): vedi <c>AgentCardReply</c>.</summary>
+    public class AgentRegistryReply
+    {
+        public string Id { get; set; }
+        public string Label { get; set; }
+        public string Description { get; set; }
+        public string Message { get; set; }
+    }
+
     /// <summary>
     /// Una card scoperta da una delle due sorgenti (file <c>.agent.md</c> o
     /// <c>IAlgorithmicAgent</c>) PRIMA della riconciliazione. Input del
@@ -67,6 +76,9 @@ namespace MdExplorer.Features.Agents
         /// <summary>Che cosa fa l'agente, dalla sua scheda (<c>a2a.summary</c>): dichiarazione dell'autore, non verificata.</summary>
         public string Summary { get; set; }
 
+        /// <summary>Le risposte che la persona può dare a questo agente (<c>a2a.replies</c>); vuota = nessuna.</summary>
+        public IList<AgentRegistryReply> Replies { get; set; } = new List<AgentRegistryReply>();
+
     }
 
     /// <summary>
@@ -123,6 +135,9 @@ namespace MdExplorer.Features.Agents
 
         /// <summary>Che cosa fa l'agente, dalla sua scheda (<c>a2a.summary</c>): dichiarazione dell'autore, non verificata.</summary>
         public string Summary { get; set; }
+
+        /// <summary>Le risposte che la persona può dare a questo agente (<c>a2a.replies</c>); vuota = nessuna.</summary>
+        public IList<AgentRegistryReply> Replies { get; set; } = new List<AgentRegistryReply>();
 
         /// <summary>
         /// Cosa può fare sul computer, <b>calcolato dagli strumenti dichiarati</b> (gli unici che l'app fa rispettare).
