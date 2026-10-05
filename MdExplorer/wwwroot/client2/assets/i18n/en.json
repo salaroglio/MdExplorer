@@ -2147,5 +2147,20 @@
   },
   "DEMO_ORIGIN": {
     "FAILED": "The demo is open, but I could not prepare the local repository the agents deliver to: {{reason}}"
+  },
+  "BEFORE_START": {
+    "TITLE": "Before starting {{agent}}: there is unsaved work",
+    "INTRO": "The agent works in a copy that starts from what is published. What you see below is in your folder but not published: the agent would not see it.",
+    "TO_COMMIT": "Uncommitted files",
+    "MESSAGE_LABEL": "Commit message",
+    "MESSAGE_PLACEHOLDER": "What you changed",
+    "TO_PUBLISH": "Unpublished commits",
+    "COMMITS_OF": "{{count}} commits in {{label}}",
+    "NOTE": "You can save everything now and then start the agent, or start it as it is.",
+    "STAY": "Cancel",
+    "COMMIT_AND_PUBLISH": "Commit, publish and start",
+    "PUBLISH": "Publish and start",
+    "PROCEED": "Start without saving",
+    "SAVE_FAILED": "Could not save: the agent did not start."
   }
 }

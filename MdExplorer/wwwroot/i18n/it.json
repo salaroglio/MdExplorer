@@ -2147,5 +2147,20 @@
   },
   "DEMO_ORIGIN": {
     "FAILED": "Il demo è aperto, ma non sono riuscito a preparare il repository locale su cui gli agenti consegnano: {{reason}}"
+  },
+  "BEFORE_START": {
+    "TITLE": "Prima di avviare {{agent}}: c'è lavoro non salvato",
+    "INTRO": "L'agente lavora in una copia che parte da ciò che è pubblicato. Quello che vedi qui sotto è nella tua cartella ma non è pubblicato: l'agente non lo vedrebbe.",
+    "TO_COMMIT": "File non committati",
+    "MESSAGE_LABEL": "Messaggio del commit",
+    "MESSAGE_PLACEHOLDER": "Che cosa hai cambiato",
+    "TO_PUBLISH": "Commit non pubblicati",
+    "COMMITS_OF": "{{count}} commit in {{label}}",
+    "NOTE": "Puoi salvare tutto adesso e poi far partire l'agente, oppure farlo partire com'è.",
+    "STAY": "Annulla",
+    "COMMIT_AND_PUBLISH": "Committa, pubblica e avvia",
+    "PUBLISH": "Pubblica e avvia",
+    "PROCEED": "Avvia senza salvare",
+    "SAVE_FAILED": "Non sono riuscito a salvare: l'agente non è partito."
   }
 }

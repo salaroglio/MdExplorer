@@ -12,7 +12,15 @@ export interface PendingInCopy {
 export interface LeaveAgentCopyData {
   agent: string;
   pending: PendingInCopy;
+  /**
+   * 'leave' (default) = si esce dalla copia di un agente. 'start' = sta per partire un agente, e nella cartella
+   * della persona c'è lavoro che lui non vedrebbe: stessa finestra, con in più «Avvia senza salvare».
+   */
+  mode?: 'leave' | 'start';
 }
+
+/** Con questo valore la finestra dice: procedi senza salvare (solo in modalità 'start'). */
+export const PROCEED_WITHOUT_SAVING = '\u0000proceed-without-saving';
 
 /**
  * L'uscita dalla copia di un agente quando c'è lavoro da salvare: si vede cosa verrà committato e pubblicato,
@@ -47,5 +55,18 @@ export class LeaveAgentCopyDialogComponent {
 
   stay(): void {
     this.dialogRef.close(null);
+  }
+
+  get starting(): boolean {
+    return this.data.mode === 'start';
+  }
+
+  /** Le chiavi di traduzione dei testi, che cambiano con il motivo per cui la finestra si apre. */
+  get k(): string {
+    return this.starting ? 'BEFORE_START' : 'LEAVE_COPY';
+  }
+
+  proceedWithoutSaving(): void {
+    this.dialogRef.close(PROCEED_WITHOUT_SAVING);
   }
 }

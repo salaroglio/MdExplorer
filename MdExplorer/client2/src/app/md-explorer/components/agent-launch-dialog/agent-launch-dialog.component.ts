@@ -1,3 +1,6 @@
+import { EMPTY, of } from 'rxjs';
+import { finalize, switchMap } from 'rxjs/operators';
+import { AgentStartGuardService } from '../../services/agent-start-guard.service';
 import { AiChatService } from '../../../services/ai-chat.service';
 import { Component, Inject, OnInit } from '@angular/core';
 import {
@@ -181,6 +184,7 @@ export class AgentLaunchDialogComponent implements OnInit {
     public dialogRef: MatDialogRef<AgentLaunchDialogComponent>,
     @Inject(MAT_DIALOG_DATA) public data: AgentLaunchDialogData,
     private agentLaunchService: AgentLaunchService,
+    private startGuard: AgentStartGuardService,
     private projectSettingsService: ProjectSettingsService,
     private agentScheduleService: AgentScheduleService,
     private dialog: MatDialog,
@@ -389,9 +393,20 @@ export class AgentLaunchDialogComponent implements OnInit {
     this.isLaunching = true;
     this.aiError = null;
 
-    this.agentLaunchService
-      .launch(this.data.projectPath, this.data.agentFilePath, this.composeFull(), this.paramValues,
-              this.useWorktree, this.engineChoice || undefined, this.modelText.trim() || undefined)
+    // In un posto di lavoro isolato l'agente parte da ciò che è pubblicato: se nella cartella c'è lavoro non
+    // salvato lo si dice prima, con la possibilità di committare e pubblicare. Nel progetto (non isolato) vede tutto.
+    const ready = this.useWorktree === false
+      ? of(true)
+      : this.startGuard.beforeStart(this.data.projectPath, this.data.agentName);
+
+    ready.pipe(
+      switchMap(go => go
+        ? this.agentLaunchService.launch(this.data.projectPath, this.data.agentFilePath, this.composeFull(), this.paramValues,
+            this.useWorktree, this.engineChoice || undefined, this.modelText.trim() || undefined)
+        : EMPTY),
+      // Annullato: nessuna risposta arriva, e il pulsante deve tornare premibile.
+      finalize(() => { this.isLaunching = false; }),
+    )
       .subscribe({
         next: (response) => {
           this.isLaunching = false;

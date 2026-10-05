@@ -31,6 +31,7 @@ namespace MdExplorer.Controllers.A2A
         private readonly IFileSystemWatcherManager _watchers;
         private readonly IServiceProvider _services;
         private readonly IWorkingChangesService _changes;
+        private readonly MdExplorer.Services.Git.ISafePushService _push;
         private readonly IAgentMergeRequestService _requests;
         private readonly MdExplorer.Services.Git.IRepoSyncService _sync;
         private readonly ILogger<AgentWorkspaceController> _logger;
@@ -42,6 +43,7 @@ namespace MdExplorer.Controllers.A2A
             IFileSystemWatcherManager watchers,
             IServiceProvider services,
             IWorkingChangesService changes,
+            MdExplorer.Services.Git.ISafePushService push,
             IAgentMergeRequestService requests,
             MdExplorer.Services.Git.IRepoSyncService sync,
             ILogger<AgentWorkspaceController> logger)
@@ -52,6 +54,7 @@ namespace MdExplorer.Controllers.A2A
             _watchers = watchers;
             _services = services;
             _changes = changes;
+            _push = push;
             _requests = requests;
             _sync = sync;
             _logger = logger;
@@ -265,6 +268,77 @@ namespace MdExplorer.Controllers.A2A
         private static string NotPublished(string agentName, string what, string why)
             => $"Il lavoro nella copia di '{agentName}' è committato ma non riesco a pubblicarlo ('{what}': {why}). " +
                "Resti nella copia: riprova quando il problema è risolto.";
+
+        /// <summary>
+        /// Prima che un agente parta: che cosa, nella cartella della persona, l'agente NON vedrebbe. La sua copia
+        /// nasce da <c>origin</c>, quindi i file non committati e i commit non pubblicati restano fuori.
+        /// </summary>
+        [HttpPost("project-pending")]
+        public async Task<IActionResult> ProjectPending([FromBody] WorkspaceRequest body)
+        {
+            if (string.IsNullOrWhiteSpace(body?.ProjectPath))
+                return BadRequest(new { error = "projectPath è obbligatorio." });
+            var view = await _changes.GetAsync(body.ProjectPath, null);
+            if (view?.Problem != null || view?.NotAGitRepository == true)
+                return Ok(new { uncommitted = Array.Empty<object>(), unpublished = Array.Empty<object>() });
+            var repos = view?.Repos ?? Array.Empty<RepoChanges>();
+            string Name(RepoChanges r) => string.IsNullOrEmpty(r.Path) ? "progetto" : r.Label;
+            return Ok(new
+            {
+                uncommitted = repos.Where(r => r.Uncommitted.Count > 0)
+                    .Select(r => new { repo = r.Path, label = Name(r), files = r.Uncommitted.Select(f => f.Path).ToList() }).ToList(),
+                unpublished = repos.Where(r => r.Ahead > 0)
+                    .Select(r => new { repo = r.Path, label = Name(r), commits = r.Ahead }).ToList(),
+            });
+        }
+
+        /// <summary>
+        /// La persona ha scelto di salvare prima di far partire l'agente: commit di ciò che è cambiato (i submodule
+        /// prima, poi chi li contiene) e pubblicazione di tutto. Se qualcosa non riesce lo si dice, e l'agente non parte.
+        /// </summary>
+        [HttpPost("project-save")]
+        public async Task<IActionResult> ProjectSave([FromBody] WorkspaceRequest body)
+        {
+            if (string.IsNullOrWhiteSpace(body?.ProjectPath))
+                return BadRequest(new { error = "projectPath è obbligatorio." });
+
+            var view = await _changes.GetAsync(body.ProjectPath, null);
+            var dirty = (view?.Repos ?? Array.Empty<RepoChanges>()).Where(r => r.Uncommitted.Count > 0).ToList();
+            if (dirty.Count > 0 && string.IsNullOrWhiteSpace(body.CommitMessage))
+                return Conflict(new { error = "Manca il messaggio del commit." });
+
+            foreach (var repo in dirty.OrderByDescending(r => r.Depth))
+            {
+                var dir = string.IsNullOrEmpty(repo.Path)
+                    ? body.ProjectPath
+                    : System.IO.Path.Combine(body.ProjectPath, repo.Path.Replace('/', System.IO.Path.DirectorySeparatorChar));
+                var problem = await _worktree.CommitAllAsync(dir, body.CommitMessage);
+                if (problem != null)
+                    return Conflict(new { error = $"Non riesco a committare in '{(string.IsNullOrEmpty(repo.Path) ? "progetto" : repo.Label)}': {problem}. L'agente non è partito." });
+            }
+
+            // origin può essere più avanti della cartella: è la condizione normale durante un giro, perché ogni
+            // «Autorizza» pubblica senza passare di qui. Prima si scarica ciò che manca, poi si pubblica; se lo
+            // scaricamento non riesce (un conflitto) lo si dice, e l'agente non parte.
+            view = await _changes.GetAsync(body.ProjectPath, null);
+            if ((view?.Repos ?? Array.Empty<RepoChanges>()).Any(r => r.Behind > 0))
+            {
+                var pulled = await _sync.PullAllAsync(body.ProjectPath);
+                if (!pulled.Success)
+                    return Conflict(new
+                    {
+                        error = "Committato, ma su origin c'è lavoro che non riesco a scaricare nella tua cartella: " +
+                                $"{pulled.Refused ?? pulled.Message} L'agente non è partito.",
+                    });
+            }
+
+            var pushed = await _push.PushEverythingAsync(body.ProjectPath, null);
+            if (pushed.Refused != null)
+                return Conflict(new { error = $"Committato, ma non pubblicato: {pushed.Refused} L'agente non è partito." });
+            if (!pushed.Success)
+                return Conflict(new { error = "Committato, ma la pubblicazione si è interrotta: controlla il pannello «da pushare». L'agente non è partito." });
+            return Ok(new { saved = true });
+        }
 
         private void Back(WorkspaceRequest body)
         {

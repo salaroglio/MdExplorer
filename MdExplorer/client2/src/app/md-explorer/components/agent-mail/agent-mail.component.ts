@@ -1,3 +1,4 @@
+import { AgentStartGuardService } from '../../services/agent-start-guard.service';
 import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import {
@@ -7,8 +8,8 @@ import {
 } from '@angular/material/legacy-dialog';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { forkJoin, of, Subscription } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { EMPTY, forkJoin, of, Subscription } from 'rxjs';
+import { catchError, finalize, switchMap } from 'rxjs/operators';
 
 import { MailboxMessage, MailboxService, MailReply, AwaitedWork } from '../../services/mailbox.service';
 import { AgentReviewService, MailArtifact, MergeRequest } from '../../services/agent-review.service';
@@ -85,6 +86,7 @@ export class AgentMailComponent implements OnInit, OnDestroy {
   private subs = new Subscription();
 
   constructor(
+    private startGuard: AgentStartGuardService,
     public dialogRef: MatDialogRef<AgentMailComponent>,
     @Inject(MAT_DIALOG_DATA) public data: AgentMailData,
     private mailbox: MailboxService,
@@ -316,7 +318,11 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     const body = this.replyDraft.trim();
     if (!message || !body) return;
     this.sending = true;
-    this.mailbox.reply(message.conversationId, body).subscribe({
+    // Rispondere sveglia l'agente: prima si dice se nella cartella c'è lavoro che lui non vedrebbe.
+    this.startGuard.beforeStart(this.data?.projectPath || '', message.fromAgent).pipe(
+      switchMap(go => go ? this.mailbox.reply(message.conversationId, body) : EMPTY),
+      finalize(() => { this.sending = false; }),
+    ).subscribe({
       next: (res) => {
         this.sending = false;
         this.replyDraft = '';

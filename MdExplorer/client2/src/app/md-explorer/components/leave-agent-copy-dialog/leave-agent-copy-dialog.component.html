@@ -1,41 +1,44 @@
 <h2 mat-dialog-title>
   <mat-icon>smart_toy</mat-icon>
-  {{ 'LEAVE_COPY.TITLE' | translate: { agent: data.agent } }}
+  {{ (k + '.TITLE') | translate: { agent: data.agent } }}
 </h2>
 
 <mat-dialog-content class="leave-copy">
-  <p class="leave-copy-intro">{{ 'LEAVE_COPY.INTRO' | translate }}</p>
+  <p class="leave-copy-intro">{{ (k + '.INTRO') | translate }}</p>
 
   <section *ngIf="hasFiles">
-    <h3>{{ 'LEAVE_COPY.TO_COMMIT' | translate }}</h3>
+    <h3>{{ (k + '.TO_COMMIT') | translate }}</h3>
     <div class="leave-copy-repo" *ngFor="let r of data.pending.uncommitted">
       <div class="leave-copy-repo-name">{{ r.label }}</div>
       <ul><li *ngFor="let f of r.files">{{ f }}</li></ul>
     </div>
 
-    <label class="leave-copy-label" for="leaveCopyMessage">{{ 'LEAVE_COPY.MESSAGE_LABEL' | translate }}</label>
+    <label class="leave-copy-label" for="leaveCopyMessage">{{ (k + '.MESSAGE_LABEL') | translate }}</label>
     <mat-form-field appearance="outline" class="leave-copy-message">
       <textarea matInput id="leaveCopyMessage" rows="2" [(ngModel)]="message" cdkFocusInitial
-                [placeholder]="'LEAVE_COPY.MESSAGE_PLACEHOLDER' | translate"></textarea>
+                [placeholder]="(k + '.MESSAGE_PLACEHOLDER') | translate"></textarea>
     </mat-form-field>
   </section>
 
   <section *ngIf="data.pending.unpublished.length">
-    <h3>{{ 'LEAVE_COPY.TO_PUBLISH' | translate }}</h3>
+    <h3>{{ (k + '.TO_PUBLISH') | translate }}</h3>
     <ul>
       <li *ngFor="let r of data.pending.unpublished">
-        {{ 'LEAVE_COPY.COMMITS_OF' | translate: { count: r.commits, label: r.label } }}
+        {{ (k + '.COMMITS_OF') | translate: { count: r.commits, label: r.label } }}
       </li>
     </ul>
   </section>
 
-  <p class="leave-copy-note">{{ 'LEAVE_COPY.NOTE' | translate }}</p>
+  <p class="leave-copy-note">{{ (k + '.NOTE') | translate }}</p>
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button mat-button class="btn-stay-in-copy" (click)="stay()">{{ 'LEAVE_COPY.STAY' | translate }}</button>
+  <button mat-button class="btn-stay-in-copy" (click)="stay()">{{ (k + '.STAY') | translate }}</button>
+  <button mat-stroked-button class="btn-proceed-without-saving" *ngIf="starting" (click)="proceedWithoutSaving()">
+    {{ 'BEFORE_START.PROCEED' | translate }}
+  </button>
   <button mat-flat-button color="primary" class="btn-commit-and-publish" [disabled]="!canAuthorize" (click)="authorize()">
     <mat-icon>cloud_upload</mat-icon>
-    {{ (hasFiles ? 'LEAVE_COPY.COMMIT_AND_PUBLISH' : 'LEAVE_COPY.PUBLISH') | translate }}
+    {{ (k + (hasFiles ? '.COMMIT_AND_PUBLISH' : '.PUBLISH')) | translate }}
   </button>
 </mat-dialog-actions>
