@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
 import { LeaveAgentCopyDialogComponent, PendingInCopy } from '../components/leave-agent-copy-dialog/leave-agent-copy-dialog.component';
-import { map, switchMap, tap } from 'rxjs/operators';
+import { finalize, map, switchMap, tap } from 'rxjs/operators';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 import { MdFile } from '../models/md-file';
 import { MdFileService } from './md-file.service';
@@ -22,6 +22,13 @@ import { ReviewContextService } from './review-context.service';
 export class AgentWorkspaceService {
   /** L'agente nella cui copia lavora questa finestra (null = il proprio progetto). */
   readonly inside$ = new BehaviorSubject<string | null>(null);
+
+  /**
+   * Cosa sta succedendo adesso: entrare e uscire durano qualche secondo (controlli, pubblicazione, albero da
+   * ricaricare), e in quel tempo chi ha premuto deve vederlo. Serve anche da guardia: un secondo clic mentre
+   * il primo lavora non fa partire niente.
+   */
+  readonly busy$ = new BehaviorSubject<{ what: 'entering' | 'leaving' | 'saving'; agent: string } | null>(null);
 
   constructor(
     private http: HttpClient,
@@ -44,13 +51,16 @@ export class AgentWorkspaceService {
     };
   }
 
-  enter(agentName: string): Observable<{ worktreePath: string; branch: string }> {
+  enter(agentName: string): Observable<{ worktreePath: string; branch: string } | null> {
+    if (this.busy$.value) return of(null);
+    this.busy$.next({ what: 'entering', agent: agentName });
     return this.http.post<{ worktreePath: string; branch: string }>('../api/AgentWorkspace/enter', this.body(agentName)).pipe(
       tap(() => {
         this.inside$.next(agentName);
         this.review.enterAgent(agentName);
         this.reloadEverything();
       }),
+      finalize(() => this.busy$.next(null)),
     );
   }
 
@@ -65,15 +75,20 @@ export class AgentWorkspaceService {
       this.review.backToUser();
       return of([]);
     }
+    if (this.busy$.value) return of(null);
+    this.busy$.next({ what: 'leaving', agent: agentName });
     return this.http.post<PendingInCopy>('../api/AgentWorkspace/pending', this.body(agentName)).pipe(
       switchMap(pending => {
         if (!pending.uncommitted.length && !pending.unpublished.length) return this.postLeave(agentName, false, null);
         return this.dialog.open(LeaveAgentCopyDialogComponent, { data: { agent: agentName, pending }, autoFocus: false })
           .afterClosed().pipe(
-            switchMap(message => message === null || message === undefined
-              ? of(null)
-              : this.postLeave(agentName, true, message)));
+            switchMap(message => {
+              if (message === null || message === undefined) return of(null);
+              this.busy$.next({ what: 'saving', agent: agentName });
+              return this.postLeave(agentName, true, message);
+            }));
       }),
+      finalize(() => this.busy$.next(null)),
     );
   }
 

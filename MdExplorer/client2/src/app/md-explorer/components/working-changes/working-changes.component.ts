@@ -51,7 +51,7 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
     private projects: ProjectsService,
     private context: ReviewContextService,
     private mdFiles: MdFileService,
-    private workspace: AgentWorkspaceService,
+    public workspace: AgentWorkspaceService,
     private diffViewer: DiffViewerService,
     private snackBar: MatSnackBar,
     private translate: TranslateService,

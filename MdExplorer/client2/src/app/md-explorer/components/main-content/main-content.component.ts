@@ -75,6 +75,11 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /** La finestra lavora dentro la copia dell'agente (albero e documenti sono i suoi), non la sta solo guardando. */
+  /** Entrata o uscita in corso: la striscia lo dice e il pulsante non si può ripremere. */
+  get workspaceBusy(): { what: string; agent: string } | null {
+    return this.agentWorkspace.busy$.value;
+  }
+
   get insideAgentCopy(): boolean {
     return !!this.agentWorkspace.inside;
   }
@@ -238,6 +243,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     });
 
     // Di chi è il lavoro che si sta guardando: la striscia in alto lo dice, e uscendo si torna al proprio documento.
+    this.agentWorkspace.busy$.pipe(takeUntil(this.destroy$)).subscribe(() => this.ref.detectChanges());
+
     this.reviewContext.agent$.pipe(takeUntil(this.destroy$)).subscribe(agent => {
       this.reviewAgent = agent;
       if (!agent && this.agentDocument) {

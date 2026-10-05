@@ -2,7 +2,7 @@
 <div class="main-content-container" [ngClass]="classForContent">
 
   <!-- Si sta guardando il lavoro di un agente: lo si dice sempre, con la via per tornare indietro. -->
-  <div class="agent-strip" *ngIf="reviewAgent">
+  <div class="agent-strip" *ngIf="reviewAgent && !workspaceBusy">
     <mat-icon>smart_toy</mat-icon>
     <span class="agent-strip-text">{{ (insideAgentCopy ? 'MAIN_CONTENT.AGENT_STRIP_INSIDE' : 'MAIN_CONTENT.AGENT_STRIP') | translate: { agent: reviewAgent } }}</span>
     <span class="agent-strip-path" *ngIf="agentDocument">{{ agentDocument.path }}</span>
@@ -11,6 +11,13 @@
     <button mat-stroked-button class="btn-back-to-my-work" (click)="backToMyWork()">
       <mat-icon>undo</mat-icon> {{ 'MAIN_CONTENT.AGENT_STRIP_BACK' | translate }}
     </button>
+  </div>
+
+  <!-- Entrare e uscire durano qualche secondo: si vede che l'app sta lavorando, e non c'è niente da ripremere. -->
+  <div class="agent-strip agent-strip-busy" *ngIf="workspaceBusy" role="status">
+    <mat-progress-spinner diameter="18" mode="indeterminate"></mat-progress-spinner>
+    <span class="agent-strip-text">{{ ('MAIN_CONTENT.AGENT_BUSY_' + workspaceBusy.what) | translate: { agent: workspaceBusy.agent } }}</span>
+    <span class="agent-strip-hint">{{ 'MAIN_CONTENT.AGENT_BUSY_WAIT' | translate }}</span>
   </div>
 
   <!-- Loading State Overlay -->

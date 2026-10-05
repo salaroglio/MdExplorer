@@ -702,6 +702,10 @@
     "PUBLISH": "Publish"
   },
   "MAIN_CONTENT": {
+    "AGENT_BUSY_entering": "Opening the copy of {{agent}}…",
+    "AGENT_BUSY_leaving": "Going back to your work…",
+    "AGENT_BUSY_saving": "Committing and publishing the work in the copy of {{agent}}…",
+    "AGENT_BUSY_WAIT": "A few seconds: the file tree reloads at the end.",
     "AGENT_STRIP_PUBLISHED": "Work published on leaving the copy: {{repos}}",
     "AGENT_STRIP_INSIDE": "You are working in the copy of {{agent}}",
     "AGENT_STRIP_INSIDE_HINT": "Tree, search and documents are its own, and you can edit them. It waits until you go back to your work.",

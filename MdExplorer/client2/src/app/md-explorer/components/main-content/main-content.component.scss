@@ -599,3 +599,5 @@
   .agent-strip-path { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; opacity: 0.85; }
   .agent-strip-hint { opacity: 0.75; }
 }
+
+.agent-strip-busy { mat-progress-spinner { flex: 0 0 auto; } }

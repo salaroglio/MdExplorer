@@ -702,6 +702,10 @@
     "PUBLISH": "Pubblica"
   },
   "MAIN_CONTENT": {
+    "AGENT_BUSY_entering": "Sto aprendo la copia di {{agent}}…",
+    "AGENT_BUSY_leaving": "Sto tornando al tuo lavoro…",
+    "AGENT_BUSY_saving": "Sto committando e pubblicando il lavoro nella copia di {{agent}}…",
+    "AGENT_BUSY_WAIT": "Qualche secondo: l'albero dei file si ricarica alla fine.",
     "AGENT_STRIP_PUBLISHED": "Lavoro pubblicato uscendo dalla copia: {{repos}}",
     "AGENT_STRIP_INSIDE": "Stai lavorando nella copia di {{agent}}",
     "AGENT_STRIP_INSIDE_HINT": "Albero, ricerca e documenti sono i suoi, e li puoi modificare. Lui aspetta finché non torni al tuo lavoro.",

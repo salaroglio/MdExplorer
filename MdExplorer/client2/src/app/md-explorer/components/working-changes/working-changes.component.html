@@ -11,7 +11,7 @@
       <mat-icon>alt_route</mat-icon>{{ view?.branch }}
     </span>
     <span class="flexExpand"></span>
-    <button mat-icon-button *ngIf="agent" (click)="backToMyWork()"
+    <button mat-icon-button *ngIf="agent" [disabled]="!!(workspace.busy$ | async)" (click)="backToMyWork()"
             [matTooltip]="'CHANGES.BACK_TO_MINE' | translate">
       <mat-icon>keyboard_return</mat-icon>
     </button>
