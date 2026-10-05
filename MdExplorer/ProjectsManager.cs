@@ -37,6 +37,58 @@ namespace MdExplorer.Service
         /// re-opening a project — means "read it from the project": the choice lives in
         /// .development.yml, not in the request. See HarnessSettings.Resolve.
         /// </param>
+        /// <summary>
+        /// Si entra da ospiti nella copia di lavoro di un agente (o si torna al progetto): stesse basi dati e stesso
+        /// indice di un progetto aperto, ma <b>nessun file tracciato viene scritto</b>. L'apertura normale
+        /// distribuisce skill e configurazione dell'ambiente agentico e può riscrivere <c>.development.yml</c>: in
+        /// una copia quel file finirebbe nel commit dell'agente. Qui si portano solo i file per-installazione, che
+        /// git ignora (modelli di esportazione, elenchi delle cartelle da ignorare), copiandoli dal progetto.
+        /// </summary>
+        public static void PointAtWorkingCopy(IServiceProvider serviceProvider, string copyPath, string projectPath)
+        {
+            if (!string.Equals(Path.GetFullPath(copyPath), Path.GetFullPath(projectPath), StringComparison.Ordinal))
+            {
+                foreach (var name in new[] { ".mdFoldersIgnore", ".mdapplicationtoopen", ".mdchangeignore" })
+                {
+                    var from = Path.Combine(projectPath, name);
+                    var to = Path.Combine(copyPath, name);
+                    if (File.Exists(from) && !File.Exists(to)) File.Copy(from, to);
+                }
+                CopyPerInstallFolder(Path.Combine(projectPath, ".md"), Path.Combine(copyPath, ".md"));
+            }
+
+            var appdata = CrossPlatformPath.GetAppDataPath();
+            var hash = Helper.HGetHashString(copyPath);
+            var databasePath = $"Data Source = {Path.Combine(appdata, "MdExplorer.db")}";
+            var databasePathEngine = $"Data Source = {Path.Combine(appdata, $"MdEngine_{hash}.db")}";
+            var databasePathProject = $"Data Source = {Path.Combine(copyPath, ".md", $"MdProject_{hash}.db")}";
+            Directory.CreateDirectory(Path.Combine(copyPath, ".md"));
+            UpgradeDatabases(null, databasePathEngine, databasePathProject);
+
+            serviceProvider.ReplaceDalFeatures(typeof(SettingsMap).Assembly, new DatabaseSQLite(), typeof(IUserSettingsDB), databasePath);
+            serviceProvider.ReplaceDalFeatures(typeof(MarkdownFileMap).Assembly, new DatabaseSQLite(), typeof(IEngineDB), databasePathEngine);
+            serviceProvider.ReplaceDalFeatures(typeof(SemanticClusterMap).Assembly, new DatabaseSQLite(), typeof(IProjectDB), databasePathProject);
+
+            var extensionConfig = serviceProvider.GetService<Features.Configuration.Interfaces.IApplicationExtensionConfiguration>();
+            extensionConfig?.SetProjectPath(copyPath);
+        }
+
+        /// <summary>Copia una cartella per-installazione, senza le basi dati (ogni cartella ha la sua) e senza sovrascrivere.</summary>
+        private static void CopyPerInstallFolder(string from, string to)
+        {
+            if (!Directory.Exists(from)) return;
+            Directory.CreateDirectory(to);
+            foreach (var file in Directory.GetFiles(from))
+            {
+                var name = Path.GetFileName(file);
+                if (name.StartsWith("MdProject_", StringComparison.OrdinalIgnoreCase)) continue;
+                var target = Path.Combine(to, name);
+                if (!File.Exists(target)) File.Copy(file, target);
+            }
+            foreach (var dir in Directory.GetDirectories(from))
+                CopyPerInstallFolder(dir, Path.Combine(to, Path.GetFileName(dir)));
+        }
+
         public static bool SetNewProject(IServiceProvider serviceProvider, string pathFromParameter, bool initializeGit = true, HarnessTarget? requestedHarness = null)
         {
             // Fuseki/Jena skills are deployed only for projects configured for Fuseki.

@@ -689,6 +689,9 @@
     "E2E_TESTS": "E2E tests…"
   },
   "MAIN_CONTENT": {
+    "AGENT_STRIP_INSIDE": "You are working in the copy of {{agent}}",
+    "AGENT_STRIP_INSIDE_HINT": "Tree, search and documents are its own, and you can edit them. It waits until you go back to your work.",
+    "AGENT_STRIP_LEAVE_FAILED": "Could not go back to your work.",
     "AGENT_STRIP": "You are looking at the work of {{agent}}",
     "AGENT_STRIP_HINT": "Its files are in the left panel: the document icon opens them rendered.",
     "AGENT_STRIP_BACK": "Back to my work",

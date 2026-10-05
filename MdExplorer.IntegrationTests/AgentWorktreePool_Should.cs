@@ -98,6 +98,7 @@ namespace MdExplorer.IntegrationTests
             var m = Manager(ctx);
 
             var first = await m.PrepareForRunAsync(path, "alfa", "att1");
+            m.ReleaseSlot(first.WorktreePath);   // il primo turno è finito: finché gira, il secondo aspetterebbe
             var again = await m.PrepareForRunAsync(path, "alfa", "att2");
 
             Assert.AreEqual(first.WorktreePath, again.WorktreePath,
@@ -280,6 +281,73 @@ namespace MdExplorer.IntegrationTests
         }
 
         // ---- infrastruttura ----
+
+        [TestMethod]
+        public async Task Save_unfinished_work_on_its_branch_before_reusing_a_workplace()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var (_, path) = SetupGitProject(ctx, "pool-salva");
+            var m = Manager(ctx);
+
+            // Un turno finito male: il file c'è, il commit no. La scrivania viene liberata.
+            var first = await m.PrepareForRunAsync(path, "alfa", "att1");
+            Assert.IsTrue(first.Success, first.Error);
+            File.WriteAllText(Path.Combine(first.WorktreePath, "bozza.md"), "lavoro a metà\n");
+            m.ReleaseSlot(first.WorktreePath);
+
+            // Lo stesso agente riparte: la scrivania si ripulisce, ma prima la bozza va sul suo ramo.
+            var second = await m.PrepareForRunAsync(path, "alfa", "att2");
+            Assert.IsTrue(second.Success, second.Error);
+
+            Assert.IsFalse(File.Exists(Path.Combine(second.WorktreePath, "bozza.md")), "la scrivania riparte pulita");
+            var (code, saved) = Git(path, "show agent/alfa/att1:bozza.md");
+            Assert.AreEqual(0, code, "la bozza deve essere ritrovabile sul ramo del turno interrotto");
+            StringAssert.Contains(saved, "lavoro a metà");
+        }
+
+        [TestMethod]
+        public async Task Make_the_same_agent_wait_while_it_is_still_working()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var (_, path) = SetupGitProject(ctx, "pool-stesso");
+            var m = Manager(ctx);
+
+            var running = await m.PrepareForRunAsync(path, "alfa", "att1");
+            Assert.IsTrue(running.Success, running.Error);
+            File.WriteAllText(Path.Combine(running.WorktreePath, "in-corso.md"), "sto scrivendo\n");
+
+            // Un secondo lavoro per lo stesso agente mentre il primo gira: aspetta, non ripulisce.
+            var again = await m.PrepareForRunAsync(path, "alfa", "att2");
+            Assert.IsFalse(again.Success);
+            Assert.IsTrue(again.Busy, "è un «aspetta», non un errore: " + again.Error);
+            Assert.IsTrue(File.Exists(Path.Combine(running.WorktreePath, "in-corso.md")),
+                "il lavoro in corso non deve essere toccato");
+
+            m.ReleaseSlot(running.WorktreePath);
+            var after = await m.PrepareForRunAsync(path, "alfa", "att2");
+            Assert.IsTrue(after.Success, after.Error);
+        }
+
+        [TestMethod]
+        public async Task Answer_wait_and_not_an_error_when_every_workplace_is_busy()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var (_, path) = SetupGitProject(ctx, "pool-pieno");
+            var m = Manager(ctx);
+
+            Assert.IsTrue((await m.PrepareForRunAsync(path, "alfa", "att1")).Success);
+            Assert.IsTrue((await m.PrepareForRunAsync(path, "beta", "att1")).Success);
+
+            var third = await m.PrepareForRunAsync(path, "gamma", "att1");
+            Assert.IsFalse(third.Success);
+            Assert.IsTrue(third.Busy, "chi consegna i messaggi deve rimettere in coda, non consumare un tentativo: " + third.Error);
+        }
 
         private static IAgentWorktreeManager Manager(AgentCityContext ctx)
             => ctx.Factory.Services.GetRequiredService<IAgentWorktreeManager>();

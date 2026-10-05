@@ -18,6 +18,7 @@ import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
 import { DiffRequest, DiffViewerService } from '../../services/diff-viewer.service';
 import { ReviewContextService } from '../../services/review-context.service';
+import { AgentWorkspaceService } from '../../services/agent-workspace.service';
 import { WorkingChangesService } from '../../services/working-changes.service';
 import { ThemeService } from '../../../services/theme.service';
 import { AiSelectionDialogComponent } from '../dialogs/ai-selection-dialog/ai-selection-dialog.component';
@@ -61,7 +62,16 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** «Torna al mio lavoro»: si esce dal lavoro dell'agente. */
   backToMyWork(): void {
-    this.reviewContext.backToUser();
+    this.agentWorkspace.leave().subscribe({
+      error: err => this.snackBar.open(
+        err?.error?.error || this.translate.instant('MAIN_CONTENT.AGENT_STRIP_LEAVE_FAILED'),
+        this.translate.instant('COMMON.CLOSE'), { duration: 9000 }),
+    });
+  }
+
+  /** La finestra lavora dentro la copia dell'agente (albero e documenti sono i suoi), non la sta solo guardando. */
+  get insideAgentCopy(): boolean {
+    return !!this.agentWorkspace.inside;
   }
   diffText = '';
   diffLoading = false;
@@ -129,7 +139,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     private diffViewer: DiffViewerService,
     private workingChanges: WorkingChangesService,
     private navService: MdNavigationService,
-    private reviewContext: ReviewContextService
+    private reviewContext: ReviewContextService,
+    private agentWorkspace: AgentWorkspaceService
   ) {
     
     // Initialize observables from state

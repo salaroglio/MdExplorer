@@ -233,6 +233,12 @@ namespace MdExplorer.Services.AgentRun
         Task<string> MaterializeForReviewAsync(string projectPath, string agentName, string localBranch, CancellationToken ct = default);
 
         /// <summary>
+        /// I file con modifiche non committate in una copia di lavoro (righe di <c>git status --porcelain</c>).
+        /// Vuoto = tutto committato: la copia si può lasciare senza perdere niente.
+        /// </summary>
+        Task<IReadOnlyList<string>> UncommittedAsync(string worktreePath, CancellationToken ct = default);
+
+        /// <summary>
         /// Il turno è finito: il posto torna disponibile. Va chiamato comunque sia andata —
         /// altrimenti un run fallito prima del commit terrebbe la scrivania occupata.
         /// </summary>
@@ -262,6 +268,17 @@ namespace MdExplorer.Services.AgentRun
         public DateTimeOffset LastActivityUtc { get; init; }
         /// <summary>C'è una sessione d'intervento umana aperta: il posto non si tocca.</summary>
         public bool Held { get; init; }
+        /// <summary>Qualcuno ci sta lavorando adesso (un turno in corso ha prenotato il posto).</summary>
+        public bool Running { get; init; }
+    }
+
+    /// <summary>
+    /// Non c'è una scrivania disponibile <b>adesso</b>: non è un errore, è un «aspetta». Chi consegna i
+    /// messaggi rimette il lavoro in coda invece di consumare un tentativo.
+    /// </summary>
+    public sealed class DesksBusyException : InvalidOperationException
+    {
+        public DesksBusyException(string message) : base(message) { }
     }
 
     public sealed class AgentWorktreeManager : IAgentWorktreeManager, IDisposable
@@ -425,7 +442,7 @@ namespace MdExplorer.Services.AgentRun
                               .ThenBy(x => x.LastActivityUtc)
                               .FirstOrDefault();
             if (victim == null)
-                throw new InvalidOperationException(
+                throw new DesksBusyException(
                     $"Tutti i {slots.Count} posti di lavoro di '{projectPath}' sono occupati da un run in corso o da " +
                     $"una sessione d'intervento aperta: '{name}' non ha dove lavorare. Aspetta che un agente finisca, " +
                     "concludi una revisione dalla vista di revisione, oppure aumenta i posti nelle impostazioni del progetto.");
@@ -485,6 +502,7 @@ namespace MdExplorer.Services.AgentRun
                     Branch = branch,
                     LastActivityUtc = when,
                     Held = agent != null && _hold.IsHeld(projectPath, agent),
+                    Running = IsLeased(dir),
                 });
             }
 
@@ -614,6 +632,50 @@ namespace MdExplorer.Services.AgentRun
             finally { gate.Release(); }
         }
 
+        public async Task<IReadOnlyList<string>> UncommittedAsync(string worktreePath, CancellationToken ct = default)
+        {
+            var (code, text, err) = await GitAsync(worktreePath, new[] { "status", "--porcelain" }, ct);
+            if (code != 0)
+                throw new InvalidOperationException($"Non riesco a leggere lo stato di '{worktreePath}': {Describe(code, err)}");
+            return (text ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.TrimEnd('\r')).Where(l => l.Length > 0).ToList();
+        }
+
+        /// <summary>
+        /// Una scrivania sta per essere ripulita (<c>reset --hard</c>, <c>clean -fd</c>) per un altro lavoro. Se
+        /// sopra c'è qualcosa di non committato — un turno finito male, una modifica fatta a mano — lo si
+        /// committa sul ramo che è in checkout: resta in locale, ritrovabile, e la pulizia non lo tocca più.
+        /// <para>Restituisce <c>null</c> se non c'era niente o se è stato salvato; altrimenti il motivo per
+        /// cui la scrivania NON va ripulita. Chiamare con il gate del repository preso.</para>
+        /// </summary>
+        private async Task<string> SaveUnfinishedWorkUnlockedAsync(string worktreePath, CancellationToken ct)
+        {
+            // I contenuti sporchi DENTRO un submodule non si salvano da qui (il commit del padre non li vede): li
+            // rimette in ordine l'allineamento dei submodule, che è il loro posto. Qui conta il repository del posto.
+            var (sc, status, _) = await GitAsync(worktreePath, new[] { "status", "--porcelain", "--ignore-submodules=dirty" }, ct);
+            if (sc != 0 || string.IsNullOrWhiteSpace(status)) return null;
+
+            var branch = await CurrentBranchAsync(worktreePath, ct);
+            if (string.IsNullOrWhiteSpace(branch))
+                return $"Sul posto '{worktreePath}' ci sono modifiche non committate e nessun ramo su cui salvarle: " +
+                       "mi rifiuto di ripulirlo. Committale o scartale a mano, poi il lavoro riparte.";
+
+            await GitAsync(worktreePath, new[] { "add", "-A" }, ct);
+            var (cc, _, ce) = await GitAsync(worktreePath, new[]
+            {
+                "-c", "user.name=MdExplorer", "-c", "user.email=mdexplorer@localhost",
+                "commit", "-m", "lavoro non concluso, salvato prima di riusare la scrivania",
+            }, ct);
+            if (cc != 0)
+                return $"Sul posto '{worktreePath}' ci sono modifiche non committate che non riesco a salvare sul ramo " +
+                       $"'{branch}' ({Describe(cc, ce)}): mi rifiuto di ripulirlo.";
+
+            _logger.LogWarning(
+                "[Worktree] lavoro non committato sul posto '{Path}' salvato sul ramo '{Branch}' prima di riusarlo.",
+                worktreePath, branch);
+            return null;
+        }
+
         public async Task<string> MaterializeForReviewAsync(
             string projectPath, string agentName, string localBranch, CancellationToken ct = default)
         {
@@ -638,7 +700,10 @@ namespace MdExplorer.Services.AgentRun
                 var path = await AcquireSlotUnlockedAsync(projectPath, name, ct);
 
                 // Il posto arriva da un altro lavoro: va ripulito, altrimenti il check-out
-                // si porterebbe dietro i file dell'agente precedente.
+                // si porterebbe dietro i file dell'agente precedente. Ma prima ciò che non è
+                // committato si salva sul suo ramo: ripulire non deve mai voler dire perdere.
+                var unsaved = await SaveUnfinishedWorkUnlockedAsync(path, ct);
+                if (unsaved != null) throw new InvalidOperationException(unsaved);
                 await GitAsync(path, new[] { "reset", "--hard" }, ct);
                 await GitAsync(path, new[] { "clean", "-fd" }, ct);
 
@@ -725,7 +790,21 @@ namespace MdExplorer.Services.AgentRun
                         "Chiudila dalla vista di revisione — concludendo o annullando — e l'agente riprende.");
                 }
 
-                var worktreePath = await AcquireSlotUnlockedAsync(projectPath, agentName, ct);
+                // Lo stesso agente sta già lavorando (un messaggio mentre gira un lancio a mano, o il contrario):
+                // tornerebbe sulla sua scrivania e la ripulirebbe sotto i piedi del turno in corso. Aspetta.
+                var mine = (await ReadSlotsUnlockedAsync(projectPath, ct)).FirstOrDefault(
+                    x => string.Equals(x.Agent, agentName, StringComparison.OrdinalIgnoreCase));
+                if (mine != null && mine.Running)
+                    return WorktreePrepareResult.BusyDesk(
+                        $"'{agentName}' sta già lavorando sul posto {mine.Index}: il nuovo lavoro aspetta che finisca.");
+
+                string worktreePath;
+                try { worktreePath = await AcquireSlotUnlockedAsync(projectPath, agentName, ct); }
+                catch (DesksBusyException busy) { return WorktreePrepareResult.BusyDesk(busy.Message); }
+
+                // Prima di ripulire: ciò che c'è sopra e non è committato si salva sul suo ramo.
+                var unsaved = await SaveUnfinishedWorkUnlockedAsync(worktreePath, ct);
+                if (unsaved != null) return WorktreePrepareResult.Fail(unsaved);
 
                 // 1) fetch origin
                 var (fc, _, fe) = await GitAsync(worktreePath, new[] { "fetch", "origin" }, ct);

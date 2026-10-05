@@ -15,6 +15,7 @@ import { IBranch } from '../../../git/models/branch';
 import { MatLegacyTabGroup as MatTabGroup } from '@angular/material/legacy-tabs';
 import { ITag } from '../../../git/models/Tag';
 import { ProjectsService } from '../../services/projects.service';
+import { AgentWorkspaceService } from '../../services/agent-workspace.service';
 import { ReviewContextService } from '../../services/review-context.service';
 import { ChangeKind, RepoActionResult, RepoChanges, SafePushResult, WorkingChange, WorkingChangesService, WorkingChangesView, UpstreamStatus } from '../../services/working-changes.service';
 import { Router } from '@angular/router';
@@ -161,6 +162,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private appSettings: AppCurrentMetadataService,
     private projectService: ProjectsService,
     private reviewContext: ReviewContextService,
+    private agentWorkspace: AgentWorkspaceService,
     private workingChanges: WorkingChangesService,
     private federationService: FederationService,
     private router: Router,
@@ -290,6 +292,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       this.loadChangedFiles();
       // Anche qui: lo stato locale arriva sempre, pure quando il remoto di origin non risponde.
       this.askUpstreamNowAndThen();
+      // Finestra ricaricata mentre si lavorava nella copia di un agente: la si riprende.
+      this.agentWorkspace.resume();
     }));
 
     this.citySubscriptions.add(this.gitservice.commmitsToPull$.subscribe(_ => {
@@ -976,14 +980,12 @@ export class ToolbarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Si entra nel lavoro di un agente: da qui l'etichetta del ramo, la striscia sul documento, le differenze e
-   * il commit parlano di lui — lo stesso stato in cui porta «Ci metto mano». Il pannello di sinistra passa ai
-   * suoi file, e il documento aperto si rilegge dalla sua copia.
+   * Si entra nella copia di un agente, come dopo un cambio di ramo: questa finestra lavora sulla sua scrivania
+   * (albero, indice, documenti, modifiche), l'etichetta del ramo e la striscia sul documento lo dicono, e
+   * l'agente resta in coda finché non si torna al proprio lavoro.
    */
   openWorktree(agent: string): void {
-    this.reviewContext.enterAgent(agent);
-    this.reviewContext.showChanges();
-    this.mdFileService.viewWorktree(agent);
+    this.agentWorkspace.enter(agent).subscribe({ error: (err) => this.showError(err) });
     this.matMenuTrigger?.closeMenu();
   }
 

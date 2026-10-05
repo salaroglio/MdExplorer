@@ -6,6 +6,7 @@ import { ProjectsService } from '../../services/projects.service';
 import { DiffViewerService } from '../../services/diff-viewer.service';
 import { ReviewContextService } from '../../services/review-context.service';
 import { MdFileService } from '../../services/md-file.service';
+import { AgentWorkspaceService } from '../../services/agent-workspace.service';
 import { ChangeKind, RepoChanges, WorkingChange, WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
 
 /**
@@ -50,6 +51,7 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
     private projects: ProjectsService,
     private context: ReviewContextService,
     private mdFiles: MdFileService,
+    private workspace: AgentWorkspaceService,
     private diffViewer: DiffViewerService,
     private snackBar: MatSnackBar,
     private translate: TranslateService,
@@ -191,7 +193,7 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
 
   /** Un file dell'agente che si può leggere impaginato: un markdown del progetto, non eliminato. */
   canOpenDocument(repo: RepoChanges, file: WorkingChange): boolean {
-    return !!this.agent && !repo.path && file.change !== 'deleted' && /\.md$/i.test(file.path);
+    return !!this.agent && !this.workspace.inside && !repo.path && file.change !== 'deleted' && /\.md$/i.test(file.path);
   }
 
   /** Apre il documento dalla copia dell'agente, al posto della differenza. */
@@ -202,7 +204,11 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
   }
 
   backToMyWork(): void {
-    this.context.backToUser();
+    this.workspace.leave().subscribe({
+      error: err => this.snackBar.open(
+        err?.error?.error || this.translate.instant('MAIN_CONTENT.AGENT_STRIP_LEAVE_FAILED'),
+        this.translate.instant('COMMON.CLOSE'), { duration: 9000 }),
+    });
   }
 
   trackByPath = (_: number, f: WorkingChange) => f.path;

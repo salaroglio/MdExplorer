@@ -72,6 +72,7 @@ namespace MdExplorer.IntegrationTests
             var tracked = Path.Combine(first.WorktreePath, "code", "README.md");
             File.WriteAllText(tracked, "# sporcato da un run precedente\n");
             File.WriteAllText(Path.Combine(first.WorktreePath, "code", "scratch.txt"), "avanzo");
+            m.ReleaseSlot(first.WorktreePath);   // quel run è finito: finché gira, il successivo aspetterebbe
 
             var second = await m.PrepareForRunAsync(path, "worker", "att2");
             Assert.IsTrue(second.Success, second.Error);

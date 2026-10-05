@@ -4,9 +4,9 @@
   <!-- Si sta guardando il lavoro di un agente: lo si dice sempre, con la via per tornare indietro. -->
   <div class="agent-strip" *ngIf="reviewAgent">
     <mat-icon>smart_toy</mat-icon>
-    <span class="agent-strip-text">{{ 'MAIN_CONTENT.AGENT_STRIP' | translate: { agent: reviewAgent } }}</span>
+    <span class="agent-strip-text">{{ (insideAgentCopy ? 'MAIN_CONTENT.AGENT_STRIP_INSIDE' : 'MAIN_CONTENT.AGENT_STRIP') | translate: { agent: reviewAgent } }}</span>
     <span class="agent-strip-path" *ngIf="agentDocument">{{ agentDocument.path }}</span>
-    <span class="agent-strip-hint" *ngIf="!agentDocument">{{ 'MAIN_CONTENT.AGENT_STRIP_HINT' | translate }}</span>
+    <span class="agent-strip-hint" *ngIf="!agentDocument">{{ (insideAgentCopy ? 'MAIN_CONTENT.AGENT_STRIP_INSIDE_HINT' : 'MAIN_CONTENT.AGENT_STRIP_HINT') | translate }}</span>
     <span class="flexExpand"></span>
     <button mat-stroked-button class="btn-back-to-my-work" (click)="backToMyWork()">
       <mat-icon>undo</mat-icon> {{ 'MAIN_CONTENT.AGENT_STRIP_BACK' | translate }}

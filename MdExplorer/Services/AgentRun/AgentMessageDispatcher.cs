@@ -466,6 +466,14 @@ namespace MdExplorer.Services.AgentRun
                     prep = await _worktree.PrepareForRunAsync(
                         snapshot.ProjectPath, entry.Name, rc.ActivityId, handoffRef: rc.HandoffRef, ct: ct);
                 }
+                if (prep.Busy)
+                {
+                    // Nessuna scrivania adesso, o lo stesso agente sta già lavorando: è un «aspetta», non un
+                    // errore. Il messaggio torna in coda senza consumare tentativi.
+                    Defer(messageId, AgentMessage.DeferredReasonEnum.Resources);
+                    _logger.LogInformation("[Dispatcher] '{Agent}' aspetta una scrivania: {Why}", entry.Name, prep.Error);
+                    return;
+                }
                 if (!prep.Success)
                 {
                     var reason = prep.MergeConflict ? FederationReason.MergeConflictWithMain

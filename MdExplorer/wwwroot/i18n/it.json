@@ -689,6 +689,9 @@
     "E2E_TESTS": "Test e2e…"
   },
   "MAIN_CONTENT": {
+    "AGENT_STRIP_INSIDE": "Stai lavorando nella copia di {{agent}}",
+    "AGENT_STRIP_INSIDE_HINT": "Albero, ricerca e documenti sono i suoi, e li puoi modificare. Lui aspetta finché non torni al tuo lavoro.",
+    "AGENT_STRIP_LEAVE_FAILED": "Non riesco a tornare al tuo lavoro.",
     "AGENT_STRIP": "Stai guardando il lavoro di {{agent}}",
     "AGENT_STRIP_HINT": "Nel pannello di sinistra ci sono i suoi file: l'icona del documento li apre impaginati.",
     "AGENT_STRIP_BACK": "Torna al mio lavoro",
