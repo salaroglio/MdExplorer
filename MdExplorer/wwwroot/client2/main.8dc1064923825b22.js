@@ -17773,6 +17773,8 @@ class MdServerMessagesService {
     });
     // Observable for *.agent.md headless runs (AgentRunJobService): started/completed/failed
     this.agentJobProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    // Who is working right now in a project (AgentActivityBroadcaster): the whole list at every start and end
+    this.agentActivity$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for agent→user mailbox messages (§13 Fase 4a). Emitted by
     // AgentMessageDispatcher when a citizen escalates to the human: drives the toast
     // + the unread badge on the toolbar bell.
@@ -17902,6 +17904,10 @@ class MdServerMessagesService {
         // *.agent.md headless run progress (manual launch, schedule, hook)
         this.hubConnection.on('agentJobProgress', data => {
           this.agentJobProgress$.next(data);
+        });
+        // Agents at work in a project: the whole list, at every start and end of a turn
+        this.hubConnection.on('agentActivityChanged', data => {
+          this.agentActivity$.next(data);
         });
         // Agent→user mailbox message (§13 Fase 4a): a citizen escalated to the human
         this.hubConnection.on('agentMessageReceived', data => {
@@ -18368,8 +18374,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.04.2',
-  buildTime: '2026.10.04 12:22:03'
+  version: '2026.10.05.2',
+  buildTime: '2026.10.05 09:43:54'
 };
 
 /***/ }),
@@ -18403,4 +18409,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.dd065630402d4898.js.map
+//# sourceMappingURL=main.8dc1064923825b22.js.map

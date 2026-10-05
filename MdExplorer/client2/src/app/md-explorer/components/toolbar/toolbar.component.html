@@ -48,6 +48,14 @@
             [matBadge]="mailboxUnread" [matBadgeHidden]="mailboxUnread === 0" matBadgeColor="warn" matBadgeSize="small">
       <mat-icon>forum</mat-icon>
     </button>
+    <!-- Agenti al lavoro: compare solo mentre un agente del progetto sta girando, chiunque l'abbia avviato. -->
+    <button *ngIf="agentsRunning.length > 0" mat-icon-button class="toolbar-btn btn-agents-running"
+            [matTooltip]="'TOOLBAR.AGENTS_RUNNING' | translate: { count: agentsRunning.length, names: agentsRunningNames() }"
+            [matMenuTriggerFor]="agentsRunningMenu"
+            [matBadge]="agentsRunning.length" matBadgeColor="accent" matBadgeSize="small">
+      <mat-icon>smart_toy</mat-icon>
+      <span class="agents-running-ring"></span>
+    </button>
     <button *ngIf="isTocDirectoryFile()" mat-icon-button [matTooltip]="'TOOLBAR.REFRESH_TOC_AI' | translate" (click)="refreshTocDirectory()" class="toolbar-btn btn-ai">
       <mat-icon>refresh</mat-icon>
     </button>
@@ -335,6 +343,17 @@
 </mat-toolbar>
 
 <!-- Menu selettore identità (test città) -->
+<mat-menu #agentsRunningMenu="matMenu">
+  <div class="agents-running-menu" (click)="$event.stopPropagation()">
+    <div class="agents-running-title">{{ 'TOOLBAR.AGENTS_RUNNING_TITLE' | translate }}</div>
+    <div class="agents-running-row" *ngFor="let a of agentsRunning">
+      <mat-icon>smart_toy</mat-icon>
+      <span class="agents-running-name">{{ a.agentName }}</span>
+      <span class="agents-running-detail">{{ a.engine }} · {{ 'TOOLBAR.AGENTS_RUNNING_SINCE' | translate: { minutes: agentRunningMinutes(a) } }}</span>
+    </div>
+    <div class="agents-running-hint">{{ 'TOOLBAR.AGENTS_RUNNING_HINT' | translate }}</div>
+  </div>
+</mat-menu>
 <mat-menu #identityMenu="matMenu">
   <div class="identity-menu" (click)="$event.stopPropagation()">
     <div class="identity-current">

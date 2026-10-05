@@ -219,6 +219,10 @@ namespace MdExplorer
             services.AddSingleton<Services.AgentRun.ClaudeCodeTurnRunner>();
             services.AddSingleton<Services.AgentRun.OpenCodeTurnRunner>();
             services.AddSingleton<MdExplorer.Features.Agents.IAgentTurnRunner, Services.AgentRun.EngineTurnRunner>();
+            // Who is working right now: every turn passes through EngineTurnRunner, which records it here, and
+            // the broadcaster tells the open windows (the toolbar's «agents at work» indicator).
+            services.AddSingleton<MdExplorer.Features.Agents.IAgentActivityBoard, MdExplorer.Features.Agents.AgentActivityBoard>();
+            services.AddHostedService<Services.AgentRun.AgentActivityBroadcaster>();
             // Ponte verso il nostro stesso server MCP: i tool della citta' arrivano da li',
             // filtrati dal catalogo (manifesto tools: x trust). Una sola definizione, quella
             // che serve anche Copilot.

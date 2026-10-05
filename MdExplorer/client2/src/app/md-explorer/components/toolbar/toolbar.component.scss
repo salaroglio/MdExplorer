@@ -278,6 +278,33 @@ mat-toolbar button.git-menu-btn {
   mat-icon { color: #fff; }
   button { color: #fff; border-color: rgba(255,255,255,.6); }
 }
+// Agenti al lavoro: un anello che gira attorno al robot finché qualcuno lavora.
+.btn-agents-running {
+  position: relative;
+  mat-icon { color: #ffca28; }
+  .agents-running-ring {
+    position: absolute;
+    inset: 4px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-top-color: #ffca28;
+    animation: agents-running-spin 1.1s linear infinite;
+    pointer-events: none;
+  }
+}
+@keyframes agents-running-spin { to { transform: rotate(360deg); } }
+.agents-running-menu {
+  // Il pannello dei menu di Material è largo al più 280px: il dettaglio va sotto il nome, non accanto.
+  padding: 8px 14px;
+  .agents-running-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+  .agents-running-row {
+    display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; font-size: 13px; padding: 4px 0;
+    mat-icon { font-size: 18px; width: 18px; height: 18px; }
+    .agents-running-name { font-weight: 500; }
+    .agents-running-detail { flex-basis: 100%; margin-left: 26px; opacity: 0.7; font-size: 12px; }
+  }
+  .agents-running-hint { font-size: 12px; opacity: 0.7; margin-top: 8px; white-space: normal; }
+}
 .btn-identity.identity-impersonating mat-icon { color: #ffca28; }
 .identity-menu {
   padding: 8px 12px;

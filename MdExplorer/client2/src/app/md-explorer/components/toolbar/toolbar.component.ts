@@ -26,6 +26,7 @@ import { AgentRegistryDialogComponent } from '../agent-registry-dialog/agent-reg
 import { AgentMemoryDialogComponent } from '../agent-memory-dialog/agent-memory-dialog.component';
 import { AgentMailboxNotificationService } from '../../../services/agent-mailbox-notification.service';
 import { AgentCityStateService } from '../../services/agent-city-state.service';
+import { AgentActivityService, RunningAgent } from '../../services/agent-activity.service';
 import { GitHistoryDialogComponent } from '../../../git/dialogs/git-history-dialog/git-history-dialog.component';
 import { GitBranchDialogComponent } from '../../../git/dialogs/git-branch-dialog/git-branch-dialog.component';
 import { GitDialogRepo } from '../../../git/components/git-repo-picker/git-repo-picker.component';
@@ -172,11 +173,39 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     private themeService: ThemeService,
     private documentRefreshService: DocumentRefreshService,
     private mailboxNotifications: AgentMailboxNotificationService,
-    private agentCityState: AgentCityStateService
+    private agentCityState: AgentCityStateService,
+    private agentActivity: AgentActivityService
 
   ) {
     this.TitleToShow = "MdExplorer";
     this.connectionIsActive = true;
+  }
+
+  /** Gli agenti al lavoro adesso nel progetto aperto: l'indicatore della toolbar compare solo se ce ne sono. */
+  public agentsRunning: RunningAgent[] = [];
+  /** L'ora con cui si calcola «da quanto»: avanza solo finché qualcuno lavora. */
+  private agentsRunningNow: number = Date.now();
+  private agentsRunningClock: any = null;
+
+  /** «account-manager, responsabile-tecnico»: i nomi nel suggerimento dell'indicatore. */
+  agentsRunningNames(): string {
+    return this.agentsRunning.map(a => a.agentName).join(', ');
+  }
+
+  /** Da quanti minuti lavora un agente, per l'elenco dell'indicatore. */
+  agentRunningMinutes(agent: RunningAgent): number {
+    return Math.max(0, Math.floor((this.agentsRunningNow - new Date(agent.startedAt).getTime()) / 60000));
+  }
+
+  private setAgentsRunning(running: RunningAgent[]): void {
+    this.agentsRunning = running;
+    this.agentsRunningNow = Date.now();
+    if (running.length > 0 && !this.agentsRunningClock) {
+      this.agentsRunningClock = setInterval(() => this.agentsRunningNow = Date.now(), 15000);
+    } else if (running.length === 0 && this.agentsRunningClock) {
+      clearInterval(this.agentsRunningClock);
+      this.agentsRunningClock = null;
+    }
   }
 
   /** Non-letti della inbox dell'umano (§13 Fase 4a): badge sulla campanella. */
@@ -225,6 +254,13 @@ export class ToolbarComponent implements OnInit, OnDestroy {
         this.agentCityState.refresh(project?.path || '')));
     this.citySubscriptions.add(
       this.agentCityState.enabled$.subscribe(enabled => this.cityEnabled = enabled));
+
+    // Chi lavora adesso: vale anche a città spenta, perché un agente si lancia a mano in ogni progetto.
+    this.citySubscriptions.add(
+      this.projectService.currentProjects$.subscribe(project =>
+        this.agentActivity.follow(project?.path || '')));
+    this.citySubscriptions.add(
+      this.agentActivity.running$.subscribe(running => this.setAgentsRunning(running)));
 
     // Get connectionId from SignalR service for export notifications
     this.connectionId = this.monitorMDService.connectionId;
@@ -350,6 +386,7 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     this.subscriptionserverSelectedMdFile.unsubscribe();
     this.citySubscriptions.unsubscribe();
     this.slideDeckSubscription?.unsubscribe();
+    if (this.agentsRunningClock) clearInterval(this.agentsRunningClock);
   }
 
 

@@ -77,6 +77,12 @@ export class MdServerMessagesService {
     outputTail?: string
   }>();
 
+  // Who is working right now in a project (AgentActivityBroadcaster): the whole list at every start and end
+  public agentActivity$ = new Subject<{
+    projectPath: string,
+    running: { id: string, agentName: string, engine: string, startedAt: string }[]
+  }>();
+
   // Observable for agent→user mailbox messages (§13 Fase 4a). Emitted by
   // AgentMessageDispatcher when a citizen escalates to the human: drives the toast
   // + the unread badge on the toolbar bell.
@@ -295,6 +301,11 @@ export class MdServerMessagesService {
       // *.agent.md headless run progress (manual launch, schedule, hook)
       this.hubConnection.on('agentJobProgress', (data) => {
         this.agentJobProgress$.next(data);
+      });
+
+      // Agents at work in a project: the whole list, at every start and end of a turn
+      this.hubConnection.on('agentActivityChanged', (data) => {
+        this.agentActivity$.next(data);
       });
 
       // Agent→user mailbox message (§13 Fase 4a): a citizen escalated to the human

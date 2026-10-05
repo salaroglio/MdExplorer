@@ -70,11 +70,13 @@ namespace MdExplorer.Services.AgentRun
         private readonly ClaudeCodeTurnRunner _claude;
         private readonly OpenCodeTurnRunner _openCode;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IAgentActivityBoard _activity;
         private readonly ILogger<EngineTurnRunner> _logger;
 
         public EngineTurnRunner(CopilotTurnRunner copilot, ClaudeCodeTurnRunner claude, OpenCodeTurnRunner openCode,
-            IServiceScopeFactory scopeFactory, ILogger<EngineTurnRunner> logger)
+            IServiceScopeFactory scopeFactory, IAgentActivityBoard activity, ILogger<EngineTurnRunner> logger)
         {
+            _activity = activity;
             _copilot = copilot;
             _claude = claude;
             _openCode = openCode;
@@ -119,6 +121,8 @@ namespace MdExplorer.Services.AgentRun
                 RequestedModel = choice.Model,
                 Environment = request.Environment,
             };
+            // From here to the end of the turn the agent is «at work» for whoever looks at the application.
+            using var working = _activity.Begin(request.AgentName, request.ProjectPath, choice.Label);
             var result = choice.Engine switch
             {
                 MarkAgentEngine.Copilot => await _copilot.RunTurnAsync(turn, ct),
