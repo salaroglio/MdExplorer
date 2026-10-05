@@ -1718,6 +1718,16 @@
     "CLOSE": "Close"
   },
   "AGENT_REGISTRY": {
+    "OWNER_ME": "For this project you are {{email}}",
+    "OWNER_NO_IDENTITY": "The project has no git email on this computer: no agent is yours. Set it with “git config user.email”.",
+    "OWNER_UNASSIGNED_COUNT": "{{count}} agents answer to nobody: they do not start until someone takes them.",
+    "OWNER_ASSIGN_ALL": "They are all mine",
+    "OWNER_ASSIGN": "It is mine",
+    "OWNER_MINE": "Answers to you: it works on this computer",
+    "OWNER_OTHER": "Answers to {{name}} ({{email}}): it works on their computer, not on this one",
+    "OWNER_UNASSIGNED": "Nobody answers for it: it does not start",
+    "OWNER_CONTESTED": "More than one owner ({{emails}}): it does not start until one is left",
+    "OWNER_ASSIGN_ERROR": "I could not assign the agent.",
     "TITLE": "City of agents",
     "SUBTITLE": "Agents discovered in this project. Participating in conversations requires explicit trust.",
     "LOADING": "Loading agents…",

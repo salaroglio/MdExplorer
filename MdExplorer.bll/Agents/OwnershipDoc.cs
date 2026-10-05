@@ -53,7 +53,7 @@ namespace MdExplorer.Features.Agents
             RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         // Alias di intestazione colonna → colonna canonica.
-        private static readonly Dictionary<string, string> HeaderAliases = new(StringComparer.OrdinalIgnoreCase)
+        internal static readonly Dictionary<string, string> HeaderAliases = new(StringComparer.OrdinalIgnoreCase)
         {
             ["ambito"] = "scope", ["scope"] = "scope",
             ["descrizione"] = "description", ["description"] = "description",
@@ -185,17 +185,17 @@ namespace MdExplorer.Features.Agents
             return null;
         }
 
-        private static bool LooksLikeTableRow(string line)
+        internal static bool LooksLikeTableRow(string line)
             => !string.IsNullOrWhiteSpace(line) && line.Contains('|');
 
-        private static bool IsSeparatorRow(string line)
+        internal static bool IsSeparatorRow(string line)
         {
             if (string.IsNullOrWhiteSpace(line) || !line.Contains('|')) return false;
             var cells = SplitRow(line);
             return cells.Length > 0 && cells.All(c => Regex.IsMatch(c.Trim(), @"^:?-{1,}:?$"));
         }
 
-        private static string[] SplitRow(string line)
+        internal static string[] SplitRow(string line)
         {
             var trimmed = line.Trim();
             if (trimmed.StartsWith("|")) trimmed = trimmed.Substring(1);

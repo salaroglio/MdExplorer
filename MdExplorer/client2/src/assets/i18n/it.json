@@ -1718,6 +1718,16 @@
     "CLOSE": "Chiudi"
   },
   "AGENT_REGISTRY": {
+    "OWNER_ME": "Per questo progetto sei {{email}}",
+    "OWNER_NO_IDENTITY": "Il progetto non ha un'email git su questo computer: nessun agente risulta tuo. Impostala con «git config user.email».",
+    "OWNER_UNASSIGNED_COUNT": "{{count}} agenti non hanno un responsabile: non partono finché qualcuno non li prende in carico.",
+    "OWNER_ASSIGN_ALL": "Sono tutti miei",
+    "OWNER_ASSIGN": "È mio",
+    "OWNER_MINE": "Risponde a te: lavora su questo computer",
+    "OWNER_OTHER": "Risponde a {{name}} ({{email}}): lavora sul suo computer, non su questo",
+    "OWNER_UNASSIGNED": "Senza responsabile: non parte",
+    "OWNER_CONTESTED": "Più responsabili ({{emails}}): non parte finché non ne resta uno",
+    "OWNER_ASSIGN_ERROR": "Non sono riuscito ad assegnare l'agente.",
     "TITLE": "Città degli agenti",
     "SUBTITLE": "Agenti scoperti in questo progetto. Partecipare alle conversazioni richiede un trust esplicito.",
     "LOADING": "Caricamento agenti…",

@@ -24,9 +24,12 @@ namespace MdExplorer.Controllers.A2A
         private readonly IAgentRegistryService _registry;
         private readonly IUserSettingsDB _session;
         private readonly ILogger<A2AController> _logger;
+        private readonly MdExplorer.Services.AgentRun.IAgentWakeGuard _wakeGuard;
 
-        public A2AController(IAgentRegistryService registry, IUserSettingsDB session, ILogger<A2AController> logger)
+        public A2AController(IAgentRegistryService registry, IUserSettingsDB session, ILogger<A2AController> logger,
+            MdExplorer.Services.AgentRun.IAgentWakeGuard wakeGuard)
         {
+            _wakeGuard = wakeGuard;
             _registry = registry;
             _session = session;
             _logger = logger;
@@ -107,6 +110,16 @@ namespace MdExplorer.Controllers.A2A
         {
             if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath) || string.IsNullOrWhiteSpace(request.AgentName))
                 return BadRequest("projectPath e agentName sono obbligatori.");
+
+            // Ognuno abilita i suoi agenti: quello di un altro lavora sul suo computer, quello di nessuno
+            // non lavora. Abilitarli qui non avrebbe effetto, e lo farebbe credere.
+            var asked = _registry.RefreshCatalog(request.ProjectPath)
+                .FirstOrDefault(e => e.IsCitizen && string.Equals(e.Name, request.AgentName.Trim(), StringComparison.OrdinalIgnoreCase));
+            var isLlm = string.Equals(asked?.Kind, AgentIdentity.KindEnum.Llm, StringComparison.OrdinalIgnoreCase);
+            var owner = isLlm ? _wakeGuard.Check(request.ProjectPath, asked.Name) : null;
+            if (owner != null && !owner.CanWorkHere)
+                return BadRequest(owner.Explain());
+
             try
             {
                 var entry = _registry.TrustAgent(request.ProjectPath, request.AgentName);

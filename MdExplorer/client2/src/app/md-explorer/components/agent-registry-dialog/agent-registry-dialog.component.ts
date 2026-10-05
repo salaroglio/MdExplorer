@@ -5,9 +5,9 @@ import {
   MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA,
 } from '@angular/material/legacy-dialog';
 import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, forkJoin } from 'rxjs';
 
-import { A2aAgentsService, AgentRegistryEntry } from '../../services/a2a-agents.service';
+import { A2aAgentsService, AgentOwner, AgentOwnersView, AgentRegistryEntry } from '../../services/a2a-agents.service';
 import { ConfirmDialogComponent } from '../../../commons/components/confirm-dialog/confirm-dialog.component';
 import { AgentTrustDialogComponent, AgentTrustDialogData } from '../agent-trust-dialog/agent-trust-dialog.component';
 
@@ -31,6 +31,13 @@ const DANGEROUS_TOOLS = ['write', 'edit', 'shell', 'execute'];
 })
 export class AgentRegistryDialogComponent implements OnInit {
   agents: AgentRegistryEntry[] = [];
+  /** Chi risponde di ogni agente; `applies` false a città spenta, dove non si mostra niente. */
+  owners: AgentOwnersView = { applies: false, agents: [] };
+  /** Gli agenti di cittadinanza valida e quelli senza responsabile: ricalcolati a ogni caricamento. */
+  citizens: AgentRegistryEntry[] = [];
+  excluded: AgentRegistryEntry[] = [];
+  unassigned: AgentRegistryEntry[] = [];
+  private ownerByName = new Map<string, AgentOwner>();
   loading = false;
   error: string | null = null;
 
@@ -53,9 +60,17 @@ export class AgentRegistryDialogComponent implements OnInit {
     }
     this.loading = true;
     this.error = null;
-    this.agentsService.getAgents(this.data.projectPath).subscribe({
-      next: (agents) => {
+    forkJoin({
+      agents: this.agentsService.getAgents(this.data.projectPath),
+      owners: this.agentsService.getOwners(this.data.projectPath),
+    }).subscribe({
+      next: ({ agents, owners }) => {
         this.agents = agents || [];
+        this.owners = owners || { applies: false, agents: [] };
+        this.ownerByName = new Map((this.owners.agents || []).map((o) => [o.agentName.toLowerCase(), o]));
+        this.citizens = this.agents.filter((a) => a.isCitizen);
+        this.excluded = this.agents.filter((a) => a.isExcluded);
+        this.unassigned = this.citizens.filter((a) => this.ownerOf(a)?.kind === 'unassigned');
         this.loading = false;
       },
       error: (err) => {
@@ -69,12 +84,34 @@ export class AgentRegistryDialogComponent implements OnInit {
     return DANGEROUS_TOOLS.includes((tool || '').trim().toLowerCase());
   }
 
-  get citizens(): AgentRegistryEntry[] {
-    return this.agents.filter((a) => a.isCitizen);
+  /** Di chi è l'agente; undefined a città spenta. */
+  ownerOf(agent: AgentRegistryEntry): AgentOwner | undefined {
+    return this.owners.applies ? this.ownerByName.get((agent.name || '').toLowerCase()) : undefined;
   }
 
-  get excluded(): AgentRegistryEntry[] {
-    return this.agents.filter((a) => a.isExcluded);
+  /** Ognuno abilita i suoi agenti: quello di un altro lavora sul suo computer, quello di nessuno non lavora. */
+  canTrust(agent: AgentRegistryEntry): boolean {
+    const owner = this.ownerOf(agent);
+    return !owner || owner.canWorkHere;
+  }
+
+  /** «È mio»: l'agente senza responsabile diventa di chi è a questo computer. */
+  assignToMe(agent: AgentRegistryEntry): void {
+    this.assignAll([agent]);
+  }
+
+  /** «Sono tutti miei»: una richiesta sola, che scrive il documento una volta. */
+  assignAll(agents: AgentRegistryEntry[] = this.unassigned): void {
+    this.loading = true;
+    this.error = null;
+    this.agentsService.assignToMe(this.data.projectPath, agents.map((a) => a.name)).subscribe({
+      next: () => this.reload(),
+      error: (err) => {
+        const failed = err?.error?.error || this.translate.instant('AGENT_REGISTRY.OWNER_ASSIGN_ERROR');
+        this.reload();
+        this.error = failed;
+      },
+    });
   }
 
   async trust(agent: AgentRegistryEntry): Promise<void> {

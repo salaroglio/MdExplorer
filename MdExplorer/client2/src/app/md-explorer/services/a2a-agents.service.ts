@@ -42,6 +42,32 @@ export interface AgentRegistryEntry {
   isExcluded: boolean;
 }
 
+/** Di chi è un agente, visto da questo computer (AgentOwnersController). */
+export interface AgentOwner {
+  agentName: string;
+  kind: 'mine' | 'someoneElse' | 'unassigned' | 'contested';
+  ownerName?: string;
+  ownerEmail?: string;
+  contestedBy?: string[];
+  /** Un agente lavora solo sul computer di chi ne risponde. */
+  canWorkHere: boolean;
+  /** Perché qui non lavora e cosa fare; assente se lavora. */
+  explanation?: string;
+}
+
+/** Chi risponde di ogni agente del progetto. */
+export interface AgentOwnersView {
+  /** false a città spenta: lì la regola non vale e non si chiede niente. */
+  applies: boolean;
+  /** Chi sei per il progetto: la tua email git. */
+  me?: string;
+  /** Il documento delle responsabilità, se il progetto ne dichiara uno. */
+  document?: string;
+  /** Perché il documento dichiarato non è in uso. */
+  documentProblem?: string;
+  agents: AgentOwner[];
+}
+
 /** HTTP client per il registry degli agenti (endpoint /api/A2A). Loopback-only. */
 @Injectable({ providedIn: 'root' })
 export class A2aAgentsService {
@@ -54,6 +80,16 @@ export class A2aAgentsService {
 
   trust(projectPath: string, agentName: string): Observable<AgentRegistryEntry> {
     return this.http.post<AgentRegistryEntry>('/api/A2A/agents/trust', { projectPath, agentName });
+  }
+
+  getOwners(projectPath: string): Observable<AgentOwnersView> {
+    const params = new HttpParams().set('projectPath', projectPath);
+    return this.http.get<AgentOwnersView>('/api/A2A/owners', { params });
+  }
+
+  /** «È mio» / «Sono tutti miei»: le righe entrano nel documento delle responsabilità in una scrittura sola. */
+  assignToMe(projectPath: string, agentNames: string[]): Observable<{ agents: AgentOwner[] }> {
+    return this.http.post<{ agents: AgentOwner[] }>('/api/A2A/owners/assign-to-me', { projectPath, agentNames });
   }
 
   untrust(projectPath: string, agentName: string): Observable<AgentRegistryEntry> {

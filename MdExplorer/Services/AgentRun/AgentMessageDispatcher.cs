@@ -275,7 +275,10 @@ namespace MdExplorer.Services.AgentRun
             // Prima della fiducia, perché l'agente di un altro qui non è abilitato per definizione, e
             // «non è fidato» sarebbe la risposta sbagliata. Nemmeno il «forza-ora» dell'umano lo scavalca:
             // non è una politica di disponibilità, è di chi è l'agente.
-            var owner = _wakeGuard.Check(snapshot.ProjectPath, entry.Name);
+            // Vale per gli agenti LLM, quelli che scrivono qualcosa di cui una persona risponde: un agente
+            // algoritmico è un pezzo dell'applicazione, uguale su ogni computer.
+            var isLlm = string.Equals(entry.Kind, AgentIdentity.KindEnum.Llm, StringComparison.OrdinalIgnoreCase);
+            var owner = isLlm ? _wakeGuard.Check(snapshot.ProjectPath, entry.Name) : null;
             if (owner != null && !owner.CanWorkHere)
             {
                 ParkForOwner(messageId, snapshot, owner);

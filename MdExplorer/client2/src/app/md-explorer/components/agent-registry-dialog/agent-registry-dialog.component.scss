@@ -137,3 +137,23 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+// Chi risponde di ogni agente (città accesa)
+.owners-bar {
+  margin-bottom: 12px;
+  .owners-me { display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: 0.85; }
+  .owners-me mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  .owners-warn { color: #c62828; }
+  .owners-unassigned {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-top: 8px; padding: 8px 12px; border-radius: 4px; font-size: 13px;
+    background: rgba(242, 153, 0, 0.14); border-left: 3px solid #f29900;
+  }
+}
+.agent-owner {
+  display: flex; align-items: center; gap: 6px; font-size: 13px; margin: 4px 0;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  &.owner-mine { color: #188038; }
+  &.owner-someoneElse { opacity: 0.8; }
+  &.owner-unassigned, &.owner-contested { color: #b06000; }
+}

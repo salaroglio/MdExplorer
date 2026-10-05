@@ -307,22 +307,29 @@ namespace MdExplorer.Controllers
             }
             // Refresh database
             var engineDB = GetEngineDB();
-            var relDal = engineDB.GetDal<MarkdownFile>();
-            var mdFile = relDal.GetList().Where(_ => _.Path == fullPathFile).FirstOrDefault();
-            engineDB.BeginTransaction();
-            if (mdFile == null)
+            // The engine session belongs to the window's connection, and a window can ask for the same
+            // document twice at once (a file changed on disk while something else refreshes the view): two
+            // requests inside one NHibernate session break it, and the page comes back as an error
+            // («Cannot access a disposed object», «Could not close connection»). One at a time.
+            lock (engineDB)
             {
-                mdFile = new MarkdownFile
+                var relDal = engineDB.GetDal<MarkdownFile>();
+                var mdFile = relDal.GetList().Where(_ => _.Path == fullPathFile).FirstOrDefault();
+                engineDB.BeginTransaction();
+                if (mdFile == null)
                 {
-                    FileName = Path.GetFileName(fullPathFile),
-                    Path = fullPathFile,
-                    FileType = "File"
-                };
-                relDal.Save(mdFile);
-            }
+                    mdFile = new MarkdownFile
+                    {
+                        FileName = Path.GetFileName(fullPathFile),
+                        Path = fullPathFile,
+                        FileType = "File"
+                    };
+                    relDal.Save(mdFile);
+                }
 
-            SaveLinksFromMarkdown(mdFile);
-            engineDB.Commit();
+                SaveLinksFromMarkdown(mdFile);
+                engineDB.Commit();
+            }
             var toReturn = new ContentResult
             {
                 ContentType = "text/html; charset=utf-8",
