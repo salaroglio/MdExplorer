@@ -69,7 +69,7 @@ namespace MdExplorer.Features.Tests.Slides
             var shown = Scripts(SlideDeckRenderer.Render(FrontMatter + "# A\n", new SlideDeckRenderOptions { Pipeline = DocumentViewPipeline.Build(null) }));
             var exported = Scripts(SlideDeckRenderer.Render(FrontMatter + "# A\n", new SlideDeckRenderOptions { Pipeline = DocumentViewPipeline.Build(null), StaticExport = true }));
 
-            foreach (var correcting in new[] { "slide-edit.js", "slide-list-drag.js", "slide-edit-mode.js", "slide-transitions.js", "inline-edit.js", "mark-diagram-context.js", "slide-diag.js" })
+            foreach (var correcting in new[] { "slide-edit.js", "slide-list-drag.js", "slide-edit-mode.js", "slide-transitions.js", "inline-edit.js", "mark-diagram-context.js", "slide-diag.js", "slide-detached.js" })
             {
                 Assert.IsTrue(shown.Any(s => s.EndsWith("/" + correcting)), $"{correcting} is on MdExplorer's page");
                 Assert.IsFalse(exported.Any(s => s.EndsWith("/" + correcting)), $"{correcting} is not in an export");

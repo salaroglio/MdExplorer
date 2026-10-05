@@ -429,6 +429,8 @@ namespace MdExplorer.Features.Slides
                 + string.Concat(PageScripts.Where(s => !(options.StaticExport && s.Correcting)).Select(s => $"<script src=\"{s.Src}\"></script>\n"));
             // The diagnostics of the slides' loading inside MdExplorer's view: never in an export.
             var diagnostics = options.StaticExport ? string.Empty : "<script src=\"/javascripts/slides/slide-diag.js\"></script>\n";
+            // The window's own bar when the deck is in the detached window (frame:false): never in an export.
+            var detachedBar = options.StaticExport ? string.Empty : "<script src=\"/javascripts/slides/slide-detached.js\"></script>\n";
             // In an export no service reads ?pages=: the page takes the other slides out before reveal.js starts.
             var exportPages = options.StaticExport ? "<script src=\"/javascripts/slides/slide-export-pages.js\"></script>\n" : string.Empty;
             return $@"<!DOCTYPE html>
@@ -450,7 +452,7 @@ namespace MdExplorer.Features.Slides
 <div class=""reveal""><div class=""slides"" data-mde-content>
 {slides}</div></div>
 {diagnostics}<script src=""/reveal/dist/reveal.js""></script>
-{scripts}{diagramScripts}{exportPages}<script>
+{scripts}{diagramScripts}{detachedBar}{exportPages}<script>
 // Inside MdExplorer's view the iframe is hidden while the page loads, so the window is 0x0: initialized then,
 // reveal.js laid the deck out at its smallest scale (0.2) and again, at the real one, when the iframe showed.
 // On Windows the text of the diagrams kept the first layout for 15-20 s (measured 30/09/2026): laid out once,
