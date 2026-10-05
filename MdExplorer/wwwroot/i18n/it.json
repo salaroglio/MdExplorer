@@ -1827,7 +1827,9 @@
     "AWAITED_reworking": "in rilavorazione",
     "AWAITED_done": "concluso",
     "AWAITED_failed": "non riuscito",
-    "REVIEW_STOPPED": "Rifiutato: fermo finché non lo fai ripartire"
+    "REVIEW_STOPPED": "Riparte solo quando lo dici tu",
+    "CHILD_STOPPED": "Rifiutato: il lavoro è fermo",
+    "KIND_STOPPED": "Rifiutato, fermo"
   },
   "MAILBOX": {
     "TITLE": "Messaggi degli agenti",

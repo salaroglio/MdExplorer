@@ -198,10 +198,15 @@ export class AgentMailComponent implements OnInit, OnDestroy {
   /** Lo stato visto all'ultima lettura, per lavoro atteso: serve a far notare un cambio. */
   private awaitedStates = new Map<string, string>();
   private awaitedTimer: any = null;
+  /** Fino a quando ci si aspetta una risposta dell'agente a cui si è appena scritto. */
+  private expectingUntil = 0;
 
   /** Finché c'è un lavoro atteso non ancora concluso, l'elenco si rilegge da solo: lo stato cambia senza che nessuno scriva. */
   private watchAwaited(items: MailItem[]): void {
-    const open = items.some(i => i.awaited && ['working', 'approval', 'reworking', 'rejected'].includes(i.awaited.state));
+    // Dopo una risposta l'agente si sveglia e scriverà: l'elenco si rilegge da solo anche in quell'attesa,
+    // altrimenti chi ha premuto il pulsante non vede succedere niente finché non aggiorna a mano.
+    const open = Date.now() < this.expectingUntil
+      || items.some(i => i.awaited && ['working', 'approval', 'reworking', 'rejected'].includes(i.awaited.state));
     if (open && !this.awaitedTimer) this.awaitedTimer = setInterval(() => { if (!this.loading) this.reload(); }, 15000);
     if (!open && this.awaitedTimer) { clearInterval(this.awaitedTimer); this.awaitedTimer = null; }
   }
@@ -315,6 +320,8 @@ export class AgentMailComponent implements OnInit, OnDestroy {
       next: (res) => {
         this.sending = false;
         this.replyDraft = '';
+        this.expectingUntil = Date.now() + 10 * 60 * 1000;
+        this.watchAwaited(this.items);
         this.snackBar.open(this.translate.instant('MAILBOX.REPLY_SENT', { agent: res.toAgent }), 'OK', { duration: 4000 });
       },
       error: (err) => { this.sending = false; this.showError(err); },

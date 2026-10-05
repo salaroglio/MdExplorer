@@ -273,6 +273,7 @@ namespace MdExplorer.Services.AgentRegistry
                             .Select(n => n?.Trim()).Where(n => !string.IsNullOrEmpty(n))
                             .Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                         Summary = parsed.Card.Summary,
+                        DeclaresReplies = parsed.Card.Replies != null,
                         Replies = (parsed.Card.Replies ?? new List<MdExplorer.Features.Yaml.Models.AgentCardReply>())
                             .Where(r => !string.IsNullOrWhiteSpace(r?.Id))
                             .Select(r => new AgentRegistryReply { Id = r.Id.Trim(), Label = r.Label, Description = r.Description, Message = r.Message })

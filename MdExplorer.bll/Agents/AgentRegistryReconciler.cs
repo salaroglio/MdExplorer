@@ -53,6 +53,7 @@ namespace MdExplorer.Features.Agents
                     OnApprovalNotify = d.OnApprovalNotify ?? new List<string>(),
                     Summary = d.Summary,
                     Replies = d.Replies ?? new List<AgentRegistryReply>(),
+                    DeclaresReplies = d.DeclaresReplies,
                     MaxHops = d.MaxHops,
                     CurrentA2ABlockHash = d.CurrentA2ABlockHash,
                 };

@@ -664,7 +664,7 @@ namespace MdExplorer.Controllers.A2A
             }
 
             foreach (var projectPath in messages.Select(m => m.ProjectPath).Where(p => !string.IsNullOrEmpty(p)).Distinct())
-                foreach (var e in _registry.GetCatalog(projectPath).Where(e => e.Replies != null && e.Replies.Count > 0))
+                foreach (var e in _registry.GetCatalog(projectPath).Where(e => e.DeclaresReplies))
                     context.DeclaresReplies.Add(projectPath + "\n" + e.Name);
             return context;
         }

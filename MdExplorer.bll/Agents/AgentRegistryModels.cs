@@ -79,6 +79,12 @@ namespace MdExplorer.Features.Agents
         /// <summary>Le risposte che la persona può dare a questo agente (<c>a2a.replies</c>); vuota = nessuna.</summary>
         public IList<AgentRegistryReply> Replies { get; set; } = new List<AgentRegistryReply>();
 
+        /// <summary>
+        /// La scheda ha la voce <c>a2a.replies</c>, anche vuota (<c>replies: []</c> = «non chiedo niente alla persona»).
+        /// Chi la dichiara non ha il campo libero di risposta: solo i suoi pulsanti, o nessuno.
+        /// </summary>
+        public bool DeclaresReplies { get; set; }
+
     }
 
     /// <summary>
@@ -138,6 +144,12 @@ namespace MdExplorer.Features.Agents
 
         /// <summary>Le risposte che la persona può dare a questo agente (<c>a2a.replies</c>); vuota = nessuna.</summary>
         public IList<AgentRegistryReply> Replies { get; set; } = new List<AgentRegistryReply>();
+
+        /// <summary>
+        /// La scheda ha la voce <c>a2a.replies</c>, anche vuota (<c>replies: []</c> = «non chiedo niente alla persona»).
+        /// Chi la dichiara non ha il campo libero di risposta: solo i suoi pulsanti, o nessuno.
+        /// </summary>
+        public bool DeclaresReplies { get; set; }
 
         /// <summary>
         /// Cosa può fare sul computer, <b>calcolato dagli strumenti dichiarati</b> (gli unici che l'app fa rispettare).

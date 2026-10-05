@@ -1827,7 +1827,9 @@
     "AWAITED_reworking": "being redone",
     "AWAITED_done": "done",
     "AWAITED_failed": "failed",
-    "REVIEW_STOPPED": "Rejected: stopped until you restart it"
+    "REVIEW_STOPPED": "It restarts only when you say so",
+    "CHILD_STOPPED": "Rejected: the work is stopped",
+    "KIND_STOPPED": "Rejected, stopped"
   },
   "MAILBOX": {
     "TITLE": "Agent messages",

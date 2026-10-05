@@ -52,14 +52,15 @@
 
         <button type="button" class="mail-row" *ngIf="item.kind !== 'awaited'"
                 [class.selected]="selected === item" [class.unread]="item.unread" [class.child]="item.child"
+                [class.stopped]="item.request?.status === 'rejected'"
                 [ngClass]="'kind-' + item.kind"
                 (click)="select(item)">
           <span class="row-branch" *ngIf="item.child" aria-hidden="true"></span>
           <span class="row-dot"></span>
-          <mat-icon class="row-icon">{{ item.kind === 'message' ? 'smart_toy' : item.kind === 'review' ? 'rule' : 'hub' }}</mat-icon>
+          <mat-icon class="row-icon">{{ item.kind === 'message' ? 'smart_toy' : item.kind === 'review' ? (item.request?.status === 'rejected' ? 'block' : 'rule') : 'hub' }}</mat-icon>
           <span class="row-main">
             <span class="row-top">
-              <span class="row-from">{{ item.child ? ('AGENT_MAIL.CHILD_REVIEW' | translate) : item.from }}</span>
+              <span class="row-from">{{ item.child ? ((item.request?.status === 'rejected' ? 'AGENT_MAIL.CHILD_STOPPED' : 'AGENT_MAIL.CHILD_REVIEW') | translate) : item.from }}</span>
               <mat-icon class="row-pending" *ngIf="item.hasPending" [matTooltip]="'AGENT_MAIL.HAS_PENDING' | translate">rule</mat-icon>
               <span class="row-when" [title]="item.when">{{ item.when | date:'short' }}</span>
             </span>
@@ -173,13 +174,13 @@
         <!-- Un lavoro da approvare: i gesti sono quelli di sempre -->
         <div class="detail" *ngIf="selected?.kind === 'review'">
           <div class="detail-head">
-            <mat-icon class="head-icon">rule</mat-icon>
+            <mat-icon class="head-icon">{{ selected.request?.status === 'rejected' ? 'block' : 'rule' }}</mat-icon>
             <span class="head-from">{{ selected.from }}</span>
-            <span class="head-kind">{{ 'AGENT_MAIL.KIND_REVIEW' | translate }}</span>
+            <span class="head-kind">{{ (selected.request?.status === 'rejected' ? 'AGENT_MAIL.KIND_STOPPED' : 'AGENT_MAIL.KIND_REVIEW') | translate }}</span>
             <span class="flexExpand"></span>
             <span class="head-when">{{ selected.when | date:'medium' }}</span>
           </div>
-          <p class="detail-hint">{{ 'AGENT_MAIL.REVIEW_HINT' | translate }}</p>
+          <p class="detail-hint" *ngIf="selected.request?.status !== 'rejected'">{{ 'AGENT_MAIL.REVIEW_HINT' | translate }}</p>
           <app-agent-review [onlyRequestId]="selected.id" [embedded]="true"
                             (changed)="reload()" (openFile)="openDelivered($event.request, $event.path)"></app-agent-review>
         </div>

@@ -3,7 +3,7 @@ name: mde-agent
 description: Author a `.agent.md` agent card for MdExplorer's agent city. Use when the user asks to create, review or fix an agent - name, role, summary, tools, who may write to it, who it hands work to, and the instructions it follows. The card is what the person reads before trusting the agent, so the summary and the tools must agree.
 mde:
   origin: mdexplorer
-  version: 5
+  version: 6
   updatePolicy: replace
 ---
 
@@ -65,7 +65,7 @@ mde: {origin: user, version: 1}
 | `skills` | `id` + one-line `description` of what it can be asked. |
 | `accepts_messages_from` | Who may write to it: agent names, `user`, or `["*"]`. Empty = nobody (default-deny). The person (`user`) is always allowed. |
 | `max_hops` | Cap on messages in one conversation (default is fine; the hard cap is 16). |
-| `replies` | **What the person can answer** to the agent's message. Each one becomes a button under the message. See below. Leave it out if the agent never asks the person anything. |
+| `replies` | **What the person can answer** to the agent's message. Each one becomes a button under the message. See below. An agent that never asks the person anything writes `replies: []`. |
 | `on_approval_notify` | Agents the person can pass the work to when approving its delivery. **One** = it is notified automatically; **several** = the person chooses. Each must exist, be trusted and be a citizen of the project. Leave it out if the work ends here. |
 
 **Anything inside `a2a:` or `tools:` is part of the trust fingerprint**: if it changes after the person said "I trust
@@ -107,6 +107,8 @@ a2a:
 | `description` | What happens when the person presses: **who is contacted and to obtain what**, and what comes back. One or two sentences, written for someone who does not know the process. |
 | `message` | The text the agent receives. It must be a message a **case of section 4** of the body handles. |
 
+- **`replies: []`** says "I ask the person nothing": no buttons and no reply box under the agent's messages. Without the
+  `replies` key at all, the person gets a free-text box, which only makes sense for an agent whose body handles free requests.
 - `{name}` is a **placeholder**: a value known only at run time (a code, a file, a date). The agent fills it when it sends
   the message. Use the same placeholder in `label`, `description` and `message`.
 - **Put the three texts in double quotes**, like `summary`.

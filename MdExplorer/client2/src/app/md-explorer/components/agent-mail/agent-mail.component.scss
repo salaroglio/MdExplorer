@@ -155,3 +155,9 @@
   0%, 100% { box-shadow: inset 0 0 0 0 transparent; }
   50% { box-shadow: inset 0 0 0 2px currentColor, inset 0 0 0 100px rgba(255, 213, 79, 0.45); }
 }
+
+// Le righe non devono allargare l'elenco: il rientro sta dentro la larghezza.
+.mail-row { box-sizing: border-box; }
+
+// Un lavoro rifiutato e fermo: rosso, non «da approvare».
+.mail-row.stopped { background: rgba(217, 48, 37, 0.08); &.kind-review .row-icon { color: #d93025; } }
