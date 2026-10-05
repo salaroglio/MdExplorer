@@ -576,3 +576,7 @@ mat-toolbar button.git-menu-btn {
 .git-panels .git-panel {
   top: 16px;
 }
+
+// L'etichetta del ramo quando si guarda il lavoro di un agente.
+.branch-agent { color: #ffca28 !important; }
+.branch-agent-icon { font-size: 18px; width: 18px; height: 18px; vertical-align: middle; margin-right: 2px; }

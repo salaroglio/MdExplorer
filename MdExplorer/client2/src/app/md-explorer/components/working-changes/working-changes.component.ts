@@ -5,6 +5,7 @@ import { Subscription } from 'rxjs';
 import { ProjectsService } from '../../services/projects.service';
 import { DiffViewerService } from '../../services/diff-viewer.service';
 import { ReviewContextService } from '../../services/review-context.service';
+import { MdFileService } from '../../services/md-file.service';
 import { ChangeKind, RepoChanges, WorkingChange, WorkingChangesService, WorkingChangesView } from '../../services/working-changes.service';
 
 /**
@@ -48,6 +49,7 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
     private changes: WorkingChangesService,
     private projects: ProjectsService,
     private context: ReviewContextService,
+    private mdFiles: MdFileService,
     private diffViewer: DiffViewerService,
     private snackBar: MatSnackBar,
     private translate: TranslateService,
@@ -185,6 +187,18 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
       case 'renamed': return 'drive_file_move';
       default: return 'edit';
     }
+  }
+
+  /** Un file dell'agente che si può leggere impaginato: un markdown del progetto, non eliminato. */
+  canOpenDocument(repo: RepoChanges, file: WorkingChange): boolean {
+    return !!this.agent && !repo.path && file.change !== 'deleted' && /\.md$/i.test(file.path);
+  }
+
+  /** Apre il documento dalla copia dell'agente, al posto della differenza. */
+  openDocument(file: WorkingChange, event: MouseEvent): void {
+    event.stopPropagation();
+    this.closeDiff();
+    this.mdFiles.viewWorktree(this.agent, file.path);
   }
 
   backToMyWork(): void {

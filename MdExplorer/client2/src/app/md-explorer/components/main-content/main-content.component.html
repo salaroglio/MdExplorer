@@ -1,6 +1,18 @@
 <!-- Main Content Container with State Management -->
 <div class="main-content-container" [ngClass]="classForContent">
 
+  <!-- Si sta guardando il lavoro di un agente: lo si dice sempre, con la via per tornare indietro. -->
+  <div class="agent-strip" *ngIf="reviewAgent">
+    <mat-icon>smart_toy</mat-icon>
+    <span class="agent-strip-text">{{ 'MAIN_CONTENT.AGENT_STRIP' | translate: { agent: reviewAgent } }}</span>
+    <span class="agent-strip-path" *ngIf="agentDocument">{{ agentDocument.path }}</span>
+    <span class="agent-strip-hint" *ngIf="!agentDocument">{{ 'MAIN_CONTENT.AGENT_STRIP_HINT' | translate }}</span>
+    <span class="flexExpand"></span>
+    <button mat-stroked-button class="btn-back-to-my-work" (click)="backToMyWork()">
+      <mat-icon>undo</mat-icon> {{ 'MAIN_CONTENT.AGENT_STRIP_BACK' | translate }}
+    </button>
+  </div>
+
   <!-- Loading State Overlay -->
   <div class="loading-overlay" *ngIf="isLoading$ | async"
        role="status"
@@ -59,7 +71,7 @@
   <!-- Empty State (when no file is selected). Non quando si guarda una differenza: sta sopra
        (z-index 500) e la coprirebbe, cosi' con nessun documento aperto il diff restava invisibile. -->
   <div class="empty-state"
-       *ngIf="(currentState$ | async)?.status === 'idle' && !diffRequest"
+       *ngIf="(currentState$ | async)?.status === 'idle' && !diffRequest && !agentDocument"
        role="main"
        aria-label="empty state">
     <div class="empty-content">

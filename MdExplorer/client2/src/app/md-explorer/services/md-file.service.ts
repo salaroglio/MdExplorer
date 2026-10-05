@@ -24,7 +24,7 @@ export class MdFileService {
   private _selectedDirectoryFromNewDirectory: BehaviorSubject<MdFile>;
   private _revealInTree = new Subject<MdFile>();
   // Fase 7h: richiesta di review read-only del documento corrente dal worktree di un agente.
-  private _viewWorktree = new Subject<string>();
+  private _viewWorktree = new Subject<{ agent: string; path?: string }>();
 
   private dataStore: {
     mdFiles: MdFile[]
@@ -133,12 +133,16 @@ export class MdFileService {
   // ---- Worktree review read-only (Fase 7h) ----
 
   /** Emette l'agente di cui mostrare il worktree (il main-content ripunta l'iframe read-only). */
-  get viewWorktree$(): Observable<string> {
+  get viewWorktree$(): Observable<{ agent: string; path?: string }> {
     return this._viewWorktree.asObservable();
   }
 
-  viewWorktree(agentName: string): void {
-    this._viewWorktree.next(agentName);
+  /**
+   * Mostra un documento dalla copia di lavoro di un agente, in sola lettura. Senza `path` è il documento
+   * aperto adesso; con `path` è un file dell'agente, anche uno che nel progetto non esiste ancora.
+   */
+  viewWorktree(agentName: string, path?: string): void {
+    this._viewWorktree.next({ agent: agentName, path });
   }
 
   /** Elenco dei worktree degli agenti del progetto aperto (agente → path). */

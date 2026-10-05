@@ -17,6 +17,7 @@ import { MdNavigationService } from '../../services/md-navigation.service';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
 import { DiffRequest, DiffViewerService } from '../../services/diff-viewer.service';
+import { ReviewContextService } from '../../services/review-context.service';
 import { WorkingChangesService } from '../../services/working-changes.service';
 import { ThemeService } from '../../../services/theme.service';
 import { AiSelectionDialogComponent } from '../dialogs/ai-selection-dialog/ai-selection-dialog.component';
@@ -51,6 +52,17 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Cosa si sta guardando. `null` = si torna al documento. */
   diffRequest: DiffRequest | null = null;
+
+  /** L'agente di cui si sta guardando il lavoro (null = il proprio). */
+  reviewAgent: string | null = null;
+  /** Il documento mostrato dalla copia di un agente, se ce n'è uno. */
+  agentDocument: { agent: string; path: string } | null = null;
+  private sourceBeforeAgent: any = '';
+
+  /** «Torna al mio lavoro»: si esce dal lavoro dell'agente. */
+  backToMyWork(): void {
+    this.reviewContext.backToUser();
+  }
   diffText = '';
   diffLoading = false;
   diffError = '';
@@ -116,7 +128,8 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     private themeService: ThemeService,
     private diffViewer: DiffViewerService,
     private workingChanges: WorkingChangesService,
-    private navService: MdNavigationService
+    private navService: MdNavigationService,
+    private reviewContext: ReviewContextService
   ) {
     
     // Initialize observables from state
@@ -191,15 +204,33 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       }
     });
 
-    // Fase 7h — review read-only: mostra il documento CORRENTE dal worktree dell'agente scelto.
+    // Il lavoro di un agente, in sola lettura: il documento aperto adesso, oppure un suo file — anche uno che
+    // nel progetto non esiste ancora. Il documento viene dalla sua copia di lavoro, non dalla cartella del progetto.
     this.service.viewWorktree$.pipe(
       takeUntil(this.destroy$)
-    ).subscribe(agent => {
-      const currentPath = this.contentState$.value.currentPath;
-      if (!currentPath || !agent) { return; }
-      const cleanPath = this.cleanRelativePath(currentPath);
+    ).subscribe(request => {
+      const path = request?.path || this.contentState$.value.currentPath;
+      if (!path || !request?.agent) { return; }
+      this.diffViewer.close();
+      // Ciò che c'era prima (un documento, o la pagina di benvenuto) torna quando si esce dal lavoro dell'agente.
+      if (!this.agentDocument) this.sourceBeforeAgent = this.htmlSource;
+      this.agentDocument = { agent: request.agent, path };
+      const cleanPath = this.cleanRelativePath(path);
       const dateTime = new Date().getTime() / 1000;
-      this.htmlSource = `../api/MdExplorerWorktree/render/${cleanPath}?agent=${encodeURIComponent(agent)}&time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}`;
+      this.htmlSource = `../api/MdExplorerWorktree/render/${cleanPath}?agent=${encodeURIComponent(request.agent)}&time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&theme=${this.themeService.getResolvedTheme()}${request.path ? '' : this.pagesQuery()}`;
+      this.ref.detectChanges();
+    });
+
+    // Di chi è il lavoro che si sta guardando: la striscia in alto lo dice, e uscendo si torna al proprio documento.
+    this.reviewContext.agent$.pipe(takeUntil(this.destroy$)).subscribe(agent => {
+      this.reviewAgent = agent;
+      if (!agent && this.agentDocument) {
+        this.agentDocument = null;
+        if (this.contentState$.value.currentPath) this.retry();
+        else this.htmlSource = this.sourceBeforeAgent;
+        this.sourceBeforeAgent = '';
+      }
+      this.ref.detectChanges();
     });
 
     // Enhanced subscription with loading state management

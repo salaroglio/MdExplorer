@@ -11775,8 +11775,15 @@ class MdFileService {
   get viewWorktree$() {
     return this._viewWorktree.asObservable();
   }
-  viewWorktree(agentName) {
-    this._viewWorktree.next(agentName);
+  /**
+   * Mostra un documento dalla copia di lavoro di un agente, in sola lettura. Senza `path` è il documento
+   * aperto adesso; con `path` è un file dell'agente, anche uno che nel progetto non esiste ancora.
+   */
+  viewWorktree(agentName, path) {
+    this._viewWorktree.next({
+      agent: agentName,
+      path
+    });
   }
   /** Elenco dei worktree degli agenti del progetto aperto (agente → path). */
   getAgentWorktrees(connectionId) {
@@ -18374,8 +18381,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.05.13',
-  buildTime: '2026.10.05 17:45:31'
+  version: '2026.10.05.16',
+  buildTime: '2026.10.05 18:13:37'
 };
 
 /***/ }),
@@ -18409,4 +18416,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.b09d7d337fa8fd86.js.map
+//# sourceMappingURL=main.b9b23a10754f17fc.js.map

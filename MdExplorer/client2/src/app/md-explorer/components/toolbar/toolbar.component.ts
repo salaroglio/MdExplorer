@@ -975,8 +975,14 @@ export class ToolbarComponent implements OnInit, OnDestroy {
     });
   }
 
-  // Fase 7h — mostra il documento corrente dal worktree dell'agente (review read-only).
+  /**
+   * Si entra nel lavoro di un agente: da qui l'etichetta del ramo, la striscia sul documento, le differenze e
+   * il commit parlano di lui — lo stesso stato in cui porta «Ci metto mano». Il pannello di sinistra passa ai
+   * suoi file, e il documento aperto si rilegge dalla sua copia.
+   */
   openWorktree(agent: string): void {
+    this.reviewContext.enterAgent(agent);
+    this.reviewContext.showChanges();
     this.mdFileService.viewWorktree(agent);
     this.matMenuTrigger?.closeMenu();
   }

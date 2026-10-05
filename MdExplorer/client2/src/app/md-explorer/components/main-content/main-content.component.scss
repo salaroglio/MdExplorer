@@ -587,3 +587,15 @@
   .d-hunk { color: var(--mde-accent-primary); }
   .d-meta { color: var(--mde-text-hint); }
 }
+
+// La striscia «stai guardando il lavoro di un agente»: sopra tutto, anche sopra lo stato vuoto.
+.agent-strip {
+  position: relative; z-index: 600;
+  display: flex; align-items: center; gap: 10px; padding: 6px 14px; flex: 0 0 auto;
+  background: var(--mde-warning-bg, #fef7e0); color: var(--mde-text-primary, #1f1f1f);
+  border-bottom: 2px solid var(--mde-warning-fg, #f29900); font-size: 13px;
+  .flexExpand { flex: 1 1 auto; }
+  .agent-strip-text { font-weight: 600; }
+  .agent-strip-path { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; opacity: 0.85; }
+  .agent-strip-hint { opacity: 0.75; }
+}

@@ -352,8 +352,11 @@
       </div>
       <button mat-button [matMenuTriggerFor]="tagsAndBranches" #branchMenuTrigger="matMenuTrigger"
               (menuOpened)="loadWorktrees()"
-              [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'">
-        [{{currentBranch}}] <img src="/assets/gitlogo.png" />
+              [ngClass]="!somethingIsChangedInTheBranch? 'branchGood':'branchToCommit'"
+              [class.branch-agent]="reviewAgent"
+              [matTooltip]="reviewAgent ? ('TOOLBAR.BRANCH_AGENT_TIP' | translate: { agent: reviewAgent }) : ''">
+        <mat-icon class="branch-agent-icon" *ngIf="reviewAgent">smart_toy</mat-icon>
+        [{{ reviewAgent || currentBranch }}] <img src="/assets/gitlogo.png" />
       </button>
     </span>
 

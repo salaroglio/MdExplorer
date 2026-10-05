@@ -146,6 +146,10 @@
               <mat-icon class="change-icon">{{ iconFor(f.change) }}</mat-icon>
               <span class="file-path">{{ f.path }}</span>
               <span class="flexExpand"></span>
+              <button mat-icon-button class="open-document" *ngIf="canOpenDocument(r, f)" (click)="openDocument(f, $event)"
+                      [matTooltip]="'CHANGES.OPEN_AGENT_DOCUMENT' | translate">
+                <mat-icon>description</mat-icon>
+              </button>
               <button mat-icon-button class="discard" (click)="discard(r, f, $event)"
                       [matTooltip]="'CHANGES.DISCARD' | translate">
                 <mat-icon>undo</mat-icon>

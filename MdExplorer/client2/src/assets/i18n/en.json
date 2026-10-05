@@ -537,6 +537,7 @@
     "LOGIN_HINT": "git has no credential for this host. On Windows: at the first push Git Credential Manager opens the login in the browser. On Linux and Mac: push once from the terminal so the credential helper stores it."
   },
   "TOOLBAR": {
+    "BRANCH_AGENT_TIP": "You are looking at the work of {{agent}}, not your branch",
     "HIDE_SHOW_MENU": "hide/show menu",
     "EDIT_DOCUMENT": "edit document",
     "EXPORT_WORD": "export in word",
@@ -688,6 +689,9 @@
     "E2E_TESTS": "E2E tests…"
   },
   "MAIN_CONTENT": {
+    "AGENT_STRIP": "You are looking at the work of {{agent}}",
+    "AGENT_STRIP_HINT": "Its files are in the left panel: the document icon opens them rendered.",
+    "AGENT_STRIP_BACK": "Back to my work",
     "LOADING_DOC": "Loading document...",
     "PLEASE_WAIT": "Please wait",
     "INDEXING": "Indexing in progress...",
@@ -1925,6 +1929,7 @@
     "TAB": "Agent work"
   },
   "CHANGES": {
+    "OPEN_AGENT_DOCUMENT": "Open the document from the agent's copy",
     "YOUR_WORK": "Your work",
     "BACK_TO_MINE": "Back to your work",
     "REFRESH": "Re-read from git",
