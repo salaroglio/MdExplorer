@@ -244,8 +244,12 @@ export class ToolbarComponent implements OnInit, OnDestroy {
 
     // Entrare o uscire dalla revisione cambia di chi sono i numeri della finestrella.
     this.citySubscriptions.add(this.reviewContext.agent$.subscribe(agent => {
+      const changed = agent !== this.reviewAgent;
       this.reviewAgent = agent;
       this.changesView = null;
+      // I contatori vanno riletti subito: senza, entrando nella copia di un agente restavano quelli del
+      // proprio progetto (e uscendo quelli della copia), e «da committare» diceva una cosa per un'altra.
+      if (changed) this.loadChangedFiles();
     }));
 
     // I comandi della città esistono solo dove la città è accesa: seguiamo il progetto

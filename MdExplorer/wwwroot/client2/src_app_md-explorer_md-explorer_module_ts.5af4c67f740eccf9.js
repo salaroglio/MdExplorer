@@ -34016,8 +34016,12 @@ class ToolbarComponent {
     this.slideDeckSubscription = this.documentRefreshService.slideDeckShown$.subscribe(shown => this.slideDeckShown = shown);
     // Entrare o uscire dalla revisione cambia di chi sono i numeri della finestrella.
     this.citySubscriptions.add(this.reviewContext.agent$.subscribe(agent => {
+      const changed = agent !== this.reviewAgent;
       this.reviewAgent = agent;
       this.changesView = null;
+      // I contatori vanno riletti subito: senza, entrando nella copia di un agente restavano quelli del
+      // proprio progetto (e uscendo quelli della copia), e «da committare» diceva una cosa per un'altra.
+      if (changed) this.loadChangedFiles();
     }));
     // I comandi della città esistono solo dove la città è accesa: seguiamo il progetto
     // aperto (BehaviorSubject, quindi il valore corrente arriva subito) e lo stato
@@ -44161,4 +44165,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.27cdef1d38e652a1.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.5af4c67f740eccf9.js.map
