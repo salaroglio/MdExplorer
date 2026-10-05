@@ -84,6 +84,7 @@ namespace MdExplorer.IntegrationTests
                     // detached HEAD, e il branch d'attività non sarebbe più osservabile qui.
                     AutoMergeAgentDeliverables = false,
                 });
+            ctx.OwnAgents(path, "worker");
             // L'isolamento e' una preferenza di MACCHINA (UserDB), non del repo.
             ctx.Factory.Services.GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>()
                 .Set(path, true);
@@ -132,6 +133,7 @@ namespace MdExplorer.IntegrationTests
             // non più "cosa fa se non lo tocchi".
             ctx.Factory.Services.GetRequiredService<IProjectMetadataService>()
                 .SetAgentCity(path, new AgentCityConfig { Enabled = true });
+            ctx.OwnAgents(path, "worker");
             ctx.Factory.Services.GetRequiredService<MdExplorer.Services.AgentRun.IAgentWorktreePreference>()
                 .Set(path, false);
             ctx.Runner.Behavior = (_, __) => Task.FromResult("ok");

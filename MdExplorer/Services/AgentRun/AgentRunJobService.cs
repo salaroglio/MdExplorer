@@ -40,6 +40,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentWorktreePreference _worktreePreference;
         private readonly IAgentMergeRequestService _mergeRequests;
         private readonly IAgentDeliveryReporter _deliveryReporter;
+        private readonly IAgentWakeGuard _wakeGuard;
 
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
 
@@ -53,8 +54,10 @@ namespace MdExplorer.Services.AgentRun
             IAgentWorktreeManager worktree,
             IAgentWorktreePreference worktreePreference,
             IAgentMergeRequestService mergeRequests,
-            IAgentDeliveryReporter deliveryReporter)
+            IAgentDeliveryReporter deliveryReporter,
+            IAgentWakeGuard wakeGuard)
         {
+            _wakeGuard = wakeGuard;
             _worktree = worktree;
             _worktreePreference = worktreePreference;
             _mergeRequests = mergeRequests;
@@ -214,6 +217,15 @@ namespace MdExplorer.Services.AgentRun
                 throw new ArgumentException($"Agent file does not exist: '{request.AgentFilePath}'");
             if (string.IsNullOrWhiteSpace(request.PreparedPrompt))
                 throw new ArgumentException("Prepared prompt is empty");
+
+            // Un cittadino della città lavora solo sul computer di chi ne risponde, comunque parta: a mano,
+            // da uno schedule, da un hook. Un agente senza blocco a2a non è della città: resta lo strumento
+            // di chi lo lancia.
+            var citizen = _agentRegistry.GetCatalog(request.ProjectPath)
+                .FirstOrDefault(e => e.IsCitizen && PathEquals(e.AgentFilePath, request.AgentFilePath));
+            var owner = citizen == null ? null : _wakeGuard.Check(request.ProjectPath, citizen.Name);
+            if (owner != null && !owner.CanWorkHere)
+                throw new InvalidOperationException(owner.Explain());
 
             var key = RunKey(request.AgentFilePath);
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);

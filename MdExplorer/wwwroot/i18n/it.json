@@ -1630,6 +1630,8 @@
     "QUEUE_DEFERRED_RESOURCES": "parcheggiato: risorse",
     "QUEUE_DEFERRED_MAINTENANCE": "parcheggiato: manutenzione",
     "QUEUE_DEFERRED_USER": "parcheggiato: in pausa",
+    "QUEUE_DEFERRED_OWNER-ELSEWHERE": "in attesa: lavora sul computer del suo responsabile",
+    "QUEUE_DEFERRED_UNASSIGNED": "in attesa: senza responsabile, va assegnato",
     "QUEUE_FORCE": "Esegui ora",
     "QUEUE_DISCARD": "Scarta",
     "QUEUE_FED_WAITING": "federata — in attesa della tua autorizzazione",

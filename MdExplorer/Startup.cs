@@ -98,6 +98,8 @@ namespace MdExplorer
             services.AddScoped<Services.MarkDiagram.MarkPointPromptService>();
 
             // Esecuzione headless degli agenti *.agent.md (lancio manuale, schedule, hook)
+            // Dove lavora un agente: sul computer di chi risponde del suo output (AgentOwnerRule).
+            services.AddSingleton<Services.AgentRun.IAgentWakeGuard, Services.AgentRun.AgentWakeGuard>();
             services.AddSingleton<Services.AgentRun.IAgentRunJobService, Services.AgentRun.AgentRunJobService>();
             // Hook a eventi delle schedule agenti (commit via FSW su .git/logs/HEAD,
             // apertura progetto). I trigger cron appartengono SOLO al satellite scheduler.

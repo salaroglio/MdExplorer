@@ -56,6 +56,62 @@ namespace MdExplorer.IntegrationTests.Infrastructure
         }
 
         /// <summary>
+        /// Chi è la persona di questo computer per il progetto: la sua email git (crea il repository se
+        /// manca). Nella città un agente lavora solo sul computer di chi ne risponde, e «chi sei» è questa.
+        /// </summary>
+        public void SetGitEmail(string projectPath, string email)
+        {
+            if (!Directory.Exists(Path.Combine(projectPath, ".git")) && !File.Exists(Path.Combine(projectPath, ".git")))
+                RunGit(projectPath, "init -b main");
+            RunGit(projectPath, $"config user.email {email}");
+        }
+
+        /// <summary>
+        /// Dichiara che la persona di questo computer risponde di questi agenti: una riga ciascuno nel
+        /// documento delle responsabilità del progetto (creato e collegato alla città se manca). Senza,
+        /// in una città accesa un agente è di nessuno e non parte.
+        /// </summary>
+        public void OwnAgents(string projectPath, params string[] agents)
+        {
+            var email = RunGit(projectPath, "config user.email").Trim();
+            if (email.Length == 0)
+            {
+                email = "padrone@test.local";
+                SetGitEmail(projectPath, email);
+            }
+
+            var meta = Factory.Services.GetRequiredService<MdExplorer.Services.IProjectMetadataService>();
+            var city = meta.GetAgentCity(projectPath) ?? new MdExplorer.Service.Models.AgentCityConfig();
+            if (string.IsNullOrWhiteSpace(city.OwnershipDoc))
+            {
+                city.OwnershipDoc = "ownership.md";
+                meta.SetAgentCity(projectPath, city);
+            }
+            var doc = Path.Combine(projectPath, city.OwnershipDoc);
+            if (!File.Exists(doc))
+                File.WriteAllText(doc, "---\nmde_type: ownership\n---\n| Ambito | Responsabile | Git Email | Agenti |\n|--------|--------------|-----------|--------|\n");
+            File.AppendAllText(doc, string.Concat(agents.Select(a => $"| Ambito di {a} | Io | {email} | {a} |\n")));
+        }
+
+        private static string RunGit(string cwd, string args)
+        {
+            var p = new System.Diagnostics.Process
+            {
+                StartInfo = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "git", Arguments = args, WorkingDirectory = cwd,
+                    UseShellExecute = false, RedirectStandardOutput = true,
+                    RedirectStandardError = true, CreateNoWindow = true,
+                }
+            };
+            p.Start();
+            var output = p.StandardOutput.ReadToEnd();
+            p.StandardError.ReadToEnd();
+            p.WaitForExit(20000);
+            return output;
+        }
+
+        /// <summary>
         /// Scrive un <c>&lt;name&gt;.agent.md</c> con blocco a2a: su disco (autorità del
         /// contenuto). Da solo NON rende l'agente un cittadino: chiama poi
         /// <see cref="IndexAgentFiles"/> per popolare l'indice Engine DB da cui il registry

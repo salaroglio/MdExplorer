@@ -33,6 +33,7 @@ mde_type: ownership
 | Ambito | Responsabile | Git Email | Agenti |
 |--------|--------------|-----------|--------|
 | Wiki | Io | {EMAIL} | curator |
+| Invio | Io | {EMAIL} | mittente |
 ";
 
         private static void Git(string cwd, string args)

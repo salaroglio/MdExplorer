@@ -1630,6 +1630,8 @@
     "QUEUE_DEFERRED_RESOURCES": "parked: resources",
     "QUEUE_DEFERRED_MAINTENANCE": "parked: maintenance",
     "QUEUE_DEFERRED_USER": "parked: paused",
+    "QUEUE_DEFERRED_OWNER-ELSEWHERE": "waiting: it works on its owner's computer",
+    "QUEUE_DEFERRED_UNASSIGNED": "waiting: nobody answers for it, assign it",
     "QUEUE_FORCE": "Run now",
     "QUEUE_DISCARD": "Discard",
     "QUEUE_FED_WAITING": "federated — awaiting your authorization",

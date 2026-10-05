@@ -65,6 +65,8 @@ namespace MdExplorer.Services.AgentRun
         private readonly IDeliverableMergeGate _mergeGate;
         private readonly IAgentMergeRequestService _mergeRequests;
         private readonly IAgentDeliveryReporter _deliveryReporter;
+        private readonly IAgentWakeGuard _wakeGuard;
+        private readonly IAgentMailbox _mailbox;
         private readonly MdExplorer.Services.IProjectMetadataService _projectMetadata;
         private readonly MdExplorer.Services.Federation.IFederationSender _federationSender;
         private readonly IHubContext<MonitorMDHub> _hubContext;
@@ -94,12 +96,16 @@ namespace MdExplorer.Services.AgentRun
             IDeliverableMergeGate mergeGate,
             IAgentMergeRequestService mergeRequests,
             IAgentDeliveryReporter deliveryReporter,
+            IAgentWakeGuard wakeGuard,
+            IAgentMailbox mailbox,
             MdExplorer.Services.IProjectMetadataService projectMetadata,
             MdExplorer.Services.Federation.IFederationSender federationSender,
             IHubContext<MonitorMDHub> hubContext,
             ILogger<AgentMessageDispatcher> logger)
         {
             _scopeFactory = scopeFactory;
+            _wakeGuard = wakeGuard;
+            _mailbox = mailbox;
             _registry = registry;
             _algorithmicAgents = algorithmicAgents;
             _llmWaker = llmWaker;
@@ -259,7 +265,24 @@ namespace MdExplorer.Services.AgentRun
             var catalog = _registry.RefreshCatalog(snapshot.ProjectPath);
             var entry = catalog
                 .FirstOrDefault(e => e.IsCitizen && string.Equals(e.Name, snapshot.ToAgent, StringComparison.OrdinalIgnoreCase));
-            if (entry == null || !entry.Trusted)
+            if (entry == null)
+            {
+                MarkFailed(messageId, $"Destinatario '{snapshot.ToAgent}' non più cittadino/trusted alla consegna.");
+                return;
+            }
+
+            // Dove lavora un agente: sul computer di chi risponde del suo output, e da nessun'altra parte.
+            // Prima della fiducia, perché l'agente di un altro qui non è abilitato per definizione, e
+            // «non è fidato» sarebbe la risposta sbagliata. Nemmeno il «forza-ora» dell'umano lo scavalca:
+            // non è una politica di disponibilità, è di chi è l'agente.
+            var owner = _wakeGuard.Check(snapshot.ProjectPath, entry.Name);
+            if (owner != null && !owner.CanWorkHere)
+            {
+                ParkForOwner(messageId, snapshot, owner);
+                return;
+            }
+
+            if (!entry.Trusted)
             {
                 MarkFailed(messageId, $"Destinatario '{snapshot.ToAgent}' non più cittadino/trusted alla consegna.");
                 return;
@@ -851,6 +874,41 @@ namespace MdExplorer.Services.AgentRun
         /// dopo una breve attesa. <b>Non</b> tocca <see cref="AgentMessage.Attempts"/> — il
         /// parcheggio non è un fallimento (come lo shutdown, §7).
         /// </summary>
+        /// <summary>
+        /// Il destinatario non lavora su questo computer (è di un altro, o di nessuno): il messaggio
+        /// aspetta senza consumare tentativi e la persona lo viene a sapere, <b>una volta</b> — il
+        /// messaggio viene riguardato a ogni giro, l'avviso no.
+        /// </summary>
+        private void ParkForOwner(Guid messageId, AgentMessage snapshot, AgentOwnerVerdict owner)
+        {
+            var reason = owner.Kind == AgentOwnerKind.SomeoneElse
+                ? AgentMessage.DeferredReasonEnum.OwnerElsewhere
+                : AgentMessage.DeferredReasonEnum.Unassigned;
+            var alreadyTold = string.Equals(snapshot.DeferredReason, reason, StringComparison.Ordinal);
+            Defer(messageId, reason);
+            if (alreadyTold) return;
+
+            _logger.LogWarning("[Dispatcher] '{Agent}' non parte su questo computer ({Kind}): messaggio {Id} in attesa.",
+                snapshot.ToAgent, owner.Kind, messageId);
+            try
+            {
+                var told = _mailbox.Enqueue(new EnqueueRequest
+                {
+                    ProjectPath = snapshot.ProjectPath,
+                    FromAgent = snapshot.ToAgent,
+                    ToAgent = ConversationHopGuard.UserRecipient,
+                    Body = owner.Explain() + " Il messaggio che gli era stato mandato resta in attesa.",
+                    ContextId = snapshot.ConversationId.ToString(),
+                });
+                if (!told.Accepted)
+                    _logger.LogError("[Dispatcher] avviso all'utente per '{Agent}' rifiutato: {Why}", snapshot.ToAgent, told.RejectionReason);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Dispatcher] avviso all'utente per '{Agent}' non partito.", snapshot.ToAgent);
+            }
+        }
+
         private void Defer(Guid messageId, string reason)
             => UpdateMessage(messageId, m =>
             {
@@ -965,6 +1023,7 @@ namespace MdExplorer.Services.AgentRun
             Attempts = m.Attempts,
             CreatedAt = m.CreatedAt,
             ForcedAt = m.ForcedAt,
+            DeferredReason = m.DeferredReason,
         };
 
         private static string SafeName(IAlgorithmicAgent a)

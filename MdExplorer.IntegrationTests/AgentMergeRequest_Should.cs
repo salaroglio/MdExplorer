@@ -39,6 +39,7 @@ namespace MdExplorer.IntegrationTests
             ctx.Trust(path, "worker");
             ctx.Factory.Services.GetRequiredService<IProjectMetadataService>()
                 .SetAgentCity(path, new AgentCityConfig { Enabled = true });
+            ctx.OwnAgents(path, "worker");
             ctx.Factory.Services.GetRequiredService<IAgentWorktreePreference>().Set(path, true);
 
             ctx.Runner.Behavior = (req, _) =>
@@ -88,6 +89,7 @@ namespace MdExplorer.IntegrationTests
             ctx.Trust(path, "worker");
             ctx.Factory.Services.GetRequiredService<IProjectMetadataService>()
                 .SetAgentCity(path, new AgentCityConfig { Enabled = true });
+            ctx.OwnAgents(path, "worker");
             ctx.Factory.Services.GetRequiredService<IAgentWorktreePreference>().Set(path, true);
 
             ctx.Runner.Behavior = (req, _) =>

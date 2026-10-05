@@ -109,6 +109,10 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// <summary>Cause del parcheggio (§12.5). Prefisso <c>deferred:</c> nella UI.</summary>
         public static class DeferredReasonEnum
         {
+            /// <summary>The recipient answers to another person: it works on that person's computer, not here.</summary>
+            public const string OwnerElsewhere = "owner-elsewhere";
+            /// <summary>The recipient answers to nobody (or to more than one person): it does not work until it is assigned.</summary>
+            public const string Unassigned = "unassigned";
             /// <summary>Tetto istanze Copilot raggiunto: nessuno slot libero adesso.</summary>
             public const string Resources = "resources";
             /// <summary>Agente in manutenzione (WIP), segnalato al team via <c>.development.yml</c>.</summary>

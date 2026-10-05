@@ -87,6 +87,8 @@ mde_type: ownership
 |--------|--------------|-----------|--------|
 | WSAA-TOT | Carlo | carlo@x.it | worker |
 ");
+            // Nella città un agente lavora solo sul computer di chi ne risponde: qui la persona è Carlo.
+            ctx.SetGitEmail(path, "carlo@x.it");
 
             ctx.WriteLlmCitizen(path, "worker", "Lavoratore", new[] { "*" });
             ctx.IndexAgentFiles(path);
