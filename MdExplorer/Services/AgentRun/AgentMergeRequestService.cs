@@ -41,6 +41,20 @@ namespace MdExplorer.Services.AgentRun
         /// <summary>Richieste ancora da decidere, più recenti prima.</summary>
         IReadOnlyList<AgentMergeRequest> Pending(string projectPath);
 
+        /// <summary>
+        /// Il ramo <b>pubblicato</b> su cui è aperta la richiesta di approvazione di questo ramo locale d'attività
+        /// (null = nessuna richiesta in attesa). Il nome locale contiene l'identificativo dell'attività: è unico.
+        /// </summary>
+        string PublishedBranchOf(string localBranch);
+
+        /// <summary>
+        /// Pubblica la testa della copia di un agente dove i colleghi e l'approvazione la cercano: sul ramo della
+        /// richiesta in attesa, che viene aggiornata; senza richiesta, come fa l'agente a fine lavoro, aprendone
+        /// una. È l'UNICO modo di pubblicare una copia: il nome locale del ramo su origin non esiste, e spingerlo
+        /// così com'è creerebbe un secondo ramo che nessuna richiesta guarda. Restituisce null, o il motivo.
+        /// </summary>
+        Task<string> PublishCopyAsync(string projectPath, string agentName, string deskPath, string localBranch, CancellationToken ct = default);
+
         AgentMergeRequest Get(Guid id);
 
         /// <summary>File toccati di una richiesta, decodificati.</summary>
@@ -129,6 +143,45 @@ namespace MdExplorer.Services.AgentRun
                 db.Rollback();
                 throw;
             }
+        }
+
+        public string PublishedBranchOf(string localBranch)
+        {
+            if (string.IsNullOrWhiteSpace(localBranch)) return null;
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.Clear();
+            db.BeginTransaction();
+            var found = db.GetDal<AgentMergeRequest>().GetList().ToList()
+                .Where(r => r.Status == AgentMergeRequest.StatusEnum.Pending
+                            && string.Equals(r.LocalBranch, localBranch, StringComparison.Ordinal))
+                .OrderByDescending(r => r.CreatedAt)
+                .FirstOrDefault()?.PublishedBranch;
+            db.Commit();
+            return found;
+        }
+
+        public async Task<string> PublishCopyAsync(
+            string projectPath, string agentName, string deskPath, string localBranch, CancellationToken ct = default)
+        {
+            var published = PublishedBranchOf(localBranch);
+            if (published != null)
+            {
+                var (head, error) = await _worktree.PublishToAsync(deskPath, published, ct);
+                if (error != null) return $"'{published}': {error}";
+                Open(projectPath, agentName, published, localBranch, head, await _worktree.ChangedFilesAsync(projectPath, agentName, ct));
+                return null;
+            }
+
+            // Nessuna richiesta in attesa (già decisa, o mai nata). La consegna dell'agente committerebbe a suo
+            // nome ciò che trova non committato: qui pubblica una persona, quindi prima deve aver committato lei.
+            if ((await _worktree.UncommittedAsync(deskPath, ct)).Count > 0)
+                return "ci sono modifiche non committate: committale prima di pubblicare";
+            var attempt = await _worktree.TryCommitAndPushBranchAsync(projectPath, agentName, null, ct);
+            if (attempt?.Pushed == null) return attempt?.Error ?? "non c'è niente da pubblicare";
+            Open(projectPath, agentName, attempt.Pushed.Branch, attempt.Pushed.LocalBranch, attempt.Pushed.HeadSha,
+                await _worktree.ChangedFilesAsync(projectPath, agentName, ct));
+            return null;
         }
 
         public IReadOnlyList<AgentMergeRequest> Pending(string projectPath)

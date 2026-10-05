@@ -38,6 +38,8 @@ namespace MdExplorer.IntegrationTests
 
             public AgentMergeRequest Open(string a, string b, string c, string d, string e, IEnumerable<ChangedFile> f) => throw new NotSupportedException();
             public IReadOnlyList<AgentMergeRequest> Pending(string projectPath) => new[] { Request };
+            public string PublishedBranchOf(string localBranch) => null;
+            public Task<string> PublishCopyAsync(string a, string b, string c, string d, CancellationToken ct = default) => throw new NotSupportedException();
             public AgentMergeRequest Get(Guid id) => id == Request.Id ? Request : null;
             public IReadOnlyList<ChangedFile> FilesOf(AgentMergeRequest r) => new[] { new ChangedFile { Change = "added", Path = "gara/tecnico.md" } };
             public Task<AgentMergeRequest> ApproveAsync(Guid id, CancellationToken ct = default)

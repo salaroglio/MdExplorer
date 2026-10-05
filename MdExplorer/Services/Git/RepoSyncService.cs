@@ -114,6 +114,7 @@ namespace MdExplorer.Services.Git
     public sealed class RepoSyncService : IRepoSyncService
     {
         private readonly IWorkingChangesService _changes;
+        private readonly MdExplorer.Services.AgentRun.IAgentMergeRequestService _requests;
         private readonly IModernGitService _git;
         private readonly INativeGitTransport _transport;
         private readonly INativeGitRunner _runner;
@@ -123,6 +124,7 @@ namespace MdExplorer.Services.Git
 
         public RepoSyncService(
             IWorkingChangesService changes,
+            MdExplorer.Services.AgentRun.IAgentMergeRequestService requests,
             IModernGitService git,
             INativeGitTransport transport,
             INativeGitRunner runner,
@@ -131,6 +133,7 @@ namespace MdExplorer.Services.Git
             ILogger<RepoSyncService> logger)
         {
             _changes = changes;
+            _requests = requests;
             _git = git;
             _transport = transport;
             _runner = runner;
@@ -174,6 +177,16 @@ namespace MdExplorer.Services.Git
             if (refused != null) return Refuse(refused);
             if (row.PushBlocker != null) return Refuse(row.PushBlocker);
             if (row.Ahead <= 0) return Refuse($"In '{row.Label}' non c'è niente da pubblicare.");
+
+            // La copia di un agente non si pubblica col nome locale del ramo: su origin quel nome non esiste, e
+            // nascerebbe un secondo ramo che nessuna richiesta di approvazione guarda.
+            if (!string.IsNullOrEmpty(agentName) && string.IsNullOrEmpty(row.Path))
+            {
+                var problem = await _requests.PublishCopyAsync(projectPath, agentName, view.RootPath, row.Branch, ct);
+                return problem == null
+                    ? new RepoActionResult { Success = true, Message = $"Lavoro nella copia di '{agentName}' pubblicato." }
+                    : new RepoActionResult { Success = false, Message = $"Pubblicazione non riuscita ({problem})." };
+            }
 
             var res = await _git.PushAsync(DirOf(view.RootPath, row.Path));
             return res.Success

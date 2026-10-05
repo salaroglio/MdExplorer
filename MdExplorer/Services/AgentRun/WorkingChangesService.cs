@@ -235,6 +235,7 @@ namespace MdExplorer.Services.AgentRun
     {
         private readonly INativeGitRunner _git;
         private readonly IAgentWorktreeManager _worktree;
+        private readonly IAgentMergeRequestService _requests;
         private readonly IRepoWorkflowGuard _guard;
         private readonly IRepoRemoteState _remotes;
         private readonly ILogger<WorkingChangesService> _logger;
@@ -242,12 +243,14 @@ namespace MdExplorer.Services.AgentRun
         public WorkingChangesService(
             INativeGitRunner git,
             IAgentWorktreeManager worktree,
+            IAgentMergeRequestService requests,
             IRepoWorkflowGuard guard,
             IRepoRemoteState remotes,
             ILogger<WorkingChangesService> logger)
         {
             _git = git;
             _worktree = worktree;
+            _requests = requests;
             _guard = guard;
             _remotes = remotes;
             _logger = logger;
@@ -392,6 +395,14 @@ namespace MdExplorer.Services.AgentRun
         {
             var (branch, detached, upstream, ahead, behind) = await ReadBranchAsync(dir, ct);
             var baseRef = await ResolveBaseRefAsync(dir, ct);
+
+            // La scrivania di un agente: il ramo locale segue il ramo di base, quindi «avanti rispetto all'upstream»
+            // conterebbe per sempre anche il lavoro già consegnato. Da pubblicare è ciò che manca al ramo PUBBLICATO.
+            if (agentDesk && depth == 0 && !string.IsNullOrEmpty(branch))
+            {
+                try { ahead = await _worktree.UnpublishedCommitsAsync(dir, _requests.PublishedBranchOf(branch), ct); }
+                catch (InvalidOperationException ex) { _logger.LogDebug("[Changes] commit non pubblicati di '{Dir}' non contati: {Why}", dir, ex.Message); }
+            }
 
             var merge = await _guard.ReadMergeAsync(dir, ct);
 

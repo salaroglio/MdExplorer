@@ -137,8 +137,6 @@ namespace MdExplorer.Controllers.A2A
             public System.Collections.Generic.List<RepoChanges> SubmodulesAhead { get; } = new();
             /// <summary>Commit della copia non ancora sul ramo pubblicato dell'agente.</summary>
             public int RootUnpublished { get; set; }
-            /// <summary>La richiesta di approvazione aperta su questo ramo, se c'è: dice su quale ramo si pubblica.</summary>
-            public Abstractions.Entities.UserDB.AgentMergeRequest Request { get; set; }
             public bool Any => Dirty.Count > 0 || SubmodulesAhead.Count > 0 || RootUnpublished > 0;
         }
 
@@ -151,9 +149,7 @@ namespace MdExplorer.Controllers.A2A
                 if (r.Uncommitted.Count > 0) work.Dirty.Add(r);
                 if (!string.IsNullOrEmpty(r.Path) && r.Ahead > 0) work.SubmodulesAhead.Add(r);
             }
-            work.Request = _requests.Pending(projectPath).FirstOrDefault(
-                r => string.Equals(r.LocalBranch, desk.Branch, StringComparison.Ordinal));
-            work.RootUnpublished = await _worktree.UnpublishedCommitsAsync(desk.Path, work.Request?.PublishedBranch);
+            work.RootUnpublished = await _worktree.UnpublishedCommitsAsync(desk.Path, _requests.PublishedBranchOf(desk.Branch));
             return work;
         }
 
@@ -251,26 +247,11 @@ namespace MdExplorer.Controllers.A2A
 
                 if (work.RootUnpublished > 0)
                 {
-                    if (work.Request != null)
-                    {
-                        // Lo stesso ramo che l'agente aveva pubblicato: la richiesta di approvazione resta una, e
-                        // ora parla anche di ciò che la persona ha corretto.
-                        var (head, error) = await _worktree.PublishToAsync(desk.Path, work.Request.PublishedBranch);
-                        if (error != null)
-                            return Conflict(new { error = NotPublished(body.AgentName, work.Request.PublishedBranch, error) });
-                        _requests.Open(body.ProjectPath, body.AgentName, work.Request.PublishedBranch, desk.Branch, head,
-                            await _worktree.ChangedFilesAsync(body.ProjectPath, body.AgentName));
-                    }
-                    else
-                    {
-                        // Nessuna richiesta aperta su questo ramo (già decisa, o mai nata): si pubblica come fa
-                        // l'agente a fine lavoro, e il lavoro torna ad avere una richiesta su cui decidere.
-                        var attempt = await _worktree.TryCommitAndPushBranchAsync(body.ProjectPath, body.AgentName, body.CommitMessage);
-                        if (attempt?.Pushed == null)
-                            return Conflict(new { error = NotPublished(body.AgentName, desk.Branch, attempt?.Error ?? "niente da pubblicare") });
-                        _requests.Open(body.ProjectPath, body.AgentName, attempt.Pushed.Branch, attempt.Pushed.LocalBranch,
-                            attempt.Pushed.HeadSha, await _worktree.ChangedFilesAsync(body.ProjectPath, body.AgentName));
-                    }
+                    // Sul ramo che l'agente aveva pubblicato: la richiesta di approvazione resta una, e ora parla
+                    // anche di ciò che la persona ha corretto.
+                    var problem = await _requests.PublishCopyAsync(body.ProjectPath, body.AgentName, desk.Path, desk.Branch);
+                    if (problem != null)
+                        return Conflict(new { error = NotPublished(body.AgentName, body.AgentName, problem) });
                     published.Insert(0, body.AgentName);
                 }
             }
