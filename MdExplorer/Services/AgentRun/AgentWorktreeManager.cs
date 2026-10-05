@@ -239,6 +239,25 @@ namespace MdExplorer.Services.AgentRun
         Task<IReadOnlyList<string>> UncommittedAsync(string worktreePath, CancellationToken ct = default);
 
         /// <summary>
+        /// Committa tutto ciò che è cambiato in un repository (la copia di lavoro, o un suo submodule) con il
+        /// messaggio dato e l'identità git di chi lavora. Restituisce <c>null</c> se è andata, altrimenti il motivo.
+        /// </summary>
+        Task<string> CommitAllAsync(string repositoryPath, string message, CancellationToken ct = default);
+
+        /// <summary>
+        /// Quanti commit della copia non sono ancora sul ramo <b>pubblicato</b> dell'agente (quello che i colleghi
+        /// vedono e che l'approvazione fonde). Il ramo locale segue il ramo di base, quindi «avanti rispetto al
+        /// suo upstream» conterebbe sempre anche il lavoro già consegnato. Senza ramo pubblicato si conta dal ramo di base.
+        /// </summary>
+        Task<int> UnpublishedCommitsAsync(string worktreePath, string publishedBranch, CancellationToken ct = default);
+
+        /// <summary>
+        /// Pubblica la testa della copia sul ramo pubblicato dell'agente, solo in avanti. Restituisce il commit
+        /// pubblicato, oppure il motivo per cui non è andata.
+        /// </summary>
+        Task<(string HeadSha, string Error)> PublishToAsync(string worktreePath, string publishedBranch, CancellationToken ct = default);
+
+        /// <summary>
         /// Il turno è finito: il posto torna disponibile. Va chiamato comunque sia andata —
         /// altrimenti un run fallito prima del commit terrebbe la scrivania occupata.
         /// </summary>
@@ -639,6 +658,39 @@ namespace MdExplorer.Services.AgentRun
                 throw new InvalidOperationException($"Non riesco a leggere lo stato di '{worktreePath}': {Describe(code, err)}");
             return (text ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries)
                 .Select(l => l.TrimEnd('\r')).Where(l => l.Length > 0).ToList();
+        }
+
+        public async Task<int> UnpublishedCommitsAsync(string worktreePath, string publishedBranch, CancellationToken ct = default)
+        {
+            var from = string.IsNullOrWhiteSpace(publishedBranch) ? null : "origin/" + publishedBranch.Trim();
+            if (from != null)
+            {
+                var (vc, _, _) = await GitAsync(worktreePath, new[] { "rev-parse", "--verify", "--quiet", from + "^{commit}" }, ct);
+                if (vc != 0) from = null;
+            }
+            from ??= "origin/" + await ResolveDefaultBranchAsync(worktreePath, ct);
+            var (code, text, err) = await GitAsync(worktreePath, new[] { "rev-list", "--count", from + "..HEAD" }, ct);
+            if (code != 0)
+                throw new InvalidOperationException($"Non riesco a contare i commit non pubblicati di '{worktreePath}': {Describe(code, err)}");
+            return int.TryParse((text ?? string.Empty).Trim(), out var n) ? n : 0;
+        }
+
+        public async Task<(string HeadSha, string Error)> PublishToAsync(string worktreePath, string publishedBranch, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(publishedBranch)) return (null, "manca il nome del ramo pubblicato");
+            var (pc, _, pe) = await GitAsync(worktreePath, new[] { "push", "origin", "HEAD:refs/heads/" + publishedBranch.Trim() }, ct);
+            if (pc != 0) return (null, FirstLine(Describe(pc, pe)));
+            var (_, sha, _) = await GitAsync(worktreePath, new[] { "rev-parse", "HEAD" }, ct);
+            return ((sha ?? string.Empty).Trim(), null);
+        }
+
+        public async Task<string> CommitAllAsync(string repositoryPath, string message, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return "Manca il messaggio del commit.";
+            var (ac, _, ae) = await GitAsync(repositoryPath, new[] { "add", "-A" }, ct);
+            if (ac != 0) return Describe(ac, ae);
+            var (cc, _, ce) = await GitAsync(repositoryPath, new[] { "commit", "-m", message.Trim() }, ct);
+            return cc == 0 ? null : Describe(cc, ce);
         }
 
         /// <summary>

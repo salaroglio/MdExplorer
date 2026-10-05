@@ -64,7 +64,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   backToMyWork(): void {
     this.agentWorkspace.leave().subscribe({
       next: published => {
-        if (published.length) this.snackBar.open(
+        if (published?.length) this.snackBar.open(
           this.translate.instant('MAIN_CONTENT.AGENT_STRIP_PUBLISHED', { repos: published.join(', ') }),
           this.translate.instant('COMMON.CLOSE'), { duration: 7000 });
       },

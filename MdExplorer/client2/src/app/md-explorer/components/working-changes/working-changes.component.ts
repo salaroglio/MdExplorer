@@ -206,7 +206,7 @@ export class WorkingChangesComponent implements OnInit, OnDestroy {
   backToMyWork(): void {
     this.workspace.leave().subscribe({
       next: published => {
-        if (published.length) this.snackBar.open(
+        if (published?.length) this.snackBar.open(
           this.translate.instant('MAIN_CONTENT.AGENT_STRIP_PUBLISHED', { repos: published.join(', ') }),
           this.translate.instant('COMMON.CLOSE'), { duration: 7000 });
       },

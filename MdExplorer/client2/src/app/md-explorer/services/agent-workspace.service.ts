@@ -1,7 +1,9 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
-import { catchError, map, tap } from 'rxjs/operators';
+import { BehaviorSubject, Observable, of } from 'rxjs';
+import { MatLegacyDialog as MatDialog } from '@angular/material/legacy-dialog';
+import { LeaveAgentCopyDialogComponent, PendingInCopy } from '../components/leave-agent-copy-dialog/leave-agent-copy-dialog.component';
+import { map, switchMap, tap } from 'rxjs/operators';
 import { MdServerMessagesService } from '../../signalR/services/server-messages.service';
 import { MdFile } from '../models/md-file';
 import { MdFileService } from './md-file.service';
@@ -13,8 +15,8 @@ import { ReviewContextService } from './review-context.service';
  *
  * Entrando, il servizio ripunta QUESTA finestra sulla scrivania dell'agente: l'albero, l'indice, la ricerca e
  * i documenti sono i suoi, e si possono modificare. Il progetto resta lo stesso per tutto ciò che è della
- * città (posta, registro, differenze). Uscendo si torna alla propria cartella; il servizio rifiuta l'uscita
- * finché nella copia resta qualcosa di non committato.
+ * città (posta, registro, differenze). Uscendo si torna alla propria cartella; se nella copia c'è lavoro da
+ * salvare, la persona autorizza commit e pubblicazione in un gesto solo, oppure resta.
  */
 @Injectable({ providedIn: 'root' })
 export class AgentWorkspaceService {
@@ -27,6 +29,7 @@ export class AgentWorkspaceService {
     private messages: MdServerMessagesService,
     private mdFiles: MdFileService,
     private review: ReviewContextService,
+    private dialog: MatDialog,
   ) {}
 
   get inside(): string | null {
@@ -52,28 +55,36 @@ export class AgentWorkspaceService {
   }
 
   /**
-   * Torna al proprio lavoro. Fuori da una copia è solo l'uscita dalla revisione. Dentro una copia il servizio
-   * può rifiutare (file non committati, pubblicazione non riuscita): l'errore arriva a chi ha chiesto, che lo
-   * mostra. Uscendo, il lavoro committato viene pubblicato: l'elenco restituito dice dove.
+   * Torna al proprio lavoro. Fuori da una copia è solo l'uscita dalla revisione. Dentro una copia, se c'è
+   * lavoro da salvare si apre la finestra di uscita: la persona vede cosa verrà committato e pubblicato e lo
+   * autorizza, oppure resta. Emette ciò che è stato pubblicato; `null` = è rimasta nella copia.
    */
-  leave(): Observable<string[]> {
+  leave(): Observable<string[] | null> {
     const agentName = this.inside;
     if (!agentName) {
       this.review.backToUser();
       return of([]);
     }
-    return this.http.post<{ published?: string[] }>('../api/AgentWorkspace/leave', this.body(agentName)).pipe(
-      // Ciò che il servizio ha pubblicato uscendo: chi ha chiesto lo dice alla persona.
+    return this.http.post<PendingInCopy>('../api/AgentWorkspace/pending', this.body(agentName)).pipe(
+      switchMap(pending => {
+        if (!pending.uncommitted.length && !pending.unpublished.length) return this.postLeave(agentName, false, null);
+        return this.dialog.open(LeaveAgentCopyDialogComponent, { data: { agent: agentName, pending }, autoFocus: false })
+          .afterClosed().pipe(
+            switchMap(message => message === null || message === undefined
+              ? of(null)
+              : this.postLeave(agentName, true, message)));
+      }),
+    );
+  }
+
+  private postLeave(agentName: string, authorized: boolean, commitMessage: string | null): Observable<string[]> {
+    return this.http.post<{ published?: string[] }>('../api/AgentWorkspace/leave',
+      { ...this.body(agentName), authorized, commitMessage }).pipe(
       map(r => r?.published || []),
       tap(() => {
         this.inside$.next(null);
         this.review.backToUser();
         this.reloadEverything();
-      }),
-      catchError(err => {
-        // Restano file da committare: si porta la persona dove si committa.
-        if (err?.status === 409) this.review.showChanges();
-        return throwError(() => err);
       }),
     );
   }

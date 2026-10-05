@@ -688,6 +688,19 @@
     "AGENT_SCHEDULING": "Agent scheduling...",
     "E2E_TESTS": "E2E tests…"
   },
+  "LEAVE_COPY": {
+    "TITLE": "Back to your work: saving the copy of {{agent}}",
+    "INTRO": "There is work in the copy that has not been saved yet. On leaving it is committed and published: your authorization is needed.",
+    "TO_COMMIT": "Files to commit",
+    "MESSAGE_LABEL": "Commit message",
+    "MESSAGE_PLACEHOLDER": "What you changed",
+    "TO_PUBLISH": "Commits to publish",
+    "COMMITS_OF": "{{count}} commits in {{label}}",
+    "NOTE": "To discard a change instead of saving it: stay in the copy and use the «Changes» panel.",
+    "STAY": "Stay in the copy",
+    "COMMIT_AND_PUBLISH": "Commit and publish",
+    "PUBLISH": "Publish"
+  },
   "MAIN_CONTENT": {
     "AGENT_STRIP_PUBLISHED": "Work published on leaving the copy: {{repos}}",
     "AGENT_STRIP_INSIDE": "You are working in the copy of {{agent}}",

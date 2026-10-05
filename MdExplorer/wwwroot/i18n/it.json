@@ -688,6 +688,19 @@
     "AGENT_SCHEDULING": "Schedulazione agente...",
     "E2E_TESTS": "Test e2e…"
   },
+  "LEAVE_COPY": {
+    "TITLE": "Torni al tuo lavoro: salvare la copia di {{agent}}",
+    "INTRO": "Nella copia c'è lavoro che non è ancora stato salvato. Uscendo viene committato e pubblicato: serve la tua autorizzazione.",
+    "TO_COMMIT": "File da committare",
+    "MESSAGE_LABEL": "Messaggio del commit",
+    "MESSAGE_PLACEHOLDER": "Che cosa hai cambiato",
+    "TO_PUBLISH": "Commit da pubblicare",
+    "COMMITS_OF": "{{count}} commit in {{label}}",
+    "NOTE": "Per scartare una modifica invece di salvarla: resta nella copia e usa il pannello «Differenze».",
+    "STAY": "Resta nella copia",
+    "COMMIT_AND_PUBLISH": "Committa e pubblica",
+    "PUBLISH": "Pubblica"
+  },
   "MAIN_CONTENT": {
     "AGENT_STRIP_PUBLISHED": "Lavoro pubblicato uscendo dalla copia: {{repos}}",
     "AGENT_STRIP_INSIDE": "Stai lavorando nella copia di {{agent}}",
