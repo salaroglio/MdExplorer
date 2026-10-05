@@ -32,6 +32,13 @@ export interface MailItem {
   message?: MailboxMessage;
   request?: MergeRequest;
   federation?: FederationRequest;
+  /**
+   * La voce sta sotto un'altra: è la richiesta di approvazione dell'artefatto, messa sotto il messaggio che
+   * l'agente ha scritto nello stesso turno di lavoro. Il legame è l'identificativo del turno, non l'ora.
+   */
+  child?: boolean;
+  /** Per un messaggio: ha sotto di sé qualcosa da decidere. */
+  hasPending?: boolean;
 }
 
 /** Il documento aperto nel riquadro di destra, al posto del dettaglio. */
@@ -118,11 +125,10 @@ export class AgentMailComponent implements OnInit, OnDestroy {
         this.unread = inbox.unread || 0;
         this.messageCount = (inbox.messages || []).length;
         // L'archivio contiene solo messaggi: ciò che è da decidere non si archivia.
-        this.items = [
-          ...(inbox.messages || []).map(m => this.fromMessage(m)),
-          ...(this.showArchive ? [] : (reviews.requests || []).map(r => this.fromReview(r))),
-          ...(this.showArchive ? [] : (federation.requests || []).filter(f => f.status === 'pending').map(f => this.fromFederation(f))),
-        ].sort((a, b) => (b.when || '').localeCompare(a.when || ''));
+        this.items = this.arrange(
+          (inbox.messages || []).map(m => this.fromMessage(m)),
+          this.showArchive ? [] : (reviews.requests || []).map(r => this.fromReview(r)),
+          this.showArchive ? [] : (federation.requests || []).filter(f => f.status === 'pending').map(f => this.fromFederation(f)));
         this.loading = false;
 
         // La selezione resta sulla stessa voce; se è sparita (letta, approvata), si passa alla prima.
@@ -136,6 +142,40 @@ export class AgentMailComponent implements OnInit, OnDestroy {
         this.loading = false;
       },
     });
+  }
+
+  /**
+   * L'ordine dell'elenco. Un turno di lavoro lascia due cose — il messaggio dell'agente e la richiesta di
+   * approvazione del suo artefatto — e sono una cosa sola per chi legge: la richiesta va SOTTO il messaggio
+   * dello stesso turno (stesso `runId`). Una richiesta senza messaggio in elenco (archiviato, o un turno che
+   * non ha scritto) resta in prima fila: quello che è da decidere non deve mai sparire.
+   */
+  private arrange(messages: MailItem[], reviews: MailItem[], federation: MailItem[]): MailItem[] {
+    const newestFirst = (a: MailItem, b: MailItem) => (b.when || '').localeCompare(a.when || '');
+
+    // Più messaggi nello stesso turno: la richiesta va sotto l'ultimo, che è quello che chiude il lavoro.
+    const parentOf = new Map<string, MailItem>();
+    for (const m of [...messages].sort(newestFirst)) {
+      const run = m.message?.runId;
+      if (run && !parentOf.has(run)) parentOf.set(run, m);
+    }
+
+    const under = new Map<MailItem, MailItem[]>();
+    const alone: MailItem[] = [];
+    for (const r of reviews) {
+      const parent = r.request?.runId ? parentOf.get(r.request.runId) : undefined;
+      if (!parent) { alone.push(r); continue; }
+      r.child = true;
+      parent.hasPending = true;
+      under.set(parent, [...(under.get(parent) || []), r]);
+    }
+
+    const ordered: MailItem[] = [];
+    for (const top of [...messages, ...alone, ...federation].sort(newestFirst)) {
+      ordered.push(top);
+      ordered.push(...(under.get(top) || []).sort(newestFirst));
+    }
+    return ordered;
   }
 
   private fromMessage(m: MailboxMessage): MailItem {

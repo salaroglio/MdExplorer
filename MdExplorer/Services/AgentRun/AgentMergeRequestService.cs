@@ -35,8 +35,10 @@ namespace MdExplorer.Services.AgentRun
         /// l'agente ripubblica la stessa attività, la richiesta esistente si aggiorna invece di
         /// diventare un doppione nell'elenco dell'umano.
         /// </summary>
+        /// <param name="runId">Il turno di lavoro che ha prodotto l'artefatto. null = non è un turno a pubblicare
+        /// (una persona che corregge): la richiesta resta legata al turno che l'ha aperta.</param>
         AgentMergeRequest Open(string projectPath, string agentName, string publishedBranch,
-                               string localBranch, string headSha, IEnumerable<ChangedFile> changed);
+                               string localBranch, string headSha, IEnumerable<ChangedFile> changed, string runId = null);
 
         /// <summary>Richieste ancora da decidere, più recenti prima.</summary>
         IReadOnlyList<AgentMergeRequest> Pending(string projectPath);
@@ -87,7 +89,7 @@ namespace MdExplorer.Services.AgentRun
         }
 
         public AgentMergeRequest Open(string projectPath, string agentName, string publishedBranch,
-                                      string localBranch, string headSha, IEnumerable<ChangedFile> changed)
+                                      string localBranch, string headSha, IEnumerable<ChangedFile> changed, string runId = null)
         {
             if (string.IsNullOrWhiteSpace(projectPath) || string.IsNullOrWhiteSpace(publishedBranch))
                 throw new ArgumentException("projectPath e publishedBranch sono obbligatori");
@@ -117,6 +119,7 @@ namespace MdExplorer.Services.AgentRun
                 request.LocalBranch = localBranch;
                 request.HeadSha = headSha;
                 request.ChangedFiles = Encode(changed);
+                if (!string.IsNullOrWhiteSpace(runId)) request.RunId = runId;
 
                 if (existing != null)
                 {

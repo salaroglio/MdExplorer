@@ -113,3 +113,17 @@
 
 .spinning { animation: agent-mail-spin 1s linear infinite; }
 @keyframes agent-mail-spin { to { transform: rotate(360deg); } }
+
+// La richiesta di approvazione sotto il messaggio dello stesso turno: rientrata, con il gancio che la lega.
+.mail-row.child {
+  padding-left: 30px; position: relative;
+  background: rgba(242, 153, 0, 0.06);
+  &.selected { background: rgba(26, 115, 232, 0.14); }
+  .row-branch {
+    position: absolute; left: 17px; top: 0; width: 10px; height: 20px;
+    border-left: 2px solid rgba(127, 127, 127, 0.5); border-bottom: 2px solid rgba(127, 127, 127, 0.5);
+    border-bottom-left-radius: 6px;
+  }
+  .row-from { font-weight: 600; }
+}
+.mail-row .row-pending { flex: 0 0 auto; font-size: 16px; width: 16px; height: 16px; color: #f29900; }

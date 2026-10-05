@@ -601,6 +601,7 @@ namespace MdExplorer.Controllers.A2A
             readAt = m.ReadAt,
             read = m.ReadAt != null,
             archived = m.ArchivedAt != null,
+            runId = m.RunId,
         };
 
         private static string Preview(string body)

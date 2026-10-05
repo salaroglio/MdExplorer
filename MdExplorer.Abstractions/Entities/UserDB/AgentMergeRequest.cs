@@ -49,6 +49,9 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// <summary>Perché è stata rifiutata, o perché il merge è fallito.</summary>
         public virtual string Note { get; set; }
 
+        /// <summary>Il turno di lavoro che ha prodotto questo artefatto: lo stesso scritto sui messaggi di quel turno.</summary>
+        public virtual string RunId { get; set; }
+
         public static class StatusEnum
         {
             public const string Pending = "pending";

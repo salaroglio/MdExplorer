@@ -139,6 +139,7 @@ namespace MdExplorer.Controllers.A2A
                     Body = request.Message,
                     ContextId = claims.ConversationId,          // stesso thread del risveglio
                     Topics = request.Topics,
+                    RunId = claims.RunId.ToString("N"),        // il turno che scrive: lega il messaggio alla sua richiesta di approvazione
                 });
                 if (!toUser.Accepted)
                     return StatusCode(409, new { error = toUser.RejectionReason });

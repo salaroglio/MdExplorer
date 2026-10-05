@@ -37,16 +37,19 @@
       </div>
 
       <button type="button" class="mail-row" *ngFor="let item of items; trackBy: trackItem"
-              [class.selected]="selected === item" [class.unread]="item.unread" [ngClass]="'kind-' + item.kind"
+              [class.selected]="selected === item" [class.unread]="item.unread" [class.child]="item.child"
+              [ngClass]="'kind-' + item.kind"
               (click)="select(item)">
+        <span class="row-branch" *ngIf="item.child" aria-hidden="true"></span>
         <span class="row-dot"></span>
         <mat-icon class="row-icon">{{ item.kind === 'message' ? 'smart_toy' : item.kind === 'review' ? 'rule' : 'hub' }}</mat-icon>
         <span class="row-main">
           <span class="row-top">
-            <span class="row-from">{{ item.from }}</span>
+            <span class="row-from">{{ item.child ? ('AGENT_MAIL.CHILD_REVIEW' | translate) : item.from }}</span>
+            <mat-icon class="row-pending" *ngIf="item.hasPending" [matTooltip]="'AGENT_MAIL.HAS_PENDING' | translate">rule</mat-icon>
             <span class="row-when" [title]="item.when">{{ item.when | date:'short' }}</span>
           </span>
-          <span class="row-kind" *ngIf="item.kind !== 'message'">
+          <span class="row-kind" *ngIf="item.kind !== 'message' && !item.child">
             {{ (item.kind === 'review' ? 'AGENT_MAIL.KIND_REVIEW' : 'AGENT_MAIL.KIND_FEDERATION') | translate }}
           </span>
           <span class="row-preview">{{ item.preview }}</span>

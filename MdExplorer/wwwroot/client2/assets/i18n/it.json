@@ -1780,6 +1780,8 @@
     "DISABLED": "La memoria (Fuseki) non è abilitata per questo progetto."
   },
   "AGENT_MAIL": {
+    "CHILD_REVIEW": "Da approvare: l'artefatto",
+    "HAS_PENDING": "Sotto c'è un artefatto da approvare",
     "ARCHIVE": "Archivia",
     "ARCHIVE_TIP": "Toglie il messaggio dall'elenco. Non lo cancella: lo ritrovi in «Archivio».",
     "UNARCHIVE": "Riporta in posta",

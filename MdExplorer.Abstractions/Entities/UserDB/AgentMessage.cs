@@ -70,6 +70,13 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual DateTime? ArchivedAt { get; set; }
 
         /// <summary>
+        /// Il turno di lavoro dell'agente che ha scritto questo messaggio (null = non scritto da un turno: una persona,
+        /// un altro computer, o un messaggio di prima che l'identificativo esistesse). Lega il messaggio alla
+        /// richiesta di approvazione dello stesso turno.
+        /// </summary>
+        public virtual string RunId { get; set; }
+
+        /// <summary>
         /// Motivo per cui la consegna è <b>parcheggiata</b> (§12.5 coda differita, Fase 6c):
         /// l'agente non è eseguibile adesso ma la richiesta NON fallisce. Valori
         /// <see cref="DeferredReasonEnum"/> (<c>resources</c>/<c>maintenance</c>/<c>user</c>).

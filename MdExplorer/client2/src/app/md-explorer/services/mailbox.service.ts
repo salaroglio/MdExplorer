@@ -16,6 +16,8 @@ export interface MailboxMessage {
   read: boolean;
   /** Archiviato: fuori dall'elenco della posta, ma non cancellato. */
   archived?: boolean;
+  /** Il turno di lavoro dell'agente che l'ha scritto: lega il messaggio alla richiesta di approvazione dello stesso turno. */
+  runId?: string | null;
 }
 
 export interface MailboxInbox {

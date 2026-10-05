@@ -23,6 +23,8 @@ export interface MergeRequest {
   createdAt: string;
   status: string;
   note: string | null;
+  /** Il turno di lavoro che ha prodotto l'artefatto: lo stesso scritto sul messaggio dell'agente. */
+  runId?: string | null;
   /** C'è una sessione d'intervento aperta su questo agente: ci stai già lavorando. */
   sessionOpen: boolean;
   files: ChangedFile[];

@@ -151,7 +151,7 @@ namespace MdExplorer.Services.AgentRun
 
                 var changed = await _worktree.ChangedFilesAsync(request.ProjectPath, agentName, ct);
                 _mergeRequests.Open(request.ProjectPath, agentName,
-                    pushed.Branch, pushed.LocalBranch, pushed.HeadSha, changed);
+                    pushed.Branch, pushed.LocalBranch, pushed.HeadSha, changed, request.RunId.ToString("N"));
 
                 // La UI si accende: c'è qualcosa da decidere.
                 await _hubContext.Clients.All.SendAsync("agentMergeRequested", new

@@ -23,6 +23,9 @@ namespace MdExplorer.Services.AgentRun
         public int? HopLimitOverride { get; set; }
         /// <summary>Argomenti dichiarati dal mittente (§8): contesto passato all'agente.</summary>
         public IList<string> Topics { get; set; }
+
+        /// <summary>Il turno di lavoro dell'agente che scrive (dal suo RunToken); null se non scrive un turno.</summary>
+        public string RunId { get; set; }
         /// <summary>
         /// Etichetta d'audit della causa del risveglio (Fase 7a): valorizzata per i wake speciali
         /// (es. <c>federated-result</c>); <c>null</c> per un messaggio ordinario → il dispatcher
@@ -154,6 +157,7 @@ namespace MdExplorer.Services.AgentRun
                     Attempts = 0,
                     CreatedAt = now,
                     TriggerSource = request.TriggerSource,
+                    RunId = request.RunId,
                 };
                 db.GetDal<AgentMessage>().Save(message);
                 db.Commit();

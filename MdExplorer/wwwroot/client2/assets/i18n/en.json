@@ -1780,6 +1780,8 @@
     "DISABLED": "Memory (Fuseki) is not enabled for this project."
   },
   "AGENT_MAIL": {
+    "CHILD_REVIEW": "To approve: the artefact",
+    "HAS_PENDING": "There is an artefact to approve below",
     "ARCHIVE": "Archive",
     "ARCHIVE_TIP": "Takes the message off the list. It is not deleted: you find it in “Archive”.",
     "UNARCHIVE": "Back to the mail",

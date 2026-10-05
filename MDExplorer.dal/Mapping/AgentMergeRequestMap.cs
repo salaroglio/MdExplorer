@@ -19,6 +19,7 @@ namespace MDExplorer.DataAccess.Mapping
             Map(x => x.DecidedAt).Nullable();
             Map(x => x.Status).Length(30).Not.Nullable();
             Map(x => x.Note).Length(int.MaxValue).Nullable();
+            Map(x => x.RunId).Length(64).Nullable();
         }
     }
 }

@@ -279,6 +279,8 @@ namespace MdExplorer.Controllers.A2A
             createdAt = r.CreatedAt,
             status = r.Status,
             note = r.Note,
+            // Il turno di lavoro che l'ha prodotta: lo stesso scritto sul messaggio dell'agente.
+            runId = r.RunId,
             // Sessione d'intervento in corso su questo agente: la UI deve poter mostrare
             // "ci stai lavorando" invece di riproporre "prendi in mano".
             sessionOpen = _sessions.IsHeld(r.ProjectPath, r.AgentName),

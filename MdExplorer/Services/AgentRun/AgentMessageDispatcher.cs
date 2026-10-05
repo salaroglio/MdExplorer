@@ -504,12 +504,15 @@ namespace MdExplorer.Services.AgentRun
             try
             {
                 var startedAt = DateTime.UtcNow;
+                // L'identificativo del turno: finisce nel RunToken (quindi sui messaggi che l'agente scrive) e sulla
+                // richiesta di approvazione del suo artefatto. È ciò che li lega.
+                var runId = Guid.NewGuid();
                 LlmWakeOutcome outcome;
                 try
                 {
                     outcome = await _llmWaker.WakeAsync(new LlmWakeRequest
                     {
-                        RunId = Guid.NewGuid(),
+                        RunId = runId,
                         AgentName = entry.Name,
                         AgentFileContent = agentContent,
                         ProjectPath = snapshot.ProjectPath,
@@ -609,7 +612,7 @@ namespace MdExplorer.Services.AgentRun
                             {
                                 var changed = await _worktree.ChangedFilesAsync(snapshot.ProjectPath, entry.Name, ct);
                                 _mergeRequests.Open(snapshot.ProjectPath, entry.Name,
-                                    pushed.Branch, pushed.LocalBranch, pushed.HeadSha, changed);
+                                    pushed.Branch, pushed.LocalBranch, pushed.HeadSha, changed, runId.ToString("N"));
 
                                 // La UI si accende: c'e' qualcosa da decidere.
                                 try
