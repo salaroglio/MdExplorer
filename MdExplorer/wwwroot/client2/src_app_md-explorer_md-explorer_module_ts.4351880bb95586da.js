@@ -33124,6 +33124,8 @@ class ToolbarComponent {
     this.screenType = "fullscreen";
     /** La sorgente del progetto (remoto `upstream`): il pulsante compare solo se ha aggiornamenti. */
     this.upstream = null;
+    this.upstreamAskedFor = null;
+    this.lastUpstreamFetch = 0;
     this.trackByRepo = (_, r) => r.path;
     this.TitleToShow = "MdExplorer";
     this.connectionIsActive = true;
@@ -33212,6 +33214,8 @@ class ToolbarComponent {
       // spento. Lo decide la vista per repository, che e' anche cio' che il pannello mostra:
       // una fonte sola, e i due numeri non possono piu' contraddirsi.
       this.loadChangedFiles();
+      // Anche qui: lo stato locale arriva sempre, pure quando il remoto di origin non risponde.
+      this.askUpstreamNowAndThen();
     }));
     this.citySubscriptions.add(this.gitservice.commmitsToPull$.subscribe(_ => {
       this.rootCommitsToPush = _.howManyCommitAreToPush;
@@ -33225,6 +33229,8 @@ class ToolbarComponent {
       // si interrogano una volta per progetto aperto, e poi quando si apre il pannello.
       this.loadChangedFiles();
       if (_.connectionIsActive) this.askRemotesNowAndThen();
+      // La sorgente è un altro remoto: la si interroga comunque vada la connessione a origin.
+      this.askUpstreamNowAndThen();
     }));
     // Mailbox non-letti (§13 Fase 4a): il badge segue il conteggio autoritativo.
     this.citySubscriptions.add(this.mailboxNotifications.unread$.subscribe(n => this.mailboxUnread = n));
@@ -34270,7 +34276,24 @@ class ToolbarComponent {
         this.loadChangedFiles();
       }
     });
-    // La sorgente si interroga negli stessi momenti dei remoti: all'apertura, ogni tanto, dopo un'azione.
+    // Dopo un'azione sui remoti si rilegge anche la sorgente.
+    this.upstreamAskedFor = projectPath;
+    this.lastUpstreamFetch = now;
+    this.loadUpstream(true);
+  }
+  /**
+   * Interroga la sorgente del progetto (remoto `upstream`) all'apertura e poi ogni cinque minuti. Non dipende
+   * dallo stato della connessione a `origin`: sono due remoti diversi, e in un progetto demo `origin` è una
+   * cartella sul disco mentre la sorgente è in rete. Legata a `origin`, bastava che quella connessione non
+   * risultasse attiva perché gli aggiornamenti della sorgente non venissero mai cercati.
+   */
+  askUpstreamNowAndThen() {
+    const projectPath = this.getProjectPath(true);
+    if (!projectPath || this.reviewAgent) return;
+    const firstTime = this.upstreamAskedFor !== projectPath;
+    if (!firstTime && Date.now() - this.lastUpstreamFetch < 5 * 60 * 1000) return;
+    this.upstreamAskedFor = projectPath;
+    this.lastUpstreamFetch = Date.now();
     this.loadUpstream(true);
   }
   // ---- le azioni per riga ----
@@ -43067,4 +43090,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.380fc47426bdbad1.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.4351880bb95586da.js.map

@@ -288,6 +288,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       // spento. Lo decide la vista per repository, che e' anche cio' che il pannello mostra:
       // una fonte sola, e i due numeri non possono piu' contraddirsi.
       this.loadChangedFiles();
+      // Anche qui: lo stato locale arriva sempre, pure quando il remoto di origin non risponde.
+      this.askUpstreamNowAndThen();
     }));
 
     this.citySubscriptions.add(this.gitservice.commmitsToPull$.subscribe(_ => {
@@ -302,6 +304,8 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       // si interrogano una volta per progetto aperto, e poi quando si apre il pannello.
       this.loadChangedFiles();
       if (_.connectionIsActive) this.askRemotesNowAndThen();
+      // La sorgente è un altro remoto: la si interroga comunque vada la connessione a origin.
+      this.askUpstreamNowAndThen();
     }));
     
     // Mailbox non-letti (§13 Fase 4a): il badge segue il conteggio autoritativo.
@@ -1413,7 +1417,28 @@ export class ToolbarComponent implements OnInit, OnDestroy {
       next: () => { this.isFetchingRemotes = false; this.loadChangedFiles(); },
       error: () => { this.isFetchingRemotes = false; this.loadChangedFiles(); },
     });
-    // La sorgente si interroga negli stessi momenti dei remoti: all'apertura, ogni tanto, dopo un'azione.
+    // Dopo un'azione sui remoti si rilegge anche la sorgente.
+    this.upstreamAskedFor = projectPath;
+    this.lastUpstreamFetch = now;
+    this.loadUpstream(true);
+  }
+
+  private upstreamAskedFor: string | null = null;
+  private lastUpstreamFetch = 0;
+
+  /**
+   * Interroga la sorgente del progetto (remoto `upstream`) all'apertura e poi ogni cinque minuti. Non dipende
+   * dallo stato della connessione a `origin`: sono due remoti diversi, e in un progetto demo `origin` è una
+   * cartella sul disco mentre la sorgente è in rete. Legata a `origin`, bastava che quella connessione non
+   * risultasse attiva perché gli aggiornamenti della sorgente non venissero mai cercati.
+   */
+  private askUpstreamNowAndThen(): void {
+    const projectPath = this.getProjectPath(true);
+    if (!projectPath || this.reviewAgent) return;
+    const firstTime = this.upstreamAskedFor !== projectPath;
+    if (!firstTime && Date.now() - this.lastUpstreamFetch < 5 * 60 * 1000) return;
+    this.upstreamAskedFor = projectPath;
+    this.lastUpstreamFetch = Date.now();
     this.loadUpstream(true);
   }
 
