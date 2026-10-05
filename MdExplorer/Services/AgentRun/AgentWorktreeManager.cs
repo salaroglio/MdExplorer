@@ -1352,6 +1352,10 @@ namespace MdExplorer.Services.AgentRun
                     WorkingDirectory = workingDirectory,
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
+                    // git scrive in UTF-8. Senza dirlo, su Windows l'output viene letto con la codifica della console e le
+                    // lettere accentate di un documento («è», «à») arrivano come «Ã¨», «Ã »: su Linux non si vede, lì il default è UTF-8.
+                    StandardOutputEncoding = System.Text.Encoding.UTF8,
+                    StandardErrorEncoding = System.Text.Encoding.UTF8,
                     RedirectStandardError = true,
                     CreateNoWindow = true,
                 }
