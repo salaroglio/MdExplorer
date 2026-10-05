@@ -23504,6 +23504,13 @@ class MainContentComponent {
   /** «Torna al mio lavoro»: si esce dal lavoro dell'agente. */
   backToMyWork() {
     this.agentWorkspace.leave().subscribe({
+      next: published => {
+        if (published.length) this.snackBar.open(this.translate.instant('MAIN_CONTENT.AGENT_STRIP_PUBLISHED', {
+          repos: published.join(', ')
+        }), this.translate.instant('COMMON.CLOSE'), {
+          duration: 7000
+        });
+      },
       error: err => this.snackBar.open(err?.error?.error || this.translate.instant('MAIN_CONTENT.AGENT_STRIP_LEAVE_FAILED'), this.translate.instant('COMMON.CLOSE'), {
         duration: 9000
       })
@@ -35865,6 +35872,13 @@ class WorkingChangesComponent {
   }
   backToMyWork() {
     this.workspace.leave().subscribe({
+      next: published => {
+        if (published.length) this.snackBar.open(this.translate.instant('MAIN_CONTENT.AGENT_STRIP_PUBLISHED', {
+          repos: published.join(', ')
+        }), this.translate.instant('COMMON.CLOSE'), {
+          duration: 7000
+        });
+      },
       error: err => this.snackBar.open(err?.error?.error || this.translate.instant('MAIN_CONTENT.AGENT_STRIP_LEAVE_FAILED'), this.translate.instant('COMMON.CLOSE'), {
         duration: 9000
       })
@@ -36831,15 +36845,18 @@ class AgentWorkspaceService {
   }
   /**
    * Torna al proprio lavoro. Fuori da una copia è solo l'uscita dalla revisione. Dentro una copia il servizio
-   * può rifiutare (file non committati): l'errore arriva a chi ha chiesto, che lo mostra.
+   * può rifiutare (file non committati, pubblicazione non riuscita): l'errore arriva a chi ha chiesto, che lo
+   * mostra. Uscendo, il lavoro committato viene pubblicato: l'elenco restituito dice dove.
    */
   leave() {
     const agentName = this.inside;
     if (!agentName) {
       this.review.backToUser();
-      return (0,rxjs__WEBPACK_IMPORTED_MODULE_7__.of)(undefined);
+      return (0,rxjs__WEBPACK_IMPORTED_MODULE_7__.of)([]);
     }
-    return this.http.post('../api/AgentWorkspace/leave', this.body(agentName)).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)(() => undefined), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.tap)(() => {
+    return this.http.post('../api/AgentWorkspace/leave', this.body(agentName)).pipe(
+    // Ciò che il servizio ha pubblicato uscendo: chi ha chiesto lo dice alla persona.
+    (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_8__.map)(r => r?.published || []), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.tap)(() => {
       this.inside$.next(null);
       this.review.backToUser();
       this.reloadEverything();
@@ -43395,4 +43412,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.d2dbb6490e0b6440.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.41b9a32566d927b0.js.map

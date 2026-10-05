@@ -16,7 +16,8 @@ namespace MdExplorer.Controllers.A2A
     /// <para>
     /// Entrare apre la <b>sessione d'intervento</b>: la scrivania resta di chi è entrato e l'agente va in coda,
     /// così nessun turno la ripulisce mentre una persona ci lavora. Uscire pretende che non resti niente di non
-    /// committato: il lavoro si committa (dal pannello delle differenze) oppure si resta dentro.
+    /// committato: il lavoro si committa (dal pannello delle differenze) oppure si resta dentro. Ciò che è
+    /// committato viene pubblicato all'uscita.
     /// </para>
     /// <para>Il progetto resta lo stesso per tutto ciò che è della città (posta, registro, fiducia): cambia solo
     /// la cartella su cui lavora <b>questa finestra</b>.</para>
@@ -30,6 +31,8 @@ namespace MdExplorer.Controllers.A2A
         private readonly IDatabaseManager _databaseManager;
         private readonly IFileSystemWatcherManager _watchers;
         private readonly IServiceProvider _services;
+        private readonly IWorkingChangesService _changes;
+        private readonly MdExplorer.Services.Git.IRepoSyncService _sync;
         private readonly ILogger<AgentWorkspaceController> _logger;
 
         public AgentWorkspaceController(
@@ -38,6 +41,8 @@ namespace MdExplorer.Controllers.A2A
             IDatabaseManager databaseManager,
             IFileSystemWatcherManager watchers,
             IServiceProvider services,
+            IWorkingChangesService changes,
+            MdExplorer.Services.Git.IRepoSyncService sync,
             ILogger<AgentWorkspaceController> logger)
         {
             _worktree = worktree;
@@ -45,6 +50,8 @@ namespace MdExplorer.Controllers.A2A
             _databaseManager = databaseManager;
             _watchers = watchers;
             _services = services;
+            _changes = changes;
+            _sync = sync;
             _logger = logger;
         }
 
@@ -128,6 +135,7 @@ namespace MdExplorer.Controllers.A2A
                 || string.IsNullOrWhiteSpace(body.ConnectionId))
                 return BadRequest(new { error = "projectPath, agentName e connectionId sono obbligatori." });
 
+            var published = new System.Collections.Generic.List<string>();
             var desk = (await _worktree.ListSlotsAsync(body.ProjectPath)).FirstOrDefault(
                 x => string.Equals(x.Agent, body.AgentName, StringComparison.OrdinalIgnoreCase));
             if (desk != null)
@@ -140,12 +148,31 @@ namespace MdExplorer.Controllers.A2A
                                 "committali dal pannello «Differenze», poi torna al tuo lavoro.",
                         uncommitted,
                     });
+
+                // Committato non basta: il lavoro deve essere anche pubblicato, perché è il ramo pubblicato che
+                // l'approvazione fonde e che un collega vede. Lo si pubblica qui, repository per repository; se
+                // non riesce si resta dentro, con il motivo — fuori dalla copia nessun contatore lo ricorderebbe.
+                var view = await _changes.GetAsync(body.ProjectPath, body.AgentName);
+                foreach (var repo in (view?.Repos ?? Array.Empty<RepoChanges>()).Where(r => r.Ahead > 0))
+                {
+                    var pushed = await _sync.PushAsync(body.ProjectPath, body.AgentName, repo.Path);
+                    if (!pushed.Success)
+                        return Conflict(new
+                        {
+                            error = $"Il lavoro nella copia di '{body.AgentName}' è committato ma non riesco a pubblicarlo " +
+                                    $"('{repo.Label}': {pushed.Refused ?? pushed.Message}). Resti nella copia: riprova quando " +
+                                    "il problema è risolto.",
+                            notPublished = repo.Label,
+                        });
+                    // La radice della copia si chiama come la scrivania («slot-1»): alla persona si dice di chi è il lavoro.
+                    published.Add(string.IsNullOrEmpty(repo.Path) ? body.AgentName : repo.Label);
+                }
             }
 
             Back(body);
             var closed = _sessions.Close(body.ProjectPath, body.AgentName, discardWork: false);
             _logger.LogInformation("[Workspace] la finestra {Connection} torna al progetto {Path}.", body.ConnectionId, body.ProjectPath);
-            return Ok(new { closed.Closed, closed.Message });
+            return Ok(new { closed.Closed, closed.Message, published });
         }
 
         private void Back(WorkspaceRequest body)

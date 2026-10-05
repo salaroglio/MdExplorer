@@ -689,6 +689,7 @@
     "E2E_TESTS": "Test e2e…"
   },
   "MAIN_CONTENT": {
+    "AGENT_STRIP_PUBLISHED": "Lavoro pubblicato uscendo dalla copia: {{repos}}",
     "AGENT_STRIP_INSIDE": "Stai lavorando nella copia di {{agent}}",
     "AGENT_STRIP_INSIDE_HINT": "Albero, ricerca e documenti sono i suoi, e li puoi modificare. Lui aspetta finché non torni al tuo lavoro.",
     "AGENT_STRIP_LEAVE_FAILED": "Non riesco a tornare al tuo lavoro.",

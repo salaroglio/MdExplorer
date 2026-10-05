@@ -53,16 +53,18 @@ export class AgentWorkspaceService {
 
   /**
    * Torna al proprio lavoro. Fuori da una copia è solo l'uscita dalla revisione. Dentro una copia il servizio
-   * può rifiutare (file non committati): l'errore arriva a chi ha chiesto, che lo mostra.
+   * può rifiutare (file non committati, pubblicazione non riuscita): l'errore arriva a chi ha chiesto, che lo
+   * mostra. Uscendo, il lavoro committato viene pubblicato: l'elenco restituito dice dove.
    */
-  leave(): Observable<void> {
+  leave(): Observable<string[]> {
     const agentName = this.inside;
     if (!agentName) {
       this.review.backToUser();
-      return of(undefined);
+      return of([]);
     }
-    return this.http.post('../api/AgentWorkspace/leave', this.body(agentName)).pipe(
-      map(() => undefined),
+    return this.http.post<{ published?: string[] }>('../api/AgentWorkspace/leave', this.body(agentName)).pipe(
+      // Ciò che il servizio ha pubblicato uscendo: chi ha chiesto lo dice alla persona.
+      map(r => r?.published || []),
       tap(() => {
         this.inside$.next(null);
         this.review.backToUser();
