@@ -408,9 +408,10 @@ app-promptlab {
 }
 
 // La posta degli agenti: una finestra che è una pagina — tutto lo schermo, senza margini né angoli.
-.agent-mail-page .mat-dialog-container,
-.agent-mail-page .mat-mdc-dialog-container {
-  padding: 0;
-  border-radius: 0;
+// (!important: il tema dell'app dà già margini e angoli a ogni finestra, con la stessa forza.)
+.cdk-overlay-pane.agent-mail-page .mat-dialog-container,
+.cdk-overlay-pane.agent-mail-page .mat-mdc-dialog-container {
+  padding: 0 !important;
+  border-radius: 0 !important;
   overflow: hidden;
 }
