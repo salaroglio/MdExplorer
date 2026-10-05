@@ -1758,6 +1758,15 @@
     "DISABLED": "Memory (Fuseki) is not enabled for this project."
   },
   "AGENT_MAIL": {
+    "ARCHIVE": "Archive",
+    "ARCHIVE_TIP": "Takes the message off the list. It is not deleted: you find it in “Archive”.",
+    "UNARCHIVE": "Back to the mail",
+    "ARCHIVE_ALL": "Archive all ({{count}})",
+    "ARCHIVE_ALL_TIP": "Takes every message off the list. Work to approve stays.",
+    "SHOW_ARCHIVE": "Archive",
+    "SHOW_MAIL": "Back to the mail",
+    "ARCHIVE_VIEW": "Archive",
+    "EMPTY_ARCHIVE": "No archived messages.",
     "TITLE": "Agents' mail",
     "EMPTY": "No messages and nothing to approve.",
     "NOTHING_SELECTED": "Pick an item on the left.",

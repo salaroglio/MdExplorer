@@ -22,6 +22,7 @@ namespace MDExplorer.DataAccess.Mapping
             Map(x => x.ProcessedAt).Nullable();
             Map(x => x.NextAttemptAt).Nullable();
             Map(x => x.ReadAt).Nullable();
+            Map(x => x.ArchivedAt).Nullable();
             Map(x => x.DeferredReason).Length(50).Nullable();
             Map(x => x.ForcedAt).Nullable();
             Map(x => x.TriggerSource).Length(50).Nullable();

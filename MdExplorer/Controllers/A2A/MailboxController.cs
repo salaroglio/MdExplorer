@@ -54,7 +54,8 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult Inbox(
             [FromQuery] string? projectPath,
             [FromQuery] bool includeRead = false,
-            [FromQuery] int take = DefaultTake)
+            [FromQuery] int take = DefaultTake,
+            [FromQuery] bool archived = false)
         {
             try
             {
@@ -65,6 +66,10 @@ namespace MdExplorer.Controllers.A2A
                 _session.BeginTransaction();
                 var query = _session.GetDal<AgentMessage>().GetList()
                     .Where(m => m.ToAgent == ConversationHopGuard.UserRecipient);
+                // La posta mostra ciò che non è archiviato; con archived=true mostra SOLO l'archivio.
+                query = archived
+                    ? query.Where(m => m.ArchivedAt != null)
+                    : query.Where(m => m.ArchivedAt == null);
                 if (!includeRead)
                     query = query.Where(m => m.ReadAt == null);
                 var fetched = query.OrderByDescending(m => m.CreatedAt).ToList();
@@ -144,6 +149,81 @@ namespace MdExplorer.Controllers.A2A
             {
                 _session.Rollback();
                 _logger.LogError(ex, "[Mailbox] MarkAllRead fallito per {Project}", projectPath);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Archivia un messaggio <c>to:user</c>: esce dall'elenco della posta (e dal badge, perché archiviarlo è
+        /// averlo visto). Non lo cancella: <c>archived=true</c> sulla inbox lo fa rivedere, e si può ripristinare.
+        /// </summary>
+        [HttpPost("inbox/{messageId}/archive")]
+        public IActionResult Archive(Guid messageId) => SetArchived(messageId, true);
+
+        /// <summary>Riporta in posta un messaggio archiviato.</summary>
+        [HttpPost("inbox/{messageId}/unarchive")]
+        public IActionResult Unarchive(Guid messageId) => SetArchived(messageId, false);
+
+        private IActionResult SetArchived(Guid messageId, bool archived)
+        {
+            try
+            {
+                var dal = _session.GetDal<AgentMessage>();
+                _session.BeginTransaction();
+                var msg = dal.GetList().FirstOrDefault(m => m.Id == messageId);
+                if (msg == null)
+                {
+                    _session.Commit();
+                    return NotFound(new { error = $"Messaggio '{messageId}' non trovato." });
+                }
+                if (!string.Equals(msg.ToAgent, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase))
+                {
+                    _session.Commit();
+                    return BadRequest(new { error = "Solo i messaggi indirizzati a 'user' si archiviano." });
+                }
+
+                var now = DateTime.UtcNow;
+                msg.ArchivedAt = archived ? (msg.ArchivedAt ?? now) : (DateTime?)null;
+                if (archived && msg.ReadAt == null) msg.ReadAt = now;
+                dal.Save(msg);
+                _session.Commit();
+                return Ok(new { archived = msg.ArchivedAt != null });
+            }
+            catch (Exception ex)
+            {
+                _session.Rollback();
+                _logger.LogError(ex, "[Mailbox] archiviazione fallita per {Id}", messageId);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>Archivia tutti i messaggi <c>to:user</c> in posta di un progetto: l'elenco si svuota in un gesto.</summary>
+        [HttpPost("inbox/archive-all")]
+        public IActionResult ArchiveAll([FromQuery] string? projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath))
+                return BadRequest(new { error = "projectPath è obbligatorio." });
+            try
+            {
+                var dal = _session.GetDal<AgentMessage>();
+                _session.BeginTransaction();
+                var inMail = FilterByProject(
+                    dal.GetList().Where(m => m.ToAgent == ConversationHopGuard.UserRecipient && m.ArchivedAt == null).ToList(),
+                    projectPath).ToList();
+                var now = DateTime.UtcNow;
+                foreach (var message in inMail)
+                {
+                    message.ArchivedAt = now;
+                    message.ReadAt ??= now;
+                    dal.Save(message);
+                }
+                _session.Commit();
+                return Ok(new { archived = inMail.Count });
+            }
+            catch (Exception ex)
+            {
+                _session.Rollback();
+                _logger.LogError(ex, "[Mailbox] ArchiveAll fallito per {Project}", projectPath);
                 return StatusCode(500, new { error = ex.Message });
             }
         }
@@ -520,6 +600,7 @@ namespace MdExplorer.Controllers.A2A
             createdAt = m.CreatedAt,
             readAt = m.ReadAt,
             read = m.ReadAt != null,
+            archived = m.ArchivedAt != null,
         };
 
         private static string Preview(string body)

@@ -1758,6 +1758,15 @@
     "DISABLED": "La memoria (Fuseki) non è abilitata per questo progetto."
   },
   "AGENT_MAIL": {
+    "ARCHIVE": "Archivia",
+    "ARCHIVE_TIP": "Toglie il messaggio dall'elenco. Non lo cancella: lo ritrovi in «Archivio».",
+    "UNARCHIVE": "Riporta in posta",
+    "ARCHIVE_ALL": "Archivia tutti ({{count}})",
+    "ARCHIVE_ALL_TIP": "Toglie dall'elenco tutti i messaggi. I lavori da approvare restano.",
+    "SHOW_ARCHIVE": "Archivio",
+    "SHOW_MAIL": "Torna alla posta",
+    "ARCHIVE_VIEW": "Archivio",
+    "EMPTY_ARCHIVE": "Nessun messaggio archiviato.",
     "TITLE": "Posta degli agenti",
     "EMPTY": "Nessun messaggio e niente da approvare.",
     "NOTHING_SELECTED": "Scegli una voce a sinistra.",

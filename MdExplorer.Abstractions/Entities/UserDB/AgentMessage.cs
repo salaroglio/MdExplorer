@@ -63,6 +63,13 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         public virtual DateTime? ReadAt { get; set; }
 
         /// <summary>
+        /// Quando la persona ha <b>archiviato</b> un messaggio a lei indirizzato: esce dall'elenco della posta,
+        /// ma resta nel database e si rivede chiedendo gli archiviati. <c>null</c> = è in posta. Diverso da
+        /// <see cref="ReadAt"/>: un messaggio letto resta in elenco.
+        /// </summary>
+        public virtual DateTime? ArchivedAt { get; set; }
+
+        /// <summary>
         /// Motivo per cui la consegna è <b>parcheggiata</b> (§12.5 coda differita, Fase 6c):
         /// l'agente non è eseguibile adesso ma la richiesta NON fallisce. Valori
         /// <see cref="DeferredReasonEnum"/> (<c>resources</c>/<c>maintenance</c>/<c>user</c>).

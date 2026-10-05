@@ -57,8 +57,11 @@ export class AgentMailComponent implements OnInit, OnDestroy {
   selected: MailItem | null = null;
   loading = false;
   error: string | null = null;
-  includeRead = false;
+  /** Si guarda l'archivio invece della posta. */
+  showArchive = false;
   unread = 0;
+  /** Quanti messaggi ci sono nell'elenco: ciò che «Archivia tutti» toglierebbe. */
+  messageCount = 0;
 
   /** Gli artefatti del messaggio selezionato: i percorsi che cita, e dove stanno. */
   artifacts: MailArtifact[] = [];
@@ -105,17 +108,20 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.error = null;
     forkJoin({
-      inbox: this.mailbox.inbox(projectPath, this.includeRead),
+      // In posta resta tutto ciò che non è archiviato, letto o no: «letto» toglie solo il pallino.
+      inbox: this.mailbox.inbox(projectPath, true, this.showArchive),
       // Le altre due fonti non devono spegnere la posta se non rispondono: lo si dice e si va avanti.
       reviews: this.review.pending(projectPath).pipe(catchError(() => of({ requests: [] as MergeRequest[] }))),
       federation: this.federation.requests(projectPath).pipe(catchError(() => of({ requests: [] as FederationRequest[] }))),
     }).subscribe({
       next: ({ inbox, reviews, federation }) => {
         this.unread = inbox.unread || 0;
+        this.messageCount = (inbox.messages || []).length;
+        // L'archivio contiene solo messaggi: ciò che è da decidere non si archivia.
         this.items = [
           ...(inbox.messages || []).map(m => this.fromMessage(m)),
-          ...(reviews.requests || []).map(r => this.fromReview(r)),
-          ...(federation.requests || []).filter(f => f.status === 'pending').map(f => this.fromFederation(f)),
+          ...(this.showArchive ? [] : (reviews.requests || []).map(r => this.fromReview(r))),
+          ...(this.showArchive ? [] : (federation.requests || []).filter(f => f.status === 'pending').map(f => this.fromFederation(f))),
         ].sort((a, b) => (b.when || '').localeCompare(a.when || ''));
         this.loading = false;
 
@@ -228,15 +234,41 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     });
   }
 
-  markAllRead(): void {
-    this.mailbox.markAllRead(this.data?.projectPath || '').subscribe({
+  /** Archivia il messaggio aperto: esce dall'elenco, e la selezione passa al successivo. */
+  archive(item: MailItem): void {
+    if (item?.kind !== 'message') return;
+    const index = this.items.indexOf(item);
+    this.mailbox.archive(item.id).subscribe({
+      next: () => {
+        this.items = this.items.filter(i => i !== item);
+        this.messageCount = Math.max(0, this.messageCount - 1);
+        if (item.unread) this.unread = Math.max(0, this.unread - 1);
+        const next = this.items[Math.min(index, this.items.length - 1)];
+        if (next) this.select(next); else { this.selected = null; this.artifacts = []; this.document = null; }
+      },
+      error: (err) => this.showError(err),
+    });
+  }
+
+  /** Riporta in posta un messaggio archiviato. */
+  unarchive(item: MailItem): void {
+    if (item?.kind !== 'message') return;
+    this.mailbox.unarchive(item.id).subscribe({
       next: () => this.reload(),
       error: (err) => this.showError(err),
     });
   }
 
-  toggleIncludeRead(): void {
-    this.includeRead = !this.includeRead;
+  archiveAll(): void {
+    this.mailbox.archiveAll(this.data?.projectPath || '').subscribe({
+      next: () => this.reload(),
+      error: (err) => this.showError(err),
+    });
+  }
+
+  toggleArchive(): void {
+    this.showArchive = !this.showArchive;
+    this.selected = null;
     this.reload();
   }
 

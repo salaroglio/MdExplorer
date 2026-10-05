@@ -4,13 +4,15 @@
     <mat-icon class="bar-icon">forum</mat-icon>
     <span class="bar-title">{{ 'AGENT_MAIL.TITLE' | translate }}</span>
     <span class="bar-project">{{ projectName }}</span>
+    <span class="bar-archive" *ngIf="showArchive">{{ 'AGENT_MAIL.ARCHIVE_VIEW' | translate }}</span>
     <span class="flexExpand"></span>
-    <button mat-button class="btn-mark-all-read" *ngIf="unread > 0" (click)="markAllRead()" [disabled]="loading"
-            [matTooltip]="'MAILBOX.MARK_ALL_READ_TIP' | translate">
-      <mat-icon>done_all</mat-icon> {{ 'MAILBOX.MARK_ALL_READ' | translate: { count: unread } }}
+    <button mat-button class="btn-archive-all" *ngIf="!showArchive && messageCount > 0" (click)="archiveAll()" [disabled]="loading"
+            [matTooltip]="'AGENT_MAIL.ARCHIVE_ALL_TIP' | translate">
+      <mat-icon>inventory_2</mat-icon> {{ 'AGENT_MAIL.ARCHIVE_ALL' | translate: { count: messageCount } }}
     </button>
-    <button mat-button (click)="toggleIncludeRead()">
-      {{ (includeRead ? 'MAILBOX.SHOW_UNREAD_ONLY' : 'MAILBOX.SHOW_ALL') | translate }}
+    <button mat-button class="btn-toggle-archive" (click)="toggleArchive()">
+      <mat-icon>{{ showArchive ? 'inbox' : 'inventory_2' }}</mat-icon>
+      {{ (showArchive ? 'AGENT_MAIL.SHOW_MAIL' : 'AGENT_MAIL.SHOW_ARCHIVE') | translate }}
     </button>
     <button mat-button (click)="openConversations()" [matTooltip]="'AGENT_MAIL.CONVERSATIONS_TIP' | translate">
       {{ 'MAILBOX.TAB_CONVERSATIONS' | translate }}
@@ -31,7 +33,7 @@
     <aside class="mail-list">
       <div *ngIf="!loading && !items.length" class="mail-empty">
         <mat-icon>mark_email_read</mat-icon>
-        <p>{{ 'AGENT_MAIL.EMPTY' | translate }}</p>
+        <p>{{ (showArchive ? 'AGENT_MAIL.EMPTY_ARCHIVE' : 'AGENT_MAIL.EMPTY') | translate }}</p>
       </div>
 
       <button type="button" class="mail-row" *ngFor="let item of items; trackBy: trackItem"
@@ -82,6 +84,13 @@
             <span class="head-from">{{ selected.from }}</span>
             <span class="flexExpand"></span>
             <span class="head-when">{{ selected.when | date:'medium' }}</span>
+            <button mat-stroked-button class="btn-archive" *ngIf="!showArchive" (click)="archive(selected)"
+                    [matTooltip]="'AGENT_MAIL.ARCHIVE_TIP' | translate">
+              <mat-icon>inventory_2</mat-icon> {{ 'AGENT_MAIL.ARCHIVE' | translate }}
+            </button>
+            <button mat-stroked-button class="btn-unarchive" *ngIf="showArchive" (click)="unarchive(selected)">
+              <mat-icon>unarchive</mat-icon> {{ 'AGENT_MAIL.UNARCHIVE' | translate }}
+            </button>
           </div>
           <div class="chips" *ngIf="selected.message.topics?.length">
             <span class="chip" *ngFor="let t of selected.message.topics">{{ t }}</span>

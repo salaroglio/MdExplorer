@@ -95,6 +95,42 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Archive_a_message_out_of_the_mail_without_deleting_it()
+        {
+            var (ctx, path, _, msgId) = await EscalateToUser("archive");
+            using var _ctx = ctx;
+            var enc = Uri.EscapeDataString(path);
+            bool InList(System.Text.Json.JsonDocument json) => json.RootElement.GetProperty("messages").EnumerateArray()
+                .Any(e => e.GetProperty("id").GetGuid() == msgId);
+
+            var (archived, body) = await ctx.PostJson($"/api/A2A/mailbox/inbox/{msgId}/archive", "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, archived, body);
+
+            // Fuori dalla posta (anche chiedendo i letti) e fuori dal badge: archiviarlo è averlo visto.
+            var (_, mail) = await ctx.GetInbox(path, includeRead: true);
+            Assert.IsFalse(InList(mail), "un messaggio archiviato non sta più nell'elenco");
+            Assert.AreEqual(0, mail.RootElement.GetProperty("unread").GetInt32());
+
+            // Ma non è cancellato: sta nell'archivio, e si può riportare in posta.
+            var (_, archive) = await ctx.GetJson($"/api/A2A/mailbox/inbox?projectPath={enc}&includeRead=true&archived=true");
+            Assert.IsTrue(InList(archive), "l'archivio lo mostra");
+            Assert.IsTrue(ctx.Messages().Any(m => m.Id == msgId), "resta nel database");
+
+            var (restored, _) = await ctx.PostJson($"/api/A2A/mailbox/inbox/{msgId}/unarchive", "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, restored);
+            var (_, again) = await ctx.GetInbox(path, includeRead: true);
+            Assert.IsTrue(InList(again), "ripristinato, torna nell'elenco");
+            Assert.IsTrue(again.RootElement.GetProperty("messages").EnumerateArray()
+                .First(e => e.GetProperty("id").GetGuid() == msgId).GetProperty("read").GetBoolean(), "e resta letto");
+
+            // «Archivia tutti» svuota la posta del progetto in un gesto.
+            var (all, allBody) = await ctx.PostJson($"/api/A2A/mailbox/inbox/archive-all?projectPath={enc}", "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, all, allBody);
+            var (_, empty) = await ctx.GetInbox(path, includeRead: true);
+            Assert.AreEqual(0, empty.RootElement.GetProperty("messages").GetArrayLength());
+        }
+
+        [TestMethod]
         public async Task Mark_a_message_read_and_drop_it_from_the_unread_badge()
         {
             var (ctx, path, _, msgId) = await EscalateToUser("read");

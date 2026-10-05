@@ -14,6 +14,8 @@ export interface MailboxMessage {
   createdAt: string;
   readAt: string | null;
   read: boolean;
+  /** Archiviato: fuori dall'elenco della posta, ma non cancellato. */
+  archived?: boolean;
 }
 
 export interface MailboxInbox {
@@ -67,8 +69,9 @@ export interface ConversationThread {
 export class MailboxService {
   constructor(private http: HttpClient) {}
 
-  inbox(projectPath: string, includeRead = false): Observable<MailboxInbox> {
-    let params = new HttpParams().set('includeRead', includeRead);
+  /** `archived` = solo l'archivio; altrimenti ciò che è in posta (tutto, o solo i non letti). */
+  inbox(projectPath: string, includeRead = false, archived = false): Observable<MailboxInbox> {
+    let params = new HttpParams().set('includeRead', includeRead).set('archived', archived);
     if (projectPath) params = params.set('projectPath', projectPath);
     return this.http.get<MailboxInbox>('/api/A2A/mailbox/inbox', { params });
   }
@@ -83,6 +86,22 @@ export class MailboxService {
   markAllRead(projectPath: string): Observable<{ read: number }> {
     const params = new HttpParams().set('projectPath', projectPath);
     return this.http.post<{ read: number }>('/api/A2A/mailbox/inbox/read-all', null, { params });
+  }
+
+  /** Archivia un messaggio: esce dall'elenco, non viene cancellato. */
+  archive(messageId: string): Observable<{ archived: boolean }> {
+    return this.http.post<{ archived: boolean }>(`/api/A2A/mailbox/inbox/${messageId}/archive`, null);
+  }
+
+  /** Riporta in posta un messaggio archiviato. */
+  unarchive(messageId: string): Observable<{ archived: boolean }> {
+    return this.http.post<{ archived: boolean }>(`/api/A2A/mailbox/inbox/${messageId}/unarchive`, null);
+  }
+
+  /** Archivia tutti i messaggi in posta del progetto. */
+  archiveAll(projectPath: string): Observable<{ archived: number }> {
+    const params = new HttpParams().set('projectPath', projectPath);
+    return this.http.post<{ archived: number }>('/api/A2A/mailbox/inbox/archive-all', null, { params });
   }
 
   markRead(messageId: string): Observable<{ read: boolean; readAt: string }> {
