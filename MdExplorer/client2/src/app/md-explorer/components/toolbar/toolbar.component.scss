@@ -456,9 +456,12 @@ mat-toolbar button.git-menu-btn {
 // Stessa forma per tutti e tre: una riga per repository, col suo pulsante e, se e' spento, il
 // motivo scritto sotto.
 
+// In fila, non impilati: quattro pulsanti uno sopra l'altro (64px) uscivano dai 48px della riga.
 .git-panels {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
 }
 
 .git-panel-anchor {
@@ -565,16 +568,20 @@ mat-toolbar button.git-menu-btn {
   .panel-icon-btn mat-icon.spinning { animation: none !important; }
 }
 
-// Tre pulsanti impilati nei 48px della riga: a 20px l'uno il primo usciva dall'alto.
 .git-panels .git-panel-anchor > button {
-  height: 16px;
-  line-height: 14px;
+  height: 20px;
+  line-height: 18px;
   font-size: 11px;
   padding: 0 6px;
+  white-space: nowrap;
 }
 
-.git-panels .git-panel {
-  top: 16px;
+// Il numero sopra posta e robot: Material lo mette 8px sopra il pulsante, fuori dalla riga.
+// Qui sta dentro, nell'angolo in alto a destra dell'icona.
+:host ::ng-deep .btn-mailbox .mat-badge-content,
+:host ::ng-deep .btn-agents-running .mat-badge-content {
+  top: 2px !important;
+  right: 2px !important;
 }
 
 // L'etichetta del ramo quando si guarda il lavoro di un agente.
