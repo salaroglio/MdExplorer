@@ -86,5 +86,43 @@ namespace MdExplorer.Features.Agents
             }
             return result;
         }
+
+        /// <summary>
+        /// Un agente che dichiara risposte deve dire, a ogni messaggio alla persona, quali valgono adesso: anche
+        /// «nessuna», con una lista vuota. Senza, «non c'è niente da scegliere» e «me ne sono dimenticato» sarebbero lo
+        /// stesso messaggio, e la persona resterebbe senza pulsanti senza sapere perché.
+        /// </summary>
+        /// <returns>Il motivo del rifiuto, da restituire all'agente; null se l'invio può partire.</returns>
+        public static string MissingProposal(IEnumerable<AgentRegistryReply> declared, bool repliesPassed)
+        {
+            if (repliesPassed) return null;
+            var ids = (declared ?? Enumerable.Empty<AgentRegistryReply>())
+                .Where(d => !string.IsNullOrWhiteSpace(d?.Id))
+                .Select(d => d.Id.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0) return null;
+            return $"La tua scheda dichiara le risposte {string.Join(", ", ids)} (a2a.replies): passa 'replies' con quelle " +
+                   "che la persona può scegliere adesso, con i loro valori, oppure [] se non ha niente da scegliere. " +
+                   "Il messaggio non è partito: rimandalo con 'replies'.";
+        }
+
+        /// <summary>
+        /// Ciò che l'agente riceve quando la persona gli scrive con parole sue. Un agente si sveglia senza ricordi:
+        /// senza il suo messaggio di prima, citato, una domanda come «perché non vedo i pulsanti?» non avrebbe contesto.
+        /// </summary>
+        public static string QuoteFreeReply(string personText, string previousBody, IEnumerable<ResolvedReply> previousReplies)
+        {
+            var quoted = string.Join("\n", (previousBody ?? string.Empty).Trim()
+                .Replace("\r\n", "\n").Split('\n').Select(l => "> " + l));
+            var offered = (previousReplies ?? Enumerable.Empty<ResolvedReply>()).ToList();
+            var replies = offered.Count == 0
+                ? "nessuna"
+                : string.Join("; ", offered.Select(r => $"«{r.Label}» (messaggio: {r.Message})"));
+            return "[RISPOSTA LIBERA] " + (personText ?? string.Empty).Trim() + "\n\n" +
+                   "La persona ti ha scritto con parole sue, rispondendo a questo tuo messaggio:\n" +
+                   quoted + "\n\n" +
+                   "Risposte che le avevi proposto come pulsanti: " + replies + ".";
+        }
     }
 }

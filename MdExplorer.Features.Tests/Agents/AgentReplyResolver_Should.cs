@@ -93,5 +93,43 @@ namespace MdExplorer.Features.Tests.Agents
             Assert.IsNull(error);
             Assert.AreEqual(0, resolved.Count);
         }
+
+        [TestMethod]
+        public void Refuse_a_message_without_replies_when_the_card_declares_them()
+        {
+            var reason = AgentReplyResolver.MissingProposal(Card, repliesPassed: false);
+
+            Assert.IsNotNull(reason, "senza replies «niente da scegliere» e «dimenticato» sarebbero lo stesso messaggio");
+            StringAssert.Contains(reason, "avvia-giro");
+            StringAssert.Contains(reason, "[]");
+        }
+
+        [TestMethod]
+        public void Accept_an_explicit_empty_list_or_a_card_without_replies()
+        {
+            Assert.IsNull(AgentReplyResolver.MissingProposal(Card, repliesPassed: true), "[] = la persona non ha niente da scegliere");
+            Assert.IsNull(AgentReplyResolver.MissingProposal(new List<AgentRegistryReply>(), repliesPassed: false), "replies: [] nella scheda");
+            Assert.IsNull(AgentReplyResolver.MissingProposal(null, repliesPassed: false), "scheda senza replies");
+        }
+
+        [TestMethod]
+        public void Quote_the_agent_message_and_its_buttons_in_a_free_reply()
+        {
+            var offered = new[] { new ResolvedReply { Id = "avvia-giro", Label = "Avvia il giro su NC-2027-014", Message = "avvia NC-2027-014" } };
+
+            var body = AgentReplyResolver.QuoteFreeReply("  perché non vedo i pulsanti?  ", "[ESITO] Tre procedure.\r\nNC-2027-014 compatibile", offered);
+
+            StringAssert.StartsWith(body, "[RISPOSTA LIBERA] perché non vedo i pulsanti?");
+            StringAssert.Contains(body, "> [ESITO] Tre procedure.\n> NC-2027-014 compatibile");
+            StringAssert.Contains(body, "«Avvia il giro su NC-2027-014» (messaggio: avvia NC-2027-014)");
+        }
+
+        [TestMethod]
+        public void Say_no_buttons_were_offered_when_there_were_none()
+        {
+            var body = AgentReplyResolver.QuoteFreeReply("che è successo?", "[ESITO] Niente di nuovo.", null);
+
+            StringAssert.Contains(body, "Risposte che le avevi proposto come pulsanti: nessuna.");
+        }
     }
 }

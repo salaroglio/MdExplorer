@@ -1782,6 +1782,8 @@
   "AGENT_MAIL": {
     "REPLIES_LABEL": "Che cosa puoi rispondere a {{agent}}",
     "REPLIES_NONE": "Con questo messaggio {{agent}} non ti chiede niente.",
+    "REPLY_FREE_LABEL": "Oppure scrivi a {{agent}} con parole tue",
+    "REPLY_FREE_HINT": "Per esempio una domanda su questo messaggio. {{agent}} lo rileggerà insieme a quello che gli scrivi.",
     "REPLY_LOCK_PENDING": "Prima decidi sull'artefatto che {{agent}} ha consegnato con questo messaggio (la riga qui sotto nell'elenco). Finché non lo approvi, la risposta non parte.",
     "REPLY_LOCK_REJECTED": "Hai rifiutato l'artefatto di questo lavoro: è un ramo chiuso, non c'è niente a cui rispondere. Per riprovare, rilancia {{agent}}.",
     "CHILD_REVIEW": "Da approvare: l'artefatto",

@@ -135,10 +135,17 @@ namespace MdExplorer.Controllers.A2A
                 // non dichiarata o un valore mancante rifiutano l'invio con il motivo, così l'agente lo corregge:
                 // un pulsante rotto nella posta non lo correggerebbe più nessuno.
                 string repliesJson = null;
+                var sender = _registry.RefreshCatalog(claims.ProjectPath)
+                    .FirstOrDefault(e => string.Equals(e.Name, claims.AgentName, StringComparison.OrdinalIgnoreCase));
+                // Chi dichiara risposte dice sempre quali valgono adesso, anche nessuna ([]): un null qui è una dimenticanza.
+                var notProposed = AgentReplyResolver.MissingProposal(sender?.Replies, request.Replies != null);
+                if (notProposed != null)
+                {
+                    _logger.LogWarning("[A2A/send] {From} -> user rifiutato: risposte dichiarate ma non passate", claims.AgentName);
+                    return BadRequest(new { error = notProposed });
+                }
                 if (request.Replies != null && request.Replies.Count > 0)
                 {
-                    var sender = _registry.RefreshCatalog(claims.ProjectPath)
-                        .FirstOrDefault(e => string.Equals(e.Name, claims.AgentName, StringComparison.OrdinalIgnoreCase));
                     var resolved = AgentReplyResolver.Resolve(
                         sender?.Replies,
                         request.Replies.Select(r => (IDictionary<string, string>)r),
@@ -162,7 +169,8 @@ namespace MdExplorer.Controllers.A2A
                 if (!toUser.Accepted)
                     return StatusCode(409, new { error = toUser.RejectionReason });
 
-                _logger.LogInformation("[A2A/send] {From} -> user accodato (task {Task})", claims.AgentName, toUser.TaskId);
+                _logger.LogInformation("[A2A/send] {From} -> user accodato (task {Task}, risposte proposte: {Replies})",
+                    claims.AgentName, toUser.TaskId, request.Replies?.Count.ToString() ?? "non indicate");
                 return Ok(new
                 {
                     accepted = true,

@@ -137,8 +137,8 @@
           <!-- Che cosa puoi rispondere. Le risposte le dichiara la scheda dell'agente e le propone il messaggio:
                qui diventano pulsanti. Finché l'artefatto di questo lavoro non è approvato, non si risponde. -->
           <div class="reply">
-            <!-- L'avviso serve solo dove c'è qualcosa da rispondere: sotto un messaggio che non chiede niente sarebbe rumore. -->
-            <div class="reply-lock" *ngIf="(selected.message.replies?.length || !selected.message.declaresReplies) && replyLock() as lock" role="status">
+            <!-- Si può sempre scrivere all'agente, quindi l'avviso vale sotto ogni messaggio. -->
+            <div class="reply-lock" *ngIf="replyLock() as lock" role="status">
               <mat-icon>{{ lock === 'pending' ? 'lock_clock' : 'block' }}</mat-icon>
               <span>{{ (lock === 'pending' ? 'AGENT_MAIL.REPLY_LOCK_PENDING' : 'AGENT_MAIL.REPLY_LOCK_REJECTED') | translate: { agent: selected.from } }}</span>
             </div>
@@ -154,21 +154,22 @@
               </div>
             </ng-container>
 
-            <!-- Il campo libero resta solo per gli agenti che non dichiarano le loro risposte. -->
-            <ng-container *ngIf="!selected.message.declaresReplies">
-              <label class="reply-label" for="agent-mail-reply">{{ 'AGENT_MAIL.REPLY_LABEL' | translate: { agent: selected.from } }}</label>
-              <textarea id="agent-mail-reply" class="reply-text" rows="3" [(ngModel)]="replyDraft" [disabled]="!!replyLock()"
-                        [placeholder]="'MAILBOX.REPLY_PLACEHOLDER' | translate"></textarea>
-              <div class="reply-actions">
-                <button mat-raised-button color="primary" class="btn-reply" [disabled]="!canReply()" (click)="reply()">
-                  <mat-icon>send</mat-icon> {{ 'MAILBOX.REPLY_BUTTON' | translate }}
-                </button>
-              </div>
-            </ng-container>
-
             <p class="reply-none" *ngIf="selected.message.declaresReplies && !selected.message.replies?.length">
               {{ 'AGENT_MAIL.REPLIES_NONE' | translate: { agent: selected.from } }}
             </p>
+
+            <!-- Il campo libero c'è sempre: per chiedere all'agente che cosa è successo, o dirgli ciò che la scheda
+                 non prevede. L'agente lo riceve con il suo messaggio citato. -->
+            <label class="reply-label" for="agent-mail-reply">{{ (selected.message.replies?.length
+                ? 'AGENT_MAIL.REPLY_FREE_LABEL' : 'AGENT_MAIL.REPLY_LABEL') | translate: { agent: selected.from } }}</label>
+            <p class="reply-free-hint">{{ 'AGENT_MAIL.REPLY_FREE_HINT' | translate: { agent: selected.from } }}</p>
+            <textarea id="agent-mail-reply" class="reply-text" rows="3" [(ngModel)]="replyDraft" [disabled]="!!replyLock()"
+                      [placeholder]="'MAILBOX.REPLY_PLACEHOLDER' | translate"></textarea>
+            <div class="reply-actions">
+              <button mat-raised-button color="primary" class="btn-reply" [disabled]="!canReply()" (click)="reply()">
+                <mat-icon>send</mat-icon> {{ 'MAILBOX.REPLY_BUTTON' | translate }}
+              </button>
+            </div>
           </div>
         </div>
 

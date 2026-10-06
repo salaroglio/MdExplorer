@@ -20,7 +20,7 @@ export interface MailboxMessage {
   runId?: string | null;
   /** Le risposte che l'agente propone: i pulsanti sotto il messaggio. */
   replies?: MailReply[];
-  /** La scheda dell'agente dichiara le sue risposte: non c'è campo libero. */
+  /** La scheda dell'agente dichiara le sue risposte: se il messaggio non ne propone, l'agente non chiede niente. */
   declaresReplies?: boolean;
   /** L'artefatto del turno che ha scritto il messaggio: 'pending' = da decidere, 'rejected' = rifiutato; in entrambi i casi non si risponde. */
   artifact?: string | null;
@@ -140,10 +140,12 @@ export class MailboxService {
       `/api/A2A/mailbox/inbox/${messageId}/read`, null);
   }
 
-  reply(conversationId: string, body: string):
+  /** choice = true: body è il messaggio di uno dei pulsanti proposti; false: testo libero, che arriva con il messaggio citato.
+   *  messageId: il messaggio a cui si risponde (senza, l'ultimo del thread). */
+  reply(conversationId: string, body: string, choice = false, messageId?: string):
     Observable<{ accepted: boolean; taskId: string; conversationId: string; toAgent: string }> {
     return this.http.post<{ accepted: boolean; taskId: string; conversationId: string; toAgent: string }>(
-      '/api/A2A/mailbox/reply', { conversationId, body });
+      '/api/A2A/mailbox/reply', { conversationId, body, choice, messageId });
   }
 
   // ---- 4b: osservabilità e governo dei thread ----

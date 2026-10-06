@@ -1782,6 +1782,8 @@
   "AGENT_MAIL": {
     "REPLIES_LABEL": "What you can reply to {{agent}}",
     "REPLIES_NONE": "With this message {{agent}} is not asking you anything.",
+    "REPLY_FREE_LABEL": "Or write to {{agent}} in your own words",
+    "REPLY_FREE_HINT": "For example a question about this message. {{agent}} will reread it together with what you write.",
     "REPLY_LOCK_PENDING": "First decide on the artefact {{agent}} delivered with this message (the row below it in the list). Until you approve it, the reply does not go out.",
     "REPLY_LOCK_REJECTED": "You rejected the artefact of this work: it is a closed branch, there is nothing to reply to. To try again, launch {{agent}} again.",
     "CHILD_REVIEW": "To approve: the artefact",

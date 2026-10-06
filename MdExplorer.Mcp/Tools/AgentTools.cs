@@ -92,6 +92,8 @@ public sealed class AgentTools : McpToolsBase
             "Only when toAgent is 'user': the replies you propose to the person, as a JSON array. Each item has the 'id' " +
             "of a reply DECLARED in your card (a2a.replies) plus one value for each {placeholder} of its texts, e.g. " +
             "[{\"id\":\"avvia-giro\",\"codice\":\"NC-2027-014\"}]. They become buttons under your message. " +
+            "If your card declares replies, this is REQUIRED on every message to 'user': pass [] when the person has " +
+            "nothing to choose; without it the send is refused. " +
             "An undeclared id or a missing value refuses the send with the reason: fix it and send again.")] string replies = null)
     {
         var token = RunToken();

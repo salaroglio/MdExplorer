@@ -309,18 +309,21 @@ export class AgentMailComponent implements OnInit, OnDestroy {
   /** Un pulsante di risposta: invia il messaggio che la scheda dell'agente dichiara per quella risposta. */
   replyWith(r: MailReply): void {
     if (this.sending || this.replyLock()) return;
-    this.replyDraft = r.message;
-    this.reply();
+    this.send(r.message, true);
   }
 
+  /** Il campo libero: l'agente lo riceve con il suo messaggio citato. */
   reply(): void {
+    this.send(this.replyDraft.trim(), false);
+  }
+
+  private send(body: string, choice: boolean): void {
     const message = this.selected?.message;
-    const body = this.replyDraft.trim();
     if (!message || !body) return;
     this.sending = true;
     // Rispondere sveglia l'agente: prima si dice se nella cartella c'è lavoro che lui non vedrebbe.
     this.startGuard.beforeStart(this.data?.projectPath || '', message.fromAgent).pipe(
-      switchMap(go => go ? this.mailbox.reply(message.conversationId, body) : EMPTY),
+      switchMap(go => go ? this.mailbox.reply(message.conversationId, body, choice, message.id) : EMPTY),
       finalize(() => { this.sending = false; }),
     ).subscribe({
       next: (res) => {

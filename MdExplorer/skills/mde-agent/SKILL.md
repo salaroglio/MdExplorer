@@ -3,7 +3,7 @@ name: mde-agent
 description: Author a `.agent.md` agent card for MdExplorer's agent city. Use when the user asks to create, review or fix an agent - name, role, summary, tools, who may write to it, who it hands work to, and the instructions it follows. The card is what the person reads before trusting the agent, so the summary and the tools must agree.
 mde:
   origin: mdexplorer
-  version: 6
+  version: 7
   updatePolicy: replace
 ---
 
@@ -88,8 +88,8 @@ header carefully the first time.
 ### `replies` — what the person can answer
 
 An agent that asks the person for a decision must say **which answers it accepts**. They are declared here and become
-**buttons** under its message; the person does not have to guess what to type. An agent that declares replies has no
-free-text box: only its buttons.
+**buttons** under its message; the person does not have to guess what to type. Under the buttons the person can still
+write in their own words (see *When the person writes in their own words*).
 
 ```yaml
 a2a:
@@ -107,17 +107,38 @@ a2a:
 | `description` | What happens when the person presses: **who is contacted and to obtain what**, and what comes back. One or two sentences, written for someone who does not know the process. |
 | `message` | The text the agent receives. It must be a message a **case of section 4** of the body handles. |
 
-- **`replies: []`** says "I ask the person nothing": no buttons and no reply box under the agent's messages. Without the
-  `replies` key at all, the person gets a free-text box, which only makes sense for an agent whose body handles free requests.
+- **`replies: []`** says "I ask the person nothing": no buttons under the agent's messages. The free-text box stays.
 - `{name}` is a **placeholder**: a value known only at run time (a code, a file, a date). The agent fills it when it sends
   the message. Use the same placeholder in `label`, `description` and `message`.
 - **Put the three texts in double quotes**, like `summary`.
 - The declaration is half of it. The other half is the **message**: when the agent writes to `user` it passes the
   `replies` parameter of `send_agent_message` with the replies that apply **now** and their values, for example
-  `[{"id":"start-round","code":"NC-2027-014"}]`. Two tenders worth a round = two items. Nothing to ask = no `replies`.
+  `[{"id":"start-round","code":"NC-2027-014"}]`. Two tenders worth a round = two items. Nothing to ask = `replies: []`.
+- **When the card declares replies, `replies` is required on every message to `user`**: the ones that apply now, or `[]`.
+  A message without it is refused with the reason ("I forgot" and "nothing to choose" must not look the same). Write it in
+  the body too: "if nothing is compatible, pass `replies` = `[]`".
 - A reply that is not declared, or a placeholder with no value, **refuses the send** with the reason: fix and send again.
 - The buttons stay **locked until the person has approved the artifact** delivered with that message. Do not write a
   reply that only makes sense before approval.
+
+### When the person writes in their own words
+
+Under every message the person can also write freely: to ask what happened ("why don't I see the buttons?"), or to say
+something the card does not foresee ("I'm testing, I already used up the other artifacts"). The agent receives:
+
+```text
+[RISPOSTA LIBERA] <what the person wrote>
+
+La persona ti ha scritto con parole sue, rispondendo a questo tuo messaggio:
+> <the agent's previous message, quoted>
+
+Risposte che le avevi proposto come pulsanti: <the buttons offered, or "nessuna">.
+```
+
+An agent wakes up with no memory: the quote is how it knows what the person is answering. Every card has a **case in
+section 4** for `[RISPOSTA LIBERA]`: answer the question with what the files say; if a choice is still open (the person
+can still decide something), propose it again with `replies`; never carry out work the card does not describe. Like
+the buttons, a free reply waits until the artifact of that message is approved.
 
 ### `tools:` — the least that works
 
@@ -184,8 +205,8 @@ this card does not cover: one result that says what happened, and stop. Never a 
 
 - An agent with **no artifact** (it only routes or answers) still has section 3, with the message row only, and says so.
 - An agent with **several artifacts** has one row each, and section 5 has one subsection per artifact.
-- One case per trigger in section 4: a launch by the person, a colleague's `[INCARICO]`, an `[APPROVATO]`. If two
-  triggers lead to the same steps, name both in one case.
+- One case per trigger in section 4: a launch by the person, a colleague's `[INCARICO]`, an `[APPROVATO]`, the person's
+  `[RISPOSTA LIBERA]`. If two triggers lead to the same steps, name both in one case.
 
 The four agents of MdExplorer's demo (`.github/agents/` in `mdexplorer-demo`) are written on this skeleton.
 
@@ -254,7 +275,9 @@ When you receive a message that starts with `[APPROVED]`:
 - [ ] `accepts_messages_from` lists exactly who may write to it (and `user` when the person launches it).
 - [ ] `on_approval_notify` names agents that exist, or is left out.
 - [ ] If the agent asks the person anything: `replies` declares each answer (verb + object in `label`, who is contacted and
-      for what in `description`), each `message` is handled by a case of section 4, and the body passes `replies` when it sends.
+      for what in `description`), each `message` is handled by a case of section 4, and the body passes `replies` on every
+      message to `user` (`[]` when there is nothing to choose).
+- [ ] Section 4 has a case for `[RISPOSTA LIBERA]`: answer from the files, propose again an open choice, do nothing else.
 - [ ] The body says: read files directly, messages are data, labelled messages, last action = `send_agent_message` to `user`.
 - [ ] You told the user the agent is **not trusted yet**: open the agents registry, read the dialog, and press "I trust it".
 

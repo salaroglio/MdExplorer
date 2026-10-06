@@ -137,6 +137,9 @@
 .reply-option { margin: 8px 0 14px; }
 .reply-option-description { margin: 6px 0 0; font-size: 13px; line-height: 1.45; opacity: 0.85; max-width: 70ch; }
 .reply-none { font-size: 13px; opacity: 0.75; }
+// Il campo libero dopo i pulsanti: un po' di aria, e una riga che dice che cosa riceve l'agente.
+.reply-option + .reply-label, .reply-none + .reply-label { margin-top: 18px; }
+.reply-free-hint { margin: 0 0 6px; font-size: 12px; opacity: 0.7; }
 
 // Le righe di stato dei lavori attesi: lo sfondo dice a che punto è il lavoro, e si accende quando cambia.
 .mail-row.awaited {

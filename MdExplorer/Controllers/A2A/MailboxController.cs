@@ -284,20 +284,35 @@ namespace MdExplorer.Controllers.A2A
             var conversation = _session.GetDal<AgentConversation>().GetList()
                 .FirstOrDefault(c => c.Id == convId);
 
-            // Il destinatario naturale della risposta: l'agente che ha scritto a 'user' per
-            // ultimo in questo thread. Fail-loud se non esiste (non c'è a chi rispondere).
-            var lastToUser = conversation == null
-                ? null
-                : _session.GetDal<AgentMessage>().GetList()
-                    .Where(m => m.ConversationId == convId && m.ToAgent == ConversationHopGuard.UserRecipient)
-                    .OrderByDescending(m => m.CreatedAt)
-                    .FirstOrDefault();
+            // Il messaggio a cui si risponde: quello indicato, se c'è (in un thread con più messaggi i pulsanti di
+            // ciascuno valgono per lui); altrimenti l'ultimo che un agente ha scritto a 'user' nel thread.
+            Guid? answeredId = null;
+            if (!string.IsNullOrWhiteSpace(request.MessageId))
+            {
+                if (!Guid.TryParse(request.MessageId, out var mid))
+                    return BadRequest(new { error = $"messageId non valido: '{request.MessageId}'." });
+                answeredId = mid;
+            }
+            AgentMessage lastToUser = null;
+            if (conversation != null)
+            {
+                var toUser = _session.GetDal<AgentMessage>().GetList()
+                    .Where(m => m.ConversationId == convId && m.ToAgent == ConversationHopGuard.UserRecipient);
+                if (answeredId != null)
+                {
+                    var wanted = answeredId.Value;
+                    toUser = toUser.Where(m => m.Id == wanted);
+                }
+                lastToUser = toUser.OrderByDescending(m => m.CreatedAt).FirstOrDefault();
+            }
             _session.Commit();
 
             if (conversation == null)
                 return NotFound(new { error = $"Conversazione '{convId}' non trovata." });
             if (lastToUser == null)
-                return UnprocessableEntity(new { error = "In questo thread nessun agente ha scritto a 'user': non c'è un destinatario a cui rispondere." });
+                return UnprocessableEntity(new { error = answeredId == null
+                    ? "In questo thread nessun agente ha scritto a 'user': non c'è un destinatario a cui rispondere."
+                    : $"Il messaggio {answeredId} non è un messaggio a te in questo thread." });
 
             var toAgent = lastToUser.FromAgent;
 
@@ -324,12 +339,30 @@ namespace MdExplorer.Controllers.A2A
             if (!recipient.Trusted)
                 return StatusCode(403, new { error = $"L'agente '{toAgent}' non è più trusted: impossibile rispondergli." });
 
+            // Un pulsante invia il messaggio che la scheda dichiara: deve essere uno di quelli proposti, così come sono.
+            // Il testo libero invece arriva all'agente con il suo messaggio di prima citato: si sveglia senza ricordi.
+            var proposed = string.IsNullOrWhiteSpace(lastToUser.Replies)
+                ? new List<ResolvedReply>()
+                : System.Text.Json.JsonSerializer.Deserialize<List<ResolvedReply>>(lastToUser.Replies) ?? new List<ResolvedReply>();
+            string body;
+            if (request.Choice == true)
+            {
+                var chosen = proposed.FirstOrDefault(r => string.Equals(r.Message?.Trim(), request.Body.Trim(), StringComparison.Ordinal));
+                if (chosen == null)
+                    return UnprocessableEntity(new { error = $"'{request.Body.Trim()}' non è una delle risposte che '{toAgent}' ti ha proposto con quel messaggio." });
+                body = chosen.Message;
+            }
+            else
+            {
+                body = AgentReplyResolver.QuoteFreeReply(request.Body, lastToUser.Body, proposed);
+            }
+
             var result = _mailbox.Enqueue(new EnqueueRequest
             {
                 ProjectPath = conversation.ProjectPath,
                 FromAgent = ConversationHopGuard.UserRecipient,   // 'user': fonte fidata, hop esente
                 ToAgent = toAgent,
-                Body = request.Body,
+                Body = body,
                 ContextId = convId.ToString(),                     // stesso thread → risveglio nella conversazione
                 HopLimitOverride = recipient.MaxHops,
             });
@@ -717,5 +750,9 @@ namespace MdExplorer.Controllers.A2A
     {
         public string? ConversationId { get; set; }
         public string? Body { get; set; }
+        /// <summary>true = un pulsante: <c>Body</c> è il messaggio di una delle risposte proposte. Altrimenti testo libero.</summary>
+        public bool? Choice { get; set; }
+        /// <summary>Il messaggio a cui si risponde. Senza, l'ultimo che un agente ha scritto alla persona nel thread.</summary>
+        public string? MessageId { get; set; }
     }
 }
