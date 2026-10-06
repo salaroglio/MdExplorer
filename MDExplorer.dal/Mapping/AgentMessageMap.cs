@@ -26,6 +26,11 @@ namespace MDExplorer.DataAccess.Mapping
             Map(x => x.RunId).Length(64).Nullable();
             Map(x => x.Replies).Length(int.MaxValue).Nullable();
             Map(x => x.ReworkNote).Length(int.MaxValue).Nullable();
+            Map(x => x.OwnerStartedAt).Nullable();
+            Map(x => x.OwnerNote).Length(int.MaxValue).Nullable();
+            Map(x => x.StartProvider).Length(50).Nullable();
+            Map(x => x.StartModel).Length(200).Nullable();
+            Map(x => x.OwnerDeclinedAt).Nullable();
             Map(x => x.DeferredReason).Length(50).Nullable();
             Map(x => x.ForcedAt).Nullable();
             Map(x => x.TriggerSource).Length(50).Nullable();

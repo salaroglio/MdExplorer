@@ -255,6 +255,8 @@
     "AGENT_CITY_ENABLE_DESC": "Turns on the agent city and federation. The activation and a shared room secret are saved in .development.yml (committed via git). Off/absent → everything stays disabled.",
     "AGENT_CITY_OWNERSHIP_DOC": "Ownership document (relative path)",
     "AGENT_CITY_OWNERSHIP_DOC_DESC": "Markdown file (mde_type: ownership) mapping scopes to responsible people and agents. Injected into the agents' prompt as a routing hint.",
+    "AGENT_CITY_WORKFLOW_DOC": "Workflow document (relative path)",
+    "AGENT_CITY_WORKFLOW_DOC_DESC": "Markdown file (mde_type: workflow) naming its *.workflow.json: how people and their agents pass the work. When set, MdExplorer applies it: for example an assignment the workflow has its owner start waits in their mail. Empty = no workflow.",
     "AGENT_CITY_ROOM_SECRET_SET": "Room secret generated and shared via .development.yml.",
     "IDE_SETTINGS": "IDE Settings",
     "IDE_CONFIGURATION": "IDE Configuration",
@@ -1694,7 +1696,16 @@
     "MODELS_LOADING": "Reading the engine's models…",
     "MODELS_NONE": "The engine returned no models: it starts with its default.",
     "MODELS_ERROR": "Cannot read the engine's models: {{error}}",
-    "MODEL_NOT_LISTED": "{{model}} (not in the engine's list)"
+    "MODEL_NOT_LISTED": "{{model}} (not in the engine's list)",
+    "INCOMING_TITLE": "Start the assignment",
+    "INCOMING_HINT": "{{from}} asks {{agent}} to work on “{{step}}”. The agent works for you: you decide when it starts, with which engine and which instructions.",
+    "INCOMING_BODY": "{{from}}'s assignment",
+    "INCOMING_NOTE": "Your instructions (optional)",
+    "INCOMING_NOTE_PLACEHOLDER": "For example: read chapter 3 first. The agent gets them after the assignment.",
+    "INCOMING_START": "Start",
+    "INCOMING_STARTED": "{{agent}} is starting: you find it among the agents at work.",
+    "QUEUE_DEFERRED_AWAITING-OWNER": "waiting for you to start it",
+    "QUEUE_DEFERRED_WORKFLOW-INVALID": "the workflow cannot be read"
   },
   "AGENT_SCHEDULE": {
     "TITLE": "Agent scheduling",
@@ -1835,7 +1846,19 @@
     "AWAITED_failed": "failed",
     "REVIEW_STOPPED": "It restarts only when you say so",
     "CHILD_STOPPED": "Rejected: the work is stopped",
-    "KIND_STOPPED": "Rejected, stopped"
+    "KIND_STOPPED": "Rejected, stopped",
+    "KIND_TOSTART": "To start",
+    "TOSTART_PREVIEW": "{{step}}: asked by {{from}}",
+    "TOSTART_HINT": "{{from}} asks {{agent}} to work on “{{step}}”. {{agent}} works for you: it starts when you start it. You can add your instructions and choose the engine, or not start it and say why.",
+    "TOSTART_OPEN": "Open to start",
+    "TOSTART_DECLINE": "Don't start it",
+    "TOSTART_DECLINE_LABEL": "Why don't you start it? {{from}} reads it",
+    "TOSTART_DECLINE_PLACEHOLDER": "For example: this tender is not for us, let's talk",
+    "TOSTART_DECLINE_CONFIRM": "Don't start it",
+    "TOSTART_DECLINED": "The assignment for {{agent}} did not start: whoever asked sees your reason.",
+    "TOSTART_NO_CARD": "I can't find {{agent}}'s card in the project: I can't open the launch screen.",
+    "AWAITED_tostart": "waiting for its owner to start it",
+    "AWAITED_declined": "its owner did not start it"
   },
   "MAILBOX": {
     "TITLE": "Agent messages",
@@ -1874,7 +1897,9 @@
     "FEDERATED": "federated",
     "INTERNAL_DELEGATION": "internal handoff",
     "INTERNAL_DELEGATION_TOOLTIP": "An agent routed the work for this scope using the ownership map. You are the owner, so it stayed local: no relay, no authorization to grant.",
-    "DELEGATION_TOAST": "{{from}} handed work to {{to}} on scope “{{scope}}” — handled locally."
+    "DELEGATION_TOAST": "{{from}} handed work to {{to}} on scope “{{scope}}” — handled locally.",
+    "START_TOAST": "{{from}} asks {{agent}} “{{step}}”: waiting for you to start it",
+    "START_NOTIFICATION_TITLE": "MdExplorer: an assignment to start"
   },
   "FEDERATION": {
     "TAB": "Federated requests",

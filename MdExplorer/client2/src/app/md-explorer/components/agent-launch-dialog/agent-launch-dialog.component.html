@@ -1,10 +1,29 @@
 <h2 mat-dialog-title>
   <mat-icon class="title-icon">smart_toy</mat-icon>
-  {{ 'AGENT_LAUNCH.TITLE' | translate }} — {{ data.agentName }}
+  {{ (data.incoming ? 'AGENT_LAUNCH.INCOMING_TITLE' : 'AGENT_LAUNCH.TITLE') | translate }} — {{ data.agentName }}
 </h2>
 
 <mat-dialog-content>
   <!-- Coda di lavoro dell'agente (§12.5/§12.6): parcheggiati + federate in attesa di gate -->
+  <!-- Un incarico ricevuto: si legge così com'è, l'ha scritto l'altro agente. Qui si aggiungono solo le indicazioni. -->
+  <ng-container *ngIf="data.incoming as incoming">
+    <p class="incoming-hint">
+      {{ 'AGENT_LAUNCH.INCOMING_HINT' | translate: { from: incoming.fromAgent, agent: data.agentName, step: incoming.step || data.agentName } }}
+    </p>
+    <label class="field-label">{{ 'AGENT_LAUNCH.INCOMING_BODY' | translate: { from: incoming.fromAgent } }}</label>
+    <div class="incoming-body">{{ incoming.body }}</div>
+    <label class="field-label" for="agent-incoming-note">{{ 'AGENT_LAUNCH.INCOMING_NOTE' | translate }}</label>
+    <mat-form-field appearance="outline" class="full-width">
+      <textarea id="agent-incoming-note" matInput [(ngModel)]="prompt" rows="4" cdkFocusInitial
+                [placeholder]="'AGENT_LAUNCH.INCOMING_NOTE_PLACEHOLDER' | translate" [disabled]="isLaunching"></textarea>
+    </mat-form-field>
+    <div *ngIf="aiError" class="ai-error-message">
+      <mat-icon>warning</mat-icon>
+      {{ aiError }}
+    </div>
+  </ng-container>
+
+  <ng-container *ngIf="!data.incoming">
   <div *ngIf="queueCount > 0" class="agent-queue">
     <div class="agent-queue-title">
       <mat-icon>inbox</mat-icon> {{ 'AGENT_LAUNCH.QUEUE_TITLE' | translate:{ count: queueCount } }}
@@ -96,6 +115,7 @@
     <mat-icon>warning</mat-icon>
     {{ aiError }}
   </div>
+  </ng-container>
 </mat-dialog-content>
 
 <!-- DOVE lavora l'agente in questo lancio. Il default lo da' l'impostazione del progetto,
@@ -125,7 +145,7 @@
   </p>
 </div>
 
-<div class="isolation-choice" *ngIf="canIsolate">
+<div class="isolation-choice" *ngIf="canIsolate && !data.incoming">
   <mat-checkbox [(ngModel)]="useWorktree" [disabled]="isLaunching">
     {{ 'AGENT_LAUNCH.ISOLATE' | translate }}
   </mat-checkbox>
@@ -141,7 +161,7 @@
   <!-- Combo "Salva": azione principale = template condiviso (scritto nel .agent.md,
        va in git); dal menu = solo per me (draft locale in AppData). I valori dei
        parametri restano sempre locali. -->
-  <div class="save-combo">
+  <div class="save-combo" *ngIf="!data.incoming">
     <button
       mat-stroked-button
       class="save-combo__main"
@@ -171,6 +191,7 @@
     </mat-menu>
   </div>
   <button
+    *ngIf="!data.incoming"
     mat-stroked-button
     (click)="saveAsSchedule()"
     [disabled]="!canLaunch()"
@@ -184,6 +205,6 @@
     (click)="launchNow()"
     [disabled]="!canLaunch()">
     <mat-icon>play_arrow</mat-icon>
-    {{ (isLaunching ? 'AGENT_LAUNCH.LAUNCHING' : 'AGENT_LAUNCH.LAUNCH_NOW') | translate }}
+    {{ (isLaunching ? 'AGENT_LAUNCH.LAUNCHING' : data.incoming ? 'AGENT_LAUNCH.INCOMING_START' : 'AGENT_LAUNCH.LAUNCH_NOW') | translate }}
   </button>
 </mat-dialog-actions>

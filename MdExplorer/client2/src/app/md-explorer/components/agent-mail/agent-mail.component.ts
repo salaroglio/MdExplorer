@@ -11,7 +11,8 @@ import { TranslateService } from '@ngx-translate/core';
 import { EMPTY, forkJoin, of, Subscription } from 'rxjs';
 import { catchError, finalize, switchMap } from 'rxjs/operators';
 
-import { MailboxMessage, MailboxService, MailReply, AwaitedWork } from '../../services/mailbox.service';
+import { MailboxMessage, MailboxService, MailReply, AwaitedWork, ToStartAssignment } from '../../services/mailbox.service';
+import { AgentLaunchDialogComponent } from '../agent-launch-dialog/agent-launch-dialog.component';
 import { AgentReviewService, MailArtifact, MergeRequest } from '../../services/agent-review.service';
 import { FederationRequest, FederationService } from '../../services/federation.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
@@ -24,7 +25,7 @@ export interface AgentMailData {
 
 /** Una riga dell'elenco: un messaggio di un agente, un lavoro da approvare, o la richiesta di un collega. */
 export interface MailItem {
-  kind: 'message' | 'review' | 'federation' | 'awaited';
+  kind: 'message' | 'review' | 'federation' | 'awaited' | 'tostart';
   id: string;
   when: string;
   from: string;
@@ -33,6 +34,8 @@ export interface MailItem {
   message?: MailboxMessage;
   request?: MergeRequest;
   federation?: FederationRequest;
+  /** Un incarico che aspetta te, responsabile dell'agente, per partire. */
+  assignment?: ToStartAssignment;
   /**
    * La voce sta sotto un'altra: è la richiesta di approvazione dell'artefatto, messa sotto il messaggio che
    * l'agente ha scritto nello stesso turno di lavoro. Il legame è l'identificativo del turno, non l'ora.
@@ -82,6 +85,9 @@ export class AgentMailComponent implements OnInit, OnDestroy {
   replyDraft = '';
   sending = false;
   deciding = false;
+  /** Il modulo del rifiuto di un incarico da avviare è aperto; il motivo è obbligatorio. */
+  declining = false;
+  declineReason = '';
 
   private subs = new Subscription();
 
@@ -106,6 +112,7 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     this.subs.add(this.serverMessages.agentMessageReceived$.subscribe(() => this.reload()));
     this.subs.add(this.serverMessages.agentMergeRequested$.subscribe(() => this.reload()));
     this.subs.add(this.serverMessages.federationRequestReceived$.subscribe(() => this.reload()));
+    this.subs.add(this.serverMessages.agentStartRequested$.subscribe(() => this.reload()));
   }
 
   ngOnDestroy(): void {
@@ -133,6 +140,7 @@ export class AgentMailComponent implements OnInit, OnDestroy {
         this.messageCount = (inbox.messages || []).length;
         // L'archivio contiene solo messaggi: ciò che è da decidere non si archivia.
         this.items = this.arrange(
+          this.showArchive ? [] : (inbox.toStart || []).map(a => this.fromToStart(a)),
           (inbox.messages || []).map(m => this.fromMessage(m)),
           this.showArchive ? [] : (reviews.requests || []).map(r => this.fromReview(r)),
           this.showArchive ? [] : (federation.requests || []).filter(f => f.status === 'pending').map(f => this.fromFederation(f)));
@@ -157,7 +165,7 @@ export class AgentMailComponent implements OnInit, OnDestroy {
    * dello stesso turno (stesso `runId`). Una richiesta senza messaggio in elenco (archiviato, o un turno che
    * non ha scritto) resta in prima fila: quello che è da decidere non deve mai sparire.
    */
-  private arrange(messages: MailItem[], reviews: MailItem[], federation: MailItem[]): MailItem[] {
+  private arrange(toStart: MailItem[], messages: MailItem[], reviews: MailItem[], federation: MailItem[]): MailItem[] {
     const newestFirst = (a: MailItem, b: MailItem) => (b.when || '').localeCompare(a.when || '');
 
     // Più messaggi nello stesso turno: la richiesta va sotto l'ultimo, che è quello che chiude il lavoro.
@@ -177,7 +185,8 @@ export class AgentMailComponent implements OnInit, OnDestroy {
       under.set(parent, [...(under.get(parent) || []), r]);
     }
 
-    const ordered: MailItem[] = [];
+    // In cima ciò che aspetta te per partire: finché non lo avvii, il lavoro di qualcun altro è fermo.
+    const ordered: MailItem[] = [...toStart].sort(newestFirst);
     const seen = new Map<string, string>();
     for (const top of [...messages, ...alone, ...federation].sort(newestFirst)) {
       ordered.push(top);
@@ -208,13 +217,13 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     // Dopo una risposta l'agente si sveglia e scriverà: l'elenco si rilegge da solo anche in quell'attesa,
     // altrimenti chi ha premuto il pulsante non vede succedere niente finché non aggiorna a mano.
     const open = Date.now() < this.expectingUntil
-      || items.some(i => i.awaited && ['working', 'approval', 'reworking', 'rejected'].includes(i.awaited.state));
+      || items.some(i => i.awaited && ['tostart', 'working', 'approval', 'reworking', 'rejected'].includes(i.awaited.state));
     if (open && !this.awaitedTimer) this.awaitedTimer = setInterval(() => { if (!this.loading) this.reload(); }, 15000);
     if (!open && this.awaitedTimer) { clearInterval(this.awaitedTimer); this.awaitedTimer = null; }
   }
 
   awaitedIcon(state: string): string {
-    return ({ working: 'hourglass_top', approval: 'rule', approved: 'check_circle', rejected: 'block', reworking: 'replay', done: 'check', failed: 'error' } as any)[state] || 'help';
+    return ({ tostart: 'pending_actions', declined: 'do_not_disturb_on', working: 'hourglass_top', approval: 'rule', approved: 'check_circle', rejected: 'block', reworking: 'replay', done: 'check', failed: 'error' } as any)[state] || 'help';
   }
 
   private fromMessage(m: MailboxMessage): MailItem {
@@ -231,6 +240,54 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     };
   }
 
+  private fromToStart(a: ToStartAssignment): MailItem {
+    return {
+      kind: 'tostart', id: a.id, when: a.createdAt, from: a.toAgent, unread: true, assignment: a,
+      preview: this.translate.instant('AGENT_MAIL.TOSTART_PREVIEW', { from: a.fromAgent, step: a.step || a.toAgent }),
+    };
+  }
+
+  /**
+   * La schermata di lancio, con l'incarico dentro: chi ne risponde aggiunge le sue indicazioni, sceglie motore e
+   * modello, e lo avvia. È la stessa che si usa per lanciare un agente a mano.
+   */
+  openStart(item: MailItem): void {
+    const a = item?.assignment;
+    if (!a) return;
+    if (!a.agentFilePath) {
+      this.snackBar.open(this.translate.instant('AGENT_MAIL.TOSTART_NO_CARD', { agent: a.toAgent }), 'OK', { duration: 6000 });
+      return;
+    }
+    this.dialog.open(AgentLaunchDialogComponent, {
+      width: '700px',
+      data: {
+        projectPath: this.data?.projectPath || '',
+        agentFilePath: a.agentFilePath,
+        agentName: a.toAgent,
+        incoming: { messageId: a.id, fromAgent: a.fromAgent, body: a.body, step: a.step },
+      },
+    }).afterClosed().subscribe(res => {
+      if (res?.started) this.expectingUntil = Date.now() + 10 * 60 * 1000;
+      this.reload();
+    });
+  }
+
+  /** Non lo avvio: il motivo lo legge chi l'ha chiesto. */
+  declineStart(item: MailItem): void {
+    const reason = this.declineReason.trim();
+    if (!item?.assignment || !reason || this.deciding) return;
+    this.deciding = true;
+    this.mailbox.declineAssignment(item.assignment.id, reason).pipe(finalize(() => { this.deciding = false; })).subscribe({
+      next: () => {
+        this.declining = false;
+        this.declineReason = '';
+        this.snackBar.open(this.translate.instant('AGENT_MAIL.TOSTART_DECLINED', { agent: item.assignment.toAgent }), 'OK', { duration: 4000 });
+        this.reload();
+      },
+      error: (err) => this.showError(err),
+    });
+  }
+
   private fromFederation(f: FederationRequest): MailItem {
     return {
       kind: 'federation', id: f.id, when: f.createdAt, from: f.fromOwner || '?', unread: true, federation: f,
@@ -240,6 +297,8 @@ export class AgentMailComponent implements OnInit, OnDestroy {
 
   select(item: MailItem): void {
     this.selected = item;
+    this.declining = false;
+    this.declineReason = '';
     this.document = null;
     this.replyDraft = '';
     this.artifacts = [];

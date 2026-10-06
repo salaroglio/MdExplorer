@@ -99,6 +99,14 @@ namespace MdExplorer.Service.Models
         public string OwnershipDoc { get; set; }
 
         /// <summary>
+        /// Percorso (dalla radice del progetto) del documento del workflow degli agenti (<c>mde_type: workflow</c>), che
+        /// nel front matter nomina il suo <c>*.workflow.json</c> (<c>workflow:</c>). Quando c'è, MdExplorer applica il
+        /// workflow: per esempio un incarico con <c>start: ask-owner</c> aspetta che il responsabile lo avvii.
+        /// Assente → nessun workflow: gli incarichi partono come sempre.
+        /// </summary>
+        public string WorkflowDoc { get; set; }
+
+        /// <summary>
         /// Per-project room secret, generated on first activation. Doubles as the relay
         /// room credential and the seed of the payload-encryption key (HKDF, §12.6/6b).
         /// Shared via git so every city on the same repo derives the same key.

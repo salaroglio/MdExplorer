@@ -57,7 +57,7 @@
                 (click)="select(item)">
           <span class="row-branch" *ngIf="item.child" aria-hidden="true"></span>
           <span class="row-dot"></span>
-          <mat-icon class="row-icon">{{ item.kind === 'message' ? 'smart_toy' : item.kind === 'review' ? (item.request?.status === 'rejected' ? 'block' : 'rule') : 'hub' }}</mat-icon>
+          <mat-icon class="row-icon">{{ item.kind === 'message' ? 'smart_toy' : item.kind === 'tostart' ? 'pending_actions' : item.kind === 'review' ? (item.request?.status === 'rejected' ? 'block' : 'rule') : 'hub' }}</mat-icon>
           <span class="row-main">
             <span class="row-top">
               <span class="row-from">{{ item.child ? ((item.request?.status === 'rejected' ? 'AGENT_MAIL.CHILD_STOPPED' : 'AGENT_MAIL.CHILD_REVIEW') | translate) : item.from }}</span>
@@ -65,7 +65,7 @@
               <span class="row-when" [title]="item.when">{{ item.when | date:'short' }}</span>
             </span>
             <span class="row-kind" *ngIf="item.kind !== 'message' && !item.child">
-              {{ (item.kind === 'review' ? 'AGENT_MAIL.KIND_REVIEW' : 'AGENT_MAIL.KIND_FEDERATION') | translate }}
+              {{ (item.kind === 'review' ? 'AGENT_MAIL.KIND_REVIEW' : item.kind === 'tostart' ? 'AGENT_MAIL.KIND_TOSTART' : 'AGENT_MAIL.KIND_FEDERATION') | translate }}
             </span>
             <span class="row-preview">{{ item.preview }}</span>
           </span>
@@ -185,6 +185,42 @@
           <p class="detail-hint" *ngIf="selected.request?.status !== 'rejected'">{{ 'AGENT_MAIL.REVIEW_HINT' | translate }}</p>
           <app-agent-review [onlyRequestId]="selected.id" [embedded]="true"
                             (changed)="reload()" (openFile)="openDelivered($event.request, $event.path)"></app-agent-review>
+        </div>
+
+        <!-- Un incarico che aspetta te per partire: l'agente lavora per te, e parte quando lo avvii tu -->
+        <div class="detail tostart" *ngIf="selected?.kind === 'tostart'">
+          <div class="detail-head">
+            <mat-icon class="head-icon">pending_actions</mat-icon>
+            <span class="head-from">{{ selected.assignment.toAgent }}</span>
+            <span class="head-kind">{{ 'AGENT_MAIL.KIND_TOSTART' | translate }}</span>
+            <span class="flexExpand"></span>
+            <span class="head-when">{{ selected.when | date:'medium' }}</span>
+          </div>
+          <p class="detail-hint">
+            {{ 'AGENT_MAIL.TOSTART_HINT' | translate: { from: selected.assignment.fromAgent, agent: selected.assignment.toAgent, step: selected.assignment.step || selected.assignment.toAgent } }}
+          </p>
+          <div class="detail-text">{{ selected.assignment.body }}</div>
+
+          <div class="decide" *ngIf="!declining">
+            <button mat-stroked-button color="warn" class="btn-decline-start" [disabled]="deciding" (click)="declining = true">
+              <mat-icon>do_not_disturb_on</mat-icon> {{ 'AGENT_MAIL.TOSTART_DECLINE' | translate }}
+            </button>
+            <button mat-raised-button color="primary" class="btn-open-start" [disabled]="deciding" (click)="openStart(selected)">
+              <mat-icon>play_arrow</mat-icon> {{ 'AGENT_MAIL.TOSTART_OPEN' | translate }}
+            </button>
+          </div>
+
+          <div class="decline-form" *ngIf="declining">
+            <label class="reply-label" for="tostart-decline">{{ 'AGENT_MAIL.TOSTART_DECLINE_LABEL' | translate: { from: selected.assignment.fromAgent } }}</label>
+            <textarea id="tostart-decline" class="reply-text" rows="3" [(ngModel)]="declineReason"
+                      [placeholder]="'AGENT_MAIL.TOSTART_DECLINE_PLACEHOLDER' | translate"></textarea>
+            <div class="decide">
+              <button mat-button (click)="declining = false; declineReason = ''" [disabled]="deciding">{{ 'COMMON.CANCEL' | translate }}</button>
+              <button mat-raised-button color="warn" class="btn-confirm-decline" [disabled]="deciding || !declineReason.trim()" (click)="declineStart(selected)">
+                <mat-icon>do_not_disturb_on</mat-icon> {{ 'AGENT_MAIL.TOSTART_DECLINE_CONFIRM' | translate }}
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- La richiesta di un collega: il suo agente chiede il lavoro del tuo -->

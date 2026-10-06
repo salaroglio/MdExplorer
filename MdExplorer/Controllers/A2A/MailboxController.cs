@@ -86,9 +86,11 @@ namespace MdExplorer.Controllers.A2A
                 var page = FilterByProject(fetched, projectPath).Take(Math.Clamp(take, 1, 500)).ToList();
                 var context = ReadMailContext(page);
                 var items = page.Select(m => ToInboxDto(m, context)).ToList();
-                var unread = FilterByProject(unreadAll, projectPath).Count();
+                // Gli incarichi da avviare contano come non letti: aspettano la persona, come un messaggio nuovo.
+                var toStart = archived ? new List<AgentMessage>() : AwaitingOwner(projectPath);
+                var unread = FilterByProject(unreadAll, projectPath).Count() + toStart.Count;
 
-                return Ok(new { messages = items, unread });
+                return Ok(new { messages = items, unread, toStart = toStart.Select(ToStartDto).ToList() });
             }
             catch (Exception ex)
             {
@@ -108,7 +110,7 @@ namespace MdExplorer.Controllers.A2A
                     .Where(m => m.ToAgent == ConversationHopGuard.UserRecipient && m.ReadAt == null)
                     .ToList();
                 _session.Commit();
-                var unread = FilterByProject(unreadAll, projectPath).Count();
+                var unread = FilterByProject(unreadAll, projectPath).Count() + AwaitingOwner(projectPath).Count;
                 return Ok(new { unread });
             }
             catch (Exception ex)
@@ -392,6 +394,117 @@ namespace MdExplorer.Controllers.A2A
         /// Ogni voce porta lo stato, il budget hop consumato (x/limit) e i partecipanti,
         /// per l'osservabilità umana e le azioni di governo (kill/reopen).
         /// </summary>
+        // ---- Incarichi da avviare (workflow degli agenti, start: ask-owner) ----
+
+        /// <summary>
+        /// Avvia un incarico che aspettava il responsabile dell'agente, dalla schermata di lancio: con le sue indicazioni,
+        /// e con il motore e il modello scelti lì. Il messaggio torna in coda e il dispatcher lo prende al prossimo giro.
+        /// </summary>
+        [HttpPost("to-start/{messageId}/start")]
+        public IActionResult StartAssignment(Guid messageId, [FromBody] StartAssignmentRequest? request)
+        {
+            string provider = null;
+            if (!string.IsNullOrWhiteSpace(request?.Provider))
+            {
+                if (!MdExplorer.Services.AgentRun.AgentEngineChoice.TryParseProvider(request.Provider, out var engine))
+                    return BadRequest(new { error = $"Motore '{request.Provider}' sconosciuto: claude, copilot oppure opencode." });
+                provider = MdExplorer.Utilities.MarkAgentEngines.IdOf(engine);
+            }
+            return UpdateAwaiting(messageId, m =>
+            {
+                m.OwnerStartedAt = DateTime.UtcNow;
+                m.OwnerNote = string.IsNullOrWhiteSpace(request?.Note) ? null : request.Note.Trim();
+                m.StartProvider = provider;
+                m.StartModel = string.IsNullOrWhiteSpace(request?.Model) ? null : request.Model.Trim();
+                m.DeferredReason = null;
+                m.NextAttemptAt = null;
+            }, "avviato");
+        }
+
+        /// <summary>
+        /// Il responsabile non avvia l'incarico, e dice perché. Il messaggio si chiude; chi lo aspettava vede «rifiutato
+        /// dal responsabile» con il motivo. Niente riparte da solo, come dopo il rifiuto di un artefatto.
+        /// </summary>
+        [HttpPost("to-start/{messageId}/decline")]
+        public IActionResult DeclineAssignment(Guid messageId, [FromBody] DeclineAssignmentRequest? request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.Reason))
+                return BadRequest(new { error = "Scrivi perché non lo avvii: chi l'ha chiesto lo legge." });
+            return UpdateAwaiting(messageId, m =>
+            {
+                m.State = AgentMessage.StateEnum.Failed;
+                m.OwnerDeclinedAt = DateTime.UtcNow;
+                m.Error = "Rifiutato dal responsabile: " + request.Reason.Trim();
+                m.ProcessedAt = DateTime.UtcNow;
+                m.DeferredReason = null;
+                m.NextAttemptAt = null;
+            }, "rifiutato");
+        }
+
+        private IActionResult UpdateAwaiting(Guid messageId, Action<AgentMessage> change, string what)
+        {
+            _session.BeginTransaction();
+            var dal = _session.GetDal<AgentMessage>();
+            var msg = dal.GetList().FirstOrDefault(m => m.Id == messageId);
+            if (msg == null)
+            {
+                _session.Commit();
+                return NotFound(new { error = $"Messaggio {messageId} inesistente." });
+            }
+            if (msg.State != AgentMessage.StateEnum.Pending || msg.DeferredReason != AgentMessage.DeferredReasonEnum.AwaitingOwner)
+            {
+                _session.Commit();
+                return Conflict(new { error = "Questo incarico non aspetta più di essere avviato: forse l'ha già avviato o rifiutato qualcuno." });
+            }
+            change(msg);
+            dal.Save(msg);
+            _session.Commit();
+            _logger.LogInformation("[Mailbox] incarico {Id} per '{Agent}' {What} dal responsabile", messageId, msg.ToAgent, what);
+            return Ok(new { messageId, toAgent = msg.ToAgent, state = what });
+        }
+
+        /// <summary>I messaggi parcheggiati «in attesa del responsabile», del progetto (o di tutti).</summary>
+        private List<AgentMessage> AwaitingOwner(string projectPath)
+        {
+            _session.BeginTransaction();
+            var all = _session.GetDal<AgentMessage>().GetList()
+                .Where(m => m.State == AgentMessage.StateEnum.Pending && m.DeferredReason == AgentMessage.DeferredReasonEnum.AwaitingOwner)
+                .OrderBy(m => m.CreatedAt)
+                .ToList();
+            _session.Commit();
+            return FilterByProject(all, projectPath).ToList();
+        }
+
+        private object ToStartDto(AgentMessage m)
+        {
+            var agent = _registry.GetCatalog(m.ProjectPath)
+                .FirstOrDefault(e => string.Equals(e.Name, m.ToAgent, StringComparison.OrdinalIgnoreCase));
+            string step = null;
+            try
+            {
+                var metadata = HttpContext?.RequestServices?.GetService(typeof(MdExplorer.Services.IProjectMetadataService)) as MdExplorer.Services.IProjectMetadataService;
+                var wf = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(m.ProjectPath, metadata?.GetAgentCity(m.ProjectPath)?.WorkflowDoc, out _);
+                var isApproval = string.Equals(m.TriggerSource, "approval", StringComparison.OrdinalIgnoreCase);
+                step = wf == null ? null : MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.StepFor(wf, m.FromAgent, m.ToAgent, isApproval)?.Label;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Mailbox] passo del workflow per {Id} non letto: la riga resta senza titolo", m.Id);
+            }
+            return new
+            {
+                id = m.Id,
+                conversationId = m.ConversationId,
+                fromAgent = m.FromAgent,
+                toAgent = m.ToAgent,
+                body = m.Body,
+                createdAt = m.CreatedAt,
+                runId = m.RunId,
+                step,
+                agentFilePath = agent?.AgentFilePath,
+            };
+        }
+
         [HttpGet("conversations")]
         public IActionResult Conversations([FromQuery] string? projectPath, [FromQuery] int take = DefaultTake)
         {
@@ -652,6 +765,11 @@ namespace MdExplorer.Controllers.A2A
         /// </summary>
         private static string AwaitedState(AgentMessage assignment, AgentMergeRequest artifact)
         {
+            // Prima di lavorare, l'incarico può aspettare il responsabile dell'agente; e lui può non avviarlo.
+            if (assignment.State == AgentMessage.StateEnum.Pending && assignment.DeferredReason == AgentMessage.DeferredReasonEnum.AwaitingOwner)
+                return "tostart";
+            if (assignment.State == AgentMessage.StateEnum.Failed && assignment.OwnerDeclinedAt != null)
+                return "declined";
             var running = assignment.State == AgentMessage.StateEnum.Pending || assignment.State == AgentMessage.StateEnum.Delivered;
             if (artifact?.Status == AgentMergeRequest.StatusEnum.Rejected) return running ? "reworking" : "rejected";
             if (running) return "working";
@@ -692,7 +810,9 @@ namespace MdExplorer.Controllers.A2A
                     byTrigger.TryGetValue(a.Id.ToString(), out var artifact);
                     if (!context.AwaitedByRun.TryGetValue(a.RunId, out var list))
                         context.AwaitedByRun[a.RunId] = list = new List<object>();
-                    list.Add(new { messageId = a.Id, agent = a.ToAgent, state = AwaitedState(a, artifact), note = artifact?.Status == AgentMergeRequest.StatusEnum.Rejected ? artifact.Note : null });
+                    var state = AwaitedState(a, artifact);
+                    var note = state == "declined" ? a.Error : artifact?.Status == AgentMergeRequest.StatusEnum.Rejected ? artifact.Note : null;
+                    list.Add(new { messageId = a.Id, agent = a.ToAgent, state, note });
                 }
             }
 
@@ -746,6 +866,20 @@ namespace MdExplorer.Controllers.A2A
     /// automatica di <c>[ApiController]</c> risponderebbe 400 con messaggi generici prima dei
     /// nostri controlli fail-loud espliciti.
     /// </summary>
+    public class StartAssignmentRequest
+    {
+        /// <summary>Le indicazioni del responsabile: l'agente le riceve insieme all'incarico.</summary>
+        public string? Note { get; set; }
+        /// <summary>claude, copilot, opencode; vuoto = quello della scheda o del progetto.</summary>
+        public string? Provider { get; set; }
+        public string? Model { get; set; }
+    }
+
+    public class DeclineAssignmentRequest
+    {
+        public string? Reason { get; set; }
+    }
+
     public class MailboxReplyRequest
     {
         public string? ConversationId { get; set; }

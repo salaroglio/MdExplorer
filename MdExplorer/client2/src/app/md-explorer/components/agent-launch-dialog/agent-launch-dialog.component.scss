@@ -203,3 +203,11 @@ h2[mat-dialog-title] {
     opacity: 1;
   }
 }
+
+// Un incarico ricevuto: il testo dell'altro agente, da leggere, non da modificare.
+.incoming-hint { margin: 0 0 12px; font-size: 13px; opacity: 0.85; }
+.incoming-body {
+  white-space: pre-wrap; font-size: 13px; line-height: 1.45; padding: 10px 12px; margin-bottom: 14px;
+  border-left: 3px solid #F29900; border-radius: 4px; background: rgba(242, 153, 0, 0.08);
+  max-height: 220px; overflow: auto;
+}

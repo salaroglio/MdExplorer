@@ -234,6 +234,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 {
                     Enabled = request.Enabled,
                     OwnershipDoc = request.OwnershipDoc,
+                    // null = non toccare (chi salva solo l'interruttore non lo cancella); "" = togli il workflow.
+                    WorkflowDoc = request.WorkflowDoc ?? current?.WorkflowDoc,
                     RelayUrl = request.RelayUrl,
                     // Assente resta assente (null): per i worktree vuol dire «decide l'app» (attivi se c'è git),
                     // e scrivere `false` al primo salvataggio li spegneva in modo esplicito senza che
@@ -255,6 +257,7 @@ namespace MdExplorer.Service.Controllers.MdProjects
         {
             enabled = cfg?.Enabled ?? false,
             ownershipDoc = cfg?.OwnershipDoc,
+            workflowDoc = cfg?.WorkflowDoc,
             relayUrl = cfg?.RelayUrl,
             hasRoomSecret = !string.IsNullOrWhiteSpace(cfg?.RoomSecret),
             useAgentWorktrees = cfg?.UseAgentWorktrees ?? false,
@@ -275,6 +278,8 @@ namespace MdExplorer.Service.Controllers.MdProjects
         {
             public bool Enabled { get; set; }
             public string? OwnershipDoc { get; set; }
+            /// <summary>Il documento del workflow. <c>null</c> = non toccare, vuoto = toglierlo.</summary>
+            public string? WorkflowDoc { get; set; }
             public string? RelayUrl { get; set; }
 
             /// <summary>Opt-in isolamento worktree (Fase 7c). <c>null</c> = non toccare.</summary>

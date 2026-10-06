@@ -29,11 +29,31 @@ export interface MailboxMessage {
 }
 
 /** Un lavoro chiesto a un altro agente, visto da chi lo aspetta. */
+/**
+ * Un incarico che il workflow dice di far avviare al responsabile dell'agente (start: ask-owner): aspetta nella posta
+ * che la persona lo avvii dalla schermata di lancio, o lo rifiuti con un motivo.
+ */
+export interface ToStartAssignment {
+  id: string;
+  conversationId: string;
+  fromAgent: string;
+  toAgent: string;
+  body: string;
+  createdAt: string;
+  runId?: string | null;
+  /** Il passo del workflow, con il suo titolo («Scheda tecnica»). */
+  step?: string | null;
+  agentFilePath?: string | null;
+}
+
 export interface AwaitedWork {
   messageId: string;
   agent: string;
-  /** working = sta lavorando · approval = artefatto in approvazione · approved · rejected = rifiutato, fermo · reworking · done = concluso senza artefatto · failed */
-  state: 'working' | 'approval' | 'approved' | 'rejected' | 'reworking' | 'done' | 'failed';
+  /**
+   * tostart = aspetta che il responsabile lo avvii · declined = il responsabile non l'ha avviato · working = sta lavorando ·
+   * approval = artefatto in approvazione · approved · rejected = rifiutato, fermo · reworking · done = concluso senza artefatto · failed
+   */
+  state: 'tostart' | 'declined' | 'working' | 'approval' | 'approved' | 'rejected' | 'reworking' | 'done' | 'failed';
   /** Il motivo del rifiuto, quando c'è. */
   note?: string | null;
 }
@@ -52,6 +72,8 @@ export interface MailReply {
 export interface MailboxInbox {
   messages: MailboxMessage[];
   unread: number;
+  /** Gli incarichi che aspettano te per partire. */
+  toStart?: ToStartAssignment[];
 }
 
 /** Riepilogo di un thread di conversazione (§8), per l'osservabilità/governo (Fase 4b). */
@@ -105,6 +127,16 @@ export class MailboxService {
     let params = new HttpParams().set('includeRead', includeRead).set('archived', archived);
     if (projectPath) params = params.set('projectPath', projectPath);
     return this.http.get<MailboxInbox>('/api/A2A/mailbox/inbox', { params });
+  }
+
+  /** Avvia un incarico in attesa del responsabile, con le sue indicazioni e il motore e il modello scelti. */
+  startAssignment(messageId: string, body: { note?: string; provider?: string; model?: string }): Observable<{ messageId: string; toAgent: string }> {
+    return this.http.post<{ messageId: string; toAgent: string }>(`/api/A2A/mailbox/to-start/${messageId}/start`, body);
+  }
+
+  /** Il responsabile non avvia l'incarico, e dice perché. */
+  declineAssignment(messageId: string, reason: string): Observable<{ messageId: string }> {
+    return this.http.post<{ messageId: string }>(`/api/A2A/mailbox/to-start/${messageId}/decline`, { reason });
   }
 
   unreadCount(projectPath: string): Observable<{ unread: number }> {

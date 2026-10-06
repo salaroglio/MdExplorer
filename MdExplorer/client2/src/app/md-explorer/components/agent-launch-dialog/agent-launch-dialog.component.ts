@@ -13,6 +13,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
 
 import { AgentEngineInfo, AgentLaunchService, AgentParam } from '../../services/agent-launch.service';
+import { MailboxService } from '../../services/mailbox.service';
 import { ProjectSettingsService } from '../../../projects/services/project-settings.service';
 import { AgentScheduleService } from '../../services/agent-schedule.service';
 import { AgentQueue, AgentQueueService } from '../../services/agent-queue.service';
@@ -24,6 +25,11 @@ export interface AgentLaunchDialogData {
   projectPath: string;
   agentFilePath: string;
   agentName: string;
+  /**
+   * Un incarico ricevuto da un altro agente, che il workflow fa avviare al responsabile (start: ask-owner). La
+   * schermata lo mostra così com'è; chi avvia aggiunge solo le sue indicazioni, e sceglie motore e modello.
+   */
+  incoming?: { messageId: string; fromAgent: string; body: string; step?: string | null };
 }
 
 /**
@@ -240,7 +246,10 @@ export class AgentLaunchDialogComponent implements OnInit {
     private translate: TranslateService,
     private agentQueueService: AgentQueueService,
     private aiChat: AiChatService,
+    private mailbox: MailboxService,
   ) {
+    // Un incarico ricevuto non ha bozza né modello: il testo è quello dell'altro agente, il campo è per le indicazioni.
+    if (data.incoming) return;
     // Precedence: the per-user local draft (UserDB) wins; if there is none, seed from
     // the shared template stored inside the .agent.md (travels with git).
     this.agentScheduleService.getDraft(data.projectPath, data.agentFilePath).subscribe({
@@ -435,6 +444,10 @@ export class AgentLaunchDialogComponent implements OnInit {
   }
 
   launchNow(): void {
+    if (this.data.incoming) {
+      this.startIncoming();
+      return;
+    }
     if (!this.canLaunch()) {
       return;
     }
@@ -479,12 +492,42 @@ export class AgentLaunchDialogComponent implements OnInit {
       });
   }
 
+  /**
+   * Avvia l'incarico ricevuto: torna in coda con le indicazioni, il motore e il modello scelti qui, e l'agente parte nel
+   * suo posto di lavoro come per ogni incarico. Prima si dice se nella cartella c'è lavoro che l'agente non vedrebbe.
+   */
+  private startIncoming(): void {
+    const incoming = this.data.incoming!;
+    if (this.isLaunching) return;
+    this.isLaunching = true;
+    this.aiError = null;
+    this.startGuard.beforeStart(this.data.projectPath, this.data.agentName).pipe(
+      switchMap(go => go
+        ? this.mailbox.startAssignment(incoming.messageId, {
+            note: this.prompt.trim() || undefined,
+            provider: this.engineChoice || undefined,
+            model: this.modelText.trim() || undefined,
+          })
+        : EMPTY),
+      finalize(() => { this.isLaunching = false; }),
+    ).subscribe({
+      next: () => {
+        this.snackBar.open(this.translate.instant('AGENT_LAUNCH.INCOMING_STARTED', { agent: this.data.agentName }), undefined, { duration: 4000 });
+        this.dialogRef.close({ started: true });
+      },
+      error: (err) => {
+        this.aiError = err?.error?.error || this.translate.instant('AGENT_LAUNCH.LAUNCH_ERROR');
+      },
+    });
+  }
+
   /** Saving (local or template) only needs a prompt — parameter values are optional. */
   canSave(): boolean {
     return !!this.prompt && !!this.prompt.trim() && !this.isNormalizing && !this.isLaunching;
   }
 
   canLaunch(): boolean {
+    if (this.data.incoming) return !this.isLaunching;
     if (!this.prompt || !this.prompt.trim() || this.isNormalizing || this.isLaunching) {
       return false;
     }

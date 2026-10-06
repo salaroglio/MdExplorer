@@ -17786,6 +17786,8 @@ class MdServerMessagesService {
     // AgentMessageDispatcher when a citizen escalates to the human: drives the toast
     // + the unread badge on the toolbar bell.
     this.agentMessageReceived$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    // Un incarico aspetta che il responsabile dell'agente lo avvii (workflow, start: ask-owner): badge, avviso, posta.
+    this.agentStartRequested$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for federated intervention requests (§12.6): another city asks an agent
     // of THIS one to act — needs the human gate (approve/reject) before any run.
     this.federationRequestReceived$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
@@ -17920,6 +17922,10 @@ class MdServerMessagesService {
         this.hubConnection.on('agentMessageReceived', data => {
           console.log('🔔 SignalR event received: agentMessageReceived', data);
           this.agentMessageReceived$.next(data);
+        });
+        // Un incarico da avviare: il responsabile lo deve sapere subito
+        this.hubConnection.on('agentStartRequested', data => {
+          this.agentStartRequested$.next(data);
         });
         // Federated intervention request (§12.6): needs the human gate
         this.hubConnection.on('federationRequestReceived', data => {
@@ -18381,8 +18387,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.06.4',
-  buildTime: '2026.10.06 10:07:54'
+  version: '2026.10.06.5',
+  buildTime: '2026.10.06 14:49:53'
 };
 
 /***/ }),
@@ -18416,4 +18422,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.b2f02b7e18065c7c.js.map
+//# sourceMappingURL=main.1eca1f421992785a.js.map

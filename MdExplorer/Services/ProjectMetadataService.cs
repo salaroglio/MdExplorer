@@ -351,6 +351,7 @@ namespace MdExplorer.Services
             {
                 Enabled = config.Enabled,
                 OwnershipDoc = string.IsNullOrWhiteSpace(config.OwnershipDoc) ? null : config.OwnershipDoc.Trim(),
+                WorkflowDoc = string.IsNullOrWhiteSpace(config.WorkflowDoc) ? null : config.WorkflowDoc.Trim(),
                 RoomSecret = string.IsNullOrWhiteSpace(secret) ? null : secret,
                 RelayUrl = string.IsNullOrWhiteSpace(relayUrl) ? null : relayUrl,
                 Maintenance = maintenance,

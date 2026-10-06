@@ -201,6 +201,17 @@
               <p class="setting-description">
                 {{ 'PROJECT_SETTINGS.AGENT_CITY_OWNERSHIP_DOC_DESC' | translate }}
               </p>
+              <label class="setting-label">{{ 'PROJECT_SETTINGS.AGENT_CITY_WORKFLOW_DOC' | translate }}</label>
+              <mat-form-field appearance="outline" style="width:100%">
+                <input matInput
+                       [(ngModel)]="agentCityWorkflowDoc"
+                       (blur)="onAgentCityChange()"
+                       [disabled]="saving"
+                       placeholder="docs/workflow.md">
+              </mat-form-field>
+              <p class="setting-description">
+                {{ 'PROJECT_SETTINGS.AGENT_CITY_WORKFLOW_DOC_DESC' | translate }}
+              </p>
               <p class="setting-description" *ngIf="agentCityHasRoomSecret">
                 🔑 {{ 'PROJECT_SETTINGS.AGENT_CITY_ROOM_SECRET_SET' | translate }}
               </p>

@@ -46,6 +46,8 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   // Agent City / Federation (§12.4) — activation lives in .development.yml (shared via git).
   agentCityEnabled: boolean = false;
   agentCityOwnershipDoc: string = '';
+  /** Il documento del workflow degli agenti (mde_type: workflow): quando c'è, MdExplorer lo applica. */
+  agentCityWorkflowDoc: string = '';
   agentCityHasRoomSecret: boolean = false;
   agentUseWorktrees: boolean = false;
   /** Posti di lavoro del pool: quanti agenti possono lavorare insieme su questa macchina. */
@@ -583,6 +585,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       next: (res) => {
         this.agentCityEnabled = !!res?.enabled;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
+        this.agentCityWorkflowDoc = res?.workflowDoc || '';
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
         this.projectIsGit = !!(res as any)?.isGitRepository;
       },
@@ -824,6 +827,8 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.projectSettingsService.setAgentCity(this.projectPath, {
       enabled: this.agentCityEnabled,
       ownershipDoc: this.agentCityOwnershipDoc?.trim() || undefined,
+      // Vuoto vuol dire «nessun workflow»: si manda così, perché il servizio distingue «non toccare» (assente) da «togli».
+      workflowDoc: this.agentCityWorkflowDoc?.trim() ?? '',
       // Solo ciò che questa schermata decide. Il worktree è una preferenza di macchina con un endpoint suo:
       // mandarlo, anche a `false`, scriveva nel `.development.yml` una scelta che nessuno aveva fatto.
     }).subscribe({
@@ -831,6 +836,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.saving = false;
         this.agentCityHasRoomSecret = !!res?.hasRoomSecret;
         this.agentCityOwnershipDoc = res?.ownershipDoc || '';
+        this.agentCityWorkflowDoc = res?.workflowDoc || '';
         // La toolbar mostra i comandi della città in base a questo flag: allineala
         // subito, altrimenti resterebbe ferma fino alla riapertura del progetto.
         // Il service ignora il salvataggio se riguarda un progetto non aperto.

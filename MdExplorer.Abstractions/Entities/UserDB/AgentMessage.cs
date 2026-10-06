@@ -123,6 +123,24 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// </summary>
         public virtual string SubmoduleBaseCommit { get; set; }
 
+        /// <summary>
+        /// Quando il responsabile dell'agente ha avviato questo incarico dalla schermata di lancio. Il workflow lo chiede
+        /// (<c>start: ask-owner</c>): finché è null il messaggio resta parcheggiato <c>awaiting-owner</c>.
+        /// </summary>
+        public virtual DateTime? OwnerStartedAt { get; set; }
+
+        /// <summary>Le indicazioni che il responsabile aggiunge avviando: l'agente le riceve insieme all'incarico.</summary>
+        public virtual string OwnerNote { get; set; }
+
+        /// <summary>Il motore scelto avviando (<c>claude</c>, <c>copilot</c>, <c>opencode</c>); null = quello della scheda o del progetto.</summary>
+        public virtual string StartProvider { get; set; }
+
+        /// <summary>Il modello scelto avviando; null = quello della scheda, del progetto o del motore.</summary>
+        public virtual string StartModel { get; set; }
+
+        /// <summary>Quando il responsabile ha rifiutato l'incarico (il motivo sta in <see cref="Error"/>). Il messaggio è <c>failed</c>.</summary>
+        public virtual DateTime? OwnerDeclinedAt { get; set; }
+
         /// <summary>Valori ammessi per <see cref="State"/>.</summary>
         public static class StateEnum
         {
@@ -153,6 +171,13 @@ namespace MdExplorer.Abstractions.Entities.UserDB
             /// quando il mittente si è fermato — quindi si aspetta senza consumare tentativi.
             /// </summary>
             public const string ChainBusy = "chain-busy";
+            /// <summary>
+            /// Il workflow dice che questo incarico lo avvia il responsabile dell'agente (<c>start: ask-owner</c>): aspetta
+            /// la schermata di lancio. Non si riprende da solo, lo rimette in coda «Avvia».
+            /// </summary>
+            public const string AwaitingOwner = "awaiting-owner";
+            /// <summary>Il workflow configurato non si legge o ha errori: senza la regola non si sa chi avvia.</summary>
+            public const string WorkflowInvalid = "workflow-invalid";
         }
     }
 }

@@ -248,5 +248,63 @@ namespace MdExplorer.Features.Tests.Agents
             Assert.IsTrue(issues.Any(i => i.Path == "steps[1].agent" && i.Severity == WorkflowSeverity.Error && i.Message.Contains("arriva a 'account-manager'")),
                 string.Join("\n", issues));
         }
+
+        [TestMethod]
+        public void Find_the_step_an_assignment_starts_and_who_starts_it()
+        {
+            var wf = WorkflowParser.Parse(Gara).Descriptor;
+
+            var tecnica = WorkflowStartPolicy.StepFor(wf, "account-manager", "responsabile-tecnico", isApproval: false);
+            Assert.AreEqual("tecnica", tecnica?.Id);
+            Assert.AreEqual(WorkflowStart.AskOwner, tecnica.Start);
+
+            var sintesi = WorkflowStartPolicy.StepFor(wf, "user", "account-manager", isApproval: true);
+            Assert.AreEqual("sintesi", sintesi?.Id, "l'avviso di approvazione arriva da «user» ma è un'approvazione");
+            Assert.AreEqual(WorkflowStart.Auto, sintesi.Start);
+        }
+
+        [TestMethod]
+        public void Leave_the_person_and_unknown_routes_to_the_caller()
+        {
+            var wf = WorkflowParser.Parse(Gara).Descriptor;
+
+            Assert.IsNull(WorkflowStartPolicy.StepFor(wf, "user", "account-manager", isApproval: false), "la persona ha già deciso");
+            Assert.IsNull(WorkflowStartPolicy.StepFor(wf, "responsabile-legale", "responsabile-tecnico", isApproval: false),
+                "un incarico che il workflow non descrive non ha passo: lo decide chi chiama");
+        }
+
+        [TestMethod]
+        public void Prefer_asking_the_owner_when_two_steps_match()
+        {
+            var wf = ParseGaraWith(@"""trigger"": { ""assignment"": ""avvio"" }, ""start"": ""ask-owner"",
+      ""produces"": [""citta-degli-agenti/gara/schede/delivery.md""]",
+                @"""trigger"": { ""assignment"": ""avvio"" }, ""start"": ""auto"",
+      ""produces"": [""citta-degli-agenti/gara/schede/delivery.md""]").Descriptor;
+            wf.Step("delivery").Agent = "responsabile-tecnico";
+
+            Assert.AreEqual(WorkflowStart.AskOwner, WorkflowStartPolicy.StepFor(wf, "account-manager", "responsabile-tecnico", false).Start);
+        }
+
+        [TestMethod]
+        public void Read_the_workflow_file_named_by_the_document()
+        {
+            var root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "wfdoc-" + System.Guid.NewGuid().ToString("N"));
+            var folder = System.IO.Path.Combine(root, "gara");
+            System.IO.Directory.CreateDirectory(folder);
+            try
+            {
+                System.IO.File.WriteAllText(System.IO.Path.Combine(folder, "workflow.md"),
+                    "---\nmde_type: workflow\ntitle: x\nworkflow: ./gara.workflow.json\n---\n# x\n");
+                Assert.AreEqual("gara/gara.workflow.json", WorkflowDocument.JsonPathOf(root, "gara/workflow.md"));
+
+                System.IO.File.WriteAllText(System.IO.Path.Combine(folder, "altro.md"), "---\nmde_type: ownership\n---\n");
+                var ex = Assert.ThrowsException<System.InvalidOperationException>(() => WorkflowDocument.JsonPathOf(root, "gara/altro.md"));
+                StringAssert.Contains(ex.Message, "mde_type: workflow");
+
+                ex = Assert.ThrowsException<System.InvalidOperationException>(() => WorkflowDocument.JsonPathOf(root, "gara/manca.md"));
+                StringAssert.Contains(ex.Message, "non esiste");
+            }
+            finally { System.IO.Directory.Delete(root, true); }
+        }
     }
 }

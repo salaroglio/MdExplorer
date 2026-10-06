@@ -96,6 +96,15 @@ export class MdServerMessagesService {
     createdAt: string
   }>();
 
+  // Un incarico aspetta che il responsabile dell'agente lo avvii (workflow, start: ask-owner): badge, avviso, posta.
+  public agentStartRequested$ = new Subject<{
+    messageId: string,
+    fromAgent: string,
+    toAgent: string,
+    step?: string,
+    projectPath: string
+  }>();
+
   // Observable for federated intervention requests (§12.6): another city asks an agent
   // of THIS one to act — needs the human gate (approve/reject) before any run.
   public federationRequestReceived$ = new Subject<{
@@ -312,6 +321,11 @@ export class MdServerMessagesService {
       this.hubConnection.on('agentMessageReceived', (data) => {
         console.log('🔔 SignalR event received: agentMessageReceived', data);
         this.agentMessageReceived$.next(data);
+      });
+
+      // Un incarico da avviare: il responsabile lo deve sapere subito
+      this.hubConnection.on('agentStartRequested', (data) => {
+        this.agentStartRequested$.next(data);
       });
 
       // Federated intervention request (§12.6): needs the human gate

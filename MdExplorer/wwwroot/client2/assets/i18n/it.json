@@ -255,6 +255,8 @@
     "AGENT_CITY_ENABLE_DESC": "Accende la città degli agenti e la federazione. L'attivazione e un room secret condiviso sono salvati in .development.yml (committato via git). Spenta/assente → tutto disabilitato.",
     "AGENT_CITY_OWNERSHIP_DOC": "Documento di ownership (percorso relativo)",
     "AGENT_CITY_OWNERSHIP_DOC_DESC": "File markdown (mde_type: ownership) che mappa gli ambiti a responsabili e agenti. Iniettato nel prompt degli agenti come routing hint.",
+    "AGENT_CITY_WORKFLOW_DOC": "Documento del workflow (percorso relativo)",
+    "AGENT_CITY_WORKFLOW_DOC_DESC": "File markdown (mde_type: workflow) che nomina il suo *.workflow.json: come le persone e i loro agenti si passano il lavoro. Quando c'è, MdExplorer lo applica: per esempio un incarico che il workflow fa avviare al responsabile aspetta nella sua posta. Vuoto = nessun workflow.",
     "AGENT_CITY_ROOM_SECRET_SET": "Room secret generato e condiviso via .development.yml.",
     "IDE_SETTINGS": "Impostazioni IDE",
     "IDE_CONFIGURATION": "Configurazione IDE",
@@ -1694,7 +1696,16 @@
     "MODELS_LOADING": "Leggo i modelli del motore…",
     "MODELS_NONE": "Il motore non ha restituito nessun modello: parte con il suo predefinito.",
     "MODELS_ERROR": "Non riesco a leggere i modelli del motore: {{error}}",
-    "MODEL_NOT_LISTED": "{{model}} (non è nell'elenco del motore)"
+    "MODEL_NOT_LISTED": "{{model}} (non è nell'elenco del motore)",
+    "INCOMING_TITLE": "Avvia l'incarico",
+    "INCOMING_HINT": "{{from}} chiede a {{agent}} di lavorare a «{{step}}». L'agente lavora per te: decidi tu quando parte, con quale motore e con quali indicazioni.",
+    "INCOMING_BODY": "L'incarico di {{from}}",
+    "INCOMING_NOTE": "Le tue indicazioni (facoltative)",
+    "INCOMING_NOTE_PLACEHOLDER": "Per esempio: guarda prima il capitolo 3. L'agente le riceve dopo l'incarico.",
+    "INCOMING_START": "Avvia",
+    "INCOMING_STARTED": "{{agent}} parte: lo trovi tra gli agenti al lavoro.",
+    "QUEUE_DEFERRED_AWAITING-OWNER": "aspetta che tu lo avvii",
+    "QUEUE_DEFERRED_WORKFLOW-INVALID": "il workflow non si legge"
   },
   "AGENT_SCHEDULE": {
     "TITLE": "Schedulazione agente",
@@ -1835,7 +1846,19 @@
     "AWAITED_failed": "non riuscito",
     "REVIEW_STOPPED": "Riparte solo quando lo dici tu",
     "CHILD_STOPPED": "Rifiutato: il lavoro è fermo",
-    "KIND_STOPPED": "Rifiutato, fermo"
+    "KIND_STOPPED": "Rifiutato, fermo",
+    "KIND_TOSTART": "Da avviare",
+    "TOSTART_PREVIEW": "{{step}}: lo chiede {{from}}",
+    "TOSTART_HINT": "{{from}} chiede a {{agent}} di lavorare a «{{step}}». {{agent}} lavora per te: parte quando lo avvii tu. Puoi aggiungere le tue indicazioni e scegliere il motore, oppure non avviarlo e dire perché.",
+    "TOSTART_OPEN": "Apri per avviare",
+    "TOSTART_DECLINE": "Non lo avvio",
+    "TOSTART_DECLINE_LABEL": "Perché non lo avvii? {{from}} lo legge",
+    "TOSTART_DECLINE_PLACEHOLDER": "Per esempio: il bando non ci riguarda, ne parliamo a voce",
+    "TOSTART_DECLINE_CONFIRM": "Non avviarlo",
+    "TOSTART_DECLINED": "L'incarico per {{agent}} non è partito: chi l'ha chiesto vede il tuo motivo.",
+    "TOSTART_NO_CARD": "Non trovo la scheda di {{agent}} nel progetto: non posso aprire la schermata di lancio.",
+    "AWAITED_tostart": "aspetta che il responsabile lo avvii",
+    "AWAITED_declined": "il responsabile non lo ha avviato"
   },
   "MAILBOX": {
     "TITLE": "Messaggi degli agenti",
@@ -1874,7 +1897,9 @@
     "FEDERATED": "federata",
     "INTERNAL_DELEGATION": "delega interna",
     "INTERNAL_DELEGATION_TOOLTIP": "Un agente ha instradato il lavoro su questo ambito usando la mappa di ownership. Il responsabile sei tu, quindi è rimasto in locale: niente relay, niente autorizzazione da chiedere.",
-    "DELEGATION_TOAST": "{{from}} ha passato un lavoro a {{to}} sull'ambito «{{scope}}» — gestito in locale."
+    "DELEGATION_TOAST": "{{from}} ha passato un lavoro a {{to}} sull'ambito «{{scope}}» — gestito in locale.",
+    "START_TOAST": "{{from}} chiede a {{agent}} «{{step}}»: aspetta che tu lo avvii",
+    "START_NOTIFICATION_TITLE": "MdExplorer: un incarico da avviare"
   },
   "FEDERATION": {
     "TAB": "Richieste federate",

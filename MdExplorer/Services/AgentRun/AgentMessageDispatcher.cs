@@ -43,6 +43,8 @@ namespace MdExplorer.Services.AgentRun
         // dalla inbox su richiesta, il push porta solo un assaggio.
         private const int BodyPreviewMax = 280;
         private const string MailboxReceivedEvent = "agentMessageReceived";
+        /// <summary>Un incarico aspetta che il responsabile dell'agente lo avvii (workflow, <c>start: ask-owner</c>).</summary>
+        private const string StartRequestedEvent = "agentStartRequested";
 
         // Retention: i messaggi conclusi (processed/failed) vengono purgati dopo questa finestra,
         // altrimenti la tabella cresce all'infinito. La purga gira all'avvio e poi a intervalli.
@@ -311,6 +313,12 @@ namespace MdExplorer.Services.AgentRun
                 return;
             }
 
+            // Il workflow del progetto può dire che questo incarico lo avvia il responsabile dell'agente: allora il
+            // messaggio aspetta la sua schermata di lancio. Siamo già sul computer giusto (la regola del responsabile
+            // è passata), quindi è qui che la persona lo trova nella posta.
+            if (isLlm && snapshot.OwnerStartedAt == null && HoldForOwner(messageId, snapshot))
+                return;
+
             // 4) risveglio LLM (§7 passo 5): RunToken nell'ambiente + messaggio come DATO fra delimitatori.
             if (string.Equals(entry.Kind, AgentIdentity.KindEnum.Llm, StringComparison.OrdinalIgnoreCase))
             {
@@ -519,7 +527,7 @@ namespace MdExplorer.Services.AgentRun
                         WorkingDirectory = workingDirectory,
                         ConversationId = snapshot.ConversationId.ToString(),
                         FromAgent = snapshot.FromAgent,
-                        MessageBody = WithReworkNote(snapshot),
+                        MessageBody = WithOwnerNote(snapshot, WithReworkNote(snapshot)),
                         Topics = AgentTopics.Split(snapshot.Topics),
                         Roster = roster,
                         Ownership = ownership,
@@ -528,8 +536,10 @@ namespace MdExplorer.Services.AgentRun
                         // l'umano si fida. Il runner su provider ne deriva i tool da esporre.
                         DeclaredTools = entry.Tools?.ToList() ?? new List<string>(),   // cittadino senza manifesto = sola lettura, non «tutto»
                         Trusted = entry.Trusted,
-                        RuntimeProvider = entry.RuntimeProvider,
-                        RuntimeModel = entry.RuntimeModel,
+                        // Il motore e il modello scelti dal responsabile avviando vincono su quelli della scheda. Se ha
+                        // cambiato motore, il modello della scheda non vale più: decide il suo, o il predefinito.
+                        RuntimeProvider = snapshot.StartProvider ?? entry.RuntimeProvider,
+                        RuntimeModel = snapshot.StartProvider != null ? snapshot.StartModel : snapshot.StartModel ?? entry.RuntimeModel,
                     }, ct);
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -1055,6 +1065,98 @@ namespace MdExplorer.Services.AgentRun
                 : m.Body + "\n\n---\nIl lavoro che avevi fatto su questo incarico è stato RIFIUTATO da chi ne risponde. " +
                   "Motivo: " + m.ReworkNote.Trim() + "\nRifai il lavoro tenendone conto.";
 
+        /// <summary>
+        /// Un incarico avviato dal responsabile con delle indicazioni: l'agente le riceve dopo l'incarico, come
+        /// riceve il motivo di un rifiuto.
+        /// </summary>
+        private static string WithOwnerNote(AgentMessage m, string body)
+            => string.IsNullOrWhiteSpace(m.OwnerNote)
+                ? body
+                : body + "\n\n---\nIndicazioni del tuo responsabile, che ha avviato questo incarico: " + m.OwnerNote.Trim();
+
+        /// <summary>
+        /// Il workflow dice che questo incarico lo avvia il responsabile (<c>start: ask-owner</c>)? Allora il messaggio
+        /// si parcheggia «in attesa del responsabile» e non si riprende da solo: lo rimette in coda «Avvia». Un workflow
+        /// configurato che non si legge parcheggia il messaggio e lo dice, una volta: senza la regola non si sa chi avvia.
+        /// </summary>
+        /// <returns>True se il messaggio non deve partire adesso.</returns>
+        private bool HoldForOwner(Guid messageId, AgentMessage snapshot)
+        {
+            var city = _projectMetadata?.GetAgentCity(snapshot.ProjectPath);
+            var wf = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(snapshot.ProjectPath, city?.WorkflowDoc, out var problem);
+            if (problem != null)
+            {
+                var alreadyTold = string.Equals(snapshot.DeferredReason, AgentMessage.DeferredReasonEnum.WorkflowInvalid, StringComparison.Ordinal);
+                Defer(messageId, AgentMessage.DeferredReasonEnum.WorkflowInvalid);
+                if (!alreadyTold)
+                {
+                    _logger.LogWarning("[Dispatcher] '{Agent}' non parte: {Problem}", snapshot.ToAgent, problem);
+                    TellUser(snapshot, $"Non parto: {problem} Finché il workflow non si legge non so chi deve avviarmi. " +
+                                       "Il messaggio resta in attesa e riparte da solo quando il workflow è corretto.");
+                }
+                return true;
+            }
+            if (wf == null) return false;
+
+            var isApproval = string.Equals(snapshot.TriggerSource, "approval", StringComparison.OrdinalIgnoreCase);
+            var step = MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.StepFor(wf, snapshot.FromAgent, snapshot.ToAgent, isApproval);
+            if (step?.Start != MdExplorer.Features.Agents.Workflow.WorkflowStart.AskOwner) return false;
+
+            UpdateMessage(messageId, m =>
+            {
+                m.State = AgentMessage.StateEnum.Pending;
+                m.DeferredReason = AgentMessage.DeferredReasonEnum.AwaitingOwner;
+                // Non si riprende da solo: lo rimette in coda «Avvia» (OwnerStartedAt, NextAttemptAt = adesso).
+                m.NextAttemptAt = DateTime.UtcNow.AddYears(10);
+            });
+            _logger.LogInformation("[Dispatcher] '{Agent}' aspetta il suo responsabile (passo '{Step}' del workflow): messaggio {Id} da avviare.",
+                snapshot.ToAgent, step.Id, messageId);
+            // Chi ne risponde lo deve sapere adesso, non al prossimo giro della posta: badge e avviso.
+            _ = NotifyStartRequestedAsync(snapshot, step.Label);
+            return true;
+        }
+
+        private async Task NotifyStartRequestedAsync(AgentMessage snapshot, string stepTitle)
+        {
+            try
+            {
+                await _hubContext.Clients.All.SendAsync(StartRequestedEvent, new
+                {
+                    messageId = snapshot.Id.ToString(),
+                    fromAgent = snapshot.FromAgent,
+                    toAgent = snapshot.ToAgent,
+                    step = stepTitle,
+                    projectPath = snapshot.ProjectPath,
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Dispatcher] avviso «da avviare» per {Id} non inviato: lo si vede comunque nella posta.", snapshot.Id);
+            }
+        }
+
+        /// <summary>Un avviso alla persona, nella posta, nel thread del messaggio.</summary>
+        private void TellUser(AgentMessage snapshot, string body)
+        {
+            try
+            {
+                var told = _mailbox.Enqueue(new EnqueueRequest
+                {
+                    ProjectPath = snapshot.ProjectPath,
+                    FromAgent = snapshot.ToAgent,
+                    ToAgent = ConversationHopGuard.UserRecipient,
+                    Body = body,
+                    ContextId = snapshot.ConversationId.ToString(),
+                });
+                if (!told.Accepted)
+                    _logger.LogError("[Dispatcher] avviso all'utente per '{Agent}' rifiutato: {Why}", snapshot.ToAgent, told.RejectionReason);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[Dispatcher] avviso all'utente per '{Agent}' non partito.", snapshot.ToAgent);
+            }
+        }
+
         private static AgentMessage Clone(AgentMessage m) => new AgentMessage
         {
             Id = m.Id,
@@ -1071,6 +1173,12 @@ namespace MdExplorer.Services.AgentRun
             ForcedAt = m.ForcedAt,
             DeferredReason = m.DeferredReason,
             ReworkNote = m.ReworkNote,
+            // Senza, il registro delle esecuzioni scriveva sempre «message», anche per un'approvazione.
+            TriggerSource = m.TriggerSource,
+            OwnerStartedAt = m.OwnerStartedAt,
+            OwnerNote = m.OwnerNote,
+            StartProvider = m.StartProvider,
+            StartModel = m.StartModel,
         };
 
         private static string SafeName(IAlgorithmicAgent a)

@@ -38,6 +38,24 @@ export class AgentMailboxNotificationService {
     // Delega interna: consapevolezza, non permesso — il gate custodisce la fiducia fra umani
     // diversi, e verso sé stessi non ha niente da custodire.
     this.serverMessages.agentDelegationRouted$.subscribe(evt => this.onDelegationRouted(evt));
+    // Un incarico aspetta che tu lo avvii (workflow, start: ask-owner): finché non lo fai, il lavoro di qualcuno è fermo.
+    this.serverMessages.agentStartRequested$.subscribe(evt => this.onStartRequested(evt));
+  }
+
+  private onStartRequested(evt: { fromAgent: string; toAgent: string; step?: string; projectPath: string }): void {
+    this.refresh();
+    const text = this.translate.instant('MAILBOX.START_TOAST', { from: evt.fromAgent || '?', agent: evt.toAgent || '?', step: evt.step || evt.toAgent || '?' });
+    const toast = this.snackBar.open(text, this.translate.instant('MAILBOX.TOAST_OPEN'),
+      { duration: 15000, horizontalPosition: 'right', verticalPosition: 'bottom', panelClass: ['kg-stale-snack'] });
+    toast.onAction().subscribe(() => this.open());
+    // MdExplorer ridotto o dietro altre finestre: la notifica del sistema, perché l'avviso nell'app non lo vede nessuno.
+    try {
+      if (typeof Notification !== 'undefined' && (document.hidden || !document.hasFocus())) {
+        const show = () => new Notification(this.translate.instant('MAILBOX.START_NOTIFICATION_TITLE'), { body: text });
+        if (Notification.permission === 'granted') show();
+        else if (Notification.permission !== 'denied') Notification.requestPermission().then(p => { if (p === 'granted') show(); });
+      }
+    } catch { /* la notifica di sistema è in più: badge e avviso nell'app ci sono comunque */ }
   }
 
   /** Il toolbar comunica il progetto attivo; ricarichiamo il conteggio non-letti. */
