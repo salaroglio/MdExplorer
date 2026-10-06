@@ -41,9 +41,12 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentWakeGuard _wakeGuard;
         private readonly ILogger<AgentApprovalNotifier> _logger;
 
+        private readonly MdExplorer.Services.IProjectMetadataService _projectMetadata;
+
         public AgentApprovalNotifier(IAgentRegistryService registry, IAgentMailbox mailbox, IAgentWakeGuard wakeGuard,
-            ILogger<AgentApprovalNotifier> logger)
+            ILogger<AgentApprovalNotifier> logger, MdExplorer.Services.IProjectMetadataService projectMetadata)
         {
+            _projectMetadata = projectMetadata;
             _wakeGuard = wakeGuard;
             _registry = registry;
             _mailbox = mailbox;
@@ -67,6 +70,15 @@ namespace MdExplorer.Services.AgentRun
                 return Fail(recipient, $"'{recipient}' non è tra i destinatari dichiarati da '{producerAgent}' (on_approval_notify).");
             if (!target.Available)
                 return Fail(recipient, target.Reason);
+
+            // Con un workflow, l'avviso di un'approvazione è un passaggio come gli altri: parte solo se il workflow lo
+            // descrive (un passo di chi riceve che aspetta l'approvazione del lavoro di chi ha prodotto).
+            var workflow = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(
+                projectPath, _projectMetadata?.GetAgentCity(projectPath)?.WorkflowDoc, out var workflowProblem);
+            if (workflowProblem != null)
+                return Fail(recipient, $"il workflow del progetto non si legge ({workflowProblem}): non so se avvisare '{target.Name}' è previsto.");
+            if (workflow != null && MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.ApprovalStepFor(workflow, producerAgent, target.Name) == null)
+                return Fail(recipient, $"il workflow «{workflow.Title}» non prevede che l'approvazione del lavoro di '{producerAgent}' avvisi '{target.Name}'.");
 
             var maxHops = catalog.FirstOrDefault(e => string.Equals(e.Name, target.Name, StringComparison.OrdinalIgnoreCase))?.MaxHops;
             var result = _mailbox.Enqueue(new EnqueueRequest

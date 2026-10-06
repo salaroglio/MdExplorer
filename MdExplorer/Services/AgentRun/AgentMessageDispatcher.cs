@@ -1100,6 +1100,18 @@ namespace MdExplorer.Services.AgentRun
 
             var isApproval = string.Equals(snapshot.TriggerSource, "approval", StringComparison.OrdinalIgnoreCase);
             var step = MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.StepFor(wf, snapshot.FromAgent, snapshot.ToAgent, isApproval);
+            var fromAgent = !string.Equals(snapshot.FromAgent, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase);
+            if (step == null && (isApproval || fromAgent))
+            {
+                // L'ultima barriera: l'invio e l'avviso di approvazione già controllano, ma un messaggio può arrivare da
+                // altre strade (o essere in coda da prima che il workflow ci fosse). Un passaggio non previsto non parte.
+                var why = isApproval
+                    ? $"Il workflow «{wf.Title}» non prevede che un'approvazione svegli '{snapshot.ToAgent}'."
+                    : MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.NotForeseen(wf, snapshot.FromAgent, snapshot.ToAgent);
+                _logger.LogWarning("[Dispatcher] messaggio {Id} per '{Agent}' non previsto dal workflow: {Why}", messageId, snapshot.ToAgent, why);
+                MarkFailed(messageId, why);
+                return true;
+            }
             if (step?.Start != MdExplorer.Features.Agents.Workflow.WorkflowStart.AskOwner) return false;
 
             UpdateMessage(messageId, m =>

@@ -7,21 +7,24 @@ using System.Text.RegularExpressions;
 namespace MdExplorer.Features.Agents.Workflow
 {
     /// <summary>
-    /// Legge un <c>*.workflow.json</c> (standard v1) e ne verifica la struttura, senza guardare il progetto. Tolleranza
+    /// Legge un <c>*.workflow.json</c> (standard v2) e ne verifica la struttura, senza guardare il progetto. Tolleranza
     /// zero: una chiave sconosciuta è un errore con il suo percorso, mai ignorata, perché un errore di battitura in una
     /// regola («strat» invece di «start») cambierebbe il comportamento in silenzio. Non si ferma al primo problema: li
     /// raccoglie tutti, così chi corregge (una persona o un LLM) lo fa in un giro solo.
     /// </summary>
     public static class WorkflowParser
     {
-        public const int SupportedVersion = 1;
+        public const int SupportedVersion = 2;
 
         private static readonly Regex KebabId = new(@"^[a-z0-9]+(-[a-z0-9]+)*$", RegexOptions.Compiled);
+        private static readonly Regex VariableName = new(@"^[a-z][a-z0-9_]*$", RegexOptions.Compiled);
+        /// <summary>Un segnaposto in un brief: <c>{codice}</c>.</summary>
+        public static readonly Regex Placeholder = new(@"\{([^{}\s]+)\}", RegexOptions.Compiled);
 
-        private static readonly string[] TopKeys = { "mde_workflow", "title", "description", "steps", "loops" };
-        private static readonly string[] StepKeys = { "id", "agent", "title", "trigger", "start", "produces" };
-        private static readonly string[] TriggerKeys = { "launch", "reply", "to", "assignment", "approval", "wait" };
-        private static readonly string[] LoopKeys = { "id", "steps", "on", "restart", "max", "then" };
+        private static readonly string[] TopKeys = { "mde_workflow", "title", "description", "variables", "steps", "loops" };
+        private static readonly string[] StepKeys = { "id", "agent", "title", "trigger", "start", "brief", "produces" };
+        private static readonly string[] TriggerKeys = { "launch", "reply", "to", "after", "wait" };
+        private static readonly string[] LoopKeys = { "id", "steps", "until", "max", "restart", "times" };
 
         public static WorkflowCheckResult Parse(string json)
         {
@@ -48,19 +51,43 @@ namespace MdExplorer.Features.Agents.Workflow
 
                 var wf = new WorkflowDescriptor();
                 result.Descriptor = wf;
-                UnknownKeys(result, root, "", TopKeys);
 
                 if (!root.TryGetProperty("mde_workflow", out var version))
                     Error(result, "mde_workflow", "manca la versione dello standard.", $"aggiungi \"mde_workflow\": {SupportedVersion}");
                 else if (version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var v))
                     Error(result, "mde_workflow", "la versione è un numero intero.", $"\"mde_workflow\": {SupportedVersion}");
+                else if (v == 1)
+                {
+                    // La v1 descriveva chi manda l'incarico (assignment/approval); con lo schedulatore il passo parte quando i
+                    // precedenti sono finiti. La conversione è meccanica: si dice qual è, invece di indovinarla.
+                    Error(result, "mde_workflow", "versione 1 non più supportata: con lo schedulatore i passi partono quando i precedenti sono finiti.",
+                        "\"mde_workflow\": 2; ogni \"assignment\": \"x\" e \"approval\": [\"x\", …] diventa \"after\": [\"x\", …]; ogni passo che non è un lancio ha un \"brief\"; i cicli: \"until\": \"approved\" con \"max\" e \"restart\", oppure \"times\"");
+                    return result;
+                }
                 else if (v != SupportedVersion)
                     Error(result, "mde_workflow", $"versione {v} non supportata: questo MdExplorer conosce la {SupportedVersion}.");
                 else
                     wf.Version = v;
 
+                UnknownKeys(result, root, "", TopKeys);
                 wf.Title = RequiredString(result, root, "title", "title");
                 wf.Description = OptionalString(result, root, "description", "description");
+
+                if (root.TryGetProperty("variables", out var variables))
+                {
+                    if (variables.ValueKind != JsonValueKind.Object)
+                        Error(result, "variables", "le variabili sono un oggetto: nome → che cos'è (per esempio { \"codice\": \"il codice del bando\" }).");
+                    else
+                        foreach (var p in variables.EnumerateObject())
+                        {
+                            if (!VariableName.IsMatch(p.Name))
+                                Error(result, "variables." + p.Name, $"'{p.Name}' non è un nome di variabile (minuscole, cifre e '_', comincia con una lettera).");
+                            else if (p.Value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(p.Value.GetString()))
+                                Error(result, "variables." + p.Name, "una variabile ha la sua descrizione, una stringa non vuota.");
+                            else
+                                wf.Variables[p.Name] = p.Value.GetString().Trim();
+                        }
+                }
 
                 if (!root.TryGetProperty("steps", out var steps))
                     Error(result, "steps", "mancano i passi.", "aggiungi \"steps\": [ … ] con almeno un passo");
@@ -94,6 +121,7 @@ namespace MdExplorer.Features.Agents.Workflow
                     }
                 }
 
+                CheckVariables(result, wf);
                 CheckGraph(result, wf);
             }
             return result;
@@ -113,6 +141,7 @@ namespace MdExplorer.Features.Agents.Workflow
                 Agent = RequiredId(r, e, "agent", path + ".agent"),
                 Title = OptionalString(r, e, "title", path + ".title"),
                 Trigger = ReadTrigger(r, e, path + ".trigger"),
+                Brief = OptionalString(r, e, "brief", path + ".brief"),
             };
 
             var start = RequiredString(r, e, "start", path + ".start");
@@ -129,6 +158,11 @@ namespace MdExplorer.Features.Agents.Workflow
             }
             if (start != null && step.Trigger != null)
                 CheckStartFitsTrigger(r, step, path);
+
+            // Il brief è ciò che l'agente riceve da MDE: senza, un passo che non lancia la persona non saprebbe che fare.
+            if (step.Trigger != null && step.Trigger.Kind != WorkflowTriggerKind.Launch && step.Brief == null && !e.TryGetProperty("brief", out _))
+                Error(r, path + ".brief", "manca il testo dell'incarico: è ciò che MDE manda all'agente quando il passo parte.",
+                    "per esempio \"brief\": \"Scrivi la scheda tecnica sul bando {codice}.\"");
 
             if (e.TryGetProperty("produces", out var produces))
             {
@@ -169,18 +203,24 @@ namespace MdExplorer.Features.Agents.Workflow
             }
             if (e.ValueKind != JsonValueKind.Object)
             {
-                Error(r, path, "il trigger è un oggetto, per esempio { \"assignment\": \"ricerca\" }.");
+                Error(r, path, "il trigger è un oggetto, per esempio { \"after\": [\"ricerca\"] }.");
                 return null;
             }
-            UnknownKeys(r, e, path, TriggerKeys);
+            // Le forme della v1: si dice con che cosa si sostituiscono, invece di un generico «chiave sconosciuta».
+            foreach (var old in new[] { "assignment", "approval" })
+                if (e.TryGetProperty(old, out _))
+                    Error(r, path + "." + old, $"«{old}» era della versione 1: nella 2 un passo parte quando i precedenti sono finiti.",
+                        "usa \"after\": [\"<id del passo>\", …]");
+            UnknownKeys(r, e, path, TriggerKeys.Concat(new[] { "assignment", "approval" }).ToArray());
 
-            var forms = new[] { "launch", "reply", "assignment", "approval" }.Where(k => e.TryGetProperty(k, out _)).ToList();
+            var forms = new[] { "launch", "reply", "after" }.Where(k => e.TryGetProperty(k, out _)).ToList();
             if (forms.Count != 1)
             {
-                Error(r, path, forms.Count == 0
-                        ? "il trigger non dice cosa fa partire il passo."
-                        : $"il trigger ha più forme insieme ({string.Join(", ", forms)}): un passo parte in un modo solo.",
-                    "usa una sola tra launch, reply, assignment, approval");
+                if (forms.Count > 1 || !e.EnumerateObject().Any(p => p.Name == "assignment" || p.Name == "approval"))
+                    Error(r, path, forms.Count == 0
+                            ? "il trigger non dice cosa fa partire il passo."
+                            : $"il trigger ha più forme insieme ({string.Join(", ", forms)}): un passo parte in un modo solo.",
+                        "usa una sola tra launch, reply, after");
                 return null;
             }
 
@@ -197,29 +237,25 @@ namespace MdExplorer.Features.Agents.Workflow
                     t.ReplyId = RequiredId(r, e, "reply", path + ".reply");
                     t.FromStep = RequiredId(r, e, "to", path + ".to");
                     break;
-                case "assignment":
-                    t.Kind = WorkflowTriggerKind.Assignment;
-                    t.FromStep = RequiredId(r, e, "assignment", path + ".assignment");
-                    break;
-                case "approval":
-                    t.Kind = WorkflowTriggerKind.Approval;
-                    var of = e.GetProperty("approval");
-                    if (of.ValueKind != JsonValueKind.Array)
-                        Error(r, path + ".approval", "\"approval\" è la lista dei passi di cui si aspetta l'approvazione.");
+                case "after":
+                    t.Kind = WorkflowTriggerKind.After;
+                    var after = e.GetProperty("after");
+                    if (after.ValueKind != JsonValueKind.Array)
+                        Error(r, path + ".after", "\"after\" è la lista dei passi che devono essere finiti, per esempio [\"ricerca\"].");
                     else
                     {
                         var i = 0;
-                        foreach (var s in of.EnumerateArray())
+                        foreach (var s in after.EnumerateArray())
                         {
-                            var sp = $"{path}.approval[{i++}]";
+                            var sp = $"{path}.after[{i++}]";
                             if (s.ValueKind != JsonValueKind.String || !KebabId.IsMatch(s.GetString() ?? ""))
                                 Error(r, sp, "è l'id di un passo (kebab-case).");
-                            else if (t.ApprovalOf.Contains(s.GetString()))
+                            else if (t.After.Contains(s.GetString()))
                                 Error(r, sp, $"'{s.GetString()}' è già nella lista.");
                             else
-                                t.ApprovalOf.Add(s.GetString());
+                                t.After.Add(s.GetString());
                         }
-                        if (i == 0) Error(r, path + ".approval", "la lista è vuota: di quali passi si aspetta l'approvazione?");
+                        if (i == 0) Error(r, path + ".after", "la lista è vuota: dopo quali passi parte questo?");
                     }
                     var wait = OptionalString(r, e, "wait", path + ".wait");
                     if (wait == "any") t.Wait = WorkflowWait.Any;
@@ -229,8 +265,8 @@ namespace MdExplorer.Features.Agents.Workflow
             }
             if (t.Kind != WorkflowTriggerKind.Reply && e.TryGetProperty("to", out _))
                 Error(r, path + ".to", "\"to\" serve solo con \"reply\": dice sotto il messaggio di quale passo sta il pulsante.");
-            if (t.Kind != WorkflowTriggerKind.Approval && e.TryGetProperty("wait", out _))
-                Error(r, path + ".wait", "\"wait\" serve solo con \"approval\".");
+            if (t.Kind != WorkflowTriggerKind.After && e.TryGetProperty("wait", out _))
+                Error(r, path + ".wait", "\"wait\" serve solo con \"after\".");
             return t;
         }
 
@@ -240,7 +276,8 @@ namespace MdExplorer.Features.Agents.Workflow
             var (allowed, why) = step.Trigger.Kind switch
             {
                 WorkflowTriggerKind.Launch => (new[] { WorkflowStart.Manual }, "un lancio lo fa la persona: start è manual"),
-                WorkflowTriggerKind.Reply => (new[] { WorkflowStart.Auto }, "premendo il pulsante la persona ha già scelto: start è auto"),
+                // Chi preme il pulsante sceglie per il proprio agente; il passo può essere di un agente di un'altra persona.
+                WorkflowTriggerKind.Reply => (new[] { WorkflowStart.AskOwner, WorkflowStart.Auto }, "lo avvia il responsabile (ask-owner) o parte da solo (auto)"),
                 _ => (new[] { WorkflowStart.AskOwner, WorkflowStart.Auto }, "lo avvia il responsabile (ask-owner) o parte da solo (auto)"),
             };
             if (!allowed.Contains(step.Start))
@@ -251,10 +288,13 @@ namespace MdExplorer.Features.Agents.Workflow
         {
             if (e.ValueKind != JsonValueKind.Object)
             {
-                Error(r, path, "un ciclo è un oggetto ({ \"id\": …, \"steps\": […], \"on\": \"rejected\", … }).");
+                Error(r, path, "un ciclo è un oggetto: { \"id\": …, \"steps\": […], \"until\": \"approved\", … } oppure { …, \"times\": 3 }.");
                 return null;
             }
-            UnknownKeys(r, e, path, LoopKeys);
+            foreach (var old in new[] { "on", "then" })
+                if (e.TryGetProperty(old, out _))
+                    Error(r, path + "." + old, $"«{old}» era della versione 1.", "un ciclo «fino a che» si scrive \"until\": \"approved\", con \"max\" (facoltativo) e \"restart\"");
+            UnknownKeys(r, e, path, LoopKeys.Concat(new[] { "on", "then" }).ToArray());
             var loop = new WorkflowLoop { Id = RequiredId(r, e, "id", path + ".id") };
 
             if (!e.TryGetProperty("steps", out var steps) || steps.ValueKind != JsonValueKind.Array)
@@ -273,21 +313,66 @@ namespace MdExplorer.Features.Agents.Workflow
                 if (i == 0) Error(r, path + ".steps", "la lista è vuota.");
             }
 
-            // v1: un solo tipo di ciclo. Ogni valore diverso è un errore che dice cosa c'è, non un default.
-            loop.On = Fixed(r, e, "on", path + ".on", "rejected", "nella v1 l'unico ciclo è il rifacimento dopo un rifiuto");
-            loop.Restart = Fixed(r, e, "restart", path + ".restart", "manual", "dopo un rifiuto niente riparte da solo: lo fa ripartire la persona");
-            loop.Then = Fixed(r, e, "then", path + ".then", "stop", "oltre il massimo il lavoro resta fermo e lo si dice");
+            var hasUntil = e.TryGetProperty("until", out var until);
+            var hasTimes = e.TryGetProperty("times", out var times);
+            if (hasUntil == hasTimes)
+            {
+                Error(r, path, hasUntil
+                        ? "un ciclo è «fino a che» (until) oppure «for» (times), non tutti e due."
+                        : "il ciclo non dice che tipo è.",
+                    "\"until\": \"approved\" (rifai finché non è approvato) oppure \"times\": 3 (fai 3 giri)");
+                return loop;
+            }
 
-            if (!e.TryGetProperty("max", out var max))
-                Error(r, path + ".max", "manca quante volte si può rifare.", "per esempio \"max\": 2");
-            else if (max.ValueKind != JsonValueKind.Number || !max.TryGetInt32(out var m) || m < 1)
-                Error(r, path + ".max", "è un numero intero da 1 in su.");
+            if (hasUntil)
+            {
+                loop.Kind = WorkflowLoopKind.UntilApproved;
+                if (until.ValueKind != JsonValueKind.String || until.GetString() != "approved")
+                    Error(r, path + ".until", "un ciclo «fino a che» si ripete finché il lavoro non è approvato.", "\"until\": \"approved\"");
+                if (e.TryGetProperty("max", out var max))
+                {
+                    if (max.ValueKind != JsonValueKind.Number || !max.TryGetInt32(out var m) || m < 1)
+                        Error(r, path + ".max", "è un numero intero da 1 in su; se non c'è un limite, togli \"max\".");
+                    else
+                        loop.Max = m;
+                }
+                var restart = RequiredString(r, e, "restart", path + ".restart");
+                if (restart == "manual") loop.Restart = WorkflowStart.Manual;
+                else if (restart == "auto") loop.Restart = WorkflowStart.Auto;
+                else if (restart != null)
+                    Error(r, path + ".restart", $"'{restart}' non è un modo di ripartire.", "manual (la persona preme «Fai ripartire») oppure auto (riparte da solo)");
+            }
             else
-                loop.Max = m;
+            {
+                loop.Kind = WorkflowLoopKind.Times;
+                if (times.ValueKind != JsonValueKind.Number || !times.TryGetInt32(out var n) || n < 2)
+                    Error(r, path + ".times", "è un numero intero da 2 in su: un giro solo non è un ciclo.");
+                else
+                    loop.Times = n;
+                foreach (var k in new[] { "max", "restart" })
+                    if (e.TryGetProperty(k, out _))
+                        Error(r, path + "." + k, $"«{k}» serve ai cicli «fino a che» (until): un «for» fa esattamente \"times\" giri.");
+            }
             return loop;
         }
 
-        /// <summary>Riferimenti, unicità, raggiungibilità, assenza di cicli: ciò che si vede solo guardando tutti i passi.</summary>
+        /// <summary>Ogni {variabile} di un brief è dichiarata: altrimenti l'agente riceverebbe le parentesi così come sono.</summary>
+        private static void CheckVariables(WorkflowCheckResult r, WorkflowDescriptor wf)
+        {
+            for (var i = 0; i < wf.Steps.Count; i++)
+            {
+                var brief = wf.Steps[i].Brief;
+                if (brief == null) continue;
+                foreach (Match m in Placeholder.Matches(brief))
+                    if (!wf.Variables.ContainsKey(m.Groups[1].Value))
+                        Error(r, $"steps[{i}].brief", $"'{{{m.Groups[1].Value}}}' non è una variabile dichiarata.",
+                            wf.Variables.Count == 0
+                                ? $"dichiarala in \"variables\": {{ \"{m.Groups[1].Value}\": \"che cos'è\" }}"
+                                : "variabili dichiarate: " + string.Join(", ", wf.Variables.Keys));
+            }
+        }
+
+        /// <summary>Riferimenti, unicità, raggiungibilità, assenza di cicli nascosti: ciò che si vede solo guardando tutti i passi.</summary>
         private static void CheckGraph(WorkflowCheckResult r, WorkflowDescriptor wf)
         {
             var index = new Dictionary<string, int>();
@@ -305,22 +390,18 @@ namespace MdExplorer.Features.Agents.Workflow
             {
                 var t = wf.Steps[i].Trigger;
                 if (t == null) continue;
-                var where = t.Kind switch
-                {
-                    WorkflowTriggerKind.Reply => ".to",
-                    WorkflowTriggerKind.Assignment => ".assignment",
-                    _ => ".approval",
-                };
+                var where = t.Kind == WorkflowTriggerKind.Reply ? ".to" : ".after";
                 foreach (var src in t.Sources.Where(s => s != null))
                 {
                     if (!index.ContainsKey(src))
                         Error(r, $"steps[{i}].trigger{where}", $"'{src}' non è l'id di nessun passo.", Known(index.Keys));
                     else if (src == wf.Steps[i].Id)
-                        Error(r, $"steps[{i}].trigger{where}", "un passo non può partire da sé stesso.");
+                        Error(r, $"steps[{i}].trigger{where}", "un passo non può partire da sé stesso: per ripeterlo si dichiara un ciclo in \"loops\".");
                 }
             }
 
             var loopIds = new HashSet<string>();
+            var looped = new Dictionary<string, string>();
             for (var i = 0; i < wf.Loops.Count; i++)
             {
                 var loop = wf.Loops[i];
@@ -328,10 +409,21 @@ namespace MdExplorer.Features.Agents.Workflow
                     Error(r, $"loops[{i}].id", $"'{loop.Id}' è già l'id di un altro ciclo.");
                 for (var j = 0; j < loop.Steps.Count; j++)
                 {
-                    if (!index.ContainsKey(loop.Steps[j]))
-                        Error(r, $"loops[{i}].steps[{j}]", $"'{loop.Steps[j]}' non è l'id di nessun passo.", Known(index.Keys));
-                    else if (wf.Step(loop.Steps[j]).Produces.Count == 0)
-                        Warning(r, $"loops[{i}].steps[{j}]", $"il passo '{loop.Steps[j]}' non dichiara artefatti: un rifacimento rifà un artefatto rifiutato.",
+                    var stepId = loop.Steps[j];
+                    if (!index.ContainsKey(stepId))
+                    {
+                        Error(r, $"loops[{i}].steps[{j}]", $"'{stepId}' non è l'id di nessun passo.", Known(index.Keys));
+                        continue;
+                    }
+                    // Un ciclo per tipo: «for» e «fino a che» insieme hanno un senso (ogni giro si rifà finché non è approvato),
+                    // due dello stesso tipo no (quale dei due conta?).
+                    var key = stepId + "|" + loop.Kind;
+                    if (looped.TryGetValue(key, out var other))
+                        Error(r, $"loops[{i}].steps[{j}]", $"'{stepId}' è già nel ciclo '{other}', dello stesso tipo: un passo sta al più in un ciclo «fino a che» e in un «for».");
+                    else
+                        looped[key] = loop.Id;
+                    if (loop.Kind == WorkflowLoopKind.UntilApproved && wf.Step(stepId).Produces.Count == 0)
+                        Warning(r, $"loops[{i}].steps[{j}]", $"il passo '{stepId}' non dichiara artefatti: «fino a che è approvato» ripete un artefatto rifiutato.",
                             "aggiungi \"produces\" al passo, o toglilo dal ciclo");
                 }
             }
@@ -349,15 +441,15 @@ namespace MdExplorer.Features.Agents.Workflow
                 foreach (var src in s.Trigger.Sources.Where(x => x != null && next.ContainsKey(x) && x != s.Id))
                     next[src].Add(s.Id);
 
-            // Nessun ciclo tra i passi: nella v1 un ciclo si dichiara in «loops», non si costruisce con i trigger.
-            var state = new Dictionary<string, int>();   // 1 = in visita, 2 = finito
+            // Nessun ritorno tra i passi: le ripetizioni si dichiarano in «loops», dove si vedono e si contano.
+            var state = new Dictionary<string, int>();
             foreach (var id in next.Keys)
             {
                 var cycle = FindCycle(id, next, state, new Stack<string>());
                 if (cycle != null)
                 {
                     Error(r, $"steps[{index[cycle[0]]}]", $"i passi si fanno partire a vicenda: {string.Join(" → ", cycle)}.",
-                        "nella v1 i passi formano una catena senza ritorni; il rifacimento dopo un rifiuto si dichiara in \"loops\"");
+                        "i passi formano una catena senza ritorni; per ripetere un passo dichiara un ciclo in \"loops\" (until o times)");
                     break;
                 }
             }
@@ -399,8 +491,9 @@ namespace MdExplorer.Features.Agents.Workflow
 
         private static void UnknownKeys(WorkflowCheckResult r, JsonElement e, string path, string[] known)
         {
+            var shown = known.Where(k => k != "assignment" && k != "approval" && k != "on" && k != "then");
             foreach (var p in e.EnumerateObject().Where(p => !known.Contains(p.Name)))
-                Error(r, Join(path, p.Name), $"chiave sconosciuta '{p.Name}'.", "chiavi ammesse qui: " + string.Join(", ", known));
+                Error(r, Join(path, p.Name), $"chiave sconosciuta '{p.Name}'.", "chiavi ammesse qui: " + string.Join(", ", shown));
         }
 
         private static string RequiredString(WorkflowCheckResult r, JsonElement e, string key, string path)
@@ -435,17 +528,6 @@ namespace MdExplorer.Features.Agents.Workflow
             if (v != null && !KebabId.IsMatch(v))
             {
                 Error(r, path, $"'{v}' non è kebab-case (minuscole, cifre e trattini).");
-                return null;
-            }
-            return v;
-        }
-
-        private static string Fixed(WorkflowCheckResult r, JsonElement e, string key, string path, string only, string why)
-        {
-            var v = RequiredString(r, e, key, path);
-            if (v != null && v != only)
-            {
-                Error(r, path, $"'{v}' non è ammesso: {why}.", $"\"{key}\": \"{only}\"");
                 return null;
             }
             return v;

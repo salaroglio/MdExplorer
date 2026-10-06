@@ -259,7 +259,7 @@ public sealed class AgentTools : McpToolsBase
     }
 
     [McpServerTool, Description(
-        "Check an agents' workflow file (*.workflow.json, MdExplorer standard v1, see the mde-workflow skill) BEFORE you " +
+        "Check an agents' workflow file (*.workflow.json, MdExplorer standard v2, see the mde-workflow skill) BEFORE you " +
         "hand it over, and get back everything that is wrong in one pass. Call it every time you write or edit one. " +
         "'error' means MdExplorer will not apply the workflow nor draw it: fix each one and check again. " +
         "'warning' means an agent card routes differently from the workflow (accepts_messages_from, on_approval_notify): " +

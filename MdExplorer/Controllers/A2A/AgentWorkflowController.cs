@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MdExplorer.Controllers.A2A
 {
     /// <summary>
-    /// Il workflow degli agenti (<c>*.workflow.json</c>, standard v1). Per ora la verifica: la usa chi lo scrive, una persona
+    /// Il workflow degli agenti (<c>*.workflow.json</c>, standard v2). Per ora la verifica: la usa chi lo scrive, una persona
     /// o un LLM con la skill <c>mde-workflow</c>, per sapere in un giro solo tutto ciò che non va e dove.
     /// </summary>
     [ApiController]

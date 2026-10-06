@@ -170,3 +170,10 @@
   .stopped-title { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-weight: 600; mat-icon { color: #d93025; } }
   .stopped-note, .stopped-hint { margin: 0 0 8px; font-size: 13px; }
 }
+
+// Il limite dei rifacimenti del workflow: quante volte ancora, o perché basta.
+.stopped-left { font-size: 12px; opacity: 0.8; margin: 4px 0 8px; }
+.stopped-blocked {
+  display: flex; align-items: flex-start; gap: 6px; font-size: 13px; color: #d93025; margin: 4px 0 8px;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; flex: 0 0 auto; }
+}

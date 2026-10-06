@@ -64,7 +64,12 @@
       <p class="stopped-title"><mat-icon>block</mat-icon> {{ 'AGENT_REVIEW.STOPPED_TITLE' | translate }}</p>
       <p class="stopped-note" *ngIf="r.note"><strong>{{ 'AGENT_REVIEW.REJECT_NOTE_LABEL' | translate }}:</strong> {{ r.note }}</p>
       <p class="stopped-hint">{{ 'AGENT_REVIEW.STOPPED_HINT' | translate: { agent: r.agentName } }}</p>
-      <button mat-flat-button color="primary" class="btn-rework" [disabled]="busyId === r.id" (click)="rework(r)">
+      <!-- Il workflow dice quante volte si rifà: lo si legge prima di premere, e al limite il pulsante non c'è. -->
+      <p class="stopped-left" *ngIf="r.reworksLeft != null && r.reworksLeft > 0">
+        {{ (r.reworksLeft === 1 ? 'AGENT_REVIEW.REWORKS_LEFT_ONE' : 'AGENT_REVIEW.REWORKS_LEFT') | translate: { count: r.reworksLeft } }}
+      </p>
+      <p class="stopped-blocked" *ngIf="r.reworksLeft === 0"><mat-icon>do_not_disturb_on</mat-icon> {{ r.reworkBlocked }}</p>
+      <button mat-flat-button color="primary" class="btn-rework" *ngIf="r.reworksLeft !== 0" [disabled]="busyId === r.id" (click)="rework(r)">
         <mat-icon>replay</mat-icon> {{ 'AGENT_REVIEW.REWORK' | translate }}
       </button>
     </div>

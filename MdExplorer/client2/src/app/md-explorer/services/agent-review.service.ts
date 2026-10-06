@@ -27,6 +27,10 @@ export interface MergeRequest {
   runId?: string | null;
   /** Qualcuno aspetta questo artefatto (l'aveva chiesto un altro agente): rifiutarlo lo fa rifare. */
   someoneWaiting?: boolean;
+  /** Rifiutato: quante volte il workflow lascia ancora farlo ripartire. null/undefined = senza limite. */
+  reworksLeft?: number | null;
+  /** A zero: perché non si può più far ripartire (il massimo del ciclo, o nessun ciclo nel workflow). */
+  reworkBlocked?: string | null;
   /** C'è una sessione d'intervento aperta su questo agente: ci stai già lavorando. */
   sessionOpen: boolean;
   files: ChangedFile[];

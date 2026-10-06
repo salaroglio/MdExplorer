@@ -18,10 +18,11 @@ namespace MdExplorer.IntegrationTests
     public class AgentOwnerStart_Should
     {
         private const string Workflow = @"{
-  ""mde_workflow"": 1, ""title"": ""Prova"",
+  ""mde_workflow"": 2, ""title"": ""Prova"",
   ""steps"": [
     { ""id"": ""incarica"", ""agent"": ""capo"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
-    { ""id"": ""scheda"", ""agent"": ""tecnico"", ""title"": ""Scheda tecnica"", ""trigger"": { ""assignment"": ""incarica"" }, ""start"": ""ask-owner"" }
+    { ""id"": ""scheda"", ""agent"": ""tecnico"", ""title"": ""Scheda tecnica"", ""trigger"": { ""after"": [""incarica""] }, ""start"": ""ask-owner"",
+      ""brief"": ""Scrivi la scheda tecnica."" }
   ]
 }";
 
@@ -122,22 +123,20 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
-        public async Task Hold_and_tell_the_person_when_the_configured_workflow_is_broken()
+        public async Task Refuse_the_assignment_and_say_why_when_the_configured_workflow_is_broken()
         {
+            // Dal F5 il workflow si controlla già all'invio: chi scrive riceve il motivo e lo può dire alla persona.
+            // Il parcheggio «workflow-invalid» del dispatcher resta per ciò che era già in coda.
             using var ctx = new AgentCityContext();
             var path = Setup(ctx, "owner-broken", Workflow.Replace("\"start\": \"ask-owner\"", "\"strat\": \"ask-owner\""));
 
             var token = ctx.MintRunToken("capo", path, null);
-            await ctx.SendAuthenticated(token, "tecnico", "[INCARICO] scrivi la scheda tecnica");
+            var (status, body) = await ctx.SendAuthenticated(token, "tecnico", "[INCARICO] scrivi la scheda tecnica");
 
-            var messages = await ctx.WaitForMessages(m => m.Any(x => x.ToAgent == "tecnico"
-                && x.DeferredReason == AgentMessage.DeferredReasonEnum.WorkflowInvalid)
-                && m.Any(x => x.ToAgent == "user" && x.FromAgent == "tecnico"));
-            Assert.IsTrue(messages.Any(x => x.ToAgent == "tecnico" && x.DeferredReason == AgentMessage.DeferredReasonEnum.WorkflowInvalid),
-                "senza la regola non si sa chi avvia: l'incarico aspetta");
-            var notice = messages.FirstOrDefault(x => x.ToAgent == "user" && x.FromAgent == "tecnico");
-            Assert.IsNotNull(notice, "la persona lo viene a sapere");
-            StringAssert.Contains(notice.Body, "strat");
+            Assert.AreEqual(System.Net.HttpStatusCode.Conflict, status, body);
+            StringAssert.Contains(body, "non si legge");
+            StringAssert.Contains(body, "strat");
+            Assert.IsFalse(ctx.Messages().Any(m => m.ToAgent == "tecnico"), "senza la regola non si sa chi avvia: non entra in coda");
             Assert.AreEqual(0, ctx.Runner.Calls);
         }
     }

@@ -229,16 +229,19 @@ namespace MdExplorer.Features.Tests.Commands
             Assert.IsTrue(classAt > fenceEnd, "the class suffix must stay right after the closing fence");
         }
             private const string SmallWorkflow = @"{
-  ""mde_workflow"": 1, ""title"": ""Prova"",
+  ""mde_workflow"": 2, ""title"": ""Prova"",
+  ""variables"": { ""codice"": ""il bando"" },
   ""steps"": [
     { ""id"": ""ricerca"", ""agent"": ""cercatore"", ""title"": ""Cerca i bandi"", ""trigger"": { ""launch"": true }, ""start"": ""manual"",
       ""produces"": [""docs/ricerche/ricerca-*.md""] },
-    { ""id"": ""tecnica"", ""agent"": ""tecnico"", ""trigger"": { ""assignment"": ""ricerca"" }, ""start"": ""ask-owner"",
-      ""produces"": [""docs/schede/tecnica.md""] },
-    { ""id"": ""legale"", ""agent"": ""legale"", ""trigger"": { ""assignment"": ""ricerca"" }, ""start"": ""ask-owner"" },
-    { ""id"": ""sintesi"", ""agent"": ""cercatore"", ""trigger"": { ""approval"": [""tecnica"", ""legale""] }, ""start"": ""auto"" }
+    { ""id"": ""tecnica"", ""agent"": ""tecnico"", ""trigger"": { ""after"": [""ricerca""] }, ""start"": ""ask-owner"",
+      ""brief"": ""Scrivi la scheda tecnica su {codice}."", ""produces"": [""docs/schede/tecnica.md""] },
+    { ""id"": ""legale"", ""agent"": ""legale"", ""trigger"": { ""after"": [""ricerca""] }, ""start"": ""ask-owner"",
+      ""brief"": ""Leggi le clausole di {codice}."" },
+    { ""id"": ""sintesi"", ""agent"": ""cercatore"", ""trigger"": { ""after"": [""tecnica"", ""legale""] }, ""start"": ""auto"",
+      ""brief"": ""Scrivi la sintesi."" }
   ],
-  ""loops"": [ { ""id"": ""rifacimento"", ""steps"": [""tecnica""], ""on"": ""rejected"", ""restart"": ""manual"", ""max"": 2, ""then"": ""stop"" } ]
+  ""loops"": [ { ""id"": ""rifacimento"", ""steps"": [""tecnica""], ""until"": ""approved"", ""max"": 2, ""restart"": ""manual"" } ]
 }";
 
         [TestMethod]
@@ -268,6 +271,8 @@ namespace MdExplorer.Features.Tests.Commands
             AssertContains(transformed, "hexagon \"attende tutti\"");
             AssertContains(transformed, "s_tecnica -[#D93025,dashed]-> s_tecnica");
             AssertContains(transformed, "al massimo 2 volte");
+            AssertContains(transformed, "s_legale --> j_sintesi : finito");
+            AssertContains(transformed, "s_tecnica --> j_sintesi : approvato");
             Assert.IsFalse(transformed.Contains("mde:.github/agents/cercatore"), "una scheda che non c'è non ha link");
             Assert.IsFalse(transformed.Contains("[[mde:docs/ricerche/ricerca-*.md]]"), "una famiglia di file non ha un file solo da aprire");
             Assert.IsFalse(transformed.Contains("\r"), "il diagramma è uguale su ogni sistema");
@@ -300,6 +305,19 @@ namespace MdExplorer.Features.Tests.Commands
 
             Assert.AreEqual(1, matches.Count);
             AssertContains(matches[0].Groups[1].Value, "@enduml");
+        }
+
+        [TestMethod]
+        public void DrawAForLoopAsAThickBlueArrowWithItsRounds()
+        {
+            var forLoop = SmallWorkflow.Replace("\"until\": \"approved\", \"max\": 2, \"restart\": \"manual\"", "\"times\": 3");
+            Assert.AreNotEqual(SmallWorkflow, forLoop, "la sostituzione del test non trova il ciclo");
+            File.WriteAllText(Path.Combine(_projectRoot, "docs", "for.workflow.json"), forLoop);
+
+            var transformed = Transform("```plantuml(@workflow, ./for.workflow.json)\n```");
+
+            AssertContains(transformed, "s_tecnica -[#1A73E8,bold]-> s_tecnica : ×3");
+            AssertContains(transformed, "3 giri, ciascuno approvato");
         }
     }
 }

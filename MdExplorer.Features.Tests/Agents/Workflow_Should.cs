@@ -7,38 +7,120 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 namespace MdExplorer.Features.Tests.Agents
 {
     /// <summary>
-    /// Il compendio delle dinamiche tra agenti (standard v1): la lettura è a tolleranza zero, raccoglie tutti i problemi con
-    /// il loro percorso, e la verifica di progetto distingue ciò che non esiste (errore) da ciò in cui le schede dicono
-    /// altro (avviso). Il caso di riferimento è la gara del demo.
+    /// Il compendio delle dinamiche tra agenti (standard v2, il vocabolario dello schedulatore): la lettura è a tolleranza
+    /// zero e raccoglie tutti i problemi con il loro percorso; la verifica di progetto dice ciò che non esiste o che non
+    /// arriverebbe; la regola dei passi trova chi avvia cosa; i rifacimenti hanno un limite solo se l'autore lo scrive.
+    /// Il caso di riferimento è la gara del demo.
     /// </summary>
     [TestClass]
     public class Workflow_Should
     {
         private const string Gara = @"{
-  ""mde_workflow"": 1,
+  ""mde_workflow"": 2,
   ""title"": ""Gara: dal bando alla sintesi"",
+  ""description"": ""Dal bando trovato sul portale alla sintesi che l'account manager usa per decidere se partecipare."",
+  ""variables"": {
+    ""codice"": ""il codice del bando su cui si fa il giro, scelto con «Avvia il giro»""
+  },
   ""steps"": [
-    { ""id"": ""ricerca"", ""agent"": ""account-manager"", ""title"": ""Cerca i bandi"",
-      ""trigger"": { ""launch"": true }, ""start"": ""manual"",
-      ""produces"": [""citta-degli-agenti/gara/ricerche/ricerca-*.md""] },
-    { ""id"": ""avvio"", ""agent"": ""account-manager"",
-      ""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" }, ""start"": ""auto"" },
-    { ""id"": ""tecnica"", ""agent"": ""responsabile-tecnico"",
-      ""trigger"": { ""assignment"": ""avvio"" }, ""start"": ""ask-owner"",
-      ""produces"": [""citta-degli-agenti/gara/schede/tecnica.md""] },
-    { ""id"": ""contratto"", ""agent"": ""responsabile-legale"",
-      ""trigger"": { ""assignment"": ""avvio"" }, ""start"": ""ask-owner"",
-      ""produces"": [""citta-degli-agenti/gara/schede/contrattuale.md""] },
-    { ""id"": ""delivery"", ""agent"": ""responsabile-delivery"",
-      ""trigger"": { ""assignment"": ""avvio"" }, ""start"": ""ask-owner"",
-      ""produces"": [""citta-degli-agenti/gara/schede/delivery.md""] },
-    { ""id"": ""sintesi"", ""agent"": ""account-manager"",
-      ""trigger"": { ""approval"": [""tecnica"", ""contratto"", ""delivery""], ""wait"": ""all"" }, ""start"": ""auto"",
-      ""produces"": [""citta-degli-agenti/gara/schede/sintesi.md""] }
+    {
+      ""id"": ""ricerca"",
+      ""agent"": ""account-manager"",
+      ""title"": ""Cerca i bandi"",
+      ""trigger"": {
+        ""launch"": true
+      },
+      ""start"": ""manual"",
+      ""produces"": [
+        ""citta-degli-agenti/gara/ricerche/ricerca-*.md""
+      ]
+    },
+    {
+      ""id"": ""avvio"",
+      ""agent"": ""account-manager"",
+      ""title"": ""Avvia il giro"",
+      ""trigger"": {
+        ""reply"": ""avvia-giro"",
+        ""to"": ""ricerca""
+      },
+      ""start"": ""auto"",
+      ""brief"": ""La persona ha scelto il bando {codice}: avvia il giro dei tre responsabili.""
+    },
+    {
+      ""id"": ""tecnica"",
+      ""agent"": ""responsabile-tecnico"",
+      ""title"": ""Scheda tecnica"",
+      ""trigger"": {
+        ""after"": [
+          ""avvio""
+        ]
+      },
+      ""start"": ""ask-owner"",
+      ""brief"": ""Scrivi la scheda di fattibilità tecnica sul bando {codice}."",
+      ""produces"": [
+        ""citta-degli-agenti/gara/schede/tecnica.md""
+      ]
+    },
+    {
+      ""id"": ""contratto"",
+      ""agent"": ""responsabile-legale"",
+      ""title"": ""Scheda contrattuale"",
+      ""trigger"": {
+        ""after"": [
+          ""avvio""
+        ]
+      },
+      ""start"": ""ask-owner"",
+      ""brief"": ""Scrivi la scheda contrattuale sul bando {codice}."",
+      ""produces"": [
+        ""citta-degli-agenti/gara/schede/contrattuale.md""
+      ]
+    },
+    {
+      ""id"": ""delivery"",
+      ""agent"": ""responsabile-delivery"",
+      ""title"": ""Scheda di delivery"",
+      ""trigger"": {
+        ""after"": [
+          ""avvio""
+        ]
+      },
+      ""start"": ""ask-owner"",
+      ""brief"": ""Scrivi la scheda di delivery (team e tempi) sul bando {codice}."",
+      ""produces"": [
+        ""citta-degli-agenti/gara/schede/delivery.md""
+      ]
+    },
+    {
+      ""id"": ""sintesi"",
+      ""agent"": ""account-manager"",
+      ""title"": ""Sintesi per decidere"",
+      ""trigger"": {
+        ""after"": [
+          ""tecnica"",
+          ""contratto"",
+          ""delivery""
+        ],
+        ""wait"": ""all""
+      },
+      ""start"": ""auto"",
+      ""brief"": ""Le tre schede sul bando {codice} sono approvate: scrivi la sintesi per decidere se partecipare."",
+      ""produces"": [
+        ""citta-degli-agenti/gara/schede/sintesi.md""
+      ]
+    }
   ],
   ""loops"": [
-    { ""id"": ""rifacimento"", ""steps"": [""tecnica"", ""contratto"", ""delivery""],
-      ""on"": ""rejected"", ""restart"": ""manual"", ""max"": 2, ""then"": ""stop"" }
+    {
+      ""id"": ""rifacimento"",
+      ""steps"": [
+        ""tecnica"",
+        ""contratto"",
+        ""delivery""
+      ],
+      ""until"": ""approved"",
+      ""restart"": ""manual""
+    }
   ]
 }";
 
@@ -46,21 +128,15 @@ namespace MdExplorer.Features.Tests.Agents
         {
             new AgentRegistryEntry
             {
-                Name = "account-manager", AcceptsMessagesFrom = new List<string> { "user" },
-                Replies = new List<AgentRegistryReply> { new() { Id = "avvia-giro", Label = "Avvia il giro su {codice}" } },
+                Name = "account-manager",
+                Replies = new List<AgentRegistryReply> { new() { Id = "avvia-giro", Label = "Avvia il giro su {codice}", Message = "avvia {codice}" } },
             },
-            Lead("responsabile-tecnico"), Lead("responsabile-legale"), Lead("responsabile-delivery"),
-        };
-
-        private static AgentRegistryEntry Lead(string name) => new()
-        {
-            Name = name,
-            AcceptsMessagesFrom = new List<string> { "account-manager", "user" },
-            OnApprovalNotify = new List<string> { "account-manager" },
+            new AgentRegistryEntry { Name = "responsabile-tecnico" },
+            new AgentRegistryEntry { Name = "responsabile-legale" },
+            new AgentRegistryEntry { Name = "responsabile-delivery" },
         };
 
         private static bool AllFolders(string _) => true;
-
         private static string Issues(WorkflowCheckResult r) => string.Join("\n", r.Issues);
 
         private static WorkflowCheckResult ParseGaraWith(string from, string to)
@@ -76,213 +152,202 @@ namespace MdExplorer.Features.Tests.Agents
             Assert.IsFalse(r.IsValid);
         }
 
+        // ---- lettura ----
+
         [TestMethod]
         public void Read_the_gara_workflow_without_issues()
         {
             var r = WorkflowParser.Parse(Gara);
 
-            Assert.IsTrue(r.IsValid, Issues(r));
             Assert.AreEqual(0, r.Issues.Count, Issues(r));
             var wf = r.Descriptor;
+            Assert.AreEqual(2, wf.Version);
             Assert.AreEqual(6, wf.Steps.Count);
-            Assert.AreEqual(WorkflowStart.AskOwner, wf.Step("tecnica").Start);
-            Assert.AreEqual("avvio", wf.Step("tecnica").Trigger.FromStep);
-            CollectionAssert.AreEqual(new[] { "tecnica", "contratto", "delivery" }, wf.Step("sintesi").Trigger.ApprovalOf);
-            Assert.AreEqual(2, wf.Loops.Single().Max);
-            Assert.AreEqual("Cerca i bandi", wf.Step("ricerca").Label);
-            Assert.AreEqual("avvio", wf.Step("avvio").Label, "senza title, l'etichetta è l'id");
+            Assert.IsTrue(wf.Variables.ContainsKey("codice"));
+            Assert.AreEqual(WorkflowTriggerKind.After, wf.Step("tecnica").Trigger.Kind);
+            CollectionAssert.AreEqual(new[] { "tecnica", "contratto", "delivery" }, wf.Step("sintesi").Trigger.After);
+            StringAssert.Contains(wf.Step("tecnica").Brief, "{codice}");
+            var loop = wf.LoopOf("tecnica", WorkflowLoopKind.UntilApproved);
+            Assert.AreEqual(WorkflowLoopKind.UntilApproved, loop.Kind);
+            Assert.IsNull(loop.Max, "senza max: nessun limite");
+            Assert.AreEqual(WorkflowStart.Manual, loop.Restart);
 
-            var project = WorkflowProjectCheck.Check(wf, GaraAgents(), AllFolders);
-            Assert.AreEqual(0, project.Count, string.Join("\n", project));
+            Assert.AreEqual(0, WorkflowProjectCheck.Check(wf, GaraAgents(), AllFolders).Count);
         }
 
         [TestMethod]
         public void Refuse_an_unknown_key_with_its_path()
         {
-            var r = ParseGaraWith(@"""start"": ""ask-owner"",
-      ""produces"": [""citta-degli-agenti/gara/schede/tecnica.md""]",
-                @"""strat"": ""ask-owner"",
-      ""produces"": [""citta-degli-agenti/gara/schede/tecnica.md""]");
-
-            AssertError(r, "steps[2].strat", "chiave sconosciuta 'strat'");
-            AssertError(r, "steps[2].start", "manca 'start'");
+            var r = ParseGaraWith(@"""start"": ""manual"",", @"""strat"": ""manual"",");
+            AssertError(r, "steps[0].strat", "chiave sconosciuta 'strat'");
+            AssertError(r, "steps[0].start", "manca 'start'");
         }
 
         [TestMethod]
-        public void Refuse_a_trigger_with_two_forms()
+        public void Explain_how_to_convert_a_version_1_file()
         {
-            var r = ParseGaraWith(@"{ ""assignment"": ""avvio"" }, ""start"": ""ask-owner"",
-      ""produces"": [""citta-degli-agenti/gara/schede/tecnica.md""]",
-                @"{ ""assignment"": ""avvio"", ""launch"": true }, ""start"": ""ask-owner"",
-      ""produces"": [""citta-degli-agenti/gara/schede/tecnica.md""]");
+            var r = ParseGaraWith(@"""mde_workflow"": 2", @"""mde_workflow"": 1");
+            AssertError(r, "mde_workflow", "versione 1 non più supportata");
+            StringAssert.Contains(r.Issues.Single().Fix, "\"after\"");
+        }
 
-            AssertError(r, "steps[2].trigger", "più forme insieme");
+        [TestMethod]
+        public void Name_the_version_1_trigger_forms()
+        {
+            var r = ParseGaraWith(@"""after"": [
+          ""avvio""
+        ]
+      },
+      ""start"": ""ask-owner"",
+      ""brief"": ""Scrivi la scheda di fattibilità tecnica", @"""assignment"": ""avvio""
+      },
+      ""start"": ""ask-owner"",
+      ""brief"": ""Scrivi la scheda di fattibilità tecnica");
+            AssertError(r, "steps[2].trigger.assignment", "versione 1");
         }
 
         [TestMethod]
         public void Refuse_a_start_that_does_not_fit_the_trigger()
         {
-            var launchAuto = ParseGaraWith(@"""trigger"": { ""launch"": true }, ""start"": ""manual""", @"""trigger"": { ""launch"": true }, ""start"": ""auto""");
-            AssertError(launchAuto, "steps[0].start", "non va con un trigger launch");
-
-            var replyAsk = ParseGaraWith(@"""to"": ""ricerca"" }, ""start"": ""auto""", @"""to"": ""ricerca"" }, ""start"": ""ask-owner""");
-            AssertError(replyAsk, "steps[1].start", "ha già scelto");
-
-            var unknown = ParseGaraWith(@"""trigger"": { ""launch"": true }, ""start"": ""manual""", @"""trigger"": { ""launch"": true }, ""start"": ""subito""");
-            AssertError(unknown, "steps[0].start", "non è un modo di avvio");
+            AssertError(ParseGaraWith(@"""start"": ""manual"",", @"""start"": ""auto"","), "steps[0].start", "non va con un trigger launch");
+            AssertError(ParseGaraWith(@"""start"": ""ask-owner"",
+      ""brief"": ""Scrivi la scheda di fattibilità tecnica", @"""start"": ""manual"",
+      ""brief"": ""Scrivi la scheda di fattibilità tecnica"), "steps[2].start", "non va con un trigger after");
         }
 
         [TestMethod]
-        public void Refuse_a_reference_to_a_missing_step()
+        public void Ask_for_the_brief_of_every_step_the_person_does_not_launch()
         {
-            var r = ParseGaraWith(@"""approval"": [""tecnica"", ""contratto"", ""delivery""]", @"""approval"": [""tecnica"", ""contratti"", ""delivery""]");
-
-            AssertError(r, "steps[5].trigger.approval", "'contratti' non è l'id di nessun passo");
-            StringAssert.Contains(r.Issues.First(i => i.Path == "steps[5].trigger.approval").Fix, "contratto");
+            var r = ParseGaraWith(@"""brief"": ""Scrivi la scheda di fattibilità tecnica sul bando {codice}."",", "");
+            AssertError(r, "steps[2].brief", "manca il testo dell'incarico");
         }
 
         [TestMethod]
-        public void Refuse_steps_that_start_each_other()
+        public void Refuse_a_brief_that_uses_an_undeclared_variable()
         {
-            // avvio parte dall'incarico di tecnica, tecnica dall'incarico di avvio: un giro senza fine non dichiarato.
-            var r = ParseGaraWith(@"""trigger"": { ""reply"": ""avvia-giro"", ""to"": ""ricerca"" }", @"""trigger"": { ""assignment"": ""tecnica"" }");
-
-            Assert.IsTrue(r.Issues.Any(i => i.Message.Contains("si fanno partire a vicenda") && i.Message.Contains("→")), Issues(r));
+            var r = ParseGaraWith("sul bando {codice}.\"", "sul bando {codice} entro {scadenza}.\"");
+            AssertError(r, "steps[2].brief", "'{scadenza}' non è una variabile dichiarata");
         }
 
         [TestMethod]
-        public void Refuse_a_step_that_never_starts_and_a_workflow_with_no_launch()
+        public void Refuse_a_reference_to_a_missing_step_and_steps_that_start_each_other()
         {
-            var noLaunch = ParseGaraWith(@"""trigger"": { ""launch"": true }, ""start"": ""manual""", @"""trigger"": { ""assignment"": ""avvio"" }, ""start"": ""auto""");
-            Assert.IsTrue(noLaunch.Issues.Any(i => i.Message.Contains("nessun passo parte da un lancio") || i.Message.Contains("a vicenda")), Issues(noLaunch));
+            var missing = ParseGaraWith(@"""contratto"",
+          ""delivery""", @"""contratti"",
+          ""delivery""");
+            AssertError(missing, "steps[5].trigger.after", "'contratti' non è l'id di nessun passo");
 
-            var orphan = WorkflowParser.Parse(@"{ ""mde_workflow"": 1, ""title"": ""t"", ""steps"": [
-                { ""id"": ""a"", ""agent"": ""x"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
-                { ""id"": ""b"", ""agent"": ""y"", ""trigger"": { ""assignment"": ""c"" }, ""start"": ""auto"" },
-                { ""id"": ""c"", ""agent"": ""z"", ""trigger"": { ""assignment"": ""b"" }, ""start"": ""auto"" } ] }");
-            Assert.IsFalse(orphan.IsValid);
-            Assert.IsTrue(orphan.Issues.Any(i => i.Message.Contains("non parte mai")), Issues(orphan));
+            var cycle = ParseGaraWith(@"""reply"": ""avvia-giro"",
+        ""to"": ""ricerca""", @"""after"": [""tecnica""]");
+            Assert.IsTrue(cycle.Issues.Any(i => i.Message.Contains("si fanno partire a vicenda")), Issues(cycle));
         }
 
         [TestMethod]
-        public void Accept_only_the_rework_loop_in_v1()
+        public void Accept_both_loop_kinds_as_the_author_writes_them()
         {
-            var r = ParseGaraWith(@"""on"": ""rejected"", ""restart"": ""manual"", ""max"": 2", @"""on"": ""approved"", ""restart"": ""auto"", ""max"": 0");
+            var forLoop = ParseGaraWith(@"""until"": ""approved"",
+      ""restart"": ""manual""", @"""times"": 3");
+            Assert.IsTrue(forLoop.IsValid, Issues(forLoop));
+            Assert.AreEqual(WorkflowLoopKind.Times, forLoop.Descriptor.LoopOf("tecnica", WorkflowLoopKind.Times).Kind);
+            Assert.AreEqual(3, forLoop.Descriptor.LoopOf("tecnica", WorkflowLoopKind.Times).Times);
 
-            AssertError(r, "loops[0].on", "rifacimento");
-            AssertError(r, "loops[0].restart", "niente riparte da solo");
-            AssertError(r, "loops[0].max", "da 1 in su");
+            var capped = ParseGaraWith(@"""restart"": ""manual""", @"""max"": 3,
+      ""restart"": ""auto""");
+            Assert.IsTrue(capped.IsValid, Issues(capped));
+            Assert.AreEqual(3, capped.Descriptor.LoopOf("tecnica", WorkflowLoopKind.UntilApproved).Max);
+            Assert.AreEqual(WorkflowStart.Auto, capped.Descriptor.LoopOf("tecnica", WorkflowLoopKind.UntilApproved).Restart);
+        }
+
+        [TestMethod]
+        public void Refuse_loops_that_mix_kinds_or_miss_their_values()
+        {
+            AssertError(ParseGaraWith(@"""restart"": ""manual""", @"""restart"": ""manual"", ""times"": 2"), "loops[0]", "non tutti e due");
+            AssertError(ParseGaraWith(@"""until"": ""approved"",
+      ""restart"": ""manual""", @"""until"": ""approved"""), "loops[0].restart", "manca 'restart'");
+            AssertError(ParseGaraWith(@"""until"": ""approved"",
+      ""restart"": ""manual""", @"""times"": 1"), "loops[0].times", "da 2 in su");
+            AssertError(ParseGaraWith(@"""restart"": ""manual""", @"""restart"": ""manual"", ""max"": 0"), "loops[0].max", "da 1 in su");
         }
 
         [TestMethod]
         public void Refuse_paths_that_leave_the_project_or_use_backslashes()
         {
-            var back = ParseGaraWith("citta-degli-agenti/gara/schede/tecnica.md", @"citta-degli-agenti\\gara\\schede\\tecnica.md");
-            AssertError(back, "steps[2].produces[0]", "barra '/'");
-
-            var up = ParseGaraWith("citta-degli-agenti/gara/schede/tecnica.md", "../fuori/tecnica.md");
-            AssertError(up, "steps[2].produces[0]", "esce dal progetto");
-
-            var star = ParseGaraWith("citta-degli-agenti/gara/schede/tecnica.md", "citta-degli-agenti/*/tecnica.md");
-            AssertError(star, "steps[2].produces[0]", "solo nel nome del file");
-        }
-
-        [TestMethod]
-        public void Refuse_an_unsupported_version_or_something_that_is_not_json()
-        {
-            AssertError(ParseGaraWith(@"""mde_workflow"": 1", @"""mde_workflow"": 2"), "mde_workflow", "versione 2 non supportata");
-            AssertError(WorkflowParser.Parse("{ non json"), "", "non è JSON valido");
-            Assert.IsNull(WorkflowParser.Parse("[1,2]").Descriptor);
+            AssertError(ParseGaraWith("citta-degli-agenti/gara/schede/tecnica.md", @"citta-degli-agenti\\gara\\schede\\tecnica.md"), "steps[2].produces[0]", "barra '/'");
+            AssertError(ParseGaraWith("citta-degli-agenti/gara/schede/tecnica.md", "../fuori/tecnica.md"), "steps[2].produces[0]", "esce dal progetto");
         }
 
         [TestMethod]
         public void Collect_every_problem_in_one_pass()
         {
-            var r = WorkflowParser.Parse(@"{ ""mde_workflow"": 1, ""steps"": [
+            var r = WorkflowParser.Parse(@"{ ""mde_workflow"": 2, ""steps"": [
                 { ""id"": ""Ricerca"", ""agent"": ""x"", ""trigger"": { ""launch"": true }, ""start"": ""manual"", ""colore"": ""blu"" } ] }");
-
             AssertError(r, "title", "manca 'title'");
             AssertError(r, "steps[0].id", "non è kebab-case");
             AssertError(r, "steps[0].colore", "chiave sconosciuta");
         }
 
+        // ---- progetto ----
+
         [TestMethod]
-        public void Report_in_the_project_what_does_not_exist_as_errors()
+        public void Report_in_the_project_what_does_not_exist_or_would_not_arrive()
         {
             var wf = WorkflowParser.Parse(Gara).Descriptor;
             var agents = GaraAgents().Where(a => a.Name != "responsabile-legale").ToList();
-            agents[0].Replies = new List<AgentRegistryReply>();
+            agents[0].Replies = new List<AgentRegistryReply> { new() { Id = "avvia-giro", Label = "Avvia {codice} entro {scadenza}", Message = "avvia {codice}" } };
 
             var issues = WorkflowProjectCheck.Check(wf, agents, folder => folder != "citta-degli-agenti/gara/ricerche");
 
             string Msg(string path) => string.Join(" | ", issues.Where(i => i.Path == path).Select(i => i.Message));
             StringAssert.Contains(Msg("steps[3].agent"), "non c'è un agente 'responsabile-legale'");
-            StringAssert.Contains(Msg("steps[1].trigger.reply"), "non dichiara la risposta 'avvia-giro'");
-            StringAssert.Contains(Msg("steps[0].produces[0]"), "la cartella 'citta-degli-agenti/gara/ricerche' non esiste");
-            Assert.IsTrue(issues.Where(i => i.Path != null).All(i => i.Severity == WorkflowSeverity.Error), string.Join("\n", issues));
+            StringAssert.Contains(Msg("steps[0].produces[0]"), "'citta-degli-agenti/gara/ricerche' non esiste");
+            StringAssert.Contains(Msg("steps[1].trigger.reply"), "'{scadenza}', che non è una variabile del workflow");
+
+            agents[0].Replies = new List<AgentRegistryReply>();
+            StringAssert.Contains(string.Join(" | ", WorkflowProjectCheck.Check(wf, agents, AllFolders).Select(i => i.Message)),
+                "non dichiara la risposta 'avvia-giro'");
         }
 
-        [TestMethod]
-        public void Warn_where_the_cards_route_differently()
-        {
-            var wf = WorkflowParser.Parse(Gara).Descriptor;
-            var agents = GaraAgents();
-            agents.Single(a => a.Name == "responsabile-tecnico").AcceptsMessagesFrom = new List<string> { "user" };
-            agents.Single(a => a.Name == "responsabile-delivery").OnApprovalNotify = new List<string>();
-
-            var issues = WorkflowProjectCheck.Check(wf, agents, AllFolders);
-
-            Assert.AreEqual(2, issues.Count, string.Join("\n", issues));
-            Assert.IsTrue(issues.All(i => i.Severity == WorkflowSeverity.Warning));
-            StringAssert.Contains(issues.Single(i => i.Path == "steps[2].trigger.assignment").Message, "accepts_messages_from");
-            StringAssert.Contains(issues.Single(i => i.Path == "steps[5].trigger.approval").Message, "'responsabile-delivery'");
-        }
+        // ---- regola dei passi ----
 
         [TestMethod]
-        public void Refuse_a_reply_step_given_to_another_agent()
-        {
-            var wf = ParseGaraWith(@"{ ""id"": ""avvio"", ""agent"": ""account-manager""", @"{ ""id"": ""avvio"", ""agent"": ""responsabile-tecnico""").Descriptor;
-
-            var issues = WorkflowProjectCheck.Check(wf, GaraAgents(), AllFolders);
-
-            Assert.IsTrue(issues.Any(i => i.Path == "steps[1].agent" && i.Severity == WorkflowSeverity.Error && i.Message.Contains("arriva a 'account-manager'")),
-                string.Join("\n", issues));
-        }
-
-        [TestMethod]
-        public void Find_the_step_an_assignment_starts_and_who_starts_it()
+        public void Find_the_step_a_message_starts_and_who_starts_it()
         {
             var wf = WorkflowParser.Parse(Gara).Descriptor;
 
             var tecnica = WorkflowStartPolicy.StepFor(wf, "account-manager", "responsabile-tecnico", isApproval: false);
             Assert.AreEqual("tecnica", tecnica?.Id);
             Assert.AreEqual(WorkflowStart.AskOwner, tecnica.Start);
-
-            var sintesi = WorkflowStartPolicy.StepFor(wf, "user", "account-manager", isApproval: true);
-            Assert.AreEqual("sintesi", sintesi?.Id, "l'avviso di approvazione arriva da «user» ma è un'approvazione");
-            Assert.AreEqual(WorkflowStart.Auto, sintesi.Start);
+            Assert.AreEqual("sintesi", WorkflowStartPolicy.StepFor(wf, "user", "account-manager", isApproval: true)?.Id);
+            Assert.IsNull(WorkflowStartPolicy.StepFor(wf, "user", "account-manager", isApproval: false), "la persona ha già deciso");
+            Assert.IsNull(WorkflowStartPolicy.StepFor(wf, "responsabile-legale", "responsabile-tecnico", isApproval: false), "non previsto");
         }
 
         [TestMethod]
-        public void Leave_the_person_and_unknown_routes_to_the_caller()
+        public void Know_the_foreseen_approval_notices_and_assignees()
         {
             var wf = WorkflowParser.Parse(Gara).Descriptor;
 
-            Assert.IsNull(WorkflowStartPolicy.StepFor(wf, "user", "account-manager", isApproval: false), "la persona ha già deciso");
-            Assert.IsNull(WorkflowStartPolicy.StepFor(wf, "responsabile-legale", "responsabile-tecnico", isApproval: false),
-                "un incarico che il workflow non descrive non ha passo: lo decide chi chiama");
+            Assert.AreEqual("sintesi", WorkflowStartPolicy.ApprovalStepFor(wf, "responsabile-legale", "account-manager")?.Id);
+            Assert.IsNull(WorkflowStartPolicy.ApprovalStepFor(wf, "account-manager", "responsabile-legale"));
+            StringAssert.Contains(WorkflowStartPolicy.NotForeseen(wf, "account-manager", "responsabile-qualita"),
+                "responsabile-tecnico, responsabile-legale, responsabile-delivery");
+            StringAssert.Contains(WorkflowStartPolicy.NotForeseen(wf, "responsabile-tecnico", "responsabile-legale"), "vengono: account-manager");
+
         }
 
         [TestMethod]
-        public void Prefer_asking_the_owner_when_two_steps_match()
+        public void Limit_reworks_only_when_the_author_writes_a_max()
         {
-            var wf = ParseGaraWith(@"""trigger"": { ""assignment"": ""avvio"" }, ""start"": ""ask-owner"",
-      ""produces"": [""citta-degli-agenti/gara/schede/delivery.md""]",
-                @"""trigger"": { ""assignment"": ""avvio"" }, ""start"": ""auto"",
-      ""produces"": [""citta-degli-agenti/gara/schede/delivery.md""]").Descriptor;
-            wf.Step("delivery").Agent = "responsabile-tecnico";
+            var wf = WorkflowParser.Parse(Gara).Descriptor;
+            Assert.IsNull(WorkflowStartPolicy.ReworksLeft(wf, wf.Step("tecnica"), 5, out _), "ciclo senza max: nessun limite");
+            Assert.IsNull(WorkflowStartPolicy.ReworksLeft(wf, wf.Step("sintesi"), 5, out _), "nessun ciclo: nessun limite (W9)");
 
-            Assert.AreEqual(WorkflowStart.AskOwner, WorkflowStartPolicy.StepFor(wf, "account-manager", "responsabile-tecnico", false).Start);
+            var capped = ParseGaraWith(@"""restart"": ""manual""", @"""max"": 2,
+      ""restart"": ""manual""").Descriptor;
+            Assert.AreEqual(2, WorkflowStartPolicy.ReworksLeft(capped, capped.Step("tecnica"), 1, out _));
+            Assert.AreEqual(1, WorkflowStartPolicy.ReworksLeft(capped, capped.Step("tecnica"), 2, out _));
+            Assert.AreEqual(0, WorkflowStartPolicy.ReworksLeft(capped, capped.Step("tecnica"), 3, out var why));
+            StringAssert.Contains(why, "già stato rifatto 2 volte");
         }
 
         [TestMethod]
@@ -300,11 +365,27 @@ namespace MdExplorer.Features.Tests.Agents
                 System.IO.File.WriteAllText(System.IO.Path.Combine(folder, "altro.md"), "---\nmde_type: ownership\n---\n");
                 var ex = Assert.ThrowsException<System.InvalidOperationException>(() => WorkflowDocument.JsonPathOf(root, "gara/altro.md"));
                 StringAssert.Contains(ex.Message, "mde_type: workflow");
-
-                ex = Assert.ThrowsException<System.InvalidOperationException>(() => WorkflowDocument.JsonPathOf(root, "gara/manca.md"));
-                StringAssert.Contains(ex.Message, "non esiste");
             }
             finally { System.IO.Directory.Delete(root, true); }
+        }
+
+        [TestMethod]
+        public void Allow_a_for_loop_and_an_until_loop_on_the_same_step_but_not_two_of_a_kind()
+        {
+            // «Tre giri voluti, ciascuno approvato; se rifiutata si rifà al massimo due volte»: due cicli, uno per tipo.
+            var both = ParseGaraWith(@"""restart"": ""manual""
+    }", @"""restart"": ""manual"", ""max"": 2
+    },
+    { ""id"": ""giri"", ""steps"": [""tecnica""], ""times"": 3 }");
+            Assert.IsTrue(both.IsValid, Issues(both));
+            Assert.AreEqual(3, both.Descriptor.LoopOf("tecnica", WorkflowLoopKind.Times).Times);
+            Assert.AreEqual(2, WorkflowStartPolicy.ReworksLeft(both.Descriptor, both.Descriptor.Step("tecnica"), 1, out _));
+
+            var twice = ParseGaraWith(@"""restart"": ""manual""
+    }", @"""restart"": ""manual""
+    },
+    { ""id"": ""ancora"", ""steps"": [""tecnica""], ""until"": ""approved"", ""restart"": ""auto"" }");
+            Assert.IsTrue(twice.Issues.Any(i => i.Path == "loops[1].steps[0]" && i.Message.Contains("dello stesso tipo")), Issues(twice));
         }
     }
 }

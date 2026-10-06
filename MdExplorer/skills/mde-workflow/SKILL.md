@@ -1,9 +1,9 @@
 ---
 name: mde-workflow
-description: Author or change an agents' workflow for MdExplorer's agent city - the `*.workflow.json` that says how people and their agents pass work to each other (who assigns whom, who starts each agent, who waits for whom, how many times rejected work may be redone) and the markdown document that draws it. Use when the user asks to design, describe, review or fix how the agents of a project work together.
+description: Plan an agents' workflow for MdExplorer's agent city - the `*.workflow.json` that MdExplorer executes as a scheduler (which steps there are, what starts each one, who starts it, what the agent receives, which steps wait for which, which steps repeat) and the markdown document that draws it. Use when the user asks to design, describe, review or fix how the people and the agents of a project work together.
 mde:
   origin: mdexplorer
-  version: 1
+  version: 3
   updatePolicy: replace
 ---
 
@@ -17,46 +17,67 @@ block (or change `origin` to something else) — MdExplorer will then leave the
 file alone.
 -->
 
-# Writing an agents' workflow (`*.workflow.json`)
+# Planning an agents' workflow (`*.workflow.json`)
 
-A workflow is **the rule** for how work changes hands in a project's agent city. MdExplorer reads it and applies it;
-a markdown document shows it as a diagram that MdExplorer draws from it. Two files, always together:
+The workflow is the **common vocabulary** between you and MdExplorer. **You plan** the work in it; **MdExplorer executes
+it** with fixed rules, like a scheduler: when a step is finished it starts the next ones, it waits where you say to wait,
+it repeats what you say to repeat. **Agents do only their own step** — what their card says — and write to the person;
+they never decide who comes next.
+
+Two files, always together:
 
 | File | What it is | Who reads it |
 |---|---|---|
-| `<name>.workflow.json` | the rule, in the standard below | MdExplorer, and you |
-| `workflow.md` (or any name) | `mde_type: workflow`, a short text and the generated diagram | people |
+| `<name>.workflow.json` | the plan, in the vocabulary below | MdExplorer, and you |
+| `workflow.md` (or any name) | `mde_type: workflow`, a short text and the diagram MdExplorer draws from the JSON | people |
 
-Keep the split with the agent cards sharp:
+The split with the agent cards (`.agent.md`, see the `mde-agent` skill):
 
-- **The card** (`.agent.md`, see the `mde-agent` skill) says **how an agent does its job**: what it reads, what it writes, in
-  which format.
-- **The workflow** says **how people and their agents pass the work**: who assigns whom, who starts each agent, who waits
-  for whom, what happens after an approval or a rejection.
+- **The card** says **how an agent does its step**: what it reads, what it writes, in which format, what it tells the person.
+- **The workflow** says **how the work moves**: which steps, in which order, who starts each one, what each agent receives.
 
-Never put the workflow into a card's body, and never put an agent's instructions into the workflow.
+Never put the workflow into a card's body ("then send an assignment to X", "when the three sheets are approved…"), and
+never put an agent's working instructions into the workflow.
+
+## What MdExplorer does with it
+
+When the project points at the workflow's document (`agentCity.workflowDoc` in `.development.yml`, the "Workflow
+document" field of the project settings):
+
+- A step starts when what it waits for has happened; MdExplorer sends its agent the step's **`brief`**, with the round's
+  variables filled in and the paths of the artifacts of the steps it waits for.
+- **`ask-owner`**: the step waits in its owner's mail as "To start"; the owner starts it from the launch screen (adding
+  instructions, choosing engine and model) or declines it with a reason.
+- A message between agents that the workflow does not describe is **refused**: hand-overs are the workflow's, not the
+  agents'.
+- **Loops are yours.** MdExplorer imposes no limit: with no loop, "Restart" after a rejection is always possible; with a
+  loop, it does exactly what the loop says.
+- A workflow with errors stops the hand-overs and says so: without the plan MdExplorer cannot know who starts what.
 
 ## Ask first (if the user has not said)
 
 1. **The people and their agents.** Who takes part, and which agent works for whom (the ownership document,
-   `mde_type: ownership`, already says it if it exists: read it).
+   `mde_type: ownership`, says it if it exists: read it).
 2. **What starts the process.** Usually one person launching one agent by hand.
-3. **For every hand-over: who starts the next agent.** The person responsible for it, from a launch screen (`ask-owner`),
-   or nobody because it starts by itself (`auto`)? When two different people are involved, the answer is almost always
+3. **The steps and their order.** What each agent produces, and which steps can run side by side.
+4. **Who starts each step.** Its owner from a launch screen (`ask-owner`), or nobody because it starts by itself (`auto`)?
+   When the step's agent works for a different person than the one who triggered it, the answer is almost always
    `ask-owner`: an agent works for its person, and its person decides when it starts.
-4. **What each agent produces** (the artifact's path) and **who waits for what** (for example: the summary waits for all
-   three sheets).
-5. **Rework.** After a person rejects a piece of work, how many times may it be started again?
+5. **The choices the person makes on the way** (a reply button, for example "start the round on tender X") and the values
+   they carry: they become the round's variables.
+6. **Repetitions.** Does some work get redone after a rejection, by whom, and how many times at most? Is some work done a
+   fixed number of rounds on purpose?
 
 If you cannot ask, decide, write the decision in the document's text, and tell the user.
 
-## The standard, version 1
+## The vocabulary, version 2
 
 ```json
 {
-  "mde_workflow": 1,
+  "mde_workflow": 2,
   "title": "Tender: from the call to the summary",
   "description": "optional, one sentence",
+  "variables": { "code": "the code of the tender chosen with «Start the round»" },
   "steps": [ ... ],
   "loops": [ ... ]
 }
@@ -66,7 +87,7 @@ Keys are English, values are free. **Every key that is not listed here is an err
 
 ### A step (`steps[]`)
 
-A step is **one turn of work of one agent**: what makes it start, who starts it, what it produces.
+A step is **one turn of work of one agent**.
 
 | Key | Required | Value |
 |---|---|---|
@@ -75,6 +96,7 @@ A step is **one turn of work of one agent**: what makes it start, who starts it,
 | `title` | no | the label in the diagram, a few words ("Technical sheet"). Without it, the `id` |
 | `trigger` | yes | what makes it start: **exactly one** of the forms below |
 | `start` | yes | who starts it: `manual`, `ask-owner`, `auto` |
+| `brief` | yes, except for a launch | what MdExplorer sends the agent when the step starts, with `{variables}` |
 | `produces` | no | artifact paths from the project's root, `/` as separator; `*` only in the file name |
 
 The forms of `trigger`, and the `start` each one allows:
@@ -82,43 +104,60 @@ The forms of `trigger`, and the `start` each one allows:
 | Form | Means | `start` |
 |---|---|---|
 | `{ "launch": true }` | a person launches the agent by hand | `manual` |
-| `{ "reply": "<reply id>", "to": "<step id>" }` | a person presses a reply button under the message of that step | `auto` |
-| `{ "assignment": "<step id>" }` | the agent of that step sends an `[INCARICO]` | `ask-owner`, `auto` |
-| `{ "approval": ["<step id>", …], "wait": "all" \| "any" }` | the artifacts of those steps are approved | `ask-owner`, `auto` |
+| `{ "reply": "<reply id>", "to": "<step id>" }` | a person presses a reply button under the message of that step | `ask-owner`, `auto` |
+| `{ "after": ["<step id>", …], "wait": "all" \| "any" }` | those steps are finished | `ask-owner`, `auto` |
 
-- `reply`: the button is under the message written by the agent of the `to` step, so **the step's `agent` is that same
-  agent**, and the reply id must be **declared** in its card (`a2a.replies`). Pressing the button is already the
-  person's choice: `start` is `auto`.
-- `approval` with more than one step and `wait: all` is **a wait**: the diagram draws it as a join. `wait` defaults to `all`.
+- **Finished** means: its artifact is approved, for a step that `produces`; its agent has finished, for one that does not.
+- `after` with more than one step is **a wait**: `all` (default) starts at the last one, `any` at the first.
+- `reply`: the button is declared in the card of the agent of the `to` step (`a2a.replies`). The step it starts can be of
+  **any** agent: pressing the button is the person's choice, MdExplorer does the rest. The values the button carries
+  (`{code}` in the reply's texts) become the round's variables: **declare each one in `variables`**.
+
+### The brief
+
+The brief is the assignment: what the agent must do in this step, in a sentence or two, with the round's variables.
+
+- Write **what to produce and on what**, not how ("Write the technical sheet on tender {code}."): the how is in the card.
+- Every `{name}` must be declared in `variables`.
+- Do not list the input files: MdExplorer adds the paths of the artifacts of the steps this one waits for.
 
 ### A loop (`loops[]`)
 
-Version 1 has one kind of loop: **rework after a rejection**, restarted by a person.
+Two kinds, both the author's choice. A step is in at most **one loop of each kind**.
+
+**"Until"** — after a rejection the step is redone, until it is approved:
 
 ```json
-{ "id": "rework", "steps": ["technical", "legal"], "on": "rejected", "restart": "manual", "max": 2, "then": "stop" }
+{ "id": "rework", "steps": ["technical", "legal"], "until": "approved", "restart": "manual", "max": 3 }
 ```
 
-`on`, `restart` and `then` take exactly those values; `max` is an integer from 1. Steps in a loop should declare
-`produces`: what is redone is a rejected artifact.
+- `restart`: `manual` (the person presses "Restart", the usual choice) or `auto` (it restarts by itself, with the reason
+  of the rejection).
+- `max`: how many times at most; **leave it out for no limit**.
 
-## Rules that make a workflow right
+**"For"** — the step is done a fixed number of rounds on purpose, each one approved; the next steps start after the last:
 
-1. **One step per turn of an agent, not per agent.** An agent that searches, and later (after the person presses a
-   button) sends the assignments, has **two** steps: the button does not send anything by itself, the agent's second turn
-   does. The same agent can appear in many steps.
-2. **Everything starts from a launch.** At least one step has `"launch": true`; every other step must be reachable from
-   one, through the triggers.
-3. **No cycles between steps** in version 1: steps form a chain that never goes back. Redoing rejected work is a loop,
-   declared in `loops`, not a trigger that points backwards.
-4. **`ask-owner` between people.** When an agent assigns work to another person's agent, that person starts it.
-   Use `auto` only when the same person has already decided (a reply button) or when the user asked for it explicitly.
-5. **Artifact folders exist.** Every folder in `produces` must already be in the project (with a `README.md`): not every
-   engine creates folders.
-6. **The cards must agree.** For an `assignment`, the receiving agent's card accepts messages from the sender
-   (`accepts_messages_from`); for an `approval`, each producer's card notifies the waiting agent (`on_approval_notify`).
-   When they do not, the check gives a warning: tell the user which card to change. Changing `a2a:` in a card asks the
-   person to trust the agent again.
+```json
+{ "id": "review-rounds", "steps": ["draft"], "times": 3 }
+```
+
+**Both on the same step**: each round of the "for" is redone after a rejection as the "until" says. "Three review rounds,
+each approved; a rejected round is redone at most twice" is a `times: 3` loop and an `until` loop with `max: 2` on the
+same step.
+
+Without a loop a rejected step can still be restarted, as many times as the person wants: write a loop only when the
+repetition is part of the plan.
+
+## Rules that make a plan right
+
+1. **One step per turn of an agent, not per agent.** The same agent can appear in many steps (it searches, and later it
+   writes the summary).
+2. **Everything starts from a launch.** Every step must be reachable from a `"launch": true` through the triggers.
+3. **No step points backwards.** Steps form a chain; repetitions are loops, not triggers that go back.
+4. **`ask-owner` between people.** Use `auto` only when the same person already decided, or when the user asked for it.
+5. **Artifact folders exist.** Every folder in `produces` must already be in the project (with a `README.md`).
+6. **Cards do not route.** If a card tells its agent to write to a colleague, that message will be refused: remove it from
+   the card, and make it a step.
 
 ## The document
 
@@ -143,10 +182,11 @@ One or two sentences on how to read it: each box is a turn of an agent; a click 
 on a file opens the artifact.
 ````
 
-- **Never draw the workflow by hand** and never paste a PlantUML copy of it: the block `plantuml(@workflow, …)` draws it
-  from the JSON every time, so it is never out of date. A workflow with errors is not drawn: the errors are shown instead.
-- In the diagram: blue = a person launches it, amber = its responsible person starts it, grey = it starts by itself;
-  the hexagon is a wait; the red dashed arrow is rework; a dashed file is an artifact not written yet.
+- **Never draw the workflow by hand**: the block `plantuml(@workflow, …)` draws it from the JSON every time. A workflow
+  with errors is not drawn: the errors are shown instead.
+- In the diagram: blue = a person launches it, amber = its owner starts it, grey = it starts by itself; the hexagon is a
+  wait; the red dashed arrow is "until approved"; the thick blue arrow is "for N rounds"; a dashed file is an artifact not
+  written yet.
 - Put the document next to the ownership document, and link the two.
 
 ## Check before handing it over
@@ -156,7 +196,8 @@ time you write or change a workflow.
 
 - `valid: false`: there are `error` issues. Each has the JSON `path` (`steps[2].trigger`), the reason and often the
   `fix`. Fix **all** of them and check again. Do not hand over a workflow with errors.
-- `warning` issues: the workflow is valid, but a card routes differently. Tell the user and let them decide.
+- `warning` issues: the plan is valid but something looks wrong (for example a loop "until approved" on a step that
+  produces nothing). Tell the user.
 - An HTTP or connection error means the file was **not** checked: do not change it because of that; say so.
 
 Without the MCP tool, the same check is `GET /api/A2A/workflow/check?projectPath=<folder>&path=<file>` on the running
@@ -164,57 +205,62 @@ MdExplorer.
 
 ## A complete example
 
-A tender round: the account manager's agent searches, the person presses "Start the round", the agent assigns three
-sheets to three colleagues' agents, each colleague starts their own agent, and the summary waits for all three approvals.
+A tender round: the account manager's agent searches; the person presses "Start the round on {code}" under the search;
+three colleagues' agents write their sheets, each started by its owner; the summary waits for all three approvals. A
+rejected sheet is redone when the person says so, with no limit.
 
 ```json
 {
-  "mde_workflow": 1,
+  "mde_workflow": 2,
   "title": "Tender: from the call to the summary",
+  "variables": { "code": "the code of the tender chosen with «Start the round»" },
   "steps": [
     { "id": "search", "agent": "account-manager", "title": "Search the calls",
       "trigger": { "launch": true }, "start": "manual",
       "produces": ["tender/searches/search-*.md"] },
-    { "id": "kick-off", "agent": "account-manager", "title": "Start the round",
-      "trigger": { "reply": "start-round", "to": "search" }, "start": "auto" },
     { "id": "technical", "agent": "technical-lead", "title": "Technical sheet",
-      "trigger": { "assignment": "kick-off" }, "start": "ask-owner",
+      "trigger": { "reply": "start-round", "to": "search" }, "start": "ask-owner",
+      "brief": "Write the technical feasibility sheet on tender {code}.",
       "produces": ["tender/sheets/technical.md"] },
     { "id": "legal", "agent": "legal-lead", "title": "Contract sheet",
-      "trigger": { "assignment": "kick-off" }, "start": "ask-owner",
+      "trigger": { "reply": "start-round", "to": "search" }, "start": "ask-owner",
+      "brief": "Write the contract sheet on tender {code}.",
       "produces": ["tender/sheets/contract.md"] },
     { "id": "delivery", "agent": "delivery-lead", "title": "Delivery sheet",
-      "trigger": { "assignment": "kick-off" }, "start": "ask-owner",
+      "trigger": { "reply": "start-round", "to": "search" }, "start": "ask-owner",
+      "brief": "Write the delivery sheet (team and timing) on tender {code}.",
       "produces": ["tender/sheets/delivery.md"] },
     { "id": "summary", "agent": "account-manager", "title": "Summary to decide",
-      "trigger": { "approval": ["technical", "legal", "delivery"], "wait": "all" }, "start": "auto",
+      "trigger": { "after": ["technical", "legal", "delivery"], "wait": "all" }, "start": "auto",
+      "brief": "The three sheets on tender {code} are approved: write the summary to decide whether to bid.",
       "produces": ["tender/sheets/summary.md"] }
   ],
   "loops": [
-    { "id": "rework", "steps": ["technical", "legal", "delivery"],
-      "on": "rejected", "restart": "manual", "max": 2, "then": "stop" }
+    { "id": "rework", "steps": ["technical", "legal", "delivery"], "until": "approved", "restart": "manual" }
   ]
 }
 ```
 
-The project's demo has the same round in Italian: `citta-degli-agenti/gara/gara.workflow.json` and `workflow.md`.
+The project's demo has the round in Italian: `citta-degli-agenti/gara/gara.workflow.json` and `workflow.md`.
 
 ## Checklist before handing it over
 
-- [ ] `mde_workflow: 1`, a `title`, at least one step with `"launch": true` and `"start": "manual"`.
+- [ ] `mde_workflow: 2`, a `title`, at least one step with `"launch": true` and `"start": "manual"`.
 - [ ] One step per turn of an agent; ids kebab-case and unique; every `agent` exists in the project.
 - [ ] Every trigger has exactly one form, and `start` fits it (table above).
-- [ ] Hand-overs between different people's agents use `ask-owner`, unless the user asked otherwise.
-- [ ] No step points backwards; rework is in `loops`, with a `max`.
+- [ ] Every step that is not a launch has a `brief`; every `{variable}` is declared in `variables`.
+- [ ] Every value a reply button carries is declared in `variables`.
+- [ ] No step points backwards; repetitions are loops, with the limits the user wants (or none).
 - [ ] `produces` paths start from the project's root, and their folders exist.
+- [ ] The cards do not route (no "send an assignment to…", no counting of colleagues' sheets).
 - [ ] `CheckWorkflow` answers `valid: true`; you told the user about every warning.
 - [ ] The document has `mde_type: workflow`, the TL;DR, and the `plantuml(@workflow, …)` block; it links the ownership document.
 
 ## What not to do
 
-- Do not draw the workflow in PlantUML by hand, and do not describe it only in prose: the JSON is the rule.
-- Do not add keys that are not in the standard ("notes", "color", "owner"): they are errors, not comments. Explanations
+- Do not draw the workflow in PlantUML by hand, and do not describe it only in prose: the JSON is the plan.
+- Do not add keys that are not in the vocabulary ("notes", "color", "owner"): they are errors, not comments. Explanations
   go in the document.
-- Do not make a step `auto` to "save a click" when another person is responsible for the agent: that person decides.
-- Do not hide a loop in the triggers (A assigns B, B assigns A): version 1 refuses it.
-- Do not change an agent card's `a2a:` to make a warning go away without telling the user.
+- Do not add a limit nobody asked for: a loop's `max` is the user's decision.
+- Do not make a step `auto` to "save a click" when another person is responsible for its agent: that person decides.
+- Do not hide a repetition in the triggers (A after B, B after A): it is refused; write a loop.

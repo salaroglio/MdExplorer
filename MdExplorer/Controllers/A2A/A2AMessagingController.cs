@@ -195,6 +195,18 @@ namespace MdExplorer.Controllers.A2A
             if (!MessageAuthorization.IsSenderAccepted(recipient.AcceptsMessagesFrom, claims.AgentName))
                 return StatusCode(403, new { error = $"'{claims.AgentName}' non è tra i mittenti accettati da '{to}' (accepts_messages_from)." });
 
+            // Il workflow del progetto, se c'è, è la regola di come si passa il lavoro: un passaggio che non descrive non
+            // parte, e l'agente sa perché e cosa può fare. Si dice adesso, a chi scrive, non dopo nella coda.
+            var workflow = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(
+                claims.ProjectPath, _projectMetadata.GetAgentCity(claims.ProjectPath)?.WorkflowDoc, out var workflowProblem);
+            if (workflowProblem != null)
+                return Conflict(new { error = $"Il workflow del progetto non si legge ({workflowProblem}): finché non è corretto non so se questo passaggio è previsto. Dillo alla persona." });
+            if (workflow != null && MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.StepFor(workflow, claims.AgentName, to, isApproval: false) == null)
+            {
+                _logger.LogWarning("[A2A/send] {From} -> {To} rifiutato: il workflow non lo prevede", claims.AgentName, to);
+                return StatusCode(403, new { error = MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.NotForeseen(workflow, claims.AgentName, to) });
+            }
+
             var result = _mailbox.Enqueue(new EnqueueRequest
             {
                 ProjectPath = claims.ProjectPath,

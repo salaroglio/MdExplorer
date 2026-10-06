@@ -101,27 +101,36 @@ namespace MdExplorer.Features.Agents.Workflow
                     case WorkflowTriggerKind.Reply:
                         sb.AppendLine($"{Node(t.FromStep)} --> {Node(s.Id)} : pulsante\\n«{Text(t.ReplyId)}»");
                         break;
-                    case WorkflowTriggerKind.Assignment:
-                        sb.AppendLine($"{Node(t.FromStep)} --> {Node(s.Id)} : incarico");
-                        break;
-                    case WorkflowTriggerKind.Approval when IsJoin(s):
-                        foreach (var of in t.ApprovalOf)
-                            sb.AppendLine($"{Node(of)} --> {Join(s.Id)} : approvato");
+                    // Un passo che produce un artefatto è finito quando è approvato; uno che non ne produce, quando ha finito.
+                    case WorkflowTriggerKind.After when IsJoin(s):
+                        foreach (var of in t.After)
+                            sb.AppendLine($"{Node(of)} --> {Join(s.Id)} : {Done(wf, of)}");
                         sb.AppendLine($"{Join(s.Id)} --> {Node(s.Id)}");
                         break;
-                    case WorkflowTriggerKind.Approval:
-                        sb.AppendLine($"{Node(t.ApprovalOf.Single())} --> {Node(s.Id)} : approvato");
+                    case WorkflowTriggerKind.After:
+                        sb.AppendLine($"{Node(t.After.Single())} --> {Node(s.Id)} : {Done(wf, t.After.Single())}");
                         break;
                 }
             }
+            // I cicli si disegnano a destra del passo (PlantUML li mette sempre lì): il file di un passo con un ciclo va a
+            // sinistra, altrimenti frecce ed etichette si accavallano. Ma non se il passo ha fratelli affiancati (che partono
+            // dagli stessi passi): lì il file a sinistra finisce lontano e le frecce attraversano il diagramma.
             foreach (var s in steps)
+            {
+                var sources = s.Trigger?.Sources.OrderBy(x => x).ToList() ?? new List<string>();
+                var hasSiblings = steps.Any(o => o != s && o.Trigger != null && o.Trigger.Sources.OrderBy(x => x).SequenceEqual(sources));
+                var side = wf.Loops.Any(l => l.Steps.Contains(s.Id)) && !hasSiblings ? "left" : "right";
                 for (var i = 0; i < s.Produces.Count; i++)
-                    sb.AppendLine($"{Node(s.Id)} .right.> {File(s.Id, i)}");
+                    sb.AppendLine($"{Node(s.Id)} .{side}.> {File(s.Id, i)}");
+            }
 
-            // Il rifacimento: una freccia rossa tratteggiata che torna sul passo. La spiegazione sta nella legenda.
-            var reworked = wf.Loops.SelectMany(l => l.Steps).Distinct().Where(id => steps.Any(s => s.Id == id)).ToList();
-            foreach (var id in reworked)
-                sb.AppendLine($"{Node(id)} -[{ErrorLine},dashed]-> {Node(id)}");
+            // I cicli: una freccia che torna sul passo. Rossa tratteggiata = si rifà dopo un rifiuto («fino a che»);
+            // blu = si fanno più giri («for»). La spiegazione, con i numeri, sta nella legenda.
+            foreach (var loop in wf.Loops)
+                foreach (var id in loop.Steps.Where(id => steps.Any(s => s.Id == id)))
+                    sb.AppendLine(loop.Kind == WorkflowLoopKind.Times
+                        ? $"{Node(id)} -[{FocusLine},bold]-> {Node(id)} : ×{loop.Times}"
+                        : $"{Node(id)} -[{ErrorLine},dashed]-> {Node(id)}");
 
             sb.AppendLine();
             sb.AppendLine("legend right");
@@ -131,7 +140,15 @@ namespace MdExplorer.Features.Agents.Workflow
             if (starts.Contains(WorkflowStart.Auto)) sb.AppendLine($"  <back:{Neutral}>   </back> parte da solo");
             if (anyMissing) sb.AppendLine("  <color:#9AA0A6>- - -</color> artefatto non ancora scritto");
             foreach (var loop in wf.Loops.Where(l => l.Id != null))
-                sb.AppendLine($"  <color:{ErrorLine}>- - ></color> {Text(loop.Id)} ({Text(string.Join(", ", loop.Steps))}): dopo un rifiuto, «Fai ripartire», al massimo {loop.Max} {(loop.Max == 1 ? "volta" : "volte")}");
+            {
+                var which = Text(string.Join(", ", loop.Steps));
+                if (loop.Kind == WorkflowLoopKind.Times)
+                    sb.AppendLine($"  <color:{FocusLine}>⟳</color> {Text(loop.Id)} ({which}): {loop.Times} giri, ciascuno approvato; poi si va avanti");
+                else
+                    sb.AppendLine($"  <color:{ErrorLine}>- - ></color> {Text(loop.Id)} ({which}): dopo un rifiuto si rifà " +
+                                  (loop.Restart == WorkflowStart.Auto ? "da solo" : "quando la persona preme «Fai ripartire»") +
+                                  (loop.Max == null ? ", finché non è approvato" : $", al massimo {loop.Max} {(loop.Max == 1 ? "volta" : "volte")}"));
+            }
             sb.AppendLine("endlegend");
             sb.AppendLine("@enduml");
             // AppendLine scrive l'a capo del sistema: su Windows «\r\n». Il diagramma ha sempre «\n», così è identico
@@ -139,7 +156,10 @@ namespace MdExplorer.Features.Agents.Workflow
             return sb.ToString().Replace("\r\n", "\n");
         }
 
-        private static bool IsJoin(WorkflowStep s) => s.Trigger?.Kind == WorkflowTriggerKind.Approval && s.Trigger.ApprovalOf.Count > 1;
+        private static bool IsJoin(WorkflowStep s) => s.Trigger?.Kind == WorkflowTriggerKind.After && s.Trigger.After.Count > 1;
+
+        /// <summary>Quando è finito un passo: approvato se produce un artefatto, finito se no.</summary>
+        private static string Done(WorkflowDescriptor wf, string stepId) => (wf.Step(stepId)?.Produces.Count ?? 0) > 0 ? "approvato" : "finito";
 
         private static string StartText(WorkflowStart start) => start switch
         {

@@ -281,6 +281,13 @@ namespace MdExplorer.Controllers.A2A
             reason = c.Reason,
         };
 
+        private (int? Left, string Why) ReworkOf(AgentMergeRequest r)
+        {
+            if (r.Status != AgentMergeRequest.StatusEnum.Rejected || !_requests.SomeoneIsWaitingFor(r)) return (null, null);
+            var left = _requests.ReworksLeft(r, out var why);
+            return (left, left == 0 ? why : null);
+        }
+
         private object ToDto(AgentMergeRequest r, ApprovalNotice notice = null) => new
         {
             id = r.Id,
@@ -294,6 +301,9 @@ namespace MdExplorer.Controllers.A2A
             runId = r.RunId,
             // Qualcuno aspetta questo artefatto (l'aveva chiesto un altro agente): rifiutarlo lo fa rifare.
             someoneWaiting = _requests.SomeoneIsWaitingFor(r),
+            // Rifiutato: quante volte il workflow lascia ancora farlo ripartire (null = senza limite) e, a zero, perché.
+            reworksLeft = ReworkOf(r).Left,
+            reworkBlocked = ReworkOf(r).Why,
             // Sessione d'intervento in corso su questo agente: la UI deve poter mostrare
             // "ci stai lavorando" invece di riproporre "prendi in mano".
             sessionOpen = _sessions.IsHeld(r.ProjectPath, r.AgentName),

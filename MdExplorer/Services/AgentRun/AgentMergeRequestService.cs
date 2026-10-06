@@ -86,6 +86,12 @@ namespace MdExplorer.Services.AgentRun
         /// </summary>
         AgentMergeRequest Rework(Guid id);
 
+        /// <summary>
+        /// Quante volte si può ancora far ripartire questo lavoro rifiutato. Null = nessun limite (il progetto non ha un
+        /// workflow); 0 = non si può, e <paramref name="why"/> dice perché (il massimo del ciclo, o nessun ciclo).
+        /// </summary>
+        int? ReworksLeft(AgentMergeRequest request, out string why);
+
         /// <summary>Il lavoro di questa richiesta l'aveva chiesto un altro agente: qualcuno lo aspetta.</summary>
         bool SomeoneIsWaitingFor(AgentMergeRequest request);
     }
@@ -302,6 +308,9 @@ namespace MdExplorer.Services.AgentRun
             if (WaitingTrigger(request) == null)
                 throw new InvalidOperationException(
                     "Questo lavoro non l'aveva chiesto un altro agente: non c'è un incarico da rimettere in coda. Per riprovare, rilancia l'agente.");
+            // Il workflow dice quante volte si rifà: oltre, il lavoro resta fermo. Lo decide il servizio, non il pulsante.
+            if (ReworksLeft(request, out var notAgain) == 0)
+                throw new InvalidOperationException(notAgain);
             var triggerId = Guid.Parse(request.TriggerMessageId);
 
             using var scope = _scopeFactory.CreateScope();
@@ -334,6 +343,37 @@ namespace MdExplorer.Services.AgentRun
             _logger.LogInformation("[Merge] lavoro di '{Agent}' fatto ripartire dalla persona: l'incarico {Message} torna in coda con il motivo del rifiuto.",
                 request.AgentName, triggerId);
             return request;
+        }
+
+        public int? ReworksLeft(AgentMergeRequest request, out string why)
+        {
+            why = null;
+            var trigger = request == null ? null : WaitingTrigger(request);
+            if (trigger == null) return null;
+
+            using var scope = _scopeFactory.CreateScope();
+            var metadata = scope.ServiceProvider.GetService<MdExplorer.Services.IProjectMetadataService>();
+            var workflow = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(
+                request.ProjectPath, metadata?.GetAgentCity(request.ProjectPath)?.WorkflowDoc, out var problem);
+            if (problem != null)
+            {
+                why = $"Il workflow del progetto non si legge ({problem}): finché non è corretto non so quante volte si può rifare.";
+                return 0;
+            }
+            if (workflow == null) return null;
+
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.Clear();
+            db.BeginTransaction();
+            var key = request.TriggerMessageId;
+            var rejections = db.GetDal<AgentMergeRequest>().GetList().ToList()
+                .Count(r => r.Status == AgentMergeRequest.StatusEnum.Rejected
+                            && string.Equals(r.TriggerMessageId, key, StringComparison.OrdinalIgnoreCase));
+            db.Commit();
+
+            var isApproval = string.Equals(trigger.TriggerSource, "approval", StringComparison.OrdinalIgnoreCase);
+            var step = MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.StepFor(workflow, trigger.FromAgent, trigger.ToAgent, isApproval);
+            return MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.ReworksLeft(workflow, step, Math.Max(1, rejections), out why);
         }
 
         private static bool FromThePerson(AgentMessage m)

@@ -2007,7 +2007,9 @@
     "REWORK": "Restart",
     "REWORK_STARTED": "Assignment queued again: the agent restarts with your reason.",
     "REWORK_FAILED": "Could not restart the work.",
-    "REJECTED_STOPPED": "Rejected: the work is stopped until you restart it."
+    "REJECTED_STOPPED": "Rejected: the work is stopped until you restart it.",
+    "REWORKS_LEFT": "The workflow lets you restart it {{count}} more times.",
+    "REWORKS_LEFT_ONE": "The workflow lets you restart it once more: it is the last time."
   },
   "CHANGES": {
     "OPEN_AGENT_DOCUMENT": "Open the document from the agent's copy",

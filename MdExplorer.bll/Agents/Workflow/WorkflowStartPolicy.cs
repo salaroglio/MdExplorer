@@ -24,18 +24,64 @@ namespace MdExplorer.Features.Agents.Workflow
         public static WorkflowStep StepFor(WorkflowDescriptor wf, string fromAgent, string toAgent, bool isApproval)
         {
             if (wf == null || string.IsNullOrWhiteSpace(toAgent)) return null;
-            IEnumerable<WorkflowStep> candidates;
-            if (isApproval)
-                candidates = wf.Steps.Where(s => Same(s.Agent, toAgent) && s.Trigger?.Kind == WorkflowTriggerKind.Approval);
-            else if (!string.IsNullOrWhiteSpace(fromAgent) && !Same(fromAgent, ConversationHopGuard.UserRecipient))
-                candidates = wf.Steps.Where(s => Same(s.Agent, toAgent)
-                                                 && s.Trigger?.Kind == WorkflowTriggerKind.Assignment
-                                                 && Same(wf.Step(s.Trigger.FromStep)?.Agent, fromAgent));
-            else
-                return null;
+            var fromAnAgent = !string.IsNullOrWhiteSpace(fromAgent) && !Same(fromAgent, ConversationHopGuard.UserRecipient);
+            if (!isApproval && !fromAnAgent) return null;
 
-            var list = candidates.ToList();
+            // Un passo parte dopo altri passi (after): dopo un passo di chi scrive, o (approvazione) dopo un passo che
+            // produce un artefatto, perché solo quello si approva.
+            var list = wf.Steps.Where(s => Same(s.Agent, toAgent)
+                                           && s.Trigger?.Kind == WorkflowTriggerKind.After
+                                           && (isApproval
+                                               ? s.Trigger.After.Any(a => (wf.Step(a)?.Produces.Count ?? 0) > 0)
+                                               : s.Trigger.After.Any(a => Same(wf.Step(a)?.Agent, fromAgent))))
+                               .ToList();
             return list.FirstOrDefault(s => s.Start == WorkflowStart.AskOwner) ?? list.FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Il passo che parte quando la persona approva il lavoro di <paramref name="producer"/> e avvisa
+        /// <paramref name="recipient"/>: un passo di <paramref name="recipient"/> che parte dopo un passo di
+        /// <paramref name="producer"/>. Null = il workflow non prevede questo avviso.
+        /// </summary>
+        public static WorkflowStep ApprovalStepFor(WorkflowDescriptor wf, string producer, string recipient)
+            => wf?.Steps.FirstOrDefault(s => Same(s.Agent, recipient)
+                                             && s.Trigger?.Kind == WorkflowTriggerKind.After
+                                             && s.Trigger.After.Any(of => Same(wf.Step(of)?.Agent, producer)
+                                                                         && (wf.Step(of)?.Produces.Count ?? 0) > 0));
+
+        /// <summary>A chi passa il lavoro un agente secondo il workflow: per dirlo all'agente quando sbaglia.</summary>
+        public static IReadOnlyList<string> AssigneesOf(WorkflowDescriptor wf, string fromAgent)
+            => wf == null ? Array.Empty<string>()
+               : wf.Steps.Where(s => s.Trigger?.Kind == WorkflowTriggerKind.After
+                                     && s.Trigger.After.Any(a => Same(wf.Step(a)?.Agent, fromAgent))
+                                     && !Same(s.Agent, fromAgent))
+                         .Select(s => s.Agent).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+        /// <summary>Il motivo per cui un messaggio tra agenti non è previsto dal workflow, da dare a chi lo manda.</summary>
+        public static string NotForeseen(WorkflowDescriptor wf, string fromAgent, string toAgent)
+        {
+            var allowed = AssigneesOf(wf, fromAgent);
+            return $"Il workflow «{wf?.Title}» non prevede che '{fromAgent}' scriva a '{toAgent}'. " +
+                   (allowed.Count == 0
+                       ? $"Dopo '{fromAgent}' non viene nessun altro agente: scrive solo alla persona."
+                       : $"Dopo '{fromAgent}' vengono: {string.Join(", ", allowed)}.") +
+                   " Se il passaggio serve, va aggiunto al workflow.";
+        }
+
+        /// <summary>
+        /// Quante volte si può ancora far ripartire il lavoro di un passo dopo un rifiuto. Il limite lo decide solo chi scrive
+        /// il workflow (W9): null = nessun limite (nessun ciclo, o un ciclo «fino a che» senza <c>max</c>). <paramref name="rejections"/>
+        /// conta i rifiuti già avuti, compreso l'ultimo.
+        /// </summary>
+        public static int? ReworksLeft(WorkflowDescriptor wf, WorkflowStep step, int rejections, out string why)
+        {
+            why = null;
+            var loop = step == null ? null : wf?.LoopOf(step.Id, WorkflowLoopKind.UntilApproved);
+            if (loop?.Max == null) return null;
+            var left = Math.Max(0, loop.Max.Value - (rejections - 1));
+            if (left == 0)
+                why = $"«{step.Label}» è già stato rifatto {loop.Max} {(loop.Max == 1 ? "volta" : "volte")}: è il massimo che il workflow dà al ciclo «{loop.Id}». Il lavoro resta fermo.";
+            return left;
         }
 
         private static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);

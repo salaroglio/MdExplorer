@@ -2007,7 +2007,9 @@
     "REWORK": "Fai ripartire",
     "REWORK_STARTED": "Incarico rimesso in coda: l'agente riparte con il tuo motivo.",
     "REWORK_FAILED": "Non riesco a far ripartire il lavoro.",
-    "REJECTED_STOPPED": "Rifiutato: il lavoro è fermo finché non lo fai ripartire."
+    "REJECTED_STOPPED": "Rifiutato: il lavoro è fermo finché non lo fai ripartire.",
+    "REWORKS_LEFT": "Il workflow lo lascia far ripartire ancora {{count}} volte.",
+    "REWORKS_LEFT_ONE": "Il workflow lo lascia far ripartire ancora una volta: è l'ultima."
   },
   "CHANGES": {
     "OPEN_AGENT_DOCUMENT": "Apri il documento dalla copia dell'agente",
