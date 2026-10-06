@@ -257,4 +257,36 @@ public sealed class AgentTools : McpToolsBase
             return $"Error connecting to MdExplorer: {ex.Message}";
         }
     }
+
+    [McpServerTool, Description(
+        "Check an agents' workflow file (*.workflow.json, MdExplorer standard v1, see the mde-workflow skill) BEFORE you " +
+        "hand it over, and get back everything that is wrong in one pass. Call it every time you write or edit one. " +
+        "'error' means MdExplorer will not apply the workflow nor draw it: fix each one and check again. " +
+        "'warning' means an agent card routes differently from the workflow (accepts_messages_from, on_approval_notify): " +
+        "tell the user, and fix the card or the workflow as they decide. Each finding has the JSON path, the reason and, " +
+        "when known, the fix. If the answer is an HTTP or connection error, the file was NOT checked: do not change it " +
+        "because of that, report it.")]
+    public async Task<string> CheckWorkflow(
+        [Description("The project's folder (absolute path): the folder you work in, or one returned by GetProjects.")] string projectPath,
+        [Description("The workflow file, from the project's root (e.g. 'process/sales.workflow.json') or absolute inside the project.")] string path)
+    {
+        if (string.IsNullOrWhiteSpace(projectPath)) return "Error: projectPath is required.";
+        if (string.IsNullOrWhiteSpace(path)) return "Error: path is required.";
+
+        var client = _httpClientFactory.CreateClient("MdExplorer");
+        try
+        {
+            var url = "/api/A2A/workflow/check?projectPath=" + Uri.EscapeDataString(projectPath.Trim()) +
+                      "&path=" + Uri.EscapeDataString(path.Trim());
+            var resp = await client.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                return $"Error ({(int)resp.StatusCode}): {body} The workflow was NOT checked.";
+            return body;
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}. The workflow was NOT checked.";
+        }
+    }
 }

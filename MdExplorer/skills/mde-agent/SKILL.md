@@ -3,7 +3,7 @@ name: mde-agent
 description: Author a `.agent.md` agent card for MdExplorer's agent city. Use when the user asks to create, review or fix an agent - name, role, summary, tools, who may write to it, who it hands work to, and the instructions it follows. The card is what the person reads before trusting the agent, so the summary and the tools must agree.
 mde:
   origin: mdexplorer
-  version: 7
+  version: 8
   updatePolicy: replace
 ---
 
@@ -18,6 +18,11 @@ file alone.
 -->
 
 # Writing an agent card (`.agent.md`)
+
+> **The card and the workflow.** The card says *how this agent does its job*. *How the work passes between people and
+> their agents* (who assigns whom, who starts each agent, who waits for whom) belongs to the project's workflow, a
+> `*.workflow.json` written with the `mde-workflow` skill. When a project has one, keep `accepts_messages_from`,
+> `on_approval_notify` and `replies` consistent with it: `CheckWorkflow` reports where they disagree.
 
 An agent in MdExplorer is a markdown file: a YAML header (who it is, what it may do) and a body (what it does). A person
 reads the header **before trusting the agent**, so the header has to tell the truth in plain words.

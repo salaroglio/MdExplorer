@@ -67,7 +67,7 @@ public static class ToolGroups
             "Interrogare il knowledge graph del progetto su Neo4j (concetti, relazioni, Cypher).",
             b => b.WithTools<KnowledgeGraphTools>()),
         new Group(Agents, typeof(AgentTools), false,
-            "La città degli agenti: messaggi fra agenti, richieste di intervento e memoria dei fatti appresi.",
+            "La città degli agenti: messaggi fra agenti, richieste di intervento, memoria dei fatti appresi e verifica del workflow.",
             b => b.WithTools<AgentTools>()),
     };
 
