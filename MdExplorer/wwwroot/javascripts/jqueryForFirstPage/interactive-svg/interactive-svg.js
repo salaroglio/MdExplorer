@@ -888,6 +888,27 @@ var InteractiveSvg = (function() {
      *
      * @param {SVGElement} svg - The SVG element
      */
+    /**
+     * Il link «mde:percorso» del riquadro cliccato (dentro o intorno al riquadro), aperto in MdExplorer come un clic
+     * nell'albero. Il percorso è dalla radice del progetto; il servizio aggiunge «?connectionId=…» a ogni href, e qui
+     * non serve. Restituisce true se c'era un link da aprire.
+     */
+    function openProjectLink(target, box) {
+        var a = (target && target.closest && target.closest('a')) || (box.closest && box.closest('a')) ||
+                (box.querySelector && box.querySelector('a'));
+        if (!a) return false;
+        var href = a.getAttribute('href') || a.getAttribute('xlink:href') || '';
+        if (href.indexOf('mde:') !== 0) return false;
+        var relativePath = href.substring(4).split('?')[0].replace(/^\/+/, '');
+        try { relativePath = decodeURI(relativePath); } catch (e) { /* già in chiaro */ }
+        window.parent.postMessage({
+            type: 'md-navigate',
+            relativePath: '/' + relativePath,
+            name: relativePath.split('/').pop()
+        }, '*');
+        return true;
+    }
+
     function reorderLinks(svg) {
         var mainGroup = svg.querySelector('g');
         if (!mainGroup) return;
@@ -952,6 +973,9 @@ var InteractiveSvg = (function() {
         svg.querySelectorAll(SEL_BOXES).forEach(function(box) {
             box.addEventListener('click', function(e) {
                 e.stopPropagation();
+                // Un riquadro con un link «mde:» (i diagrammi che MdExplorer genera, come il workflow degli agenti) apre
+                // il suo file: è ciò che il link promette. Gli altri riquadri evidenziano i collegamenti, come sempre.
+                if (openProjectLink(e.target, box)) return;
                 handleBoxClick(box, svg, linkMap, options.onSelect);
             });
         });

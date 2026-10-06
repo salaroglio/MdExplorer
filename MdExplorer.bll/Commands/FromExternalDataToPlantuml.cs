@@ -11,6 +11,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Web;
+using MdExplorer.Features.Agents.Workflow;
 
 namespace MdExplorer.Features.Commands
 {
@@ -33,6 +34,9 @@ namespace MdExplorer.Features.Commands
         protected readonly ILogger<FromExternalDataToPlantuml> _logger;
 
         private const int MaxExternalFileSizeBytes = 512_000; // 500 KB — same as the other include commands
+
+        /// <summary>plantuml(@workflow, file.workflow.json): il workflow degli agenti come diagramma generato.</summary>
+        private const string WorkflowDirective = "workflow";
 
         // Directive inside the parens → the PlantUML block that renders that kind of data.
         private static readonly Dictionary<string, (string Open, string Close)> DirectiveToBlock =
@@ -124,9 +128,10 @@ namespace MdExplorer.Features.Commands
             var fileName = match.Groups[2].Value;
             var extraDirectives = match.Groups[3].Value;
 
-            if (!DirectiveToBlock.TryGetValue(directive, out var block))
+            var isWorkflow = string.Equals(directive, WorkflowDirective, StringComparison.OrdinalIgnoreCase);
+            if (!isWorkflow && !DirectiveToBlock.TryGetValue(directive, out _))
             {
-                var supported = string.Join(", ", DirectiveToBlock.Keys.Select(_ => "@" + _));
+                var supported = string.Join(", ", DirectiveToBlock.Keys.Append(WorkflowDirective).Select(_ => "@" + _));
                 return ErrorBlock(match, $"direttiva @{directive} sconosciuta — quelle disponibili sono {supported}");
             }
 
@@ -143,6 +148,12 @@ namespace MdExplorer.Features.Commands
                 return ErrorBlock(match, "il contenuto include un backtick (`), che chiuderebbe il blocco in anticipo — " +
                                          "toglilo dal file oppure incolla il diagramma a mano");
             }
+
+            if (isWorkflow)
+            {
+                return BuildWorkflowBlock(match, fileContent, extraDirectives, requestInfo, absolutePath);
+            }
+            var block = DirectiveToBlock[directive];
 
             if (string.Equals(directive, "json", StringComparison.OrdinalIgnoreCase))
             {
@@ -171,6 +182,67 @@ namespace MdExplorer.Features.Commands
 
             _logger.LogInformation("[FromExternalDataToPlantuml] @{Directive} expanded from {Path}", directive, absolutePath);
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// <c>plantuml(@workflow, file.workflow.json)</c>: il workflow degli agenti diventa un diagramma generato. Un
+        /// workflow con errori non si disegna: si mostrano gli errori, perché un diagramma di una regola sbagliata
+        /// sembrerebbe giusto. Il corpo del blocco, se c'è, va dopo @startuml (un titolo, uno stile).
+        /// </summary>
+        private string BuildWorkflowBlock(Match match, string fileContent, string extraDirectives, RequestInfo requestInfo, string absolutePath)
+        {
+            var parsed = WorkflowParser.Parse(fileContent);
+            if (!parsed.IsValid)
+            {
+                var errors = parsed.Issues.Where(i => i.Severity == WorkflowSeverity.Error).Select(i => "• " + i).ToList();
+                return ErrorBlock(match, $"il workflow ha {errors.Count} {(errors.Count == 1 ? "errore" : "errori")}, non lo disegno:\n" + string.Join("\n", errors));
+            }
+
+            var root = requestInfo?.CurrentRoot;
+            var diagram = WorkflowPlantuml.Render(parsed.Descriptor,
+                agent => FindAgentCard(root, agent),
+                produced => !string.IsNullOrWhiteSpace(root)
+                            && File.Exists(Path.Combine(root, produced.Replace('/', Path.DirectorySeparatorChar))));
+            var trimmedDirectives = extraDirectives.Trim('\r', '\n', ' ', '\t');
+            if (trimmedDirectives.Length > 0)
+                diagram = diagram.Replace("@startuml\n", "@startuml\n" + trimmedDirectives + "\n");
+            if (diagram.IndexOf('`') > -1)
+                return ErrorBlock(match, "il workflow contiene un backtick (`), che chiuderebbe il blocco in anticipo: toglilo dai titoli");
+
+            _logger.LogInformation("[FromExternalDataToPlantuml] @workflow expanded from {Path}", absolutePath);
+            return "\n\n```plantuml\n" + diagram + "```\n\n";
+        }
+
+        /// <summary>
+        /// La scheda di un agente, dalla radice del progetto: <c>&lt;nome&gt;.agent.md</c>, prima nel posto solito
+        /// (<c>.github/agents</c>) poi ovunque nel progetto, mai nelle scrivanie degli agenti. Null se non c'è o se
+        /// ce n'è più d'una: il passo resta senza link, il diagramma non sceglie a caso.
+        /// </summary>
+        private static string FindAgentCard(string projectRoot, string agent)
+        {
+            if (string.IsNullOrWhiteSpace(projectRoot) || string.IsNullOrWhiteSpace(agent) || !Directory.Exists(projectRoot)) return null;
+            var fileName = agent + ".agent.md";
+            var usual = Path.Combine(projectRoot, ".github", "agents", fileName);
+            if (File.Exists(usual)) return ".github/agents/" + fileName;
+
+            var skip = new[] { ".git", ".worktrees", "node_modules", ".md" };
+            var found = new List<string>();
+            var pending = new Stack<string>();
+            pending.Push(projectRoot);
+            while (pending.Count > 0 && found.Count < 2)
+            {
+                var dir = pending.Pop();
+                try
+                {
+                    found.AddRange(Directory.EnumerateFiles(dir, fileName));
+                    foreach (var sub in Directory.EnumerateDirectories(dir))
+                        if (!skip.Contains(Path.GetFileName(sub), StringComparer.OrdinalIgnoreCase)) pending.Push(sub);
+                }
+                catch (UnauthorizedAccessException) { /* una cartella che non si legge non ha schede da trovare */ }
+            }
+            return found.Count == 1
+                ? Path.GetRelativePath(projectRoot, found[0]).Replace('\\', '/')
+                : null;
         }
 
         /// <summary>

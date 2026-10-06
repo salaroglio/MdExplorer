@@ -228,5 +228,78 @@ namespace MdExplorer.Features.Tests.Commands
 
             Assert.IsTrue(classAt > fenceEnd, "the class suffix must stay right after the closing fence");
         }
+            private const string SmallWorkflow = @"{
+  ""mde_workflow"": 1, ""title"": ""Prova"",
+  ""steps"": [
+    { ""id"": ""ricerca"", ""agent"": ""cercatore"", ""title"": ""Cerca i bandi"", ""trigger"": { ""launch"": true }, ""start"": ""manual"",
+      ""produces"": [""docs/ricerche/ricerca-*.md""] },
+    { ""id"": ""tecnica"", ""agent"": ""tecnico"", ""trigger"": { ""assignment"": ""ricerca"" }, ""start"": ""ask-owner"",
+      ""produces"": [""docs/schede/tecnica.md""] },
+    { ""id"": ""legale"", ""agent"": ""legale"", ""trigger"": { ""assignment"": ""ricerca"" }, ""start"": ""ask-owner"" },
+    { ""id"": ""sintesi"", ""agent"": ""cercatore"", ""trigger"": { ""approval"": [""tecnica"", ""legale""] }, ""start"": ""auto"" }
+  ],
+  ""loops"": [ { ""id"": ""rifacimento"", ""steps"": [""tecnica""], ""on"": ""rejected"", ""restart"": ""manual"", ""max"": 2, ""then"": ""stop"" } ]
+}";
+
+        [TestMethod]
+        public void DrawTheAgentsWorkflowWithLinksToCardsAndArtifacts()
+        {
+            File.WriteAllText(Path.Combine(_projectRoot, "docs", "gara.workflow.json"), SmallWorkflow);
+            Directory.CreateDirectory(Path.Combine(_projectRoot, ".github", "agents"));
+            File.WriteAllText(Path.Combine(_projectRoot, ".github", "agents", "tecnico.agent.md"), "---\n---\n");
+            Directory.CreateDirectory(Path.Combine(_projectRoot, "altrove"));
+            File.WriteAllText(Path.Combine(_projectRoot, "altrove", "legale.agent.md"), "---\n---\n");
+
+            var transformed = Transform("```plantuml(@workflow, ./gara.workflow.json)\ntitle Il giro\n```");
+
+            AssertContains(transformed, "```plantuml\n@startuml\ntitle Il giro\n");
+            AssertContains(transformed, "**Cerca i bandi**");
+            AssertContains(transformed, "[[mde:.github/agents/tecnico.agent.md]]");
+            AssertContains(transformed, "[[mde:altrove/legale.agent.md]]");
+            Assert.IsFalse(transformed.Contains("[[mde:docs/schede/tecnica.md]]"), "un artefatto non ancora scritto non ha link");
+            AssertContains(transformed, "file \"tecnica.md\" as f_tecnica_0 #FFFFFF;line.dashed");
+            AssertContains(transformed, "artefatto non ancora scritto");
+
+            Directory.CreateDirectory(Path.Combine(_projectRoot, "docs", "schede"));
+            File.WriteAllText(Path.Combine(_projectRoot, "docs", "schede", "tecnica.md"), "# scheda");
+            var written = Transform("```plantuml(@workflow, ./gara.workflow.json)\n```");
+            AssertContains(written, "file \"tecnica.md\" as f_tecnica_0 [[mde:docs/schede/tecnica.md]]");
+            Assert.IsFalse(written.Contains("non ancora scritto"), "scritto, il file si apre e la legenda non ne parla");
+            AssertContains(transformed, "hexagon \"attende tutti\"");
+            AssertContains(transformed, "s_tecnica -[#D93025,dashed]-> s_tecnica");
+            AssertContains(transformed, "al massimo 2 volte");
+            Assert.IsFalse(transformed.Contains("mde:.github/agents/cercatore"), "una scheda che non c'è non ha link");
+            Assert.IsFalse(transformed.Contains("[[mde:docs/ricerche/ricerca-*.md]]"), "una famiglia di file non ha un file solo da aprire");
+            Assert.IsFalse(transformed.Contains("\r"), "il diagramma è uguale su ogni sistema");
+            Assert.IsFalse(transformed.Contains("plantuml(@workflow"));
+        }
+
+        [TestMethod]
+        public void ShowTheErrorsInsteadOfDrawingABrokenWorkflow()
+        {
+            File.WriteAllText(Path.Combine(_projectRoot, "docs", "rotto.workflow.json"),
+                SmallWorkflow.Replace("\"start\": \"auto\"", "\"strat\": \"auto\""));
+
+            var transformed = Transform("```plantuml(@workflow, ./rotto.workflow.json)\n```");
+
+            AssertContains(transformed, "mde-plantuml-include-error");
+            AssertContains(transformed, "steps[3].strat");
+            Assert.IsFalse(transformed.Contains("@startuml"), "un workflow sbagliato non si disegna: sembrerebbe giusto");
+        }
+
+        [TestMethod]
+        public void ProduceAWorkflowBlockThePlantumlCommandCanRead()
+        {
+            File.WriteAllText(Path.Combine(_projectRoot, "docs", "gara.workflow.json"), SmallWorkflow);
+            var transformed = Transform("```plantuml(@workflow, ./gara.workflow.json)\n```");
+
+            var plantumlRegex = new System.Text.RegularExpressions.Regex(
+                @"```plantuml([^```]*)`{3}(?:(?={){([^{]*)}|)",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Singleline);
+            var matches = plantumlRegex.Matches(transformed);
+
+            Assert.AreEqual(1, matches.Count);
+            AssertContains(matches[0].Groups[1].Value, "@enduml");
+        }
     }
 }

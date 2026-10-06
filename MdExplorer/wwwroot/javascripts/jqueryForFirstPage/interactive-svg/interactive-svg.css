@@ -254,3 +254,10 @@ svg.interactive-svg g.interactive-svg-link path,
 svg.interactive-svg g.interactive-svg-link polygon {
     transition: stroke 0.2s ease, stroke-width 0.2s ease, fill 0.2s ease, filter 0.2s ease;
 }
+
+/* I link «mde:» dei diagrammi generati da MdExplorer (il workflow degli agenti): ogni riquadro ne ha uno, e la
+   sottolineatura che il browser mette a ogni link renderebbe illeggibili i testi. Il puntatore basta a dire che si apre. */
+svg a[href^="mde:"] {
+    text-decoration: none;
+    cursor: pointer;
+}
