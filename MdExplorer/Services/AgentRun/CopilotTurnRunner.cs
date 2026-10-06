@@ -71,6 +71,12 @@ namespace MdExplorer.Services.AgentRun
             // il flag e sceglie Copilot (comportamento storico).
             var model = string.IsNullOrWhiteSpace(request.RequestedModel) ? null : request.RequestedModel.Trim();
 
+            // Copilot prende l'MCP dalla sua configurazione globale: deve essere quello di questa installazione,
+            // altrimenti l'agente ha strumenti vecchi (senza i parametri che la sua scheda gli chiede di usare).
+            var mcpFixed = MdExplorer.Service.ProjectsManager.EnsureCopilotMcpPointsHere();
+            if (mcpFixed != null)
+                Console.WriteLine($"[AgentRun] {request.AgentName}: MCP di Copilot, {mcpFixed}");
+
             var run = await copilot.RunHeadlessDetailedAsync(request.ComposedPrompt, invocation, modelId: model, ct: ct);
 
             if (run.ExitCode != 0)

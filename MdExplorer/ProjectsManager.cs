@@ -802,7 +802,14 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                                                          new System.Text.Json.Nodes.JsonArray(
                                                              argv.Skip(1).Select(n => (System.Text.Json.Nodes.JsonNode)n.GetValue<string>()).ToArray()),
                                                          mcpExePath, mcpGroupsArgument);
-                if (entryMissing || (mcpExePath != null && (entryBroken || entryGroupsStale)))
+                var entryOtherInstall = mcpExePath != null
+                                  && servers[serverKey] is System.Text.Json.Nodes.JsonObject otherEntry
+                                  && otherEntry["command"] is System.Text.Json.Nodes.JsonArray otherArgv
+                                  && otherArgv.Count > 0
+                                  && PointsAtAnotherMdExplorerMcp(otherArgv[0]?.GetValue<string>(), mcpExePath);
+                if (entryOtherInstall)
+                    Console.WriteLine($"opencode MCP: la voce '{serverKey}' lanciava un altro MdExplorer.Mcp; ora punta a {mcpExePath}.");
+                if (entryMissing || (mcpExePath != null && (entryBroken || entryGroupsStale || entryOtherInstall)))
                 {
                     servers[serverKey] = serverEntry;
                 }
@@ -921,6 +928,70 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         }
 
         /// <summary>
+        /// Prima di un turno di un agente su Copilot: la voce «mdexplorer» di ~/.copilot/mcp-config.json deve lanciare
+        /// il MdExplorer.Mcp di QUESTA installazione. Copilot non riceve l'MCP dal servizio, lo legge da lì; e quella voce
+        /// si scrive solo aprendo un progetto il cui motore è Copilot. Un agente lanciato su Copilot in un progetto con
+        /// un altro motore, o dopo un aggiornamento, usava così un MCP vecchio: strumenti senza i parametri nuovi.
+        /// Si corregge solo il comando (voce mancante, rotta o di un'altra installazione): argomenti e gruppi restano.
+        /// </summary>
+        /// <returns>Cosa è stato fatto, per il log; null se la voce era già giusta.</returns>
+        public static string EnsureCopilotMcpPointsHere()
+        {
+            var mcpExePath = ResolveMcpExecutable(AppDomain.CurrentDomain.BaseDirectory);
+            if (mcpExePath == null)
+                throw new InvalidOperationException(
+                    "MdExplorer.Mcp non trovato accanto al servizio: l'agente su Copilot partirebbe senza gli strumenti " +
+                    "di MdExplorer (send_agent_message). Reinstalla MdExplorer.");
+
+            var copilotPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".copilot");
+            Directory.CreateDirectory(copilotPath);
+            var mcpJsonPath = Path.Combine(copilotPath, "mcp-config.json");
+            const string serverKey = "mdexplorer";
+
+            var root = File.Exists(mcpJsonPath)
+                ? System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(mcpJsonPath))?.AsObject() ?? new System.Text.Json.Nodes.JsonObject()
+                : new System.Text.Json.Nodes.JsonObject();
+            if (root["mcpServers"] is not System.Text.Json.Nodes.JsonObject servers)
+            {
+                servers = new System.Text.Json.Nodes.JsonObject();
+                root["mcpServers"] = servers;
+            }
+
+            string done;
+            if (servers[serverKey] is not System.Text.Json.Nodes.JsonObject entry)
+            {
+                servers[serverKey] = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["command"] = mcpExePath,
+                    ["tools"] = new System.Text.Json.Nodes.JsonArray("*")
+                };
+                done = $"voce '{serverKey}' aggiunta: {mcpExePath}";
+            }
+            else
+            {
+                var command = entry["command"]?.GetValue<string>();
+                if (!McpEntryLaunchTargetMissing(entry) && !IsDotnetRunEntry(entry)
+                    && !PointsAtAnotherMdExplorerMcp(command, mcpExePath))
+                    return null;
+                if (IsDotnetRunEntry(entry))
+                {
+                    // «dotnet run --project …»: gli argomenti sono quelli di dotnet, non del server. Si tengono i gruppi.
+                    var groups = (entry["args"] as System.Text.Json.Nodes.JsonArray)?
+                        .Select(n => n?.GetValue<string>()).ToList() ?? new List<string>();
+                    var at = groups.IndexOf("--groups");
+                    entry.Remove("args");
+                    if (at >= 0 && at + 1 < groups.Count)
+                        entry["args"] = new System.Text.Json.Nodes.JsonArray("--groups", groups[at + 1]);
+                }
+                entry["command"] = mcpExePath;
+                done = $"voce '{serverKey}' corretta: lanciava {command ?? "(niente)"}, ora {mcpExePath}";
+            }
+
+            File.WriteAllText(mcpJsonPath, root.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+            return done;
+        }
+
+        /// <summary>
         /// Creates/updates the global ~/.copilot/mcp-config.json with the MdExplorer MCP server
         /// for the given project. Copilot CLI only supports user-level config (not per-project).
         /// Server key includes project name to avoid conflicts between projects.
@@ -1012,7 +1083,15 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
                                        && McpEntryGroupsStale(groupsEntry["command"]?.GetValue<string>(),
                                                               groupsEntry["args"] as System.Text.Json.Nodes.JsonArray,
                                                               mcpExePath, mcpGroupsArgument);
-                    if (entryMissing || (haveRealExe && (entryBroken || entryIsDotnetRun || entryGroupsStale)))
+                    // Una voce che lancia un ALTRO MdExplorer.Mcp (un'installazione precedente, una build di sviluppo)
+                    // non è una personalizzazione: è un MCP vecchio, e gli agenti userebbero i suoi strumenti per sempre.
+                    bool entryOtherInstall = haveRealExe
+                                       && servers[serverKey] is System.Text.Json.Nodes.JsonObject otherEntry
+                                       && PointsAtAnotherMdExplorerMcp(otherEntry["command"]?.GetValue<string>(), mcpExePath);
+                    if (entryOtherInstall)
+                        Console.WriteLine($"Copilot CLI MCP: la voce '{serverKey}' lanciava un altro MdExplorer.Mcp " +
+                                          $"({servers[serverKey]?["command"]}); ora punta a {mcpExePath}.");
+                    if (entryMissing || (haveRealExe && (entryBroken || entryIsDotnetRun || entryGroupsStale || entryOtherInstall)))
                     {
                         servers[serverKey] = serverEntry;
                     }
@@ -1069,6 +1148,24 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         }
 
         /// <summary>
+        /// True quando la voce lancia un MdExplorer.Mcp che non è quello accanto a questo servizio: un'installazione
+        /// precedente o una build di sviluppo ancora presenti su disco. Il percorso esiste, quindi le altre regole la
+        /// lasciavano stare, e gli agenti continuavano a usare strumenti vecchi dopo ogni aggiornamento.
+        /// </summary>
+        public static bool PointsAtAnotherMdExplorerMcp(string? command, string? currentExe)
+        {
+            if (string.IsNullOrWhiteSpace(command) || string.IsNullOrWhiteSpace(currentExe))
+                return false;
+            // Il nome intero: su Linux l'eseguibile è «MdExplorer.Mcp», e togliere l'estensione toglierebbe «.Mcp».
+            var name = Path.GetFileName(command.Trim().Trim('"'));
+            if (!string.Equals(name, "MdExplorer.Mcp", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(name, "MdExplorer.Mcp.exe", StringComparison.OrdinalIgnoreCase))
+                return false;
+            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            return !string.Equals(Path.GetFullPath(command.Trim().Trim('"')), Path.GetFullPath(currentExe), comparison);
+        }
+
+        /// <summary>
         /// Returns true when an existing "mdexplorer" MCP entry cannot actually launch because
         /// its configured command does not resolve on this machine: a direct exe path that no
         /// longer exists (e.g. the install moved), or a "dotnet run --project &lt;path&gt;" fallback
@@ -1121,7 +1218,7 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         /// CLI then reports "taking longer than expected / Failed to connect". "dotnet run" also
         /// pollutes stdout with build output, corrupting the JSON-RPC stdio channel.
         /// </summary>
-        internal static string? ResolveMcpExecutable(string baseDir)
+        public static string? ResolveMcpExecutable(string baseDir)
         {
             var exeName = OperatingSystem.IsWindows() ? "MdExplorer.Mcp.exe" : "MdExplorer.Mcp";
 
