@@ -45,10 +45,11 @@ export interface AgentRegistryEntry {
 /** Di chi è un agente, visto da questo computer (AgentOwnersController). */
 export interface AgentOwner {
   agentName: string;
-  kind: 'mine' | 'someoneElse' | 'unassigned' | 'contested';
+  kind: 'mine' | 'someoneElse' | 'unassigned';
   ownerName?: string;
   ownerEmail?: string;
-  contestedBy?: string[];
+  /** Tutti quelli che ne rispondono: una persona o un team. */
+  owners: { name?: string | null; email: string }[];
   /** Un agente lavora solo sul computer di chi ne risponde. */
   canWorkHere: boolean;
   /** Perché qui non lavora e cosa fare; assente se lavora. */

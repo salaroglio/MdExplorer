@@ -63,10 +63,11 @@
       <ng-container *ngIf="ownerOf(agent) as owner">
         <div class="agent-owner" [ngClass]="'owner-' + owner.kind">
           <mat-icon>{{ owner.kind === 'mine' ? 'person' : owner.kind === 'someoneElse' ? 'person_outline' : 'person_off' }}</mat-icon>
-          <span *ngIf="owner.kind === 'mine'">{{ 'AGENT_REGISTRY.OWNER_MINE' | translate }}</span>
-          <span *ngIf="owner.kind === 'someoneElse'">{{ 'AGENT_REGISTRY.OWNER_OTHER' | translate: { name: owner.ownerName || owner.ownerEmail, email: owner.ownerEmail } }}</span>
+          <span *ngIf="owner.kind === 'mine' && owner.owners.length <= 1">{{ 'AGENT_REGISTRY.OWNER_MINE' | translate }}</span>
+          <span *ngIf="owner.kind === 'mine' && owner.owners.length > 1">{{ 'AGENT_REGISTRY.OWNER_TEAM_MINE' | translate: { others: teamNames(owner, true) } }}</span>
+          <span *ngIf="owner.kind === 'someoneElse' && owner.owners.length <= 1">{{ 'AGENT_REGISTRY.OWNER_OTHER' | translate: { name: owner.ownerName || owner.ownerEmail, email: owner.ownerEmail } }}</span>
+          <span *ngIf="owner.kind === 'someoneElse' && owner.owners.length > 1">{{ 'AGENT_REGISTRY.OWNER_TEAM_OTHER' | translate: { names: teamNames(owner, false) } }}</span>
           <span *ngIf="owner.kind === 'unassigned'">{{ 'AGENT_REGISTRY.OWNER_UNASSIGNED' | translate }}</span>
-          <span *ngIf="owner.kind === 'contested'">{{ 'AGENT_REGISTRY.OWNER_CONTESTED' | translate: { emails: (owner.contestedBy || []).join(', ') } }}</span>
         </div>
       </ng-container>
       <div *ngIf="agent.summary" class="agent-summary" [title]="'AGENT_TRUST.DECLARED' | translate">{{ agent.summary }}</div>

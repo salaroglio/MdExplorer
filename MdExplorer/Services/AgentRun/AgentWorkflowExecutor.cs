@@ -47,14 +47,54 @@ namespace MdExplorer.Services.AgentRun
         /// </summary>
         int? ReworksLeft(AgentMergeRequest request, out bool linked, out string why);
 
-        /// <summary>La persona ha premuto un pulsante sotto un messaggio. False = il workflow non lo gestisce: si risponde all'agente come sempre.</summary>
-        bool TryReply(string projectPath, AgentMessage answered, ResolvedReply chosen);
+        /// <summary>
+        /// La persona ha premuto un pulsante sotto un messaggio. False = il workflow non lo gestisce: si risponde all'agente come
+        /// sempre. <paramref name="assign"/>: a chi va ogni passo che il pulsante fa partire, per gli agenti di un team (W22).
+        /// Throws <see cref="InvalidOperationException"/>, con cosa fare, se manca una scelta o non va bene.
+        /// </summary>
+        bool TryReply(string projectPath, AgentMessage answered, ResolvedReply chosen, IReadOnlyDictionary<string, string> assign = null);
+
+        /// <summary>I passi che un pulsante farebbe partire, con chi ne può rispondere: per far scegliere chi preme (W22).</summary>
+        IReadOnlyList<ReplyTarget> ReplyTargets(string projectPath, AgentMessage answered, string replyId);
+
+        /// <summary>
+        /// Chi ha un passo «da avviare» lo passa a un collega che risponde dello stesso agente (W22: per esempio perché va in
+        /// ferie). Throws <see cref="InvalidOperationException"/>, con cosa fare, quando non si può.
+        /// </summary>
+        void PassTo(AgentMessage held, string toEmail, string note);
 
         /// <summary>Il responsabile ha avviato un passo «da avviare».</summary>
         void OnOwnerStarted(AgentMessage message);
 
         /// <summary>Il responsabile non ha avviato un passo «da avviare».</summary>
         void OnOwnerDeclined(AgentMessage message, string reason);
+
+        /// <summary>
+        /// Dopo un cambio di responsabile (una delega, la sua fine): i passi in sospeso dei giri seguono l'agente. Su questo
+        /// computer ricompaiono quelli degli agenti diventati miei («da avviare», consegne da approvare); quelli degli agenti
+        /// non più miei escono dalla posta, con il motivo. Poi lo schedulatore fa partire ciò che ora tocca a me.
+        /// </summary>
+        void Reconcile(string projectPath);
+
+        /// <summary>
+        /// Perché questa persona non può decidere su un passo di un giro (ne risponde un altro); null se può, o se non è di un
+        /// giro. Un passo ha un solo computer che ne scrive il registro.
+        /// </summary>
+        string NotYours(AgentMessage message);
+
+        /// <summary>Come sopra, per una richiesta di approvazione: vale solo se è di un giro.</summary>
+        string NotYours(AgentMergeRequest request);
+    }
+
+    /// <summary>Un passo che un pulsante fa partire, e chi ne può rispondere.</summary>
+    public sealed class ReplyTarget
+    {
+        public string Step { get; init; }
+        public string Label { get; init; }
+        public string Agent { get; init; }
+        public IReadOnlyList<AgentOwnerPerson> Owners { get; init; } = Array.Empty<AgentOwnerPerson>();
+        /// <summary>Più responsabili: chi preme deve scegliere.</summary>
+        public bool NeedsChoice => Owners.Count > 1;
     }
 
     public class AgentWorkflowExecutor : IAgentWorkflowExecutor
@@ -64,6 +104,8 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentWakeGuard _wakeGuard;
         private readonly MdExplorer.Services.Federation.IEffectiveOwnerIdentity _identity;
         private readonly IAgentMailbox _mailbox;
+        private readonly IRoundStore _store;
+        private readonly MdExplorer.Services.IProjectOwnershipService _ownership;
         private readonly ILogger<AgentWorkflowExecutor> _logger;
 
         /// <summary>Un lock per progetto: registro e git di un progetto si toccano uno alla volta.</summary>
@@ -77,8 +119,12 @@ namespace MdExplorer.Services.AgentRun
             IAgentWakeGuard wakeGuard,
             MdExplorer.Services.Federation.IEffectiveOwnerIdentity identity,
             IAgentMailbox mailbox,
+            IRoundStore store,
+            MdExplorer.Services.IProjectOwnershipService ownership,
             ILogger<AgentWorkflowExecutor> logger)
         {
+            _ownership = ownership;
+            _store = store;
             _scopeFactory = scopeFactory;
             _metadata = metadata;
             _wakeGuard = wakeGuard;
@@ -97,12 +143,19 @@ namespace MdExplorer.Services.AgentRun
             var wf = Workflow(projectPath, out var jsonPath);
             var launch = wf?.Steps.FirstOrDefault(s => Same(s.Agent, agentName) && s.Trigger?.Kind == WorkflowTriggerKind.Launch);
             if (launch == null) return null;
+            if (!_store.IsAvailable(projectPath))
+            {
+                // Il registro dei giri vive in git: senza, il giro non si apre, e lo si dice invece di farlo sparire.
+                _logger.LogError("[Workflow] {Project} non è un repository git: il giro di «{Step}» non si apre.", projectPath, launch.Label);
+                TellUser(projectPath, agentName, $"Il workflow non può aprire il giro di «{launch.Label}»: il progetto non è un repository git, e il registro dei giri vive in git.");
+                return null;
+            }
 
             return Locked(projectPath, () =>
             {
                 var now = DateTime.UtcNow;
                 var id = RoundLedger.NewRoundId(jsonPath, now);
-                RoundLedger.Open(projectPath, new RoundHeader { Id = id, Workflow = jsonPath, StartedAt = now, StartedBy = Me(projectPath) });
+                RoundLedger.Open(_store.Root(projectPath), new RoundHeader { Id = id, Workflow = jsonPath, StartedAt = now, StartedBy = Me(projectPath) });
                 Write(projectPath, id, launch, new RoundEvent { Type = RoundEventType.Started, At = now, By = Me(projectPath), Run = runId },
                     $"giro {id}: «{launch.Label}» lanciato");
                 _logger.LogInformation("[Workflow] giro {Round} aperto: {Agent} lanciato a mano (passo '{Step}')", id, agentName, launch.Id);
@@ -166,7 +219,7 @@ namespace MdExplorer.Services.AgentRun
             var step = wf?.Step(link.Step);
             if (step == null) return false;
 
-            var round = RoundLedger.Load(request.ProjectPath, link.RoundId);
+            var round = RoundLedger.Load(_store.Root(request.ProjectPath), link.RoundId);
             var view = WorkflowScheduler.View(wf, round, step);
             if (view.Status != StepStatus.Rejected)
                 throw new InvalidOperationException($"«{step.Label}» non è fermo per un rifiuto ({view.Status}): non c'è niente da far ripartire.");
@@ -181,7 +234,7 @@ namespace MdExplorer.Services.AgentRun
                 Brief = ResolveBrief(step, round.Variables), ReworkNote = request.Note,
                 Inputs = Array.Empty<string>(),
             };
-            Locked(request.ProjectPath, () => Execute(request.ProjectPath, link.RoundId, action, startedBy: Me(request.ProjectPath)));
+            Locked(request.ProjectPath, () => Execute(request.ProjectPath, link.RoundId, action, startedBy: Me(request.ProjectPath), resumed: false));
             return true;
         }
 
@@ -195,14 +248,25 @@ namespace MdExplorer.Services.AgentRun
             var step = wf?.Step(link.Step);
             var until = step == null ? null : wf.LoopOf(step.Id, WorkflowLoopKind.UntilApproved);
             if (until?.Max == null) return null;
-            var view = WorkflowScheduler.View(wf, RoundLedger.Load(request.ProjectPath, link.RoundId), step);
+            var view = WorkflowScheduler.View(wf, RoundLedger.Load(_store.Root(request.ProjectPath), link.RoundId), step);
             var left = Math.Max(0, until.Max.Value - (view.RejectionsInRound - 1));
             if (left == 0)
                 why = $"«{step.Label}» è già stato rifatto {until.Max} {(until.Max == 1 ? "volta" : "volte")}: è il massimo che il workflow dà al ciclo «{until.Id}». Il lavoro resta fermo.";
             return left;
         }
 
-        public bool TryReply(string projectPath, AgentMessage answered, ResolvedReply chosen)
+        public IReadOnlyList<ReplyTarget> ReplyTargets(string projectPath, AgentMessage answered, string replyId)
+        {
+            var wf = Workflow(projectPath, out _);
+            var link = wf == null || answered == null ? null : LinkOfRun(projectPath, answered.RunId);
+            if (link == null) return Array.Empty<ReplyTarget>();
+            return wf.Steps.Where(s => s.Trigger?.Kind == WorkflowTriggerKind.Reply && s.Trigger.FromStep == link.Step
+                                       && string.Equals(s.Trigger.ReplyId, replyId, StringComparison.OrdinalIgnoreCase))
+                .Select(s => new ReplyTarget { Step = s.Id, Label = s.Label, Agent = s.Agent, Owners = Team(projectPath, s.Agent) })
+                .ToList();
+        }
+
+        public bool TryReply(string projectPath, AgentMessage answered, ResolvedReply chosen, IReadOnlyDictionary<string, string> assign = null)
         {
             if (answered == null || chosen == null) return false;
             var wf = Workflow(projectPath, out var jsonPath);
@@ -215,6 +279,25 @@ namespace MdExplorer.Services.AgentRun
                 return false;
             if (chosen.Values == null)
                 throw new InvalidOperationException("Questo pulsante è di prima dello schedulatore e non porta i suoi valori: rilancia la ricerca per avere i pulsanti nuovi.");
+
+            // Chi preme sceglie a chi va ogni passo di un agente con un team (W22); con un solo responsabile non c'è scelta.
+            var assignments = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var t in ReplyTargets(projectPath, answered, chosen.Id))
+            {
+                string to = null;
+                assign?.TryGetValue(t.Step, out to);
+                if (string.IsNullOrWhiteSpace(to))
+                {
+                    if (t.NeedsChoice)
+                        throw new InvalidOperationException($"«{t.Label}»: l'agente '{t.Agent}' ha più responsabili " +
+                            $"({string.Join(", ", t.Owners.Select(o => o.Email))}): scegli a chi va.");
+                    continue;
+                }
+                if (!t.Owners.Any(o => string.Equals(o.Email, to.Trim(), StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException($"«{t.Label}»: {to} non risponde dell'agente '{t.Agent}' " +
+                        $"(ne rispondono {(t.Owners.Count == 0 ? "nessuno" : string.Join(", ", t.Owners.Select(o => o.Email)))}).");
+                assignments[t.Step] = to.Trim().ToLowerInvariant();
+            }
 
             var source = wf.Step(link.Step);
             var target = Locked(projectPath, () =>
@@ -232,6 +315,7 @@ namespace MdExplorer.Services.AgentRun
                 {
                     Type = RoundEventType.Replied, At = DateTime.UtcNow, By = Me(projectPath), Reply = chosen.Id,
                     Values = new Dictionary<string, string>(chosen.Values, StringComparer.Ordinal),
+                    Assign = assignments.Count > 0 ? assignments : null,
                 };
 
                 foreach (var r in rounds)
@@ -248,9 +332,9 @@ namespace MdExplorer.Services.AgentRun
                 var origin = rounds.First();
                 var now = DateTime.UtcNow;
                 var id = RoundLedger.NewRoundId(jsonPath, now);
-                RoundLedger.Open(projectPath, new RoundHeader { Id = id, Workflow = jsonPath, StartedAt = now, StartedBy = Me(projectPath) });
+                RoundLedger.Open(_store.Root(projectPath), new RoundHeader { Id = id, Workflow = jsonPath, StartedAt = now, StartedBy = Me(projectPath) });
                 foreach (var e in origin.EventsOf(source.Id).Where(e => e.Type != RoundEventType.Replied))
-                    RoundLedger.Append(projectPath, id, source.Id, source.Agent, e);
+                    RoundLedger.Append(_store.Root(projectPath), id, source.Id, source.Agent, e);
                 Write(projectPath, id, source, replied, $"giro {id}: «{chosen.Label}» (dalla ricerca del giro {origin.Header.Id})");
                 _logger.LogInformation("[Workflow] giro {Round} aperto da «{Reply}» sul giro {From}", id, chosen.Label, origin.Header.Id);
                 return id;
@@ -284,6 +368,177 @@ namespace MdExplorer.Services.AgentRun
             }, $"giro {message.WorkflowRound}: «{step.Label}» non avviato"));
         }
 
+        public void Reconcile(string projectPath)
+        {
+            var wf = Workflow(projectPath, out _);
+            if (wf == null || !_store.IsAvailable(projectPath)) return;
+            try { _store.Refresh(projectPath); }
+            catch (Exception ex) { _logger.LogWarning(ex, "[Workflow] il registro dei giri non si è aggiornato da origin: si lavora con quello che c'è"); }
+            foreach (var id in RoundLedger.RoundIds(_store.Root(projectPath)))
+            {
+                try
+                {
+                    Locked(projectPath, () =>
+                    {
+                        var round = RoundLedger.Load(_store.Root(projectPath), id);
+                        var views = WorkflowScheduler.Views(wf, round);
+                        var me = Me(projectPath);
+                        foreach (var step in wf.Steps)
+                        {
+                            var view = views[step.Id];
+                            if (view.Status == StepStatus.NotStarted) continue;
+                            var owner = OwnerOf(projectPath, wf, round, step);
+                            if (!Same(owner.Email, me))
+                            {
+                                Withdraw(projectPath, id, step, owner.Email ?? owner.Problem);
+                                continue;
+                            }
+                            if (view.Status == StepStatus.Held && !HasPendingAssignment(projectPath, id, step.Id))
+                                Execute(projectPath, id, WorkflowScheduler.Resume(wf, round, step), startedBy: null, resumed: true);
+                            else if (view.Status == StepStatus.Delivered)
+                                AdoptDelivery(projectPath, id, step, view.Last);
+                        }
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "[Workflow] giro {Round}: la ripresa dei passi in sospeso è fallita", id);
+                    continue;
+                }
+                Evaluate(projectPath, id);
+            }
+        }
+
+        public void PassTo(AgentMessage held, string toEmail, string note)
+        {
+            if (held?.WorkflowRound == null) throw new InvalidOperationException("Questo incarico non è di un giro del workflow: non c'è un passo da passare.");
+            var projectPath = held.ProjectPath;
+            var wf = Workflow(projectPath, out _) ?? throw new InvalidOperationException("Il progetto non ha un workflow attivo.");
+            var step = wf.Step(held.WorkflowStep) ?? throw new InvalidOperationException($"Il passo '{held.WorkflowStep}' non è nel workflow.");
+            var to = (toEmail ?? "").Trim().ToLowerInvariant();
+            var me = Me(projectPath);
+            Locked(projectPath, () =>
+            {
+                var round = RoundLedger.Load(_store.Root(projectPath), held.WorkflowRound);
+                var now = OwnerOf(projectPath, wf, round, step);
+                if (!Same(now.Email, me))
+                    throw new InvalidOperationException($"«{step.Label}» non è tuo ({now.Email ?? now.Problem}): lo passa chi ne risponde.");
+                var team = Team(projectPath, step.Agent);
+                if (Same(to, me)) throw new InvalidOperationException($"«{step.Label}» è già tuo.");
+                if (!team.Any(o => Same(o.Email, to)))
+                    throw new InvalidOperationException($"{(to.Length == 0 ? "Scegli a chi" : to + " non risponde dell'agente '" + step.Agent + "'")}: " +
+                        $"«{step.Label}» si passa a chi ne risponde con te ({string.Join(", ", team.Where(o => !Same(o.Email, me)).Select(o => o.Email))}).");
+                var view = WorkflowScheduler.View(wf, round, step);
+                Write(projectPath, held.WorkflowRound, step, new RoundEvent
+                {
+                    Type = RoundEventType.Assigned, At = DateTime.UtcNow, By = me, Owner = to, Round = view.Round, Attempt = view.Attempt,
+                    Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim(),
+                }, $"giro {held.WorkflowRound}: «{step.Label}» passato a {to}");
+                Withdraw(projectPath, held.WorkflowRound, step, to);
+            });
+            _logger.LogInformation("[Workflow] giro {Round}: «{Step}» passato da {Me} a {To}", held.WorkflowRound, step.Label, me, to);
+        }
+
+        public string NotYours(AgentMessage message)
+        {
+            if (message?.WorkflowRound == null) return null;
+            return NotYours(message.ProjectPath, message.WorkflowRound, message.WorkflowStep);
+        }
+
+        public string NotYours(AgentMergeRequest request)
+        {
+            var link = request == null ? null : LinkOfRun(request.ProjectPath, request.RunId);
+            return link == null ? null : NotYours(request.ProjectPath, link.RoundId, link.Step);
+        }
+
+        private string NotYours(string projectPath, string roundId, string stepId)
+        {
+            var wf = Workflow(projectPath, out _);
+            var step = wf?.Step(stepId);
+            if (step == null) return null;
+            var owner = OwnerOf(projectPath, wf, RoundLedger.Load(_store.Root(projectPath), roundId), step);
+            if (Same(owner.Email, Me(projectPath))) return null;
+            return owner.Email != null
+                ? $"«{step.Label}» è di {owner.Email}: lo decide chi ne risponde, dal suo computer."
+                : owner.Problem;
+        }
+
+        /// <summary>Chi risponde del passo, dal registro e dal documento delle responsabilità (W22).</summary>
+        private StepOwner OwnerOf(string projectPath, WorkflowDescriptor wf, RoundState round, WorkflowStep step)
+            => StepOwners.Of(wf, round, step, agent => Team(projectPath, agent).Select(o => o.Email).ToList());
+
+        /// <summary>Chi risponde di un agente: una persona o un team.</summary>
+        private IReadOnlyList<AgentOwnerPerson> Team(string projectPath, string agent)
+            => AgentOwnerRule.Decide(_ownership.GetActiveOwnership(projectPath), agent, Me(projectPath)).Owners;
+
+        /// <summary>Un incarico «da avviare» di un passo che non è più mio esce dalla posta, con il perché. Sotto il lock.</summary>
+        private void Withdraw(string projectPath, string roundId, WorkflowStep step, string who)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var dal = db.GetDal<AgentMessage>();
+            var held = dal.GetList().ToList().Where(m => m.State == AgentMessage.StateEnum.Pending && m.WorkflowRound == roundId
+                                                         && m.WorkflowStep == step.Id && AgentPathComparer.Equals(m.ProjectPath, projectPath)).ToList();
+            foreach (var m in held)
+            {
+                m.State = AgentMessage.StateEnum.Failed;
+                m.Error = $"«{step.Label}» ora è di {who}: lo riprende il suo MdExplorer.";
+                m.ProcessedAt = DateTime.UtcNow;
+                m.DeferredReason = null;
+                m.NextAttemptAt = null;
+                dal.Save(m);
+            }
+            db.Commit();
+            if (held.Count > 0)
+                _logger.LogInformation("[Workflow] giro {Round}: «{Step}» passato a {Who}, tolto dalla posta di questo computer", roundId, step.Label, who);
+        }
+
+        private bool HasPendingAssignment(string projectPath, string roundId, string stepId)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var found = db.GetDal<AgentMessage>().GetList().ToList().Any(m => m.State == AgentMessage.StateEnum.Pending && m.WorkflowRound == roundId
+                                                                           && m.WorkflowStep == stepId && AgentPathComparer.Equals(m.ProjectPath, projectPath));
+            db.Commit();
+            return found;
+        }
+
+        /// <summary>
+        /// Una consegna in attesa di approvazione, nata sul computer di un altro: la richiesta si ricostruisce dal ramo pubblicato
+        /// (W16: i rami degli agenti sono pubblicati a ogni consegna). Sotto il lock.
+        /// </summary>
+        private void AdoptDelivery(string projectPath, string roundId, WorkflowStep step, RoundEvent delivered)
+        {
+            if (delivered?.Branch == null) return;
+            using var scope = _scopeFactory.CreateScope();
+            var requests = scope.ServiceProvider.GetRequiredService<IAgentMergeRequestService>();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var known = db.GetDal<AgentMergeRequest>().GetList().ToList().Any(r => string.Equals(r.PublishedBranch, delivered.Branch, StringComparison.OrdinalIgnoreCase)
+                                                                                 && AgentPathComparer.Equals(r.ProjectPath, projectPath));
+            db.Commit();
+            if (known) return;
+
+            var fetch = Git(projectPath, "fetch", "--quiet", "origin", delivered.Branch);
+            var head = Git(projectPath, "rev-parse", "--verify", "origin/" + delivered.Branch);
+            if (fetch.Code != 0 || head.Code != 0)
+            {
+                var why = $"la consegna di «{step.Label}» è sul ramo {delivered.Branch}, che su origin non si trova ({(fetch.Err + head.Err).Trim()})";
+                if (_told.TryAdd($"{projectPath}|{roundId}|adopt|{delivered.Branch}", 0))
+                {
+                    _logger.LogError("[Workflow] giro {Round}: {Why}", roundId, why);
+                    TellUser(projectPath, step.Agent, $"Il giro {roundId} non riesce a riprendere {why}.");
+                }
+                return;
+            }
+            var diff = Git(projectPath, "diff", "--name-status", "HEAD...origin/" + delivered.Branch);
+            requests.Open(projectPath, step.Agent, delivered.Branch, "origin/" + delivered.Branch, head.Out.Trim(),
+                AgentMergeRequestService.ParseNameStatus(diff.Out), delivered.Run);
+            _logger.LogInformation("[Workflow] giro {Round}: la consegna di «{Step}» ({Branch}) ora si approva da questo computer", roundId, step.Label, delivered.Branch);
+        }
+
         // ---- lo schedulatore e le sue azioni ----
 
         /// <summary>Chiede allo schedulatore che cosa fare per i miei passi del giro, e lo fa.</summary>
@@ -295,10 +550,22 @@ namespace MdExplorer.Services.AgentRun
                 if (wf == null) return;
                 Locked(projectPath, () =>
                 {
-                    var round = RoundLedger.Load(projectPath, roundId);
-                    var actions = WorkflowScheduler.Decide(wf, round, agent => _wakeGuard.Check(projectPath, agent).CanWorkHere);
+                    var round = RoundLedger.Load(_store.Root(projectPath), roundId);
+                    var me = Me(projectPath);
+                    var owners = wf.Steps.ToDictionary(s => s.Id, s => OwnerOf(projectPath, wf, round, s));
+                    var actions = WorkflowScheduler.Decide(wf, round, (WorkflowStep s) => Same(owners[s.Id].Email, me));
+                    // Un passo pronto a partire di cui non si sa chi risponde: non si indovina, si dice (una volta).
+                    var views = WorkflowScheduler.Views(wf, round);
+                    foreach (var s in wf.Steps.Where(s => owners[s.Id].Email == null && s.Trigger?.Kind != WorkflowTriggerKind.Launch
+                                                          && views[s.Id].Status == StepStatus.NotStarted
+                                                          && WorkflowScheduler.TriggerSatisfied(wf, round, views, s)))
+                        if (_told.TryAdd($"{projectPath}|{roundId}|{s.Id}|owner|{owners[s.Id].Problem}", 0))
+                        {
+                            _logger.LogWarning("[Workflow] giro {Round}: {Problem}", roundId, owners[s.Id].Problem);
+                            TellUser(projectPath, s.Agent, $"Il giro {roundId} è fermo: {owners[s.Id].Problem}");
+                        }
                     foreach (var action in actions)
-                        Execute(projectPath, roundId, action, startedBy: null);
+                        Execute(projectPath, roundId, action, startedBy: null, resumed: false);
                     return 0;
                 });
             }
@@ -309,7 +576,7 @@ namespace MdExplorer.Services.AgentRun
         }
 
         /// <summary>Fa un'azione: l'incarico in coda (subito o «da avviare») e il suo evento nel registro. Va chiamato sotto il lock.</summary>
-        private void Execute(string projectPath, string roundId, SchedulerAction action, string startedBy)
+        private void Execute(string projectPath, string roundId, SchedulerAction action, string startedBy, bool resumed)
         {
             var step = action.Step;
             if (action.Kind == SchedulerActionKind.Blocked)
@@ -350,7 +617,7 @@ namespace MdExplorer.Services.AgentRun
             {
                 Type = hold ? RoundEventType.Held : RoundEventType.Started, At = DateTime.UtcNow,
                 By = startedBy ?? Me(projectPath), Round = action.Round, Attempt = action.Attempt, Note = action.ReworkNote,
-            }, $"giro {roundId}: «{step.Label}» {(hold ? "da avviare" : action.Attempt > 1 ? "rifatto" : "partito")}");
+            }, $"giro {roundId}: «{step.Label}» {(hold ? "da avviare" : action.Attempt > 1 ? "rifatto" : "partito")}{(resumed ? $" (ripreso da {Me(projectPath)})" : "")}");
             _logger.LogInformation("[Workflow] giro {Round}: «{Step}» {What} per '{Agent}' (giro {N}, tentativo {A})",
                 roundId, step.Label, hold ? "da avviare" : "partito", step.Agent, action.Round, action.Attempt);
         }
@@ -382,46 +649,22 @@ namespace MdExplorer.Services.AgentRun
         /// <summary>Scrive un evento nel file del passo e lo committa (solo quei file). Va chiamato sotto il lock.</summary>
         private void Write(string projectPath, string roundId, WorkflowStep step, RoundEvent evt, string commitMessage)
         {
-            RoundLedger.Append(projectPath, roundId, step.Id, step.Agent, evt);
+            RoundLedger.Append(_store.Root(projectPath), roundId, step.Id, step.Agent, evt);
             CommitAndPublish(projectPath, roundId, commitMessage);
         }
 
         /// <summary>
-        /// Committa la cartella del giro e la pubblica (W16): è così che gli altri computer lo vengono a sapere. Committa
-        /// solo quei file (pathspec), mai il lavoro della persona. Se la pubblicazione non riesce (rete, origin più avanti)
-        /// si dice nel log: il commit resta e partirà con la prossima pubblicazione.
+        /// Committa la cartella del giro sul ramo del registro e la pubblica (W16): è così che gli altri computer lo vengono a
+        /// sapere. Il ramo è suo, non quello della persona. Se la pubblicazione non riesce si dice nel log: il commit resta.
         /// </summary>
         private void CommitAndPublish(string projectPath, string roundId, string message)
         {
-            var folder = RoundLedger.Folder + "/" + roundId;
-            var add = Git(projectPath, "add", "--", folder);
-            if (add.Code != 0) { _logger.LogError("[Workflow] git add del giro {Round} fallito: {Err}", roundId, add.Err); return; }
-            var commit = Git(projectPath, "commit", "-m", message, "--", folder);
-            if (commit.Code != 0 && !commit.Out.Contains("nothing to commit") && !commit.Err.Contains("nothing to commit"))
-            {
-                _logger.LogError("[Workflow] commit del giro {Round} fallito: {Err}", roundId, commit.Err.Trim().Length > 0 ? commit.Err : commit.Out);
-                return;
-            }
-            var push = Git(projectPath, "push", "--quiet");
-            if (push.Code != 0)
-                _logger.LogWarning("[Workflow] giro {Round} committato ma non pubblicato ({Err}): partirà con la prossima pubblicazione.", roundId, push.Err.Trim());
+            var problem = _store.Publish(projectPath, roundId, message);
+            if (problem != null)
+                _logger.LogWarning("[Workflow] giro {Round}: {Problem} (partirà con la prossima pubblicazione).", roundId, problem);
         }
 
-        private (int Code, string Out, string Err) Git(string cwd, params string[] args)
-        {
-            var psi = new ProcessStartInfo("git")
-            {
-                WorkingDirectory = cwd, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true,
-                StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8,
-            };
-            foreach (var a in args) psi.ArgumentList.Add(a);
-            psi.Environment["GIT_TERMINAL_PROMPT"] = "0";
-            using var p = Process.Start(psi);
-            var outTask = p.StandardOutput.ReadToEndAsync();
-            var errTask = p.StandardError.ReadToEndAsync();
-            if (!p.WaitForExit(60000)) { try { p.Kill(true); } catch { } return (-1, "", "git non ha risposto in 60 secondi"); }
-            return (p.ExitCode, outTask.Result, errTask.Result);
-        }
+        private static (int Code, string Out, string Err) Git(string cwd, params string[] args) => GitCli.Run(cwd, args);
 
         // ---- legami ----
 
@@ -436,12 +679,12 @@ namespace MdExplorer.Services.AgentRun
         /// <summary>Il passo di un giro che un turno (RunId) ha lavorato: dal suo evento nel registro.</summary>
         private Link LinkOfRun(string projectPath, string runId)
         {
-            if (string.IsNullOrWhiteSpace(runId) || Workflow(projectPath, out _) == null) return null;
+            if (string.IsNullOrWhiteSpace(runId) || Workflow(projectPath, out _) == null || !_store.IsAvailable(projectPath)) return null;
             var key = runId.Replace("-", "");
-            foreach (var id in RoundLedger.RoundIds(projectPath).Reverse())
+            foreach (var id in RoundLedger.RoundIds(_store.Root(projectPath)).Reverse())
             {
                 RoundState round;
-                try { round = RoundLedger.Load(projectPath, id); }
+                try { round = RoundLedger.Load(_store.Root(projectPath), id); }
                 catch (Exception ex) { _logger.LogError(ex, "[Workflow] giro {Round} illeggibile", id); continue; }
                 foreach (var record in round.Steps.Values)
                 {
@@ -457,10 +700,10 @@ namespace MdExplorer.Services.AgentRun
         {
             var key = (runId ?? "").Replace("-", "");
             var found = new List<RoundState>();
-            foreach (var id in RoundLedger.RoundIds(projectPath))
+            foreach (var id in RoundLedger.RoundIds(_store.Root(projectPath)))
             {
                 RoundState round;
-                try { round = RoundLedger.Load(projectPath, id); }
+                try { round = RoundLedger.Load(_store.Root(projectPath), id); }
                 catch (Exception ex) { _logger.LogError(ex, "[Workflow] giro {Round} illeggibile", id); continue; }
                 if (round.EventsOf(stepId).Any(e => e.Run != null && string.Equals(e.Run.Replace("-", ""), key, StringComparison.OrdinalIgnoreCase)))
                     found.Add(round);

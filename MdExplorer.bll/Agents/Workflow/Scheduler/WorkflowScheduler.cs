@@ -87,7 +87,7 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         /// <summary>Lo stato di un passo nel giro.</summary>
         public static StepView View(WorkflowDescriptor wf, RoundState round, WorkflowStep step)
         {
-            var events = round.EventsOf(step.Id).Where(e => e.Type != RoundEventType.Replied).ToList();
+            var events = round.EventsOf(step.Id).Where(e => e.Type != RoundEventType.Replied && e.Type != RoundEventType.Assigned).ToList();
             var forLoop = wf.LoopOf(step.Id, WorkflowLoopKind.Times);
             var view = new StepView { Step = step, RoundsNeeded = forLoop?.Times ?? 1, Last = events.LastOrDefault() };
             if (events.Count == 0) return view;
@@ -134,6 +134,16 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         /// </summary>
         public static IReadOnlyList<SchedulerAction> Decide(WorkflowDescriptor wf, RoundState round, Func<string, bool> isMine)
         {
+            isMine ??= _ => false;
+            return Decide(wf, round, (WorkflowStep step) => isMine(step.Agent));
+        }
+
+        /// <summary>
+        /// Come sopra, passo per passo (W22): con un team, lo stesso agente può avere nello stesso giro passi di persone
+        /// diverse, e «è mio» si chiede al passo (<see cref="StepOwners"/>), non all'agente.
+        /// </summary>
+        public static IReadOnlyList<SchedulerAction> Decide(WorkflowDescriptor wf, RoundState round, Func<WorkflowStep, bool> isMine)
+        {
             if (wf == null) throw new ArgumentNullException(nameof(wf));
             if (round == null) throw new ArgumentNullException(nameof(round));
             isMine ??= _ => false;
@@ -142,7 +152,7 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             var variables = round.Variables;
             var actions = new List<SchedulerAction>();
 
-            foreach (var step in wf.Steps.Where(s => s.Id != null && s.Trigger != null && isMine(s.Agent)))
+            foreach (var step in wf.Steps.Where(s => s.Id != null && s.Trigger != null && isMine(s)))
             {
                 var view = views[step.Id];
                 // Un lancio lo fa la persona: lo schedulatore non apre i giri, li prosegue.
@@ -197,6 +207,21 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
                 default:
                     return false;
             }
+        }
+
+        /// <summary>
+        /// Un passo «da avviare» che passa a un altro computer (una delega, W17): lo stesso incarico che lo schedulatore aveva
+        /// preparato, ricostruito dal registro (brief con le variabili del giro, file dei passi da cui parte, motivo di un rifiuto).
+        /// </summary>
+        public static SchedulerAction Resume(WorkflowDescriptor wf, RoundState round, WorkflowStep step)
+        {
+            var views = Views(wf, round);
+            var v = views[step.Id];
+            if (v.Status != StepStatus.Held)
+                throw new InvalidOperationException($"«{step.Label}» non è «da avviare» ({v.Status}): non c'è niente da riprendere.");
+            var action = Begin(wf, step, views, round.Variables, v.Round, v.Attempt, v.Last?.Note);
+            if (action.Kind == SchedulerActionKind.Start) action.Kind = SchedulerActionKind.Hold;   // era «da avviare»: lo resta
+            return action;
         }
 
         /// <summary>

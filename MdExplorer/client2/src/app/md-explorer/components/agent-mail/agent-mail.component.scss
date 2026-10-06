@@ -170,3 +170,16 @@
 // Un incarico da avviare: la riga e il dettaglio hanno il colore dell'attenzione, perché il lavoro di qualcuno è fermo.
 .mail-row.kind-tostart .row-icon, .detail.tostart .head-icon { color: var(--mde-warning-fg, #F29900); }
 .decline-form { margin-top: 12px; }
+
+.choose-owner {
+  margin: 8px 0 4px; padding: 10px 12px; max-width: 900px;
+  border: 1px solid rgba(127, 127, 127, 0.4); border-radius: 6px;
+  .choose-row { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+  label { font-size: 13px; }
+}
+.choose-owner select, .pass-select {
+  font: inherit; padding: 4px 6px; max-width: 420px; color: inherit; background: transparent;
+  border: 1px solid rgba(127, 127, 127, 0.5); border-radius: 4px;
+  option { color: initial; }
+}
+.pass-select { display: block; margin-bottom: 10px; }

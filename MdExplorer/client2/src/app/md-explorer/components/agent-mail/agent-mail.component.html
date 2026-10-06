@@ -151,6 +151,23 @@
                   <mat-icon>send</mat-icon> {{ r.label }}
                 </button>
                 <p class="reply-option-description">{{ r.description }}</p>
+                <!-- Un passo di un agente con un team: chi preme sceglie chi lo fa, e da lì ne risponde quella persona. -->
+                <div class="choose-owner" *ngIf="choosing?.reply === r">
+                  <div class="reply-label">{{ 'AGENT_MAIL.CHOOSE_OWNER_TITLE' | translate }}</div>
+                  <div class="choose-row" *ngFor="let t of choosing.targets">
+                    <label [for]="'owner-' + t.step">{{ 'AGENT_MAIL.CHOOSE_OWNER_STEP' | translate: { step: t.label, agent: t.agent } }}</label>
+                    <select [id]="'owner-' + t.step" [(ngModel)]="choosing.picks[t.step]">
+                      <option [ngValue]="undefined" disabled>{{ 'AGENT_MAIL.CHOOSE_OWNER_PICK' | translate }}</option>
+                      <option *ngFor="let o of t.owners" [ngValue]="o.email">{{ o.name ? o.name + ' (' + o.email + ')' : o.email }}</option>
+                    </select>
+                  </div>
+                  <div class="decide">
+                    <button mat-button (click)="choosing = null" [disabled]="sending">{{ 'COMMON.CANCEL' | translate }}</button>
+                    <button mat-raised-button color="primary" class="btn-confirm-choice" [disabled]="!canConfirmChoice()" (click)="confirmChoice()">
+                      <mat-icon>send</mat-icon> {{ r.label }}
+                    </button>
+                  </div>
+                </div>
               </div>
             </ng-container>
 
@@ -201,13 +218,33 @@
           </p>
           <div class="detail-text">{{ selected.assignment.body }}</div>
 
-          <div class="decide" *ngIf="!declining">
+          <div class="decide" *ngIf="!declining && !passing">
+            <button *ngIf="selected.assignment.passTo?.length" mat-stroked-button class="btn-pass-start" [disabled]="deciding" (click)="passing = true">
+              <mat-icon>forward</mat-icon> {{ 'AGENT_MAIL.TOSTART_PASS' | translate }}
+            </button>
             <button mat-stroked-button color="warn" class="btn-decline-start" [disabled]="deciding" (click)="declining = true">
               <mat-icon>do_not_disturb_on</mat-icon> {{ 'AGENT_MAIL.TOSTART_DECLINE' | translate }}
             </button>
             <button mat-raised-button color="primary" class="btn-open-start" [disabled]="deciding" (click)="openStart(selected)">
               <mat-icon>play_arrow</mat-icon> {{ 'AGENT_MAIL.TOSTART_OPEN' | translate }}
             </button>
+          </div>
+
+          <div class="decline-form" *ngIf="passing">
+            <label class="reply-label" for="tostart-pass-to">{{ 'AGENT_MAIL.TOSTART_PASS_TO' | translate }}</label>
+            <select id="tostart-pass-to" class="pass-select" [(ngModel)]="passTo">
+              <option value="" disabled>{{ 'AGENT_MAIL.CHOOSE_OWNER_PICK' | translate }}</option>
+              <option *ngFor="let o of selected.assignment.passTo" [value]="o.email">{{ o.name ? o.name + ' (' + o.email + ')' : o.email }}</option>
+            </select>
+            <label class="reply-label" for="tostart-pass-note">{{ 'AGENT_MAIL.TOSTART_PASS_NOTE' | translate }}</label>
+            <textarea id="tostart-pass-note" class="reply-text" rows="2" [(ngModel)]="passNote"
+                      [placeholder]="'AGENT_MAIL.TOSTART_PASS_NOTE_PLACEHOLDER' | translate"></textarea>
+            <div class="decide">
+              <button mat-button (click)="passing = false; passTo = ''; passNote = ''" [disabled]="deciding">{{ 'COMMON.CANCEL' | translate }}</button>
+              <button mat-raised-button color="primary" class="btn-confirm-pass" [disabled]="deciding || !passTo" (click)="passStart(selected)">
+                <mat-icon>forward</mat-icon> {{ 'AGENT_MAIL.TOSTART_PASS_CONFIRM' | translate }}
+              </button>
+            </div>
           </div>
 
           <div class="decline-form" *ngIf="declining">

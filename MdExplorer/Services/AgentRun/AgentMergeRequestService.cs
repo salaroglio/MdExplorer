@@ -253,6 +253,7 @@ namespace MdExplorer.Services.AgentRun
             if (request.Status != AgentMergeRequest.StatusEnum.Pending)
                 throw new InvalidOperationException(
                     $"La richiesta è già stata decisa ({request.Status}): non si autorizza due volte.");
+            OnlyTheCurrentOwner(request);
 
             // Il merge è un'operazione LOCALE e vuole il ref locale: il nome pubblicato vive su
             // origin e non ha un ref in casa.
@@ -272,9 +273,20 @@ namespace MdExplorer.Services.AgentRun
         {
             if (string.IsNullOrWhiteSpace(note))
                 throw new InvalidOperationException("Per rifiutare serve il motivo: è ciò che l'agente legge se il lavoro riparte.");
+            OnlyTheCurrentOwner(Get(id));
             // Rifiutare FERMA. Niente riparte da solo: se la risposta è sballata la causa è spesso nella scheda
             // dell'agente, e ripartire subito rifarebbe lo stesso errore prima che la persona possa correggerla.
             return Recorded(Decide(id, AgentMergeRequest.StatusEnum.Rejected, note.Trim()));
+        }
+
+        /// <summary>
+        /// Il passo di un giro lo decide solo chi ne risponde adesso: dopo una delega (W17) l'approvazione passa al computer di
+        /// chi subentra, e due computer che decidono sullo stesso passo scriverebbero due storie diverse nel registro.
+        /// </summary>
+        private void OnlyTheCurrentOwner(AgentMergeRequest request)
+        {
+            var notYours = _workflow?.NotYours(request);
+            if (notYours != null) throw new InvalidOperationException(notYours);
         }
 
         /// <summary>
@@ -320,6 +332,7 @@ namespace MdExplorer.Services.AgentRun
             var request = Get(id) ?? throw new InvalidOperationException($"Richiesta {id} inesistente.");
             if (request.Status != AgentMergeRequest.StatusEnum.Rejected)
                 throw new InvalidOperationException("Si fa ripartire solo un lavoro rifiutato.");
+            OnlyTheCurrentOwner(request);
             // Un passo di un giro lo fa ripartire lo schedulatore: nuovo tentativo nel registro, incarico con il motivo.
             if (_workflow != null && _workflow.TryRework(request))
             {

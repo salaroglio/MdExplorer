@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections.Generic;
 using MdExplorer.Features.Agents;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -61,15 +62,21 @@ namespace MdExplorer.Features.Tests.Agents
         }
 
         [TestMethod]
-        public void Treat_an_agent_given_to_two_people_as_nobodys()
+        public void Let_an_agent_answer_to_a_team_and_work_on_the_computer_of_each_member()
         {
+            // W20: un agente «sviluppatore» è di tutto il team; quale sviluppatore prende un pezzo lo decide chi lo assegna.
             var table = new List<OwnershipEntry>(Table) { Row("Gare", "Luca", "luca@pentagroup.it", "account-manager") };
 
-            var verdict = AgentOwnerRule.Decide(table, "account-manager", "anna@pentagroup.it");
+            var anna = AgentOwnerRule.Decide(table, "account-manager", "anna@pentagroup.it");
+            var luca = AgentOwnerRule.Decide(table, "account-manager", "LUCA@pentagroup.it");
+            var marco = AgentOwnerRule.Decide(table, "account-manager", "marco@pentagroup.it");
 
-            Assert.AreEqual(AgentOwnerKind.Contested, verdict.Kind);
-            Assert.IsFalse(verdict.CanWorkHere, "not even for one of the two");
-            StringAssert.Contains(verdict.Explain(), "anna@pentagroup.it, luca@pentagroup.it");
+            Assert.AreEqual(AgentOwnerKind.Mine, anna.Kind);
+            Assert.AreEqual(AgentOwnerKind.Mine, luca.Kind);
+            Assert.AreEqual(AgentOwnerKind.SomeoneElse, marco.Kind);
+            CollectionAssert.AreEqual(new[] { "anna@pentagroup.it", "luca@pentagroup.it" }, anna.Owners.Select(o => o.Email).ToList());
+            Assert.IsNull(marco.OwnerEmail, "con più responsabili non c'è un computer solo a cui inoltrare");
+            StringAssert.Contains(marco.Explain(), "lavora solo sui loro computer");
         }
 
         [TestMethod]

@@ -361,7 +361,7 @@ namespace MdExplorer.Controllers.A2A
                 // Con un workflow il pulsante è una scelta che lo schedulatore esegue (W14): fa partire i passi che il
                 // workflow lega a questo pulsante, in un giro (uno per pulsante, W19). L'agente non riceve il messaggio.
                 bool handled;
-                try { handled = _workflow.TryReply(conversation.ProjectPath, lastToUser, chosen); }
+                try { handled = _workflow.TryReply(conversation.ProjectPath, lastToUser, chosen, request.Assign); }
                 catch (InvalidOperationException ex) { return UnprocessableEntity(new { error = ex.Message }); }
                 if (handled)
                 {
@@ -438,6 +438,48 @@ namespace MdExplorer.Controllers.A2A
         }
 
         /// <summary>
+        /// I passi che un pulsante farebbe partire e chi ne può rispondere (W22): se un agente ha un team, chi preme sceglie
+        /// a chi va prima di premere.
+        /// </summary>
+        [HttpGet("reply-targets")]
+        public IActionResult ReplyTargets([FromQuery] Guid messageId, [FromQuery] string replyId)
+        {
+            _session.BeginTransaction();
+            var msg = _session.GetDal<AgentMessage>().GetList().FirstOrDefault(m => m.Id == messageId);
+            _session.Commit();
+            if (msg == null) return NotFound(new { error = $"Messaggio {messageId} inesistente." });
+            var targets = _workflow.ReplyTargets(msg.ProjectPath, msg, replyId);
+            return Ok(new
+            {
+                targets = targets.Select(t => new
+                {
+                    step = t.Step, label = t.Label, agent = t.Agent, needsChoice = t.NeedsChoice,
+                    owners = t.Owners.Select(o => new { name = o.Name, email = o.Email }).ToList(),
+                }).ToList(),
+            });
+        }
+
+        /// <summary>
+        /// Chi ha un passo «da avviare» lo passa a un collega che risponde dello stesso agente (W22). Il passo esce dalla sua
+        /// posta e va sul computer del collega; il registro del giro dice chi l'ha passato a chi.
+        /// </summary>
+        [HttpPost("to-start/{messageId}/pass")]
+        public IActionResult PassAssignment(Guid messageId, [FromBody] PassAssignmentRequest? request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.To))
+                return BadRequest(new { error = "Scegli a chi passarlo." });
+            _session.BeginTransaction();
+            var msg = _session.GetDal<AgentMessage>().GetList().FirstOrDefault(m => m.Id == messageId);
+            _session.Commit();
+            if (msg == null) return NotFound(new { error = $"Messaggio {messageId} inesistente." });
+            if (msg.State != AgentMessage.StateEnum.Pending || msg.DeferredReason != AgentMessage.DeferredReasonEnum.AwaitingOwner)
+                return Conflict(new { error = "Questo incarico non aspetta più di essere avviato: forse l'ha già avviato o rifiutato qualcuno." });
+            try { _workflow.PassTo(msg, request.To, request.Note); }
+            catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+            return Ok(new { messageId, toAgent = msg.ToAgent, state = "passato", to = request.To.Trim().ToLowerInvariant() });
+        }
+
+        /// <summary>
         /// Il responsabile non avvia l'incarico, e dice perché. Il messaggio si chiude; chi lo aspettava vede «rifiutato
         /// dal responsabile» con il motivo. Niente riparte da solo, come dopo il rifiuto di un artefatto.
         /// </summary>
@@ -471,6 +513,12 @@ namespace MdExplorer.Controllers.A2A
             {
                 _session.Commit();
                 return Conflict(new { error = "Questo incarico non aspetta più di essere avviato: forse l'ha già avviato o rifiutato qualcuno." });
+            }
+            var notYours = _workflow.NotYours(msg);
+            if (notYours != null)
+            {
+                _session.Commit();
+                return Conflict(new { error = notYours });
             }
             change(msg);
             dal.Save(msg);
@@ -524,7 +572,27 @@ namespace MdExplorer.Controllers.A2A
                 runId = m.RunId,
                 step,
                 agentFilePath = agent?.AgentFilePath,
+                // A chi lo si può passare: chi risponde dello stesso agente con te (W22).
+                passTo = m.WorkflowRound == null ? new List<object>() : TeamMates(m),
             };
+        }
+
+        private List<object> TeamMates(AgentMessage m)
+        {
+            try
+            {
+                var ownership = HttpContext?.RequestServices?.GetService(typeof(MdExplorer.Services.IProjectOwnershipService)) as MdExplorer.Services.IProjectOwnershipService;
+                var identity = HttpContext?.RequestServices?.GetService(typeof(MdExplorer.Services.Federation.IEffectiveOwnerIdentity)) as MdExplorer.Services.Federation.IEffectiveOwnerIdentity;
+                var me = identity?.ResolveEmail(m.ProjectPath);
+                return AgentOwnerRule.Decide(ownership?.GetActiveOwnership(m.ProjectPath), m.ToAgent, me).Owners
+                    .Where(o => !string.Equals(o.Email, me, StringComparison.OrdinalIgnoreCase))
+                    .Select(o => (object)new { name = o.Name, email = o.Email }).ToList();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Mailbox] colleghi per {Id} non letti", m.Id);
+                return new List<object>();
+            }
         }
 
         [HttpGet("conversations")]
@@ -910,5 +978,14 @@ namespace MdExplorer.Controllers.A2A
         public bool? Choice { get; set; }
         /// <summary>Il messaggio a cui si risponde. Senza, l'ultimo che un agente ha scritto alla persona nel thread.</summary>
         public string? MessageId { get; set; }
+        /// <summary>Con un workflow: a chi va ogni passo che il pulsante fa partire (id del passo → email), per gli agenti di un team.</summary>
+        public Dictionary<string, string>? Assign { get; set; }
+    }
+
+    public class PassAssignmentRequest
+    {
+        /// <summary>L'email del collega che risponde dello stesso agente.</summary>
+        public string? To { get; set; }
+        public string? Note { get; set; }
     }
 }

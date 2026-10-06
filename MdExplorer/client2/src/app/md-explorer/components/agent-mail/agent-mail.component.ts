@@ -11,7 +11,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { EMPTY, forkJoin, of, Subscription } from 'rxjs';
 import { catchError, finalize, switchMap } from 'rxjs/operators';
 
-import { MailboxMessage, MailboxService, MailReply, AwaitedWork, ToStartAssignment } from '../../services/mailbox.service';
+import { MailboxMessage, MailboxService, MailReply, AwaitedWork, ToStartAssignment, ReplyTarget } from '../../services/mailbox.service';
 import { AgentLaunchDialogComponent } from '../agent-launch-dialog/agent-launch-dialog.component';
 import { AgentReviewService, MailArtifact, MergeRequest } from '../../services/agent-review.service';
 import { FederationRequest, FederationService } from '../../services/federation.service';
@@ -272,6 +272,27 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** «Passa a un collega»: a chi, e una riga per lui. */
+  passing = false;
+  passTo = '';
+  passNote = '';
+
+  /** Il passo va a un collega che risponde dello stesso agente: esce dalla mia posta e va sul suo computer. */
+  passStart(item: MailItem): void {
+    if (!item?.assignment || !this.passTo || this.deciding) return;
+    this.deciding = true;
+    this.mailbox.passAssignment(item.assignment.id, this.passTo, this.passNote.trim() || undefined)
+      .pipe(finalize(() => { this.deciding = false; })).subscribe({
+        next: () => {
+          const to = this.passTo;
+          this.passing = false; this.passTo = ''; this.passNote = '';
+          this.snackBar.open(this.translate.instant('AGENT_MAIL.TOSTART_PASSED', { step: item.assignment.step || item.assignment.toAgent, to }), 'OK', { duration: 5000 });
+          this.reload();
+        },
+        error: (err) => this.showError(err),
+      });
+  }
+
   /** Non lo avvio: il motivo lo legge chi l'ha chiesto. */
   declineStart(item: MailItem): void {
     const reason = this.declineReason.trim();
@@ -298,6 +319,8 @@ export class AgentMailComponent implements OnInit, OnDestroy {
   select(item: MailItem): void {
     this.selected = item;
     this.declining = false;
+    this.passing = false;
+    this.choosing = null;
     this.declineReason = '';
     this.document = null;
     this.replyDraft = '';
@@ -365,10 +388,35 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     return artifact === 'pending' || artifact === 'rejected' ? artifact : null;
   }
 
-  /** Un pulsante di risposta: invia il messaggio che la scheda dell'agente dichiara per quella risposta. */
+  /** Il pulsante premuto che aspetta la scelta di chi fa ogni passo (agenti di un team). */
+  choosing: { reply: MailReply; targets: ReplyTarget[]; picks: { [step: string]: string } } | null = null;
+
+  /**
+   * Un pulsante di risposta: invia il messaggio che la scheda dell'agente dichiara per quella risposta. Se fa partire un
+   * passo di un agente con un team, prima si sceglie chi lo fa: da lì ne risponde quella persona.
+   */
   replyWith(r: MailReply): void {
-    if (this.sending || this.replyLock()) return;
-    this.send(r.message, true);
+    const message = this.selected?.message;
+    if (this.sending || this.replyLock() || !message) return;
+    this.sending = true;
+    this.mailbox.replyTargets(message.id, r.id).pipe(finalize(() => { this.sending = false; })).subscribe({
+      next: (res) => {
+        const toChoose = (res.targets || []).filter(t => t.needsChoice);
+        if (!toChoose.length) { this.send(r.message, true); return; }
+        this.choosing = { reply: r, targets: toChoose, picks: {} };
+      },
+      error: (err) => this.showError(err),
+    });
+  }
+
+  canConfirmChoice(): boolean {
+    return !!this.choosing && this.choosing.targets.every(t => !!this.choosing!.picks[t.step]) && !this.sending;
+  }
+
+  confirmChoice(): void {
+    if (!this.canConfirmChoice()) return;
+    const c = this.choosing!;
+    this.send(c.reply.message, true, { ...c.picks });
   }
 
   /** Il campo libero: l'agente lo riceve con il suo messaggio citato. */
@@ -376,20 +424,23 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     this.send(this.replyDraft.trim(), false);
   }
 
-  private send(body: string, choice: boolean): void {
+  private send(body: string, choice: boolean, assign?: { [step: string]: string }): void {
     const message = this.selected?.message;
     if (!message || !body) return;
     this.sending = true;
     // Rispondere sveglia l'agente: prima si dice se nella cartella c'è lavoro che lui non vedrebbe.
     this.startGuard.beforeStart(this.data?.projectPath || '', message.fromAgent).pipe(
-      switchMap(go => go ? this.mailbox.reply(message.conversationId, body, choice, message.id) : EMPTY),
+      switchMap(go => go ? this.mailbox.reply(message.conversationId, body, choice, message.id, assign) : EMPTY),
       finalize(() => { this.sending = false; }),
     ).subscribe({
       next: (res) => {
         this.sending = false;
         this.replyDraft = '';
+        this.choosing = null;
         this.expectingUntil = Date.now() + 10 * 60 * 1000;
         this.watchAwaited(this.items);
+        // Un pulsante del workflow fa partire subito i passi: i loro «da avviare» sono già nella posta.
+        if (res.workflow) this.reload();
         this.snackBar.open(this.translate.instant('MAILBOX.REPLY_SENT', { agent: res.toAgent }), 'OK', { duration: 4000 });
       },
       error: (err) => { this.sending = false; this.showError(err); },

@@ -55,11 +55,11 @@ namespace MdExplorer.Controllers.A2A
         private static object Shape(AgentOwnerVerdict v) => new
         {
             agentName = v.AgentName,
-            // mine | someoneElse | unassigned | contested
+            // mine | someoneElse | unassigned
             kind = char.ToLowerInvariant(v.Kind.ToString()[0]) + v.Kind.ToString().Substring(1),
             ownerName = v.OwnerName,
             ownerEmail = v.OwnerEmail,
-            contestedBy = v.ContestedBy,
+            owners = v.Owners.Select(o => new { name = o.Name, email = o.Email }).ToList(),
             canWorkHere = v.CanWorkHere,
             explanation = v.Explain(),
         };

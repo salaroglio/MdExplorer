@@ -26,8 +26,13 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         public const string Failed = "failed";
         /// <summary>La persona ha premuto un pulsante sotto il messaggio di questo passo, con i suoi valori.</summary>
         public const string Replied = "replied";
+        /// <summary>
+        /// Chi ne risponde passa il passo a un altro responsabile dello stesso agente (W22: un collega del team, per esempio
+        /// perché va in ferie). Lo scrive solo chi ne risponde adesso; da lì il passo è del nuovo.
+        /// </summary>
+        public const string Assigned = "assigned";
 
-        public static readonly string[] All = { Held, Started, Delivered, Approved, Rejected, Done, Declined, Failed, Replied };
+        public static readonly string[] All = { Held, Started, Delivered, Approved, Rejected, Done, Declined, Failed, Replied, Assigned };
     }
 
     public class RoundEvent
@@ -46,6 +51,13 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         [JsonPropertyName("reply")] public string Reply { get; set; }
         /// <summary><see cref="RoundEventType.Replied"/>: i valori che porta (le variabili del giro).</summary>
         [JsonPropertyName("values")] public Dictionary<string, string> Values { get; set; }
+        /// <summary>
+        /// <see cref="RoundEventType.Replied"/>: a chi va ogni passo che il pulsante fa partire (id del passo → email), quando
+        /// il suo agente ha più responsabili e chi preme ha scelto (W22).
+        /// </summary>
+        [JsonPropertyName("assign")] public Dictionary<string, string> Assign { get; set; }
+        /// <summary><see cref="RoundEventType.Assigned"/>: l'email della persona che ora ne risponde.</summary>
+        [JsonPropertyName("owner")] public string Owner { get; set; }
         /// <summary><see cref="RoundEventType.Delivered"/>: il ramo pubblicato dell'agente.</summary>
         [JsonPropertyName("branch")] public string Branch { get; set; }
         /// <summary><see cref="RoundEventType.Delivered"/>: i file consegnati, dalla radice del progetto.</summary>

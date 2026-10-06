@@ -95,6 +95,14 @@ export class AgentRegistryDialogComponent implements OnInit {
     return !owner || owner.canWorkHere;
   }
 
+  /** I nomi di un team (senza te, se withoutMe): per dire «ne rispondi tu, con …». */
+  teamNames(owner: AgentOwner, withoutMe: boolean): string {
+    const me = (this.owners?.me || '').toLowerCase();
+    return (owner.owners || [])
+      .filter(o => !withoutMe || o.email.toLowerCase() !== me)
+      .map(o => o.name || o.email).join(', ');
+  }
+
   /** «È mio»: l'agente senza responsabile diventa di chi è a questo computer. */
   assignToMe(agent: AgentRegistryEntry): void {
     this.assignAll([agent]);

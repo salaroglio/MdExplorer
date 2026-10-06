@@ -74,7 +74,11 @@ namespace MdExplorer.IntegrationTests
             return held;
         }
 
-        private static RoundState Round(string path, AgentMessage held) => RoundLedger.Load(path, held.WorkflowRound);
+        private static RoundState Round(string path, AgentMessage held) => RoundLedger.Load(Ledger(path), held.WorkflowRound);
+
+        /// <summary>Il registro dei giri: sul ramo mde/giri, nella sua copia di lavoro.</summary>
+        private static string Ledger(string path) => _ctx.Factory.Services.GetRequiredService<IRoundStore>().Root(path);
+        private static AgentCityContext _ctx;   // i test di questa classe girano uno alla volta
 
         private static string[] Events(RoundState round, string step) => round.EventsOf(step).Select(e => e.Type).ToArray();
 
@@ -82,6 +86,7 @@ namespace MdExplorer.IntegrationTests
         public async Task Hold_the_next_step_until_its_owner_starts_it_and_record_every_gesture()
         {
             using var ctx = new AgentCityContext();
+            _ctx = ctx;
             var path = Setup(ctx, "sched-avvia");
 
             var held = await LaunchAndWaitForHold(ctx, path);
@@ -115,6 +120,7 @@ namespace MdExplorer.IntegrationTests
         public async Task Record_the_reason_when_the_owner_does_not_start_the_step()
         {
             using var ctx = new AgentCityContext();
+            _ctx = ctx;
             var path = Setup(ctx, "sched-rifiuta");
             var held = await LaunchAndWaitForHold(ctx, path);
 
@@ -135,6 +141,7 @@ namespace MdExplorer.IntegrationTests
         public async Task Refuse_a_message_between_agents_and_say_why_when_the_configured_workflow_is_broken()
         {
             using var ctx = new AgentCityContext();
+            _ctx = ctx;
             var path = Setup(ctx, "sched-rotto", Workflow.Replace("\"start\": \"ask-owner\"", "\"strat\": \"ask-owner\""));
 
             var token = ctx.MintRunToken("capo", path, null);
@@ -161,6 +168,7 @@ namespace MdExplorer.IntegrationTests
         {
             // W19: la ricerca trova due bandi, l'agente propone due pulsanti; ogni pulsante premuto apre il suo giro.
             using var ctx = new AgentCityContext();
+            _ctx = ctx;
             var path = Setup(ctx, "sched-pulsanti", WithReply);
             var runId = System.Guid.NewGuid();
             await ctx.Factory.Services.GetRequiredService<IAgentRunJobService>().RunAsync(new AgentRunRequestModel
@@ -186,7 +194,7 @@ namespace MdExplorer.IntegrationTests
                 held.Select(h => h.Body.Contains("NC-1") ? "NC-1" : h.Body.Contains("NC-2") ? "NC-2" : "?").ToList(), "ogni giro con il suo {codice}");
             Assert.AreEqual(0, ctx.Messages().Count(m => m.ToAgent == "capo" && m.FromAgent == "user"),
                 "il pulsante lo esegue lo schedulatore: il capo non riceve il messaggio");
-            Assert.AreEqual(2, RoundLedger.RoundIds(path).Count);
+            Assert.AreEqual(2, RoundLedger.RoundIds(Ledger(path)).Count);
         }
 
         private static System.Guid SeedSearchMessage(AgentCityContext ctx, string path, string runId)

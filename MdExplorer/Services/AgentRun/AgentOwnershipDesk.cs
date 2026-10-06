@@ -115,7 +115,7 @@ namespace MdExplorer.Services.AgentRun
                 if (now.Kind != AgentOwnerKind.Unassigned)
                     // Taking an agent from the person who answers for it is not a button: it is a change to
                     // the team's document, made where the team sees it.
-                    throw new InvalidOperationException(now.Explain() + " Per cambiare responsabile modifica il documento delle responsabilità.");
+                    throw new InvalidOperationException(now.Explain() + " Per cambiare responsabile, o aggiungerne uno al team, modifica il documento delle responsabilità.");
                 toTake.Add(agent.Name);
             }
 

@@ -44,6 +44,23 @@ export interface ToStartAssignment {
   /** Il passo del workflow, con il suo titolo («Scheda tecnica»). */
   step?: string | null;
   agentFilePath?: string | null;
+  /** A chi lo si può passare: chi risponde dello stesso agente con te (un team). */
+  passTo?: TeamMember[];
+}
+
+/** Una persona che risponde di un agente. */
+export interface TeamMember {
+  name?: string | null;
+  email: string;
+}
+
+/** Un passo che un pulsante fa partire, e chi ne può rispondere: con un team, chi preme sceglie. */
+export interface ReplyTarget {
+  step: string;
+  label: string;
+  agent: string;
+  needsChoice: boolean;
+  owners: TeamMember[];
 }
 
 export interface AwaitedWork {
@@ -134,6 +151,17 @@ export class MailboxService {
     return this.http.post<{ messageId: string; toAgent: string }>(`/api/A2A/mailbox/to-start/${messageId}/start`, body);
   }
 
+  /** I passi che un pulsante fa partire, con chi ne può rispondere. */
+  replyTargets(messageId: string, replyId: string): Observable<{ targets: ReplyTarget[] }> {
+    const params = new HttpParams().set('messageId', messageId).set('replyId', replyId);
+    return this.http.get<{ targets: ReplyTarget[] }>('/api/A2A/mailbox/reply-targets', { params });
+  }
+
+  /** Passa un incarico «da avviare» a un collega che risponde dello stesso agente. */
+  passAssignment(messageId: string, to: string, note?: string): Observable<{ messageId: string; to: string }> {
+    return this.http.post<{ messageId: string; to: string }>(`/api/A2A/mailbox/to-start/${messageId}/pass`, { to, note });
+  }
+
   /** Il responsabile non avvia l'incarico, e dice perché. */
   declineAssignment(messageId: string, reason: string): Observable<{ messageId: string }> {
     return this.http.post<{ messageId: string }>(`/api/A2A/mailbox/to-start/${messageId}/decline`, { reason });
@@ -174,10 +202,10 @@ export class MailboxService {
 
   /** choice = true: body è il messaggio di uno dei pulsanti proposti; false: testo libero, che arriva con il messaggio citato.
    *  messageId: il messaggio a cui si risponde (senza, l'ultimo del thread). */
-  reply(conversationId: string, body: string, choice = false, messageId?: string):
-    Observable<{ accepted: boolean; taskId: string; conversationId: string; toAgent: string }> {
-    return this.http.post<{ accepted: boolean; taskId: string; conversationId: string; toAgent: string }>(
-      '/api/A2A/mailbox/reply', { conversationId, body, choice, messageId });
+  reply(conversationId: string, body: string, choice = false, messageId?: string, assign?: { [step: string]: string }):
+    Observable<{ accepted: boolean; taskId: string; conversationId: string; toAgent: string; workflow?: boolean }> {
+    return this.http.post<{ accepted: boolean; taskId: string; conversationId: string; toAgent: string; workflow?: boolean }>(
+      '/api/A2A/mailbox/reply', { conversationId, body, choice, messageId, assign });
   }
 
   // ---- 4b: osservabilità e governo dei thread ----
