@@ -1,4 +1,4 @@
-import { EMPTY, of } from 'rxjs';
+import { EMPTY, Observable, of } from 'rxjs';
 import { finalize, switchMap } from 'rxjs/operators';
 import { AgentStartGuardService } from '../../services/agent-start-guard.service';
 import { AiChatService } from '../../../services/ai-chat.service';
@@ -77,6 +77,12 @@ export class AgentLaunchDialogComponent implements OnInit {
   engineInfo: AgentEngineInfo | null = null;
   engineChoice: string | null = null;
   modelText = '';
+  /** I modelli del motore scelto, gli stessi della tendina di MarkAgent. Un campo, non un getter: sta in un *ngFor. */
+  models: { id: string; name: string }[] = [];
+  modelsLoading = false;
+  /** Perché l'elenco non c'è: «nessun modello» e «non riesco a leggerli» non sono la stessa cosa. */
+  modelsError: string | null = null;
+  private modelsRequest = 0;
   aiError: string | null = null;
 
   // Splits a normalized prompt at its `## Task` heading. Header = everything before it
@@ -115,6 +121,7 @@ export class AgentLaunchDialogComponent implements OnInit {
         this.engineInfo = info;
         this.engineChoice = info.card?.engine || info.project?.engine || null;
         this.modelText = this.defaultModelFor(this.engineChoice);
+        this.loadModels(this.engineChoice);
       },
       // Senza l'informazione il lancio non passa un motore: decide il servizio (scheda, poi progetto).
       error: () => { this.engineInfo = null; this.engineChoice = null; },
@@ -132,6 +139,47 @@ export class AgentLaunchDialogComponent implements OnInit {
   chooseEngine(engine: string): void {
     this.engineChoice = engine;
     this.modelText = this.defaultModelFor(engine);
+    this.loadModels(engine);
+  }
+
+  /**
+   * I modelli del motore: prima quelli salvati (istantaneo); se non ce ne sono ancora li si chiede al motore, come fa
+   * MarkAgent. Una risposta arrivata dopo un cambio di motore si scarta.
+   */
+  private loadModels(engine: string | null): void {
+    const request = ++this.modelsRequest;
+    this.models = [];
+    this.modelsError = null;
+    if (!engine) { this.modelsLoading = false; return; }
+    const cached = (): Observable<{ id: string; name: string }[]> => engine === 'claude' ? this.aiChat.getClaudeCodeChatModels()
+      : engine === 'copilot' ? this.aiChat.getCopilotChatModels()
+      : this.aiChat.getOpenCodeChatModels();
+    const refresh = (): Observable<unknown> => engine === 'claude' ? this.aiChat.refreshClaudeCodeModels()
+      : engine === 'copilot' ? this.aiChat.refreshCopilotCliModels()
+      : this.aiChat.refreshOpenCodeModels();
+    this.modelsLoading = true;
+    cached().pipe(
+      switchMap(list => list.length ? of(list) : refresh().pipe(switchMap(() => cached()))),
+      finalize(() => { if (request === this.modelsRequest) this.modelsLoading = false; }),
+    ).subscribe({
+      next: list => {
+        if (request !== this.modelsRequest) return;
+        this.models = list.map(m => ({ id: m.id, name: m.name || m.id }));
+        if (!this.models.length)
+          this.modelsError = this.translate.instant('AGENT_LAUNCH.MODELS_NONE');
+      },
+      error: err => {
+        if (request !== this.modelsRequest) return;
+        this.modelsError = this.translate.instant('AGENT_LAUNCH.MODELS_ERROR',
+          { error: err?.error?.error || err?.error?.message || err?.message || err });
+      },
+    });
+  }
+
+  /** Il modello di partenza (scheda o progetto) che il motore non elenca: si vede, con l'avviso, invece di sparire. */
+  get modelNotListed(): boolean {
+    return !!this.modelText && !this.modelsLoading && this.models.length > 0
+      && !this.models.some(m => m.id === this.modelText);
   }
 
   /** Da dove viene il motore scelto, per la riga sotto il selettore. */

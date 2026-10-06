@@ -112,8 +112,14 @@
   </div>
   <p class="engine-hint">{{ engineSource }}</p>
   <label class="engine-label engine-model-label" for="agent-model">{{ 'AGENT_LAUNCH.MODEL' | translate }}</label>
-  <input id="agent-model" class="engine-model" [(ngModel)]="modelText" [disabled]="isLaunching || !engineChoice"
-         [placeholder]="'AGENT_LAUNCH.MODEL_PLACEHOLDER' | translate">
+  <!-- I modelli del motore scelto. «Predefinito» = nessun modello passato: decide il motore (o la scheda, o il progetto). -->
+  <select id="agent-model" class="engine-model" [(ngModel)]="modelText"
+          [disabled]="isLaunching || !engineChoice || modelsLoading">
+    <option value="">{{ (modelsLoading ? 'AGENT_LAUNCH.MODELS_LOADING' : 'AGENT_LAUNCH.MODEL_PLACEHOLDER') | translate }}</option>
+    <option *ngIf="modelNotListed" [value]="modelText">{{ 'AGENT_LAUNCH.MODEL_NOT_LISTED' | translate: { model: modelText } }}</option>
+    <option *ngFor="let m of models" [value]="m.id">{{ m.name }}</option>
+  </select>
+  <p class="engine-hint engine-warning" *ngIf="modelsError">{{ modelsError }}</p>
   <p class="engine-hint engine-warning" *ngIf="engineInfo?.card && !engineInfo?.card?.valid">
     {{ 'AGENT_LAUNCH.ENGINE_CARD_INVALID' | translate: { provider: engineInfo?.card?.provider } }}
   </p>

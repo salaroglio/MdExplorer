@@ -1685,12 +1685,16 @@
     "ISOLATE_OFF": "The agent writes here, on your branch: you see the result straight away, but its changes mix with yours and you sign them when you commit.",
     "ENGINE": "Engine",
     "MODEL": "Model",
-    "MODEL_PLACEHOLDER": "engine's default model",
+    "MODEL_PLACEHOLDER": "Default (the card's, the project's or the engine's)",
     "ENGINE_FROM_CARD": "From the agent's card (runtime:). You can change it for this launch.",
     "ENGINE_FROM_PROJECT": "The project's engine, the MarkAgent tab's. You can change it for this launch.",
     "ENGINE_CHOSEN": "Chosen for this launch: the card and the project stay as they are.",
     "ENGINE_NONE": "The project has no engine and the card declares none: choose one.",
-    "ENGINE_CARD_INVALID": "The card declares an unknown engine (“{{provider}}”): fix runtime.provider (claude, copilot, opencode)."
+    "ENGINE_CARD_INVALID": "The card declares an unknown engine (“{{provider}}”): fix runtime.provider (claude, copilot, opencode).",
+    "MODELS_LOADING": "Reading the engine's models…",
+    "MODELS_NONE": "The engine returned no models: it starts with its default.",
+    "MODELS_ERROR": "Cannot read the engine's models: {{error}}",
+    "MODEL_NOT_LISTED": "{{model}} (not in the engine's list)"
   },
   "AGENT_SCHEDULE": {
     "TITLE": "Agent scheduling",

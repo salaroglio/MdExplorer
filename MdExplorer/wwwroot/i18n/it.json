@@ -1685,12 +1685,16 @@
     "ISOLATE_OFF": "L'agente scrive qui, sul tuo ramo: vedi subito il risultato, ma le sue modifiche si mescolano alle tue e committandole le firmi tu.",
     "ENGINE": "Motore",
     "MODEL": "Modello",
-    "MODEL_PLACEHOLDER": "modello predefinito del motore",
+    "MODEL_PLACEHOLDER": "Predefinito (quello della scheda, del progetto o del motore)",
     "ENGINE_FROM_CARD": "Dalla scheda dell'agente (runtime:). Puoi cambiarlo per questo lancio.",
     "ENGINE_FROM_PROJECT": "Il motore del progetto, quello del tab MarkAgent. Puoi cambiarlo per questo lancio.",
     "ENGINE_CHOSEN": "Scelto per questo lancio: la scheda e il progetto non cambiano.",
     "ENGINE_NONE": "Il progetto non ha un motore e la scheda non ne dichiara uno: scegline uno.",
-    "ENGINE_CARD_INVALID": "La scheda dichiara un motore sconosciuto («{{provider}}»): correggi runtime.provider (claude, copilot, opencode)."
+    "ENGINE_CARD_INVALID": "La scheda dichiara un motore sconosciuto («{{provider}}»): correggi runtime.provider (claude, copilot, opencode).",
+    "MODELS_LOADING": "Leggo i modelli del motore…",
+    "MODELS_NONE": "Il motore non ha restituito nessun modello: parte con il suo predefinito.",
+    "MODELS_ERROR": "Non riesco a leggere i modelli del motore: {{error}}",
+    "MODEL_NOT_LISTED": "{{model}} (non è nell'elenco del motore)"
   },
   "AGENT_SCHEDULE": {
     "TITLE": "Schedulazione agente",
