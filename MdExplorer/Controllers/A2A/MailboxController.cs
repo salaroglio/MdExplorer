@@ -33,12 +33,16 @@ namespace MdExplorer.Controllers.A2A
         private readonly IAgentRegistryService _registry;
         private readonly ILogger<MailboxController> _logger;
 
+        private readonly IAgentWorkflowExecutor _workflow;
+
         public MailboxController(
             IUserSettingsDB session,
             IAgentMailbox mailbox,
             IAgentRegistryService registry,
-            ILogger<MailboxController> logger)
+            ILogger<MailboxController> logger,
+            IAgentWorkflowExecutor workflow)
         {
+            _workflow = workflow;
             _session = session;
             _mailbox = mailbox;
             _registry = registry;
@@ -353,6 +357,18 @@ namespace MdExplorer.Controllers.A2A
                 if (chosen == null)
                     return UnprocessableEntity(new { error = $"'{request.Body.Trim()}' non è una delle risposte che '{toAgent}' ti ha proposto con quel messaggio." });
                 body = chosen.Message;
+
+                // Con un workflow il pulsante è una scelta che lo schedulatore esegue (W14): fa partire i passi che il
+                // workflow lega a questo pulsante, in un giro (uno per pulsante, W19). L'agente non riceve il messaggio.
+                bool handled;
+                try { handled = _workflow.TryReply(conversation.ProjectPath, lastToUser, chosen); }
+                catch (InvalidOperationException ex) { return UnprocessableEntity(new { error = ex.Message }); }
+                if (handled)
+                {
+                    MarkThreadToUserRead(convId);
+                    _logger.LogInformation("[Mailbox] «{Reply}» eseguito dallo schedulatore (giro del workflow)", chosen.Label);
+                    return Ok(new { accepted = true, conversationId = convId.ToString(), toAgent, workflow = true });
+                }
             }
             else
             {
@@ -418,7 +434,7 @@ namespace MdExplorer.Controllers.A2A
                 m.StartModel = string.IsNullOrWhiteSpace(request?.Model) ? null : request.Model.Trim();
                 m.DeferredReason = null;
                 m.NextAttemptAt = null;
-            }, "avviato");
+            }, "avviato", m => _workflow.OnOwnerStarted(m));
         }
 
         /// <summary>
@@ -438,10 +454,10 @@ namespace MdExplorer.Controllers.A2A
                 m.ProcessedAt = DateTime.UtcNow;
                 m.DeferredReason = null;
                 m.NextAttemptAt = null;
-            }, "rifiutato");
+            }, "rifiutato", m => _workflow.OnOwnerDeclined(m, request.Reason.Trim()));
         }
 
-        private IActionResult UpdateAwaiting(Guid messageId, Action<AgentMessage> change, string what)
+        private IActionResult UpdateAwaiting(Guid messageId, Action<AgentMessage> change, string what, Action<AgentMessage> recorded = null)
         {
             _session.BeginTransaction();
             var dal = _session.GetDal<AgentMessage>();
@@ -460,6 +476,9 @@ namespace MdExplorer.Controllers.A2A
             dal.Save(msg);
             _session.Commit();
             _logger.LogInformation("[Mailbox] incarico {Id} per '{Agent}' {What} dal responsabile", messageId, msg.ToAgent, what);
+            // Un passo di un giro: il gesto va nel registro del giro (chi l'ha avviato, con quali indicazioni, o perché no).
+            try { recorded?.Invoke(msg); }
+            catch (Exception ex) { _logger.LogError(ex, "[Mailbox] gesto sull'incarico {Id} non registrato nel giro {Round}", messageId, msg.WorkflowRound); }
             return Ok(new { messageId, toAgent = msg.ToAgent, state = what });
         }
 
@@ -485,7 +504,10 @@ namespace MdExplorer.Controllers.A2A
                 var metadata = HttpContext?.RequestServices?.GetService(typeof(MdExplorer.Services.IProjectMetadataService)) as MdExplorer.Services.IProjectMetadataService;
                 var wf = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(m.ProjectPath, metadata?.GetAgentCity(m.ProjectPath)?.WorkflowDoc, out _);
                 var isApproval = string.Equals(m.TriggerSource, "approval", StringComparison.OrdinalIgnoreCase);
-                step = wf == null ? null : MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.StepFor(wf, m.FromAgent, m.ToAgent, isApproval)?.Label;
+                // Un incarico dello schedulatore sa di quale passo è; gli altri si riconoscono dalla regola.
+                step = wf == null ? null
+                    : m.WorkflowStep != null ? wf.Step(m.WorkflowStep)?.Label
+                    : MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.StepFor(wf, m.FromAgent, m.ToAgent, isApproval)?.Label;
             }
             catch (Exception ex)
             {

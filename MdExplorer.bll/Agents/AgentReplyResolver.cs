@@ -12,6 +12,8 @@ namespace MdExplorer.Features.Agents
         public string Label { get; set; }
         public string Description { get; set; }
         public string Message { get; set; }
+        /// <summary>I valori dei segnaposto (<c>codice</c> → <c>NC-2027-014</c>): con un workflow diventano le variabili del giro.</summary>
+        public Dictionary<string, string> Values { get; set; }
     }
 
     /// <summary>
@@ -55,7 +57,12 @@ namespace MdExplorer.Features.Agents
                     return null;
                 }
 
-                var resolved = new ResolvedReply { Id = card.Id.Trim() };
+                var resolved = new ResolvedReply
+                {
+                    Id = card.Id.Trim(),
+                    Values = values.Where(kv => !string.Equals(kv.Key, "id", StringComparison.OrdinalIgnoreCase))
+                                   .ToDictionary(kv => kv.Key, kv => kv.Value?.Trim(), StringComparer.Ordinal),
+                };
                 foreach (var (name, template, required) in new[]
                          {
                              ("label", card.Label, true), ("description", card.Description, true), ("message", card.Message, true),

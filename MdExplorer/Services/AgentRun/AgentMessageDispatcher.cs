@@ -70,6 +70,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentWakeGuard _wakeGuard;
         private readonly IAgentMessageForwarder _forwarder;
         private readonly IAgentMailbox _mailbox;
+        private readonly IAgentWorkflowExecutor _workflow;
         private readonly MdExplorer.Services.IProjectMetadataService _projectMetadata;
         private readonly MdExplorer.Services.Federation.IFederationSender _federationSender;
         private readonly IHubContext<MonitorMDHub> _hubContext;
@@ -105,8 +106,10 @@ namespace MdExplorer.Services.AgentRun
             MdExplorer.Services.IProjectMetadataService projectMetadata,
             MdExplorer.Services.Federation.IFederationSender federationSender,
             IHubContext<MonitorMDHub> hubContext,
-            ILogger<AgentMessageDispatcher> logger)
+            ILogger<AgentMessageDispatcher> logger,
+            IAgentWorkflowExecutor workflow)
         {
+            _workflow = workflow;
             _scopeFactory = scopeFactory;
             _wakeGuard = wakeGuard;
             _forwarder = forwarder;
@@ -587,6 +590,7 @@ namespace MdExplorer.Services.AgentRun
 
                 // Fase 7d.2 — deliverable: a run riuscito nel worktree, pubblica il branch d'attività su
                 // origin (commit → push refspec). Best-effort: un push mancato non fallisce il run già concluso.
+                AgentMergeRequest openedRequest = null;
                 if (outcome.Success && workingDirectory != null)
                 {
                     // Fase 7e.1 — gate del codice: rilevato PRIMA del commit del deliverable, perché il
@@ -621,7 +625,7 @@ namespace MdExplorer.Services.AgentRun
                             if (await _mergeGate.ShouldMergeAsync(snapshot.ProjectPath, entry.Name, pushed.Branch, ct))
                             {
                                 var changed = await _worktree.ChangedFilesAsync(snapshot.ProjectPath, entry.Name, ct);
-                                _mergeRequests.Open(snapshot.ProjectPath, entry.Name,
+                                openedRequest = _mergeRequests.Open(snapshot.ProjectPath, entry.Name,
                                     pushed.Branch, pushed.LocalBranch, pushed.HeadSha, changed, runId.ToString("N"),
                                     messageId.ToString());
 
@@ -646,6 +650,17 @@ namespace MdExplorer.Services.AgentRun
                         }
                         catch (Exception ex) { _logger.LogWarning(ex, "[Dispatcher] apertura richiesta di merge per '{Agent}' fallita.", entry.Name); }
                     }
+                }
+
+                // Un incarico dello schedulatore: il registro del giro sa com'è finito, e lo schedulatore decide cosa viene dopo.
+                if (snapshot.WorkflowRound != null)
+                {
+                    try
+                    {
+                        _workflow.OnRunEnded(snapshot.ProjectPath, entry.Name, runId.ToString("N"), messageId, openedRequest,
+                            outcome.Success, outcome.Success ? null : outcome.Error);
+                    }
+                    catch (Exception ex) { _logger.LogError(ex, "[Dispatcher] registro del giro {Round} non aggiornato per '{Agent}'", snapshot.WorkflowRound, entry.Name); }
                 }
             }
             finally
@@ -1191,6 +1206,10 @@ namespace MdExplorer.Services.AgentRun
             OwnerNote = m.OwnerNote,
             StartProvider = m.StartProvider,
             StartModel = m.StartModel,
+            WorkflowRound = m.WorkflowRound,
+            WorkflowStep = m.WorkflowStep,
+            WorkflowRoundNo = m.WorkflowRoundNo,
+            WorkflowAttempt = m.WorkflowAttempt,
         };
 
         private static string SafeName(IAlgorithmicAgent a)

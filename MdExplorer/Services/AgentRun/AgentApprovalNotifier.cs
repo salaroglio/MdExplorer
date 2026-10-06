@@ -54,7 +54,13 @@ namespace MdExplorer.Services.AgentRun
         }
 
         public IReadOnlyList<ApprovalRecipient> CandidatesFor(string projectPath, string producerAgent)
-            => ApprovalRoute.Candidates(_registry.RefreshCatalog(projectPath), producerAgent, e => _wakeGuard.WorksElsewhere(projectPath, e));
+            // Con un workflow, chi viene dopo un'approvazione lo decide lo schedulatore (W14): nessun collega da scegliere.
+            => WorkflowConfigured(projectPath)
+                ? new List<ApprovalRecipient>()
+                : ApprovalRoute.Candidates(_registry.RefreshCatalog(projectPath), producerAgent, e => _wakeGuard.WorksElsewhere(projectPath, e));
+
+        private bool WorkflowConfigured(string projectPath)
+            => !string.IsNullOrWhiteSpace(_projectMetadata?.GetAgentCity(projectPath)?.WorkflowDoc);
 
         public string SummaryOf(string projectPath, string agentName)
             => _registry.RefreshCatalog(projectPath)
@@ -71,14 +77,9 @@ namespace MdExplorer.Services.AgentRun
             if (!target.Available)
                 return Fail(recipient, target.Reason);
 
-            // Con un workflow, l'avviso di un'approvazione è un passaggio come gli altri: parte solo se il workflow lo
-            // descrive (un passo di chi riceve che aspetta l'approvazione del lavoro di chi ha prodotto).
-            var workflow = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(
-                projectPath, _projectMetadata?.GetAgentCity(projectPath)?.WorkflowDoc, out var workflowProblem);
-            if (workflowProblem != null)
-                return Fail(recipient, $"il workflow del progetto non si legge ({workflowProblem}): non so se avvisare '{target.Name}' è previsto.");
-            if (workflow != null && MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.ApprovalStepFor(workflow, producerAgent, target.Name) == null)
-                return Fail(recipient, $"il workflow «{workflow.Title}» non prevede che l'approvazione del lavoro di '{producerAgent}' avvisi '{target.Name}'.");
+            // Con un workflow l'avviso non serve: dopo l'approvazione lo schedulatore fa partire chi viene dopo (W14).
+            if (WorkflowConfigured(projectPath))
+                return Fail(recipient, $"il progetto ha un workflow: dopo l'approvazione chi viene dopo lo fa partire MdExplorer, non un avviso a '{target.Name}'.");
 
             var maxHops = catalog.FirstOrDefault(e => string.Equals(e.Name, target.Name, StringComparison.OrdinalIgnoreCase))?.MaxHops;
             var result = _mailbox.Enqueue(new EnqueueRequest

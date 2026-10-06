@@ -141,6 +141,18 @@ namespace MdExplorer.Abstractions.Entities.UserDB
         /// <summary>Quando il responsabile ha rifiutato l'incarico (il motivo sta in <see cref="Error"/>). Il messaggio è <c>failed</c>.</summary>
         public virtual DateTime? OwnerDeclinedAt { get; set; }
 
+        /// <summary>
+        /// Il giro del workflow (id della cartella in <c>.mde/giri</c>) di cui questo messaggio è un passo: lo ha creato lo
+        /// schedulatore. Null = un messaggio qualunque.
+        /// </summary>
+        public virtual string WorkflowRound { get; set; }
+        /// <summary>Il passo del workflow che questo messaggio fa partire.</summary>
+        public virtual string WorkflowStep { get; set; }
+        /// <summary>Il giro del passo (ciclo «for»), da 1.</summary>
+        public virtual int? WorkflowRoundNo { get; set; }
+        /// <summary>Il tentativo dentro il giro (rifacimenti), da 1.</summary>
+        public virtual int? WorkflowAttempt { get; set; }
+
         /// <summary>Valori ammessi per <see cref="State"/>.</summary>
         public static class StateEnum
         {

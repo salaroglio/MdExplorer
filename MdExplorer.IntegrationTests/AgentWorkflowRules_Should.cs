@@ -45,7 +45,7 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
-        public async Task Refuse_an_assignment_the_workflow_does_not_foresee_and_say_what_is_foreseen()
+        public async Task Refuse_any_message_between_agents_when_the_project_has_a_workflow()
         {
             using var ctx = new AgentCityContext();
             var path = Project(ctx, "wf-non-previsto", WithLoop);
@@ -61,8 +61,8 @@ namespace MdExplorer.IntegrationTests
             var (status, body) = await ctx.SendAuthenticated(token, "legale", "[INCARICO] scrivi la scheda contrattuale");
 
             Assert.AreEqual(System.Net.HttpStatusCode.Forbidden, status, body);
-            StringAssert.Contains(body, "non prevede che 'capo' scriva a 'legale'");
-            StringAssert.Contains(body, "Dopo 'capo' vengono: tecnico", "l'agente sa che cosa può fare");
+            StringAssert.Contains(body, "i passaggi tra agenti li fa MdExplorer", "W14: con un workflow gli agenti non instradano");
+            StringAssert.Contains(body, "scrivi alla persona", "l'agente sa che cosa può fare");
             Assert.IsFalse(ctx.Messages().Any(m => m.ToAgent == "legale"), "un passaggio non previsto non entra nemmeno in coda");
         }
 

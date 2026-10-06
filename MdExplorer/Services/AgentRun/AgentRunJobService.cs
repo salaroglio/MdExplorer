@@ -41,6 +41,7 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentMergeRequestService _mergeRequests;
         private readonly IAgentDeliveryReporter _deliveryReporter;
         private readonly IAgentWakeGuard _wakeGuard;
+        private readonly IAgentWorkflowExecutor _workflow;
 
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
 
@@ -55,9 +56,11 @@ namespace MdExplorer.Services.AgentRun
             IAgentWorktreePreference worktreePreference,
             IAgentMergeRequestService mergeRequests,
             IAgentDeliveryReporter deliveryReporter,
-            IAgentWakeGuard wakeGuard)
+            IAgentWakeGuard wakeGuard,
+            IAgentWorkflowExecutor workflow)
         {
             _wakeGuard = wakeGuard;
+            _workflow = workflow;
             _worktree = worktree;
             _worktreePreference = worktreePreference;
             _mergeRequests = mergeRequests;
@@ -129,7 +132,7 @@ namespace MdExplorer.Services.AgentRun
         /// <para>Fail-soft: un intoppo qui non trasforma un turno riuscito in un fallimento — ma
         /// si vede nel log, non si finge che sia andata.</para>
         /// </summary>
-        private async Task PublishIsolatedWorkAsync(AgentRunRequestModel request, string agentName, CancellationToken ct)
+        private async Task<MdExplorer.Abstractions.Entities.UserDB.AgentMergeRequest> PublishIsolatedWorkAsync(AgentRunRequestModel request, string agentName, CancellationToken ct)
         {
             try
             {
@@ -139,18 +142,18 @@ namespace MdExplorer.Services.AgentRun
                 {
                     // Il lavoro c'è e non è stato pubblicato: lo deve sapere l'umano, non solo il log.
                     _deliveryReporter.ReportNotPublished(request.ProjectPath, agentName, attempt);
-                    return;
+                    return null;
                 }
                 var pushed = attempt?.Pushed;
                 if (pushed == null)
                 {
                     // Nessun commit = l'agente non ha toccato niente: è un esito, non un errore.
                     _logger.LogInformation("[AgentRun] '{Agent}': niente da consegnare dal posto di lavoro.", agentName);
-                    return;
+                    return null;
                 }
 
                 var changed = await _worktree.ChangedFilesAsync(request.ProjectPath, agentName, ct);
-                _mergeRequests.Open(request.ProjectPath, agentName,
+                var opened = _mergeRequests.Open(request.ProjectPath, agentName,
                     pushed.Branch, pushed.LocalBranch, pushed.HeadSha, changed, request.RunId.ToString("N"));
 
                 // La UI si accende: c'è qualcosa da decidere.
@@ -164,12 +167,14 @@ namespace MdExplorer.Services.AgentRun
 
                 _logger.LogInformation("[AgentRun] '{Agent}': lavoro consegnato su '{Branch}', {N} file.",
                     agentName, pushed.Branch, changed.Count);
+                return opened;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex,
                     "[AgentRun] consegna del lavoro isolato di '{Agent}' fallita: il lavoro è sul suo ramo, ma nessuno te l'ha chiesto di approvare.",
                     agentName);
+                return null;
             }
         }
 
@@ -304,6 +309,12 @@ namespace MdExplorer.Services.AgentRun
                 // nome-da-file solo se il catalogo non lo conosce): e' la stessa identita' con
                 // cui firma i commit, quindi il token non puo' dire una cosa e la firma un'altra.
                 var a2aName = gitName;
+                // Un lancio a mano di un agente che il workflow fa partire così apre un giro (lo schedulatore).
+                if (string.Equals(request.TriggerSource, "manual", StringComparison.OrdinalIgnoreCase))
+                {
+                    try { _workflow.OnLaunched(request.ProjectPath, a2aName, request.RunId.ToString("N")); }
+                    catch (Exception ex) { _logger.LogError(ex, "[AgentRun] '{Agent}': apertura del giro del workflow fallita", a2aName); }
+                }
                 var runToken = _tokens.Mint(new MdExplorer.Features.Agents.RunTokenClaims
                 {
                     RunId = request.RunId,
@@ -375,8 +386,15 @@ namespace MdExplorer.Services.AgentRun
                 // Isolato: il lavoro non può restare in un posto che verrà riciclato. Si committa,
                 // si pubblica e si chiede il permesso — lo stesso trattamento di un agente svegliato
                 // da un messaggio, perché è la stessa cosa: lavoro di una macchina che aspetta un sì.
+                MdExplorer.Abstractions.Entities.UserDB.AgentMergeRequest delivered = null;
                 if (isolate && turn.IsSuccess)
-                    await PublishIsolatedWorkAsync(request, a2aName, cts.Token);
+                    delivered = await PublishIsolatedWorkAsync(request, a2aName, cts.Token);
+                try
+                {
+                    _workflow.OnRunEnded(request.ProjectPath, a2aName, request.RunId.ToString("N"), null, delivered, turn.IsSuccess,
+                        turn.IsSuccess ? null : turn.Diagnostic ?? $"turno concluso come {turn.Outcome}");
+                }
+                catch (Exception ex) { _logger.LogError(ex, "[AgentRun] '{Agent}': registro del giro non aggiornato", a2aName); }
 
                 // Un turno può concludersi male SENZA sollevare (tetto di iterazioni, uscita
                 // non-zero): registrarlo come "success" mentirebbe allo storico dell'agente.

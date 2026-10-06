@@ -102,11 +102,15 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentWorktreeManager _worktree;
         private readonly ILogger<AgentMergeRequestService> _logger;
 
+        private readonly IAgentWorkflowExecutor _workflow;
+
         public AgentMergeRequestService(
             IServiceScopeFactory scopeFactory,
             IAgentWorktreeManager worktree,
-            ILogger<AgentMergeRequestService> logger)
+            ILogger<AgentMergeRequestService> logger,
+            IAgentWorkflowExecutor workflow)
         {
+            _workflow = workflow;
             _scopeFactory = scopeFactory;
             _worktree = worktree;
             _logger = logger;
@@ -256,12 +260,12 @@ namespace MdExplorer.Services.AgentRun
                 request.ProjectPath, request.AgentName, request.LocalBranch, ct);
 
             var merged = outcome == DeliverableMergeOutcome.Merged;
-            return Decide(id,
+            return Recorded(Decide(id,
                 merged ? AgentMergeRequest.StatusEnum.Merged : AgentMergeRequest.StatusEnum.Failed,
                 merged ? null
                        : outcome == DeliverableMergeOutcome.Conflict
                            ? "Il merge è in conflitto con il ramo principale: serve l'intervento manuale."
-                           : "Il merge non è riuscito.");
+                           : "Il merge non è riuscito."));
         }
 
         public AgentMergeRequest Reject(Guid id, string note)
@@ -270,7 +274,18 @@ namespace MdExplorer.Services.AgentRun
                 throw new InvalidOperationException("Per rifiutare serve il motivo: è ciò che l'agente legge se il lavoro riparte.");
             // Rifiutare FERMA. Niente riparte da solo: se la risposta è sballata la causa è spesso nella scheda
             // dell'agente, e ripartire subito rifarebbe lo stesso errore prima che la persona possa correggerla.
-            return Decide(id, AgentMergeRequest.StatusEnum.Rejected, note.Trim());
+            return Recorded(Decide(id, AgentMergeRequest.StatusEnum.Rejected, note.Trim()));
+        }
+
+        /// <summary>
+        /// Una decisione su un artefatto di un giro va nel registro del giro: è ciò che fa andare avanti lo schedulatore.
+        /// Un intoppo qui non annulla la decisione (è già presa), ma si vede nel log.
+        /// </summary>
+        private AgentMergeRequest Recorded(AgentMergeRequest decided)
+        {
+            try { _workflow?.OnDecided(decided); }
+            catch (Exception ex) { _logger.LogError(ex, "[Merge] decisione su '{Agent}' non registrata nel giro", decided?.AgentName); }
+            return decided;
         }
 
         public bool SomeoneIsWaitingFor(AgentMergeRequest request) => WaitingTrigger(request) != null;
@@ -305,6 +320,12 @@ namespace MdExplorer.Services.AgentRun
             var request = Get(id) ?? throw new InvalidOperationException($"Richiesta {id} inesistente.");
             if (request.Status != AgentMergeRequest.StatusEnum.Rejected)
                 throw new InvalidOperationException("Si fa ripartire solo un lavoro rifiutato.");
+            // Un passo di un giro lo fa ripartire lo schedulatore: nuovo tentativo nel registro, incarico con il motivo.
+            if (_workflow != null && _workflow.TryRework(request))
+            {
+                _logger.LogInformation("[Merge] lavoro di '{Agent}' fatto ripartire nel suo giro.", request.AgentName);
+                return request;
+            }
             if (WaitingTrigger(request) == null)
                 throw new InvalidOperationException(
                     "Questo lavoro non l'aveva chiesto un altro agente: non c'è un incarico da rimettere in coda. Per riprovare, rilancia l'agente.");
@@ -348,6 +369,12 @@ namespace MdExplorer.Services.AgentRun
         public int? ReworksLeft(AgentMergeRequest request, out string why)
         {
             why = null;
+            // Un passo di un giro: lo dice il registro del giro.
+            if (_workflow != null)
+            {
+                var fromRound = _workflow.ReworksLeft(request, out var linked, out why);
+                if (linked) return fromRound;
+            }
             var trigger = request == null ? null : WaitingTrigger(request);
             if (trigger == null) return null;
 
@@ -376,8 +403,13 @@ namespace MdExplorer.Services.AgentRun
             return MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.ReworksLeft(workflow, step, Math.Max(1, rejections), out why);
         }
 
+        /// <summary>
+        /// Il lavoro l'aveva chiesto la persona (nessuno lo aspetta). Un incarico dello schedulatore è accodato «da user» ma è
+        /// un passo di un giro: lo aspettano i passi che vengono dopo.
+        /// </summary>
         private static bool FromThePerson(AgentMessage m)
-            => string.Equals(m.FromAgent, MdExplorer.Features.Agents.ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase);
+            => m.WorkflowRound == null
+               && string.Equals(m.FromAgent, MdExplorer.Features.Agents.ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Il messaggio che ha fatto partire il turno, se viene da un <b>altro agente</b>: allora qualcuno aspetta

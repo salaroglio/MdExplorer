@@ -201,10 +201,15 @@ namespace MdExplorer.Controllers.A2A
                 claims.ProjectPath, _projectMetadata.GetAgentCity(claims.ProjectPath)?.WorkflowDoc, out var workflowProblem);
             if (workflowProblem != null)
                 return Conflict(new { error = $"Il workflow del progetto non si legge ({workflowProblem}): finché non è corretto non so se questo passaggio è previsto. Dillo alla persona." });
-            if (workflow != null && MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.StepFor(workflow, claims.AgentName, to, isApproval: false) == null)
+            if (workflow != null)
             {
-                _logger.LogWarning("[A2A/send] {From} -> {To} rifiutato: il workflow non lo prevede", claims.AgentName, to);
-                return StatusCode(403, new { error = MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.NotForeseen(workflow, claims.AgentName, to) });
+                // Con un workflow i passaggi li fa lo schedulatore (W14): l'agente fa il suo passo e scrive alla persona.
+                _logger.LogWarning("[A2A/send] {From} -> {To} rifiutato: con il workflow gli agenti non instradano", claims.AgentName, to);
+                return StatusCode(403, new
+                {
+                    error = $"Il progetto ha un workflow («{workflow.Title}»): i passaggi tra agenti li fa MdExplorer, non gli agenti. " +
+                            "Non scrivere a un collega: fai il tuo passo e scrivi alla persona (toAgent = user). Chi viene dopo lo fa partire lo schedulatore.",
+                });
             }
 
             var result = _mailbox.Enqueue(new EnqueueRequest

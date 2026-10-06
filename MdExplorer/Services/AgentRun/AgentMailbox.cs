@@ -35,6 +35,19 @@ namespace MdExplorer.Services.AgentRun
         /// logga il default <c>message</c>.
         /// </summary>
         public string TriggerSource { get; set; }
+
+        /// <summary>
+        /// Nasce già «da avviare»: lo schedulatore mette un passo <c>ask-owner</c> nella posta del responsabile, e il
+        /// dispatcher non deve prenderlo prima che lui lo avvii.
+        /// </summary>
+        public bool AwaitOwner { get; set; }
+        /// <summary>Per un rifacimento: il motivo del rifiuto, che l'agente riceve.</summary>
+        public string ReworkNote { get; set; }
+        /// <summary>Il passo del workflow che il messaggio fa partire (lo schedulatore).</summary>
+        public string WorkflowRound { get; set; }
+        public string WorkflowStep { get; set; }
+        public int? WorkflowRoundNo { get; set; }
+        public int? WorkflowAttempt { get; set; }
     }
 
     /// <summary>Esito dell'accodamento. Fail-loud: se non accettato, porta il motivo.</summary>
@@ -101,7 +114,11 @@ namespace MdExplorer.Services.AgentRun
             // Dedup anti-storm (§9 punto 2): stessa coppia+contesto entro 2s → scartato.
             // Registrazione atomica al controllo: due richieste simultanee non passano entrambe.
             var dedupKey = $"{request.ProjectPath}|{from}|{to}|{request.ContextId ?? "new"}";
-            if (!_dedup.TryAccept(dedupKey, now))
+            // Gli incarichi dello schedulatore non sono una tempesta: due giri diversi possono incaricare lo stesso agente
+            // nello stesso istante (due bandi, due pulsanti). Che uno stesso passo non parta due volte lo garantisce il
+            // registro del giro, non questa finestra.
+            var fromScheduler = request.WorkflowRound != null;
+            if (!fromScheduler && !_dedup.TryAccept(dedupKey, now))
             {
                 _logger.LogDebug("[Mailbox] dedup: {From}->{To} scartato (storm 2s)", from, to);
                 return new EnqueueResult { Accepted = false, RejectionReason = "Messaggio duplicato entro la finestra anti-storm (2s)." };
@@ -162,7 +179,18 @@ namespace MdExplorer.Services.AgentRun
                     TriggerSource = request.TriggerSource,
                     RunId = request.RunId,
                     Replies = request.Replies,
+                    ReworkNote = request.ReworkNote,
+                    WorkflowRound = request.WorkflowRound,
+                    WorkflowStep = request.WorkflowStep,
+                    WorkflowRoundNo = request.WorkflowRoundNo,
+                    WorkflowAttempt = request.WorkflowAttempt,
                 };
+                if (request.AwaitOwner)
+                {
+                    // Nella stessa scrittura: il dispatcher non deve mai vederlo «pending» libero, nemmeno per un istante.
+                    message.DeferredReason = AgentMessage.DeferredReasonEnum.AwaitingOwner;
+                    message.NextAttemptAt = now.AddYears(10);
+                }
                 db.GetDal<AgentMessage>().Save(message);
                 db.Commit();
 
