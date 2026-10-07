@@ -67,7 +67,8 @@ export class AgentMailboxNotificationService {
   /** Ricarica il badge non-letti dal Service (fonte autoritativa). */
   public refresh(): void {
     this.mailbox.unreadCount(this.currentProjectPath).subscribe({
-      next: (res) => this.unread$.next(res.unread || 0),
+      // Il badge conta ciò che aspetta una decisione, non i messaggi da leggere (La posta in ordine, P2).
+      next: (res) => this.unread$.next(res.todo ?? res.unread ?? 0),
       error: () => { /* best-effort: il badge non deve rompere la UI */ },
     });
   }

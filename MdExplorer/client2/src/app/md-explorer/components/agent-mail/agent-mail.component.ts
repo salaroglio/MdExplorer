@@ -25,7 +25,7 @@ export interface AgentMailData {
 
 /** Una riga dell'elenco: un messaggio di un agente, un lavoro da approvare, o la richiesta di un collega. */
 export interface MailItem {
-  kind: 'message' | 'review' | 'federation' | 'awaited' | 'tostart';
+  kind: 'message' | 'review' | 'federation' | 'awaited' | 'tostart' | 'section';
   id: string;
   when: string;
   from: string;
@@ -47,6 +47,13 @@ export interface MailItem {
   awaited?: AwaitedWork;
   /** Lo stato è cambiato dall'ultima lettura: la riga si accende per qualche secondo. */
   changed?: boolean;
+  /** L'intestazione di una sezione dell'elenco (Da fare, Giri in corso, Messaggi), con quante voci ha. */
+  section?: { key: 'todo' | 'rounds' | 'messages'; count: number };
+}
+
+/** Si seleziona tutto tranne le intestazioni e le righe di stato. */
+function selectable(i: MailItem): boolean {
+  return i.kind !== 'section' && i.kind !== 'awaited';
 }
 
 /** Il documento aperto nel riquadro di destra, al posto del dettaglio. */
@@ -149,7 +156,7 @@ export class AgentMailComponent implements OnInit, OnDestroy {
         // La selezione resta sulla stessa voce; se è sparita (letta, approvata), si passa alla prima.
         const kept = this.selected && this.items.find(i => i.kind === this.selected.kind && i.id === this.selected.id);
         if (kept) { this.selected = kept; this.loadArtifacts(); }
-        else if (this.items.length) this.select(this.items[0]);
+        else if (this.items.some(selectable)) this.select(this.items.find(selectable));
         else { this.selected = null; this.artifacts = []; this.document = null; }
       },
       error: (err) => {
@@ -185,21 +192,51 @@ export class AgentMailComponent implements OnInit, OnDestroy {
       under.set(parent, [...(under.get(parent) || []), r]);
     }
 
-    // In cima ciò che aspetta te per partire: finché non lo avvii, il lavoro di qualcun altro è fermo.
-    const ordered: MailItem[] = [...toStart].sort(newestFirst);
+    // Ogni voce in alto con ciò che le sta sotto (la richiesta del suo artefatto, le righe del giro che ha aperto).
     const seen = new Map<string, string>();
-    for (const top of [...messages, ...alone, ...federation].sort(newestFirst)) {
-      ordered.push(top);
-      ordered.push(...(under.get(top) || []).sort(newestFirst));
-      // Ciò che questo turno ha chiesto ad altri: una riga per lavoro, che cambia stato da sola.
+    const group = (top: MailItem): MailItem[] => {
+      const rows: MailItem[] = [top, ...(under.get(top) || []).sort(newestFirst)];
       for (const w of top.message?.awaited || []) {
         const before = this.awaitedStates.get(w.messageId);
         seen.set(w.messageId, w.state);
-        ordered.push({
+        rows.push({
           kind: 'awaited', id: w.messageId, when: top.when, from: w.agent, preview: '', unread: false, child: true,
           awaited: w, changed: before !== undefined && before !== w.state,
         });
       }
+      return rows;
+    };
+
+    // L'archivio è fatto solo di messaggi: lì niente sezioni.
+    if (this.showArchive) {
+      const flat: MailItem[] = [];
+      for (const top of [...messages].sort(newestFirst)) flat.push(...group(top));
+      this.awaitedStates = seen;
+      this.watchAwaited(flat);
+      return flat;
+    }
+
+    // Le tre sezioni (La posta in ordine, P1): ciò che aspetta una tua decisione, i giri in corso, i messaggi da leggere.
+    const closed = ['approved', 'done', 'declined', 'failed'];
+    const sectionOf = (top: MailItem): 'todo' | 'rounds' | 'messages' => {
+      if (top.kind !== 'message') return 'todo';                       // da avviare, da approvare da sola, richiesta di un collega
+      const m = top.message;
+      if (top.hasPending) return 'todo';                                // il suo artefatto è da approvare
+      if ((m?.replies?.length || 0) > 0 && !m?.answered) return 'todo'; // pulsanti a cui non hai ancora risposto
+      const awaited = m?.awaited || [];
+      if (awaited.length && awaited.some(w => !closed.includes(w.state))) return 'rounds';
+      return 'messages';
+    };
+    const sections: { [k: string]: MailItem[][] } = { todo: [], rounds: [], messages: [] };
+    for (const top of [...toStart].sort(newestFirst)) sections.todo.push(group(top));
+    for (const top of [...messages, ...alone, ...federation].sort(newestFirst)) sections[sectionOf(top)].push(group(top));
+
+    const ordered: MailItem[] = [];
+    for (const key of ['todo', 'rounds', 'messages'] as const) {
+      if (!sections[key].length) continue;
+      ordered.push({ kind: 'section', id: 'section-' + key, when: '', from: '', preview: '', unread: false,
+                     section: { key, count: sections[key].length } });
+      for (const rows of sections[key]) ordered.push(...rows);
     }
     this.awaitedStates = seen;
     this.watchAwaited(ordered);
@@ -464,7 +501,7 @@ export class AgentMailComponent implements OnInit, OnDestroy {
         this.items = this.items.filter(i => i !== item);
         this.messageCount = Math.max(0, this.messageCount - 1);
         if (item.unread) this.unread = Math.max(0, this.unread - 1);
-        const next = this.items[Math.min(index, this.items.length - 1)];
+        const next = this.items.slice(Math.min(index, this.items.length - 1)).find(selectable) || [...this.items].reverse().find(selectable);
         if (next) this.select(next); else { this.selected = null; this.artifacts = []; this.document = null; }
       },
       error: (err) => this.showError(err),

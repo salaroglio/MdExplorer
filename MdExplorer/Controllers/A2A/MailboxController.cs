@@ -94,7 +94,7 @@ namespace MdExplorer.Controllers.A2A
                 var toStart = archived ? new List<AgentMessage>() : AwaitingOwner(projectPath);
                 var unread = FilterByProject(unreadAll, projectPath).Count() + toStart.Count;
 
-                return Ok(new { messages = items, unread, toStart = toStart.Select(ToStartDto).ToList() });
+                return Ok(new { messages = items, unread, todo = TodoCount(projectPath), toStart = toStart.Select(ToStartDto).ToList() });
             }
             catch (Exception ex)
             {
@@ -115,7 +115,7 @@ namespace MdExplorer.Controllers.A2A
                     .ToList();
                 _session.Commit();
                 var unread = FilterByProject(unreadAll, projectPath).Count() + AwaitingOwner(projectPath).Count;
-                return Ok(new { unread });
+                return Ok(new { unread, todo = TodoCount(projectPath) });
             }
             catch (Exception ex)
             {
@@ -528,6 +528,59 @@ namespace MdExplorer.Controllers.A2A
             try { recorded?.Invoke(msg); }
             catch (Exception ex) { _logger.LogError(ex, "[Mailbox] gesto sull'incarico {Id} non registrato nel giro {Round}", messageId, msg.WorkflowRound); }
             return Ok(new { messageId, toAgent = msg.ToAgent, state = what });
+        }
+
+        /// <summary>
+        /// Quante cose aspettano una decisione della persona (P2, «La posta in ordine»): i «da avviare», le richieste da
+        /// approvare o ferme dopo un rifiuto, le richieste dei colleghi, e i messaggi con pulsanti a cui non ha ancora
+        /// risposto (se il loro artefatto è da approvare, conta già la richiesta). È il numero del badge: un messaggio da
+        /// leggere non è una richiesta.
+        /// </summary>
+        private int TodoCount(string? projectPath)
+        {
+            _session.BeginTransaction();
+            var requests = _session.GetDal<AgentMergeRequest>().GetList().ToList()
+                .Where(r => r.Status == AgentMergeRequest.StatusEnum.Pending || r.Status == AgentMergeRequest.StatusEnum.Rejected)
+                .ToList();
+            var federation = _session.GetDal<FederationRequest>().GetList()
+                .Where(r => r.Status == FederationRequest.StatusEnum.Pending).ToList();
+            var withReplies = _session.GetDal<AgentMessage>().GetList()
+                .Where(m => m.ToAgent == ConversationHopGuard.UserRecipient && m.ArchivedAt == null && m.Replies != null)
+                .ToList();
+            _session.Commit();
+
+            bool InProject(string path) => string.IsNullOrWhiteSpace(projectPath) || AgentPathComparer.Equals(path, projectPath);
+            var stopped = requests.Where(r => InProject(r.ProjectPath)).ToList();
+            var pendingRuns = stopped.Where(r => r.Status == AgentMergeRequest.StatusEnum.Pending && !string.IsNullOrEmpty(r.RunId))
+                .Select(r => r.RunId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var choices = withReplies.Where(m => InProject(m.ProjectPath) && HasReplies(m)
+                                                 && !(m.RunId != null && pendingRuns.Contains(m.RunId)) && !Answered(m)).Count();
+            return AwaitingOwner(projectPath).Count + stopped.Count + federation.Count(r => InProject(r.ProjectPath)) + choices;
+        }
+
+        private static bool HasReplies(AgentMessage m)
+        {
+            if (string.IsNullOrWhiteSpace(m.Replies)) return false;
+            try { return (System.Text.Json.JsonSerializer.Deserialize<List<ResolvedReply>>(m.Replies)?.Count ?? 0) > 0; }
+            catch (System.Text.Json.JsonException) { return false; }
+        }
+
+        /// <summary>
+        /// La persona ha già risposto a questo messaggio: con un pulsante del workflow (il giro che ha aperto c'è nel registro)
+        /// o scrivendo all'agente dopo di lui nella stessa conversazione.
+        /// </summary>
+        private bool Answered(AgentMessage m)
+        {
+            if (!string.IsNullOrEmpty(m.RunId))
+            {
+                try { if (_workflow.ProgressOfRun(m.ProjectPath, m.RunId).Count > 0) return true; }
+                catch (Exception ex) { _logger.LogWarning(ex, "[Mailbox] giri del turno {Run} non letti", m.RunId); }
+            }
+            _session.BeginTransaction();
+            var later = _session.GetDal<AgentMessage>().GetList()
+                .Any(x => x.ConversationId == m.ConversationId && x.FromAgent == ConversationHopGuard.UserRecipient && x.CreatedAt > m.CreatedAt);
+            _session.Commit();
+            return later;
         }
 
         /// <summary>I messaggi parcheggiati «in attesa del responsabile», del progetto (o di tutti).</summary>
@@ -958,6 +1011,8 @@ namespace MdExplorer.Controllers.A2A
             read = m.ReadAt != null,
             archived = m.ArchivedAt != null,
             runId = m.RunId,
+            // A un messaggio con pulsanti la persona ha già risposto: non è più «da fare» (P1).
+            answered = HasReplies(m) && Answered(m),
         };
 
         private static string Preview(string body)

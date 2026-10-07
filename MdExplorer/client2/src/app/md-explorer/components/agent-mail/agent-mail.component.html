@@ -37,6 +37,11 @@
       </div>
 
       <ng-container *ngFor="let item of items; trackBy: trackItem">
+        <!-- L'intestazione di una sezione: che cosa vogliono da te le voci sotto. -->
+        <div class="mail-section" *ngIf="item.kind === 'section'" [ngClass]="'section-' + item.section.key" role="heading" aria-level="3">
+          <span class="section-title">{{ ('AGENT_MAIL.SECTION_' + item.section.key) | translate }}</span>
+          <span class="section-count">{{ item.section.count }}</span>
+        </div>
         <!-- Un lavoro chiesto a un altro agente: una riga di stato per chi lo aspetta. Cambia da sola, e lo sfondo
              dice a che punto è. Non si seleziona: non c'è niente da decidere qui. -->
         <div class="mail-row child awaited" *ngIf="item.kind === 'awaited'" role="status"
@@ -51,7 +56,7 @@
           </span>
         </div>
 
-        <button type="button" class="mail-row" *ngIf="item.kind !== 'awaited'"
+        <button type="button" class="mail-row" *ngIf="item.kind !== 'awaited' && item.kind !== 'section'"
                 [class.selected]="selected === item" [class.unread]="item.unread" [class.child]="item.child"
                 [class.stopped]="item.request?.status === 'rejected'"
                 [ngClass]="'kind-' + item.kind"

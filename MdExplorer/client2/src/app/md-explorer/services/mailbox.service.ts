@@ -26,6 +26,8 @@ export interface MailboxMessage {
   artifact?: string | null;
   /** I lavori che il turno di questo messaggio ha chiesto ad altri agenti, con il loro stato: per chi li aspetta. */
   awaited?: AwaitedWork[];
+  /** A un messaggio con pulsanti la persona ha già risposto (pulsante del workflow, o una risposta scritta dopo). */
+  answered?: boolean;
 }
 
 /** Un lavoro chiesto a un altro agente, visto da chi lo aspetta. */
@@ -92,6 +94,8 @@ export interface MailReply {
 export interface MailboxInbox {
   messages: MailboxMessage[];
   unread: number;
+  /** Quante cose aspettano una tua decisione: il numero del badge. */
+  todo?: number;
   /** Gli incarichi che aspettano te per partire. */
   toStart?: ToStartAssignment[];
 }
@@ -170,10 +174,10 @@ export class MailboxService {
     return this.http.post<{ messageId: string }>(`/api/A2A/mailbox/to-start/${messageId}/decline`, { reason });
   }
 
-  unreadCount(projectPath: string): Observable<{ unread: number }> {
+  unreadCount(projectPath: string): Observable<{ unread: number; todo?: number }> {
     let params = new HttpParams();
     if (projectPath) params = params.set('projectPath', projectPath);
-    return this.http.get<{ unread: number }>('/api/A2A/mailbox/inbox/count', { params });
+    return this.http.get<{ unread: number; todo?: number }>('/api/A2A/mailbox/inbox/count', { params });
   }
 
   /** Segna come letti tutti i messaggi aperti del progetto: la posta si svuota, niente viene cancellato. */

@@ -189,3 +189,19 @@
   option { color: initial; }
 }
 .pass-select { display: block; margin-bottom: 10px; }
+
+// Le sezioni dell'elenco: Da fare (ambra), Giri in corso (azzurro), Messaggi (neutro).
+.mail-section {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--mde-text-secondary, #5f6368);
+  border-bottom: 1px solid var(--mde-border-color, rgba(0, 0, 0, 0.08));
+  background: var(--mde-bg-secondary, #fafafa);
+  position: sticky; top: 0; z-index: 1;
+  .section-count {
+    min-width: 18px; padding: 0 6px; border-radius: 9px; text-align: center;
+    background: rgba(95, 99, 104, 0.14); font-size: 11px; letter-spacing: 0;
+  }
+  &.section-todo { color: #b06000; .section-count { background: rgba(242, 153, 0, 0.22); } }
+  &.section-rounds { color: #1a73e8; .section-count { background: rgba(26, 115, 232, 0.16); } }
+}

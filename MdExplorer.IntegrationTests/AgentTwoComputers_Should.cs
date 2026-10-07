@@ -140,7 +140,8 @@ namespace MdExplorer.IntegrationTests
             var callsBefore = annaPc.Runner.Calls;
             await annaPc.Factory.Services.GetRequiredService<IWorkflowPoller>().PollAsync(anna);
             await annaPc.WaitForMessages(m => m.Any(x => x.ToAgent == "capo" && x.WorkflowStep == "revisione"));
-            await WaitFor(() => annaPc.Runner.Calls > callsBefore);
+            // 60 s: a fine suite, con due servizi interi nello stesso processo, il primo giro del dispatcher può tardare (visto il 07/10).
+            await WaitFor(() => annaPc.Runner.Calls > callsBefore, 60000);
             StringAssert.Contains(annaPc.Runner.LastRequest.ComposedPrompt, "Rivedi la scheda sul bando NC-1.");
             Assert.IsFalse(marcoPc.Messages().Any(m => m.WorkflowStep == "revisione"), "la revisione non è di Marco");
 

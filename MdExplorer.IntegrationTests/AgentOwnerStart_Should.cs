@@ -180,6 +180,8 @@ namespace MdExplorer.IntegrationTests
 
             // Il messaggio della ricerca, con i due pulsanti che l'agente ha proposto.
             var conversation = SeedSearchMessage(ctx, path, runId.ToString("N"));
+            var (_, before) = await ctx.GetJson("/api/A2A/mailbox/inbox/count?projectPath=" + System.Uri.EscapeDataString(path));
+            Assert.AreEqual(1, before.RootElement.GetProperty("todo").GetInt32(), "un messaggio con pulsanti non ancora premuti aspetta una decisione");
             foreach (var codice in new[] { "NC-1", "NC-2", "NC-1" })
             {
                 var (status, body) = await ctx.PostJson("/api/A2A/mailbox/reply",
@@ -202,6 +204,8 @@ namespace MdExplorer.IntegrationTests
             var rows = search.GetProperty("awaited").EnumerateArray().ToList();
             Assert.AreEqual(2, rows.Count, "due giri, una scheda ciascuno");
             Assert.IsTrue(rows.All(r => r.GetProperty("state").GetString() == "tostart" && r.GetProperty("label").GetString() == "Scheda tecnica"));
+            Assert.IsTrue(search.GetProperty("answered").GetBoolean(), "il pulsante è stato premuto: il messaggio non è più da fare");
+            Assert.AreEqual(2, inbox.RootElement.GetProperty("todo").GetInt32(), "da fare: solo i due «da avviare»");
         }
 
         private static System.Guid SeedSearchMessage(AgentCityContext ctx, string path, string runId)
