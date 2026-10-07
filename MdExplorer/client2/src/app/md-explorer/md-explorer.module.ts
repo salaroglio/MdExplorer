@@ -60,7 +60,6 @@ import { AgentScheduleDialogComponent } from './components/agent-schedule-dialog
 import { AgentRegistryDialogComponent } from './components/agent-registry-dialog/agent-registry-dialog.component';
 import { AgentTrustDialogComponent } from './components/agent-trust-dialog/agent-trust-dialog.component';
 import { AgentMemoryDialogComponent } from './components/agent-memory-dialog/agent-memory-dialog.component';
-import { MailboxDialogComponent } from './components/mailbox-dialog/mailbox-dialog.component';
 import { AgentMailComponent } from './components/agent-mail/agent-mail.component';
 import { LeaveAgentCopyDialogComponent } from './components/leave-agent-copy-dialog/leave-agent-copy-dialog.component';
 
@@ -140,7 +139,6 @@ const routes: Routes = [
     AgentRegistryDialogComponent,
     AgentTrustDialogComponent,
     AgentMemoryDialogComponent,
-    MailboxDialogComponent,
     AgentMailComponent,
     LeaveAgentCopyDialogComponent,
     E2eDialogComponent

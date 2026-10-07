@@ -141,7 +141,12 @@ namespace MdExplorer.IntegrationTests
             await annaPc.Factory.Services.GetRequiredService<IWorkflowPoller>().PollAsync(anna);
             await annaPc.WaitForMessages(m => m.Any(x => x.ToAgent == "capo" && x.WorkflowStep == "revisione"));
             // 60 s: a fine suite, con due servizi interi nello stesso processo, il primo giro del dispatcher può tardare (visto il 07/10).
-            await WaitFor(() => annaPc.Runner.Calls > callsBefore, 60000);
+            await WaitFor(() => annaPc.Runner.Calls > callsBefore, 60000, () =>
+            {
+                var r = annaPc.Messages().Where(x => x.WorkflowStep == "revisione")
+                    .Select(x => $"{x.State} deferred={x.DeferredReason} next={x.NextAttemptAt:O} attempts={x.Attempts} error={x.Error}");
+                return "revisione sul computer di Anna: " + string.Join(" | ", r) + $" | turni di Anna: {annaPc.Runner.Calls}";
+            });
             StringAssert.Contains(annaPc.Runner.LastRequest.ComposedPrompt, "Rivedi la scheda sul bando NC-1.");
             Assert.IsFalse(marcoPc.Messages().Any(m => m.WorkflowStep == "revisione"), "la revisione non è di Marco");
 
@@ -152,7 +157,7 @@ namespace MdExplorer.IntegrationTests
             CollectionAssert.AreEqual(new[] { Marco, Marco, Marco }, scheda.Select(e => e.By).ToList(), "la scheda l'ha scritta solo il computer di Marco");
         }
 
-        private static async Task WaitFor(Func<bool> condition, int timeoutMs = 20000)
+        private static async Task WaitFor(Func<bool> condition, int timeoutMs = 20000, Func<string> state = null)
         {
             var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
             while (DateTime.UtcNow < deadline)
@@ -160,7 +165,7 @@ namespace MdExplorer.IntegrationTests
                 if (condition()) return;
                 await Task.Delay(250);
             }
-            Assert.IsTrue(condition(), "la condizione non si è avverata in tempo");
+            Assert.IsTrue(condition(), "la condizione non si è avverata in tempo" + (state == null ? "" : ": " + state()));
         }
 
         private static string Git(string cwd, params string[] args)

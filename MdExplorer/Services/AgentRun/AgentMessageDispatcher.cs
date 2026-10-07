@@ -1111,7 +1111,19 @@ namespace MdExplorer.Services.AgentRun
                 }
                 return true;
             }
-            if (wf == null) return false;
+            if (wf == null)
+            {
+                // Senza workflow (P6, «La posta in ordine»): un agente che scrive a un altro non lo sveglia da solo. Il
+                // messaggio aspetta il responsabile del destinatario, come un passo di un giro: ogni risveglio passa da una
+                // persona. Ciò che manda la persona (una risposta, un «Autorizza» che avvisa) parte come sempre.
+                // Vale per un agente LLM della città che ne sveglia un altro. Non per la persona, non per un client esterno del
+                // gateway A2A, non per i lavori programmati: quelli li ha voluti e configurati una persona.
+                var byCityAgent = !string.Equals(snapshot.FromAgent, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase)
+                    && IsLlmCitizen(snapshot.ProjectPath, snapshot.FromAgent);
+                if (!byCityAgent) return false;
+                ParkForOwnerStart(messageId, snapshot, null);
+                return true;
+            }
 
             var isApproval = string.Equals(snapshot.TriggerSource, "approval", StringComparison.OrdinalIgnoreCase);
             var step = MdExplorer.Features.Agents.Workflow.WorkflowStartPolicy.StepFor(wf, snapshot.FromAgent, snapshot.ToAgent, isApproval);
@@ -1129,6 +1141,28 @@ namespace MdExplorer.Services.AgentRun
             }
             if (step?.Start != MdExplorer.Features.Agents.Workflow.WorkflowStart.AskOwner) return false;
 
+            ParkForOwnerStart(messageId, snapshot, step);
+            return true;
+        }
+
+        private bool IsLlmCitizen(string projectPath, string agentName)
+        {
+            try
+            {
+                return _registry.GetCatalog(projectPath).Any(e => e.IsCitizen
+                    && string.Equals(e.Name, agentName, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(e.Kind, AgentIdentity.KindEnum.Llm, StringComparison.OrdinalIgnoreCase));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Dispatcher] catalogo degli agenti non letto per {Project}", projectPath);
+                return false;
+            }
+        }
+
+        /// <summary>Il messaggio aspetta che il responsabile del destinatario lo avvii: «da avviare» nella sua posta.</summary>
+        private void ParkForOwnerStart(Guid messageId, AgentMessage snapshot, MdExplorer.Features.Agents.Workflow.WorkflowStep step)
+        {
             UpdateMessage(messageId, m =>
             {
                 m.State = AgentMessage.StateEnum.Pending;
@@ -1136,11 +1170,10 @@ namespace MdExplorer.Services.AgentRun
                 // Non si riprende da solo: lo rimette in coda «Avvia» (OwnerStartedAt, NextAttemptAt = adesso).
                 m.NextAttemptAt = DateTime.UtcNow.AddYears(10);
             });
-            _logger.LogInformation("[Dispatcher] '{Agent}' aspetta il suo responsabile (passo '{Step}' del workflow): messaggio {Id} da avviare.",
-                snapshot.ToAgent, step.Id, messageId);
+            _logger.LogInformation("[Dispatcher] '{Agent}' aspetta il suo responsabile ({Why}): messaggio {Id} da avviare.",
+                snapshot.ToAgent, step == null ? $"lo chiede '{snapshot.FromAgent}', senza workflow" : $"passo '{step.Id}' del workflow", messageId);
             // Chi ne risponde lo deve sapere adesso, non al prossimo giro della posta: badge e avviso.
-            _ = NotifyStartRequestedAsync(snapshot, step.Label);
-            return true;
+            _ = NotifyStartRequestedAsync(snapshot, step?.Label);
         }
 
         private async Task NotifyStartRequestedAsync(AgentMessage snapshot, string stepTitle)

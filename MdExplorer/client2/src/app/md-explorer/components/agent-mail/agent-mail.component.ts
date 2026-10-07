@@ -11,13 +11,12 @@ import { TranslateService } from '@ngx-translate/core';
 import { EMPTY, forkJoin, of, Subscription } from 'rxjs';
 import { catchError, finalize, switchMap } from 'rxjs/operators';
 
-import { MailboxMessage, MailboxService, MailReply, AwaitedWork, ToStartAssignment, ReplyTarget, MailRound } from '../../services/mailbox.service';
+import { MailboxMessage, MailboxService, MailReply, AwaitedWork, ToStartAssignment, ReplyTarget, MailRound, MemFact } from '../../services/mailbox.service';
 import { AgentLaunchDialogComponent } from '../agent-launch-dialog/agent-launch-dialog.component';
 import { AgentReviewService, MailArtifact, MergeRequest } from '../../services/agent-review.service';
 import { FederationRequest, FederationService } from '../../services/federation.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { ThemeService } from '../../../services/theme.service';
-import { MailboxDialogComponent } from '../mailbox-dialog/mailbox-dialog.component';
 
 export interface AgentMailData {
   projectPath: string;
@@ -121,6 +120,7 @@ export class AgentMailComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.reload();
+    this.probeMemory();
     // Arriva posta, un agente consegna, un collega chiede: l'elenco si aggiorna da solo.
     this.subs.add(this.serverMessages.agentMessageReceived$.subscribe(() => this.reload()));
     this.subs.add(this.serverMessages.agentMergeRequested$.subscribe(() => this.reload()));
@@ -411,6 +411,7 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     this.declining = false;
     this.passing = false;
     this.choosing = null;
+    this.consolidating = null;
     this.declineReason = '';
     this.document = null;
     this.replyDraft = '';
@@ -616,12 +617,50 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Le conversazioni (il governo dei thread) restano nella finestra di prima. */
-  openConversations(): void {
-    this.dialog.open(MailboxDialogComponent, {
-      width: '640px',
-      maxHeight: '82vh',
-      data: { projectPath: this.data?.projectPath || '', initialTab: 1 },
+  // ---- «Consolida nella memoria» (dal menu del messaggio, solo con la memoria accesa) ----
+
+  /** La memoria degli agenti è accesa in questo progetto (lo dice la lettura dei fatti: spenta = 409). */
+  memoryOn = false;
+  consolidating: { conversationId: string; agent: string; facts: (MemFact & { selected: boolean })[]; busy: boolean } | null = null;
+
+  private probeMemory(): void {
+    this.mailbox.memoryFacts(this.data?.projectPath || '').subscribe({
+      next: () => this.memoryOn = true,
+      error: () => this.memoryOn = false,
+    });
+  }
+
+  /** I fatti in memoria dell'agente del messaggio, da scegliere: quelli scelti vanno nella sua scheda, il resto decade. */
+  startConsolidate(item: MailItem): void {
+    const m = item?.message;
+    if (!m) return;
+    if (this.consolidating?.conversationId === m.conversationId) { this.consolidating = null; return; }
+    this.consolidating = { conversationId: m.conversationId, agent: m.fromAgent, facts: [], busy: true };
+    this.mailbox.memoryFacts(this.data?.projectPath || '').subscribe({
+      next: (res) => {
+        if (!this.consolidating) return;
+        this.consolidating.facts = (res.facts || [])
+          .filter(f => !f.shared && (f.agent || '').toLowerCase() === m.fromAgent.toLowerCase())
+          .map(f => ({ ...f, selected: false }));
+        this.consolidating.busy = false;
+      },
+      error: (err) => { this.consolidating = null; this.showError(err); },
+    });
+  }
+
+  confirmConsolidate(): void {
+    const c = this.consolidating;
+    if (!c || c.busy) return;
+    c.busy = true;
+    const promote = c.facts.filter(f => f.selected).map(f => ({ factUri: f.factUri, graph: f.graph, statement: f.statement }));
+    this.mailbox.consolidate(c.conversationId, this.data?.projectPath || '', promote).subscribe({
+      next: (res) => {
+        this.consolidating = null;
+        this.snackBar.open(res.memoryDisabled
+          ? this.translate.instant('CONSOLIDATE.DISABLED')
+          : this.translate.instant('CONSOLIDATE.DONE', { promoted: res.promoted || 0, decayed: res.decayed || 0, deleted: res.deleted || 0 }), 'OK', { duration: 8000 });
+      },
+      error: (err) => { if (this.consolidating) this.consolidating.busy = false; this.showError(err); },
     });
   }
 

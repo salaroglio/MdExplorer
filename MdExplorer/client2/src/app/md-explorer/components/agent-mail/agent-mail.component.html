@@ -14,9 +14,6 @@
       <mat-icon>{{ showArchive ? 'inbox' : 'inventory_2' }}</mat-icon>
       {{ (showArchive ? 'AGENT_MAIL.SHOW_MAIL' : 'AGENT_MAIL.SHOW_ARCHIVE') | translate }}
     </button>
-    <button mat-button (click)="openConversations()" [matTooltip]="'AGENT_MAIL.CONVERSATIONS_TIP' | translate">
-      {{ 'MAILBOX.TAB_CONVERSATIONS' | translate }}
-    </button>
     <button mat-icon-button (click)="reload()" [disabled]="loading" [matTooltip]="'MAILBOX.REFRESH' | translate">
       <mat-icon [class.spinning]="loading">refresh</mat-icon>
     </button>
@@ -154,6 +151,10 @@
                     [matTooltip]="'AGENT_MAIL.ARCHIVE_TIP' | translate">
               <mat-icon>inventory_2</mat-icon> {{ 'AGENT_MAIL.ARCHIVE' | translate }}
             </button>
+            <button mat-stroked-button class="btn-consolidate" *ngIf="memoryOn" (click)="startConsolidate(selected)"
+                    [matTooltip]="'CONSOLIDATE.HINT' | translate">
+              <mat-icon>auto_awesome</mat-icon> {{ 'CONSOLIDATE.ACTION' | translate }}
+            </button>
             <button mat-stroked-button class="btn-unarchive" *ngIf="showArchive" (click)="unarchive(selected)">
               <mat-icon>unarchive</mat-icon> {{ 'AGENT_MAIL.UNARCHIVE' | translate }}
             </button>
@@ -163,6 +164,22 @@
           </div>
 
           <div class="detail-text">{{ selected.message.body }}</div>
+
+          <!-- «Consolida nella memoria»: i fatti dell'agente, quelli scelti vanno nella sua scheda, il resto decade. -->
+          <div class="consolidate-panel" *ngIf="consolidating">
+            <div class="reply-label">{{ 'CONSOLIDATE.HINT' | translate }}</div>
+            <p class="reply-none" *ngIf="!consolidating.busy && !consolidating.facts.length">{{ 'CONSOLIDATE.EMPTY' | translate }}</p>
+            <label class="consolidate-fact" *ngFor="let f of consolidating.facts">
+              <input type="checkbox" [(ngModel)]="f.selected">
+              <span>{{ f.statement }}</span>
+            </label>
+            <div class="decide">
+              <button mat-button (click)="consolidating = null">{{ 'COMMON.CANCEL' | translate }}</button>
+              <button mat-raised-button color="primary" [disabled]="consolidating.busy" (click)="confirmConsolidate()">
+                <mat-icon>auto_awesome</mat-icon> {{ 'CONSOLIDATE.CONFIRM' | translate }}
+              </button>
+            </div>
+          </div>
 
           <div class="artifacts" *ngIf="artifacts.length">
             <div class="artifacts-title">{{ 'AGENT_MAIL.ARTIFACTS' | translate }}</div>

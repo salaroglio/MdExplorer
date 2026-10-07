@@ -5,7 +5,6 @@ import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject } from 'rxjs';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 import { MailboxService } from '../md-explorer/services/mailbox.service';
-import { MailboxDialogComponent } from '../md-explorer/components/mailbox-dialog/mailbox-dialog.component';
 import { AgentMailComponent } from '../md-explorer/components/agent-mail/agent-mail.component';
 
 /**
@@ -78,27 +77,19 @@ export class AgentMailboxNotificationService {
    * approvare e richieste dei colleghi in un elenco solo. Le conversazioni (tab 1) restano nella finestra
    * di prima, che la pagina sa aprire.
    */
-  public open(initialTab: number = 0): void {
-    if (initialTab !== 1) {
-      const page = this.dialog.open(AgentMailComponent, {
-        width: '100vw',
-        height: '100vh',
-        maxWidth: '100vw',
-        maxHeight: '100vh',
-        panelClass: 'agent-mail-page',
-        position: { top: '0', left: '0' },
-        autoFocus: false,
-        data: { projectPath: this.currentProjectPath },
-      });
-      page.afterClosed().subscribe(() => this.refresh());
-      return;
-    }
-    const ref = this.dialog.open(MailboxDialogComponent, {
-      width: '640px',
-      maxHeight: '82vh',
-      data: { projectPath: this.currentProjectPath, initialTab },
+  /** Apre la posta degli agenti a tutto schermo (la finestra di prima non c'è più: «La posta in ordine», F4). */
+  public open(_initialTab: number = 0): void {
+    const page = this.dialog.open(AgentMailComponent, {
+      width: '100vw',
+      height: '100vh',
+      maxWidth: '100vw',
+      maxHeight: '100vh',
+      panelClass: 'agent-mail-page',
+      position: { top: '0', left: '0' },
+      autoFocus: false,
+      data: { projectPath: this.currentProjectPath },
     });
-    ref.afterClosed().subscribe(() => this.refresh());
+    page.afterClosed().subscribe(() => this.refresh());
   }
 
   private onFederationRequest(evt: { fromOwner: string; scope: string }): void {
