@@ -15,6 +15,7 @@ using MdExplorer.Features.Agents.Workflow;
 using MdExplorer.Features.Agents.Workflow.Scheduler;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.SignalR;
 
 namespace MdExplorer.Services.AgentRun
 {
@@ -74,7 +75,7 @@ namespace MdExplorer.Services.AgentRun
         /// computer ricompaiono quelli degli agenti diventati miei («da avviare», consegne da approvare); quelli degli agenti
         /// non più miei escono dalla posta, con il motivo. Poi lo schedulatore fa partire ciò che ora tocca a me.
         /// </summary>
-        void Reconcile(string projectPath);
+        void Reconcile(string projectPath, bool refresh = true);
 
         /// <summary>
         /// Perché questa persona non può decidere su un passo di un giro (ne risponde un altro); null se può, o se non è di un
@@ -106,6 +107,8 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentMailbox _mailbox;
         private readonly IRoundStore _store;
         private readonly MdExplorer.Services.IProjectOwnershipService _ownership;
+        private readonly IWorkflowBell _bell;
+        private readonly Microsoft.AspNetCore.SignalR.IHubContext<MdExplorer.Hubs.MonitorMDHub> _hub;
         private readonly ILogger<AgentWorkflowExecutor> _logger;
 
         /// <summary>Un lock per progetto: registro e git di un progetto si toccano uno alla volta.</summary>
@@ -121,8 +124,12 @@ namespace MdExplorer.Services.AgentRun
             IAgentMailbox mailbox,
             IRoundStore store,
             MdExplorer.Services.IProjectOwnershipService ownership,
+            IWorkflowBell bell,
+            Microsoft.AspNetCore.SignalR.IHubContext<MdExplorer.Hubs.MonitorMDHub> hub,
             ILogger<AgentWorkflowExecutor> logger)
         {
+            _bell = bell;
+            _hub = hub;
             _ownership = ownership;
             _store = store;
             _scopeFactory = scopeFactory;
@@ -368,10 +375,11 @@ namespace MdExplorer.Services.AgentRun
             }, $"giro {message.WorkflowRound}: «{step.Label}» non avviato"));
         }
 
-        public void Reconcile(string projectPath)
+        public void Reconcile(string projectPath, bool refresh = true)
         {
             var wf = Workflow(projectPath, out _);
             if (wf == null || !_store.IsAvailable(projectPath)) return;
+            if (refresh)
             try { _store.Refresh(projectPath); }
             catch (Exception ex) { _logger.LogWarning(ex, "[Workflow] il registro dei giri non si è aggiornato da origin: si lavora con quello che c'è"); }
             foreach (var id in RoundLedger.RoundIds(_store.Root(projectPath)))
@@ -620,6 +628,13 @@ namespace MdExplorer.Services.AgentRun
             }, $"giro {roundId}: «{step.Label}» {(hold ? "da avviare" : action.Attempt > 1 ? "rifatto" : "partito")}{(resumed ? $" (ripreso da {Me(projectPath)})" : "")}");
             _logger.LogInformation("[Workflow] giro {Round}: «{Step}» {What} per '{Agent}' (giro {N}, tentativo {A})",
                 roundId, step.Label, hold ? "da avviare" : "partito", step.Agent, action.Round, action.Attempt);
+            if (hold)
+                // Chi ne risponde lo deve sapere adesso: badge e avviso, come per ogni «da avviare».
+                _ = _hub.Clients.All.SendAsync("agentStartRequested", new
+                {
+                    messageId = result.MessageId.ToString(), fromAgent = ConversationHopGuard.UserRecipient, toAgent = step.Agent,
+                    step = step.Label, projectPath,
+                });
         }
 
         /// <summary>Il testo che l'agente riceve: l'incarico del workflow, dove si trova, i file da cui parte.</summary>
@@ -662,6 +677,8 @@ namespace MdExplorer.Services.AgentRun
             var problem = _store.Publish(projectPath, roundId, message);
             if (problem != null)
                 _logger.LogWarning("[Workflow] giro {Round}: {Problem} (partirà con la prossima pubblicazione).", roundId, problem);
+            else
+                _bell.Ring(projectPath, roundId);   // gli altri computer guardano adesso, non al prossimo controllo
         }
 
         private static (int Code, string Out, string Err) Git(string cwd, params string[] args) => GitCli.Run(cwd, args);

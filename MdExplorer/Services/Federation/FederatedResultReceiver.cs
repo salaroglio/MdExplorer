@@ -23,6 +23,19 @@ namespace MdExplorer.Services.Federation
         public const string RequestIntervention = "request-intervention";
         /// <summary>Esito di ritorno di un intervento delegato → risveglio dell'agente d'origine.</summary>
         public const string InterventionResult = "intervention-result";
+        /// <summary>
+        /// Il campanello del workflow (W16): «ho pubblicato novità nel registro dei giri, scaricale». Non porta dati del giro:
+        /// la verità resta in git, la busta dice solo di andare a guardare adesso invece che al prossimo giro del fetch.
+        /// </summary>
+        public const string WorkflowNews = "workflow-news";
+    }
+
+    /// <summary>La busta del campanello: chi ha pubblicato e quale giro, per il log. Il resto lo dice git.</summary>
+    public sealed class WorkflowNewsPayload
+    {
+        public string Kind { get; set; } = FederationKind.WorkflowNews;
+        public string Round { get; set; }
+        public string FromOwner { get; set; }
     }
 
     /// <summary>

@@ -123,6 +123,10 @@ namespace MdExplorer
             services.AddSingleton<Services.AgentRun.IAgentApprovalNotifier, Services.AgentRun.AgentApprovalNotifier>();
             // Lo schedulatore del workflow (S3): con un workflow attivo fa partire i passi, scrive il registro dei giri.
             services.AddSingleton<Services.AgentRun.IRoundStore, Services.AgentRun.RoundStore>();
+            services.AddSingleton<Services.AgentRun.IWorkflowBell, Services.AgentRun.WorkflowBell>();
+            services.AddSingleton<Services.AgentRun.WorkflowPoller>();
+            services.AddSingleton<Services.AgentRun.IWorkflowPoller>(sp => sp.GetRequiredService<Services.AgentRun.WorkflowPoller>());
+            services.AddHostedService(sp => sp.GetRequiredService<Services.AgentRun.WorkflowPoller>());
             services.AddSingleton<Services.AgentRun.IAgentWorkflowExecutor, Services.AgentRun.AgentWorkflowExecutor>();
             services.AddSingleton<Services.Demo.IDemoOriginPreparer, Services.Demo.DemoOriginPreparer>();
             // Cancello del run LLM (§12.5): tetto istanze Copilot concorrenti → coda differita

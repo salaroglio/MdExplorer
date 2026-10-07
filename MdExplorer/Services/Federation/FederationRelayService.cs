@@ -61,6 +61,9 @@ namespace MdExplorer.Services.Federation
         /// </summary>
         Task<bool> SendFederatedResultAsync(string projectPath, string targetOwnerId, FederatedResultPayload payload);
 
+        /// <summary>Il campanello del workflow verso il computer di un collega: «novità nel registro dei giri».</summary>
+        Task<bool> SendWorkflowNewsAsync(string projectPath, string targetOwnerId, WorkflowNewsPayload payload);
+
         /// <summary>
         /// Chiude e ricostruisce la connessione della stanza del progetto (test impersonazione):
         /// dopo un cambio di identità effettiva, la macchina si riconnette al relay col nuovo ownerId.
@@ -424,6 +427,13 @@ namespace MdExplorer.Services.Federation
                 // Peek del discriminante di busta (Fase 7a) PRIMA di deserializzare il payload
                 // pieno: una busta senza Kind (origine vecchia) = request-intervention.
                 var kind = System.Text.Json.JsonSerializer.Deserialize<KindPeek>(json)?.Kind;
+                if (string.Equals(kind, FederationKind.WorkflowNews, StringComparison.OrdinalIgnoreCase))
+                {
+                    var news = System.Text.Json.JsonSerializer.Deserialize<WorkflowNewsPayload>(json);
+                    _logger.LogInformation("[Federation] campanello del workflow da {From} (giro {Round}): scarico il registro.", news?.FromOwner, news?.Round);
+                    scope.ServiceProvider.GetRequiredService<MdExplorer.Services.AgentRun.IWorkflowPoller>().Ring(announce.ProjectPath);
+                    return;
+                }
                 if (string.Equals(kind, FederationKind.InterventionResult, StringComparison.OrdinalIgnoreCase))
                 {
                     var result = System.Text.Json.JsonSerializer.Deserialize<FederatedResultPayload>(json);
@@ -468,6 +478,10 @@ namespace MdExplorer.Services.Federation
 
         /// <inheritdoc/>
         public Task<bool> SendFederatedResultAsync(string projectPath, string targetOwnerId, FederatedResultPayload payload)
+            => SendEnvelopeAsync(projectPath, targetOwnerId, System.Text.Json.JsonSerializer.Serialize(payload));
+
+        /// <inheritdoc/>
+        public Task<bool> SendWorkflowNewsAsync(string projectPath, string targetOwnerId, WorkflowNewsPayload payload)
             => SendEnvelopeAsync(projectPath, targetOwnerId, System.Text.Json.JsonSerializer.Serialize(payload));
 
         // Core condiviso: cifra il JSON già serializzato del payload TIPATO col room secret del

@@ -34,6 +34,15 @@ namespace MdExplorer.IntegrationTests.Infrastructure
             return Task.FromResult(Result);
         }
 
+        /// <summary>I campanelli del workflow spediti: a chi, e per quale giro.</summary>
+        public System.Collections.Concurrent.ConcurrentQueue<(string ProjectPath, string TargetOwnerId, WorkflowNewsPayload Payload)> Bells { get; } = new();
+
+        public Task<bool> SendWorkflowNewsAsync(string projectPath, string targetOwnerId, WorkflowNewsPayload payload)
+        {
+            Bells.Enqueue((projectPath, targetOwnerId, payload));
+            return Task.FromResult(Result);
+        }
+
         public string LastReconnectedProject { get; private set; }
         public Task ReconnectProjectAsync(string projectPath)
         {

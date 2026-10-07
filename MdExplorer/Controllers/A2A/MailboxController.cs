@@ -502,23 +502,23 @@ namespace MdExplorer.Controllers.A2A
         private IActionResult UpdateAwaiting(Guid messageId, Action<AgentMessage> change, string what, Action<AgentMessage> recorded = null)
         {
             _session.BeginTransaction();
+            var peek = _session.GetDal<AgentMessage>().GetList().FirstOrDefault(m => m.Id == messageId);
+            _session.Commit();
+            if (peek == null)
+                return NotFound(new { error = $"Messaggio {messageId} inesistente." });
+            // Di chi è il passo si chiede FUORI dalla transazione: la risposta legge altro (l'identità, nel database), e una
+            // seconda transazione aperta dentro questa aspetterebbe il suo blocco fino al timeout.
+            var notYours = _workflow.NotYours(peek);
+            if (notYours != null)
+                return Conflict(new { error = notYours });
+
+            _session.BeginTransaction();
             var dal = _session.GetDal<AgentMessage>();
             var msg = dal.GetList().FirstOrDefault(m => m.Id == messageId);
-            if (msg == null)
-            {
-                _session.Commit();
-                return NotFound(new { error = $"Messaggio {messageId} inesistente." });
-            }
-            if (msg.State != AgentMessage.StateEnum.Pending || msg.DeferredReason != AgentMessage.DeferredReasonEnum.AwaitingOwner)
+            if (msg == null || msg.State != AgentMessage.StateEnum.Pending || msg.DeferredReason != AgentMessage.DeferredReasonEnum.AwaitingOwner)
             {
                 _session.Commit();
                 return Conflict(new { error = "Questo incarico non aspetta più di essere avviato: forse l'ha già avviato o rifiutato qualcuno." });
-            }
-            var notYours = _workflow.NotYours(msg);
-            if (notYours != null)
-            {
-                _session.Commit();
-                return Conflict(new { error = notYours });
             }
             change(msg);
             dal.Save(msg);

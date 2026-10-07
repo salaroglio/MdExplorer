@@ -67,7 +67,12 @@ namespace MdExplorer.IntegrationTests.Infrastructure
             // catena di risoluzione ricadrebbe su quella e i test su "nessuna chiave" fallirebbero
             // solo su quella macchina. Qui la azzeriamo, come già facciamo con XDG_DATA_HOME.
             builder.ConfigureAppConfiguration(cfg => cfg.AddInMemoryCollection(
-                new System.Collections.Generic.Dictionary<string, string> { ["MdChat:ApiKey"] = string.Empty }));
+                new System.Collections.Generic.Dictionary<string, string>
+                {
+                    ["MdChat:ApiKey"] = string.Empty,
+                    // Il controllo periodico dei giri lo fanno i test, quando vogliono (PollAsync): niente giri in sottofondo.
+                    ["Workflow:PollSeconds"] = "0",
+                }));
 
             builder.ConfigureTestServices(services =>
             {
