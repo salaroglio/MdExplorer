@@ -63,7 +63,7 @@
                 (click)="select(item)">
           <span class="row-branch" *ngIf="item.child" aria-hidden="true"></span>
           <span class="row-dot"></span>
-          <mat-icon class="row-icon">{{ item.kind === 'message' ? 'smart_toy' : item.kind === 'tostart' ? 'pending_actions' : item.kind === 'review' ? (item.request?.status === 'rejected' ? 'block' : 'rule') : 'hub' }}</mat-icon>
+          <mat-icon class="row-icon">{{ item.kind === 'message' ? 'smart_toy' : item.kind === 'tostart' ? 'pending_actions' : item.kind === 'review' ? (item.request?.status === 'rejected' ? 'block' : 'rule') : item.kind === 'round' ? (item.round?.finished ? 'task_alt' : 'account_tree') : 'hub' }}</mat-icon>
           <span class="row-main">
             <span class="row-top">
               <span class="row-from">{{ item.child ? ((item.request?.status === 'rejected' ? 'AGENT_MAIL.CHILD_STOPPED' : 'AGENT_MAIL.CHILD_REVIEW') | translate) : item.from }}</span>
@@ -71,7 +71,7 @@
               <span class="row-when" [title]="item.when">{{ item.when | date:'short' }}</span>
             </span>
             <span class="row-kind" *ngIf="item.kind !== 'message' && !item.child">
-              {{ (item.kind === 'review' ? 'AGENT_MAIL.KIND_REVIEW' : item.kind === 'tostart' ? 'AGENT_MAIL.KIND_TOSTART' : 'AGENT_MAIL.KIND_FEDERATION') | translate }}
+              {{ (item.kind === 'review' ? 'AGENT_MAIL.KIND_REVIEW' : item.kind === 'tostart' ? 'AGENT_MAIL.KIND_TOSTART' : item.kind === 'round' ? 'AGENT_MAIL.KIND_ROUND' : 'AGENT_MAIL.KIND_FEDERATION') | translate }}
             </span>
             <span class="row-preview">{{ item.preview }}</span>
           </span>
@@ -103,7 +103,40 @@
         </div>
 
         <!-- Un messaggio -->
+        <!-- Un giro: i suoi passi e i suoi messaggi -->
+        <div class="detail round" *ngIf="selected?.kind === 'round'">
+          <div class="detail-head">
+            <mat-icon class="head-icon">{{ selected.round.finished ? 'task_alt' : 'account_tree' }}</mat-icon>
+            <span class="head-from">{{ selected.from }}</span>
+            <span class="head-kind">{{ (selected.round.finished ? 'AGENT_MAIL.ROUND_FINISHED' : 'AGENT_MAIL.ROUND_PROGRESS') | translate: { done: selected.round.stepsDone, total: selected.round.stepsTotal } }}</span>
+            <span class="flexExpand"></span>
+            <span class="head-when">{{ selected.round.startedAt | date:'medium' }}</span>
+          </div>
+          <p class="detail-hint">{{ 'AGENT_MAIL.ROUND_HINT' | translate: { who: selected.round.startedBy || '?', id: selected.round.id } }}</p>
+          <div class="reply-label">{{ 'AGENT_MAIL.ROUND_STEPS' | translate }}</div>
+          <div class="round-steps">
+            <div class="round-step" *ngFor="let w of selected.round.steps" [ngClass]="'awaited-' + w.state" [title]="w.note || ''">
+              <mat-icon>{{ awaitedIcon(w.state) }}</mat-icon>
+              <span class="step-label">{{ w.label }}</span>
+              <span class="step-owner">{{ w.owner || w.agent }}</span>
+              <span class="flexExpand"></span>
+              <span class="step-state">{{ ('AGENT_MAIL.AWAITED_' + w.state) | translate }}</span>
+            </div>
+          </div>
+          <div class="reply-label">{{ 'AGENT_MAIL.ROUND_MESSAGES' | translate: { count: selected.roundMessages?.length || 0 } }}</div>
+          <p class="reply-none" *ngIf="!selected.roundMessages?.length">{{ 'AGENT_MAIL.ROUND_NO_MESSAGES' | translate }}</p>
+          <button type="button" class="round-message" *ngFor="let m of selected.roundMessages" [class.unread]="m.unread" (click)="select(m)">
+            <mat-icon>smart_toy</mat-icon>
+            <span class="rm-from">{{ m.from }}</span>
+            <span class="rm-preview">{{ m.preview }}</span>
+            <span class="rm-when">{{ m.when | date:'short' }}</span>
+          </button>
+        </div>
+
         <div class="detail" *ngIf="selected?.kind === 'message'">
+          <button mat-button class="back-to-round" *ngIf="roundOf(selected) as r" (click)="select(r)">
+            <mat-icon>arrow_back</mat-icon> {{ r.from }}
+          </button>
           <div class="detail-head">
             <mat-icon class="head-icon">smart_toy</mat-icon>
             <span class="head-from">{{ selected.from }}</span>

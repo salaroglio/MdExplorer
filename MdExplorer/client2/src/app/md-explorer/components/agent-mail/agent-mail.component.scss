@@ -205,3 +205,32 @@
   &.section-todo { color: #b06000; .section-count { background: rgba(242, 153, 0, 0.22); } }
   &.section-rounds { color: #1a73e8; .section-count { background: rgba(26, 115, 232, 0.16); } }
 }
+
+// Il dettaglio di un giro: i passi, poi i messaggi.
+.detail.round {
+  .round-steps { display: flex; flex-direction: column; gap: 6px; max-width: 900px; margin-bottom: 18px; }
+  .round-step {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px;
+    background: rgba(95, 99, 104, 0.06);
+    mat-icon { font-size: 18px; width: 18px; height: 18px; }
+    .step-label { font-weight: 600; }
+    .step-owner { opacity: 0.7; }
+    .step-state { font-weight: 600; }
+    &.awaited-working, &.awaited-reworking { background: rgba(26, 115, 232, 0.10); .step-state, mat-icon { color: #1a73e8; } }
+    &.awaited-approval, &.awaited-tostart { background: rgba(242, 153, 0, 0.14); .step-state, mat-icon { color: #b06000; } }
+    &.awaited-approved, &.awaited-done { background: rgba(24, 128, 56, 0.10); .step-state, mat-icon { color: #188038; } }
+    &.awaited-rejected, &.awaited-failed, &.awaited-declined { background: rgba(217, 48, 37, 0.10); .step-state, mat-icon { color: #d93025; } }
+  }
+  .round-message {
+    display: flex; align-items: center; gap: 10px; width: 100%; max-width: 900px; margin-bottom: 6px; padding: 8px 12px;
+    border: 1px solid var(--mde-border-color, rgba(0, 0, 0, 0.12)); border-radius: 8px; background: var(--mde-bg-primary, #fff);
+    color: inherit; font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+    mat-icon { font-size: 18px; width: 18px; height: 18px; opacity: 0.7; }
+    .rm-from { font-weight: 600; white-space: nowrap; }
+    .rm-preview { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.8; }
+    .rm-when { font-size: 12px; opacity: 0.6; white-space: nowrap; }
+    &.unread .rm-from { color: #1a73e8; }
+    &:hover { background: rgba(26, 115, 232, 0.06); }
+  }
+}
+.back-to-round { margin: 0 0 6px -8px; }

@@ -11,7 +11,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { EMPTY, forkJoin, of, Subscription } from 'rxjs';
 import { catchError, finalize, switchMap } from 'rxjs/operators';
 
-import { MailboxMessage, MailboxService, MailReply, AwaitedWork, ToStartAssignment, ReplyTarget } from '../../services/mailbox.service';
+import { MailboxMessage, MailboxService, MailReply, AwaitedWork, ToStartAssignment, ReplyTarget, MailRound } from '../../services/mailbox.service';
 import { AgentLaunchDialogComponent } from '../agent-launch-dialog/agent-launch-dialog.component';
 import { AgentReviewService, MailArtifact, MergeRequest } from '../../services/agent-review.service';
 import { FederationRequest, FederationService } from '../../services/federation.service';
@@ -25,7 +25,7 @@ export interface AgentMailData {
 
 /** Una riga dell'elenco: un messaggio di un agente, un lavoro da approvare, o la richiesta di un collega. */
 export interface MailItem {
-  kind: 'message' | 'review' | 'federation' | 'awaited' | 'tostart' | 'section';
+  kind: 'message' | 'review' | 'federation' | 'awaited' | 'tostart' | 'section' | 'round';
   id: string;
   when: string;
   from: string;
@@ -47,6 +47,12 @@ export interface MailItem {
   awaited?: AwaitedWork;
   /** Lo stato è cambiato dall'ultima lettura: la riga si accende per qualche secondo. */
   changed?: boolean;
+  /** Un giro del workflow: una voce, con i suoi passi; i suoi messaggi si aprono dal dettaglio. */
+  round?: MailRound;
+  /** I messaggi del giro (per il dettaglio del giro). */
+  roundMessages?: MailItem[];
+  /** Il giro a cui appartiene la voce (un messaggio del giro, una riga di un suo passo). */
+  parentRound?: string;
   /** L'intestazione di una sezione dell'elenco (Da fare, Giri in corso, Messaggi), con quante voci ha. */
   section?: { key: 'todo' | 'rounds' | 'messages'; count: number };
 }
@@ -140,9 +146,12 @@ export class AgentMailComponent implements OnInit, OnDestroy {
       inbox: this.mailbox.inbox(projectPath, true, this.showArchive),
       // Le altre due fonti non devono spegnere la posta se non rispondono: lo si dice e si va avanti.
       reviews: this.review.pending(projectPath).pipe(catchError(() => of({ requests: [] as MergeRequest[] }))),
+      rounds: this.showArchive ? of({ rounds: [] as MailRound[] })
+        : this.mailbox.rounds(projectPath).pipe(catchError(() => of({ rounds: [] as MailRound[] }))),
       federation: this.federation.requests(projectPath).pipe(catchError(() => of({ requests: [] as FederationRequest[] }))),
     }).subscribe({
-      next: ({ inbox, reviews, federation }) => {
+      next: ({ inbox, reviews, federation, rounds }) => {
+        this.rounds = rounds.rounds || [];
         this.unread = inbox.unread || 0;
         this.messageCount = (inbox.messages || []).length;
         // L'archivio contiene solo messaggi: ciò che è da decidere non si archivia.
@@ -154,7 +163,8 @@ export class AgentMailComponent implements OnInit, OnDestroy {
         this.loading = false;
 
         // La selezione resta sulla stessa voce; se è sparita (letta, approvata), si passa alla prima.
-        const kept = this.selected && this.items.find(i => i.kind === this.selected.kind && i.id === this.selected.id);
+        const kept = this.selected && (this.items.find(i => i.kind === this.selected.kind && i.id === this.selected.id)
+          || ([] as MailItem[]).concat(...this.items.filter(i => i.roundMessages).map(i => i.roundMessages)).find(i => i.kind === this.selected.kind && i.id === this.selected.id));
         if (kept) { this.selected = kept; this.loadArtifacts(); }
         else if (this.items.some(selectable)) this.select(this.items.find(selectable));
         else { this.selected = null; this.artifacts = []; this.document = null; }
@@ -216,20 +226,55 @@ export class AgentMailComponent implements OnInit, OnDestroy {
       return flat;
     }
 
-    // Le tre sezioni (La posta in ordine, P1): ciò che aspetta una tua decisione, i giri in corso, i messaggi da leggere.
+    // Le tre sezioni (La posta in ordine, P1): ciò che aspetta una tua decisione, i giri, i messaggi da leggere.
     const closed = ['approved', 'done', 'declined', 'failed'];
-    const sectionOf = (top: MailItem): 'todo' | 'rounds' | 'messages' => {
-      if (top.kind !== 'message') return 'todo';                       // da avviare, da approvare da sola, richiesta di un collega
+    const needsYou = (top: MailItem): boolean => {
+      if (top.kind !== 'message') return true;                          // da avviare, da approvare da sola, richiesta di un collega
       const m = top.message;
-      if (top.hasPending) return 'todo';                                // il suo artefatto è da approvare
-      if ((m?.replies?.length || 0) > 0 && !m?.answered) return 'todo'; // pulsanti a cui non hai ancora risposto
-      const awaited = m?.awaited || [];
-      if (awaited.length && awaited.some(w => !closed.includes(w.state))) return 'rounds';
-      return 'messages';
+      return !!top.hasPending                                           // il suo artefatto è da approvare
+        || ((m?.replies?.length || 0) > 0 && !m?.answered);             // pulsanti a cui non hai ancora risposto
     };
+    // Un messaggio è di un giro se l'ha scritto uno dei turni del giro (P3): sta dentro il giro, non sparso.
+    const roundsOf = (m?: MailboxMessage): MailRound[] => {
+      const run = (m?.runId || '').replace(/-/g, '').toLowerCase();
+      return run ? this.rounds.filter(r => r.runs.some(x => x.toLowerCase() === run)) : [];
+    };
+
     const sections: { [k: string]: MailItem[][] } = { todo: [], rounds: [], messages: [] };
     for (const top of [...toStart].sort(newestFirst)) sections.todo.push(group(top));
-    for (const top of [...messages, ...alone, ...federation].sort(newestFirst)) sections[sectionOf(top)].push(group(top));
+    const inRound = new Map<string, MailItem[]>();
+    for (const top of [...messages, ...alone, ...federation].sort(newestFirst)) {
+      if (needsYou(top)) { sections.todo.push(group(top)); continue; }
+      const its = roundsOf(top.message);
+      if (its.length) {
+        for (const r of its) inRound.set(r.id, [...(inRound.get(r.id) || []), { ...top, child: true, parentRound: r.id }]);
+        continue;
+      }
+      // Un messaggio con righe di attesa che non è di un giro (lavori chiesti ad altri agenti, senza workflow).
+      const awaited = top.message?.awaited || [];
+      sections[awaited.length && awaited.some(w => !closed.includes(w.state)) ? 'rounds' : 'messages'].push(group(top));
+    }
+
+    // I giri: quelli in corso prima, poi i conclusi; ognuno con le righe dei suoi passi finché è in corso.
+    const roundGroups: MailItem[][] = [];
+    for (const r of [...this.rounds].sort((x, y) => Number(x.finished) - Number(y.finished) || (y.lastActivityAt || '').localeCompare(x.lastActivityAt || ''))) {
+      const msgs = inRound.get(r.id) || [];
+      const item: MailItem = {
+        kind: 'round', id: r.id, when: r.lastActivityAt, from: [r.title, ...r.values].join(' · '),
+        preview: this.translate.instant(r.finished ? 'AGENT_MAIL.ROUND_FINISHED' : 'AGENT_MAIL.ROUND_PROGRESS', { done: r.stepsDone, total: r.stepsTotal }),
+        unread: msgs.some(m => m.unread), round: r, roundMessages: msgs,
+      };
+      const rows: MailItem[] = [item];
+      if (!r.finished)
+        for (const w of r.steps) {
+          const before = this.awaitedStates.get(w.messageId);
+          seen.set(w.messageId, w.state);
+          rows.push({ kind: 'awaited', id: w.messageId, when: item.when, from: w.agent, preview: '', unread: false, child: true,
+                      awaited: w, parentRound: r.id, changed: before !== undefined && before !== w.state });
+        }
+      roundGroups.push(rows);
+    }
+    sections.rounds = [...roundGroups, ...sections.rounds];
 
     const ordered: MailItem[] = [];
     for (const key of ['todo', 'rounds', 'messages'] as const) {
@@ -241,6 +286,14 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     this.awaitedStates = seen;
     this.watchAwaited(ordered);
     return ordered;
+  }
+
+  /** I giri del workflow del progetto, dall'ultima lettura. */
+  rounds: MailRound[] = [];
+
+  /** Il giro di un messaggio aperto dal dettaglio del giro: per tornarci. */
+  roundOf(item: MailItem): MailItem | undefined {
+    return item?.parentRound ? this.items.find(i => i.kind === 'round' && i.id === item.parentRound) : undefined;
   }
 
   /** Lo stato visto all'ultima lettura, per lavoro atteso: serve a far notare un cambio. */
@@ -563,7 +616,7 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     this.dialogRef.close();
   }
 
-  trackItem = (_: number, i: MailItem) => i.kind + ':' + i.id;
+  trackItem = (_: number, i: MailItem) => i.kind + ':' + (i.parentRound ? i.parentRound + '/' : '') + i.id;
 
   private showError(err: any): void {
     this.snackBar.open(err?.error?.error || err?.message || this.translate.instant('AGENT_MAIL.ACTION_ERROR'), 'OK', { duration: 8000 });

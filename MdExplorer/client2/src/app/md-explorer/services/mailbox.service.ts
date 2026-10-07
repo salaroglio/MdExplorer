@@ -80,6 +80,24 @@ export interface AwaitedWork {
   owner?: string | null;
 }
 
+/** Un giro del workflow, visto dalla posta: una voce con i suoi passi e i turni dei suoi messaggi. */
+export interface MailRound {
+  id: string;
+  /** Il titolo del workflow («Gara»). */
+  title: string;
+  /** I valori del giro (il bando). */
+  values: string[];
+  startedAt: string;
+  startedBy?: string | null;
+  lastActivityAt: string;
+  finished: boolean;
+  stepsDone: number;
+  stepsTotal: number;
+  /** I turni di lavoro del giro, senza trattini: un messaggio con uno di questi `runId` è del giro. */
+  runs: string[];
+  steps: AwaitedWork[];
+}
+
 /** Una risposta dichiarata dalla scheda dell'agente e proposta con il messaggio. */
 export interface MailReply {
   id: string;
@@ -156,6 +174,12 @@ export class MailboxService {
   /** Avvia un incarico in attesa del responsabile, con le sue indicazioni e il motore e il modello scelti. */
   startAssignment(messageId: string, body: { note?: string; provider?: string; model?: string }): Observable<{ messageId: string; toAgent: string }> {
     return this.http.post<{ messageId: string; toAgent: string }>(`/api/A2A/mailbox/to-start/${messageId}/start`, body);
+  }
+
+  /** I giri del workflow del progetto (vuoto se il progetto non ne ha). */
+  rounds(projectPath: string): Observable<{ rounds: MailRound[] }> {
+    const params = new HttpParams().set('projectPath', projectPath);
+    return this.http.get<{ rounds: MailRound[] }>('/api/A2A/workflow/rounds', { params });
   }
 
   /** I passi che un pulsante fa partire, con chi ne può rispondere. */

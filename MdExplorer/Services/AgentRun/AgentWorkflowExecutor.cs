@@ -91,6 +91,30 @@ namespace MdExplorer.Services.AgentRun
         /// passo, letta dal registro. Vuoto se quel turno non ha aperto giri.
         /// </summary>
         IReadOnlyList<RoundProgress> ProgressOfRun(string projectPath, string runId);
+
+        /// <summary>I giri del progetto, dal più recente: per la posta, dove ogni giro è una voce con i suoi passi e i suoi messaggi.</summary>
+        IReadOnlyList<RoundSummary> Rounds(string projectPath);
+    }
+
+    /// <summary>Un giro, visto dalla posta.</summary>
+    public sealed class RoundSummary
+    {
+        public string Id { get; init; }
+        /// <summary>Il titolo del workflow («Gara»).</summary>
+        public string Title { get; init; }
+        /// <summary>I valori del giro (il bando: «NC-2027-014»), nell'ordine delle variabili del workflow.</summary>
+        public IReadOnlyList<string> Values { get; init; } = Array.Empty<string>();
+        public DateTime StartedAt { get; init; }
+        public string StartedBy { get; init; }
+        /// <summary>L'ultimo evento del giro: per ordinare e per dire «aggiornato».</summary>
+        public DateTime LastActivityAt { get; init; }
+        /// <summary>Tutti i passi sono conclusi (approvati, conclusi, non avviati per scelta, falliti).</summary>
+        public bool Finished { get; init; }
+        public int StepsDone { get; init; }
+        public int StepsTotal { get; init; }
+        public IReadOnlyList<RoundProgress> Steps { get; init; } = Array.Empty<RoundProgress>();
+        /// <summary>I turni di lavoro del giro: i messaggi scritti da questi turni sono messaggi del giro.</summary>
+        public IReadOnlyList<string> Runs { get; init; } = Array.Empty<string>();
     }
 
     /// <summary>Un passo di un giro visto da chi lo aspetta.</summary>
@@ -503,30 +527,62 @@ namespace MdExplorer.Services.AgentRun
                 {
                     var views = WorkflowScheduler.Views(wf, round);
                     foreach (var step in wf.Steps.Where(s => s.Id != source.Id && s.Trigger?.Kind != WorkflowTriggerKind.Launch))
-                    {
-                        var view = views[step.Id];
-                        var owner = OwnerOf(projectPath, wf, round, step);
-                        var state = view.Status switch
-                        {
-                            StepStatus.NotStarted => "waiting",
-                            StepStatus.Held => "tostart",
-                            StepStatus.Declined => "declined",
-                            StepStatus.Working or StepStatus.RoundApproved => "working",
-                            StepStatus.Delivered => "approval",
-                            StepStatus.Rejected => "rejected",
-                            StepStatus.Failed => "failed",
-                            StepStatus.Finished => step.Produces.Count > 0 ? "approved" : "done",
-                            _ => "working",
-                        };
-                        result.Add(new RoundProgress
-                        {
-                            Id = round.Header.Id + "/" + step.Id, Round = round.Header.Id, Step = step.Id, Label = step.Label,
-                            Agent = step.Agent, Owner = owner.Email, State = state,
-                            Note = state is "declined" or "rejected" or "failed" ? view.Last?.Note : null,
-                        });
-                    }
+                        result.Add(Progress(projectPath, wf, round, step, views[step.Id]));
                 }
             return result;
+        }
+
+        public IReadOnlyList<RoundSummary> Rounds(string projectPath)
+        {
+            var wf = Workflow(projectPath, out _);
+            if (wf == null || !_store.IsAvailable(projectPath)) return Array.Empty<RoundSummary>();
+            var result = new List<RoundSummary>();
+            foreach (var id in RoundLedger.RoundIds(_store.Root(projectPath)))
+            {
+                RoundState round;
+                try { round = RoundLedger.Load(_store.Root(projectPath), id); }
+                catch (Exception ex) { _logger.LogError(ex, "[Workflow] giro {Round} illeggibile", id); continue; }
+                var views = WorkflowScheduler.Views(wf, round);
+                var steps = wf.Steps.Select(step => Progress(projectPath, wf, round, step, views[step.Id])).ToList();
+                var closed = new[] { "approved", "done", "declined", "failed" };
+                var events = round.Steps.Values.SelectMany(r => r.Events).ToList();
+                var variables = round.Variables;
+                result.Add(new RoundSummary
+                {
+                    Id = id, Title = wf.Title, StartedAt = round.Header.StartedAt, StartedBy = round.Header.StartedBy,
+                    Values = wf.Variables.Keys.Where(variables.ContainsKey).Select(k => variables[k]).ToList(),
+                    LastActivityAt = events.Count > 0 ? events.Max(e => e.At) : round.Header.StartedAt,
+                    Steps = steps,
+                    StepsTotal = steps.Count,
+                    StepsDone = steps.Count(s => s.State is "approved" or "done"),
+                    Finished = steps.All(s => closed.Contains(s.State)),
+                    Runs = events.Where(e => !string.IsNullOrEmpty(e.Run)).Select(e => e.Run.Replace("-", "")).Distinct().ToList(),
+                });
+            }
+            return result.OrderByDescending(r => r.LastActivityAt).ToList();
+        }
+
+        private RoundProgress Progress(string projectPath, WorkflowDescriptor wf, RoundState round, WorkflowStep step, StepView view)
+        {
+            var owner = OwnerOf(projectPath, wf, round, step);
+            var state = view.Status switch
+            {
+                StepStatus.NotStarted => "waiting",
+                StepStatus.Held => "tostart",
+                StepStatus.Declined => "declined",
+                StepStatus.Working or StepStatus.RoundApproved => "working",
+                StepStatus.Delivered => "approval",
+                StepStatus.Rejected => "rejected",
+                StepStatus.Failed => "failed",
+                StepStatus.Finished => step.Produces.Count > 0 ? "approved" : "done",
+                _ => "working",
+            };
+            return new RoundProgress
+            {
+                Id = round.Header.Id + "/" + step.Id, Round = round.Header.Id, Step = step.Id, Label = step.Label,
+                Agent = step.Agent, Owner = owner.Email, State = state,
+                Note = state is "declined" or "rejected" or "failed" ? view.Last?.Note : null,
+            };
         }
 
         /// <summary>Chi risponde del passo, dal registro e dal documento delle responsabilità (W22).</summary>

@@ -16,10 +16,30 @@ namespace MdExplorer.Controllers.A2A
     public class AgentWorkflowController : ControllerBase
     {
         private readonly IAgentRegistryService _registry;
+        private readonly MdExplorer.Services.AgentRun.IAgentWorkflowExecutor _executor;
 
-        public AgentWorkflowController(IAgentRegistryService registry)
+        public AgentWorkflowController(IAgentRegistryService registry, MdExplorer.Services.AgentRun.IAgentWorkflowExecutor executor)
         {
             _registry = registry;
+            _executor = executor;
+        }
+
+        /// <summary>I giri del progetto, per la posta: ogni giro è una voce con i suoi passi e i turni dei suoi messaggi.</summary>
+        [HttpGet("rounds")]
+        public IActionResult Rounds([FromQuery] string? projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath))
+                return BadRequest(new { error = "projectPath è obbligatorio." });
+            return Ok(new
+            {
+                rounds = _executor.Rounds(projectPath).Select(r => new
+                {
+                    id = r.Id, title = r.Title, values = r.Values, startedAt = r.StartedAt, startedBy = r.StartedBy,
+                    lastActivityAt = r.LastActivityAt, finished = r.Finished, stepsDone = r.StepsDone, stepsTotal = r.StepsTotal,
+                    runs = r.Runs,
+                    steps = r.Steps.Select(p => new { messageId = p.Id, step = p.Step, label = p.Label, agent = p.Agent, owner = p.Owner, state = p.State, note = p.Note }),
+                }),
+            });
         }
 
         /// <param name="projectPath">La cartella del progetto.</param>

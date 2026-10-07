@@ -206,6 +206,16 @@ namespace MdExplorer.IntegrationTests
             Assert.IsTrue(rows.All(r => r.GetProperty("state").GetString() == "tostart" && r.GetProperty("label").GetString() == "Scheda tecnica"));
             Assert.IsTrue(search.GetProperty("answered").GetBoolean(), "il pulsante è stato premuto: il messaggio non è più da fare");
             Assert.AreEqual(2, inbox.RootElement.GetProperty("todo").GetInt32(), "da fare: solo i due «da avviare»");
+
+            // La posta mostra i giri come voci: uno per bando, con i suoi passi e i turni dei suoi messaggi.
+            var (_, roundsJson) = await ctx.GetJson("/api/A2A/workflow/rounds?projectPath=" + System.Uri.EscapeDataString(path));
+            var rounds = roundsJson.RootElement.GetProperty("rounds").EnumerateArray().ToList();
+            Assert.AreEqual(2, rounds.Count);
+            CollectionAssert.AreEquivalent(new[] { "NC-1", "NC-2" }, rounds.Select(r => r.GetProperty("values")[0].GetString()).ToList());
+            Assert.IsTrue(rounds.All(r => r.GetProperty("title").GetString() == "Gara" && r.GetProperty("stepsTotal").GetInt32() == 2
+                                          && !r.GetProperty("finished").GetBoolean()));
+            Assert.IsTrue(rounds.All(r => r.GetProperty("runs").EnumerateArray().Any(x => x.GetString() == runId.ToString("N"))),
+                "il messaggio della ricerca è di tutti e due i giri: li ha aperti lui");
         }
 
         private static System.Guid SeedSearchMessage(AgentCityContext ctx, string path, string runId)
