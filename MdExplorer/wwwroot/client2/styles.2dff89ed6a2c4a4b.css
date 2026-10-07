@@ -1,6 +1,7 @@
 /*!***********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************!*\
   !*** css ./node_modules/css-loader/dist/cjs.js??ruleSet[1].rules[6].rules[0].oneOf[0].use[1]!./node_modules/postcss-loader/dist/cjs.js??ruleSet[1].rules[6].rules[0].oneOf[0].use[2]!./node_modules/resolve-url-loader/index.js??ruleSet[1].rules[6].rules[1].use[0]!./node_modules/sass-loader/dist/cjs.js??ruleSet[1].rules[6].rules[1].use[1]!./src/styles.scss?ngGlobalStyle ***!
   \***********************************************************************************************************************************************************************************************************************************************************************************************************************************************************************************/
+@charset "UTF-8";
 .mat-ripple {
   overflow: hidden;
   position: relative;
@@ -14377,4 +14378,11 @@ app-promptlab {
   overflow: hidden;
 }
 
-/*# sourceMappingURL=styles.571d8e55e72cc470.css.map*/
+/* Una finestra o un menu aperto sopra l'app copre anche la barra del titolo, che per Electron è zona di trascinamento
+   (-webkit-app-region: drag) anche quando non si vede: lì il clic sposta la finestra invece di arrivare ai pulsanti.
+   Ciò che sta in un overlay non si trascina. */
+.cdk-overlay-pane {
+  -webkit-app-region: no-drag;
+}
+
+/*# sourceMappingURL=styles.2dff89ed6a2c4a4b.css.map*/

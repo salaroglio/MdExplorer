@@ -415,3 +415,10 @@ app-promptlab {
   border-radius: 0 !important;
   overflow: hidden;
 }
+
+/* Una finestra o un menu aperto sopra l'app copre anche la barra del titolo, che per Electron è zona di trascinamento
+   (-webkit-app-region: drag) anche quando non si vede: lì il clic sposta la finestra invece di arrivare ai pulsanti.
+   Ciò che sta in un overlay non si trascina. */
+.cdk-overlay-pane {
+  -webkit-app-region: no-drag;
+}

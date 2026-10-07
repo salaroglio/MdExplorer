@@ -1,5 +1,10 @@
 // La posta degli agenti a tutto schermo: barra in alto, elenco a sinistra, dettaglio a destra.
-:host { display: block; height: 100%; }
+:host {
+  display: block; height: 100%;
+  // La barra della posta sta sopra la barra del titolo della finestra, che è zona di trascinamento: senza questo, i suoi
+  // pulsanti ricevevano il clic solo nella fascia che sporge sotto (visto su Windows il 07/10).
+  -webkit-app-region: no-drag;
+}
 .flexExpand { flex: 1 1 auto; }
 
 .mail-page {
