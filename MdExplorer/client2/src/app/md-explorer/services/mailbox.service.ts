@@ -78,6 +78,8 @@ export interface AwaitedWork {
   /** Un passo di un giro del workflow: il suo titolo e chi ne risponde (waiting = aspetta i passi prima di lui). */
   label?: string | null;
   owner?: string | null;
+  /** Il turno che ha consegnato il passo non ti ha scritto: il messaggio non arriverà. */
+  silent?: boolean;
 }
 
 /** Un giro del workflow, visto dalla posta: una voce con i suoi passi e i turni dei suoi messaggi. */

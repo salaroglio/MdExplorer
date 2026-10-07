@@ -1838,6 +1838,8 @@
     "LOAD_ERROR": "Non riesco a leggere la posta.",
     "ACTION_ERROR": "Non è andata a buon fine.",
     "AWAITED_WORK": "Lavoro di {{agent}}",
+    "STEP_SILENT": "senza messaggio",
+    "STEP_SILENT_TIP": "L'agente ha consegnato il lavoro ma non ti ha scritto il messaggio che la sua scheda chiede: guarda direttamente il file.",
     "KIND_ROUND": "Giro",
     "ROUND_PROGRESS": "{{done}} su {{total}} passi",
     "ROUND_FINISHED": "concluso: {{done}} su {{total}} passi",

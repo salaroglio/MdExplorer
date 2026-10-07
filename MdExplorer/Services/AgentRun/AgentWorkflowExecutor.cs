@@ -130,6 +130,11 @@ namespace MdExplorer.Services.AgentRun
         /// <summary>waiting · tostart · declined · working · approval · approved · rejected · done · failed</summary>
         public string State { get; init; }
         public string Note { get; init; }
+        /// <summary>
+        /// Il turno che ha consegnato (o concluso) il passo non ha scritto alla persona: la scheda dell'agente lo chiede, il
+        /// modello a volte se ne dimentica. Lo si dice, così chi segue il giro non aspetta un messaggio che non arriverà.
+        /// </summary>
+        public bool Silent { get; init; }
     }
 
     /// <summary>Un passo che un pulsante fa partire, e chi ne può rispondere.</summary>
@@ -521,13 +526,14 @@ namespace MdExplorer.Services.AgentRun
             var wf = Workflow(projectPath, out _);
             if (wf == null || string.IsNullOrWhiteSpace(runId) || !_store.IsAvailable(projectPath)) return Array.Empty<RoundProgress>();
             var result = new List<RoundProgress>();
+            var wrote = RunsThatWrote(projectPath);
             foreach (var source in wf.Steps)
                 foreach (var round in RoundsOfRun(projectPath, runId, source.Id)
                              .Where(r => r.EventsOf(source.Id).Any(e => e.Type == RoundEventType.Replied)))
                 {
                     var views = WorkflowScheduler.Views(wf, round);
                     foreach (var step in wf.Steps.Where(s => s.Id != source.Id && s.Trigger?.Kind != WorkflowTriggerKind.Launch))
-                        result.Add(Progress(projectPath, wf, round, step, views[step.Id]));
+                        result.Add(Progress(projectPath, wf, round, step, views[step.Id], wrote));
                 }
             return result;
         }
@@ -537,13 +543,14 @@ namespace MdExplorer.Services.AgentRun
             var wf = Workflow(projectPath, out _);
             if (wf == null || !_store.IsAvailable(projectPath)) return Array.Empty<RoundSummary>();
             var result = new List<RoundSummary>();
+            var wrote = RunsThatWrote(projectPath);
             foreach (var id in RoundLedger.RoundIds(_store.Root(projectPath)))
             {
                 RoundState round;
                 try { round = RoundLedger.Load(_store.Root(projectPath), id); }
                 catch (Exception ex) { _logger.LogError(ex, "[Workflow] giro {Round} illeggibile", id); continue; }
                 var views = WorkflowScheduler.Views(wf, round);
-                var steps = wf.Steps.Select(step => Progress(projectPath, wf, round, step, views[step.Id])).ToList();
+                var steps = wf.Steps.Select(step => Progress(projectPath, wf, round, step, views[step.Id], wrote)).ToList();
                 var closed = new[] { "approved", "done", "declined", "failed" };
                 var events = round.Steps.Values.SelectMany(r => r.Events).ToList();
                 var variables = round.Variables;
@@ -562,7 +569,22 @@ namespace MdExplorer.Services.AgentRun
             return result.OrderByDescending(r => r.LastActivityAt).ToList();
         }
 
-        private RoundProgress Progress(string projectPath, WorkflowDescriptor wf, RoundState round, WorkflowStep step, StepView view)
+        /// <summary>I turni (senza trattini) che hanno scritto almeno un messaggio alla persona, nel progetto.</summary>
+        private HashSet<string> RunsThatWrote(string projectPath)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            var runs = db.GetDal<AgentMessage>().GetList()
+                .Where(m => m.ToAgent == ConversationHopGuard.UserRecipient && m.RunId != null)
+                .Select(m => new { m.RunId, m.ProjectPath }).ToList();
+            db.Commit();
+            return runs.Where(m => AgentPathComparer.Equals(m.ProjectPath, projectPath))
+                       .Select(m => m.RunId.Replace("-", "").ToLowerInvariant()).ToHashSet();
+        }
+
+        private RoundProgress Progress(string projectPath, WorkflowDescriptor wf, RoundState round, WorkflowStep step, StepView view,
+            HashSet<string> wrote)
         {
             var owner = OwnerOf(projectPath, wf, round, step);
             var state = view.Status switch
@@ -582,7 +604,16 @@ namespace MdExplorer.Services.AgentRun
                 Id = round.Header.Id + "/" + step.Id, Round = round.Header.Id, Step = step.Id, Label = step.Label,
                 Agent = step.Agent, Owner = owner.Email, State = state,
                 Note = state is "declined" or "rejected" or "failed" ? view.Last?.Note : null,
+                Silent = state is "approval" or "approved" or "done" && Silent(round, step, wrote),
             };
+        }
+
+        /// <summary>Il turno che ha consegnato o concluso il passo (l'ultimo) non ha scritto alla persona.</summary>
+        private static bool Silent(RoundState round, WorkflowStep step, HashSet<string> wrote)
+        {
+            var finishing = round.EventsOf(step.Id).LastOrDefault(e => (e.Type == RoundEventType.Delivered || e.Type == RoundEventType.Done)
+                                                                       && !string.IsNullOrEmpty(e.Run));
+            return finishing != null && !wrote.Contains(finishing.Run.Replace("-", "").ToLowerInvariant());
         }
 
         /// <summary>Chi risponde del passo, dal registro e dal documento delle responsabilità (W22).</summary>

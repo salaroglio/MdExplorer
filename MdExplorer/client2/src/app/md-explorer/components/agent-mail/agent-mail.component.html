@@ -52,7 +52,7 @@
           <span class="row-main">
             <span class="row-from" *ngIf="!item.awaited.label">{{ 'AGENT_MAIL.AWAITED_WORK' | translate: { agent: item.from } }}</span>
             <span class="row-from" *ngIf="item.awaited.label">{{ 'AGENT_MAIL.AWAITED_STEP' | translate: { step: item.awaited.label, owner: item.awaited.owner || item.from } }}</span>
-            <span class="row-state">{{ ('AGENT_MAIL.AWAITED_' + item.awaited.state) | translate }}</span>
+            <span class="row-state">{{ ('AGENT_MAIL.AWAITED_' + item.awaited.state) | translate }}<span class="row-silent" *ngIf="item.awaited.silent"> · {{ 'AGENT_MAIL.STEP_SILENT' | translate }}</span></span>
           </span>
         </div>
 
@@ -120,6 +120,7 @@
               <span class="step-label">{{ w.label }}</span>
               <span class="step-owner">{{ w.owner || w.agent }}</span>
               <span class="flexExpand"></span>
+              <span class="step-silent" *ngIf="w.silent" [title]="'AGENT_MAIL.STEP_SILENT_TIP' | translate">{{ 'AGENT_MAIL.STEP_SILENT' | translate }}</span>
               <span class="step-state">{{ ('AGENT_MAIL.AWAITED_' + w.state) | translate }}</span>
             </div>
           </div>

@@ -37,7 +37,7 @@ namespace MdExplorer.Controllers.A2A
                     id = r.Id, title = r.Title, values = r.Values, startedAt = r.StartedAt, startedBy = r.StartedBy,
                     lastActivityAt = r.LastActivityAt, finished = r.Finished, stepsDone = r.StepsDone, stepsTotal = r.StepsTotal,
                     runs = r.Runs,
-                    steps = r.Steps.Select(p => new { messageId = p.Id, step = p.Step, label = p.Label, agent = p.Agent, owner = p.Owner, state = p.State, note = p.Note }),
+                    steps = r.Steps.Select(p => new { messageId = p.Id, step = p.Step, label = p.Label, agent = p.Agent, owner = p.Owner, state = p.State, note = p.Note, silent = p.Silent }),
                 }),
             });
         }

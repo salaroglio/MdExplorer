@@ -114,6 +114,12 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual("guarda prima il capitolo 3", started.Note, "il registro dice con quali indicazioni è partito");
             Assert.AreEqual("claude", started.Engine);
             Assert.AreEqual("io@test.local", started.By);
+
+            // L'agente finto non scrive mai alla persona: il passo concluso lo dice («senza messaggio»).
+            var (_, roundsJson) = await ctx.GetJson("/api/A2A/workflow/rounds?projectPath=" + System.Uri.EscapeDataString(path));
+            var scheda = roundsJson.RootElement.GetProperty("rounds")[0].GetProperty("steps").EnumerateArray().Single(x => x.GetProperty("step").GetString() == "scheda");
+            Assert.AreEqual("done", scheda.GetProperty("state").GetString());
+            Assert.IsTrue(scheda.GetProperty("silent").GetBoolean(), "il turno ha concluso senza scrivere alla persona");
         }
 
         [TestMethod]

@@ -234,3 +234,10 @@
   }
 }
 .back-to-round { margin: 0 0 6px -8px; }
+
+// Un passo consegnato da un turno che non ti ha scritto.
+.row-silent { color: #b06000; font-weight: 600; }
+.detail.round .round-step .step-silent {
+  font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 9px;
+  background: rgba(242, 153, 0, 0.22); color: #b06000;
+}

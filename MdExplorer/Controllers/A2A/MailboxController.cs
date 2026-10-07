@@ -969,7 +969,7 @@ namespace MdExplorer.Controllers.A2A
                         context.AwaitedByRun[m.RunId] = progress.Select(p => (object)new
                         {
                             messageId = p.Id, agent = p.Agent, state = p.State, note = p.Note,
-                            label = p.Label, owner = p.Owner, round = p.Round,
+                            label = p.Label, owner = p.Owner, round = p.Round, silent = p.Silent,
                         }).ToList();
                 }
                 catch (Exception ex) { _logger.LogWarning(ex, "[Mailbox] avanzamento del giro per {Run} non letto", m.RunId); }

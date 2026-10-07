@@ -1838,6 +1838,8 @@
     "LOAD_ERROR": "I cannot read the mail.",
     "ACTION_ERROR": "It did not work.",
     "AWAITED_WORK": "Work of {{agent}}",
+    "STEP_SILENT": "no message",
+    "STEP_SILENT_TIP": "The agent delivered its work but did not write you the message its card asks for: look at the file directly.",
     "KIND_ROUND": "Round",
     "ROUND_PROGRESS": "{{done}} of {{total}} steps",
     "ROUND_FINISHED": "finished: {{done}} of {{total}} steps",
