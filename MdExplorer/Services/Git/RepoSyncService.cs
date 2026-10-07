@@ -359,6 +359,22 @@ namespace MdExplorer.Services.Git
 
             var before = await HeadsAsync(view, ct);
             var merge = await _runner.RunAsync(dir, new[] { "merge", "--no-edit", $"{UpstreamRemote}/{status.Branch}" }, ct);
+            var notes = new List<string>();
+            if (!merge.Ok)
+            {
+                var resolved = await ResolveDevelopmentYamlAsync(dir, ct);
+                if (resolved.Done)
+                {
+                    merge = resolved.Commit.Value;
+                    notes.Add("La sorgente e questo computer avevano cambiato tutti e due .development.yml: li ho uniti voce per voce, " +
+                              "tenendo le tue voci e aggiungendo quelle nuove.");
+                }
+                else if (resolved.Problem != null)
+                {
+                    await _runner.RunAsync(dir, new[] { "merge", "--abort" }, ct);
+                    return Fail(resolved.Problem);
+                }
+            }
             if (!merge.Ok)
             {
                 // Conflicting with one's own changes is not something to leave half done behind a button
@@ -377,7 +393,7 @@ namespace MdExplorer.Services.Git
             _logger.LogInformation("[Flusso] '{Repo}': {Count} aggiornamenti dalla sorgente ({Branch}).", row.Label, status.Behind, status.Branch);
 
             // origin level with the result: the agents' desks start from origin, not from this folder.
-            var warnings = new List<string>();
+            var warnings = new List<string>(notes);
             var hasOrigin = await _runner.RunAsync(dir, new[] { "remote", "get-url", "origin" }, ct);
             if (hasOrigin.Ok)
             {
@@ -392,6 +408,45 @@ namespace MdExplorer.Services.Git
                 Message = status.Behind == 1 ? "Scaricato 1 aggiornamento dalla sorgente." : $"Scaricati {status.Behind} aggiornamenti dalla sorgente.",
                 Warnings = warnings,
             }, view, before, ct);
+        }
+
+        /// <summary>
+        /// A merge stopped only on <c>.development.yml</c>: MdExplorer writes that file both at the source (a new project setting)
+        /// and on this computer (the city turned on, the room key), and git stops on two insertions in the same block even when
+        /// nothing contradicts. It is merged entry by entry (<see cref="MdExplorer.Features.Git.DevelopmentYamlMerge"/>) and the
+        /// merge is committed. Not done when other files conflict too, or when the same entry was changed differently on both
+        /// sides: then <c>Problem</c> says which one.
+        /// </summary>
+        private async Task<(bool Done, GitResult? Commit, string Problem)> ResolveDevelopmentYamlAsync(string dir, CancellationToken ct)
+        {
+            const string file = ".development.yml";
+            var conflicts = await _runner.RunAsync(dir, new[] { "diff", "--name-only", "--diff-filter=U" }, ct);
+            var files = (conflicts.Stdout ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(f => f.Trim()).ToList();
+            if (files.Count != 1 || files[0] != file) return (false, default, null);
+
+            var baseText = await _runner.RunAsync(dir, new[] { "show", ":1:" + file }, ct);
+            var ours = await _runner.RunAsync(dir, new[] { "show", ":2:" + file }, ct);
+            var theirs = await _runner.RunAsync(dir, new[] { "show", ":3:" + file }, ct);
+            if (!ours.Ok || !theirs.Ok) return (false, default, null);
+
+            string merged, conflict;
+            try { merged = MdExplorer.Features.Git.DevelopmentYamlMerge.Merge(baseText.Ok ? baseText.Stdout : null, ours.Stdout, theirs.Stdout, out conflict); }
+            catch (Exception ex) when (ex is InvalidOperationException || ex is YamlDotNet.Core.YamlException)
+            {
+                return (false, default, $"Gli aggiornamenti toccano {file}, che hai cambiato anche tu, e non l'ho potuto unire voce per voce ({ex.Message}): " +
+                                     "non ho scaricato niente e il progetto è com'era.");
+            }
+            if (merged == null)
+                return (false, default, $"Gli aggiornamenti cambiano in {file} la voce «{conflict}», che hai cambiato anche tu in un altro modo: " +
+                                     "non ho scaricato niente e il progetto è com'era. Decidi tu quale tenere, committa, e riprova.");
+
+            await File.WriteAllTextAsync(Path.Combine(dir, file), merged, ct);
+            var add = await _runner.RunAsync(dir, new[] { "add", "--", file }, ct);
+            if (!add.Ok) return (false, default, $"{file} unito, ma non riesco ad aggiungerlo all'unione: {add.Describe()}");
+            var commit = await _runner.RunAsync(dir, new[] { "commit", "--no-edit" }, ct);
+            if (!commit.Ok) return (false, default, $"{file} unito, ma l'unione non si chiude: {commit.Describe()}");
+            _logger.LogInformation("[Flusso] {File} unito voce per voce con gli aggiornamenti della sorgente in {Dir}", file, dir);
+            return (true, commit, null);
         }
 
         /// <summary>The branch HEAD is on; null when detached.</summary>

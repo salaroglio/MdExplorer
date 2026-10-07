@@ -178,6 +178,54 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(originBefore, Git(origin, "rev-parse main").Out);
         }
 
+        /// <summary>Il caso visto su Windows il 07/10: la città accesa e committata qui, la sorgente che aggiunge il workflow nello stesso blocco.</summary>
+        [TestMethod]
+        public async Task Merge_the_development_yml_entry_by_entry_when_it_is_the_only_file_in_the_way()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var (project, origin, publisher) = Setup(ctx, "yml");
+            const string start = "harness:\n  target: copilot\nagentCity:\n  ownershipDoc: gara/responsabilita.md\n";
+            Publish(publisher, ".development.yml", start, "config");
+            Git(project, "pull -q upstream main"); Git(project, "push -q origin main");
+            Publish(publisher, ".development.yml", start + "  workflowDoc: gara/workflow.md\n", "workflow");
+            File.WriteAllText(Path.Combine(project, ".development.yml"), "harness:\n  target: copilot\nagentCity:\n  enabled: true\n  ownershipDoc: gara/responsabilita.md\n  roomSecret: XYZ\n");
+            Git(project, "add -A"); Git(project, "commit -q -m \"città accesa\"");
+
+            var pulled = await Sync(ctx, s => s.PullUpstreamAsync(project));
+
+            Assert.IsTrue(pulled.Success, pulled.Message);
+            StringAssert.Contains(string.Join(" ", pulled.Warnings), "voce per voce");
+            var yml = File.ReadAllText(Path.Combine(project, ".development.yml"));
+            StringAssert.Contains(yml, "enabled: true");
+            StringAssert.Contains(yml, "roomSecret: XYZ");
+            StringAssert.Contains(yml, "workflowDoc: gara/workflow.md");
+            Assert.AreEqual(string.Empty, Git(project, "status --porcelain").Out);
+            Assert.AreEqual(Git(project, "rev-parse HEAD").Out, Git(origin, "rev-parse main").Out, "e origin alla pari, come sempre");
+        }
+
+        [TestMethod]
+        public async Task Stop_when_the_same_entry_of_development_yml_changed_differently()
+        {
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var (project, _, publisher) = Setup(ctx, "yml-conflitto");
+            Publish(publisher, ".development.yml", "harness:\n  target: copilot\n", "config");
+            Git(project, "pull -q upstream main");
+            Publish(publisher, ".development.yml", "harness:\n  target: opencode\n", "opencode");
+            File.WriteAllText(Path.Combine(project, ".development.yml"), "harness:\n  target: claude\n");
+            Git(project, "add -A"); Git(project, "commit -q -m claude");
+            var headBefore = Git(project, "rev-parse HEAD").Out;
+
+            var pulled = await Sync(ctx, s => s.PullUpstreamAsync(project));
+
+            Assert.IsFalse(pulled.Success);
+            StringAssert.Contains(pulled.Message, "«harness.target»");
+            Assert.AreEqual(headBefore, Git(project, "rev-parse HEAD").Out);
+            Assert.AreNotEqual(0, Git(project, "rev-parse --quiet --verify MERGE_HEAD").Code, "nessuna unione lasciata a metà");
+            StringAssert.Contains(File.ReadAllText(Path.Combine(project, ".development.yml")), "target: claude");
+        }
+
         [TestMethod]
         public async Task Not_lose_changes_I_have_not_committed()
         {
