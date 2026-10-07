@@ -85,6 +85,27 @@ namespace MdExplorer.Services.AgentRun
 
         /// <summary>Come sopra, per una richiesta di approvazione: vale solo se è di un giro.</summary>
         string NotYours(AgentMergeRequest request);
+
+        /// <summary>
+        /// A che punto sono i giri aperti dal messaggio di un turno (chi ha premuto il pulsante li segue da lì): una riga per
+        /// passo, letta dal registro. Vuoto se quel turno non ha aperto giri.
+        /// </summary>
+        IReadOnlyList<RoundProgress> ProgressOfRun(string projectPath, string runId);
+    }
+
+    /// <summary>Un passo di un giro visto da chi lo aspetta.</summary>
+    public sealed class RoundProgress
+    {
+        public string Id { get; init; }
+        public string Round { get; init; }
+        public string Step { get; init; }
+        public string Label { get; init; }
+        public string Agent { get; init; }
+        /// <summary>Chi ne risponde, se si sa.</summary>
+        public string Owner { get; init; }
+        /// <summary>waiting · tostart · declined · working · approval · approved · rejected · done · failed</summary>
+        public string State { get; init; }
+        public string Note { get; init; }
     }
 
     /// <summary>Un passo che un pulsante fa partire, e chi ne può rispondere.</summary>
@@ -469,6 +490,43 @@ namespace MdExplorer.Services.AgentRun
             return owner.Email != null
                 ? $"«{step.Label}» è di {owner.Email}: lo decide chi ne risponde, dal suo computer."
                 : owner.Problem;
+        }
+
+        public IReadOnlyList<RoundProgress> ProgressOfRun(string projectPath, string runId)
+        {
+            var wf = Workflow(projectPath, out _);
+            if (wf == null || string.IsNullOrWhiteSpace(runId) || !_store.IsAvailable(projectPath)) return Array.Empty<RoundProgress>();
+            var result = new List<RoundProgress>();
+            foreach (var source in wf.Steps)
+                foreach (var round in RoundsOfRun(projectPath, runId, source.Id)
+                             .Where(r => r.EventsOf(source.Id).Any(e => e.Type == RoundEventType.Replied)))
+                {
+                    var views = WorkflowScheduler.Views(wf, round);
+                    foreach (var step in wf.Steps.Where(s => s.Id != source.Id && s.Trigger?.Kind != WorkflowTriggerKind.Launch))
+                    {
+                        var view = views[step.Id];
+                        var owner = OwnerOf(projectPath, wf, round, step);
+                        var state = view.Status switch
+                        {
+                            StepStatus.NotStarted => "waiting",
+                            StepStatus.Held => "tostart",
+                            StepStatus.Declined => "declined",
+                            StepStatus.Working or StepStatus.RoundApproved => "working",
+                            StepStatus.Delivered => "approval",
+                            StepStatus.Rejected => "rejected",
+                            StepStatus.Failed => "failed",
+                            StepStatus.Finished => step.Produces.Count > 0 ? "approved" : "done",
+                            _ => "working",
+                        };
+                        result.Add(new RoundProgress
+                        {
+                            Id = round.Header.Id + "/" + step.Id, Round = round.Header.Id, Step = step.Id, Label = step.Label,
+                            Agent = step.Agent, Owner = owner.Email, State = state,
+                            Note = state is "declined" or "rejected" or "failed" ? view.Last?.Note : null,
+                        });
+                    }
+                }
+            return result;
         }
 
         /// <summary>Chi risponde del passo, dal registro e dal documento delle responsabilità (W22).</summary>

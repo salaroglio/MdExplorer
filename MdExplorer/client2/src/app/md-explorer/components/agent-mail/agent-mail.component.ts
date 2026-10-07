@@ -222,8 +222,13 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     if (!open && this.awaitedTimer) { clearInterval(this.awaitedTimer); this.awaitedTimer = null; }
   }
 
+  /** Chi chiede un incarico: un agente, o il giro del workflow (che scrive a nome di «user»). */
+  requester(a: ToStartAssignment): string {
+    return a.fromAgent === 'user' && a.step ? this.translate.instant('AGENT_MAIL.FROM_WORKFLOW') : a.fromAgent;
+  }
+
   awaitedIcon(state: string): string {
-    return ({ tostart: 'pending_actions', declined: 'do_not_disturb_on', working: 'hourglass_top', approval: 'rule', approved: 'check_circle', rejected: 'block', reworking: 'replay', done: 'check', failed: 'error' } as any)[state] || 'help';
+    return ({ waiting: 'schedule', tostart: 'pending_actions', declined: 'do_not_disturb_on', working: 'hourglass_top', approval: 'rule', approved: 'check_circle', rejected: 'block', reworking: 'replay', done: 'check', failed: 'error' } as any)[state] || 'help';
   }
 
   private fromMessage(m: MailboxMessage): MailItem {
@@ -243,7 +248,7 @@ export class AgentMailComponent implements OnInit, OnDestroy {
   private fromToStart(a: ToStartAssignment): MailItem {
     return {
       kind: 'tostart', id: a.id, when: a.createdAt, from: a.toAgent, unread: true, assignment: a,
-      preview: this.translate.instant('AGENT_MAIL.TOSTART_PREVIEW', { from: a.fromAgent, step: a.step || a.toAgent }),
+      preview: this.translate.instant('AGENT_MAIL.TOSTART_PREVIEW', { from: this.requester(a), step: a.step || a.toAgent }),
     };
   }
 
@@ -264,7 +269,7 @@ export class AgentMailComponent implements OnInit, OnDestroy {
         projectPath: this.data?.projectPath || '',
         agentFilePath: a.agentFilePath,
         agentName: a.toAgent,
-        incoming: { messageId: a.id, fromAgent: a.fromAgent, body: a.body, step: a.step },
+        incoming: { messageId: a.id, fromAgent: this.requester(a), body: a.body, step: a.step },
       },
     }).afterClosed().subscribe(res => {
       if (res?.started) this.expectingUntil = Date.now() + 10 * 60 * 1000;
@@ -401,8 +406,11 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     this.sending = true;
     this.mailbox.replyTargets(message.id, r.id).pipe(finalize(() => { this.sending = false; })).subscribe({
       next: (res) => {
+        // Un pulsante del workflow non sveglia l'agente che l'ha proposto: fa partire i passi del giro, ciascuno avviato poi
+        // da chi ne risponde. Il controllo «lavoro non salvato» lo fa chi li avvia.
+        const workflow = (res.targets || []).length > 0;
         const toChoose = (res.targets || []).filter(t => t.needsChoice);
-        if (!toChoose.length) { this.send(r.message, true); return; }
+        if (!toChoose.length) { this.send(r.message, true, undefined, workflow); return; }
         this.choosing = { reply: r, targets: toChoose, picks: {} };
       },
       error: (err) => this.showError(err),
@@ -416,7 +424,7 @@ export class AgentMailComponent implements OnInit, OnDestroy {
   confirmChoice(): void {
     if (!this.canConfirmChoice()) return;
     const c = this.choosing!;
-    this.send(c.reply.message, true, { ...c.picks });
+    this.send(c.reply.message, true, { ...c.picks }, true);
   }
 
   /** Il campo libero: l'agente lo riceve con il suo messaggio citato. */
@@ -424,12 +432,12 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     this.send(this.replyDraft.trim(), false);
   }
 
-  private send(body: string, choice: boolean, assign?: { [step: string]: string }): void {
+  private send(body: string, choice: boolean, assign?: { [step: string]: string }, workflow = false): void {
     const message = this.selected?.message;
     if (!message || !body) return;
     this.sending = true;
     // Rispondere sveglia l'agente: prima si dice se nella cartella c'è lavoro che lui non vedrebbe.
-    this.startGuard.beforeStart(this.data?.projectPath || '', message.fromAgent).pipe(
+    (workflow ? of(true) : this.startGuard.beforeStart(this.data?.projectPath || '', message.fromAgent)).pipe(
       switchMap(go => go ? this.mailbox.reply(message.conversationId, body, choice, message.id, assign) : EMPTY),
       finalize(() => { this.sending = false; }),
     ).subscribe({

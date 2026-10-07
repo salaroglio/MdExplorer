@@ -70,9 +70,12 @@ export interface AwaitedWork {
    * tostart = aspetta che il responsabile lo avvii · declined = il responsabile non l'ha avviato · working = sta lavorando ·
    * approval = artefatto in approvazione · approved · rejected = rifiutato, fermo · reworking · done = concluso senza artefatto · failed
    */
-  state: 'tostart' | 'declined' | 'working' | 'approval' | 'approved' | 'rejected' | 'reworking' | 'done' | 'failed';
+  state: 'waiting' | 'tostart' | 'declined' | 'working' | 'approval' | 'approved' | 'rejected' | 'reworking' | 'done' | 'failed';
   /** Il motivo del rifiuto, quando c'è. */
   note?: string | null;
+  /** Un passo di un giro del workflow: il suo titolo e chi ne risponde (waiting = aspetta i passi prima di lui). */
+  label?: string | null;
+  owner?: string | null;
 }
 
 /** Una risposta dichiarata dalla scheda dell'agente e proposta con il messaggio. */

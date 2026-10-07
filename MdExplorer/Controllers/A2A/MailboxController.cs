@@ -906,6 +906,22 @@ namespace MdExplorer.Controllers.A2A
                 }
             }
 
+            // I giri che il pulsante sotto un messaggio ha aperto: chi l'ha premuto li segue da lì, passo per passo (dal registro).
+            foreach (var m in messages.Where(m => !string.IsNullOrEmpty(m.RunId) && m.Replies != null && !context.AwaitedByRun.ContainsKey(m.RunId)))
+            {
+                try
+                {
+                    var progress = _workflow.ProgressOfRun(m.ProjectPath, m.RunId);
+                    if (progress.Count > 0)
+                        context.AwaitedByRun[m.RunId] = progress.Select(p => (object)new
+                        {
+                            messageId = p.Id, agent = p.Agent, state = p.State, note = p.Note,
+                            label = p.Label, owner = p.Owner, round = p.Round,
+                        }).ToList();
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "[Mailbox] avanzamento del giro per {Run} non letto", m.RunId); }
+            }
+
             foreach (var projectPath in messages.Select(m => m.ProjectPath).Where(p => !string.IsNullOrEmpty(p)).Distinct())
                 foreach (var e in _registry.GetCatalog(projectPath).Where(e => e.DeclaresReplies))
                     context.DeclaresReplies.Add(projectPath + "\n" + e.Name);

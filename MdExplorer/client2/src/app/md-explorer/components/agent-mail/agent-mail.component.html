@@ -45,7 +45,8 @@
           <span class="row-branch" aria-hidden="true"></span>
           <mat-icon class="row-icon">{{ awaitedIcon(item.awaited.state) }}</mat-icon>
           <span class="row-main">
-            <span class="row-from">{{ 'AGENT_MAIL.AWAITED_WORK' | translate: { agent: item.from } }}</span>
+            <span class="row-from" *ngIf="!item.awaited.label">{{ 'AGENT_MAIL.AWAITED_WORK' | translate: { agent: item.from } }}</span>
+            <span class="row-from" *ngIf="item.awaited.label">{{ 'AGENT_MAIL.AWAITED_STEP' | translate: { step: item.awaited.label, owner: item.awaited.owner || item.from } }}</span>
             <span class="row-state">{{ ('AGENT_MAIL.AWAITED_' + item.awaited.state) | translate }}</span>
           </span>
         </div>
@@ -214,7 +215,7 @@
             <span class="head-when">{{ selected.when | date:'medium' }}</span>
           </div>
           <p class="detail-hint">
-            {{ 'AGENT_MAIL.TOSTART_HINT' | translate: { from: selected.assignment.fromAgent, agent: selected.assignment.toAgent, step: selected.assignment.step || selected.assignment.toAgent } }}
+            {{ 'AGENT_MAIL.TOSTART_HINT' | translate: { from: requester(selected.assignment), agent: selected.assignment.toAgent, step: selected.assignment.step || selected.assignment.toAgent } }}
           </p>
           <div class="detail-text">{{ selected.assignment.body }}</div>
 

@@ -195,6 +195,13 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(0, ctx.Messages().Count(m => m.ToAgent == "capo" && m.FromAgent == "user"),
                 "il pulsante lo esegue lo schedulatore: il capo non riceve il messaggio");
             Assert.AreEqual(2, RoundLedger.RoundIds(Ledger(path)).Count);
+
+            // Chi ha premuto segue i giri dal messaggio della ricerca: una riga per passo e per giro, letta dal registro.
+            var (_, inbox) = await ctx.GetJson("/api/A2A/mailbox/inbox?includeRead=true&projectPath=" + System.Uri.EscapeDataString(path));
+            var search = inbox.RootElement.GetProperty("messages").EnumerateArray().Single(m => m.GetProperty("fromAgent").GetString() == "capo");
+            var rows = search.GetProperty("awaited").EnumerateArray().ToList();
+            Assert.AreEqual(2, rows.Count, "due giri, una scheda ciascuno");
+            Assert.IsTrue(rows.All(r => r.GetProperty("state").GetString() == "tostart" && r.GetProperty("label").GetString() == "Scheda tecnica"));
         }
 
         private static System.Guid SeedSearchMessage(AgentCityContext ctx, string path, string runId)

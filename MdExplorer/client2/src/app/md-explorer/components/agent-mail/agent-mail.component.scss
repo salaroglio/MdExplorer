@@ -153,6 +153,7 @@
   &.awaited-approved, &.awaited-done { background: rgba(24, 128, 56, 0.12); .row-icon, .row-state { color: #188038; } }
   &.awaited-rejected, &.awaited-failed, &.awaited-declined { background: rgba(217, 48, 37, 0.14); .row-icon, .row-state { color: #d93025; } }
   // Aspetta il responsabile dell'agente: è fermo finché una persona non lo avvia.
+  &.awaited-waiting { background: rgba(95, 99, 104, 0.08); .row-icon, .row-state { color: #5f6368; } }
   &.awaited-tostart { background: rgba(242, 153, 0, 0.16); .row-icon, .row-state { color: #b06000; } }
   &.changed { animation: awaited-flash 1.1s ease-in-out 4; }
 }
