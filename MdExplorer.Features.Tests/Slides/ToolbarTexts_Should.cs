@@ -74,7 +74,7 @@ namespace MdExplorer.Features.Tests.Slides
             var files = new[]
             {
                 Path.Combine("slides", "slide-toolbar.js"), Path.Combine("slides", "slide-transitions.js"), Path.Combine("slides", "slide-list-drag.js"),
-                Path.Combine("slides", "slide-edit.js"), Path.Combine("slides", "slide-navigation.js"), Path.Combine("slides", "slide-svg-zoom.js"), Path.Combine("slides", "slide-ink.js"),
+                Path.Combine("slides", "slide-edit.js"), Path.Combine("slides", "slide-navigation.js"), Path.Combine("slides", "slide-svg-zoom.js"), Path.Combine("slides", "slide-ink.js"), Path.Combine("slides", "slide-scrubber.js"),
                 Path.Combine("jqueryForFirstPage", "inline-edit", "inline-edit.js"), Path.Combine("jqueryForFirstPage", "clipboard", "clipboard-paste.js"),
             };
 

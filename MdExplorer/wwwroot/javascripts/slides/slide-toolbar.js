@@ -321,7 +321,14 @@
         return button;
     }
 
-    window.mdeSlideToolbar = { isEditMode: isEditMode, setEditMode: setEditMode, addButton: addButton, element: bar };
+    /** Another control on the bar that is not a button (slide-scrubber.js's slider), put before the full screen one. */
+    function addElement(element) {
+        bar.insertBefore(element, fullscreenButton);
+        place();
+        return element;
+    }
+
+    window.mdeSlideToolbar = { isEditMode: isEditMode, setEditMode: setEditMode, addButton: addButton, addElement: addElement, element: bar };
 
     // The mode the user left on before the deck reloaded.
     if (!toolsOnly && recall(MODE_KEY) === '1') setEditMode(true);

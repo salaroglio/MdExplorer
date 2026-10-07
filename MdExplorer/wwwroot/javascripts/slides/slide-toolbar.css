@@ -82,3 +82,53 @@ html.reveal-print .mde-slide-toolbar,
 html.print-pdf .mde-slide-toolbar {
     display: none !important;
 }
+
+/* Il cursore per scorrere le slide (slide-scrubber.js), con «7 / 18» accanto. */
+.mde-slide-toolbar .mde-tb-scrub {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 4px 0 2px;
+}
+
+.mde-slide-toolbar .mde-tb-scrub input[type="range"] {
+    width: 130px;
+    margin: 0;
+    accent-color: #1a73e8;
+    cursor: pointer;
+}
+
+.mde-slide-toolbar .mde-tb-scrub-count {
+    min-width: 46px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+/* Mentre si trascina: il numero e il titolo della slide, sotto la barra. */
+.mde-tb-scrub-label {
+    position: fixed;
+    z-index: 46;
+    max-width: 420px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    background: rgba(32, 33, 36, 0.92);
+    color: #fff;
+    font: 600 13px/1.3 system-ui, sans-serif;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+}
+
+.mde-tb-scrub-label[hidden] {
+    display: none;
+}
+
+html.reveal-print .mde-tb-scrub-label,
+html.print-pdf .mde-tb-scrub-label {
+    display: none !important;
+}

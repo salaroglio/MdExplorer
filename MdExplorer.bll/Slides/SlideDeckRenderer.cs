@@ -409,6 +409,7 @@ namespace MdExplorer.Features.Slides
             ("/javascripts/slides/slide-toolbar.js", false),
             ("/javascripts/slides/slide-edit-mode.js", true),
             ("/javascripts/slides/slide-transitions.js", true),
+            ("/javascripts/slides/slide-scrubber.js", false),
             ("/javascripts/slides/slide-svg-zoom.js", false),
             ("/javascripts/slides/slide-ink.js", false),
         };
