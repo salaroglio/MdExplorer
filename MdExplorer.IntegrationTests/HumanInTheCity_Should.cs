@@ -123,6 +123,14 @@ namespace MdExplorer.IntegrationTests
             Assert.IsTrue(again.RootElement.GetProperty("messages").EnumerateArray()
                 .First(e => e.GetProperty("id").GetGuid() == msgId).GetProperty("read").GetBoolean(), "e resta letto");
 
+            // «Archivia i letti»: la posta manda gli id dei messaggi letti, e solo quelli escono.
+            var (many, manyBody) = await ctx.PostJson("/api/A2A/mailbox/inbox/archive-many", $"{{\"messageIds\":[\"{msgId}\"]}}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, many, manyBody);
+            StringAssert.Contains(manyBody, "\"archived\":1");
+            var (_, afterMany) = await ctx.GetInbox(path, includeRead: true);
+            Assert.IsFalse(InList(afterMany));
+            await ctx.PostJson($"/api/A2A/mailbox/inbox/{msgId}/unarchive", "{}");
+
             // «Archivia tutti» svuota la posta del progetto in un gesto.
             var (all, allBody) = await ctx.PostJson($"/api/A2A/mailbox/inbox/archive-all?projectPath={enc}", "{}");
             Assert.AreEqual(System.Net.HttpStatusCode.OK, all, allBody);

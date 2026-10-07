@@ -6,9 +6,9 @@
     <span class="bar-project">{{ projectName }}</span>
     <span class="bar-archive" *ngIf="showArchive">{{ 'AGENT_MAIL.ARCHIVE_VIEW' | translate }}</span>
     <span class="flexExpand"></span>
-    <button mat-button class="btn-archive-all" *ngIf="!showArchive && messageCount > 0" (click)="archiveAll()" [disabled]="loading"
-            [matTooltip]="'AGENT_MAIL.ARCHIVE_ALL_TIP' | translate">
-      <mat-icon>inventory_2</mat-icon> {{ 'AGENT_MAIL.ARCHIVE_ALL' | translate: { count: messageCount } }}
+    <button mat-button class="btn-archive-all" *ngIf="!showArchive && readToArchive.length > 0" (click)="archiveRead()" [disabled]="loading"
+            [matTooltip]="'AGENT_MAIL.ARCHIVE_READ_TIP' | translate">
+      <mat-icon>inventory_2</mat-icon> {{ 'AGENT_MAIL.ARCHIVE_READ' | translate: { count: readToArchive.length } }}
     </button>
     <button mat-button class="btn-toggle-archive" (click)="toggleArchive()">
       <mat-icon>{{ showArchive ? 'inbox' : 'inventory_2' }}</mat-icon>
@@ -111,6 +111,13 @@
             <span class="head-kind">{{ (selected.round.finished ? 'AGENT_MAIL.ROUND_FINISHED' : 'AGENT_MAIL.ROUND_PROGRESS') | translate: { done: selected.round.stepsDone, total: selected.round.stepsTotal } }}</span>
             <span class="flexExpand"></span>
             <span class="head-when">{{ selected.round.startedAt | date:'medium' }}</span>
+            <button mat-stroked-button class="btn-archive-round" *ngIf="!showArchive && selected.round.finished" (click)="archiveRound(selected, true)"
+                    [matTooltip]="'AGENT_MAIL.ROUND_ARCHIVE_TIP' | translate">
+              <mat-icon>inventory_2</mat-icon> {{ 'AGENT_MAIL.ROUND_ARCHIVE' | translate }}
+            </button>
+            <button mat-stroked-button class="btn-unarchive-round" *ngIf="showArchive" (click)="archiveRound(selected, false)">
+              <mat-icon>unarchive</mat-icon> {{ 'AGENT_MAIL.UNARCHIVE' | translate }}
+            </button>
           </div>
           <p class="detail-hint">{{ 'AGENT_MAIL.ROUND_HINT' | translate: { who: selected.round.startedBy || '?', id: selected.round.id } }}</p>
           <div class="reply-label">{{ 'AGENT_MAIL.ROUND_STEPS' | translate }}</div>

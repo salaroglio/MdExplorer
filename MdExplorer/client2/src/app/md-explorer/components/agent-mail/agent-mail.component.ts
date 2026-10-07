@@ -146,12 +146,12 @@ export class AgentMailComponent implements OnInit, OnDestroy {
       inbox: this.mailbox.inbox(projectPath, true, this.showArchive),
       // Le altre due fonti non devono spegnere la posta se non rispondono: lo si dice e si va avanti.
       reviews: this.review.pending(projectPath).pipe(catchError(() => of({ requests: [] as MergeRequest[] }))),
-      rounds: this.showArchive ? of({ rounds: [] as MailRound[] })
-        : this.mailbox.rounds(projectPath).pipe(catchError(() => of({ rounds: [] as MailRound[] }))),
+      rounds: this.mailbox.rounds(projectPath).pipe(catchError(() => of({ rounds: [] as MailRound[] }))),
       federation: this.federation.requests(projectPath).pipe(catchError(() => of({ requests: [] as FederationRequest[] }))),
     }).subscribe({
       next: ({ inbox, reviews, federation, rounds }) => {
-        this.rounds = rounds.rounds || [];
+        // In posta i giri non archiviati; nell'archivio quelli archiviati (P3).
+        this.rounds = (rounds.rounds || []).filter(r => !!r.archived === this.showArchive);
         this.unread = inbox.unread || 0;
         this.messageCount = (inbox.messages || []).length;
         // L'archivio contiene solo messaggi: ciò che è da decidere non si archivia.
@@ -217,18 +217,10 @@ export class AgentMailComponent implements OnInit, OnDestroy {
       return rows;
     };
 
-    // L'archivio è fatto solo di messaggi: lì niente sezioni.
-    if (this.showArchive) {
-      const flat: MailItem[] = [];
-      for (const top of [...messages].sort(newestFirst)) flat.push(...group(top));
-      this.awaitedStates = seen;
-      this.watchAwaited(flat);
-      return flat;
-    }
-
     // Le tre sezioni (La posta in ordine, P1): ciò che aspetta una tua decisione, i giri, i messaggi da leggere.
     const closed = ['approved', 'done', 'declined', 'failed'];
     const needsYou = (top: MailItem): boolean => {
+      if (this.showArchive) return false;                               // nell'archivio non c'è niente da decidere
       if (top.kind !== 'message') return true;                          // da avviare, da approvare da sola, richiesta di un collega
       const m = top.message;
       return !!top.hasPending                                           // il suo artefatto è da approvare
@@ -275,6 +267,9 @@ export class AgentMailComponent implements OnInit, OnDestroy {
       roundGroups.push(rows);
     }
     sections.rounds = [...roundGroups, ...sections.rounds];
+
+    // «Archivia i letti» (P4): i messaggi letti della sezione Messaggi, quelli che non servono più.
+    this.readToArchive = sections.messages.map(rows => rows[0]).filter(i => i.kind === 'message' && !i.unread).map(i => i.id);
 
     const ordered: MailItem[] = [];
     for (const key of ['todo', 'rounds', 'messages'] as const) {
@@ -570,9 +565,27 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     });
   }
 
-  archiveAll(): void {
-    this.mailbox.archiveAll(this.data?.projectPath || '').subscribe({
+  /** I messaggi letti della sezione Messaggi: quelli che «Archivia i letti» toglie dall'elenco. */
+  readToArchive: string[] = [];
+
+  /** «Archivia i letti» (P4): un messaggio non letto non si archivia senza averlo aperto. */
+  archiveRead(): void {
+    if (!this.readToArchive.length) return;
+    this.mailbox.archiveMany(this.readToArchive).subscribe({
       next: () => this.reload(),
+      error: (err) => this.showError(err),
+    });
+  }
+
+  /** «Archivia il giro» (un giro concluso, con i suoi messaggi) o «Riporta in posta». */
+  archiveRound(item: MailItem, archive: boolean): void {
+    if (!item?.round) return;
+    this.mailbox.archiveRound(this.data?.projectPath || '', item.round.id, archive).subscribe({
+      next: () => {
+        this.snackBar.open(this.translate.instant(archive ? 'AGENT_MAIL.ROUND_ARCHIVED' : 'AGENT_MAIL.ROUND_UNARCHIVED', { name: item.from }), 'OK', { duration: 4000 });
+        this.selected = null;
+        this.reload();
+      },
       error: (err) => this.showError(err),
     });
   }

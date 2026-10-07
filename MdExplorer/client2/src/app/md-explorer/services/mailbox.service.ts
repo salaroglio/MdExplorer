@@ -93,6 +93,8 @@ export interface MailRound {
   startedBy?: string | null;
   lastActivityAt: string;
   finished: boolean;
+  /** Archiviato nella tua posta (il registro del giro non cambia). */
+  archived?: boolean;
   stepsDone: number;
   stepsTotal: number;
   /** I turni di lavoro del giro, senza trattini: un messaggio con uno di questi `runId` è del giro. */
@@ -220,6 +222,18 @@ export class MailboxService {
   /** Riporta in posta un messaggio archiviato. */
   unarchive(messageId: string): Observable<{ archived: boolean }> {
     return this.http.post<{ archived: boolean }>(`/api/A2A/mailbox/inbox/${messageId}/unarchive`, null);
+  }
+
+  /** Archivia i messaggi indicati («Archivia i letti»). */
+  archiveMany(messageIds: string[]): Observable<{ archived: number }> {
+    return this.http.post<{ archived: number }>('/api/A2A/mailbox/inbox/archive-many', { messageIds });
+  }
+
+  /** Archivia un giro concluso, con i suoi messaggi; o lo riporta in posta. */
+  archiveRound(projectPath: string, roundId: string, archive: boolean): Observable<{ archived: boolean; messages: number }> {
+    const params = new HttpParams().set('projectPath', projectPath);
+    return this.http.post<{ archived: boolean; messages: number }>(
+      `/api/A2A/mailbox/rounds/${encodeURIComponent(roundId)}/${archive ? 'archive' : 'unarchive'}`, null, { params });
   }
 
   /** Archivia tutti i messaggi in posta del progetto. */

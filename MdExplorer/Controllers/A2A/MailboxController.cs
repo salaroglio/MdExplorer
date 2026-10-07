@@ -202,6 +202,93 @@ namespace MdExplorer.Controllers.A2A
             }
         }
 
+        /// <summary>
+        /// Archivia i messaggi indicati («Archivia i letti»: la posta manda quelli letti della sezione Messaggi). Solo messaggi
+        /// alla persona; gli altri id si ignorano dicendolo nel conteggio.
+        /// </summary>
+        [HttpPost("inbox/archive-many")]
+        public IActionResult ArchiveMany([FromBody] ArchiveManyRequest? request)
+        {
+            var ids = (request?.MessageIds ?? new List<Guid>()).Distinct().ToList();
+            if (ids.Count == 0) return BadRequest(new { error = "Nessun messaggio da archiviare." });
+            try
+            {
+                var dal = _session.GetDal<AgentMessage>();
+                _session.BeginTransaction();
+                var found = dal.GetList().Where(m => ids.Contains(m.Id) && m.ToAgent == ConversationHopGuard.UserRecipient && m.ArchivedAt == null).ToList();
+                var now = DateTime.UtcNow;
+                foreach (var m in found) { m.ArchivedAt = now; m.ReadAt ??= now; dal.Save(m); }
+                _session.Commit();
+                return Ok(new { archived = found.Count });
+            }
+            catch (Exception ex)
+            {
+                _session.Rollback();
+                _logger.LogError(ex, "[Mailbox] archiviazione di {Count} messaggi fallita", ids.Count);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Archivia un giro concluso, con tutti i suoi messaggi (P3): esce dalla sezione «Giri» e va nell'archivio. Un giro
+        /// ancora in corso no: avrebbe passi che aspettano qualcuno, e sparirebbero dalla vista.
+        /// </summary>
+        [HttpPost("rounds/{roundId}/archive")]
+        public IActionResult ArchiveRound(string roundId, [FromQuery] string? projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath)) return BadRequest(new { error = "projectPath è obbligatorio." });
+            var round = _workflow.Rounds(projectPath).FirstOrDefault(r => r.Id == roundId);
+            if (round == null) return NotFound(new { error = $"Il giro '{roundId}' non c'è nel registro di questo progetto." });
+            if (!round.Finished) return Conflict(new { error = $"Il giro è ancora in corso ({round.StepsDone} su {round.StepsTotal} passi): si archivia quando è concluso." });
+            return SetRoundArchived(projectPath, round, true);
+        }
+
+        /// <summary>Riporta in posta un giro archiviato, con i suoi messaggi.</summary>
+        [HttpPost("rounds/{roundId}/unarchive")]
+        public IActionResult UnarchiveRound(string roundId, [FromQuery] string? projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath)) return BadRequest(new { error = "projectPath è obbligatorio." });
+            var round = _workflow.Rounds(projectPath).FirstOrDefault(r => r.Id == roundId);
+            if (round == null) return NotFound(new { error = $"Il giro '{roundId}' non c'è nel registro di questo progetto." });
+            return SetRoundArchived(projectPath, round, false);
+        }
+
+        private IActionResult SetRoundArchived(string projectPath, MdExplorer.Services.AgentRun.RoundSummary round, bool archived)
+        {
+            var runs = round.Runs.Select(r => r.ToLowerInvariant()).ToHashSet();
+            try
+            {
+                _session.BeginTransaction();
+                var marks = _session.GetDal<ArchivedRound>();
+                var existing = marks.GetList().ToList().Where(a => a.RoundId == round.Id && AgentPathComparer.Equals(a.ProjectPath, projectPath)).ToList();
+                if (archived && existing.Count == 0)
+                    marks.Save(new ArchivedRound { ProjectPath = projectPath, RoundId = round.Id, ArchivedAt = DateTime.UtcNow });
+                if (!archived)
+                    foreach (var e in existing) marks.Delete(e);
+
+                var dal = _session.GetDal<AgentMessage>();
+                var messages = dal.GetList().Where(m => m.ToAgent == ConversationHopGuard.UserRecipient && m.RunId != null).ToList()
+                    .Where(m => AgentPathComparer.Equals(m.ProjectPath, projectPath) && runs.Contains(m.RunId.Replace("-", "").ToLowerInvariant()))
+                    .ToList();
+                var now = DateTime.UtcNow;
+                var changed = 0;
+                foreach (var m in messages)
+                {
+                    if (archived && m.ArchivedAt == null) { m.ArchivedAt = now; m.ReadAt ??= now; dal.Save(m); changed++; }
+                    else if (!archived && m.ArchivedAt != null) { m.ArchivedAt = null; dal.Save(m); changed++; }
+                }
+                _session.Commit();
+                _logger.LogInformation("[Mailbox] giro {Round} {What}, {Count} messaggi", round.Id, archived ? "archiviato" : "riportato in posta", changed);
+                return Ok(new { roundId = round.Id, archived, messages = changed });
+            }
+            catch (Exception ex)
+            {
+                _session.Rollback();
+                _logger.LogError(ex, "[Mailbox] giro {Round}: archiviazione non riuscita", round.Id);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         /// <summary>Archivia tutti i messaggi <c>to:user</c> in posta di un progetto: l'elenco si svuota in un gesto.</summary>
         [HttpPost("inbox/archive-all")]
         public IActionResult ArchiveAll([FromQuery] string? projectPath)
@@ -1051,6 +1138,11 @@ namespace MdExplorer.Controllers.A2A
         public string? MessageId { get; set; }
         /// <summary>Con un workflow: a chi va ogni passo che il pulsante fa partire (id del passo → email), per gli agenti di un team.</summary>
         public Dictionary<string, string>? Assign { get; set; }
+    }
+
+    public class ArchiveManyRequest
+    {
+        public List<Guid>? MessageIds { get; set; }
     }
 
     public class PassAssignmentRequest

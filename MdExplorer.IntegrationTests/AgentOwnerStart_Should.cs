@@ -120,6 +120,30 @@ namespace MdExplorer.IntegrationTests
             var scheda = roundsJson.RootElement.GetProperty("rounds")[0].GetProperty("steps").EnumerateArray().Single(x => x.GetProperty("step").GetString() == "scheda");
             Assert.AreEqual("done", scheda.GetProperty("state").GetString());
             Assert.IsTrue(scheda.GetProperty("silent").GetBoolean(), "il turno ha concluso senza scrivere alla persona");
+
+            // Il giro è concluso: si archivia (F3) e torna in posta.
+            var roundId = roundsJson.RootElement.GetProperty("rounds")[0].GetProperty("id").GetString();
+            var q = "?projectPath=" + System.Uri.EscapeDataString(path);
+            var (archived, archivedBody) = await ctx.PostJson($"/api/A2A/mailbox/rounds/{roundId}/archive{q}", "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, archived, archivedBody);
+            var (_, after) = await ctx.GetJson("/api/A2A/workflow/rounds" + q);
+            Assert.IsTrue(after.RootElement.GetProperty("rounds")[0].GetProperty("archived").GetBoolean());
+            var (back, _) = await ctx.PostJson($"/api/A2A/mailbox/rounds/{roundId}/unarchive{q}", "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, back);
+            var (_, again) = await ctx.GetJson("/api/A2A/workflow/rounds" + q);
+            Assert.IsFalse(again.RootElement.GetProperty("rounds")[0].GetProperty("archived").GetBoolean());
+        }
+
+        [TestMethod]
+        public async Task Not_archive_a_round_still_in_progress()
+        {
+            using var ctx = new AgentCityContext();
+            _ctx = ctx;
+            var path = Setup(ctx, "sched-archivio");
+            var held = await LaunchAndWaitForHold(ctx, path);
+            var (status, body) = await ctx.PostJson($"/api/A2A/mailbox/rounds/{held.WorkflowRound}/archive?projectPath={System.Uri.EscapeDataString(path)}", "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.Conflict, status, "un giro con passi che aspettano qualcuno non sparisce dalla posta");
+            StringAssert.Contains(body, "ancora in corso");
         }
 
         [TestMethod]

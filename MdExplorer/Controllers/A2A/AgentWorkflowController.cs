@@ -1,4 +1,7 @@
 using System;
+using Ad.Tools.Dal.Extensions;
+using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.UserDB;
 using System.IO;
 using System.Linq;
 using MdExplorer.Features.Agents.Workflow;
@@ -17,11 +20,23 @@ namespace MdExplorer.Controllers.A2A
     {
         private readonly IAgentRegistryService _registry;
         private readonly MdExplorer.Services.AgentRun.IAgentWorkflowExecutor _executor;
+        private readonly IUserSettingsDB _session;
 
-        public AgentWorkflowController(IAgentRegistryService registry, MdExplorer.Services.AgentRun.IAgentWorkflowExecutor executor)
+        public AgentWorkflowController(IAgentRegistryService registry, MdExplorer.Services.AgentRun.IAgentWorkflowExecutor executor, IUserSettingsDB session)
         {
+            _session = session;
             _registry = registry;
             _executor = executor;
+        }
+
+        /// <summary>I giri che la persona ha archiviato nella sua posta.</summary>
+        private System.Collections.Generic.HashSet<string> ArchivedRounds(string projectPath)
+        {
+            _session.BeginTransaction();
+            var all = _session.GetDal<ArchivedRound>().GetList().ToList();
+            _session.Commit();
+            return all.Where(a => MdExplorer.Features.Agents.AgentPathComparer.Equals(a.ProjectPath, projectPath)).Select(a => a.RoundId)
+                      .ToHashSet(StringComparer.Ordinal);
         }
 
         /// <summary>I giri del progetto, per la posta: ogni giro è una voce con i suoi passi e i turni dei suoi messaggi.</summary>
@@ -30,10 +45,12 @@ namespace MdExplorer.Controllers.A2A
         {
             if (string.IsNullOrWhiteSpace(projectPath))
                 return BadRequest(new { error = "projectPath è obbligatorio." });
+            var archived = ArchivedRounds(projectPath);
             return Ok(new
             {
                 rounds = _executor.Rounds(projectPath).Select(r => new
                 {
+                    archived = archived.Contains(r.Id),
                     id = r.Id, title = r.Title, values = r.Values, startedAt = r.StartedAt, startedBy = r.StartedBy,
                     lastActivityAt = r.LastActivityAt, finished = r.Finished, stepsDone = r.StepsDone, stepsTotal = r.StepsTotal,
                     runs = r.Runs,
