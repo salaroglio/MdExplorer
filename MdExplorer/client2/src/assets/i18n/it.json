@@ -1699,7 +1699,7 @@
     "MODEL_NOT_LISTED": "{{model}} (non è nell'elenco del motore)",
     "INCOMING_TITLE": "Avvia l'incarico",
     "INCOMING_HINT": "{{from}} chiede a {{agent}} di lavorare a «{{step}}». L'agente lavora per te: decidi tu quando parte, con quale motore e con quali indicazioni.",
-    "INCOMING_BODY": "L'incarico di {{from}}",
+    "INCOMING_BODY": "L'incarico (lo chiede {{from}})",
     "INCOMING_NOTE": "Le tue indicazioni (facoltative)",
     "INCOMING_NOTE_PLACEHOLDER": "Per esempio: guarda prima il capitolo 3. L'agente le riceve dopo l'incarico.",
     "INCOMING_START": "Avvia",

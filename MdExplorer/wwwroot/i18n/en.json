@@ -1699,7 +1699,7 @@
     "MODEL_NOT_LISTED": "{{model}} (not in the engine's list)",
     "INCOMING_TITLE": "Start the assignment",
     "INCOMING_HINT": "{{from}} asks {{agent}} to work on “{{step}}”. The agent works for you: you decide when it starts, with which engine and which instructions.",
-    "INCOMING_BODY": "{{from}}'s assignment",
+    "INCOMING_BODY": "The assignment (asked by {{from}})",
     "INCOMING_NOTE": "Your instructions (optional)",
     "INCOMING_NOTE_PLACEHOLDER": "For example: read chapter 3 first. The agent gets them after the assignment.",
     "INCOMING_START": "Start",
