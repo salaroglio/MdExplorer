@@ -287,6 +287,9 @@ namespace MdExplorer.IntegrationTests
             var clone = await PostJson(ctx, "/api/ModernGit/clone", new { url, localPath, useSavedToken = false, username = User, password = Password });
             Assert.IsTrue(clone.Success, "clone: " + clone.Error);
             Assert.IsTrue(File.Exists(Path.Combine(localPath, "README.md")), "il contenuto del remoto deve esserci");
+            // L'account digitato è scritto nel repository: con più account sullo stesso host git deve saperlo.
+            var (_, written) = Git(localPath, "config", "--get", $"credential.{server.BaseUrl}.username");
+            Assert.AreEqual(User, written.Trim(), "l'account per l'host deve essere scritto nel repository clonato");
 
             // Il progetto appena clonato è un progetto «collegato»: si lavora e si pubblica
             // senza ridigitare niente.
@@ -310,6 +313,55 @@ namespace MdExplorer.IntegrationTests
             var clone = await PostJson(ctx, "/api/ModernGit/clone", new { url, localPath, useSavedToken = true });
             Assert.IsTrue(clone.Success, "clone con credenziale nel helper: " + clone.Error);
             Assert.IsTrue(File.Exists(Path.Combine(localPath, "README.md")));
+        }
+
+        [TestMethod]
+        public async Task PrimoClone_LoginDelCredentialManager_ScriveLAccountDelLoginNelRepository()
+        {
+            // Su Windows il clone senza credenziali digitate fa il login nel browser con Git Credential
+            // Manager, che salva sotto il login reale. Il repository clonato non ha nessun account per
+            // l'host: con due account GCM chiederebbe di scegliere a ogni operazione. Dopo il clone
+            // MdExplorer scrive l'account del login, e il push dopo non chiede niente.
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var url = server.CreateBareRepository("dedabit/da-clonare-con-login");
+            SeedRemoteContent(ctx, server, url, "da-clonare-con-login");
+            var localPath = Path.Combine(ctx.Factory.DataDir, "projects", "clonato-con-login");
+
+            // Il GCM finto (vedi PrimoCollegamento_AccountDiversoDaQuelloDelLogin) deve essere GLOBALE:
+            // il repository non esiste ancora. La config globale è quella ermetica della factory.
+            var logins = Path.Combine(ctx.Factory.DataDir, "login-windows.log");
+            var helper = Path.Combine(ctx.Factory.DataDir, "fake-gcm.sh");
+            File.WriteAllText(helper,
+                "#!/bin/sh\n" +
+                "u=\n" +
+                "while IFS= read -r line; do case \"$line\" in username=*) u=${line#username=};; esac; [ -z \"$line\" ] && break; done\n" +
+                "[ \"$1\" = get ] || exit 0\n" +
+                $"if [ -n \"$u\" ] && [ \"$u\" != {User} ]; then\n" +
+                "  if [ \"$GCM_INTERACTIVE\" = never ]; then echo 'fatal: Cannot prompt because user interactivity has been disabled.' >&2; exit 1; fi\n" +
+                "fi\n" +
+                $"[ -z \"$u\" ] && echo x >> '{logins}'\n" +
+                $"echo username={User}; echo password={Password}\n");
+            File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Git(ctx.Factory.DataDir, "config", "--global", "credential.helper", "");
+            Git(ctx.Factory.DataDir, "config", "--global", "--add", "credential.helper", helper);
+
+            var clone = await PostJson(ctx, "/api/ModernGit/clone", new { url, localPath, useSavedToken = true });
+            Assert.IsTrue(clone.Success, "clone con login del credential manager: " + clone.Error);
+            Assert.IsTrue(File.Exists(Path.Combine(localPath, "README.md")));
+            Assert.IsTrue(clone.Raw.Contains($"Git account for 127.0.0.1: {User}"), "la risposta deve dire l'account scritto: " + clone.Raw);
+
+            var (_, written) = Git(localPath, "config", "--get", $"credential.{server.BaseUrl}.username");
+            Assert.AreEqual(User, written.Trim(), "l'account del login deve essere scritto nel repository clonato");
+
+            // Da qui in poi git chiede la credenziale CON l'account: il helper non deve più «scegliere».
+            var loginsAfterClone = LoginCount(logins);
+            File.WriteAllText(Path.Combine(localPath, "nuovo.md"), "# nuovo\n");
+            Git(localPath, "add", "-A"); Git(localPath, "commit", "-qm", "dal clone");
+            var push = await PostJson(ctx, "/api/ModernGit/push", new { repositoryPath = localPath, remoteName = "origin", branchName = "main" });
+            Assert.IsTrue(push.Success, "push dopo il clone: " + push.Error);
+            Assert.AreEqual(loginsAfterClone, LoginCount(logins), "il push dopo il clone non deve far scegliere l'account al helper");
         }
 
         [TestMethod]

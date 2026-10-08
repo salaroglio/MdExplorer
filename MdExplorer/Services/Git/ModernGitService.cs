@@ -25,11 +25,13 @@ namespace MdExplorer.Services.Git
 
         /// <summary>L'unico meccanismo di rete: il git di sistema col suo credential manager (vedi <see cref="NativeGitTransport"/>).</summary>
         private readonly INativeGitTransport _transport;
+        private readonly IGitAccountAligner _accountAligner;
 
         public ModernGitService(
             ILogger<ModernGitService> logger,
             IUserSettingsDB userSettingsDB,
             INativeGitTransport transport,
+            IGitAccountAligner accountAligner,
             IOptions<GitAuthenticationOptions> authOptions = null,
             IOptions<GitOperationOptions> operationOptions = null,
             IProjectSubmoduleInitializer submodules = null,
@@ -38,6 +40,7 @@ namespace MdExplorer.Services.Git
             IRepoWorkflowGuard guard = null)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport), "INativeGitTransport non registrato: push, pull, fetch e clone passano di lì");
+            _accountAligner = accountAligner ?? throw new ArgumentNullException(nameof(accountAligner), "IGitAccountAligner non registrato: dopo il clone l'account per l'host va verificato");
             _logger = logger;
             _userSettingsDB = userSettingsDB;
             _authOptions = authOptions?.Value ?? new GitAuthenticationOptions();
@@ -516,6 +519,9 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
                     }
                 }
 
+                // Gli account che il credential helper conosce PRIMA del clone: se il clone fa un login
+                // nuovo, l'account comparso dopo è quello sotto cui l'ha salvato.
+                var accountsBefore = await _transport.KnownAccountsAsync(url);
                 var clone = await _transport.CloneAsync(url, localPath, branchName);
                 if (!clone.Ok)
                 {
@@ -535,6 +541,16 @@ public async Task<GitOperationResult> CloneAsync(string url, string localPath, s
 
                 var fileCount = EnsureBranchCheckedOutAfterClone(localPath);
                 var cloneMessage = $"Successfully cloned repository ({fileCount} items)";
+
+                // Il clone è passato, ma passerà anche il push di domani? Il clone non scrive nessun
+                // account nel repository: con più account nel credential helper git chiederebbe di
+                // scegliere a ogni operazione, e un login appena fatto va ritrovato col suo nome
+                // (GitAccountAligner). Il clone c'è: se l'allineamento non riesce, lo si dice.
+                var aligned = await _accountAligner.AlignAsync(localPath, url, typed ? username : null, accountsBefore);
+                if (!aligned.Ok)
+                    cloneMessage += $" (warning: {aligned.Error})";
+                else if (aligned.Note != null)
+                    cloneMessage += $". {aligned.Note}";
 
                 // Chi chiede un ramo preciso (il demo in inglese vive in `en`) lavora su QUEL ramo: git però
                 // lascia origin/HEAD sul ramo predefinito del remoto, e da lì partono i posti di lavoro
