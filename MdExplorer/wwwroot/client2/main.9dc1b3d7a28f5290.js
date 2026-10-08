@@ -16750,14 +16750,19 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "UrlHandlerService": () => (/* binding */ UrlHandlerService)
 /* harmony export */ });
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! rxjs/operators */ 116);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! rxjs/operators */ 9295);
 /* harmony import */ var _projects_dialogs_modern_clone_project_modern_clone_project_component__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../projects/dialogs/modern-clone-project/modern-clone-project.component */ 443);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/core */ 2560);
-/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/router */ 124);
-/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
-/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @angular/router */ 124);
+/* harmony import */ var _angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! @angular/material/legacy-dialog */ 8446);
+/* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
 /* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
 /* harmony import */ var _md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../md-explorer/services/projects.service */ 9753);
 /* harmony import */ var _md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../md-explorer/services/md-file.service */ 4169);
+/* harmony import */ var _md_explorer_services_md_navigation_service__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ../md-explorer/services/md-navigation.service */ 9245);
+
+
 
 
 
@@ -16770,13 +16775,14 @@ __webpack_require__.r(__webpack_exports__);
  * Service to handle mdexplorer:// URL commands received via SignalR
  */
 class UrlHandlerService {
-  constructor(router, dialog, snackBar, mdServerMessages, projectsService, mdFileService) {
+  constructor(router, dialog, snackBar, mdServerMessages, projectsService, mdFileService, navService) {
     this.router = router;
     this.dialog = dialog;
     this.snackBar = snackBar;
     this.mdServerMessages = mdServerMessages;
     this.projectsService = projectsService;
     this.mdFileService = mdFileService;
+    this.navService = navService;
     this.initialized = false;
     /**
      * Flag to indicate that a URL handler command is pending.
@@ -16818,14 +16824,21 @@ class UrlHandlerService {
     console.log('[UrlHandler] URL handler service initialized');
   }
   /**
-   * Handle open document command
+   * Handle open document command.
+   *
+   * Opens the project if it is not the current one, waits for the document view and for the
+   * tree's first level (`mdFiles` with paths under that project), then selects the file the
+   * same way an in-document link does (`main-content.handleMdNavigate`): a minimal MdFile with
+   * the relative path, through the navigation history and the side-nav selection. Nothing is
+   * looked up in the tree's dataStore: the tree is lazy, a nested file is not there yet.
+   *
+   * Before (seen 2026-10-08): the handler waited for `folderIndexingComplete`, which never comes
+   * when the project is already indexed (10 s timeout, then "proceeding anyway"), searched the
+   * dataStore (a nested file was never found), and read `subscription` inside a synchronous
+   * BehaviorSubject emission, before it was assigned.
    */
   handleOpenDocument(data) {
-    console.log('[UrlHandler] ========== handleOpenDocument called ==========');
-    console.log('[UrlHandler] Data received:', JSON.stringify(data));
-    // Set flag to skip landing page - we're opening a specific document
-    this.skipLandingPage = true;
-    console.log('[UrlHandler] skipLandingPage set to true');
+    console.log('[UrlHandler] handleOpenDocument:', JSON.stringify(data));
     // Data structure from backend:
     // {
     //   projectId: string,
@@ -16835,127 +16848,74 @@ class UrlHandlerService {
     //   fullPath: string (absolute),
     //   section: string (optional anchor)
     // }
-    // Normalize paths for comparison (replace backslashes with forward slashes)
-    const normalizedProjectPath = data.projectPath?.replace(/\\/g, '/').toLowerCase();
-    // Set up listener for indexing complete BEFORE setting the project
-    // This ensures we catch the event even if indexing is fast
-    let indexingCompleteReceived = false;
-    const indexingCompleteHandler = (indexData, _) => {
-      console.log('[UrlHandler] folderIndexingComplete received:', indexData);
-      indexingCompleteReceived = true;
-    };
-    this.mdServerMessages.addFolderIndexingCompleteListener(indexingCompleteHandler, this);
-    // First, set the project as current
-    console.log('[UrlHandler] Setting project:', data.projectPath);
-    this.projectsService.setNewFolderProject(data.projectPath);
-    // Wait for project to be set, then navigate to the document
-    console.log('[UrlHandler] Subscribing to currentProjects$...');
-    const subscription = this.projectsService.currentProjects$.subscribe(project => {
-      console.log('[UrlHandler] currentProjects$ emitted:', project ? project.path : 'null');
-      if (project) {
-        const normalizedCurrentPath = project.path?.replace(/\\/g, '/').toLowerCase();
-        console.log('[UrlHandler] Comparing paths:');
-        console.log('[UrlHandler]   - Current project path (normalized):', normalizedCurrentPath);
-        console.log('[UrlHandler]   - Expected project path (normalized):', normalizedProjectPath);
-        console.log('[UrlHandler]   - Match:', normalizedCurrentPath === normalizedProjectPath);
-        if (normalizedCurrentPath === normalizedProjectPath) {
-          console.log('[UrlHandler] Project matched! Navigating to document view...');
-          subscription.unsubscribe();
-          console.log('[UrlHandler] Unsubscribed from currentProjects$');
-          // Navigate to the document view
-          this.router.navigate(['/main/navigation/document']).then(() => {
-            console.log('[UrlHandler] Navigation complete, waiting for indexing to complete...');
-            // Wait for indexing to complete before selecting the file
-            this.waitForIndexingComplete(indexingCompleteReceived, () => {
-              console.log('[UrlHandler] Indexing complete, selecting file...');
-              this.selectFile(data.fullPath, data.filePath, data.section);
-            });
-          });
-        }
-      }
+    // The landing page must not replace the document we are about to open.
+    this.skipLandingPage = true;
+    const wantedProject = this.normalizePath(data.projectPath);
+    const current = this.projectsService.currentProjects$.getValue();
+    const alreadyOpen = !!current && this.normalizePath(current.path) === wantedProject;
+    if (!alreadyOpen) {
+      console.log('[UrlHandler] Opening project:', data.projectPath);
+      this.projectsService.setNewFolderProject(data.projectPath);
+    }
+    this.projectsService.currentProjects$.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_5__.filter)(project => !!project && this.normalizePath(project.path) === wantedProject), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.take)(1)).subscribe(() => {
+      this.router.navigate(['/main/navigation/document']).then(() => {
+        // The tree has loaded the first level of THIS project: the view is ready for a selection.
+        this.mdFileService.mdFiles.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_5__.filter)(files => files?.length > 0 && files.some(f => this.normalizePath(f.fullPath).startsWith(wantedProject))), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_6__.take)(1)).subscribe(() => this.selectFile(data.filePath, data.fullPath, data.section));
+      });
     });
     this.snackBar.open(`Opening ${data.filePath}...`, 'OK', {
       duration: 3000
     });
   }
-  /**
-   * Wait for indexing to complete, with timeout fallback
-   */
-  waitForIndexingComplete(alreadyComplete, callback) {
-    if (alreadyComplete) {
-      console.log('[UrlHandler] Indexing already complete');
-      setTimeout(callback, 500); // Small delay to ensure UI is ready
-      return;
-    }
-    console.log('[UrlHandler] Waiting for folderIndexingComplete event...');
-    let completed = false;
-    // Set up one-time listener for indexing complete
-    const handler = (_data, _) => {
-      if (!completed) {
-        completed = true;
-        console.log('[UrlHandler] folderIndexingComplete event received');
-        setTimeout(callback, 500); // Small delay to ensure UI is ready
-      }
-    };
-    this.mdServerMessages.addFolderIndexingCompleteListener(handler, this);
-    // Timeout fallback after 10 seconds
-    setTimeout(() => {
-      if (!completed) {
-        completed = true;
-        console.log('[UrlHandler] Timeout waiting for indexing, proceeding anyway...');
-        callback();
-      }
-    }, 10000);
+  /** Forward slashes, lower case, no trailing slash: the same path written in two ways compares equal. */
+  normalizePath(path) {
+    return (path || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
   }
   /**
-   * Select a file in the tree and optionally scroll to a section
+   * Select a file by its path in the project (and optionally scroll to a section), the way
+   * an in-document link does: whoever follows the selected file (the view, the tree, the
+   * MarkAgent context) follows it too.
    */
-  selectFile(fullPath, relativePath, section) {
-    console.log('[UrlHandler] Selecting file:', fullPath, 'relativePath:', relativePath, 'section:', section);
-    // Create a minimal MdFile object to search for in the dataStore
-    const searchFile = {
-      fullPath: fullPath,
-      path: fullPath,
-      name: fullPath.split(/[/\\]/).pop() || '',
+  selectFile(filePath, fullPath, section) {
+    const relativePath = (filePath || '').replace(/\\/g, '/').replace(/^\/+/, '');
+    console.log('[UrlHandler] Selecting file:', relativePath, 'section:', section || '');
+    const mdFile = {
+      name: relativePath.split('/').pop() || relativePath,
+      path: relativePath,
       relativePath: relativePath,
+      fullPath: fullPath || relativePath,
+      fullDirectoryPath: '',
       level: 0,
       expandable: false,
-      type: 'mdFile',
-      childrens: [],
+      type: 'file',
       index: 0,
       isLoading: false,
-      fullDirectoryPath: fullPath.substring(0, Math.max(fullPath.lastIndexOf('/'), fullPath.lastIndexOf('\\')))
+      childrens: []
     };
-    // Try to find the file in the dataStore to get the complete MdFile object
-    const foundFile = this.mdFileService.getMdFileFromDataStore(searchFile);
-    if (foundFile) {
-      console.log('[UrlHandler] Found file in dataStore:', foundFile.fullPath);
-      // Set the file as selected - this will trigger the document to load
-      this.mdFileService.setSelectedMdFileFromSideNav(foundFile);
-      this.mdFileService.setSelectedMdFileFromServer(foundFile);
-    } else {
-      console.log('[UrlHandler] File not found in dataStore, using search file with relativePath:', relativePath);
-      // Fallback: use the minimal object with the relativePath from the URL
-      this.mdFileService.setSelectedMdFileFromSideNav(searchFile);
-      this.mdFileService.setSelectedMdFileFromServer(searchFile);
-    }
-    // Reset skipLandingPage flag after file selection
+    this.navService.setNewNavigation(mdFile);
+    this.mdFileService.setSelectedMdFileFromSideNav(mdFile);
+    // The document is being opened: from now on the landing page may be opened as usual.
     this.skipLandingPage = false;
-    console.log('[UrlHandler] skipLandingPage reset to false');
-    // If there's a section anchor, scroll to it after the document loads
     if (section) {
-      setTimeout(() => {
-        this.scrollToSection(section);
-      }, 1000); // Give time for the document to render
+      setTimeout(() => this.scrollToSection(section), 1500); // Give time for the document to render
     }
   }
   /**
-   * Scroll to a section anchor in the document
+   * Scroll to a section anchor in the document. The document is rendered inside the viewer's
+   * iframe: the anchor is looked for there, then in the page itself.
    */
   scrollToSection(section) {
     console.log('[UrlHandler] Scrolling to section:', section);
-    // Try to find the element by id
-    const element = document.getElementById(section);
+    const documents = [];
+    document.querySelectorAll('iframe').forEach(frame => {
+      try {
+        if (frame.contentDocument) {
+          documents.push(frame.contentDocument);
+        }
+      } catch {/* cross-origin: not ours */}
+    });
+    documents.push(document);
+    const element = documents.map(d => d.getElementById(section)).find(e => !!e);
     if (element) {
       element.scrollIntoView({
         behavior: 'smooth',
@@ -17006,11 +16966,11 @@ class UrlHandlerService {
   }
   static {
     this.ɵfac = function UrlHandlerService_Factory(t) {
-      return new (t || UrlHandlerService)(_angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵinject"](_angular_router__WEBPACK_IMPORTED_MODULE_5__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵinject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_6__.MatLegacyDialog), _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵinject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_7__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵinject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_2__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵinject"](_md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_3__.MdFileService));
+      return new (t || UrlHandlerService)(_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_router__WEBPACK_IMPORTED_MODULE_8__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_material_legacy_dialog__WEBPACK_IMPORTED_MODULE_9__.MatLegacyDialog), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_10__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_1__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_2__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_md_explorer_services_md_file_service__WEBPACK_IMPORTED_MODULE_3__.MdFileService), _angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵinject"](_md_explorer_services_md_navigation_service__WEBPACK_IMPORTED_MODULE_4__.MdNavigationService));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_4__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_7__["ɵɵdefineInjectable"]({
       token: UrlHandlerService,
       factory: UrlHandlerService.ɵfac,
       providedIn: 'root'
@@ -18402,8 +18362,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.08.2',
-  buildTime: '2026.10.08 09:51:16'
+  version: '2026.10.08.3',
+  buildTime: '2026.10.08 12:11:16'
 };
 
 /***/ }),
@@ -18437,4 +18397,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.713f0632d20439a1.js.map
+//# sourceMappingURL=main.9dc1b3d7a28f5290.js.map
