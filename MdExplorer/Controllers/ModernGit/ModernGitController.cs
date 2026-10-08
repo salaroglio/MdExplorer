@@ -36,6 +36,7 @@ namespace MdExplorer.Controllers.ModernGit
         private readonly IMdIgnoreService _mdIgnoreService;
         private readonly IGitRemoteUrlParser _urlParser;
         private readonly IGenericRemoteService _genericRemoteService;
+        private readonly Services.Git.INativeGitTransport _transport;
 
         public ModernGitController(
             IModernGitService gitService,
@@ -47,6 +48,7 @@ namespace MdExplorer.Controllers.ModernGit
             IOptions<MdExplorerAppSettings> options,
             IGitRemoteUrlParser urlParser,
             IGenericRemoteService genericRemoteService,
+            Services.Git.INativeGitTransport transport,
             IDatabaseManager databaseManager = null,
             IFileSystemWatcherManager fileSystemWatcherManager = null)
             : base(logger, options, hubContext, userSettingsDb, engineDB, null, null, null, databaseManager, fileSystemWatcherManager)
@@ -55,6 +57,7 @@ namespace MdExplorer.Controllers.ModernGit
             _mdIgnoreService = mdIgnoreService;
             _urlParser = urlParser;
             _genericRemoteService = genericRemoteService;
+            _transport = transport;
         }
 
         /// <summary>
@@ -815,6 +818,21 @@ namespace MdExplorer.Controllers.ModernGit
         }
 
         /// <summary>
+        /// The accounts git's credential manager already knows for the host of <paramref name="url"/>
+        /// (only GitHub can list them). The "connect to a remote" dialog proposes these instead of the
+        /// owner read from the URL: the owner may be an organization, and an account that is not the
+        /// real login makes git ask for the login at every operation.
+        /// </summary>
+        [HttpGet("known-accounts")]
+        public async Task<IActionResult> KnownAccounts([FromQuery] [Required] string url)
+        {
+            if (string.IsNullOrWhiteSpace(url))
+                return BadRequest(new { supported = false, accounts = Array.Empty<string>(), reason = "URL is required" });
+            var known = await _transport.KnownAccountsAsync(url);
+            return Ok(new { supported = known.Supported, accounts = known.Accounts, reason = known.Reason });
+        }
+
+        /// <summary>
         /// Sets up a generic remote (supports any Git provider)
         /// </summary>
         /// <param name="request">Generic remote setup parameters</param>
@@ -845,6 +863,7 @@ namespace MdExplorer.Controllers.ModernGit
                     Message = result.Message,
                     Error = result.Error,
                     RemoteUrl = result.RemoteUrl,
+                    AccountUsername = result.AccountUsername,
                     PushAttempted = result.PushAttempted,
                     PushSucceeded = result.PushSucceeded,
                     DurationMs = result.DurationMs

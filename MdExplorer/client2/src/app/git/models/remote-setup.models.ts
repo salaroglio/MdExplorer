@@ -46,9 +46,21 @@ export interface GenericSetupRemoteResponse {
   message?: string;
   error?: string;
   remoteUrl: string;
+  /** L'account scritto nel repository dopo la verifica: può differire da quello chiesto. */
+  accountUsername?: string;
   pushAttempted: boolean;
   pushSucceeded: boolean;
   durationMs: number;
+}
+
+/**
+ * Gli account che il credential manager di git conosce già per un host (solo GitHub sa
+ * elencarli). La maschera li propone al posto del proprietario letto nell'URL.
+ */
+export interface KnownAccountsResponse {
+  supported: boolean;
+  accounts: string[];
+  reason?: string;
 }
 
 /**

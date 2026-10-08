@@ -79,6 +79,46 @@ namespace MdExplorer.Services.Git
         Task<NativeGitOutcome> ApproveCredentialAsync(string url, string username, string password, CancellationToken ct = default);
         /// <summary>Fa dimenticare a git una credenziale che il server ha rifiutato, così non la ripropone.</summary>
         Task<NativeGitOutcome> RejectCredentialAsync(string url, string username, CancellationToken ct = default);
+        /// <summary>
+        /// Che cosa ritrova git nel suo credential helper per <paramref name="url"/>, per l'utente dato
+        /// (o, con <c>null</c>, per quello che il helper sceglie da solo). <b>Non apre mai un login</b>:
+        /// né nel browser (<c>GCM_INTERACTIVE=never</c>), né con askpass, né a terminale. Serve a
+        /// sapere se la prossima operazione di rete passerà senza chiedere niente.
+        /// <para>
+        /// Gira in <paramref name="workingDirectory"/> (un repository: così vale la SUA config, helper
+        /// compreso; null = cartella temporanea, solo config globale). Attenzione: senza utente, git
+        /// inietta da solo quello di <c>credential.&lt;host&gt;.username</c> se il repository ce l'ha;
+        /// chi vuole davvero chiedere «senza utente» deve prima toglierla (un <c>-c chiave=</c>
+        /// non basta: manda <c>username=</c> vuoto, e il helper <c>store</c> lo confronta alla lettera).
+        /// </para>
+        /// </summary>
+        Task<CredentialLookup> LookupCredentialAsync(string url, string username, string workingDirectory = null, CancellationToken ct = default);
+        /// <summary>
+        /// Gli account che Git Credential Manager conosce per l'host di <paramref name="url"/>
+        /// (<c>git credential-manager github list</c>). Solo per github.com: per gli altri host
+        /// <see cref="KnownAccounts.Supported"/> è falso e lo dice.
+        /// </summary>
+        Task<KnownAccounts> KnownAccountsAsync(string url, CancellationToken ct = default);
+    }
+
+    /// <summary>Esito di <see cref="INativeGitTransport.LookupCredentialAsync"/>.</summary>
+    public sealed class CredentialLookup
+    {
+        public bool Found { get; init; }
+        /// <summary>L'utente sotto cui il helper l'ha trovata: può essere diverso da quello chiesto.</summary>
+        public string Username { get; init; }
+        /// <summary>Perché non l'ha trovata (stderr di git), per chi deve raccontarlo.</summary>
+        public string Error { get; init; }
+    }
+
+    /// <summary>Esito di <see cref="INativeGitTransport.KnownAccountsAsync"/>.</summary>
+    public sealed class KnownAccounts
+    {
+        /// <summary>Falso quando per quell'host non esiste un modo di chiederlo (solo GitHub lo offre).</summary>
+        public bool Supported { get; init; }
+        public IReadOnlyList<string> Accounts { get; init; } = Array.Empty<string>();
+        /// <summary>Perché l'elenco è vuoto o non disponibile (host non GitHub, GCM assente…).</summary>
+        public string Reason { get; init; }
     }
 
     public sealed class NativeGitTransport : INativeGitTransport
@@ -211,6 +251,46 @@ namespace MdExplorer.Services.Git
             if (!r.Ok)
                 _logger.LogWarning("[git] credential {Verb} per {Url}: {Why}", verb, StripUserInfo(url), r.Describe());
             return ToOutcome(r);
+        }
+
+        // ------------------------------------------------------------------ senza mai aprire un login
+
+        /// <summary>
+        /// Variabili che tolgono a git e al suo helper ogni modo di chiedere qualcosa: Git Credential
+        /// Manager non apre il browser, git non lancia askpass (una stringa vuota lo spegne), e il
+        /// terminale è già disabilitato dal runner. Così una verifica resta una verifica.
+        /// </summary>
+        private static readonly IReadOnlyDictionary<string, string> NeverPrompt = new Dictionary<string, string>
+        {
+            ["GCM_INTERACTIVE"] = "never",
+            ["GIT_ASKPASS"] = string.Empty,
+        };
+
+        public async Task<CredentialLookup> LookupCredentialAsync(string url, string username, string workingDirectory = null, CancellationToken ct = default)
+        {
+            var sb = new StringBuilder();
+            sb.Append("url=").Append(StripUserInfo(url)).Append('\n');
+            if (!string.IsNullOrEmpty(username)) sb.Append("username=").Append(username).Append('\n');
+            sb.Append('\n');
+            var r = await _git.RunAsync(workingDirectory ?? System.IO.Path.GetTempPath(), new[] { "credential", "fill" }, ct,
+                extraEnv: NeverPrompt, stdin: sb.ToString());
+            var lines = (r.Stdout ?? string.Empty).Split('\n');
+            var found = r.Ok && lines.Any(l => l.StartsWith("password=", StringComparison.Ordinal));
+            var user = lines.FirstOrDefault(l => l.StartsWith("username=", StringComparison.Ordinal))?.Substring("username=".Length).Trim();
+            _logger?.LogInformation("[git] credential fill {Url} user={User}: {Esito}", StripUserInfo(url), username ?? "(nessuno)",
+                found ? $"trovata come '{user}'" : "non trovata");
+            return new CredentialLookup { Found = found, Username = found ? user : null, Error = found ? null : r.Describe() };
+        }
+
+        public async Task<KnownAccounts> KnownAccountsAsync(string url, CancellationToken ct = default)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || !string.Equals(uri.Host, "github.com", StringComparison.OrdinalIgnoreCase))
+                return new KnownAccounts { Supported = false, Reason = "solo Git Credential Manager per GitHub sa elencare i suoi account" };
+            var r = await _git.RunAsync(System.IO.Path.GetTempPath(), new[] { "credential-manager", "github", "list" }, ct, extraEnv: NeverPrompt, timeoutMs: 30_000);
+            if (!r.Ok)
+                return new KnownAccounts { Supported = true, Reason = $"git credential-manager github list: {r.Describe()}" };
+            var accounts = (r.Stdout ?? string.Empty).Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).Distinct().ToList();
+            return new KnownAccounts { Supported = true, Accounts = accounts, Reason = accounts.Count == 0 ? "Git Credential Manager non ha ancora nessun account GitHub" : null };
         }
 
         private async Task<NativeGitOutcome> Run(string cwd, string[] args, CancellationToken ct, int timeoutMs = NativeGitRunner.DefaultTimeoutMs)

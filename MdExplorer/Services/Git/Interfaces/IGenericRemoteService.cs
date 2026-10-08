@@ -28,8 +28,17 @@ namespace MdExplorer.Services.Git.Interfaces
 
     public class SetupRemoteGenericResult
     {
-        /// <summary>Vero solo se il remote è configurato E, se richiesto, il push è riuscito. Mai «verde con dentro un fallimento».</summary>
+        /// <summary>
+        /// Vero solo se il remote è configurato E, se richiesto, il push è riuscito E git ritrova la
+        /// credenziale con l'account scritto nel repository (altrimenti la prossima operazione
+        /// richiederebbe il login). Mai «verde con dentro un fallimento».
+        /// </summary>
         public bool Success { get; set; }
+        /// <summary>
+        /// L'account scritto nel repository per l'host del remoto, dopo la verifica: può essere diverso
+        /// da quello chiesto, se il credential helper ha salvato il login sotto un altro nome.
+        /// </summary>
+        public string AccountUsername { get; set; }
         public string Message { get; set; }
         /// <summary>Lo stderr di git così com'è: è ciò che l'utente deve leggere.</summary>
         public string Error { get; set; }

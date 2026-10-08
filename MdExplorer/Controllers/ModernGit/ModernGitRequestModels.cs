@@ -255,6 +255,12 @@ namespace MdExplorer.Controllers.ModernGit
         public string Error { get; set; }
 
         /// <summary>
+        /// The account written in the repository for the remote's host, after verification: it may
+        /// differ from the requested one when the credential helper stored the login under another name.
+        /// </summary>
+        public string AccountUsername { get; set; }
+
+        /// <summary>
         /// Whether the repository was created automatically
         /// </summary>
         public bool PushAttempted { get; set; }

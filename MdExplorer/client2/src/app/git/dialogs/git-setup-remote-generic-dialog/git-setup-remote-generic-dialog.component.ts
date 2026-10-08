@@ -5,6 +5,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { GITService } from '../../services/gitservice.service';
 import {
   GitSetupRemoteGenericDialogData,
+  KnownAccountsResponse,
   ParseRemoteUrlResponse,
   PROVIDER_INFO
 } from '../../models/remote-setup.models';
@@ -12,10 +13,14 @@ import {
 /**
  * «Collega a un repository remoto». Una sola maschera per GitHub, GitLab, Bitbucket e i
  * server aziendali: incolli l'URL, MdExplorer ricava host, proprietario e nome, ti propone
- * l'account git per quell'host (con più account sullo stesso host git deve saperlo) e fa il
- * primo push. Nessuna credenziale passa di qui: se serve un login lo fa il git di sistema
- * col suo credential manager, e se manca una credenziale l'errore di git compare qui sotto,
- * così com'è, con un'indicazione su cosa fare.
+ * gli account git che il credential manager conosce già per quell'host (con più account
+ * sullo stesso host git deve saperlo) e fa il primo push. Nessuna credenziale passa di qui:
+ * se serve un login lo fa il git di sistema col suo credential manager, e se manca una
+ * credenziale l'errore di git compare qui sotto, così com'è, con un'indicazione su cosa fare.
+ *
+ * L'account NON è il proprietario letto nell'URL: può essere un'organizzazione, e Git
+ * Credential Manager salva il login sotto il login reale e lo cerca con quello esatto. Con un
+ * account sbagliato git chiedeva il login a ogni operazione (08/10/2026).
  */
 @Component({
   selector: 'app-git-setup-remote-generic-dialog',
@@ -38,6 +43,8 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
 
   urlInfo: ParseRemoteUrlResponse | null = null;
   checkResult: { isReachable: boolean; error?: string; isAuthenticationError?: boolean } | null = null;
+  /** Gli account che git conosce già per l'host dell'URL: un array piatto, pronto per l'`*ngFor`. */
+  knownAccounts: string[] = [];
 
   readonly providerInfo = PROVIDER_INFO;
   private accountTouched = false;
@@ -81,10 +88,11 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
           this.error = result.error || this.translate.instant('GIT_REMOTE.URL_INVALID');
           return;
         }
-        // L'account proposto è il proprietario nell'URL: su GitHub e GitLab è quasi sempre
-        // l'utente giusto; su un server aziendale l'utente può cambiarlo.
-        if (!this.accountTouched && result.protocol === 'https') {
-          this.accountUsername = result.owner || '';
+        // L'account lo si propone da ciò che git conosce già, mai dal proprietario nell'URL.
+        if (result.protocol === 'https') {
+          this.loadKnownAccounts();
+        } else {
+          this.knownAccounts = [];
         }
       },
       error: (err) => {
@@ -93,6 +101,23 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
         this.urlInfo = null;
       }
     });
+  }
+
+  /** Gli account che il credential manager di git conosce per questo host: uno solo = proposto. */
+  private loadKnownAccounts(): void {
+    const forUrl = this.remoteUrl.trim();
+    this.gitService.knownAccounts(forUrl).subscribe((known: KnownAccountsResponse) => {
+      if (this.remoteUrl.trim() !== forUrl) { return; } // l'URL è cambiato nel frattempo
+      this.knownAccounts = known.accounts || [];
+      if (!this.accountTouched && this.knownAccounts.length === 1) {
+        this.accountUsername = this.knownAccounts[0];
+      }
+    });
+  }
+
+  useAccount(account: string): void {
+    this.accountUsername = account;
+    this.accountTouched = true;
   }
 
   onAccountChange(): void {
@@ -165,10 +190,12 @@ export class GitSetupRemoteGenericDialogComponent implements OnInit {
       next: (response) => {
         this.isSetting = false;
         if (response.success) {
+          // Se il backend ha corretto l'account, il messaggio lo dice: va letto, quindi resta di più.
+          const corrected = !!response.accountUsername && response.accountUsername !== (this.accountUsername?.trim() || '');
           this.snackBar.open(
             response.message || this.translate.instant('GIT_REMOTE.REMOTE_SUCCESS'),
             'OK',
-            { duration: 5000, verticalPosition: 'top' }
+            { duration: corrected ? 12000 : 5000, verticalPosition: 'top' }
           );
           this.dialogRef.close(true);
         } else {

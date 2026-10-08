@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { GenericSetupRemoteRequest, GenericSetupRemoteResponse } from '../models/remote-setup.models';
+import { GenericSetupRemoteRequest, GenericSetupRemoteResponse, KnownAccountsResponse } from '../models/remote-setup.models';
 import { Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
@@ -597,6 +597,20 @@ export class GITService implements OnDestroy {
     );
   }
 
+
+  /**
+   * Gli account che il credential manager di git conosce già per l'host dell'URL (solo GitHub
+   * sa elencarli). Un errore di rete = elenco vuoto con il motivo, mai un'eccezione nella maschera.
+   */
+  knownAccounts(remoteUrl: string): Observable<KnownAccountsResponse> {
+    const url = `../api/ModernGit/known-accounts?url=${encodeURIComponent(remoteUrl)}`;
+    return this.http.get<KnownAccountsResponse>(url).pipe(
+      catchError(error => {
+        console.error('Error listing known git accounts:', error);
+        return of({ supported: false, accounts: [], reason: error.message || 'Failed to list accounts' } as KnownAccountsResponse);
+      })
+    );
+  }
 
   /**
    * «Collega a un repository remoto»: solo URL, account per l'host e primo push. `success`

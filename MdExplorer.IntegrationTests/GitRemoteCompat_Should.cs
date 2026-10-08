@@ -215,6 +215,63 @@ namespace MdExplorer.IntegrationTests
             Assert.IsTrue(push.Success, "il push successivo dalla toolbar: " + push.Error);
         }
 
+        [TestMethod]
+        public async Task PrimoCollegamento_AccountDiversoDaQuelloDelLogin_MdeLoAllineaEGitNonRichiedeIlLogin()
+        {
+            // Windows, 08/10/2026: repository sotto l'organizzazione «dedabit», la maschera scrive
+            // `credential.<host>.username = dedabit`. Git Credential Manager fa il login nel browser,
+            // il push passa, ma salva la credenziale sotto il login REALE e, quando git gli richiede
+            // «dedabit», non la trova: login a ogni operazione, per sempre. Dopo il primo push
+            // MdExplorer deve accorgersene e scrivere l'account vero.
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            using var server = NewServer(ctx);
+            var url = server.CreateBareRepository("dedabit/techdocs");
+            var (_, path) = ctx.SeedProject("sotto-organizzazione");
+            Git(path, "init", "-q", "-b", "main");
+            File.WriteAllText(Path.Combine(path, "README.md"), "# techdocs\n");
+            Git(path, "add", "-A"); Git(path, "commit", "-qm", "primo");
+
+            // Un Git Credential Manager finto, fedele a quello vero: conosce un solo account (carlo);
+            // se gli si chiede un altro utente «apre il login» (lo conta) e risponde comunque col login
+            // reale; con GCM_INTERACTIVE=never, invece di aprire il login, rifiuta.
+            var logins = Path.Combine(ctx.Factory.DataDir, "login-windows.log");
+            var helper = Path.Combine(ctx.Factory.DataDir, "fake-gcm.sh");
+            File.WriteAllText(helper,
+                "#!/bin/sh\n" +
+                "u=\n" +
+                "while IFS= read -r line; do case \"$line\" in username=*) u=${line#username=};; esac; [ -z \"$line\" ] && break; done\n" +
+                "[ \"$1\" = get ] || exit 0\n" +
+                $"if [ -n \"$u\" ] && [ \"$u\" != {User} ]; then\n" +
+                "  if [ \"$GCM_INTERACTIVE\" = never ]; then echo 'fatal: Cannot prompt because user interactivity has been disabled.' >&2; exit 1; fi\n" +
+                $"  echo x >> '{logins}'\n" +
+                "fi\n" +
+                $"echo username={User}; echo password={Password}\n");
+            File.SetUnixFileMode(helper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Git(path, "config", "credential.helper", "");
+            Git(path, "config", "--add", "credential.helper", helper);
+
+            var setup = await PostJson(ctx, "/api/ModernGit/setup-remote-generic",
+                new { repositoryPath = path, remoteUrl = url, remoteName = "origin", accountUsername = "dedabit", pushAfterAdd = true });
+            Assert.IsTrue(setup.Success, "setup-remote-generic: " + setup.Error + " | " + setup.Raw);
+            Assert.AreEqual(1, LoginCount(logins), "il primo push fa UN login: " + setup.Raw);
+
+            // L'account scritto nel repository è quello del login, e la risposta lo dice.
+            var (_, written) = Git(path, "config", "--get", $"credential.{server.BaseUrl}.username");
+            Assert.AreEqual(User, written.Trim(), "l'account nel repository deve essere quello sotto cui il helper ha salvato");
+            Assert.IsTrue(setup.Raw.Contains($"\"accountUsername\":\"{User}\""), "la risposta deve dire l'account corretto: " + setup.Raw);
+            Assert.IsTrue(setup.Raw.Contains("not 'dedabit'"), "la risposta deve dire che l'account è stato corretto: " + setup.Raw);
+
+            // Da qui in poi nessun login: il push dalla toolbar trova la credenziale.
+            File.WriteAllText(Path.Combine(path, "secondo.md"), "# secondo\n");
+            Git(path, "add", "-A"); Git(path, "commit", "-qm", "secondo");
+            var push = await PostJson(ctx, "/api/ModernGit/push", new { repositoryPath = path, remoteName = "origin", branchName = "main" });
+            Assert.IsTrue(push.Success, "il push successivo dalla toolbar: " + push.Error);
+            Assert.AreEqual(1, LoginCount(logins), "il push dopo NON deve riaprire il login");
+        }
+
+        private static int LoginCount(string file) => File.Exists(file) ? File.ReadAllLines(file).Length : 0;
+
         // ---------------------------------------------------------------- primo clone
 
         [TestMethod]

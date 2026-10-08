@@ -7767,6 +7767,21 @@ class GITService {
     }));
   }
   /**
+   * Gli account che il credential manager di git conosce già per l'host dell'URL (solo GitHub
+   * sa elencarli). Un errore di rete = elenco vuoto con il motivo, mai un'eccezione nella maschera.
+   */
+  knownAccounts(remoteUrl) {
+    const url = `../api/ModernGit/known-accounts?url=${encodeURIComponent(remoteUrl)}`;
+    return this.http.get(url).pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_3__.catchError)(error => {
+      console.error('Error listing known git accounts:', error);
+      return (0,rxjs__WEBPACK_IMPORTED_MODULE_4__.of)({
+        supported: false,
+        accounts: [],
+        reason: error.message || 'Failed to list accounts'
+      });
+    }));
+  }
+  /**
    * «Collega a un repository remoto»: solo URL, account per l'host e primo push. `success`
    * è vero solo se il remote è scritto E, se richiesto, il push è passato; `error` è lo
    * stderr di git così com'è.
@@ -18387,8 +18402,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.07.12',
-  buildTime: '2026.10.07 12:33:21'
+  version: '2026.10.08.2',
+  buildTime: '2026.10.08 09:51:16'
 };
 
 /***/ }),
@@ -18422,4 +18437,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.13c442742f3285ce.js.map
+//# sourceMappingURL=main.713f0632d20439a1.js.map

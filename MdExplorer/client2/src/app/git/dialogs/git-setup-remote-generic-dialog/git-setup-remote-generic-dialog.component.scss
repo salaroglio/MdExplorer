@@ -30,6 +30,35 @@
   margin-bottom: 16px;
 }
 
+.known-accounts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: -4px 0 16px;
+  font-size: 0.9em;
+
+  .known-accounts-label {
+    color: var(--mde-text-secondary);
+  }
+
+  button {
+    line-height: 30px;
+
+    mat-icon {
+      font-size: 18px;
+      height: 18px;
+      width: 18px;
+      margin-right: 4px;
+    }
+
+    &.selected {
+      border-color: var(--mde-icon-accent-blue);
+      color: var(--mde-icon-accent-blue);
+    }
+  }
+}
+
 .github-pat-warning {
   display: flex;
   align-items: flex-start;

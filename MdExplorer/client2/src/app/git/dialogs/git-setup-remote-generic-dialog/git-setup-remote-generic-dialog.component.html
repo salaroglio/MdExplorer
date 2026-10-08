@@ -42,6 +42,19 @@
       <mat-hint>{{ 'GIT_REMOTE.ACCOUNT_USERNAME_HINT' | translate }}</mat-hint>
     </mat-form-field>
 
+    <!-- Gli account che git conosce già per questo host: un clic e lo usa -->
+    <div class="known-accounts" *ngIf="knownAccounts.length > 0">
+      <span class="known-accounts-label">{{ 'GIT_REMOTE.KNOWN_ACCOUNTS' | translate }}</span>
+      <button mat-stroked-button
+              type="button"
+              *ngFor="let account of knownAccounts"
+              [class.selected]="account === accountUsername"
+              [disabled]="isSetting"
+              (click)="useAccount(account)">
+        <mat-icon>person</mat-icon>{{ account }}
+      </button>
+    </div>
+
     <div class="options">
       <mat-checkbox [(ngModel)]="pushAfterAdd" [disabled]="isSetting">
         {{ 'GIT_REMOTE.AUTO_PUSH' | translate }}
