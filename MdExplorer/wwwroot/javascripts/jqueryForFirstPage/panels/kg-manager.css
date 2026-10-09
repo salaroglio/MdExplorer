@@ -366,6 +366,10 @@
 /* ---- File boxes (2D "Files" view) -----------------------------------------
    HTML boxes laid over the canvas, one per file node. kg-manager.js positions and
    scales them every frame (transform-origin 0 0: the zoom scale comes from the JS). */
+/* Until the first framing the picture is hidden, then it fades in (renderActive). */
+.kgBody > * { transition: opacity 160ms ease-out; }
+.kgBody.kgSettling > * { opacity: 0; }
+
 .kgBoxLayer {
     position: absolute;
     inset: 0;

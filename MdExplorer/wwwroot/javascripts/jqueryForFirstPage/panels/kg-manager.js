@@ -208,6 +208,34 @@
         return n._boxW ? Math.hypot(n._boxW / 2, n._boxH / 2) : nodeRadius(n) + 28;
     }
 
+    /** Name order: the current document first, then the files by name (numbers in numeric order). */
+    function sortedMembers(f) {
+        return f.members.slice().sort(function (p, q) {
+            if (!!p.isCenter !== !!q.isCenter) return p.isCenter ? -1 : 1;
+            return displayName(p).localeCompare(displayName(q), undefined, { numeric: true, sensitivity: 'base' });
+        });
+    }
+
+    /**
+     * The grid of a folder's boxes: the columns/rows split with the smallest enclosing circle.
+     * Cells take the widest and tallest box, so no two boxes can overlap. Shared by sizeLayout
+     * (radius) and seedPositions (places), so what is drawn is exactly what was measured.
+     */
+    function gridFor(members) {
+        const n = members.length;
+        if (!n) return null;
+        const cellW = Math.max.apply(null, members.map(function (m) { return m._boxW || 2 * nodeExtent(m); })) + 16;
+        const cellH = Math.max.apply(null, members.map(function (m) { return m._boxH || 2 * nodeExtent(m); })) + 12;
+        let best = null;
+        for (let c = 1; c <= n; c++) {
+            const r = Math.ceil(n / c);
+            const W = c * cellW, H = r * cellH;
+            const R = Math.hypot(W, H) / 2;
+            if (!best || R < best.R) best = { cols: c, rows: r, cellW: cellW, cellH: cellH, W: W, H: H, R: R };
+        }
+        return best;
+    }
+
     function computeLayout(data) {
         const present = Object.create(null);
         const buckets = [];
@@ -255,16 +283,10 @@
                 });
                 inner = rho + maxR;
             }
-            // Room for the boxes: their rectangles (with the collision pad) at a 60% fill of the disc.
-            const COLLIDE_PAD = 16, FILL = 0.6;
-            const area = f.members.reduce(function (s, n) {
-                const w = n._boxW ? n._boxW + COLLIDE_PAD : 2 * nodeExtent(n);
-                const h = n._boxW ? n._boxH + COLLIDE_PAD : 2 * nodeExtent(n);
-                return s + w * h;
-            }, 0);
             let r;
             if (!inner) {
-                r = Math.max(Math.sqrt(area / FILL / Math.PI) + 10, maxExt + PAD);
+                const grid = gridFor(f.members);
+                r = Math.max(grid ? grid.R + PAD : 0, maxExt + PAD);
                 f.ringMid = 0;
             } else if (!ext.length) {
                 r = inner + PAD;
@@ -312,16 +334,32 @@
         layout.top.forEach(function (b) { place(folders[b]); });
     }
 
-    /** Start every node in its own circle (the current document in the middle of its own): the forces then only have to tidy up. */
+    /**
+     * The place of every node is decided here, not by a simulation: inside its circle, in name
+     * order (the current document first), on a centred grid (gridFor), read like a list; in a
+     * folder with children, around the ring between the children and the edge.
+     */
     function seedPositions(data, layout) {
-        data.nodes.forEach(function (n) {
-            if (n.fx != null) return;
-            const f = layout.folders[bucketFor(n)];
-            if (!f) return;
-            const a = Math.random() * 2 * Math.PI;
-            const d = f.ringMid ? f.ringMid : (n.isCenter ? 0 : Math.random() * Math.max(0, f.r - nodeExtent(n) - 8));
-            n.x = f.cx + Math.cos(a) * d;
-            n.y = f.cy + Math.sin(a) * d;
+        layout.buckets.forEach(function (b) {
+            const f = layout.folders[b];
+            const members = sortedMembers(f);
+            const n = members.length;
+            if (!n) return;
+            const grid = gridFor(members);
+            members.forEach(function (m, i) {
+                if (m.fx != null) return;
+                if (f.ringMid) {
+                    const a = (i / n) * 2 * Math.PI - Math.PI / 2;
+                    m.x = f.cx + Math.cos(a) * f.ringMid;
+                    m.y = f.cy + Math.sin(a) * f.ringMid;
+                    return;
+                }
+                const row = Math.floor(i / grid.cols), col = i % grid.cols;
+                const inRow = Math.min(grid.cols, n - row * grid.cols);   // a short last row is centred too
+                const rowW = inRow * grid.cellW;
+                m.x = f.cx - rowW / 2 + grid.cellW * (col + 0.5);
+                m.y = f.cy - grid.H / 2 + grid.cellH * (row + 0.5);
+            });
         });
     }
 
@@ -410,14 +448,13 @@
     }
 
     /**
-     * The folder force: every node is pulled gently toward its circle (toward the ring between the children and the edge when
-     * the folder has children), firmly pushed back when it crosses the edge, and firmly pushed
-     * out of the children's circles. The two firm pushes do not fade with alpha: they are
-     * constraints, not suggestions.
+     * The folder force is two constraints, not an attraction: a node that crosses the edge of
+     * its circle is pushed back in, a node inside a child's circle is pushed out. They do not
+     * fade with alpha. Nothing pulls a node that is already in place, so moving one node (or
+     * one circle) never moves the others, except to make room.
      */
-    function folderForce2D(alpha) {
+    function folderForce2D() {
         if (!_data || !_layout) return;
-        const k = 0.09 * alpha;
         const FIRM = 0.35;
         const folders = _layout.folders;
         const nodes = _data.nodes;
@@ -434,13 +471,6 @@
                 const s = (d - limit) * FIRM / d;
                 n.vx = (n.vx || 0) - dx * s;
                 n.vy = (n.vy || 0) - dy * s;
-            } else if (f.ringMid) {
-                const s = (f.ringMid - d) * k / d;
-                n.vx = (n.vx || 0) + dx * s;
-                n.vy = (n.vy || 0) + dy * s;
-            } else {
-                n.vx = (n.vx || 0) - dx * k;
-                n.vy = (n.vy || 0) - dy * k;
             }
             for (let c = 0; c < f.children.length; c++) {
                 const g = folders[f.children[c]];
@@ -1002,7 +1032,10 @@
             .onNodeClick(handleNodeClick)
             // force-graph reports the hover from its render loop, after our mousemove: it must not wipe the hand.
             .onNodeHover(function (node) { container.style.cursor = node ? 'pointer' : (_handOverHalo ? 'grab' : null); })
-            .cooldownTicks(120)
+            // Files view: the layout is settled in the warm-up, before the first frame; the
+            // cooldown only serves the drags (each reheat runs this many ticks of local tidying).
+            .warmupTicks(useBoxes ? 200 : 0)
+            .cooldownTicks(useBoxes ? 40 : 120)
             .onRenderFramePre(function (ctx, globalScale) {
                 drawClusterHalos2D(ctx, globalScale);
             })
@@ -1013,8 +1046,11 @@
 
         try {
             if (g.d3Force) {
-                const charge = g.d3Force('charge'); if (charge) charge.strength(-280);
-                const linkF  = g.d3Force('link');   if (linkF)  linkF.distance(useBoxes ? 170 : 80);
+                // No global forces in the Files view: the circles decide where things are, the
+                // links are only drawn. Concepts keep charge and links to spread the circles.
+                const charge = g.d3Force('charge'); if (charge) charge.strength(useBoxes ? 0 : -280);
+                const linkF  = g.d3Force('link');   if (linkF) { linkF.distance(80); if (useBoxes) linkF.strength(0); }
+                g.d3Force('center', null);   // force-graph's default centering would drag the whole picture
                 g.d3Force('cluster', folderForce2D);
                 if (useBoxes) g.d3Force('boxCollide', boxCollideForce2D);
             }
@@ -1026,10 +1062,17 @@
 
         // Auto-fit on first stabilization. With boxes only the first time: opening or dragging
         // a box reheats the simulation, and refitting then would move the view under the mouse.
+        // Files view: the warm-up already settled the boxes, so the picture is framed at once,
+        // without animation, and never refitted (a refit would move the view under the mouse).
         let fitted = false;
+        if (useBoxes) {
+            settleBoxes();
+            try { g.fitAll(0); } catch (e) {}
+            fitted = true;
+        }
         g.onEngineStop(function () {
             if (useBoxes) settleBoxes();
-            if (useBoxes && fitted) return;
+            if (fitted) return;
             fitted = true;
             try { g.fitAll(400); } catch (e) {}
         });
@@ -1471,6 +1514,8 @@
         const body = _overlay.querySelector('.kgBody');
         if (!body) return;
         body.innerHTML = '';
+        // The picture stays hidden (kgSettling) until it is framed: no flash of an unfitted graph.
+        body.classList.add('kgSettling');
         // Wait two animation frames so the container has its final layout
         // (the overlay just entered the DOM and is still transitioning).
         requestAnimationFrame(function () {
@@ -1482,9 +1527,10 @@
                     try {
                         const r = body.getBoundingClientRect();
                         if (_graph && r.width > 0 && r.height > 0) _graph.width(r.width).height(r.height);
-                        if (_graph && _graph.fitAll) _graph.fitAll(400);
+                        if (_graph && _graph.fitAll) _graph.fitAll(0);
                         else if (_graph && _graph.zoomToFit) _graph.zoomToFit(400, 60);
                     } catch (e) { /* noop */ }
+                    requestAnimationFrame(function () { body.classList.remove('kgSettling'); });
                 }, 250);
             });
         });
