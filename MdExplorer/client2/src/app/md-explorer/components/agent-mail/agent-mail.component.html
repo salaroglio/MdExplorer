@@ -1,0 +1,352 @@
+<div class="mail-page">
+
+  <header class="mail-bar">
+    <mat-icon class="bar-icon">forum</mat-icon>
+    <span class="bar-title">{{ 'AGENT_MAIL.TITLE' | translate }}</span>
+    <span class="bar-project">{{ projectName }}</span>
+    <span class="bar-archive" *ngIf="showArchive">{{ 'AGENT_MAIL.ARCHIVE_VIEW' | translate }}</span>
+    <span class="flexExpand"></span>
+    <button mat-button class="btn-archive-all" *ngIf="!showArchive && readToArchive.length > 0" (click)="archiveRead()" [disabled]="loading"
+            [matTooltip]="'AGENT_MAIL.ARCHIVE_READ_TIP' | translate">
+      <mat-icon>inventory_2</mat-icon> {{ 'AGENT_MAIL.ARCHIVE_READ' | translate: { count: readToArchive.length } }}
+    </button>
+    <button mat-button class="btn-toggle-archive" (click)="toggleArchive()">
+      <mat-icon>{{ showArchive ? 'inbox' : 'inventory_2' }}</mat-icon>
+      {{ (showArchive ? 'AGENT_MAIL.SHOW_MAIL' : 'AGENT_MAIL.SHOW_ARCHIVE') | translate }}
+    </button>
+    <button mat-icon-button (click)="reload()" [disabled]="loading" [matTooltip]="'MAILBOX.REFRESH' | translate">
+      <mat-icon [class.spinning]="loading">refresh</mat-icon>
+    </button>
+    <button mat-icon-button class="btn-close-mail" (click)="close()" [matTooltip]="'MAILBOX.CLOSE' | translate">
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  <div *ngIf="error" class="mail-error"><mat-icon>error_outline</mat-icon> {{ error }}</div>
+
+  <div class="mail-body">
+
+    <!-- ============ A sinistra: l'elenco ============ -->
+    <aside class="mail-list">
+      <div *ngIf="!loading && !items.length" class="mail-empty">
+        <mat-icon>mark_email_read</mat-icon>
+        <p>{{ (showArchive ? 'AGENT_MAIL.EMPTY_ARCHIVE' : 'AGENT_MAIL.EMPTY') | translate }}</p>
+      </div>
+
+      <ng-container *ngFor="let item of items; trackBy: trackItem">
+        <!-- L'intestazione di una sezione: che cosa vogliono da te le voci sotto. -->
+        <div class="mail-section" *ngIf="item.kind === 'section'" [ngClass]="'section-' + item.section.key" role="heading" aria-level="3">
+          <span class="section-title">{{ ('AGENT_MAIL.SECTION_' + item.section.key) | translate }}</span>
+          <span class="section-count">{{ item.section.count }}</span>
+        </div>
+        <!-- Un lavoro chiesto a un altro agente: una riga di stato per chi lo aspetta. Cambia da sola, e lo sfondo
+             dice a che punto è. Non si seleziona: non c'è niente da decidere qui. -->
+        <div class="mail-row child awaited" *ngIf="item.kind === 'awaited'" role="status"
+             [ngClass]="'awaited-' + item.awaited.state" [class.changed]="item.changed"
+             [title]="item.awaited.note || ''">
+          <span class="row-branch" aria-hidden="true"></span>
+          <mat-icon class="row-icon">{{ awaitedIcon(item.awaited.state) }}</mat-icon>
+          <span class="row-main">
+            <span class="row-from" *ngIf="!item.awaited.label">{{ 'AGENT_MAIL.AWAITED_WORK' | translate: { agent: item.from } }}</span>
+            <span class="row-from" *ngIf="item.awaited.label">{{ 'AGENT_MAIL.AWAITED_STEP' | translate: { step: item.awaited.label, owner: item.awaited.owner || item.from } }}</span>
+            <span class="row-state">{{ ('AGENT_MAIL.AWAITED_' + item.awaited.state) | translate }}<span class="row-silent" *ngIf="item.awaited.silent"> · {{ 'AGENT_MAIL.STEP_SILENT' | translate }}</span></span>
+          </span>
+        </div>
+
+        <button type="button" class="mail-row" *ngIf="item.kind !== 'awaited' && item.kind !== 'section'"
+                [class.selected]="selected === item" [class.unread]="item.unread" [class.child]="item.child"
+                [class.stopped]="item.request?.status === 'rejected'"
+                [ngClass]="'kind-' + item.kind"
+                (click)="select(item)">
+          <span class="row-branch" *ngIf="item.child" aria-hidden="true"></span>
+          <span class="row-dot"></span>
+          <mat-icon class="row-icon">{{ item.kind === 'message' ? 'smart_toy' : item.kind === 'tostart' ? 'pending_actions' : item.kind === 'review' ? (item.request?.status === 'rejected' ? 'block' : 'rule') : item.kind === 'round' ? (item.round?.finished ? 'task_alt' : 'account_tree') : 'hub' }}</mat-icon>
+          <span class="row-main">
+            <span class="row-top">
+              <span class="row-from">{{ item.child ? ((item.request?.status === 'rejected' ? 'AGENT_MAIL.CHILD_STOPPED' : 'AGENT_MAIL.CHILD_REVIEW') | translate) : item.from }}</span>
+              <mat-icon class="row-pending" *ngIf="item.hasPending" [matTooltip]="'AGENT_MAIL.HAS_PENDING' | translate">rule</mat-icon>
+              <span class="row-when" [title]="item.when">{{ item.when | date:'short' }}</span>
+            </span>
+            <span class="row-kind" *ngIf="item.kind !== 'message' && !item.child">
+              {{ (item.kind === 'review' ? 'AGENT_MAIL.KIND_REVIEW' : item.kind === 'tostart' ? 'AGENT_MAIL.KIND_TOSTART' : item.kind === 'round' ? 'AGENT_MAIL.KIND_ROUND' : 'AGENT_MAIL.KIND_FEDERATION') | translate }}
+            </span>
+            <span class="row-preview">{{ item.preview }}</span>
+          </span>
+        </button>
+      </ng-container>
+    </aside>
+
+    <!-- ============ A destra: il dettaglio, o il documento aperto ============ -->
+    <section class="mail-detail">
+
+      <!-- Un artefatto aperto prende il posto del dettaglio -->
+      <ng-container *ngIf="document">
+        <div class="doc-bar">
+          <button mat-stroked-button class="btn-back" (click)="closeDocument()">
+            <mat-icon>arrow_back</mat-icon> {{ 'AGENT_MAIL.BACK' | translate }}
+          </button>
+          <span class="doc-path">{{ document.path }}</span>
+          <span class="doc-state" [class.pending]="document.pending">
+            {{ (document.pending ? 'AGENT_MAIL.DOC_PENDING' : 'AGENT_MAIL.DOC_IN_PROJECT') | translate }}
+          </span>
+        </div>
+        <iframe class="doc-frame" [src]="document.url"></iframe>
+      </ng-container>
+
+      <ng-container *ngIf="!document">
+        <div *ngIf="!selected && !loading" class="mail-empty">
+          <mat-icon>inbox</mat-icon>
+          <p>{{ 'AGENT_MAIL.NOTHING_SELECTED' | translate }}</p>
+        </div>
+
+        <!-- Un messaggio -->
+        <!-- Un giro: i suoi passi e i suoi messaggi -->
+        <div class="detail round" *ngIf="selected?.kind === 'round'">
+          <div class="detail-head">
+            <mat-icon class="head-icon">{{ selected.round.finished ? 'task_alt' : 'account_tree' }}</mat-icon>
+            <span class="head-from">{{ selected.from }}</span>
+            <span class="head-kind">{{ (selected.round.finished ? 'AGENT_MAIL.ROUND_FINISHED' : 'AGENT_MAIL.ROUND_PROGRESS') | translate: { done: selected.round.stepsDone, total: selected.round.stepsTotal } }}</span>
+            <span class="flexExpand"></span>
+            <span class="head-when">{{ selected.round.startedAt | date:'medium' }}</span>
+            <button mat-stroked-button class="btn-archive-round" *ngIf="!showArchive && selected.round.finished" (click)="archiveRound(selected, true)"
+                    [matTooltip]="'AGENT_MAIL.ROUND_ARCHIVE_TIP' | translate">
+              <mat-icon>inventory_2</mat-icon> {{ 'AGENT_MAIL.ROUND_ARCHIVE' | translate }}
+            </button>
+            <button mat-stroked-button class="btn-unarchive-round" *ngIf="showArchive" (click)="archiveRound(selected, false)">
+              <mat-icon>unarchive</mat-icon> {{ 'AGENT_MAIL.UNARCHIVE' | translate }}
+            </button>
+          </div>
+          <p class="detail-hint">{{ 'AGENT_MAIL.ROUND_HINT' | translate: { who: selected.round.startedBy || '?', id: selected.round.id } }}</p>
+          <div class="reply-label">{{ 'AGENT_MAIL.ROUND_STEPS' | translate }}</div>
+          <div class="round-steps">
+            <div class="round-step" *ngFor="let w of selected.round.steps" [ngClass]="'awaited-' + w.state" [title]="w.note || ''">
+              <mat-icon>{{ awaitedIcon(w.state) }}</mat-icon>
+              <span class="step-label">{{ w.label }}</span>
+              <span class="step-owner">{{ w.owner || w.agent }}</span>
+              <span class="flexExpand"></span>
+              <span class="step-silent" *ngIf="w.silent" [title]="'AGENT_MAIL.STEP_SILENT_TIP' | translate">{{ 'AGENT_MAIL.STEP_SILENT' | translate }}</span>
+              <span class="step-state">{{ ('AGENT_MAIL.AWAITED_' + w.state) | translate }}</span>
+            </div>
+          </div>
+          <div class="reply-label">{{ 'AGENT_MAIL.ROUND_MESSAGES' | translate: { count: selected.roundMessages?.length || 0 } }}</div>
+          <p class="reply-none" *ngIf="!selected.roundMessages?.length">{{ 'AGENT_MAIL.ROUND_NO_MESSAGES' | translate }}</p>
+          <button type="button" class="round-message" *ngFor="let m of selected.roundMessages" [class.unread]="m.unread" (click)="select(m)">
+            <mat-icon>smart_toy</mat-icon>
+            <span class="rm-from">{{ m.from }}</span>
+            <span class="rm-preview">{{ m.preview }}</span>
+            <span class="rm-when">{{ m.when | date:'short' }}</span>
+          </button>
+        </div>
+
+        <div class="detail" *ngIf="selected?.kind === 'message'">
+          <button mat-button class="back-to-round" *ngIf="roundOf(selected) as r" (click)="select(r)">
+            <mat-icon>arrow_back</mat-icon> {{ r.from }}
+          </button>
+          <div class="detail-head">
+            <mat-icon class="head-icon">smart_toy</mat-icon>
+            <span class="head-from">{{ selected.from }}</span>
+            <span class="flexExpand"></span>
+            <span class="head-when">{{ selected.when | date:'medium' }}</span>
+            <button mat-stroked-button class="btn-archive" *ngIf="!showArchive" (click)="archive(selected)"
+                    [matTooltip]="'AGENT_MAIL.ARCHIVE_TIP' | translate">
+              <mat-icon>inventory_2</mat-icon> {{ 'AGENT_MAIL.ARCHIVE' | translate }}
+            </button>
+            <button mat-stroked-button class="btn-consolidate" *ngIf="memoryOn" (click)="startConsolidate(selected)"
+                    [matTooltip]="'CONSOLIDATE.HINT' | translate">
+              <mat-icon>auto_awesome</mat-icon> {{ 'CONSOLIDATE.ACTION' | translate }}
+            </button>
+            <button mat-stroked-button class="btn-unarchive" *ngIf="showArchive" (click)="unarchive(selected)">
+              <mat-icon>unarchive</mat-icon> {{ 'AGENT_MAIL.UNARCHIVE' | translate }}
+            </button>
+          </div>
+          <div class="chips" *ngIf="selected.message.topics?.length">
+            <span class="chip" *ngFor="let t of selected.message.topics">{{ t }}</span>
+          </div>
+
+          <div class="detail-text">{{ selected.message.body }}</div>
+
+          <!-- «Consolida nella memoria»: i fatti dell'agente, quelli scelti vanno nella sua scheda, il resto decade. -->
+          <div class="consolidate-panel" *ngIf="consolidating">
+            <div class="reply-label">{{ 'CONSOLIDATE.HINT' | translate }}</div>
+            <p class="reply-none" *ngIf="!consolidating.busy && !consolidating.facts.length">{{ 'CONSOLIDATE.EMPTY' | translate }}</p>
+            <label class="consolidate-fact" *ngFor="let f of consolidating.facts">
+              <input type="checkbox" [(ngModel)]="f.selected">
+              <span>{{ f.statement }}</span>
+            </label>
+            <div class="decide">
+              <button mat-button (click)="consolidating = null">{{ 'COMMON.CANCEL' | translate }}</button>
+              <button mat-raised-button color="primary" [disabled]="consolidating.busy" (click)="confirmConsolidate()">
+                <mat-icon>auto_awesome</mat-icon> {{ 'CONSOLIDATE.CONFIRM' | translate }}
+              </button>
+            </div>
+          </div>
+
+          <div class="artifacts" *ngIf="artifacts.length">
+            <div class="artifacts-title">{{ 'AGENT_MAIL.ARTIFACTS' | translate }}</div>
+            <div class="artifact" *ngFor="let a of artifacts" [ngClass]="'state-' + a.state">
+              <mat-icon>{{ a.state === 'missing' ? 'report_problem' : 'description' }}</mat-icon>
+              <span class="artifact-main">
+                <span class="artifact-path">{{ a.path }}</span>
+                <span class="artifact-state">{{ ('AGENT_MAIL.STATE_' + (a.state | uppercase)) | translate }}</span>
+              </span>
+              <button mat-stroked-button class="btn-open-artifact" *ngIf="a.state === 'pending' || a.state === 'inProject'" (click)="openArtifact(a)">
+                <mat-icon>open_in_new</mat-icon> {{ 'AGENT_MAIL.OPEN' | translate }}
+              </button>
+              <button mat-button color="primary" class="btn-go-review" *ngIf="a.state === 'pending'" (click)="goToReview(a)">
+                {{ 'AGENT_MAIL.GO_TO_REVIEW' | translate }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Che cosa puoi rispondere. Le risposte le dichiara la scheda dell'agente e le propone il messaggio:
+               qui diventano pulsanti. Finché l'artefatto di questo lavoro non è approvato, non si risponde. -->
+          <div class="reply">
+            <!-- Si può sempre scrivere all'agente, quindi l'avviso vale sotto ogni messaggio. -->
+            <div class="reply-lock" *ngIf="replyLock() as lock" role="status">
+              <mat-icon>{{ lock === 'pending' ? 'lock_clock' : 'block' }}</mat-icon>
+              <span>{{ (lock === 'pending' ? 'AGENT_MAIL.REPLY_LOCK_PENDING' : 'AGENT_MAIL.REPLY_LOCK_REJECTED') | translate: { agent: selected.from } }}</span>
+            </div>
+
+            <ng-container *ngIf="selected.message.replies?.length">
+              <div class="reply-label">{{ 'AGENT_MAIL.REPLIES_LABEL' | translate: { agent: selected.from } }}</div>
+              <div class="reply-option" *ngFor="let r of selected.message.replies">
+                <button mat-raised-button color="primary" class="btn-reply-option"
+                        [disabled]="sending || !!replyLock()" (click)="replyWith(r)">
+                  <mat-icon>send</mat-icon> {{ r.label }}
+                </button>
+                <p class="reply-option-description">{{ r.description }}</p>
+                <!-- Un passo di un agente con un team: chi preme sceglie chi lo fa, e da lì ne risponde quella persona. -->
+                <div class="choose-owner" *ngIf="choosing?.reply === r">
+                  <div class="reply-label">{{ 'AGENT_MAIL.CHOOSE_OWNER_TITLE' | translate }}</div>
+                  <div class="choose-row" *ngFor="let t of choosing.targets">
+                    <label [for]="'owner-' + t.step">{{ 'AGENT_MAIL.CHOOSE_OWNER_STEP' | translate: { step: t.label, agent: t.agent } }}</label>
+                    <select [id]="'owner-' + t.step" [(ngModel)]="choosing.picks[t.step]">
+                      <option [ngValue]="undefined" disabled>{{ 'AGENT_MAIL.CHOOSE_OWNER_PICK' | translate }}</option>
+                      <option *ngFor="let o of t.owners" [ngValue]="o.email">{{ o.name ? o.name + ' (' + o.email + ')' : o.email }}</option>
+                    </select>
+                  </div>
+                  <div class="decide">
+                    <button mat-button (click)="choosing = null" [disabled]="sending">{{ 'COMMON.CANCEL' | translate }}</button>
+                    <button mat-raised-button color="primary" class="btn-confirm-choice" [disabled]="!canConfirmChoice()" (click)="confirmChoice()">
+                      <mat-icon>send</mat-icon> {{ r.label }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+
+            <p class="reply-none" *ngIf="selected.message.declaresReplies && !selected.message.replies?.length">
+              {{ 'AGENT_MAIL.REPLIES_NONE' | translate: { agent: selected.from } }}
+            </p>
+
+            <!-- Il campo libero c'è sempre: per chiedere all'agente che cosa è successo, o dirgli ciò che la scheda
+                 non prevede. L'agente lo riceve con il suo messaggio citato. -->
+            <label class="reply-label" for="agent-mail-reply">{{ (selected.message.replies?.length
+                ? 'AGENT_MAIL.REPLY_FREE_LABEL' : 'AGENT_MAIL.REPLY_LABEL') | translate: { agent: selected.from } }}</label>
+            <p class="reply-free-hint">{{ 'AGENT_MAIL.REPLY_FREE_HINT' | translate: { agent: selected.from } }}</p>
+            <textarea id="agent-mail-reply" class="reply-text" rows="3" [(ngModel)]="replyDraft" [disabled]="!!replyLock()"
+                      [placeholder]="'MAILBOX.REPLY_PLACEHOLDER' | translate"></textarea>
+            <div class="reply-actions">
+              <button mat-raised-button color="primary" class="btn-reply" [disabled]="!canReply()" (click)="reply()">
+                <mat-icon>send</mat-icon> {{ 'MAILBOX.REPLY_BUTTON' | translate }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Un lavoro da approvare: i gesti sono quelli di sempre -->
+        <div class="detail" *ngIf="selected?.kind === 'review'">
+          <div class="detail-head">
+            <mat-icon class="head-icon">{{ selected.request?.status === 'rejected' ? 'block' : 'rule' }}</mat-icon>
+            <span class="head-from">{{ selected.from }}</span>
+            <span class="head-kind">{{ (selected.request?.status === 'rejected' ? 'AGENT_MAIL.KIND_STOPPED' : 'AGENT_MAIL.KIND_REVIEW') | translate }}</span>
+            <span class="flexExpand"></span>
+            <span class="head-when">{{ selected.when | date:'medium' }}</span>
+          </div>
+          <p class="detail-hint" *ngIf="selected.request?.status !== 'rejected'">{{ 'AGENT_MAIL.REVIEW_HINT' | translate }}</p>
+          <app-agent-review [onlyRequestId]="selected.id" [embedded]="true"
+                            (changed)="reload()" (openFile)="openDelivered($event.request, $event.path)"></app-agent-review>
+        </div>
+
+        <!-- Un incarico che aspetta te per partire: l'agente lavora per te, e parte quando lo avvii tu -->
+        <div class="detail tostart" *ngIf="selected?.kind === 'tostart'">
+          <div class="detail-head">
+            <mat-icon class="head-icon">pending_actions</mat-icon>
+            <span class="head-from">{{ selected.assignment.toAgent }}</span>
+            <span class="head-kind">{{ 'AGENT_MAIL.KIND_TOSTART' | translate }}</span>
+            <span class="flexExpand"></span>
+            <span class="head-when">{{ selected.when | date:'medium' }}</span>
+          </div>
+          <p class="detail-hint">
+            {{ 'AGENT_MAIL.TOSTART_HINT' | translate: { from: requester(selected.assignment), agent: selected.assignment.toAgent, step: selected.assignment.step || selected.assignment.toAgent } }}
+          </p>
+          <div class="detail-text">{{ selected.assignment.body }}</div>
+
+          <div class="decide" *ngIf="!declining && !passing">
+            <button *ngIf="selected.assignment.passTo?.length" mat-stroked-button class="btn-pass-start" [disabled]="deciding" (click)="passing = true">
+              <mat-icon>forward</mat-icon> {{ 'AGENT_MAIL.TOSTART_PASS' | translate }}
+            </button>
+            <button mat-stroked-button color="warn" class="btn-decline-start" [disabled]="deciding" (click)="declining = true">
+              <mat-icon>do_not_disturb_on</mat-icon> {{ 'AGENT_MAIL.TOSTART_DECLINE' | translate }}
+            </button>
+            <button mat-raised-button color="primary" class="btn-open-start" [disabled]="deciding" (click)="openStart(selected)">
+              <mat-icon>play_arrow</mat-icon> {{ 'AGENT_MAIL.TOSTART_OPEN' | translate }}
+            </button>
+          </div>
+
+          <div class="decline-form" *ngIf="passing">
+            <label class="reply-label" for="tostart-pass-to">{{ 'AGENT_MAIL.TOSTART_PASS_TO' | translate }}</label>
+            <select id="tostart-pass-to" class="pass-select" [(ngModel)]="passTo">
+              <option value="" disabled>{{ 'AGENT_MAIL.CHOOSE_OWNER_PICK' | translate }}</option>
+              <option *ngFor="let o of selected.assignment.passTo" [value]="o.email">{{ o.name ? o.name + ' (' + o.email + ')' : o.email }}</option>
+            </select>
+            <label class="reply-label" for="tostart-pass-note">{{ 'AGENT_MAIL.TOSTART_PASS_NOTE' | translate }}</label>
+            <textarea id="tostart-pass-note" class="reply-text" rows="2" [(ngModel)]="passNote"
+                      [placeholder]="'AGENT_MAIL.TOSTART_PASS_NOTE_PLACEHOLDER' | translate"></textarea>
+            <div class="decide">
+              <button mat-button (click)="passing = false; passTo = ''; passNote = ''" [disabled]="deciding">{{ 'COMMON.CANCEL' | translate }}</button>
+              <button mat-raised-button color="primary" class="btn-confirm-pass" [disabled]="deciding || !passTo" (click)="passStart(selected)">
+                <mat-icon>forward</mat-icon> {{ 'AGENT_MAIL.TOSTART_PASS_CONFIRM' | translate }}
+              </button>
+            </div>
+          </div>
+
+          <div class="decline-form" *ngIf="declining">
+            <label class="reply-label" for="tostart-decline">{{ 'AGENT_MAIL.TOSTART_DECLINE_LABEL' | translate: { from: selected.assignment.fromAgent } }}</label>
+            <textarea id="tostart-decline" class="reply-text" rows="3" [(ngModel)]="declineReason"
+                      [placeholder]="'AGENT_MAIL.TOSTART_DECLINE_PLACEHOLDER' | translate"></textarea>
+            <div class="decide">
+              <button mat-button (click)="declining = false; declineReason = ''" [disabled]="deciding">{{ 'COMMON.CANCEL' | translate }}</button>
+              <button mat-raised-button color="warn" class="btn-confirm-decline" [disabled]="deciding || !declineReason.trim()" (click)="declineStart(selected)">
+                <mat-icon>do_not_disturb_on</mat-icon> {{ 'AGENT_MAIL.TOSTART_DECLINE_CONFIRM' | translate }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- La richiesta di un collega: il suo agente chiede il lavoro del tuo -->
+        <div class="detail" *ngIf="selected?.kind === 'federation'">
+          <div class="detail-head">
+            <mat-icon class="head-icon">hub</mat-icon>
+            <span class="head-from">{{ selected.from }}</span>
+            <span class="head-kind">{{ 'AGENT_MAIL.KIND_FEDERATION' | translate }}</span>
+            <span class="flexExpand"></span>
+            <span class="head-when">{{ selected.when | date:'medium' }}</span>
+          </div>
+          <p class="detail-hint">
+            {{ 'AGENT_MAIL.FEDERATION_HINT' | translate: { from: selected.federation.fromAgent || '?', target: selected.federation.targetAgent } }}
+          </p>
+          <div class="detail-text">{{ selected.federation.message }}</div>
+          <div class="decide">
+            <button mat-stroked-button color="warn" [disabled]="deciding" (click)="rejectFederation(selected.federation)">
+              <mat-icon>block</mat-icon> {{ 'FEDERATION.REJECT' | translate }}
+            </button>
+            <button mat-raised-button color="primary" class="btn-accept-federation" [disabled]="deciding" (click)="approveFederation(selected.federation)">
+              <mat-icon>verified_user</mat-icon> {{ 'FEDERATION.APPROVE' | translate }}
+            </button>
+          </div>
+        </div>
+      </ng-container>
+    </section>
+  </div>
+</div>

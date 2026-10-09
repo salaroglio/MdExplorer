@@ -120,6 +120,53 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
             }
         }
 
+        // ---- Path SPARQL (Fase 5a): query/update/GSP. Fail-loud su non-2xx. ----
+
+        public async Task<string> QueryAsync(string baseUri, string dataset, string sparql, string username, string passwordPlain)
+        {
+            if (string.IsNullOrWhiteSpace(dataset)) throw new ArgumentException("Dataset name is required", nameof(dataset));
+            if (string.IsNullOrWhiteSpace(sparql)) throw new ArgumentException("SPARQL query is required", nameof(sparql));
+
+            using var http = CreateClient(username, passwordPlain);
+            var url = TrimSlash(baseUri) + "/" + Uri.EscapeDataString(dataset) + "/query";
+            using var content = new StringContent(sparql, Encoding.UTF8, "application/sparql-query");
+            using var req = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
+            req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/sparql-results+json"));
+
+            using var resp = await http.SendAsync(req);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode)
+                throw new FusekiRequestException("query", (int)resp.StatusCode, body);
+            return body;
+        }
+
+        public async Task UpdateAsync(string baseUri, string dataset, string sparqlUpdate, string username, string passwordPlain)
+        {
+            if (string.IsNullOrWhiteSpace(dataset)) throw new ArgumentException("Dataset name is required", nameof(dataset));
+            if (string.IsNullOrWhiteSpace(sparqlUpdate)) throw new ArgumentException("SPARQL update is required", nameof(sparqlUpdate));
+
+            using var http = CreateClient(username, passwordPlain);
+            var url = TrimSlash(baseUri) + "/" + Uri.EscapeDataString(dataset) + "/update";
+            using var content = new StringContent(sparqlUpdate, Encoding.UTF8, "application/sparql-update");
+            using var resp = await http.PostAsync(url, content);
+            if (!resp.IsSuccessStatusCode)
+                throw new FusekiRequestException("update", (int)resp.StatusCode, await resp.Content.ReadAsStringAsync());
+        }
+
+        public async Task LoadGraphAsync(string baseUri, string dataset, string graphUri, string turtle, string username, string passwordPlain)
+        {
+            if (string.IsNullOrWhiteSpace(dataset)) throw new ArgumentException("Dataset name is required", nameof(dataset));
+            if (string.IsNullOrWhiteSpace(graphUri)) throw new ArgumentException("Graph URI is required", nameof(graphUri));
+            if (turtle == null) throw new ArgumentNullException(nameof(turtle));
+
+            using var http = CreateClient(username, passwordPlain);
+            var url = TrimSlash(baseUri) + "/" + Uri.EscapeDataString(dataset) + "/data?graph=" + Uri.EscapeDataString(graphUri);
+            using var content = new StringContent(turtle, Encoding.UTF8, "text/turtle");
+            using var resp = await http.PostAsync(url, content);
+            if (!resp.IsSuccessStatusCode)
+                throw new FusekiRequestException("load-graph", (int)resp.StatusCode, await resp.Content.ReadAsStringAsync());
+        }
+
         private HttpClient CreateClient(string username, string passwordPlain)
         {
             var http = _httpClientFactory.CreateClient();

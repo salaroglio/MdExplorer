@@ -1,0 +1,23 @@
+/*
+ * MdExplorer - The point of a slide MarkAgent is explaining ("Chiedi a MarkAgent", slide-edit.js):
+ * outlined as "Modifica testo" outlines the block being corrected (inline-edit.css), until another
+ * point is asked about or the slide changes.
+ * Sprint: docs-internal/Sprints/2026-09-25-Slide-Chiedi-A-MarkAgent.md
+ */
+.mde-mark-asking {
+    outline: 2px dashed #1976d2;
+    outline-offset: 3px;
+    border-radius: 2px;
+    background: rgba(25, 118, 210, 0.05);
+}
+
+/* Inside a table the outline would spill over the neighbouring cells. */
+td.mde-mark-asking,
+th.mde-mark-asking {
+    outline-offset: -2px;
+}
+
+body.dark-theme .mde-mark-asking {
+    outline-color: #90caf9;
+    background: rgba(144, 202, 249, 0.08);
+}

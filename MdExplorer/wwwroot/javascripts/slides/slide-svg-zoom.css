@@ -1,0 +1,80 @@
+/* I pulsanti di zoom sopra un diagramma di una slide (slide-svg-zoom.js): stessa barra di immagini e diagrammi
+   (.mde-img-toolbar), sulla pagina e non sulla slide, quindi non si ingrandisce con lei. */
+
+.mde-svg-zoom {
+    position: fixed;
+    z-index: 40;
+    opacity: 0.92;
+}
+
+.mde-svg-zoom[hidden] {
+    display: none;
+}
+
+.mde-svg-zoom button {
+    font-size: 15px;
+    font-weight: 700;
+}
+
+/* La percentuale: un pulsante più largo, con la cifra. */
+.mde-svg-zoom .mde-svg-zoom-level {
+    width: auto;
+    padding: 0 8px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+}
+
+.mde-svg-zoom button[hidden] {
+    display: none;
+}
+
+.mde-svg-zoom .mde-svg-zoom-eye {
+    font-size: 14px;
+    font-weight: 400;
+}
+
+/* L'occhio è acceso: il diagramma è a tutta pagina. */
+.mde-svg-zoom .mde-svg-zoom-eye.active {
+    background: rgba(26, 115, 232, 0.2);
+    box-shadow: inset 0 0 0 1px rgba(26, 115, 232, 0.7);
+}
+
+/* Il diagramma a tutta pagina: uno strato sopra la slide, sotto la tela delle annotazioni (36) e le barre. */
+.mde-svg-fullpage {
+    position: fixed;
+    inset: 0;
+    z-index: 34;
+    box-sizing: border-box;
+    padding: 56px 24px 24px;
+    display: flex;
+    /* Ingrandito oltre la finestra si scorre (rotella) o si trascina; senza barre di scorrimento. */
+    overflow: auto;
+    scrollbar-width: none;
+}
+
+.mde-svg-fullpage::-webkit-scrollbar {
+    display: none;
+}
+
+/* Al centro quando ci sta; con «margin: auto» (e non con align/justify: center) quando è più grande della
+   finestra si arriva a scorrere fino al suo bordo in alto e a sinistra. */
+.mde-svg-fullpage > svg {
+    flex: none;
+    margin: auto;
+}
+
+.mde-svg-fullpage.mde-svg-fullpage-panning,
+.mde-svg-fullpage.mde-svg-fullpage-panning * {
+    cursor: grabbing !important;
+    user-select: none;
+}
+
+html.reveal-print .mde-svg-fullpage,
+html.print-pdf .mde-svg-fullpage {
+    display: none !important;
+}
+
+html.reveal-print .mde-svg-zoom,
+html.print-pdf .mde-svg-zoom {
+    display: none !important;
+}

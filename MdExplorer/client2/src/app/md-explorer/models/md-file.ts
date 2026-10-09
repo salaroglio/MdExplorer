@@ -28,10 +28,23 @@ export class MdFile implements IFileInfoNode {
   // True when the folder owns a generated TOC file (<dirname>.md.directory)
   hasToc?: boolean;
 
+  // True for *.agent.md files (agentic markdown: launchable/schedulable agents)
+  isAgentFile?: boolean;
+
   // Folder "reveal extra content" (eye) state — see IFileInfoNode for semantics.
   hasExtraContent?: boolean;
   extraLoaded?: boolean;
   isExtra?: boolean;
+  // A revealed non-markdown file whose content is text: clickable, shown colored in the panel.
+  isTextFile?: boolean;
+
+  // A slide deck opened on one of its slides: reveal.js's position ('#/3' or '#/3/1'). Set by the
+  // breadcrumb between decks and by the history of the title-bar arrows.
+  slideHash?: string;
+
+  // The pages of a slide deck a link asks for ('2,6-9'): [Costi](vendite.md?pages=2,6-9). The
+  // same deck opened with other pages is another history entry.
+  slidePages?: string;
 
   // Compact folder properties (VS Code-style)
   isCompacted?: boolean;

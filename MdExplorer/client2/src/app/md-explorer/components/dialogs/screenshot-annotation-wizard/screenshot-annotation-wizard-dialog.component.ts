@@ -1,4 +1,5 @@
 import { Component, Inject, OnInit, ViewChild, OnDestroy } from '@angular/core';
+import { PasteAnchor } from '../../../models/paste-anchor';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
@@ -15,6 +16,8 @@ export interface WizardDialogData {
   imageBlob: Blob;
   documentPath: string;
   connectionId: string;
+  /** Where the image goes in the file; null/absent = at the end of the document. */
+  anchor?: PasteAnchor | null;
 }
 
 @Component({
@@ -172,6 +175,16 @@ export class ScreenshotAnnotationWizardDialogComponent implements OnInit {
       formData.append('ImageName', this.imageName);
       formData.append('DescriptionsJson', JSON.stringify(this.descriptions));
       formData.append('ConnectionId', this.data.connectionId || '');
+
+      // The anchor goes back as it came: the backend re-checks expectedText against the file,
+      // and refuses (409) if the block changed while the wizard was open.
+      const anchor = this.data.anchor;
+      if (anchor) {
+        formData.append('AnchorStartLine', String(anchor.startLine));
+        formData.append('AnchorEndLine', String(anchor.endLine));
+        formData.append('AnchorPosition', anchor.position);
+        formData.append('AnchorExpectedText', anchor.expectedText);
+      }
 
       // Call backend service
       this.mdFileService.saveAnnotatedScreenshot(formData).subscribe({

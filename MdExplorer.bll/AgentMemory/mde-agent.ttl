@@ -1,0 +1,107 @@
+@prefix mdeag: <https://mdexplorer.net/ns/agent#> .
+@prefix prov:  <http://www.w3.org/ns/prov#> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+mdeag: a owl:Ontology ;
+    rdfs:label "MdExplorer Agent Dialogue Ontology (bozza v0)"@it ;
+    rdfs:comment "Micro-ontologia sopra PROV-O per dialoghi e memoria degli agenti MDE."@it .
+
+#################### Classi ####################
+
+mdeag:Agent a owl:Class ;
+    rdfs:subClassOf prov:Agent ;
+    rdfs:comment "Un cittadino della citta: LLM, algoritmo o umano. Indirizzato con a2a.name; identita stabile = AgentIdentity.Id."@it .
+
+mdeag:LlmAgent a owl:Class ;
+    rdfs:subClassOf mdeag:Agent ;
+    rdfs:comment "Agente definito da un file .agent.md, eseguito via Copilot CLI."@it .
+
+mdeag:AlgorithmicAgent a owl:Class ;
+    rdfs:subClassOf mdeag:Agent ;
+    rdfs:comment "Agente deterministico C# (IAlgorithmicAgent). Nessun LLM."@it .
+
+mdeag:HumanAgent a owl:Class ;
+    rdfs:subClassOf mdeag:Agent, prov:Person ;
+    rdfs:comment "Il cittadino speciale: l'utente. Destinatario delle escalation (to: user)."@it .
+
+mdeag:Conversation a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:comment "Il thread: attivita collettiva che raggruppa messaggi e run. Correlata 1:1 con la riga AgentConversation (stesso id)."@it .
+
+mdeag:AgentRun a owl:Class ;
+    rdfs:subClassOf prov:Activity ;
+    rdfs:comment "Un risveglio: singola esecuzione di un agente. Correlata con AgentExecutionLog."@it .
+
+mdeag:Message a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:comment "Un messaggio tra agenti (le Parts A2A). Correlato con AgentMessage."@it .
+
+mdeag:LearnedFact a owl:Class ;
+    rdfs:subClassOf prov:Entity ;
+    rdfs:comment "Unita di memoria semantica: un fatto appreso. Criteri di ammissione: specifico, verificabile, operativo. Mai chiacchiericcio."@it .
+
+#################### Proprieta oggetto ####################
+
+mdeag:sender a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:wasAttributedTo ;
+    rdfs:domain mdeag:Message ; rdfs:range mdeag:Agent ;
+    rdfs:comment "Chi ha scritto il messaggio."@it .
+
+mdeag:recipient a owl:ObjectProperty ;
+    rdfs:domain mdeag:Message ; rdfs:range mdeag:Agent ;
+    rdfs:comment "A chi e destinato. La coppia sender/recipient e il filo del dialogo."@it .
+
+mdeag:inConversation a owl:ObjectProperty ;
+    rdfs:range mdeag:Conversation ;
+    rdfs:comment "Aggancia messaggi e run al thread. Dominio lasciato aperto (Message e AgentRun)."@it .
+
+mdeag:inReplyTo a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:wasDerivedFrom ;
+    rdfs:domain mdeag:Message ; rdfs:range mdeag:Message ;
+    rdfs:comment "Catena delle risposte: da qui si ricostruisce l'albero del dialogo."@it .
+
+mdeag:triggeredBy a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:used ;
+    rdfs:domain mdeag:AgentRun ; rdfs:range mdeag:Message ;
+    rdfs:comment "Il messaggio che ha svegliato l'agente (trigger message)."@it .
+
+mdeag:learnedDuring a owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:wasGeneratedBy ;
+    rdfs:domain mdeag:LearnedFact ; rdfs:range mdeag:AgentRun ;
+    rdfs:comment "Provenance del fatto: in quale run e stato appreso."@it .
+
+mdeag:confirmedBy a owl:ObjectProperty ;
+    rdfs:domain mdeag:LearnedFact ; rdfs:range mdeag:Agent ;
+    rdfs:comment "Chi ha validato il fatto (tipicamente HumanAgent dopo una escalation). Alza l'affidabilita."@it .
+
+mdeag:about a owl:ObjectProperty ;
+    rdfs:domain mdeag:LearnedFact ;
+    rdfs:comment "Aggancio al DOMINIO: il fatto parla di una risorsa di un altro grafo (es. cob:WSAA-TOT-IMP). E il ponte tra memoria degli agenti e knowledge base del progetto. In v0 e ammesso anche un tag testuale (mdeag:aboutTag)."@it .
+
+#################### Proprieta dato ####################
+
+mdeag:statement a owl:DatatypeProperty ;
+    rdfs:domain mdeag:LearnedFact ; rdfs:range xsd:string ;
+    rdfs:comment "L'enunciato leggibile del fatto. E cio che viene iniettato nel prompt."@it .
+
+mdeag:confidence a owl:DatatypeProperty ;
+    rdfs:domain mdeag:LearnedFact ; rdfs:range xsd:decimal ;
+    rdfs:comment "0..1. I fatti confermati da un umano tendono a 1."@it .
+
+mdeag:aboutTag a owl:DatatypeProperty ;
+    rdfs:domain mdeag:LearnedFact ; rdfs:range xsd:string ;
+    rdfs:comment "v0: tag testuale dell'argomento (allineato ai topics dichiarati in SendAgentMessage). E cio su cui la SPARQL del risveglio filtra, in attesa dell'aggancio IRI di dominio (mdeag:about)."@it .
+
+mdeag:createdAt a owl:DatatypeProperty ;
+    rdfs:domain mdeag:LearnedFact ; rdfs:range xsd:dateTime ;
+    rdfs:comment "Istante di apprendimento del fatto (UTC)."@it .
+
+mdeag:hopIndex a owl:DatatypeProperty ;
+    rdfs:domain mdeag:Message ; rdfs:range xsd:integer ;
+    rdfs:comment "Posizione nel conteggio hop della conversazione (guardrail anti-loop)."@it .
+
+mdeag:a2aTaskId a owl:DatatypeProperty ;
+    rdfs:domain mdeag:Message ; rdfs:range xsd:string ;
+    rdfs:comment "Correlazione col task A2A e con la riga AgentMessage nel DB."@it .

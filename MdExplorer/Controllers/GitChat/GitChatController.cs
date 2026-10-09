@@ -259,51 +259,16 @@ namespace MdExplorer.Controllers.GitChat
         /// Normalizes a Git URL to a consistent format for hashing
         /// Handles SSH, HTTPS, and various Git hosting formats
         /// </summary>
+        // Normalizzazione + room delegate all'UNICA sorgente di verità (bll FederationRoom):
+        // Team Chat e Federazione calcolano SEMPRE la stessa stanza per lo stesso repo, e un
+        // fix all'algoritmo non fa più divergere i due sottosistemi. NB: ComputeUserId resta
+        // locale (16 hex) — l'ownerId federato è un namespace diverso (/mdfed, 12 hex) e non
+        // deve coincidere con lo userId della chat.
         private static string NormalizeGitUrl(string url)
-        {
-            if (string.IsNullOrEmpty(url))
-                return string.Empty;
+            => MdExplorer.Features.Federation.FederationRoom.NormalizeGitOrigin(url);
 
-            var normalized = url.Trim().ToLowerInvariant();
-
-            // Remove .git suffix
-            if (normalized.EndsWith(".git"))
-                normalized = normalized.Substring(0, normalized.Length - 4);
-
-            // Convert SSH format to standard format
-            // git@github.com:user/repo -> github.com/user/repo
-            var sshMatch = Regex.Match(normalized, @"^git@([^:]+):(.+)$");
-            if (sshMatch.Success)
-            {
-                normalized = $"{sshMatch.Groups[1].Value}/{sshMatch.Groups[2].Value}";
-            }
-
-            // Remove protocol prefix (https://, http://, ssh://)
-            normalized = Regex.Replace(normalized, @"^(https?|ssh|git)://", "");
-
-            // Remove trailing slashes
-            normalized = normalized.TrimEnd('/');
-
-            // Remove authentication info (user:pass@)
-            normalized = Regex.Replace(normalized, @"^[^@]+@", "");
-
-            return normalized;
-        }
-
-        /// <summary>
-        /// Computes a room ID from a normalized URL using SHA256
-        /// Returns first 16 characters of the hash
-        /// </summary>
         private static string ComputeRoomId(string normalizedUrl)
-        {
-            using (var sha256 = SHA256.Create())
-            {
-                var bytes = Encoding.UTF8.GetBytes(normalizedUrl);
-                var hash = sha256.ComputeHash(bytes);
-                var hashString = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
-                return hashString.Substring(0, 16);
-            }
-        }
+            => MdExplorer.Features.Federation.FederationRoom.RoomIdFromNormalized(normalizedUrl);
 
         /// <summary>
         /// Computes a user ID from email using SHA256

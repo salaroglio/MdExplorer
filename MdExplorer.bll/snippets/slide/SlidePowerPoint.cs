@@ -17,10 +17,9 @@ namespace MdExplorer.Features.snippets.slide
 
         public string GetSnippet(DictionarySnippetParam parameters = null)
         {
-
-            var text = Helper.ExtractResFileString("MdExplorer.Features.snippets.slide.SlidePowerPoint.reveal");
-            text = text.Replace("__title__", (string)parameters[ParameterName.StringDocumentTitle]);
-            return text;
+            // The body of a new slide deck: the front matter (document_type: slides) and the title
+            // come from TextDocument, which writes them before this.
+            return Helper.ExtractResFileString("MdExplorer.Features.snippets.slide.SlidePowerPoint.md");
         }
 
         public void SetAssets(string assetsPath)

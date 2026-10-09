@@ -59,6 +59,12 @@ $(function () {
  * @param {MouseEvent} event - Mouse event with clientX position
  */
 function mouseUpEvent(event) {
+    // A static export has no service: the width changes on the page and is not saved.
+    if (window.mdeStaticExport) {
+        window.hookedToc = false;
+        window.hookedRefs = false;
+        return;
+    }
 
     let toc$ = $('#TOC');
     let refs$ = $('#Refs');

@@ -171,11 +171,11 @@ namespace MdExplorer.Service.Controllers
             // Gated by MDE_DOCKER=1 so non-container deployments are unaffected.
             if (Environment.GetEnvironmentVariable("MDE_DOCKER") == "1")
             {
-                if (selectedIde?.ToLowerInvariant() == "copilot")
+                if (IsAgentCli(selectedIde))
                 {
-                    // Copilot CLI needs a host-side terminal; there is no URL scheme to
-                    // hand off to the browser the way vscode:// / jetbrains:// allow.
-                    return BadRequest(new { error = "Copilot CLI cannot be launched in Docker mode: it requires a host terminal session." });
+                    // Un CLI agentico ha bisogno di un terminale sulla macchina dell'utente, e non
+                    // esiste uno schema di URL da passare al browser come per vscode:// e jetbrains://.
+                    return BadRequest(new { error = "Il CLI dell'ambiente agentico non si può aprire in modalità Docker: serve un terminale sulla macchina." });
                 }
 
                 var hostUrl = TryBuildHostEditorUrl(path, selectedIde);
@@ -190,17 +190,38 @@ namespace MdExplorer.Service.Controllers
             }
 
             // Open with selected IDE
-            if (selectedIde?.ToLowerInvariant() == "copilot")
+            if (IsAgentCli(selectedIde))
             {
-                if (!CopilotProcessLauncher.IsResolvable())
+                // Quale CLI aprire NON è una scelta a sé: è l'ambiente agentico del progetto, lo
+                // stesso che decide dove stanno skill e prompt e con chi parla MarkAgent. Prima
+                // questa voce era "GitHub Copilot" fissa, e su un progetto Claude o opencode
+                // apriva il CLI sbagliato.
+                MarkAgentEngine engine;
+                try
                 {
-                    return BadRequest(new { error = "Copilot CLI not found in PATH. Install it via 'winget install GitHub.Copilot' or 'npm install -g @github/copilot'." });
+                    engine = MarkAgentEngines.Resolve(project?.MarkAgentEngine, projectPath, out _);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    return BadRequest(new { error = ex.Message });
                 }
 
-                // Copilot CLI is interactive: open a terminal on the project root,
-                // ignoring the specific file path (the folder is what matters here).
-                _processUtil.OpenFolderWithCopilotCli(projectPath);
-                return Ok(new { message = "opened Copilot CLI on project root" });
+                if (engine == MarkAgentEngine.None)
+                {
+                    return BadRequest(new { error = "Questo progetto non ha un ambiente agentico: scegline uno in Impostazioni → AI & RAG, oppure seleziona un altro editor." });
+                }
+
+                var command = MarkAgentEngines.CommandOf(engine);
+                if (!IsAgentCliInstalled(engine))
+                {
+                    return BadRequest(new { error = $"'{command}' non è installato su questa macchina, o non è nel PATH del servizio: è il CLI dell'ambiente agentico di questo progetto." });
+                }
+
+                // È un programma interattivo: si apre un terminale sulla RADICE del progetto, e il
+                // file specifico non c'entra — quello che conta qui è la cartella.
+                _processUtil.OpenFolderWithAgentCli(projectPath, command);
+                _logger.LogInformation("[OpenFile] aperto {Command} sulla radice di {ProjectPath}", command, projectPath);
+                return Ok(new { message = $"opened {command} on project root" });
             }
             else if (selectedIde?.ToLowerInvariant() == "intellij")
             {
@@ -227,6 +248,39 @@ namespace MdExplorer.Service.Controllers
                 return Ok(new { message = "opened with VS Code" });
             }
         }
+
+        /// <summary>
+        /// Valore di <c>Project.SelectedIde</c> che vuol dire «il CLI dell'ambiente agentico».
+        /// </summary>
+        public const string AgentCliIde = "agent-cli";
+
+        /// <summary>
+        /// ⚠️ Valore storico: fino al 21/09/2026 questa voce era «GitHub Copilot», fissa. La
+        /// migrazione M2026_09_21_003 lo converte, ma un client vecchio potrebbe ancora mandarlo:
+        /// lo si accetta come sinonimo, invece di far finta di non capirlo.
+        /// </summary>
+        private const string LegacyCopilotIde = "copilot";
+
+        private static bool IsAgentCli(string selectedIde)
+        {
+            var value = selectedIde?.Trim().ToLowerInvariant();
+            return value == AgentCliIde || value == LegacyCopilotIde;
+        }
+
+        /// <summary>
+        /// Il CLI di questo motore è raggiungibile dal PATH del servizio?
+        /// <para>
+        /// ⚠️ Una scansione sola per tutti e tre, e <b>non</b>
+        /// <see cref="CopilotProcessLauncher.IsResolvable"/>: quello, fuori da Windows, risponde
+        /// <c>true</c> per scelta, lasciando fallire il lancio più avanti. Va bene dove il
+        /// fallimento si legge; qui no — misurato il 21/09/2026 su Linux con un PATH senza
+        /// <c>copilot</c>: invece del messaggio «non è installato» si apriva una finestra di
+        /// terminale che diceva «command not found» e restava lì.
+        /// </para>
+        /// </summary>
+        private static bool IsAgentCliInstalled(MarkAgentEngine engine)
+            => engine != MarkAgentEngine.None
+               && ProcessUtil.IsCommandInPath(MarkAgentEngines.CommandOf(engine));
 
         /// <summary>
         /// Docker-only: translate a container-side file path (e.g. "/workspace/test/foo.md")

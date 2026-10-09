@@ -120,3 +120,19 @@ body.dark-theme .mde-text-include-pre code,
 .dark-theme .mde-text-include-pre code {
     color: #e6edf3;
 }
+
+/* A text file shown as the document (a click on a .json, a .cs, … in the md-tree): the same box as
+   ```text(path), filling the panel. */
+.mde-text-file-view {
+    padding: 0.5rem 1.5rem 1.5rem;
+}
+
+.mde-text-file-too-big {
+    margin: 2rem 0;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: #57606a;
+}
+
+body.dark-theme .mde-text-file-too-big {
+    color: #9ba3ad;
+}

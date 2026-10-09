@@ -311,7 +311,6 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
           this.gpuEnabled = response.gpuEnabled;
           this.gpuLayerCount = response.gpuLayerCount || 0;
         }
-        this.aiService.saveDefaultAiPreferences('local', model.id).subscribe();
         this.loadAiModels();
       },
       error: () => { this.aiLoading = false; }
@@ -399,7 +398,6 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     this.selectedProvider = 'gemini';
     this.aiService.setProvider('gemini', modelId);
     this.aiService.notifyGeminiConnected(modelId);
-    this.aiService.saveDefaultAiPreferences('gemini', modelId).subscribe();
     this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.CONNECTED_GEMINI', { model: modelId }), '', { duration: 2000 });
   }
 
@@ -443,7 +441,6 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     if (this.useGemini) this.disconnectGemini();
     this.aiService.setProvider('openai', modelId);
     this.aiService.notifyOpenAiConnected(modelId);
-    this.aiService.saveDefaultAiPreferences('openai', modelId).subscribe();
     this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.CONNECTED_OPENAI', { model: modelId }), '', { duration: 2000 });
   }
 

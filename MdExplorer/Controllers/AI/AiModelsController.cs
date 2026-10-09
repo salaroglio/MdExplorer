@@ -5,6 +5,7 @@ using MdExplorer.Features.Services;
 using MdExplorer.Features.Services.AI;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Hubs;
+using Ad.Tools.Dal.Abstractions.Interfaces;
 using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using System;
@@ -24,6 +25,7 @@ namespace MdExplorer.Controllers.AI
         private readonly Features.Services.ILlamaBackendService _backendService;
         private readonly IHubContext<AiChatHub> _hubContext;
         private readonly IUserSettingsDB _session;
+        private readonly IDALFactory<IUserSettingsDB> _dalFactory;
         private readonly ILogger<AiModelsController> _logger;
         private readonly LocalLlamaProvider _localProvider;
 
@@ -34,6 +36,7 @@ namespace MdExplorer.Controllers.AI
             Features.Services.ILlamaBackendService backendService,
             IHubContext<AiChatHub> hubContext,
             IUserSettingsDB session,
+            IDALFactory<IUserSettingsDB> dalFactory,
             ILogger<AiModelsController> logger,
             LocalLlamaProvider localProvider)
         {
@@ -43,30 +46,48 @@ namespace MdExplorer.Controllers.AI
             _backendService = backendService;
             _hubContext = hubContext;
             _session = session;
+            _dalFactory = dalFactory;
             _logger = logger;
             _localProvider = localProvider;
         }
 
         /// <summary>
-        /// Returns all cached models from the AvailableModel table (instant, no discovery).
+        /// Returns the cached models from the AvailableModel table (instant, no discovery).
+        /// <paramref name="provider"/> (e.g. <c>CopilotCli</c>) keeps only that provider's models;
+        /// without it, every provider — which is what PromptLab and the model manager expect.
+        /// <para>
+        /// Read through an ISOLATED session, not the shared <c>IUserSettingsDB</c>: a read on the
+        /// shared session outside a transaction leaves an implicit one behind and breaks the next
+        /// unrelated Commit ("Transaction not successfully started" — how opening a project broke
+        /// in April). The chat header calls this every time it opens, so it is no longer a rare
+        /// call where the hazard could hide.
+        /// </para>
+        /// <para>
+        /// A failure is an error, not an empty list: an empty list would read as "this
+        /// installation has no models", and the model picker would sit empty with no reason given.
+        /// </para>
         /// </summary>
         [HttpGet("cached")]
-        public IActionResult GetCachedModels()
+        public IActionResult GetCachedModels([FromQuery] string? provider = null)
         {
             try
             {
-                var models = _session.GetDal<AvailableModel>()
+                using var isolated = _dalFactory.OpenSession();
+                var models = isolated.GetDal<AvailableModel>()
                     .GetList()
+                    .ToList()
+                    .Where(m => string.IsNullOrWhiteSpace(provider)
+                                || string.Equals(m.Provider, provider, StringComparison.OrdinalIgnoreCase))
                     .OrderBy(m => m.Provider)
                     .ThenBy(m => m.Name)
-                    .Select(m => new { id = m.ModelId, name = m.Name, provider = m.Provider })
+                    .Select(m => new { id = m.ModelId, name = m.Name, provider = m.Provider, description = m.Description })
                     .ToList();
                 return Ok(new { models });
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Error reading cached models");
-                return Ok(new { models = new object[0] });
+                _logger.LogError(ex, "Error reading cached models");
+                return StatusCode(500, new { error = "Impossibile leggere l'elenco dei modelli salvati: " + ex.Message });
             }
         }
 

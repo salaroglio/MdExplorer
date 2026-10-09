@@ -13,9 +13,15 @@ import { DocumentRefreshService } from '../../services/document-refresh.service'
 import { P2PService, PeerStatus, P2PFileInfo } from '../../../services/p2p.service';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { ProjectsService } from '../../services/projects.service';
+import { MdNavigationService } from '../../services/md-navigation.service';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
+import { DiffRequest, DiffViewerService } from '../../services/diff-viewer.service';
+import { ReviewContextService } from '../../services/review-context.service';
+import { AgentWorkspaceService } from '../../services/agent-workspace.service';
+import { WorkingChangesService } from '../../services/working-changes.service';
 import { ThemeService } from '../../../services/theme.service';
+import { AiSelectionDialogComponent } from '../dialogs/ai-selection-dialog/ai-selection-dialog.component';
 
 // Content state interface for managing loading, error, and success states
 interface ContentState {
@@ -42,6 +48,66 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   mdFile: MdFile;
   html: string;
   htmlSource: string = '../welcome.html';
+
+  // ---- la differenza di un file, mostrata QUI e non nella barra laterale ----
+
+  /** Cosa si sta guardando. `null` = si torna al documento. */
+  diffRequest: DiffRequest | null = null;
+
+  /** L'agente di cui si sta guardando il lavoro (null = il proprio). */
+  reviewAgent: string | null = null;
+  /** Il documento mostrato dalla copia di un agente, se ce n'è uno. */
+  agentDocument: { agent: string; path: string } | null = null;
+  private sourceBeforeAgent: any = '';
+
+  /** «Torna al mio lavoro»: si esce dal lavoro dell'agente. */
+  backToMyWork(): void {
+    this.agentWorkspace.leave().subscribe({
+      next: published => {
+        if (published?.length) this.snackBar.open(
+          this.translate.instant('MAIN_CONTENT.AGENT_STRIP_PUBLISHED', { repos: published.join(', ') }),
+          this.translate.instant('COMMON.CLOSE'), { duration: 7000 });
+      },
+      error: err => this.snackBar.open(
+        err?.error?.error || this.translate.instant('MAIN_CONTENT.AGENT_STRIP_LEAVE_FAILED'),
+        this.translate.instant('COMMON.CLOSE'), { duration: 9000 }),
+    });
+  }
+
+  /** La finestra lavora dentro la copia dell'agente (albero e documenti sono i suoi), non la sta solo guardando. */
+  /** Entrata o uscita in corso: la striscia lo dice e il pulsante non si può ripremere. */
+  get workspaceBusy(): { what: string; agent: string } | null {
+    return this.agentWorkspace.busy$.value;
+  }
+
+  get insideAgentCopy(): boolean {
+    return !!this.agentWorkspace.inside;
+  }
+  diffText = '';
+  diffLoading = false;
+  diffError = '';
+
+  /** Le righe del diff, per colorarle senza una libreria. */
+  diffLines(): { text: string; kind: string }[] {
+    return (this.diffText || '').split('\n').map(text => ({
+      text,
+      kind: text.startsWith('+++') || text.startsWith('---') ? 'meta'
+          : text.startsWith('@@') ? 'hunk'
+          : text.startsWith('+') ? 'add'
+          : text.startsWith('-') ? 'del'
+          : text.startsWith('diff ') || text.startsWith('index ') ? 'meta'
+          : 'ctx',
+    }));
+  }
+
+  /** Il diff di un documento (markdown o testo) va a capo: è prosa, non codice. */
+  isProseDiff(): boolean {
+    return /\.(md|markdown|txt)$/i.test(this.diffRequest?.path || '');
+  }
+
+  closeDiff(): void {
+    this.diffViewer.close();
+  }
   public _HideIFrame = false;
 
   // New state management properties
@@ -79,7 +145,12 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     private projectsService: ProjectsService,
     private http: HttpClient,
     private translate: TranslateService,
-    private themeService: ThemeService
+    private themeService: ThemeService,
+    private diffViewer: DiffViewerService,
+    private workingChanges: WorkingChangesService,
+    private navService: MdNavigationService,
+    private reviewContext: ReviewContextService,
+    private agentWorkspace: AgentWorkspaceService
   ) {
     
     // Initialize observables from state
@@ -120,6 +191,27 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     // Initialize P2P message listener for iframe communication
     this.setupP2PMessageListener();
 
+    // La differenza di un file si guarda QUI, dove si guarda il documento: nella barra laterale
+    // stava in una colonna stretta e spingeva giu' il resto dell'elenco, facendo perdere il posto
+    // proprio mentre si confrontava.
+    this.diffViewer.opened$.pipe(takeUntil(this.destroy$)).subscribe(request => {
+      this.diffRequest = request;
+      this.diffText = '';
+      this.diffError = '';
+      if (!request) { this.ref.detectChanges(); return; }
+
+      this.diffLoading = true;
+      this.ref.detectChanges();
+      this.workingChanges.diff(request.projectPath, request.agent, request.path, request.repo, request.oldPath).subscribe({
+        next: r => { this.diffText = r.diff || ''; this.diffLoading = false; this.ref.detectChanges(); },
+        error: err => {
+          this.diffLoading = false;
+          this.diffError = err?.error?.error || this.translate.instant('CHANGES.DIFF_FAILED');
+          this.ref.detectChanges();
+        },
+      });
+    });
+
     // Reload iframe when theme changes
     this.themeService.currentTheme$.pipe(
       takeUntil(this.destroy$),
@@ -129,8 +221,39 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       if (currentState.currentPath && currentState.status === 'loaded') {
         const dateTime = new Date().getTime() / 1000;
         const cleanPath = this.cleanRelativePath(currentState.currentPath);
-        this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
+        this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}`);
       }
+    });
+
+    // Il lavoro di un agente, in sola lettura: il documento aperto adesso, oppure un suo file — anche uno che
+    // nel progetto non esiste ancora. Il documento viene dalla sua copia di lavoro, non dalla cartella del progetto.
+    this.service.viewWorktree$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(request => {
+      const path = request?.path || this.contentState$.value.currentPath;
+      if (!path || !request?.agent) { return; }
+      this.diffViewer.close();
+      // Ciò che c'era prima (un documento, o la pagina di benvenuto) torna quando si esce dal lavoro dell'agente.
+      if (!this.agentDocument) this.sourceBeforeAgent = this.htmlSource;
+      this.agentDocument = { agent: request.agent, path };
+      const cleanPath = this.cleanRelativePath(path);
+      const dateTime = new Date().getTime() / 1000;
+      this.htmlSource = `../api/MdExplorerWorktree/render/${cleanPath}?agent=${encodeURIComponent(request.agent)}&time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&theme=${this.themeService.getResolvedTheme()}${request.path ? '' : this.pagesQuery()}`;
+      this.ref.detectChanges();
+    });
+
+    // Di chi è il lavoro che si sta guardando: la striscia in alto lo dice, e uscendo si torna al proprio documento.
+    this.agentWorkspace.busy$.pipe(takeUntil(this.destroy$)).subscribe(() => this.ref.detectChanges());
+
+    this.reviewContext.agent$.pipe(takeUntil(this.destroy$)).subscribe(agent => {
+      this.reviewAgent = agent;
+      if (!agent && this.agentDocument) {
+        this.agentDocument = null;
+        if (this.contentState$.value.currentPath) this.retry();
+        else this.htmlSource = this.sourceBeforeAgent;
+        this.sourceBeforeAgent = '';
+      }
+      this.ref.detectChanges();
     });
 
     // Enhanced subscription with loading state management
@@ -208,6 +331,28 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(data => this.reloadOpenDocumentIfChanged(data?.changedFiles, 'branch switch'));
 
+    // Submodule popolati all'apertura del progetto. Il fallimento va DETTO: prima finiva
+    // appeso al messaggio di successo del clone e l'unico modo di accorgersene era aprire la
+    // cartella del codice e trovarla vuota.
+    this.monitorMDService.submoduleInit$.pipe(
+      takeUntil(this.destroy$)
+    ).subscribe(e => {
+      if (e.phase === 'started') {
+        this.snackBar.open(
+          this.translate.instant('SUBMODULE.FETCHING', { list: (e.submodules || []).join(', ') }),
+          undefined, { duration: 4000 });
+      } else if (e.phase === 'completed') {
+        this.snackBar.open(
+          this.translate.instant('SUBMODULE.READY', { list: (e.submodules || []).join(', ') }),
+          'OK', { duration: 5000 });
+      } else {
+        // Niente scadenza: un codice che manca cambia quello che leggi nella documentazione,
+        // e va chiuso da te, non da un timer.
+        this.snackBar.open(e.error || this.translate.instant('SUBMODULE.FAILED'), 'OK',
+          { panelClass: ['error-snackbar'] });
+      }
+    });
+
     // Manual refresh requested from the toolbar (app-bar) refresh button.
     this.documentRefreshService.refresh$.pipe(
       takeUntil(this.destroy$)
@@ -281,7 +426,11 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    
+
+    // Si apre un documento: la differenza che era qui non c'entra piu' e va via da sola. Due cose
+    // non possono stare nello stesso riquadro, e lasciarla sarebbe peggio che chiuderla.
+    this.diffViewer.close();
+
     // Update state to loading
     this.loadingStartTime = new Date();
     this.updateState({
@@ -293,6 +442,69 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Call the original controller method but with enhanced URL building
     this.callMdExplorerController(file);
+  }
+
+  /**
+   * reveal.js's events from the deck on screen (postMessageEvents, on by default in MdExplorer's
+   * slide pages): a slide change is written on the current history entry, so that the title-bar
+   * arrows bring the deck back on that slide. Only from this view's own iframe.
+   */
+  private rememberSlideOfDeck(event: MessageEvent): void {
+    const frame = this.iframe?.nativeElement;
+    if (!frame || event.source !== frame.contentWindow || typeof event.data !== 'string') return;
+    let message: any;
+    try { message = JSON.parse(event.data); } catch { return; }
+    if (message?.namespace !== 'reveal' || !['slidechanged', 'ready'].includes(message.eventName)) return;
+    const h = message.state?.indexh, v = message.state?.indexv;
+    if (!Number.isInteger(h)) return;
+    try {
+      const path = decodeURIComponent(frame.contentWindow.location.pathname).replace(/^\/api\/mdexplorer\//i, '');
+      this.navService.rememberSlide(path, '#/' + h + (v ? '/' + v : ''));
+    } catch {
+      // Not the same origin: not one of MdExplorer's pages.
+    }
+  }
+
+  /** reveal.js's position in a URL: '#/3' or '#/3/1', nothing else. */
+  private static isSlidePosition(hash: string | undefined): boolean {
+    return !!hash && /^#\/\d+(\/\d+)?$/.test(hash);
+  }
+
+  /** The pages of the deck on screen, as the link that opened it asked (`2,6-9`); empty: the whole deck. */
+  private currentSlidePages = '';
+
+  /** Whether this relative path is the file the view shows now (separators and case aside). */
+  private isCurrentFile(relativePath: string): boolean {
+    const normalize = (p: string | undefined) => (p || '').replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+    return !!this.contentState$.value.currentPath && normalize(this.contentState$.value.currentPath) === normalize(relativePath);
+  }
+
+  /** `&pages=…` for the deck's URL: a reload (a save, a theme change) shows the same pages. */
+  private pagesQuery(): string {
+    return this.currentSlidePages ? `&pages=${encodeURIComponent(this.currentSlidePages)}` : '';
+  }
+
+  /**
+   * A slide deck (reveal.js, `hash: true`) keeps its current slide in the iframe's hash
+   * (`#/2/1`). Reloading the same file — a save, a theme change — would restart it from the
+   * first slide: the new URL carries the hash along. Another file starts from its beginning.
+   */
+  private keepCurrentSlide(url: string): string {
+    try {
+      const current = this.iframe?.nativeElement?.contentWindow?.location;
+      if (!current?.hash?.startsWith('#/')) {
+        return url;
+      }
+      // Resolved as the iframe resolves its src: against <base href>, not the route's address.
+      const next = new URL(url, document.baseURI);
+      const samePath = decodeURIComponent(next.pathname).toLowerCase() === decodeURIComponent(current.pathname).toLowerCase();
+      // Other pages of the same deck: the slide numbers no longer mean the same, it starts over.
+      const samePages = (next.searchParams.get('pages') || '') === (new URLSearchParams(current.search).get('pages') || '');
+      return samePath && samePages ? url + current.hash : url;
+    } catch {
+      // Not the same origin (about:blank, an external page): nothing to keep.
+      return url;
+    }
   }
 
   /**
@@ -309,7 +521,10 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     if (node?.relativePath) {
       const dateTime = new Date().getTime() / 1000;
       const cleanPath = this.cleanRelativePath(node.relativePath);
-      const newHtmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
+      this.currentSlidePages = node.slidePages || '';
+      const url = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}`;
+      // A deck asked on a given slide opens there; otherwise a reload of the same deck keeps its slide.
+      const newHtmlSource = MainContentComponent.isSlidePosition(node.slideHash) ? url + node.slideHash : this.keepCurrentSlide(url);
 
       // Only update if URL actually changed to prevent unnecessary reloads
       if (this.htmlSource !== newHtmlSource) {
@@ -351,7 +566,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     const current = normalize(currentPath);
     if (changedFiles.some(p => normalize(p) === current)) {
       console.log(`[MainContent] 🔄 Open document was changed by ${source} — reloading`);
-      this.loadMarkdownFile({ relativePath: currentPath } as MdFile);
+      this.loadMarkdownFile({ relativePath: currentPath, slidePages: this.currentSlidePages || undefined } as MdFile);
     }
   }
 
@@ -377,16 +592,24 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
         return;
       }
 
+      // The server's event does not know which pages of a deck the link asked for: the file that
+      // changed is the one on screen, so it comes back with its own pages (a deck opened with
+      // ?pages=2- must not turn into the whole deck when a list item is moved, or a save).
+      const sameFileOnScreen = objectThis.isCurrentFile(relativePath);
+      const reloaded = sameFileOnScreen && objectThis.currentSlidePages
+        ? { ...data, slidePages: objectThis.currentSlidePages }
+        : data;
+
       // Update service state (legacy compatibility)
       objectThis.service.navigationArray = [];
-      objectThis.service.setSelectedMdFileFromServer(data);
-      objectThis.service.setSelectedMdFileFromSideNav(data);
+      objectThis.service.setSelectedMdFileFromServer(reloaded);
+      objectThis.service.setSelectedMdFileFromSideNav(reloaded);
 
       // Create file object and trigger loading
       const fileData: MdFile = {
         relativePath: relativePath.replace(/\\/g, '/'),
         // Add other properties from data if available
-        ...data
+        ...reloaded
       };
 
       objectThis.loadMarkdownFile(fileData);
@@ -426,6 +649,15 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
         retryCount: 0,
         isIndexing: false
       });
+
+      // The slide page says it is one (SlideDeckRenderer): the toolbar then offers the PDF export.
+      let isSlideDeck = false;
+      try {
+        isSlideDeck = !!iframeElement.contentDocument?.querySelector('meta[name="mdexplorer-view"][content="slides"]');
+      } catch {
+        // Not the same origin: not one of MdExplorer's pages.
+      }
+      this.documentRefreshService.setSlideDeckShown(isSlideDeck);
 
       // Se il documento è stato aperto da un risultato della ricerca full-text,
       // inietta la ricerca in-documento (barra Ctrl+F dell'iframe) col termine.
@@ -511,7 +743,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       if (currentState.currentPath) {
         const dateTime = new Date().getTime() / 1000;
         const cleanPath = this.cleanRelativePath(currentState.currentPath);
-        this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}&retry=${currentState.retryCount + 1}`;
+        this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}&retry=${currentState.retryCount + 1}`);
       }
     });
   }
@@ -563,7 +795,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
     // Update the URL to point to the new path
     const dateTime = new Date().getTime() / 1000;
     const cleanPath = this.cleanRelativePath(newPath);
-    this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}`;
+    this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}`;
   }
 
   /**
@@ -601,7 +833,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       // Force reload with new timestamp
       const dateTime = new Date().getTime() / 1000;
       const cleanPath = this.cleanRelativePath(currentPath);
-      this.htmlSource = `../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}&refreshed=true`;
+      this.htmlSource = this.keepCurrentSlide(`../api/mdexplorer/${cleanPath}?time=${dateTime}&connectionId=${this.monitorMDService.connectionId}&source=angular&theme=${this.themeService.getResolvedTheme()}${this.pagesQuery()}&refreshed=true`);
     }
   }
 
@@ -674,6 +906,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
   private setupP2PMessageListener(): void {
     console.log('[P2P Angular] Setting up P2P message listener');
     window.addEventListener('message', (event: MessageEvent) => {
+      this.rememberSlideOfDeck(event);
       if (!event.data || !event.data.type) return;
 
       // Only log P2P messages
@@ -691,6 +924,33 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
         case 'md-navigate':
           this.handleMdNavigate(event.data);
           break;
+        case 'mde-ai-selection':
+          this.handleAiSelection(event.data);
+          break;
+      }
+    });
+  }
+
+  /**
+   * Opens the "Usa AI" dialog for a text selection made inside the iframe.
+   * The line range refers to the source .md file on disk (1-based), resolved
+   * server-side via the data-mde-line-* attributes.
+   */
+  private handleAiSelection(data: { startLine: number; endLine: number; selectedText: string; documentPath: string; connectionId: string }): void {
+    if (!data.documentPath || !data.startLine || !data.endLine) {
+      console.error('[AiSelection] Incomplete selection payload from iframe:', data);
+      this.snackBar.open(this.translate.instant('AI_SELECTION.INCOMPLETE_SELECTION'), 'OK', { duration: 4000 });
+      return;
+    }
+    this.dialog.open(AiSelectionDialogComponent, {
+      width: '860px',
+      maxWidth: '95vw',
+      data: {
+        documentPath: data.documentPath,
+        startLine: data.startLine,
+        endLine: data.endLine,
+        selectedText: data.selectedText || '',
+        connectionId: data.connectionId || this.monitorMDService.connectionId
       }
     });
   }
@@ -730,21 +990,47 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
    * Handle navigation request from iframe (YAML links in PlantUML diagrams).
    * Loads the document once via Angular, avoiding the double-load caused by window.location.href.
    */
-  private handleMdNavigate(data: { relativePath: string; name: string }): void {
+  /**
+   * A page asks to open a file (the Knowledge Graph, the links of the YAML diagrams). As a click
+   * in the tree does, the file first enters the title-bar history, then it opens: before, it was
+   * only loaded, and ← → skipped it (measured 17/09/2026). Through here a text file opens as
+   * colored source, as from the tree.
+   */
+  private handleMdNavigate(data: { relativePath: string; name: string; fullPath?: string; slideHash?: string; pages?: string }): void {
+    const relativePath = (data.relativePath || '').replace(/\\/g, '/').replace(/^\/+/, '');
     const mdFile: MdFile = {
       name: data.name,
-      path: data.relativePath,
-      relativePath: data.relativePath,
-      fullPath: '',
+      path: relativePath,
+      relativePath: relativePath,
+      // The history tells one entry from the next by fullPath: an empty one would make two
+      // different files look like the same and drop the second.
+      fullPath: data.fullPath || this.fullPathInProject(relativePath),
       fullDirectoryPath: '',
       level: 0,
       expandable: false,
       type: 'file',
       index: 0,
       isLoading: false,
-      childrens: []
+      childrens: [],
+      slideHash: data.slideHash,
+      slidePages: data.pages || undefined
     };
-    this.loadMarkdownFile(mdFile);
+    this.navService.setNewNavigation(mdFile);
+    // Through the selected file, as the tree and the title-bar arrows do: this view loads it (its
+    // subscription, once), and whoever follows the selected file follows it too — MarkAgent's chat
+    // context, the tree. Loading it here directly left them on the previous file.
+    this.service.setSelectedMdFileFromSideNav(mdFile);
+  }
+
+  /** The file's path in the open project, with the project's own separator. */
+  private fullPathInProject(relativePath: string): string {
+    const projectPath: string = (this.projectsService.currentProjects$.getValue() as any)?.path || '';
+    if (!projectPath) {
+      // No project known here: the relative path still tells files apart in the history.
+      return relativePath;
+    }
+    const separator = projectPath.includes('\\') ? '\\' : '/';
+    return projectPath.replace(/[\\/]+$/, '') + separator + relativePath.split('/').join(separator);
   }
 
   /**

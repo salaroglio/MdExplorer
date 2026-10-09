@@ -143,6 +143,33 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         public bool LinkIndexingEnabled { get; set; } = true;
 
         /// <summary>
+        /// Dedicated watcher on <c>.git/logs/HEAD</c> — fires the "on commit" hook of
+        /// *.agent.md schedules. Catches commits from MdExplorer AND from an external
+        /// terminal, without touching the user's git hooks. Null when the project has
+        /// no git repository.
+        /// </summary>
+        public System.IO.FileSystemWatcher CommitWatcher { get; set; }
+
+        /// <summary>
+        /// Debounce for <see cref="CommitWatcher"/>: git writes the HEAD reflog more
+        /// than once per commit, so the hook fires only after 500ms of quiet.
+        /// </summary>
+        public System.Threading.Timer CommitDebounceTimer { get; set; }
+
+        /// <summary>
+        /// When true, the project opted into the SEPARATE non-markdown text index:
+        /// eligible text files get live FTS upsert/delete on FS events, independently
+        /// from the markdown path. Cached at registration. Defaults to false (opt-in).
+        /// </summary>
+        public bool IndexAllTextFiles { get; set; } = false;
+
+        /// <summary>
+        /// Effective text-extension allow-list for this project (lower-case, incl. dot).
+        /// Populated at registration only when <see cref="IndexAllTextFiles"/> is true.
+        /// </summary>
+        public System.Collections.Generic.HashSet<string> TextFileExtensions { get; set; }
+
+        /// <summary>
         /// Defense-in-depth flag: when true, event handlers skip processing.
         /// Set by SetWatcherEnabled(false) to catch .NET FileSystemWatcher buffered events
         /// that fire even after EnableRaisingEvents = false.

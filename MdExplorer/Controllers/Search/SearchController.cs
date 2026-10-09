@@ -1,4 +1,5 @@
 using AutoMapper;
+using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Services;
 using MdExplorer.Features.ActionLinkModifiers.Interfaces;
@@ -25,6 +26,7 @@ namespace MdExplorer.Service.Controllers.Search
         private readonly ILogger<SearchController> _logger;
         private readonly ISearchService _searchService;
         private readonly IMapper _mapper;
+        private readonly ITextFtsService _textFtsService;
 
         public SearchController(
             ILogger<SearchController> logger,
@@ -37,12 +39,14 @@ namespace MdExplorer.Service.Controllers.Search
             IHelper helper,
             ISearchService searchService,
             IMapper mapper,
-            MdExplorer.Services.DatabaseManager.IDatabaseManager databaseManager)
+            MdExplorer.Services.DatabaseManager.IDatabaseManager databaseManager,
+            ITextFtsService textFtsService = null)
             : base(logger, options, hubContext, userSettingsDB, engineDB, commandRunner, modifiers, helper, databaseManager)
         {
             _logger = logger;
             _searchService = searchService;
             _mapper = mapper;
+            _textFtsService = textFtsService;
         }
 
         [HttpGet("quick")]
@@ -300,6 +304,102 @@ namespace MdExplorer.Service.Controllers.Search
             {
                 _logger.LogError(ex, $"[SearchController] Error during link search for term: '{term}'");
                 return StatusCode(500, new { error = "Errore durante la ricerca dei link", details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Whether the SEPARATE non-markdown text index is active for the current
+        /// project. Drives visibility of the "Text files" results tab. Independent
+        /// from the markdown search, which is always available.
+        /// </summary>
+        [HttpGet("text-status")]
+        public IActionResult TextStatus()
+        {
+            var (enabled, _) = ReadTextIndexingSettings();
+            return Ok(new { enabled });
+        }
+
+        /// <summary>
+        /// Full-text search over the project's NON-markdown text files (separate
+        /// FTS side-car). Returns an empty set (not an error) when the project has
+        /// text indexing OFF, so the UI can render the tab without special-casing.
+        /// </summary>
+        [HttpGet("text-content")]
+        public IActionResult SearchTextContent([FromQuery] string term, [FromQuery] int maxResults = 50)
+        {
+            _logger.LogInformation($"[SearchController] SearchTextContent called with term: '{term}'");
+
+            if (string.IsNullOrWhiteSpace(term))
+            {
+                return Ok(new { textContents = new TextContentSearchResultDto[0], totalTextContents = 0, enabled = ReadTextIndexingSettings().enabled });
+            }
+
+            var projectPath = GetProjectPath();
+            if (string.IsNullOrWhiteSpace(projectPath))
+            {
+                return BadRequest(new { error = "Nessun progetto aperto per questa connessione: la ricerca nei file di testo richiede un progetto aperto (ConnectionId valido)." });
+            }
+
+            var (enabled, _) = ReadTextIndexingSettings();
+            if (!enabled || _textFtsService == null)
+            {
+                return Ok(new { textContents = new TextContentSearchResultDto[0], totalTextContents = 0, enabled = false });
+            }
+
+            try
+            {
+                var results = _textFtsService.SearchContent(projectPath, term, maxResults);
+                var dtos = results.Select(c => new TextContentSearchResultDto
+                {
+                    TextFileId = c.MarkdownFileId, // reused Guid slot in the shared FTS result shape
+                    FileName = c.FileName,
+                    Path = c.Path,
+                    Extension = System.IO.Path.GetExtension(c.Path)?.ToLowerInvariant(),
+                    Snippet = c.Snippet,
+                    Score = c.Score
+                }).ToList();
+
+                _logger.LogInformation($"[SearchController] Text content search completed. Found {dtos.Count} matches");
+                return Ok(new { textContents = dtos, totalTextContents = dtos.Count, enabled = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"[SearchController] Error during text content search for term: '{term}'");
+                return StatusCode(500, new { error = "Errore durante la ricerca nei file di testo", details = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Reads the current project's IndexAllTextFiles flag + effective allow-list.
+        /// Defaults to OFF (text index is strictly opt-in).
+        /// </summary>
+        private (bool enabled, System.Collections.Generic.HashSet<string> extensions) ReadTextIndexingSettings()
+        {
+            try
+            {
+                var currentPath = GetProjectPath();
+                if (string.IsNullOrEmpty(currentPath))
+                {
+                    return (false, null);
+                }
+
+                _userSettingsDB.Clear();
+                var projectDal = _userSettingsDB.GetDal<MdExplorer.Abstractions.Entities.UserDB.Project>();
+                var project = projectDal.GetList().FirstOrDefault(p => p.Path == currentPath)
+                    ?? projectDal.GetList().ToList()
+                        .FirstOrDefault(p => string.Equals(p.Path, currentPath, StringComparison.OrdinalIgnoreCase));
+
+                if (project == null || !project.IndexAllTextFiles)
+                {
+                    return (false, null);
+                }
+
+                return (true, TextFileClassifier.GetEffectiveExtensions(project.TextFileExtensions));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[SearchController] Could not read text-indexing settings, defaulting to OFF");
+                return (false, null);
             }
         }
     }

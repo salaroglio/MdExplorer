@@ -1,0 +1,307 @@
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+
+/** Un messaggio della inbox dell'umano (agente→user), §13 Fase 4a. */
+export interface MailboxMessage {
+  id: string;
+  conversationId: string;
+  fromAgent: string;
+  projectPath: string;
+  body: string;
+  bodyPreview: string;
+  topics: string[];
+  createdAt: string;
+  readAt: string | null;
+  read: boolean;
+  /** Archiviato: fuori dall'elenco della posta, ma non cancellato. */
+  archived?: boolean;
+  /** Il turno di lavoro dell'agente che l'ha scritto: lega il messaggio alla richiesta di approvazione dello stesso turno. */
+  runId?: string | null;
+  /** Le risposte che l'agente propone: i pulsanti sotto il messaggio. */
+  replies?: MailReply[];
+  /** La scheda dell'agente dichiara le sue risposte: se il messaggio non ne propone, l'agente non chiede niente. */
+  declaresReplies?: boolean;
+  /** L'artefatto del turno che ha scritto il messaggio: 'pending' = da decidere, 'rejected' = rifiutato; in entrambi i casi non si risponde. */
+  artifact?: string | null;
+  /** I lavori che il turno di questo messaggio ha chiesto ad altri agenti, con il loro stato: per chi li aspetta. */
+  awaited?: AwaitedWork[];
+  /** A un messaggio con pulsanti la persona ha già risposto (pulsante del workflow, o una risposta scritta dopo). */
+  answered?: boolean;
+}
+
+/** Un lavoro chiesto a un altro agente, visto da chi lo aspetta. */
+/**
+ * Un incarico che il workflow dice di far avviare al responsabile dell'agente (start: ask-owner): aspetta nella posta
+ * che la persona lo avvii dalla schermata di lancio, o lo rifiuti con un motivo.
+ */
+export interface ToStartAssignment {
+  id: string;
+  conversationId: string;
+  fromAgent: string;
+  toAgent: string;
+  body: string;
+  createdAt: string;
+  runId?: string | null;
+  /** Il passo del workflow, con il suo titolo («Scheda tecnica»). */
+  step?: string | null;
+  agentFilePath?: string | null;
+  /** A chi lo si può passare: chi risponde dello stesso agente con te (un team). */
+  passTo?: TeamMember[];
+}
+
+/** Una persona che risponde di un agente. */
+export interface TeamMember {
+  name?: string | null;
+  email: string;
+}
+
+/** Un passo che un pulsante fa partire, e chi ne può rispondere: con un team, chi preme sceglie. */
+export interface ReplyTarget {
+  step: string;
+  label: string;
+  agent: string;
+  needsChoice: boolean;
+  owners: TeamMember[];
+}
+
+export interface AwaitedWork {
+  messageId: string;
+  agent: string;
+  /**
+   * tostart = aspetta che il responsabile lo avvii · declined = il responsabile non l'ha avviato · working = sta lavorando ·
+   * approval = artefatto in approvazione · approved · rejected = rifiutato, fermo · reworking · done = concluso senza artefatto · failed
+   */
+  state: 'waiting' | 'tostart' | 'declined' | 'working' | 'approval' | 'approved' | 'rejected' | 'reworking' | 'done' | 'failed';
+  /** Il motivo del rifiuto, quando c'è. */
+  note?: string | null;
+  /** Un passo di un giro del workflow: il suo titolo e chi ne risponde (waiting = aspetta i passi prima di lui). */
+  label?: string | null;
+  owner?: string | null;
+  /** Il turno che ha consegnato il passo non ti ha scritto: il messaggio non arriverà. */
+  silent?: boolean;
+}
+
+/** Un giro del workflow, visto dalla posta: una voce con i suoi passi e i turni dei suoi messaggi. */
+export interface MailRound {
+  id: string;
+  /** Il titolo del workflow («Gara»). */
+  title: string;
+  /** I valori del giro (il bando). */
+  values: string[];
+  startedAt: string;
+  startedBy?: string | null;
+  lastActivityAt: string;
+  finished: boolean;
+  /** Archiviato nella tua posta (il registro del giro non cambia). */
+  archived?: boolean;
+  stepsDone: number;
+  stepsTotal: number;
+  /** I turni di lavoro del giro, senza trattini: un messaggio con uno di questi `runId` è del giro. */
+  runs: string[];
+  steps: AwaitedWork[];
+}
+
+/** Una risposta dichiarata dalla scheda dell'agente e proposta con il messaggio. */
+export interface MailReply {
+  id: string;
+  /** Il testo del pulsante. */
+  label: string;
+  /** Che cosa succede premendo: chi viene contattato e per ottenere cosa. */
+  description: string;
+  /** Il messaggio che l'agente riceve. */
+  message: string;
+}
+
+export interface MailboxInbox {
+  messages: MailboxMessage[];
+  unread: number;
+  /** Quante cose aspettano una tua decisione: il numero del badge. */
+  todo?: number;
+  /** Gli incarichi che aspettano te per partire. */
+  toStart?: ToStartAssignment[];
+}
+
+/** Riepilogo di un thread di conversazione (§8), per l'osservabilità/governo (Fase 4b). */
+export interface ConversationSummary {
+  id: string;
+  projectPath: string;
+  startedBy: string;
+  status: string;              // active | completed | killed | exhausted
+  hopCount: number;
+  hopLimit: number;
+  messageCount: number;
+  participants: string[];
+  startedAt: string;
+  lastActivityAt: string;
+  federationId?: string | null;
+  remoteOwner?: string | null;
+  remoteAgent?: string | null;
+  federated?: boolean;
+}
+
+/** Un messaggio dentro un thread (vista dettaglio). */
+export interface ConversationMessage {
+  id: string;
+  fromAgent: string;
+  toAgent: string;
+  body: string;
+  topics: string[];
+  state: string;
+  createdAt: string;
+  processedAt: string | null;
+  readAt: string | null;
+  error: string | null;
+}
+
+export interface ConversationThread {
+  conversation: ConversationSummary;
+  messages: ConversationMessage[];
+}
+
+/**
+ * La porta dell'umano sulla mailbox della città (§13 Fase 4a): legge i messaggi
+ * indirizzati a `user`, li marca letti e risponde risvegliando l'agente nella stessa
+ * conversazione. Speculare a MailboxController lato Service (/api/A2A/mailbox).
+ */
+@Injectable({ providedIn: 'root' })
+export class MailboxService {
+  constructor(private http: HttpClient) {}
+
+  /** `archived` = solo l'archivio; altrimenti ciò che è in posta (tutto, o solo i non letti). */
+  inbox(projectPath: string, includeRead = false, archived = false): Observable<MailboxInbox> {
+    let params = new HttpParams().set('includeRead', includeRead).set('archived', archived);
+    if (projectPath) params = params.set('projectPath', projectPath);
+    return this.http.get<MailboxInbox>('/api/A2A/mailbox/inbox', { params });
+  }
+
+  /** Avvia un incarico in attesa del responsabile, con le sue indicazioni e il motore e il modello scelti. */
+  startAssignment(messageId: string, body: { note?: string; provider?: string; model?: string }): Observable<{ messageId: string; toAgent: string }> {
+    return this.http.post<{ messageId: string; toAgent: string }>(`/api/A2A/mailbox/to-start/${messageId}/start`, body);
+  }
+
+  /** I giri del workflow del progetto (vuoto se il progetto non ne ha). */
+  rounds(projectPath: string): Observable<{ rounds: MailRound[] }> {
+    const params = new HttpParams().set('projectPath', projectPath);
+    return this.http.get<{ rounds: MailRound[] }>('/api/A2A/workflow/rounds', { params });
+  }
+
+  /** I passi che un pulsante fa partire, con chi ne può rispondere. */
+  replyTargets(messageId: string, replyId: string): Observable<{ targets: ReplyTarget[] }> {
+    const params = new HttpParams().set('messageId', messageId).set('replyId', replyId);
+    return this.http.get<{ targets: ReplyTarget[] }>('/api/A2A/mailbox/reply-targets', { params });
+  }
+
+  /** Passa un incarico «da avviare» a un collega che risponde dello stesso agente. */
+  passAssignment(messageId: string, to: string, note?: string): Observable<{ messageId: string; to: string }> {
+    return this.http.post<{ messageId: string; to: string }>(`/api/A2A/mailbox/to-start/${messageId}/pass`, { to, note });
+  }
+
+  /** Il responsabile non avvia l'incarico, e dice perché. */
+  declineAssignment(messageId: string, reason: string): Observable<{ messageId: string }> {
+    return this.http.post<{ messageId: string }>(`/api/A2A/mailbox/to-start/${messageId}/decline`, { reason });
+  }
+
+  unreadCount(projectPath: string): Observable<{ unread: number; todo?: number }> {
+    let params = new HttpParams();
+    if (projectPath) params = params.set('projectPath', projectPath);
+    return this.http.get<{ unread: number; todo?: number }>('/api/A2A/mailbox/inbox/count', { params });
+  }
+
+  /** Segna come letti tutti i messaggi aperti del progetto: la posta si svuota, niente viene cancellato. */
+  markAllRead(projectPath: string): Observable<{ read: number }> {
+    const params = new HttpParams().set('projectPath', projectPath);
+    return this.http.post<{ read: number }>('/api/A2A/mailbox/inbox/read-all', null, { params });
+  }
+
+  /** Archivia un messaggio: esce dall'elenco, non viene cancellato. */
+  archive(messageId: string): Observable<{ archived: boolean }> {
+    return this.http.post<{ archived: boolean }>(`/api/A2A/mailbox/inbox/${messageId}/archive`, null);
+  }
+
+  /** Riporta in posta un messaggio archiviato. */
+  unarchive(messageId: string): Observable<{ archived: boolean }> {
+    return this.http.post<{ archived: boolean }>(`/api/A2A/mailbox/inbox/${messageId}/unarchive`, null);
+  }
+
+  /** Archivia i messaggi indicati («Archivia i letti»). */
+  archiveMany(messageIds: string[]): Observable<{ archived: number }> {
+    return this.http.post<{ archived: number }>('/api/A2A/mailbox/inbox/archive-many', { messageIds });
+  }
+
+  /** Archivia un giro concluso, con i suoi messaggi; o lo riporta in posta. */
+  archiveRound(projectPath: string, roundId: string, archive: boolean): Observable<{ archived: boolean; messages: number }> {
+    const params = new HttpParams().set('projectPath', projectPath);
+    return this.http.post<{ archived: boolean; messages: number }>(
+      `/api/A2A/mailbox/rounds/${encodeURIComponent(roundId)}/${archive ? 'archive' : 'unarchive'}`, null, { params });
+  }
+
+  /** Archivia tutti i messaggi in posta del progetto. */
+  archiveAll(projectPath: string): Observable<{ archived: number }> {
+    const params = new HttpParams().set('projectPath', projectPath);
+    return this.http.post<{ archived: number }>('/api/A2A/mailbox/inbox/archive-all', null, { params });
+  }
+
+  markRead(messageId: string): Observable<{ read: boolean; readAt: string }> {
+    return this.http.post<{ read: boolean; readAt: string }>(
+      `/api/A2A/mailbox/inbox/${messageId}/read`, null);
+  }
+
+  /** choice = true: body è il messaggio di uno dei pulsanti proposti; false: testo libero, che arriva con il messaggio citato.
+   *  messageId: il messaggio a cui si risponde (senza, l'ultimo del thread). */
+  reply(conversationId: string, body: string, choice = false, messageId?: string, assign?: { [step: string]: string }):
+    Observable<{ accepted: boolean; taskId: string; conversationId: string; toAgent: string; workflow?: boolean }> {
+    return this.http.post<{ accepted: boolean; taskId: string; conversationId: string; toAgent: string; workflow?: boolean }>(
+      '/api/A2A/mailbox/reply', { conversationId, body, choice, messageId, assign });
+  }
+
+  // ---- 4b: osservabilità e governo dei thread ----
+
+  conversations(projectPath: string): Observable<{ conversations: ConversationSummary[] }> {
+    let params = new HttpParams();
+    if (projectPath) params = params.set('projectPath', projectPath);
+    return this.http.get<{ conversations: ConversationSummary[] }>(
+      '/api/A2A/mailbox/conversations', { params });
+  }
+
+  conversationMessages(conversationId: string): Observable<ConversationThread> {
+    return this.http.get<ConversationThread>(
+      `/api/A2A/mailbox/conversations/${conversationId}/messages`);
+  }
+
+  kill(conversationId: string): Observable<{ status: string }> {
+    return this.http.post<{ status: string }>(
+      `/api/A2A/mailbox/conversations/${conversationId}/kill`, null);
+  }
+
+  reopen(conversationId: string): Observable<{ status: string; hopCount: number }> {
+    return this.http.post<{ status: string; hopCount: number }>(
+      `/api/A2A/mailbox/conversations/${conversationId}/reopen`, null);
+  }
+
+  // ---- Consolidamento memoria (Fase 7f) ----
+
+  /** Fatti in memoria del progetto (tutti gli agenti + shared), per la scelta di promozione. */
+  memoryFacts(projectPath: string): Observable<{ facts: MemFact[] }> {
+    const params = new HttpParams().set('projectPath', projectPath || '');
+    return this.http.get<{ facts: MemFact[] }>('/api/mem/facts', { params });
+  }
+
+  /** Consolida una conversazione: promuove i fatti scelti nel .agent.md e decade il resto. */
+  consolidate(conversationId: string, projectPath: string, promote: { factUri: string; graph: string; statement: string }[])
+    : Observable<{ consolidated: boolean; memoryDisabled?: boolean; promoted?: number; decayed?: number; deleted?: number; agents?: string[] }> {
+    return this.http.post<any>(
+      `/api/mem/conversations/${conversationId}/consolidate`, { projectPath, promote });
+  }
+}
+
+/** Un fatto in memoria (proiezione di /api/mem/facts). */
+export interface MemFact {
+  factUri: string;
+  graph: string;
+  agent: string;
+  statement: string;
+  confidence: number;
+  tags: string[];
+  shared: boolean;
+}

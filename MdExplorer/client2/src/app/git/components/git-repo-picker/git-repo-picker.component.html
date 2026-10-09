@@ -1,0 +1,13 @@
+<!-- Con un repository solo non c'è niente da scegliere: il selettore non compare. -->
+<div class="repo-picker" *ngIf="repos.length > 1" role="tablist" [attr.aria-label]="'GITFLOW.REPOSITORY' | translate">
+  <span class="picker-label">{{ 'GITFLOW.REPOSITORY' | translate }}</span>
+  <button type="button" class="repo-choice" *ngFor="let r of repos; trackBy: trackByPath"
+          role="tab" [attr.aria-selected]="r === selected"
+          [class.selected]="r === selected" [disabled]="disabled"
+          (click)="pick(r)">
+    <mat-icon>{{ r.isRoot ? 'folder_special' : 'account_tree' }}</mat-icon>
+    <span class="choice-label">{{ r.label }}</span>
+    <span class="choice-branch" *ngIf="r.branch">{{ r.branch }}</span>
+    <span class="choice-branch detached" *ngIf="r.detached">{{ 'CHANGES.DETACHED' | translate }}</span>
+  </button>
+</div>

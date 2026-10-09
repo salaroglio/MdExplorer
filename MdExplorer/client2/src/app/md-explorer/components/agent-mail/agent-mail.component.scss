@@ -1,0 +1,249 @@
+// La posta degli agenti a tutto schermo: barra in alto, elenco a sinistra, dettaglio a destra.
+:host {
+  display: block; height: 100%;
+  // La barra della posta sta sopra la barra del titolo della finestra, che è zona di trascinamento: senza questo, i suoi
+  // pulsanti ricevevano il clic solo nella fascia che sporge sotto (visto su Windows il 07/10).
+  -webkit-app-region: no-drag;
+}
+.flexExpand { flex: 1 1 auto; }
+
+.mail-page {
+  display: flex; flex-direction: column; height: 100%;
+  background: var(--mde-bg-secondary, #fafafa); color: var(--mde-text-primary, #1f1f1f);
+}
+
+.mail-bar {
+  display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 48px; flex: 0 0 auto;
+  background: var(--mde-accent-primary, #1976d2); color: var(--mde-text-on-primary, #fff);
+  .bar-icon { margin-right: 2px; }
+  .bar-title { font-size: 16px; font-weight: 600; }
+  .bar-project { font-size: 13px; opacity: 0.8; margin-left: 8px; }
+  .bar-archive { font-size: 12px; font-weight: 600; padding: 2px 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.22); margin-left: 8px; }
+  button { color: inherit; }
+}
+
+.mail-error {
+  display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+  background: rgba(217, 48, 37, 0.12); color: #b3261e; font-size: 13px;
+}
+
+.mail-body { display: flex; flex: 1 1 auto; min-height: 0; }
+
+.mail-list {
+  flex: 0 0 360px; max-width: 40%; overflow-y: auto;
+  border-right: 1px solid var(--mde-border-color, rgba(0, 0, 0, 0.12));
+  background: var(--mde-bg-primary, #fff);
+}
+
+.mail-row {
+  display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 10px 12px 10px 6px;
+  border: 0; border-bottom: 1px solid var(--mde-border-color, rgba(0, 0, 0, 0.08));
+  background: transparent; color: inherit; text-align: left; cursor: pointer; font: inherit;
+  &:hover { background: rgba(127, 127, 127, 0.10); }
+  &.selected { background: rgba(26, 115, 232, 0.14); }
+  .row-dot { flex: 0 0 8px; height: 8px; margin-top: 8px; border-radius: 50%; background: transparent; }
+  &.unread .row-dot { background: #1a73e8; }
+  &.unread .row-from { font-weight: 700; }
+  .row-icon { flex: 0 0 auto; font-size: 20px; width: 20px; height: 20px; margin-top: 2px; opacity: 0.75; }
+  &.kind-review .row-icon { color: #f29900; opacity: 1; }
+  &.kind-federation .row-icon { color: #9334e6; opacity: 1; }
+  .row-main { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+  .row-top { display: flex; align-items: baseline; gap: 8px; }
+  .row-from { flex: 1 1 auto; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-when { flex: 0 0 auto; font-size: 11px; opacity: 0.65; }
+  .row-kind { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.8; }
+  .row-preview {
+    font-size: 12px; opacity: 0.75; overflow: hidden;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+}
+
+.mail-detail { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+.mail-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  padding: 48px 16px; opacity: 0.6; text-align: center;
+  mat-icon { font-size: 40px; width: 40px; height: 40px; }
+}
+
+.detail { padding: 18px 24px; overflow-y: auto; }
+.detail-head {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  .head-icon { opacity: 0.8; }
+  .head-from { font-size: 17px; font-weight: 600; }
+  .head-kind { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.75; margin-left: 6px; }
+  .head-when { font-size: 12px; opacity: 0.65; margin-right: 8px; }
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.chip { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(127, 127, 127, 0.18); }
+.detail-hint { font-size: 13px; opacity: 0.75; margin: 0 0 12px; }
+.detail-text {
+  white-space: pre-wrap; word-break: break-word; font-size: 14px; line-height: 1.5; box-sizing: border-box;
+  padding: 14px 16px; border-radius: 8px; max-width: 900px;
+  background: var(--mde-bg-primary, #fff); border: 1px solid var(--mde-border-color, rgba(0, 0, 0, 0.10));
+}
+
+.artifacts { margin-top: 18px; max-width: 900px; }
+.artifacts-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; margin-bottom: 6px; }
+.artifact {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin-bottom: 6px; border-radius: 8px;
+  background: var(--mde-bg-primary, #fff); border: 1px solid var(--mde-border-color, rgba(0, 0, 0, 0.10));
+  border-left: 4px solid #188038;
+  &.state-pending { border-left-color: #f29900; }
+  &.state-toPull { border-left-color: #1a73e8; }
+  &.state-missing { border-left-color: #d93025; }
+  .artifact-main { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+  .artifact-path { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; word-break: break-all; }
+  .artifact-state { font-size: 12px; opacity: 0.75; }
+}
+
+.reply { margin-top: 22px; max-width: 900px; }
+.reply-label { display: block; font-size: 12px; font-weight: 600; opacity: 0.8; margin-bottom: 4px; }
+.reply-text {
+  width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px; resize: vertical;
+  font: inherit; font-size: 14px; color: inherit;
+  background: var(--mde-bg-primary, #fff); border: 1px solid var(--mde-border-color, rgba(0, 0, 0, 0.25));
+}
+.reply-actions, .decide { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.decide { max-width: 900px; margin-top: 14px; }
+
+.doc-bar {
+  display: flex; align-items: center; gap: 12px; padding: 8px 14px; flex: 0 0 auto;
+  border-bottom: 1px solid var(--mde-border-color, rgba(0, 0, 0, 0.12));
+  .doc-path { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .doc-state { font-size: 12px; padding: 2px 10px; border-radius: 10px; background: rgba(24, 128, 56, 0.16); }
+  .doc-state.pending { background: rgba(242, 153, 0, 0.22); }
+}
+.doc-frame { flex: 1 1 auto; width: 100%; border: 0; background: #fff; }
+
+.spinning { animation: agent-mail-spin 1s linear infinite; }
+@keyframes agent-mail-spin { to { transform: rotate(360deg); } }
+
+// La richiesta di approvazione sotto il messaggio dello stesso turno: rientrata, con il gancio che la lega.
+.mail-row.child {
+  padding-left: 30px; position: relative;
+  background: rgba(242, 153, 0, 0.06);
+  &.selected { background: rgba(26, 115, 232, 0.14); }
+  .row-branch {
+    position: absolute; left: 17px; top: 0; width: 10px; height: 20px;
+    border-left: 2px solid rgba(127, 127, 127, 0.5); border-bottom: 2px solid rgba(127, 127, 127, 0.5);
+    border-bottom-left-radius: 6px;
+  }
+  .row-from { font-weight: 600; }
+}
+.mail-row .row-pending { flex: 0 0 auto; font-size: 16px; width: 16px; height: 16px; color: #f29900; }
+
+// Le risposte possibili: un pulsante per risposta, con sotto che cosa succede premendolo.
+.reply-lock {
+  display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; margin-bottom: 10px; border-radius: 6px;
+  background: rgba(242, 153, 0, 0.14); font-size: 13px;
+  mat-icon { flex: 0 0 auto; color: #f29900; }
+}
+.reply-option { margin: 8px 0 14px; }
+.reply-option-description { margin: 6px 0 0; font-size: 13px; line-height: 1.45; opacity: 0.85; max-width: 70ch; }
+.reply-none { font-size: 13px; opacity: 0.75; }
+// Il campo libero dopo i pulsanti: un po' di aria, e una riga che dice che cosa riceve l'agente.
+.reply-option + .reply-label, .reply-none + .reply-label { margin-top: 18px; }
+.reply-free-hint { margin: 0 0 6px; font-size: 12px; opacity: 0.7; }
+
+// Le righe di stato dei lavori attesi: lo sfondo dice a che punto è il lavoro, e si accende quando cambia.
+.mail-row.awaited {
+  cursor: default; align-items: center; padding-top: 6px; padding-bottom: 6px;
+  &:hover { background: inherit; }
+  .row-from { font-weight: 500; }
+  .row-state { font-size: 12px; font-weight: 600; }
+  .row-icon { margin-top: 0; opacity: 1; }
+  &.awaited-working, &.awaited-reworking { background: rgba(26, 115, 232, 0.10); .row-icon, .row-state { color: #1a73e8; } }
+  &.awaited-approval { background: rgba(242, 153, 0, 0.16); .row-icon, .row-state { color: #b06000; } }
+  &.awaited-approved, &.awaited-done { background: rgba(24, 128, 56, 0.12); .row-icon, .row-state { color: #188038; } }
+  &.awaited-rejected, &.awaited-failed, &.awaited-declined { background: rgba(217, 48, 37, 0.14); .row-icon, .row-state { color: #d93025; } }
+  // Aspetta il responsabile dell'agente: è fermo finché una persona non lo avvia.
+  &.awaited-waiting { background: rgba(95, 99, 104, 0.08); .row-icon, .row-state { color: #5f6368; } }
+  &.awaited-tostart { background: rgba(242, 153, 0, 0.16); .row-icon, .row-state { color: #b06000; } }
+  &.changed { animation: awaited-flash 1.1s ease-in-out 4; }
+}
+@keyframes awaited-flash {
+  0%, 100% { box-shadow: inset 0 0 0 0 transparent; }
+  50% { box-shadow: inset 0 0 0 2px currentColor, inset 0 0 0 100px rgba(255, 213, 79, 0.45); }
+}
+
+// Le righe non devono allargare l'elenco: il rientro sta dentro la larghezza.
+.mail-row { box-sizing: border-box; }
+
+// Un lavoro rifiutato e fermo: rosso, non «da approvare».
+.mail-row.stopped { background: rgba(217, 48, 37, 0.08); &.kind-review .row-icon { color: #d93025; } }
+
+// Un incarico da avviare: la riga e il dettaglio hanno il colore dell'attenzione, perché il lavoro di qualcuno è fermo.
+.mail-row.kind-tostart .row-icon, .detail.tostart .head-icon { color: var(--mde-warning-fg, #F29900); }
+.decline-form { margin-top: 12px; }
+
+.choose-owner {
+  margin: 8px 0 4px; padding: 10px 12px; max-width: 900px;
+  border: 1px solid rgba(127, 127, 127, 0.4); border-radius: 6px;
+  .choose-row { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+  label { font-size: 13px; }
+}
+.choose-owner select, .pass-select {
+  font: inherit; padding: 4px 6px; max-width: 420px; color: inherit; background: transparent;
+  border: 1px solid rgba(127, 127, 127, 0.5); border-radius: 4px;
+  option { color: initial; }
+}
+.pass-select { display: block; margin-bottom: 10px; }
+
+// Le sezioni dell'elenco: Da fare (ambra), Giri in corso (azzurro), Messaggi (neutro).
+.mail-section {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px 6px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--mde-text-secondary, #5f6368);
+  border-bottom: 1px solid var(--mde-border-color, rgba(0, 0, 0, 0.08));
+  background: var(--mde-bg-secondary, #fafafa);
+  position: sticky; top: 0; z-index: 1;
+  .section-count {
+    min-width: 18px; padding: 0 6px; border-radius: 9px; text-align: center;
+    background: rgba(95, 99, 104, 0.14); font-size: 11px; letter-spacing: 0;
+  }
+  &.section-todo { color: #b06000; .section-count { background: rgba(242, 153, 0, 0.22); } }
+  &.section-rounds { color: #1a73e8; .section-count { background: rgba(26, 115, 232, 0.16); } }
+}
+
+// Il dettaglio di un giro: i passi, poi i messaggi.
+.detail.round {
+  .round-steps { display: flex; flex-direction: column; gap: 6px; max-width: 900px; margin-bottom: 18px; }
+  .round-step {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 8px; font-size: 13px;
+    background: rgba(95, 99, 104, 0.06);
+    mat-icon { font-size: 18px; width: 18px; height: 18px; }
+    .step-label { font-weight: 600; }
+    .step-owner { opacity: 0.7; }
+    .step-state { font-weight: 600; }
+    &.awaited-working, &.awaited-reworking { background: rgba(26, 115, 232, 0.10); .step-state, mat-icon { color: #1a73e8; } }
+    &.awaited-approval, &.awaited-tostart { background: rgba(242, 153, 0, 0.14); .step-state, mat-icon { color: #b06000; } }
+    &.awaited-approved, &.awaited-done { background: rgba(24, 128, 56, 0.10); .step-state, mat-icon { color: #188038; } }
+    &.awaited-rejected, &.awaited-failed, &.awaited-declined { background: rgba(217, 48, 37, 0.10); .step-state, mat-icon { color: #d93025; } }
+  }
+  .round-message {
+    display: flex; align-items: center; gap: 10px; width: 100%; max-width: 900px; margin-bottom: 6px; padding: 8px 12px;
+    border: 1px solid var(--mde-border-color, rgba(0, 0, 0, 0.12)); border-radius: 8px; background: var(--mde-bg-primary, #fff);
+    color: inherit; font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+    mat-icon { font-size: 18px; width: 18px; height: 18px; opacity: 0.7; }
+    .rm-from { font-weight: 600; white-space: nowrap; }
+    .rm-preview { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0.8; }
+    .rm-when { font-size: 12px; opacity: 0.6; white-space: nowrap; }
+    &.unread .rm-from { color: #1a73e8; }
+    &:hover { background: rgba(26, 115, 232, 0.06); }
+  }
+}
+.back-to-round { margin: 0 0 6px -8px; }
+
+// Un passo consegnato da un turno che non ti ha scritto.
+.row-silent { color: #b06000; font-weight: 600; }
+.detail.round .round-step .step-silent {
+  font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 9px;
+  background: rgba(242, 153, 0, 0.22); color: #b06000;
+}
+
+.consolidate-panel {
+  max-width: 900px; margin: 12px 0; padding: 10px 12px; border-radius: 8px;
+  border: 1px solid var(--mde-border-color, rgba(0, 0, 0, 0.12));
+  .consolidate-fact { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin: 6px 0; }
+}

@@ -8,6 +8,34 @@
 :host {
   // Component is a positioned overlay; nothing here renders inline
   display: contents;
+
+  // ── Palette semantica del pannello — valori LIGHT ──
+  // (pergamena chiara + oro scuro leggibile; il dark resta la KOF navy+gold)
+  --mrk-accent-fg: #b8860b;        // oro su fondo chiaro
+  --mrk-on-accent: #ffffff;        // testo su superficie accento (hover)
+  --mrk-panel-bg-top: #fdf6e3;
+  --mrk-panel-bg-bottom: #f0e6c8;
+  --mrk-panel-fg: #2b2517;
+  --mrk-hard-shadow: transparent;  // niente ombre "pixel" nere in light
+  --mrk-led-fg: #1e7d3f;
+  --mrk-input-bg: #fffdf5;
+  --mrk-input-fg: #3a3010;
+  --mrk-placeholder: #a89a70;
+}
+
+:host-context(body.dark-theme),
+:host-context(body.milan-theme) {
+  // ── Valori DARK originali, invariati ──
+  --mrk-accent-fg: #FFD700;
+  --mrk-on-accent: #1a1a1a;
+  --mrk-panel-bg-top: #0d2755;
+  --mrk-panel-bg-bottom: #08183b;
+  --mrk-panel-fg: #ffffff;
+  --mrk-hard-shadow: #000000;
+  --mrk-led-fg: #00ff66;
+  --mrk-input-bg: #050d22;
+  --mrk-input-fg: #fff8b0;
+  --mrk-placeholder: #6a7a99;
 }
 
 // ── Dim overlay ─────────────────────────────────────────
@@ -228,17 +256,17 @@
 // ── Dialog box itself ───────────────────────────────────
 .mark-dialog-box {
   position: relative;
-  background: linear-gradient(180deg, #0d2755 0%, #08183b 100%);
+  background: linear-gradient(180deg, var(--mrk-panel-bg-top) 0%, var(--mrk-panel-bg-bottom) 100%);
   border: 4px solid #1a1a1a;
   box-shadow:
-    inset 0 0 0 2px #FFD700,
-    inset 0 0 0 5px #08183b,
+    inset 0 0 0 2px var(--mrk-accent-fg),
+    inset 0 0 0 5px var(--mrk-panel-bg-bottom),
     inset 0 0 0 7px #c0c0c0,
     inset 0 0 0 9px #1a1a1a,
     0 8px 0 0 #000,
     0 12px 30px rgba(0,0,0,0.4);
   padding: 18px 22px 22px 22px;
-  color: white;
+  color: var(--mrk-panel-fg);
   image-rendering: pixelated;
 }
 
@@ -280,7 +308,7 @@
 .led-label {
   font-family: 'Press Start 2P', monospace;
   font-size: 8px;
-  color: #00ff66;
+  color: var(--mrk-led-fg);
   letter-spacing: 1px;
   white-space: nowrap;
 }
@@ -289,20 +317,20 @@
   margin-left: auto;
   font-family: 'VT323', monospace;
   font-size: 16px;
-  color: #FFD700;
+  color: var(--mrk-accent-fg);
   letter-spacing: 1px;
 }
 
 .skip-btn {
   background: transparent;
-  border: 2px solid #FFD700;
-  color: #FFD700;
+  border: 2px solid var(--mrk-accent-fg);
+  color: var(--mrk-accent-fg);
   font-family: 'Press Start 2P', monospace;
   font-size: 8px;
   padding: 4px 6px;
   cursor: pointer;
   margin-left: 8px;
-  &:hover { background: #FFD700; color: #1a1a1a; }
+  &:hover { background: var(--mrk-accent-fg); color: var(--mrk-on-accent); }
 }
 
 // ── Content row: portrait + text ────────────────────────
@@ -316,7 +344,7 @@
   width: 128px;
   height: 128px;
   background: #000;
-  border: 3px solid #FFD700;
+  border: 3px solid var(--mrk-accent-fg);
   box-shadow: inset 0 0 0 1px #000, 0 0 12px rgba(255, 215, 0, 0.3);
   flex-shrink: 0;
   display: block;
@@ -336,9 +364,9 @@
 .dialog-name {
   font-family: 'Press Start 2P', monospace;
   font-size: 12px;
-  color: #FFD700;
+  color: var(--mrk-accent-fg);
   margin-bottom: 8px;
-  text-shadow: 2px 2px 0 #000;
+  text-shadow: 2px 2px 0 var(--mrk-hard-shadow);
   letter-spacing: 1px;
 }
 
@@ -346,9 +374,34 @@
   font-family: 'VT323', monospace;
   font-size: 22px;
   line-height: 1.25;
-  color: #fff;
-  text-shadow: 1px 1px 0 #000;
+  color: var(--mrk-panel-fg);
+  text-shadow: 1px 1px 0 var(--mrk-hard-shadow);
   min-height: 56px;
+
+  // Una risposta lunga faceva crescere la finestra oltre il bordo dello schermo:
+  // la parte alta usciva e diventava irraggiungibile, perché la box è ancorata in
+  // basso. Con un tetto e lo scorrimento il testo resta tutto raggiungibile.
+  // Il valore viene sovrascritto inline quando l'utente ridimensiona.
+  max-height: min(50vh, 460px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 8px;
+
+  // Barra di scorrimento in tono con il resto della scocca, invece di quella
+  // di sistema che stonerebbe con la grafica retro.
+  scrollbar-width: thin;
+  scrollbar-color: var(--mrk-accent-fg) transparent;
+
+  &::-webkit-scrollbar { width: 10px; }
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, .35);
+    border: 1px solid var(--mrk-hard-shadow);
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--mrk-accent-fg);
+    border: 1px solid var(--mrk-hard-shadow);
+    &:hover { filter: brightness(1.2); }
+  }
 
   &.static {
     color: #888;
@@ -356,11 +409,292 @@
   }
 }
 
+// ── Markdown reso dentro la box ──────────────────────────────────────────────
+// Le risposte dell'AI arrivano in markdown. Senza queste regole i paragrafi si
+// incollano l'uno all'altro e gli elenchi perdono il rientro, cioè proprio la
+// struttura che rende la risposta scorribile con l'occhio.
+//
+// ⚠️ Serve `::ng-deep`, e non è un vezzo. Con l'incapsulamento delle viste
+// Angular marca gli elementi del TEMPLATE con `_ngcontent-*` e compila i
+// selettori di conseguenza: `.dialog-text-body[_ngcontent] p[_ngcontent]`.
+// Gli elementi inseriti da `[innerHTML]` quell'attributo non ce l'hanno, quindi
+// senza `::ng-deep` le regole vengono emesse ma non corrispondono a nulla — che
+// è il motivo per cui la prima versione mostrava markdown reso ma senza rientri.
+// `:host` davanti tiene la deroga dentro il componente invece di farla colare
+// su tutta l'applicazione.
+:host ::ng-deep .dialog-text-body {
+  display: inline;
+
+  > :first-child { margin-top: 0; }
+  > :last-child { margin-bottom: 0; }
+
+  p {
+    margin: 0 0 .6em;
+    display: block;
+  }
+
+  // Il caso più frequente — cronaca dell'attesa e risposte brevi — è un
+  // paragrafo solo: reso in linea, così il cursore lampeggiante gli resta
+  // accanto invece di finire a capo da solo. Con più paragrafi tornano
+  // blocchi, e il cursore in fondo è la posizione giusta.
+  p:only-child {
+    display: inline;
+    margin: 0;
+  }
+
+  ul, ol {
+    margin: .4em 0 .6em;
+    padding-left: 1.5em;
+  }
+
+  ul { list-style: none; }
+
+  // Pallini disegnati a mano: quelli di sistema stonano col resto.
+  ul > li::before {
+    content: '▪';
+    color: var(--mrk-accent-fg);
+    display: inline-block;
+    width: 1em;
+    margin-left: -1em;
+  }
+
+  ol { padding-left: 1.7em; }
+  ol > li::marker { color: var(--mrk-accent-fg); }
+
+  li {
+    margin-bottom: .25em;
+    display: list-item;
+  }
+
+  // Elenco dentro elenco: il rientro deve raddoppiare, altrimenti la gerarchia
+  // si perde ed è proprio quella che si voleva far vedere.
+  li > ul, li > ol { margin: .25em 0 .25em; }
+
+  strong { color: var(--mrk-accent-fg); font-weight: normal; }
+  em { font-style: italic; opacity: .9; }
+
+  code {
+    font-family: 'VT323', monospace;
+    font-size: .95em;
+    background: rgba(0, 0, 0, .4);
+    border: 1px solid var(--mrk-hard-shadow);
+    padding: 0 4px;
+  }
+
+  pre {
+    margin: .5em 0;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, .45);
+    border: 1px solid var(--mrk-hard-shadow);
+    overflow-x: auto;
+
+    code { background: none; border: 0; padding: 0; }
+  }
+
+  h1, h2, h3, h4 {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    color: var(--mrk-accent-fg);
+    margin: .9em 0 .5em;
+    letter-spacing: 1px;
+  }
+
+  blockquote {
+    margin: .5em 0;
+    padding-left: 10px;
+    border-left: 3px solid var(--mrk-accent-fg);
+    opacity: .85;
+  }
+
+  hr {
+    border: 0;
+    border-top: 1px solid var(--mrk-hard-shadow);
+    margin: .7em 0;
+  }
+
+  table {
+    border-collapse: collapse;
+    margin: .5em 0;
+    th, td {
+      border: 1px solid var(--mrk-hard-shadow);
+      padding: 2px 8px;
+      text-align: left;
+    }
+    th { color: var(--mrk-accent-fg); }
+  }
+}
+
+// ── Fumetto del pensiero ─────────────────────────────────────────────────────
+// Esce dalla box e galleggia sopra il suo bordo superiore. Dentro la box ci va
+// solo la risposta ufficiale; qui il ragionamento che ci ha portato.
+.think-bubble {
+  position: absolute;
+  bottom: calc(100% + 26px);
+  left: 24px;
+  max-width: 420px;
+  z-index: 4;
+
+  padding: 10px 14px;
+  background: var(--mrk-panel-bg-top);
+  border: 3px solid #1a1a1a;
+  box-shadow:
+    inset 0 0 0 2px var(--mrk-accent-fg),
+    0 6px 0 0 #000,
+    0 10px 22px rgba(0, 0, 0, .35);
+  border-radius: 14px;
+
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px) scale(.96);
+  transform-origin: bottom left;
+  transition:
+    opacity .25s ease,
+    transform .25s cubic-bezier(.25, 1.4, .5, 1),
+    visibility 0s linear .25s;
+
+  &.on {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    transition-delay: 0s;
+  }
+}
+
+.think-body {
+  // Un pensiero molto lungo non deve spingere il fumetto fuori dallo schermo.
+  max-height: 190px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--mrk-accent-fg) transparent;
+}
+
+.think-line {
+  font-family: 'VT323', monospace;
+  font-size: 17px;
+  line-height: 1.3;
+  color: var(--mrk-panel-fg);
+  opacity: .55;          // le tappe concluse sbiadiscono
+  margin-bottom: 2px;
+
+  &.current {
+    opacity: 1;
+    color: var(--mrk-accent-fg);
+  }
+}
+
+.think-mark {
+  display: inline-block;
+  width: 16px;
+  flex-shrink: 0;
+}
+
+// La scia di palline che collega il fumetto alla box: è ciò che lo rende un
+// pensiero e non un avviso.
+.think-tail {
+  position: absolute;
+  background: var(--mrk-panel-bg-top);
+  border: 3px solid #1a1a1a;
+  box-shadow: inset 0 0 0 2px var(--mrk-accent-fg);
+  border-radius: 50%;
+}
+
+.think-tail-1 { width: 16px; height: 16px; bottom: -14px; left: 26px; }
+.think-tail-2 { width: 11px; height: 11px; bottom: -26px; left: 16px; }
+.think-tail-3 { width: 7px;  height: 7px;  bottom: -35px; left: 8px;  }
+
+// Mentre Mark pensa, l'ultima riga pulsa piano: dice che sta lavorando anche
+// quando la riga non cambia da qualche secondo.
+.think-line.current {
+  animation: think-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes think-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .55; }
+}
+
+// Ribaltato sotto quando sopra non c'è spazio: la coda si specchia insieme al
+// fumetto, altrimenti punterebbe nel vuoto.
+.think-bubble.below {
+  bottom: auto;
+  top: calc(100% + 26px);
+  transform-origin: top left;
+
+  .think-tail { bottom: auto; }
+  .think-tail-1 { top: -14px; }
+  .think-tail-2 { top: -26px; }
+  .think-tail-3 { top: -35px; }
+}
+
+// Quando Mark è ridotto a icona il fumetto non ha senso.
+.mark-dialog-wrap.minimized .think-bubble {
+  display: none;
+}
+
+// ── Maniglia di ridimensionamento ────────────────────────────────────────────
+.resize-handle {
+  position: absolute;
+  // Area di presa più generosa del disegno: la maniglia si vede piccola ma si
+  // afferra facile. Con la cattura del puntatore, una volta presa non si molla
+  // più — ma prenderla dev'essere comodo lo stesso.
+  width: 26px;
+  height: 26px;
+  padding: 4px;
+  touch-action: none;   // il browser non deve interpretare il trascinamento come scroll
+  z-index: 3;
+  cursor: nwse-resize;
+  // Tre tacche diagonali, nello stile dei rivetti già presenti sulla scocca.
+  background:
+    linear-gradient(135deg, transparent 0 42%, var(--mrk-accent-fg) 42% 52%, transparent 52%),
+    linear-gradient(135deg, transparent 0 62%, var(--mrk-accent-fg) 62% 72%, transparent 72%),
+    linear-gradient(135deg, transparent 0 82%, var(--mrk-accent-fg) 82% 92%, transparent 92%);
+  background-origin: content-box;
+  background-clip: content-box;
+  opacity: .45;
+  transition: opacity .15s ease;
+
+  &:hover { opacity: 1; }
+}
+
+// Durante il ridimensionamento il cursore resta quello giusto su TUTTA la pagina
+// e nulla viene selezionato: senza, passando sopra il testo il cursore cambiava
+// e sembrava che il trascinamento fosse finito.
+:host-context(body.mark-resizing) * {
+  cursor: nwse-resize !important;
+  user-select: none !important;
+}
+
+// La maniglia prende il posto del rivetto d'angolo invece di coprirlo: l'angolo
+// diventa una vite che si può girare, e la scocca resta coerente.
+.mark-dialog-wrap:not(.has-custom-position) .resize-handle {
+  top: 3px;
+  left: 3px;
+  transform: rotate(180deg);
+}
+
+.mark-dialog-wrap.has-custom-position .resize-handle {
+  bottom: 3px;
+  right: 3px;
+}
+
+// Il rivetto sostituito sparisce, ma solo quando la maniglia c'è davvero
+// (cioè mentre Mark parla: *ngIf su state === 'playing').
+.mark-dialog-wrap.on:not(.minimized):not(.has-custom-position) .rivet-tl { display: none; }
+.mark-dialog-wrap.on:not(.minimized).has-custom-position .rivet-br { display: none; }
+
+// Durante il ridimensionamento le transizioni darebbero un effetto elastico
+// che fa perdere il contatto fra mouse e bordo.
+.mark-dialog-wrap.resizing {
+  transition: none;
+
+  .mark-dialog-box { transition: none; }
+}
+
 .cursor {
   display: inline-block;
   width: 10px;
   height: 18px;
-  background: #FFD700;
+  background: var(--mrk-accent-fg);
   margin-left: 2px;
   vertical-align: -2px;
   animation: mark-cursor-blink 0.4s steps(2) infinite;
@@ -374,10 +708,10 @@
   position: absolute;
   bottom: 14px;
   right: 24px;
-  color: #FFD700;
+  color: var(--mrk-accent-fg);
   font-family: 'Press Start 2P', monospace;
   font-size: 14px;
-  text-shadow: 2px 2px 0 #000;
+  text-shadow: 2px 2px 0 var(--mrk-hard-shadow);
   opacity: 0;
   animation: mark-arrow-blink 0.6s steps(2) infinite;
 
@@ -451,16 +785,16 @@
   gap: 6px;
   margin-top: 12px;
   padding: 6px 8px;
-  background: #050d22;
-  border: 2px solid #FFD700;
-  box-shadow: inset 0 0 0 1px #000;
+  background: var(--mrk-input-bg);
+  border: 2px solid var(--mrk-accent-fg);
+  box-shadow: inset 0 0 0 1px var(--mrk-hard-shadow);
 
   .prompt-prefix {
-    color: #FFD700;
+    color: var(--mrk-accent-fg);
     font-family: 'Press Start 2P', monospace;
     font-size: 12px;
     margin-left: 2px;
-    text-shadow: 1px 1px 0 #000;
+    text-shadow: 1px 1px 0 var(--mrk-hard-shadow);
   }
 
   .user-input {
@@ -469,15 +803,15 @@
     background: transparent;
     border: none;
     outline: none;
-    color: #fff8b0;
+    color: var(--mrk-input-fg);
     font-family: 'VT323', monospace;
     font-size: 18px;
     letter-spacing: 0.5px;
     padding: 4px 6px;
-    caret-color: #FFD700;
+    caret-color: var(--mrk-accent-fg);
 
     &::placeholder {
-      color: #6a7a99;
+      color: var(--mrk-placeholder);
       font-style: italic;
     }
 
