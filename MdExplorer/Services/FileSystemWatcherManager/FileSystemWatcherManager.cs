@@ -1,4 +1,4 @@
-using MdExplorer.Abstractions.DB;
+﻿using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.EngineDB;
 using MdExplorer.Abstractions.Models;
 using MdExplorer.Abstractions.Services;
@@ -546,7 +546,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         {
             return new FileChangeIgnoreConfiguration
             {
-                IgnoredDirectories = new List<string> { ".md", ".mde-doc" },
+                IgnoredDirectories = new List<string> { ".md", ".mde-doc", ".mde-code" },
                 IgnoredExtensions = new List<string> { ".pptx", ".docx", ".xlsx", ".xls", ".ppt", ".xlsb", ".bmpr", ".tmp" },
                 IgnoredPatterns = new List<string> { ".md", ".0.pdnSave" },
                 GitIgnoredFiles = new List<string> { "FETCH_HEAD", "COMMIT_EDITMSG", ".git/" },
@@ -561,7 +561,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         private static FileChangeIgnoreConfiguration EnsureMdeManagedIgnores(FileChangeIgnoreConfiguration config)
         {
             config.IgnoredDirectories ??= new List<string>();
-            foreach (var managed in new[] { ".md", ".mde-doc" })
+            foreach (var managed in new[] { ".md", ".mde-doc", ".mde-code" })
             {
                 if (!config.IgnoredDirectories.Any(d => string.Equals(d, managed, StringComparison.OrdinalIgnoreCase)))
                 {
@@ -1027,6 +1027,15 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     return;
                 }
 
+                // Script del grafo del codice (.mde-code/**/*.ast.jsonl | *.doc.jsonl): solo il caricatore, niente
+                // indice markdown né SignalR per l'albero. Sono la verità, il DB dedicato è l'indice.
+                if (MdExplorer.Features.Services.CodeGraph.CodeGraphPaths.IsCodeScriptFile(e.FullPath))
+                {
+                    _logger.LogInformation($"🧩 [{context.ConnectionId}] code script changed: {e.FullPath}");
+                    _ = LoadCodeScriptBestEffortAsync(context, e.FullPath, remove: false);
+                    return;
+                }
+
                 // Only process markdown files — skip non-md files BEFORE storm detection
                 // so that .git/FETCH_HEAD, .lock files, etc. don't trigger false storms
                 if (!isMarkdown)
@@ -1277,6 +1286,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                     return;
                 }
 
+                if (MdExplorer.Features.Services.CodeGraph.CodeGraphPaths.IsCodeScriptFile(e.FullPath))
+                {
+                    _logger.LogInformation($"🧩 [{context.ConnectionId}] code script created: {e.FullPath}");
+                    _ = LoadCodeScriptBestEffortAsync(context, e.FullPath, remove: false);
+                    return;
+                }
+
                 // Skip non-markdown, non-directory files BEFORE storm detection
                 // (prevents .git/FETCH_HEAD, .lock files etc. from triggering false storms)
                 if (!isMarkdown && !isDirectory)
@@ -1395,6 +1411,17 @@ namespace MdExplorer.Services.FileSystemWatcherManager
 
                 NotifyFolderContentChanged(context, e.OldFullPath);
                 NotifyFolderContentChanged(context, e.FullPath);
+
+                // Script del grafo del codice rinominato: via il vecchio, dentro il nuovo.
+                var oldIsCodeScript = MdExplorer.Features.Services.CodeGraph.CodeGraphPaths.IsCodeScriptFile(e.OldFullPath);
+                var newIsCodeScript = MdExplorer.Features.Services.CodeGraph.CodeGraphPaths.IsCodeScriptFile(e.FullPath);
+                if (oldIsCodeScript || newIsCodeScript)
+                {
+                    _logger.LogInformation($"🧩 [{context.ConnectionId}] code script renamed: {e.OldFullPath} -> {e.FullPath}");
+                    if (oldIsCodeScript) _ = LoadCodeScriptBestEffortAsync(context, e.OldFullPath, remove: true);
+                    if (newIsCodeScript) _ = LoadCodeScriptBestEffortAsync(context, e.FullPath, remove: false);
+                    return;
+                }
 
                 bool oldIsMarkdown = Path.GetExtension(e.OldFullPath).Equals(".md", StringComparison.OrdinalIgnoreCase);
                 bool newIsMarkdown = Path.GetExtension(e.FullPath).Equals(".md", StringComparison.OrdinalIgnoreCase);
@@ -1590,6 +1617,13 @@ namespace MdExplorer.Services.FileSystemWatcherManager
                 }
 
                 NotifyFolderContentChanged(context, e.FullPath);
+
+                if (MdExplorer.Features.Services.CodeGraph.CodeGraphPaths.IsCodeScriptFile(e.FullPath))
+                {
+                    _logger.LogInformation($"🧩 [{context.ConnectionId}] code script deleted: {e.FullPath}");
+                    _ = LoadCodeScriptBestEffortAsync(context, e.FullPath, remove: true);
+                    return;
+                }
 
                 var fileExtension = Path.GetExtension(e.FullPath);
                 var isMarkdown = fileExtension.Equals(".md", StringComparison.OrdinalIgnoreCase);
@@ -2052,6 +2086,35 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             if (!fullPath.EndsWith(".kg.cypher", StringComparison.OrdinalIgnoreCase)) return false;
             var parent = Path.GetFileName(Path.GetDirectoryName(fullPath));
             return string.Equals(parent, ".mde-doc", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // ============================================================
+        //   Code graph: script → DB dedicato (sprint 2026-10-09, F1)
+        // ============================================================
+
+        /// <summary>
+        /// Carica (o toglie) uno script di <c>.mde-code/</c> nel DB del grafo del codice. Best effort: un errore
+        /// di formato finisce nel log con file, riga e campo, e lo script resta «da caricare» nello stato.
+        /// </summary>
+        private async Task LoadCodeScriptBestEffortAsync(WatcherContext context, string fullPath, bool remove)
+        {
+            try
+            {
+                await Task.Yield();
+                using var scope = _serviceScopeFactory.CreateScope();
+                var loader = scope.ServiceProvider.GetRequiredService<MdExplorer.Features.Services.CodeGraph.ICodeScriptLoader>();
+                var result = remove
+                    ? loader.RemoveScript(context.ProjectPath, fullPath)
+                    : loader.LoadScript(context.ProjectPath, fullPath);
+                if (result.HasError)
+                    _logger.LogWarning($"🧩 [{context.ConnectionId}] code script NOT loaded: {result.Error}");
+                else
+                    _logger.LogInformation($"🧩 [{context.ConnectionId}] code script {(result.Removed ? "removed" : result.Skipped ? "unchanged" : "loaded")}: {result.ScriptPath} ({result.RecordCount} records)");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, $"🧩 [{context.ConnectionId}] code script hook threw for {fullPath}");
+            }
         }
 
         private async Task SyncKgFileBestEffortAsync(string fullPath, string connectionId)

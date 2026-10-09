@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
@@ -201,7 +201,7 @@ namespace MdExplorer.Service.Services
         private static FoldersIgnoreConfiguration EnsureMdeManagedFolders(FoldersIgnoreConfiguration config)
         {
             config.IgnoredFolders ??= new List<string>();
-            foreach (var managed in new[] { ".md", ".mde-doc" })
+            foreach (var managed in new[] { ".md", ".mde-doc", ".mde-code" })
             {
                 if (!config.IgnoredFolders.Any(f => string.Equals(f, managed, StringComparison.OrdinalIgnoreCase)))
                 {

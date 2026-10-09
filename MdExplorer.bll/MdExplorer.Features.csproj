@@ -37,6 +37,7 @@
     <PackageReference Include="Whisper.net" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <PackageReference Include="FluentMigrator.Runner" Version="3.2.17" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <PackageReference Include="System.Management" Version="8.0.0" />
   </ItemGroup>
@@ -115,6 +116,7 @@
     <ProjectReference Include="..\Ad.Tools.Dal.Abstractions\Ad.Tools.Dal.Abstractions\Ad.Tools.Dal.Abstractions.csproj" />
     <ProjectReference Include="..\Ad.Tools.Dal\Ad.Tools.Dal\Ad.Tools.Dal.csproj" />
     <ProjectReference Include="..\MdExplorer.Abstractions\MdExplorer.Abstractions.csproj" />
+    <ProjectReference Include="..\MdExplorer.Migrations.CodeDb\MdExplorer.Migrations.CodeDb.csproj" />
   </ItemGroup>
 
 </Project>

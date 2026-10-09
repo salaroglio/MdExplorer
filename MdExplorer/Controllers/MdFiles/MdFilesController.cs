@@ -2162,6 +2162,31 @@ namespace MdExplorer.Service.Controllers.MdFiles
                 _logger.LogWarning("[GetShallowStructure] IIndexingPipelineService not available, indexing skipped");
             }
 
+            // Grafo del codice (sprint 2026-10-09, F1): «generazione della conoscenza» all'apertura — gli script di
+            // .mde-code/ cambiati dall'ultima volta entrano nel DB dedicato. Fire-and-forget, DB suo, nessuna
+            // contesa con l'engine DB. Niente cartella .mde-code = esito vuoto, non un errore.
+            var codeScriptLoader = HttpContext?.RequestServices?.GetService<MdExplorer.Features.Services.CodeGraph.ICodeScriptLoader>();
+            if (codeScriptLoader != null)
+            {
+                var codeGraphProjectPath = currentPath;
+                _ = Task.Run(async () =>
+                {
+                    await Task.Yield();
+                    try
+                    {
+                        var outcome = codeScriptLoader.LoadProject(codeGraphProjectPath);
+                        if (outcome.ScriptsFolderMissing) return;
+                        _logger.LogInformation("🧩 [CodeGraph] '{Project}': {Loaded} script caricati, {Skipped} invariati, {Removed} tolti, {Failed} falliti{Err}",
+                            codeGraphProjectPath, outcome.Loaded, outcome.Skipped, outcome.Removed, outcome.Failed,
+                            outcome.Failed > 0 ? $" — primo errore: {outcome.FirstError}" : string.Empty);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "🧩 [CodeGraph] caricamento all'apertura fallito per '{Project}'", codeGraphProjectPath);
+                    }
+                });
+            }
+
             // ============================ Scan statistics ============================
             // Emit a single summary block so the time-cost per top-level folder is obvious.
             // Sorted by elapsed desc so the worst offenders come first.

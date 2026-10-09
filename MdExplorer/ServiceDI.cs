@@ -24,6 +24,14 @@ namespace MdExplorer.Service
             services.AddSingleton<ITextFtsService>(sp => new TextFtsService(
                 MdExplorer.Utilities.CrossPlatformPath.GetAppDataPath(),
                 sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TextFtsService>>()));
+            // Grafo del codice (sprint 2026-10-09): DB dedicato su Microsoft.Data.Sqlite (FTS5), caricatore degli
+            // script di .mde-code/, modello di lettura per API e tool.
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeGraphDatabase>(sp =>
+                new MdExplorer.Features.Services.CodeGraph.CodeGraphDatabase(
+                    MdExplorer.Utilities.CrossPlatformPath.GetAppDataPath(),
+                    sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<MdExplorer.Features.Services.CodeGraph.CodeGraphDatabase>>()));
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeScriptLoader, MdExplorer.Features.Services.CodeGraph.CodeScriptLoader>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.CodeGraphRepository>();
             return services;
         }
     }
