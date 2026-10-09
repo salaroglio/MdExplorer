@@ -10,6 +10,9 @@ export interface DetectedLanguage {
   extractorKind: string;
   /** 'ready' oppure il motivo per cui oggi non si analizza. */
   availability: string;
+  /** La grammatica tree-sitter da scaricare per renderlo pronto, se è questo il motivo. */
+  grammarId?: string | null;
+  grammarSizeKb?: number | null;
 }
 
 export interface CodeFolderLanguages {
@@ -72,6 +75,10 @@ export class CodeGraphService {
 
   generate(projectPath: string): Observable<any> {
     return this.http.post('../api/codegraph/generate', { projectPath });
+  }
+
+  downloadGrammar(grammarId: string): Observable<any> {
+    return this.http.post('../api/codegraph/grammars/download', { grammarId });
   }
 
   status(projectPath: string): Observable<CodeGraphStatus> {

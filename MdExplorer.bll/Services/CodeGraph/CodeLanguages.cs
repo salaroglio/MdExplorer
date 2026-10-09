@@ -67,6 +67,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         public CodeExtractorKind ExtractorKind { get; set; }
         /// <summary><c>ready</c>, oppure il motivo per cui oggi non si analizza (grammatica da scaricare, estrattore non ancora disponibile).</summary>
         public string Availability { get; set; }
+        /// <summary>La grammatica tree-sitter da scaricare per renderlo pronto, se è questo il motivo; null altrimenti.</summary>
+        public string GrammarId { get; set; }
+        public int? GrammarSizeKb { get; set; }
     }
 
     public static class CodeLanguageDetector
@@ -85,7 +88,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 .Select(l => new DetectedLanguage
                 {
                     Id = l.Id, DisplayName = l.DisplayName, Files = counts[l.Id], ExtractorKind = l.ExtractorKind,
-                    Availability = extractors.Availability(l.Id)
+                    Availability = extractors.Availability(l.Id),
+                    GrammarId = extractors.Availability(l.Id) != "ready" && l.ExtractorKind == CodeExtractorKind.TreeSitter ? Grammars.GrammarCatalog.ForLanguage(l.Id)?.Id : null,
+                    GrammarSizeKb = extractors.Availability(l.Id) != "ready" && l.ExtractorKind == CodeExtractorKind.TreeSitter ? Grammars.GrammarCatalog.ForLanguage(l.Id)?.ApproxSizeKb : null,
                 })
                 .OrderByDescending(d => d.Files)
                 .ToList();

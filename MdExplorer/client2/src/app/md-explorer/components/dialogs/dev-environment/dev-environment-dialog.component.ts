@@ -37,6 +37,8 @@ export class DevEnvironmentDialogComponent implements OnInit {
   public selected = new Set<string>();
   public scanMode = '';
   public outcome: CodeFolderAnalysisOutcome | null = null;
+  /** La grammatica in download, per lo spinner sulla riga giusta. */
+  public downloading: string | null = null;
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: DevEnvironmentDialogData,
@@ -45,7 +47,10 @@ export class DevEnvironmentDialogComponent implements OnInit {
     private translate: TranslateService
   ) { }
 
-  ngOnInit(): void {
+  ngOnInit(): void { this.loadLanguages(); }
+
+  private loadLanguages(): void {
+    this.loading = true;
     this.codeGraph.getLanguages(this.data.projectRoot, this.data.folderPath).subscribe({
       next: (res) => {
         this.detected = res.detected ?? [];
@@ -71,6 +76,26 @@ export class DevEnvironmentDialogComponent implements OnInit {
   }
 
   isReady(d: DetectedLanguage): boolean { return d.availability === 'ready'; }
+
+  canDownload(d: DetectedLanguage): boolean { return !this.isReady(d) && !!d.grammarId; }
+
+  /** Scarica la grammatica (D8) e rilegge i linguaggi: la riga passa a «pronto» e resta selezionabile. */
+  download(d: DetectedLanguage): void {
+    if (!d.grammarId || this.downloading) { return; }
+    this.downloading = d.grammarId;
+    this.errorMessage = '';
+    this.codeGraph.downloadGrammar(d.grammarId).subscribe({
+      next: () => {
+        this.downloading = null;
+        this.selected.add(d.id);
+        this.loadLanguages();
+      },
+      error: (err) => {
+        this.downloading = null;
+        this.errorMessage = err?.error?.error || err?.message || this.translate.instant('COMMON.ERROR');
+      }
+    });
+  }
 
   get selectedList(): string[] { return Array.from(this.selected); }
 

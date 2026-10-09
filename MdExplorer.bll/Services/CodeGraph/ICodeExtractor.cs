@@ -32,6 +32,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Nome e versione finiscono nell'intestazione: cambiarli vuol dire riparsare tutto.</summary>
         string ExtractorName { get; }
         string ExtractorVersion { get; }
+        /// <summary><c>ready</c>, oppure perché oggi non può lavorare (es. grammatica non scaricata).</summary>
+        string Availability { get; }
         CodeExtractionResult Extract(CodeExtractionRequest request, CancellationToken ct = default);
     }
 
@@ -52,11 +54,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             _extractors = extractors.ToDictionary(e => e.LanguageId, StringComparer.OrdinalIgnoreCase);
         }
 
-        public ICodeExtractor Get(string languageId) => _extractors.TryGetValue(languageId, out var e) ? e : null;
+        /// <summary>L'estrattore pronto; null se non c'è o se oggi non può lavorare (grammatica assente).</summary>
+        public ICodeExtractor Get(string languageId)
+            => _extractors.TryGetValue(languageId, out var e) && e.Availability == "ready" ? e : null;
 
         public string Availability(string languageId)
         {
-            if (_extractors.ContainsKey(languageId)) return "ready";
+            if (_extractors.TryGetValue(languageId, out var e)) return e.Availability;
             var lang = CodeLanguages.ById(languageId);
             if (lang == null) return "linguaggio sconosciuto";
             return lang.ExtractorKind == CodeExtractorKind.TreeSitter

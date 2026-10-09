@@ -33,6 +33,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string LanguageId => CodeLanguages.CSharp;
         public string ExtractorName => "roslyn";
         public string ExtractorVersion => "1";
+        public string Availability => "ready";
 
         private readonly ILogger<RoslynCSharpExtractor> _logger;
 

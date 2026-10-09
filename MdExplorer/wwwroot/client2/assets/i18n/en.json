@@ -710,7 +710,8 @@
       "OUTCOME_LOADED": "{{loaded}} scripts loaded into the database, {{failed}} failed",
       "OUTCOME_NO_EXTRACTOR": "{{language}}: {{files}} files not analysed, extractor not available yet",
       "SAVE": "Save",
-      "SAVE_AND_ANALYZE": "Save and analyse"
+      "DOWNLOAD_GRAMMAR": "Download the grammar ({{size}} MB)",
+    "SAVE_AND_ANALYZE": "Save and analyse"
   },
   "LEAVE_COPY": {
     "TITLE": "Back to your work: saving the copy of {{agent}}",

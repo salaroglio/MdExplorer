@@ -24,3 +24,5 @@
 .outcome .warn { color: #ef6c00; }
 .outcome .reason { font-size: 12px; opacity: 0.7; margin: 6px 0 0; }
 .error { display: flex; align-items: flex-start; gap: 6px; color: #c62828; }
+.availability .download { display: inline-flex; align-items: center; gap: 6px; line-height: 28px; padding: 0 10px; }
+.availability .download mat-spinner { display: inline-block; }

@@ -125,7 +125,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             { "type", "symbolId", "parameterName", "description" };
 
         public static readonly string[] SymbolKinds =
-            { "namespace", "module", "class", "interface", "record", "struct", "enum", "method", "constructor", "property", "field", "function", "external" };
+            { "namespace", "module", "class", "interface", "record", "struct", "enum", "method", "constructor", "property", "field", "function", "type",
+              "component", "service", "directive", "pipe", "ngmodule", "external" };
         public static readonly string[] Relations =
             { "contains", "imports", "inherits", "implements", "references", "calls", "instantiates" };
         public static readonly string[] Confidences = { "extracted", "inferred", "ambiguous" };

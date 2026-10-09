@@ -34,8 +34,16 @@
             <span class="language-files">· {{ 'DEV_ENV.FILES' | translate: { count: d.files } }}</span>
           </mat-checkbox>
           <span class="availability" [class.ready]="isReady(d)" [class.pending]="!isReady(d)">
-            <mat-icon>{{ isReady(d) ? 'check_circle' : 'schedule' }}</mat-icon>
-            {{ isReady(d) ? ('DEV_ENV.READY' | translate) : d.availability }}
+            <ng-container *ngIf="!canDownload(d)">
+              <mat-icon>{{ isReady(d) ? 'check_circle' : 'schedule' }}</mat-icon>
+              {{ isReady(d) ? ('DEV_ENV.READY' | translate) : d.availability }}
+            </ng-container>
+            <button mat-stroked-button color="primary" class="download" *ngIf="canDownload(d)"
+                    (click)="download(d)" [disabled]="downloading !== null || saving || analyzing">
+              <mat-spinner diameter="16" *ngIf="downloading === d.grammarId"></mat-spinner>
+              <mat-icon *ngIf="downloading !== d.grammarId">download</mat-icon>
+              {{ 'DEV_ENV.DOWNLOAD_GRAMMAR' | translate: { size: ((d.grammarSizeKb || 0) / 1024).toFixed(1) } }}
+            </button>
           </span>
         </div>
       </div>

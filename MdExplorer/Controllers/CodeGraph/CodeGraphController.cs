@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MdExplorer.Features.Services.CodeGraph;
@@ -20,15 +21,69 @@ namespace MdExplorer.Controllers.CodeGraph
         private readonly ICodeScriptLoader _loader;
         private readonly CodeGraphRepository _repository;
         private readonly MdExplorer.Services.CodeGraph.ICodeAnalysisService _analysis;
+        private readonly MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore _grammars;
+        private readonly MdExplorer.Features.Services.CodeGraph.Grammars.IGrammarDownloader _grammarDownloader;
         private readonly ILogger<CodeGraphController> _logger;
 
         public CodeGraphController(ICodeScriptLoader loader, CodeGraphRepository repository,
-            MdExplorer.Services.CodeGraph.ICodeAnalysisService analysis, ILogger<CodeGraphController> logger)
+            MdExplorer.Services.CodeGraph.ICodeAnalysisService analysis,
+            MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore grammars,
+            MdExplorer.Features.Services.CodeGraph.Grammars.IGrammarDownloader grammarDownloader,
+            ILogger<CodeGraphController> logger)
         {
             _loader = loader;
             _repository = repository;
             _analysis = analysis;
+            _grammars = grammars;
+            _grammarDownloader = grammarDownloader;
             _logger = logger;
+        }
+
+        public class GrammarRequest { public string GrammarId { get; set; } }
+
+        /// <summary>GET /api/codegraph/grammars — il catalogo delle grammatiche tree-sitter con lo stato sul disco (D8).</summary>
+        [HttpGet("grammars")]
+        public IActionResult Grammars()
+        {
+            var list = MdExplorer.Features.Services.CodeGraph.Grammars.GrammarCatalog.All.Select(g =>
+            {
+                var installed = _grammars.Installed(g);
+                return new
+                {
+                    id = g.Id, languageId = g.LanguageId, displayName = g.DisplayName, approxSizeKb = g.ApproxSizeKb,
+                    installed = installed != null, version = installed?.Version, installedAt = installed?.InstalledAt, path = installed?.Path,
+                };
+            });
+            return Ok(new { rid = _grammars.Rid, folder = _grammars.Folder, grammars = list });
+        }
+
+        /// <summary>POST /api/codegraph/grammars/download {grammarId} — scarica e installa una grammatica da mdexplorer.net.</summary>
+        [HttpPost("grammars/download")]
+        public async Task<IActionResult> DownloadGrammar([FromBody] GrammarRequest request, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(request?.GrammarId)) return BadRequest(new { error = "grammarId è obbligatorio" });
+            try
+            {
+                var installed = await _grammarDownloader.DownloadAsync(request.GrammarId, ct);
+                return Ok(installed);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning("[CodeGraph] download grammatica '{Id}' fallito: {Why}", request.GrammarId, ex.Message);
+                return BadRequest(new { error = ex.Message });
+            }
+            catch (System.Net.Http.HttpRequestException ex)
+            {
+                return BadRequest(new { error = $"Rete: {ex.Message}" });
+            }
+        }
+
+        /// <summary>DELETE /api/codegraph/grammars/{grammarId} — toglie una grammatica dal disco.</summary>
+        [HttpDelete("grammars/{grammarId}")]
+        public IActionResult RemoveGrammar(string grammarId)
+        {
+            try { _grammars.Remove(MdExplorer.Features.Services.CodeGraph.Grammars.GrammarCatalog.Require(grammarId)); return Ok(new { removed = grammarId }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
         }
 
         public class GenerateRequest { public string ProjectPath { get; set; } }

@@ -33,7 +33,19 @@ namespace MdExplorer.Service
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeScriptLoader, MdExplorer.Features.Services.CodeGraph.CodeScriptLoader>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.CodeGraphRepository>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.CodeScanStateStore>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore>(sp =>
+                new MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore(MdExplorer.Utilities.CrossPlatformPath.GetAppDataPath()));
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.Grammars.CodeGraphOptions>(sp =>
+            {
+                var cfg = sp.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>();
+                var o = new MdExplorer.Features.Services.CodeGraph.Grammars.CodeGraphOptions();
+                var url = cfg["MdExplorer:GrammarApiUrl"];
+                if (!string.IsNullOrWhiteSpace(url)) o.GrammarApiUrl = url;
+                return o;
+            });
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.Grammars.IGrammarDownloader, MdExplorer.Features.Services.CodeGraph.Grammars.GrammarDownloader>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.RoslynCSharpExtractor>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.TreeSitterTypeScriptExtractor>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractorRegistry, MdExplorer.Features.Services.CodeGraph.CodeExtractorRegistry>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeChangeScanner, MdExplorer.Services.CodeGraph.CodeChangeScanner>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeAnalysisService, MdExplorer.Services.CodeGraph.CodeAnalysisService>();
