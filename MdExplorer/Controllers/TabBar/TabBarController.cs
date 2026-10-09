@@ -276,7 +276,7 @@ namespace MdExplorer.Service.Controllers.TabBar
             // absolute, and the page refused to navigate to it).
             string ToRelative(string full) => KnowledgeGraphFiles.ToProjectRelative(full, projectRoot);
 
-            var graph = new KnowledgeGraphDto { CenterId = normalizedCenter };
+            var graph = new KnowledgeGraphDto { CenterId = normalizedCenter, ProjectName = System.IO.Path.GetFileName(projectRoot) };
             var nodeMap = new Dictionary<string, KnowledgeGraphNodeDto>(StringComparer.OrdinalIgnoreCase);
             var edgeKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 

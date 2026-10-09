@@ -5,6 +5,8 @@ namespace MdExplorer.Service.Controllers.TabBar.Automapper
     public class KnowledgeGraphDto
     {
         public string CenterId { get; set; }
+        /// <summary>Name of the project folder: the label of the circle of the files in the root.</summary>
+        public string ProjectName { get; set; }
         public List<KnowledgeGraphNodeDto> Nodes { get; set; } = new List<KnowledgeGraphNodeDto>();
         public List<KnowledgeGraphLinkDto> Links { get; set; } = new List<KnowledgeGraphLinkDto>();
     }
