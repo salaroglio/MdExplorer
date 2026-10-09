@@ -42,6 +42,8 @@ export class MdServerMessagesService {
 
   // Observable for the Mark folder-summarizer job progress (MarkActionsController)
   public markFolderProgress$ = new Subject<any>();
+  /** Grafo del codice: progressi di «Descrivi il codice» (F4). */
+  public codeDocProgress$ = new Subject<any>();
 
   // Observable for the "Ask to MarkAgent" diagram explanation stream
   // (MarkDiagramController). Phases: start | chunk | done | error.
@@ -295,6 +297,9 @@ export class MdServerMessagesService {
       // Mark folder-summarizer job progress
       this.hubConnection.on('markFolderProgress', (data) => {
         this.markFolderProgress$.next(data);
+      });
+      this.hubConnection.on('codeDocProgress', (data) => {
+        this.codeDocProgress$.next(data);
       });
 
       // "Ask to MarkAgent" diagram explanation, streamed chunk by chunk

@@ -1,4 +1,6 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { Subject, takeUntil } from 'rxjs';
+import { MdServerMessagesService } from '../../../../signalR/services/server-messages.service';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { TranslateService } from '@ngx-translate/core';
 import { CodeGraphService, CodeFolderAnalysisOutcome, DetectedLanguage } from '../../../services/code-graph.service';
@@ -28,7 +30,8 @@ export interface DevEnvironmentDialogResult {
   templateUrl: './dev-environment-dialog.component.html',
   styleUrls: ['./dev-environment-dialog.component.scss']
 })
-export class DevEnvironmentDialogComponent implements OnInit {
+export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
   public loading = true;
   public saving = false;
   public analyzing = false;
@@ -39,15 +42,62 @@ export class DevEnvironmentDialogComponent implements OnInit {
   public outcome: CodeFolderAnalysisOutcome | null = null;
   /** La grammatica in download, per lo spinner sulla riga giusta. */
   public downloading: string | null = null;
+  /** «Descrivi il codice» (F4): in corso, righe di progresso, esito. */
+  public describing = false;
+  public describeLog: string[] = [];
+  public describeDone: { files: number; described: number; rejected: number } | null = null;
 
   constructor(
     @Inject(MAT_DIALOG_DATA) public data: DevEnvironmentDialogData,
     private dialogRef: MatDialogRef<DevEnvironmentDialogComponent, DevEnvironmentDialogResult | undefined>,
     private codeGraph: CodeGraphService,
-    private translate: TranslateService
+    private translate: TranslateService,
+    private serverMessages: MdServerMessagesService
   ) { }
 
-  ngOnInit(): void { this.loadLanguages(); }
+  ngOnInit(): void {
+    this.loadLanguages();
+    this.serverMessages.codeDocProgress$.pipe(takeUntil(this.destroy$)).subscribe(p => this.onDescribeProgress(p));
+  }
+
+  ngOnDestroy(): void { this.destroy$.next(); this.destroy$.complete(); }
+
+  /** La cartella ha già dei linguaggi scelti: si può descrivere senza rifare l'analisi. */
+  get canDescribe(): boolean { return (this.outcome != null || this.selected.size > 0) && !this.loading && !this.saving && !this.analyzing; }
+
+  describe(force = false): void {
+    const connectionId = this.serverMessages.connectionId;
+    if (!connectionId || this.describing) { return; }
+    this.describing = true;
+    this.describeLog = [];
+    this.describeDone = null;
+    this.errorMessage = '';
+    this.codeGraph.describe(this.data.projectRoot, this.data.folderPath, connectionId, force).subscribe({
+      error: (err) => {
+        this.describing = false;
+        this.errorMessage = err?.error?.error || err?.message || this.translate.instant('COMMON.ERROR');
+      }
+    });
+  }
+
+  cancelDescribe(): void {
+    const connectionId = this.serverMessages.connectionId;
+    if (connectionId) { this.codeGraph.cancelDescribe(connectionId).subscribe(); }
+  }
+
+  private onDescribeProgress(p: any): void {
+    if (!p) { return; }
+    switch (p.phase) {
+      case 'started': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_STARTED', { provider: p.provider, total: p.fileTotal })); break;
+      case 'describing': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_FILE', { index: p.fileIndex, total: p.fileTotal, file: p.file, symbols: p.symbols })); break;
+      case 'file-done': this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_FILE_DONE', { file: p.file, described: p.described, rejected: p.rejected })); break;
+      case 'file-failed': case 'file-skipped': this.describeLog.push(`⚠ ${p.file}: ${p.detail}`); break;
+      case 'done': this.describing = false; this.describeDone = { files: p.files, described: p.described, rejected: p.rejected }; break;
+      case 'cancelled': this.describing = false; this.describeLog.push(this.translate.instant('DEV_ENV.DESCRIBE_CANCELLED')); break;
+      case 'error': this.describing = false; this.errorMessage = p.detail || p.message; break;
+    }
+    if (this.describeLog.length > 200) { this.describeLog.splice(0, this.describeLog.length - 200); }
+  }
 
   private loadLanguages(): void {
     this.loading = true;

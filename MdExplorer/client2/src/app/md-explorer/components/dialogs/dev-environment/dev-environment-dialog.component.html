@@ -75,6 +75,18 @@
       <p class="reason">{{ outcome.reason }}</p>
     </div>
 
+    <div class="describe" *ngIf="describing || describeLog.length > 0 || describeDone">
+      <div class="outcome-title">
+        <mat-spinner diameter="16" *ngIf="describing"></mat-spinner>
+        <mat-icon *ngIf="!describing && describeDone">done_all</mat-icon>
+        <span *ngIf="describing">{{ 'DEV_ENV.DESCRIBING' | translate }}</span>
+        <span *ngIf="!describing && describeDone">{{ 'DEV_ENV.DESCRIBE_DONE' | translate: describeDone }}</span>
+      </div>
+      <div class="describe-log">
+        <div *ngFor="let line of describeLog">{{ line }}</div>
+      </div>
+    </div>
+
     <div class="error" *ngIf="errorMessage">
       <mat-icon>error_outline</mat-icon>
       <span>{{ errorMessage }}</span>
@@ -90,5 +102,15 @@
       {{ (hasReadySelection ? 'DEV_ENV.SAVE_AND_ANALYZE' : 'DEV_ENV.SAVE') | translate }}
     </button>
   </ng-container>
-  <button mat-raised-button color="primary" *ngIf="outcome" (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
+  <ng-container *ngIf="outcome">
+    <button mat-stroked-button color="primary" *ngIf="!describing" (click)="describe(false)" [disabled]="!canDescribe">
+      <mat-icon>auto_awesome</mat-icon>
+      {{ 'DEV_ENV.DESCRIBE' | translate }}
+    </button>
+    <button mat-stroked-button color="warn" *ngIf="describing" (click)="cancelDescribe()">
+      <mat-icon>stop</mat-icon>
+      {{ 'COMMON.CANCEL' | translate }}
+    </button>
+    <button mat-raised-button color="primary" (click)="close()" [disabled]="describing">{{ 'COMMON.CLOSE' | translate }}</button>
+  </ng-container>
 </mat-dialog-actions>

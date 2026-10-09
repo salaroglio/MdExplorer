@@ -711,6 +711,13 @@
       "OUTCOME_NO_EXTRACTOR": "{{language}}: {{files}} file non analizzati, estrattore non ancora disponibile",
       "SAVE": "Salva",
       "DOWNLOAD_GRAMMAR": "Scarica la grammatica ({{size}} MB)",
+    "DESCRIBE": "Descrivi il codice con Mark",
+    "DESCRIBING": "Mark sta descrivendo il codice…",
+    "DESCRIBE_STARTED": "Motore {{provider}}, {{total}} file da guardare",
+    "DESCRIBE_FILE": "{{index}}/{{total}} {{file}}: {{symbols}} simboli da descrivere",
+    "DESCRIBE_FILE_DONE": "{{file}}: {{described}} descritti, {{rejected}} righe scartate",
+    "DESCRIBE_DONE": "Descrizioni scritte: {{described}} simboli in {{files}} file ({{rejected}} righe scartate)",
+    "DESCRIBE_CANCELLED": "Annullato.",
     "SAVE_AND_ANALYZE": "Salva e analizza"
   },
   "LEAVE_COPY": {

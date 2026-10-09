@@ -26,3 +26,6 @@
 .error { display: flex; align-items: flex-start; gap: 6px; color: #c62828; }
 .availability .download { display: inline-flex; align-items: center; gap: 6px; line-height: 28px; padding: 0 10px; }
 .availability .download mat-spinner { display: inline-block; }
+.describe .outcome-title { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #2e7d32; }
+.describe-log { max-height: 160px; overflow: auto; font-size: 12px; opacity: 0.85; margin-top: 4px; }
+.describe-log div { padding: 1px 0; }

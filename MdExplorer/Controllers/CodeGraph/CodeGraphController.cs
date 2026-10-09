@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MdExplorer.Features.Services.CodeGraph;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 namespace MdExplorer.Controllers.CodeGraph
@@ -40,6 +41,36 @@ namespace MdExplorer.Controllers.CodeGraph
         }
 
         public class GrammarRequest { public string GrammarId { get; set; } }
+        public class DescribeRequest : FolderRequest { public string ConnectionId { get; set; } public bool Force { get; set; } }
+        public class CancelRequest { public string ConnectionId { get; set; } }
+
+        /// <summary>
+        /// POST /api/codegraph/describe {projectPath, folderPath, connectionId, force} — «Descrivi il codice» (F4): per ogni
+        /// file della cartella l'AI scrive le descrizioni dei simboli senza descrizione o con la firma cambiata.
+        /// Fire-and-forget; i progressi arrivano via SignalR <c>codeDocProgress</c> alla connessione data.
+        /// </summary>
+        [HttpPost("describe")]
+        public IActionResult Describe([FromBody] DescribeRequest request)
+        {
+            var bad = ValidateProject(request?.ProjectPath);
+            if (bad != null) return bad;
+            if (string.IsNullOrWhiteSpace(request.ConnectionId)) return BadRequest(new { error = "connectionId è obbligatorio" });
+            var rel = ToRelative(request.ProjectPath, request.FolderPath);
+            if (rel == null) return BadRequest(new { error = "folderPath deve stare dentro il progetto" });
+            var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
+            try { _ = job.RunDescribeAsync(request.ConnectionId, request.ProjectPath, rel, request.Force, CancellationToken.None); }
+            catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+            return Ok(new { started = true, folder = rel });
+        }
+
+        /// <summary>POST /api/codegraph/describe/cancel {connectionId}</summary>
+        [HttpPost("describe/cancel")]
+        public IActionResult CancelDescribe([FromBody] CancelRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request?.ConnectionId)) return BadRequest(new { error = "connectionId è obbligatorio" });
+            HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>().Cancel(request.ConnectionId);
+            return Ok(new { cancelled = true });
+        }
 
         /// <summary>GET /api/codegraph/grammars — il catalogo delle grammatiche tree-sitter con lo stato sul disco (D8).</summary>
         [HttpGet("grammars")]

@@ -77,6 +77,14 @@ export class CodeGraphService {
     return this.http.post('../api/codegraph/generate', { projectPath });
   }
 
+  describe(projectPath: string, folderPath: string, connectionId: string, force = false): Observable<any> {
+    return this.http.post('../api/codegraph/describe', { projectPath, folderPath, connectionId, force });
+  }
+
+  cancelDescribe(connectionId: string): Observable<any> {
+    return this.http.post('../api/codegraph/describe/cancel', { connectionId });
+  }
+
   downloadGrammar(grammarId: string): Observable<any> {
     return this.http.post('../api/codegraph/grammars/download', { grammarId });
   }

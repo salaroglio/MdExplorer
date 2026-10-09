@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -196,6 +196,7 @@ namespace MdExplorer.Utilities
             new CatalogEntry("mde-codegen-graph", Shared("MdExplorer.Service.skills.mde_codegen_graph.prompt.md")),
             new CatalogEntry("mde-mark-summarize", Shared("MdExplorer.Service.skills.mde_mark_summarize.prompt.md")),
             new CatalogEntry("mde-mark-folder-synthesis", Shared("MdExplorer.Service.skills.mde_mark_folder_synthesis.prompt.md")),
+            new CatalogEntry("mde-code-doc", Shared("MdExplorer.Service.skills.mde_code_doc.prompt.md")),
         };
 
         private const string OriginMarker = "mdexplorer";

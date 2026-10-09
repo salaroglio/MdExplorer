@@ -17742,6 +17742,8 @@ class MdServerMessagesService {
     this.publishProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for the Mark folder-summarizer job progress (MarkActionsController)
     this.markFolderProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    /** Grafo del codice: progressi di «Descrivi il codice» (F4). */
+    this.codeDocProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for the "Ask to MarkAgent" diagram explanation stream
     // (MarkDiagramController). Phases: start | chunk | done | error.
     this.markDiagramExplain$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
@@ -17873,6 +17875,9 @@ class MdServerMessagesService {
         // Mark folder-summarizer job progress
         this.hubConnection.on('markFolderProgress', data => {
           this.markFolderProgress$.next(data);
+        });
+        this.hubConnection.on('codeDocProgress', data => {
+          this.codeDocProgress$.next(data);
         });
         // "Ask to MarkAgent" diagram explanation, streamed chunk by chunk
         this.hubConnection.on('markDiagramExplain', data => {
@@ -18362,8 +18367,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.09.2',
-  buildTime: '2026.10.09 19:41:57'
+  version: '2026.10.09.3',
+  buildTime: '2026.10.09 20:04:05'
 };
 
 /***/ }),
@@ -18397,4 +18402,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.7fb6a2b744c4c708.js.map
+//# sourceMappingURL=main.3b6c0aebb8f204d8.js.map
