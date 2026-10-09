@@ -391,7 +391,8 @@
     font: 12.5px/1.4 -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
     user-select: none;
 }
-.kgBoxOpen { width: 260px; }
+/* An open box floats above its neighbours: the TL;DR overlaps them instead of pushing them. */
+.kgBoxOpen { z-index: 5; }
 .kgBoxCenter {
     background: #fffbeb;
     border-color: #b45309;
@@ -432,10 +433,24 @@
     cursor: pointer;
 }
 .kgBoxName:hover { text-decoration: underline; }
+/*
+ * The TL;DR is a balloon hanging under the head, out of the flow (position: absolute):
+ * the box keeps the height of its head, so the collision force and the folder circles
+ * ignore the open detail and nothing around the box moves (user request, 2026-10-09).
+ */
 .kgBoxBody {
+    position: absolute;
+    top: 100%;
+    left: -4px;              /* flush with the accent border of the head */
+    width: 260px;
+    margin-top: 4px;
     padding: 7px 11px 9px;
-    border-top: 1px solid rgba(15,23,42,0.08);
+    background: #ffffff;
     color: #334155;
+    border: 1px solid rgba(15,23,42,0.12);
+    border-left: 4px solid var(--kg-accent, #0ea5e9);
+    border-radius: 10px;
+    box-shadow: 0 8px 22px rgba(15,23,42,0.18), 0 1px 3px rgba(15,23,42,0.06);
     font-size: 12px;
     white-space: normal;
     user-select: text;
@@ -490,7 +505,13 @@
 }
 .kgDark .kgBoxToggle { color: #94a3b8; }
 .kgDark .kgBoxToggle:hover { background: rgba(255,255,255,0.08); color: #e6edf3; }
-.kgDark .kgBoxBody { color: #cbd5e1; border-top-color: rgba(255,255,255,0.10); }
+.kgDark .kgBoxBody {
+    color: #cbd5e1;
+    background: #111827;
+    border-color: rgba(255,255,255,0.14);
+    border-left-color: var(--kg-accent, #38bdf8);
+    box-shadow: 0 8px 22px rgba(0,0,0,0.45);
+}
 
 /* A link to a file that is not on disk: shown, but it does not open. */
 .kgBoxMissing { opacity: 0.6; border-style: dashed; }

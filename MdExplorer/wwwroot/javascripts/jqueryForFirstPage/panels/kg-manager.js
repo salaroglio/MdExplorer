@@ -330,15 +330,13 @@
             (hasTldr ? '<div class="kgBoxBody">' + renderTldrHtml(node.tldr) + '</div>' : '');
 
         const toggle = el.querySelector('.kgBoxToggle');
+        // The TL;DR opens as a balloon out of the flow (see .kgBoxBody): the box keeps the
+        // size of its head, so nothing is re-measured and the graph does not move.
         toggle.addEventListener('click', function (e) {
             e.stopPropagation();
             if (toggle.disabled) return;
             const open = el.classList.toggle('kgBoxOpen');
             toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-            measureBox(node);
-            positionBoxes(g);
-            // The box changed size: let the collision force make room for it.
-            try { g.d3ReheatSimulation(); } catch (err) { /* noop */ }
         });
         el.querySelectorAll('.kgFileIcon, .kgBoxName').forEach(function (target) {
             target.addEventListener('click', function (e) {
