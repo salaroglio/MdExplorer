@@ -111,6 +111,14 @@
       <mat-icon>stop</mat-icon>
       {{ 'COMMON.CANCEL' | translate }}
     </button>
+    <button mat-stroked-button *ngIf="!describing" (click)="openGraph()">
+      <mat-icon>hub</mat-icon>
+      {{ 'DEV_ENV.OPEN_GRAPH' | translate }}
+    </button>
+    <button mat-stroked-button *ngIf="!describing" (click)="openReport()">
+      <mat-icon>summarize</mat-icon>
+      {{ 'DEV_ENV.OPEN_REPORT' | translate }}
+    </button>
     <button mat-raised-button color="primary" (click)="close()" [disabled]="describing">{{ 'COMMON.CLOSE' | translate }}</button>
   </ng-container>
 </mat-dialog-actions>

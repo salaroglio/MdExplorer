@@ -1,0 +1,28 @@
+html, body { height: 100%; margin: 0; }
+body { font-family: -apple-system, "Segoe UI", Inter, system-ui, sans-serif; background: #f8fafc; color: #0f172a; overflow: hidden; }
+body.dark-theme { background: #0b1220; color: #e6edf3; }
+#cg-root { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+#cg-header { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-bottom: 1px solid rgba(100,116,139,0.25); }
+#cg-header h2 { margin: 0; font-size: 15px; font-weight: 600; }
+#cg-status { font-size: 12px; opacity: 0.75; }
+#cg-main { position: relative; min-height: 0; }
+#cg-graph { position: absolute; inset: 0; }
+#cg-card { position: absolute; top: 12px; right: 12px; width: 360px; max-height: calc(100% - 24px); overflow: auto; padding: 12px 14px; border-radius: 10px;
+  background: rgba(255,255,255,0.96); border: 1px solid rgba(15,23,42,0.15); box-shadow: 0 8px 24px rgba(15,23,42,0.15); font-size: 13px; }
+body.dark-theme #cg-card { background: rgba(17,24,39,0.96); border-color: rgba(255,255,255,0.15); }
+#cg-card.hidden { display: none; }
+#cg-card h3 { margin: 2px 0 8px; font-size: 14px; word-break: break-all; }
+.cg-kind { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; }
+.cg-sig { display: block; white-space: pre-wrap; word-break: break-all; font-size: 12px; padding: 6px 8px; border-radius: 6px; background: rgba(100,116,139,0.12); margin-bottom: 8px; }
+.cg-summary { margin: 0 0 8px; }
+.cg-path { font-size: 12px; opacity: 0.7; margin-bottom: 8px; word-break: break-all; }
+.cg-muted { font-size: 12px; opacity: 0.65; }
+.cg-btn { border: 1px solid #2563eb; background: #2563eb; color: #fff; border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; margin-bottom: 8px; }
+.cg-btn-secondary { background: transparent; color: #2563eb; }
+.cg-params { width: 100%; border-collapse: collapse; font-size: 12px; margin: 6px 0; }
+.cg-params th, .cg-params td { text-align: left; padding: 4px 6px; border-bottom: 1px solid rgba(100,116,139,0.2); vertical-align: top; }
+.cg-remarks { margin-top: 6px; color: #b45309; }
+.cg-stale { margin-top: 6px; color: #dc2626; font-size: 12px; }
+#cg-legend { display: flex; flex-wrap: wrap; gap: 10px; padding: 6px 14px; font-size: 11px; border-top: 1px solid rgba(100,116,139,0.25); opacity: 0.85; }
+#cg-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+#cg-legend .cg-sep { width: 1px; background: rgba(100,116,139,0.4); }

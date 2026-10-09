@@ -690,6 +690,7 @@
     "LAUNCH_AGENT": "Prepara e lancia questo agente",
     "AGENT_SCHEDULING": "Schedulazione agente...",
     "E2E_TESTS": "Test e2e…",
+    "CODE_GRAPH": "Grafo del codice",
     "DEV_ENV_SETTINGS": "Ambiente di sviluppo…"
   },
   "DEV_ENV": {
@@ -718,6 +719,8 @@
     "DESCRIBE_FILE_DONE": "{{file}}: {{described}} descritti, {{rejected}} righe scartate",
     "DESCRIBE_DONE": "Descrizioni scritte: {{described}} simboli in {{files}} file ({{rejected}} righe scartate)",
     "DESCRIBE_CANCELLED": "Annullato.",
+    "OPEN_GRAPH": "Apri il grafo",
+    "OPEN_REPORT": "Apri il report",
     "SAVE_AND_ANALYZE": "Salva e analizza"
   },
   "LEAVE_COPY": {

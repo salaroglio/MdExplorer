@@ -38,13 +38,14 @@ namespace MdExplorer.Services.CodeGraph
         private readonly IHubContext<MonitorMDHub> _hub;
         private readonly MdExplorer.Services.LlmSessions.OneShotReadOnlySession _llm;
         private readonly ICodeScriptLoader _loader;
+        private readonly CodeGraphReportWriter _report;
         private readonly ILogger<CodeDocJobService> _logger;
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
 
         public CodeDocJobService(IServiceScopeFactory scopeFactory, IHubContext<MonitorMDHub> hub,
-            MdExplorer.Services.LlmSessions.OneShotReadOnlySession llm, ICodeScriptLoader loader, ILogger<CodeDocJobService> logger)
+            MdExplorer.Services.LlmSessions.OneShotReadOnlySession llm, ICodeScriptLoader loader, CodeGraphReportWriter report, ILogger<CodeDocJobService> logger)
         {
-            _scopeFactory = scopeFactory; _hub = hub; _llm = llm; _loader = loader; _logger = logger;
+            _scopeFactory = scopeFactory; _hub = hub; _llm = llm; _loader = loader; _report = report; _logger = logger;
         }
 
         public void Cancel(string connectionId)
@@ -142,6 +143,8 @@ namespace MdExplorer.Services.CodeGraph
                     files++; described += fresh.SymbolDocs.Count;
                     await SendAsync(connectionId, new { phase = "file-done", file = ast.Header.Source, described = fresh.SymbolDocs.Count, rejected = rejected.Count, loaded = load.Loaded, error = load.Error });
                 }
+                try { _report.Write(projectPath, new List<string> { $"{folderRelative}: descritti {described} simboli in {files} file, {rejectedTotal} righe scartate" }); }
+                catch (Exception ex) { _logger.LogWarning(ex, "[CodeDoc] report non scritto"); }
                 await SendAsync(connectionId, new { phase = "done", files, described, rejected = rejectedTotal });
                 _logger.LogInformation("[CodeDoc] '{Folder}': {Files} file, {Described} simboli descritti, {Rejected} righe scartate", folderRelative, files, described, rejectedTotal);
             }

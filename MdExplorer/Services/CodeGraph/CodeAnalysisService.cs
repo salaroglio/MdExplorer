@@ -63,13 +63,14 @@ namespace MdExplorer.Services.CodeGraph
         private readonly ICodeExtractorRegistry _extractors;
         private readonly ICodeScriptLoader _loader;
         private readonly CodeScanStateStore _scanState;
+        private readonly CodeGraphReportWriter _report;
         private readonly ILogger<CodeAnalysisService> _logger;
         private readonly SemaphoreSlim _gate = new(1, 1);
 
         public CodeAnalysisService(ICodeChangeScanner scanner, ICodeExtractorRegistry extractors, ICodeScriptLoader loader,
-            CodeScanStateStore scanState, ILogger<CodeAnalysisService> logger)
+            CodeScanStateStore scanState, CodeGraphReportWriter report, ILogger<CodeAnalysisService> logger)
         {
-            _scanner = scanner; _extractors = extractors; _loader = loader; _scanState = scanState; _logger = logger;
+            _scanner = scanner; _extractors = extractors; _loader = loader; _scanState = scanState; _report = report; _logger = logger;
         }
 
         // ------------------------------------------------------------------ .development.yml
@@ -193,6 +194,14 @@ namespace MdExplorer.Services.CodeGraph
                     ProgramFolder = folderRelative, RepositoryRoot = scan.RepositoryRoot, AnalyzedCommit = scan.HeadCommit, Mode = scan.Mode,
                     ScannedAt = DateTime.UtcNow.ToString("o"), Candidates = outcome.Candidates, Reparsed = outcome.Reparsed,
                 });
+                // Il report (F6): rigenerato a ogni analisi.
+                try
+                {
+                    var notes = new List<string> { $"{folderRelative}: {scan.Mode}, {scan.Reason}; {outcome.FilesInPerimeter} file, {outcome.Candidates} candidati, {outcome.Reparsed} riparsati, {outcome.ScriptsRemoved} script tolti" };
+                    notes.AddRange(outcome.Warnings);
+                    _report.Write(projectPath, notes);
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] report non scritto"); outcome.Warnings.Add("report non scritto: " + ex.Message); }
                 _logger.LogInformation("[CodeGraph] '{Folder}' ({Mode}, {Reason}): {Files} file, {Cand} candidati, {Rep} riparsati, {Rem} script tolti, caricati {Loaded}",
                     folderRelative, scan.Mode, scan.Reason, outcome.FilesInPerimeter, outcome.Candidates, outcome.Reparsed, outcome.ScriptsRemoved, outcome.Load.Loaded);
                 return outcome;

@@ -45,6 +45,10 @@ export class MdFile implements IFileInfoNode {
   // The pages of a slide deck a link asks for ('2,6-9'): [Costi](vendite.md?pages=2,6-9). The
   // same deck opened with other pages is another history entry.
   slidePages?: string;
+  /** Pagina «Grafo del codice» (type = 'codegraph'): la radice del progetto e la cartella program; symbol = simbolo da centrare. */
+  codeGraphProjectPath?: string;
+  codeGraphFolder?: string;
+  codeGraphSymbol?: string;
 
   // Compact folder properties (VS Code-style)
   isCompacted?: boolean;

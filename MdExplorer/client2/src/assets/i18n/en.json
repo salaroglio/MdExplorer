@@ -690,6 +690,7 @@
     "LAUNCH_AGENT": "Prepare and launch this agent",
     "AGENT_SCHEDULING": "Agent scheduling...",
     "E2E_TESTS": "E2E tests…",
+    "CODE_GRAPH": "Code graph",
     "DEV_ENV_SETTINGS": "Development environment…"
   },
   "DEV_ENV": {
@@ -718,6 +719,8 @@
     "DESCRIBE_FILE_DONE": "{{file}}: {{described}} described, {{rejected}} lines rejected",
     "DESCRIBE_DONE": "Descriptions written: {{described}} symbols in {{files}} files ({{rejected}} lines rejected)",
     "DESCRIBE_CANCELLED": "Cancelled.",
+    "OPEN_GRAPH": "Open the graph",
+    "OPEN_REPORT": "Open the report",
     "SAVE_AND_ANALYZE": "Save and analyse"
   },
   "LEAVE_COPY": {

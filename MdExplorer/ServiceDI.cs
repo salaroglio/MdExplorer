@@ -33,6 +33,7 @@ namespace MdExplorer.Service
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeScriptLoader, MdExplorer.Features.Services.CodeGraph.CodeScriptLoader>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.CodeGraphRepository>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.CodeScanStateStore>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.CodeGraphReportWriter>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore>(sp =>
                 new MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore(MdExplorer.Utilities.CrossPlatformPath.GetAppDataPath()));
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.Grammars.CodeGraphOptions>(sp =>

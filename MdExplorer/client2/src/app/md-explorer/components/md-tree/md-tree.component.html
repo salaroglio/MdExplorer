@@ -118,6 +118,14 @@
       <span>{{ 'MD_TREE.DEV_ENV_SETTINGS' | translate }}</span>
     </button>
 
+    <!-- Grafo del codice: la pagina del visualizzatore (D17) -->
+    <button *ngIf="item.type==='folder' && hasTag(item, 'program')"
+            mat-menu-item
+            (click)="openCodeGraph(item)">
+      <mat-icon>hub</mat-icon>
+      <span>{{ 'MD_TREE.CODE_GRAPH' | translate }}</span>
+    </button>
+
     <!-- RAG Indexing - Directory -->
     <button *ngIf="item.type==='folder' && isRagEnabled"
             mat-menu-item (click)="indexDirectoryForRag(item)"

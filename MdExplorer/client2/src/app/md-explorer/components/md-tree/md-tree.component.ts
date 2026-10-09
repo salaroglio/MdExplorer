@@ -14,7 +14,7 @@ import { MdNavigationService } from '../../services/md-navigation.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { ChangeDirectoryComponent } from '../dialogs/change-directory/change-directory.component';
 import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.component';
-import { DevEnvironmentDialogComponent, DevEnvironmentDialogData } from '../dialogs/dev-environment/dev-environment-dialog.component';
+import { DevEnvironmentDialogComponent, DevEnvironmentDialogData, DevEnvironmentDialogResult } from '../dialogs/dev-environment/dev-environment-dialog.component';
 import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markdown.component';
@@ -2501,7 +2501,41 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
     const data: DevEnvironmentDialogData = { folderPath: node.fullPath, folderName: node.name, projectRoot: root, justMarked };
-    this.dialog.open(DevEnvironmentDialogComponent, { width: '560px', data, disableClose: false });
+    this.dialog.open(DevEnvironmentDialogComponent, { width: '560px', data, disableClose: false })
+      .afterClosed().subscribe((result?: DevEnvironmentDialogResult) => {
+        if (result?.open === 'graph') { this.openCodeGraph(node, root); }
+        if (result?.open === 'report') { this.openCodeGraphReport(node, root); }
+      });
+  }
+
+  /** La pagina «Grafo del codice» di una cartella program (D17): una voce di navigazione di tipo codegraph. */
+  async openCodeGraph(node: MdFile, projectRoot?: string | null): Promise<void> {
+    const root = projectRoot ?? this.getProjectRoot();
+    if (!root) { return; }
+    const folder = (node.relativePath || '').replace(/\\/g, '/').replace(/^\/+/, '');
+    const page = new MdFile(this.translate.instant('MD_TREE.CODE_GRAPH') + ' · ' + node.name, node.path, node.level, false);
+    page.type = 'codegraph';
+    page.relativePath = folder;
+    page.fullPath = (node.fullPath || root) + '/.codegraph';
+    page.codeGraphProjectPath = root;
+    page.codeGraphFolder = folder;
+    await this.router.navigate(['/main/navigation/document']);
+    this.mdFileService.setSelectedMdFileFromSideNav(page);
+    this.navService.setNewNavigation(page);
+  }
+
+  /** Il report del grafo del codice: .md/codegraph/report.md, un documento markdown come gli altri. */
+  async openCodeGraphReport(node: MdFile, projectRoot?: string | null): Promise<void> {
+    const root = projectRoot ?? this.getProjectRoot();
+    if (!root) { return; }
+    const rel = '.md/codegraph/report.md';
+    const report = new MdFile('report.md', node.path, node.level, false);
+    report.type = 'mdFile';
+    report.relativePath = rel;
+    report.fullPath = root + '/' + rel;
+    await this.router.navigate(['/main/navigation/document']);
+    this.mdFileService.setSelectedMdFileFromSideNav(report);
+    this.navService.setNewNavigation(report);
   }
 
   /**

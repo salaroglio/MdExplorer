@@ -17,6 +17,8 @@ export interface DevEnvironmentDialogData {
 export interface DevEnvironmentDialogResult {
   languages: string[];
   analysis?: CodeFolderAnalysisOutcome;
+  /** Che cosa aprire chiudendo: la pagina del grafo o il report (F6). */
+  open?: 'graph' | 'report';
 }
 
 /**
@@ -79,6 +81,9 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
       }
     });
   }
+
+  openGraph(): void { this.dialogRef.close({ languages: this.selectedList, analysis: this.outcome ?? undefined, open: 'graph' }); }
+  openReport(): void { this.dialogRef.close({ languages: this.selectedList, analysis: this.outcome ?? undefined, open: 'report' }); }
 
   cancelDescribe(): void {
     const connectionId = this.serverMessages.connectionId;

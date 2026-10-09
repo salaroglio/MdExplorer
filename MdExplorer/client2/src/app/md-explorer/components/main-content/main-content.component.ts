@@ -440,6 +440,19 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
       errorMessage: undefined
     });
 
+    // Il grafo del codice (sprint 2026-10-09, D17): una pagina del visualizzatore servita dal backend, non un documento.
+    if (file.type === 'codegraph') {
+      const params = new URLSearchParams();
+      params.set('projectPath', file.codeGraphProjectPath || '');
+      params.set('folder', file.codeGraphFolder || '');
+      if (file.codeGraphSymbol) { params.set('symbol', file.codeGraphSymbol); }
+      params.set('theme', this.themeService.getResolvedTheme());
+      params.set('connectionId', this.monitorMDService.connectionId || '');
+      params.set('time', String(new Date().getTime() / 1000));
+      this.htmlSource = `../api/codegraph/view?${params.toString()}`;
+      return;
+    }
+
     // Call the original controller method but with enhanced URL building
     this.callMdExplorerController(file);
   }

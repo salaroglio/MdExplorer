@@ -256,6 +256,47 @@ namespace MdExplorer.Controllers.CodeGraph
             });
         }
 
+        // ------------------------------------------------------------------ la pagina del visualizzatore (F6, D17)
+
+        /// <summary>GET /api/codegraph/graph?projectPath&amp;folder&amp;expand=a.cs,b.cs&amp;symbol — i nodi e gli archi per la pagina.</summary>
+        [HttpGet("graph")]
+        public IActionResult Graph([FromQuery] string projectPath, [FromQuery] string folder = "", [FromQuery] string expand = null, [FromQuery] string symbol = null)
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            var expanded = (expand ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var db = HttpContext.RequestServices.GetRequiredService<ICodeGraphDatabase>();
+            using var c = db.OpenConnection(projectPath);
+            var model = CodeGraphViewData.Build(c, (folder ?? string.Empty).Replace('\\', '/').Trim('/'), expanded, string.IsNullOrWhiteSpace(symbol) ? null : symbol);
+            return Ok(new
+            {
+                folder = model.Folder, folders = model.Folders,
+                nodes = model.Nodes.Select(n => new { n.Id, n.Kind, n.Name, n.QualifiedName, n.Path, n.Folder, n.Line, n.Signature, n.Summary, n.ParentId, n.Hidden, n.Expanded, n.External }),
+                links = model.Links.Select(l => new { l.Source, l.Target, l.Relation, l.Confidence, l.Count }),
+            });
+        }
+
+        /// <summary>
+        /// GET /api/codegraph/view?projectPath&amp;folder&amp;symbol&amp;theme — la pagina HTML che il visualizzatore carica nell'iframe
+        /// (D17): il disegno vive in wwwroot/javascripts/codegraph, come ogni JS del contenuto.
+        /// </summary>
+        [HttpGet("view")]
+        public IActionResult View([FromQuery] string projectPath, [FromQuery] string folder = "", [FromQuery] string symbol = null, [FromQuery] string theme = "light")
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            var isDark = string.Equals(theme, "dark", StringComparison.OrdinalIgnoreCase);
+            var title = System.Net.WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(folder) ? "Grafo del codice" : "Grafo del codice · " + folder.Replace('\\', '/').Trim('/'));
+            var html = "<!doctype html><html lang=\"it\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
+                       "<title>" + title + "</title>" +
+                       "<link rel=\"stylesheet\" href=\"/javascripts/codegraph/code-graph-view.css\">" +
+                       "<script src=\"/javascripts/lib/force-graph.min.js\"></script>" +
+                       "<script src=\"/javascripts/codegraph/code-graph-view.js\"></script></head>" +
+                       "<body class=\"" + (isDark ? "dark-theme" : "light-theme") + "\"><div id=\"cg-root\">" +
+                       "<div id=\"cg-header\"><h2>" + title + "</h2><span id=\"cg-status\"></span></div>" +
+                       "<div id=\"cg-main\"><div id=\"cg-graph\"></div><div id=\"cg-card\" class=\"hidden\"></div></div>" +
+                       "<div id=\"cg-legend\"></div></div></body></html>";
+            return new ContentResult { ContentType = "text/html; charset=utf-8", Content = html };
+        }
+
         /// <summary>Relativo con «/», oppure null se fuori dal progetto.</summary>
         private static string ToRelative(string projectPath, string folderPath)
         {
