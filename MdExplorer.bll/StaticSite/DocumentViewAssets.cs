@@ -32,8 +32,6 @@ namespace MdExplorer.Features.StaticSite
             ["/javascripts/jqueryForFirstPage/inline-edit/inline-edit.js"] = "corrects the file",
             ["/javascripts/jqueryForFirstPage/panels/kg-manager.css"] = "knowledge graph: the service",
             ["/javascripts/jqueryForFirstPage/panels/kg-manager.js"] = "knowledge graph: the service",
-            ["/javascripts/lib/three.min.js"] = "knowledge graph only",
-            ["/javascripts/lib/3d-force-graph.min.js"] = "knowledge graph only",
             ["/javascripts/lib/force-graph.min.js"] = "knowledge graph only",
             ["/javascripts/jqueryForFirstPage/diagrams/plantuml-integration.js"] = "presentation and clipboard of a diagram: the service",
             ["/javascripts/jqueryForFirstPage/execution/mde-exec-blocks.css"] = "runs code blocks on this computer",

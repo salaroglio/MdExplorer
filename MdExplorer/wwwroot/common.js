@@ -143,8 +143,6 @@ if (window.commonJsLoaded) {
 
         // PANELS: TOC, knowledge graph, and resize functionality
         document.write("<link href='/javascripts/jqueryForFirstPage/panels/kg-manager.css' rel='stylesheet' />");
-        loadScriptOnce('/javascripts/lib/three.min.js');
-        loadScriptOnce('/javascripts/lib/3d-force-graph.min.js');
         loadScriptOnce('/javascripts/lib/force-graph.min.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/panels/toc-manager.js');
         loadScriptOnce('/javascripts/jqueryForFirstPage/panels/references-manager.js');

@@ -122,7 +122,7 @@
 .kgHeaderSpacer { flex: 1 1 auto; }
 .kgActions { display: flex; gap: 8px; }
 
-/* ---- View mode tabs (2D / 3D) ----------------------------------------- */
+/* ---- View tabs (Files / Concepts) --------------------------------------- */
 .kgViewTabs {
     display: inline-flex;
     align-items: center;

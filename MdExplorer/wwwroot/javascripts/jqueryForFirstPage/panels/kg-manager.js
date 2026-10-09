@@ -1,31 +1,28 @@
 /**
- * MdExplorer - Knowledge Graph (fullscreen, 2D + 3D)
- * ===================================================
- * Fullscreen interactive force-directed graph of links between markdown files.
- * Two view modes:
- *   - 2D (default): canvas, top-down map — best for "big picture" overview
- *   - 3D: WebGL, orbital — best for exploring clusters in depth
+ * MdExplorer - Knowledge Graph (fullscreen, 2D)
+ * ==============================================
+ * Fullscreen interactive force-directed graph of links between markdown files,
+ * drawn on a canvas as a top-down map. Files are grouped by folder inside a
+ * dashed circle; a circle can be dragged and takes its files with it.
+ * (The 3D view was removed on 2026-10-09: it was not used.)
  *
  * Backend:
  * - GET /api/tabcontroller/GetKnowledgeGraph?fullPathFile=...&depth=1&connectionid=...
  *
  * UMD globals required:
- * - THREE          (three@0.147)              — only for 3D
- * - ForceGraph3D   (3d-force-graph@1.73)      — only for 3D
- * - ForceGraph     (force-graph@1.51)         — for 2D
+ * - ForceGraph     (force-graph@1.51)
  *
  * Public API:
  * - window.openKnowledgeGraph()
  * - window.closeKnowledgeGraph()
  * - window.toggleKnowledgeGraph()
- * - window.MdeKnowledgeGraph.{open,close,toggle,refresh,resize,setMode}
+ * - window.MdeKnowledgeGraph.{open,close,toggle,refresh,resize,folders}
  */
 (function () {
     'use strict';
 
     let _overlay = null;
-    let _graph = null;          // active graph instance (2D or 3D)
-    let _mode = '2d';           // default
+    let _graph = null;          // active ForceGraph instance
     let _source = 'files';      // 'files' = links between markdown files (default, legacy)
                                  // 'concepts' = concept graph from Neo4j (.kg.md payloads)
     let _data = null;
@@ -36,6 +33,7 @@
     let _selectedNamespace = ''; // '' = all namespaces (for concept source)
     let _fullData = null;        // pristine concept graph; _data is the rendered (possibly focused) subset
     let _focusId = null;         // when set, isolate this node's directed neighborhood
+    let _handOverHalo = false;   // the mouse is over a folder circle (hand cursor), see bindHaloDrag
 
     // ---- Palette ------------------------------------------------------------
     const PALETTE = [
@@ -220,27 +218,6 @@
         }
     }
 
-    function clusterForce3D(alpha) {
-        if (!_data || !_layout) return;
-        const k = 0.06 * alpha;
-        const kC = 0.15 * alpha;
-        const nodes = _data.nodes;
-        for (let i = 0; i < nodes.length; i++) {
-            const n = nodes[i];
-            if (n.isCenter) {
-                n.vx = (n.vx || 0) + (0 - (n.x || 0)) * kC;
-                n.vy = (n.vy || 0) + (0 - (n.y || 0)) * kC;
-                continue;
-            }
-            const c = _layout.centers[bucketFor(n)];
-            if (!c) continue;
-            n.vx = (n.vx || 0) + (c.x - (n.x || 0)) * k;
-            n.vy = (n.vy || 0) + (c.y - (n.y || 0)) * k;
-            // leave z free; gentle pull toward z=0
-            n.vz = (n.vz || 0) + (0 - (n.z || 0)) * (k * 0.4);
-        }
-    }
-
     function nodeColor(node) {
         if (node.isCenter) return CENTER_COLOR;
         return PALETTE[hashStr(bucketFor(node)) % PALETTE.length];
@@ -336,6 +313,7 @@
         const el = document.createElement('div');
         const missing = node.exists === false;
         el.className = 'kgBox' + (node.isCenter ? ' kgBoxCenter' : '') + (missing ? ' kgBoxMissing' : '');
+        if (!node.isCenter) el.setAttribute('data-folder', bucketFor(node));
         el.style.setProperty('--kg-accent', nodeColor(node));
         const name = displayName(node);
         const hasTldr = !!(node.tldr && String(node.tldr).trim());
@@ -633,7 +611,7 @@
         };
     }
 
-    // ---- 3D label sprite ----------------------------------------------------
+    // ---- Canvas helpers -------------------------------------------------------
     function drawRoundedRect(ctx, x, y, w, h, r) {
         ctx.beginPath();
         ctx.moveTo(x + r, y);
@@ -646,97 +624,6 @@
         ctx.lineTo(x, y + r);
         ctx.quadraticCurveTo(x, y, x + r, y);
         ctx.closePath();
-    }
-
-    function buildLabelSprite3D(node) {
-        if (typeof THREE === 'undefined') return null;
-        const rawLabel = node.label || node.id || '';
-        const text = node.isExternal ? '🌐 ' + rawLabel : rawLabel;
-        const isCenter = !!node.isCenter;
-        const fontSize = isCenter ? 44 : 30;
-        const font = (isCenter ? 'bold ' : '600 ') + fontSize + 'px -apple-system, "Segoe UI", Inter, system-ui, sans-serif';
-        const padX = 18, padY = 10;
-        const m = document.createElement('canvas').getContext('2d');
-        m.font = font;
-        const textW = Math.ceil(m.measureText(text).width);
-        const ratio = (window.devicePixelRatio || 1);
-        const canvas = document.createElement('canvas');
-        canvas.width = (textW + padX * 2) * ratio;
-        canvas.height = (fontSize + padY * 2) * ratio;
-        const ctx = canvas.getContext('2d');
-        ctx.scale(ratio, ratio);
-        ctx.font = font;
-        ctx.textBaseline = 'middle';
-        const w = textW + padX * 2;
-        const h = fontSize + padY * 2;
-        const r = h / 2;
-        // Dark-aware pill
-        const pillBg     = isCenter ? CENTER_COLOR : (_isDark ? 'rgba(15,23,42,0.92)' : '#ffffff');
-        const pillStroke = isCenter ? CENTER_RING  : (_isDark ? 'rgba(255,255,255,0.22)' : 'rgba(15,23,42,0.18)');
-        const textColor  = isCenter ? '#451a03'    : (_isDark ? '#e6edf3' : '#0f172a');
-        ctx.fillStyle = pillBg;
-        ctx.strokeStyle = pillStroke;
-        ctx.lineWidth = isCenter ? 3 : 1.5;
-        drawRoundedRect(ctx, 0, 0, w, h, r);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = textColor;
-        ctx.fillText(text, padX, h / 2 + 1);
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.needsUpdate = true;
-        tex.minFilter = THREE.LinearFilter;
-        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
-        const sprite = new THREE.Sprite(mat);
-        const baseScale = isCenter ? 0.45 : 0.36;
-        sprite.scale.set(w * baseScale / 6, h * baseScale / 6, 1);
-        sprite.position.y = isCenter ? 16 : 11;
-        return sprite;
-    }
-
-    // ---- 3D builder ---------------------------------------------------------
-    function build3D(container, data) {
-        if (typeof ForceGraph3D !== 'function') {
-            console.error('[KG] ForceGraph3D not loaded');
-            return null;
-        }
-        const rect = container.getBoundingClientRect();
-        const w = Math.max(rect.width, 400);
-        const h = Math.max(rect.height, 400);
-        const g = ForceGraph3D()(container)
-            .width(w).height(h)
-            .backgroundColor(_isDark ? '#0b1220' : '#f8fafc')
-            .showNavInfo(false)
-            .nodeLabel(buildNodeTooltip)
-            .nodeColor(nodeColor)
-            .nodeVal(function (n) { return n.isCenter ? 14 : 3 + Math.min(10, (n.inDegree || 0) + (n.outDegree || 0)); })
-            .nodeOpacity(1)
-            .nodeResolution(24)
-            .nodeThreeObjectExtend(true)
-            .nodeThreeObject(buildLabelSprite3D)
-            .linkLabel(buildLinkTooltip)
-            .linkColor(linkColor)
-            .linkOpacity(0.55)
-            .linkWidth(1.1)
-            .linkCurvature(0.08)
-            .linkDirectionalArrowLength(4)
-            .linkDirectionalArrowRelPos(1)
-            .linkDirectionalArrowColor(linkColor)
-            .linkDirectionalParticles(2)
-            .linkDirectionalParticleSpeed(0.006)
-            .linkDirectionalParticleWidth(2)
-            .linkDirectionalParticleColor(linkColor)
-            .onNodeClick(handleNodeClick)
-            .onNodeHover(function (node) { container.style.cursor = node ? 'pointer' : null; })
-            .graphData(data);
-        try {
-            if (g.d3Force) {
-                const charge = g.d3Force('charge'); if (charge) charge.strength(-160);
-                const linkF  = g.d3Force('link');   if (linkF)  linkF.distance(70);
-                g.d3Force('cluster', clusterForce3D);
-            }
-        } catch (e) { /* noop */ }
-        setTimeout(function () { try { g.zoomToFit(500, 60); } catch (e) {} }, 700);
-        return g;
     }
 
     // ---- 2D builder ---------------------------------------------------------
@@ -841,7 +728,8 @@
             .linkDirectionalParticleWidth(2)
             .linkDirectionalParticleColor(linkColor)
             .onNodeClick(handleNodeClick)
-            .onNodeHover(function (node) { container.style.cursor = node ? 'pointer' : null; })
+            // force-graph reports the hover from its render loop, after our mousemove: it must not wipe the hand.
+            .onNodeHover(function (node) { container.style.cursor = node ? 'pointer' : (_handOverHalo ? 'grab' : null); })
             .cooldownTicks(120)
             .onRenderFramePre(function (ctx, globalScale) {
                 drawClusterHalos2D(ctx, globalScale);
@@ -870,13 +758,20 @@
             try { g.zoomToFit(400, useBoxes ? 90 : 50); } catch (e) {}
         });
         if (useBoxes) buildBoxLayer(container, data, g);
+        bindHaloDrag(container, g);
         return g;
     }
 
     // ---- Cluster halos (2D, drawn under nodes) -------------------------------
+    /**
+     * Draws one dashed circle per folder (or namespace) around its nodes, and keeps every
+     * circle in _layout.halos (graph coordinates) so the mouse can grab it (see startHaloDrag).
+     */
     function drawClusterHalos2D(ctx, globalScale) {
         if (!_data || !_layout) return;
         const buckets = _layout.buckets;
+        const halos = Object.create(null);
+        _layout.halos = halos;
         for (let i = 0; i < buckets.length; i++) {
             const b = buckets[i];
             let cx = 0, cy = 0, count = 0;
@@ -900,6 +795,7 @@
                 if (d > maxR) maxR = d;
             }
             if (maxR < 36) maxR = 36;
+            halos[b] = { bucket: b, cx: cx, cy: cy, r: maxR, members: members };
 
             const color = PALETTE[hashStr(b) % PALETTE.length];
             const fillA   = _isDark ? 0.16 : 0.13;
@@ -930,8 +826,112 @@
         }
     }
 
-    function buildForMode(container, data, mode) {
-        return mode === '3d' ? build3D(container, data) : build2D(container, data);
+    // ---- Folder circles: drag one and its nodes follow -------------------------
+    /** The circle under a graph point; the smallest one where circles overlap. */
+    function haloAt(gx, gy) {
+        if (!_layout || !_layout.halos) return null;
+        const halos = _layout.halos;
+        let best = null;
+        for (const b in halos) {
+            const h = halos[b];
+            if (Math.hypot(gx - h.cx, gy - h.cy) > h.r) continue;
+            if (!best || h.r < best.r) best = h;
+        }
+        return best;
+    }
+
+    /** A node drawn on the canvas (Concepts view) under a graph point: its own drag and click win over the circle. */
+    function canvasNodeAt(gx, gy) {
+        if (!_data) return null;
+        for (let i = 0; i < _data.nodes.length; i++) {
+            const n = _data.nodes[i];
+            if (n._box || !isFinite(n.x) || !isFinite(n.y)) continue;
+            if (Math.hypot(gx - n.x, gy - n.y) <= nodeRadius(n) + 2) return n;
+        }
+        return null;
+    }
+
+    /**
+     * The mouse on the canvas: a hand over a circle, and a press on it starts the drag of
+     * the circle. Listened in the capture phase because the canvas's own mousedown
+     * (d3-zoom) would start a pan instead. The boxes of the Files view are HTML above the
+     * canvas, so a press on a box never gets here.
+     */
+    function bindHaloDrag(container, g) {
+        function graphPoint(ev) {
+            const rect = container.getBoundingClientRect();
+            return g.screen2GraphCoords(ev.clientX - rect.left, ev.clientY - rect.top);
+        }
+        container.addEventListener('mousemove', function (ev) {
+            if (ev.buttons || !(ev.target instanceof HTMLCanvasElement)) return;
+            const p = graphPoint(ev);
+            if (canvasNodeAt(p.x, p.y)) { _handOverHalo = false; return; }   // force-graph shows its pointer
+            const over = !!haloAt(p.x, p.y);
+            if (over) { container.style.cursor = 'grab'; _handOverHalo = true; }
+            else if (_handOverHalo) { container.style.cursor = ''; _handOverHalo = false; }
+        });
+        container.addEventListener('mousedown', function (ev) {
+            if (ev.button !== 0 || !(ev.target instanceof HTMLCanvasElement)) return;
+            const p = graphPoint(ev);
+            if (canvasNodeAt(p.x, p.y)) return;
+            const halo = haloAt(p.x, p.y);
+            if (!halo) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            startHaloDrag(ev, halo, container, g);
+        }, true);
+    }
+
+    /**
+     * Dragging a folder circle moves every node inside it by the same offset, and the
+     * folder's slot in the layout with them, so the cluster force keeps pulling the nodes
+     * to the new place. Like a dragged box, the nodes stay where they are dropped (pinned).
+     * The simulation is reheated on every move, like the box drag: the outer ForceGraph
+     * exposes only d3ReheatSimulation (alpha back to 1), not resetCountdown/alphaTarget
+     * (verified in force-graph 1.51, 2026-10-09). The other nodes make room; a higher
+     * velocity decay while the mouse is down keeps them from being thrown around.
+     */
+    const DRAG_VELOCITY_DECAY = 0.75;   // force-graph default: 0.4
+    function startHaloDrag(e, halo, container, g) {
+        const rect = container.getBoundingClientRect();
+        const start = g.screen2GraphCoords(e.clientX - rect.left, e.clientY - rect.top);
+        const members = halo.members.map(function (n) { return { node: n, x: n.x, y: n.y }; });
+        const slot = _layout && _layout.centers ? _layout.centers[halo.bucket] : null;
+        const slot0 = slot ? { x: slot.x, y: slot.y } : null;
+        container.style.cursor = 'grabbing';
+        _handOverHalo = false;
+        members.forEach(function (m) { if (m.node._box) m.node._box.classList.add('kgBoxDragging'); });
+        const restingDecay = g.d3VelocityDecay();
+        g.d3VelocityDecay(DRAG_VELOCITY_DECAY);
+        function move(ev) {
+            const p = g.screen2GraphCoords(ev.clientX - rect.left, ev.clientY - rect.top);
+            const dx = p.x - start.x, dy = p.y - start.y;
+            members.forEach(function (m) { m.node.fx = m.x + dx; m.node.fy = m.y + dy; });
+            if (slot) { slot.x = slot0.x + dx; slot.y = slot0.y + dy; }
+            g.d3ReheatSimulation();
+        }
+        function up() {
+            document.removeEventListener('mousemove', move);
+            document.removeEventListener('mouseup', up);
+            members.forEach(function (m) { if (m.node._box) m.node._box.classList.remove('kgBoxDragging'); });
+            container.style.cursor = '';
+            g.d3VelocityDecay(restingDecay);
+        }
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', up);
+    }
+
+    /** The folder circles in screen pixels of the graph's container (what the e2e proofs grab). */
+    function foldersOnScreen() {
+        if (!_graph || !_layout || !_layout.halos) return [];
+        const out = [];
+        const halos = _layout.halos;
+        for (const b in halos) {
+            const h = halos[b];
+            const c = _graph.graph2ScreenCoords(h.cx, h.cy);
+            out.push({ folder: b, label: friendlyBucketLabel(b), cx: c.x, cy: c.y, r: h.r * _graph.zoom(), nodes: h.members.length });
+        }
+        return out;
     }
 
     // ---- Overlay ------------------------------------------------------------
@@ -944,10 +944,6 @@
                 '<div class="kgViewTabs" role="tablist" aria-label="Source">' +
                     '<button type="button" class="kgViewTab" data-source="files"    role="tab" title="Links between markdown files (legacy view)">Files</button>' +
                     '<button type="button" class="kgViewTab" data-source="concepts" role="tab" title="Concept graph from .kg.md (Neo4j)">Concepts</button>' +
-                '</div>' +
-                '<div class="kgViewTabs" role="tablist" aria-label="Render mode" style="margin-left:8px">' +
-                    '<button type="button" class="kgViewTab" data-mode="2d" role="tab">2D</button>' +
-                    '<button type="button" class="kgViewTab" data-mode="3d" role="tab">3D</button>' +
                 '</div>' +
                 '<select class="kgNsPicker" style="margin-left:8px;display:none" title="Namespace filter (concepts only)">' +
                     '<option value="">All namespaces</option>' +
@@ -994,7 +990,7 @@
                         '<span><i class="kgLine kgLinePum"></i>plantuml</span>' +
                     '</span>' +
                 '</div>' +
-                '<div class="kgHint" data-mode-hint="2d">drag to pan • scroll to zoom • click a node to open</div>' +
+                '<div class="kgHint">drag to pan • scroll to zoom • click a node to open</div>' +
             '</div>' +
             '<div class="kgLoading"><div class="kgSpinner"></div><div>Building graph…</div></div>';
         document.body.appendChild(o);
@@ -1003,14 +999,12 @@
             const btn = e.target.closest('button');
             if (!btn) return;
             const act = btn.getAttribute('data-act');
-            const mode = btn.getAttribute('data-mode');
             const source = btn.getAttribute('data-source');
             if (act === 'close') closeOverlay();
             else if (act === 'refresh') refresh();
             else if (act === 'sanity') toggleSanityPanel();
             else if (act === 'sanity-close') hideSanityPanel();
             else if (act === 'focus-clear') clearFocus();
-            else if (mode) setMode(mode);
             else if (source) setSource(source);
         });
         const nsPicker = o.querySelector('.kgNsPicker');
@@ -1035,21 +1029,14 @@
         if (!_overlay) return;
         const tabs = _overlay.querySelectorAll('.kgViewTab');
         tabs.forEach(function (t) {
-            const m = t.getAttribute('data-mode');
             const s = t.getAttribute('data-source');
-            let active = false;
-            if (m && m === _mode) active = true;
-            else if (s && s === _source) active = true;
-            t.classList.toggle('kgViewTabActive', active);
+            t.classList.toggle('kgViewTabActive', !!s && s === _source);
         });
         const hint = _overlay.querySelector('.kgHint');
         if (hint) {
-            const sourceLbl = _source === 'concepts' ? 'concepts' : 'files';
-            hint.textContent = _mode === '3d'
-                ? 'drag to orbit • scroll to zoom • click a node — viewing ' + sourceLbl
-                : (_source === 'files'
-                    ? 'drag the background to pan • scroll to zoom • ▸ TL;DR • click a name to open • drag a box to move it'
-                    : 'drag to pan • scroll to zoom • click a node — viewing ' + sourceLbl);
+            hint.textContent = _source === 'files'
+                ? 'drag the background to pan • scroll to zoom • ▸ TL;DR • click a name to open • drag a box, or a folder circle with its files, to move it'
+                : 'drag to pan • scroll to zoom • click a node • drag a circle to move it with its concepts';
         }
         const nsPicker = _overlay.querySelector('.kgNsPicker');
         if (nsPicker) nsPicker.style.display = _source === 'concepts' ? '' : 'none';
@@ -1167,24 +1154,11 @@
         const node = _data.nodes.find(function (n) { return n.id === nodeId; });
         if (!node) return;
         try {
-            if (_mode === '2d' && _graph.centerAt) {
+            if (_graph.centerAt) {
                 if (node.x != null && node.y != null) _graph.centerAt(node.x, node.y, 800);
                 if (_graph.zoom) _graph.zoom(3, 800);
-            } else if (_mode === '3d' && _graph.cameraPosition) {
-                const distance = 200;
-                const distRatio = 1 + distance / Math.hypot(node.x || 1, node.y || 1, node.z || 1);
-                _graph.cameraPosition({ x: (node.x || 0) * distRatio, y: (node.y || 0) * distRatio, z: (node.z || 0) * distRatio }, node, 1000);
             }
         } catch (e) { /* noop */ }
-    }
-
-    function setMode(mode) {
-        if (mode !== '2d' && mode !== '3d') return;
-        if (mode === _mode && _graph) return;
-        _mode = mode;
-        setActiveTab();
-        if (!_data || !_data.nodes || _data.nodes.length === 0) return;
-        renderActive();
     }
 
     function setSource(source) {
@@ -1233,7 +1207,7 @@
         // (the overlay just entered the DOM and is still transitioning).
         requestAnimationFrame(function () {
             requestAnimationFrame(function () {
-                _graph = buildForMode(body, _data, _mode);
+                _graph = build2D(body, _data);
                 // Belt-and-suspenders: re-measure once the canvas is settled
                 // and re-fit, in case the initial container rect was stale.
                 setTimeout(function () {
@@ -1542,7 +1516,6 @@
 
     function openOverlay() {
         if (_overlay) return;
-        _mode = '2d'; // always start with 2D for the big-picture view
         _isDark = detectDark();
         _overlay = buildOverlay();
         if (_isDark) _overlay.classList.add('kgDark');
@@ -1591,6 +1564,6 @@
         toggle: window.toggleKnowledgeGraph,
         refresh: refresh,
         resize: resize,
-        setMode: setMode
+        folders: foldersOnScreen
     };
 })();
