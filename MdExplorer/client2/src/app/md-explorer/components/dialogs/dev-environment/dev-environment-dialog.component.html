@@ -1,0 +1,86 @@
+<div mat-dialog-title class="dialog-header">
+  <mat-icon class="dialog-icon">code</mat-icon>
+  <span>{{ 'DEV_ENV.TITLE' | translate }}</span>
+</div>
+
+<mat-dialog-content>
+  <div class="dialog-container">
+    <div class="context-info">
+      <mat-icon class="context-icon">folder</mat-icon>
+      <div class="context-text">
+        <strong>{{ data.folderName }}</strong>
+        <div class="context-path">{{ data.folderPath }}</div>
+      </div>
+    </div>
+
+    <p class="intro" *ngIf="!outcome">{{ 'DEV_ENV.INTRO' | translate }}</p>
+
+    <div class="loading" *ngIf="loading">
+      <mat-spinner diameter="24"></mat-spinner>
+      <span>{{ 'DEV_ENV.DETECTING' | translate }}</span>
+    </div>
+
+    <ng-container *ngIf="!loading && !outcome">
+      <div class="empty" *ngIf="detected.length === 0">
+        <mat-icon>info</mat-icon>
+        <span>{{ 'DEV_ENV.NOTHING_DETECTED' | translate }}</span>
+      </div>
+
+      <label class="field-label" *ngIf="detected.length > 0">{{ 'DEV_ENV.LANGUAGES' | translate }}</label>
+      <div class="language-list" *ngIf="detected.length > 0">
+        <div class="language-row" *ngFor="let d of detected">
+          <mat-checkbox [checked]="isSelected(d.id)" (change)="toggle(d.id, $event.checked)" [disabled]="saving || analyzing">
+            <span class="language-name">{{ d.displayName }}</span>
+            <span class="language-files">· {{ 'DEV_ENV.FILES' | translate: { count: d.files } }}</span>
+          </mat-checkbox>
+          <span class="availability" [class.ready]="isReady(d)" [class.pending]="!isReady(d)">
+            <mat-icon>{{ isReady(d) ? 'check_circle' : 'schedule' }}</mat-icon>
+            {{ isReady(d) ? ('DEV_ENV.READY' | translate) : d.availability }}
+          </span>
+        </div>
+      </div>
+
+      <div class="scan-mode" *ngIf="scanMode">
+        <mat-icon>{{ scanMode === 'git' ? 'account_tree' : 'fingerprint' }}</mat-icon>
+        <span>{{ (scanMode === 'git' ? 'DEV_ENV.SCAN_GIT' : 'DEV_ENV.SCAN_HASH') | translate }}</span>
+      </div>
+    </ng-container>
+
+    <div class="loading" *ngIf="analyzing">
+      <mat-spinner diameter="24"></mat-spinner>
+      <span>{{ 'DEV_ENV.ANALYZING' | translate }}</span>
+    </div>
+
+    <div class="outcome" *ngIf="outcome && !outcome.error">
+      <div class="outcome-title">
+        <mat-icon>done_all</mat-icon>
+        <span>{{ 'DEV_ENV.DONE' | translate }}</span>
+      </div>
+      <ul>
+        <li>{{ 'DEV_ENV.OUTCOME_FILES' | translate: { files: outcome.filesInPerimeter, mode: outcome.mode } }}</li>
+        <li>{{ 'DEV_ENV.OUTCOME_REPARSED' | translate: { candidates: outcome.candidates, reparsed: outcome.reparsed } }}</li>
+        <li *ngIf="outcome.scriptsRemoved > 0">{{ 'DEV_ENV.OUTCOME_REMOVED' | translate: { removed: outcome.scriptsRemoved } }}</li>
+        <li *ngIf="outcome.load">{{ 'DEV_ENV.OUTCOME_LOADED' | translate: { loaded: outcome.load.loaded, failed: outcome.load.failed } }}</li>
+        <li class="warn" *ngFor="let w of withoutExtractor">{{ 'DEV_ENV.OUTCOME_NO_EXTRACTOR' | translate: { language: w.language, files: w.files } }}</li>
+        <li class="warn" *ngIf="outcome.load?.firstError">{{ outcome.load?.firstError }}</li>
+      </ul>
+      <p class="reason">{{ outcome.reason }}</p>
+    </div>
+
+    <div class="error" *ngIf="errorMessage">
+      <mat-icon>error_outline</mat-icon>
+      <span>{{ errorMessage }}</span>
+    </div>
+  </div>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <ng-container *ngIf="!outcome">
+    <button mat-button (click)="close()" [disabled]="saving || analyzing">{{ 'COMMON.CANCEL' | translate }}</button>
+    <button mat-raised-button color="primary" (click)="confirm()" [disabled]="loading || saving || analyzing">
+      <mat-icon>play_arrow</mat-icon>
+      {{ (hasReadySelection ? 'DEV_ENV.SAVE_AND_ANALYZE' : 'DEV_ENV.SAVE') | translate }}
+    </button>
+  </ng-container>
+  <button mat-raised-button color="primary" *ngIf="outcome" (click)="close()">{{ 'COMMON.CLOSE' | translate }}</button>
+</mat-dialog-actions>

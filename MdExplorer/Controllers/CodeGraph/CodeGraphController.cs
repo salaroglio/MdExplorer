@@ -19,16 +19,84 @@ namespace MdExplorer.Controllers.CodeGraph
     {
         private readonly ICodeScriptLoader _loader;
         private readonly CodeGraphRepository _repository;
+        private readonly MdExplorer.Services.CodeGraph.ICodeAnalysisService _analysis;
         private readonly ILogger<CodeGraphController> _logger;
 
-        public CodeGraphController(ICodeScriptLoader loader, CodeGraphRepository repository, ILogger<CodeGraphController> logger)
+        public CodeGraphController(ICodeScriptLoader loader, CodeGraphRepository repository,
+            MdExplorer.Services.CodeGraph.ICodeAnalysisService analysis, ILogger<CodeGraphController> logger)
         {
             _loader = loader;
             _repository = repository;
+            _analysis = analysis;
             _logger = logger;
         }
 
         public class GenerateRequest { public string ProjectPath { get; set; } }
+        public class FolderRequest { public string ProjectPath { get; set; } public string FolderPath { get; set; } }
+        public class LanguagesRequest : FolderRequest { public System.Collections.Generic.List<string> Languages { get; set; } }
+
+        /// <summary>
+        /// GET /api/codegraph/languages?projectPath=…&amp;folderPath=… — per la finestra «Ambiente di sviluppo» (D16):
+        /// i linguaggi rilevati nella cartella (con quanti file e se l'estrattore è pronto) e quelli già scelti.
+        /// <c>folderPath</c> è relativo alla radice del progetto oppure assoluto dentro il progetto.
+        /// </summary>
+        [HttpGet("languages")]
+        public async Task<IActionResult> Languages([FromQuery] string projectPath, [FromQuery] string folderPath, CancellationToken ct)
+        {
+            var bad = ValidateProject(projectPath);
+            if (bad != null) return bad;
+            var rel = ToRelative(projectPath, folderPath);
+            if (rel == null) return BadRequest(new { error = "folderPath è obbligatorio e deve stare dentro il progetto" });
+            try { return Ok(await _analysis.GetLanguagesAsync(projectPath, rel, ct)); }
+            catch (DirectoryNotFoundException ex) { return BadRequest(new { error = ex.Message }); }
+        }
+
+        /// <summary>POST /api/codegraph/languages {projectPath, folderPath, languages[]} — salva la scelta in .development.yml.</summary>
+        [HttpPost("languages")]
+        public IActionResult SaveLanguages([FromBody] LanguagesRequest request)
+        {
+            var bad = ValidateProject(request?.ProjectPath);
+            if (bad != null) return bad;
+            var rel = ToRelative(request.ProjectPath, request.FolderPath);
+            if (rel == null) return BadRequest(new { error = "folderPath è obbligatorio e deve stare dentro il progetto" });
+            try
+            {
+                _analysis.SaveLanguages(request.ProjectPath, rel, request.Languages ?? new System.Collections.Generic.List<string>());
+                return Ok(new { folder = rel, languages = request.Languages });
+            }
+            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
+        }
+
+        /// <summary>
+        /// POST /api/codegraph/analyze {projectPath, folderPath?} — «Analizza il codice»: scanner → estrattori → script →
+        /// caricatore. Senza folderPath: tutte le cartelle program con dei linguaggi scelti.
+        /// </summary>
+        [HttpPost("analyze")]
+        public async Task<IActionResult> Analyze([FromBody] FolderRequest request, CancellationToken ct)
+        {
+            var bad = ValidateProject(request?.ProjectPath);
+            if (bad != null) return bad;
+            if (string.IsNullOrWhiteSpace(request.FolderPath))
+            {
+                var all = await _analysis.AnalyzeProjectAsync(request.ProjectPath, ct);
+                return Ok(new { folders = all, status = _repository.GetStatus(request.ProjectPath) });
+            }
+            var rel = ToRelative(request.ProjectPath, request.FolderPath);
+            if (rel == null) return BadRequest(new { error = "folderPath deve stare dentro il progetto" });
+            var outcome = await _analysis.AnalyzeFolderAsync(request.ProjectPath, rel, ct);
+            return Ok(new { folder = outcome, status = _repository.GetStatus(request.ProjectPath) });
+        }
+
+        /// <summary>Relativo con «/», oppure null se fuori dal progetto.</summary>
+        private static string ToRelative(string projectPath, string folderPath)
+        {
+            if (string.IsNullOrWhiteSpace(folderPath)) return null;
+            var full = Path.IsPathRooted(folderPath) ? Path.GetFullPath(folderPath) : Path.GetFullPath(Path.Combine(projectPath, folderPath));
+            var root = Path.GetFullPath(projectPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return null;
+            var rel = Path.GetRelativePath(root, full).Replace('\\', '/');
+            return rel == "." ? string.Empty : rel;
+        }
 
         /// <summary>GET /api/codegraph/status?projectPath=… — conteggi e quanti script restano da caricare.</summary>
         [HttpGet("status")]

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using MdExplorer.Features.Configuration.Models;
 
@@ -278,6 +278,19 @@ namespace MdExplorer.Service.Models
         /// (description, participants, icon) do not strip the KG namespace.
         /// </summary>
         public FolderKnowledgeGraphConfig KnowledgeGraph { get; set; }
+
+        /// <summary>
+        /// Il grafo del codice (sprint 2026-10-09, D16): i linguaggi scelti nella finestra «Ambiente di sviluppo».
+        /// Null = la cartella è <c>program</c> ma nessun linguaggio è stato scelto: niente analisi.
+        /// </summary>
+        public FolderCodeGraphConfig CodeGraph { get; set; }
+    }
+
+    /// <summary>Per-folder code graph settings stored in .development.yml.</summary>
+    public class FolderCodeGraphConfig
+    {
+        /// <summary>Gli id del catalogo (<c>csharp</c>, <c>typescript</c>, …): solo questi linguaggi si analizzano.</summary>
+        public List<string> Languages { get; set; } = new List<string>();
     }
 
     /// <summary>

@@ -110,6 +110,14 @@
       <span>{{ 'MD_TREE.MARK_DEV_ENV' | translate }}</span>
     </button>
 
+    <!-- Ambiente di sviluppo: linguaggi e analisi del codice (grafo del codice, D16) -->
+    <button *ngIf="item.type==='folder' && hasTag(item, 'program')"
+            mat-menu-item
+            (click)="openDevEnvironmentDialog(item)">
+      <mat-icon>code</mat-icon>
+      <span>{{ 'MD_TREE.DEV_ENV_SETTINGS' | translate }}</span>
+    </button>
+
     <!-- RAG Indexing - Directory -->
     <button *ngIf="item.type==='folder' && isRagEnabled"
             mat-menu-item (click)="indexDirectoryForRag(item)"

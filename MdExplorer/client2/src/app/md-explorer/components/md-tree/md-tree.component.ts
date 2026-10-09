@@ -14,6 +14,7 @@ import { MdNavigationService } from '../../services/md-navigation.service';
 import { MdServerMessagesService } from '../../../signalR/services/server-messages.service';
 import { ChangeDirectoryComponent } from '../dialogs/change-directory/change-directory.component';
 import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.component';
+import { DevEnvironmentDialogComponent, DevEnvironmentDialogData } from '../dialogs/dev-environment/dev-environment-dialog.component';
 import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markdown.component';
@@ -2476,12 +2477,31 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         const action = newTags.includes(tag) ? 'added' : 'removed';
         this.snackBar.open(this.translate.instant('MD_TREE.TAG_TOGGLED', { tag, action }), 'OK', { duration: 2000 });
         this.changeDetectorRef.markForCheck();
+        // Grafo del codice (D16): marcare una cartella come ambiente di sviluppo apre la finestra che chiede il
+        // linguaggio e, confermando, avvia l'analisi. Togliere il segno non apre niente.
+        if (tag === 'program' && action === 'added') {
+          this.openDevEnvironmentDialog(node, projectRoot, true);
+        }
       },
       error: (error) => {
         console.error('setDevelopmentTags error', error);
         this.snackBar.open(this.translate.instant('COMMON.ERROR') + ': ' + error.message, 'OK', { duration: 3000 });
       }
     });
+  }
+
+  /**
+   * La finestra «Ambiente di sviluppo» (grafo del codice, D16): scelta del linguaggio e avvio dell'analisi.
+   * Si apre marcando la cartella e, dal menu, su una cartella già marcata.
+   */
+  openDevEnvironmentDialog(node: MdFile, projectRoot?: string | null, justMarked = false): void {
+    const root = projectRoot ?? this.getProjectRoot();
+    if (!root) {
+      this.snackBar.open(this.translate.instant('MD_TREE.CANNOT_DETERMINE_ROOT'), 'OK', { duration: 3000 });
+      return;
+    }
+    const data: DevEnvironmentDialogData = { folderPath: node.fullPath, folderName: node.name, projectRoot: root, justMarked };
+    this.dialog.open(DevEnvironmentDialogComponent, { width: '560px', data, disableClose: false });
   }
 
   /**

@@ -2166,6 +2166,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // .mde-code/ cambiati dall'ultima volta entrano nel DB dedicato. Fire-and-forget, DB suo, nessuna
             // contesa con l'engine DB. Niente cartella .mde-code = esito vuoto, non un errore.
             var codeScriptLoader = HttpContext?.RequestServices?.GetService<MdExplorer.Features.Services.CodeGraph.ICodeScriptLoader>();
+            var codeAnalysis = HttpContext?.RequestServices?.GetService<MdExplorer.Services.CodeGraph.ICodeAnalysisService>();
             if (codeScriptLoader != null)
             {
                 var codeGraphProjectPath = currentPath;
@@ -2175,10 +2176,22 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     try
                     {
                         var outcome = codeScriptLoader.LoadProject(codeGraphProjectPath);
-                        if (outcome.ScriptsFolderMissing) return;
-                        _logger.LogInformation("🧩 [CodeGraph] '{Project}': {Loaded} script caricati, {Skipped} invariati, {Removed} tolti, {Failed} falliti{Err}",
-                            codeGraphProjectPath, outcome.Loaded, outcome.Skipped, outcome.Removed, outcome.Failed,
-                            outcome.Failed > 0 ? $" — primo errore: {outcome.FirstError}" : string.Empty);
+                        if (!outcome.ScriptsFolderMissing)
+                        {
+                            _logger.LogInformation("🧩 [CodeGraph] '{Project}': {Loaded} script caricati, {Skipped} invariati, {Removed} tolti, {Failed} falliti{Err}",
+                                codeGraphProjectPath, outcome.Loaded, outcome.Skipped, outcome.Removed, outcome.Failed,
+                                outcome.Failed > 0 ? $" — primo errore: {outcome.FirstError}" : string.Empty);
+                        }
+                        // Poi il codice: le cartelle program con dei linguaggi scelti (D16) — git dice che cosa è cambiato (D14).
+                        if (codeAnalysis != null)
+                        {
+                            var analyzed = await codeAnalysis.AnalyzeProjectAsync(codeGraphProjectPath);
+                            foreach (var a in analyzed)
+                            {
+                                if (a.Error != null) _logger.LogWarning("🧩 [CodeGraph] '{Folder}': {Error}", a.Folder, a.Error);
+                                else _logger.LogInformation("🧩 [CodeGraph] '{Folder}' ({Mode}): {Files} file, {Reparsed} riparsati, {Removed} script tolti", a.Folder, a.Mode, a.FilesInPerimeter, a.Reparsed, a.ScriptsRemoved);
+                            }
+                        }
                     }
                     catch (Exception ex)
                     {

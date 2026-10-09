@@ -32,6 +32,11 @@ namespace MdExplorer.Service
                     sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<MdExplorer.Features.Services.CodeGraph.CodeGraphDatabase>>()));
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeScriptLoader, MdExplorer.Features.Services.CodeGraph.CodeScriptLoader>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.CodeGraphRepository>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.CodeScanStateStore>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.RoslynCSharpExtractor>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractorRegistry, MdExplorer.Features.Services.CodeGraph.CodeExtractorRegistry>();
+            services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeChangeScanner, MdExplorer.Services.CodeGraph.CodeChangeScanner>();
+            services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeAnalysisService, MdExplorer.Services.CodeGraph.CodeAnalysisService>();
             return services;
         }
     }
