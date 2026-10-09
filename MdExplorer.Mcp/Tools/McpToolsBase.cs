@@ -62,6 +62,28 @@ public abstract class McpToolsBase
         catch { /* logging should never break tool execution */ }
     }
 
+    /// <summary>Il percorso del progetto dal suo nome: le API del grafo del codice lavorano per percorso, come l'FTS.</summary>
+    protected async Task<string> ResolveProjectPathAsync(System.Net.Http.HttpClient client, string projectName)
+    {
+        if (string.IsNullOrWhiteSpace(projectName)) return null;
+        try
+        {
+            var json = await client.GetStringAsync("/api/MdProjects/GetProjects");
+            var doc = JsonSerializer.Deserialize<JsonElement>(json);
+            foreach (var p in doc.EnumerateArray())
+            {
+                if (!p.TryGetProperty("name", out var nameEl)) continue;
+                if (string.Equals(nameEl.GetString(), projectName, StringComparison.OrdinalIgnoreCase) &&
+                    p.TryGetProperty("path", out var pathEl))
+                {
+                    return pathEl.GetString();
+                }
+            }
+        }
+        catch { }
+        return null;
+    }
+
     protected async Task<string> ResolveProjectIdAsync(System.Net.Http.HttpClient client, string projectName)
     {
         if (string.IsNullOrWhiteSpace(projectName)) return null;

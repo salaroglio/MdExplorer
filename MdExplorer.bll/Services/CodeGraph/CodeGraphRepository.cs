@@ -110,6 +110,55 @@ namespace MdExplorer.Features.Services.CodeGraph
             return hits;
         }
 
+        // ------------------------------------------------------------------ navigazione (F5)
+
+        /// <summary>Il simbolo per id, nome qualificato o nome; con parametri e descrizioni. Più candidati = ambiguità da sciogliere.</summary>
+        public List<CodeSymbolView> Resolve(string projectPath, string idOrName, int limit = 10)
+        {
+            using var c = _db.OpenConnection(projectPath);
+            var list = CodeGraphQueries.ResolveSymbol(c, idOrName, limit);
+            foreach (var s in list) CodeGraphQueries.FillParameters(c, s);
+            return list;
+        }
+
+        public CodeSymbolView Describe(string projectPath, string symbolId)
+        {
+            using var c = _db.OpenConnection(projectPath);
+            var s = CodeGraphQueries.GetSymbol(c, symbolId);
+            if (s != null) CodeGraphQueries.FillParameters(c, s);
+            return s;
+        }
+
+        public List<CodeSymbolView> Outline(string projectPath, string path)
+        {
+            using var c = _db.OpenConnection(projectPath);
+            return CodeGraphQueries.Outline(c, path);
+        }
+
+        public List<CodeEdgeView> Neighbors(string projectPath, string symbolId, string relation, string direction, int depth, int limit)
+        {
+            using var c = _db.OpenConnection(projectPath);
+            return CodeGraphQueries.Neighbors(c, symbolId, string.IsNullOrWhiteSpace(relation) ? null : relation, direction, depth, limit);
+        }
+
+        public List<CodeEdgeView> Impact(string projectPath, string symbolId, int depth, int limit)
+        {
+            using var c = _db.OpenConnection(projectPath);
+            return CodeGraphQueries.Impact(c, symbolId, depth, limit);
+        }
+
+        public List<CodeEdgeView> ShortestPath(string projectPath, string fromId, string toId)
+        {
+            using var c = _db.OpenConnection(projectPath);
+            return CodeGraphQueries.ShortestPath(c, fromId, toId);
+        }
+
+        public CodeOverview Overview(string projectPath)
+        {
+            using var c = _db.OpenConnection(projectPath);
+            return CodeGraphQueries.Overview(c);
+        }
+
         private static int Count(SqliteConnection c, string sql)
         {
             using var cmd = c.CreateCommand();

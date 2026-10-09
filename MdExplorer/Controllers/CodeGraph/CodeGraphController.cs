@@ -173,6 +173,89 @@ namespace MdExplorer.Controllers.CodeGraph
             return Ok(new { folder = outcome, status = _repository.GetStatus(request.ProjectPath) });
         }
 
+        // ------------------------------------------------------------------ lettura per i tool (F5, D15)
+
+        private static object View(CodeSymbolView s) => s == null ? null : new
+        {
+            id = s.Id, kind = s.Kind, name = s.Name, qualifiedName = s.QualifiedName, path = s.Path, lineStart = s.LineStart, lineEnd = s.LineEnd,
+            signature = s.Signature, returnType = s.ReturnType, visibility = s.Visibility, isStatic = s.IsStatic, isAsync = s.IsAsync, parentId = s.ParentId,
+            language = s.Language, summary = s.Summary, returnsDescription = s.ReturnsDescription, remarks = s.Remarks, writtenBy = s.WrittenBy,
+            descriptionStale = s.DescriptionStale,
+            parameters = s.Parameters.Count == 0 ? null : s.Parameters.Select(p => new { p.Position, p.Name, p.Type, p.Direction, p.DefaultValue, p.IsNullable, p.Description }),
+        };
+
+        private static object View(CodeEdgeView e) => new { e.Relation, e.Confidence, e.Path, e.Line, e.Depth, symbol = View(e.Other) };
+
+        /// <summary>GET /api/codegraph/symbols/resolve?projectPath&amp;q — id, nome qualificato o nome: i candidati con firma, parametri e descrizioni.</summary>
+        [HttpGet("symbols/resolve")]
+        public IActionResult Resolve([FromQuery] string projectPath, [FromQuery] string q, [FromQuery] int limit = 10)
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            if (string.IsNullOrWhiteSpace(q)) return BadRequest(new { error = "q è obbligatorio" });
+            return Ok(_repository.Resolve(projectPath, q.Trim(), limit).Select(View));
+        }
+
+        /// <summary>GET /api/codegraph/symbols/{id}?projectPath — la firma per esteso con le descrizioni.</summary>
+        [HttpGet("symbols/{id}")]
+        public IActionResult Describe([FromQuery] string projectPath, string id)
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            var s = _repository.Describe(projectPath, id);
+            return s == null ? NotFound(new { error = $"simbolo '{id}' non trovato" }) : Ok(View(s));
+        }
+
+        /// <summary>GET /api/codegraph/outline?projectPath&amp;path — i simboli di un file, in ordine di riga.</summary>
+        [HttpGet("outline")]
+        public IActionResult Outline([FromQuery] string projectPath, [FromQuery] string path)
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            if (string.IsNullOrWhiteSpace(path)) return BadRequest(new { error = "path è obbligatorio (relativo al progetto, con /)" });
+            return Ok(_repository.Outline(projectPath, path.Replace('\\', '/').TrimStart('/')).Select(View));
+        }
+
+        /// <summary>GET /api/codegraph/neighbors?projectPath&amp;id&amp;relation&amp;direction=out|in&amp;depth=1&amp;limit=50</summary>
+        [HttpGet("neighbors")]
+        public IActionResult Neighbors([FromQuery] string projectPath, [FromQuery] string id, [FromQuery] string relation = null,
+            [FromQuery] string direction = "out", [FromQuery] int depth = 1, [FromQuery] int limit = 50)
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "id è obbligatorio" });
+            if (relation != null && !CodeScriptParser.Relations.Contains(relation)) return BadRequest(new { error = $"relation '{relation}' non ammessa: {string.Join(", ", CodeScriptParser.Relations)}" });
+            return Ok(_repository.Neighbors(projectPath, id, relation, direction, depth, limit).Select(View));
+        }
+
+        /// <summary>GET /api/codegraph/impact?projectPath&amp;id&amp;depth=3 — che cosa dipende dal simbolo, anche indirettamente.</summary>
+        [HttpGet("impact")]
+        public IActionResult Impact([FromQuery] string projectPath, [FromQuery] string id, [FromQuery] int depth = 3, [FromQuery] int limit = 200)
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "id è obbligatorio" });
+            return Ok(_repository.Impact(projectPath, id, depth, limit).Select(View));
+        }
+
+        /// <summary>GET /api/codegraph/path?projectPath&amp;from&amp;to — il cammino più corto fra due simboli.</summary>
+        [HttpGet("path")]
+        public IActionResult PathBetween([FromQuery] string projectPath, [FromQuery] string from, [FromQuery] string to)
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to)) return BadRequest(new { error = "from e to sono obbligatori (id di simbolo)" });
+            return Ok(_repository.ShortestPath(projectPath, from, to).Select(View));
+        }
+
+        /// <summary>GET /api/codegraph/overview?projectPath — di che cosa è fatto il codice.</summary>
+        [HttpGet("overview")]
+        public IActionResult Overview([FromQuery] string projectPath)
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            var o = _repository.Overview(projectPath);
+            return Ok(new
+            {
+                o.Files, o.Symbols, o.ExternalSymbols, o.Edges, o.DescribedSymbols, o.SymbolsByLanguage, o.SymbolsByKind, o.EdgesByRelation,
+                mostConnected = o.MostConnected.Select(m => new { degree = m.Degree, symbol = View(m.Symbol) }),
+                largestFiles = o.LargestFiles.Select(f => new { path = f.Path, symbols = f.Symbols }),
+            });
+        }
+
         /// <summary>Relativo con «/», oppure null se fuori dal progetto.</summary>
         private static string ToRelative(string projectPath, string folderPath)
         {

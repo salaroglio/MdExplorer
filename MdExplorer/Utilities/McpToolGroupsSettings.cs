@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -199,6 +199,13 @@ namespace MdExplorer.Utilities
                 groups.Add("agents");
             }
 
+            // Il grafo del codice (sprint 2026-10-09, D6): acceso di default quando una cartella `program`
+            // ha dei linguaggi scelti nella finestra «Ambiente di sviluppo» (codeGraph.languages).
+            if (CodeGraphConfigured(project.Path))
+            {
+                groups.Add("code");
+            }
+
             return groups;
         }
 
@@ -210,6 +217,36 @@ namespace MdExplorer.Utilities
         /// una in meno è meno dannoso che far fallire l'apertura delle impostazioni.
         /// </para>
         /// </summary>
+        /// <summary>Se il progetto ha almeno una cartella <c>program</c> con <c>codeGraph.languages</c> (D16).</summary>
+        private static bool CodeGraphConfigured(string projectPath)
+        {
+            var cfg = ReadDevelopmentConfigOrNull(projectPath);
+            return cfg?.Folders?.Any(f => f.CodeGraph?.Languages?.Count > 0
+                && f.Tags?.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) == true) == true;
+        }
+
+        private static MdExplorer.Service.Models.DevelopmentConfig ReadDevelopmentConfigOrNull(string projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath)) return null;
+            var filePath = Path.Combine(projectPath, ".development.yml");
+            if (!File.Exists(filePath)) return null;
+            try
+            {
+                var yaml = File.ReadAllText(filePath);
+                if (string.IsNullOrWhiteSpace(yaml)) return null;
+                var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
+                    .WithNamingConvention(YamlDotNet.Serialization.NamingConventions.CamelCaseNamingConvention.Instance)
+                    .IgnoreUnmatchedProperties()
+                    .Build();
+                return deserializer.Deserialize<MdExplorer.Service.Models.DevelopmentConfig>(yaml);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[McpToolGroupsSettings] {filePath} non leggibile ({ex.Message}): il grafo del codice lo considero spento per la proposta dei gruppi.");
+                return null;
+            }
+        }
+
         private static bool AgentCityEnabled(string projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath)) return false;

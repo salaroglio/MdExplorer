@@ -45,6 +45,7 @@ public static class ToolGroups
     public const string Confluence = "confluence";
     public const string KnowledgeGraph = "kg";
     public const string Agents = "agents";
+    public const string Code = "code";
 
     /// <summary>Il nome dell'argomento di riga di comando, e quindi anche la chiave di configurazione.</summary>
     public const string Argument = "groups";
@@ -69,6 +70,9 @@ public static class ToolGroups
         new Group(Agents, typeof(AgentTools), false,
             "La città degli agenti: messaggi fra agenti, richieste di intervento, memoria dei fatti appresi e verifica del workflow.",
             b => b.WithTools<AgentTools>()),
+        new Group(Code, typeof(CodeTools), false,
+            "Il grafo del codice: trovare e descrivere i simboli, chi chiama chi, impatto di una modifica, cammini, panoramica.",
+            b => b.WithTools<CodeTools>()),
     };
 
     /// <summary>Gli id validi, per i messaggi d'errore e per la documentazione.</summary>
