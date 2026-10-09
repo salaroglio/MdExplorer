@@ -437,6 +437,29 @@
     cursor: pointer;
 }
 .kgBoxName:hover { text-decoration: underline; }
+/* "+ / −": the next level of links of this file (progressive exploration). Always takes its room, so the box width is stable. */
+.kgBoxExpand {
+    appearance: none;
+    flex: 0 0 auto;
+    margin-left: 4px;
+    width: 20px;
+    height: 20px;
+    border: 1px solid rgba(15,23,42,0.18);
+    border-radius: 5px;
+    background: #f1f5f9;
+    color: #0f172a;
+    font: 700 13px/18px -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+    cursor: pointer;
+    transition: background 120ms ease-out;
+}
+.kgBoxExpand:hover { background: #e2e8f0; }
+.kgBoxExpand[disabled] { cursor: progress; color: #64748b; }
+.kgBoxExpandOpen { background: #0ea5e9; border-color: #0284c7; color: #ffffff; }
+.kgBoxExpandOpen:hover { background: #0284c7; }
+.kgBoxExpandNone { visibility: hidden; }
+.kgDark .kgBoxExpand { background: #1f2937; border-color: rgba(255,255,255,0.18); color: #e6edf3; }
+.kgDark .kgBoxExpand:hover { background: #374151; }
+.kgDark .kgBoxExpandOpen { background: #0284c7; border-color: #0ea5e9; color: #ffffff; }
 /*
  * The TL;DR is a balloon hanging under the head, out of the flow (position: absolute):
  * the box keeps the height of its head, so the collision force and the folder circles
