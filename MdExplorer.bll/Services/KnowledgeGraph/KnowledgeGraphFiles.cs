@@ -70,6 +70,23 @@ namespace MdExplorer.Features.Services.KnowledgeGraph
             return full.Substring(root.Length).Replace(Path.DirectorySeparatorChar, '/');
         }
 
+        /// <summary>
+        /// The folder of a file as the graph groups it: "" for a file in the project root, "/docs/risorse"
+        /// for a nested one (the shape the indexer writes in LinkInsideMarkdown.MdContext). Null when the
+        /// file is not inside the project. A node's folder is its OWN folder: until 2026-10-09 a file
+        /// reached only through a link took the folder of the file linking it, and was drawn in the wrong circle.
+        /// </summary>
+        public static string FolderContext(string fullPath, string projectRoot)
+        {
+            var relative = ToProjectRelative(fullPath, projectRoot);
+            if (relative == null)
+            {
+                return null;
+            }
+            var slash = relative.LastIndexOf('/');
+            return slash < 0 ? string.Empty : "/" + relative.Substring(0, slash);
+        }
+
         /// <param name="fullPath">The file, already inside the project for <see cref="OpenInPage"/> to make sense.</param>
         /// <param name="opensWithApplication">Whether the project opens this extension (no dot) with its application.</param>
         public static KnowledgeGraphFileInfo Describe(string fullPath, Func<string, bool> opensWithApplication)

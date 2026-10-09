@@ -289,12 +289,16 @@ namespace MdExplorer.Service.Controllers.TabBar
                     tldrByPath.TryGetValue(fullPath, out var tldr);
                     var relativePath = ToRelative(fullPath);
                     var file = KnowledgeGraphFiles.Describe(fullPath, _extensionConfiguration.IsExtensionSupported);
+                    // The folder circle a node belongs to is the node's OWN folder. The link's MdContext is the
+                    // folder of the file that links it: only a file outside the project (no folder of its own)
+                    // is shown where it was seen from.
+                    var ownFolder = KnowledgeGraphFiles.FolderContext(fullPath, projectRoot);
                     node = new KnowledgeGraphNodeDto
                     {
                         Id = key,
                         FullPath = fullPath,
                         Label = string.IsNullOrWhiteSpace(label) ? System.IO.Path.GetFileName(fullPath) : label,
-                        MdContext = mdContext,
+                        MdContext = ownFolder ?? mdContext,
                         IsCenter = isCenter,
                         RelativePath = relativePath,
                         Tldr = tldr,

@@ -55,6 +55,15 @@ namespace MdExplorer.Features.Tests.KnowledgeGraph
         }
 
         [TestMethod]
+        public void GiveTheFolderOfAFileAsTheIndexerWritesIt()
+        {
+            Assert.AreEqual(string.Empty, KnowledgeGraphFiles.FolderContext(P("README.md"), _root), "a file in the root has the empty folder");
+            Assert.AreEqual("/docs", KnowledgeGraphFiles.FolderContext(P("docs", "alfa.md"), _root));
+            Assert.AreEqual("/docs/risorse", KnowledgeGraphFiles.FolderContext(Foreign(P("docs", "risorse", "config.json")), _root));
+            Assert.IsNull(KnowledgeGraphFiles.FolderContext(Path.Combine(Path.GetTempPath(), "altrove.md"), _root), "outside the project there is no folder");
+        }
+
+        [TestMethod]
         public void GiveTheRelativePathOfAFileStoredWithForeignSeparators()
         {
             Assert.AreEqual("docs/risorse/config.json",

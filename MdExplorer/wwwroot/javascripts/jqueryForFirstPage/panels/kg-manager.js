@@ -179,43 +179,312 @@
         '</div>';
     }
 
-    // ---- Cluster layout: assign each folder a slot on a ring ---------------
+    // ---- Folder layout: circles that CONTAIN their files ------------------------
+    //
+    // Each folder is a circle with a centre and a radius decided before the simulation runs,
+    // from the size of its boxes. A folder whose path is under another folder's path is drawn
+    // inside it; the parent's own files live in the ring around the children. The project root
+    // ("__root__") and the external hosts are top-level circles like any other, never parents.
+    // Top-level circles sit on a ring around the current document, each with the angular room
+    // its radius needs, so circles never overlap and a file is always inside its own circle and
+    // outside its siblings' and children's (user decision 2026-10-09).
+
+    /** The nearest ancestor folder that is itself a bucket; null for a top-level one. */
+    function parentBucketOf(b, present) {
+        if (!b || b === '__root__' || b.charAt(0) !== '/') return null;
+        let p = b;
+        for (;;) {
+            const i = p.lastIndexOf('/');
+            if (i <= 0) return null;
+            p = p.substring(0, i);
+            if (present[p]) return p;
+        }
+    }
+
+    /** Half the diagonal of a box, or the drawn circle plus its label (Concepts view). */
+    function nodeExtent(n) {
+        return n._boxW ? Math.hypot(n._boxW / 2, n._boxH / 2) : nodeRadius(n) + 28;
+    }
+
     function computeLayout(data) {
+        const present = Object.create(null);
         const buckets = [];
-        const seen = Object.create(null);
         for (let i = 0; i < data.nodes.length; i++) {
             const n = data.nodes[i];
             if (n.isCenter) continue;
             const b = bucketFor(n);
-            if (!seen[b]) { seen[b] = true; buckets.push(b); }
+            if (!present[b]) { present[b] = true; buckets.push(b); }
         }
-        const centers = Object.create(null);
-        const count = buckets.length;
-        const ringR = Math.max(260, 90 + count * 38);
-        for (let i = 0; i < count; i++) {
-            const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
-            centers[buckets[i]] = { x: Math.cos(angle) * ringR, y: Math.sin(angle) * ringR };
-        }
-        return { buckets: buckets, centers: centers, ringR: ringR };
+        const folders = Object.create(null);
+        buckets.forEach(function (b) {
+            folders[b] = { key: b, parent: null, children: [], members: [], cx: 0, cy: 0, r: 0, ringMid: 0, dx: 0, dy: 0 };
+        });
+        buckets.forEach(function (b) {
+            const p = parentBucketOf(b, present);
+            if (p) { folders[b].parent = p; folders[p].children.push(b); }
+        });
+        data.nodes.forEach(function (n) { if (!n.isCenter) folders[bucketFor(n)].members.push(n); });
+        const top = buckets.filter(function (b) { return !folders[b].parent; });
+        const layout = { buckets: buckets, folders: folders, top: top, halos: Object.create(null) };
+        sizeLayout(layout);   // estimates until the boxes are measured; build2D calls it again
+        return layout;
     }
 
-    function clusterForce2D(alpha) {
+    /** Radii bottom-up from the boxes, then positions top-down. Safe to call again after measuring. */
+    function sizeLayout(layout) {
+        const PAD = 18;
+        const folders = layout.folders;
+
+        function radiusOf(f) {
+            f.children.forEach(function (c) { radiusOf(folders[c]); });
+            const ext = f.members.map(nodeExtent);
+            const maxExt = ext.length ? Math.max.apply(null, ext) : 0;
+            let inner = 0;   // radius taken by the children, packed on a small ring (one child: at the centre)
+            if (f.children.length) {
+                const kids = f.children.map(function (c) { return folders[c]; });
+                const maxR = Math.max.apply(null, kids.map(function (k) { return k.r; }));
+                const rho = kids.length === 1 ? 0 : maxR / Math.sin(Math.PI / kids.length) * 1.08 + PAD;
+                kids.forEach(function (k, i) {
+                    const a = (i / kids.length) * 2 * Math.PI - Math.PI / 2;
+                    k.dx = Math.cos(a) * rho;
+                    k.dy = Math.sin(a) * rho;
+                });
+                inner = rho + maxR;
+            }
+            // Room for the boxes: their rectangles (with the collision pad) at a 60% fill of the disc.
+            const COLLIDE_PAD = 16, FILL = 0.6;
+            const area = f.members.reduce(function (s, n) {
+                const w = n._boxW ? n._boxW + COLLIDE_PAD : 2 * nodeExtent(n);
+                const h = n._boxW ? n._boxH + COLLIDE_PAD : 2 * nodeExtent(n);
+                return s + w * h;
+            }, 0);
+            let r;
+            if (!inner) {
+                r = Math.max(Math.sqrt(area / FILL / Math.PI) + 10, maxExt + PAD);
+                f.ringMid = 0;
+            } else if (!ext.length) {
+                r = inner + PAD;
+                f.ringMid = 0;
+            } else {
+                // the folder's own boxes live in the ring around the children: one box wide, long enough for all
+                const needed = ext.reduce(function (s, e) { return s + 2 * e * 1.15; }, 0);
+                f.ringMid = Math.max(inner + PAD + maxExt, needed / (2 * Math.PI));
+                r = f.ringMid + maxExt + PAD;
+            }
+            f.r = Math.max(r, 60);
+        }
+        layout.top.forEach(function (b) { radiusOf(folders[b]); });
+
+        // Top-level circles on a ring around the current document, angular room by radius.
+        const tops = layout.top.map(function (b) { return folders[b]; });
+        const maxTopR = tops.length ? Math.max.apply(null, tops.map(function (f) { return f.r; })) : 0;
+        const CENTER_CLEAR = 150, GAP = 0.08;
+        let ringR = Math.max(260, maxTopR + CENTER_CLEAR);
+        const need = function () {
+            return tops.reduce(function (s, f) { return s + 2 * Math.asin(Math.min(1, f.r / ringR)) + GAP; }, 0);
+        };
+        for (let iter = 0; iter < 60 && tops.length > 1 && need() > 2 * Math.PI; iter++) ringR *= 1.06;
+        const slack = tops.length ? Math.max(0, 2 * Math.PI - need()) / tops.length : 0;
+        let angle = -Math.PI / 2;
+        tops.forEach(function (f) {
+            const half = Math.asin(Math.min(1, f.r / ringR)) + GAP / 2 + slack / 2;
+            angle += half;
+            f.cx = Math.cos(angle) * ringR;
+            f.cy = Math.sin(angle) * ringR;
+            angle += half;
+        });
+        layout.ringR = ringR;
+
+        function place(f) {
+            f.children.forEach(function (c) {
+                const k = folders[c];
+                k.cx = f.cx + k.dx;
+                k.cy = f.cy + k.dy;
+                place(k);
+            });
+        }
+        tops.forEach(place);
+    }
+
+    /**
+     * Start every node in its own circle: the forces then only have to tidy up. The current
+     * document is pinned at the origin, the point the circles keep clear of (pushCirclesApart);
+     * dragging its box by hand still moves it.
+     */
+    function seedPositions(data, layout) {
+        data.nodes.forEach(function (n) {
+            if (n.fx != null) return;
+            if (n.isCenter) { n.x = 0; n.y = 0; n.fx = 0; n.fy = 0; return; }
+            const f = layout.folders[bucketFor(n)];
+            if (!f) return;
+            const a = Math.random() * 2 * Math.PI;
+            const d = f.ringMid ? f.ringMid : Math.random() * Math.max(0, f.r - nodeExtent(n) - 8);
+            n.x = f.cx + Math.cos(a) * d;
+            n.y = f.cy + Math.sin(a) * d;
+        });
+    }
+
+    /**
+     * Frame the whole picture: the folder circles (zoomToFit only looks at the nodes and would
+     * cut the circles) and the current document.
+     */
+    function fitToFolders(g, container, ms) {
+        if (!_layout || !_layout.top.length) { g.zoomToFit(ms, 60); return; }
+        let x0 = -80, y0 = -40, x1 = 80, y1 = 40;   // room for the current document at the origin
+        _layout.top.forEach(function (b) {
+            const f = _layout.folders[b];
+            x0 = Math.min(x0, f.cx - f.r); x1 = Math.max(x1, f.cx + f.r);
+            y0 = Math.min(y0, f.cy - f.r - 24); y1 = Math.max(y1, f.cy + f.r);   // 24: the label above the circle
+        });
+        const rect = container.getBoundingClientRect();
+        const pad = 30;
+        const k = Math.min((rect.width - 2 * pad) / (x1 - x0), (rect.height - 2 * pad) / (y1 - y0));
+        g.centerAt((x0 + x1) / 2, (y0 + y1) / 2, ms);
+        g.zoom(Math.max(0.05, Math.min(k, 2)), ms);
+    }
+
+    /** Moves a circle, the circles inside it and all their nodes (pinned ones too). */
+    function shiftFolder(f, dx, dy) {
+        f.cx += dx; f.cy += dy;
+        f.members.forEach(function (n) {
+            if (isFinite(n.x)) { n.x += dx; n.y += dy; }
+            if (n.fx != null) { n.fx += dx; n.fy += dy; }
+        });
+        f.children.forEach(function (c) { shiftFolder(_layout.folders[c], dx, dy); });
+    }
+
+    /**
+     * The circles are rigid: while one is dragged, the siblings it runs into are pushed away
+     * with their files, a child never leaves its parent, and no top-level circle covers the
+     * current document at the origin. Position-level, run on every mouse move of a circle drag.
+     */
+    function pushCirclesApart(draggedKey) {
+        const folders = _layout.folders;
+        const GAPPX = 12, CENTER_KEEP = 110;
+        const groups = [_layout.top].concat(_layout.buckets.map(function (b) { return folders[b].children; })
+            .filter(function (c) { return c.length > 1; }));
+        for (let iter = 0; iter < 30; iter++) {
+            let moved = false;
+            groups.forEach(function (group) {
+                for (let i = 0; i < group.length; i++) {
+                    for (let j = i + 1; j < group.length; j++) {
+                        const a = folders[group[i]], b = folders[group[j]];
+                        let ux = b.cx - a.cx, uy = b.cy - a.cy;
+                        let d = Math.hypot(ux, uy);
+                        if (d < 1e-6) { ux = 1; uy = 0; d = 1; }
+                        const min = a.r + b.r + GAPPX;
+                        if (d >= min) continue;
+                        const aFixed = group[i] === draggedKey, bFixed = group[j] === draggedKey;
+                        if (aFixed && bFixed) continue;
+                        const push = (min - d) + 0.5;
+                        const shareA = aFixed ? 0 : (bFixed ? 1 : 0.5), shareB = 1 - shareA;
+                        shiftFolder(a, -ux / d * push * shareA, -uy / d * push * shareA);
+                        shiftFolder(b,  ux / d * push * shareB,  uy / d * push * shareB);
+                        moved = true;
+                    }
+                }
+            });
+            _layout.buckets.forEach(function (b) {
+                const f = folders[b];
+                if (f.parent) {
+                    const p = folders[f.parent];
+                    const room = Math.max(0, p.r - f.r - 6);
+                    const ox = f.cx - p.cx, oy = f.cy - p.cy, od = Math.hypot(ox, oy);
+                    if (od > room + 0.5) { shiftFolder(f, ox / od * (room - od), oy / od * (room - od)); moved = true; }
+                } else {
+                    const d = Math.hypot(f.cx, f.cy) || 1e-6;
+                    const min = f.r + CENTER_KEEP;
+                    if (d < min - 0.5) { shiftFolder(f, f.cx / d * (min - d), f.cy / d * (min - d)); moved = true; }
+                }
+            });
+            if (!moved) break;
+        }
+    }
+
+    /** Every node of a folder and of the folders inside it. */
+    function descendantsOf(layout, b) {
+        const out = [];
+        (function walk(key) {
+            const f = layout.folders[key];
+            if (!f) return;
+            out.push.apply(out, f.members);
+            f.children.forEach(walk);
+        })(b);
+        return out;
+    }
+
+    /**
+     * The folder force: the current document is pulled to the origin; every other node is
+     * pulled gently toward its circle (toward the ring between the children and the edge when
+     * the folder has children), firmly pushed back when it crosses the edge, and firmly pushed
+     * out of the children's circles. The two firm pushes do not fade with alpha: they are
+     * constraints, not suggestions.
+     */
+    function folderForce2D(alpha) {
         if (!_data || !_layout) return;
         const k = 0.09 * alpha;
         const kC = 0.2 * alpha;
+        const FIRM = 0.35;
+        const folders = _layout.folders;
         const nodes = _data.nodes;
         for (let i = 0; i < nodes.length; i++) {
             const n = nodes[i];
+            if (!isFinite(n.x) || !isFinite(n.y)) continue;
             if (n.isCenter) {
-                n.vx = (n.vx || 0) + (0 - (n.x || 0)) * kC;
-                n.vy = (n.vy || 0) + (0 - (n.y || 0)) * kC;
+                n.vx = (n.vx || 0) + (0 - n.x) * kC;
+                n.vy = (n.vy || 0) + (0 - n.y) * kC;
                 continue;
             }
-            const c = _layout.centers[bucketFor(n)];
-            if (!c) continue;
-            n.vx = (n.vx || 0) + (c.x - (n.x || 0)) * k;
-            n.vy = (n.vy || 0) + (c.y - (n.y || 0)) * k;
+            const f = folders[bucketFor(n)];
+            if (!f) continue;
+            const ext = nodeExtent(n);
+            const dx = n.x - f.cx, dy = n.y - f.cy;
+            const d = Math.hypot(dx, dy) || 1e-6;
+            const limit = f.r - ext - 4;
+            if (d > limit) {
+                const s = (d - limit) * FIRM / d;
+                n.vx = (n.vx || 0) - dx * s;
+                n.vy = (n.vy || 0) - dy * s;
+            } else if (f.ringMid) {
+                const s = (f.ringMid - d) * k / d;
+                n.vx = (n.vx || 0) + dx * s;
+                n.vy = (n.vy || 0) + dy * s;
+            } else {
+                n.vx = (n.vx || 0) - dx * k;
+                n.vy = (n.vy || 0) - dy * k;
+            }
+            for (let c = 0; c < f.children.length; c++) {
+                const g = folders[f.children[c]];
+                const ex = n.x - g.cx, ey = n.y - g.cy;
+                const dd = Math.hypot(ex, ey) || 1e-6;
+                const min = g.r + ext + 4;
+                if (dd < min) {
+                    const s = (min - dd) * FIRM / dd;
+                    n.vx = (n.vx || 0) + ex * s;
+                    n.vy = (n.vy || 0) + ey * s;
+                }
+            }
         }
+    }
+
+    /** Position-level version of the constraints, for the boxes settled by hand at engine stop. */
+    function clampIntoFolder(n) {
+        const f = _layout && _layout.folders[bucketFor(n)];
+        if (!f) return false;
+        const ext = nodeExtent(n);
+        let moved = false;
+        const dx = n.x - f.cx, dy = n.y - f.cy;
+        const d = Math.hypot(dx, dy) || 1e-6;
+        const limit = f.r - ext - 4;
+        if (d > limit) { n.x = f.cx + dx * limit / d; n.y = f.cy + dy * limit / d; moved = true; }
+        for (let c = 0; c < f.children.length; c++) {
+            const g = _layout.folders[f.children[c]];
+            const ex = n.x - g.cx, ey = n.y - g.cy;
+            const dd = Math.hypot(ex, ey) || 1e-6;
+            const min = g.r + ext + 4;
+            if (dd < min) { n.x = g.cx + ex * min / dd; n.y = g.cy + ey * min / dd; moved = true; }
+        }
+        return moved;
     }
 
     function nodeColor(node) {
@@ -289,12 +558,16 @@
         return '<span class="kgFileIcon kgFileIcon-' + escapeHtml(kind) + '" title="' + escapeHtml(title) + '">' + escapeHtml(glyph) + '</span>';
     }
 
-    function buildBoxLayer(container, data, g) {
+    /**
+     * The boxes are built and measured BEFORE the graph exists (the folder circles are sized from
+     * them), so the handlers reach the graph through gRef.g, set once ForceGraph is created.
+     */
+    function buildBoxLayer(container, data, gRef) {
         const layer = document.createElement('div');
         layer.className = 'kgBoxLayer';
         container.appendChild(layer);
         data.nodes.forEach(function (node) {
-            const el = buildBox(node, container, g);
+            const el = buildBox(node, container, gRef);
             layer.appendChild(el);
             node._box = el;
             measureBox(node);
@@ -306,10 +579,10 @@
             e.preventDefault();
             canvas.dispatchEvent(new WheelEvent('wheel', e));
         }, { passive: false });
-        positionBoxes(g);
+        return layer;
     }
 
-    function buildBox(node, container, g) {
+    function buildBox(node, container, gRef) {
         const el = document.createElement('div');
         const missing = node.exists === false;
         el.className = 'kgBox' + (node.isCenter ? ' kgBoxCenter' : '') + (missing ? ' kgBoxMissing' : '');
@@ -345,8 +618,8 @@
             });
         });
         el.querySelector('.kgBoxHead').addEventListener('mousedown', function (e) {
-            if (e.button !== 0 || e.target.closest('.kgBoxToggle, .kgFileIcon, .kgBoxName')) return;
-            startBoxDrag(e, node, container, g);
+            if (e.button !== 0 || !gRef.g || e.target.closest('.kgBoxToggle, .kgFileIcon, .kgBoxName')) return;
+            startBoxDrag(e, node, container, gRef.g);
         });
         return el;
     }
@@ -429,9 +702,10 @@
     }
 
     /**
-     * When the simulation stops the forces may still leave boxes overlapping (the cluster pull
-     * wins over the collision): move the boxes themselves until none overlaps. A pinned box
-     * (dragged by hand) stays where it is and the other one moves.
+     * When the simulation stops the forces may still leave boxes overlapping (the folder pull
+     * wins over the collision): move the boxes themselves until none overlaps, keeping each one
+     * inside its folder circle and outside the children's. A pinned box (dragged by hand) stays
+     * where it is and the other one moves.
      */
     function settleBoxes() {
         if (!_data) return;
@@ -439,6 +713,10 @@
         const pad = 16;
         for (let iter = 0; iter < 80; iter++) {
             let moved = false;
+            for (let i = 0; i < nodes.length; i++) {
+                const n = nodes[i];
+                if (n.fx == null && !n.isCenter && clampIntoFolder(n)) moved = true;
+            }
             for (let i = 0; i < nodes.length; i++) {
                 const a = nodes[i];
                 for (let j = i + 1; j < nodes.length; j++) {
@@ -636,6 +914,12 @@
         // Files view: nodes are HTML boxes (buildBoxLayer). Concepts keep the drawn circles.
         const useBoxes = _source === 'files';
 
+        // Boxes first: the folder circles are sized from their measured boxes, and every node
+        // starts inside its own circle (the layer stays above the canvas by its z-index).
+        const gRef = { g: null };
+        const layer = useBoxes ? buildBoxLayer(container, data, gRef) : null;
+        if (_layout) { sizeLayout(_layout); seedPositions(data, _layout); }
+
         const g = ForceGraph()(container)
             .width(w).height(h)
             .backgroundColor('rgba(0,0,0,0)') // transparent over our CSS gradient
@@ -741,10 +1025,14 @@
             if (g.d3Force) {
                 const charge = g.d3Force('charge'); if (charge) charge.strength(-280);
                 const linkF  = g.d3Force('link');   if (linkF)  linkF.distance(useBoxes ? 170 : 80);
-                g.d3Force('cluster', clusterForce2D);
+                g.d3Force('cluster', folderForce2D);
                 if (useBoxes) g.d3Force('boxCollide', boxCollideForce2D);
             }
         } catch (e) { /* noop */ }
+        gRef.g = g;
+        // ForceGraph empties the container when it is created: the measured layer goes back in, above the canvas.
+        if (layer) container.appendChild(layer);
+        g.fitAll = function (ms) { fitToFolders(g, container, ms); };
 
         // Auto-fit on first stabilization. With boxes only the first time: opening or dragging
         // a box reheats the simulation, and refitting then would move the view under the mouse.
@@ -753,64 +1041,39 @@
             if (useBoxes) settleBoxes();
             if (useBoxes && fitted) return;
             fitted = true;
-            try { g.zoomToFit(400, useBoxes ? 90 : 50); } catch (e) {}
+            try { g.fitAll(400); } catch (e) {}
         });
-        if (useBoxes) buildBoxLayer(container, data, g);
         bindHaloDrag(container, g);
         return g;
     }
 
     // ---- Cluster halos (2D, drawn under nodes) -------------------------------
     /**
-     * Draws one dashed circle per folder (or namespace) around its nodes, and keeps every
-     * circle in _layout.halos (graph coordinates) so the mouse can grab it (see startHaloDrag).
+     * Draws the folder circles from the layout (fixed centre and radius, parents before their
+     * children so the children sit on top) and keeps them in _layout.halos (graph coordinates)
+     * for the mouse (see startHaloDrag). A circle's members are every node inside it, children included.
      */
     function drawClusterHalos2D(ctx, globalScale) {
         if (!_data || !_layout) return;
-        const buckets = _layout.buckets;
         const halos = Object.create(null);
         _layout.halos = halos;
-        for (let i = 0; i < buckets.length; i++) {
-            const b = buckets[i];
-            let cx = 0, cy = 0, count = 0;
-            const members = [];
-            for (let j = 0; j < _data.nodes.length; j++) {
-                const n = _data.nodes[j];
-                if (n.isCenter) continue;
-                if (bucketFor(n) !== b) continue;
-                if (!isFinite(n.x) || !isFinite(n.y)) continue;   // not placed yet; typeof let NaN through
-                cx += n.x; cy += n.y; count++;
-                members.push(n);
-            }
-            if (!count) continue;
-            cx /= count; cy /= count;
-            let maxR = 0;
-            for (let j = 0; j < members.length; j++) {
-                const n = members[j];
-                const dx = n.x - cx, dy = n.y - cy;
-                const extent = n._boxW ? Math.hypot(n._boxW / 2, n._boxH / 2) : nodeRadius(n);
-                const d = Math.sqrt(dx * dx + dy * dy) + extent + 16;
-                if (d > maxR) maxR = d;
-            }
-            if (maxR < 36) maxR = 36;
-            halos[b] = { bucket: b, cx: cx, cy: cy, r: maxR, members: members };
-
+        const fillA   = _isDark ? 0.16 : 0.13;
+        const strokeA = _isDark ? 0.38 : 0.30;
+        function draw(b) {
+            const f = _layout.folders[b];
+            if (!f || !isFinite(f.cx) || !isFinite(f.cy)) return;
+            halos[b] = { bucket: b, cx: f.cx, cy: f.cy, r: f.r, members: descendantsOf(_layout, b) };
             const color = PALETTE[hashStr(b) % PALETTE.length];
-            const fillA   = _isDark ? 0.16 : 0.13;
-            const strokeA = _isDark ? 0.38 : 0.30;
-
             ctx.save();
             ctx.fillStyle = hexToRgba(color, fillA);
             ctx.strokeStyle = hexToRgba(color, strokeA);
             ctx.lineWidth = 1.4 / globalScale;
             ctx.setLineDash([6 / globalScale, 5 / globalScale]);
             ctx.beginPath();
-            ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+            ctx.arc(f.cx, f.cy, f.r, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
             ctx.setLineDash([]);
-
-            // Folder label centered on top of the cluster
             const label = friendlyBucketLabel(b);
             if (label) {
                 const fs = 13 / globalScale;
@@ -818,10 +1081,12 @@
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
                 ctx.fillStyle = hexToRgba(color, _isDark ? 0.92 : 0.78);
-                ctx.fillText(label, cx, cy - maxR - 4 / globalScale);
+                ctx.fillText(label, f.cx, f.cy - f.r - 4 / globalScale);
             }
             ctx.restore();
+            f.children.forEach(draw);
         }
+        _layout.top.forEach(draw);
     }
 
     // ---- Folder circles: drag one and its nodes follow -------------------------
@@ -881,9 +1146,9 @@
     }
 
     /**
-     * Dragging a folder circle moves every node inside it by the same offset, and the
-     * folder's slot in the layout with them, so the cluster force keeps pulling the nodes
-     * to the new place. Like a dragged box, the nodes stay where they are dropped (pinned).
+     * Dragging a folder circle moves the circle, the circles inside it and every node in them
+     * by the same offset, so the folder force keeps the nodes in the new place; a child circle
+     * cannot leave its parent. Like a dragged box, the nodes stay where they are dropped (pinned).
      * The simulation is reheated on every move, like the box drag: the outer ForceGraph
      * exposes only d3ReheatSimulation (alpha back to 1), not resetCountdown/alphaTarget
      * (verified in force-graph 1.51, 2026-10-09). The other nodes make room; a higher
@@ -893,9 +1158,13 @@
     function startHaloDrag(e, halo, container, g) {
         const rect = container.getBoundingClientRect();
         const start = g.screen2GraphCoords(e.clientX - rect.left, e.clientY - rect.top);
+        const folders = _layout.folders;
+        const folder = folders[halo.bucket];
+        // The circle, the circles inside it and every node in them move together.
+        const circles = [];
+        (function walk(b) { const f = folders[b]; if (!f) return; circles.push({ f: f, cx: f.cx, cy: f.cy }); f.children.forEach(walk); })(halo.bucket);
         const members = halo.members.map(function (n) { return { node: n, x: n.x, y: n.y }; });
-        const slot = _layout && _layout.centers ? _layout.centers[halo.bucket] : null;
-        const slot0 = slot ? { x: slot.x, y: slot.y } : null;
+        const parent = folder && folder.parent ? folders[folder.parent] : null;
         container.style.cursor = 'grabbing';
         _handOverHalo = false;
         members.forEach(function (m) { if (m.node._box) m.node._box.classList.add('kgBoxDragging'); });
@@ -903,9 +1172,20 @@
         g.d3VelocityDecay(DRAG_VELOCITY_DECAY);
         function move(ev) {
             const p = g.screen2GraphCoords(ev.clientX - rect.left, ev.clientY - rect.top);
-            const dx = p.x - start.x, dy = p.y - start.y;
+            let dx = p.x - start.x, dy = p.y - start.y;
+            if (parent && folder) {
+                // A child circle stays inside its parent: the drag is clamped to the room there.
+                const room = Math.max(0, parent.r - folder.r - 6);
+                const ox = circles[0].cx + dx - parent.cx, oy = circles[0].cy + dy - parent.cy;
+                const od = Math.hypot(ox, oy);
+                if (od > room) {
+                    dx = parent.cx + ox * room / od - circles[0].cx;
+                    dy = parent.cy + oy * room / od - circles[0].cy;
+                }
+            }
+            circles.forEach(function (c) { c.f.cx = c.cx + dx; c.f.cy = c.cy + dy; });
             members.forEach(function (m) { m.node.fx = m.x + dx; m.node.fy = m.y + dy; });
-            if (slot) { slot.x = slot0.x + dx; slot.y = slot0.y + dy; }
+            pushCirclesApart(halo.bucket);
             g.d3ReheatSimulation();
         }
         function up() {
@@ -927,7 +1207,7 @@
         for (const b in halos) {
             const h = halos[b];
             const c = _graph.graph2ScreenCoords(h.cx, h.cy);
-            out.push({ folder: b, label: friendlyBucketLabel(b), cx: c.x, cy: c.y, r: h.r * _graph.zoom(), nodes: h.members.length });
+            out.push({ folder: b, label: friendlyBucketLabel(b), parent: (_layout.folders[b] || {}).parent || null, cx: c.x, cy: c.y, r: h.r * _graph.zoom(), nodes: h.members.length });
         }
         return out;
     }
@@ -1212,7 +1492,8 @@
                     try {
                         const r = body.getBoundingClientRect();
                         if (_graph && r.width > 0 && r.height > 0) _graph.width(r.width).height(r.height);
-                        if (_graph && _graph.zoomToFit) _graph.zoomToFit(400, 60);
+                        if (_graph && _graph.fitAll) _graph.fitAll(400);
+                        else if (_graph && _graph.zoomToFit) _graph.zoomToFit(400, 60);
                     } catch (e) { /* noop */ }
                 }, 250);
             });
