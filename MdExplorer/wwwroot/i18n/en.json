@@ -689,7 +689,28 @@
     "TAG_TOGGLED": "Tag '{{tag}}' {{action}}",
     "LAUNCH_AGENT": "Prepare and launch this agent",
     "AGENT_SCHEDULING": "Agent scheduling...",
-    "E2E_TESTS": "E2E tests…"
+    "E2E_TESTS": "E2E tests…",
+    "DEV_ENV_SETTINGS": "Development environment…"
+  },
+  "DEV_ENV": {
+      "TITLE": "Development environment",
+      "INTRO": "Which language is the program in this folder written in? Only the chosen languages are analysed: the code becomes a graph of symbols and relations, saved as scripts in .mde-code and loaded into MdExplorer's database.",
+      "DETECTING": "Detecting languages in the folder…",
+      "NOTHING_DETECTED": "No file of a known language in this folder.",
+      "LANGUAGES": "Detected languages",
+      "FILES": "{{count}} files",
+      "READY": "ready",
+      "SCAN_GIT": "Changes come from Git: only changed files are re-parsed.",
+      "SCAN_HASH": "Folder outside a Git repository: hashes of all files are compared.",
+      "ANALYZING": "Analysing the code…",
+      "DONE": "Analysis completed",
+      "OUTCOME_FILES": "{{files}} files in scope (mode {{mode}})",
+      "OUTCOME_REPARSED": "{{candidates}} candidates, {{reparsed}} re-parsed",
+      "OUTCOME_REMOVED": "{{removed}} scripts of vanished sources removed",
+      "OUTCOME_LOADED": "{{loaded}} scripts loaded into the database, {{failed}} failed",
+      "OUTCOME_NO_EXTRACTOR": "{{language}}: {{files}} files not analysed, extractor not available yet",
+      "SAVE": "Save",
+      "SAVE_AND_ANALYZE": "Save and analyse"
   },
   "LEAVE_COPY": {
     "TITLE": "Back to your work: saving the copy of {{agent}}",
