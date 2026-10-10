@@ -99,14 +99,14 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(x.Parameters.Single(p => p.Name == "b").IsNullable, "b?: string → nullable");
 
             // import relativo → modulo in perimetro; @angular/core → external
-            var serviceModuleId = TreeSitterTypeScriptExtractor.StableId("module", "src/app/services/md-file.service");
+            var serviceModuleId = RoslynCSharpExtractor.StableId(CodeLanguages.TypeScript, "module", "src/app/services/md-file.service");
             Assert.IsTrue(x.Edges.Any(e => e.SourceId == module.Id && e.TargetId == serviceModuleId && e.Relation == "imports"));
             var angular = x.Symbols.Single(s => s.Kind == "external" && s.QualifiedName == "@angular/core");
             Assert.IsTrue(x.Edges.Any(e => e.SourceId == module.Id && e.TargetId == angular.Id && e.Relation == "imports"));
 
             // implements OnInit (external, extracted); references MdFileService (in perimetro, inferred); instantiates Date (external)
             Assert.IsTrue(x.Edges.Any(e => e.SourceId == comp.Id && e.Relation == "implements"));
-            var serviceId = TreeSitterTypeScriptExtractor.StableId("service", "src/app/services/md-file.service:MdFileService");
+            var serviceId = RoslynCSharpExtractor.StableId(CodeLanguages.TypeScript, "service", "src/app/services/md-file.service:MdFileService");
             Assert.IsTrue(x.Edges.Any(e => e.SourceId == ctor.Id && e.TargetId == serviceId && e.Relation == "references" && e.Confidence == "inferred"));
             Assert.IsTrue(x.Edges.Any(e => e.Relation == "instantiates"));
 
@@ -115,7 +115,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(x.Edges.Any(e => e.SourceId == ngOnInit.Id && e.TargetId == load.Id && e.Relation == "calls" && e.Confidence == "extracted"));
             var helper = x.Symbols.Single(s => s.Name == "helper");
             Assert.IsTrue(x.Edges.Any(e => e.SourceId == ngOnInit.Id && e.TargetId == helper.Id && e.Relation == "calls" && e.Confidence == "inferred"));
-            var getId = TreeSitterTypeScriptExtractor.StableId("method", "src/app/services/md-file.service:MdFileService.get");
+            var getId = RoslynCSharpExtractor.StableId(CodeLanguages.TypeScript, "method", "src/app/services/md-file.service:MdFileService.get");
             Assert.IsTrue(x.Edges.Any(e => e.SourceId == load.Id && e.TargetId == getId && e.Relation == "calls" && e.Confidence == "inferred"));
 
             // il servizio: @Injectable → service; il formato si rilegge e si carica

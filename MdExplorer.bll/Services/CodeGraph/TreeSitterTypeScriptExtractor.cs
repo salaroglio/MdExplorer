@@ -12,8 +12,12 @@ using TreeSitter;
 namespace MdExplorer.Features.Services.CodeGraph
 {
     /// <summary>
-    /// L'estrattore TypeScript su tree-sitter (D1, D8): la grammatica si carica per percorso assoluto dallo store delle
-    /// grammatiche scaricate; senza grammatica l'estrattore si dichiara non pronto e i file restano contati.
+    /// L'estrattore TypeScript/JavaScript su tree-sitter (D1, D8): la grammatica si carica per percorso assoluto dallo
+    /// store delle grammatiche scaricate; senza grammatica l'estrattore si dichiara non pronto e i file restano contati.
+    /// Le due grammatiche hanno quasi gli stessi nodi: una base sola, due sottoclassi (linguaggio, estensioni, grammatica).
+    /// Le differenze: in JS i campi sono <c>field_definition</c>, i parametri <c>identifier</c>/<c>assignment_pattern</c>/
+    /// <c>rest_pattern</c> senza involucro, <c>extends</c> sta direttamente in <c>class_heritage</c>, gli import portano
+    /// l'estensione (<c>./util.js</c>); in TS ci sono anche interfacce, enum, alias di tipo e annotazioni di tipo.
     /// <para>
     /// Due passate: la prima legge TUTTI i file del perimetro e indicizza le dichiarazioni (serve per risolvere i nomi);
     /// la seconda emette uno script per ogni file richiesto. Tree-sitter è solo sintassi: le chiamate si risolvono per
@@ -24,19 +28,20 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// Ogni file è un simbolo <c>module</c> (nome qualificato = percorso senza estensione); gli <c>import</c> relativi
     /// diventano archi <c>imports</c> fra moduli, quelli di pacchetto (<c>@angular/core</c>) un modulo <c>external</c>.
     /// Le classi con decoratore Angular hanno un kind proprio: component, service (Injectable), directive, pipe, ngmodule.
+    /// Una <c>const f = () =&gt; …</c> di primo livello è una <c>function</c>.
     /// </para>
     /// </summary>
-    public sealed class TreeSitterTypeScriptExtractor : ICodeExtractor
+    public abstract class TreeSitterEcmaScriptExtractor : ICodeExtractor
     {
-        public string LanguageId => CodeLanguages.TypeScript;
-        public string ExtractorName => "tree-sitter-typescript";
-        public string ExtractorVersion => "1";
+        public abstract string LanguageId { get; }
+        public abstract string ExtractorName { get; }
+        public string ExtractorVersion => "2";
+        protected abstract string[] CodeExtensions { get; }
 
         private readonly GrammarStore _store;
-        private readonly ILogger<TreeSitterTypeScriptExtractor> _logger;
-        private static readonly string[] CodeExtensions = { ".ts", ".tsx", ".mts", ".cts" };
+        private readonly ILogger _logger;
 
-        public TreeSitterTypeScriptExtractor(GrammarStore store, ILogger<TreeSitterTypeScriptExtractor> logger)
+        protected TreeSitterEcmaScriptExtractor(GrammarStore store, ILogger logger)
         {
             _store = store; _logger = logger;
         }
@@ -70,9 +75,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 catch (Exception ex) { result.Warnings.Add($"{f.ProjectRelativePath}: non leggibile ({ex.Message})"); continue; }
                 var tree = parser.Parse(text);
                 if (tree == null) { result.Warnings.Add($"{f.ProjectRelativePath}: tree-sitter non ha prodotto un albero"); continue; }
-                parsed.Add(new ParsedFile(f, text, tree));
+                parsed.Add(new ParsedFile(f, text, tree, ModuleName(f.ProjectRelativePath)));
             }
-            var index = new PerimeterIndex();
+            var index = new PerimeterIndex(this);
             foreach (var pf in parsed) index.Collect(pf);
 
             // Passata 2: uno script per file richiesto.
@@ -95,14 +100,14 @@ namespace MdExplorer.Features.Services.CodeGraph
         // ------------------------------------------------------------------ naming
 
         /// <summary><c>src/app/x.component.ts</c> → <c>src/app/x.component</c>: il nome del modulo.</summary>
-        public static string ModuleName(string projectRelativePath)
+        public string ModuleName(string projectRelativePath)
         {
             foreach (var ext in CodeExtensions)
                 if (projectRelativePath.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) return projectRelativePath.Substring(0, projectRelativePath.Length - ext.Length);
             return projectRelativePath;
         }
 
-        public static string StableId(string kind, string qualifiedName) => RoslynCSharpExtractor.StableId(CodeLanguages.TypeScript, kind, qualifiedName);
+        public string StableId(string kind, string qualifiedName) => RoslynCSharpExtractor.StableId(LanguageId, kind, qualifiedName);
 
         private static string Sha256(string content)
         {
@@ -110,16 +115,16 @@ namespace MdExplorer.Features.Services.CodeGraph
             return Convert.ToHexString(sha.ComputeHash(Encoding.UTF8.GetBytes(content))).ToLowerInvariant();
         }
 
-        private sealed record ParsedFile(CodeSourceFile File, string Text, Tree Tree)
-        {
-            public string Module => ModuleName(File.ProjectRelativePath);
-        }
+        private sealed record ParsedFile(CodeSourceFile File, string Text, Tree Tree, string Module);
 
         // ------------------------------------------------------------------ perimeter index
 
         /// <summary>Dichiarazioni di tutto il perimetro: per nome (funzioni e tipi) e per classe (membri), più i moduli.</summary>
         private sealed class PerimeterIndex
         {
+            private readonly TreeSitterEcmaScriptExtractor _owner;
+            public PerimeterIndex(TreeSitterEcmaScriptExtractor owner) { _owner = owner; }
+            private string StableId(string kind, string qualifiedName) => _owner.StableId(kind, qualifiedName);
             public readonly Dictionary<string, string> Modules = new(StringComparer.Ordinal);                 // module name → id
             public readonly Dictionary<string, List<(string Id, string Kind)>> TypesByName = new(StringComparer.Ordinal);
             public readonly Dictionary<string, List<string>> FunctionsByName = new(StringComparer.Ordinal);
@@ -163,6 +168,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                                 if (name != null) Add(FunctionsByName, name, StableId("function", pf.Module + ":" + name));
                                 break;
                             }
+                        case "lexical_declaration":
+                        case "variable_declaration":
+                            foreach (var (vname, _) in ArrowFunctions(node))
+                                Add(FunctionsByName, vname, StableId("function", pf.Module + ":" + vname));
+                            break;
                     }
                 }
             }
@@ -190,7 +200,18 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         private static string NameOf(Node decl)
-            => decl.NamedChildren.FirstOrDefault(c => c.Type is "identifier" or "type_identifier" or "property_identifier")?.Text;
+            => decl.NamedChildren.FirstOrDefault(c => c.Type is "identifier" or "type_identifier" or "property_identifier" or "private_property_identifier")?.Text;
+
+        /// <summary><c>const f = (a) =&gt; …</c> / <c>const g = function () {}</c>: le funzioni dichiarate come variabili.</summary>
+        private static IEnumerable<(string Name, Node Fn)> ArrowFunctions(Node declaration)
+        {
+            foreach (var v in declaration.NamedChildren.Where(c => c.Type == "variable_declarator"))
+            {
+                var name = v.NamedChildren.FirstOrDefault(c => c.Type == "identifier")?.Text;
+                var fn = v.NamedChildren.LastOrDefault(c => c.Type is "arrow_function" or "function_expression" or "function");
+                if (name != null && fn != null) yield return (name, fn);
+            }
+        }
 
         private static bool IsAccessor(Node method)
         {
@@ -257,7 +278,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         private sealed class FileEmitter
         {
-            private readonly TreeSitterTypeScriptExtractor _owner;
+            private readonly TreeSitterEcmaScriptExtractor _owner;
             private readonly ParsedFile _pf;
             private readonly PerimeterIndex _index;
             private readonly CodeScript _script = new();
@@ -265,11 +286,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             private readonly HashSet<string> _edges = new(StringComparer.Ordinal);
             private readonly string _moduleId;
 
-            public FileEmitter(TreeSitterTypeScriptExtractor owner, ParsedFile pf, PerimeterIndex index)
+            public FileEmitter(TreeSitterEcmaScriptExtractor owner, ParsedFile pf, PerimeterIndex index)
             {
                 _owner = owner; _pf = pf; _index = index;
                 _moduleId = StableId("module", pf.Module);
             }
+
+            private string StableId(string kind, string qualifiedName) => _owner.StableId(kind, qualifiedName);
 
             public CodeScript Emit()
             {
@@ -312,6 +335,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                     case "function_declaration":
                         EmitFunction(node, exported);
                         break;
+                    case "lexical_declaration":
+                    case "variable_declaration":
+                        foreach (var (vname, fn) in ArrowFunctions(node)) EmitArrowFunction(vname, fn, node, exported);
+                        break;
                 }
             }
 
@@ -325,7 +352,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (spec.StartsWith('.'))
                 {
                     var dir = Path.GetDirectoryName(_pf.Module)?.Replace('\\', '/') ?? string.Empty;
-                    var candidate = NormalizeRelative(string.IsNullOrEmpty(dir) ? spec : dir + "/" + spec);
+                    var candidate = _owner.ModuleName(NormalizeRelative(string.IsNullOrEmpty(dir) ? spec : dir + "/" + spec));
                     if (_index.Modules.TryGetValue(candidate, out var id) || _index.Modules.TryGetValue(candidate + "/index", out id))
                         targetId = id;
                     else
@@ -364,6 +391,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var heritage = decl.NamedChildren.FirstOrDefault(c => c.Type == "class_heritage");
                 if (heritage != null)
                 {
+                    foreach (var t in heritage.NamedChildren.Where(c => c.Type is "identifier" or "member_expression").Select(c => c.Type == "identifier" ? c.Text : c.NamedChildren.LastOrDefault()?.Text ?? c.Text))
+                        Edge(classId, ResolveType(t), "inherits", ConfidenceOfType(t), Line(heritage));
                     foreach (var ext in heritage.NamedChildren.Where(c => c.Type == "extends_clause"))
                         foreach (var t in TypeNames(ext).Concat(ext.NamedChildren.Where(c => c.Type == "identifier").Select(c => c.Text)).Distinct())
                             Edge(classId, ResolveType(t), "inherits", ConfidenceOfType(t), Line(ext));
@@ -384,6 +413,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                             EmitMethod(m, classId, name);
                             break;
                         case "public_field_definition":
+                        case "field_definition":
                         case "property_signature":
                             {
                                 var fname = NameOf(m);
@@ -430,6 +460,18 @@ namespace MdExplorer.Features.Services.CodeGraph
                 WalkBody(fn, id, null);
             }
 
+            private void EmitArrowFunction(string name, Node fn, Node declaration, bool exported)
+            {
+                var qn = _pf.Module + ":" + name;
+                var returnNode = fn.NamedChildren.FirstOrDefault(c => c.Type == "type_annotation");
+                var id = Declare(declaration, "function", name, qn, Signature(declaration), returnNode?.Text.TrimStart(':').Trim(), exported ? "public" : "internal", _moduleId,
+                    isAsync: fn.Text.StartsWith("async", StringComparison.Ordinal));
+                Edge(_moduleId, id, "contains", "extracted", Line(declaration));
+                foreach (var t in TypeNames(returnNode)) Edge(id, ResolveType(t), "references", ConfidenceOfType(t), Line(fn));
+                EmitParameters(fn, id);
+                WalkBody(fn, id, null);
+            }
+
             private void EmitTypeLike(Node decl, bool exported)
             {
                 var name = NameOf(decl);
@@ -470,22 +512,53 @@ namespace MdExplorer.Features.Services.CodeGraph
             private void EmitParameters(Node decl, string ownerId)
             {
                 var prms = decl.NamedChildren.FirstOrDefault(c => c.Type == "formal_parameters");
-                if (prms == null) return;
+                if (prms == null)
+                {
+                    // arrow function con un parametro solo senza parentesi: x => …
+                    var single = decl.Type == "arrow_function" ? decl.NamedChildren.FirstOrDefault(c => c.Type == "identifier") : null;
+                    if (single != null) _script.Parameters.Add(new ScriptParameter { SymbolId = ownerId, Position = 0, Name = single.Text });
+                    return;
+                }
                 var pos = 0;
                 foreach (var p in prms.NamedChildren)
                 {
-                    if (p.Type is not ("required_parameter" or "optional_parameter")) continue;
-                    var rest = p.NamedChildren.FirstOrDefault(c => c.Type == "rest_pattern");
-                    var nameNode = (rest ?? p).NamedChildren.FirstOrDefault(c => c.Type == "identifier");
-                    var typeNode = p.NamedChildren.FirstOrDefault(c => c.Type == "type_annotation");
-                    var defaultNode = p.NamedChildren.LastOrDefault(c => c.Type is not ("identifier" or "type_annotation" or "accessibility_modifier" or "rest_pattern" or "decorator" or "override_modifier" or "readonly"));
-                    _script.Parameters.Add(new ScriptParameter
+                    switch (p.Type)
                     {
-                        SymbolId = ownerId, Position = pos++, Name = nameNode?.Text ?? p.Text, ParameterType = typeNode?.Text.TrimStart(':').Trim(),
-                        Direction = rest != null ? "params" : "in", IsNullable = p.Type == "optional_parameter",
-                        DefaultValue = defaultNode != null && defaultNode.EndIndex > (typeNode?.EndIndex ?? nameNode?.EndIndex ?? 0) ? defaultNode.Text : null,
-                    });
-                    foreach (var t in TypeNames(typeNode)) Edge(ownerId, ResolveType(t), "references", ConfidenceOfType(t), Line(p));
+                        case "required_parameter":
+                        case "optional_parameter":
+                            {
+                                var rest = p.NamedChildren.FirstOrDefault(c => c.Type == "rest_pattern");
+                                var nameNode = (rest ?? p).NamedChildren.FirstOrDefault(c => c.Type == "identifier");
+                                var typeNode = p.NamedChildren.FirstOrDefault(c => c.Type == "type_annotation");
+                                var defaultNode = p.NamedChildren.LastOrDefault(c => c.Type is not ("identifier" or "type_annotation" or "accessibility_modifier" or "rest_pattern" or "decorator" or "override_modifier" or "readonly"));
+                                _script.Parameters.Add(new ScriptParameter
+                                {
+                                    SymbolId = ownerId, Position = pos++, Name = nameNode?.Text ?? p.Text, ParameterType = typeNode?.Text.TrimStart(':').Trim(),
+                                    Direction = rest != null ? "params" : "in", IsNullable = p.Type == "optional_parameter",
+                                    DefaultValue = defaultNode != null && defaultNode.EndIndex > (typeNode?.EndIndex ?? nameNode?.EndIndex ?? 0) ? defaultNode.Text : null,
+                                });
+                                foreach (var t in TypeNames(typeNode)) Edge(ownerId, ResolveType(t), "references", ConfidenceOfType(t), Line(p));
+                                break;
+                            }
+                        // JavaScript: nessun involucro intorno al parametro
+                        case "identifier":
+                            _script.Parameters.Add(new ScriptParameter { SymbolId = ownerId, Position = pos++, Name = p.Text });
+                            break;
+                        case "assignment_pattern":
+                            _script.Parameters.Add(new ScriptParameter
+                            {
+                                SymbolId = ownerId, Position = pos++, Name = p.NamedChildren.FirstOrDefault()?.Text ?? p.Text,
+                                DefaultValue = p.NamedChildren.LastOrDefault()?.Text, IsNullable = p.NamedChildren.LastOrDefault()?.Type is "undefined" or "null",
+                            });
+                            break;
+                        case "rest_pattern":
+                            _script.Parameters.Add(new ScriptParameter { SymbolId = ownerId, Position = pos++, Name = NameOf(p) ?? p.Text, Direction = "params" });
+                            break;
+                        case "object_pattern":
+                        case "array_pattern":
+                            _script.Parameters.Add(new ScriptParameter { SymbolId = ownerId, Position = pos++, Name = p.Text.Length > 40 ? p.Text.Substring(0, 40) + "…" : p.Text });
+                            break;
+                    }
                 }
             }
 
@@ -576,5 +649,21 @@ namespace MdExplorer.Features.Services.CodeGraph
                 _script.Edges.Add(new ScriptEdge { SourceId = source, TargetId = target, Relation = relation, Confidence = confidence, Line = line });
             }
         }
+    }
+
+    public sealed class TreeSitterTypeScriptExtractor : TreeSitterEcmaScriptExtractor
+    {
+        public override string LanguageId => CodeLanguages.TypeScript;
+        public override string ExtractorName => "tree-sitter-typescript";
+        protected override string[] CodeExtensions { get; } = { ".ts", ".tsx", ".mts", ".cts" };
+        public TreeSitterTypeScriptExtractor(GrammarStore store, ILogger<TreeSitterTypeScriptExtractor> logger) : base(store, logger) { }
+    }
+
+    public sealed class TreeSitterJavaScriptExtractor : TreeSitterEcmaScriptExtractor
+    {
+        public override string LanguageId => CodeLanguages.JavaScript;
+        public override string ExtractorName => "tree-sitter-javascript";
+        protected override string[] CodeExtensions { get; } = { ".js", ".jsx", ".mjs", ".cjs" };
+        public TreeSitterJavaScriptExtractor(GrammarStore store, ILogger<TreeSitterJavaScriptExtractor> logger) : base(store, logger) { }
     }
 }
