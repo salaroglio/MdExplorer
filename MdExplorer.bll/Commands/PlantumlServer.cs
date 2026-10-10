@@ -18,11 +18,13 @@ namespace MdExplorer.Features.Commands
     {
         private readonly IDALFactory<IUserSettingsDB> _dalFactory;
         private readonly ILogger<PlantumlServer> _logger;
+        private readonly Utilities.IJavaLocator _javaLocator;
 
-        public PlantumlServer(IDALFactory<IUserSettingsDB> dalFactory, ILogger<PlantumlServer> logger)
+        public PlantumlServer(IDALFactory<IUserSettingsDB> dalFactory, ILogger<PlantumlServer> logger, Utilities.IJavaLocator javaLocator)
         {
             _dalFactory = dalFactory;
             _logger = logger;
+            _javaLocator = javaLocator;
         }
 
         public async Task<byte[]> GetSvgFromJar(string plantumlcode)
@@ -186,7 +188,7 @@ namespace MdExplorer.Features.Commands
 
             // Get settings from database
             var plantumlPathSetting = settingDal.GetList().Where(_ => _.Name == "PlantumlLocalPath").FirstOrDefault()?.ValueString;
-            var javaPath = settingDal.GetList().Where(_ => _.Name == "JavaPath").FirstOrDefault()?.ValueString;
+            string javaPath;
             var graphvizPathSetting = settingDal.GetList().Where(_ => _.Name == "LocalGraphvizDotPath").FirstOrDefault()?.ValueString;
 
             // Build full paths - handle both relative and absolute paths
@@ -230,30 +232,8 @@ namespace MdExplorer.Features.Commands
                 localGraphvizDotPath = Path.Combine(currentApplicationPath, "Binaries", "Graphviz", "linux", "dot");
             }
 
-            // Auto-discover Java if the configured path doesn't exist or is empty
-            if (string.IsNullOrEmpty(javaPath) || !File.Exists(javaPath))
-            {
-                var discoveredJavaPath = Utilities.JavaDiscovery.DiscoverJavaPath();
-                if (!string.IsNullOrEmpty(discoveredJavaPath))
-                {
-                    javaPath = discoveredJavaPath;
-
-                    // Optionally update the database with the discovered path
-                    var javaSetting = settingDal.GetList().Where(_ => _.Name == "JavaPath").FirstOrDefault();
-                    if (javaSetting != null)
-                    {
-                        javaSetting.ValueString = discoveredJavaPath;
-                        settingDal.Save(javaSetting);
-                        session.Flush();
-                    }
-                }
-            }
-
-            // Last-resort fallback: rely on PATH resolution.
-            if (string.IsNullOrEmpty(javaPath))
-            {
-                javaPath = "java";
-            }
+            // Java: lo stesso di Fuseki (impostazione JavaPath → JavaDiscovery → "java"), un punto solo.
+            javaPath = _javaLocator.ResolveJavaPath(session);
 
             // If PlantUML path is not set or doesn't exist, try to find it
             if (string.IsNullOrEmpty(plantumlPath) || !File.Exists(plantumlPath))

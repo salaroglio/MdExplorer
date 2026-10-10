@@ -188,8 +188,10 @@ namespace MdExplorer
             // Consolidamento (Fase 7f): gesto umano che promuove i fatti durevoli nel .agent.md e
             // decade il resto (promozione + decadimento in un solo atto per-conversazione).
             services.AddSingleton<Services.AgentMemory.IMemoryConsolidationService, Services.AgentMemory.MemoryConsolidationService>();
-            // Istanza Fuseki gestita (addon on-demand): avvio/stop di proprietà del Service.
-            services.AddSingleton<Services.AgentMemory.IFusekiProcessManager, Services.AgentMemory.FusekiProcessManager>();
+            // L'unico Fuseki del servizio (D19): jar nel pacchetto, avviato alla prima richiesta
+            // (grafo del codice o memoria degli agenti), fermato con il servizio.
+            services.AddSingleton(new Services.Fuseki.ManagedFusekiOptions());
+            services.AddSingleton<Services.Fuseki.IFusekiProcessManager, Services.Fuseki.FusekiProcessManager>();
 
             // Federazione (Fase 6b): assemblaggio annuncio cifrato + presidio lato Service.
             // Il FederationRelayService è DORMIENTE finché nessun progetto abilita la città;

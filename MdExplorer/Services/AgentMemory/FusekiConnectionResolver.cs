@@ -7,6 +7,7 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Features.Agents;
 using MdExplorer.Features.Services.KnowledgeGraph;
+using MdExplorer.Services.Fuseki;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MdExplorer.Services.AgentMemory
@@ -19,7 +20,7 @@ namespace MdExplorer.Services.AgentMemory
     /// o un semplice "niente memoria" (dispatcher).
     /// <para>
     /// Due modi (<see cref="ProjectFusekiSettings.Managed"/>): <b>gestito</b> = il Service avvia
-    /// un'istanza Fuseki propria su porta loopback random (addon on-demand); <b>esterno</b> =
+    /// il Fuseki del pacchetto su porta loopback (D19); <b>esterno</b> =
     /// usa l'<c>Uri</c> configurato dall'utente.
     /// </para>
     /// </summary>
@@ -78,7 +79,7 @@ namespace MdExplorer.Services.AgentMemory
 
             if (settings.Managed)
             {
-                // Istanza gestita: avviala (fail-loud se l'addon manca) e punta al suo base URI.
+                // Istanza gestita: avviala (fail-loud se jar o Java 21 mancano) e punta al suo base URI.
                 // Nessuna credenziale (loopback, di proprietà del Service).
                 var baseUri = await _processManager.EnsureRunningAsync(ct);
                 return new FusekiConnection

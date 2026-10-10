@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using MdExplorer.Features.AgentMemory;
 using MdExplorer.Features.Services.KnowledgeGraph;
 using MdExplorer.Services.AgentMemory;
+using MdExplorer.Services.Fuseki;
 using MdExplorer.Services.AgentRegistry;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -83,7 +84,7 @@ namespace MdExplorer.Controllers.A2A
 
             FusekiConnection conn;
             try { conn = await _fusekiResolver.ResolveAsync(projectPath); }
-            catch (FusekiAddonMissingException ax) { return StatusCode(409, new { error = ax.Message }); }
+            catch (FusekiUnavailableException ax) { return StatusCode(409, new { error = ax.Message }); }
             if (conn == null)
                 return StatusCode(409, new { error = "La memoria (Fuseki) non è abilitata per questo progetto." });
 
@@ -181,7 +182,7 @@ namespace MdExplorer.Controllers.A2A
                 return BadRequest(new { error = "projectPath è obbligatorio." });
             FusekiConnection conn;
             try { conn = await _fusekiResolver.ResolveAsync(projectPath); }
-            catch (FusekiAddonMissingException ax) { return StatusCode(409, new { error = ax.Message }); }
+            catch (FusekiUnavailableException ax) { return StatusCode(409, new { error = ax.Message }); }
             if (conn == null)
                 return StatusCode(409, new { error = "La memoria (Fuseki) non è abilitata per questo progetto." });
 
@@ -229,7 +230,7 @@ namespace MdExplorer.Controllers.A2A
         {
             FusekiConnection conn;
             try { conn = await _fusekiResolver.ResolveAsync(projectPath); }
-            catch (FusekiAddonMissingException ax) { return (null, StatusCode(409, new { error = ax.Message })); }
+            catch (FusekiUnavailableException ax) { return (null, StatusCode(409, new { error = ax.Message })); }
             if (conn == null)
                 return (null, StatusCode(409, new { error = "La memoria (Fuseki) non è abilitata per questo progetto." }));
 

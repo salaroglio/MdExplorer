@@ -108,18 +108,26 @@ fi
 
 echo ""
 
-# 4. Install Java Runtime (for PlantUML)
-echo "4. Installing Java Runtime..."
+# 4. Install Java Runtime 21 (for PlantUML and for the bundled Fuseki: code graph + agent memory)
+echo "4. Installing Java Runtime 21..."
+JAVA_MAJOR=""
 if command -v java &> /dev/null; then
     JAVA_VERSION=$(java -version 2>&1 | head -n 1)
+    JAVA_MAJOR=$(echo "$JAVA_VERSION" | sed -E 's/.*version "?([0-9]+)(\.([0-9]+))?.*/\1/')
+    if [ "$JAVA_MAJOR" = "1" ]; then JAVA_MAJOR=$(echo "$JAVA_VERSION" | sed -E 's/.*version "?1\.([0-9]+).*/\1/'); fi
+fi
+if [ -n "$JAVA_MAJOR" ] && [ "$JAVA_MAJOR" -ge 21 ] 2>/dev/null; then
     print_status "Java is already installed: $JAVA_VERSION"
 else
+    if [ -n "$JAVA_MAJOR" ]; then
+        print_warning "Java $JAVA_MAJOR found, but MdExplorer requires Java 21 (Fuseki): installing Java 21"
+    fi
     if [[ "$OS" == *"Ubuntu"* ]] || [[ "$OS" == *"Debian"* ]]; then
-        sudo apt-get install -y default-jre
+        sudo apt-get install -y openjdk-21-jre
     elif [[ "$OS" == *"Fedora"* ]] || [[ "$OS" == *"Red Hat"* ]]; then
-        sudo dnf install -y java-latest-openjdk
+        sudo dnf install -y java-21-openjdk
     elif [[ "$OS" == *"Arch"* ]]; then
-        sudo pacman -S --noconfirm jre-openjdk
+        sudo pacman -S --noconfirm jre21-openjdk
     fi
     print_status "Java Runtime installed"
 fi

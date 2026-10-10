@@ -6,6 +6,7 @@ using MdExplorer.Features.AgentMemory;
 using MdExplorer.Features.Agents;
 using MdExplorer.Features.Services.KnowledgeGraph;
 using MdExplorer.Services.AgentMemory;
+using MdExplorer.Services.Fuseki;
 using MdExplorer.Services.AgentRegistry;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -160,7 +161,7 @@ namespace MdExplorer.Controllers.A2A
             {
                 conn = await _fusekiResolver.ResolveAsync(claims.ProjectPath);
             }
-            catch (FusekiAddonMissingException ax)
+            catch (FusekiUnavailableException ax)
             {
                 return (null, StatusCode(409, new { error = ax.Message }));
             }

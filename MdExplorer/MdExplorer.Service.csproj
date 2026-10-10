@@ -242,6 +242,10 @@
     <EmbeddedResource Include="Binaries\plantuml.jar">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
+    <!-- Fuseki (D19/D20): jar nel pacchetto accanto a plantuml.jar; None + copia, NON EmbeddedResource (57 MB). -->
+    <None Include="Binaries\jena-fuseki-server.jar">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <EmbeddedResource Include="templates\pdf\eisvogel.tex" />
     <EmbeddedResource Include="EmojiForPandoc\calendar.png" />
     <EmbeddedResource Include="EmojiForPandoc\construction.png" />

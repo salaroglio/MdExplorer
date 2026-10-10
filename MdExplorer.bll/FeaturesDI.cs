@@ -50,6 +50,8 @@ namespace MdExplorer.Features
             services.AddTransient<ICommandRunnerPdf, CommandRunnerPdf>();
             services.AddTransient<ICommandRunnerMD, CommandRunnerMD>();
             services.AddSingleton<PlantumlServer>();
+            // Un solo modo di trovare java, per PlantUML e per Fuseki (D19).
+            services.AddSingleton<Utilities.IJavaLocator, Utilities.JavaLocator>();
             services.AddTransient<IHelper, Helper>();
             services.AddTransient<IHelperPdf, HelperPdf>();
             services.AddTransient<IHelperHtml, HelperHtml>();
