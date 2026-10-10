@@ -116,7 +116,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
 
             // Import: relativo e assoluto verso il modulo del perimetro, json esterno.
             var mainModule = main.Symbols[0].Id; var utilModule = util.Symbols[0].Id;
-            Assert.AreEqual(2, main.Edges.Count(e => e.SourceId == mainModule && e.TargetId == utilModule && e.Relation == "imports"), "from .util e from app.util → lo stesso modulo");
+            Assert.AreEqual(1, main.Edges.Count(e => e.SourceId == mainModule && e.TargetId == utilModule && e.Relation == "imports"), "from .util e from app.util → lo stesso modulo, un arco solo (dedup per relazione)");
             var json = main.Symbols.Single(s => s.Kind == "external" && s.Name == "json");
             Assert.IsTrue(main.Edges.Any(e => e.SourceId == mainModule && e.TargetId == json.Id && e.Relation == "imports"));
 

@@ -55,6 +55,12 @@ namespace MdExplorer.Features.Services.Fuseki
 
         /// <summary>Ferma l'istanza (se c'è). Il servizio lo fa in Dispose; i test a fine prova.</summary>
         Task StopAsync();
+
+        /// <summary>
+        /// Compatta un dataset TDB2 (<c>POST /$/compact/{dataset}?deleteOld=true</c>): TDB2 è copy-on-write e i blocchi
+        /// vecchi restano su disco finché non si compatta. Aspetta la fine del task; un rifiuto è un'eccezione, non un silenzio.
+        /// </summary>
+        Task CompactAsync(string dataset, CancellationToken ct = default);
     }
 
     public class FusekiProcessManager : IFusekiProcessManager, IDisposable
@@ -130,6 +136,7 @@ namespace MdExplorer.Features.Services.Fuseki
                 psi.ArgumentList.Add("--ping");
                 // Admin senza password, raggiungibile solo da loopback: il servizio crea i dataset della memoria a caldo.
                 psi.ArgumentList.Add("--admin=localhost");
+                psi.ArgumentList.Add("--compact");
                 psi.Environment["FUSEKI_BASE"] = _options.DataDirectory;
 
                 _logger.LogInformation("[Fuseki] avvio {Jar} con {Java} ({JavaVersion}) su {Base}, dati in {Data}",
@@ -180,6 +187,33 @@ namespace MdExplorer.Features.Services.Fuseki
             {
                 _gate.Release();
             }
+        }
+
+        public async Task CompactAsync(string dataset, CancellationToken ct = default)
+        {
+            var baseUri = await EnsureRunningAsync(ct);
+            using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
+            var started = DateTime.UtcNow;
+            using var resp = await http.PostAsync($"{baseUri}/$/compact/{Uri.EscapeDataString(dataset)}?deleteOld=true", new StringContent(string.Empty), ct);
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            if (!resp.IsSuccessStatusCode)
+                throw new InvalidOperationException($"Fuseki ha rifiutato la compattazione di '{dataset}': HTTP {(int)resp.StatusCode} {body}");
+            // La risposta è un task asincrono: {"taskId":"…"}; si aspetta che finisca guardando /$/tasks/{id}.
+            string taskId = null;
+            try { using var doc = System.Text.Json.JsonDocument.Parse(body); if (doc.RootElement.TryGetProperty("taskId", out var t)) taskId = t.GetString(); } catch (System.Text.Json.JsonException) { }
+            if (taskId != null)
+            {
+                while (true)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    using var st = await http.GetAsync($"{baseUri}/$/tasks/{taskId}", ct);
+                    var stBody = await st.Content.ReadAsStringAsync(ct);
+                    if (stBody.Contains("\"finished\"", StringComparison.Ordinal) && !stBody.Contains("\"finished\":null", StringComparison.Ordinal)) break;
+                    if (DateTime.UtcNow - started > TimeSpan.FromMinutes(30)) throw new TimeoutException($"La compattazione di '{dataset}' non è finita in 30 minuti.");
+                    await Task.Delay(500, ct);
+                }
+            }
+            _logger.LogInformation("[Fuseki] dataset '{Dataset}' compattato in {Seconds:0.0} s", dataset, (DateTime.UtcNow - started).TotalSeconds);
         }
 
         private string ResolveJarOrThrow()

@@ -123,15 +123,24 @@ namespace MdExplorer.Features.Services.CodeGraph
                     : new List<string>();
                 outcome.ScriptsFolderMissing = !Directory.Exists(root);
 
-                // Prima gli ast (i simboli), poi i doc (che vi si agganciano).
-                foreach (var file in onDisk.Where(CodeGraphPaths.IsAstScript).OrderBy(f => f, StringComparer.Ordinal)
-                                           .Concat(onDisk.Where(CodeGraphPaths.IsDocScript).OrderBy(f => f, StringComparer.Ordinal)))
+                // Prima gli ast (i simboli), poi i doc (che vi si agganciano). Gli script si mandano a Fuseki in lotti:
+                // una richiesta = una transazione TDB2, e TDB2 è copy-on-write: 3.000 transazioni piccole hanno fatto 11 GB
+                // di blocchi morti e un file al secondo (PlantUML, 10/10). In lotto: decine di file al secondo.
+                var ordered = onDisk.Where(CodeGraphPaths.IsAstScript).OrderBy(f => f, StringComparer.Ordinal)
+                                    .Concat(onDisk.Where(CodeGraphPaths.IsDocScript).OrderBy(f => f, StringComparer.Ordinal)).ToList();
+                var batch = new List<(CodeScriptResult Result, string Update)>();
+                foreach (var file in ordered)
                 {
                     ct.ThrowIfCancellationRequested();
                     var rel = CodeGraphPaths.ToProjectRelative(projectPath, file);
                     known.TryGetValue(rel, out var previousHash);
-                    outcome.Results.Add(await LoadOneAsync(g, file, rel, previousHash, ct));
+                    var (result, update) = PrepareOne(g, file, rel, previousHash);
+                    if (update == null) { outcome.Results.Add(result); continue; }
+                    batch.Add((result, update));
+                    if (batch.Count >= BatchScripts || batch.Sum(b => b.Update.Length) >= BatchChars)
+                        await FlushBatchAsync(batch, outcome, ct);
                 }
+                await FlushBatchAsync(batch, outcome, ct);
 
                 // Script spariti dal disco: via anche dal grafo.
                 var onDiskRel = new HashSet<string>(onDisk.Select(f => CodeGraphPaths.ToProjectRelative(projectPath, f)), StringComparer.Ordinal);
@@ -143,6 +152,8 @@ namespace MdExplorer.Features.Services.CodeGraph
 
                 _logger?.LogInformation("[CodeGraph] '{Project}': {Loaded} caricati, {Skipped} invariati, {Removed} tolti, {Failed} falliti",
                     projectPath, outcome.Loaded, outcome.Skipped, outcome.Removed, outcome.Failed);
+                // TDB2 è copy-on-write: dopo un carico grosso i blocchi vecchi restano su disco finché non si compatta.
+                if (outcome.Loaded + outcome.Removed >= CompactAfterScripts) await _fuseki.CompactAsync(CodeOntology.Dataset, ct);
                 return outcome;
             }
             finally { gate.Release(); }
@@ -171,7 +182,14 @@ namespace MdExplorer.Features.Services.CodeGraph
             finally { gate.Release(); }
         }
 
-        private async Task<CodeScriptResult> LoadOneAsync(ProjectGraphs g, string absolutePath, string rel, string previousHash, CancellationToken ct)
+        /// <summary>Quanti script al massimo in una richiesta a Fuseki, e quanti caratteri di update.</summary>
+        public const int BatchScripts = 200;
+        /// <summary>Dopo tanti script caricati in un giro si chiede a Fuseki di compattare il dataset.</summary>
+        public const int CompactAfterScripts = 100;
+        public const int BatchChars = 8_000_000;
+
+        /// <summary>Legge, controlla e traduce uno script; l'update è null se non c'è niente da mandare (invariato o rifiutato).</summary>
+        private (CodeScriptResult Result, string Update) PrepareOne(ProjectGraphs g, string absolutePath, string rel, string previousHash)
         {
             var result = new CodeScriptResult { ScriptPath = rel, Kind = CodeGraphPaths.IsAstScript(rel) ? "ast" : "doc" };
             try
@@ -181,7 +199,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (string.Equals(hash, previousHash, StringComparison.OrdinalIgnoreCase))
                 {
                     result.Skipped = true;
-                    return result;
+                    return (result, null);
                 }
 
                 var script = CodeScriptParser.Parse(content, rel);
@@ -189,22 +207,66 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (script.Header.Kind != expectedKind)
                     throw new CodeScriptFormatException(rel, 1, $"kind '{script.Header.Kind.ToString().ToLowerInvariant()}' ma il file si chiama *{(expectedKind == CodeScriptKind.Ast ? CodeGraphPaths.AstScriptSuffix : CodeGraphPaths.DocScriptSuffix)}");
 
-                // Una richiesta = una transazione: dati e stato insieme, o niente.
+                // Dati e stato nella stessa richiesta: insieme, o niente.
                 var update = script.Header.Kind == CodeScriptKind.Ast
                     ? CodeTripleWriter.LoadAstUpdate(script, rel, g.Hash, g.Data)
                     : CodeTripleWriter.LoadDocUpdate(script, rel, g.Data);
                 update += ";\n" + CodeTripleWriter.ScriptStateUpsert(g.State, CodeGraphIris.Script(g.Hash, rel), rel, result.Kind, hash,
                     script.Header.Schema, script.RecordCount, DateTime.UtcNow.ToString("o"));
-                await UpdateAsync(update, ct);
-
-                result.Loaded = true;
                 result.RecordCount = script.RecordCount;
-                return result;
+                return (result, update);
             }
             catch (CodeScriptFormatException ex)
             {
                 result.Error = ex.Message;
                 _logger?.LogWarning("[CodeGraph] script rifiutato: {Why}", ex.Message);
+                return (result, null);
+            }
+            catch (Exception ex)
+            {
+                result.Error = $"'{rel}': {ex.Message}";
+                _logger?.LogError(ex, "[CodeGraph] lettura fallita per {Script}", rel);
+                return (result, null);
+            }
+        }
+
+        /// <summary>Manda il lotto in una richiesta sola (una transazione); se Fuseki la rifiuta, ogni script del lotto porta l'errore.</summary>
+        private async Task FlushBatchAsync(List<(CodeScriptResult Result, string Update)> batch, CodeScriptLoadOutcome outcome, CancellationToken ct)
+        {
+            if (batch.Count == 0) return;
+            var sb = new StringBuilder(CodeOntology.SparqlPrefixes);
+            foreach (var (_, update) in batch)
+            {
+                // Ogni update del writer porta i suoi PREFIX: in un lotto li dichiara solo la testa.
+                sb.Append(update.StartsWith("PREFIX", StringComparison.Ordinal) ? update.Substring(CodeOntology.SparqlPrefixes.Length) : update).Append(";\n");
+            }
+            try
+            {
+                await UpdateAsync(sb.ToString(), ct);
+                foreach (var (result, _) in batch) result.Loaded = true;
+            }
+            catch (FusekiUnavailableException) { throw; }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "[CodeGraph] lotto di {Count} script rifiutato da Fuseki", batch.Count);
+                foreach (var (result, _) in batch) result.Error = $"'{result.ScriptPath}': lotto rifiutato da Fuseki — {ex.Message}";
+            }
+            finally
+            {
+                foreach (var (result, _) in batch) outcome.Results.Add(result);
+                batch.Clear();
+            }
+        }
+
+        private async Task<CodeScriptResult> LoadOneAsync(ProjectGraphs g, string absolutePath, string rel, string previousHash, CancellationToken ct)
+        {
+            var (result, update) = PrepareOne(g, absolutePath, rel, previousHash);
+            if (update == null) return result;
+            try
+            {
+                await UpdateAsync(update, ct);
+                result.Loaded = true;
                 return result;
             }
             catch (FusekiUnavailableException) { throw; }

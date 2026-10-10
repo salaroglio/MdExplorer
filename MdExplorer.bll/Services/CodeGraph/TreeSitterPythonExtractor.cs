@@ -28,7 +28,14 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public string LanguageId => CodeLanguages.Python;
         public string ExtractorName => "tree-sitter-python";
-        public string ExtractorVersion => "1";
+        public string ExtractorVersion => "2";
+        /// <summary>
+        /// Oltre questo numero di omonimi un nome non si risolve più «a tutti i candidati»: sarebbero archi a caso (in
+        /// PlantUML <c>add</c> ha decine di omonimi). Si emette un solo arco <c>ambiguous</c> verso un nodo external
+        /// <c>name</c>, che dice «qui c'è una chiamata che la sola sintassi non sa attribuire».
+        /// </summary>
+        public const int MaxAmbiguousCandidates = 5;
+
 
         private readonly GrammarStore _store;
         private readonly ILogger<TreeSitterPythonExtractor> _logger;
@@ -229,7 +236,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             private readonly PerimeterIndex _index;
             private readonly CodeScript _script = new();
             private readonly HashSet<string> _externals = new(StringComparer.Ordinal);
-            private readonly HashSet<string> _edges = new(StringComparer.Ordinal);
+            private readonly Dictionary<string, ScriptEdge> _edges = new(StringComparer.Ordinal);
             private readonly HashSet<string> _declared = new(StringComparer.Ordinal);
             private readonly string _moduleId;
 
@@ -499,12 +506,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                             var conf = classes.Count == 1 ? "inferred" : "ambiguous";
                             foreach (var id in classes) Edge(ownerId, id, "instantiates", conf, line);
                         }
-                        else if (_index.FunctionsByName.TryGetValue(name, out var fns))
+                        else if (_index.FunctionsByName.TryGetValue(name, out var fns) && fns.Count <= MaxAmbiguousCandidates)
                         {
                             var conf = fns.Count == 1 ? "inferred" : "ambiguous";
                             foreach (var id in fns) Edge(ownerId, id, "calls", conf, line);
                         }
-                        else Edge(ownerId, External("function", name, name), "calls", "ambiguous", line);
+                        else Edge(ownerId, External("function", fns != null ? "?." + name : name, name), "calls", "ambiguous", line);
                     }
                     else if (callee.Type == "attribute")
                     {
@@ -527,12 +534,12 @@ namespace MdExplorer.Features.Services.CodeGraph
                             var target = _index.MethodsByName.TryGetValue(attr, out var ms0) ? ms0.FirstOrDefault(id => true) : null;
                             if (ms0 != null && ms0.Count >= 1) { foreach (var id in ms0) Edge(ownerId, id, "calls", ms0.Count == 1 ? "inferred" : "ambiguous", line); continue; }
                         }
-                        if (_index.MethodsByName.TryGetValue(attr, out var ms))
+                        if (_index.MethodsByName.TryGetValue(attr, out var ms) && ms.Count <= MaxAmbiguousCandidates)
                         {
                             var conf = ms.Count == 1 ? "inferred" : "ambiguous";
                             foreach (var id in ms) Edge(ownerId, id, "calls", conf, line);
                         }
-                        else Edge(ownerId, External("method", callee.Text, attr), "calls", "ambiguous", line);
+                        else Edge(ownerId, External("method", ms != null ? "?." + attr : callee.Text, attr), "calls", "ambiguous", line);
                     }
                 }
             }
@@ -572,9 +579,20 @@ namespace MdExplorer.Features.Services.CodeGraph
             private void Edge(string source, string target, string relation, string confidence, int? line)
             {
                 if (source == null || target == null || source == target) return;
-                if (!_edges.Add($"{source}|{target}|{relation}|{line}")) return;
-                _script.Edges.Add(new ScriptEdge { SourceId = source, TargetId = target, Relation = relation, Confidence = confidence, Line = line });
+                // Un arco per (sorgente, destinazione, relazione): mille chiamate allo stesso metodo nello stesso corpo non
+                // sono mille fatti (PlantUML: 29.000 archi in un file, provato il 10/10). Se lo stesso arco torna con una
+                // confidenza migliore (this.run() dopo helper.run()), vince la migliore e la sua riga.
+                var key = $"{source}|{target}|{relation}";
+                if (_edges.TryGetValue(key, out var existing))
+                {
+                    if (ConfidenceRank(confidence) > ConfidenceRank(existing.Confidence)) { existing.Confidence = confidence; existing.Line = line; }
+                    return;
+                }
+                var edge = new ScriptEdge { SourceId = source, TargetId = target, Relation = relation, Confidence = confidence, Line = line };
+                _edges[key] = edge;
+                _script.Edges.Add(edge);
             }
+            private static int ConfidenceRank(string confidence) => confidence switch { "extracted" => 2, "inferred" => 1, _ => 0 };
         }
     }
 }
