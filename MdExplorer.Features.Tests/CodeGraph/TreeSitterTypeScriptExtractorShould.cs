@@ -35,6 +35,10 @@ namespace MdExplorer.Features.Tests.CodeGraph
             _store = new GrammarStore(_root);
             File.WriteAllText(Path.Combine(_src, "services", "md-file.service.ts"),
                 "import { Injectable } from '@angular/core';\nexport interface Hit { id: string; }\n@Injectable({ providedIn: 'root' })\nexport class MdFileService {\n  get(path: string): Promise<Hit> { return fetch(path) as any; }\n}\n");
+            File.WriteAllText(Path.Combine(_src, "app.module.ts"),
+                "import { NgModule } from '@angular/core';\nimport { CommonModule } from '@angular/common';\nimport { RouterModule } from '@angular/router';\n" +
+                "import { XComponent } from './x.component';\nimport { MdFileService } from './services/md-file.service';\n" +
+                "@NgModule({\n  declarations: [XComponent],\n  imports: [CommonModule, RouterModule.forRoot([])],\n  providers: [MdFileService],\n  bootstrap: [XComponent],\n})\nexport class AppModule {}\n");
             File.WriteAllText(Path.Combine(_src, "x.component.ts"),
                 "import { Component, OnInit } from '@angular/core';\nimport { MdFileService, Hit } from './services/md-file.service';\n" +
                 "export function helper(a: number, b?: string): boolean { return a > 0; }\n" +
@@ -76,7 +80,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
 
             var result = extractor.Extract(Request());
             Assert.AreEqual(0, result.Warnings.Count, string.Join("; ", result.Warnings));
-            Assert.AreEqual(2, result.Scripts.Count);
+            Assert.AreEqual(3, result.Scripts.Count);
 
             var x = result.Scripts.Single(s => s.File.ProjectRelativePath == "src/app/x.component.ts").Script;
             var module = x.Symbols.Single(s => s.Kind == "module");
@@ -121,6 +125,18 @@ namespace MdExplorer.Features.Tests.CodeGraph
             // il servizio: @Injectable → service; il formato si rilegge e si carica
             var svc = result.Scripts.Single(s => s.File.ProjectRelativePath == "src/app/services/md-file.service.ts").Script;
             Assert.AreEqual("service", svc.Symbols.Single(s => s.Name == "MdFileService").Kind);
+
+            // Metadati Angular: il modulo dichiara il componente (contains), importa i moduli (imports), fornisce il service (references);
+            // selettore e template nella firma del componente.
+            var appModule = result.Scripts.Single(s => s.File.ProjectRelativePath == "src/app/app.module.ts").Script;
+            var ngModule = appModule.Symbols.Single(s => s.Kind == "ngmodule");
+            Assert.AreEqual("src/app/app.module:AppModule", ngModule.QualifiedName);
+            Assert.IsTrue(appModule.Edges.Any(e => e.SourceId == ngModule.Id && e.TargetId == comp.Id && e.Relation == "contains" && e.Confidence == "inferred"), "declarations: [XComponent]");
+            Assert.IsTrue(appModule.Edges.Any(e => e.SourceId == ngModule.Id && e.TargetId == serviceId && e.Relation == "references"), "providers: [MdFileService]");
+            Assert.IsTrue(appModule.Edges.Any(e => e.SourceId == ngModule.Id && e.TargetId == comp.Id && e.Relation == "references"), "bootstrap: [XComponent]");
+            var imported = appModule.Edges.Where(e => e.SourceId == ngModule.Id && e.Relation == "imports").Select(e => appModule.Symbols.Single(s => s.Id == e.TargetId).Name).ToList();
+            CollectionAssert.IsSubsetOf(new[] { "CommonModule", "RouterModule" }, imported, "imports: [CommonModule, RouterModule.forRoot([])] → external");
+            StringAssert.Contains(comp.Signature, "selector: app-x");
             foreach (var (file, script) in result.Scripts)
                 CodeScriptParser.Parse(CodeScriptWriter.Serialize(script), file.ProjectRelativePath);
         }

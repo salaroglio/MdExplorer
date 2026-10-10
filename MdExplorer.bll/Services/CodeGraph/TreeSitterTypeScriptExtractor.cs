@@ -35,7 +35,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public abstract string LanguageId { get; }
         public abstract string ExtractorName { get; }
-        public string ExtractorVersion => "2";
+        public string ExtractorVersion => "3";
         protected abstract string[] CodeExtensions { get; }
 
         private readonly GrammarStore _store;
@@ -252,6 +252,45 @@ namespace MdExplorer.Features.Services.CodeGraph
             return null;
         }
 
+        /// <summary>L'oggetto dentro il decoratore Angular (<c>@Component({ … })</c>), o null.</summary>
+        private static Node AngularMetadata(Node classDecl)
+        {
+            IEnumerable<Node> decorators = classDecl.NamedChildren.Where(c => c.Type == "decorator");
+            if (classDecl.Parent != null && classDecl.Parent.Type == "export_statement")
+                decorators = decorators.Concat(classDecl.Parent.NamedChildren.Where(c => c.Type == "decorator"));
+            foreach (var d in decorators)
+            {
+                var call = d.NamedChildren.FirstOrDefault(c => c.Type == "call_expression");
+                var name = call?.NamedChildren.FirstOrDefault(c => c.Type == "identifier")?.Text;
+                if (name is not ("Component" or "Injectable" or "Directive" or "Pipe" or "NgModule")) continue;
+                return call.NamedChildren.FirstOrDefault(c => c.Type == "arguments")?.NamedChildren.FirstOrDefault(c => c.Type == "object");
+            }
+            return null;
+        }
+
+        /// <summary>Le coppie chiave → valore di primo livello di un oggetto letterale.</summary>
+        private static IEnumerable<(string Key, Node Value)> Pairs(Node obj)
+        {
+            foreach (var pair in obj.NamedChildren.Where(c => c.Type == "pair"))
+            {
+                var key = pair.NamedChildren.FirstOrDefault()?.Text?.Trim('\'', '"');
+                var value = pair.NamedChildren.Count > 1 ? pair.NamedChildren[pair.NamedChildren.Count - 1] : null;
+                if (key != null && value != null) yield return (key, value);
+            }
+        }
+
+        /// <summary>I nomi di tipo in una lista di metadati: <c>[A, B, RouterModule.forRoot(routes)]</c> → A, B, RouterModule.</summary>
+        private static IEnumerable<string> ListedTypes(Node value)
+        {
+            if (value.Type != "array") yield break;
+            foreach (var item in value.NamedChildren)
+            {
+                var n = item;
+                while (n != null && n.Type is "call_expression" or "member_expression") n = n.NamedChildren.FirstOrDefault();
+                if (n?.Type == "identifier") yield return n.Text;
+            }
+        }
+
         private static int Line(Node n) => (int)n.StartPosition.Row + 1;
         private static int EndLine(Node n) => (int)n.EndPosition.Row + 1;
 
@@ -385,8 +424,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (name == null) return;
                 var kind = KindOfType(decl);
                 var qn = _pf.Module + ":" + name;
-                var classId = Declare(decl, kind, name, qn, Signature(decl), returnType: null, visibility: exported ? "public" : "internal", parentId: _moduleId);
+                var metadata = AngularMetadata(decl);
+                var classId = Declare(decl, kind, name, qn, Signature(decl) + AngularSignature(metadata), returnType: null, visibility: exported ? "public" : "internal", parentId: _moduleId);
                 Edge(_moduleId, classId, "contains", "extracted", Line(decl));
+                if (metadata != null) EmitAngularMetadata(metadata, classId);
 
                 var heritage = decl.NamedChildren.FirstOrDefault(c => c.Type == "class_heritage");
                 if (heritage != null)
@@ -426,6 +467,41 @@ namespace MdExplorer.Features.Services.CodeGraph
                                 break;
                             }
                     }
+                }
+            }
+
+            /// <summary>Selettore, template e nome del pipe nella firma: così «app-x» trova il componente.</summary>
+            private static string AngularSignature(Node metadata)
+            {
+                if (metadata == null) return string.Empty;
+                var parts = new List<string>();
+                foreach (var (key, value) in Pairs(metadata))
+                {
+                    if (key is not ("selector" or "templateUrl" or "name" or "standalone")) continue;
+                    var text = value.Type == "string" ? value.NamedChildren.FirstOrDefault(c => c.Type == "string_fragment")?.Text ?? value.Text.Trim('\'', '"') : value.Text;
+                    parts.Add(key + ": " + text);
+                }
+                return parts.Count == 0 ? string.Empty : " · " + string.Join(" · ", parts);
+            }
+
+            /// <summary>
+            /// I metadati del decoratore come archi: <c>declarations</c> → contains (il modulo dichiara il componente),
+            /// <c>imports</c> → imports (moduli e componenti standalone), <c>providers</c>, <c>exports</c>, <c>bootstrap</c>
+            /// → references. Sono identificatori già nell'albero: nessun parser in più, nessun cambio di schema.
+            /// </summary>
+            private void EmitAngularMetadata(Node metadata, string classId)
+            {
+                foreach (var (key, value) in Pairs(metadata))
+                {
+                    var relation = key switch
+                    {
+                        "declarations" => "contains",
+                        "imports" => "imports",
+                        "providers" or "exports" or "bootstrap" or "viewProviders" => "references",
+                        _ => null,
+                    };
+                    if (relation == null) continue;
+                    foreach (var t in ListedTypes(value)) Edge(classId, ResolveType(t), relation, ConfidenceOfType(t), Line(value));
                 }
             }
 
