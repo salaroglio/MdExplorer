@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 using MdExplorer.Features.Utilities;
-using MdExplorer.Services.Fuseki;
+using MdExplorer.Features.Services.Fuseki;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 

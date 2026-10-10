@@ -5,10 +5,9 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using MdExplorer.Features.Utilities;
-using MdExplorer.Utilities;
 using Microsoft.Extensions.Logging;
 
-namespace MdExplorer.Services.Fuseki
+namespace MdExplorer.Features.Services.Fuseki
 {
     /// <summary>
     /// Fuseki non può partire: jar assente, java assente o troppo vecchio, avvio fallito.
@@ -26,8 +25,9 @@ namespace MdExplorer.Services.Fuseki
         /// <summary>Il jar nel pacchetto, accanto a plantuml.jar (D19/D20).</summary>
         public string JarPath { get; set; } = Path.Combine(AppContext.BaseDirectory, "Binaries", "jena-fuseki-server.jar");
 
-        /// <summary><c>FUSEKI_BASE</c>: dati TDB2, indici Lucene, configurazione. Separati dal pacchetto.</summary>
-        public string DataDirectory { get; set; } = Path.Combine(CrossPlatformPath.GetMdExplorerDataDirectory(), "fuseki-data");
+        /// <summary><c>FUSEKI_BASE</c>: dati TDB2, indici Lucene, configurazione. Separati dal pacchetto. Obbligatorio:
+        /// lo imposta chi compone il servizio (<c>%AppData%/MdExplorer/fuseki-data</c>) o il test (cartella temporanea).</summary>
+        public string DataDirectory { get; set; }
 
         /// <summary>Jena 6 richiede Java 21.</summary>
         public int MinimumJavaMajor { get; set; } = 21;
@@ -70,6 +70,8 @@ namespace MdExplorer.Services.Fuseki
         public FusekiProcessManager(ManagedFusekiOptions options, IJavaLocator javaLocator, ILogger<FusekiProcessManager> logger)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
+            if (string.IsNullOrWhiteSpace(options.DataDirectory))
+                throw new ArgumentException("ManagedFusekiOptions.DataDirectory è obbligatorio (FUSEKI_BASE: dove stanno dati e configurazione).", nameof(options));
             _javaLocator = javaLocator ?? throw new ArgumentNullException(nameof(javaLocator));
             _logger = logger;
         }

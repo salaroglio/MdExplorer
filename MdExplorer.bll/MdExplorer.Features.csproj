@@ -37,7 +37,6 @@
     <PackageReference Include="Whisper.net" Version="1.9.1" />
     <PackageReference Include="Whisper.net.Runtime" Version="1.9.1" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.9" />
-    <PackageReference Include="FluentMigrator.Runner" Version="3.2.17" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     <!-- Tree-sitter (grafo del codice, D8): nel pacchetto SOLO il binding managed e il core (240 KB); le grammatiche
          (`runtimes/<rid>/native/*tree-sitter-<lang>*`, 66 MB in tutto) sono escluse e si scaricano a scelta dell'utente.
@@ -132,7 +131,6 @@
     <ProjectReference Include="..\Ad.Tools.Dal.Abstractions\Ad.Tools.Dal.Abstractions\Ad.Tools.Dal.Abstractions.csproj" />
     <ProjectReference Include="..\Ad.Tools.Dal\Ad.Tools.Dal\Ad.Tools.Dal.csproj" />
     <ProjectReference Include="..\MdExplorer.Abstractions\MdExplorer.Abstractions.csproj" />
-    <ProjectReference Include="..\MdExplorer.Migrations.CodeDb\MdExplorer.Migrations.CodeDb.csproj" />
   </ItemGroup>
 
 </Project>

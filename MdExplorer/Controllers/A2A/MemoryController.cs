@@ -6,7 +6,7 @@ using MdExplorer.Features.AgentMemory;
 using MdExplorer.Features.Agents;
 using MdExplorer.Features.Services.KnowledgeGraph;
 using MdExplorer.Services.AgentMemory;
-using MdExplorer.Services.Fuseki;
+using MdExplorer.Features.Services.Fuseki;
 using MdExplorer.Services.AgentRegistry;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;

@@ -7,7 +7,7 @@ using MdExplorer.Abstractions.DB;
 using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Features.Agents;
 using MdExplorer.Features.Services.KnowledgeGraph;
-using MdExplorer.Services.Fuseki;
+using MdExplorer.Features.Services.Fuseki;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MdExplorer.Services.AgentMemory

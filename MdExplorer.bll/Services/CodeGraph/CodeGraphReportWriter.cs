@@ -3,33 +3,34 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using Microsoft.Data.Sqlite;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace MdExplorer.Features.Services.CodeGraph
 {
     /// <summary>
-    /// Il report del grafo del codice (F6): <c>.md/codegraph/report.md</c>, rigenerato dopo ogni analisi e dopo ogni
+    /// Il report del grafo del codice (F6, su Fuseki da F7): <c>.md/codegraph/report.md</c>, rigenerato dopo ogni analisi e dopo ogni
     /// giro di descrizioni. Dice che cosa c'è e che cosa manca: simboli più connessi, file più grossi, simboli senza
     /// descrizione, descrizioni da rivedere, archi ambigui. Scritto con le convenzioni di mde-doc (TL;DR in testa).
     /// </summary>
     public sealed class CodeGraphReportWriter
     {
-        private readonly ICodeGraphDatabase _db;
-        public CodeGraphReportWriter(ICodeGraphDatabase db) { _db = db; }
+        private readonly ICodeGraphStore _store;
+        public CodeGraphReportWriter(ICodeGraphStore store) { _store = store; }
 
         public static string ReportRelativePath => ".md/codegraph/report.md";
         public static string ReportPath(string projectPath) => Path.Combine(projectPath, ".md", "codegraph", "report.md");
 
-        public string Write(string projectPath, IReadOnlyList<string> notes = null)
+        public async Task<string> WriteAsync(string projectPath, IReadOnlyList<string> notes = null, CancellationToken ct = default)
         {
-            using var c = _db.OpenConnection(projectPath);
-            var o = CodeGraphQueries.Overview(c);
-            var undescribed = Count(c, "SELECT COUNT(*) FROM code_symbol s LEFT JOIN code_symbol_doc d ON d.SymbolId = s.Id WHERE s.Kind NOT IN ('external','module','field') AND d.SymbolId IS NULL");
-            var ambiguous = Count(c, "SELECT COUNT(*) FROM code_edge WHERE Confidence = 'ambiguous'");
-            var inferred = Count(c, "SELECT COUNT(*) FROM code_edge WHERE Confidence = 'inferred'");
-            var stale = StaleDescriptions(c);
-            var ambiguousList = Rows(c, "SELECT s.QualifiedName, e.Relation, t.QualifiedName, e.Path, e.Line FROM code_edge e JOIN code_symbol s ON s.Id = e.SourceId JOIN code_symbol t ON t.Id = e.TargetId WHERE e.Confidence = 'ambiguous' ORDER BY e.Path, e.Line LIMIT 30");
-            var undescribedList = Rows(c, "SELECT s.Kind, s.QualifiedName, s.Path, s.LineStart FROM code_symbol s LEFT JOIN code_symbol_doc d ON d.SymbolId = s.Id WHERE s.Kind NOT IN ('external','module','field') AND d.SymbolId IS NULL ORDER BY s.Path, s.LineStart LIMIT 40");
+            var data = await _store.GetReportDataAsync(projectPath, ct);
+            var o = data.Overview;
+            var undescribed = data.Undescribed;
+            var ambiguous = data.Ambiguous;
+            var inferred = data.Inferred;
+            var stale = data.StaleList;
+            var ambiguousList = data.AmbiguousList;
+            var undescribedList = data.UndescribedList;
 
             var sb = new StringBuilder();
             sb.AppendLine("---");
@@ -104,38 +105,5 @@ namespace MdExplorer.Features.Services.CodeGraph
             File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
             return path;
         }
-
-        private static List<string[]> StaleDescriptions(SqliteConnection c)
-        {
-            var list = new List<string[]>();
-            using var cmd = c.CreateCommand();
-            cmd.CommandText = $"SELECT {CodeGraphQueries.SymbolColumns} {CodeGraphQueries.SymbolFrom} WHERE d.SymbolId IS NOT NULL";
-            var symbols = new List<CodeSymbolView>();
-            using (var r = cmd.ExecuteReader()) while (r.Read()) symbols.Add(CodeGraphQueries.ReadSymbol(r));
-            foreach (var s in symbols)
-            {
-                CodeGraphQueries.FillParameters(c, s);
-                if (s.DescriptionStale == true) list.Add(new[] { s.QualifiedName, s.Path, s.LineStart?.ToString() });
-                if (list.Count >= 40) break;
-            }
-            return list;
-        }
-
-        private static List<string[]> Rows(SqliteConnection c, string sql)
-        {
-            var list = new List<string[]>();
-            using var cmd = c.CreateCommand();
-            cmd.CommandText = sql;
-            using var r = cmd.ExecuteReader();
-            while (r.Read())
-            {
-                var row = new string[r.FieldCount];
-                for (var i = 0; i < r.FieldCount; i++) row[i] = r.IsDBNull(i) ? "" : r.GetValue(i).ToString();
-                list.Add(row);
-            }
-            return list;
-        }
-
-        private static int Count(SqliteConnection c, string sql) { using var cmd = c.CreateCommand(); cmd.CommandText = sql; return Convert.ToInt32(cmd.ExecuteScalar()); }
     }
 }

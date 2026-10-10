@@ -37,15 +37,15 @@ namespace MdExplorer.Services.CodeGraph
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IHubContext<MonitorMDHub> _hub;
         private readonly MdExplorer.Services.LlmSessions.OneShotReadOnlySession _llm;
-        private readonly ICodeScriptLoader _loader;
+        private readonly ICodeGraphStore _store;
         private readonly CodeGraphReportWriter _report;
         private readonly ILogger<CodeDocJobService> _logger;
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
 
         public CodeDocJobService(IServiceScopeFactory scopeFactory, IHubContext<MonitorMDHub> hub,
-            MdExplorer.Services.LlmSessions.OneShotReadOnlySession llm, ICodeScriptLoader loader, CodeGraphReportWriter report, ILogger<CodeDocJobService> logger)
+            MdExplorer.Services.LlmSessions.OneShotReadOnlySession llm, ICodeGraphStore store, CodeGraphReportWriter report, ILogger<CodeDocJobService> logger)
         {
-            _scopeFactory = scopeFactory; _hub = hub; _llm = llm; _loader = loader; _report = report; _logger = logger;
+            _scopeFactory = scopeFactory; _hub = hub; _llm = llm; _store = store; _report = report; _logger = logger;
         }
 
         public void Cancel(string connectionId)
@@ -106,7 +106,7 @@ namespace MdExplorer.Services.CodeGraph
                     await SendAsync(connectionId, new { phase = "describing", file = ast.Header.Source, fileIndex = i + 1, fileTotal = astScripts.Count, symbols = candidates.Count });
                     if (candidates.Count == 0)
                     {
-                        if (existing != null && CodeDocPlanner.DropOrphans(existing, ast) > 0) { CodeScriptWriter.WriteIfChanged(docPath, CodeScriptWriter.Serialize(existing)); _loader.LoadScript(projectPath, docPath); }
+                        if (existing != null && CodeDocPlanner.DropOrphans(existing, ast) > 0) { CodeScriptWriter.WriteIfChanged(docPath, CodeScriptWriter.Serialize(existing)); await _store.LoadScriptAsync(projectPath, docPath, token); }
                         continue;
                     }
 
@@ -139,11 +139,11 @@ namespace MdExplorer.Services.CodeGraph
                         continue;
                     }
                     CodeScriptWriter.WriteIfChanged(docPath, CodeScriptWriter.Serialize(merged));
-                    var load = _loader.LoadScript(projectPath, docPath);
+                    var load = await _store.LoadScriptAsync(projectPath, docPath, token);
                     files++; described += fresh.SymbolDocs.Count;
                     await SendAsync(connectionId, new { phase = "file-done", file = ast.Header.Source, described = fresh.SymbolDocs.Count, rejected = rejected.Count, loaded = load.Loaded, error = load.Error });
                 }
-                try { _report.Write(projectPath, new List<string> { $"{folderRelative}: descritti {described} simboli in {files} file, {rejectedTotal} righe scartate" }); }
+                try { await _report.WriteAsync(projectPath, new List<string> { $"{folderRelative}: descritti {described} simboli in {files} file, {rejectedTotal} righe scartate" }); }
                 catch (Exception ex) { _logger.LogWarning(ex, "[CodeDoc] report non scritto"); }
                 await SendAsync(connectionId, new { phase = "done", files, described, rejected = rejectedTotal });
                 _logger.LogInformation("[CodeDoc] '{Folder}': {Files} file, {Described} simboli descritti, {Rejected} righe scartate", folderRelative, files, described, rejectedTotal);

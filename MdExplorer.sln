@@ -47,8 +47,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MdExplorer.Scheduler", "MdE
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MdExplorer.IntegrationTests", "MdExplorer.IntegrationTests\MdExplorer.IntegrationTests.csproj", "{21ADCCAB-BCC8-4B3D-B696-76EDD6C790EE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MdExplorer.Migrations.CodeDb", "MdExplorer.Migrations.CodeDb\MdExplorer.Migrations.CodeDb.csproj", "{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -574,36 +572,6 @@ Global
 		{21ADCCAB-BCC8-4B3D-B696-76EDD6C790EE}.ReleaseWPF|x86.Build.0 = Debug|Any CPU
 		{21ADCCAB-BCC8-4B3D-B696-76EDD6C790EE}.ReleaseWPF|Any CPU.ActiveCfg = Debug|Any CPU
 		{21ADCCAB-BCC8-4B3D-B696-76EDD6C790EE}.ReleaseWPF|Any CPU.Build.0 = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.Debug|x64.Build.0 = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.Debug|x86.Build.0 = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.Release|x64.ActiveCfg = Release|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.Release|x64.Build.0 = Release|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.Release|x86.ActiveCfg = Release|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.Release|x86.Build.0 = Release|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.Release|Any CPU.Build.0 = Release|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseAvalonia|x64.ActiveCfg = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseAvalonia|x64.Build.0 = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseAvalonia|x86.ActiveCfg = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseAvalonia|x86.Build.0 = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseAvalonia|Any CPU.ActiveCfg = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseAvalonia|Any CPU.Build.0 = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseAvaloniaRemoteDebugSupport|x64.ActiveCfg = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseAvaloniaRemoteDebugSupport|x64.Build.0 = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseAvaloniaRemoteDebugSupport|x86.ActiveCfg = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseAvaloniaRemoteDebugSupport|x86.Build.0 = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseAvaloniaRemoteDebugSupport|Any CPU.ActiveCfg = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseAvaloniaRemoteDebugSupport|Any CPU.Build.0 = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseWPF|x64.ActiveCfg = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseWPF|x64.Build.0 = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseWPF|x86.ActiveCfg = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseWPF|x86.Build.0 = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseWPF|Any CPU.ActiveCfg = Debug|Any CPU
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D}.ReleaseWPF|Any CPU.Build.0 = Debug|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -620,7 +588,6 @@ Global
 		{A458B0CC-5FE4-4893-BB1A-CF43BA21E238} = {5AD530AE-2EE1-4678-8D0A-9CECF5191E16}
 		{50CE14D3-CCA9-4797-9444-F518BC0F9A5D} = {097A94E4-D4DE-40E8-A7A1-D45494385869}
 		{D3027AFD-EE62-47E4-9555-52A7C0F5DAED} = {097A94E4-D4DE-40E8-A7A1-D45494385869}
-		{FDB71B1D-AE78-4860-BAEA-1DE9EEC0665D} = {5AD530AE-2EE1-4678-8D0A-9CECF5191E16}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {8262B491-47A0-4B4D-8A57-6C3D6A8FDD3E}

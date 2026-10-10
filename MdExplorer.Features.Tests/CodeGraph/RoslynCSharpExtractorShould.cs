@@ -33,7 +33,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestCleanup]
-        public void Cleanup() { try { Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools(); Directory.Delete(_root, true); } catch { } }
+        public void Cleanup() { try { Directory.Delete(_root, true); } catch { } }
 
         private CodeExtractionRequest Request()
         {
@@ -88,7 +88,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
-        public void Write_scripts_the_parser_reads_back_and_the_loader_puts_in_the_database()
+        public async System.Threading.Tasks.Task Write_scripts_the_parser_reads_back_and_the_loader_puts_in_fuseki()
         {
             var extractor = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance);
             var result = extractor.Extract(Request());
@@ -102,18 +102,16 @@ namespace MdExplorer.Features.Tests.CodeGraph
             }
             Assert.IsTrue(File.Exists(Path.Combine(_project, ".mde-code", "src", "Demo", "Foo.cs.ast.jsonl")));
 
-            var db = new CodeGraphDatabase(_root, NullLogger<CodeGraphDatabase>.Instance);
-            var loader = new CodeScriptLoader(db, NullLogger<CodeScriptLoader>.Instance);
-            var outcome = loader.LoadProject(_project);
+            var store = FusekiFixture.NewStore();   // Inconclusive se Java 21 o il jar mancano
+            var outcome = await store.LoadProjectAsync(_project);
             Assert.AreEqual(0, outcome.Failed, outcome.FirstError);
             Assert.AreEqual(3, outcome.Loaded);
 
-            var repo = new CodeGraphRepository(db);
-            var status = repo.GetStatus(_project);
+            var status = await store.GetStatusAsync(_project);
             Assert.AreEqual(3, status.Files);
             Assert.IsTrue(status.Symbols >= 9, $"simboli: {status.Symbols}");
             Assert.IsTrue(status.ExternalSymbols >= 2, $"external: {status.ExternalSymbols}");
-            var hits = repo.SearchSymbols(_project, "Bar(");
+            var hits = await store.SearchSymbolsAsync(_project, "Bar");
             Assert.IsTrue(hits.Any(h => h.QualifiedName == "Demo.Foo.Bar(string, int)" && h.Path == "src/Demo/Foo.cs" && h.LineStart == 6));
         }
     }

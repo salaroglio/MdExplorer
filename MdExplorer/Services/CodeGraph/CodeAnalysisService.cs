@@ -61,16 +61,15 @@ namespace MdExplorer.Services.CodeGraph
     {
         private readonly ICodeChangeScanner _scanner;
         private readonly ICodeExtractorRegistry _extractors;
-        private readonly ICodeScriptLoader _loader;
-        private readonly CodeScanStateStore _scanState;
+        private readonly ICodeGraphStore _store;
         private readonly CodeGraphReportWriter _report;
         private readonly ILogger<CodeAnalysisService> _logger;
         private readonly SemaphoreSlim _gate = new(1, 1);
 
-        public CodeAnalysisService(ICodeChangeScanner scanner, ICodeExtractorRegistry extractors, ICodeScriptLoader loader,
-            CodeScanStateStore scanState, CodeGraphReportWriter report, ILogger<CodeAnalysisService> logger)
+        public CodeAnalysisService(ICodeChangeScanner scanner, ICodeExtractorRegistry extractors, ICodeGraphStore store,
+            CodeGraphReportWriter report, ILogger<CodeAnalysisService> logger)
         {
-            _scanner = scanner; _extractors = extractors; _loader = loader; _scanState = scanState; _report = report; _logger = logger;
+            _scanner = scanner; _extractors = extractors; _store = store; _report = report; _logger = logger;
         }
 
         // ------------------------------------------------------------------ .development.yml
@@ -150,7 +149,7 @@ namespace MdExplorer.Services.CodeGraph
                 if (!Directory.Exists(folderAbs)) { outcome.Error = $"La cartella non esiste: {folderAbs}"; return outcome; }
 
                 // 1) Scanner: che cosa guardare.
-                var previous = _scanState.Get(projectPath, folderRelative);
+                var previous = await _store.GetScanStateAsync(projectPath, folderRelative, ct);
                 var scan = await _scanner.ScanAsync(projectPath, folderAbs, previous?.AnalyzedCommit, ct);
                 outcome.Mode = scan.Mode; outcome.Reason = scan.Reason;
                 var chosen = new HashSet<string>(languages, StringComparer.OrdinalIgnoreCase);
@@ -187,19 +186,19 @@ namespace MdExplorer.Services.CodeGraph
                 // 3) Script AST di sorgenti spariti (o usciti dai linguaggi scelti): via.
                 outcome.ScriptsRemoved = RemoveOrphanScripts(projectPath, folderRelative, inPerimeter);
 
-                // 4) Script → DB, e lo stato dello scanner.
-                outcome.Load = _loader.LoadProject(projectPath, ct);
-                _scanState.Upsert(projectPath, new CodeScanState
+                // 4) Script → Fuseki, e lo stato dello scanner.
+                outcome.Load = await _store.LoadProjectAsync(projectPath, ct);
+                await _store.UpsertScanStateAsync(projectPath, new CodeScanState
                 {
                     ProgramFolder = folderRelative, RepositoryRoot = scan.RepositoryRoot, AnalyzedCommit = scan.HeadCommit, Mode = scan.Mode,
                     ScannedAt = DateTime.UtcNow.ToString("o"), Candidates = outcome.Candidates, Reparsed = outcome.Reparsed,
-                });
+                }, ct);
                 // Il report (F6): rigenerato a ogni analisi.
                 try
                 {
                     var notes = new List<string> { $"{folderRelative}: {scan.Mode}, {scan.Reason}; {outcome.FilesInPerimeter} file, {outcome.Candidates} candidati, {outcome.Reparsed} riparsati, {outcome.ScriptsRemoved} script tolti" };
                     notes.AddRange(outcome.Warnings);
-                    _report.Write(projectPath, notes);
+                    await _report.WriteAsync(projectPath, notes, ct);
                 }
                 catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] report non scritto"); outcome.Warnings.Add("report non scritto: " + ex.Message); }
                 _logger.LogInformation("[CodeGraph] '{Folder}' ({Mode}, {Reason}): {Files} file, {Cand} candidati, {Rep} riparsati, {Rem} script tolti, caricati {Loaded}",
@@ -231,7 +230,7 @@ namespace MdExplorer.Services.CodeGraph
                 var ext = root.TryGetProperty("extractor", out var e) ? e.GetString() : null;
                 var ver = root.TryGetProperty("extractorVersion", out var v) ? v.GetString() : null;
                 if (ext != extractor.ExtractorName || ver != extractor.ExtractorVersion) return true;
-                return !string.Equals(hash, CodeScriptLoader.Sha256(File.ReadAllText(file.AbsolutePath)), StringComparison.OrdinalIgnoreCase);
+                return !string.Equals(hash, CodeGraphStore.Sha256(File.ReadAllText(file.AbsolutePath)), StringComparison.OrdinalIgnoreCase);
             }
             catch (System.Text.Json.JsonException) { return true; }
         }

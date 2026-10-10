@@ -25,6 +25,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Il Fuseki del pacchetto (D19): i test del grafo del codice lo avviano dal jar vero. -->
+    <None Include="..\MdExplorer\Binaries\jena-fuseki-server.jar" Link="Binaries\jena-fuseki-server.jar">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Commands\TestStore\ChangeLinkIntoCallAJavscriptFunction.html">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

@@ -3,7 +3,7 @@ using System.IO;
 using System.Text;
 using MdExplorer.Features.Services.CodeGraph;
 
-namespace MdExplorer.Services.Fuseki
+namespace MdExplorer.Features.Services.Fuseki
 {
     /// <summary>
     /// Scrive in <c>FUSEKI_BASE/configuration/code.ttl</c> l'assembler del dataset del grafo del codice:

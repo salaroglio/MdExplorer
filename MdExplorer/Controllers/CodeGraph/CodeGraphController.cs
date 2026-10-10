@@ -11,29 +11,28 @@ using Microsoft.Extensions.Logging;
 namespace MdExplorer.Controllers.CodeGraph
 {
     /// <summary>
-    /// Il grafo del codice (sprint 2026-10-09): stato, «Genera la conoscenza» (script → DB) e ricerca dei simboli.
-    /// Tutto legge dal DB dedicato (D15); gli script in <c>.mde-code/</c> li tocca solo il caricatore.
+    /// Il grafo del codice (sprint 2026-10-09): stato, «Genera la conoscenza» (script → Fuseki) e ricerca dei simboli.
+    /// Tutto legge dal grafo in Fuseki (D15, D19); gli script in <c>.mde-code/</c> li tocca solo il caricatore.
+    /// Fuseki che non può partire (Java 21 o jar assenti) = 503 con il messaggio che dice che cosa installare.
     /// Il progetto si indica con <c>projectPath</c> (la radice del progetto di documentazione), come per l'FTS.
     /// </summary>
     [ApiController]
     [Route("api/codegraph")]
     public class CodeGraphController : ControllerBase
     {
-        private readonly ICodeScriptLoader _loader;
-        private readonly CodeGraphRepository _repository;
+        private readonly ICodeGraphStore _store;
         private readonly MdExplorer.Services.CodeGraph.ICodeAnalysisService _analysis;
         private readonly MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore _grammars;
         private readonly MdExplorer.Features.Services.CodeGraph.Grammars.IGrammarDownloader _grammarDownloader;
         private readonly ILogger<CodeGraphController> _logger;
 
-        public CodeGraphController(ICodeScriptLoader loader, CodeGraphRepository repository,
+        public CodeGraphController(ICodeGraphStore store,
             MdExplorer.Services.CodeGraph.ICodeAnalysisService analysis,
             MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore grammars,
             MdExplorer.Features.Services.CodeGraph.Grammars.IGrammarDownloader grammarDownloader,
             ILogger<CodeGraphController> logger)
         {
-            _loader = loader;
-            _repository = repository;
+            _store = store;
             _analysis = analysis;
             _grammars = grammars;
             _grammarDownloader = grammarDownloader;
@@ -165,12 +164,12 @@ namespace MdExplorer.Controllers.CodeGraph
             if (string.IsNullOrWhiteSpace(request.FolderPath))
             {
                 var all = await _analysis.AnalyzeProjectAsync(request.ProjectPath, ct);
-                return Ok(new { folders = all, status = _repository.GetStatus(request.ProjectPath) });
+                return Ok(new { folders = all, status = await _store.GetStatusAsync(request.ProjectPath, ct) });
             }
             var rel = ToRelative(request.ProjectPath, request.FolderPath);
             if (rel == null) return BadRequest(new { error = "folderPath deve stare dentro il progetto" });
             var outcome = await _analysis.AnalyzeFolderAsync(request.ProjectPath, rel, ct);
-            return Ok(new { folder = outcome, status = _repository.GetStatus(request.ProjectPath) });
+            return Ok(new { folder = outcome, status = await _store.GetStatusAsync(request.ProjectPath, ct) });
         }
 
         // ------------------------------------------------------------------ lettura per i tool (F5, D15)
@@ -188,92 +187,90 @@ namespace MdExplorer.Controllers.CodeGraph
 
         /// <summary>GET /api/codegraph/symbols/resolve?projectPath&amp;q — id, nome qualificato o nome: i candidati con firma, parametri e descrizioni.</summary>
         [HttpGet("symbols/resolve")]
-        public IActionResult Resolve([FromQuery] string projectPath, [FromQuery] string q, [FromQuery] int limit = 10)
+        public Task<IActionResult> Resolve([FromQuery] string projectPath, [FromQuery] string q, [FromQuery] int limit = 10, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(q)) return BadRequest(new { error = "q è obbligatorio" });
-            return Ok(_repository.Resolve(projectPath, q.Trim(), limit).Select(View));
-        }
+            return Ok((await _store.ResolveAsync(projectPath, q.Trim(), limit, ct)).Select(View));
+        });
 
         /// <summary>GET /api/codegraph/symbols/{id}?projectPath — la firma per esteso con le descrizioni.</summary>
         [HttpGet("symbols/{id}")]
-        public IActionResult Describe([FromQuery] string projectPath, string id)
+        public Task<IActionResult> Describe([FromQuery] string projectPath, string id, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
-            var s = _repository.Describe(projectPath, id);
+            var s = await _store.DescribeAsync(projectPath, id, ct);
             return s == null ? NotFound(new { error = $"simbolo '{id}' non trovato" }) : Ok(View(s));
-        }
+        });
 
         /// <summary>GET /api/codegraph/outline?projectPath&amp;path — i simboli di un file, in ordine di riga.</summary>
         [HttpGet("outline")]
-        public IActionResult Outline([FromQuery] string projectPath, [FromQuery] string path)
+        public Task<IActionResult> Outline([FromQuery] string projectPath, [FromQuery] string path, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(path)) return BadRequest(new { error = "path è obbligatorio (relativo al progetto, con /)" });
-            return Ok(_repository.Outline(projectPath, path.Replace('\\', '/').TrimStart('/')).Select(View));
-        }
+            return Ok((await _store.OutlineAsync(projectPath, path.Replace('\\', '/').TrimStart('/'), ct)).Select(View));
+        });
 
         /// <summary>GET /api/codegraph/neighbors?projectPath&amp;id&amp;relation&amp;direction=out|in&amp;depth=1&amp;limit=50</summary>
         [HttpGet("neighbors")]
-        public IActionResult Neighbors([FromQuery] string projectPath, [FromQuery] string id, [FromQuery] string relation = null,
-            [FromQuery] string direction = "out", [FromQuery] int depth = 1, [FromQuery] int limit = 50)
+        public Task<IActionResult> Neighbors([FromQuery] string projectPath, [FromQuery] string id, [FromQuery] string relation = null,
+            [FromQuery] string direction = "out", [FromQuery] int depth = 1, [FromQuery] int limit = 50, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "id è obbligatorio" });
             if (relation != null && !CodeScriptParser.Relations.Contains(relation)) return BadRequest(new { error = $"relation '{relation}' non ammessa: {string.Join(", ", CodeScriptParser.Relations)}" });
-            return Ok(_repository.Neighbors(projectPath, id, relation, direction, depth, limit).Select(View));
-        }
+            return Ok((await _store.NeighborsAsync(projectPath, id, relation, direction, depth, limit, ct)).Select(View));
+        });
 
         /// <summary>GET /api/codegraph/impact?projectPath&amp;id&amp;depth=3 — che cosa dipende dal simbolo, anche indirettamente.</summary>
         [HttpGet("impact")]
-        public IActionResult Impact([FromQuery] string projectPath, [FromQuery] string id, [FromQuery] int depth = 3, [FromQuery] int limit = 200)
+        public Task<IActionResult> Impact([FromQuery] string projectPath, [FromQuery] string id, [FromQuery] int depth = 3, [FromQuery] int limit = 200, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "id è obbligatorio" });
-            return Ok(_repository.Impact(projectPath, id, depth, limit).Select(View));
-        }
+            return Ok((await _store.ImpactAsync(projectPath, id, depth, limit, ct)).Select(View));
+        });
 
         /// <summary>GET /api/codegraph/path?projectPath&amp;from&amp;to — il cammino più corto fra due simboli.</summary>
         [HttpGet("path")]
-        public IActionResult PathBetween([FromQuery] string projectPath, [FromQuery] string from, [FromQuery] string to)
+        public Task<IActionResult> PathBetween([FromQuery] string projectPath, [FromQuery] string from, [FromQuery] string to, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to)) return BadRequest(new { error = "from e to sono obbligatori (id di simbolo)" });
-            return Ok(_repository.ShortestPath(projectPath, from, to).Select(View));
-        }
+            return Ok((await _store.ShortestPathAsync(projectPath, from, to, ct)).Select(View));
+        });
 
         /// <summary>GET /api/codegraph/overview?projectPath — di che cosa è fatto il codice.</summary>
         [HttpGet("overview")]
-        public IActionResult Overview([FromQuery] string projectPath)
+        public Task<IActionResult> Overview([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
-            var o = _repository.Overview(projectPath);
+            var o = await _store.OverviewAsync(projectPath, ct);
             return Ok(new
             {
                 o.Files, o.Symbols, o.ExternalSymbols, o.Edges, o.DescribedSymbols, o.SymbolsByLanguage, o.SymbolsByKind, o.EdgesByRelation,
                 mostConnected = o.MostConnected.Select(m => new { degree = m.Degree, symbol = View(m.Symbol) }),
                 largestFiles = o.LargestFiles.Select(f => new { path = f.Path, symbols = f.Symbols }),
             });
-        }
+        });
 
         // ------------------------------------------------------------------ la pagina del visualizzatore (F6, D17)
 
         /// <summary>GET /api/codegraph/graph?projectPath&amp;folder&amp;expand=a.cs,b.cs&amp;symbol — i nodi e gli archi per la pagina.</summary>
         [HttpGet("graph")]
-        public IActionResult Graph([FromQuery] string projectPath, [FromQuery] string folder = "", [FromQuery] string expand = null, [FromQuery] string symbol = null)
+        public Task<IActionResult> Graph([FromQuery] string projectPath, [FromQuery] string folder = "", [FromQuery] string expand = null, [FromQuery] string symbol = null, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             var expanded = (expand ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var db = HttpContext.RequestServices.GetRequiredService<ICodeGraphDatabase>();
-            using var c = db.OpenConnection(projectPath);
-            var model = CodeGraphViewData.Build(c, (folder ?? string.Empty).Replace('\\', '/').Trim('/'), expanded, string.IsNullOrWhiteSpace(symbol) ? null : symbol);
+            var model = await _store.BuildViewAsync(projectPath, (folder ?? string.Empty).Replace('\\', '/').Trim('/'), expanded, string.IsNullOrWhiteSpace(symbol) ? null : symbol, ct);
             return Ok(new
             {
                 folder = model.Folder, folders = model.Folders,
                 nodes = model.Nodes.Select(n => new { n.Id, n.Kind, n.Name, n.QualifiedName, n.Path, n.Folder, n.Line, n.Signature, n.Summary, n.ParentId, n.Hidden, n.Expanded, n.External }),
                 links = model.Links.Select(l => new { l.Source, l.Target, l.Relation, l.Confidence, l.Count }),
             });
-        }
+        });
 
         /// <summary>
         /// GET /api/codegraph/view?projectPath&amp;folder&amp;symbol&amp;theme — la pagina HTML che il visualizzatore carica nell'iframe
@@ -310,20 +307,20 @@ namespace MdExplorer.Controllers.CodeGraph
 
         /// <summary>GET /api/codegraph/status?projectPath=… — conteggi e quanti script restano da caricare.</summary>
         [HttpGet("status")]
-        public IActionResult Status([FromQuery] string projectPath)
+        public Task<IActionResult> Status([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath);
             if (bad != null) return bad;
-            return Ok(_repository.GetStatus(projectPath));
-        }
+            return Ok(await _store.GetStatusAsync(projectPath, ct));
+        });
 
         /// <summary>POST /api/codegraph/generate {projectPath} — carica gli script cambiati e toglie quelli spariti.</summary>
         [HttpPost("generate")]
-        public async Task<IActionResult> Generate([FromBody] GenerateRequest request, CancellationToken ct)
+        public Task<IActionResult> Generate([FromBody] GenerateRequest request, CancellationToken ct) => Guarded(async () =>
         {
             var bad = ValidateProject(request?.ProjectPath);
             if (bad != null) return bad;
-            var outcome = await Task.Run(() => _loader.LoadProject(request.ProjectPath, ct), ct);
+            var outcome = await _store.LoadProjectAsync(request.ProjectPath, ct);
             _logger.LogInformation("[CodeGraph] generate '{Project}': {Loaded} caricati, {Skipped} invariati, {Removed} tolti, {Failed} falliti",
                 request.ProjectPath, outcome.Loaded, outcome.Skipped, outcome.Removed, outcome.Failed);
             return Ok(new
@@ -335,19 +332,35 @@ namespace MdExplorer.Controllers.CodeGraph
                 failed = outcome.Failed,
                 firstError = outcome.FirstError,
                 results = outcome.Results,
-                status = _repository.GetStatus(request.ProjectPath)
+                status = await _store.GetStatusAsync(request.ProjectPath, ct)
             });
-        }
+        });
 
-        /// <summary>GET /api/codegraph/symbols/search?projectPath=…&amp;q=…&amp;limit=20 — FTS5 su nomi e descrizioni.</summary>
+        /// <summary>GET /api/codegraph/symbols/search?projectPath=…&amp;q=…&amp;limit=20 — testo pieno (jena-text) su nomi e descrizioni.</summary>
         [HttpGet("symbols/search")]
-        public IActionResult Search([FromQuery] string projectPath, [FromQuery] string q, [FromQuery] int limit = 20)
+        public Task<IActionResult> Search([FromQuery] string projectPath, [FromQuery] string q, [FromQuery] int limit = 20, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath);
             if (bad != null) return bad;
-            if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 3)
-                return BadRequest(new { error = "q deve avere almeno 3 caratteri (ricerca trigram)" });
-            return Ok(_repository.SearchSymbols(projectPath, q, limit));
+            if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2)
+                return BadRequest(new { error = "q deve avere almeno 2 caratteri" });
+            return Ok(await _store.SearchSymbolsAsync(projectPath, q, limit, ct));
+        });
+
+        /// <summary>Fuseki che non parte (Java 21 o jar assenti) non è un 500 anonimo: è un 503 con il messaggio che dice che cosa installare.</summary>
+        private async Task<IActionResult> Guarded(Func<Task<IActionResult>> action)
+        {
+            try { return await action(); }
+            catch (MdExplorer.Features.Services.Fuseki.FusekiUnavailableException ex)
+            {
+                _logger.LogWarning("[CodeGraph] Fuseki non disponibile: {Why}", ex.Message);
+                return StatusCode(503, new { error = ex.Message });
+            }
+            catch (MdExplorer.Features.Services.KnowledgeGraph.FusekiRequestException ex)
+            {
+                _logger.LogError(ex, "[CodeGraph] Fuseki ha rifiutato la richiesta");
+                return StatusCode(502, new { error = ex.Message });
+            }
         }
 
         private IActionResult ValidateProject(string projectPath)

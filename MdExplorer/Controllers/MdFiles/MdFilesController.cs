@@ -2163,9 +2163,9 @@ namespace MdExplorer.Service.Controllers.MdFiles
             }
 
             // Grafo del codice (sprint 2026-10-09, F1): «generazione della conoscenza» all'apertura — gli script di
-            // .mde-code/ cambiati dall'ultima volta entrano nel DB dedicato. Fire-and-forget, DB suo, nessuna
+            // .mde-code/ cambiati dall'ultima volta entrano in Fuseki (D19). Fire-and-forget, nessuna
             // contesa con l'engine DB. Niente cartella .mde-code = esito vuoto, non un errore.
-            var codeScriptLoader = HttpContext?.RequestServices?.GetService<MdExplorer.Features.Services.CodeGraph.ICodeScriptLoader>();
+            var codeScriptLoader = HttpContext?.RequestServices?.GetService<MdExplorer.Features.Services.CodeGraph.ICodeGraphStore>();
             var codeAnalysis = HttpContext?.RequestServices?.GetService<MdExplorer.Services.CodeGraph.ICodeAnalysisService>();
             if (codeScriptLoader != null)
             {
@@ -2175,7 +2175,7 @@ namespace MdExplorer.Service.Controllers.MdFiles
                     await Task.Yield();
                     try
                     {
-                        var outcome = codeScriptLoader.LoadProject(codeGraphProjectPath);
+                        var outcome = await codeScriptLoader.LoadProjectAsync(codeGraphProjectPath);
                         if (!outcome.ScriptsFolderMissing)
                         {
                             _logger.LogInformation("🧩 [CodeGraph] '{Project}': {Loaded} script caricati, {Skipped} invariati, {Removed} tolti, {Failed} falliti{Err}",

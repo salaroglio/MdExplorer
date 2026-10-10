@@ -2093,7 +2093,7 @@ namespace MdExplorer.Services.FileSystemWatcherManager
         // ============================================================
 
         /// <summary>
-        /// Carica (o toglie) uno script di <c>.mde-code/</c> nel DB del grafo del codice. Best effort: un errore
+        /// Carica (o toglie) uno script di <c>.mde-code/</c> nel grafo del codice (Fuseki, D19). Best effort: un errore
         /// di formato finisce nel log con file, riga e campo, e lo script resta «da caricare» nello stato.
         /// </summary>
         private async Task LoadCodeScriptBestEffortAsync(WatcherContext context, string fullPath, bool remove)
@@ -2102,10 +2102,10 @@ namespace MdExplorer.Services.FileSystemWatcherManager
             {
                 await Task.Yield();
                 using var scope = _serviceScopeFactory.CreateScope();
-                var loader = scope.ServiceProvider.GetRequiredService<MdExplorer.Features.Services.CodeGraph.ICodeScriptLoader>();
+                var store = scope.ServiceProvider.GetRequiredService<MdExplorer.Features.Services.CodeGraph.ICodeGraphStore>();
                 var result = remove
-                    ? loader.RemoveScript(context.ProjectPath, fullPath)
-                    : loader.LoadScript(context.ProjectPath, fullPath);
+                    ? await store.RemoveScriptAsync(context.ProjectPath, fullPath)
+                    : await store.LoadScriptAsync(context.ProjectPath, fullPath);
                 if (result.HasError)
                     _logger.LogWarning($"🧩 [{context.ConnectionId}] code script NOT loaded: {result.Error}");
                 else

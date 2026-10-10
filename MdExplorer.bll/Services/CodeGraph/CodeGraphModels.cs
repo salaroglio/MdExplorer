@@ -1,0 +1,146 @@
+using System.Collections.Generic;
+using System.Linq;
+
+namespace MdExplorer.Features.Services.CodeGraph
+{
+    /// <summary>L'esito del caricamento di uno script.</summary>
+    public sealed class CodeScriptResult
+    {
+        public string ScriptPath { get; set; }
+        public string Kind { get; set; }
+        public bool Loaded { get; set; }
+        public bool Skipped { get; set; }
+        public bool Removed { get; set; }
+        public int RecordCount { get; set; }
+        public string Error { get; set; }
+        public bool HasError => Error != null;
+    }
+
+    /// <summary>L'esito della «generazione della conoscenza» su un progetto.</summary>
+    public sealed class CodeScriptLoadOutcome
+    {
+        public bool ScriptsFolderMissing { get; set; }
+        public List<CodeScriptResult> Results { get; } = new();
+        public int Loaded => Results.Count(r => r.Loaded);
+        public int Skipped => Results.Count(r => r.Skipped);
+        public int Removed => Results.Count(r => r.Removed);
+        public int Failed => Results.Count(r => r.HasError);
+        public string FirstError => Results.FirstOrDefault(r => r.HasError)?.Error;
+    }
+
+    public sealed class CodeGraphStatus
+    {
+        public bool ScriptsFolderExists { get; set; }
+        public int ScriptsOnDisk { get; set; }
+        public int ScriptsLoaded { get; set; }
+        /// <summary>Script su disco con hash diverso da quello caricato, o mai caricati: «conoscenza da generare».</summary>
+        public int ScriptsPending { get; set; }
+        public int Files { get; set; }
+        public int Symbols { get; set; }
+        public int ExternalSymbols { get; set; }
+        public int Parameters { get; set; }
+        public int Edges { get; set; }
+        public int DescribedSymbols { get; set; }
+        /// <summary>Dove sta il grafo: base URI del Fuseki gestito, dataset e grafo nominato del progetto.</summary>
+        public string Endpoint { get; set; }
+        public string Graph { get; set; }
+    }
+
+    public sealed class CodeSymbolHit
+    {
+        public string Id { get; set; }
+        public string Kind { get; set; }
+        public string Name { get; set; }
+        public string QualifiedName { get; set; }
+        public string Path { get; set; }
+        public int? LineStart { get; set; }
+        public string Signature { get; set; }
+        public string Summary { get; set; }
+    }
+
+    /// <summary>Lo stato dello scanner per una cartella <c>program</c> (D14): che commit ha analizzato e in che modo.</summary>
+    public sealed class CodeScanState
+    {
+        public string ProgramFolder { get; set; }
+        public string RepositoryRoot { get; set; }
+        public string AnalyzedCommit { get; set; }
+        /// <summary><c>git</c> oppure <c>hash</c> (cartella fuori da un repository: scansione completa, dichiarata).</summary>
+        public string Mode { get; set; }
+        public string ScannedAt { get; set; }
+        public int Candidates { get; set; }
+        public int Reparsed { get; set; }
+    }
+
+    public sealed class CodeSymbolView
+    {
+        public string Id { get; set; }
+        public string Kind { get; set; }
+        public string Name { get; set; }
+        public string QualifiedName { get; set; }
+        public string Path { get; set; }
+        public int? LineStart { get; set; }
+        public int? LineEnd { get; set; }
+        public string Signature { get; set; }
+        public string ReturnType { get; set; }
+        public string Visibility { get; set; }
+        public bool IsStatic { get; set; }
+        public bool IsAsync { get; set; }
+        public string ParentId { get; set; }
+        public string Language { get; set; }
+        public string Summary { get; set; }
+        public string ReturnsDescription { get; set; }
+        public string Remarks { get; set; }
+        public string WrittenBy { get; set; }
+        /// <summary>true quando la descrizione è stata scritta per una firma diversa da quella attuale; null senza descrizione.</summary>
+        public bool? DescriptionStale { get; set; }
+        public List<CodeParameterView> Parameters { get; set; } = new();
+    }
+
+    public sealed class CodeParameterView
+    {
+        public int Position { get; set; }
+        public string Name { get; set; }
+        public string Type { get; set; }
+        public string Direction { get; set; }
+        public string DefaultValue { get; set; }
+        public bool IsNullable { get; set; }
+        public string Description { get; set; }
+    }
+
+    public sealed class CodeEdgeView
+    {
+        public string Relation { get; set; }
+        public string Confidence { get; set; }
+        public string Path { get; set; }
+        public int? Line { get; set; }
+        /// <summary>L'altro capo dell'arco (chi chiama, o chi è chiamato, a seconda della direzione chiesta).</summary>
+        public CodeSymbolView Other { get; set; }
+        public int Depth { get; set; }
+    }
+
+    public sealed class CodeOverview
+    {
+        public int Files { get; set; }
+        public int Symbols { get; set; }
+        public int ExternalSymbols { get; set; }
+        public int Edges { get; set; }
+        public int DescribedSymbols { get; set; }
+        public Dictionary<string, int> SymbolsByLanguage { get; set; } = new();
+        public Dictionary<string, int> SymbolsByKind { get; set; } = new();
+        public Dictionary<string, int> EdgesByRelation { get; set; } = new();
+        public List<(CodeSymbolView Symbol, int Degree)> MostConnected { get; set; } = new();
+        public List<(string Path, int Symbols)> LargestFiles { get; set; } = new();
+    }
+
+    /// <summary>Quello che serve al report: la panoramica più ciò che manca.</summary>
+    public sealed class CodeReportData
+    {
+        public CodeOverview Overview { get; set; }
+        public int Undescribed { get; set; }
+        public List<string[]> UndescribedList { get; set; } = new();   // kind, qualifiedName, path, line
+        public int Ambiguous { get; set; }
+        public int Inferred { get; set; }
+        public List<string[]> AmbiguousList { get; set; } = new();     // source qn, relation, target qn, path, line
+        public List<string[]> StaleList { get; set; } = new();         // qualifiedName, path, line
+    }
+}

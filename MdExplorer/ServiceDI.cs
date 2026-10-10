@@ -24,15 +24,9 @@ namespace MdExplorer.Service
             services.AddSingleton<ITextFtsService>(sp => new TextFtsService(
                 MdExplorer.Utilities.CrossPlatformPath.GetAppDataPath(),
                 sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TextFtsService>>()));
-            // Grafo del codice (sprint 2026-10-09): DB dedicato su Microsoft.Data.Sqlite (FTS5), caricatore degli
-            // script di .mde-code/, modello di lettura per API e tool.
-            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeGraphDatabase>(sp =>
-                new MdExplorer.Features.Services.CodeGraph.CodeGraphDatabase(
-                    MdExplorer.Utilities.CrossPlatformPath.GetAppDataPath(),
-                    sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<MdExplorer.Features.Services.CodeGraph.CodeGraphDatabase>>()));
-            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeScriptLoader, MdExplorer.Features.Services.CodeGraph.CodeScriptLoader>();
-            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.CodeGraphRepository>();
-            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.CodeScanStateStore>();
+            // Grafo del codice (sprint 2026-10-09, D19): vive nel Fuseki del pacchetto, un dataset `code` e un grafo
+            // nominato per progetto; lo store carica gli script di .mde-code/ ed è il modello di lettura per API e tool.
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeGraphStore, MdExplorer.Features.Services.CodeGraph.CodeGraphStore>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.CodeGraphReportWriter>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore>(sp =>
                 new MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore(MdExplorer.Utilities.CrossPlatformPath.GetAppDataPath()));
