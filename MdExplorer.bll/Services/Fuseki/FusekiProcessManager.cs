@@ -38,6 +38,8 @@ namespace MdExplorer.Features.Services.Fuseki
         public int HeapMegabytes { get; set; } = 512;
 
         public TimeSpan StartupTimeout { get; set; } = TimeSpan.FromSeconds(30);
+        /// <summary>Se 'JavaPath' punta a un Java più vecchio di <see cref="MinimumJavaMajor"/>, cercare un Java adatto in JAVA_HOME, nella scoperta di sistema e nel PATH (avvisando nel log). I test lo spengono per verificare il rifiuto.</summary>
+        public bool SearchAlternativeJava { get; set; } = true;
     }
 
     /// <summary>
@@ -231,7 +233,7 @@ namespace MdExplorer.Features.Services.Fuseki
         {
             var javaPath = _javaLocator.ResolveJavaPath();
             var probe = _javaLocator.Probe(javaPath);
-            if (probe.IsRunnable && probe.Major != null && probe.Major < _options.MinimumJavaMajor)
+            if (_options.SearchAlternativeJava && probe.IsRunnable && probe.Major != null && probe.Major < _options.MinimumJavaMajor)
             {
                 // L'impostazione JavaPath può puntare a un Java vecchio messo per PlantUML (Windows, 11/10/2026: un JRE 8 di
                 // un altro programma, con Temurin 21 in JAVA_HOME). Fuseki cerca un Java adatto fra i candidati di sistema e

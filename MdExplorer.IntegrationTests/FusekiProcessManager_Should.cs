@@ -135,12 +135,34 @@ namespace MdExplorer.IntegrationTests
             File.WriteAllText(fakeJava, "#!/bin/sh\necho 'openjdk version \"17.0.2\" 2022-01-18' >&2\nexit 0\n");
             File.SetUnixFileMode(fakeJava, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 
-            using var manager = new FusekiProcessManager(OptionsIn(dataDir), new PathJavaLocator(fakeJava), NullLogger<FusekiProcessManager>.Instance);
+            var options = OptionsIn(dataDir);
+            options.SearchAlternativeJava = false; // qui si verifica il rifiuto: senza ricerca di un altro Java
+            using var manager = new FusekiProcessManager(options, new PathJavaLocator(fakeJava), NullLogger<FusekiProcessManager>.Instance);
             var ex = await Assert.ThrowsExceptionAsync<FusekiUnavailableException>(() => manager.EnsureRunningAsync());
             StringAssert.Contains(ex.Message, "Java 17 trovato");
             StringAssert.Contains(ex.Message, "richiede Java 21");
             StringAssert.Contains(ex.Message, fakeJava);
             Assert.IsNull(manager.RunningBaseUri);
+            try { Directory.Delete(dataDir, true); } catch { }
+        }
+
+        [TestMethod]
+        public async Task Use_a_java_21_found_elsewhere_when_JavaPath_is_too_old()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) { Assert.Inconclusive("finto java come script sh: solo Linux/macOS"); return; }
+
+            // Windows, 11/10/2026: 'JavaPath' puntava al JRE 8 di un altro programma e Temurin 21 stava in JAVA_HOME/PATH.
+            // Con la ricerca accesa (default) il manager parte con il Java adatto invece di fermarsi.
+            var dataDir = NewDataDir();
+            var fakeJava = Path.Combine(dataDir, "java8");
+            File.WriteAllText(fakeJava, "#!/bin/sh\necho 'openjdk version \"1.8.0_242\"' >&2\nexit 0\n");
+            File.SetUnixFileMode(fakeJava, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+            using var manager = new FusekiProcessManager(OptionsIn(dataDir), new PathJavaLocator(fakeJava), NullLogger<FusekiProcessManager>.Instance);
+            var baseUri = await manager.EnsureRunningAsync();
+            StringAssert.StartsWith(baseUri, "http://127.0.0.1:");
+            Assert.IsNotNull(manager.RunningBaseUri);
+            await manager.StopAsync();
             try { Directory.Delete(dataDir, true); } catch { }
         }
 
