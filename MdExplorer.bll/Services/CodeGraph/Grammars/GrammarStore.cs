@@ -17,7 +17,11 @@ namespace MdExplorer.Features.Services.CodeGraph.Grammars
         /// <summary>Peso indicativo per la UI, in KB (quello del NuGet TreeSitter.DotNet 1.3.0).</summary>
         public int ApproxSizeKb { get; init; }
         public string Symbol => "tree_sitter_" + Id.Replace('-', '_');
-        public string FileName(string rid) => rid.StartsWith("win", StringComparison.OrdinalIgnoreCase) ? $"tree-sitter-{Id}.dll" : $"libtree-sitter-{Id}.so";
+        /// <summary>Il nome del file nativo nel NuGet e nello zip: <c>.dll</c> su Windows, <c>.dylib</c> su macOS, <c>.so</c> altrove.</summary>
+        public string FileName(string rid) =>
+            rid.StartsWith("win", StringComparison.OrdinalIgnoreCase) ? $"tree-sitter-{Id}.dll"
+            : rid.StartsWith("osx", StringComparison.OrdinalIgnoreCase) ? $"libtree-sitter-{Id}.dylib"
+            : $"libtree-sitter-{Id}.so";
         /// <summary>L'id dell'add-on su mdexplorer.net: <c>grammar-&lt;id&gt;-&lt;rid&gt;</c>.</summary>
         public string AddonId(string rid) => $"grammar-{Id}-{rid}";
     }

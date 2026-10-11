@@ -24,7 +24,7 @@ command -v zip >/dev/null || { echo "serve 'zip'" >&2; exit 1; }
 mkdir -p "$OUT"
 for rid in "${RIDS[@]}"; do
   for g in "${GRAMMARS[@]}"; do
-    case "$rid" in win-*) file="tree-sitter-$g.dll";; *) file="libtree-sitter-$g.so";; esac
+    case "$rid" in win-*) file="tree-sitter-$g.dll";; osx-*) file="libtree-sitter-$g.dylib";; *) file="libtree-sitter-$g.so";; esac
     src="$PKG/$rid/native/$file"
     [ -f "$src" ] || { echo "manca $src: salto $g per $rid" >&2; continue; }
     id="grammar-$g-$rid"; dir="$OUT/$id"; mkdir -p "$dir"
