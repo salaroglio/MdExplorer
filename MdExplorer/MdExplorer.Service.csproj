@@ -23,9 +23,9 @@
 
   <Target Name="PostPublish" AfterTargets="AfterPublish">
     <Message Text="BEGIN After-publish PublishDir=$(PublishDir) PublishUrl=$(PublishUrl)" Importance="high" />
-    <Copy SourceFiles="$(OutDir)Binaries\Plantuml.jar"
-          DestinationFiles="$(PublishUrl)\Plantuml.jar"
-          Condition="'$(PublishUrl)' != '' And Exists('$(OutDir)Binaries\Plantuml.jar')" />
+    <Copy SourceFiles="$(OutDir)Binaries\plantuml.jar"
+          DestinationFiles="$(PublishDir)Plantuml.jar"
+          Condition="'$(PublishDir)' != '' And Exists('$(OutDir)Binaries\plantuml.jar')" />
     <Message Text="END After-publish" Importance="high" />
 
     <!-- Build P2P Premium module if project exists -->
