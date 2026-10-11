@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -229,6 +231,22 @@ namespace MdExplorer.Features.Services.Fuseki
         {
             var javaPath = _javaLocator.ResolveJavaPath();
             var probe = _javaLocator.Probe(javaPath);
+            if (probe.IsRunnable && probe.Major != null && probe.Major < _options.MinimumJavaMajor)
+            {
+                // L'impostazione JavaPath può puntare a un Java vecchio messo per PlantUML (Windows, 11/10/2026: un JRE 8 di
+                // un altro programma, con Temurin 21 in JAVA_HOME). Fuseki cerca un Java adatto fra i candidati di sistema e
+                // lo DICE nel log: l'impostazione non si tocca, la corregge l'utente.
+                foreach (var candidate in AlternativeJavaCandidates(javaPath))
+                {
+                    var other = _javaLocator.Probe(candidate);
+                    if (other.IsRunnable && other.Major >= _options.MinimumJavaMajor)
+                    {
+                        _logger.LogWarning("[Fuseki] 'JavaPath' punta a Java {Old} ({OldPath}); per Fuseki uso Java {New} in {NewPath}. Imposta 'JavaPath' su un Java {Min} per togliere questo avviso.",
+                            probe.Major, javaPath, other.Major, candidate, _options.MinimumJavaMajor);
+                        return other;
+                    }
+                }
+            }
             if (!probe.IsRunnable)
                 throw new FusekiUnavailableException(
                     $"java non eseguibile ('{javaPath}': {probe.Error}). Fuseki (grafo del codice e memoria) richiede Java {_options.MinimumJavaMajor}: " +
@@ -241,6 +259,20 @@ namespace MdExplorer.Features.Services.Fuseki
                     $"Java {probe.Major} trovato in '{javaPath}' («{probe.Raw}»): MdExplorer richiede Java {_options.MinimumJavaMajor} per Fuseki " +
                     "(grafo del codice e memoria degli agenti). Installa Temurin 21 (adoptium.net) oppure imposta 'JavaPath' su un Java 21.");
             return probe;
+        }
+
+        /// <summary>JAVA_HOME, poi la scoperta di sistema, poi <c>java</c> nel PATH: senza doppioni e senza il percorso già provato.</summary>
+        private static IEnumerable<string> AlternativeJavaCandidates(string alreadyTried)
+        {
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { alreadyTried ?? string.Empty };
+            var exe = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "java.exe" : "java";
+            var javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
+            var list = new List<string>();
+            if (!string.IsNullOrWhiteSpace(javaHome)) list.Add(Path.Combine(javaHome, "bin", exe));
+            try { var discovered = JavaDiscovery.DiscoverJavaPath(); if (!string.IsNullOrWhiteSpace(discovered)) list.Add(discovered); } catch { /* la scoperta è best effort */ }
+            list.Add("java");
+            foreach (var c in list)
+                if (seen.Add(c) && (c == "java" || File.Exists(c))) yield return c;
         }
 
         private async Task WaitUntilHealthyAsync(string baseUri, Process proc, CancellationToken ct)

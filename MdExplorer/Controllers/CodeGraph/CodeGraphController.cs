@@ -157,8 +157,10 @@ namespace MdExplorer.Controllers.CodeGraph
         /// caricatore. Senza folderPath: tutte le cartelle program con dei linguaggi scelti.
         /// </summary>
         [HttpPost("analyze")]
-        public async Task<IActionResult> Analyze([FromBody] FolderRequest request, CancellationToken ct)
+        public Task<IActionResult> Analyze([FromBody] FolderRequest request, CancellationToken ct) => Guarded(async () =>
         {
+            // Dentro Guarded: Fuseki che non parte (503), Fuseki che rifiuta (502), git o cartella (400) arrivano alla
+            // finestra come messaggio, non come «500 Internal Server Error» (Windows, 11/10/2026).
             var bad = ValidateProject(request?.ProjectPath);
             if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(request.FolderPath))
@@ -170,7 +172,7 @@ namespace MdExplorer.Controllers.CodeGraph
             if (rel == null) return BadRequest(new { error = "folderPath deve stare dentro il progetto" });
             var outcome = await _analysis.AnalyzeFolderAsync(request.ProjectPath, rel, ct);
             return Ok(new { folder = outcome, status = await _store.GetStatusAsync(request.ProjectPath, ct) });
-        }
+        });
 
         // ------------------------------------------------------------------ lettura per i tool (F5, D15)
 
