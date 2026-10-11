@@ -40,6 +40,8 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
   public errorMessage = '';
   public detected: DetectedLanguage[] = [];
   public selected = new Set<string>();
+  /** La cartella aveva già dei linguaggi salvati: la finestra si è aperta dal menu, non dal segno appena messo. */
+  public configured = false;
   public scanMode = '';
   public outcome: CodeFolderAnalysisOutcome | null = null;
   /** La grammatica in download, per lo spinner sulla riga giusta. */
@@ -111,6 +113,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
         this.detected = res.detected ?? [];
         this.scanMode = res.scanMode;
         this.selected = new Set(res.selected ?? []);
+        this.configured = (res.selected?.length ?? 0) > 0;
         // Prima volta: si propongono i linguaggi rilevati che hanno un estrattore pronto.
         if (this.selected.size === 0) {
           this.detected.filter(d => d.availability === 'ready').forEach(d => this.selected.add(d.id));

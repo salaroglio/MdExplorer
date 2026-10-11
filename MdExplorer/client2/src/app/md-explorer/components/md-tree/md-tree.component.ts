@@ -2512,7 +2512,17 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   async openCodeGraph(node: MdFile, projectRoot?: string | null): Promise<void> {
     const root = projectRoot ?? this.getProjectRoot();
     if (!root) { return; }
-    const folder = (node.relativePath || '').replace(/\\/g, '/').replace(/^\/+/, '');
+    // La cartella relativa alla radice del progetto si ricava da fullPath: per una sottocartella caricata dopo
+    // (grafo-del-codice/esempio) relativePath è il percorso ASSOLUTO, e la pagina chiedeva un grafo che non esiste
+    // (misurato l'11/10/2026 sul demo). Per una cartella compatta vale l'ultimo segmento, come altrove nell'albero.
+    const lastSeg = node.isCompacted && node.compactedSegments?.length
+      ? node.compactedSegments[node.compactedSegments.length - 1]
+      : null;
+    const full = ((lastSeg ? lastSeg.fullPath : node.fullPath) || '').replace(/\\/g, '/');
+    const rootNorm = root.replace(/\\/g, '/').replace(/\/+$/, '');
+    const folder = full.startsWith(rootNorm + '/')
+      ? full.substring(rootNorm.length + 1).replace(/\/+$/, '')
+      : (node.relativePath || '').replace(/\\/g, '/').replace(/^\/+/, '');
     const page = new MdFile(this.translate.instant('MD_TREE.CODE_GRAPH') + ' · ' + node.name, node.path, node.level, false);
     page.type = 'codegraph';
     page.relativePath = folder;
