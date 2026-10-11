@@ -2165,8 +2165,19 @@ namespace MdExplorer.Service.Controllers.MdFiles
             // Grafo del codice (sprint 2026-10-09, F1): «generazione della conoscenza» all'apertura — gli script di
             // .mde-code/ cambiati dall'ultima volta entrano in Fuseki (D19). Fire-and-forget, nessuna
             // contesa con l'engine DB. Niente cartella .mde-code = esito vuoto, non un errore.
-            var codeScriptLoader = HttpContext?.RequestServices?.GetService<MdExplorer.Features.Services.CodeGraph.ICodeGraphStore>();
-            var codeAnalysis = HttpContext?.RequestServices?.GetService<MdExplorer.Services.CodeGraph.ICodeAnalysisService>();
+            // ⚠️ L'albero deve aprirsi anche se il grafo non parte: risolvere i servizi del grafo (Fuseki, estrattori)
+            // qui dentro non può far fallire la richiesta. Un errore si scrive per intero nel log, non si nasconde.
+            MdExplorer.Features.Services.CodeGraph.ICodeGraphStore codeScriptLoader = null;
+            MdExplorer.Services.CodeGraph.ICodeAnalysisService codeAnalysis = null;
+            try
+            {
+                codeScriptLoader = HttpContext?.RequestServices?.GetService<MdExplorer.Features.Services.CodeGraph.ICodeGraphStore>();
+                codeAnalysis = HttpContext?.RequestServices?.GetService<MdExplorer.Services.CodeGraph.ICodeAnalysisService>();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "🧩 [CodeGraph] i servizi del grafo del codice non si sono potuti creare: il progetto si apre senza grafo");
+            }
             if (codeScriptLoader != null)
             {
                 var codeGraphProjectPath = currentPath;

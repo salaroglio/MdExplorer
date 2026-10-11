@@ -51,8 +51,13 @@ namespace MdExplorer.Features.Utilities
 
         public string ResolveJavaPath()
         {
+            // Sessione propria, quindi transazione propria: la lettura di JavaPath e l'eventuale salvataggio
+            // del percorso scoperto non devono restare fuori transazione (SQLite, altri thread: «database is locked»).
             using var session = _dalFactory.OpenSession();
-            return ResolveJavaPath(session);
+            using var tx = session.BeginTransaction();
+            var path = ResolveJavaPath(session);
+            tx.Commit();
+            return path;
         }
 
         public string ResolveJavaPath(ISessionDB session)
