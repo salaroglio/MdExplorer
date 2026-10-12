@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -23,6 +24,7 @@ namespace MdExplorer.Controllers.CodeGraph
 
         public class LinkRequest { public string ProjectPath { get; set; } public string Alias { get; set; } public string LocalPath { get; set; } }
         public class UnlinkRequest { public string ProjectPath { get; set; } public string Alias { get; set; } }
+        public class DismissRequest { public string ProjectPath { get; set; } public List<string> Aliases { get; set; } }
 
         /// <summary>GET /api/coderoots?projectPath — le radici dichiarate e il loro stato qui.</summary>
         [HttpGet]
@@ -57,6 +59,19 @@ namespace MdExplorer.Controllers.CodeGraph
             var c = await _roots.ChangesAsync(projectPath, alias, ct);
             return Ok(new { c.Alias, c.IsGit, c.Branch, files = c.Files.Select(f => new { status = f.Status, path = f.Path }) });
         }, projectPath);
+
+        /// <summary>GET /api/coderoots/reminder?projectPath — le radici non utilizzabili qui da ricordare all'apertura.</summary>
+        [HttpGet("reminder")]
+        public Task<IActionResult> Reminder([FromQuery] string projectPath, CancellationToken ct) => Guarded(async () =>
+            Ok((await _roots.PendingReminderAsync(projectPath, ct)).Select(View)), projectPath);
+
+        /// <summary>POST /api/coderoots/reminder/dismiss {projectPath, aliases} — «non ricordarmelo più» per questi alias.</summary>
+        [HttpPost("reminder/dismiss")]
+        public Task<IActionResult> DismissReminder([FromBody] DismissRequest request) => Guarded(() =>
+        {
+            _roots.DismissReminder(request.ProjectPath, request.Aliases);
+            return Task.FromResult<IActionResult>(Ok(new { dismissed = request.Aliases }));
+        }, request?.ProjectPath);
 
         private static object View(CodeRootState s) => new
         {

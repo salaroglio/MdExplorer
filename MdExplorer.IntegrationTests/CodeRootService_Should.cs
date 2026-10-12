@@ -25,6 +25,13 @@ namespace MdExplorer.IntegrationTests
             public string Get(string p, string a) => _map.TryGetValue(p + "|" + a, out var v) ? v : null;
             public void Set(string p, string a, string l) => _map[p + "|" + a] = l;
             public void Remove(string p, string a) => _map.Remove(p + "|" + a);
+            private readonly Dictionary<string, HashSet<string>> _dismissed = new();
+            public IReadOnlyCollection<string> DismissedReminders(string p) => _dismissed.TryGetValue(p, out var s) ? s : new HashSet<string>();
+            public void DismissReminders(string p, IEnumerable<string> aliases)
+            {
+                if (!_dismissed.TryGetValue(p, out var s)) _dismissed[p] = s = new HashSet<string>();
+                s.UnionWith(aliases);
+            }
         }
 
         private string _root, _project;
@@ -54,6 +61,28 @@ namespace MdExplorer.IntegrationTests
         }
 
         private CodeRootService Service(ICodeRootBindingStore store) => new(store, _git, NullLogger<CodeRootService>.Instance);
+
+        [TestMethod]
+        public async Task Remind_unlinked_roots_until_dismissed_and_remind_again_for_a_new_alias()
+        {
+            var mine = await CloneOf("io/backend", "https://github.com/acme/backend.git");
+            await Service(new MemoryStore()).LinkAsync(_project, "backend", mine);
+
+            var colleague = Service(new MemoryStore());
+            Assert.AreEqual("backend", (await colleague.PendingReminderAsync(_project)).Single().Alias, "ricevuta e non collegata: si ricorda");
+            colleague.DismissReminder(_project, new[] { "backend" });
+            Assert.AreEqual(0, (await colleague.PendingReminderAsync(_project)).Count, "«non ricordarmelo più»");
+
+            var other = await CloneOf("io/frontend", "https://github.com/acme/frontend.git");
+            await Service(new MemoryStore()).LinkAsync(_project, "frontend", other);
+            Assert.AreEqual("frontend", (await colleague.PendingReminderAsync(_project)).Single().Alias, "un alias nuovo si ricorda di nuovo");
+
+            var store = new MemoryStore();
+            var linked = Service(store);
+            await linked.LinkAsync(_project, "backend", mine);
+            Assert.IsFalse((await linked.PendingReminderAsync(_project)).Any(r => r.Alias == "backend"), "collegata: niente da ricordare");
+            Assert.ThrowsException<ArgumentException>(() => linked.DismissReminder(_project, new[] { "Non Valido" }));
+        }
 
         [TestMethod]
         public async Task Declare_on_first_link_and_let_a_colleague_link_the_same_repository_elsewhere()

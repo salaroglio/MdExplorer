@@ -732,6 +732,13 @@
     "PICK_TITLE": "Code folder for @{{alias}}",
     "PICK_BUTTON": "Link this folder",
     "PRIVACY": "The graph scripts of this code go into the documentation repository (.mde-code/@alias): whoever sees the documentation also sees the code's structure and descriptions.",
+    "REMINDER_TITLE": "Code roots to link",
+    "REMINDER_INTRO": "This project uses code that lives outside its folder, and it is not usable on this computer yet:",
+    "REMINDER_NOTE": "Until it is linked you see the code's structure in the graph, but you cannot open the files, analyze them, or have MarkAgent edit them.",
+    "REMINDER_DONT_REMIND": "Don't remind me again for these roots",
+    "REMINDER_LATER": "Later",
+    "REMINDER_OPEN": "Link now…",
+    "REMINDER_FAILED": "Cannot read the project's external code roots: {{error}}",
     "CLOSE": "Close"
   },
   "DEV_ENV": {

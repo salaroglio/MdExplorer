@@ -732,6 +732,13 @@
     "PICK_TITLE": "Cartella del codice per @{{alias}}",
     "PICK_BUTTON": "Collega questa cartella",
     "PRIVACY": "Gli script del grafo di questo codice finiscono nel repository della documentazione (.mde-code/@alias): chi vede la documentazione vede anche la struttura del codice e le descrizioni.",
+    "REMINDER_TITLE": "Radici di codice da collegare",
+    "REMINDER_INTRO": "Questo progetto usa codice che sta fuori dalla sua cartella, e su questo computer non è ancora utilizzabile:",
+    "REMINDER_NOTE": "Finché non è collegato vedi la struttura del codice nel grafo, ma non puoi aprire i file, analizzarli, né farli modificare a MarkAgent.",
+    "REMINDER_DONT_REMIND": "Non ricordarmelo più per queste radici",
+    "REMINDER_LATER": "Più tardi",
+    "REMINDER_OPEN": "Collega ora…",
+    "REMINDER_FAILED": "Non riesco a leggere le radici di codice esterne del progetto: {{error}}",
     "CLOSE": "Chiudi"
   },
   "DEV_ENV": {

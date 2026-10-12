@@ -24,6 +24,10 @@ namespace MdExplorer.Services.CodeGraph
         string Get(string projectPath, string alias);
         void Set(string projectPath, string alias, string localPath);
         void Remove(string projectPath, string alias);
+
+        /// <summary>Gli alias per cui l'utente ha detto «non ricordarmelo più» in questo progetto (avviso all'apertura).</summary>
+        IReadOnlyCollection<string> DismissedReminders(string projectPath);
+        void DismissReminders(string projectPath, IEnumerable<string> aliases);
     }
 
     public interface ICodeRootService
@@ -49,6 +53,14 @@ namespace MdExplorer.Services.CodeGraph
         /// toccato MarkAgent prima di committare con i propri strumenti. Solo lettura.
         /// </summary>
         Task<CodeRootChanges> ChangesAsync(string projectPath, string alias, CancellationToken ct = default);
+
+        /// <summary>
+        /// Le radici da ricordare all'apertura del progetto: non utilizzabili qui (da collegare, non trovate, repository
+        /// diverso) e per cui l'utente non ha detto «non ricordarmelo più». Un alias nuovo si ricorda di nuovo.
+        /// </summary>
+        Task<IReadOnlyList<CodeRootState>> PendingReminderAsync(string projectPath, CancellationToken ct = default);
+
+        void DismissReminder(string projectPath, IEnumerable<string> aliases);
     }
 
     public sealed class CodeRootChanges
@@ -208,6 +220,21 @@ namespace MdExplorer.Services.CodeGraph
             _logger.LogInformation("[CodeRoots] '{Project}': @{Alias} scollegata su questa macchina", projectPath, alias);
         }
 
+        public async Task<IReadOnlyList<CodeRootState>> PendingReminderAsync(string projectPath, CancellationToken ct = default)
+        {
+            var dismissed = _bindings.DismissedReminders(projectPath);
+            return (await ListAsync(projectPath, ct))
+                .Where(r => r.Status != CodeRootStatus.Linked && !dismissed.Contains(r.Alias))
+                .ToList();
+        }
+
+        public void DismissReminder(string projectPath, IEnumerable<string> aliases)
+        {
+            var list = (aliases ?? Enumerable.Empty<string>()).ToList();
+            foreach (var a in list) CodeRootPaths.RequireAlias(a);
+            _bindings.DismissReminders(projectPath, list);
+        }
+
         public async Task<CodeRootChanges> ChangesAsync(string projectPath, string alias, CancellationToken ct = default)
         {
             CodeRootPaths.RequireAlias(alias);
@@ -317,6 +344,33 @@ namespace MdExplorer.Services.CodeGraph
             if (row != null) db.GetDal<CodeRootBinding>().Delete(row);
             return true;
         });
+
+        /// <summary>
+        /// «Non ricordarmelo più»: una riga <see cref="Setting"/> per progetto (Name fisso, Description = progetto,
+        /// ValueString = alias uno per riga). Una preferenza dell'utente su questa macchina, come la posizione.
+        /// </summary>
+        private const string ReminderSetting = "CodeRootsReminderDismissed";
+
+        public IReadOnlyCollection<string> DismissedReminders(string projectPath) => WithDb(db =>
+            (IReadOnlyCollection<string>)(FindReminder(db, projectPath)?.ValueString ?? string.Empty)
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal));
+
+        public void DismissReminders(string projectPath, IEnumerable<string> aliases) => WithDb(db =>
+        {
+            var row = FindReminder(db, projectPath) ?? new Setting { Name = ReminderSetting, Description = Key(projectPath) };
+            var all = (row.ValueString ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Concat(aliases).Distinct(StringComparer.Ordinal).OrderBy(a => a, StringComparer.Ordinal);
+            row.ValueString = string.Join("\n", all);
+            db.GetDal<Setting>().Save(row);
+            return true;
+        });
+
+        private static Setting FindReminder(IUserSettingsDB db, string projectPath)
+        {
+            var key = Key(projectPath);
+            return db.GetDal<Setting>().GetList().Where(s => s.Name == ReminderSetting).ToList()
+                .FirstOrDefault(s => string.Equals(s.Description, key, PathContainment.Comparison));
+        }
 
         private T WithDb<T>(Func<IUserSettingsDB, T> work)
         {

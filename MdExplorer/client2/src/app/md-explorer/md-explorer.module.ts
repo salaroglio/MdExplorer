@@ -19,6 +19,7 @@ import { NewMarkdownComponent } from './components/dialogs/new-markdown/new-mark
 import { NewDirectoryComponent } from './components/dialogs/new-directory/new-directory.component';
 import { DevEnvironmentDialogComponent } from './components/dialogs/dev-environment/dev-environment-dialog.component';
 import { CodeRootsDialogComponent } from './components/dialogs/code-roots/code-roots-dialog.component';
+import { CodeRootsReminderDialogComponent } from './components/dialogs/code-roots/code-roots-reminder-dialog.component';
 import { MdTreeComponent } from './components/md-tree/md-tree.component';
 import { E2eDialogComponent } from './components/e2e-dialog/e2e-dialog.component';
 import { AgentReviewComponent } from './components/agent-review/agent-review.component';
@@ -111,6 +112,7 @@ const routes: Routes = [
     NewDirectoryComponent,
     DevEnvironmentDialogComponent,
     CodeRootsDialogComponent,
+    CodeRootsReminderDialogComponent,
     MdTreeComponent,
     ConnectionLostComponent,
     ParsingProjectComponent,

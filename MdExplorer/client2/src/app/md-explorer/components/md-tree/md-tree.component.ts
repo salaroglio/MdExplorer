@@ -6,7 +6,7 @@ import { MatLegacyMenuTrigger as MatMenuTrigger } from '@angular/material/legacy
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
 import { MatTreeFlatDataSource, MatTreeFlattener } from '@angular/material/tree';
 import { Observable, BehaviorSubject, Subject, Subscription, fromEvent } from 'rxjs';
-import { auditTime, takeUntil } from 'rxjs/operators';
+import { auditTime, distinctUntilChanged, filter, map, takeUntil } from 'rxjs/operators';
 import { CompactSegment, IFileInfoNode } from '../../models/IFileInfoNode';
 import { MdFile } from '../../models/md-file';
 import { MdFileService } from '../../services/md-file.service';
@@ -16,6 +16,8 @@ import { ChangeDirectoryComponent } from '../dialogs/change-directory/change-dir
 import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.component';
 import { DevEnvironmentDialogComponent, DevEnvironmentDialogData, DevEnvironmentDialogResult } from '../dialogs/dev-environment/dev-environment-dialog.component';
 import { CodeRootsDialogComponent, CodeRootsDialogData, CodeRootsDialogResult } from '../dialogs/code-roots/code-roots-dialog.component';
+import { CodeRootsReminderDialogComponent, CodeRootsReminderData } from '../dialogs/code-roots/code-roots-reminder-dialog.component';
+import { CodeRootsService } from '../../services/code-roots.service';
 import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markdown.component';
@@ -214,7 +216,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private http: HttpClient,
     private translate: TranslateService,
     private markAssistant: MarkAssistantService,
-    private indexingProgressService: IndexingProgressService
+    private indexingProgressService: IndexingProgressService,
+    private codeRootsService: CodeRootsService
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.pipe(takeUntil(this.destroy$)).subscribe(_ => {
@@ -413,6 +416,15 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
  
   //="{ value: '', params: { delay: node.index * 100 } }"
   ngOnInit(): void {
+    // Radici di codice esterne (sprint 2026-10-12, F5): all'apertura del progetto, se qualcuna qui non si può usare,
+    // un avviso — una volta per sessione, con «non ricordarmelo più» salvato nel database dell'utente.
+    this.projectsService.currentProjects$.pipe(
+      map(p => p?.path),
+      filter((path): path is string => !!path),
+      distinctUntilChanged(),
+      takeUntil(this.destroy$),
+    ).subscribe(path => this.remindUnlinkedCodeRoots(path));
+
     // Subscribe to P2P availability
     this.p2pService.isAvailable$.pipe(takeUntil(this.destroy$)).subscribe(available => {
       this.isP2PAvailable = available;
@@ -2541,6 +2553,21 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     await this.router.navigate(['/main/navigation/document']);
     this.mdFileService.setSelectedMdFileFromSideNav(page);
     this.navService.setNewNavigation(page);
+  }
+
+  private remindUnlinkedCodeRoots(projectRoot: string): void {
+    if (!this.codeRootsService.shouldRemind(projectRoot)) { return; }
+    this.codeRootsService.reminder(projectRoot).subscribe({
+      next: roots => {
+        // il progetto è cambiato nel frattempo: l'avviso riguarderebbe quello vecchio
+        if (!roots.length || this.projectsService.currentProjects$.value?.path !== projectRoot) { return; }
+        const data: CodeRootsReminderData = { projectRoot, roots };
+        this.dialog.open(CodeRootsReminderDialogComponent, { width: '560px', data })
+          .afterClosed().subscribe(result => { if (result === 'open') { this.openCodeRootsDialog(); } });
+      },
+      // un .development.yml che non si legge non deve bloccare l'apertura: lo si dice
+      error: err => this.snackBar.open(this.translate.instant('CODE_ROOTS.REMINDER_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 }),
+    });
   }
 
   /** «Radici di codice esterne…» dal menu della radice del progetto (sprint 2026-10-12, F5). */

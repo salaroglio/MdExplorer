@@ -47,6 +47,28 @@ export class CodeRootsService {
     return this.http.post<{ alias: string; linked: boolean }>(`${this.api}/unlink`, { projectPath, alias });
   }
 
+  /** Le radici non utilizzabili qui per cui l'utente non ha detto «non ricordarmelo più». */
+  reminder(projectPath: string): Observable<CodeRoot[]> {
+    return this.http.get<CodeRoot[]>(`${this.api}/reminder`, { params: new HttpParams().set('projectPath', projectPath) });
+  }
+
+  dismissReminder(projectPath: string, aliases: string[]): Observable<{ dismissed: string[] }> {
+    return this.http.post<{ dismissed: string[] }>(`${this.api}/reminder/dismiss`, { projectPath, aliases });
+  }
+
+  /**
+   * L'avviso all'apertura compare una volta per progetto in questa sessione dell'app: una riconnessione SignalR o
+   * il ritorno all'albero non lo ripropongono. «Non ricordarmelo più» invece sta nel database dell'utente.
+   */
+  private readonly remindedThisSession = new Set<string>();
+
+  shouldRemind(projectPath: string): boolean {
+    const key = (projectPath || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+    if (!key || this.remindedThisSession.has(key)) { return false; }
+    this.remindedThisSession.add(key);
+    return true;
+  }
+
   changes(projectPath: string, alias: string): Observable<CodeRootChanges> {
     return this.http.get<CodeRootChanges>(`${this.api}/changes`, { params: new HttpParams().set('projectPath', projectPath).set('alias', alias) });
   }
