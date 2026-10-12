@@ -71,6 +71,69 @@ namespace MdExplorer.Service.Controllers
             }
         }
 
+        /// <summary>
+        /// La lingua dell'interfaccia sta nel DB utente del backend, non nel localStorage: il localStorage vale per una
+        /// sola origine, e l'app desktop cambia porta a ogni avvio (lingua persa a ogni riavvio, 12/10/2026). Così vale
+        /// anche per l'edizione web; Electron è un guscio e la riceve soltanto (menu della tray).
+        /// </summary>
+        private const string LanguageSettingName = "Language";
+        private static readonly string[] SupportedLanguages = { "en", "it" };
+
+        public class LanguageRequest { public string Language { get; set; } }
+
+        /// <summary>GET /api/AppSettings/GetLanguage — {language}: null se l'utente non ha mai scelto (primo avvio).</summary>
+        [HttpGet]
+        public IActionResult GetLanguage()
+        {
+            _session.BeginTransaction();
+            try
+            {
+                var value = _session.GetDal<Setting>().GetList().FirstOrDefault(x => x.Name == LanguageSettingName)?.ValueString;
+                _session.Commit();
+                return Ok(new { language = SupportedLanguages.Contains(value) ? value : null });
+            }
+            catch
+            {
+                _session.Rollback();
+                throw;
+            }
+        }
+
+        /// <summary>POST /api/AppSettings/SetLanguage {language} — salva la lingua scelta (en, it).</summary>
+        [HttpPost]
+        public IActionResult SetLanguage([FromBody] LanguageRequest request)
+        {
+            var lang = request?.Language?.Trim().ToLowerInvariant();
+            if (!SupportedLanguages.Contains(lang))
+                return BadRequest(new { error = $"Lingua '{request?.Language}' non supportata. Ammesse: {string.Join(", ", SupportedLanguages)}" });
+
+            _session.BeginTransaction();
+            try
+            {
+                var dal = _session.GetDal<Setting>();
+                var existing = dal.GetList().FirstOrDefault(x => x.Name == LanguageSettingName);
+                if (existing != null)
+                {
+                    _session.Evict(existing);
+                    // SQL diretto per nome, come SetSettings: un Id scritto da una migrazione ha un formato di GUID diverso
+                    _session.CreateSQLQuery("UPDATE Setting SET ValueString = :val WHERE Name = :name")
+                        .SetParameter("val", lang).SetParameter("name", LanguageSettingName).ExecuteUpdate();
+                }
+                else
+                {
+                    dal.Save(new Setting { Name = LanguageSettingName, Description = "Lingua dell'interfaccia (en, it)", ValueString = lang });
+                }
+                _session.Commit();
+            }
+            catch
+            {
+                _session.Rollback();
+                throw;
+            }
+            _logger.LogInformation("[SetLanguage] lingua = {Lang}", lang);
+            return Ok(new { language = lang });
+        }
+
         [HttpGet]
         public IActionResult GetSettings()
         {
