@@ -171,8 +171,12 @@ namespace MdExplorer.Services.CodeGraph
                         outcome.Warnings.Add($"{lang.DisplayName}: {all.Count} file, {_extractors.Availability(lang.Id)}");
                         continue;
                     }
-                    var toEmit = candidates.Where(f => CodeLanguages.ForFile(f.AbsolutePath)?.Id == lang.Id)
-                                           .Where(f => NeedsReparse(projectPath, f, extractor)).ToList();
+                    // Candidati: ciò che git (o l'hash) dice cambiato, PIÙ ogni file il cui script l'ha scritto un altro
+                    // estrattore o un'altra sua versione — git non lo sa, il sorgente è fermo ma l'AST va rifatto (12/10/2026:
+                    // l'estrattore PowerShell v2 non arrivava agli script dei file non toccati).
+                    var candidatePaths = new HashSet<string>(candidates.Select(f => f.AbsolutePath), StringComparer.Ordinal);
+                    var toEmit = all.Where(f => candidatePaths.Contains(f.AbsolutePath) || ScriptFromOtherExtractor(projectPath, f, extractor))
+                                    .Where(f => NeedsReparse(projectPath, f, extractor)).ToList();
                     if (toEmit.Count == 0) continue;
                     var extracted = extractor.Extract(new CodeExtractionRequest { ProjectPath = projectPath, AllFiles = all, FilesToEmit = toEmit }, ct);
                     outcome.Warnings.AddRange(extracted.Warnings);
@@ -212,6 +216,25 @@ namespace MdExplorer.Services.CodeGraph
                 return outcome;
             }
             finally { _gate.Release(); }
+        }
+
+        /// <summary>Lo script esistente è di un altro estrattore o di un'altra versione (o manca): solo l'intestazione, niente sorgente.</summary>
+        private static bool ScriptFromOtherExtractor(string projectPath, CodeSourceFile file, ICodeExtractor extractor)
+        {
+            var scriptPath = CodeScriptWriter.ScriptPathFor(projectPath, file.ProjectRelativePath, CodeScriptKind.Ast);
+            if (!File.Exists(scriptPath)) return true;
+            string firstLine;
+            using (var reader = new StreamReader(scriptPath)) firstLine = reader.ReadLine();
+            if (string.IsNullOrWhiteSpace(firstLine)) return true;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(firstLine);
+                var root = doc.RootElement;
+                var ext = root.TryGetProperty("extractor", out var e) ? e.GetString() : null;
+                var ver = root.TryGetProperty("extractorVersion", out var v) ? v.GetString() : null;
+                return ext != extractor.ExtractorName || ver != extractor.ExtractorVersion;
+            }
+            catch (System.Text.Json.JsonException) { return true; }
         }
 
         /// <summary>L'hash nell'intestazione dello script esistente conferma o smentisce il candidato (D14).</summary>
