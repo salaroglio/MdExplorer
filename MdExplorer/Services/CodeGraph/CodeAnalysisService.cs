@@ -23,11 +23,28 @@ namespace MdExplorer.Services.CodeGraph
         public int Candidates { get; set; }
         public int Reparsed { get; set; }
         public int ScriptsRemoved { get; set; }
+        /// <summary>
+        /// Script di file NON cambiati scritti da un altro estrattore o da un'altra sua versione, lasciati com'erano perché
+        /// l'analisi non li includeva (all'apertura del progetto): la pagina del grafo lo dice e chiede di aggiornarli.
+        /// </summary>
+        public int OutdatedScripts { get; set; }
         /// <summary>File del perimetro di un linguaggio scelto che oggi non ha un estrattore: contati e dichiarati, non saltati.</summary>
         public Dictionary<string, int> FilesWithoutExtractor { get; set; } = new();
         public List<string> Warnings { get; set; } = new();
         public CodeScriptLoadOutcome Load { get; set; }
         public string Error { get; set; }
+    }
+
+    /// <summary>Uno script AST scritto da un estrattore diverso da quello di oggi (nome o versione).</summary>
+    public sealed class CodeOutdatedScript
+    {
+        public string Folder { get; set; }
+        public string Source { get; set; }
+        public string Language { get; set; }
+        public string Extractor { get; set; }
+        public string Version { get; set; }
+        public string CurrentExtractor { get; set; }
+        public string CurrentVersion { get; set; }
     }
 
     public sealed class CodeFolderLanguages
@@ -45,10 +62,16 @@ namespace MdExplorer.Services.CodeGraph
         Task<CodeFolderLanguages> GetLanguagesAsync(string projectPath, string folderRelative, CancellationToken ct = default);
         /// <summary>Salva la scelta in <c>.development.yml</c> (voce della cartella, <c>codeGraph.languages</c>). Lista vuota = toglie la voce.</summary>
         void SaveLanguages(string projectPath, string folderRelative, IReadOnlyList<string> languages);
-        /// <summary>Scanner → estrattori → script → caricatore, per una cartella.</summary>
-        Task<CodeFolderAnalysisOutcome> AnalyzeFolderAsync(string projectPath, string folderRelative, CancellationToken ct = default);
+        /// <summary>
+        /// Scanner → estrattori → script → caricatore, per una cartella. <paramref name="includeExtractorChanges"/>: rifare
+        /// anche gli script dei file non cambiati scritti da un altro estrattore o versione (sì quando l'analisi la chiede
+        /// l'utente; no all'apertura del progetto, dove si contano e la pagina del grafo avvisa).
+        /// </summary>
+        Task<CodeFolderAnalysisOutcome> AnalyzeFolderAsync(string projectPath, string folderRelative, bool includeExtractorChanges, CancellationToken ct = default);
         /// <summary>Tutte le cartelle <c>program</c> con dei linguaggi scelti.</summary>
-        Task<List<CodeFolderAnalysisOutcome>> AnalyzeProjectAsync(string projectPath, CancellationToken ct = default);
+        Task<List<CodeFolderAnalysisOutcome>> AnalyzeProjectAsync(string projectPath, bool includeExtractorChanges, CancellationToken ct = default);
+        /// <summary>Gli script AST delle cartelle <c>program</c> (sotto <paramref name="folderPrefix"/>) scritti da un estrattore diverso da quello di oggi.</summary>
+        List<CodeOutdatedScript> ListOutdatedScripts(string projectPath, string folderPrefix);
     }
 
     /// <summary>
@@ -115,7 +138,7 @@ namespace MdExplorer.Services.CodeGraph
 
         // ------------------------------------------------------------------ analisi
 
-        public async Task<List<CodeFolderAnalysisOutcome>> AnalyzeProjectAsync(string projectPath, CancellationToken ct = default)
+        public async Task<List<CodeFolderAnalysisOutcome>> AnalyzeProjectAsync(string projectPath, bool includeExtractorChanges, CancellationToken ct = default)
         {
             var outcomes = new List<CodeFolderAnalysisOutcome>();
             var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
@@ -125,12 +148,12 @@ namespace MdExplorer.Services.CodeGraph
                                                               f.Tags?.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) == true))
             {
                 ct.ThrowIfCancellationRequested();
-                outcomes.Add(await AnalyzeFolderAsync(projectPath, folder.Path, ct));
+                outcomes.Add(await AnalyzeFolderAsync(projectPath, folder.Path, includeExtractorChanges, ct));
             }
             return outcomes;
         }
 
-        public async Task<CodeFolderAnalysisOutcome> AnalyzeFolderAsync(string projectPath, string folderRelative, CancellationToken ct = default)
+        public async Task<CodeFolderAnalysisOutcome> AnalyzeFolderAsync(string projectPath, string folderRelative, bool includeExtractorChanges, CancellationToken ct = default)
         {
             folderRelative = NormalizeRelative(folderRelative);
             var outcome = new CodeFolderAnalysisOutcome { Folder = folderRelative };
@@ -174,8 +197,12 @@ namespace MdExplorer.Services.CodeGraph
                     // Candidati: ciò che git (o l'hash) dice cambiato, PIÙ ogni file il cui script l'ha scritto un altro
                     // estrattore o un'altra sua versione — git non lo sa, il sorgente è fermo ma l'AST va rifatto (12/10/2026:
                     // l'estrattore PowerShell v2 non arrivava agli script dei file non toccati).
+                    // All'apertura del progetto (includeExtractorChanges = false) quei file si contano soltanto: li rifà l'utente
+                    // dall'avviso della pagina del grafo, o con «Salva e analizza».
                     var candidatePaths = new HashSet<string>(candidates.Select(f => f.AbsolutePath), StringComparer.Ordinal);
-                    var toEmit = all.Where(f => candidatePaths.Contains(f.AbsolutePath) || ScriptFromOtherExtractor(projectPath, f, extractor))
+                    var outdated = all.Where(f => !candidatePaths.Contains(f.AbsolutePath) && ScriptFromOtherExtractor(projectPath, f, extractor)).ToList();
+                    if (!includeExtractorChanges) outcome.OutdatedScripts += outdated.Count;
+                    var toEmit = all.Where(f => candidatePaths.Contains(f.AbsolutePath) || (includeExtractorChanges && outdated.Contains(f)))
                                     .Where(f => NeedsReparse(projectPath, f, extractor)).ToList();
                     if (toEmit.Count == 0) continue;
                     var extracted = extractor.Extract(new CodeExtractionRequest { ProjectPath = projectPath, AllFiles = all, FilesToEmit = toEmit }, ct);
@@ -216,6 +243,48 @@ namespace MdExplorer.Services.CodeGraph
                 return outcome;
             }
             finally { _gate.Release(); }
+        }
+
+        public List<CodeOutdatedScript> ListOutdatedScripts(string projectPath, string folderPrefix)
+        {
+            var list = new List<CodeOutdatedScript>();
+            var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
+            if (!File.Exists(path)) return list;
+            var prefix = NormalizeRelative(folderPrefix ?? string.Empty);
+            var config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path);
+            foreach (var folder in config.Folders.Where(f => f.CodeGraph?.Languages?.Count > 0 &&
+                                                              f.Tags?.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) == true))
+            {
+                var rel = NormalizeRelative(folder.Path);
+                var scriptsDir = Path.Combine(CodeGraphPaths.GetScriptsRoot(projectPath), rel.Replace('/', Path.DirectorySeparatorChar));
+                if (!Directory.Exists(scriptsDir)) continue;
+                foreach (var script in Directory.EnumerateFiles(scriptsDir, "*" + CodeGraphPaths.AstScriptSuffix, SearchOption.AllDirectories))
+                {
+                    string firstLine;
+                    using (var reader = new StreamReader(script)) firstLine = reader.ReadLine();
+                    if (string.IsNullOrWhiteSpace(firstLine)) continue;
+                    string source, language, ext, ver;
+                    try
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(firstLine);
+                        var root = doc.RootElement;
+                        source = root.TryGetProperty("source", out var so) ? so.GetString() : null;
+                        language = root.TryGetProperty("language", out var la) ? la.GetString() : null;
+                        ext = root.TryGetProperty("extractor", out var e) ? e.GetString() : null;
+                        ver = root.TryGetProperty("extractorVersion", out var v) ? v.GetString() : null;
+                    }
+                    catch (System.Text.Json.JsonException) { continue; }   // uno script illeggibile lo segnala il caricatore
+                    if (source == null || language == null) continue;
+                    if (prefix.Length > 0 && !(source + "/").StartsWith(prefix + "/", StringComparison.Ordinal) && !source.StartsWith(prefix + "/", StringComparison.Ordinal)) continue;
+                    if (!folder.CodeGraph.Languages.Contains(language, StringComparer.OrdinalIgnoreCase)) continue;
+                    var current = _extractors.Get(language);
+                    if (current == null) continue;   // oggi non si analizza: lo dice già la finestra Ambiente di sviluppo
+                    if (ext == current.ExtractorName && ver == current.ExtractorVersion) continue;
+                    if (!File.Exists(Path.Combine(projectPath, source.Replace('/', Path.DirectorySeparatorChar)))) continue;   // sorgente sparito: lo toglie l'analisi
+                    list.Add(new CodeOutdatedScript { Folder = rel, Source = source, Language = language, Extractor = ext, Version = ver, CurrentExtractor = current.ExtractorName, CurrentVersion = current.ExtractorVersion });
+                }
+            }
+            return list;
         }
 
         /// <summary>Lo script esistente è di un altro estrattore o di un'altra versione (o manca): solo l'intestazione, niente sorgente.</summary>

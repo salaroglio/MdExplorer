@@ -247,5 +247,48 @@
             (data.folders.length > 1 ? '<span class="cg-sep"></span>' + data.folders.map(f => '<span><i style="background:' + folderColor(f) + '"></i>' + (f || '/') + '</span>').join('') : '');
     }
 
-    document.addEventListener('DOMContentLoaded', load);
+    /**
+     * D25: gli script scritti da una versione precedente dell'estrattore non si rifanno da soli all'apertura del
+     * progetto. Qui si dice, prima di guardare il grafo, che per quei file il grafo è quello vecchio, e si chiede.
+     */
+    async function checkOutdated() {
+        const banner = document.getElementById('cg-banner');
+        const u = new URL('/api/codegraph/outdated', location.origin);
+        u.searchParams.set('projectPath', projectPath); u.searchParams.set('folder', folder);
+        let info;
+        try { const res = await fetch(u); if (!res.ok) throw new Error('Errore ' + res.status + ': ' + await res.text()); info = await res.json(); }
+        catch (e) { banner.className = 'cg-banner-error'; banner.textContent = 'Non riesco a controllare se il grafo è aggiornato: ' + e.message; return; }
+        if (!info.count) { banner.className = 'hidden'; return; }
+        const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        const what = info.changes.map(c => esc(c.language) + ': ' + esc(c.from) + ' → ' + esc(c.to) + ' (' + c.files + ' file)').join(', ');
+        banner.className = '';
+        banner.innerHTML = '<strong>⚠ ' + info.count + (info.count === 1 ? ' file analizzato' : ' file analizzati') + ' con una versione precedente dell\'estrattore</strong> — ' + what +
+            '. Per questi file stai guardando il grafo vecchio.' +
+            '<div class="cg-banner-actions"><button id="cg-upgrade" class="cg-btn">Aggiorna l\'analisi</button> ' +
+            '<button id="cg-upgrade-list" class="cg-btn cg-btn-secondary">Quali file</button></div><div id="cg-upgrade-files" class="hidden"></div>';
+        document.getElementById('cg-upgrade-list').onclick = () => {
+            const box = document.getElementById('cg-upgrade-files');
+            box.innerHTML = info.scripts.map(s => '<code>' + esc(s.source) + '</code>').join(' ');
+            box.classList.toggle('hidden');
+        };
+        document.getElementById('cg-upgrade').onclick = async () => {
+            const btn = document.getElementById('cg-upgrade');
+            btn.disabled = true; btn.textContent = 'Aggiorno l\'analisi…';
+            try {
+                const res = await fetch('/api/codegraph/outdated/upgrade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectPath, folder }) });
+                if (!res.ok) throw new Error('Errore ' + res.status + ': ' + await res.text());
+                const done = await res.json();
+                banner.className = 'cg-banner-ok';
+                banner.textContent = 'Analisi aggiornata: ' + done.reparsed + (done.reparsed === 1 ? ' file riparsato.' : ' file riparsati.');
+                setTimeout(() => { banner.className = 'hidden'; }, 4000);
+                await load();
+                checkOutdated();
+            } catch (e) {
+                banner.className = 'cg-banner-error';
+                banner.textContent = 'Aggiornamento fallito: ' + e.message;
+            }
+        };
+    }
+
+    document.addEventListener('DOMContentLoaded', () => { load(); checkOutdated(); });
 })();

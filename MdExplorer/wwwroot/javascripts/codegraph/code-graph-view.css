@@ -31,3 +31,13 @@ body.dark-theme #cg-card { background: rgba(17,24,39,0.96); border-color: rgba(2
 .cg-ext-group { margin: 4px 0; font-size: 12px; line-height: 1.8; }
 .cg-ext-group code { padding: 1px 5px; border-radius: 4px; background: rgba(100,116,139,0.12); white-space: nowrap; }
 #cg-legend i.cg-uncalled { background: transparent; border: 2px dashed #f97316; width: 8px; height: 8px; }
+#cg-banner { position: absolute; top: 12px; left: 12px; max-width: min(640px, calc(100% - 420px)); z-index: 2; padding: 10px 12px; border-radius: 10px; font-size: 13px;
+  background: #fff7ed; color: #7c2d12; border: 1px solid #fdba74; box-shadow: 0 6px 18px rgba(15,23,42,0.12); }
+body.dark-theme #cg-banner { background: #431407; color: #fed7aa; border-color: #9a3412; }
+#cg-banner.hidden { display: none; }
+#cg-banner.cg-banner-ok { background: #f0fdf4; color: #14532d; border-color: #86efac; }
+#cg-banner.cg-banner-error { background: #fef2f2; color: #7f1d1d; border-color: #fca5a5; }
+.cg-banner-actions { margin-top: 8px; }
+#cg-upgrade-files { margin-top: 6px; line-height: 1.8; font-size: 12px; }
+#cg-upgrade-files.hidden { display: none; }
+#cg-upgrade-files code { padding: 1px 5px; border-radius: 4px; background: rgba(124,45,18,0.08); }

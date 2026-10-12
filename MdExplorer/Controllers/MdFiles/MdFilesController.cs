@@ -2196,11 +2196,12 @@ namespace MdExplorer.Service.Controllers.MdFiles
                         // Poi il codice: le cartelle program con dei linguaggi scelti (D16) — git dice che cosa è cambiato (D14).
                         if (codeAnalysis != null)
                         {
-                            var analyzed = await codeAnalysis.AnalyzeProjectAsync(codeGraphProjectPath);
+                            // All'apertura NON si rifanno gli script di un estrattore cambiato: si contano, e la pagina del grafo avvisa (D25).
+                            var analyzed = await codeAnalysis.AnalyzeProjectAsync(codeGraphProjectPath, includeExtractorChanges: false);
                             foreach (var a in analyzed)
                             {
                                 if (a.Error != null) _logger.LogWarning("🧩 [CodeGraph] '{Folder}': {Error}", a.Folder, a.Error);
-                                else _logger.LogInformation("🧩 [CodeGraph] '{Folder}' ({Mode}): {Files} file, {Reparsed} riparsati, {Removed} script tolti", a.Folder, a.Mode, a.FilesInPerimeter, a.Reparsed, a.ScriptsRemoved);
+                                else _logger.LogInformation("🧩 [CodeGraph] '{Folder}' ({Mode}): {Files} file, {Reparsed} riparsati, {Removed} script tolti, {Outdated} di un estrattore cambiato lasciati da aggiornare", a.Folder, a.Mode, a.FilesInPerimeter, a.Reparsed, a.ScriptsRemoved, a.OutdatedScripts);
                             }
                         }
                     }

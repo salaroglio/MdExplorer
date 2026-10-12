@@ -165,13 +165,47 @@ namespace MdExplorer.Controllers.CodeGraph
             if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(request.FolderPath))
             {
-                var all = await _analysis.AnalyzeProjectAsync(request.ProjectPath, ct);
+                var all = await _analysis.AnalyzeProjectAsync(request.ProjectPath, includeExtractorChanges: true, ct);
                 return Ok(new { folders = all, status = await _store.GetStatusAsync(request.ProjectPath, ct) });
             }
             var rel = ToRelative(request.ProjectPath, request.FolderPath);
             if (rel == null) return BadRequest(new { error = "folderPath deve stare dentro il progetto" });
-            var outcome = await _analysis.AnalyzeFolderAsync(request.ProjectPath, rel, ct);
+            var outcome = await _analysis.AnalyzeFolderAsync(request.ProjectPath, rel, includeExtractorChanges: true, ct);
             return Ok(new { folder = outcome, status = await _store.GetStatusAsync(request.ProjectPath, ct) });
+        });
+
+        /// <summary>
+        /// GET /api/codegraph/outdated?projectPath&amp;folder — gli script AST scritti da un estrattore diverso da quello di oggi
+        /// (D25): all'apertura del progetto non si rifanno da soli, la pagina del grafo avvisa e chiede.
+        /// </summary>
+        [HttpGet("outdated")]
+        public IActionResult Outdated([FromQuery] string projectPath, [FromQuery] string folder = "")
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            var list = _analysis.ListOutdatedScripts(projectPath, (folder ?? string.Empty).Replace('\\', '/').Trim('/'));
+            return Ok(new
+            {
+                count = list.Count,
+                changes = list.GroupBy(o => (o.Language, o.Extractor, o.Version, o.CurrentExtractor, o.CurrentVersion))
+                              .Select(g => new { g.Key.Language, from = g.Key.Extractor + " " + g.Key.Version, to = g.Key.CurrentExtractor + " " + g.Key.CurrentVersion, files = g.Count() }),
+                scripts = list,
+            });
+        }
+
+        public class UpgradeRequest { public string ProjectPath { get; set; } public string Folder { get; set; } }
+
+        /// <summary>POST /api/codegraph/outdated/upgrade {projectPath, folder} — «Aggiorna l'analisi» dall'avviso della pagina del grafo.</summary>
+        [HttpPost("outdated/upgrade")]
+        public Task<IActionResult> UpgradeOutdated([FromBody] UpgradeRequest request, CancellationToken ct) => Guarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            var outdated = _analysis.ListOutdatedScripts(request.ProjectPath, (request.Folder ?? string.Empty).Replace('\\', '/').Trim('/'));
+            var outcomes = new System.Collections.Generic.List<MdExplorer.Services.CodeGraph.CodeFolderAnalysisOutcome>();
+            foreach (var folder in outdated.Select(o => o.Folder).Distinct(StringComparer.Ordinal))
+                outcomes.Add(await _analysis.AnalyzeFolderAsync(request.ProjectPath, folder, includeExtractorChanges: true, ct));
+            var error = outcomes.FirstOrDefault(o => o.Error != null)?.Error;
+            if (error != null) return StatusCode(500, new { error });
+            return Ok(new { folders = outcomes, reparsed = outcomes.Sum(o => o.Reparsed) });
         });
 
         // ------------------------------------------------------------------ lettura per i tool (F5, D15)
@@ -295,7 +329,7 @@ namespace MdExplorer.Controllers.CodeGraph
                        "<script src=\"/javascripts/codegraph/code-graph-view.js\"></script></head>" +
                        "<body class=\"" + (isDark ? "dark-theme" : "light-theme") + "\"><div id=\"cg-root\">" +
                        "<div id=\"cg-header\"><h2>" + title + "</h2><span id=\"cg-status\"></span></div>" +
-                       "<div id=\"cg-main\"><div id=\"cg-graph\"></div><div id=\"cg-card\" class=\"hidden\"></div></div>" +
+                       "<div id=\"cg-main\"><div id=\"cg-graph\"></div><div id=\"cg-banner\" class=\"hidden\"></div><div id=\"cg-card\" class=\"hidden\"></div></div>" +
                        "<div id=\"cg-legend\"></div></div></body></html>";
             return new ContentResult { ContentType = "text/html; charset=utf-8", Content = html };
         }
