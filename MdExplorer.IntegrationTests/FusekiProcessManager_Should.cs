@@ -53,6 +53,85 @@ namespace MdExplorer.IntegrationTests
             return true;
         }
 
+        /// <summary>Un processo appena terminato: il suo PID e la sua ora di avvio non corrispondono più a niente di vivo.</summary>
+        private static (int Pid, long StartTicks) DeadProcess()
+        {
+            var psi = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c exit 0") { CreateNoWindow = true, UseShellExecute = false }
+                : new System.Diagnostics.ProcessStartInfo("true") { UseShellExecute = false };
+            using var p = System.Diagnostics.Process.Start(psi);
+            var start = p.StartTime.ToUniversalTime().Ticks;
+            p.WaitForExit();
+            return (p.Id, start);
+        }
+
+        /// <summary>Riscrive il proprietario nel file di Fuseki: simula che il servizio che lo ha avviato sia un altro.</summary>
+        private static void PretendOwner(string dataDir, int ownerPid, long ownerStartTicks)
+        {
+            var file = Path.Combine(dataDir, FusekiProcessManager.OwnerFileName);
+            Assert.IsTrue(File.Exists(file), "il Fuseki avviato deve lasciare il file del proprietario");
+            var owner = JsonSerializer.Deserialize<FusekiProcessManager.FusekiOwner>(File.ReadAllText(file));
+            owner.OwnerPid = ownerPid;
+            owner.OwnerStartTicks = ownerStartTicks;
+            File.WriteAllText(file, JsonSerializer.Serialize(owner));
+        }
+
+        [TestMethod]
+        public async Task Stop_a_fuseki_left_running_by_a_service_that_died_and_start_again()
+        {
+            if (!Java21Available(out var why)) { Assert.Inconclusive(why); return; }
+            var dataDir = NewDataDir();
+            // Windows 12/10/2026: «Fuseki è terminato durante l'avvio (exit 1) … ProcessFileLock … another process has locked
+            // a portion of the file». Il Fuseki di un servizio morto senza Dispose tiene il lock del TDB2.
+            var orphanManager = new FusekiProcessManager(OptionsIn(dataDir), new PathJavaLocator("java"), NullLogger<FusekiProcessManager>.Instance);
+            using var manager = new FusekiProcessManager(OptionsIn(dataDir), new PathJavaLocator("java"), NullLogger<FusekiProcessManager>.Instance);
+            try
+            {
+                await orphanManager.EnsureRunningAsync();
+                var dead = DeadProcess();
+                PretendOwner(dataDir, dead.Pid, dead.StartTicks);
+
+                var baseUri = await manager.EnsureRunningAsync();
+                Assert.IsNotNull(baseUri, "l'orfano va fermato e il nuovo Fuseki deve partire");
+                Assert.IsNull(orphanManager.RunningBaseUri, "l'orfano è stato fermato");
+            }
+            finally
+            {
+                await manager.StopAsync();
+                await orphanManager.StopAsync();
+                try { Directory.Delete(dataDir, true); } catch { }
+            }
+        }
+
+        [TestMethod]
+        public async Task Refuse_to_touch_the_fuseki_of_another_running_mdexplorer()
+        {
+            if (!Java21Available(out var why)) { Assert.Inconclusive(why); return; }
+            var dataDir = NewDataDir();
+            using var other = new FusekiProcessManager(OptionsIn(dataDir), new PathJavaLocator("java"), NullLogger<FusekiProcessManager>.Instance);
+            using var manager = new FusekiProcessManager(OptionsIn(dataDir), new PathJavaLocator("java"), NullLogger<FusekiProcessManager>.Instance);
+            var alive = System.Diagnostics.Process.Start(RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+                ? new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c ping -n 60 127.0.0.1 >NUL") { CreateNoWindow = true, UseShellExecute = false }
+                : new System.Diagnostics.ProcessStartInfo("sleep", "60") { UseShellExecute = false });
+            try
+            {
+                var otherUri = await other.EnsureRunningAsync();
+                PretendOwner(dataDir, alive.Id, alive.StartTime.ToUniversalTime().Ticks);
+
+                var ex = await Assert.ThrowsExceptionAsync<FusekiUnavailableException>(() => manager.EnsureRunningAsync());
+                StringAssert.Contains(ex.Message, "un altro MdExplorer");
+                StringAssert.Contains(ex.Message, alive.Id.ToString());
+                Assert.AreEqual(otherUri, other.RunningBaseUri, "il Fuseki dell'altra istanza non si tocca");
+            }
+            finally
+            {
+                try { alive.Kill(); alive.Dispose(); } catch { }
+                await manager.StopAsync();
+                await other.StopAsync();
+                try { Directory.Delete(dataDir, true); } catch { }
+            }
+        }
+
         [TestMethod]
         public void Ship_the_jar_next_to_plantuml()
         {

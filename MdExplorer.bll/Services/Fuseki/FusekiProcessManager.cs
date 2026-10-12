@@ -69,6 +69,20 @@ namespace MdExplorer.Features.Services.Fuseki
 
     public class FusekiProcessManager : IFusekiProcessManager, IDisposable
     {
+        /// <summary>
+        /// Chi ha avviato il Fuseki di questa cartella dati (Windows 12/10/2026: un Fuseki rimasto vivo dopo la morte del suo
+        /// servizio teneva il lock del TDB2 e il nuovo usciva con exit 1). Scritto quando Fuseki è pronto, tolto all'arresto.
+        /// </summary>
+        public const string OwnerFileName = "fuseki.owner.json";
+
+        public sealed class FusekiOwner
+        {
+            public int FusekiPid { get; set; }
+            public long FusekiStartTicks { get; set; }
+            public int OwnerPid { get; set; }
+            public long OwnerStartTicks { get; set; }
+        }
+
         private readonly ManagedFusekiOptions _options;
         private readonly IJavaLocator _javaLocator;
         private readonly ILogger<FusekiProcessManager> _logger;
@@ -115,6 +129,8 @@ namespace MdExplorer.Features.Services.Fuseki
                     _logger.LogInformation("[Fuseki] configurazione del dataset '{Dataset}' scritta in {Path} (versione {Version})",
                         FusekiManagedConfig.CodeDataset, config.Path, FusekiManagedConfig.ConfigVersion);
 
+                StopLeftoverOrThrow();
+
                 var port = FreeLoopbackPort();
                 var baseUri = $"http://127.0.0.1:{port}";
 
@@ -157,6 +173,8 @@ namespace MdExplorer.Features.Services.Fuseki
                 }
                 if (proc == null)
                     throw new FusekiUnavailableException($"Avvio di Fuseki fallito: Process.Start ha restituito null per '{java.Path}'.");
+                // Windows: Fuseki muore con il servizio, comunque il servizio muoia (crash, chiusura forzata, aggiornamento).
+                WindowsKillOnCloseJob.Assign(proc, _logger);
 
                 var lastLines = new System.Collections.Concurrent.ConcurrentQueue<string>();
                 void Keep(string line)
@@ -178,12 +196,18 @@ namespace MdExplorer.Features.Services.Fuseki
                 {
                     try { if (!proc.HasExited) proc.Kill(true); } catch { }
                     proc.Dispose();
+                    var tail = string.Join(" | ", lastLines);
+                    var locked = tail.Contains("ProcessFileLock", StringComparison.Ordinal) || tail.Contains("Failed to get a lock", StringComparison.Ordinal);
                     throw new FusekiUnavailableException(
-                        $"{ex.Message} Ultime righe di Fuseki: {string.Join(" | ", lastLines)}", ex);
+                        (locked
+                            ? $"Il database del grafo in '{_options.DataDirectory}' è bloccato da un altro Fuseki: un java rimasto acceso da un avvio precedente di MdExplorer, o un'altra istanza di MdExplorer aperta. Chiudi le altre istanze; se non ce ne sono, termina i processi java di Fuseki (Gestione attività su Windows) e riprova. "
+                            : string.Empty) +
+                        $"{ex.Message} Ultime righe di Fuseki: {tail}", ex);
                 }
 
                 _process = proc;
                 _baseUri = baseUri;
+                WriteOwner(proc);
                 _logger.LogInformation("[Fuseki] pronto su {Base}", baseUri);
                 return baseUri;
             }
@@ -281,6 +305,94 @@ namespace MdExplorer.Features.Services.Fuseki
             throw new TimeoutException($"Fuseki non ha risposto su {baseUri}/$/ping entro {_options.StartupTimeout.TotalSeconds:0} secondi.");
         }
 
+        // ------------------------------------------------------------------ il Fuseki rimasto
+
+        private string OwnerPath => Path.Combine(_options.DataDirectory, OwnerFileName);
+
+        /// <summary>
+        /// Prima di avviare: se nella cartella dati c'è ancora il Fuseki di un servizio morto, lo si ferma (è nostro e non
+        /// serve a nessuno); se è di un altro MdExplorer ancora vivo, non si tocca e lo si dice.
+        /// </summary>
+        private void StopLeftoverOrThrow()
+        {
+            if (!File.Exists(OwnerPath)) return;
+            FusekiOwner owner;
+            try { owner = System.Text.Json.JsonSerializer.Deserialize<FusekiOwner>(File.ReadAllText(OwnerPath)); }
+            catch (Exception ex) when (ex is System.Text.Json.JsonException or IOException)
+            {
+                throw new FusekiUnavailableException($"File del proprietario di Fuseki illeggibile: '{OwnerPath}' ({ex.Message}). Chiudi MdExplorer, cancella il file e riapri.", ex);
+            }
+            if (owner == null || !IsAlive(owner.FusekiPid, owner.FusekiStartTicks, out var fuseki))
+            {
+                File.Delete(OwnerPath);   // il Fuseki di allora non c'è più: niente da fare
+                return;
+            }
+            using (fuseki)
+            {
+                var me = Process.GetCurrentProcess();
+                var ownerIsMe = owner.OwnerPid == me.Id && SameStart(me, owner.OwnerStartTicks);
+                if (!ownerIsMe && IsAlive(owner.OwnerPid, owner.OwnerStartTicks, out var other))
+                {
+                    other.Dispose();
+                    throw new FusekiUnavailableException(
+                        $"Il database del grafo in '{_options.DataDirectory}' è usato da un altro MdExplorer in esecuzione (processo {owner.OwnerPid}, Fuseki {owner.FusekiPid}). Chiudi quell'istanza e riprova.");
+                }
+                _logger.LogWarning("[Fuseki] trovato il Fuseki {Pid} di un servizio terminato (processo {Owner}) che tiene il database: lo fermo",
+                    owner.FusekiPid, owner.OwnerPid);
+                try { fuseki.Kill(entireProcessTree: true); } catch (InvalidOperationException) { /* è uscito da solo intanto */ }
+                if (!fuseki.WaitForExit(10_000))
+                    throw new FusekiUnavailableException($"Il Fuseki rimasto (processo {owner.FusekiPid}) non si ferma: terminalo a mano e riprova.");
+            }
+            File.Delete(OwnerPath);
+        }
+
+        private void WriteOwner(Process proc)
+        {
+            var me = Process.GetCurrentProcess();
+            var owner = new FusekiOwner
+            {
+                FusekiPid = proc.Id, FusekiStartTicks = proc.StartTime.ToUniversalTime().Ticks,
+                OwnerPid = me.Id, OwnerStartTicks = me.StartTime.ToUniversalTime().Ticks,
+            };
+            // scrittura atomica: un servizio che muore a metà non lascia un file illeggibile
+            var tmp = OwnerPath + ".tmp";
+            File.WriteAllText(tmp, System.Text.Json.JsonSerializer.Serialize(owner));
+            File.Move(tmp, OwnerPath, overwrite: true);
+        }
+
+        private void DeleteOwnerIfMine(Process p)
+        {
+            try
+            {
+                if (!File.Exists(OwnerPath)) return;
+                var owner = System.Text.Json.JsonSerializer.Deserialize<FusekiOwner>(File.ReadAllText(OwnerPath));
+                if (owner?.FusekiPid == p.Id) File.Delete(OwnerPath);
+            }
+            catch (Exception ex) when (ex is System.Text.Json.JsonException or IOException or InvalidOperationException)
+            {
+                _logger.LogWarning(ex, "[Fuseki] file del proprietario non tolto: {Path}", OwnerPath);
+            }
+        }
+
+        /// <summary>Vivo E lo stesso processo (stessa ora di avvio): un PID riusato da un altro programma non conta.</summary>
+        private static bool IsAlive(int pid, long startTicks, out Process process)
+        {
+            process = null;
+            Process p;
+            try { p = Process.GetProcessById(pid); }
+            catch (ArgumentException) { return false; }
+            try
+            {
+                if (!p.HasExited && SameStart(p, startTicks)) { process = p; return true; }
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException) { }
+            p.Dispose();
+            return false;
+        }
+
+        private static bool SameStart(Process p, long startTicks)
+            => Math.Abs(p.StartTime.ToUniversalTime().Ticks - startTicks) < TimeSpan.TicksPerSecond;
+
         private static int FreeLoopbackPort()
         {
             var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, 0);
@@ -308,6 +420,7 @@ namespace MdExplorer.Features.Services.Fuseki
             _process = null;
             _baseUri = null;
             if (p == null) return;
+            DeleteOwnerIfMine(p);
             try
             {
                 if (!p.HasExited)
@@ -334,5 +447,93 @@ namespace MdExplorer.Features.Services.Fuseki
             StopCore();
             _gate.Dispose();
         }
+    }
+
+    /// <summary>
+    /// Windows: un Job Object con KILL_ON_JOB_CLOSE. L'handle resta aperto per tutta la vita del servizio; quando il
+    /// servizio muore, in qualunque modo, Windows chiude l'handle e termina i processi del job (Fuseki). Altrove non serve:
+    /// il file del proprietario ferma l'orfano all'avvio successivo.
+    /// </summary>
+    internal static class WindowsKillOnCloseJob
+    {
+        private static readonly object Gate = new();
+        private static IntPtr _job = IntPtr.Zero;
+
+        public static void Assign(Process process, ILogger logger)
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return;
+            lock (Gate)
+            {
+                if (_job == IntPtr.Zero)
+                {
+                    var job = CreateJobObject(IntPtr.Zero, null);
+                    if (job == IntPtr.Zero) { logger.LogWarning("[Fuseki] CreateJobObject fallita (errore {Err}): Fuseki potrebbe sopravvivere al servizio", Marshal.GetLastWin32Error()); return; }
+                    var info = new JOBOBJECT_EXTENDED_LIMIT_INFORMATION();
+                    info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+                    var size = Marshal.SizeOf<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>();
+                    var ptr = Marshal.AllocHGlobal(size);
+                    try
+                    {
+                        Marshal.StructureToPtr(info, ptr, false);
+                        if (!SetInformationJobObject(job, JobObjectExtendedLimitInformation, ptr, (uint)size))
+                        {
+                            logger.LogWarning("[Fuseki] SetInformationJobObject fallita (errore {Err}): Fuseki potrebbe sopravvivere al servizio", Marshal.GetLastWin32Error());
+                            CloseHandle(job);
+                            return;
+                        }
+                    }
+                    finally { Marshal.FreeHGlobal(ptr); }
+                    _job = job;
+                }
+                if (!AssignProcessToJobObject(_job, process.Handle))
+                    logger.LogWarning("[Fuseki] AssignProcessToJobObject fallita (errore {Err}): Fuseki potrebbe sopravvivere al servizio", Marshal.GetLastWin32Error());
+            }
+        }
+
+        private const int JobObjectExtendedLimitInformation = 9;
+        private const uint JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct JOBOBJECT_BASIC_LIMIT_INFORMATION
+        {
+            public long PerProcessUserTimeLimit;
+            public long PerJobUserTimeLimit;
+            public uint LimitFlags;
+            public UIntPtr MinimumWorkingSetSize;
+            public UIntPtr MaximumWorkingSetSize;
+            public uint ActiveProcessLimit;
+            public UIntPtr Affinity;
+            public uint PriorityClass;
+            public uint SchedulingClass;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct IO_COUNTERS
+        {
+            public ulong ReadOperationCount, WriteOperationCount, OtherOperationCount, ReadTransferCount, WriteTransferCount, OtherTransferCount;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct JOBOBJECT_EXTENDED_LIMIT_INFORMATION
+        {
+            public JOBOBJECT_BASIC_LIMIT_INFORMATION BasicLimitInformation;
+            public IO_COUNTERS IoInfo;
+            public UIntPtr ProcessMemoryLimit;
+            public UIntPtr JobMemoryLimit;
+            public UIntPtr PeakProcessMemoryUsed;
+            public UIntPtr PeakJobMemoryUsed;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern IntPtr CreateJobObject(IntPtr lpJobAttributes, string lpName);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool SetInformationJobObject(IntPtr hJob, int infoType, IntPtr lpJobObjectInfo, uint cbJobObjectInfoLength);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool AssignProcessToJobObject(IntPtr job, IntPtr process);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr handle);
     }
 }
