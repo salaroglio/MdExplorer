@@ -82,7 +82,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(0, result.Warnings.Count, string.Join("; ", result.Warnings));
             Assert.AreEqual(3, result.Scripts.Count);
 
-            var x = result.Scripts.Single(s => s.File.ProjectRelativePath == "src/app/x.component.ts").Script;
+            var x = result.Scripts.Single(s => s.File.LogicalPath == "src/app/x.component.ts").Script;
             var module = x.Symbols.Single(s => s.Kind == "module");
             Assert.AreEqual("src/app/x.component", module.QualifiedName);
             var comp = x.Symbols.Single(s => s.Name == "XComponent");
@@ -123,12 +123,12 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(x.Edges.Any(e => e.SourceId == load.Id && e.TargetId == getId && e.Relation == "calls" && e.Confidence == "inferred"));
 
             // il servizio: @Injectable → service; il formato si rilegge e si carica
-            var svc = result.Scripts.Single(s => s.File.ProjectRelativePath == "src/app/services/md-file.service.ts").Script;
+            var svc = result.Scripts.Single(s => s.File.LogicalPath == "src/app/services/md-file.service.ts").Script;
             Assert.AreEqual("service", svc.Symbols.Single(s => s.Name == "MdFileService").Kind);
 
             // Metadati Angular: il modulo dichiara il componente (contains), importa i moduli (imports), fornisce il service (references);
             // selettore e template nella firma del componente.
-            var appModule = result.Scripts.Single(s => s.File.ProjectRelativePath == "src/app/app.module.ts").Script;
+            var appModule = result.Scripts.Single(s => s.File.LogicalPath == "src/app/app.module.ts").Script;
             var ngModule = appModule.Symbols.Single(s => s.Kind == "ngmodule");
             Assert.AreEqual("src/app/app.module:AppModule", ngModule.QualifiedName);
             Assert.IsTrue(appModule.Edges.Any(e => e.SourceId == ngModule.Id && e.TargetId == comp.Id && e.Relation == "contains" && e.Confidence == "inferred"), "declarations: [XComponent]");
@@ -138,7 +138,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             CollectionAssert.IsSubsetOf(new[] { "CommonModule", "RouterModule" }, imported, "imports: [CommonModule, RouterModule.forRoot([])] → external");
             StringAssert.Contains(comp.Signature, "selector: app-x");
             foreach (var (file, script) in result.Scripts)
-                CodeScriptParser.Parse(CodeScriptWriter.Serialize(script), file.ProjectRelativePath);
+                CodeScriptParser.Parse(CodeScriptWriter.Serialize(script), file.LogicalPath);
         }
     }
 }

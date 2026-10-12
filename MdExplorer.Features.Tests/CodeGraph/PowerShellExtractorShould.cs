@@ -69,9 +69,9 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var result = extractor.Extract(Request());
             Assert.AreEqual(0, result.Warnings.Count, string.Join("; ", result.Warnings));
             Assert.AreEqual(3, result.Scripts.Count);
-            var main = result.Scripts.Single(s => s.File.ProjectRelativePath == "scripts/main.ps1").Script;
-            var util = result.Scripts.Single(s => s.File.ProjectRelativePath == "scripts/lib/util.ps1").Script;
-            var store = result.Scripts.Single(s => s.File.ProjectRelativePath == "scripts/Store/Store.psm1").Script;
+            var main = result.Scripts.Single(s => s.File.LogicalPath == "scripts/main.ps1").Script;
+            var util = result.Scripts.Single(s => s.File.LogicalPath == "scripts/lib/util.ps1").Script;
+            var store = result.Scripts.Single(s => s.File.LogicalPath == "scripts/Store/Store.psm1").Script;
             foreach (var s in new[] { main, util, store }) Assert.AreEqual("powershell", s.Header.Language);
 
             // Moduli.
@@ -166,7 +166,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
 
                         // Lo script si rilegge: tipi, relazioni e confidenze ammessi dal formato.
             foreach (var (file, script) in result.Scripts)
-                CodeScriptParser.Parse(CodeScriptWriter.Serialize(script), file.ProjectRelativePath);
+                CodeScriptParser.Parse(CodeScriptWriter.Serialize(script), file.LogicalPath);
         }
 
         [TestMethod]
@@ -175,7 +175,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             File.WriteAllText(Path.Combine(_src, "broken.ps1"), "function Ok { 1 }\nfunction Broken {\n  if ($x {\n");
             var result = new PowerShellExtractor(NullLogger<PowerShellExtractor>.Instance).Extract(Request());
             Assert.IsTrue(result.Warnings.Any(w => w.StartsWith("scripts/broken.ps1:") && w.Contains("errori di sintassi")), string.Join("; ", result.Warnings));
-            var broken = result.Scripts.Single(s => s.File.ProjectRelativePath == "scripts/broken.ps1").Script;
+            var broken = result.Scripts.Single(s => s.File.LogicalPath == "scripts/broken.ps1").Script;
             Assert.IsTrue(broken.Symbols.Any(s => s.Name == "Ok"));
         }
 

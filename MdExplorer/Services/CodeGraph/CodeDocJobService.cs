@@ -42,7 +42,7 @@ namespace MdExplorer.Services.CodeGraph
     /// <summary>
     /// L'azione «Descrivi il codice» (F4, D11): per ogni script AST della cartella sceglie i simboli senza descrizione o
     /// con la firma cambiata (<see cref="CodeDocPlanner"/>), chiede al motore LLM del progetto — una sessione di sola
-    /// lettura per file, come «Riassumi documentazione» — e scrive lo script <c>.doc.jsonl</c> accanto a quello AST;
+    /// lettura per file, come «Riassumi documentazione» — e scrive lo script <c>.doc.ttl</c> accanto a quello AST;
     /// il caricatore lo porta nel DB. Il modello: lo stesso del tab MarkAgent (motore unico, sprint 2026-09-29).
     /// </summary>
     public sealed class CodeDocJobService : ICodeDocJobService
@@ -54,11 +54,13 @@ namespace MdExplorer.Services.CodeGraph
         private readonly ICodeGraphStore _store;
         private readonly CodeGraphReportWriter _report;
         private readonly ILogger<CodeDocJobService> _logger;
+        private readonly ICodeRootService _roots;
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
 
         public CodeDocJobService(IServiceScopeFactory scopeFactory, IHubContext<MonitorMDHub> hub,
-            MdExplorer.Services.LlmSessions.OneShotReadOnlySession llm, ICodeGraphStore store, CodeGraphReportWriter report, ILogger<CodeDocJobService> logger)
+            MdExplorer.Services.LlmSessions.OneShotReadOnlySession llm, ICodeGraphStore store, CodeGraphReportWriter report, ICodeRootService roots, ILogger<CodeDocJobService> logger)
         {
+            _roots = roots;
             _scopeFactory = scopeFactory; _hub = hub; _llm = llm; _store = store; _report = report; _logger = logger;
         }
 
@@ -98,6 +100,7 @@ namespace MdExplorer.Services.CodeGraph
                 var skillBody = LoadPromptBody(projectPath, "mde-code-doc");
                 var writtenBy = $"mde-code-doc {PromptVersion(projectPath, "mde-code-doc")} / {engineLabel}";
 
+                var resolver = await _roots.CreateResolverAsync(projectPath, token);
                 var astScripts = Directory.EnumerateFiles(scriptsFolder, "*" + CodeGraphPaths.AstScriptSuffix, SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal).ToList();
                 await SendAsync(connectionId, new { phase = "started", provider = engineLabel, fileTotal = astScripts.Count, folder = folderRelative });
 
@@ -124,7 +127,7 @@ namespace MdExplorer.Services.CodeGraph
                         continue;
                     }
 
-                    var result = await DescribeFileAsync(projectPath, ast, candidates, existing, docPath, engine, model, skillBody, writtenBy, token);
+                    var result = await DescribeFileAsync(projectPath, resolver, ast, candidates, existing, docPath, engine, model, skillBody, writtenBy, token);
                     rejectedTotal += result.Rejected;
                     if (result.Error != null) { await SendAsync(connectionId, new { phase = "file-failed", file = ast.Header.Source, detail = result.Error }); continue; }
                     files++; described += result.Described;
@@ -162,12 +165,15 @@ namespace MdExplorer.Services.CodeGraph
         /// Un file: i candidati all'LLM — tutto il sorgente se ci sta, altrimenti a gruppi con il pezzo di sorgente di ogni
         /// simbolo (<see cref="CodeDocPlanner.Batches"/>) — poi unione con lo script esistente, scrittura e caricamento.
         /// </summary>
-        private async Task<FileResult> DescribeFileAsync(string projectPath, CodeScript ast, IReadOnlyList<CodeDocCandidate> candidates, CodeScript existing,
+        private async Task<FileResult> DescribeFileAsync(string projectPath, CodeRootResolver resolver, CodeScript ast, IReadOnlyList<CodeDocCandidate> candidates, CodeScript existing,
             string docPath, MarkAgentEngine engine, string model, string skillBody, string writtenBy, CancellationToken token)
         {
             var result = new FileResult();
-            var sourceAbs = Path.Combine(projectPath, ast.Header.Source.Replace('/', Path.DirectorySeparatorChar));
-            if (!File.Exists(sourceAbs)) { result.Error = "sorgente non trovato"; return result; }
+            // il percorso logico (program/x.ps1 o @backend/…) diventa quello di questa macchina; una radice non collegata lo dice
+            string sourceAbs;
+            try { sourceAbs = resolver.Resolve(ast.Header.Source); }
+            catch (InvalidOperationException ex) { result.Error = ex.Message; return result; }
+            if (!File.Exists(sourceAbs)) { result.Error = "sorgente non trovato: " + sourceAbs; return result; }
             var sourceText = await File.ReadAllTextAsync(sourceAbs, token);
 
             var merged = existing;
@@ -241,8 +247,9 @@ namespace MdExplorer.Services.CodeGraph
 
             string skillBody;
             try { skillBody = LoadPromptBody(projectPath, "mde-code-doc"); }
-            catch (FileNotFoundException ex) { outcome.Error = ex.Message; return outcome; }   // il messaggio dice già come rimediare
-            var result = await DescribeFileAsync(projectPath, ast, candidates, existing, docPath, engine, model, skillBody, writtenBy, ct);
+            // prompt mancante o progetto senza harness: il messaggio dice già come rimediare (mai un 500 con la traccia)
+            catch (Exception ex) when (ex is FileNotFoundException or InvalidOperationException) { outcome.Error = ex.Message; return outcome; }
+            var result = await DescribeFileAsync(projectPath, await _roots.CreateResolverAsync(projectPath, ct), ast, candidates, existing, docPath, engine, model, skillBody, writtenBy, ct);
             outcome.Described = result.Described > 0; outcome.Rejected = result.Rejected; outcome.FirstRejected = result.FirstRejected;
             outcome.Error = result.Error ?? result.LoadError;
             _logger.LogInformation("[CodeDoc] simbolo {Symbol}: {Outcome}", symbol.QualifiedName, outcome.Error ?? "descritto");

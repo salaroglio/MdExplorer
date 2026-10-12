@@ -78,21 +78,21 @@ namespace MdExplorer.Features.Services.CodeGraph
                 ct.ThrowIfCancellationRequested();
                 string text;
                 try { text = File.ReadAllText(f.AbsolutePath, Encoding.UTF8); }
-                catch (Exception ex) { result.Warnings.Add($"{f.ProjectRelativePath}: non leggibile ({ex.Message})"); continue; }
-                contents[f.ProjectRelativePath] = text;
-                trees.Add(CSharpSyntaxTree.ParseText(text, parseOptions, path: f.ProjectRelativePath));
+                catch (Exception ex) { result.Warnings.Add($"{f.LogicalPath}: non leggibile ({ex.Message})"); continue; }
+                contents[f.LogicalPath] = text;
+                trees.Add(CSharpSyntaxTree.ParseText(text, parseOptions, path: f.LogicalPath));
             }
             var compilation = CSharpCompilation.Create("mde-codegraph", trees, RuntimeReferences(),
                 new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
             var perimeter = new PerimeterIndex(compilation);
 
             // 2) Un script per file da emettere.
-            var toEmit = new HashSet<string>(request.FilesToEmit.Select(f => f.ProjectRelativePath), StringComparer.Ordinal);
+            var toEmit = new HashSet<string>(request.FilesToEmit.Select(f => f.LogicalPath), StringComparer.Ordinal);
             foreach (var tree in trees)
             {
                 ct.ThrowIfCancellationRequested();
                 if (!toEmit.Contains(tree.FilePath)) continue;
-                var file = request.FilesToEmit.First(f => f.ProjectRelativePath == tree.FilePath);
+                var file = request.FilesToEmit.First(f => f.LogicalPath == tree.FilePath);
                 try
                 {
                     var script = ExtractFile(tree, compilation.GetSemanticModel(tree), perimeter, contents[tree.FilePath]);

@@ -80,10 +80,10 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var result = extractor.Extract(Request());
             Assert.AreEqual(0, result.Warnings.Count, string.Join("; ", result.Warnings));
             Assert.AreEqual(4, result.Scripts.Count);
-            var foo = result.Scripts.Single(s => s.File.ProjectRelativePath.EndsWith("/Foo.java")).Script;
-            var helper = result.Scripts.Single(s => s.File.ProjectRelativePath.EndsWith("/Helper.java")).Script;
-            var ifoo = result.Scripts.Single(s => s.File.ProjectRelativePath.EndsWith("/IFoo.java")).Script;
-            var baseS = result.Scripts.Single(s => s.File.ProjectRelativePath.EndsWith("/Base.java")).Script;
+            var foo = result.Scripts.Single(s => s.File.LogicalPath.EndsWith("/Foo.java")).Script;
+            var helper = result.Scripts.Single(s => s.File.LogicalPath.EndsWith("/Helper.java")).Script;
+            var ifoo = result.Scripts.Single(s => s.File.LogicalPath.EndsWith("/IFoo.java")).Script;
+            var baseS = result.Scripts.Single(s => s.File.LogicalPath.EndsWith("/Base.java")).Script;
 
             // Tipi: qualificati dal package, stereotipo Spring come kind, annidati, record ed enum.
             var fooType = foo.Symbols.Single(s => s.QualifiedName == "com.acme.app.Foo");
@@ -146,7 +146,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(foo.Edges.Any(e => e.SourceId == helperField.Id && e.TargetId == helperType.Id && e.Relation == "instantiates" && e.Confidence == "extracted"));
 
             foreach (var (file, script) in result.Scripts)
-                Assert.AreEqual(script.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(script), file.ProjectRelativePath).RecordCount);
+                Assert.AreEqual(script.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(script), file.LogicalPath).RecordCount);
         }
 
         [TestMethod]

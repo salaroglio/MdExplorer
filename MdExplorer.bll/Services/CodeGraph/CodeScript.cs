@@ -109,7 +109,12 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// </summary>
     public static class CodeScriptParser
     {
-        public const int CurrentSchema = 1;
+        /// <summary>
+        /// Lo schema che questo MdExplorer scrive: 2 = ABox Turtle (D21 del grafo, R4 delle radici esterne, 12/10/2026).
+        /// Lo schema 1 era il JSON Lines: si legge ancora, solo per convertirlo (<see cref="CodeScriptLegacy"/>).
+        /// </summary>
+        public const int CurrentSchema = 2;
+        public const int LegacyJsonSchema = 1;
 
         private static readonly HashSet<string> HeaderFields = new(StringComparer.Ordinal)
             { "schema", "kind", "source", "language", "sourceHash", "extractor", "extractorVersion", "generatedAt", "writtenBy", "writtenAt" };
@@ -132,9 +137,16 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static readonly string[] Confidences = { "extracted", "inferred", "ambiguous" };
         public static readonly string[] Directions = { "in", "out", "ref", "params", "this" };
 
+        /// <summary>Uno script, Turtle (schema 2) o JSON Lines (schema 1, da convertire): il formato si riconosce dalla prima riga.</summary>
         public static CodeScript Parse(string content, string scriptPath)
         {
             if (content == null) throw new ArgumentNullException(nameof(content));
+            if (CodeScriptTurtle.IsTurtle(content)) return CodeScriptTurtle.Read(content, scriptPath);
+            return ParseLegacyJson(content, scriptPath);
+        }
+
+        private static CodeScript ParseLegacyJson(string content, string scriptPath)
+        {
             var script = new CodeScript();
             var lineNo = 0;
             using var reader = new StringReader(content);
@@ -180,8 +192,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 WrittenBy = OptString(root, "writtenBy"),
                 WrittenAt = OptString(root, "writtenAt"),
             };
-            if (h.Schema < 1 || h.Schema > CurrentSchema)
-                throw new CodeScriptFormatException(path, line, $"schema {h.Schema} non supportato: questo MdExplorer legge fino allo schema {CurrentSchema}. Aggiorna MdExplorer.");
+            if (h.Schema != LegacyJsonSchema)
+                throw new CodeScriptFormatException(path, line, $"schema {h.Schema} in JSON Lines non supportato: il JSON Lines è solo lo schema {LegacyJsonSchema}, gli script nuovi sono Turtle.");
             var kind = RequireString(root, "kind", path, line);
             switch (kind)
             {

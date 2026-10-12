@@ -30,7 +30,14 @@ namespace MdExplorer.Features.Services.CodeGraph
             => iri != null && iri.StartsWith(SymbolPrefix, StringComparison.Ordinal) ? iri.Substring(SymbolPrefix.Length) : iri;
 
         public static string Parameter(string symbolId, int position) => $"urn:mde:sym:{symbolId}:p{position}";
-        public static string File(string projectHash, string projectRelativePath) => $"urn:mde:file:{projectHash}:{Enc(projectRelativePath)}";
+        /// <summary>
+        /// Il file sorgente, dal suo percorso LOGICO (<c>program/x.ps1</c>, <c>@backend/src/Foo.cs</c>). Senza l'hash del
+        /// progetto (fino al 12/10 c'era): l'hash viene dal percorso assoluto del progetto, diverso su ogni macchina, e
+        /// l'IRI finisce negli script Turtle che vanno su Git. Il grafo nominato è già uno per progetto.
+        /// </summary>
+        public static string File(string logicalPath) => $"urn:mde:file:{Enc(logicalPath)}";
+        /// <summary>L'insieme delle descrizioni di un file (intestazione di uno script <c>.doc.ttl</c>).</summary>
+        public static string DocSet(string logicalPath) => $"urn:mde:docs:{Enc(logicalPath)}";
         public static string Edge(string sourceId, string relation, string targetId, int? line) => $"urn:mde:edge:{sourceId}:{relation}:{targetId}:{line ?? 0}";
         public static string Doc(string symbolId) => "urn:mde:doc:" + symbolId;
         public static string ParamDoc(string symbolId, string parameterName) => $"urn:mde:pdoc:{symbolId}:{Enc(parameterName)}";

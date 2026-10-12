@@ -51,13 +51,16 @@ namespace MdExplorer.Features.Tests.CodeGraph
             try { Directory.Delete(_root, true); } catch { /* best effort */ }
         }
 
-        private string AstPath => Path.Combine(_project, ".mde-code", "src", "Demo", "Foo.cs.ast.jsonl");
-        private string DocPath => Path.Combine(_project, ".mde-code", "src", "Demo", "Foo.cs.doc.jsonl");
+        private string AstPath => Path.Combine(_project, ".mde-code", "src", "Demo", "Foo.cs.ast.ttl");
+        private string DocPath => Path.Combine(_project, ".mde-code", "src", "Demo", "Foo.cs.doc.ttl");
+
+        /// <summary>Le fixture sono scritte in JSON Lines (leggibili qui); su disco vanno in Turtle, il formato degli script.</summary>
+        private static string Ttl(string jsonl) => CodeScriptWriter.Serialize(CodeScriptParser.Parse(jsonl, "fixture.jsonl"));
 
         [TestMethod]
         public async Task Load_an_ast_script_into_the_project_graph_and_find_symbols_with_full_text()
         {
-            File.WriteAllText(AstPath, AstHeader + "\n" + AstBody);
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));
 
             var outcome = await _store.LoadProjectAsync(_project);
 
@@ -88,7 +91,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         [TestMethod]
         public async Task Skip_an_unchanged_script_and_reload_a_changed_one()
         {
-            File.WriteAllText(AstPath, AstHeader + "\n" + AstBody);
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));
             await _store.LoadProjectAsync(_project);
 
             var second = await _store.LoadProjectAsync(_project);
@@ -98,7 +101,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             // Il file cambia: un metodo in meno. Le triple vecchie devono sparire, non sommarsi.
             var smaller = AstHeader.Replace("\"sourceHash\":\"abc\"", "\"sourceHash\":\"def\"") + "\n" +
                           string.Join("\n", AstBody.Split('\n').Where(l => !l.Contains("s-foo-ingest")));
-            File.WriteAllText(AstPath, smaller);
+            File.WriteAllText(AstPath, Ttl(smaller));
             var third = await _store.LoadProjectAsync(_project);
             Assert.AreEqual(1, third.Loaded, third.FirstError);
             var status = await _store.GetStatusAsync(_project);
@@ -109,17 +112,16 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
-        public async Task Reject_a_script_with_an_unknown_field_naming_file_line_and_field()
+        public async Task Reject_a_script_with_an_unknown_predicate_naming_file_node_and_predicate()
         {
-            File.WriteAllText(AstPath, AstHeader + "\n" +
-                "{\"type\":\"symbol\",\"id\":\"s1\",\"kind\":\"class\",\"name\":\"A\",\"qualifiedName\":\"A\",\"lineStart\":1,\"colour\":\"red\"}\n");
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody) + "<urn:mde:sym:s-foo> code:colour \"red\" .\n");
 
             var outcome = await _store.LoadProjectAsync(_project);
 
             Assert.AreEqual(1, outcome.Failed);
-            StringAssert.Contains(outcome.FirstError, ".mde-code/src/Demo/Foo.cs.ast.jsonl");
-            StringAssert.Contains(outcome.FirstError, "riga 2");
-            StringAssert.Contains(outcome.FirstError, "'colour'");
+            StringAssert.Contains(outcome.FirstError, ".mde-code/src/Demo/Foo.cs.ast.ttl");
+            StringAssert.Contains(outcome.FirstError, "urn:mde:sym:s-foo");
+            StringAssert.Contains(outcome.FirstError, "code:colour");
             var status = await _store.GetStatusAsync(_project);
             Assert.AreEqual(0, status.Symbols, "uno script rifiutato non entra a metà");
             Assert.AreEqual(1, status.ScriptsPending, "resta da caricare, non viene dimenticato");
@@ -128,7 +130,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         [TestMethod]
         public async Task Reject_a_newer_schema_asking_to_update_mdexplorer()
         {
-            File.WriteAllText(AstPath, AstHeader.Replace("\"schema\":1", "\"schema\":99") + "\n" + AstBody);
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody).Replace("\"schema\":2", "\"schema\":99"));
             var outcome = await _store.LoadProjectAsync(_project);
             Assert.AreEqual(1, outcome.Failed);
             StringAssert.Contains(outcome.FirstError, "schema 99");
@@ -136,10 +138,67 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public async Task Convert_json_lines_scripts_to_turtle_once_keeping_the_descriptions()
+        {
+            var legacyAst = Path.Combine(_project, ".mde-code", "src", "Demo", "Foo.cs.ast.jsonl");
+            var legacyDoc = Path.Combine(_project, ".mde-code", "src", "Demo", "Foo.cs.doc.jsonl");
+            File.WriteAllText(legacyAst, AstHeader + "\n" + AstBody);
+            File.WriteAllText(legacyDoc, DocScript);
+
+            var outcome = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(2, outcome.Converted);
+            Assert.AreEqual(0, outcome.Failed, outcome.FirstError);
+            Assert.IsFalse(File.Exists(legacyAst)); Assert.IsFalse(File.Exists(legacyDoc));
+            Assert.IsTrue(File.ReadAllText(AstPath).StartsWith("# mde-code-script: "));
+            var described = await _store.DescribeAsync(_project, "s-foo-ingest");
+            Assert.AreEqual("Porta un file dentro Neo4j e torna quanti nodi ha scritto.", described.Summary, "le descrizioni di Mark non si perdono");
+            Assert.AreEqual("Percorso assoluto del file da leggere.", described.Parameters[0].Description);
+
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Converted, "una volta sola");
+        }
+
+        [TestMethod]
+        public async Task Keep_the_symbols_when_their_script_is_renamed()
+        {
+            // 12/10/2026: lo script nuovo si caricava PRIMA che il vecchio venisse tolto, e la rimozione del vecchio
+            // («ogni tripla dei nodi con fromScript = vecchio») portava via anche i nodi condivisi appena ricaricati.
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));
+            await _store.LoadProjectAsync(_project);
+            var renamed = Path.Combine(_project, ".mde-code", "src", "Demo", "Foo2.cs.ast.ttl");
+            File.Move(AstPath, renamed);
+
+            var outcome = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, outcome.Failed, outcome.FirstError);
+            Assert.AreEqual(1, outcome.Removed); Assert.AreEqual(1, outcome.Loaded);
+            var status = await _store.GetStatusAsync(_project);
+            Assert.AreEqual(3, status.Symbols, "i simboli del file rinominato restano");
+            Assert.AreEqual(3, status.Edges);
+            Assert.AreEqual(1, (await _store.SearchSymbolsAsync(_project, "Ingest")).Count);
+        }
+
+        [TestMethod]
+        public void Read_back_exactly_what_the_turtle_writer_wrote_in_the_same_order()
+        {
+            var original = CodeScriptParser.Parse(AstHeader + "\n" + AstBody, "fixture.jsonl");
+            var text = CodeScriptWriter.Serialize(original);
+            var back = CodeScriptParser.Parse(text, "Foo.cs.ast.ttl");
+            Assert.AreEqual(original.Header.Source, back.Header.Source);
+            Assert.AreEqual(original.Header.SourceHash, back.Header.SourceHash);
+            Assert.AreEqual(CodeScriptParser.CurrentSchema, back.Header.Schema);
+            CollectionAssert.AreEqual(original.Symbols.Select(x => x.Id).ToList(), back.Symbols.Select(x => x.Id).ToList(), "l'ordine dei simboli resta");
+            var ingest = back.Symbols.Single(x => x.Id == "s-foo-ingest");
+            Assert.IsTrue(ingest.IsAsync); Assert.AreEqual("s-foo", ingest.ParentId); Assert.AreEqual("Task<int>", ingest.ReturnType);
+            Assert.AreEqual("false", back.Parameters.Single(x => x.Name == "force").DefaultValue);
+            Assert.AreEqual(3, back.Edges.Count);
+            Assert.AreEqual(5, back.Edges.Single(e => e.Relation == "calls").Line);
+            Assert.AreEqual(text, CodeScriptWriter.Serialize(back), "riscritto è identico: niente diff su Git a ogni giro");
+        }
+
+        [TestMethod]
         public async Task Attach_descriptions_to_symbols_make_them_searchable_and_keep_them_when_the_ast_is_regenerated()
         {
-            File.WriteAllText(AstPath, AstHeader + "\n" + AstBody);
-            File.WriteAllText(DocPath, DocScript);
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));
+            File.WriteAllText(DocPath, Ttl(DocScript));
 
             var outcome = await _store.LoadProjectAsync(_project);
             Assert.AreEqual(0, outcome.Failed, outcome.FirstError);
@@ -158,7 +217,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(true, described.DescriptionStale, "signatureHash 'sig1' del doc ≠ hash calcolato dalla firma: da rivedere");
 
             // L'AST si rigenera (stessa firma, hash diverso): la descrizione resta.
-            File.WriteAllText(AstPath, AstHeader.Replace("\"sourceHash\":\"abc\"", "\"sourceHash\":\"v2\"") + "\n" + AstBody);
+            File.WriteAllText(AstPath, Ttl(AstHeader.Replace("\"sourceHash\":\"abc\"", "\"sourceHash\":\"v2\"") + "\n" + AstBody));
             var again = await _store.LoadProjectAsync(_project);
             Assert.AreEqual(1, again.Loaded, again.FirstError);
             Assert.AreEqual(1, (await _store.GetStatusAsync(_project)).DescribedSymbols);
@@ -168,8 +227,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
         [TestMethod]
         public async Task Remove_everything_a_script_brought_when_the_script_disappears()
         {
-            File.WriteAllText(AstPath, AstHeader + "\n" + AstBody);
-            File.WriteAllText(DocPath, DocScript);
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));
+            File.WriteAllText(DocPath, Ttl(DocScript));
             await _store.LoadProjectAsync(_project);
 
             File.Delete(DocPath);

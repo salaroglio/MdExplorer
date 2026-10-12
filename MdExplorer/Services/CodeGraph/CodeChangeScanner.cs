@@ -27,7 +27,9 @@ namespace MdExplorer.Services.CodeGraph
 
     public interface ICodeChangeScanner
     {
-        Task<CodeScanResult> ScanAsync(string projectPath, string folderAbsolute, string previousCommit, CancellationToken ct = default);
+        /// <param name="toLogical">Dal percorso della macchina al percorso logico (relativo al progetto, o <c>@alias/…</c> per una
+        /// radice esterna); null = relativo al progetto.</param>
+        Task<CodeScanResult> ScanAsync(string projectPath, string folderAbsolute, string previousCommit, CancellationToken ct = default, Func<string, string> toLogical = null);
     }
 
     /// <summary>
@@ -54,8 +56,9 @@ namespace MdExplorer.Services.CodeGraph
             _logger = logger;
         }
 
-        public async Task<CodeScanResult> ScanAsync(string projectPath, string folderAbsolute, string previousCommit, CancellationToken ct = default)
+        public async Task<CodeScanResult> ScanAsync(string projectPath, string folderAbsolute, string previousCommit, CancellationToken ct = default, Func<string, string> toLogical = null)
         {
+            toLogical ??= abs => CodeGraphPaths.ToProjectRelative(projectPath, abs);
             var result = new CodeScanResult();
             folderAbsolute = Path.GetFullPath(folderAbsolute);
 
@@ -64,7 +67,7 @@ namespace MdExplorer.Services.CodeGraph
             {
                 result.Mode = "hash";
                 result.Reason = top.ExitCode == NativeGitRunner.GitNotFoundExit ? "git non installato" : "la cartella non sta in un repository git";
-                WalkWithoutGit(projectPath, folderAbsolute, result);
+                WalkWithoutGit(toLogical, folderAbsolute, result);
                 result.Candidates.AddRange(result.AllFiles);
                 return result;
             }
@@ -82,7 +85,7 @@ namespace MdExplorer.Services.CodeGraph
             {
                 var abs = Path.GetFullPath(Path.Combine(result.RepositoryRoot, rel));
                 if (CodeLanguages.ForFile(abs) == null || !File.Exists(abs)) continue;
-                result.AllFiles.Add(new CodeSourceFile(abs, CodeGraphPaths.ToProjectRelative(projectPath, abs)));
+                result.AllFiles.Add(new CodeSourceFile(abs, toLogical(abs)));
             }
 
             if (string.IsNullOrEmpty(previousCommit) || string.IsNullOrEmpty(result.HeadCommit))
@@ -114,7 +117,7 @@ namespace MdExplorer.Services.CodeGraph
             return result;
         }
 
-        private static void WalkWithoutGit(string projectPath, string folder, CodeScanResult result)
+        private static void WalkWithoutGit(Func<string, string> toLogical, string folder, CodeScanResult result)
         {
             var stack = new Stack<string>();
             stack.Push(folder);
@@ -132,7 +135,7 @@ namespace MdExplorer.Services.CodeGraph
                     }
                     else if (CodeLanguages.ForFile(e) != null)
                     {
-                        result.AllFiles.Add(new CodeSourceFile(Path.GetFullPath(e), CodeGraphPaths.ToProjectRelative(projectPath, e)));
+                        result.AllFiles.Add(new CodeSourceFile(Path.GetFullPath(e), toLogical(Path.GetFullPath(e))));
                     }
                 }
             }

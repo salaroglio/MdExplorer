@@ -50,7 +50,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(0, result.Warnings.Count, string.Join("; ", result.Warnings));
             Assert.AreEqual(3, result.Scripts.Count);
 
-            var foo = result.Scripts.Single(s => s.File.ProjectRelativePath == "src/Demo/Foo.cs").Script;
+            var foo = result.Scripts.Single(s => s.File.LogicalPath == "src/Demo/Foo.cs").Script;
             var bar = foo.Symbols.Single(s => s.Kind == "method" && s.Name == "Bar");
             Assert.AreEqual("Demo.Foo.Bar(string, int)", bar.QualifiedName);
             Assert.AreEqual("public Task<int> Bar(string path, int retries = 3)", bar.Signature); // async non è parte della firma: sta in isAsync
@@ -74,7 +74,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(foo.Edges.Any(e => e.SourceId == bar.Id && e.TargetId == run.Id && e.Relation == "calls" && e.Confidence == "extracted"));
 
             // dispatch per interfaccia: Client.Go chiama IFoo.Bar (extracted) e Foo.Bar (inferred); Missing.Do → external ambiguous
-            var client = result.Scripts.Single(s => s.File.ProjectRelativePath == "src/Demo/Client.cs").Script;
+            var client = result.Scripts.Single(s => s.File.LogicalPath == "src/Demo/Client.cs").Script;
             var go = client.Symbols.Single(s => s.Name == "Go");
             var ifaceBarId = RoslynCSharpExtractor.StableId("csharp", "method", "Demo.IFoo.Bar(string, int)");
             Assert.IsTrue(client.Edges.Any(e => e.SourceId == go.Id && e.TargetId == ifaceBarId && e.Relation == "calls" && e.Confidence == "extracted"));
@@ -95,12 +95,12 @@ namespace MdExplorer.Features.Tests.CodeGraph
             foreach (var (file, script) in result.Scripts)
             {
                 var text = CodeScriptWriter.Serialize(script);
-                var reparsed = CodeScriptParser.Parse(text, file.ProjectRelativePath);           // il formato è rigido: deve rileggersi
+                var reparsed = CodeScriptParser.Parse(text, file.LogicalPath);           // il formato è rigido: deve rileggersi
                 Assert.AreEqual(script.RecordCount, reparsed.RecordCount);
-                Assert.IsTrue(CodeScriptWriter.WriteIfChanged(CodeScriptWriter.ScriptPathFor(_project, file.ProjectRelativePath, CodeScriptKind.Ast), text));
-                Assert.IsFalse(CodeScriptWriter.WriteIfChanged(CodeScriptWriter.ScriptPathFor(_project, file.ProjectRelativePath, CodeScriptKind.Ast), text), "stesso contenuto = nessuna scrittura");
+                Assert.IsTrue(CodeScriptWriter.WriteIfChanged(CodeScriptWriter.ScriptPathFor(_project, file.LogicalPath, CodeScriptKind.Ast), text));
+                Assert.IsFalse(CodeScriptWriter.WriteIfChanged(CodeScriptWriter.ScriptPathFor(_project, file.LogicalPath, CodeScriptKind.Ast), text), "stesso contenuto = nessuna scrittura");
             }
-            Assert.IsTrue(File.Exists(Path.Combine(_project, ".mde-code", "src", "Demo", "Foo.cs.ast.jsonl")));
+            Assert.IsTrue(File.Exists(Path.Combine(_project, ".mde-code", "src", "Demo", "Foo.cs.ast.ttl")));
 
             var store = FusekiFixture.NewStore();   // Inconclusive se Java 21 o il jar mancano
             var outcome = await store.LoadProjectAsync(_project);

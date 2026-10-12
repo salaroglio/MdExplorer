@@ -72,9 +72,9 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var result = extractor.Extract(Request());
             Assert.AreEqual(0, result.Warnings.Count, string.Join("; ", result.Warnings));
             Assert.AreEqual(3, result.Scripts.Count);
-            var main = result.Scripts.Single(s => s.File.ProjectRelativePath == "src/app/main.py").Script;
-            var util = result.Scripts.Single(s => s.File.ProjectRelativePath == "src/app/util.py").Script;
-            var init = result.Scripts.Single(s => s.File.ProjectRelativePath == "src/app/__init__.py").Script;
+            var main = result.Scripts.Single(s => s.File.LogicalPath == "src/app/main.py").Script;
+            var util = result.Scripts.Single(s => s.File.LogicalPath == "src/app/util.py").Script;
+            var init = result.Scripts.Single(s => s.File.LogicalPath == "src/app/__init__.py").Script;
 
             // Moduli: __init__.py è il pacchetto.
             Assert.AreEqual("src/app", init.Symbols.Single(s => s.Kind == "module").QualifiedName);
@@ -133,7 +133,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
 
             // Gli script si rileggono con il parser rigido.
             foreach (var (file, script) in result.Scripts)
-                Assert.AreEqual(script.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(script), file.ProjectRelativePath).RecordCount);
+                Assert.AreEqual(script.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(script), file.LogicalPath).RecordCount);
         }
 
         [TestMethod]

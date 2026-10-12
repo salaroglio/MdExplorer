@@ -32,7 +32,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var files = Directory.GetFiles(src, "*.cs").OrderBy(f => f).Select(f => new CodeSourceFile(f, CodeGraphPaths.ToProjectRelative(_project, f))).ToList();
             var extracted = new RoslynCSharpExtractor(NullLogger<RoslynCSharpExtractor>.Instance).Extract(new CodeExtractionRequest { ProjectPath = _project, AllFiles = files, FilesToEmit = files });
             foreach (var (file, script) in extracted.Scripts)
-                CodeScriptWriter.WriteIfChanged(CodeScriptWriter.ScriptPathFor(_project, file.ProjectRelativePath, CodeScriptKind.Ast), CodeScriptWriter.Serialize(script));
+                CodeScriptWriter.WriteIfChanged(CodeScriptWriter.ScriptPathFor(_project, file.LogicalPath, CodeScriptKind.Ast), CodeScriptWriter.Serialize(script));
             _repo = FusekiFixture.NewStore();   // Inconclusive se Java 21 o il jar mancano
             var outcome = _repo.LoadProjectAsync(_project).GetAwaiter().GetResult();
             Assert.AreEqual(0, outcome.Failed, outcome.FirstError);

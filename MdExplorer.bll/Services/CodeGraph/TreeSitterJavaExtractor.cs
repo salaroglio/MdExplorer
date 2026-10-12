@@ -69,24 +69,24 @@ namespace MdExplorer.Features.Services.CodeGraph
                 ct.ThrowIfCancellationRequested();
                 string text;
                 try { text = File.ReadAllText(f.AbsolutePath, Encoding.UTF8); }
-                catch (Exception ex) { result.Warnings.Add($"{f.ProjectRelativePath}: non leggibile ({ex.Message})"); continue; }
+                catch (Exception ex) { result.Warnings.Add($"{f.LogicalPath}: non leggibile ({ex.Message})"); continue; }
                 var tree = parser.Parse(text);
-                if (tree == null) { result.Warnings.Add($"{f.ProjectRelativePath}: tree-sitter non ha prodotto un albero"); continue; }
+                if (tree == null) { result.Warnings.Add($"{f.LogicalPath}: tree-sitter non ha prodotto un albero"); continue; }
                 parsed.Add(new ParsedFile(f, text, tree, PackageOf(tree.RootNode)));
             }
             var index = new PerimeterIndex();
             foreach (var pf in parsed) index.Collect(pf);
 
-            var toEmit = new HashSet<string>(request.FilesToEmit.Select(f => f.ProjectRelativePath), StringComparer.Ordinal);
+            var toEmit = new HashSet<string>(request.FilesToEmit.Select(f => f.LogicalPath), StringComparer.Ordinal);
             foreach (var pf in parsed)
             {
                 ct.ThrowIfCancellationRequested();
-                if (!toEmit.Contains(pf.File.ProjectRelativePath)) continue;
+                if (!toEmit.Contains(pf.File.LogicalPath)) continue;
                 try { result.Scripts.Add((pf.File, new FileEmitter(this, pf, index).Emit())); }
                 catch (Exception ex)
                 {
-                    result.Warnings.Add($"{pf.File.ProjectRelativePath}: estrazione fallita ({ex.GetType().Name}: {ex.Message})");
-                    _logger?.LogWarning(ex, "[CodeGraph/tree-sitter] estrazione fallita per {File}", pf.File.ProjectRelativePath);
+                    result.Warnings.Add($"{pf.File.LogicalPath}: estrazione fallita ({ex.GetType().Name}: {ex.Message})");
+                    _logger?.LogWarning(ex, "[CodeGraph/tree-sitter] estrazione fallita per {File}", pf.File.LogicalPath);
                 }
             }
             foreach (var pf in parsed) pf.Tree.Dispose();
@@ -279,7 +279,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 _script.Header = new CodeScriptHeader
                 {
-                    Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Ast, Source = _pf.File.ProjectRelativePath,
+                    Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Ast, Source = _pf.File.LogicalPath,
                     Language = _owner.LanguageId, SourceHash = Sha256(_pf.Text), Extractor = _owner.ExtractorName,
                     ExtractorVersion = _owner.ExtractorVersion, GeneratedAt = DateTime.UtcNow.ToString("o"),
                 };

@@ -134,7 +134,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 lineNo++;
                 var line = raw.Trim();
                 if (line.Length == 0 || !line.StartsWith('{')) { if (line.Length > 0) rejected.Add($"riga {lineNo}: non è un record JSON: {Shorten(line)}"); continue; }
-                var header = JsonSerializer.Serialize(new { schema = CodeScriptParser.CurrentSchema, kind = "doc", source = sourceRelativePath, writtenBy, writtenAt = result.Header.WrittenAt });
+                // la risposta dell'LLM è JSON Lines (formato di scambio, non degli script): si rilegge come schema 1
+                var header = JsonSerializer.Serialize(new { schema = CodeScriptParser.LegacyJsonSchema, kind = "doc", source = sourceRelativePath, writtenBy, writtenAt = result.Header.WrittenAt });
                 CodeScript one;
                 try { one = CodeScriptParser.Parse(header + "\n" + line, sourceRelativePath); }
                 catch (CodeScriptFormatException ex) { rejected.Add($"riga {lineNo}: {ex.Message}"); continue; }

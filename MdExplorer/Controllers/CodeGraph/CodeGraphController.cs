@@ -132,7 +132,8 @@ namespace MdExplorer.Controllers.CodeGraph
         }
 
         public class GenerateRequest { public string ProjectPath { get; set; } }
-        public class FolderRequest { public string ProjectPath { get; set; } public string FolderPath { get; set; } }
+        // FolderPath annullabile: con <Nullable>annotations</Nullable> una string non annullabile diventa [Required] e «analizza tutto il progetto» (FolderPath assente) rispondeva 400
+        public class FolderRequest { public string ProjectPath { get; set; } public string? FolderPath { get; set; } }
         public class LanguagesRequest : FolderRequest { public System.Collections.Generic.List<string> Languages { get; set; } }
 
         /// <summary>
@@ -214,10 +215,10 @@ namespace MdExplorer.Controllers.CodeGraph
         /// (D25): all'apertura del progetto non si rifanno da soli, la pagina del grafo avvisa e chiede.
         /// </summary>
         [HttpGet("outdated")]
-        public IActionResult Outdated([FromQuery] string projectPath, [FromQuery] string folder = "")
+        public async Task<IActionResult> Outdated([FromQuery] string projectPath, [FromQuery] string folder = "", CancellationToken ct = default)
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
-            var list = _analysis.ListOutdatedScripts(projectPath, (folder ?? string.Empty).Replace('\\', '/').Trim('/'));
+            var list = await _analysis.ListOutdatedScriptsAsync(projectPath, (folder ?? string.Empty).Replace('\\', '/').Trim('/'), ct);
             return Ok(new
             {
                 count = list.Count,
@@ -234,7 +235,7 @@ namespace MdExplorer.Controllers.CodeGraph
         public Task<IActionResult> UpgradeOutdated([FromBody] UpgradeRequest request, CancellationToken ct) => Guarded(async () =>
         {
             var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
-            var outdated = _analysis.ListOutdatedScripts(request.ProjectPath, (request.Folder ?? string.Empty).Replace('\\', '/').Trim('/'));
+            var outdated = await _analysis.ListOutdatedScriptsAsync(request.ProjectPath, (request.Folder ?? string.Empty).Replace('\\', '/').Trim('/'), ct);
             var outcomes = new System.Collections.Generic.List<MdExplorer.Services.CodeGraph.CodeFolderAnalysisOutcome>();
             foreach (var folder in outdated.Select(o => o.Folder).Distinct(StringComparer.Ordinal))
                 outcomes.Add(await _analysis.AnalyzeFolderAsync(request.ProjectPath, folder, includeExtractorChanges: true, ct));

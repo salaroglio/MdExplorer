@@ -33,6 +33,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string ClassFile = "code:File";
         public const string ClassDescription = "code:Description";
         public const string ClassParameterDescription = "code:ParameterDescription";
+        public const string ClassDescriptionSet = "code:DescriptionSet";
         public const string ClassScript = "code:Script";
         public const string ClassScanState = "code:ScanState";
     }

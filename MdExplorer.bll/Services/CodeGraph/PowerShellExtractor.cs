@@ -68,28 +68,28 @@ namespace MdExplorer.Features.Services.CodeGraph
                 ct.ThrowIfCancellationRequested();
                 string text;
                 try { text = File.ReadAllText(f.AbsolutePath, Encoding.UTF8); }
-                catch (Exception ex) { result.Warnings.Add($"{f.ProjectRelativePath}: non leggibile ({ex.Message})"); continue; }
+                catch (Exception ex) { result.Warnings.Add($"{f.LogicalPath}: non leggibile ({ex.Message})"); continue; }
                 var ast = Parser.ParseInput(text, f.AbsolutePath, out _, out var errors);
                 parsed.Add(new ParsedFile(f, text, ast, errors));
             }
             var index = new PerimeterIndex();
             foreach (var pf in parsed) index.Collect(pf);
 
-            var toEmit = new HashSet<string>(request.FilesToEmit.Select(f => f.ProjectRelativePath), StringComparer.Ordinal);
+            var toEmit = new HashSet<string>(request.FilesToEmit.Select(f => f.LogicalPath), StringComparer.Ordinal);
             foreach (var pf in parsed)
             {
                 ct.ThrowIfCancellationRequested();
-                if (!toEmit.Contains(pf.File.ProjectRelativePath)) continue;
+                if (!toEmit.Contains(pf.File.LogicalPath)) continue;
                 if (pf.Errors.Length > 0)
                 {
                     var e = pf.Errors[0];
-                    result.Warnings.Add($"{pf.File.ProjectRelativePath}: {pf.Errors.Length} errori di sintassi PowerShell (riga {e.Extent.StartLineNumber}: {e.Message}); emesso con l'albero parziale");
+                    result.Warnings.Add($"{pf.File.LogicalPath}: {pf.Errors.Length} errori di sintassi PowerShell (riga {e.Extent.StartLineNumber}: {e.Message}); emesso con l'albero parziale");
                 }
                 try { result.Scripts.Add((pf.File, new FileEmitter(this, pf, index).Emit())); }
                 catch (Exception ex)
                 {
-                    result.Warnings.Add($"{pf.File.ProjectRelativePath}: estrazione fallita ({ex.GetType().Name}: {ex.Message})");
-                    _logger?.LogWarning(ex, "[CodeGraph/powershell] estrazione fallita per {File}", pf.File.ProjectRelativePath);
+                    result.Warnings.Add($"{pf.File.LogicalPath}: estrazione fallita ({ex.GetType().Name}: {ex.Message})");
+                    _logger?.LogWarning(ex, "[CodeGraph/powershell] estrazione fallita per {File}", pf.File.LogicalPath);
                 }
             }
             return result;
@@ -114,7 +114,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         private sealed record ParsedFile(CodeSourceFile File, string Text, ScriptBlockAst Ast, ParseError[] Errors)
         {
-            public string Module => ModuleName(File.ProjectRelativePath);
+            public string Module => ModuleName(File.LogicalPath);
         }
 
         // ------------------------------------------------------------------ shared syntax helpers
@@ -252,22 +252,22 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 _owner = owner; _pf = pf; _index = index;
                 _moduleId = StableId("module", pf.Module);
-                _moduleDir = Path.GetDirectoryName(pf.File.ProjectRelativePath)?.Replace('\\', '/') ?? string.Empty;
+                _moduleDir = Path.GetDirectoryName(pf.File.LogicalPath)?.Replace('\\', '/') ?? string.Empty;
             }
 
             public CodeScript Emit()
             {
                 _script.Header = new CodeScriptHeader
                 {
-                    Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Ast, Source = _pf.File.ProjectRelativePath,
+                    Schema = CodeScriptParser.CurrentSchema, Kind = CodeScriptKind.Ast, Source = _pf.File.LogicalPath,
                     Language = _owner.LanguageId, SourceHash = Sha256(_pf.Text), Extractor = _owner.ExtractorName,
                     ExtractorVersion = _owner.ExtractorVersion, GeneratedAt = DateTime.UtcNow.ToString("o"),
                 };
                 var root = _pf.Ast;
                 _script.Symbols.Add(new ScriptSymbol
                 {
-                    Id = _moduleId, Kind = "module", Name = Path.GetFileName(_pf.File.ProjectRelativePath), QualifiedName = _pf.Module,
-                    LineStart = 1, LineEnd = EndLine(root), Signature = _pf.File.ProjectRelativePath, Visibility = "public",
+                    Id = _moduleId, Kind = "module", Name = Path.GetFileName(_pf.File.LogicalPath), QualifiedName = _pf.Module,
+                    LineStart = 1, LineEnd = EndLine(root), Signature = _pf.File.LogicalPath, Visibility = "public",
                 });
                 _declared.Add(_moduleId);
                 // Il param() dello script: sono i parametri con cui lo si lancia, li porta il modulo.
@@ -382,7 +382,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             /// </summary>
             private HashSet<string> ExportedFunctions(ScriptBlockAst root)
             {
-                if (!_pf.File.ProjectRelativePath.EndsWith(".psm1", StringComparison.OrdinalIgnoreCase)) return null;
+                if (!_pf.File.LogicalPath.EndsWith(".psm1", StringComparison.OrdinalIgnoreCase)) return null;
                 var exports = root.FindAll(a => a is CommandAst c && string.Equals(c.GetCommandName(), "Export-ModuleMember", StringComparison.OrdinalIgnoreCase), true)
                     .Cast<CommandAst>().ToList();
                 if (exports.Count == 0) return null;

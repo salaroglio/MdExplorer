@@ -113,15 +113,28 @@ namespace MdExplorer.Features.Services.CodeGraph
             await gate.WaitAsync(ct);
             try
             {
+                // Gli script JSON Lines di prima del 12/10/2026 diventano Turtle, una volta sola (descrizioni comprese):
+                // spariscono dal disco, quindi qui sotto le loro triple escono dal grafo e quelle dei .ttl entrano.
+                outcome.Converted = CodeScriptLegacy.ConvertProject(projectPath, _logger);
                 var known = await ReadScriptStatesAsync(g, ct);
 
                 var onDisk = Directory.Exists(root)
-                    ? Directory.EnumerateFiles(root, "*.jsonl", SearchOption.AllDirectories)
+                    ? Directory.EnumerateFiles(root, "*.ttl", SearchOption.AllDirectories)
                         .Where(f => CodeGraphPaths.IsAstScript(f) || CodeGraphPaths.IsDocScript(f))
                         .Select(Path.GetFullPath)
                         .ToList()
                     : new List<string>();
                 outcome.ScriptsFolderMissing = !Directory.Exists(root);
+
+                // Script spariti dal disco: via dal grafo PRIMA di caricare i nuovi. I nodi hanno IRI stabili (l'id del
+                // simbolo): uno script rinominato, o un JSON Lines convertito in Turtle, porta gli STESSI nodi; togliere il
+                // vecchio dopo aver caricato il nuovo cancellava anche le triple appena caricate (12/10/2026).
+                var onDiskRel = new HashSet<string>(onDisk.Select(f => CodeGraphPaths.ToProjectRelative(projectPath, f)), StringComparer.Ordinal);
+                foreach (var gone in known.Keys.Where(k => !onDiskRel.Contains(k)).ToList())
+                {
+                    ct.ThrowIfCancellationRequested();
+                    outcome.Results.Add(await RemoveOneAsync(g, gone, ct));
+                }
 
                 // Prima gli ast (i simboli), poi i doc (che vi si agganciano). Gli script si mandano a Fuseki in lotti:
                 // una richiesta = una transazione TDB2, e TDB2 è copy-on-write: 3.000 transazioni piccole hanno fatto 11 GB
@@ -142,13 +155,6 @@ namespace MdExplorer.Features.Services.CodeGraph
                 }
                 await FlushBatchAsync(batch, outcome, ct);
 
-                // Script spariti dal disco: via anche dal grafo.
-                var onDiskRel = new HashSet<string>(onDisk.Select(f => CodeGraphPaths.ToProjectRelative(projectPath, f)), StringComparer.Ordinal);
-                foreach (var gone in known.Keys.Where(k => !onDiskRel.Contains(k)).ToList())
-                {
-                    ct.ThrowIfCancellationRequested();
-                    outcome.Results.Add(await RemoveOneAsync(g, gone, ct));
-                }
 
                 _logger?.LogInformation("[CodeGraph] '{Project}': {Loaded} caricati, {Skipped} invariati, {Removed} tolti, {Failed} falliti",
                     projectPath, outcome.Loaded, outcome.Skipped, outcome.Removed, outcome.Failed);
@@ -161,6 +167,10 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         public async Task<CodeScriptResult> LoadScriptAsync(string projectPath, string scriptAbsolutePath, CancellationToken ct = default)
         {
+            // Un JSON Lines (prima del 12/10/2026) non si carica: lo converte LoadProjectAsync all'apertura, e la sua
+            // cancellazione toglie le triple vecchie (RemoveScriptAsync). Qui solo il .ttl.
+            if (CodeGraphPaths.IsLegacyScript(scriptAbsolutePath))
+                return new CodeScriptResult { ScriptPath = CodeGraphPaths.ToProjectRelative(projectPath, scriptAbsolutePath), Skipped = true };
             var g = GraphsOf(projectPath);
             var gate = GateFor(projectPath);
             await gate.WaitAsync(ct);
@@ -209,7 +219,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
                 // Dati e stato nella stessa richiesta: insieme, o niente.
                 var update = script.Header.Kind == CodeScriptKind.Ast
-                    ? CodeTripleWriter.LoadAstUpdate(script, rel, g.Hash, g.Data)
+                    ? CodeTripleWriter.LoadAstUpdate(script, rel, g.Data)
                     : CodeTripleWriter.LoadDocUpdate(script, rel, g.Data);
                 update += ";\n" + CodeTripleWriter.ScriptStateUpsert(g.State, CodeGraphIris.Script(g.Hash, rel), rel, result.Kind, hash,
                     script.Header.Schema, script.RecordCount, DateTime.UtcNow.ToString("o"));
@@ -336,7 +346,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             var root = CodeGraphPaths.GetScriptsRoot(projectPath);
             status.ScriptsFolderExists = Directory.Exists(root);
             if (!status.ScriptsFolderExists) return status;
-            foreach (var f in Directory.EnumerateFiles(root, "*.jsonl", SearchOption.AllDirectories)
+            foreach (var f in Directory.EnumerateFiles(root, "*.ttl", SearchOption.AllDirectories)
                                        .Where(f => CodeGraphPaths.IsAstScript(f) || CodeGraphPaths.IsDocScript(f)))
             {
                 status.ScriptsOnDisk++;

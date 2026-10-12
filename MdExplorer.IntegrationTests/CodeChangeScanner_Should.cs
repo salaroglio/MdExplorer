@@ -58,7 +58,7 @@ namespace MdExplorer.IntegrationTests
             var first = await _scanner.ScanAsync(_project, _src, previousCommit: null);
             Assert.AreEqual("git", first.Mode);
             Assert.AreEqual("prima analisi", first.Reason);
-            CollectionAssert.AreEquivalent(new[] { "src/A.cs", "src/B.cs" }, first.AllFiles.Select(f => f.ProjectRelativePath).ToArray(), "README e bin/ restano fuori");
+            CollectionAssert.AreEquivalent(new[] { "src/A.cs", "src/B.cs" }, first.AllFiles.Select(f => f.LogicalPath).ToArray(), "README e bin/ restano fuori");
             Assert.AreEqual(2, first.Candidates.Count);
             var analyzed = await Head();
             Assert.AreEqual(analyzed, first.HeadCommit);
@@ -74,7 +74,7 @@ namespace MdExplorer.IntegrationTests
             File.WriteAllText(Path.Combine(_src, "D.cs"), "class D {}");   // non committato: conta lo stesso
 
             var after = await _scanner.ScanAsync(_project, _src, analyzed);
-            CollectionAssert.AreEquivalent(new[] { "src/B.cs", "src/C.cs", "src/D.cs" }, after.Candidates.Select(f => f.ProjectRelativePath).ToArray());
+            CollectionAssert.AreEquivalent(new[] { "src/B.cs", "src/C.cs", "src/D.cs" }, after.Candidates.Select(f => f.LogicalPath).ToArray());
             Assert.AreEqual(4, after.AllFiles.Count);
             Assert.AreNotEqual(analyzed, after.HeadCommit);
         }
@@ -85,7 +85,7 @@ namespace MdExplorer.IntegrationTests
             var r = await _scanner.ScanAsync(_project, _src, previousCommit: null);
             Assert.AreEqual("hash", r.Mode);
             StringAssert.Contains(r.Reason, "repository");
-            CollectionAssert.AreEquivalent(new[] { "src/A.cs", "src/B.cs" }, r.AllFiles.Select(f => f.ProjectRelativePath).ToArray(), "bin/ è nella lista di esclusione");
+            CollectionAssert.AreEquivalent(new[] { "src/A.cs", "src/B.cs" }, r.AllFiles.Select(f => f.LogicalPath).ToArray(), "bin/ è nella lista di esclusione");
             Assert.AreEqual(2, r.Candidates.Count);
         }
     }

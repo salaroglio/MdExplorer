@@ -5,8 +5,12 @@ using System.Threading;
 
 namespace MdExplorer.Features.Services.CodeGraph
 {
-    /// <summary>Un file sorgente da analizzare: percorso assoluto e percorso relativo alla radice del progetto (con <c>/</c>).</summary>
-    public sealed record CodeSourceFile(string AbsolutePath, string ProjectRelativePath);
+    /// <summary>
+    /// Un file sorgente da analizzare: percorso assoluto su questa macchina e percorso LOGICO, uguale su ogni macchina, con
+    /// <c>/</c>: relativo alla radice del progetto per le cartelle interne (<c>program/x.ps1</c>), <c>@alias/…</c> per le
+    /// radici di codice esterne (<c>@backend/Api/Foo.cs</c>). È la chiave degli script, del grafo e dei nomi dei moduli.
+    /// </summary>
+    public sealed record CodeSourceFile(string AbsolutePath, string LogicalPath);
 
     /// <summary>
     /// Che cosa l'estrattore riceve: TUTTI i file del linguaggio nella cartella (servono per risolvere i nomi) e quali

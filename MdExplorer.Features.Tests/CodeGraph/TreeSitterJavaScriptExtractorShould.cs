@@ -67,8 +67,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
 
             var result = extractor.Extract(Request());
             Assert.AreEqual(0, result.Warnings.Count, string.Join("; ", result.Warnings));
-            var main = result.Scripts.Single(s => s.File.ProjectRelativePath == "src/main.js").Script;
-            var util = result.Scripts.Single(s => s.File.ProjectRelativePath == "src/lib/util.js").Script;
+            var main = result.Scripts.Single(s => s.File.LogicalPath == "src/main.js").Script;
+            var util = result.Scripts.Single(s => s.File.LogicalPath == "src/lib/util.js").Script;
             Assert.AreEqual("src/main", main.Symbols[0].QualifiedName);
             Assert.AreEqual("javascript", main.Header.Language);
 
@@ -112,7 +112,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(main.Symbols.Any(s => s.Kind == "external" && s.QualifiedName == "fs.readFileSync"));
 
             foreach (var (file, script) in result.Scripts)
-                Assert.AreEqual(script.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(script), file.ProjectRelativePath).RecordCount);
+                Assert.AreEqual(script.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(script), file.LogicalPath).RecordCount);
         }
     }
 }

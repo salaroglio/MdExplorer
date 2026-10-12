@@ -13,7 +13,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual("urn:mde:sym:abc", CodeGraphIris.Symbol("abc"));
             Assert.AreEqual("abc", CodeGraphIris.SymbolId("urn:mde:sym:abc"));
             Assert.AreEqual("urn:mde:sym:abc:p2", CodeGraphIris.Parameter("abc", 2));
-            Assert.AreEqual("urn:mde:file:h1:src%2FDemo%2FFoo%20Bar.cs", CodeGraphIris.File("h1", "src/Demo/Foo Bar.cs"));
+            Assert.AreEqual("urn:mde:file:src%2FDemo%2FFoo%20Bar.cs", CodeGraphIris.File("src/Demo/Foo Bar.cs"), "senza hash del progetto: va negli script su Git");
+            Assert.AreEqual("urn:mde:file:%40backend%2Fsrc%2FFoo.cs", CodeGraphIris.File("@backend/src/Foo.cs"));
             Assert.AreEqual("urn:mde:edge:a:calls:b:12", CodeGraphIris.Edge("a", "calls", "b", 12));
             Assert.AreEqual("urn:mde:code:h1:data", CodeGraphIris.DataGraph("h1"));
             Assert.AreEqual("\"a \\\"quoted\\\" line\\nnext \\\\ back\"", CodeGraphIris.Lit("a \"quoted\" line\nnext \\ back"));
@@ -32,12 +33,12 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 "{\"type\":\"edge\",\"sourceId\":\"s-bar\",\"targetId\":\"x-console\",\"relation\":\"calls\",\"confidence\":\"extracted\",\"line\":4}\n",
                 ".mde-code/src/Foo.cs.ast.jsonl");
 
-            var update = CodeTripleWriter.LoadAstUpdate(script, ".mde-code/src/Foo.cs.ast.jsonl", "h1", "urn:mde:code:h1:data");
+            var update = CodeTripleWriter.LoadAstUpdate(script, ".mde-code/src/Foo.cs.ast.jsonl", "urn:mde:code:h1:data");
 
             StringAssert.Contains(update, "DELETE { GRAPH <urn:mde:code:h1:data> { ?a ?p ?b } }", "prima via gli archi diretti dello script");
             StringAssert.Contains(update, "?s code:fromScript \".mde-code/src/Foo.cs.ast.jsonl\" ; ?p ?o", "poi ogni nodo dello script");
             StringAssert.Contains(update, "INSERT DATA { GRAPH <urn:mde:code:h1:data> {");
-            StringAssert.Contains(update, "<urn:mde:file:h1:src%2FFoo.cs> a code:File ; code:path \"src/Foo.cs\"");
+            StringAssert.Contains(update, "<urn:mde:file:src%2FFoo.cs> a code:File ; code:path \"src/Foo.cs\"");
             StringAssert.Contains(update, "<urn:mde:sym:s-bar> a code:Symbol ; code:kind \"method\"");
             StringAssert.Contains(update, "code:parent <urn:mde:sym:s-foo>");
             StringAssert.Contains(update, "code:signatureHash \"", "l'hash della firma lo mette il caricatore, per il «da rivedere»");

@@ -16,17 +16,27 @@ namespace MdExplorer.Features.Services.CodeGraph
     public static class CodeTripleWriter
     {
         /// <summary>Lo script AST «rel» (sorgente <c>script.Header.Source</c>) entra nel grafo <paramref name="dataGraph"/>.</summary>
-        public static string LoadAstUpdate(CodeScript script, string scriptRel, string projectHash, string dataGraph)
+        public static string LoadAstUpdate(CodeScript script, string scriptRel, string dataGraph)
         {
-            var h = script.Header;
             var g = Iri(dataGraph);
             var sb = new StringBuilder();
             sb.Append(CodeOntology.SparqlPrefixes);
             AppendRemove(sb, scriptRel, g);
             sb.Append("INSERT DATA { GRAPH ").Append(g).Append(" {\n");
+            AppendAstTriples(sb, script, Lit(scriptRel));
+            sb.Append("} }\n");
+            return sb.ToString();
+        }
 
-            var fileIri = Iri(File(projectHash, h.Source));
-            var fromScript = Lit(scriptRel);
+        /// <summary>
+        /// Le triple di uno script AST, una riga per nodo: sono il corpo dell'<c>INSERT DATA</c> E il contenuto del file
+        /// <c>.ast.ttl</c> (radici esterne, R4: una fonte sola, Git e Fuseki non possono divergere). Con
+        /// <paramref name="fromScriptLit"/> null (il file) niente <c>code:fromScript</c>: è una faccenda del caricatore.
+        /// </summary>
+        public static void AppendAstTriples(StringBuilder sb, CodeScript script, string fromScriptLit)
+        {
+            var h = script.Header;
+            var fileIri = Iri(File(h.Source));
             sb.Append(fileIri).Append(" a ").Append(CodeOntology.ClassFile)
               .Append(" ; code:path ").Append(Lit(h.Source))
               .Append(" ; code:language ").Append(Lit(h.Language ?? string.Empty))
@@ -34,8 +44,9 @@ namespace MdExplorer.Features.Services.CodeGraph
               .Append(" ; code:extractor ").Append(Lit(h.Extractor ?? string.Empty))
               .Append(" ; code:extractorVersion ").Append(Lit(h.ExtractorVersion ?? string.Empty))
               .Append(" ; code:parsedAt ").Append(Lit(h.GeneratedAt ?? DateTime.UtcNow.ToString("o")))
-              .Append(" ; code:symbolCount ").Append(Int(script.Symbols.Count(s => !s.IsExternal)))
-              .Append(" ; code:fromScript ").Append(fromScript).Append(" .\n");
+              .Append(" ; code:schema ").Append(Int(CodeScriptParser.CurrentSchema))
+              .Append(" ; code:symbolCount ").Append(Int(script.Symbols.Count(s => !s.IsExternal)));
+            FromScript(sb, fromScriptLit).Append(" .\n");
 
             var parametersBySymbol = script.Parameters.GroupBy(p => p.SymbolId, StringComparer.Ordinal)
                 .ToDictionary(gp => gp.Key, gp => gp.OrderBy(p => p.Position).ToList(), StringComparer.Ordinal);
@@ -57,8 +68,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 sb.Append(" ; code:inFile ").Append(fileIri)
                   .Append(" ; code:path ").Append(Lit(h.Source))
                   .Append(" ; code:isStatic ").Append(Bool(s.IsStatic))
-                  .Append(" ; code:isAsync ").Append(Bool(s.IsAsync))
-                  .Append(" ; code:fromScript ").Append(fromScript);
+                  .Append(" ; code:isAsync ").Append(Bool(s.IsAsync));
                 if (s.LineStart != null) sb.Append(" ; code:lineStart ").Append(Int(s.LineStart.Value));
                 if (s.LineEnd != null) sb.Append(" ; code:lineEnd ").Append(Int(s.LineEnd.Value));
                 if (s.Signature != null) sb.Append(" ; code:signature ").Append(Lit(s.Signature));
@@ -67,7 +77,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (s.ParentId != null) sb.Append(" ; code:parent ").Append(Iri(Symbol(s.ParentId)));
                 parametersBySymbol.TryGetValue(s.Id, out var prms);
                 sb.Append(" ; code:signatureHash ").Append(Lit(CodeDocPlanner.SignatureHash(s, prms ?? new List<ScriptParameter>())));
-                sb.Append(" .\n");
+                FromScript(sb, fromScriptLit).Append(" .\n");
             }
 
             foreach (var p in script.Parameters)
@@ -77,11 +87,10 @@ namespace MdExplorer.Features.Services.CodeGraph
                   .Append(" ; code:position ").Append(Int(p.Position))
                   .Append(" ; code:name ").Append(Lit(p.Name ?? string.Empty))
                   .Append(" ; code:direction ").Append(Lit(p.Direction ?? "in"))
-                  .Append(" ; code:isNullable ").Append(Bool(p.IsNullable))
-                  .Append(" ; code:fromScript ").Append(fromScript);
+                  .Append(" ; code:isNullable ").Append(Bool(p.IsNullable));
                 if (p.ParameterType != null) sb.Append(" ; code:type ").Append(Lit(p.ParameterType));
                 if (p.DefaultValue != null) sb.Append(" ; code:defaultValue ").Append(Lit(p.DefaultValue));
-                sb.Append(" .\n");
+                FromScript(sb, fromScriptLit).Append(" .\n");
             }
 
             foreach (var e in script.Edges)
@@ -97,49 +106,58 @@ namespace MdExplorer.Features.Services.CodeGraph
                   .Append(" ; code:relation ").Append(Lit(e.Relation))
                   .Append(" ; code:relationIri ").Append(Iri(RelationIri(e.Relation)))
                   .Append(" ; code:confidence ").Append(Lit(e.Confidence))
-                  .Append(" ; code:path ").Append(Lit(h.Source))
-                  .Append(" ; code:fromScript ").Append(fromScript);
+                  .Append(" ; code:path ").Append(Lit(h.Source));
                 if (e.Line != null) sb.Append(" ; code:line ").Append(Int(e.Line.Value));
-                sb.Append(" .\n");
+                FromScript(sb, fromScriptLit).Append(" .\n");
             }
-
-            sb.Append("} }\n");
-            return sb.ToString();
         }
+
+        private static StringBuilder FromScript(StringBuilder sb, string fromScriptLit)
+            => fromScriptLit == null ? sb : sb.Append(" ; code:fromScript ").Append(fromScriptLit);
 
         /// <summary>Lo script di descrizioni «rel» entra nel grafo: un nodo descrizione per simbolo, uno per parametro descritto.</summary>
         public static string LoadDocUpdate(CodeScript script, string scriptRel, string dataGraph)
         {
-            var h = script.Header;
             var g = Iri(dataGraph);
             var sb = new StringBuilder();
             sb.Append(CodeOntology.SparqlPrefixes);
             AppendRemove(sb, scriptRel, g);
             sb.Append("INSERT DATA { GRAPH ").Append(g).Append(" {\n");
-            var fromScript = Lit(scriptRel);
+            AppendDocTriples(sb, script, Lit(scriptRel));
+            sb.Append("} }\n");
+            return sb.ToString();
+        }
+
+        /// <summary>Le triple di uno script di descrizioni: corpo dell'<c>INSERT DATA</c> e contenuto del file <c>.doc.ttl</c>.</summary>
+        public static void AppendDocTriples(StringBuilder sb, CodeScript script, string fromScriptLit)
+        {
+            var h = script.Header;
+            sb.Append(Iri(DocSet(h.Source))).Append(" a ").Append(CodeOntology.ClassDescriptionSet)
+              .Append(" ; code:path ").Append(Lit(h.Source))
+              .Append(" ; code:writtenBy ").Append(Lit(h.WrittenBy ?? string.Empty))
+              .Append(" ; code:writtenAt ").Append(Lit(h.WrittenAt ?? string.Empty))
+              .Append(" ; code:schema ").Append(Int(CodeScriptParser.CurrentSchema));
+            FromScript(sb, fromScriptLit).Append(" .\n");
             foreach (var d in script.SymbolDocs)
             {
                 sb.Append(Iri(Doc(d.SymbolId))).Append(" a ").Append(CodeOntology.ClassDescription)
                   .Append(" ; code:describes ").Append(Iri(Symbol(d.SymbolId)))
                   .Append(" ; code:summary ").Append(Lit(d.Summary ?? string.Empty))
                   .Append(" ; code:writtenBy ").Append(Lit(h.WrittenBy ?? string.Empty))
-                  .Append(" ; code:writtenAt ").Append(Lit(h.WrittenAt ?? string.Empty))
-                  .Append(" ; code:fromScript ").Append(fromScript);
+                  .Append(" ; code:writtenAt ").Append(Lit(h.WrittenAt ?? string.Empty));
                 if (d.ReturnsDescription != null) sb.Append(" ; code:returnsDescription ").Append(Lit(d.ReturnsDescription));
                 if (d.Remarks != null) sb.Append(" ; code:remarks ").Append(Lit(d.Remarks));
                 if (d.SignatureHash != null) sb.Append(" ; code:signatureHash ").Append(Lit(d.SignatureHash));
-                sb.Append(" .\n");
+                FromScript(sb, fromScriptLit).Append(" .\n");
             }
             foreach (var d in script.ParameterDocs)
             {
                 sb.Append(Iri(ParamDoc(d.SymbolId, d.ParameterName))).Append(" a ").Append(CodeOntology.ClassParameterDescription)
                   .Append(" ; code:describes ").Append(Iri(Symbol(d.SymbolId)))
                   .Append(" ; code:parameterName ").Append(Lit(d.ParameterName ?? string.Empty))
-                  .Append(" ; code:description ").Append(Lit(d.Description ?? string.Empty))
-                  .Append(" ; code:fromScript ").Append(fromScript).Append(" .\n");
+                  .Append(" ; code:description ").Append(Lit(d.Description ?? string.Empty));
+                FromScript(sb, fromScriptLit).Append(" .\n");
             }
-            sb.Append("} }\n");
-            return sb.ToString();
         }
 
         /// <summary>Via tutto ciò che lo script «rel» aveva portato (archi diretti compresi).</summary>
