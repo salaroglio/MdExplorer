@@ -244,6 +244,18 @@ namespace MdExplorer.Controllers.CodeGraph
             return Ok(new { folders = outcomes, reparsed = outcomes.Sum(o => o.Reparsed) });
         });
 
+        /// <summary>
+        /// POST /api/codegraph/refresh {projectPath} — l'aggiornamento mirato che parte a fine turno di MarkAgent (radici
+        /// esterne F4): cartelle program e radici collegate, solo i file cambiati, solo gli script toccati in Fuseki.
+        /// </summary>
+        [HttpPost("refresh")]
+        public Task<IActionResult> Refresh([FromBody] GenerateRequest request, CancellationToken ct) => Guarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            var outcomes = await _analysis.RefreshAfterTurnAsync(request.ProjectPath, ct);
+            return Ok(outcomes.Select(o => new { o.Folder, o.Mode, o.Reparsed, o.ScriptsRemoved, o.Error, o.Warnings, loaded = o.Load?.Loaded ?? 0 }));
+        });
+
         // ------------------------------------------------------------------ lettura per i tool (F5, D15)
 
         /// <summary>

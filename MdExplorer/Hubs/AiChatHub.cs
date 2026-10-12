@@ -96,10 +96,12 @@ namespace MdExplorer.Hubs
             Services.E2e.E2eLaunchService e2eLaunch,
             IHubContext<AiChatHub> hubContext,
             Services.MarkDiagram.MarkAgentBriefings briefings,
-            Services.CodeGraph.ICodeRootService codeRoots)
+            Services.CodeGraph.ICodeRootService codeRoots,
+            Services.CodeGraph.ICodeGraphTurnRefresher turnRefresher)
         {
             _briefings = briefings;
             _codeRoots = codeRoots;
+            _turnRefresher = turnRefresher;
             _e2eLaunch = e2eLaunch;
             _hubContext = hubContext;
             _aiChatService = aiChatService;
@@ -307,6 +309,7 @@ namespace MdExplorer.Hubs
         /// <summary>«Ragguagli» from the diagram sessions, put at the head of the tab's next message (D9).</summary>
         private readonly Services.MarkDiagram.MarkAgentBriefings _briefings;
         private readonly Services.CodeGraph.ICodeRootService _codeRoots;
+        private readonly Services.CodeGraph.ICodeGraphTurnRefresher _turnRefresher;
 
         /// <summary>
         /// Le radici di codice esterne collegate del progetto (sprint 2026-10-12, F3): le cartelle in cui MarkAgent legge e
@@ -990,7 +993,16 @@ namespace MdExplorer.Hubs
         /// finestre di consumo. È un evento nuovo: il client oggi lo ignora senza danno, ed è
         /// il gancio pronto per l'indicatore consumi (F5 del piano).</para>
         /// </summary>
-        private async Task<string> StreamClaudeCodeResponseAsync(
+        /// <summary>Il turno con il grafo del codice aggiornato prima e dopo (radici esterne F4): vedi <see cref="Services.CodeGraph.ICodeGraphTurnRefresher"/>.</summary>
+        private async Task<string> StreamClaudeCodeResponseAsync(string userMessage, string modelId, string currentDoc, ConversationHistory history, string channelId = "default")
+        {
+            var projectPath = GetProjectPath(out _);
+            if (projectPath != null) await _turnRefresher.BeforeTurnAsync(projectPath);
+            try { return await StreamClaudeCodeResponseCoreAsync(userMessage, modelId, currentDoc, history, channelId); }
+            finally { if (projectPath != null) _turnRefresher.AfterTurn(projectPath); }
+        }
+
+        private async Task<string> StreamClaudeCodeResponseCoreAsync(
             string userMessage,
             string modelId,
             string currentDoc,
@@ -1128,7 +1140,16 @@ namespace MdExplorer.Hubs
         /// SSE ne perdesse uno, la cronologia resterebbe monca senza che nessuno lo sappia.
         /// Quando le due cose non coincidono, il log lo dice.</para>
         /// </summary>
-        private async Task<string> StreamOpenCodeResponseAsync(
+        /// <summary>Il turno con il grafo del codice aggiornato prima e dopo (radici esterne F4): vedi <see cref="Services.CodeGraph.ICodeGraphTurnRefresher"/>.</summary>
+        private async Task<string> StreamOpenCodeResponseAsync(string userMessage, string modelId, string currentDoc, ConversationHistory history, string channelId = "default")
+        {
+            var projectPath = GetProjectPath(out _);
+            if (projectPath != null) await _turnRefresher.BeforeTurnAsync(projectPath);
+            try { return await StreamOpenCodeResponseCoreAsync(userMessage, modelId, currentDoc, history, channelId); }
+            finally { if (projectPath != null) _turnRefresher.AfterTurn(projectPath); }
+        }
+
+        private async Task<string> StreamOpenCodeResponseCoreAsync(
             string userMessage,
             string modelId,
             string currentDoc,
@@ -1244,7 +1265,16 @@ namespace MdExplorer.Hubs
             return finalResponse;
         }
 
-        private async Task<string> StreamCopilotCliSessionResponseAsync(
+        /// <summary>Il turno con il grafo del codice aggiornato prima e dopo (radici esterne F4): vedi <see cref="Services.CodeGraph.ICodeGraphTurnRefresher"/>.</summary>
+        private async Task<string> StreamCopilotCliSessionResponseAsync(string userMessage, string modelId, string currentDoc, ConversationHistory history, string channelId = "default")
+        {
+            var projectPath = GetProjectPath(out _);
+            if (projectPath != null) await _turnRefresher.BeforeTurnAsync(projectPath);
+            try { return await StreamCopilotCliSessionResponseCoreAsync(userMessage, modelId, currentDoc, history, channelId); }
+            finally { if (projectPath != null) _turnRefresher.AfterTurn(projectPath); }
+        }
+
+        private async Task<string> StreamCopilotCliSessionResponseCoreAsync(
             string userMessage,
             string modelId,
             string currentDoc,

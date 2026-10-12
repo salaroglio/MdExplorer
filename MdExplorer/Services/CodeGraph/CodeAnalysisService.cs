@@ -71,6 +71,12 @@ namespace MdExplorer.Services.CodeGraph
         Task<CodeFolderAnalysisOutcome> AnalyzeFolderAsync(string projectPath, string folderRelative, bool includeExtractorChanges, CancellationToken ct = default);
         /// <summary>Tutte le cartelle <c>program</c> con dei linguaggi scelti.</summary>
         Task<List<CodeFolderAnalysisOutcome>> AnalyzeProjectAsync(string projectPath, bool includeExtractorChanges, CancellationToken ct = default);
+        /// <summary>
+        /// Dopo un turno di MarkAgent (radici esterne F4, R8): le cartelle <c>program</c> e le radici collegate si
+        /// rianalizzano come all'apertura (git dice che cosa è cambiato, l'hash conferma), ma si caricano SOLO gli script
+        /// riscritti o tolti e senza rifare il report: il turno dopo, il grafo dice già com'è il codice adesso.
+        /// </summary>
+        Task<List<CodeFolderAnalysisOutcome>> RefreshAfterTurnAsync(string projectPath, CancellationToken ct = default);
         /// <summary>Gli script AST delle cartelle <c>program</c> (sotto <paramref name="folderPrefix"/>) scritti da un estrattore diverso da quello di oggi.</summary>
         Task<List<CodeOutdatedScript>> ListOutdatedScriptsAsync(string projectPath, string folderPrefix, CancellationToken ct = default);
     }
@@ -203,7 +209,30 @@ namespace MdExplorer.Services.CodeGraph
             return outcomes;
         }
 
-        public async Task<CodeFolderAnalysisOutcome> AnalyzeFolderAsync(string projectPath, string folderRelative, bool includeExtractorChanges, CancellationToken ct = default)
+        public Task<CodeFolderAnalysisOutcome> AnalyzeFolderAsync(string projectPath, string folderRelative, bool includeExtractorChanges, CancellationToken ct = default)
+            => AnalyzeScopeAsync(projectPath, folderRelative, includeExtractorChanges, targeted: false, ct);
+
+        public async Task<List<CodeFolderAnalysisOutcome>> RefreshAfterTurnAsync(string projectPath, CancellationToken ct = default)
+        {
+            var outcomes = new List<CodeFolderAnalysisOutcome>();
+            var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
+            if (!File.Exists(path)) return outcomes;
+            var config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path);
+            var keys = config.Folders.Where(f => f.CodeGraph?.Languages?.Count > 0 && f.Tags?.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) == true)
+                .Select(f => NormalizeRelative(f.Path))
+                .Concat((await _roots.ListAsync(projectPath, ct)).Where(r => r.Status == CodeRootStatus.Linked && r.Languages.Count > 0 &&
+                                                                            r.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)))
+                    .Select(r => "@" + r.Alias))
+                .ToList();
+            foreach (var key in keys)
+            {
+                ct.ThrowIfCancellationRequested();
+                outcomes.Add(await AnalyzeScopeAsync(projectPath, key, includeExtractorChanges: false, targeted: true, ct));
+            }
+            return outcomes;
+        }
+
+        private async Task<CodeFolderAnalysisOutcome> AnalyzeScopeAsync(string projectPath, string folderRelative, bool includeExtractorChanges, bool targeted, CancellationToken ct)
         {
             folderRelative = NormalizeRelative(folderRelative);
             var outcome = new CodeFolderAnalysisOutcome { Folder = folderRelative };
@@ -232,6 +261,7 @@ namespace MdExplorer.Services.CodeGraph
                 outcome.Candidates = candidates.Count;
 
                 // 2) Per linguaggio: hash di conferma, estrazione, scrittura.
+                var written = new List<string>();
                 foreach (var languageId in languages)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -259,23 +289,31 @@ namespace MdExplorer.Services.CodeGraph
                     outcome.Warnings.AddRange(extracted.Warnings);
                     foreach (var (file, script) in extracted.Scripts)
                     {
-                        CodeScriptWriter.WriteIfChanged(CodeScriptWriter.ScriptPathFor(projectPath, file.LogicalPath, CodeScriptKind.Ast), CodeScriptWriter.Serialize(script));
+                        var scriptPath = CodeScriptWriter.ScriptPathFor(projectPath, file.LogicalPath, CodeScriptKind.Ast);
+                        if (CodeScriptWriter.WriteIfChanged(scriptPath, CodeScriptWriter.Serialize(script))) written.Add(scriptPath);
                         outcome.Reparsed++;
                     }
                 }
 
                 // 3) Script AST di sorgenti spariti (o usciti dai linguaggi scelti): via.
-                outcome.ScriptsRemoved = RemoveOrphanScripts(projectPath, folderRelative, inPerimeter);
+                var removed = RemoveOrphanScripts(projectPath, folderRelative, inPerimeter);
+                outcome.ScriptsRemoved = removed.Count;
 
-                // 4) Script → Fuseki, e lo stato dello scanner.
-                outcome.Load = await _store.LoadProjectAsync(projectPath, ct);
+                // 4) Script → Fuseki, e lo stato dello scanner. Dopo un turno (targeted) solo ciò che è cambiato qui.
+                if (targeted)
+                {
+                    outcome.Load = new CodeScriptLoadOutcome();
+                    foreach (var gone in removed) outcome.Load.Results.Add(await _store.RemoveScriptAsync(projectPath, gone, ct));
+                    foreach (var script in written) outcome.Load.Results.Add(await _store.LoadScriptAsync(projectPath, script, ct));
+                }
+                else outcome.Load = await _store.LoadProjectAsync(projectPath, ct);
                 await _store.UpsertScanStateAsync(projectPath, new CodeScanState
                 {
                     ProgramFolder = folderRelative, RepositoryRoot = scan.RepositoryRoot, AnalyzedCommit = scan.HeadCommit, Mode = scan.Mode,
                     ScannedAt = DateTime.UtcNow.ToString("o"), Candidates = outcome.Candidates, Reparsed = outcome.Reparsed,
                 }, ct);
-                // Il report (F6): rigenerato a ogni analisi.
-                try
+                // Il report (F6): rigenerato a ogni analisi, non dopo ogni turno di MarkAgent.
+                if (!targeted) try
                 {
                     var notes = new List<string> { $"{folderRelative}: {scan.Mode}, {scan.Reason}; {outcome.FilesInPerimeter} file, {outcome.Candidates} candidati, {outcome.Reparsed} riparsati, {outcome.ScriptsRemoved} script tolti" };
                     notes.AddRange(outcome.Warnings);
@@ -349,19 +387,19 @@ namespace MdExplorer.Services.CodeGraph
             return !string.Equals(header.SourceHash, CodeGraphStore.Sha256(File.ReadAllText(file.AbsolutePath)), StringComparison.OrdinalIgnoreCase);
         }
 
-        private int RemoveOrphanScripts(string projectPath, string folderRelative, List<CodeSourceFile> inPerimeter)
+        private List<string> RemoveOrphanScripts(string projectPath, string folderRelative, List<CodeSourceFile> inPerimeter)
         {
+            var removed = new List<string>();
             var scriptsFolder = Path.Combine(CodeGraphPaths.GetScriptsRoot(projectPath), folderRelative.Replace('/', Path.DirectorySeparatorChar));
-            if (!Directory.Exists(scriptsFolder)) return 0;
+            if (!Directory.Exists(scriptsFolder)) return removed;
             var alive = new HashSet<string>(inPerimeter.Select(f => f.LogicalPath), StringComparer.Ordinal);
-            var removed = 0;
             foreach (var script in Directory.EnumerateFiles(scriptsFolder, "*" + CodeGraphPaths.AstScriptSuffix, SearchOption.AllDirectories))
             {
                 var rel = CodeGraphPaths.ToProjectRelative(projectPath, script);
                 var source = rel.Substring(CodeGraphPaths.ScriptsFolderName.Length + 1, rel.Length - CodeGraphPaths.ScriptsFolderName.Length - 1 - CodeGraphPaths.AstScriptSuffix.Length);
                 if (alive.Contains(source)) continue;
                 File.Delete(script);
-                removed++;
+                removed.Add(script);
                 _logger.LogInformation("[CodeGraph] script orfano tolto: {Script} (sorgente '{Source}' sparito o fuori dai linguaggi scelti)", rel, source);
             }
             return removed;
