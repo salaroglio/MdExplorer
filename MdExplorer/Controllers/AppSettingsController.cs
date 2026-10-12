@@ -92,6 +92,12 @@ namespace MdExplorer.Service.Controllers
             foreach (var s in allDbSettings)
                 _session.Evict(s);
 
+            // JavaPath scritto dall'utente: lo si segna (JavaPathSource = user), così il controllo di salute non lo sostituisce
+            // da solo ma avvisa se non va bene (12/10/2026).
+            var javaBefore = allDbSettings.FirstOrDefault(_ => _.Name == MdExplorer.Services.Java.SessionJavaSettingsStore.PathName)?.ValueString;
+            var javaAfter = settings.settings.FirstOrDefault(_ => _.name == MdExplorer.Services.Java.SessionJavaSettingsStore.PathName)?.valueString;
+            var javaChangedByUser = javaAfter != null && !string.Equals((javaBefore ?? string.Empty).Trim(), javaAfter.Trim(), StringComparison.Ordinal);
+
             _session.BeginTransaction(System.Data.IsolationLevel.Unspecified);
             foreach (var item in settings.settings)
             {
@@ -138,8 +144,19 @@ namespace MdExplorer.Service.Controllers
                     continue;
                 }
             }
+            if (javaChangedByUser)
+            {
+                new MdExplorer.Services.Java.SessionJavaSettingsStore(_session).MarkSource(MdExplorer.Features.Utilities.JavaPathSources.User);
+                _logger.LogInformation("[SetSettings] JavaPath cambiato dall'utente: JavaPathSource = user");
+            }
             _session.Commit();
             _logger.LogInformation("[SetSettings] Transaction committed");
+            if (javaChangedByUser)
+            {
+                // Il controllo rilegge il valore nuovo e aggiorna gli avvisi: con JavaPathSource = user non sostituisce niente.
+                try { (HttpContext.RequestServices.GetService(typeof(MdExplorer.Services.Java.JavaHealthService)) as MdExplorer.Services.Java.JavaHealthService)?.Run(); }
+                catch (Exception ex) { _logger.LogWarning(ex, "[SetSettings] controllo di Java dopo il salvataggio fallito"); }
+            }
             return Ok(new { response = "settings saved" });
         }
 

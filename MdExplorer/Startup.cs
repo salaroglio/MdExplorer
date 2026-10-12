@@ -170,6 +170,10 @@ namespace MdExplorer
             services.AddSingleton<Services.AgentRun.IAgentWorktreeManager, Services.AgentRun.AgentWorktreeManager>();
             // Isolamento worktree: scelta della MACCHINA (UserDB), non della squadra (git).
             services.AddSingleton<Services.AgentRun.IAgentWorktreePreference, Services.AgentRun.AgentWorktreePreference>();
+            // Salute di Java (12/10/2026): all'avvio, in sfondo, dopo che il server è in ascolto; avvisi nella pagina dei progetti.
+            services.AddSingleton<Services.Java.StartupNotices>();
+            services.AddSingleton<Services.Java.JavaHealthService>();
+            services.AddHostedService(sp => sp.GetRequiredService<Services.Java.JavaHealthService>());
             services.AddHostedService<Services.AgentRun.AgentWorktreeReaper>();
             // Gate del push umano per il codice (Fase 7e): un agente tocca il submodule → awareness
             // + dispatch differito finché l'umano non committa (release token = sha del submodule).

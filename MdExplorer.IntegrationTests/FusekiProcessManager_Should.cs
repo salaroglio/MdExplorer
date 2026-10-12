@@ -27,6 +27,7 @@ namespace MdExplorer.IntegrationTests
             public string ResolveJavaPath() => _path;
             public string ResolveJavaPath(Ad.Tools.Dal.Abstractions.Interfaces.ISessionDB session) => _path;
             public JavaProbe Probe(string javaPath) => new JavaLocator(null).Probe(javaPath);
+            public JavaProbe FindBest(int minimumMajor) => new JavaLocator(null).FindBest(minimumMajor);
         }
 
         private static ManagedFusekiOptions OptionsIn(string dataDir) => new()

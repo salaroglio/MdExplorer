@@ -28,6 +28,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             public string ResolveJavaPath() => "java";
             public string ResolveJavaPath(Ad.Tools.Dal.Abstractions.Interfaces.ISessionDB session) => "java";
             public JavaProbe Probe(string javaPath) => new JavaLocator(null).Probe(javaPath);
+            public JavaProbe FindBest(int minimumMajor) => new JavaLocator(null).FindBest(minimumMajor);
         }
 
         public static string JarPath => Path.Combine(AppContext.BaseDirectory, "Binaries", "jena-fuseki-server.jar");

@@ -16,6 +16,75 @@ namespace MdExplorer.Features.Utilities
         /// Discovers Java executable path across different operating systems
         /// </summary>
         /// <returns>Path to java executable or null if not found</returns>
+        /// <summary>
+        /// TUTTI gli eseguibili java plausibili sul computer, senza sondarli: JAVA_HOME, ogni cartella del PATH, le cartelle note
+        /// dei distributori (Windows), /usr/lib/jvm e sdkman (Linux), le JVM di sistema (macOS), il registro (Windows). Serve a
+        /// scegliere il MIGLIORE (<see cref="IJavaLocator.FindBest"/>), non il primo come <see cref="DiscoverJavaPath"/>.
+        /// </summary>
+        public static IReadOnlyList<string> EnumerateCandidates()
+        {
+            var isWin = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+            var exe = isWin ? "java.exe" : "java";
+            var found = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            void Add(string path)
+            {
+                if (string.IsNullOrWhiteSpace(path)) return;
+                try { path = Path.GetFullPath(path); } catch { return; }
+                if (File.Exists(path) && seen.Add(path)) found.Add(path);
+            }
+            void AddBinUnder(string root, int depth)
+            {
+                if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) return;
+                Add(Path.Combine(root, "bin", exe));
+                if (depth <= 0) return;
+                try { foreach (var d in Directory.GetDirectories(root)) AddBinUnder(d, depth - 1); } catch { }
+            }
+
+            var javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
+            if (!string.IsNullOrWhiteSpace(javaHome)) Add(Path.Combine(javaHome, "bin", exe));
+
+            foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+                Add(Path.Combine(dir.Trim('"'), exe));
+
+            if (isWin)
+            {
+                var roots = new List<string>();
+                foreach (var pf in new[] { Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) })
+                {
+                    if (string.IsNullOrWhiteSpace(pf)) continue;
+                    foreach (var vendor in new[] { "Java", "Eclipse Adoptium", "Eclipse Foundation", "Microsoft", "Zulu", "Amazon Corretto", "BellSoft", "Semeru", "Temurin" })
+                        roots.Add(Path.Combine(pf, vendor));
+                }
+                roots.Add(@"C:\Java");
+                var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                if (!string.IsNullOrWhiteSpace(local)) roots.Add(Path.Combine(local, "Programs", "Eclipse Adoptium"));
+                foreach (var r in roots) AddBinUnder(r, 2);
+                try { Add(CheckWindowsRegistry()); } catch { }
+            }
+            else
+            {
+                var home = Environment.GetEnvironmentVariable("HOME") ?? string.Empty;
+                AddBinUnder("/usr/lib/jvm", 1);
+                AddBinUnder("/usr/local/java", 1);
+                AddBinUnder("/opt/java", 1);
+                AddBinUnder(Path.Combine(home, ".sdkman", "candidates", "java"), 1);
+                AddBinUnder(Path.Combine(home, ".jdks"), 1);
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    foreach (var jvmRoot in new[] { "/Library/Java/JavaVirtualMachines", Path.Combine(home, "Library", "Java", "JavaVirtualMachines") })
+                    {
+                        if (!Directory.Exists(jvmRoot)) continue;
+                        try { foreach (var d in Directory.GetDirectories(jvmRoot)) Add(Path.Combine(d, "Contents", "Home", "bin", "java")); } catch { }
+                    }
+                }
+                var alternatives = ExecuteCommand("update-alternatives --list java 2>/dev/null");
+                if (alternatives.Success)
+                    foreach (var line in alternatives.StandardOutput.Split('\n', StringSplitOptions.RemoveEmptyEntries)) Add(line.Trim());
+            }
+            return found;
+        }
+
         public static string DiscoverJavaPath()
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

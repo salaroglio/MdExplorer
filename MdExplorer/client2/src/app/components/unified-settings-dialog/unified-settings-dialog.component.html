@@ -67,9 +67,20 @@
 
             <mat-form-field appearance="outline">
               <mat-label>{{ 'UNIFIED_SETTINGS.JAVA_PATH' | translate }}</mat-label>
-              <input matInput [(ngModel)]="javaPath" [placeholder]="'UNIFIED_SETTINGS.JAVA_PLACEHOLDER' | translate">
+              <input matInput [(ngModel)]="javaPath" (blur)="probeJava()" [placeholder]="'UNIFIED_SETTINGS.JAVA_PLACEHOLDER' | translate">
               <mat-hint>{{ 'UNIFIED_SETTINGS.JAVA_HINT' | translate }}</mat-hint>
             </mat-form-field>
+            <div class="java-status">
+              <ng-container *ngIf="javaProbe">
+                <mat-icon [class.java-ok]="javaProbe.suitable" [class.java-bad]="!javaProbe.suitable">{{ javaProbe.suitable ? 'check_circle' : 'error' }}</mat-icon>
+                <span *ngIf="javaProbe.isRunnable">{{ 'UNIFIED_SETTINGS.JAVA_VERSION' | translate: { major: javaProbe.major, min: javaProbe.minimum } }}</span>
+                <span *ngIf="!javaProbe.isRunnable">{{ 'UNIFIED_SETTINGS.JAVA_NOT_RUNNABLE' | translate }}</span>
+              </ng-container>
+              <button mat-stroked-button type="button" (click)="detectJava()" [disabled]="javaDetecting">
+                <mat-icon>search</mat-icon>
+                {{ (javaDetecting ? 'UNIFIED_SETTINGS.JAVA_DETECTING' : 'UNIFIED_SETTINGS.JAVA_DETECT') | translate }}
+              </button>
+            </div>
 
             <mat-form-field appearance="outline">
               <mat-label>{{ 'UNIFIED_SETTINGS.GRAPHVIZ_PATH' | translate }}</mat-label>

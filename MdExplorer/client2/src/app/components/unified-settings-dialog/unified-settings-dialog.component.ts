@@ -1,3 +1,4 @@
+import { HttpClient } from '@angular/common/http';
 import { Component, Inject, OnInit, OnDestroy } from '@angular/core';
 import { MatLegacyDialogRef as MatDialogRef, MAT_LEGACY_DIALOG_DATA as MAT_DIALOG_DATA } from '@angular/material/legacy-dialog';
 import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
@@ -34,6 +35,29 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
   plantumlLocalPath: string = '';
 
   javaPath: string = '';
+  /** La sonda del Java impostato (api/Diagnostics/Java): versione, eseguibile o no, adatto o no al minimo. */
+  javaProbe: any = null;
+  javaDetecting = false;
+
+  probeJava(): void {
+    const path = (this.javaPath || '').trim();
+    this.http.get<any>('../api/Diagnostics/Java', { params: path ? { path } : {} }).subscribe({
+      next: p => this.javaProbe = p,
+      error: () => this.javaProbe = null
+    });
+  }
+
+  /** «Rileva»: il miglior Java del computer (≥ 21) finisce nel campo; poi si salva come tutto il resto. */
+  detectJava(): void {
+    this.javaDetecting = true;
+    this.http.get<any>('../api/Diagnostics/JavaBest').subscribe({
+      next: b => { this.javaDetecting = false; this.javaPath = b.path; this.probeJava(); },
+      error: () => {
+        this.javaDetecting = false;
+        this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.JAVA_NOT_FOUND', { min: 21 }), 'OK', { duration: 6000 });
+      }
+    });
+  }
   localGraphvizDotPath: string = '';
   fileChangeNotificationEnabled: boolean = true;
   teamsChatEnabled: boolean = true;
@@ -120,7 +144,8 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     private themeService: ThemeService,
     private translate: TranslateService,
     private servicesMonitor: ServicesMonitorService,
-    private serverMessages: MdServerMessagesService
+    private serverMessages: MdServerMessagesService,
+    private http: HttpClient
   ) {
     this.isElectronEnvironment = !!(window as any).electronAPI?.flashTaskbarIcon;
     if (data?.initialTab) {
@@ -196,6 +221,7 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
         this.jiraEnabled = (settings.find(_ => _.name === 'JiraEnabled')?.valueInt ?? 0) === 1;
         this.plantumlLocalPath = settings.find(_ => _.name === 'PlantumlLocalPath')?.valueString || '';
         this.javaPath = settings.find(_ => _.name === 'JavaPath')?.valueString || '';
+        this.probeJava();
         this.localGraphvizDotPath = settings.find(_ => _.name === 'LocalGraphvizDotPath')?.valueString || '';
         // Teams chat defaults to enabled when the setting is missing.
         this.teamsChatEnabled = (settings.find(_ => _.name === 'TeamsChatEnabled')?.valueInt ?? 1) === 1;

@@ -26,6 +26,8 @@ namespace MdExplorer.Features.Utilities
 
         /// <summary>Esegue <c>java -version</c> e ne legge la versione maggiore (21, 17, 8…).</summary>
         JavaProbe Probe(string javaPath);
+        /// <summary>Il Java con la versione maggiore più alta fra tutti i candidati del computer, purché almeno <paramref name="minimumMajor"/>; null se nessuno basta. Sonda ogni candidato: costa qualche secondo, si fa all'avvio e su richiesta, mai dentro una richiesta HTTP.</summary>
+        JavaProbe FindBest(int minimumMajor);
     }
 
     public sealed class JavaProbe
@@ -82,6 +84,18 @@ namespace MdExplorer.Features.Utilities
             }
 
             return string.IsNullOrEmpty(javaPath) ? "java" : javaPath;
+        }
+
+        public JavaProbe FindBest(int minimumMajor)
+        {
+            JavaProbe best = null;
+            foreach (var candidate in JavaDiscovery.EnumerateCandidates())
+            {
+                var probe = Probe(candidate);
+                if (!probe.IsRunnable || probe.Major == null || probe.Major < minimumMajor) continue;
+                if (best == null || probe.Major > best.Major) best = probe;
+            }
+            return best;
         }
 
         public JavaProbe Probe(string javaPath)

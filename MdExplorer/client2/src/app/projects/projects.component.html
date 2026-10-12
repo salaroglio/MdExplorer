@@ -7,6 +7,21 @@
 
       <!-- Left Column: Recent Projects -->
       <div class="left-column">
+      <!-- Avvisi di avvio (Java e simili): restano finché non si chiudono -->
+      <div class="startup-notices" *ngIf="startupNotices.length > 0">
+        <div class="startup-notice" *ngFor="let n of startupNotices"
+             [class.level-warning]="n.level === 'warning'" [class.level-error]="n.level === 'error'">
+          <mat-icon>{{ n.level === 'error' ? 'error' : (n.level === 'warning' ? 'warning' : 'info') }}</mat-icon>
+          <span class="notice-text">{{ noticeText(n) }}</span>
+          <button mat-stroked-button color="primary" *ngIf="(n.kind || '').startsWith('java')" (click)="openSettings()">
+            {{ 'PROJECTS.NOTICE_OPEN_SETTINGS' | translate }}
+          </button>
+          <button mat-icon-button (click)="dismissNotice(n)" [matTooltip]="'PROJECTS.NOTICE_DISMISS' | translate">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </div>
+
         <!-- Section visible whenever there is at least one registered project,
              regardless of the current search filter result. This keeps the
              search-field reachable even when the user types a query that
