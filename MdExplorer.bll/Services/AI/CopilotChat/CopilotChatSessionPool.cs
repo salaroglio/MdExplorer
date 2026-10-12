@@ -44,7 +44,8 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         private readonly ICopilotChatTransportSource _transportSource;
         // Checks the diagrams the agent writes (SDK sessions): one verifier per session, see CreateSession.
         private readonly PlantumlServer _plantumlServer;
-        private readonly Func<CopilotChatTransport, string, string, ICopilotChatSession> _sessionFactory;
+        /// <summary>(trasporto, cartella, modello, radici esterne, sessione da riprendere) → sessione nuova.</summary>
+        private readonly Func<CopilotChatTransport, string, string, IReadOnlyList<string>, string, ICopilotChatSession> _sessionFactory;
         private readonly ConcurrentDictionary<string, Entry> _sessions =
             new ConcurrentDictionary<string, Entry>(StringComparer.Ordinal);
         // Per-connection serialization gate. Prevents two concurrent GetOrCreateAsync
@@ -84,7 +85,7 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
             ILoggerFactory loggerFactory,
             ILogger<CopilotChatSessionPool> logger,
             ICopilotChatTransportSource transportSource,
-            Func<CopilotChatTransport, string, string, ICopilotChatSession> sessionFactory)
+            Func<CopilotChatTransport, string, string, IReadOnlyList<string>, string, ICopilotChatSession> sessionFactory)
         {
             _loggerFactory = loggerFactory;
             _logger = logger;
@@ -100,10 +101,16 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         /// requested <paramref name="workingDirectory"/>, <paramref name="modelId"/> and the
         /// transport currently configured, otherwise tears it down and starts a fresh one.
         /// </summary>
+        public Task<ICopilotChatSession> GetOrCreateAsync(string connectionId, string workingDirectory, string modelId, CancellationToken ct = default)
+            => GetOrCreateAsync(connectionId, workingDirectory, modelId, extraRoots: null, ct);
+
+        /// <param name="extraRoots">Le radici di codice esterne collegate (radici esterne F3): la sessione le può leggere e
+        /// scrivere; se cambiano si riparte riprendendo la conversazione. Null = non dichiarate, nessun confronto.</param>
         public async Task<ICopilotChatSession> GetOrCreateAsync(
             string connectionId,
             string workingDirectory,
             string modelId,
+            IReadOnlyList<string> extraRoots,
             CancellationToken ct = default)
         {
             if (_disposed) throw new ObjectDisposedException(nameof(CopilotChatSessionPool));
@@ -120,7 +127,7 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
 
             // Lock-free fast path: matching session already in cache.
             if (_sessions.TryGetValue(connectionId, out var existingFast) &&
-                Matches(existingFast.Session, workingDirectory, modelId, transport))
+                Matches(existingFast.Session, workingDirectory, modelId, transport) && RootsFit(existingFast.Session, extraRoots))
             {
                 return existingFast.Session;
             }
@@ -132,9 +139,10 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
             try
             {
                 // Re-check under the gate.
+                string resume = null;
                 if (_sessions.TryGetValue(connectionId, out var existing))
                 {
-                    if (Matches(existing.Session, workingDirectory, modelId, transport))
+                    if (Matches(existing.Session, workingDirectory, modelId, transport) && RootsFit(existing.Session, extraRoots))
                     {
                         return existing.Session;
                     }
@@ -142,7 +150,7 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
                     // Only the model differs: change it in place and keep the conversation. Before,
                     // any difference meant a new session — picking another model in the chat
                     // header silently threw away everything said so far.
-                    if (CanSwitchModelInPlace(existing.Session, workingDirectory, modelId, transport))
+                    if (RootsFit(existing.Session, extraRoots) && CanSwitchModelInPlace(existing.Session, workingDirectory, modelId, transport))
                     {
                         var previous = existing.Session.ModelId;
                         await existing.Session.SetModelAsync(modelId, ct).ConfigureAwait(false);
@@ -151,8 +159,14 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
                         return existing.Session;
                     }
 
-                    _logger.LogInformation("[CopilotChatSessionPool] Replacing stale session for {ConnectionId} ({OldTransport} -> {NewTransport})",
-                        connectionId, existing.Session.Transport, transport);
+                    // Stesso trasporto SDK e stessa cartella (cambiano le radici esterne, o il modello senza cambio dal vivo):
+                    // la conversazione si riprende, come per i profili dei test.
+                    if (transport == CopilotChatTransport.Sdk && existing.Session.Transport == CopilotChatTransport.Sdk &&
+                        existing.Session.SessionId != null &&
+                        string.Equals(existing.Session.WorkingDirectory, workingDirectory, StringComparison.OrdinalIgnoreCase))
+                        resume = existing.Session.SessionId;
+                    _logger.LogInformation("[CopilotChatSessionPool] Replacing stale session for {ConnectionId} ({OldTransport} -> {NewTransport}){Resume}",
+                        connectionId, existing.Session.Transport, transport, resume != null ? ", riprendendo la conversazione" : string.Empty);
                     await ReleaseAsync(connectionId).ConfigureAwait(false);
                 }
 
@@ -161,7 +175,7 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
                     EvictOldest();
                 }
 
-                var session = _sessionFactory(transport, workingDirectory, modelId);
+                var session = _sessionFactory(transport, workingDirectory, modelId, extraRoots, resume);
                 try
                 {
                     await session.StartAsync(ct).ConfigureAwait(false);
@@ -279,6 +293,9 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
             return session;
         }
 
+        private static bool RootsFit(ICopilotChatSession session, IReadOnlyList<string> extraRoots)
+            => extraRoots == null || string.Equals(session.ExtraRootsKey, ICopilotChatSession.RootsKey(extraRoots), StringComparison.Ordinal);
+
         private static bool Matches(ICopilotChatSession session, string workingDirectory, string modelId, CopilotChatTransport transport)
             => session.IsAlive &&
                session.Transport == transport &&
@@ -297,13 +314,13 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
                !string.IsNullOrWhiteSpace(modelId) &&
                string.Equals(session.WorkingDirectory, workingDirectory, StringComparison.OrdinalIgnoreCase);
 
-        private ICopilotChatSession CreateSession(CopilotChatTransport transport, string workingDirectory, string modelId)
+        private ICopilotChatSession CreateSession(CopilotChatTransport transport, string workingDirectory, string modelId, IReadOnlyList<string> extraRoots, string resumeSessionId)
             => transport switch
             {
                 // One verifier per session: it remembers the diagrams already checked in this conversation.
                 CopilotChatTransport.Sdk => new CopilotSdkSession(
                     _loggerFactory.CreateLogger<CopilotSdkSession>(), workingDirectory, modelId,
-                    new PlantumlBlockVerifier(_plantumlServer.CheckAsync)),
+                    new PlantumlBlockVerifier(_plantumlServer.CheckAsync), null, resumeSessionId, extraRoots),
                 CopilotChatTransport.Acp => new CopilotAcpChatSession(
                     _loggerFactory.CreateLogger<CopilotAcpSession>(), workingDirectory, modelId),
                 _ => throw new InvalidOperationException($"Trasporto Copilot sconosciuto: {transport}")

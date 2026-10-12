@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System;
 using System.IO;
@@ -47,7 +48,8 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         /// The same policy, with the restrictions of an e2e test session on top (F4c): no shell (D29)
         /// and no reading of the credentials and secrets files. Everything else as <see cref="Decide(PermissionRequest, string)"/>.
         /// </summary>
-        public static Verdict Decide(PermissionRequest request, string workingDirectory, CopilotChat.CopilotSessionProfile profile)
+        public static Verdict Decide(PermissionRequest request, string workingDirectory, CopilotChat.CopilotSessionProfile profile,
+            IReadOnlyList<string> extraRoots = null)
         {
             if (profile != null)
             {
@@ -69,7 +71,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     return new Verdict(false, "scrivere " + write.FileName,
                         "durante i test e2e la configurazione degli agenti non si modifica");
             }
-            return Decide(request, workingDirectory);
+            return Decide(request, workingDirectory, extraRoots);
         }
 
         private static string Full(string path, string workingDirectory) =>
@@ -97,15 +99,17 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                 : string.Equals(relative, p, StringComparison.OrdinalIgnoreCase) || string.Equals(name, p, StringComparison.OrdinalIgnoreCase));
         }
 
-        public static Verdict Decide(PermissionRequest request, string workingDirectory)
+        /// <param name="extraRoots">Le radici di codice esterne collegate del progetto (radici esterne F3, R3): dentro, MarkAgent
+        /// legge e scrive come nel progetto. Il resto fuori resta negato.</param>
+        public static Verdict Decide(PermissionRequest request, string workingDirectory, IReadOnlyList<string> extraRoots = null)
         {
             switch (request)
             {
                 case PermissionRequestRead read:
-                    return InsideProject(read.Path, workingDirectory, "leggere");
+                    return InsideProject(read.Path, workingDirectory, "leggere", extraRoots);
 
                 case PermissionRequestWrite write:
-                    return InsideProject(write.FileName, workingDirectory, "scrivere");
+                    return InsideProject(write.FileName, workingDirectory, "scrivere", extraRoots);
 
                 case PermissionRequestShell shell:
                     // --allow-all-tools approved shell commands, and the ACP chat relied on it.
@@ -135,7 +139,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         /// project, and anything landing outside it is refused. The trailing separator keeps a
         /// sibling folder whose name merely starts like the project's out.
         /// </summary>
-        private static Verdict InsideProject(string path, string workingDirectory, string verb)
+        private static Verdict InsideProject(string path, string workingDirectory, string verb, IReadOnlyList<string> extraRoots = null)
         {
             var what = $"{verb} {path}";
 
@@ -151,9 +155,12 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
             var inside = full.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase)
                          || string.Equals(full, root, StringComparison.OrdinalIgnoreCase);
 
+            if (!inside && extraRoots != null && extraRoots.Any(r => MdExplorer.Features.Utilities.PathContainment.IsInside(r, full)))
+                return new Verdict(true, what + " (radice di codice esterna collegata)", null);
+
             return inside
                 ? new Verdict(true, what, null)
-                : new Verdict(false, what, "è fuori dalla cartella del progetto");
+                : new Verdict(false, what, "è fuori dalla cartella del progetto e dalle radici di codice collegate");
         }
     }
 }

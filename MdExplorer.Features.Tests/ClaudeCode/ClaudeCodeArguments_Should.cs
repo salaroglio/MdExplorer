@@ -230,5 +230,20 @@ namespace MdExplorer.Features.Tests.ClaudeCode
 
             StringAssert.Contains(args, "\"C:\\Program Files\\mde\\mcp.json\"");
         }
-    }
+    
+        [TestMethod]
+        public void Add_each_linked_code_root_as_an_extra_directory_with_its_rules()
+        {
+            // radici di codice esterne F3: --add-dir per cartella, e le regole assolute nell'unico --allowedTools (F0)
+            var args = ClaudeCodeSession.BuildArguments("sonnet", new ClaudeCodeSessionOptions
+            {
+                AdditionalDirectories = new[] { "/home/u/work/backend/src", "/home/u/My Code/front" },
+                AllowedTools = new[] { "Edit(./**)", "Read(//home/u/work/backend/src/**)", "Edit(//home/u/work/backend/src/**)" },
+            });
+            StringAssert.Contains(args, "--add-dir /home/u/work/backend/src ");
+            StringAssert.Contains(args, "--add-dir \"/home/u/My Code/front\"", "con uno spazio, tra virgolette");
+            StringAssert.Contains(args, "Edit(//home/u/work/backend/src/**)");
+            Assert.AreEqual(1, args.Split("--allowedTools").Length - 1, "un solo --allowedTools");
+        }
+}
 }

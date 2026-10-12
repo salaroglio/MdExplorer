@@ -246,16 +246,51 @@ namespace MdExplorer.Controllers.CodeGraph
 
         // ------------------------------------------------------------------ lettura per i tool (F5, D15)
 
-        private static object View(CodeSymbolView s) => s == null ? null : new
+        /// <summary>
+        /// Dove sta un file su QUESTA macchina (radici di codice esterne F3): <c>path</c> è il percorso logico, uguale per
+        /// tutti; <c>absolutePath</c> è quello da aprire qui; se la radice non è collegata, <c>pathUnavailable</c> dice
+        /// perché e come rimediare. Così un agente va dal grafo alle righe giuste del file senza indovinare.
+        /// </summary>
+        private sealed class Locator
         {
-            id = s.Id, kind = s.Kind, name = s.Name, qualifiedName = s.QualifiedName, path = s.Path, lineStart = s.LineStart, lineEnd = s.LineEnd,
-            signature = s.Signature, returnType = s.ReturnType, visibility = s.Visibility, isStatic = s.IsStatic, isAsync = s.IsAsync, parentId = s.ParentId,
-            language = s.Language, summary = s.Summary, returnsDescription = s.ReturnsDescription, remarks = s.Remarks, writtenBy = s.WrittenBy,
-            descriptionStale = s.DescriptionStale,
-            parameters = s.Parameters.Count == 0 ? null : s.Parameters.Select(p => new { p.Position, p.Name, p.Type, p.Direction, p.DefaultValue, p.IsNullable, p.Description }),
-        };
+            private readonly CodeRootResolver _resolver;
+            private readonly System.Collections.Generic.Dictionary<string, (string Abs, string Why)> _cache = new(StringComparer.Ordinal);
+            public Locator(CodeRootResolver resolver) { _resolver = resolver; }
+            public (string Abs, string Why) Of(string path)
+            {
+                if (string.IsNullOrEmpty(path)) return (null, null);
+                if (_cache.TryGetValue(path, out var hit)) return hit;
+                (string, string) r;
+                try { r = (_resolver.Resolve(path), null); }
+                catch (Exception ex) when (ex is InvalidOperationException or FormatException) { r = (null, ex.Message); }
+                _cache[path] = r;
+                return r;
+            }
+        }
 
-        private static object View(CodeEdgeView e) => new { e.Relation, e.Confidence, e.Path, e.Line, e.Depth, symbol = View(e.Other) };
+        private async Task<Locator> LocatorAsync(string projectPath, CancellationToken ct)
+            => new Locator(await HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeRootService>().CreateResolverAsync(projectPath, ct));
+
+        private static object View(CodeSymbolView s, Locator at)
+        {
+            if (s == null) return null;
+            var (abs, why) = at.Of(s.Path);
+            return new
+            {
+                id = s.Id, kind = s.Kind, name = s.Name, qualifiedName = s.QualifiedName, path = s.Path, absolutePath = abs, pathUnavailable = why,
+                lineStart = s.LineStart, lineEnd = s.LineEnd,
+                signature = s.Signature, returnType = s.ReturnType, visibility = s.Visibility, isStatic = s.IsStatic, isAsync = s.IsAsync, parentId = s.ParentId,
+                language = s.Language, summary = s.Summary, returnsDescription = s.ReturnsDescription, remarks = s.Remarks, writtenBy = s.WrittenBy,
+                descriptionStale = s.DescriptionStale,
+                parameters = s.Parameters.Count == 0 ? null : s.Parameters.Select(p => new { p.Position, p.Name, p.Type, p.Direction, p.DefaultValue, p.IsNullable, p.Description }),
+            };
+        }
+
+        private static object View(CodeEdgeView e, Locator at)
+        {
+            var (abs, why) = at.Of(e.Path);
+            return new { e.Relation, e.Confidence, e.Path, absolutePath = abs, pathUnavailable = why, e.Line, e.Depth, symbol = View(e.Other, at) };
+        }
 
         /// <summary>GET /api/codegraph/symbols/resolve?projectPath&amp;q — id, nome qualificato o nome: i candidati con firma, parametri e descrizioni.</summary>
         [HttpGet("symbols/resolve")]
@@ -263,7 +298,8 @@ namespace MdExplorer.Controllers.CodeGraph
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(q)) return BadRequest(new { error = "q è obbligatorio" });
-            return Ok((await _store.ResolveAsync(projectPath, q.Trim(), limit, ct)).Select(View));
+            var at = await LocatorAsync(projectPath, ct);
+            return Ok((await _store.ResolveAsync(projectPath, q.Trim(), limit, ct)).Select(x => View(x, at)));
         });
 
         /// <summary>GET /api/codegraph/symbols/{id}?projectPath — la firma per esteso con le descrizioni.</summary>
@@ -272,7 +308,7 @@ namespace MdExplorer.Controllers.CodeGraph
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             var s = await _store.DescribeAsync(projectPath, id, ct);
-            return s == null ? NotFound(new { error = $"simbolo '{id}' non trovato" }) : Ok(View(s));
+            return s == null ? NotFound(new { error = $"simbolo '{id}' non trovato" }) : Ok(View(s, await LocatorAsync(projectPath, ct)));
         });
 
         /// <summary>GET /api/codegraph/outline?projectPath&amp;path — i simboli di un file, in ordine di riga.</summary>
@@ -281,7 +317,8 @@ namespace MdExplorer.Controllers.CodeGraph
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(path)) return BadRequest(new { error = "path è obbligatorio (relativo al progetto, con /)" });
-            return Ok((await _store.OutlineAsync(projectPath, path.Replace('\\', '/').TrimStart('/'), ct)).Select(View));
+            var at = await LocatorAsync(projectPath, ct);
+            return Ok((await _store.OutlineAsync(projectPath, path.Replace('\\', '/').TrimStart('/'), ct)).Select(x => View(x, at)));
         });
 
         /// <summary>GET /api/codegraph/neighbors?projectPath&amp;id&amp;relation&amp;direction=out|in&amp;depth=1&amp;limit=50</summary>
@@ -292,7 +329,8 @@ namespace MdExplorer.Controllers.CodeGraph
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "id è obbligatorio" });
             if (relation != null && !CodeScriptParser.Relations.Contains(relation)) return BadRequest(new { error = $"relation '{relation}' non ammessa: {string.Join(", ", CodeScriptParser.Relations)}" });
-            return Ok((await _store.NeighborsAsync(projectPath, id, relation, direction, depth, limit, ct)).Select(View));
+            var at = await LocatorAsync(projectPath, ct);
+            return Ok((await _store.NeighborsAsync(projectPath, id, relation, direction, depth, limit, ct)).Select(x => View(x, at)));
         });
 
         /// <summary>GET /api/codegraph/impact?projectPath&amp;id&amp;depth=3 — che cosa dipende dal simbolo, anche indirettamente.</summary>
@@ -301,7 +339,8 @@ namespace MdExplorer.Controllers.CodeGraph
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(id)) return BadRequest(new { error = "id è obbligatorio" });
-            return Ok((await _store.ImpactAsync(projectPath, id, depth, limit, ct)).Select(View));
+            var at = await LocatorAsync(projectPath, ct);
+            return Ok((await _store.ImpactAsync(projectPath, id, depth, limit, ct)).Select(x => View(x, at)));
         });
 
         /// <summary>GET /api/codegraph/path?projectPath&amp;from&amp;to — il cammino più corto fra due simboli.</summary>
@@ -310,7 +349,8 @@ namespace MdExplorer.Controllers.CodeGraph
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(from) || string.IsNullOrWhiteSpace(to)) return BadRequest(new { error = "from e to sono obbligatori (id di simbolo)" });
-            return Ok((await _store.ShortestPathAsync(projectPath, from, to, ct)).Select(View));
+            var at = await LocatorAsync(projectPath, ct);
+            return Ok((await _store.ShortestPathAsync(projectPath, from, to, ct)).Select(x => View(x, at)));
         });
 
         /// <summary>GET /api/codegraph/overview?projectPath — di che cosa è fatto il codice.</summary>
@@ -319,10 +359,11 @@ namespace MdExplorer.Controllers.CodeGraph
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             var o = await _store.OverviewAsync(projectPath, ct);
+            var at = await LocatorAsync(projectPath, ct);
             return Ok(new
             {
                 o.Files, o.Symbols, o.ExternalSymbols, o.Edges, o.DescribedSymbols, o.SymbolsByLanguage, o.SymbolsByKind, o.EdgesByRelation,
-                mostConnected = o.MostConnected.Select(m => new { degree = m.Degree, symbol = View(m.Symbol) }),
+                mostConnected = o.MostConnected.Select(m => new { degree = m.Degree, symbol = View(m.Symbol, at) }),
                 largestFiles = o.LargestFiles.Select(f => new { path = f.Path, symbols = f.Symbols }),
             });
         });
@@ -420,7 +461,12 @@ namespace MdExplorer.Controllers.CodeGraph
             if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2)
                 return BadRequest(new { error = "q deve avere almeno 2 caratteri" });
-            return Ok(await _store.SearchSymbolsAsync(projectPath, q, limit, ct));
+            var at = await LocatorAsync(projectPath, ct);
+            return Ok((await _store.SearchSymbolsAsync(projectPath, q, limit, ct)).Select(h =>
+            {
+                var (abs, why) = at.Of(h.Path);
+                return new { h.Id, h.Kind, h.Name, h.QualifiedName, h.Path, absolutePath = abs, pathUnavailable = why, h.LineStart, h.Signature, h.Summary };
+            }));
         });
 
         /// <summary>Fuseki che non parte (Java 21 o jar assenti) non è un 500 anonimo: è un 503 con il messaggio che dice che cosa installare.</summary>

@@ -95,9 +95,11 @@ namespace MdExplorer.Hubs
             Abstractions.DB.IUserSettingsDB userSettingsDB,
             Services.E2e.E2eLaunchService e2eLaunch,
             IHubContext<AiChatHub> hubContext,
-            Services.MarkDiagram.MarkAgentBriefings briefings)
+            Services.MarkDiagram.MarkAgentBriefings briefings,
+            Services.CodeGraph.ICodeRootService codeRoots)
         {
             _briefings = briefings;
+            _codeRoots = codeRoots;
             _e2eLaunch = e2eLaunch;
             _hubContext = hubContext;
             _aiChatService = aiChatService;
@@ -304,6 +306,15 @@ namespace MdExplorer.Hubs
 
         /// <summary>«Ragguagli» from the diagram sessions, put at the head of the tab's next message (D9).</summary>
         private readonly Services.MarkDiagram.MarkAgentBriefings _briefings;
+        private readonly Services.CodeGraph.ICodeRootService _codeRoots;
+
+        /// <summary>
+        /// Le radici di codice esterne collegate del progetto (sprint 2026-10-12, F3): le cartelle in cui MarkAgent legge e
+        /// scrive oltre al progetto. Cambiate → la sessione si riavvia con --resume alla domanda dopo.
+        /// </summary>
+        // Niente ripiego: un .development.yml illeggibile è un errore che dice cosa correggere, e arriva nella chat.
+        private async Task<IReadOnlyList<string>> LinkedCodeRootsAsync(string projectPath)
+            => (await _codeRoots.CreateResolverAsync(projectPath)).Linked.Select(r => r.RootPath).ToList();
 
         /// <summary>Chat turns in flight per connection: a test launch does not start over one (it would cancel it).</summary>
         private static readonly ConcurrentDictionary<string, int> _chatTurnsInFlight = new();
@@ -1007,7 +1018,8 @@ namespace MdExplorer.Hubs
             // entrano nel contesto della sessione. Il file si riscrive a ogni sessione, quindi un cambio
             // nelle impostazioni vale dalla prossima chat.
             var options = MdExplorer.Utilities.ClaudeCodeMcp.ChatOptions(
-                MdExplorer.Service.ProjectsManager.McpGroupsArgument(_userSettingsDB, projectPath));
+                MdExplorer.Service.ProjectsManager.McpGroupsArgument(_userSettingsDB, projectPath),
+                await LinkedCodeRootsAsync(projectPath));
             var session = await _claudeCodePool.GetOrCreateAsync(
                 Context.ConnectionId, projectPath, effectiveModel, options);
 
@@ -1257,7 +1269,7 @@ namespace MdExplorer.Hubs
             // not a choice, only a label that could be false.
             var requestedModel = string.IsNullOrWhiteSpace(modelId) ? null : modelId;
             var session = await _copilotChatPool.GetOrCreateAsync(
-                Context.ConnectionId, projectPath, requestedModel);
+                Context.ConnectionId, projectPath, requestedModel, await LinkedCodeRootsAsync(projectPath));
 
             await Clients.Caller.SendAsync("ReceiveStreamMeta",
                 new { providerType = "copilotcli", modelId = requestedModel, transport = session.Transport.ToString().ToLowerInvariant() }, channelId);

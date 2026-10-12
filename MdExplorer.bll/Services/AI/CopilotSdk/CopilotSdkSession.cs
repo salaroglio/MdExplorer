@@ -157,9 +157,12 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
         /// <param name="profile">An e2e test session (F4c): its own MCP servers, no shell, files it must
         /// not read. Null for a normal chat.</param>
         /// <param name="resumeSessionId">The conversation to resume instead of starting a new one.</param>
+        /// <param name="extraRoots">Le radici di codice esterne collegate (radici esterne F3): la politica dei permessi le
+        /// tratta come il progetto (lettura e scrittura) e la sessione le dichiara in AdditionalDirectories.</param>
         public CopilotSdkSession(ILogger logger, string workingDirectory, string modelId, PlantumlBlockVerifier plantumlVerifier,
-            CopilotChat.CopilotSessionProfile profile, string resumeSessionId)
+            CopilotChat.CopilotSessionProfile profile, string resumeSessionId, IReadOnlyList<string> extraRoots = null)
         {
+            _extraRoots = extraRoots ?? Array.Empty<string>();
             _logger = logger;
             _workingDirectory = workingDirectory;
             _modelId = modelId;
@@ -170,6 +173,8 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
 
         /// <summary>The e2e configuration the session started with; null for a normal chat.</summary>
         public string ProfileKey => _profile?.Key;
+        private readonly IReadOnlyList<string> _extraRoots;
+        public string ExtraRootsKey => CopilotChat.ICopilotChatSession.RootsKey(_extraRoots);
 
         /// <summary>
         /// Where the session loads skills from: the project's <c>.github/skills</c>, where MdExplorer
@@ -223,6 +228,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
                     OnAgentStop = OnAgentStopAsync,
                 };
                 config.SkillDirectories = SkillDirectoriesFor(_workingDirectory);
+                if (_extraRoots.Count > 0) config.AdditionalDirectories = _extraRoots.ToList();
 
                 // No model = the CLI picks its own. Deliberate: which models exist is a property of
                 // the INSTALLATION, so writing an id here would be wrong on some machines — the same
@@ -769,7 +775,7 @@ namespace MdExplorer.Features.Services.AI.CopilotSdk
 #pragma warning disable GHCP001
         private Task<PermissionDecision> DecidePermissionAsync(PermissionRequest request, PermissionInvocation invocation)
         {
-            var verdict = CopilotSdkPermissionPolicy.Decide(request, _workingDirectory, _profile);
+            var verdict = CopilotSdkPermissionPolicy.Decide(request, _workingDirectory, _profile, _extraRoots);
             if (verdict.Approved)
             {
                 _logger.LogInformation("[CopilotSdkSession] permesso concesso: {What}", verdict.What);

@@ -195,6 +195,14 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         public string McpGroups { get; init; }
 
         /// <summary>
+        /// Cartelle FUORI dalla cartella di lavoro a cui la sessione accede (<c>--add-dir</c>): le radici di codice esterne
+        /// collegate (sprint 2026-10-12, F3). Da sole danno la lettura ma NON la scrittura in <c>dontAsk</c> (provato in F0):
+        /// le regole <c>Edit/Write(//percorso/**)</c> vanno in <see cref="AllowedTools"/>. Null = non dichiarate (nessun
+        /// riavvio per loro); cambiate → il pool riavvia la sessione con <c>--resume</c>, come per <see cref="McpGroups"/>.
+        /// </summary>
+        public IReadOnlyList<string> AdditionalDirectories { get; init; }
+
+        /// <summary>
         /// Variabili d'ambiente in più per il processo del CLI (e quindi per la shell e i server MCP che lancia):
         /// è il canale del RunToken e dell'identità git di un agente (sprint 2026-09-29-Motore-LLM-Unico, F5).
         /// Null per una chat.
@@ -215,6 +223,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             AllowedTools = AllowedTools,
             ProfileKey = ProfileKey,
             McpGroups = McpGroups,
+            AdditionalDirectories = AdditionalDirectories,
             Environment = Environment,
         };
     }

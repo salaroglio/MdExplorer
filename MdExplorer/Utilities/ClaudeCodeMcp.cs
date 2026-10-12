@@ -170,13 +170,30 @@ namespace MdExplorer.Utilities
         /// consentita". Paths relative to the session folder, the project.
         /// </para>
         /// </summary>
-        public static ClaudeCodeSessionOptions ChatOptions(string mcpGroupsArgument) => new ClaudeCodeSessionOptions
+        public static ClaudeCodeSessionOptions ChatOptions(string mcpGroupsArgument, IReadOnlyList<string> codeRoots = null) => new ClaudeCodeSessionOptions
         {
             McpConfigPath = WriteSessionConfig(mcpGroupsArgument),
             McpGroups = mcpGroupsArgument ?? string.Empty,   // cambiati → il pool riavvia con --resume (D28)
             AllowedMcpServers = new[] { ServerName },
-            AllowedTools = new[] { "Edit(./**)", "Write(./**)" },
+            // Le radici di codice esterne collegate (radici esterne F3, R3): MarkAgent le legge E le modifica. --add-dir
+            // da solo dà solo la lettura in dontAsk (F0): servono le regole con il percorso assoluto.
+            AdditionalDirectories = codeRoots ?? Array.Empty<string>(),
+            AllowedTools = new[] { "Edit(./**)", "Write(./**)" }
+                .Concat((codeRoots ?? Array.Empty<string>()).SelectMany(r => new[] { AbsoluteRule("Read", r), AbsoluteRule("Edit", r), AbsoluteRule("Write", r) }))
+                .ToArray(),
         };
+
+        /// <summary>
+        /// Una regola di permesso di Claude Code su un percorso assoluto: <c>Edit(//home/x/backend/**)</c>. Il doppio «/» è
+        /// la sintassi del CLI per «assoluto» (provato il 12/10 su Linux); su Windows <c>C:\x</c> diventa <c>//c/x</c>
+        /// (da provare in F7).
+        /// </summary>
+        public static string AbsoluteRule(string tool, string absolutePath)
+        {
+            var p = absolutePath.Replace('\\', '/').TrimEnd('/');
+            if (p.Length >= 2 && p[1] == ':') p = "/" + char.ToLowerInvariant(p[0]) + p.Substring(2);
+            return $"{tool}(/{p}/**)";
+        }
 
         /// <summary>
         /// The <c>--mcp-config</c> file for a MarkAgent Claude Code session, in MdExplorer's own data folder

@@ -34,6 +34,19 @@ namespace MdExplorer.Features.Tests.Agents
             };
 
         [TestMethod]
+        public void LetMarkAgentReadAndWriteInsideALinkedCodeRootButNotNextToIt()
+        {
+            // radici di codice esterne F3: la radice collegata vale come il progetto, una cartella sorella no
+            var backend = Path.Combine(Path.GetTempPath(), "clones", "backend");
+            var roots = new[] { backend };
+            Assert.IsTrue(CopilotSdkPermissionPolicy.Decide(Read(Path.Combine(backend, "Api", "Foo.cs")), Project, roots).Approved);
+            Assert.IsTrue(CopilotSdkPermissionPolicy.Decide(Write(Path.Combine(backend, "Api", "Foo.cs")), Project, roots).Approved);
+            Assert.IsFalse(CopilotSdkPermissionPolicy.Decide(Read(backend + "2" + Path.DirectorySeparatorChar + "x.cs"), Project, roots).Approved, "backend2 non è backend");
+            Assert.IsFalse(CopilotSdkPermissionPolicy.Decide(Read(Path.Combine(backend, "..", "segreti.txt")), Project, roots).Approved);
+            Assert.IsFalse(Decide(Read(Path.Combine(backend, "Api", "Foo.cs"))).Approved, "senza radici collegate resta fuori");
+        }
+
+        [TestMethod]
         public void LetCopilotReadAFileOfTheProject()
         {
             // The case that was refused: without a handler the SDK denied even this.

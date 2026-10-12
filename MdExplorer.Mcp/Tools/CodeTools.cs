@@ -45,6 +45,8 @@ public sealed class CodeTools : McpToolsBase
         "Pass an exact qualified name (e.g. 'Demo.Foo.Bar(string, int)' or 'src/app/x.component:XComponent'), a simple name ('Bar'), " +
         "or a free-text fragment: names AND the functional descriptions are searched, so 'writes to Neo4j' works too. " +
         "Returns up to `limit` candidates with id, kind, file path, line, signature, parameters and the description if one was written. " +
+        "Every result has `path` (logical: project-relative, or '@alias/…' for code outside the project) and `absolutePath` (where the file " +
+        "is ON THIS MACHINE: open that one, at `lineStart`); `pathUnavailable` says why a file cannot be opened here. " +
         "Use the returned `id` with the other code_* tools. If the result is empty, the knowledge may not be generated yet: " +
         "the user generates it from the folder's «Development environment» window.")]
     public async Task<string> code_find_symbol(
@@ -83,7 +85,7 @@ public sealed class CodeTools : McpToolsBase
         "parentId (to rebuild the tree) and description. Cheaper than reading the file when you only need its shape.")]
     public async Task<string> code_outline(
         [Description("Project name.")] string project,
-        [Description("File path relative to the project root, with '/', e.g. 'MdExplorer.bll/Services/X.cs'.")] string path)
+        [Description("The file's logical path, with '/': relative to the project root (e.g. 'MdExplorer.bll/Services/X.cs') or, for code checked out outside the project, '@alias/…' (e.g. '@backend/Api/Foo.cs'). The `path` field of any code_* result works as is.")] string path)
     {
         var (client, projectPath, error) = await ProjectAsync(project);
         if (error != null) return error;
@@ -153,6 +155,20 @@ public sealed class CodeTools : McpToolsBase
         var (client, path, error) = await ProjectAsync(project);
         if (error != null) return error;
         return await GetAsync(client, Q(path, "overview"), "code_overview", project, "");
+    }
+
+    [McpServerTool, Description(
+        "The project's code roots: where the analyzed source code lives ON THIS MACHINE. Folders inside the project have paths " +
+        "relative to it; external roots (code checked out elsewhere) have logical paths '@alias/…' — the same on every machine — " +
+        "and here you get, for each alias, the absolute folder on this machine, its git repository and whether it is linked. " +
+        "Every code_* tool already returns `absolutePath` next to `path`; use this to know which folders you may read and edit, " +
+        "and why one is not available (not linked here, folder moved, different repository).")]
+    public async Task<string> code_roots(
+        [Description("Project name.")] string project)
+    {
+        var (client, path, error) = await ProjectAsync(project);
+        if (error != null) return error;
+        return await GetAsync(client, $"/api/coderoots?projectPath={Uri.EscapeDataString(path)}", "code_roots", project, "");
     }
 
     /// <summary>Un id già dato passa com'è; un nome si risolve, e se i candidati sono più d'uno si chiede di scegliere.</summary>

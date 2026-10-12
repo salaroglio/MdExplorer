@@ -75,6 +75,14 @@ namespace MdExplorer.Features.Services.AI.CopilotChat
         string ProfileKey => null;
 
         /// <summary>
+        /// Le radici di codice esterne a cui la sessione può accedere (radici esterne F3), in una stringa confrontabile:
+        /// cambiate → il pool riavvia la sessione riprendendo la conversazione. Vuota per i trasporti che non le gestiscono.
+        /// </summary>
+        string ExtraRootsKey => string.Empty;
+
+        public static string RootsKey(IReadOnlyList<string> roots) => roots == null ? string.Empty : string.Join("\n", roots);
+
+        /// <summary>
         /// Whether <see cref="SetModelAsync"/> changes the model of the live conversation, keeping
         /// its memory. When false, the only way to change model is a new session — and the
         /// conversation goes with the old one.

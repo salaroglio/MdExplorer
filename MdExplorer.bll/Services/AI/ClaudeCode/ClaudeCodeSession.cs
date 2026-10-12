@@ -136,6 +136,10 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             // Eco del nostro messaggio: ACK a costo zero, dice che stdin è arrivato a destinazione.
             sb.Append(" --replay-user-messages");
             sb.Append(" --permission-mode ").Append(REQUESTED_PERMISSION_MODE);
+            // Le radici di codice esterne collegate: cartelle di lavoro in più della sessione (lettura; la scrittura
+            // la danno le regole Edit/Write in --allowedTools).
+            foreach (var dir in (options.AdditionalDirectories ?? Array.Empty<string>()).Where(d => !string.IsNullOrWhiteSpace(d)))
+                sb.Append(" --add-dir ").Append(Quote(dir));
 
             if (!string.IsNullOrWhiteSpace(modelId) && modelId != "auto")
             {
@@ -205,6 +209,9 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         public string ProfileKey => _options.ProfileKey;
         /// <summary>I gruppi MCP con cui è partita: <see cref="ClaudeCodeSessionOptions.McpGroups"/>.</summary>
         public string McpGroups => _options.McpGroups;
+        /// <summary>Le cartelle esterne con cui è partita, in una stringa confrontabile (vuota se nessuna).</summary>
+        public string AdditionalDirectoriesKey => DirectoriesKey(_options.AdditionalDirectories);
+        public static string DirectoriesKey(IReadOnlyList<string> dirs) => dirs == null ? string.Empty : string.Join("\n", dirs);
 
         /// <summary>
         /// Lancia il processo e avvia i loop di lettura. <b>Non</b> fa handshake: il CLI non

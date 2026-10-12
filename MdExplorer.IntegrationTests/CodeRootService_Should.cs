@@ -137,3 +137,22 @@ namespace MdExplorer.IntegrationTests
         }
     }
 }
+namespace MdExplorer.IntegrationTests
+{
+    /// <summary>Radici di codice esterne F3: la regola di Claude Code su un percorso assoluto, nella sintassi provata in F0.</summary>
+    [Microsoft.VisualStudio.TestTools.UnitTesting.TestClass]
+    public class ClaudeCodeRootRules_Should
+    {
+        [Microsoft.VisualStudio.TestTools.UnitTesting.TestMethod]
+        public void Write_absolute_rules_with_the_double_slash()
+        {
+            Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual("Edit(//home/u/backend/**)", MdExplorer.Utilities.ClaudeCodeMcp.AbsoluteRule("Edit", "/home/u/backend/"));
+            Microsoft.VisualStudio.TestTools.UnitTesting.Assert.AreEqual("Read(//c/src/backend/**)", MdExplorer.Utilities.ClaudeCodeMcp.AbsoluteRule("Read", @"C:\src\backend"));
+            var options = MdExplorer.Utilities.ClaudeCodeMcp.ChatOptions(null, new[] { "/home/u/backend" });
+            System.Linq.Enumerable.Single(options.AdditionalDirectories);
+            Microsoft.VisualStudio.TestTools.UnitTesting.CollectionAssert.IsSubsetOf(
+                new[] { "Read(//home/u/backend/**)", "Edit(//home/u/backend/**)", "Write(//home/u/backend/**)", "Edit(./**)" },
+                System.Linq.Enumerable.ToList(options.AllowedTools));
+        }
+    }
+}

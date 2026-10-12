@@ -1,3 +1,4 @@
+using System.Linq;
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -43,6 +44,9 @@ namespace MdExplorer.Features.Tests.Agents
             public Task<CopilotUsageSnapshot> GetUsageAsync(CancellationToken ct = default) => Task.FromResult<CopilotUsageSnapshot>(null);
             public bool CanSwitchModelLive { get; }
             public List<string> ModelSwitches { get; } = new List<string>();
+            public IReadOnlyList<string> Roots { get; init; }
+            public string ResumedFrom { get; init; }
+            public string ExtraRootsKey => ICopilotChatSession.RootsKey(Roots);
 
             public Task StartAsync(CancellationToken ct = default) => Task.CompletedTask;
 
@@ -76,9 +80,9 @@ namespace MdExplorer.Features.Tests.Agents
                 NullLoggerFactory.Instance,
                 NullLogger<CopilotChatSessionPool>.Instance,
                 _switch,
-                (transport, wd, model) =>
+                (transport, wd, model, roots, resume) =>
                 {
-                    var s = new FakeSession(transport, wd, model, canSwitchLive);
+                    var s = new FakeSession(transport, wd, model, canSwitchLive) { Roots = roots, ResumedFrom = resume };
                     _created.Add(s);
                     return s;
                 });
@@ -170,5 +174,23 @@ namespace MdExplorer.Features.Tests.Agents
             Assert.AreNotSame(first, second, "a conversation belongs to its project");
             Assert.AreEqual(0, first.ModelSwitches.Count);
         }
-    }
+    
+        [TestMethod]
+        public async Task Restart_resuming_the_conversation_when_the_linked_code_roots_change()
+        {
+            BuildPool(canSwitchLive: true);
+            _switch.Value = CopilotChatTransport.Sdk;
+            var first = await _pool.GetOrCreateAsync("c1", "/doc", "m", new[] { "/code/backend" });
+            var same = await _pool.GetOrCreateAsync("c1", "/doc", "m", new[] { "/code/backend" });
+            Assert.AreSame(first, same, "stesse radici: la sessione resta");
+
+            var more = await _pool.GetOrCreateAsync("c1", "/doc", "m", new[] { "/code/backend", "/code/frontend" });
+            Assert.AreNotSame(first, more, "radici cambiate: si riparte con le nuove cartelle");
+            Assert.AreEqual("fake", ((FakeSession)more).ResumedFrom, "riprendendo la conversazione");
+            CollectionAssert.AreEqual(new[] { "/code/backend", "/code/frontend" }, ((FakeSession)more).Roots.ToArray());
+
+            var undeclared = await _pool.GetOrCreateAsync("c1", "/doc", "m");
+            Assert.AreSame(more, undeclared, "chi non dichiara le radici non chiede un riavvio");
+        }
+}
 }

@@ -71,7 +71,7 @@ public static class ToolGroups
             "La città degli agenti: messaggi fra agenti, richieste di intervento, memoria dei fatti appresi e verifica del workflow.",
             b => b.WithTools<AgentTools>()),
         new Group(Code, typeof(CodeTools), false,
-            "Il grafo del codice: trovare e descrivere i simboli, chi chiama chi, impatto di una modifica, cammini, panoramica.",
+            "Il grafo del codice: trovare e descrivere i simboli, chi chiama chi, impatto di una modifica, cammini, panoramica, e dove sta il codice su questa macchina (radici).",
             b => b.WithTools<CodeTools>()),
     };
 

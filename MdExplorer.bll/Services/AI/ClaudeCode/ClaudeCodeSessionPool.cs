@@ -204,7 +204,9 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         private static bool ProfileFits(ClaudeCodeSession session, ClaudeCodeSessionOptions options) =>
             string.Equals(session.ProfileKey, options?.ProfileKey, StringComparison.Ordinal) &&
             // i gruppi MCP: chi non li dichiara (null) non chiede un riavvio
-            (options?.McpGroups == null || string.Equals(session.McpGroups ?? string.Empty, options.McpGroups, StringComparison.Ordinal));
+            (options?.McpGroups == null || string.Equals(session.McpGroups ?? string.Empty, options.McpGroups, StringComparison.Ordinal)) &&
+            // le radici di codice esterne: idem (F3 delle radici esterne)
+            (options?.AdditionalDirectories == null || string.Equals(session.AdditionalDirectoriesKey, ClaudeCodeSession.DirectoriesKey(options.AdditionalDirectories), StringComparison.Ordinal));
 
         private static bool OnlyModelDiffers(ClaudeCodeSession session, string workingDirectory, string modelId) =>
             session.IsAlive &&
