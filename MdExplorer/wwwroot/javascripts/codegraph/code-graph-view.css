@@ -26,3 +26,8 @@ body.dark-theme #cg-card { background: rgba(17,24,39,0.96); border-color: rgba(2
 #cg-legend { display: flex; flex-wrap: wrap; gap: 10px; padding: 6px 14px; font-size: 11px; border-top: 1px solid rgba(100,116,139,0.25); opacity: 0.85; }
 #cg-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 #cg-legend .cg-sep { width: 1px; background: rgba(100,116,139,0.4); }
+.cg-warn { margin: 0 0 8px; color: #c2410c; font-size: 12px; }
+.cg-ext { margin: 8px 0; padding-top: 6px; border-top: 1px solid rgba(100,116,139,0.2); }
+.cg-ext-group { margin: 4px 0; font-size: 12px; line-height: 1.8; }
+.cg-ext-group code { padding: 1px 5px; border-radius: 4px; background: rgba(100,116,139,0.12); white-space: nowrap; }
+#cg-legend i.cg-uncalled { background: transparent; border: 2px dashed #f97316; width: 8px; height: 8px; }

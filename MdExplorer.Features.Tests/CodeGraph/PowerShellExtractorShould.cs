@@ -47,7 +47,8 @@ namespace MdExplorer.Features.Tests.CodeGraph
                 ". $PSScriptRoot\\lib\\util.ps1\nImport-Module (Join-Path $PSScriptRoot 'Store/Store.psd1')\nImport-Module Az.Accounts\n\n" +
                 "$script:Config = Get-Content config.json | ConvertFrom-Json\n[int]$Retries = 3\n$env:FOO = 'bar'\n\n" +
                 "function Invoke-Main {\n    param([string]$Path)\n    function Inner { Get-Greeting -Name 'x' }\n" +
-                "    $s = [Store]::new('a')\n    $s.Add((New-Object Item))\n    $s.Dispose()\n    Inner\n    Get-ChildItem $Path\n}\n\n" +
+                "    $s = [Store]::new('a')\n    $s.Add((New-Object Item))\n    $s.Dispose()\n    Inner\n    Get-ChildItem $Path\n" +
+                "    $Maps.Moves.ContainsKey('a'); $other.ContainsKey('b')\n}\n\n" +
                 "Invoke-Main -Path .\n& \"$PSScriptRoot\\lib\\util.ps1\" -Name y\n");
         }
 
@@ -149,8 +150,10 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(main.Edges.Any(e => e.SourceId == invoke.Id && e.TargetId == inner.Id && e.Relation == "calls"));
             Assert.IsTrue(main.Edges.Any(e => e.SourceId == invoke.Id && e.TargetId == storeClass.Id && e.Relation == "instantiates"));
             Assert.IsTrue(main.Edges.Any(e => e.SourceId == invoke.Id && e.TargetId == item.Id && e.Relation == "instantiates"), "New-Object Item");
-            Assert.IsTrue(main.Edges.Any(e => e.SourceId == invoke.Id && e.TargetId == add.Id && e.Relation == "calls" && e.Confidence == "inferred"));
-            var gci = main.Symbols.Single(s => s.Kind == "external" && s.Name == "Get-ChildItem");
+            Assert.IsTrue(main.Edges.Any(e => e.SourceId == invoke.Id && e.TargetId == add.Id && e.Relation == "calls" && e.Confidence == "ambiguous"), "$s.Add(): il tipo di $s non si sa");
+            var containsKey = main.Symbols.Single(s => s.Kind == "external" && s.Name == "ContainsKey");
+            Assert.AreEqual(".ContainsKey()", containsKey.QualifiedName, "un nodo per nome di metodo, non per espressione");
+                        var gci = main.Symbols.Single(s => s.Kind == "external" && s.Name == "Get-ChildItem");
             Assert.IsTrue(main.Edges.Any(e => e.SourceId == invoke.Id && e.TargetId == gci.Id && e.Relation == "calls"));
             Assert.IsTrue(main.Edges.Any(e => e.SourceId == mainModule.Id && e.TargetId == invoke.Id && e.Relation == "calls"), "Invoke-Main al livello dello script");
             Assert.IsFalse(main.Edges.Any(e => e.SourceId == invoke.Id && e.TargetId == greet.Id), "la chiamata di Inner non è di Invoke-Main");

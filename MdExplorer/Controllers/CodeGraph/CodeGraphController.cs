@@ -259,17 +259,21 @@ namespace MdExplorer.Controllers.CodeGraph
 
         // ------------------------------------------------------------------ la pagina del visualizzatore (F6, D17)
 
-        /// <summary>GET /api/codegraph/graph?projectPath&amp;folder&amp;expand=a.cs,b.cs&amp;symbol — i nodi e gli archi per la pagina.</summary>
+        /// <summary>
+        /// GET /api/codegraph/graph?projectPath&amp;folder&amp;expand=a.cs,b.cs&amp;open=id1,id2&amp;symbol — i nodi e gli archi per la
+        /// pagina: <c>expand</c> i file aperti (i loro punti d'ingresso), <c>open</c> i simboli di cui seguire le chiamate (D24).
+        /// </summary>
         [HttpGet("graph")]
-        public Task<IActionResult> Graph([FromQuery] string projectPath, [FromQuery] string folder = "", [FromQuery] string expand = null, [FromQuery] string symbol = null, CancellationToken ct = default) => Guarded(async () =>
+        public Task<IActionResult> Graph([FromQuery] string projectPath, [FromQuery] string folder = "", [FromQuery] string expand = null, [FromQuery] string open = null, [FromQuery] string symbol = null, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             var expanded = (expand ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var model = await _store.BuildViewAsync(projectPath, (folder ?? string.Empty).Replace('\\', '/').Trim('/'), expanded, string.IsNullOrWhiteSpace(symbol) ? null : symbol, ct);
+            var opened = (open ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var model = await _store.BuildViewAsync(projectPath, (folder ?? string.Empty).Replace('\\', '/').Trim('/'), expanded, opened, string.IsNullOrWhiteSpace(symbol) ? null : symbol, ct);
             return Ok(new
             {
                 folder = model.Folder, folders = model.Folders,
-                nodes = model.Nodes.Select(n => new { n.Id, n.Kind, n.Name, n.QualifiedName, n.Path, n.Folder, n.Line, n.Signature, n.Summary, n.ParentId, n.Hidden, n.Expanded, n.External }),
+                nodes = model.Nodes.Select(n => new { n.Id, n.Kind, n.Name, n.QualifiedName, n.Path, n.Folder, n.Line, n.Signature, n.Summary, n.ParentId, n.Hidden, n.Expanded, n.External, n.Uncalled, n.Externals }),
                 links = model.Links.Select(l => new { l.Source, l.Target, l.Relation, l.Confidence, l.Count }),
             });
         });

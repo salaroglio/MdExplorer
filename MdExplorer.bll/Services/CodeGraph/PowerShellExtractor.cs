@@ -27,7 +27,8 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// <c>imports</c>: dot-sourcing (<c>. $PSScriptRoot\lib.ps1</c>), <c>Import-Module</c>, <c>using module</c>,
     /// <c>#Requires -Modules</c>, verso il modulo del perimetro (per percorso, o per nome del file) o un <c>external</c>.
     /// <c>calls</c>: i comandi (una funzione del perimetro, o un cmdlet <c>external</c>) e i metodi (<c>$this.X()</c> della
-    /// propria classe = <c>extracted</c>, <c>[Classe]::X()</c>, omonimi). <c>instantiates</c>: <c>[Classe]::new()</c> e
+    /// propria classe = <c>extracted</c>, <c>[Classe]::X()</c>, <c>$obj.X()</c> verso gli omonimi sempre <c>ambiguous</c> o
+    /// un solo nodo external <c>.X()</c> per nome). <c>instantiates</c>: <c>[Classe]::new()</c> e
     /// <c>New-Object</c>; un altro script lanciato per percorso è un <c>calls</c> verso il suo modulo. Il codice fuori
     /// dalle funzioni è del modulo, e il <c>param()</c> dello script dà i parametri del modulo.
     /// </para>
@@ -37,7 +38,7 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         public string LanguageId => CodeLanguages.PowerShell;
         public string ExtractorName => "powershell-parser";
-        public string ExtractorVersion => "1";
+        public string ExtractorVersion => "2";
         public string Availability => "ready";
 
         /// <summary>Come per Python: oltre questo numero di omonimi un nome non si attribuisce più a tutti i candidati.</summary>
@@ -623,12 +624,13 @@ namespace MdExplorer.Features.Services.CodeGraph
                     }
                 }
 
+                // $obj.X(): il tipo di $obj la sola sintassi non lo sa. Un omonimo del perimetro è un candidato, mai una
+                // certezza (quasi sempre è il metodo .NET di un hashtable o di una lista): ambiguous anche se è uno solo.
                 if (_index.MethodsByName.TryGetValue(name, out var ms2) && ms2.Count <= MaxAmbiguousCandidates)
-                {
-                    var conf = ms2.Count == 1 ? "inferred" : "ambiguous";
-                    foreach (var id in ms2) Edge(owner, id, "calls", conf, line);
-                }
-                else Edge(owner, External("method", ms2 != null ? "?." + name : call.Expression.Extent.Text + "." + name, name), "calls", "ambiguous", line);
+                    foreach (var id in ms2) Edge(owner, id, "calls", "ambiguous", line);
+                // Fuori dal perimetro: UN nodo per nome di metodo (.ContainsKey()), non uno per ogni espressione
+                // ($Maps.Moves.ContainsKey, $a.ContainsKey…), che moltiplicava i nodi senza dire niente di più.
+                else Edge(owner, External("method", "." + name + "()", name), "calls", "ambiguous", line);
             }
 
             // ---- resolution

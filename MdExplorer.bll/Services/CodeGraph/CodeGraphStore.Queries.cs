@@ -300,28 +300,35 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         // ------------------------------------------------------------------ la pagina del visualizzatore e il report
 
-        public async Task<CodeGraphViewModel> BuildViewAsync(string projectPath, string folderPrefix, IReadOnlyCollection<string> expandedFiles, string focusSymbolId, CancellationToken ct = default)
+        public async Task<CodeGraphViewModel> BuildViewAsync(string projectPath, string folderPrefix, IReadOnlyCollection<string> expandedFiles, IReadOnlyCollection<string> openedSymbols, string focusSymbolId, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
             var prefix = string.IsNullOrEmpty(folderPrefix) ? string.Empty : folderPrefix.TrimEnd('/') + "/";
             var prefixLit = Lit(prefix);
-            var input = new CodeGraphViewInput { FolderPrefix = folderPrefix };
+            var input = new CodeGraphViewInput { FolderPrefix = folderPrefix, Focus = focusSymbolId };
 
             foreach (var r in await RowsAsync($"SELECT ?p ?n WHERE {{ GRAPH {g.DataIri} {{ ?f a code:File ; code:path ?p ; code:symbolCount ?n . FILTER(STRSTARTS(?p, {prefixLit})) }} }} ORDER BY ?p LIMIT 400", ct))
                 input.Files.Add((Str(r, "p"), Count(r, "n")));
             foreach (var r in await RowsAsync($"SELECT ?s ?p WHERE {{ GRAPH {g.DataIri} {{ ?s a code:Symbol ; code:path ?p . FILTER(STRSTARTS(?p, {prefixLit})) }} }}", ct))
                 input.SymbolFiles[SymbolId(r["s"])] = Str(r, "p");
 
-            var expanded = new HashSet<string>(expandedFiles ?? Array.Empty<string>(), StringComparer.Ordinal);
-            if (focusSymbolId != null && input.SymbolFiles.TryGetValue(focusSymbolId, out var focusPath)) expanded.Add(focusPath);
-            input.Expanded.UnionWith(expanded);
-            foreach (var path in expanded.Where(p => input.Files.Any(f => f.Path == p)))
-                input.Outlines[path] = await OutlineAsync(projectPath, path, ct);
-
             foreach (var r in await RowsAsync(
                 $"SELECT ?a ?b ?rel ?conf ?tk ?tn ?tq WHERE {{ GRAPH {g.DataIri} {{ ?e a code:Edge ; code:source ?a ; code:target ?b ; code:relation ?rel ; code:confidence ?conf ; code:path ?p . " +
                 $"FILTER(?rel != \"contains\" && STRSTARTS(?p, {prefixLit})) ?b code:kind ?tk ; code:name ?tn ; code:qualifiedName ?tq }} }}", ct))
                 input.Edges.Add(new CodeGraphViewInput.EdgeInput { Source = SymbolId(r["a"]), Target = SymbolId(r["b"]), Relation = Str(r, "rel"), Confidence = Str(r, "conf"), TargetKind = Str(r, "tk"), TargetName = Str(r, "tn"), TargetQualifiedName = Str(r, "tq") });
+
+            var known = new HashSet<string>(input.Files.Select(f => f.Path), StringComparer.Ordinal);
+            input.Expanded.UnionWith((expandedFiles ?? Array.Empty<string>()).Where(known.Contains));
+            if (focusSymbolId != null && input.SymbolFiles.TryGetValue(focusSymbolId, out var focusPath)) input.Expanded.Add(focusPath);
+            input.Opened.UnionWith((openedSymbols ?? Array.Empty<string>()).Where(input.SymbolFiles.ContainsKey));
+
+            // I file da leggere: quelli aperti, quelli dei simboli aperti e quelli dei simboli che questi chiamano (la cascata attraversa i file).
+            var toRead = new HashSet<string>(input.Expanded, StringComparer.Ordinal);
+            foreach (var id in input.Opened) toRead.Add(input.SymbolFiles[id]);
+            foreach (var e in input.Edges.Where(e => input.Opened.Contains(e.Source)))
+                if (input.SymbolFiles.TryGetValue(e.Target, out var tp)) toRead.Add(tp);
+            foreach (var path in toRead)
+                input.Outlines[path] = await OutlineAsync(projectPath, path, ct);
 
             return CodeGraphViewData.Build(input);
         }
