@@ -22,7 +22,21 @@ namespace MdExplorer.Services.CodeGraph
     {
         /// <summary>«Descrivi il codice» su una cartella program: un lavoro per connessione, progressi via SignalR <c>codeDocProgress</c>.</summary>
         Task RunDescribeAsync(string connectionId, string projectPath, string folderRelative, bool force, CancellationToken ct = default);
+        /// <summary>
+        /// «Descrivi con Mark» su UN simbolo, dal tasto destro del grafo (D27): lo descrive (o ridescrive) da solo e
+        /// aspetta la fine; niente SignalR, la pagina del grafo è nell'iframe e aspetta la risposta.
+        /// </summary>
+        Task<CodeSymbolDescribeOutcome> DescribeSymbolAsync(string projectPath, string symbolId, CancellationToken ct = default);
         void Cancel(string connectionId);
+    }
+
+    public sealed class CodeSymbolDescribeOutcome
+    {
+        public bool Described { get; set; }
+        public int Rejected { get; set; }
+        public string FirstRejected { get; set; }
+        public string Engine { get; set; }
+        public string Error { get; set; }
     }
 
     /// <summary>
@@ -110,38 +124,11 @@ namespace MdExplorer.Services.CodeGraph
                         continue;
                     }
 
-                    var sourceAbs = Path.Combine(projectPath, ast.Header.Source.Replace('/', Path.DirectorySeparatorChar));
-                    if (!File.Exists(sourceAbs)) { await SendAsync(connectionId, new { phase = "file-skipped", file = ast.Header.Source, detail = "sorgente non trovato" }); continue; }
-                    var prompt = CodeDocPlanner.BuildPrompt(skillBody, ast.Header.Source, await File.ReadAllTextAsync(sourceAbs, token), candidates);
-
-                    string answer;
-                    try
-                    {
-                        answer = await _llm.AskAsync(projectPath, engine, model, prompt, "code-doc",
-                            "le descrizioni del codice sono in sola lettura: gli script li scrive MdExplorer", token);
-                    }
-                    catch (OperationCanceledException) { throw; }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "[CodeDoc] l'AI non ha risposto per {File}", ast.Header.Source);
-                        await SendAsync(connectionId, new { phase = "file-failed", file = ast.Header.Source, detail = ex.Message });
-                        continue;
-                    }
-
-                    var fresh = CodeDocPlanner.ParseAnswer(answer, ast.Header.Source, candidates, writtenBy, out var rejected);
-                    rejectedTotal += rejected.Count;
-                    foreach (var r in rejected) _logger.LogWarning("[CodeDoc] {File}: risposta scartata — {Why}", ast.Header.Source, r);
-                    var merged = CodeDocPlanner.Merge(existing, fresh);
-                    CodeDocPlanner.DropOrphans(merged, ast);
-                    if (merged.SymbolDocs.Count == 0 && merged.ParameterDocs.Count == 0)
-                    {
-                        await SendAsync(connectionId, new { phase = "file-failed", file = ast.Header.Source, detail = "nessuna descrizione valida nella risposta" + (rejected.Count > 0 ? ": " + rejected[0] : string.Empty) });
-                        continue;
-                    }
-                    CodeScriptWriter.WriteIfChanged(docPath, CodeScriptWriter.Serialize(merged));
-                    var load = await _store.LoadScriptAsync(projectPath, docPath, token);
-                    files++; described += fresh.SymbolDocs.Count;
-                    await SendAsync(connectionId, new { phase = "file-done", file = ast.Header.Source, described = fresh.SymbolDocs.Count, rejected = rejected.Count, loaded = load.Loaded, error = load.Error });
+                    var result = await DescribeFileAsync(projectPath, ast, candidates, existing, docPath, engine, model, skillBody, writtenBy, token);
+                    rejectedTotal += result.Rejected;
+                    if (result.Error != null) { await SendAsync(connectionId, new { phase = "file-failed", file = ast.Header.Source, detail = result.Error }); continue; }
+                    files++; described += result.Described;
+                    await SendAsync(connectionId, new { phase = "file-done", file = ast.Header.Source, described = result.Described, rejected = result.Rejected, loaded = result.Loaded, error = result.LoadError });
                 }
                 try { await _report.WriteAsync(projectPath, new List<string> { $"{folderRelative}: descritti {described} simboli in {files} file, {rejectedTotal} righe scartate" }); }
                 catch (Exception ex) { _logger.LogWarning(ex, "[CodeDoc] report non scritto"); }
@@ -162,6 +149,104 @@ namespace MdExplorer.Services.CodeGraph
                 _running.TryRemove(connectionId, out _);
                 cts.Dispose();
             }
+        }
+
+        private sealed class FileResult
+        {
+            public int Described, Rejected;
+            public bool Loaded;
+            public string Error, LoadError, FirstRejected;
+        }
+
+        /// <summary>
+        /// Un file: i candidati all'LLM — tutto il sorgente se ci sta, altrimenti a gruppi con il pezzo di sorgente di ogni
+        /// simbolo (<see cref="CodeDocPlanner.Batches"/>) — poi unione con lo script esistente, scrittura e caricamento.
+        /// </summary>
+        private async Task<FileResult> DescribeFileAsync(string projectPath, CodeScript ast, IReadOnlyList<CodeDocCandidate> candidates, CodeScript existing,
+            string docPath, MarkAgentEngine engine, string model, string skillBody, string writtenBy, CancellationToken token)
+        {
+            var result = new FileResult();
+            var sourceAbs = Path.Combine(projectPath, ast.Header.Source.Replace('/', Path.DirectorySeparatorChar));
+            if (!File.Exists(sourceAbs)) { result.Error = "sorgente non trovato"; return result; }
+            var sourceText = await File.ReadAllTextAsync(sourceAbs, token);
+
+            var merged = existing;
+            var freshCount = 0;
+            var failures = new List<string>();
+            foreach (var (batch, text) in CodeDocPlanner.Batches(sourceText, candidates))
+            {
+                token.ThrowIfCancellationRequested();
+                var prompt = CodeDocPlanner.BuildPrompt(skillBody, ast.Header.Source, text, batch);
+                string answer;
+                try
+                {
+                    answer = await _llm.AskAsync(projectPath, engine, model, prompt, "code-doc",
+                        "le descrizioni del codice sono in sola lettura: gli script li scrive MdExplorer", token);
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "[CodeDoc] l'AI non ha risposto per {File}", ast.Header.Source);
+                    failures.Add(ex.Message);
+                    continue;
+                }
+                var fresh = CodeDocPlanner.ParseAnswer(answer, ast.Header.Source, batch, writtenBy, out var rejected);
+                result.Rejected += rejected.Count;
+                result.FirstRejected ??= rejected.FirstOrDefault();
+                foreach (var r in rejected) _logger.LogWarning("[CodeDoc] {File}: risposta scartata — {Why}", ast.Header.Source, r);
+                freshCount += fresh.SymbolDocs.Count;
+                merged = CodeDocPlanner.Merge(merged, fresh);
+            }
+            if (merged == null || freshCount == 0)
+            {
+                result.Error = failures.Count > 0 ? "l'AI non ha risposto: " + failures[0]
+                    : "nessuna descrizione valida nella risposta" + (result.FirstRejected != null ? ": " + result.FirstRejected : string.Empty);
+                return result;
+            }
+            CodeDocPlanner.DropOrphans(merged, ast);
+            CodeScriptWriter.WriteIfChanged(docPath, CodeScriptWriter.Serialize(merged));
+            var load = await _store.LoadScriptAsync(projectPath, docPath, token);
+            result.Described = freshCount; result.Loaded = load.Loaded; result.LoadError = load.Error;
+            if (failures.Count > 0) _logger.LogWarning("[CodeDoc] {File}: {Failed} gruppi senza risposta", ast.Header.Source, failures.Count);
+            return result;
+        }
+
+        public async Task<CodeSymbolDescribeOutcome> DescribeSymbolAsync(string projectPath, string symbolId, CancellationToken ct = default)
+        {
+            var outcome = new CodeSymbolDescribeOutcome();
+            var symbol = await _store.DescribeAsync(projectPath, symbolId, ct);
+            if (symbol == null) { outcome.Error = $"simbolo '{symbolId}' non trovato nel grafo"; return outcome; }
+            if (string.IsNullOrEmpty(symbol.Path)) { outcome.Error = $"'{symbol.QualifiedName}' non ha un file sorgente (è esterno al progetto)"; return outcome; }
+
+            var astPath = CodeScriptWriter.ScriptPathFor(projectPath, symbol.Path, CodeScriptKind.Ast);
+            if (!File.Exists(astPath)) { outcome.Error = $"manca lo script AST di {symbol.Path}: prima «Analizza il codice»"; return outcome; }
+            var ast = CodeScriptParser.Parse(File.ReadAllText(astPath, Encoding.UTF8), CodeGraphPaths.ToProjectRelative(projectPath, astPath));
+            var docPath = CodeScriptWriter.ScriptPathFor(projectPath, ast.Header.Source, CodeScriptKind.Doc);
+            CodeScript existing = null;
+            try { existing = CodeDocPlanner.ReadScriptOrNull(docPath, CodeGraphPaths.ToProjectRelative(projectPath, docPath)); }
+            catch (CodeScriptFormatException ex) { _logger.LogWarning("[CodeDoc] doc esistente non leggibile, si riscrive: {Why}", ex.Message); }
+
+            // force: dal tasto destro si vuole QUESTO simbolo descritto, anche se una descrizione c'è già
+            var candidates = CodeDocPlanner.Select(ast, existing, force: true).Where(c => c.Symbol.Id == symbolId).ToList();
+            if (candidates.Count == 0) { outcome.Error = $"«{symbol.Name}» è un {symbol.Kind}: i moduli, i campi e i nodi esterni non si descrivono"; return outcome; }
+
+            MarkAgentEngine engine; string model;
+            using (var scope = _scopeFactory.CreateScope())
+                (engine, model) = MdExplorer.Service.ProjectsManager.ProjectEngine(scope.ServiceProvider.GetService<IUserSettingsDB>(), projectPath);
+            var whyNot = MdExplorer.Services.LlmSessions.ReadOnlyEngineSessions.WhyNot(engine);
+            if (whyNot != null) { outcome.Error = whyNot; return outcome; }
+            var engineLabel = MdExplorer.Services.LlmSessions.ReadOnlyEngineSessions.Label(engine, model);
+            outcome.Engine = engineLabel;
+            var writtenBy = $"mde-code-doc {PromptVersion(projectPath, "mde-code-doc")} / {engineLabel}";
+
+            string skillBody;
+            try { skillBody = LoadPromptBody(projectPath, "mde-code-doc"); }
+            catch (FileNotFoundException ex) { outcome.Error = ex.Message; return outcome; }   // il messaggio dice già come rimediare
+            var result = await DescribeFileAsync(projectPath, ast, candidates, existing, docPath, engine, model, skillBody, writtenBy, ct);
+            outcome.Described = result.Described > 0; outcome.Rejected = result.Rejected; outcome.FirstRejected = result.FirstRejected;
+            outcome.Error = result.Error ?? result.LoadError;
+            _logger.LogInformation("[CodeDoc] simbolo {Symbol}: {Outcome}", symbol.QualifiedName, outcome.Error ?? "descritto");
+            return outcome;
         }
 
         private static string LoadPromptBody(string projectPath, string name)

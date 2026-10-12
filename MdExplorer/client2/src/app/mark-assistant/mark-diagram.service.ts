@@ -4,6 +4,7 @@ import { Observable, firstValueFrom } from 'rxjs';
 import { MarkAssistantService } from './mark-assistant.service';
 import { MdServerMessagesService } from '../signalR/services/server-messages.service';
 import { AiChatService } from '../services/ai-chat.service';
+import { TranslateService } from '@ngx-translate/core';
 
 /**
  * Context of one diagram box, collected in the markdown iframe by
@@ -45,6 +46,18 @@ export interface MarkPointContext extends Partial<Omit<MarkDiagramContext, 'docu
 }
 
 /**
+ * A symbol of the code graph ("Chiedi a MarkAgent" on the right-click menu of the graph page,
+ * `wwwroot/javascripts/codegraph/code-graph-view.js`). Sprint docs-internal/Sprints/2026-10-09-Grafo-Del-Codice.md, D27.
+ */
+export interface MarkSymbolContext {
+  projectPath: string;
+  symbol: {
+    id: string; kind: string; name: string; qualifiedName: string;
+    path: string | null; line: number | null; signature: string | null; summary: string | null;
+  };
+}
+
+/**
  * "Ask to MarkAgent" — bridge between the markdown iframe and Mark's dialog.
  *
  * Listens for the `mde-mark.askAboutBox` postMessage the iframe fires when the
@@ -64,13 +77,15 @@ export class MarkDiagramService {
     private mark: MarkAssistantService,
     private serverMessages: MdServerMessagesService,
     private aiChat: AiChatService,
+    private translate: TranslateService,
   ) {
     this.setupIframeListener();
     // Si registra come inoltratore delle domande di seguito: è questo servizio a
     // conoscere MarkAssistantService, non il contrario — vedi il commento su
     // registerDiagramFollowUpSender.
     this.mark.registerDiagramFollowUpSender(q =>
-      this.pointContext ? this.runPoint(this.pointContext, q) : this.askFollowUp(q));
+      this.symbolContext ? this.runSymbol(this.symbolContext, q)
+        : this.pointContext ? this.runPoint(this.pointContext, q) : this.askFollowUp(q));
     this.mark.registerDiagramEditActions(
       () => this.applyEdit(),
       () => this.discardEdit(),
@@ -84,6 +99,10 @@ export class MarkDiagramService {
       if (!data) return;
       if (data.type === 'mde-mark.askAboutPoint' && data.context?.point?.label) {
         this.askAboutPoint(data.context as MarkPointContext);
+        return;
+      }
+      if (data.type === 'mde-mark.askAboutSymbol' && data.context?.symbol?.id) {
+        this.askAboutSymbol(data.context as MarkSymbolContext);
         return;
       }
       if (data.type !== 'mde-mark.askAboutBox') return;
@@ -108,6 +127,7 @@ export class MarkDiagramService {
    */
   ask(context: MarkDiagramContext): void {
     this.pointContext = null;
+    this.symbolContext = null;
     const connectionId = this.serverMessages.connectionId;
     if (!connectionId) {
       // Without SignalR there is no channel for the answer. Say so in the
@@ -147,6 +167,7 @@ export class MarkDiagramService {
    * (user's decision, 25/09/2026). The server builds the prompts and runs the search in between.
    */
   askAboutPoint(context: MarkPointContext): void {
+    this.symbolContext = null;
     this.pointContext = context;
     const cached = this.mark.beginDiagramExplanation(
       { documentPath: context.documentPath, box: { name: context.point.label } }, 'point');
@@ -183,6 +204,56 @@ export class MarkDiagramService {
     } catch (err: any) {
       console.warn('[MarkDiagram] point explanation failed', err);
       emit({ phase: 'error', message: err?.error?.message || err?.error || err?.message || 'Non sono riuscito a spiegare questo punto.' });
+    } finally {
+      this.aiChat.clearChannelHistory(channelId);
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
+  //  "Chiedi a MarkAgent" on a symbol of the code graph (D27)
+  // ──────────────────────────────────────────────────────────────────────
+
+  /** The symbol being talked about: follow-up questions go to it. */
+  private symbolContext: MarkSymbolContext | null = null;
+
+  /**
+   * Asks MarkAgent about a function/method/class of the code graph. One turn on a channel of the AI
+   * chat — the same CLI session as the MarkAgent tab (single engine, single session): MarkAgent has
+   * the code_* MCP tools and reads the source itself; the prompt only says WHICH symbol and WHERE.
+   */
+  askAboutSymbol(context: MarkSymbolContext): void {
+    this.pointContext = null;
+    this.symbolContext = context;
+    const cached = this.mark.beginDiagramExplanation(
+      { documentPath: context.symbol.path || context.projectPath, box: { name: context.symbol.qualifiedName } }, 'point');
+    if (cached) return;
+    this.runSymbol(context, null);
+  }
+
+  private async runSymbol(context: MarkSymbolContext, question: string | null): Promise<void> {
+    const run = ++this.pointRun;
+    const channelId = `mark-symbol-${run}`;
+    const box = context.symbol.qualifiedName;
+    const emit = (evt: any) => { if (run === this.pointRun) this.mark.emitDiagramEvent({ box, ...evt }); };
+    const s = context.symbol;
+    const where = s.path ? `${s.path}${s.line ? ':' + s.line : ''}` : '';
+    const params = {
+      kind: s.kind, name: s.name, qualifiedName: s.qualifiedName, id: s.id, where,
+      signature: s.signature || '', summary: s.summary || this.translate.instant('MARK.CODE.NO_SUMMARY'),
+    };
+    const prompt = question === null
+      ? this.translate.instant('MARK.CODE.ASK_PROMPT', params)
+      : this.translate.instant('MARK.CODE.FOLLOW_UP_PROMPT', { ...params, question });
+
+    if (question !== null) this.mark.beginDiagramFollowUp(false);
+    emit({ phase: 'start' });
+    try {
+      emit({ phase: 'status', message: this.translate.instant('MARK.CODE.ASKING', { name: s.name }) });
+      const answer = await this.aiChat.askOnChannel(channelId, prompt, chunk => emit({ phase: 'chunk', text: chunk }));
+      emit({ phase: 'done', text: answer, keywords: [], sources: s.path ? [s.path] : [], followUp: question !== null });
+    } catch (err: any) {
+      console.warn('[MarkDiagram] symbol explanation failed', err);
+      emit({ phase: 'error', message: err?.error?.message || err?.error || err?.message || this.translate.instant('MARK.CODE.FAILED') });
     } finally {
       this.aiChat.clearChannelHistory(channelId);
     }

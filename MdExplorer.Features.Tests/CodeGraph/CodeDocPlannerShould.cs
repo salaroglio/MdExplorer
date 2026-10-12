@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using MdExplorer.Features.Services.CodeGraph;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -70,5 +71,31 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsFalse(merged.SymbolDocs.Any(d => d.SymbolId == "gone"));
             CodeScriptParser.Parse(CodeScriptWriter.Serialize(merged), "src/Foo.cs.doc.jsonl");
         }
-    }
+    
+        [TestMethod]
+        public void Send_a_short_file_whole_and_a_long_one_in_excerpt_batches_without_truncating()
+        {
+            var cands = Enumerable.Range(1, 30).Select(i => new CodeDocCandidate
+            {
+                Symbol = new ScriptSymbol { Id = "f" + i, Kind = "function", Name = "F" + i, QualifiedName = "m:F" + i, LineStart = i * 100, LineEnd = i * 100 + 2 },
+                Parameters = new List<ScriptParameter>(),
+            }).ToList();
+
+            var shortSource = "function F1 { }";
+            var one = CodeDocPlanner.Batches(shortSource, cands);
+            Assert.AreEqual(1, one.Count); Assert.AreEqual(shortSource, one[0].Source); Assert.AreEqual(30, one[0].Candidates.Count);
+
+            // 3.100 righe da ~40 caratteri: ben oltre MaxSourceChars
+            var lines = Enumerable.Range(1, 3100).Select(i => (i % 100 == 0 ? "function F" + (i / 100) + " {" : "    # riga " + i) + new string(' ', 25)).ToList();
+            var longSource = string.Join("\n", lines);
+            Assert.IsTrue(longSource.Length > CodeDocPlanner.MaxSourceChars);
+            var batches = CodeDocPlanner.Batches(longSource, cands);
+            Assert.AreEqual(3, batches.Count, "30 simboli a gruppi di " + CodeDocPlanner.ExcerptBatchSize);
+            Assert.AreEqual(30, batches.Sum(b => b.Candidates.Count), "nessun simbolo perso");
+            var last = batches[2];
+            StringAssert.Contains(last.Source, "// ---- righe 3000-3002 ----");
+            StringAssert.Contains(last.Source, "function F30 {", "l'ultima funzione, oltre il vecchio taglio, c'è");
+            Assert.IsTrue(batches.All(b => b.Source.Length < CodeDocPlanner.MaxSourceChars));
+        }
+}
 }

@@ -61,6 +61,37 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         public const int MaxSourceChars = 60_000;
+        /// <summary>Quanti simboli per domanda quando il file è troppo lungo per andare intero.</summary>
+        public const int ExcerptBatchSize = 12;
+
+        /// <summary>
+        /// Che cosa mandare all'LLM. Un file entro <see cref="MaxSourceChars"/> va intero con tutti i candidati. Uno più
+        /// lungo NON si tronca: prima (fino al 12/10/2026) il troncamento lasciava le funzioni oltre il taglio senza
+        /// descrizione, perché l'LLM non le vedeva. Si mandano i candidati a gruppi, ognuno con il pezzo di sorgente
+        /// delle righe dei suoi simboli (intestate «righe a-b»).
+        /// </summary>
+        public static List<(IReadOnlyList<CodeDocCandidate> Candidates, string Source)> Batches(string sourceText, IReadOnlyList<CodeDocCandidate> candidates)
+        {
+            var list = new List<(IReadOnlyList<CodeDocCandidate>, string)>();
+            if (candidates.Count == 0) return list;
+            if (sourceText.Length <= MaxSourceChars) { list.Add((candidates, sourceText)); return list; }
+            var lines = sourceText.Replace("\r\n", "\n").Split('\n');
+            for (var i = 0; i < candidates.Count; i += ExcerptBatchSize)
+            {
+                var batch = candidates.Skip(i).Take(ExcerptBatchSize).ToList();
+                var sb = new StringBuilder();
+                foreach (var c in batch.OrderBy(c => c.Symbol.LineStart ?? 0))
+                {
+                    var from = Math.Max(1, c.Symbol.LineStart ?? 1);
+                    var to = Math.Min(lines.Length, Math.Max(from, c.Symbol.LineEnd ?? from));
+                    sb.Append("// ---- righe ").Append(from).Append('-').Append(to).Append(" ----\n");
+                    for (var l = from; l <= to; l++) sb.Append(lines[l - 1]).Append('\n');
+                    sb.Append('\n');
+                }
+                list.Add((batch, sb.ToString()));
+            }
+            return list;
+        }
 
         /// <summary>Il prompt: la skill, il sorgente, i simboli da descrivere (JSON Lines) e il formato della risposta.</summary>
         public static string BuildPrompt(string skillBody, string sourceRelativePath, string sourceText, IReadOnlyList<CodeDocCandidate> candidates)

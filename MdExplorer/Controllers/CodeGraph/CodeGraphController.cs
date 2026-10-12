@@ -40,6 +40,21 @@ namespace MdExplorer.Controllers.CodeGraph
         }
 
         public class GrammarRequest { public string GrammarId { get; set; } }
+        public class DescribeSymbolRequest { public string ProjectPath { get; set; } public string SymbolId { get; set; } }
+
+        /// <summary>
+        /// POST /api/codegraph/describe-symbol {projectPath, symbolId} — «Descrivi con Mark» dal tasto destro del grafo (D27):
+        /// un simbolo, aspettato fino alla fine; la risposta dice se è descritto o perché no.
+        /// </summary>
+        [HttpPost("describe-symbol")]
+        public Task<IActionResult> DescribeSymbol([FromBody] DescribeSymbolRequest request, CancellationToken ct) => Guarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            if (string.IsNullOrWhiteSpace(request.SymbolId)) return BadRequest(new { error = "symbolId è obbligatorio" });
+            var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
+            var outcome = await job.DescribeSymbolAsync(request.ProjectPath, request.SymbolId, ct);
+            return outcome.Error != null ? StatusCode(422, outcome) : Ok(outcome);
+        });
         public class DescribeRequest : FolderRequest { public string ConnectionId { get; set; } public bool Force { get; set; } }
         public class CancelRequest { public string ConnectionId { get; set; } }
 

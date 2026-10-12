@@ -1549,6 +1549,13 @@
       "DISCARDED": "All right, I changed nothing.",
       "NEW_CONVERSATION": "New conversation",
       "NEW_CONVERSATION_DONE": "Starting over: the next question on this document starts from scratch."
+    },
+    "CODE": {
+      "ASK_PROMPT": "Explain the {{kind}} «{{qualifiedName}}» in this project's code ({{where}}).\nSignature: {{signature}}\nDescription it has today in the code graph: {{summary}}\n\nUse the code graph MCP tools (code_describe, code_neighbors, code_impact) with the symbol id «{{id}}» to see who calls it and what it calls, and read the source there. Tell me: what it is for, what it takes and returns, who uses it, what it calls, side effects (files, network, global variables), and the delicate points or possible bugs you see. Answer in English, concisely.",
+      "FOLLOW_UP_PROMPT": "Still about the {{kind}} «{{qualifiedName}}» ({{where}}, symbol id «{{id}}»): {{question}}",
+      "NO_SUMMARY": "none (the LLM has not described it yet)",
+      "ASKING": "Asking MarkAgent about «{{name}}»: it looks at the graph and the source...",
+      "FAILED": "I could not ask MarkAgent about this symbol."
     }
   },
   "UNIFIED_SETTINGS": {

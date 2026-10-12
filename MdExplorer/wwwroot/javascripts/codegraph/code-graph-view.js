@@ -10,6 +10,9 @@
  * - Tasto destro su un simbolo: «Nascondi dal grafo» (D26, per Write-Log & co. chiamate da ovunque). I nascosti si
  *   ricordano per progetto e cartella, ma non spariscono in silenzio: «Nascosti: N» in alto li elenca e li rimette, e
  *   la scheda di chi li chiama li nomina.
+ * - Tasto destro, MarkAgent (D27): «Chiedi a MarkAgent» manda `mde-mark.askAboutSymbol` al genitore (Angular,
+ *   MarkDiagramService: la domanda va nella sessione del tab MarkAgent, la risposta nella finestra di Mark);
+ *   «Descrivi con Mark» chiede POST /api/codegraph/describe-symbol per quel solo simbolo e aggiorna la scheda.
  * - Disegno ad albero dall'alto in basso (D26), CALCOLATO e non simulato: i file sulla prima riga, sotto ogni nodo
  *   in fila quelli che ha fatto comparire, un livello più giù; niente sovrapposizioni, niente nodi che scappano. Un
  *   nodo trascinato resta dove lo si lascia; se dopo un'apertura qualcosa esce dallo schermo, la vista si adatta.
@@ -242,7 +245,10 @@
         if (n.kind === 'file' || n.external) return;
         const menu = document.createElement('div');
         menu.id = 'cg-menu';
-        const items = [['hide', 'Nascondi «' + n.name + '» dal grafo']];
+        const describable = n.kind !== 'module';
+        const items = [['ask', 'Chiedi a MarkAgent di «' + n.name + '»']];
+        if (describable) items.push(['describe', n.summary ? 'Riscrivi la descrizione con Mark' : 'Descrivi con Mark']);
+        items.push(['hide', 'Nascondi «' + n.name + '» dal grafo']);
         if (hasToggle(n)) items.push(['toggle', n.expanded ? 'Chiudi le chiamate' : 'Segui le chiamate (' + n.hidden + ')']);
         items.push(['open', 'Apri il sorgente']);
         items.forEach(([action, label]) => {
@@ -250,7 +256,9 @@
             b.textContent = label;
             b.onclick = () => {
                 hideMenu();
-                if (action === 'hide') { hidden.set(n.id, n.name); saveHidden(); if (selected && selected.id === n.id) select(null); load(); }
+                if (action === 'ask') askMarkAgent(n);
+                else if (action === 'describe') describeSymbol(n);
+                else if (action === 'hide') { hidden.set(n.id, n.name); saveHidden(); if (selected && selected.id === n.id) select(null); load(); }
                 else if (action === 'toggle') toggle(n);
                 else window.parent.postMessage({ type: 'md-navigate', relativePath: n.path, name: n.path.split('/').pop(), line: n.line || null }, '*');
             };
@@ -259,6 +267,39 @@
         document.body.appendChild(menu);
         const x = Math.min(ev.clientX, innerWidth - menu.offsetWidth - 8), y = Math.min(ev.clientY, innerHeight - menu.offsetHeight - 8);
         menu.style.left = x + 'px'; menu.style.top = y + 'px';
+    }
+
+    /** «Chiedi a MarkAgent»: la domanda la fa Angular, nella sessione del tab MarkAgent (motore e sessione unici). */
+    function askMarkAgent(n) {
+        window.parent.postMessage({
+            type: 'mde-mark.askAboutSymbol',
+            context: {
+                projectPath,
+                symbol: { id: n.id, kind: n.kind, name: n.name, qualifiedName: n.qualifiedName || n.name, path: n.path || null, line: n.line || null, signature: n.signature || null, summary: n.summary || null },
+            },
+        }, '*');
+    }
+
+    /** «Descrivi con Mark» su un simbolo: si aspetta la fine, poi la scheda e il grafo mostrano la descrizione nuova. */
+    async function describeSymbol(n) {
+        select(n);
+        const card = document.getElementById('cg-card');
+        const note = document.createElement('p');
+        note.className = 'cg-muted';
+        note.textContent = 'Mark sta descrivendo «' + n.name + '»… (può volerci un minuto)';
+        card.appendChild(note);
+        const btn = document.getElementById('cg-describe'); if (btn) btn.disabled = true;
+        try {
+            const res = await fetch('/api/codegraph/describe-symbol', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectPath, symbolId: n.id }) });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || ('Errore ' + res.status));
+            note.textContent = 'Descritto da ' + (body.engine || 'Mark') + (body.rejected ? ' (' + body.rejected + ' righe della risposta scartate)' : '') + '.';
+            await load();   // la scheda si ricostruisce sul nodo aggiornato, con la descrizione
+        } catch (e) {
+            note.className = 'cg-warn';
+            note.textContent = 'Descrizione non riuscita: ' + e.message;
+            if (btn) btn.disabled = false;
+        }
     }
 
     /** «Nascosti: N» nell'intestazione: l'elenco, e il modo di rimetterli. */
@@ -303,7 +344,7 @@
         if (n.signature) html += '<code class="cg-sig">' + esc(n.signature) + '</code>';
         if (n.summary) html += '<p class="cg-summary">' + esc(n.summary) + '</p>';
         else if (n.kind === 'module') html += '<p class="cg-muted">Lo script stesso: il codice fuori dalle funzioni, quello che gira quando lo si lancia. I moduli non si descrivono; si descrivono le funzioni che chiama.</p>';
-        else if (n.kind !== 'file' && !n.external) html += '<p class="cg-muted">Nessuna descrizione: «Descrivi il codice con Mark» nella finestra Ambiente di sviluppo.</p>';
+        else if (n.kind !== 'file' && !n.external) html += '<p class="cg-muted">Nessuna descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Descrivi con Mark</button></p>';
         if (n.uncalled) html += '<p class="cg-warn">Nessun simbolo del perimetro la chiama: è codice morto, oppure un punto d\'ingresso (chiamata da fuori, da un evento, per riflessione).</p>';
         if (n.path) html += '<div class="cg-path">' + esc(n.path) + (n.line ? ':' + n.line : '') + '</div>';
         if (n.kind !== 'file' && !n.external) html += '<button id="cg-open" class="cg-btn">Apri il sorgente</button> ';
@@ -330,6 +371,7 @@
         if (open) open.onclick = () => window.parent.postMessage({ type: 'md-navigate', relativePath: n.path, name: n.path.split('/').pop(), line: n.line || null }, '*');
         const tg = document.getElementById('cg-toggle'); if (tg) tg.onclick = () => toggle(n);
         const det = document.getElementById('cg-detail'); if (det) det.onclick = () => loadDetail(n);
+        const desc = document.getElementById('cg-describe'); if (desc) desc.onclick = () => describeSymbol(n);
         if (graph) graph.refresh && graph.refresh();
     }
 

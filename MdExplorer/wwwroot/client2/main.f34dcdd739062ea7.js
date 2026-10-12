@@ -11198,6 +11198,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _mark_assistant_service__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./mark-assistant.service */ 5270);
 /* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
 /* harmony import */ var _services_ai_chat_service__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ../services/ai-chat.service */ 9109);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+
 
 
 
@@ -11217,11 +11219,12 @@ __webpack_require__.r(__webpack_exports__);
  * any document, the same way ExecutionService works for ▶ Run blocks.
  */
 class MarkDiagramService {
-  constructor(http, mark, serverMessages, aiChat) {
+  constructor(http, mark, serverMessages, aiChat, translate) {
     this.http = http;
     this.mark = mark;
     this.serverMessages = serverMessages;
     this.aiChat = aiChat;
+    this.translate = translate;
     this.baseUrl = '../api/markdiagram';
     // ──────────────────────────────────────────────────────────────────────
     //  "Chiedi a MarkAgent" on a point of a slide
@@ -11230,11 +11233,16 @@ class MarkDiagramService {
     this.pointContext = null;
     /** Each run has its own channel: the events of a superseded run cannot land on the next one. */
     this.pointRun = 0;
+    // ──────────────────────────────────────────────────────────────────────
+    //  "Chiedi a MarkAgent" on a symbol of the code graph (D27)
+    // ──────────────────────────────────────────────────────────────────────
+    /** The symbol being talked about: follow-up questions go to it. */
+    this.symbolContext = null;
     this.setupIframeListener();
     // Si registra come inoltratore delle domande di seguito: è questo servizio a
     // conoscere MarkAssistantService, non il contrario — vedi il commento su
     // registerDiagramFollowUpSender.
-    this.mark.registerDiagramFollowUpSender(q => this.pointContext ? this.runPoint(this.pointContext, q) : this.askFollowUp(q));
+    this.mark.registerDiagramFollowUpSender(q => this.symbolContext ? this.runSymbol(this.symbolContext, q) : this.pointContext ? this.runPoint(this.pointContext, q) : this.askFollowUp(q));
     this.mark.registerDiagramEditActions(() => this.applyEdit(), () => this.discardEdit());
     this.mark.registerDiagramNewConversation(() => this.newConversation());
   }
@@ -11244,6 +11252,10 @@ class MarkDiagramService {
       if (!data) return;
       if (data.type === 'mde-mark.askAboutPoint' && data.context?.point?.label) {
         this.askAboutPoint(data.context);
+        return;
+      }
+      if (data.type === 'mde-mark.askAboutSymbol' && data.context?.symbol?.id) {
+        this.askAboutSymbol(data.context);
         return;
       }
       if (data.type !== 'mde-mark.askAboutBox') return;
@@ -11273,6 +11285,7 @@ class MarkDiagramService {
    */
   ask(context) {
     this.pointContext = null;
+    this.symbolContext = null;
     const connectionId = this.serverMessages.connectionId;
     if (!connectionId) {
       // Without SignalR there is no channel for the answer. Say so in the
@@ -11294,6 +11307,7 @@ class MarkDiagramService {
    * (user's decision, 25/09/2026). The server builds the prompts and runs the search in between.
    */
   askAboutPoint(context) {
+    this.symbolContext = null;
     this.pointContext = context;
     const cached = this.mark.beginDiagramExplanation({
       documentPath: context.documentPath,
@@ -11363,6 +11377,83 @@ class MarkDiagramService {
     })();
   }
   /**
+   * Asks MarkAgent about a function/method/class of the code graph. One turn on a channel of the AI
+   * chat — the same CLI session as the MarkAgent tab (single engine, single session): MarkAgent has
+   * the code_* MCP tools and reads the source itself; the prompt only says WHICH symbol and WHERE.
+   */
+  askAboutSymbol(context) {
+    this.pointContext = null;
+    this.symbolContext = context;
+    const cached = this.mark.beginDiagramExplanation({
+      documentPath: context.symbol.path || context.projectPath,
+      box: {
+        name: context.symbol.qualifiedName
+      }
+    }, 'point');
+    if (cached) return;
+    this.runSymbol(context, null);
+  }
+  runSymbol(context, question) {
+    var _this2 = this;
+    return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      const run = ++_this2.pointRun;
+      const channelId = `mark-symbol-${run}`;
+      const box = context.symbol.qualifiedName;
+      const emit = evt => {
+        if (run === _this2.pointRun) _this2.mark.emitDiagramEvent({
+          box,
+          ...evt
+        });
+      };
+      const s = context.symbol;
+      const where = s.path ? `${s.path}${s.line ? ':' + s.line : ''}` : '';
+      const params = {
+        kind: s.kind,
+        name: s.name,
+        qualifiedName: s.qualifiedName,
+        id: s.id,
+        where,
+        signature: s.signature || '',
+        summary: s.summary || _this2.translate.instant('MARK.CODE.NO_SUMMARY')
+      };
+      const prompt = question === null ? _this2.translate.instant('MARK.CODE.ASK_PROMPT', params) : _this2.translate.instant('MARK.CODE.FOLLOW_UP_PROMPT', {
+        ...params,
+        question
+      });
+      if (question !== null) _this2.mark.beginDiagramFollowUp(false);
+      emit({
+        phase: 'start'
+      });
+      try {
+        emit({
+          phase: 'status',
+          message: _this2.translate.instant('MARK.CODE.ASKING', {
+            name: s.name
+          })
+        });
+        const answer = yield _this2.aiChat.askOnChannel(channelId, prompt, chunk => emit({
+          phase: 'chunk',
+          text: chunk
+        }));
+        emit({
+          phase: 'done',
+          text: answer,
+          keywords: [],
+          sources: s.path ? [s.path] : [],
+          followUp: question !== null
+        });
+      } catch (err) {
+        console.warn('[MarkDiagram] symbol explanation failed', err);
+        emit({
+          phase: 'error',
+          message: err?.error?.message || err?.error || err?.message || _this2.translate.instant('MARK.CODE.FAILED')
+        });
+      } finally {
+        _this2.aiChat.clearChannelHistory(channelId);
+      }
+    })();
+  }
+  /**
    * Domanda di seguito sullo stesso box. La risposta arriva sullo stesso canale
    * SignalR della spiegazione, quindi qui non si aspetta nulla.
    */
@@ -11423,7 +11514,7 @@ class MarkDiagramService {
   }
   static {
     this.ɵfac = function MarkDiagramService_Factory(t) {
-      return new (t || MarkDiagramService)(_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_mark_assistant_service__WEBPACK_IMPORTED_MODULE_1__.MarkAssistantService), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_services_ai_chat_service__WEBPACK_IMPORTED_MODULE_3__.AiChatService));
+      return new (t || MarkDiagramService)(_angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_angular_common_http__WEBPACK_IMPORTED_MODULE_6__.HttpClient), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_mark_assistant_service__WEBPACK_IMPORTED_MODULE_1__.MarkAssistantService), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_2__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_services_ai_chat_service__WEBPACK_IMPORTED_MODULE_3__.AiChatService), _angular_core__WEBPACK_IMPORTED_MODULE_5__["ɵɵinject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_7__.TranslateService));
     };
   }
   static {
@@ -18481,8 +18572,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.12.2',
-  buildTime: '2026.10.12 09:12:32'
+  version: '2026.10.12.3',
+  buildTime: '2026.10.12 11:49:26'
 };
 
 /***/ }),
@@ -18516,4 +18607,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.9c5e4e84afd2f953.js.map
+//# sourceMappingURL=main.f34dcdd739062ea7.js.map

@@ -1549,6 +1549,13 @@
       "DISCARDED": "Va bene, non ho toccato nulla.",
       "NEW_CONVERSATION": "Nuova conversazione",
       "NEW_CONVERSATION_DONE": "Ricominciamo da capo: la prossima domanda su questo documento parte da zero."
+    },
+    "CODE": {
+      "ASK_PROMPT": "Spiegami {{kind}} «{{qualifiedName}}» del codice di questo progetto ({{where}}).\nFirma: {{signature}}\nDescrizione che ha oggi nel grafo del codice: {{summary}}\n\nUsa gli strumenti MCP del grafo del codice (code_describe, code_neighbors, code_impact) con l'id simbolo «{{id}}» per vedere chi la chiama e che cosa chiama, e leggi il sorgente in quel punto. Dimmi: a che cosa serve, che cosa riceve e restituisce, chi la usa, che cosa chiama, effetti collaterali (file, rete, variabili globali), e i punti delicati o i possibili difetti che vedi. Rispondi in italiano, in modo conciso.",
+      "FOLLOW_UP_PROMPT": "Sempre su {{kind}} «{{qualifiedName}}» ({{where}}, id simbolo «{{id}}»): {{question}}",
+      "NO_SUMMARY": "nessuna (l'LLM non l'ha ancora descritta)",
+      "ASKING": "Chiedo a MarkAgent di «{{name}}»: guarda il grafo e il sorgente...",
+      "FAILED": "Non sono riuscito a chiedere a MarkAgent di questo simbolo."
     }
   },
   "UNIFIED_SETTINGS": {
