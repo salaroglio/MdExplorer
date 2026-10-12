@@ -7,6 +7,12 @@
  * - Niente sparisce in silenzio: il numero accanto al «+» dice quanti simboli si aprirebbero, ciò che è fuori dal
  *   perimetro (cmdlet, metodi .NET, pacchetti) è elencato nella scheda del simbolo, e chi non è chiamato da nessuno
  *   ha il bordo arancione tratteggiato (codice morto, o un punto d'ingresso).
+ * - Tasto destro su un simbolo: «Nascondi dal grafo» (D26, per Write-Log & co. chiamate da ovunque). I nascosti si
+ *   ricordano per progetto e cartella, ma non spariscono in silenzio: «Nascosti: N» in alto li elenca e li rimette, e
+ *   la scheda di chi li chiama li nomina.
+ * - Disegno ad albero dall'alto in basso (D26), CALCOLATO e non simulato: i file sulla prima riga, sotto ogni nodo
+ *   in fila quelli che ha fatto comparire, un livello più giù; niente sovrapposizioni, niente nodi che scappano. Un
+ *   nodo trascinato resta dove lo si lascia; se dopo un'apertura qualcosa esce dallo schermo, la vista si adatta.
  * - Gli archi hanno un colore per relazione e sono tratteggiati quando la confidenza è `inferred`
  *   o `ambiguous`; fra due file si sommano (il numero sull'arco).
  * - Il clic su un simbolo apre la scheda con firma, parametri e la descrizione scritta dalla skill;
@@ -22,7 +28,17 @@
     let isDark = false;   // si legge quando il body esiste (lo script sta nell'head)
     const expanded = new Set((qs.get('expand') || '').split(',').filter(Boolean));
     const opened = new Set((qs.get('open') || '').split(',').filter(Boolean));
-    let positions = {};   // id → {x, y}: chi c'era resta dov'era quando si apre qualcosa
+    const LEVEL_GAP = 110; // distanza verticale fra un livello e il successivo
+    const SIBLING_GAP = 28; // spazio orizzontale fra due nodi vicini
+    let firstFit = true;   // al primo disegno la vista mostra tutto il grafo
+    const dragged = new Map();   // id → {x, y}: un nodo spostato a mano resta dove l'utente l'ha messo
+    // I nascosti si ricordano per progetto e cartella (comodità di chi guarda: se lo storage non c'è, si riparte da zero).
+    const hiddenKey = 'mde-codegraph-hidden|' + projectPath + '|' + folder;
+    const hidden = new Map();   // id → nome
+    try { (JSON.parse(localStorage.getItem(hiddenKey) || '[]') || []).forEach(h => hidden.set(h.id, h.name)); } catch (e) { /* storage assente */ }
+    function saveHidden() {
+        try { localStorage.setItem(hiddenKey, JSON.stringify(Array.from(hidden, ([id, name]) => ({ id, name })))); } catch (e) { /* storage assente */ }
+    }
     let graph = null, data = null, selected = null;
 
     const REL_COLORS = {
@@ -48,6 +64,7 @@
         if (focus) u.searchParams.set('symbol', focus);
         if (expanded.size) u.searchParams.set('expand', Array.from(expanded).join(','));
         if (opened.size) u.searchParams.set('open', Array.from(opened).join(','));
+        if (hidden.size) u.searchParams.set('hide', Array.from(hidden.keys()).join(','));
         return u.toString();
     }
 
@@ -70,6 +87,7 @@
             (uncalled ? ' · ' + uncalled + ' che nessuno chiama' : '') + (undescribed ? ' · ' + undescribed + ' senza descrizione' : '');
         render();
         renderLegend();
+        renderHidden();
         if (selected) { const again = graph.graphData().nodes.find(x => x.id === selected.id); select(again || null); }   // la scheda segue il nodo aggiornato
         else if (focus) { const n = graph.graphData().nodes.find(x => x.id === focus); if (n) { select(n); setTimeout(() => graph.centerAt(n.x, n.y, 600), 400); } }
     }
@@ -85,18 +103,13 @@
 
     function render() {
         const el = document.getElementById('cg-graph');
+        // zoom e centro scelti da chi guarda sopravvivono al ridisegno (aprire un nodo non deve far saltare la vista)
+        const view = graph ? { k: graph.zoom(), c: graph.centerAt() } : null;
         el.innerHTML = '';
         const nodes = data.nodes.map(n => Object.assign({}, n));
         const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
         const links = data.links.filter(l => byId[l.source] && byId[l.target]).map(l => Object.assign({}, l));
-        // chi c'era resta dov'era; chi compare nasce accanto a chi l'ha fatto comparire
-        if (graph) graph.graphData().nodes.forEach(n => { if (isFinite(n.x)) positions[n.id] = { x: n.x, y: n.y }; });
-        // e chi c'era resta FERMO (fx/fy): si muove solo chi è appena comparso, così non si rincorrono i nodi col mouse
-        nodes.forEach(n => {
-            const own = positions[n.id], p = own || positions[n.parentId];
-            if (own) { n.x = n.fx = own.x; n.y = n.fy = own.y; }
-            else if (p) { n.x = p.x + (Math.random() - 0.5) * 60; n.y = p.y + 40 + Math.random() * 30; }
-        });
+        layoutTree(nodes, byId);
 
         graph = ForceGraph()(el)
             .width(el.clientWidth).height(el.clientHeight)
@@ -140,6 +153,8 @@
                 ctx.fillStyle = color; ctx.fillRect(n.x - w / 2 + 0, n.y - h / 2, w, h);
             })
             .linkColor(l => REL_COLORS[l.relation] || '#94a3b8')
+            // fra nodi della stessa riga la linea dritta passerebbe sopra i vicini: si curva
+            .linkCurvature(l => (l.source && l.target && l.source.depth === l.target.depth) ? 0.35 : 0)
             .linkWidth(l => Math.min(4, 1 + Math.log2(l.count || 1)))
             .linkLineDash(l => l.confidence === 'extracted' ? null : l.confidence === 'inferred' ? [6, 4] : [2, 4])
             .linkDirectionalArrowLength(6).linkDirectionalArrowRelPos(1)
@@ -153,14 +168,111 @@
                 }
                 select(n);
             })
-            .onBackgroundClick(() => select(null))
-            .onNodeDragEnd(n => { n.fx = n.x; n.fy = n.y; });
-        // d3Force(name) torna la forza, non il grafo: si configura DOPO aver tenuto il riferimento al grafo.
-        graph.d3Force('charge').strength(-420).distanceMax(600);
-        graph.d3Force('link').distance(l => (l.source.kind === 'file' && l.target.kind === 'file') ? 160 : 90);
-        graph.d3VelocityDecay(0.3);
-        graph.cooldownTime(2500);   // il disegno si ferma presto: un nodo da cliccare non deve scappare
+            .onBackgroundClick(() => { select(null); hideMenu(); })
+            .onNodeRightClick((n, ev) => showMenu(n, ev))
+            .onNodeDragEnd(n => { n.fx = n.x; n.fy = n.y; dragged.set(n.id, { x: n.x, y: n.y }); });
+        // Le posizioni le decide layoutTree (fx/fy): niente forze che spostano i nodi.
+        graph.d3Force('charge', null);
+        graph.d3Force('link', null);
+        graph.d3Force('center', null);
+        graph.cooldownTicks(1);
+        el.addEventListener('contextmenu', e => e.preventDefault());   // il menu del browser coprirebbe il nostro
+        if (view) { graph.zoom(view.k, 0); graph.centerAt(view.c.x, view.c.y, 0); }
+        fitIfOutside(el, nodes);
         window.addEventListener('resize', () => graph.width(el.clientWidth).height(el.clientHeight));
+    }
+
+    /**
+     * L'albero: ogni nodo pende da chi l'ha fatto comparire (parentId: il file per un punto d'ingresso, il chiamante per
+     * gli altri); i file senza padre sono le radici, in fila sulla prima riga. Le foglie prendono il posto successivo
+     * da sinistra, un genitore sta sopra il centro dei suoi figli; y = livello × LEVEL_GAP. Deterministico: aprire un
+     * nodo allarga il suo ramo, ma l'ordine resta quello.
+     */
+    function layoutTree(nodes, byId) {
+        const measure = document.createElement('canvas').getContext('2d');
+        measure.font = '600 12px -apple-system, "Segoe UI", Inter, system-ui, sans-serif';
+        const width = n => measure.measureText(labelOf(n)).width + 22 + (hasToggle(n) ? 30 : 0);
+        const kids = {};
+        const roots = [];
+        nodes.forEach(n => {
+            if (n.parentId && byId[n.parentId] && n.parentId !== n.id) (kids[n.parentId] = kids[n.parentId] || []).push(n);
+            else roots.push(n);
+        });
+        let cursor = 0;
+        const place = n => {
+            const ch = kids[n.id] || [];
+            const w = width(n);
+            if (!ch.length) { n.__x = cursor + w / 2; cursor += w + SIBLING_GAP; return; }
+            const start = cursor;
+            ch.forEach(place);
+            n.__x = (ch[0].__x + ch[ch.length - 1].__x) / 2;
+            // un genitore più largo dei suoi figli non deve invadere il vicino
+            if (cursor - start < w + SIBLING_GAP) { n.__x = start + w / 2; cursor = start + w + SIBLING_GAP; }
+        };
+        roots.forEach(place);
+        const shift = cursor / 2;   // l'albero centrato sull'origine
+        nodes.forEach(n => {
+            const d = dragged.get(n.id);
+            n.x = n.fx = d ? d.x : n.__x - shift;
+            n.y = n.fy = d ? d.y : (n.depth || 0) * LEVEL_GAP;
+        });
+    }
+
+    /** Dopo un'apertura: se un nodo è fuori dallo schermo, la vista si adatta per mostrarli tutti. */
+    function fitIfOutside(el, nodes) {
+        // dopo il primo disegno: prima il grafo non ha ancora zoom e misure, e le coordinate a schermo sono false
+        // (onEngineStop non arriva: i nodi sono tutti fermi, la simulazione non ha niente da fermare)
+        setTimeout(() => {
+            const margin = 30;
+            const outside = nodes.some(n => {
+                const p = graph.graph2ScreenCoords(n.x, n.y);
+                return p.x < margin || p.y < margin || p.x > el.clientWidth - margin || p.y > el.clientHeight - margin;
+            });
+            if (outside || firstFit) graph.zoomToFit(firstFit ? 0 : 400, 60);
+            firstFit = false;
+        }, 300);
+    }
+
+    // ---- tasto destro
+
+    function hideMenu() { const m = document.getElementById('cg-menu'); if (m) m.remove(); }
+
+    function showMenu(n, ev) {
+        hideMenu();
+        if (n.kind === 'file' || n.external) return;
+        const menu = document.createElement('div');
+        menu.id = 'cg-menu';
+        const items = [['hide', 'Nascondi «' + n.name + '» dal grafo']];
+        if (hasToggle(n)) items.push(['toggle', n.expanded ? 'Chiudi le chiamate' : 'Segui le chiamate (' + n.hidden + ')']);
+        items.push(['open', 'Apri il sorgente']);
+        items.forEach(([action, label]) => {
+            const b = document.createElement('button');
+            b.textContent = label;
+            b.onclick = () => {
+                hideMenu();
+                if (action === 'hide') { hidden.set(n.id, n.name); saveHidden(); if (selected && selected.id === n.id) select(null); load(); }
+                else if (action === 'toggle') toggle(n);
+                else window.parent.postMessage({ type: 'md-navigate', relativePath: n.path, name: n.path.split('/').pop(), line: n.line || null }, '*');
+            };
+            menu.appendChild(b);
+        });
+        document.body.appendChild(menu);
+        const x = Math.min(ev.clientX, innerWidth - menu.offsetWidth - 8), y = Math.min(ev.clientY, innerHeight - menu.offsetHeight - 8);
+        menu.style.left = x + 'px'; menu.style.top = y + 'px';
+    }
+
+    /** «Nascosti: N» nell'intestazione: l'elenco, e il modo di rimetterli. */
+    function renderHidden() {
+        let chip = document.getElementById('cg-hidden');
+        if (!chip) { chip = document.createElement('span'); chip.id = 'cg-hidden'; document.getElementById('cg-header').appendChild(chip); }
+        if (!hidden.size) { chip.innerHTML = ''; return; }
+        const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        chip.innerHTML = '<button id="cg-hidden-btn" class="cg-chip">Nascosti: ' + hidden.size + ' ▾</button><div id="cg-hidden-list" class="hidden">' +
+            Array.from(hidden, ([id, name]) => '<div><span>' + esc(name) + '</span> <button data-id="' + esc(id) + '" class="cg-btn cg-btn-secondary">Mostra</button></div>').join('') +
+            '<div><button id="cg-hidden-all" class="cg-btn">Mostra tutti</button></div></div>';
+        document.getElementById('cg-hidden-btn').onclick = () => document.getElementById('cg-hidden-list').classList.toggle('hidden');
+        chip.querySelectorAll('button[data-id]').forEach(b => b.onclick = () => { hidden.delete(b.dataset.id); saveHidden(); load(); });
+        document.getElementById('cg-hidden-all').onclick = () => { hidden.clear(); saveHidden(); load(); };
     }
 
     function roundRect(ctx, x, y, w, h, r) {
@@ -198,6 +310,8 @@
         if (n.kind === 'file') html += '<button id="cg-open" class="cg-btn">Apri il file</button> <button id="cg-toggle" class="cg-btn">' + (n.expanded ? 'Chiudi i simboli' : 'Mostra i simboli') + '</button>';
         if (n.kind !== 'file' && !n.external && hasToggle(n)) html += '<button id="cg-toggle" class="cg-btn cg-btn-secondary">' + (n.expanded ? 'Chiudi le chiamate' : 'Segui le chiamate (' + n.hidden + ')') + '</button> ';
         if (n.kind !== 'file' && !n.external) html += '<button id="cg-detail" class="cg-btn cg-btn-secondary">Dettagli</button>';
+        if (n.hiddenCalls && n.hiddenCalls.length)
+            html += '<div class="cg-muted">Chiama anche (nascoste): ' + n.hiddenCalls.map(h => '<code>' + esc(h) + '</code>').join(' ') + '</div>';
         if (n.externals && n.externals.length) {
             // ciò che è fuori dal perimetro non si disegna, ma si vede tutto qui: un nome sbagliato salta all'occhio
             const byRel = {};

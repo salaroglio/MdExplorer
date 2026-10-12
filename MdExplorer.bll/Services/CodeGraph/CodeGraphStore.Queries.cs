@@ -300,7 +300,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         // ------------------------------------------------------------------ la pagina del visualizzatore e il report
 
-        public async Task<CodeGraphViewModel> BuildViewAsync(string projectPath, string folderPrefix, IReadOnlyCollection<string> expandedFiles, IReadOnlyCollection<string> openedSymbols, string focusSymbolId, CancellationToken ct = default)
+        public async Task<CodeGraphViewModel> BuildViewAsync(string projectPath, string folderPrefix, IReadOnlyCollection<string> expandedFiles, IReadOnlyCollection<string> openedSymbols, IReadOnlyCollection<string> hiddenSymbols, string focusSymbolId, CancellationToken ct = default)
         {
             var g = GraphsOf(projectPath);
             var prefix = string.IsNullOrEmpty(folderPrefix) ? string.Empty : folderPrefix.TrimEnd('/') + "/";
@@ -321,6 +321,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             input.Expanded.UnionWith((expandedFiles ?? Array.Empty<string>()).Where(known.Contains));
             if (focusSymbolId != null && input.SymbolFiles.TryGetValue(focusSymbolId, out var focusPath)) input.Expanded.Add(focusPath);
             input.Opened.UnionWith((openedSymbols ?? Array.Empty<string>()).Where(input.SymbolFiles.ContainsKey));
+            input.HiddenSymbols.UnionWith(hiddenSymbols ?? Array.Empty<string>());
 
             // I file da leggere: quelli aperti, quelli dei simboli aperti e quelli dei simboli che questi chiamano (la cascata attraversa i file).
             var toRead = new HashSet<string>(input.Expanded, StringComparer.Ordinal);

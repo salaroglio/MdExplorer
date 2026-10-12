@@ -35,6 +35,10 @@ namespace MdExplorer.Features.Services.CodeGraph
             public bool Uncalled { get; set; }
             /// <summary>Ciò che il simbolo tocca FUORI dal perimetro: non sono nodi del disegno, ma si elencano nella scheda.</summary>
             public List<ViewExternal> Externals { get; set; }
+            /// <summary>I simboli che chiama e che l'utente ha nascosto (tasto destro): non si disegnano, ma la scheda li dice.</summary>
+            public List<string> HiddenCalls { get; set; }
+            /// <summary>Il livello nel disegno dall'alto in basso: 0 i file, 1 i punti d'ingresso, poi chi è chiamato, un livello più giù.</summary>
+            public int Depth { get; set; }
         }
 
         public sealed class ViewExternal
@@ -66,6 +70,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public HashSet<string> Expanded { get; } = new(StringComparer.Ordinal);
         /// <summary>I simboli aperti: mostrano chi chiamano (e i membri, se sono tipi).</summary>
         public HashSet<string> Opened { get; } = new(StringComparer.Ordinal);
+        /// <summary>I simboli che l'utente ha tolto dal disegno (es. Write-Log, chiamata da ovunque): non compaiono, non si contano nel «+».</summary>
+        public HashSet<string> HiddenSymbols { get; } = new(StringComparer.Ordinal);
         /// <summary>Il simbolo da mettere in evidenza: si mostra anche se nessuna cascata ci arriva.</summary>
         public string Focus { get; set; }
         public Dictionary<string, List<CodeSymbolView>> Outlines { get; } = new(StringComparer.Ordinal);
@@ -131,11 +137,13 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             // 3) chi si mostra: i punti d'ingresso dei file aperti, poi la cascata dei simboli aperti
             var shown = new Dictionary<string, string>(StringComparer.Ordinal);   // id → da chi è comparso
+            var depth = new Dictionary<string, int>(StringComparer.Ordinal);
             var queue = new Queue<string>();
             void Show(string id, string from)
             {
-                if (shown.ContainsKey(id) || !symbols.ContainsKey(id)) return;
+                if (shown.ContainsKey(id) || !symbols.ContainsKey(id) || input.HiddenSymbols.Contains(id)) return;
                 shown[id] = from;
+                depth[id] = from.StartsWith("file:", StringComparison.Ordinal) ? 1 : depth[from] + 1;   // in ampiezza: il livello più alto
                 queue.Enqueue(id);
             }
             foreach (var path in input.Expanded.Where(fileIds.ContainsKey))
@@ -154,12 +162,15 @@ namespace MdExplorer.Features.Services.CodeGraph
             foreach (var (id, from) in shown)
             {
                 var s = symbols[id];
-                var children = Children(id);
+                var allChildren = Children(id);
+                var children = allChildren.Where(c => !input.HiddenSymbols.Contains(c)).ToList();
                 model.Nodes.Add(new CodeGraphViewModel.ViewNode
                 {
                     Id = s.Id, Kind = s.Kind, Name = s.Name, QualifiedName = s.QualifiedName, Path = s.Path, Line = s.LineStart, Signature = s.Signature,
                     Summary = s.Summary, ParentId = from, Folder = FolderOf(s.Path ?? string.Empty),
                     Expanded = input.Opened.Contains(id),
+                    Depth = depth[id],
+                    HiddenCalls = allChildren.Where(input.HiddenSymbols.Contains).Select(c => symbols.TryGetValue(c, out var hs) ? hs.Name : c).ToList(),
                     Hidden = children.Count(c => !shown.ContainsKey(c)),
                     Uncalled = CallableKinds.Contains(s.Kind) && !called.Contains(id),
                     Externals = outgoing.TryGetValue(id, out var edges)
@@ -186,6 +197,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             foreach (var e in input.Edges)
             {
                 if (e.TargetKind == "external") continue;
+                if (input.HiddenSymbols.Contains(e.Source) || input.HiddenSymbols.Contains(e.Target)) continue;   // nascosto: neanche negli archi fra file
                 var sourceShown = shown.ContainsKey(e.Source);
                 var targetShown = shown.ContainsKey(e.Target);
                 if (sourceShown && targetShown) { Link(e.Source, e.Target, e.Relation, e.Confidence); continue; }

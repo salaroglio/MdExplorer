@@ -295,19 +295,21 @@ namespace MdExplorer.Controllers.CodeGraph
 
         /// <summary>
         /// GET /api/codegraph/graph?projectPath&amp;folder&amp;expand=a.cs,b.cs&amp;open=id1,id2&amp;symbol — i nodi e gli archi per la
-        /// pagina: <c>expand</c> i file aperti (i loro punti d'ingresso), <c>open</c> i simboli di cui seguire le chiamate (D24).
+        /// pagina: <c>expand</c> i file aperti (i loro punti d'ingresso), <c>open</c> i simboli di cui seguire le chiamate (D24),
+        /// <c>hide</c> i simboli tolti dal disegno col tasto destro (D26).
         /// </summary>
         [HttpGet("graph")]
-        public Task<IActionResult> Graph([FromQuery] string projectPath, [FromQuery] string folder = "", [FromQuery] string expand = null, [FromQuery] string open = null, [FromQuery] string symbol = null, CancellationToken ct = default) => Guarded(async () =>
+        public Task<IActionResult> Graph([FromQuery] string projectPath, [FromQuery] string folder = "", [FromQuery] string expand = null, [FromQuery] string open = null, [FromQuery] string hide = null, [FromQuery] string symbol = null, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             var expanded = (expand ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             var opened = (open ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            var model = await _store.BuildViewAsync(projectPath, (folder ?? string.Empty).Replace('\\', '/').Trim('/'), expanded, opened, string.IsNullOrWhiteSpace(symbol) ? null : symbol, ct);
+            var hidden = (hide ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var model = await _store.BuildViewAsync(projectPath, (folder ?? string.Empty).Replace('\\', '/').Trim('/'), expanded, opened, hidden, string.IsNullOrWhiteSpace(symbol) ? null : symbol, ct);
             return Ok(new
             {
                 folder = model.Folder, folders = model.Folders,
-                nodes = model.Nodes.Select(n => new { n.Id, n.Kind, n.Name, n.QualifiedName, n.Path, n.Folder, n.Line, n.Signature, n.Summary, n.ParentId, n.Hidden, n.Expanded, n.External, n.Uncalled, n.Externals }),
+                nodes = model.Nodes.Select(n => new { n.Id, n.Kind, n.Name, n.QualifiedName, n.Path, n.Folder, n.Line, n.Signature, n.Summary, n.ParentId, n.Hidden, n.Expanded, n.External, n.Uncalled, n.Externals, n.HiddenCalls, n.Depth }),
                 links = model.Links.Select(l => new { l.Source, l.Target, l.Relation, l.Confidence, l.Count }),
             });
         });

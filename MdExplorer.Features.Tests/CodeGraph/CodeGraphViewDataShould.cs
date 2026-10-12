@@ -101,6 +101,39 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Put_each_level_one_row_below_the_caller()
+        {
+            var m = CodeGraphViewData.Build(Input(new[] { Main }, new[] { "M", "Run", "Load" }));
+            Assert.AreEqual(0, Node(m, "file:" + Main).Depth);
+            Assert.AreEqual(1, Node(m, "M").Depth);
+            Assert.AreEqual(2, Node(m, "Run").Depth);
+            Assert.AreEqual(3, Node(m, "Load").Depth);
+            Assert.AreEqual(4, Node(m, "Parse").Depth, "anche nell'altro file, un livello sotto chi lo chiama");
+        }
+
+        [TestMethod]
+        public void Hide_a_symbol_but_say_it_where_it_is_called()
+        {
+            var input = Input(new[] { Main }, new[] { "M", "Run" });
+            input.HiddenSymbols.Add("Helper");
+            var m = CodeGraphViewData.Build(input);
+            Assert.IsNull(Node(m, "Helper"), "nascosto: non si disegna");
+            var run = Node(m, "Run");
+            CollectionAssert.AreEqual(new[] { "Helper" }, run.HiddenCalls, "la scheda di chi lo chiama lo nomina");
+            Assert.AreEqual(0, run.Hidden, "il «+» non conta i nascosti");
+            Assert.IsFalse(m.Links.Any(l => l.Source == "Helper" || l.Target == "Helper"));
+        }
+
+        [TestMethod]
+        public void Drop_hidden_symbols_from_file_to_file_links()
+        {
+            var input = Input(new string[0], new string[0]);
+            input.HiddenSymbols.Add("Load");
+            var m = CodeGraphViewData.Build(input);
+            Assert.IsFalse(m.Links.Any(l => l.Source == "file:" + Main && l.Target == "file:" + Lib), "l'unico arco fra i file passava per il nascosto");
+        }
+
+        [TestMethod]
         public void Keep_file_to_file_overview_when_no_file_is_opened()
         {
             var m = CodeGraphViewData.Build(Input(new string[0], new string[0]));

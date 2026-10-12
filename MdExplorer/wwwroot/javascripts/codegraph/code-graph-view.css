@@ -41,3 +41,16 @@ body.dark-theme #cg-banner { background: #431407; color: #fed7aa; border-color: 
 #cg-upgrade-files { margin-top: 6px; line-height: 1.8; font-size: 12px; }
 #cg-upgrade-files.hidden { display: none; }
 #cg-upgrade-files code { padding: 1px 5px; border-radius: 4px; background: rgba(124,45,18,0.08); }
+#cg-menu { position: fixed; z-index: 10; display: flex; flex-direction: column; min-width: 200px; padding: 4px; border-radius: 8px;
+  background: #fff; border: 1px solid rgba(15,23,42,0.18); box-shadow: 0 8px 24px rgba(15,23,42,0.18); }
+body.dark-theme #cg-menu { background: #111827; border-color: rgba(255,255,255,0.18); }
+#cg-menu button { text-align: left; border: 0; background: transparent; color: inherit; padding: 7px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+#cg-menu button:hover { background: rgba(37,99,235,0.12); }
+#cg-hidden { position: relative; margin-left: auto; }
+.cg-chip { border: 1px solid rgba(100,116,139,0.4); background: transparent; color: inherit; border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+#cg-hidden-list { position: absolute; right: 0; top: 28px; z-index: 5; min-width: 240px; padding: 8px 10px; border-radius: 8px; font-size: 13px;
+  background: #fff; border: 1px solid rgba(15,23,42,0.18); box-shadow: 0 8px 24px rgba(15,23,42,0.18); }
+body.dark-theme #cg-hidden-list { background: #111827; border-color: rgba(255,255,255,0.18); }
+#cg-hidden-list.hidden { display: none; }
+#cg-hidden-list > div { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+#cg-hidden-list .cg-btn { margin: 4px 0; }
