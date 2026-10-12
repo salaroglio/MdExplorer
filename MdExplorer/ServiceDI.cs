@@ -44,6 +44,7 @@ namespace MdExplorer.Service
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.TreeSitterPythonExtractor>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.TreeSitterJavaExtractor>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.TreeSitterJavaScriptExtractor>();
+            services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.PowerShellExtractor>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractorRegistry, MdExplorer.Features.Services.CodeGraph.CodeExtractorRegistry>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeChangeScanner, MdExplorer.Services.CodeGraph.CodeChangeScanner>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeAnalysisService, MdExplorer.Services.CodeGraph.CodeAnalysisService>();

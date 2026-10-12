@@ -5,8 +5,8 @@ using System.Linq;
 
 namespace MdExplorer.Features.Services.CodeGraph
 {
-    /// <summary>Come si analizza un linguaggio: Roslyn (nel pacchetto) o tree-sitter (grammatica da scaricare, F3).</summary>
-    public enum CodeExtractorKind { Roslyn, TreeSitter }
+    /// <summary>Come si analizza un linguaggio: Roslyn o il parser di PowerShell (nel pacchetto), o tree-sitter (grammatica da scaricare, F3).</summary>
+    public enum CodeExtractorKind { Roslyn, TreeSitter, PowerShell }
 
     public sealed class CodeLanguage
     {
@@ -14,7 +14,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string DisplayName { get; init; }
         public string[] Extensions { get; init; }
         public CodeExtractorKind ExtractorKind { get; init; }
-        /// <summary>L'id della grammatica tree-sitter (<c>tree-sitter-&lt;id&gt;</c>); null per Roslyn.</summary>
+        /// <summary>L'id della grammatica tree-sitter (<c>tree-sitter-&lt;id&gt;</c>); null per Roslyn e PowerShell.</summary>
         public string GrammarId { get; init; }
     }
 
@@ -31,6 +31,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string Java = "java";
         public const string Go = "go";
         public const string Rust = "rust";
+        public const string PowerShell = "powershell";
 
         public static readonly IReadOnlyList<CodeLanguage> All = new[]
         {
@@ -41,6 +42,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             new CodeLanguage { Id = Java, DisplayName = "Java", Extensions = new[] { ".java" }, ExtractorKind = CodeExtractorKind.TreeSitter, GrammarId = "java" },
             new CodeLanguage { Id = Go, DisplayName = "Go", Extensions = new[] { ".go" }, ExtractorKind = CodeExtractorKind.TreeSitter, GrammarId = "go" },
             new CodeLanguage { Id = Rust, DisplayName = "Rust", Extensions = new[] { ".rs" }, ExtractorKind = CodeExtractorKind.TreeSitter, GrammarId = "rust" },
+            new CodeLanguage { Id = PowerShell, DisplayName = "PowerShell", Extensions = new[] { ".ps1", ".psm1" }, ExtractorKind = CodeExtractorKind.PowerShell },
         };
 
         private static readonly Dictionary<string, CodeLanguage> ByExtension = All

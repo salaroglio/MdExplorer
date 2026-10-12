@@ -43,6 +43,10 @@
          Il core va accanto all'eseguibile: con ExcludeAssets=native il runtime non cerca più in runtimes/<rid>/native
          (provato il 10/10/2026: DllNotFoundException con il core messo lì, ok nella cartella dell'app). -->
     <PackageReference Include="TreeSitter.DotNet" Version="1.3.0" ExcludeAssets="native" />
+    <!-- PowerShell (grafo del codice): il parser ufficiale del linguaggio, in-process come Roslyn. Basta S.M.A, non il
+         Microsoft.PowerShell.SDK: +10 MB Linux / +13 MB Windows contro +45/+50 (misurato il 12/10/2026 su un publish
+         self-contained net8). La 7.4 è l'ultima linea per net8. -->
+    <PackageReference Include="System.Management.Automation" Version="7.4.20" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <PackageReference Include="System.Management" Version="8.0.0" />
   </ItemGroup>
