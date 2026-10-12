@@ -744,8 +744,7 @@ namespace MdExplorer.Controllers
             }
 
             var fullPath = Path.GetFullPath(Path.Combine(rootPathSystem, relativePathFile.TrimStart(Path.DirectorySeparatorChar, '/', '\\')));
-            var root = Path.GetFullPath(rootPathSystem);
-            if (!fullPath.StartsWith(root, StringComparison.Ordinal))
+            if (!MdExplorer.Features.Utilities.PathContainment.IsInside(rootPathSystem, fullPath))
             {
                 return null;
             }

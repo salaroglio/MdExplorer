@@ -375,11 +375,9 @@ namespace MdExplorer.Controllers.CodeGraph
         private static string ToRelative(string projectPath, string folderPath)
         {
             if (string.IsNullOrWhiteSpace(folderPath)) return null;
-            var full = Path.IsPathRooted(folderPath) ? Path.GetFullPath(folderPath) : Path.GetFullPath(Path.Combine(projectPath, folderPath));
-            var root = Path.GetFullPath(projectPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            if (!full.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return null;
-            var rel = Path.GetRelativePath(root, full).Replace('\\', '/');
-            return rel == "." ? string.Empty : rel;
+            // PathContainment: il prefisso senza separatore faceva passare «/doc/proj2» per dentro «/doc/proj»
+            var rel = MdExplorer.Features.Utilities.PathContainment.RelativeOrNull(projectPath, folderPath);
+            return rel == null ? null : rel == "." ? string.Empty : rel;
         }
 
         /// <summary>GET /api/codegraph/status?projectPath=… — conteggi e quanti script restano da caricare.</summary>
