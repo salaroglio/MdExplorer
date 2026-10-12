@@ -40,6 +40,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static string DocSet(string logicalPath) => $"urn:mde:docs:{Enc(logicalPath)}";
         public static string Edge(string sourceId, string relation, string targetId, int? line) => $"urn:mde:edge:{sourceId}:{relation}:{targetId}:{line ?? 0}";
         public static string Doc(string symbolId) => "urn:mde:doc:" + symbolId;
+        public static string FileDoc(string logicalPath) => $"urn:mde:fdoc:{Enc(logicalPath)}";
         public static string ParamDoc(string symbolId, string parameterName) => $"urn:mde:pdoc:{symbolId}:{Enc(parameterName)}";
         public static string Script(string projectHash, string scriptRelativePath) => $"urn:mde:script:{projectHash}:{Enc(scriptRelativePath)}";
         public static string Scan(string projectHash, string programFolder) => $"urn:mde:scan:{projectHash}:{Enc(programFolder)}";

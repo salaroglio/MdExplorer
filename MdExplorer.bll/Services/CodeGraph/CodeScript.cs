@@ -89,6 +89,16 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Description { get; set; }
     }
 
+    /// <summary>
+    /// Il FILE nel suo insieme (12/10/2026): a che cosa serve, in una o due frasi, scritto dall'LLM nello stesso giro
+    /// delle descrizioni dei simboli. In Fuseki è un <c>code:FileDescription</c> che descrive il <c>code:File</c>: vale
+    /// per ogni linguaggio (anche dove non c'è un simbolo module, come in C#).
+    /// </summary>
+    public sealed class ScriptFileDoc
+    {
+        public string Summary { get; set; }
+    }
+
     /// <summary>Uno script letto e validato: l'intestazione più i record, già tipizzati.</summary>
     public sealed class CodeScript
     {
@@ -98,7 +108,9 @@ namespace MdExplorer.Features.Services.CodeGraph
         public List<ScriptEdge> Edges { get; } = new();
         public List<ScriptSymbolDoc> SymbolDocs { get; } = new();
         public List<ScriptParameterDoc> ParameterDocs { get; } = new();
-        public int RecordCount => Symbols.Count + Parameters.Count + Edges.Count + SymbolDocs.Count + ParameterDocs.Count;
+        /// <summary>Solo negli script di descrizioni: la descrizione del file, se l'LLM l'ha scritta.</summary>
+        public ScriptFileDoc FileDoc { get; set; }
+        public int RecordCount => Symbols.Count + Parameters.Count + Edges.Count + SymbolDocs.Count + ParameterDocs.Count + (FileDoc != null ? 1 : 0);
     }
 
     /// <summary>
@@ -128,6 +140,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             { "type", "symbolId", "summary", "returnsDescription", "remarks", "signatureHash" };
         private static readonly HashSet<string> ParameterDocFields = new(StringComparer.Ordinal)
             { "type", "symbolId", "parameterName", "description" };
+        private static readonly HashSet<string> FileDocFields = new(StringComparer.Ordinal)
+            { "type", "summary" };
 
         public static readonly string[] SymbolKinds =
             { "namespace", "module", "class", "interface", "record", "struct", "enum", "method", "constructor", "property", "field", "function", "type",
@@ -269,6 +283,14 @@ namespace MdExplorer.Features.Services.CodeGraph
                         Line = OptInt(root, "line", path, line),
                     });
                     break;
+                case "fileDoc":
+                    if (isAst) throw WrongKind(path, line, type, "doc");
+                    RejectUnknown(root, FileDocFields, path, line, type);
+                    var fd = new ScriptFileDoc { Summary = OptString(root, "summary") };
+                    if (string.IsNullOrWhiteSpace(fd.Summary)) throw Missing(path, line, "summary", "fileDoc");
+                    if (script.FileDoc != null) throw new CodeScriptFormatException(path, line, "un solo fileDoc per script");
+                    script.FileDoc = fd;
+                    break;
                 case "symbolDoc":
                     if (isAst) throw WrongKind(path, line, type, "doc");
                     RejectUnknown(root, SymbolDocFields, path, line, type);
@@ -295,7 +317,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     break;
                 default:
                     throw new CodeScriptFormatException(path, line,
-                        $"type '{type}' sconosciuto: ammessi symbol, parameter, edge (ast) e symbolDoc, parameterDoc (doc)");
+                        $"type '{type}' sconosciuto: ammessi symbol, parameter, edge (ast) e fileDoc, symbolDoc, parameterDoc (doc)");
             }
         }
 

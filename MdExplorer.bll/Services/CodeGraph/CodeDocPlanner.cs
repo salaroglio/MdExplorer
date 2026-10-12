@@ -24,13 +24,12 @@ namespace MdExplorer.Features.Services.CodeGraph
     public static class CodeDocPlanner
     {
         /// <summary>
-        /// I kind che hanno senso descrivere: non i nodi external, non i campi. Il <c>module</c> sì (12/10/2026): è il
-        /// FILE nel suo insieme (per uno script PowerShell lo script stesso), e senza la sua descrizione il grafo diceva
-        /// che cosa fa ogni funzione ma non a che cosa serve il file.
+        /// I kind che hanno senso descrivere: non i moduli, non i nodi external. Il file nel suo insieme ha la sua voce,
+        /// <see cref="ScriptFileDoc"/> (vedi <see cref="NeedsFileDoc"/>), per ogni linguaggio.
         /// </summary>
         private static readonly HashSet<string> Describable = new(StringComparer.Ordinal)
         {
-            "module", "class", "interface", "record", "struct", "enum", "method", "constructor", "property", "function", "type",
+            "class", "interface", "record", "struct", "enum", "method", "constructor", "property", "function", "type",
             "component", "service", "directive", "pipe", "ngmodule",
         };
 
@@ -64,6 +63,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             return list;
         }
 
+        /// <summary>
+        /// La descrizione del file si chiede quando manca (o con <paramref name="force"/>). Non si rifà a ogni modifica del
+        /// sorgente: a che cosa serve un file cambia di rado, e ogni giro costa una chiamata all'LLM; «Riscrivi la
+        /// descrizione del file» dal tasto destro la rifà.
+        /// </summary>
+        public static bool NeedsFileDoc(CodeScript existingDoc, bool force) => force || existingDoc?.FileDoc == null;
+
         public const int MaxSourceChars = 60_000;
         /// <summary>Quanti simboli per domanda quando il file è troppo lungo per andare intero.</summary>
         public const int ExcerptBatchSize = 12;
@@ -74,10 +80,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// descrizione, perché l'LLM non le vedeva. Si mandano i candidati a gruppi, ognuno con il pezzo di sorgente
         /// delle righe dei suoi simboli (intestate «righe a-b»).
         /// </summary>
-        public static List<(IReadOnlyList<CodeDocCandidate> Candidates, string Source)> Batches(string sourceText, IReadOnlyList<CodeDocCandidate> candidates)
+        public static List<(IReadOnlyList<CodeDocCandidate> Candidates, string Source)> Batches(string sourceText, IReadOnlyList<CodeDocCandidate> candidates, bool askFile = false)
         {
             var list = new List<(IReadOnlyList<CodeDocCandidate>, string)>();
-            if (candidates.Count == 0) return list;
+            // solo il file da descrivere: una domanda con il sorgente (tagliato in BuildPrompt se è enorme: per dire a che
+            // cosa serve un file basta l'inizio)
+            if (candidates.Count == 0) { if (askFile) list.Add((candidates, sourceText)); return list; }
             if (sourceText.Length <= MaxSourceChars) { list.Add((candidates, sourceText)); return list; }
             var lines = sourceText.Replace("\r\n", "\n").Split('\n');
             for (var i = 0; i < candidates.Count; i += ExcerptBatchSize)
@@ -98,12 +106,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         /// <summary>Il prompt: la skill, il sorgente, i simboli da descrivere (JSON Lines) e il formato della risposta.</summary>
-        public static string BuildPrompt(string skillBody, string sourceRelativePath, string sourceText, IReadOnlyList<CodeDocCandidate> candidates)
+        public static string BuildPrompt(string skillBody, string sourceRelativePath, string sourceText, IReadOnlyList<CodeDocCandidate> candidates, bool askFile = false)
         {
             if (sourceText.Length > MaxSourceChars) sourceText = sourceText.Substring(0, MaxSourceChars) + "\n/* … troncato … */";
             var sb = new StringBuilder();
             sb.Append(skillBody.Trim()).Append("\n\n");
             sb.Append("---- FILE ----\n").Append(sourceRelativePath).Append('\n').Append(sourceText).Append("\n\n");
+            if (askFile) sb.Append("---- DESCRIVI ANCHE IL FILE ----\nScrivi una riga {\"type\":\"fileDoc\",\"summary\":\"…\"} con a che cosa serve il file.\n\n");
             sb.Append("---- SIMBOLI DA DESCRIVERE (uno per riga) ----\n");
             foreach (var c in candidates)
             {
@@ -123,7 +132,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// simboli chiesti, con il <c>signatureHash</c> calcolato da noi; righe non JSON o fuori formato finiscono in
         /// <paramref name="rejected"/> con il motivo, mai ignorate in silenzio.
         /// </summary>
-        public static CodeScript ParseAnswer(string answer, string sourceRelativePath, IReadOnlyList<CodeDocCandidate> candidates, string writtenBy, out List<string> rejected)
+        public static CodeScript ParseAnswer(string answer, string sourceRelativePath, IReadOnlyList<CodeDocCandidate> candidates, string writtenBy, out List<string> rejected, bool askedFile = false)
         {
             rejected = new List<string>();
             var byId = candidates.ToDictionary(c => c.Symbol.Id, c => c, StringComparer.Ordinal);
@@ -143,6 +152,11 @@ namespace MdExplorer.Features.Services.CodeGraph
                 CodeScript one;
                 try { one = CodeScriptParser.Parse(header + "\n" + line, sourceRelativePath); }
                 catch (CodeScriptFormatException ex) { rejected.Add($"riga {lineNo}: {ex.Message}"); continue; }
+                if (one.FileDoc != null)
+                {
+                    if (!askedFile) rejected.Add($"riga {lineNo}: fileDoc non richiesto");
+                    else result.FileDoc = one.FileDoc;
+                }
                 foreach (var d in one.SymbolDocs)
                 {
                     if (!byId.TryGetValue(d.SymbolId, out var c)) { rejected.Add($"riga {lineNo}: symbolId '{d.SymbolId}' non richiesto"); continue; }
@@ -164,7 +178,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// <summary>Fonde le descrizioni nuove in quelle esistenti: i simboli non toccati restano, quelli descritti ora si sostituiscono.</summary>
         public static CodeScript Merge(CodeScript existing, CodeScript fresh)
         {
-            var merged = new CodeScript { Header = fresh.Header };
+            var merged = new CodeScript { Header = fresh.Header, FileDoc = fresh.FileDoc ?? existing?.FileDoc };
             var touched = new HashSet<string>(fresh.SymbolDocs.Select(d => d.SymbolId).Concat(fresh.ParameterDocs.Select(p => p.SymbolId)), StringComparer.Ordinal);
             if (existing != null)
             {

@@ -41,6 +41,18 @@ namespace MdExplorer.Controllers.CodeGraph
 
         public class GrammarRequest { public string GrammarId { get; set; } }
         public class DescribeSymbolRequest { public string ProjectPath { get; set; } public string SymbolId { get; set; } }
+        public class DescribeFileRequest { public string ProjectPath { get; set; } public string Path { get; set; } }
+
+        /// <summary>POST /api/codegraph/describe-file {projectPath, path} — «Descrivi il file con Mark»: a che cosa serve il file (code:FileDescription).</summary>
+        [HttpPost("describe-file")]
+        public Task<IActionResult> DescribeFile([FromBody] DescribeFileRequest request, CancellationToken ct) => Guarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            if (string.IsNullOrWhiteSpace(request.Path)) return BadRequest(new { error = "path è obbligatorio (il percorso del file nel grafo)" });
+            var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
+            var outcome = await job.DescribeFileAsync(request.ProjectPath, request.Path, ct);
+            return outcome.Error != null ? StatusCode(422, outcome) : Ok(outcome);
+        });
 
         /// <summary>
         /// POST /api/codegraph/describe-symbol {projectPath, symbolId} — «Descrivi con Mark» dal tasto destro del grafo (D27):
@@ -398,7 +410,7 @@ namespace MdExplorer.Controllers.CodeGraph
             return Ok(new
             {
                 folder = model.Folder, folders = model.Folders,
-                nodes = model.Nodes.Select(n => new { n.Id, n.Kind, n.Name, n.QualifiedName, n.Path, n.Folder, n.Line, n.Signature, n.Summary, n.ParentId, n.Hidden, n.Expanded, n.External, n.Uncalled, n.Externals, n.HiddenCalls, n.Depth, n.ModuleId }),
+                nodes = model.Nodes.Select(n => new { n.Id, n.Kind, n.Name, n.QualifiedName, n.Path, n.Folder, n.Line, n.Signature, n.Summary, n.ParentId, n.Hidden, n.Expanded, n.External, n.Uncalled, n.Externals, n.HiddenCalls, n.Depth }),
                 links = model.Links.Select(l => new { l.Source, l.Target, l.Relation, l.Confidence, l.Count }),
             });
         });

@@ -39,8 +39,6 @@ namespace MdExplorer.Features.Services.CodeGraph
             public List<string> HiddenCalls { get; set; }
             /// <summary>Il livello nel disegno dall'alto in basso: 0 i file, 1 i punti d'ingresso, poi chi è chiamato, un livello più giù.</summary>
             public int Depth { get; set; }
-            /// <summary>Per un file: il simbolo <c>module</c> che lo rappresenta (lo script stesso), se c'è; è quello che si descrive.</summary>
-            public string ModuleId { get; set; }
         }
 
         public sealed class ViewExternal
@@ -78,8 +76,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Focus { get; set; }
         public Dictionary<string, List<CodeSymbolView>> Outlines { get; } = new(StringComparer.Ordinal);
         public List<EdgeInput> Edges { get; } = new();
-        /// <summary>Per file: il simbolo <c>module</c> e la sua descrizione (il file nel suo insieme), anche per i file chiusi.</summary>
-        public Dictionary<string, (string ModuleId, string Summary)> FileModules { get; } = new(StringComparer.Ordinal);
+        /// <summary>Per file: a che cosa serve (la sua <c>code:FileDescription</c>), anche per i file chiusi — l'accordion del box.</summary>
+        public Dictionary<string, string> FileSummaries { get; } = new(StringComparer.Ordinal);
 
         public sealed class EdgeInput
         {
@@ -114,8 +112,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 fileIds[path] = id;
                 var folder = FolderOf(path);
                 if (!model.Folders.Contains(folder)) model.Folders.Add(folder);
-                input.FileModules.TryGetValue(path, out var module);
-                model.Nodes.Add(new CodeGraphViewModel.ViewNode { Id = id, Kind = "file", Name = path.Substring(path.LastIndexOf('/') + 1), QualifiedName = path, Path = path, Folder = folder, Hidden = count, Expanded = input.Expanded.Contains(path), ModuleId = module.ModuleId, Summary = module.Summary });
+                input.FileSummaries.TryGetValue(path, out var summary);
+                model.Nodes.Add(new CodeGraphViewModel.ViewNode { Id = id, Kind = "file", Name = path.Substring(path.LastIndexOf('/') + 1), QualifiedName = path, Path = path, Folder = folder, Hidden = count, Expanded = input.Expanded.Contains(path), Summary = summary });
             }
 
             // 2) i simboli conosciuti (dai file letti) e gli archi per sorgente

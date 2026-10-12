@@ -58,16 +58,13 @@ namespace MdExplorer.Features.Tests.CodeGraph
         private static CodeGraphViewModel.ViewNode Node(CodeGraphViewModel m, string id) => m.Nodes.SingleOrDefault(n => n.Id == id);
 
         [TestMethod]
-        public void Give_a_closed_file_its_module_and_the_description_of_the_file()
+        public void Give_a_closed_file_the_description_of_what_it_is_for()
         {
             var input = Input(new string[0], new string[0]);
-            input.FileModules[Main] = ("M", "Avvia l'importazione notturna.");
-            input.FileModules[Lib] = ("L", null);
+            input.FileSummaries[Main] = "Avvia l'importazione notturna.";
             var m = CodeGraphViewData.Build(input);
-            Assert.AreEqual("M", Node(m, "file:" + Main).ModuleId, "il module si descrive al posto del file");
-            Assert.AreEqual("Avvia l'importazione notturna.", Node(m, "file:" + Main).Summary, "la scheda del file mostra la descrizione anche a file chiuso");
-            Assert.AreEqual("L", Node(m, "file:" + Lib).ModuleId);
-            Assert.IsNull(Node(m, "file:" + Lib).Summary, "non ancora descritto: la scheda offre «Descrivi il file con Mark»");
+            Assert.AreEqual("Avvia l'importazione notturna.", Node(m, "file:" + Main).Summary, "l'accordion del file mostra la descrizione anche a file chiuso");
+            Assert.IsNull(Node(m, "file:" + Lib).Summary, "non ancora descritto: l'accordion offre «Descrivi il file con Mark»");
         }
 
         [TestMethod]

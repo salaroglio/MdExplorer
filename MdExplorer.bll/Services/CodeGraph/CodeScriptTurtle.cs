@@ -105,6 +105,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             ["DescriptionSet"] = Set("path", "writtenBy", "writtenAt", "schema"),
             ["Description"] = Set("describes", "summary", "writtenBy", "writtenAt", "returnsDescription", "remarks", "signatureHash"),
             ["ParameterDescription"] = Set("describes", "parameterName", "description"),
+            ["FileDescription"] = Set("describes", "summary", "writtenBy", "writtenAt"),
         };
 
         private static HashSet<string> Set(params string[] names) => new(names, StringComparer.Ordinal);
@@ -207,6 +208,15 @@ namespace MdExplorer.Features.Services.CodeGraph
                     SymbolId = SymbolId(n.IriValue("describes", path)), Summary = n.Str("summary", path),
                     ReturnsDescription = n.OptStr("returnsDescription"), Remarks = n.OptStr("remarks"), SignatureHash = n.OptStr("signatureHash"),
                 });
+            var fileDocs = nodes.Where(n => n.Class == "FileDescription").ToList();
+            if (fileDocs.Count > 1) throw new CodeScriptFormatException(path, 0, "più di un code:FileDescription: uno solo per script");
+            if (fileDocs.Count == 1)
+            {
+                var described = fileDocs[0].IriValue("describes", path);
+                if (Uri.UnescapeDataString(described) != Uri.UnescapeDataString(CodeGraphIris.File(script.Header.Source)))
+                    throw new CodeScriptFormatException(path, 0, $"code:FileDescription descrive <{described}>, non il file dello script «{script.Header.Source}»");
+                script.FileDoc = new ScriptFileDoc { Summary = fileDocs[0].Str("summary", path) };
+            }
             foreach (var n in nodes.Where(n => n.Class == "ParameterDescription"))
                 script.ParameterDocs.Add(new ScriptParameterDoc
                 {

@@ -2,7 +2,7 @@
 description: "Prompt usato dall'azione «Descrivi il codice» del grafo del codice: per ogni simbolo di un file sorgente scrive la descrizione funzionale, quella di ogni parametro di ingresso e quella del valore di uscita."
 mde:
   origin: mdexplorer
-  version: 2
+  version: 3
   updatePolicy: replace
 ---
 
@@ -25,12 +25,6 @@ il sorgente completo di UN file e l'elenco dei simboli (classi, metodi, funzioni
 proprietà) da descrivere, con la loro firma e i parametri già estratti dall'AST.
 Il tuo compito è dire **che cosa fanno**, non com'è fatta la firma: la firma è già nota.
 
-Un simbolo di kind `module` è il FILE nel suo insieme (per uno script PowerShell
-lo script stesso: il codice fuori dalle funzioni). Per lui `summary` dice a che
-cosa serve il file, chi lo usa o quando si esegue, e quali sono le sue parti
-principali (le funzioni o le classi che contano), in 2-4 frasi; niente
-`parameterDoc` se non ne ha.
-
 Per ogni simbolo richiesto scrivi:
 
 - `summary`: la descrizione funzionale, 1-3 frasi: che cosa fa, quando lo si usa,
@@ -45,9 +39,16 @@ Per ogni simbolo richiesto scrivi:
 - `remarks` (facoltativo): un avvertimento che chi chiama deve sapere (thread,
   prestazioni, precondizioni).
 
+Se prima dell'elenco c'è la sezione `---- DESCRIVI ANCHE IL FILE ----`, scrivi
+anche UNA riga `fileDoc` con il `summary` del file: a che cosa serve, in 1-2
+frasi brevi, per chi scorre l'elenco dei file e vuole capire al volo quale aprire
+(es. «Script notturno che importa i file COBOL e li converte in JSON»). Parla
+dell'utilità, non elencare le funzioni. Se la sezione non c'è, niente `fileDoc`.
+
 Formato della risposta — JSON Lines, un oggetto per riga, NIENT'ALTRO:
 
 ```
+{"type":"fileDoc","summary":"…"}
 {"type":"symbolDoc","symbolId":"<id dato>","summary":"…","returnsDescription":"…","remarks":"…"}
 {"type":"parameterDoc","symbolId":"<id dato>","parameterName":"<name dato>","description":"…"}
 ```

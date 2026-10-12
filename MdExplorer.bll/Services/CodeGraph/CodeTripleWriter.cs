@@ -138,6 +138,15 @@ namespace MdExplorer.Features.Services.CodeGraph
               .Append(" ; code:writtenAt ").Append(Lit(h.WrittenAt ?? string.Empty))
               .Append(" ; code:schema ").Append(Int(CodeScriptParser.CurrentSchema));
             FromScript(sb, fromScriptLit).Append(" .\n");
+            if (script.FileDoc != null)
+            {
+                sb.Append(Iri(FileDoc(h.Source))).Append(" a ").Append(CodeOntology.ClassFileDescription)
+                  .Append(" ; code:describes ").Append(Iri(File(h.Source)))
+                  .Append(" ; code:summary ").Append(Lit(script.FileDoc.Summary ?? string.Empty))
+                  .Append(" ; code:writtenBy ").Append(Lit(h.WrittenBy ?? string.Empty))
+                  .Append(" ; code:writtenAt ").Append(Lit(h.WrittenAt ?? string.Empty));
+                FromScript(sb, fromScriptLit).Append(" .\n");
+            }
             foreach (var d in script.SymbolDocs)
             {
                 sb.Append(Iri(Doc(d.SymbolId))).Append(" a ").Append(CodeOntology.ClassDescription)

@@ -13,9 +13,12 @@
  * - Tasto destro, MarkAgent (D27): «Chiedi a MarkAgent» manda `mde-mark.askAboutSymbol` al genitore (Angular,
  *   MarkDiagramService: la domanda va nella sessione del tab MarkAgent, la risposta nella finestra di Mark);
  *   «Descrivi con Mark» chiede POST /api/codegraph/describe-symbol per quel solo simbolo e aggiorna la scheda.
- * - Tasto destro su un FILE (12/10): MarkAgent spiega il file e i suoi legami; «Descrivi il file con Mark» descrive il suo
- *   simbolo module (lo script stesso), e la descrizione compare nella scheda del file. Tasto destro su un ARCO: MarkAgent
+ * - Tasto destro su un FILE (12/10): MarkAgent spiega il file e i suoi legami; «Descrivi il file con Mark» scrive a che
+ *   cosa serve il file (code:FileDescription, POST /api/codegraph/describe-file). Tasto destro su un ARCO: MarkAgent
  *   spiega che cosa vuol dire quel legame (quali punti, se certo o dedotto) — le sigle extracted/inferred non dicevano niente.
+ * - ACCORDION dei file (12/10): il «▸» a sinistra del box apre sotto il file a che cosa serve, in breve (la sua
+ *   code:FileDescription); le righe sotto scendono. «Utilità dei file» in alto le apre o le chiude tutte. Gli accordion
+ *   aperti stanno nell'URL (parametro desc), come i file aperti.
  * - Disegno A SCALETTA (D26, poi D29), CALCOLATO e non simulato: ogni nodo sulla sua riga, rientrato rispetto a chi
  *   l'ha fatto comparire, come l'albero di un esplora risorse — con tante funzioni affiancate le etichette si
  *   sovrapponevano. Le chiamate fra nodi che non sono padre e figlio sono archi curvi di lato. Un nodo trascinato resta
@@ -35,6 +38,9 @@
     let isDark = false;   // si legge quando il body esiste (lo script sta nell'head)
     const expanded = new Set((qs.get('expand') || '').split(',').filter(Boolean));
     const opened = new Set((qs.get('open') || '').split(',').filter(Boolean));
+    const descOpen = new Set((qs.get('desc') || '').split(',').filter(Boolean));   // file con l'accordion aperto (percorsi)
+    const FIT_MAX_ZOOM = 1.4;
+    const DESC_FONT = '11px -apple-system, "Segoe UI", Inter, system-ui, sans-serif', DESC_LINE = 14, DESC_WIDTH = 380;
     const ROW_GAP = 34;   // a scaletta: ogni nodo sulla sua riga
     const INDENT = 44;    // rientro di un livello rispetto a chi l'ha fatto comparire
     let firstFit = true;   // al primo disegno la vista mostra tutto il grafo
@@ -90,11 +96,13 @@
         const syms = data.nodes.filter(n => n.kind !== 'file' && !n.external);
         const uncalled = syms.filter(n => n.uncalled).length;
         const undescribed = syms.filter(n => !n.summary && n.kind !== 'module').length;
-        status.textContent = data.nodes.filter(n => n.kind === 'file').length + ' file, ' + syms.length + ' simboli mostrati, ' + data.links.length + ' archi' +
+        const filesUndescribed = data.nodes.filter(n => n.kind === 'file' && !n.summary).length;
+        status.textContent = data.nodes.filter(n => n.kind === 'file').length + ' file' + (filesUndescribed ? ' (' + filesUndescribed + ' senza descrizione)' : '') + ', ' + syms.length + ' simboli mostrati, ' + data.links.length + ' archi' +
             (uncalled ? ' · ' + uncalled + ' che nessuno chiama' : '') + (undescribed ? ' · ' + undescribed + ' senza descrizione' : '');
         render();
         renderLegend();
         renderHidden();
+        renderDescToggle();
         if (selected) { const again = graph.graphData().nodes.find(x => x.id === selected.id); select(again || null); }   // la scheda segue il nodo aggiornato
         else if (focus) { const n = graph.graphData().nodes.find(x => x.id === focus); if (n) { select(n); setTimeout(() => graph.centerAt(n.x, n.y, 600), 400); } }
     }
@@ -143,6 +151,18 @@
                 ctx.fillStyle = isFile ? '#0f172a' : (isDark ? '#e6edf3' : '#0f172a');
                 ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.fillText(labelOf(n), n.x, n.y);
+                n.__acc = null;
+                if (isFile) {
+                    // l'accordion: il triangolo a sinistra del box; aperto, sotto il box a che cosa serve il file
+                    const open = descOpen.has(n.path), ax = n.x - w / 2 - 9 / scale, ar = 7 / scale;
+                    ctx.beginPath(); ctx.arc(ax, n.y, ar, 0, 2 * Math.PI);
+                    ctx.fillStyle = n.summary ? (isDark ? '#475569' : '#64748b') : (isDark ? '#334155' : '#cbd5e1'); ctx.fill();
+                    ctx.fillStyle = '#fff'; ctx.font = (9 / scale) + 'px sans-serif';
+                    ctx.fillText(open ? '▾' : '▸', ax, n.y + 0.5 / scale);
+                    n.__acc = { x: ax, r: ar };
+                    if (open) drawDescription(n, ctx, w);
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                }
                 n.__btn = null;
                 if (hasToggle(n)) {
                     // il «+» / «−» a destra del box, e quanti simboli si aprirebbero
@@ -160,8 +180,9 @@
                 n.__w = w; n.__h = h;
             })
             .nodePointerAreaPaint((n, color, ctx, scale) => {
-                const w = (n.__w || 60) + 24 / scale, h = n.__h || 20 / scale;
-                ctx.fillStyle = color; ctx.fillRect(n.x - w / 2 + 0, n.y - h / 2, w, h);
+                // il box più il «+» a destra e, per un file, il «▸» a sinistra (simmetrico)
+                const w = (n.__w || 60) + (n.kind === 'file' ? 48 : 24) / scale, h = n.__h || 20 / scale;
+                ctx.fillStyle = color; ctx.fillRect(n.x - w / 2 + (n.kind === 'file' ? 0 : 12 / scale), n.y - h / 2, w, h);
             })
             .linkColor(l => REL_COLORS[l.relation] || '#94a3b8')
             // padre → figlio: dritto (è il gradino della scaletta); ogni altro arco passerebbe sopra le righe in mezzo: si curva di lato
@@ -172,6 +193,11 @@
             .linkLabel(l => relationText(l) + ' — tasto destro: chiedi a MarkAgent')
             .onLinkRightClick((l, ev) => showLinkMenu(l, ev))
             .onNodeClick((n, ev) => {
+                if (n.__acc) {
+                    const rect = el.getBoundingClientRect();
+                    const p = graph.screen2GraphCoords(ev.clientX - rect.left, ev.clientY - rect.top);
+                    if (Math.hypot(p.x - n.__acc.x, p.y - n.y) <= n.__acc.r * 1.5) { toggleDesc(n); return; }
+                }
                 if (n.__btn) {
                     // clientX meno il riquadro del grafo: offsetX dipende dall'elemento che riceve il clic (non sempre il canvas)
                     const rect = el.getBoundingClientRect();
@@ -213,10 +239,13 @@
             if (n.parentId && byId[n.parentId] && n.parentId !== n.id) (kids[n.parentId] = kids[n.parentId] || []).push(n);
             else roots.push(n);
         });
-        let row = 0;
+        let y = 0;
         const place = (n, level) => {
             n.__x = level * INDENT + width(n) / 2;
-            n.__y = row++ * ROW_GAP;
+            n.__y = y;
+            // un file con l'accordion aperto occupa anche le righe della sua descrizione
+            n.__desc = n.kind === 'file' && descOpen.has(n.path) ? wrap(measure, descriptionText(n)) : null;
+            y += ROW_GAP + (n.__desc ? n.__desc.length * DESC_LINE + 14 : 0);
             (kids[n.id] || []).forEach(c => place(c, level + 1));
         };
         roots.forEach(r => place(r, 0));
@@ -225,6 +254,63 @@
             n.x = n.fx = d ? d.x : n.__x;
             n.y = n.fy = d ? d.y : n.__y;
         });
+    }
+
+    // ---- accordion dei file
+
+    function descriptionText(n) {
+        return n.summary || 'Nessuna descrizione ancora. Tasto destro sul file → «Descrivi il file con Mark», oppure «Descrivi» sulla cartella.';
+    }
+
+    /** Il testo spezzato in righe larghe al massimo DESC_WIDTH (unità del grafo: il riquadro scala con lo zoom come le righe). */
+    function wrap(ctx, text) {
+        ctx.font = DESC_FONT;
+        const lines = [];
+        let line = '';
+        String(text).split(/\s+/).forEach(word => {
+            const next = line ? line + ' ' + word : word;
+            if (ctx.measureText(next).width > DESC_WIDTH && line) { lines.push(line); line = word; } else line = next;
+        });
+        if (line) lines.push(line);
+        return lines.slice(0, 8);
+    }
+
+    function drawDescription(n, ctx, boxWidth) {
+        const lines = n.__desc || wrap(ctx, descriptionText(n));
+        const left = n.x - boxWidth / 2, top = n.y + 13, h = lines.length * DESC_LINE + 8;
+        ctx.beginPath(); roundRect(ctx, left, top, DESC_WIDTH + 16, h, 5);
+        ctx.fillStyle = isDark ? 'rgba(30,41,59,0.95)' : 'rgba(255,255,255,0.97)'; ctx.fill();
+        ctx.lineWidth = 1; ctx.strokeStyle = folderColor(n.folder); ctx.stroke();
+        ctx.font = (n.summary ? '' : 'italic ') + DESC_FONT;
+        ctx.fillStyle = n.summary ? (isDark ? '#e2e8f0' : '#1e293b') : (isDark ? '#94a3b8' : '#64748b');
+        ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        lines.forEach((l, i) => ctx.fillText(l, left + 8, top + 4 + i * DESC_LINE));
+    }
+
+    function saveDescInUrl() {
+        const u = new URL(location.href);
+        if (descOpen.size) u.searchParams.set('desc', Array.from(descOpen).join(',')); else u.searchParams.delete('desc');
+        history.replaceState(null, '', u.toString());
+    }
+
+    function toggleDesc(n) {
+        if (descOpen.has(n.path)) descOpen.delete(n.path); else descOpen.add(n.path);
+        saveDescInUrl();
+        render(); renderDescToggle();
+    }
+
+    /** «Utilità dei file» nell'intestazione: apre o chiude tutti gli accordion. */
+    function renderDescToggle() {
+        let btn = document.getElementById('cg-desc-all');
+        if (!btn) { btn = document.createElement('button'); btn.id = 'cg-desc-all'; btn.className = 'cg-chip'; document.getElementById('cg-header').appendChild(btn); }
+        const files = data.nodes.filter(n => n.kind === 'file');
+        const allOpen = files.length > 0 && files.every(f => descOpen.has(f.path));
+        btn.textContent = (allOpen ? '▾' : '▸') + ' Utilità dei file';
+        btn.title = allOpen ? 'Chiudi le descrizioni dei file' : 'Mostra sotto ogni file a che cosa serve';
+        btn.onclick = () => {
+            if (allOpen) files.forEach(f => descOpen.delete(f.path)); else files.forEach(f => descOpen.add(f.path));
+            saveDescInUrl(); render(); renderDescToggle();
+        };
     }
 
     /** Dopo un'apertura: se un nodo è fuori dallo schermo, la vista si adatta per mostrarli tutti. */
@@ -237,7 +323,13 @@
                 const p = graph.graph2ScreenCoords(n.x, n.y);
                 return p.x < margin || p.y < margin || p.x > el.clientWidth - margin || p.y > el.clientHeight - margin;
             });
-            if (outside || firstFit) graph.zoomToFit(firstFit ? 0 : 400, 60);
+            if (outside || firstFit) {
+                const ms = firstFit ? 0 : 400;
+                graph.zoomToFit(ms, 60);
+                // con pochi nodi «adatta» zoomerebbe moltissimo: le descrizioni degli accordion (unità del grafo, come le
+                // righe) diventerebbero enormi. L'adattamento si ferma a FIT_MAX_ZOOM; a mano si zooma quanto si vuole.
+                setTimeout(() => { if (graph.zoom() > FIT_MAX_ZOOM) graph.zoom(FIT_MAX_ZOOM, 200); }, ms + 20);
+            }
             firstFit = false;
         }, 300);
     }
@@ -252,12 +344,13 @@
         const items = [];
         if (n.kind === 'file') {
             items.push(['ask', 'Chiedi a MarkAgent di spiegare «' + n.name + '» e i suoi legami', () => askMarkAgentAboutFile(n)]);
-            if (n.moduleId) items.push(['describe', n.summary ? 'Riscrivi la descrizione del file con Mark' : 'Descrivi il file con Mark', () => describeFile(n)]);
+            items.push(['describe', n.summary ? 'Riscrivi la descrizione del file con Mark' : 'Descrivi il file con Mark', () => describeFile(n)]);
+            items.push(['desc', descOpen.has(n.path) ? 'Chiudi l\'utilità del file' : 'Mostra l\'utilità del file', () => toggleDesc(n)]);
             items.push(['toggle', n.expanded ? 'Chiudi i simboli' : 'Mostra i simboli', () => toggle(n)]);
             items.push(['open', 'Apri il file', () => openSource(n)]);
         } else {
             items.push(['ask', 'Chiedi a MarkAgent di «' + n.name + '»', () => askMarkAgent(n)]);
-            items.push(['describe', n.summary ? 'Riscrivi la descrizione con Mark' : 'Descrivi con Mark', () => describeSymbol(n)]);
+            if (n.kind !== 'module') items.push(['describe', n.summary ? 'Riscrivi la descrizione con Mark' : 'Descrivi con Mark', () => describeSymbol(n)]);
             items.push(['hide', 'Nascondi «' + n.name + '» dal grafo', () => { hidden.set(n.id, n.name); saveHidden(); if (selected && selected.id === n.id) select(null); load(); }]);
             if (hasToggle(n)) items.push(['toggle', n.expanded ? 'Chiudi le chiamate' : 'Segui le chiamate (' + n.hidden + ')', () => toggle(n)]);
             items.push(['open', 'Apri il sorgente', () => openSource(n)]);
@@ -350,7 +443,7 @@
             type: 'mde-mark.askAboutSymbol',
             context: {
                 projectPath,
-                symbol: { id: n.moduleId || n.id, kind: 'file', name: n.name, qualifiedName: n.path, path: n.path, line: null, signature: null, summary: n.summary || null },
+                symbol: { id: n.id, kind: 'file', name: n.name, qualifiedName: n.path, path: n.path, line: null, signature: null, summary: n.summary || null },
                 links: linksOf(n),
             },
         }, '*');
@@ -368,12 +461,16 @@
         }, '*');
     }
 
-    /** «Descrivi il file con Mark»: si descrive il simbolo module del file (lo script stesso). */
-    function describeFile(n) { return describeSymbol(Object.assign({}, n, { id: n.moduleId }), n); }
+    /** «Descrivi il file con Mark»: a che cosa serve il file (code:FileDescription); poi l'accordion si apre e la mostra. */
+    function describeFile(n) {
+        return describeOn(n, '/api/codegraph/describe-file', { projectPath, path: n.path }, () => { descOpen.add(n.path); saveDescInUrl(); });
+    }
 
     /** «Descrivi con Mark» su un simbolo: si aspetta la fine, poi la scheda e il grafo mostrano la descrizione nuova. */
-    async function describeSymbol(n, shown) {
-        select(shown || n);   // per un file si descrive il module, ma la scheda resta quella del file
+    function describeSymbol(n) { return describeOn(n, '/api/codegraph/describe-symbol', { projectPath, symbolId: n.id }); }
+
+    async function describeOn(n, endpoint, body, onDone) {
+        select(n);
         const card = document.getElementById('cg-card');
         const note = document.createElement('p');
         note.className = 'cg-muted';
@@ -381,10 +478,11 @@
         card.appendChild(note);
         const btn = document.getElementById('cg-describe'); if (btn) btn.disabled = true;
         try {
-            const res = await fetch('/api/codegraph/describe-symbol', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectPath, symbolId: n.id }) });
-            const body = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(body.error || ('Errore ' + res.status));
-            note.textContent = 'Descritto da ' + (body.engine || 'Mark') + (body.rejected ? ' (' + body.rejected + ' righe della risposta scartate)' : '') + '.';
+            const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+            const answer = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(answer.error || ('Errore ' + res.status));
+            note.textContent = 'Descritto da ' + (answer.engine || 'Mark') + (answer.rejected ? ' (' + answer.rejected + ' righe della risposta scartate)' : '') + '.';
+            if (onDone) onDone();
             await load();   // la scheda si ricostruisce sul nodo aggiornato, con la descrizione
         } catch (e) {
             note.className = 'cg-warn';
@@ -434,8 +532,8 @@
         let html = '<div class="cg-kind">' + esc(n.kind) + '</div><h3>' + esc(n.qualifiedName || n.name) + '</h3>';
         if (n.signature) html += '<code class="cg-sig">' + esc(n.signature) + '</code>';
         if (n.summary) html += '<p class="cg-summary">' + esc(n.summary) + '</p>';
-        else if (n.kind === 'file' && n.moduleId) html += '<p class="cg-muted">Il file non ha ancora una descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Descrivi il file con Mark</button></p>';
-        else if (n.kind === 'module') html += '<p class="cg-muted">Lo script stesso: il codice fuori dalle funzioni, quello che gira quando lo si lancia. Nessuna descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Descrivi con Mark</button></p>';
+        else if (n.kind === 'file') html += '<p class="cg-muted">Il file non ha ancora una descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Descrivi il file con Mark</button></p>';
+        else if (n.kind === 'module') html += '<p class="cg-muted">Lo script stesso: il codice fuori dalle funzioni, quello che gira quando lo si lancia. A che cosa serve lo dice la descrizione del file (tasto destro sul file).</p>';
         else if (n.kind !== 'file' && !n.external) html += '<p class="cg-muted">Nessuna descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Descrivi con Mark</button></p>';
         if (n.uncalled) html += '<p class="cg-warn">Nessun simbolo del perimetro la chiama: è codice morto, oppure un punto d\'ingresso (chiamata da fuori, da un evento, per riflessione).</p>';
         if (n.path) html += '<div class="cg-path">' + esc(n.path) + (n.line ? ':' + n.line : '') + '</div>';

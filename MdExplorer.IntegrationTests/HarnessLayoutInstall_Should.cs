@@ -49,6 +49,7 @@ namespace MdExplorer.IntegrationTests
                 new[]
                 {
                     ".github/agents/mde-skillcreator.agent.md",
+                    ".github/prompts/mde-code-doc.prompt.md",
                     ".github/prompts/mde-codegen-graph.prompt.md",
                     ".github/prompts/mde-mark-folder-synthesis.prompt.md",
                     ".github/prompts/mde-mark-summarize.prompt.md",
@@ -78,7 +79,7 @@ namespace MdExplorer.IntegrationTests
                 CollectionAssert.Contains(produced, $".github/skills/{name}/SKILL.md",
                     $"la skill Fuseki '{name}' deve comparire quando Fuseki è configurato");
             }
-            Assert.AreEqual(17, produced.Length, "13 skill + 1 agent + 3 prompt");
+            Assert.AreEqual(18, produced.Length, "13 skill + 1 agent + 4 prompt (mde-code-doc dal 10/10)");
         }
 
         [TestMethod]
@@ -119,6 +120,7 @@ namespace MdExplorer.IntegrationTests
                 new[]
                 {
                     ".opencode/agents/mde-skillcreator.md",
+                    ".opencode/commands/mde-code-doc.md",
                     ".opencode/commands/mde-codegen-graph.md",
                     ".opencode/commands/mde-mark-folder-synthesis.md",
                     ".opencode/commands/mde-mark-summarize.md",

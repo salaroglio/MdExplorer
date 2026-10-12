@@ -225,6 +225,30 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public async Task Store_what_a_file_is_for_as_its_own_file_description_and_keep_it_when_the_ast_is_regenerated()
+        {
+            var doc = DocScript + "{\"type\":\"fileDoc\",\"summary\":\"Importa i file in Neo4j per il motore di ricerca.\"}\n";
+            var parsed = CodeScriptParser.Parse(doc, "fixture.jsonl");
+            var ttl = CodeScriptWriter.Serialize(parsed);
+            StringAssert.Contains(ttl, "code:FileDescription", "una voce apposta per il file");
+            var back = CodeScriptParser.Parse(ttl, "Foo.cs.doc.ttl");
+            Assert.AreEqual("Importa i file in Neo4j per il motore di ricerca.", back.FileDoc?.Summary);
+            Assert.AreEqual(ttl, CodeScriptWriter.Serialize(back), "riscritto è identico");
+
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));
+            File.WriteAllText(DocPath, ttl);
+            var outcome = await _store.LoadProjectAsync(_project);
+            Assert.AreEqual(0, outcome.Failed, outcome.FirstError);
+            var file = (await _store.BuildViewAsync(_project, "src", null, null, null, null)).Nodes.Single(n => n.Kind == "file");
+            Assert.AreEqual("Importa i file in Neo4j per il motore di ricerca.", file.Summary, "il box del file la legge da Fuseki");
+
+            File.WriteAllText(AstPath, Ttl(AstHeader.Replace("\"sourceHash\":\"abc\"", "\"sourceHash\":\"v2\"") + "\n" + AstBody));
+            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);
+            file = (await _store.BuildViewAsync(_project, "src", null, null, null, null)).Nodes.Single(n => n.Kind == "file");
+            Assert.AreEqual("Importa i file in Neo4j per il motore di ricerca.", file.Summary, "l'AST rigenerato non la cancella");
+        }
+
+        [TestMethod]
         public async Task Remove_everything_a_script_brought_when_the_script_disappears()
         {
             File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));

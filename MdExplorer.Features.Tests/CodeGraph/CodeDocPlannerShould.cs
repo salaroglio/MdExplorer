@@ -21,19 +21,44 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Ask_what_the_file_is_for_when_missing_and_keep_it_when_symbols_are_described_again()
+        {
+            var ast = Ast();
+            Assert.IsTrue(CodeDocPlanner.NeedsFileDoc(null, force: false), "mai descritto");
+            var cands = CodeDocPlanner.Select(ast, null, false);
+            StringAssert.Contains(CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands, askFile: true), "\"type\":\"fileDoc\"");
+            Assert.IsFalse(CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands).Contains("fileDoc"), "non chiesto: non si nomina");
+            Assert.AreEqual(1, CodeDocPlanner.Batches("class Foo {}", new List<CodeDocCandidate>(), askFile: true).Count, "solo il file: una domanda");
+            Assert.AreEqual(0, CodeDocPlanner.Batches("class Foo {}", new List<CodeDocCandidate>()).Count);
+
+            var answer = "{\"type\":\"fileDoc\",\"summary\":\"Il punto d'ingresso del servizio.\"}\n{\"type\":\"symbolDoc\",\"symbolId\":\"c1\",\"summary\":\"La classe.\"}";
+            var fresh = CodeDocPlanner.ParseAnswer(answer, "src/Foo.cs", cands, "t", out var rejected, askedFile: true);
+            Assert.AreEqual(0, rejected.Count, string.Join("; ", rejected));
+            Assert.AreEqual("Il punto d'ingresso del servizio.", fresh.FileDoc?.Summary);
+            Assert.IsFalse(CodeDocPlanner.NeedsFileDoc(fresh, force: false));
+            Assert.IsTrue(CodeDocPlanner.NeedsFileDoc(fresh, force: true));
+
+            CodeDocPlanner.ParseAnswer(answer, "src/Foo.cs", cands, "t", out var notAsked);
+            Assert.IsTrue(notAsked.Any(r => r.Contains("fileDoc non richiesto")), "non chiesto: scartato e detto");
+
+            var later = CodeDocPlanner.ParseAnswer("{\"type\":\"symbolDoc\",\"symbolId\":\"f1\",\"summary\":\"Il metodo.\"}", "src/Foo.cs", cands, "t", out _);
+            Assert.AreEqual("Il punto d'ingresso del servizio.", CodeDocPlanner.Merge(fresh, later).FileDoc?.Summary, "descrivere di nuovo i simboli non toglie quella del file");
+        }
+
+        [TestMethod]
         public void Select_only_describable_symbols_without_a_current_description()
         {
             var ast = Ast();
             var all = CodeDocPlanner.Select(ast, null, force: false);
-            CollectionAssert.AreEquivalent(new[] { "m1", "c1", "f1" }, all.Select(c => c.Symbol.Id).ToArray(), "il module (il file nel suo insieme) sì, gli external no");
+            CollectionAssert.AreEquivalent(new[] { "c1", "f1" }, all.Select(c => c.Symbol.Id).ToArray(), "né module (il file ha la sua voce) né external");
 
             var hash = all.Single(c => c.Symbol.Id == "f1").SignatureHash;
             var doc = new CodeScript { Header = new CodeScriptHeader { Kind = CodeScriptKind.Doc, Source = "src/Foo.cs", WrittenBy = "t", WrittenAt = "now" } };
             doc.SymbolDocs.Add(new ScriptSymbolDoc { SymbolId = "f1", Summary = "x", SignatureHash = hash });
             doc.SymbolDocs.Add(new ScriptSymbolDoc { SymbolId = "c1", Summary = "y", SignatureHash = "vecchio" });
             var again = CodeDocPlanner.Select(ast, doc, force: false);
-            CollectionAssert.AreEquivalent(new[] { "m1", "c1" }, again.Select(c => c.Symbol.Id).ToArray(), "f1 ha la firma invariata, c1 è da rivedere, il file (m1) non è ancora descritto");
-            Assert.AreEqual(3, CodeDocPlanner.Select(ast, doc, force: true).Count);
+            CollectionAssert.AreEquivalent(new[] { "c1" }, again.Select(c => c.Symbol.Id).ToArray(), "f1 ha la firma invariata, c1 è da rivedere");
+            Assert.AreEqual(2, CodeDocPlanner.Select(ast, doc, force: true).Count);
 
             // la firma cambia → hash diverso
             ast.Parameters[0].ParameterType = "int";

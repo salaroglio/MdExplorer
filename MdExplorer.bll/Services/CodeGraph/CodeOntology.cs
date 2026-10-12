@@ -34,6 +34,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string ClassDescription = "code:Description";
         public const string ClassParameterDescription = "code:ParameterDescription";
         public const string ClassDescriptionSet = "code:DescriptionSet";
+        /// <summary>A che cosa serve un file (12/10/2026): <c>code:describes</c> punta al <c>code:File</c>.</summary>
+        public const string ClassFileDescription = "code:FileDescription";
         public const string ClassScript = "code:Script";
         public const string ClassScanState = "code:ScanState";
     }
