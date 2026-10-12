@@ -187,6 +187,14 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         public string ProfileKey { get; init; }
 
         /// <summary>
+        /// I gruppi MCP di MdExplorer con cui parte la sessione (l'argomento <c>--groups</c> del server in
+        /// <see cref="McpConfigPath"/>). Il server li legge solo all'avvio: se cambiano (es. «Salva e analizza»
+        /// accende il gruppo <c>code</c>), il pool riavvia la sessione riprendendo la conversazione, così gli
+        /// strumenti nuovi ci sono alla domanda successiva (grafo del codice, D28, 12/10/2026).
+        /// </summary>
+        public string McpGroups { get; init; }
+
+        /// <summary>
         /// Variabili d'ambiente in più per il processo del CLI (e quindi per la shell e i server MCP che lancia):
         /// è il canale del RunToken e dell'identità git di un agente (sprint 2026-09-29-Motore-LLM-Unico, F5).
         /// Null per una chat.
@@ -206,6 +214,7 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
             DisallowedTools = DisallowedTools,
             AllowedTools = AllowedTools,
             ProfileKey = ProfileKey,
+            McpGroups = McpGroups,
             Environment = Environment,
         };
     }

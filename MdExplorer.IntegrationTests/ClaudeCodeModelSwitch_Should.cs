@@ -78,5 +78,28 @@ namespace MdExplorer.IntegrationTests
             Assert.AreNotSame(first, moved, "another project is another conversation");
             Assert.AreEqual(other, moved.WorkingDirectory);
         }
-    }
+    
+        /// <summary>
+        /// D28 (grafo del codice): il server MCP legge i gruppi solo all'avvio, quindi quando i gruppi del progetto
+        /// cambiano («Salva e analizza» accende `code`) la sessione si riavvia alla domanda dopo; con gli stessi gruppi
+        /// resta quella che c'è.
+        /// </summary>
+        [TestMethod]
+        public async Task Restart_the_session_when_the_mcp_groups_change()
+        {
+            await using var pool = new ClaudeCodeSessionPool(NullLoggerFactory.Instance, NullLogger<ClaudeCodeSessionPool>.Instance);
+
+            var first = await pool.GetOrCreateAsync("conn-1", _dir, "haiku", new ClaudeCodeSessionOptions { McpGroups = "core,plantuml" });
+            var same = await pool.GetOrCreateAsync("conn-1", _dir, "haiku", new ClaudeCodeSessionOptions { McpGroups = "core,plantuml" });
+            Assert.AreSame(first, same, "stessi gruppi: la sessione resta");
+
+            var withCode = await pool.GetOrCreateAsync("conn-1", _dir, "haiku", new ClaudeCodeSessionOptions { McpGroups = "core,plantuml,code" });
+            Assert.AreNotSame(first, withCode, "gruppi cambiati: la sessione riparte con gli strumenti nuovi");
+            Assert.AreEqual("core,plantuml,code", withCode.McpGroups);
+            Assert.IsTrue(withCode.IsAlive);
+
+            var undeclared = await pool.GetOrCreateAsync("conn-1", _dir, "haiku");
+            Assert.AreSame(withCode, undeclared, "chi non dichiara i gruppi non chiede un riavvio");
+        }
+}
 }

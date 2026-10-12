@@ -162,7 +162,27 @@ namespace MdExplorer.Controllers.CodeGraph
             try
             {
                 _analysis.SaveLanguages(request.ProjectPath, rel, request.Languages ?? new System.Collections.Generic.List<string>());
-                return Ok(new { folder = rel, languages = request.Languages });
+                // D28: gli strumenti code_* arrivano a MarkAgent subito. Il gruppo `code` entra nella lista del progetto
+                // e nella registrazione MCP; la sessione MarkAgent (Claude Code) si riavvia da sola alla domanda dopo,
+                // riprendendo la conversazione, perché i suoi gruppi non sono più quelli del progetto.
+                string mcp = null;
+                if (request.Languages?.Count > 0)
+                {
+                    try
+                    {
+                        var db = HttpContext.RequestServices.GetRequiredService<MdExplorer.Abstractions.DB.IUserSettingsDB>();
+                        var argument = MdExplorer.Service.ProjectsManager.TurnOnCodeMcpGroup(db, request.ProjectPath);
+                        if (argument != null) MdExplorer.Service.ProjectsManager.RefreshMcpRegistration(request.ProjectPath, argument);
+                        mcp = argument;
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        // il catalogo dei gruppi non si legge (MdExplorer.Mcp mancante): i linguaggi sono salvati, gli strumenti no — si dice
+                        _logger.LogWarning(ex, "[CodeGraph] gruppo MCP 'code' non acceso per {Project}", request.ProjectPath);
+                        return Ok(new { folder = rel, languages = request.Languages, mcpError = ex.Message });
+                    }
+                }
+                return Ok(new { folder = rel, languages = request.Languages, mcpGroups = mcp });
             }
             catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }
         }

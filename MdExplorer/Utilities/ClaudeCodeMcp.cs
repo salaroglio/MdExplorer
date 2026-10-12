@@ -173,6 +173,7 @@ namespace MdExplorer.Utilities
         public static ClaudeCodeSessionOptions ChatOptions(string mcpGroupsArgument) => new ClaudeCodeSessionOptions
         {
             McpConfigPath = WriteSessionConfig(mcpGroupsArgument),
+            McpGroups = mcpGroupsArgument ?? string.Empty,   // cambiati → il pool riavvia con --resume (D28)
             AllowedMcpServers = new[] { ServerName },
             AllowedTools = new[] { "Edit(./**)", "Write(./**)" },
         };

@@ -92,17 +92,19 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
                 {
                     if (!ProfileFits(existing, options))
                     {
-                        // A test launch needs another Playwright server, other secrets or other bans: they
-                        // are fixed when the CLI starts, so the session restarts — and resumes the same
-                        // conversation (verified 27/09/2026: --resume with another --mcp-config keeps it).
+                        // A test launch needs another Playwright server, other secrets or other bans — or the
+                        // project's MCP groups changed (D28: «Salva e analizza» turns on `code`): they are fixed
+                        // when the CLI starts, so the session restarts — and resumes the same conversation
+                        // (verified 27/09/2026: --resume with another --mcp-config keeps it).
                         if (existing.SessionId != null &&
                             string.Equals(existing.WorkingDirectory, workingDirectory, StringComparison.OrdinalIgnoreCase))
                         {
                             options = options.WithResume(existing.SessionId);
                         }
                         _logger.LogInformation(
-                            "[ClaudeCodeSessionPool] Configurazione dei test diversa per {ConnectionId}: riavvio {Resume}",
-                            connectionId, options.ResumeSessionId != null ? "riprendendo la conversazione" : "da capo");
+                            "[ClaudeCodeSessionPool] Configurazione diversa per {ConnectionId} (profilo {OldProfile}→{NewProfile}, gruppi MCP {OldGroups}→{NewGroups}): riavvio {Resume}",
+                            connectionId, existing.ProfileKey ?? "chat", options.ProfileKey ?? "chat", existing.McpGroups ?? "-", options.McpGroups ?? "-",
+                            options.ResumeSessionId != null ? "riprendendo la conversazione" : "da capo");
                         await ReleaseAsync(connectionId).ConfigureAwait(false);
                         existing = null;
                     }
@@ -200,7 +202,9 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
         /// when the restore at the end of the launch did not happen (D28).
         /// </summary>
         private static bool ProfileFits(ClaudeCodeSession session, ClaudeCodeSessionOptions options) =>
-            string.Equals(session.ProfileKey, options?.ProfileKey, StringComparison.Ordinal);
+            string.Equals(session.ProfileKey, options?.ProfileKey, StringComparison.Ordinal) &&
+            // i gruppi MCP: chi non li dichiara (null) non chiede un riavvio
+            (options?.McpGroups == null || string.Equals(session.McpGroups ?? string.Empty, options.McpGroups, StringComparison.Ordinal));
 
         private static bool OnlyModelDiffers(ClaudeCodeSession session, string workingDirectory, string modelId) =>
             session.IsAlive &&

@@ -637,6 +637,38 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
             }
         }
 
+        /// <summary>
+        /// «Salva e analizza» del grafo del codice (D28): scegliere un linguaggio da analizzare è chiedere gli strumenti
+        /// <c>code_*</c>. Se il progetto ha una lista di gruppi MCP salvata (che vince su quelli automatici) e non contiene
+        /// <c>code</c>, lo aggiunge. Restituisce l'argomento <c>--groups</c> da registrare, o null se il progetto non è
+        /// fra quelli registrati (nessuna sessione da aggiornare).
+        /// </summary>
+        internal static string TurnOnCodeMcpGroup(IUserSettingsDB db, string projectPath)
+        {
+            db.Clear();
+            db.BeginTransaction();
+            try
+            {
+                var project = FindProjectByPath(db, projectPath);
+                if (project == null) { db.Commit(); return null; }
+                if (!string.IsNullOrWhiteSpace(project.McpToolGroups) &&
+                    !project.McpToolGroups.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .Contains("code", StringComparer.OrdinalIgnoreCase))
+                {
+                    project.McpToolGroups = project.McpToolGroups.TrimEnd(',') + ",code";
+                    db.GetDal<Project>().Save(project);
+                }
+                var argument = McpToolGroupsSettings.ToArgument(McpToolGroupsSettings.Resolve(project, db, out _));
+                db.Commit();
+                return argument;
+            }
+            catch
+            {
+                db.Rollback();
+                throw;
+            }
+        }
+
         internal static string McpGroupsArgument(IServiceProvider serviceProvider, string projectPath)
             => McpGroupsArgument(serviceProvider?.GetService<IUserSettingsDB>(), projectPath);
 

@@ -203,6 +203,8 @@ namespace MdExplorer.Features.Services.AI.ClaudeCode
 
         /// <summary>La configurazione "test e2e" con cui la sessione è partita (null = chat normale).</summary>
         public string ProfileKey => _options.ProfileKey;
+        /// <summary>I gruppi MCP con cui è partita: <see cref="ClaudeCodeSessionOptions.McpGroups"/>.</summary>
+        public string McpGroups => _options.McpGroups;
 
         /// <summary>
         /// Lancia il processo e avvia i loop di lettura. <b>Non</b> fa handshake: il CLI non
