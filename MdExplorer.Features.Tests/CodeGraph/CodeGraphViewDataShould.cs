@@ -112,6 +112,17 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
+        public void Hang_an_entry_point_under_its_caller_when_both_files_are_open()
+        {
+            // lib.ps1 aperto: Load è un suo punto d'ingresso; ma Run (aperto) lo chiama, quindi sta sotto Run
+            var m = CodeGraphViewData.Build(Input(new[] { Main, Lib }, new[] { "M", "Run" }));
+            Assert.AreEqual("Run", Node(m, "Load").ParentId);
+            Assert.AreEqual(3, Node(m, "Load").Depth);
+            Assert.IsFalse(m.Links.Any(l => l.Source == "file:" + Lib && l.Target == "Load"), "non pende più dal file");
+            Assert.IsNull(Node(m, "L"), "lo script di lib non esegue niente: non è un punto d'ingresso");
+        }
+
+        [TestMethod]
         public void Hide_a_symbol_but_say_it_where_it_is_called()
         {
             var input = Input(new[] { Main }, new[] { "M", "Run" });

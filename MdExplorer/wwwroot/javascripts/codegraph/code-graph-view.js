@@ -13,9 +13,10 @@
  * - Tasto destro, MarkAgent (D27): «Chiedi a MarkAgent» manda `mde-mark.askAboutSymbol` al genitore (Angular,
  *   MarkDiagramService: la domanda va nella sessione del tab MarkAgent, la risposta nella finestra di Mark);
  *   «Descrivi con Mark» chiede POST /api/codegraph/describe-symbol per quel solo simbolo e aggiorna la scheda.
- * - Disegno ad albero dall'alto in basso (D26), CALCOLATO e non simulato: i file sulla prima riga, sotto ogni nodo
- *   in fila quelli che ha fatto comparire, un livello più giù; niente sovrapposizioni, niente nodi che scappano. Un
- *   nodo trascinato resta dove lo si lascia; se dopo un'apertura qualcosa esce dallo schermo, la vista si adatta.
+ * - Disegno A SCALETTA (D26, poi D29), CALCOLATO e non simulato: ogni nodo sulla sua riga, rientrato rispetto a chi
+ *   l'ha fatto comparire, come l'albero di un esplora risorse — con tante funzioni affiancate le etichette si
+ *   sovrapponevano. Le chiamate fra nodi che non sono padre e figlio sono archi curvi di lato. Un nodo trascinato resta
+ *   dove lo si lascia; se dopo un'apertura qualcosa esce dallo schermo, la vista si adatta.
  * - Gli archi hanno un colore per relazione e sono tratteggiati quando la confidenza è `inferred`
  *   o `ambiguous`; fra due file si sommano (il numero sull'arco).
  * - Il clic su un simbolo apre la scheda con firma, parametri e la descrizione scritta dalla skill;
@@ -31,8 +32,8 @@
     let isDark = false;   // si legge quando il body esiste (lo script sta nell'head)
     const expanded = new Set((qs.get('expand') || '').split(',').filter(Boolean));
     const opened = new Set((qs.get('open') || '').split(',').filter(Boolean));
-    const LEVEL_GAP = 110; // distanza verticale fra un livello e il successivo
-    const SIBLING_GAP = 28; // spazio orizzontale fra due nodi vicini
+    const ROW_GAP = 34;   // a scaletta: ogni nodo sulla sua riga
+    const INDENT = 44;    // rientro di un livello rispetto a chi l'ha fatto comparire
     let firstFit = true;   // al primo disegno la vista mostra tutto il grafo
     const dragged = new Map();   // id → {x, y}: un nodo spostato a mano resta dove l'utente l'ha messo
     // I nascosti si ricordano per progetto e cartella (comodità di chi guarda: se lo storage non c'è, si riparte da zero).
@@ -156,8 +157,8 @@
                 ctx.fillStyle = color; ctx.fillRect(n.x - w / 2 + 0, n.y - h / 2, w, h);
             })
             .linkColor(l => REL_COLORS[l.relation] || '#94a3b8')
-            // fra nodi della stessa riga la linea dritta passerebbe sopra i vicini: si curva
-            .linkCurvature(l => (l.source && l.target && l.source.depth === l.target.depth) ? 0.35 : 0)
+            // padre → figlio: dritto (è il gradino della scaletta); ogni altro arco passerebbe sopra le righe in mezzo: si curva di lato
+            .linkCurvature(l => (l.source && l.target && l.target.parentId === l.source.id) ? 0 : 0.6)
             .linkWidth(l => Math.min(4, 1 + Math.log2(l.count || 1)))
             .linkLineDash(l => l.confidence === 'extracted' ? null : l.confidence === 'inferred' ? [6, 4] : [2, 4])
             .linkDirectionalArrowLength(6).linkDirectionalArrowRelPos(1)
@@ -186,38 +187,35 @@
     }
 
     /**
-     * L'albero: ogni nodo pende da chi l'ha fatto comparire (parentId: il file per un punto d'ingresso, il chiamante per
-     * gli altri); i file senza padre sono le radici, in fila sulla prima riga. Le foglie prendono il posto successivo
-     * da sinistra, un genitore sta sopra il centro dei suoi figli; y = livello × LEVEL_GAP. Deterministico: aprire un
-     * nodo allarga il suo ramo, ma l'ordine resta quello.
+     * La scaletta: ogni nodo pende da chi l'ha fatto comparire (parentId: il file per un punto d'ingresso, il chiamante
+     * per gli altri); i file senza padre sono le radici. Visita in profondità: ogni nodo prende la riga successiva e il
+     * rientro del suo livello. Il box si disegna centrato su x, quindi x = rientro + metà larghezza: i bordi sinistri
+     * dei fratelli restano allineati. Deterministico: aprire un nodo inserisce le sue righe sotto di lui.
      */
     function layoutTree(nodes, byId) {
         const measure = document.createElement('canvas').getContext('2d');
-        measure.font = '600 12px -apple-system, "Segoe UI", Inter, system-ui, sans-serif';
-        const width = n => measure.measureText(labelOf(n)).width + 22 + (hasToggle(n) ? 30 : 0);
+        // lo stesso carattere del disegno (nodeWidth): i file in grassetto, i simboli no — sennò i bordi sinistri non si allineano
+        const width = n => {
+            measure.font = (n.kind === 'file' ? '600 ' : '') + '12px -apple-system, "Segoe UI", Inter, system-ui, sans-serif';
+            return measure.measureText(labelOf(n)).width + 22;
+        };
         const kids = {};
         const roots = [];
         nodes.forEach(n => {
             if (n.parentId && byId[n.parentId] && n.parentId !== n.id) (kids[n.parentId] = kids[n.parentId] || []).push(n);
             else roots.push(n);
         });
-        let cursor = 0;
-        const place = n => {
-            const ch = kids[n.id] || [];
-            const w = width(n);
-            if (!ch.length) { n.__x = cursor + w / 2; cursor += w + SIBLING_GAP; return; }
-            const start = cursor;
-            ch.forEach(place);
-            n.__x = (ch[0].__x + ch[ch.length - 1].__x) / 2;
-            // un genitore più largo dei suoi figli non deve invadere il vicino
-            if (cursor - start < w + SIBLING_GAP) { n.__x = start + w / 2; cursor = start + w + SIBLING_GAP; }
+        let row = 0;
+        const place = (n, level) => {
+            n.__x = level * INDENT + width(n) / 2;
+            n.__y = row++ * ROW_GAP;
+            (kids[n.id] || []).forEach(c => place(c, level + 1));
         };
-        roots.forEach(place);
-        const shift = cursor / 2;   // l'albero centrato sull'origine
+        roots.forEach(r => place(r, 0));
         nodes.forEach(n => {
             const d = dragged.get(n.id);
-            n.x = n.fx = d ? d.x : n.__x - shift;
-            n.y = n.fy = d ? d.y : (n.depth || 0) * LEVEL_GAP;
+            n.x = n.fx = d ? d.x : n.__x;
+            n.y = n.fy = d ? d.y : n.__y;
         });
     }
 

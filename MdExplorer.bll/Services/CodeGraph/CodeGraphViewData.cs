@@ -158,6 +158,26 @@ namespace MdExplorer.Features.Services.CodeGraph
                 foreach (var c in Children(id)) Show(c, id);
             }
 
+            // 3b) un punto d'ingresso di un file aperto che un simbolo APERTO chiama sta sotto chi lo chiama, non sotto il
+            //     suo file: la cascata è delle chiamate (D29). Mai sotto un proprio discendente (niente cicli).
+            bool IsAncestor(string candidate, string of)
+            {
+                for (var cur = of; cur != null && shown.TryGetValue(cur, out var up); cur = up)
+                    if (cur == candidate) return true;
+                return false;
+            }
+            foreach (var id in shown.Keys.Where(k => shown[k].StartsWith("file:", StringComparison.Ordinal)).ToList())
+            {
+                var caller = input.Edges
+                    .Where(e => e.Target == id && CascadeRelations.Contains(e.Relation) && e.Source != id && input.Opened.Contains(e.Source) && shown.ContainsKey(e.Source))
+                    .Select(e => e.Source)
+                    .FirstOrDefault(c => !IsAncestor(id, c));
+                if (caller != null) shown[id] = caller;
+            }
+            // il livello segue chi è il padre adesso
+            int DepthOf(string id) => shown[id].StartsWith("file:", StringComparison.Ordinal) ? 1 : DepthOf(shown[id]) + 1;
+            foreach (var id in shown.Keys.ToList()) depth[id] = DepthOf(id);
+
             // 4) i nodi dei simboli mostrati
             foreach (var (id, from) in shown)
             {
