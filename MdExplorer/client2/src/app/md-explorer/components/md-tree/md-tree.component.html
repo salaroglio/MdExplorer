@@ -110,6 +110,14 @@
       <span>{{ 'MD_TREE.MARK_DEV_ENV' | translate }}</span>
     </button>
 
+    <!-- Radici di codice esterne: il codice FUORI dal progetto (sprint 2026-10-12, F5) -->
+    <button *ngIf="item.name==='root'"
+            mat-menu-item
+            (click)="openCodeRootsDialog()">
+      <mat-icon>device_hub</mat-icon>
+      <span>{{ 'MD_TREE.CODE_ROOTS' | translate }}</span>
+    </button>
+
     <!-- Ambiente di sviluppo: linguaggi e analisi del codice (grafo del codice, D16) -->
     <button *ngIf="item.type==='folder' && hasTag(item, 'program')"
             mat-menu-item

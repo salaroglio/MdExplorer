@@ -258,13 +258,47 @@
                 else if (action === 'describe') describeSymbol(n);
                 else if (action === 'hide') { hidden.set(n.id, n.name); saveHidden(); if (selected && selected.id === n.id) select(null); load(); }
                 else if (action === 'toggle') toggle(n);
-                else window.parent.postMessage({ type: 'md-navigate', relativePath: n.path, name: n.path.split('/').pop(), line: n.line || null }, '*');
+                else openSource(n);
             };
             menu.appendChild(b);
         });
         document.body.appendChild(menu);
         const x = Math.min(ev.clientX, innerWidth - menu.offsetWidth - 8), y = Math.min(ev.clientY, innerHeight - menu.offsetHeight - 8);
         menu.style.left = x + 'px'; menu.style.top = y + 'px';
+    }
+
+    /**
+     * «Apri il sorgente». Un file del progetto si apre nel visualizzatore (md-navigate). Un file di una radice di codice
+     * esterna (@alias/…, radici esterne F5) sta fuori dal progetto: si risolve il percorso su questa macchina e si apre
+     * nell'IDE scelto per il progetto (api/AppSettings/OpenFile); se la radice non è collegata, la scheda dice perché.
+     */
+    async function openSource(n) {
+        if (!n.path || n.path[0] !== '@') {
+            window.parent.postMessage({ type: 'md-navigate', relativePath: n.path, name: n.path.split('/').pop(), line: n.line || null }, '*');
+            return;
+        }
+        const card = document.getElementById('cg-card');
+        const note = document.createElement('p');
+        note.className = 'cg-muted';
+        card.appendChild(note);
+        try {
+            const r = new URL('/api/coderoots/resolve', location.origin);
+            r.searchParams.set('projectPath', projectPath); r.searchParams.set('path', n.path);
+            const res = await fetch(r);
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(body.error || ('Errore ' + res.status));
+            note.textContent = body.absolutePath + (n.line ? ':' + n.line : '');
+            const o = new URL('/api/AppSettings/OpenFile', location.origin);
+            o.searchParams.set('path', body.absolutePath);
+            const cid = qs.get('connectionId'); if (cid) o.searchParams.set('connectionId', cid);
+            const opened = await fetch(o);
+            const ob = await opened.json().catch(() => ({}));
+            if (ob && ob.openUrl) window.open(ob.openUrl, '_blank');
+            else if (!opened.ok) throw new Error(ob.error || ('Errore ' + opened.status));
+        } catch (e) {
+            note.className = 'cg-warn';
+            note.textContent = 'Non si apre: ' + e.message;
+        }
     }
 
     /** «Chiedi a MarkAgent»: la domanda la fa Angular, nella sessione del tab MarkAgent (motore e sessione unici). */
@@ -366,7 +400,7 @@
         html += '<div id="cg-detail-body"></div>';
         card.innerHTML = html;
         const open = document.getElementById('cg-open');
-        if (open) open.onclick = () => window.parent.postMessage({ type: 'md-navigate', relativePath: n.path, name: n.path.split('/').pop(), line: n.line || null }, '*');
+        if (open) open.onclick = () => openSource(n);
         const tg = document.getElementById('cg-toggle'); if (tg) tg.onclick = () => toggle(n);
         const det = document.getElementById('cg-detail'); if (det) det.onclick = () => loadDetail(n);
         const desc = document.getElementById('cg-describe'); if (desc) desc.onclick = () => describeSymbol(n);

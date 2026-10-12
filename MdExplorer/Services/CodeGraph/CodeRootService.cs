@@ -43,6 +43,23 @@ namespace MdExplorer.Services.CodeGraph
 
         /// <summary>Dimentica dove sta la radice su questa macchina; la dichiarazione nel progetto resta (è del team).</summary>
         void Unlink(string projectPath, string alias);
+
+        /// <summary>
+        /// Ramo e file modificati del repository di una radice collegata (radici esterne F5, R6): per vedere che cosa ha
+        /// toccato MarkAgent prima di committare con i propri strumenti. Solo lettura.
+        /// </summary>
+        Task<CodeRootChanges> ChangesAsync(string projectPath, string alias, CancellationToken ct = default);
+    }
+
+    public sealed class CodeRootChanges
+    {
+        public string Alias { get; init; }
+        public bool IsGit { get; init; }
+        public string Branch { get; init; }
+        /// <summary>«M», «A», «D», «??»… come in <c>git status --porcelain</c>, e il percorso relativo alla radice analizzata.</summary>
+        public List<(string Status, string Path)> Files { get; } = new();
+
+        public CodeRootChanges With(IEnumerable<(string Status, string Path)> files) { Files.AddRange(files); return this; }
     }
 
     /// <summary>
@@ -189,6 +206,39 @@ namespace MdExplorer.Services.CodeGraph
             CodeRootPaths.RequireAlias(alias);
             _bindings.Remove(projectPath, alias);
             _logger.LogInformation("[CodeRoots] '{Project}': @{Alias} scollegata su questa macchina", projectPath, alias);
+        }
+
+        public async Task<CodeRootChanges> ChangesAsync(string projectPath, string alias, CancellationToken ct = default)
+        {
+            CodeRootPaths.RequireAlias(alias);
+            var root = (await ListAsync(projectPath, ct)).FirstOrDefault(r => r.Alias == alias)
+                ?? throw new InvalidOperationException($"La radice «@{alias}» non è dichiarata nel .development.yml.");
+            if (root.Status != CodeRootStatus.Linked) throw new InvalidOperationException($"@{alias}: {root.Reason}");
+            if (root.Repository == null) return new CodeRootChanges { Alias = alias, IsGit = false };
+            var status = await _git.RunAsync(root.RootPath, new[] { "status", "--porcelain=v1", "--branch", "--untracked-files=all", "--", "." }, ct);
+            if (!status.Ok) throw new InvalidOperationException($"git status in {root.RootPath}: {status.Stderr}".Trim());
+            var changes = new CodeRootChanges { Alias = alias, IsGit = true };
+            var top = await TopLevelAsync(root.RootPath, ct);
+            string branch = null;
+            foreach (var line in status.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (line.StartsWith("## ", StringComparison.Ordinal))
+                {
+                    branch = line.Substring(3).Split("...")[0].Trim();
+                    // un repository senza commit: «## No commits yet on master» → «master (nessun commit)»
+                    const string noCommits = "No commits yet on ";
+                    if (branch.StartsWith(noCommits, StringComparison.Ordinal)) branch = branch.Substring(noCommits.Length) + " (nessun commit)";
+                    continue;
+                }
+                if (line.Length < 4) continue;
+                var path = line.Substring(3).Trim().Trim('"');
+                var arrow = path.IndexOf(" -> ", StringComparison.Ordinal);
+                if (arrow >= 0) path = path.Substring(arrow + 4);
+                // git dà i percorsi relativi alla radice del repository: qui relativi alla radice analizzata (sottocartella)
+                var abs = Path.GetFullPath(Path.Combine(top ?? root.RootPath, path.Replace('/', Path.DirectorySeparatorChar)));
+                changes.Files.Add((line.Substring(0, 2).Trim(), PathContainment.RelativeOrNull(root.RootPath, abs) ?? path));
+            }
+            return new CodeRootChanges { Alias = alias, IsGit = true, Branch = branch }.With(changes.Files);
         }
 
         // ------------------------------------------------------------------ git

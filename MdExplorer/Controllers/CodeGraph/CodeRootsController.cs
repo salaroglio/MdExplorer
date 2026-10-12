@@ -50,6 +50,14 @@ namespace MdExplorer.Controllers.CodeGraph
             return Ok(new { path, absolutePath = resolver.Resolve(path) });
         }, projectPath);
 
+        /// <summary>GET /api/coderoots/changes?projectPath&amp;alias — ramo e file modificati del repository della radice (sola lettura).</summary>
+        [HttpGet("changes")]
+        public Task<IActionResult> Changes([FromQuery] string projectPath, [FromQuery] string alias, CancellationToken ct) => Guarded(async () =>
+        {
+            var c = await _roots.ChangesAsync(projectPath, alias, ct);
+            return Ok(new { c.Alias, c.IsGit, c.Branch, files = c.Files.Select(f => new { status = f.Status, path = f.Path }) });
+        }, projectPath);
+
         private static object View(CodeRootState s) => new
         {
             s.Alias, s.Repository, s.Subpath, s.Tags, s.Languages, s.LocalPath, s.RootPath,

@@ -15,6 +15,7 @@ import { MdServerMessagesService } from '../../../signalR/services/server-messag
 import { ChangeDirectoryComponent } from '../dialogs/change-directory/change-directory.component';
 import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.component';
 import { DevEnvironmentDialogComponent, DevEnvironmentDialogData, DevEnvironmentDialogResult } from '../dialogs/dev-environment/dev-environment-dialog.component';
+import { CodeRootsDialogComponent, CodeRootsDialogData, CodeRootsDialogResult } from '../dialogs/code-roots/code-roots-dialog.component';
 import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markdown.component';
@@ -2523,10 +2524,18 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const folder = full.startsWith(rootNorm + '/')
       ? full.substring(rootNorm.length + 1).replace(/\/+$/, '')
       : (node.relativePath || '').replace(/\\/g, '/').replace(/^\/+/, '');
-    const page = new MdFile(this.translate.instant('MD_TREE.CODE_GRAPH') + ' · ' + node.name, node.path, node.level, false);
+    await this.openCodeGraphFolder(root, folder, node.name, node.path, node.level, node.fullPath || root);
+  }
+
+  /**
+   * La pagina del grafo per una cartella del progetto o per una radice di codice esterna («@alias», F5): non serve un
+   * nodo dell'albero, una radice esterna non ne ha.
+   */
+  async openCodeGraphFolder(root: string, folder: string, title: string, path?: string, level = 0, anchorFullPath?: string): Promise<void> {
+    const page = new MdFile(this.translate.instant('MD_TREE.CODE_GRAPH') + ' · ' + title, path ?? root, level, false);
     page.type = 'codegraph';
     page.relativePath = folder;
-    page.fullPath = (node.fullPath || root) + '/.codegraph';
+    page.fullPath = (anchorFullPath || root) + '/.codegraph' + (folder.startsWith('@') ? '-' + folder.substring(1) : '');
     page.codeGraphProjectPath = root;
     page.codeGraphFolder = folder;
     await this.router.navigate(['/main/navigation/document']);
@@ -2534,12 +2543,31 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     this.navService.setNewNavigation(page);
   }
 
+  /** «Radici di codice esterne…» dal menu della radice del progetto (sprint 2026-10-12, F5). */
+  openCodeRootsDialog(): void {
+    const root = this.getProjectRoot();
+    if (!root) {
+      this.snackBar.open(this.translate.instant('MD_TREE.CANNOT_DETERMINE_ROOT'), 'OK', { duration: 3000 });
+      return;
+    }
+    const data: CodeRootsDialogData = { projectRoot: root };
+    this.dialog.open(CodeRootsDialogComponent, { width: '720px', data })
+      .afterClosed().subscribe((result?: CodeRootsDialogResult) => {
+        if (result?.open === 'graph') { this.openCodeGraphFolder(root, result.folder, result.folder); }
+        if (result?.open === 'report') { this.openCodeGraphReportAt(root); }
+      });
+  }
+
   /** Il report del grafo del codice: .md/codegraph/report.md, un documento markdown come gli altri. */
   async openCodeGraphReport(node: MdFile, projectRoot?: string | null): Promise<void> {
     const root = projectRoot ?? this.getProjectRoot();
     if (!root) { return; }
+    await this.openCodeGraphReportAt(root, node.path, node.level);
+  }
+
+  private async openCodeGraphReportAt(root: string, path?: string, level = 0): Promise<void> {
     const rel = '.md/codegraph/report.md';
-    const report = new MdFile('report.md', node.path, node.level, false);
+    const report = new MdFile('report.md', path ?? root, level, false);
     report.type = 'mdFile';
     report.relativePath = rel;
     report.fullPath = root + '/' + rel;
@@ -2552,22 +2580,13 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
    * Get the project root from the tree data source
    */
   private getProjectRoot(): string | null {
-    const data = this.dataSource.data;
-    if (data && data.length > 0) {
-      // Look for the node with name 'root'
-      const rootNode = data.find(node => node.name === 'root');
-      if (rootNode && rootNode.fullPath) {
-        console.log('Found root node:', rootNode.fullPath);
-        return rootNode.fullPath;
-      }
-      // Fallback to first node if 'root' not found
-      const firstNode = data[0];
-      if (firstNode && firstNode.fullPath) {
-        console.log('Using first node as root:', firstNode.fullPath);
-        return firstNode.fullPath;
-      }
-    }
-    return null;
+    // Il progetto aperto, come lo sa la toolbar. Fino al 12/10/2026 si cercava un nodo «root» nell'albero e, se non
+    // c'era, si prendeva il PRIMO nodo: il percorso di una cartella qualsiasi (es. .claude/commands) diventava la
+    // radice del progetto per «Ambiente di sviluppo» e per il grafo. Meglio nessuna radice (i chiamanti lo dicono).
+    const current = this.projectsService.currentProjects$.value?.path;
+    if (current) { return current; }
+    const rootNode = this.dataSource.data?.find(node => node.name === 'root');
+    return rootNode?.fullPath && rootNode.fullPath !== 'root' ? rootNode.fullPath : null;
   }
 
 }

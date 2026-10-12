@@ -429,6 +429,8 @@ namespace MdExplorer.Controllers.CodeGraph
         private static string ToRelative(string projectPath, string folderPath)
         {
             if (string.IsNullOrWhiteSpace(folderPath)) return null;
+            // una radice di codice esterna (radici esterne F5): «@alias» passa com'è, la risolve chi analizza
+            if (CodeRootPaths.IsLogical(folderPath.Trim())) return folderPath.Trim().TrimEnd('/');
             // PathContainment: il prefisso senza separatore faceva passare «/doc/proj2» per dentro «/doc/proj»
             var rel = MdExplorer.Features.Utilities.PathContainment.RelativeOrNull(projectPath, folderPath);
             return rel == null ? null : rel == "." ? string.Empty : rel;

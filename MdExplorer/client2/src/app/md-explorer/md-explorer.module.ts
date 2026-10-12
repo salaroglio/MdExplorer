@@ -18,6 +18,7 @@ import { RulesComponent } from '../signalR/dialogs/rules/rules.component';
 import { NewMarkdownComponent } from './components/dialogs/new-markdown/new-markdown.component';
 import { NewDirectoryComponent } from './components/dialogs/new-directory/new-directory.component';
 import { DevEnvironmentDialogComponent } from './components/dialogs/dev-environment/dev-environment-dialog.component';
+import { CodeRootsDialogComponent } from './components/dialogs/code-roots/code-roots-dialog.component';
 import { MdTreeComponent } from './components/md-tree/md-tree.component';
 import { E2eDialogComponent } from './components/e2e-dialog/e2e-dialog.component';
 import { AgentReviewComponent } from './components/agent-review/agent-review.component';
@@ -109,6 +110,7 @@ const routes: Routes = [
     NewMarkdownComponent,
     NewDirectoryComponent,
     DevEnvironmentDialogComponent,
+    CodeRootsDialogComponent,
     MdTreeComponent,
     ConnectionLostComponent,
     ParsingProjectComponent,
