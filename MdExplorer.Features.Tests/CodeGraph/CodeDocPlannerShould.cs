@@ -25,15 +25,15 @@ namespace MdExplorer.Features.Tests.CodeGraph
         {
             var ast = Ast();
             var all = CodeDocPlanner.Select(ast, null, force: false);
-            CollectionAssert.AreEquivalent(new[] { "c1", "f1" }, all.Select(c => c.Symbol.Id).ToArray(), "né module né external");
+            CollectionAssert.AreEquivalent(new[] { "m1", "c1", "f1" }, all.Select(c => c.Symbol.Id).ToArray(), "il module (il file nel suo insieme) sì, gli external no");
 
             var hash = all.Single(c => c.Symbol.Id == "f1").SignatureHash;
             var doc = new CodeScript { Header = new CodeScriptHeader { Kind = CodeScriptKind.Doc, Source = "src/Foo.cs", WrittenBy = "t", WrittenAt = "now" } };
             doc.SymbolDocs.Add(new ScriptSymbolDoc { SymbolId = "f1", Summary = "x", SignatureHash = hash });
             doc.SymbolDocs.Add(new ScriptSymbolDoc { SymbolId = "c1", Summary = "y", SignatureHash = "vecchio" });
             var again = CodeDocPlanner.Select(ast, doc, force: false);
-            CollectionAssert.AreEquivalent(new[] { "c1" }, again.Select(c => c.Symbol.Id).ToArray(), "f1 ha la firma invariata, c1 è da rivedere");
-            Assert.AreEqual(2, CodeDocPlanner.Select(ast, doc, force: true).Count);
+            CollectionAssert.AreEquivalent(new[] { "m1", "c1" }, again.Select(c => c.Symbol.Id).ToArray(), "f1 ha la firma invariata, c1 è da rivedere, il file (m1) non è ancora descritto");
+            Assert.AreEqual(3, CodeDocPlanner.Select(ast, doc, force: true).Count);
 
             // la firma cambia → hash diverso
             ast.Parameters[0].ParameterType = "int";

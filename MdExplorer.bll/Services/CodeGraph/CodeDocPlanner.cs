@@ -23,10 +23,14 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// </summary>
     public static class CodeDocPlanner
     {
-        /// <summary>I kind che hanno senso descrivere: non i moduli, non i nodi external.</summary>
+        /// <summary>
+        /// I kind che hanno senso descrivere: non i nodi external, non i campi. Il <c>module</c> sì (12/10/2026): è il
+        /// FILE nel suo insieme (per uno script PowerShell lo script stesso), e senza la sua descrizione il grafo diceva
+        /// che cosa fa ogni funzione ma non a che cosa serve il file.
+        /// </summary>
         private static readonly HashSet<string> Describable = new(StringComparer.Ordinal)
         {
-            "class", "interface", "record", "struct", "enum", "method", "constructor", "property", "function", "type",
+            "module", "class", "interface", "record", "struct", "enum", "method", "constructor", "property", "function", "type",
             "component", "service", "directive", "pipe", "ngmodule",
         };
 

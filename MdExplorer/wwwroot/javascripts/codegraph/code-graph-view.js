@@ -13,6 +13,9 @@
  * - Tasto destro, MarkAgent (D27): «Chiedi a MarkAgent» manda `mde-mark.askAboutSymbol` al genitore (Angular,
  *   MarkDiagramService: la domanda va nella sessione del tab MarkAgent, la risposta nella finestra di Mark);
  *   «Descrivi con Mark» chiede POST /api/codegraph/describe-symbol per quel solo simbolo e aggiorna la scheda.
+ * - Tasto destro su un FILE (12/10): MarkAgent spiega il file e i suoi legami; «Descrivi il file con Mark» descrive il suo
+ *   simbolo module (lo script stesso), e la descrizione compare nella scheda del file. Tasto destro su un ARCO: MarkAgent
+ *   spiega che cosa vuol dire quel legame (quali punti, se certo o dedotto) — le sigle extracted/inferred non dicevano niente.
  * - Disegno A SCALETTA (D26, poi D29), CALCOLATO e non simulato: ogni nodo sulla sua riga, rientrato rispetto a chi
  *   l'ha fatto comparire, come l'albero di un esplora risorse — con tante funzioni affiancate le etichette si
  *   sovrapponevano. Le chiamate fra nodi che non sono padre e figlio sono archi curvi di lato. Un nodo trascinato resta
@@ -113,6 +116,10 @@
         const nodes = data.nodes.map(n => Object.assign({}, n));
         const byId = Object.fromEntries(nodes.map(n => [n.id, n]));
         const links = data.links.filter(l => byId[l.source] && byId[l.target]).map(l => Object.assign({}, l));
+        // più relazioni fra gli stessi due nodi (es. imports e calls): ognuna la sua curva, sennò si coprono e quella sotto
+        // non si vede né si clicca
+        const pairs = {};
+        links.forEach(l => { const k = l.source + '|' + l.target; l.__pair = (pairs[k] = (pairs[k] || 0) + 1) - 1; });
         layoutTree(nodes, byId);
 
         graph = ForceGraph()(el)
@@ -158,11 +165,12 @@
             })
             .linkColor(l => REL_COLORS[l.relation] || '#94a3b8')
             // padre → figlio: dritto (è il gradino della scaletta); ogni altro arco passerebbe sopra le righe in mezzo: si curva di lato
-            .linkCurvature(l => (l.source && l.target && l.target.parentId === l.source.id) ? 0 : 0.6)
+            .linkCurvature(l => (l.source && l.target && l.target.parentId === l.source.id && !l.__pair) ? 0 : 0.6 + 0.35 * (l.__pair || 0))
             .linkWidth(l => Math.min(4, 1 + Math.log2(l.count || 1)))
             .linkLineDash(l => l.confidence === 'extracted' ? null : l.confidence === 'inferred' ? [6, 4] : [2, 4])
             .linkDirectionalArrowLength(6).linkDirectionalArrowRelPos(1)
-            .linkLabel(l => l.relation + ' (' + l.confidence + (l.count > 1 ? ', ×' + l.count : '') + ')')
+            .linkLabel(l => relationText(l) + ' — tasto destro: chiedi a MarkAgent')
+            .onLinkRightClick((l, ev) => showLinkMenu(l, ev))
             .onNodeClick((n, ev) => {
                 if (n.__btn) {
                     // clientX meno il riquadro del grafo: offsetX dipende dall'elemento che riceve il clic (non sempre il canvas)
@@ -240,31 +248,56 @@
 
     function showMenu(n, ev) {
         hideMenu();
-        if (n.kind === 'file' || n.external) return;
+        if (n.external) return;
+        const items = [];
+        if (n.kind === 'file') {
+            items.push(['ask', 'Chiedi a MarkAgent di spiegare «' + n.name + '» e i suoi legami', () => askMarkAgentAboutFile(n)]);
+            if (n.moduleId) items.push(['describe', n.summary ? 'Riscrivi la descrizione del file con Mark' : 'Descrivi il file con Mark', () => describeFile(n)]);
+            items.push(['toggle', n.expanded ? 'Chiudi i simboli' : 'Mostra i simboli', () => toggle(n)]);
+            items.push(['open', 'Apri il file', () => openSource(n)]);
+        } else {
+            items.push(['ask', 'Chiedi a MarkAgent di «' + n.name + '»', () => askMarkAgent(n)]);
+            items.push(['describe', n.summary ? 'Riscrivi la descrizione con Mark' : 'Descrivi con Mark', () => describeSymbol(n)]);
+            items.push(['hide', 'Nascondi «' + n.name + '» dal grafo', () => { hidden.set(n.id, n.name); saveHidden(); if (selected && selected.id === n.id) select(null); load(); }]);
+            if (hasToggle(n)) items.push(['toggle', n.expanded ? 'Chiudi le chiamate' : 'Segui le chiamate (' + n.hidden + ')', () => toggle(n)]);
+            items.push(['open', 'Apri il sorgente', () => openSource(n)]);
+        }
+        openMenu(items, ev);
+    }
+
+    /** Tasto destro su un arco: che cosa vuol dire quel legame, spiegato da MarkAgent. */
+    function showLinkMenu(l, ev) {
+        hideMenu();
+        if (!l.source || !l.target || typeof l.source !== 'object') return;
+        openMenu([['ask', 'Chiedi a MarkAgent: che cosa vuol dire «' + l.source.name + ' → ' + l.target.name + '»?', () => askMarkAgentAboutLink(l)]], ev);
+    }
+
+    function openMenu(items, ev) {
         const menu = document.createElement('div');
         menu.id = 'cg-menu';
-        const describable = n.kind !== 'module';
-        const items = [['ask', 'Chiedi a MarkAgent di «' + n.name + '»']];
-        if (describable) items.push(['describe', n.summary ? 'Riscrivi la descrizione con Mark' : 'Descrivi con Mark']);
-        items.push(['hide', 'Nascondi «' + n.name + '» dal grafo']);
-        if (hasToggle(n)) items.push(['toggle', n.expanded ? 'Chiudi le chiamate' : 'Segui le chiamate (' + n.hidden + ')']);
-        items.push(['open', 'Apri il sorgente']);
-        items.forEach(([action, label]) => {
+        items.forEach(([, label, run]) => {
             const b = document.createElement('button');
             b.textContent = label;
-            b.onclick = () => {
-                hideMenu();
-                if (action === 'ask') askMarkAgent(n);
-                else if (action === 'describe') describeSymbol(n);
-                else if (action === 'hide') { hidden.set(n.id, n.name); saveHidden(); if (selected && selected.id === n.id) select(null); load(); }
-                else if (action === 'toggle') toggle(n);
-                else openSource(n);
-            };
+            b.onclick = () => { hideMenu(); run(); };
             menu.appendChild(b);
         });
         document.body.appendChild(menu);
         const x = Math.min(ev.clientX, innerWidth - menu.offsetWidth - 8), y = Math.min(ev.clientY, innerHeight - menu.offsetHeight - 8);
         menu.style.left = x + 'px'; menu.style.top = y + 'px';
+    }
+
+    const REL_LABEL = { calls: 'chiama', imports: 'importa', references: 'usa il tipo', instantiates: 'crea', inherits: 'eredita da', implements: 'implementa' };
+    const CONF_LABEL = { extracted: 'scritto nel codice', inferred: 'dedotto dal nome', ambiguous: 'ambiguo: più candidati' };
+    function relationText(l) {
+        return (REL_LABEL[l.relation] || l.relation) + ' · ' + (CONF_LABEL[l.confidence] || l.confidence) + (l.count > 1 ? ' · ×' + l.count : '');
+    }
+
+    /** I legami del file con gli altri nodi disegnati, in parole: vanno nella domanda, così MarkAgent sa di che cosa parliamo. */
+    function linksOf(n) {
+        const end = x => (typeof x === 'object' ? x : null);
+        return graph.graphData().links.filter(l => end(l.source) && end(l.target) && (l.source.id === n.id || l.target.id === n.id))
+            .map(l => (l.source.id === n.id ? '→ ' + (l.target.path || l.target.qualifiedName || l.target.name) : '← ' + (l.source.path || l.source.qualifiedName || l.source.name)) +
+                ': ' + l.relation + ' (' + l.confidence + (l.count > 1 ? ', ×' + l.count : '') + ')');
     }
 
     /**
@@ -312,9 +345,35 @@
         }, '*');
     }
 
+    function askMarkAgentAboutFile(n) {
+        window.parent.postMessage({
+            type: 'mde-mark.askAboutSymbol',
+            context: {
+                projectPath,
+                symbol: { id: n.moduleId || n.id, kind: 'file', name: n.name, qualifiedName: n.path, path: n.path, line: null, signature: null, summary: n.summary || null },
+                links: linksOf(n),
+            },
+        }, '*');
+    }
+
+    function askMarkAgentAboutLink(l) {
+        const a = l.source, b = l.target, name = (a.path || a.qualifiedName || a.name) + ' → ' + (b.path || b.qualifiedName || b.name);
+        window.parent.postMessage({
+            type: 'mde-mark.askAboutSymbol',
+            context: {
+                projectPath,
+                symbol: { id: 'rel:' + a.id + '|' + l.relation + '|' + b.id, kind: 'relation', name, qualifiedName: name, path: a.path || null, line: null, signature: null, summary: null },
+                relation: { relation: l.relation, confidence: l.confidence, count: l.count || 1, from: a.qualifiedName || a.path || a.name, fromKind: a.kind, to: b.qualifiedName || b.path || b.name, toKind: b.kind },
+            },
+        }, '*');
+    }
+
+    /** «Descrivi il file con Mark»: si descrive il simbolo module del file (lo script stesso). */
+    function describeFile(n) { return describeSymbol(Object.assign({}, n, { id: n.moduleId }), n); }
+
     /** «Descrivi con Mark» su un simbolo: si aspetta la fine, poi la scheda e il grafo mostrano la descrizione nuova. */
-    async function describeSymbol(n) {
-        select(n);
+    async function describeSymbol(n, shown) {
+        select(shown || n);   // per un file si descrive il module, ma la scheda resta quella del file
         const card = document.getElementById('cg-card');
         const note = document.createElement('p');
         note.className = 'cg-muted';
@@ -375,7 +434,8 @@
         let html = '<div class="cg-kind">' + esc(n.kind) + '</div><h3>' + esc(n.qualifiedName || n.name) + '</h3>';
         if (n.signature) html += '<code class="cg-sig">' + esc(n.signature) + '</code>';
         if (n.summary) html += '<p class="cg-summary">' + esc(n.summary) + '</p>';
-        else if (n.kind === 'module') html += '<p class="cg-muted">Lo script stesso: il codice fuori dalle funzioni, quello che gira quando lo si lancia. I moduli non si descrivono; si descrivono le funzioni che chiama.</p>';
+        else if (n.kind === 'file' && n.moduleId) html += '<p class="cg-muted">Il file non ha ancora una descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Descrivi il file con Mark</button></p>';
+        else if (n.kind === 'module') html += '<p class="cg-muted">Lo script stesso: il codice fuori dalle funzioni, quello che gira quando lo si lancia. Nessuna descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Descrivi con Mark</button></p>';
         else if (n.kind !== 'file' && !n.external) html += '<p class="cg-muted">Nessuna descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Descrivi con Mark</button></p>';
         if (n.uncalled) html += '<p class="cg-warn">Nessun simbolo del perimetro la chiama: è codice morto, oppure un punto d\'ingresso (chiamata da fuori, da un evento, per riflessione).</p>';
         if (n.path) html += '<div class="cg-path">' + esc(n.path) + (n.line ? ':' + n.line : '') + '</div>';
@@ -403,7 +463,7 @@
         if (open) open.onclick = () => openSource(n);
         const tg = document.getElementById('cg-toggle'); if (tg) tg.onclick = () => toggle(n);
         const det = document.getElementById('cg-detail'); if (det) det.onclick = () => loadDetail(n);
-        const desc = document.getElementById('cg-describe'); if (desc) desc.onclick = () => describeSymbol(n);
+        const desc = document.getElementById('cg-describe'); if (desc) desc.onclick = () => (n.kind === 'file' ? describeFile(n) : describeSymbol(n));
         if (graph) graph.refresh && graph.refresh();
     }
 
@@ -429,8 +489,8 @@
 
     function renderLegend() {
         const el = document.getElementById('cg-legend');
-        el.innerHTML = Object.keys(REL_COLORS).filter(k => k !== 'contains').map(k => '<span><i style="background:' + REL_COLORS[k] + '"></i>' + k + '</span>').join('') +
-            '<span class="cg-sep"></span><span>— extracted</span><span>– – inferred</span><span>·· ambiguous</span>' +
+        el.innerHTML = Object.keys(REL_COLORS).filter(k => k !== 'contains').map(k => '<span title="' + k + '"><i style="background:' + REL_COLORS[k] + '"></i>' + (REL_LABEL[k] || k) + '</span>').join('') +
+            '<span class="cg-sep"></span><span title="extracted">— ' + CONF_LABEL.extracted + '</span><span title="inferred">– – ' + CONF_LABEL.inferred + '</span><span title="ambiguous">·· ' + CONF_LABEL.ambiguous + '</span>' +
             '<span class="cg-sep"></span><span><i class="cg-uncalled"></i>nessuno la chiama</span>' +
             (data.folders.length > 1 ? '<span class="cg-sep"></span>' + data.folders.map(f => '<span><i style="background:' + folderColor(f) + '"></i>' + (f || '/') + '</span>').join('') : '');
     }

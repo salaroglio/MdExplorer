@@ -317,6 +317,15 @@ namespace MdExplorer.Features.Services.CodeGraph
                 $"FILTER(?rel != \"contains\" && STRSTARTS(?p, {prefixLit})) ?b code:kind ?tk ; code:name ?tn ; code:qualifiedName ?tq }} }}", ct))
                 input.Edges.Add(new CodeGraphViewInput.EdgeInput { Source = SymbolId(r["a"]), Target = SymbolId(r["b"]), Relation = Str(r, "rel"), Confidence = Str(r, "conf"), TargetKind = Str(r, "tk"), TargetName = Str(r, "tn"), TargetQualifiedName = Str(r, "tq") });
 
+            // il file nel suo insieme: il suo module e, se l'LLM l'ha descritto, la descrizione (anche per i file chiusi)
+            foreach (var r in await RowsAsync(
+                $"SELECT ?s ?p ?sum WHERE {{ GRAPH {g.DataIri} {{ ?s a code:Symbol ; code:kind \"module\" ; code:path ?p . FILTER(STRSTARTS(?p, {prefixLit})) " +
+                "OPTIONAL { ?d a code:Description ; code:describes ?s ; code:summary ?sum } } }", ct))
+            {
+                var path = Str(r, "p");
+                if (!input.FileModules.ContainsKey(path)) input.FileModules[path] = (SymbolId(r["s"]), Str(r, "sum"));
+            }
+
             var known = new HashSet<string>(input.Files.Select(f => f.Path), StringComparer.Ordinal);
             input.Expanded.UnionWith((expandedFiles ?? Array.Empty<string>()).Where(known.Contains));
             if (focusSymbolId != null && input.SymbolFiles.TryGetValue(focusSymbolId, out var focusPath)) input.Expanded.Add(focusPath);

@@ -234,7 +234,7 @@ namespace MdExplorer.Services.CodeGraph
 
             // force: dal tasto destro si vuole QUESTO simbolo descritto, anche se una descrizione c'è già
             var candidates = CodeDocPlanner.Select(ast, existing, force: true).Where(c => c.Symbol.Id == symbolId).ToList();
-            if (candidates.Count == 0) { outcome.Error = $"«{symbol.Name}» è un {symbol.Kind}: i moduli, i campi e i nodi esterni non si descrivono"; return outcome; }
+            if (candidates.Count == 0) { outcome.Error = $"«{symbol.Name}» è un {symbol.Kind}: i campi e i nodi esterni non si descrivono"; return outcome; }
 
             MarkAgentEngine engine; string model;
             using (var scope = _scopeFactory.CreateScope())

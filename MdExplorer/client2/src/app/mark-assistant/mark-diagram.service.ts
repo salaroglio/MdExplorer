@@ -55,6 +55,10 @@ export interface MarkSymbolContext {
     id: string; kind: string; name: string; qualifiedName: string;
     path: string | null; line: number | null; signature: string | null; summary: string | null;
   };
+  /** kind 'file': the file's links to the other nodes drawn on the page, in words ("→ b.ps1: calls (inferred, ×3)"). */
+  links?: string[];
+  /** kind 'relation': an arc of the graph (right-click on it). */
+  relation?: { relation: string; confidence: string; count: number; from: string; fromKind: string; to: string; toKind: string };
 }
 
 /**
@@ -241,9 +245,18 @@ export class MarkDiagramService {
       kind: s.kind, name: s.name, qualifiedName: s.qualifiedName, id: s.id, where,
       signature: s.signature || '', summary: s.summary || this.translate.instant('MARK.CODE.NO_SUMMARY'),
     };
+    // Un file o un arco del grafo (tasto destro, 12/10/2026): prompt propri, la stessa sessione e la stessa finestra.
+    const subject = s.kind === 'file' ? 'FILE' : s.kind === 'relation' ? 'RELATION' : null;
+    const r = context.relation;
+    const subjectParams = {
+      ...params,
+      links: (context.links && context.links.length) ? context.links.join('\n') : this.translate.instant('MARK.CODE.NO_LINKS'),
+      relation: r?.relation ?? '', confidence: r?.confidence ?? '', count: r?.count ?? 1,
+      from: r?.from ?? '', fromKind: r?.fromKind ?? '', to: r?.to ?? '', toKind: r?.toKind ?? '',
+    };
     const prompt = question === null
-      ? this.translate.instant('MARK.CODE.ASK_PROMPT', params)
-      : this.translate.instant('MARK.CODE.FOLLOW_UP_PROMPT', { ...params, question });
+      ? this.translate.instant(subject ? `MARK.CODE.ASK_${subject}_PROMPT` : 'MARK.CODE.ASK_PROMPT', subjectParams)
+      : this.translate.instant(subject ? `MARK.CODE.FOLLOW_UP_${subject}_PROMPT` : 'MARK.CODE.FOLLOW_UP_PROMPT', { ...subjectParams, question });
 
     if (question !== null) this.mark.beginDiagramFollowUp(false);
     emit({ phase: 'start' });

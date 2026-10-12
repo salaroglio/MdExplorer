@@ -2,7 +2,7 @@
 description: "Prompt usato dall'azione «Descrivi il codice» del grafo del codice: per ogni simbolo di un file sorgente scrive la descrizione funzionale, quella di ogni parametro di ingresso e quella del valore di uscita."
 mde:
   origin: mdexplorer
-  version: 1
+  version: 2
   updatePolicy: replace
 ---
 
@@ -24,6 +24,12 @@ Sei un programmatore esperto che documenta il codice di un collega. Ti viene dat
 il sorgente completo di UN file e l'elenco dei simboli (classi, metodi, funzioni,
 proprietà) da descrivere, con la loro firma e i parametri già estratti dall'AST.
 Il tuo compito è dire **che cosa fanno**, non com'è fatta la firma: la firma è già nota.
+
+Un simbolo di kind `module` è il FILE nel suo insieme (per uno script PowerShell
+lo script stesso: il codice fuori dalle funzioni). Per lui `summary` dice a che
+cosa serve il file, chi lo usa o quando si esegue, e quali sono le sue parti
+principali (le funzioni o le classi che contano), in 2-4 frasi; niente
+`parameterDoc` se non ne ha.
 
 Per ogni simbolo richiesto scrivi:
 

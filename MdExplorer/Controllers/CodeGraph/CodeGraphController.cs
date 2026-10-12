@@ -398,7 +398,7 @@ namespace MdExplorer.Controllers.CodeGraph
             return Ok(new
             {
                 folder = model.Folder, folders = model.Folders,
-                nodes = model.Nodes.Select(n => new { n.Id, n.Kind, n.Name, n.QualifiedName, n.Path, n.Folder, n.Line, n.Signature, n.Summary, n.ParentId, n.Hidden, n.Expanded, n.External, n.Uncalled, n.Externals, n.HiddenCalls, n.Depth }),
+                nodes = model.Nodes.Select(n => new { n.Id, n.Kind, n.Name, n.QualifiedName, n.Path, n.Folder, n.Line, n.Signature, n.Summary, n.ParentId, n.Hidden, n.Expanded, n.External, n.Uncalled, n.Externals, n.HiddenCalls, n.Depth, n.ModuleId }),
                 links = model.Links.Select(l => new { l.Source, l.Target, l.Relation, l.Confidence, l.Count }),
             });
         });

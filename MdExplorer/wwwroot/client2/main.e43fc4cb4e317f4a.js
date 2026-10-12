@@ -11426,8 +11426,22 @@ class MarkDiagramService {
         signature: s.signature || '',
         summary: s.summary || _this2.translate.instant('MARK.CODE.NO_SUMMARY')
       };
-      const prompt = question === null ? _this2.translate.instant('MARK.CODE.ASK_PROMPT', params) : _this2.translate.instant('MARK.CODE.FOLLOW_UP_PROMPT', {
+      // Un file o un arco del grafo (tasto destro, 12/10/2026): prompt propri, la stessa sessione e la stessa finestra.
+      const subject = s.kind === 'file' ? 'FILE' : s.kind === 'relation' ? 'RELATION' : null;
+      const r = context.relation;
+      const subjectParams = {
         ...params,
+        links: context.links && context.links.length ? context.links.join('\n') : _this2.translate.instant('MARK.CODE.NO_LINKS'),
+        relation: r?.relation ?? '',
+        confidence: r?.confidence ?? '',
+        count: r?.count ?? 1,
+        from: r?.from ?? '',
+        fromKind: r?.fromKind ?? '',
+        to: r?.to ?? '',
+        toKind: r?.toKind ?? ''
+      };
+      const prompt = question === null ? _this2.translate.instant(subject ? `MARK.CODE.ASK_${subject}_PROMPT` : 'MARK.CODE.ASK_PROMPT', subjectParams) : _this2.translate.instant(subject ? `MARK.CODE.FOLLOW_UP_${subject}_PROMPT` : 'MARK.CODE.FOLLOW_UP_PROMPT', {
+        ...subjectParams,
         question
       });
       if (question !== null) _this2.mark.beginDiagramFollowUp(false);
@@ -18635,8 +18649,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.12.7',
-  buildTime: '2026.10.12 16:58:14'
+  version: '2026.10.12.8',
+  buildTime: '2026.10.12 19:04:32'
 };
 
 /***/ }),
@@ -18670,4 +18684,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.44049f519f6f31c0.js.map
+//# sourceMappingURL=main.e43fc4cb4e317f4a.js.map
