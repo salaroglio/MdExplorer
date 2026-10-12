@@ -45,6 +45,9 @@ namespace MdExplorer.Service
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.TreeSitterJavaExtractor>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.TreeSitterJavaScriptExtractor>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractor, MdExplorer.Features.Services.CodeGraph.PowerShellExtractor>();
+            // Radici di codice esterne (sprint 2026-10-12): identità nel .development.yml, posizione nello UserDB
+            services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeRootBindingStore, MdExplorer.Services.CodeGraph.UserDbCodeRootBindingStore>();
+            services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeRootService, MdExplorer.Services.CodeGraph.CodeRootService>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeExtractorRegistry, MdExplorer.Features.Services.CodeGraph.CodeExtractorRegistry>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeChangeScanner, MdExplorer.Services.CodeGraph.CodeChangeScanner>();
             services.AddSingleton<MdExplorer.Services.CodeGraph.ICodeAnalysisService, MdExplorer.Services.CodeGraph.CodeAnalysisService>();

@@ -1,0 +1,301 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Ad.Tools.Dal.Extensions;
+using MdExplorer.Abstractions.DB;
+using MdExplorer.Abstractions.Entities.UserDB;
+using MdExplorer.Features.Services.CodeGraph;
+using MdExplorer.Features.Utilities;
+using MdExplorer.Service.Models;
+using MdExplorer.Services.Git;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
+
+namespace MdExplorer.Services.CodeGraph
+{
+    /// <summary>Dove sta una radice su questa macchina: lo UserDB in produzione, un dizionario nei test.</summary>
+    public interface ICodeRootBindingStore
+    {
+        string Get(string projectPath, string alias);
+        void Set(string projectPath, string alias, string localPath);
+        void Remove(string projectPath, string alias);
+    }
+
+    public interface ICodeRootService
+    {
+        /// <summary>Le radici dichiarate nel progetto, con lo stato su questa macchina (git interrogato adesso).</summary>
+        Task<IReadOnlyList<CodeRootState>> ListAsync(string projectPath, CancellationToken ct = default);
+
+        /// <summary>Una fotografia per tradurre molti percorsi senza ripetere git (analisi, MCP).</summary>
+        Task<CodeRootResolver> CreateResolverAsync(string projectPath, CancellationToken ct = default);
+
+        /// <summary>
+        /// Collega una cartella di questa macchina all'alias. Se l'alias non è dichiarato lo dichiara (identità presa dal
+        /// remote della cartella, R7: il primo che collega la fissa per tutti); se è dichiarato verifica che sia lo stesso
+        /// repository. Eccezione con il motivo se non lo è.
+        /// </summary>
+        Task<CodeRootState> LinkAsync(string projectPath, string alias, string localPath, CancellationToken ct = default);
+
+        /// <summary>Dimentica dove sta la radice su questa macchina; la dichiarazione nel progetto resta (è del team).</summary>
+        void Unlink(string projectPath, string alias);
+    }
+
+    /// <summary>
+    /// Le radici di codice esterne (sprint 2026-10-12-Radici-Di-Codice-Esterne, F1): identità in <c>.development.yml</c>
+    /// (<c>codeRoots</c>), posizione nello UserDB (<see cref="ICodeRootBindingStore"/>), stato reale da git. Con git la
+    /// posizione è la radice del repository, qualunque cartella del clone l'utente scelga, e l'analisi parte dalla
+    /// sottocartella dichiarata: l'identità è «repository + sottocartella», non dove sta il clone.
+    /// </summary>
+    public sealed class CodeRootService : ICodeRootService
+    {
+        private readonly ICodeRootBindingStore _bindings;
+        private readonly INativeGitRunner _git;
+        private readonly ILogger<CodeRootService> _logger;
+        private readonly SemaphoreSlim _configGate = new(1, 1);
+
+        public CodeRootService(ICodeRootBindingStore bindings, INativeGitRunner git, ILogger<CodeRootService> logger)
+        {
+            _bindings = bindings; _git = git; _logger = logger;
+        }
+
+        // ------------------------------------------------------------------ lettura
+
+        public async Task<IReadOnlyList<CodeRootState>> ListAsync(string projectPath, CancellationToken ct = default)
+        {
+            var list = new List<CodeRootState>();
+            foreach (var root in ReadConfig(projectPath).CodeRoots ?? new List<CodeRootConfig>())
+                list.Add(await StateOfAsync(projectPath, root, ct));
+            return list;
+        }
+
+        public async Task<CodeRootResolver> CreateResolverAsync(string projectPath, CancellationToken ct = default)
+            => new CodeRootResolver(projectPath, await ListAsync(projectPath, ct));
+
+        private async Task<CodeRootState> StateOfAsync(string projectPath, CodeRootConfig root, CancellationToken ct)
+        {
+            var local = _bindings.Get(projectPath, root.Alias);
+            CodeRootState State(CodeRootStatus status, string reason, string rootPath = null, IReadOnlyList<string> remotes = null) => new()
+            {
+                Alias = root.Alias, Repository = root.Repository, Subpath = root.Subpath ?? string.Empty,
+                Tags = root.Tags ?? new List<string>(), Languages = root.CodeGraph?.Languages ?? new List<string>(),
+                LocalPath = local, RootPath = rootPath, Status = status, Reason = reason, ActualRemotes = remotes ?? Array.Empty<string>(),
+            };
+
+            if (local == null)
+                return State(CodeRootStatus.NotLinked, $"su questa macchina non è collegata: indica dove sta la cartella{(root.Repository != null ? " del repository " + root.Repository : string.Empty)}.");
+            if (!Directory.Exists(local))
+                return State(CodeRootStatus.NotFound, $"la cartella {local} non esiste più (spostata o cancellata): ricollegala.");
+
+            if (root.Repository != null)
+            {
+                var top = await TopLevelAsync(local, ct);
+                if (top == null)
+                    return State(CodeRootStatus.Mismatch, $"{local} non è un repository git, ma la radice è il repository {root.Repository}.");
+                var remotes = await RemotesAsync(top, ct);
+                if (!remotes.Any(r => CodeRootPaths.SameRepository(r, root.Repository)))
+                    return State(CodeRootStatus.Mismatch, $"{local} è {Describe(remotes)}, non il repository dichiarato {root.Repository}.", remotes: remotes);
+                var rootPath = Combine(top, root.Subpath);
+                if (!Directory.Exists(rootPath))
+                    return State(CodeRootStatus.NotFound, $"nel clone {top} manca la sottocartella «{root.Subpath}» (un altro ramo?).", remotes: remotes);
+                return State(CodeRootStatus.Linked, null, rootPath, remotes);
+            }
+            return State(CodeRootStatus.Linked, null, Combine(local, root.Subpath));
+        }
+
+        // ------------------------------------------------------------------ collegare
+
+        public async Task<CodeRootState> LinkAsync(string projectPath, string alias, string localPath, CancellationToken ct = default)
+        {
+            CodeRootPaths.RequireAlias(alias);
+            if (string.IsNullOrWhiteSpace(localPath) || !Directory.Exists(localPath))
+                throw new InvalidOperationException($"La cartella '{localPath}' non esiste.");
+            var chosen = Path.GetFullPath(localPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (PathContainment.IsInside(projectPath, chosen))
+                throw new InvalidOperationException($"{chosen} sta dentro il progetto: non serve una radice esterna, marcala come cartella «program» dall'albero.");
+            if (PathContainment.IsInside(chosen, projectPath))
+                throw new InvalidOperationException($"{chosen} contiene il progetto stesso: scegli la cartella del codice, non una che la contiene.");
+
+            var top = await TopLevelAsync(chosen, ct);
+            var remotes = top == null ? (IReadOnlyList<string>)Array.Empty<string>() : await RemotesAsync(top, ct);
+
+            await _configGate.WaitAsync(ct);
+            try
+            {
+                var config = ReadConfig(projectPath);
+                config.CodeRoots ??= new List<CodeRootConfig>();
+                var root = config.CodeRoots.FirstOrDefault(r => r.Alias == alias);
+                var changed = false;
+                string bindTo;
+
+                if (top != null)
+                {
+                    if (root?.Repository != null)
+                    {
+                        if (!remotes.Any(r => CodeRootPaths.SameRepository(r, root.Repository)))
+                            throw new InvalidOperationException($"{chosen} è {Describe(remotes)}, ma la radice «@{alias}» è il repository {root.Repository}: scegli il clone giusto.");
+                        if (!Directory.Exists(Combine(top, root.Subpath)))
+                            throw new InvalidOperationException($"Nel clone {top} manca la sottocartella «{root.Subpath}» della radice «@{alias}» (un altro ramo?).");
+                    }
+                    else
+                    {
+                        var origin = PreferredRemote(remotes);
+                        if (origin == null)
+                            throw new InvalidOperationException($"{top} è un repository git senza remote: senza un remote i colleghi non possono riconoscere la stessa cartella. Aggiungi un remote (git remote add origin …) e ricollega.");
+                        var subpath = Relative(top, chosen);
+                        if (root == null)
+                        {
+                            root = new CodeRootConfig { Alias = alias, Repository = origin, Subpath = subpath, Tags = new List<string> { "program" } };
+                            config.CodeRoots.Add(root);
+                        }
+                        else
+                        {
+                            root.Repository = origin;   // dichiarata fuori da git, ora è un repository: l'identità diventa il remote
+                            root.Subpath = subpath;
+                        }
+                        changed = true;
+                    }
+                    bindTo = top;
+                }
+                else
+                {
+                    if (root?.Repository != null)
+                        throw new InvalidOperationException($"{chosen} non è un repository git, ma la radice «@{alias}» è il repository {root.Repository}: scegli il clone.");
+                    if (root == null)
+                    {
+                        root = new CodeRootConfig { Alias = alias, Subpath = string.Empty, Tags = new List<string> { "program" } };
+                        config.CodeRoots.Add(root);
+                        changed = true;
+                    }
+                    // senza git non c'è un'identità da verificare: si accetta la scelta, e la UI lo dice (R7)
+                    bindTo = chosen;
+                }
+
+                if (changed) WriteConfig(projectPath, config);
+                _bindings.Set(projectPath, alias, bindTo);
+                _logger.LogInformation("[CodeRoots] '{Project}': @{Alias} → {Path}{Repo}", projectPath, alias, bindTo,
+                    root.Repository != null ? " (" + root.Repository + ")" : " (senza git)");
+                return await StateOfAsync(projectPath, root, ct);
+            }
+            finally { _configGate.Release(); }
+        }
+
+        public void Unlink(string projectPath, string alias)
+        {
+            CodeRootPaths.RequireAlias(alias);
+            _bindings.Remove(projectPath, alias);
+            _logger.LogInformation("[CodeRoots] '{Project}': @{Alias} scollegata su questa macchina", projectPath, alias);
+        }
+
+        // ------------------------------------------------------------------ git
+
+        private async Task<string> TopLevelAsync(string folder, CancellationToken ct)
+        {
+            var r = await _git.RunAsync(folder, new[] { "rev-parse", "--show-toplevel" }, ct);
+            return r.Ok && !string.IsNullOrWhiteSpace(r.Stdout) ? Path.GetFullPath(r.Stdout.Trim()) : null;
+        }
+
+        /// <summary>Gli URL dei remote (fetch), con «origin» per primo.</summary>
+        private async Task<IReadOnlyList<string>> RemotesAsync(string repo, CancellationToken ct)
+        {
+            var r = await _git.RunAsync(repo, new[] { "remote", "-v" }, ct);
+            if (!r.Ok) return Array.Empty<string>();
+            return r.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Select(l => l.Split(new[] { '\t', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                .Where(p => p.Length >= 2)
+                .OrderBy(p => p[0] == "origin" ? 0 : 1)
+                .Select(p => p[1])
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+        }
+
+        private static string PreferredRemote(IReadOnlyList<string> remotes) => remotes.FirstOrDefault();
+
+        private static string Describe(IReadOnlyList<string> remotes)
+            => remotes.Count == 0 ? "un repository senza remote" : "il repository " + string.Join(" / ", remotes);
+
+        // ------------------------------------------------------------------ .development.yml
+
+        private static DevelopmentConfig ReadConfig(string projectPath)
+        {
+            var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
+            return File.Exists(path) ? MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path) : new DevelopmentConfig();
+        }
+
+        private static void WriteConfig(string projectPath, DevelopmentConfig config)
+        {
+            var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
+            var serializer = new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build();
+            File.WriteAllText(path, serializer.Serialize(config));
+        }
+
+        private static string Combine(string root, string subpath)
+            => string.IsNullOrEmpty(subpath) ? root : Path.GetFullPath(Path.Combine(root, subpath.Replace('/', Path.DirectorySeparatorChar)));
+
+        private static string Relative(string root, string path)
+        {
+            var rel = PathContainment.RelativeOrNull(root, path);
+            return rel == null || rel == "." ? string.Empty : rel;
+        }
+    }
+
+    /// <summary>Le posizioni nello UserDB (tabella CodeRootBinding), una transazione per operazione.</summary>
+    public sealed class UserDbCodeRootBindingStore : ICodeRootBindingStore
+    {
+        private readonly IServiceScopeFactory _scopeFactory;
+
+        public UserDbCodeRootBindingStore(IServiceScopeFactory scopeFactory) { _scopeFactory = scopeFactory; }
+
+        public string Get(string projectPath, string alias)
+            => WithDb(db => Find(db, projectPath, alias)?.LocalPath);
+
+        public void Set(string projectPath, string alias, string localPath) => WithDb(db =>
+        {
+            var row = Find(db, projectPath, alias);
+            if (row == null) db.GetDal<CodeRootBinding>().Save(new CodeRootBinding { ProjectPath = Key(projectPath), Alias = alias, LocalPath = localPath, BoundAt = DateTime.UtcNow });
+            else { row.LocalPath = localPath; row.BoundAt = DateTime.UtcNow; db.GetDal<CodeRootBinding>().Save(row); }
+            return true;
+        });
+
+        public void Remove(string projectPath, string alias) => WithDb(db =>
+        {
+            var row = Find(db, projectPath, alias);
+            if (row != null) db.GetDal<CodeRootBinding>().Delete(row);
+            return true;
+        });
+
+        private T WithDb<T>(Func<IUserSettingsDB, T> work)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.Clear();
+            db.BeginTransaction();
+            try
+            {
+                var result = work(db);
+                db.Commit();
+                return result;
+            }
+            catch
+            {
+                db.Rollback();
+                throw;
+            }
+        }
+
+        /// <summary>Il progetto senza separatore finale: la chiave non deve dipendere da come arriva il percorso.</summary>
+        private static string Key(string projectPath) => Path.GetFullPath(projectPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        // ⚠️ .ToList() prima del confronto: NHibernate non traduce i confronti tolleranti (vedi FindProjectByPath)
+        private static CodeRootBinding Find(IUserSettingsDB db, string projectPath, string alias)
+        {
+            var key = Key(projectPath);
+            return db.GetDal<CodeRootBinding>().GetList().Where(b => b.Alias == alias).ToList()
+                .FirstOrDefault(b => string.Equals(b.ProjectPath, key, PathContainment.Comparison));
+        }
+    }
+}

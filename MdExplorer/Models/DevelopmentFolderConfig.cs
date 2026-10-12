@@ -65,6 +65,41 @@ namespace MdExplorer.Service.Models
         /// <see cref="AgentCity"/>).</para>
         /// </summary>
         public HarnessConfig Harness { get; set; }
+
+        /// <summary>
+        /// Le radici di codice ESTERNE alla radice del progetto (sprint 2026-10-12-Radici-Di-Codice-Esterne, R1): qui solo
+        /// l'IDENTITÀ (alias, repository, sottocartella), su Git e uguale per il team; dove sta la cartella su ogni
+        /// macchina lo dice lo UserDB (<c>CodeRootBinding</c>), mai questo file. Null/assente = nessuna radice esterna.
+        /// <para>DEVE stare nel modello tipizzato: una sezione non modellata viene cancellata al primo salvataggio.</para>
+        /// </summary>
+        public List<CodeRootConfig> CodeRoots { get; set; }
+    }
+
+    /// <summary>
+    /// Una radice di codice esterna in <c>.development.yml</c>. Il percorso logico dei suoi file è <c>@alias/…</c>,
+    /// relativo alla sottocartella <see cref="Subpath"/> del repository: lo stesso su ogni macchina.
+    /// </summary>
+    public class CodeRootConfig
+    {
+        /// <summary>Il nome della radice nei percorsi logici (<c>@backend/…</c>): minuscole, cifre, «.», «_», «-».</summary>
+        public string Alias { get; set; }
+
+        /// <summary>
+        /// Il <c>remote</c> del repository, così come l'ha dato chi ha collegato per primo: è l'identità che fa
+        /// riconoscere la cartella giusta sulle altre macchine (R7). Null per una cartella fuori da git.
+        /// </summary>
+        public string Repository { get; set; }
+
+        /// <summary>La sottocartella del repository che si analizza, con «/»; vuota = tutto il repository.</summary>
+        public string Subpath { get; set; }
+
+        public string Description { get; set; }
+
+        /// <summary>Come per le cartelle interne: <c>program</c> = perimetro del grafo del codice.</summary>
+        public List<string> Tags { get; set; } = new List<string>();
+
+        /// <summary>I linguaggi da analizzare, come per le cartelle interne.</summary>
+        public FolderCodeGraphConfig CodeGraph { get; set; }
     }
 
     /// <summary>
