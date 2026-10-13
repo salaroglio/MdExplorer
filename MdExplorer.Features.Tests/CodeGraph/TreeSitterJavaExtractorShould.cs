@@ -239,6 +239,82 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(svc.Symbols.Any(x => x.Kind == "external" && x.QualifiedName == "org.lib.User"));
         }
 
+        /// <summary>
+        /// D38, seconda passata (misurata su PlantUML): catene (tipo di ritorno), generici della piattaforma e del
+        /// perimetro anche ereditati, piattaforma che resta piattaforma, try-with-resources, variabili omonime in blocchi
+        /// diversi, classi anonime, costanti di enum, nomi qualificati per intero, metodi ereditati dalla piattaforma.
+        /// </summary>
+        [TestMethod]
+        public void Resolve_chains_generics_scopes_and_anonymous_classes()
+        {
+            InstallGrammarFromNuGet();
+            Directory.CreateDirectory(Path.Combine(_src, "g"));
+            File.WriteAllText(Path.Combine(_src, "g", "Shape.java"),
+                "package com.acme.g;\n\npublic interface Shape {\n    Style style();\n    void draw();\n}\n");
+            File.WriteAllText(Path.Combine(_src, "g", "Style.java"),
+                "package com.acme.g;\n\npublic class Style {\n    public Color color() { return null; }\n}\n");
+            File.WriteAllText(Path.Combine(_src, "g", "Color.java"),
+                "package com.acme.g;\n\npublic enum Color {\n    RED, GREEN;\n    public int rgb() { return 0; }\n}\n");
+            File.WriteAllText(Path.Combine(_src, "g", "Box.java"),
+                "package com.acme.g;\n\npublic class Box<T> {\n    public T get() { return null; }\n}\n");
+            File.WriteAllText(Path.Combine(_src, "g", "Canvas.java"),
+                "package com.acme.g;\n\npublic abstract class Canvas<O> {\n    protected O target() { return null; }\n}\n");
+            File.WriteAllText(Path.Combine(_src, "g", "Pen.java"),
+                "package com.acme.g;\n\npublic class Pen {\n    public void stroke() { }\n}\n");
+            File.WriteAllText(Path.Combine(_src, "g", "Lines.java"),
+                "package com.acme.g;\n\nimport java.util.ArrayList;\n\npublic class Lines extends ArrayList<String> {\n    void fill() { addAll(null); }\n}\n");
+            File.WriteAllText(Path.Combine(_src, "g", "Painter.java"),
+                "package com.acme.g;\n\n" +
+                "import java.util.List;\nimport java.util.Map;\nimport java.io.InputStream;\nimport java.io.FileInputStream;\n\n" +
+                "public class Painter extends Canvas<Pen> {\n" +
+                "    private List<Shape> shapes;\n" +
+                "    private Map<String, Shape> byName;\n\n" +
+                "    void paint(Shape s, Box<Style> box, Object o) {\n" +
+                "        s.style().color().rgb();\n" +
+                "        shapes.get(0).draw();\n" +
+                "        byName.get(\"x\").style();\n" +
+                "        box.get().color();\n" +
+                "        target().stroke();\n" +
+                "        new StringBuilder().append(\"a\").append(\"b\").append(\"c\").append(\"d\").append(\"e\").append(\"f\").reverse();\n" +
+                "        Color.RED.rgb();\n" +
+                "        com.acme.g.Pen p = new com.acme.g.Pen();\n" +
+                "        try (InputStream in = new FileInputStream(\"f\")) { in.read(); } catch (Exception e) { }\n" +
+                "        if (o instanceof Shape) { final Shape same = (Shape) o; same.draw(); }\n" +
+                "        else { final Style same = (Style) o; same.color(); }\n" +
+                "        ((Shape) o).style();\n" +
+                "        Shape anon = new Shape() {\n" +
+                "            public Style style() { return null; }\n" +
+                "            public void draw() { style(); }\n" +
+                "        };\n" +
+                "    }\n" +
+                "}\n");
+
+            var result = new TreeSitterJavaExtractor(_store, NullLogger<TreeSitterJavaExtractor>.Instance).Extract(Request());
+            Assert.AreEqual(0, result.Warnings.Count, string.Join("; ", result.Warnings));
+            var all = result.Scripts.SelectMany(x => x.Script.Symbols).ToList();
+            var painter = result.Scripts.Single(x => x.File.LogicalPath.EndsWith("/Painter.java")).Script;
+            string Id(string qn) => all.Single(x => x.QualifiedName == qn).Id;
+            var paint = Id("com.acme.g.Painter.paint(Shape, Box<Style>, Object)");
+            string Conf(string to) => painter.Edges.SingleOrDefault(e => e.SourceId == paint && e.TargetId == Id(to) && e.Relation == "calls")?.Confidence;
+
+            Assert.AreEqual("extracted", Conf("com.acme.g.Shape.style()"), "s.style()");
+            Assert.AreEqual("extracted", Conf("com.acme.g.Style.color()"), "s.style().color(): tipo di ritorno");
+            Assert.AreEqual("extracted", Conf("com.acme.g.Color.rgb()"), "catena di tre e Color.RED.rgb()");
+            Assert.AreEqual("extracted", Conf("com.acme.g.Shape.draw()"), "List<Shape>.get(0).draw(), cast in un blocco");
+            Assert.AreEqual("extracted", Conf("com.acme.g.Box.get()"));
+            Assert.AreEqual("extracted", Conf("com.acme.g.Pen.stroke()"), "O target() ereditato da Canvas<Pen>");
+            Assert.AreEqual("extracted", Conf("com.acme.g.Canvas.target()"));
+            // nessuna chiamata finisce «per nome»: niente ambiguous, niente ?.x dal metodo
+            var targets = painter.Edges.Where(e => e.SourceId == paint && e.Relation == "calls").ToList();
+            Assert.IsFalse(targets.Any(e => e.Confidence == "ambiguous"), string.Join(", ", targets.Where(e => e.Confidence == "ambiguous").Select(e => all.First(x => x.Id == e.TargetId).QualifiedName)));
+            Assert.IsFalse(painter.Symbols.Any(x => x.Kind == "external" && x.QualifiedName.StartsWith("?.")), "piattaforma e perimetro: nessun nome indovinato");
+            // il metodo della classe anonima chiama style() suo: niente arco per nome verso Shape.style da draw()
+            Assert.IsFalse(painter.Symbols.Any(x => x.Name == "style" && x.Kind == "external"));
+            // Lines estende ArrayList: addAll è della piattaforma, nessun arco verso omonimi
+            var lines = result.Scripts.Single(x => x.File.LogicalPath.EndsWith("/Lines.java")).Script;
+            Assert.IsFalse(lines.Edges.Any(e => e.Relation == "calls"), "addAll ereditato da ArrayList");
+        }
+
         /// <summary>D38: due tipi omonimi senza import che scelga → un arco ambiguous per ciascuno, mai il primo a caso.</summary>
         [TestMethod]
         public void Link_every_same_named_type_as_ambiguous_instead_of_picking_one()

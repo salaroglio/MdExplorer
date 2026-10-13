@@ -118,6 +118,14 @@ namespace MdExplorer.Features.Services.CodeGraph
             "Exception", "RuntimeException", "Throwable", "Error", "IllegalArgumentException", "IllegalStateException", "NullPointerException",
             "UnsupportedOperationException", "Runnable", "Thread", "Iterable", "Comparable", "CharSequence", "StringBuilder", "StringBuffer",
             "Class", "Enum", "Record", "Override", "Deprecated", "SuppressWarnings", "FunctionalInterface", "SafeVarargs", "AutoCloseable", "Cloneable",
+            "Runtime", "Process", "ProcessBuilder", "ClassLoader", "StrictMath", "ThreadLocal", "InheritableThreadLocal", "ThreadGroup", "Appendable",
+            "Readable", "Package", "Module", "ModuleLayer", "StackTraceElement", "StackWalker", "SecurityManager", "ScopedValue",
+            "InterruptedException", "CloneNotSupportedException", "ArithmeticException", "ArrayIndexOutOfBoundsException", "IndexOutOfBoundsException",
+            "StringIndexOutOfBoundsException", "ClassCastException", "NumberFormatException", "SecurityException", "ClassNotFoundException",
+            "NoSuchFieldException", "NoSuchMethodException", "IllegalAccessException", "InstantiationException", "ReflectiveOperationException",
+            "NegativeArraySizeException", "ArrayStoreException", "IllegalMonitorStateException", "EnumConstantNotPresentException", "TypeNotPresentException",
+            "StackOverflowError", "OutOfMemoryError", "AssertionError", "LinkageError", "VirtualMachineError", "InternalError", "NoClassDefFoundError",
+            "ExceptionInInitializerError", "UnsatisfiedLinkError", "IncompatibleClassChangeError",
         };
 
         private static readonly string[] TypeDeclarations = { "class_declaration", "interface_declaration", "enum_declaration", "record_declaration", "annotation_type_declaration" };
@@ -184,22 +192,33 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// Un nome di tipo risolto: tipi del perimetro (più d'uno se omonimi), un external con il suo nome qualificato, la
         /// piattaforma (<c>java.*</c>: nessun nodo), o sconosciuto. La confidenza dice quanto lo dice il codice.
         /// </summary>
-        private sealed record TypeRef(TypeRefKind Kind, IReadOnlyList<string> Fqns, string Confidence)
+        /// <para><see cref="Args"/> sono gli argomenti di tipo come scritti (<c>List&lt;Foo&gt;</c> → <c>Foo</c>), da risolvere
+        /// in <see cref="ArgsCtx"/>: servono a dire che cosa restituiscono <c>get</c>, <c>next</c>… <see cref="IsArray"/>:
+        /// un array (i suoi elementi sono del tipo). Per la piattaforma <see cref="Fqns"/> porta il nome semplice.</para>
+        /// </summary>
+        private sealed record TypeRef(TypeRefKind Kind, IReadOnlyList<string> Fqns, string Confidence,
+            IReadOnlyList<string> Args = null, FileContext ArgsCtx = null, bool IsArray = false)
         {
             public static readonly TypeRef Unknown = new(TypeRefKind.Unknown, Array.Empty<string>(), "ambiguous");
             public static readonly TypeRef Platform = new(TypeRefKind.Platform, Array.Empty<string>(), "extracted");
+            /// <summary>Un valore restituito da una libreria: il tipo non si sa, ma non è del perimetro.</summary>
+            public static readonly TypeRef LibraryValue = new(TypeRefKind.External, new[] { "?" }, "inferred");
+            public string PlatformName => Kind == TypeRefKind.Platform && Fqns.Count > 0 ? Fqns[0] : null;
         }
 
-        private sealed record MethodEntry(string Id, int Arity, bool Varargs);
+        /// <summary>Un metodo o costruttore del perimetro: arità per gli overload, tipo di ritorno come scritto e dove leggerlo.</summary>
+        private sealed record MethodEntry(string Id, int Arity, bool Varargs, string ReturnText = null, string OwnerFqn = null, IReadOnlyCollection<string> TypeParams = null);
 
         private sealed class TypeInfo
         {
             public string Fqn, Id;
             public bool IsInterface;
             public FileContext Ctx;
-            public readonly List<string> SuperNames = new();                                          // extends + implements, nome di testa
-            public readonly Dictionary<string, string> FieldTypeNames = new(StringComparer.Ordinal);  // campo → nome di tipo di testa
+            public readonly List<string> SuperTexts = new();                                          // extends + implements, come scritti (Base<Foo>)
+            public readonly Dictionary<string, string> FieldTypes = new(StringComparer.Ordinal);      // campo → tipo come scritto (List<Foo>)
             public List<TypeRef> Supers = new();
+            /// <summary>I parametri di tipo della classe in ordine (<c>class Box&lt;T&gt;</c> → T), anche quelli delle classi che la contengono.</summary>
+            public List<string> TypeParams = new();
         }
 
         private sealed class PerimeterIndex
@@ -214,6 +233,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             private readonly Dictionary<ParsedFile, FileContext> _contexts = new();
 
             public FileContext ContextOf(ParsedFile pf) => _contexts[pf];
+
+            /// <summary>La «madre esterna» quando è della piattaforma: niente nodo, niente arco.</summary>
+            public const string PlatformAncestor = "<piattaforma>";
 
             public void Collect(ParsedFile pf)
             {
@@ -234,21 +256,23 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (!TypesByName.TryGetValue(name, out var list)) TypesByName[name] = list = new();
                 list.Add((id, fqn));
                 var info = new TypeInfo { Fqn = fqn, Id = id, IsInterface = kind == "interface", Ctx = ctx };
+                info.TypeParams = TypeParamsOf(decl).ToList();
+                if (outerFqn != null && Types.TryGetValue(outerFqn, out var outerInfo)) info.TypeParams.AddRange(outerInfo.TypeParams.Where(t => !info.TypeParams.Contains(t)));
                 Types[fqn] = info;
-                foreach (var t in TypeNames(decl.NamedChildren.FirstOrDefault(c => c.Type == "superclass")).Take(1)) info.SuperNames.Add(t);
+                if (decl.NamedChildren.FirstOrDefault(c => c.Type == "superclass")?.NamedChildren.FirstOrDefault(IsTypeNode)?.Text is string superText) info.SuperTexts.Add(superText);
                 foreach (var clause in decl.NamedChildren.Where(c => c.Type is "super_interfaces" or "extends_interfaces"))
                 {
                     var tl = clause.NamedChildren.FirstOrDefault(c => c.Type == "type_list") ?? clause;
-                    foreach (var t in tl.NamedChildren.Where(IsTypeNode))
-                        if (TypeNames(t).FirstOrDefault() is string head) info.SuperNames.Add(head);
+                    foreach (var t in tl.NamedChildren.Where(IsTypeNode)) info.SuperTexts.Add(t.Text);
                 }
                 if (decl.Type == "record_declaration")
                     foreach (var p in decl.NamedChildren.FirstOrDefault(c => c.Type == "formal_parameters")?.NamedChildren.Where(c => c.Type == "formal_parameter") ?? Enumerable.Empty<Node>())
-                        if (NameOf(p) is string pn && TypeNames(p.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault() is string pt) info.FieldTypeNames[pn] = pt;
+                        if (NameOf(p) is string pn && p.NamedChildren.FirstOrDefault(IsTypeNode)?.Text is string pt) info.FieldTypes[pn] = pt;
                 var body = BodyOf(decl);
                 if (body == null) return;
                 foreach (var m in body.NamedChildren.SelectMany(c => c.Type == "enum_body_declarations" ? c.NamedChildren : new[] { c }))
                 {
+                    if (m.Type == "enum_constant" && NameOf(m) is string constant) { info.FieldTypes[constant] = name; continue; }
                     if (m.Type == "method_declaration")
                     {
                         var mname = NameOf(m);
@@ -259,20 +283,20 @@ namespace MdExplorer.Features.Services.CodeGraph
                         if (!MethodsByOwner.TryGetValue(fqn, out var byName)) MethodsByOwner[fqn] = byName = new(StringComparer.Ordinal);
                         if (!byName.TryGetValue(mname, out var ol)) byName[mname] = ol = new();
                         var (arity, varargs) = Arity(m);
-                        ol.Add(new MethodEntry(mid, arity, varargs));
+                        ol.Add(new MethodEntry(mid, arity, varargs, ReturnTypeOf(m)?.Text, fqn, info.TypeParams.Concat(TypeParamsOf(m)).ToHashSet(StringComparer.Ordinal)));
                     }
                     else if (m.Type == "constructor_declaration" && NameOf(m) is string cname)
                     {
                         if (!CtorsByOwner.TryGetValue(fqn, out var cl)) CtorsByOwner[fqn] = cl = new();
                         var (arity, varargs) = Arity(m);
-                        cl.Add(new MethodEntry(StableId("constructor", fqn + "." + cname + ParameterTypeList(m)), arity, varargs));
+                        cl.Add(new MethodEntry(StableId("constructor", fqn + "." + cname + ParameterTypeList(m)), arity, varargs, null, fqn));
                     }
                     else if (m.Type is "field_declaration" or "constant_declaration")
                     {
-                        var head = TypeNames(m.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault();
-                        if (head == null) continue;
+                        var typeText = m.NamedChildren.FirstOrDefault(IsTypeNode)?.Text;
+                        if (typeText == null) continue;
                         foreach (var v in m.NamedChildren.Where(c => c.Type == "variable_declarator"))
-                            if (NameOf(v) is string fname) info.FieldTypeNames[fname] = head;
+                            if (NameOf(v) is string fname) info.FieldTypes[fname] = typeText + (v.NamedChildren.Any(c => c.Type == "dimensions") ? "[]" : "");
                     }
                     else if (TypeDeclarations.Contains(m.Type)) CollectType(pf, ctx, m, fqn);
                 }
@@ -283,7 +307,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             {
                 foreach (var info in Types.Values)
                 {
-                    info.Supers = info.SuperNames.Select(n => Resolve(info.Ctx, n)).ToList();
+                    info.Supers = info.SuperTexts.Select(t => ResolveText(info.Ctx, t, info.TypeParams)).Where(r => r.Kind != TypeRefKind.Unknown).ToList();
                     foreach (var sup in info.Supers.Where(r => r.Kind == TypeRefKind.Project))
                         foreach (var f in sup.Fqns)
                         {
@@ -326,6 +350,71 @@ namespace MdExplorer.Features.Services.CodeGraph
             private static TypeRef Project(string fqn, string confidence) => new(TypeRefKind.Project, new[] { fqn }, confidence);
 
             /// <summary>
+            /// Un tipo come scritto (<c>List&lt;Foo&gt;</c>, <c>Foo[]</c>, <c>Map.Entry&lt;K, V&gt;</c>, <c>a.b.Foo</c>): la
+            /// testa risolta come <see cref="Resolve"/>, gli argomenti tenuti per dopo, l'array segnato. Un parametro di tipo
+            /// (<c>T</c>) non è un tipo: sconosciuto.
+            /// </summary>
+            public TypeRef ResolveText(FileContext ctx, string text, IEnumerable<string> typeParams = null)
+            {
+                if (string.IsNullOrWhiteSpace(text)) return TypeRef.Unknown;
+                var t = text.Trim();
+                var isArray = false;
+                while (t.EndsWith("[]", StringComparison.Ordinal)) { t = t.Substring(0, t.Length - 2).TrimEnd(); isArray = true; }
+                if (t.EndsWith("...", StringComparison.Ordinal)) { t = t.Substring(0, t.Length - 3).TrimEnd(); isArray = true; }
+                var lt = t.IndexOf('<');
+                var head = (lt < 0 ? t : t.Substring(0, lt)).Trim();
+                var args = lt < 0 ? Array.Empty<string>() : SplitTypeArgs(t.Substring(lt));
+                // le annotazioni sul tipo (@NonNull Foo) non contano
+                head = head.Split(' ', StringSplitOptions.RemoveEmptyEntries).LastOrDefault() ?? head;
+                if (typeParams != null && typeParams.Contains(head)) return TypeRef.Unknown;
+                if (head is "var" or "void") return TypeRef.Unknown;
+                if (head.Length > 0 && char.IsLower(head[0]) && !head.Contains('.')) return new TypeRef(TypeRefKind.Platform, new[] { head }, "extracted", IsArray: isArray);   // primitivi
+                TypeRef r;
+                if (head.Contains('.'))
+                {
+                    // Map.Entry, Outer.Inner, oppure a.b.Foo scritto per intero
+                    if (TypesByFqn.ContainsKey(head)) r = Project(head, "extracted");
+                    else
+                    {
+                        var first = head.Substring(0, head.IndexOf('.'));
+                        var firstRef = Resolve(ctx, first);
+                        var nested = firstRef.Kind == TypeRefKind.Project ? firstRef.Fqns.Select(f => f + head.Substring(first.Length)).Where(TypesByFqn.ContainsKey).ToList() : null;
+                        r = nested is { Count: > 0 } ? new TypeRef(TypeRefKind.Project, nested, firstRef.Confidence)
+                          : firstRef.Kind == TypeRefKind.Platform || IsPlatform(head) ? new TypeRef(TypeRefKind.Platform, new[] { head }, "extracted")
+                          : firstRef.Kind == TypeRefKind.External ? new TypeRef(TypeRefKind.External, new[] { firstRef.Fqns[0] + head.Substring(first.Length) }, firstRef.Confidence)
+                          : TypeRef.Unknown;
+                    }
+                }
+                else
+                {
+                    r = Resolve(ctx, head);
+                    if (r.Kind == TypeRefKind.Platform) r = new TypeRef(TypeRefKind.Platform, new[] { head }, "extracted");
+                }
+                return r with { Args = args, ArgsCtx = ctx, IsArray = isArray };
+            }
+
+            /// <summary><c>&lt;String, List&lt;Foo&gt;&gt;</c> → [String, List&lt;Foo&gt;]; <c>? extends Foo</c> → Foo; <c>?</c> → Object.</summary>
+            private static IReadOnlyList<string> SplitTypeArgs(string angle)
+            {
+                var list = new List<string>();
+                var depth = 0; var start = 1;
+                for (var i = 0; i < angle.Length; i++)
+                {
+                    var c = angle[i];
+                    if (c == '<') { depth++; continue; }
+                    if (c == '>') { depth--; if (depth == 0) { list.Add(angle.Substring(start, i - start)); break; } continue; }
+                    if (c == ',' && depth == 1) { list.Add(angle.Substring(start, i - start)); start = i + 1; }
+                }
+                return list.Select(a =>
+                {
+                    a = a.Trim();
+                    if (!a.StartsWith("?", StringComparison.Ordinal)) return a;
+                    var bound = a.IndexOf("extends ", StringComparison.Ordinal);   // ? super Foo, ?: si legge un Object
+                    return bound >= 0 ? a.Substring(bound + "extends ".Length).Trim() : "Object";
+                }).ToList();
+            }
+
+            /// <summary>
             /// I metodi <paramref name="name"/> visibili da un tipo: il tipo stesso, poi le madri e le interfacce del
             /// perimetro (il più vicino vince), filtrati per numero di argomenti quando questo ne lascia almeno uno.
             /// <paramref name="externalAncestor"/> è la prima madre fuori dal perimetro, se non lo si trova nel perimetro.
@@ -353,6 +442,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (!Types.TryGetValue(fqn, out var info)) return Enumerable.Empty<string>();
                 var ext = info.Supers.FirstOrDefault(r => r.Kind == TypeRefKind.External);
                 if (externalAncestor == null && ext != null) externalAncestor = ext.Fqns[0];
+                // estende o implementa la piattaforma (ArrayList, Iterator, JFrame…): un metodo non trovato è suo
+                if (externalAncestor == null && info.Supers.Any(r => r.Kind == TypeRefKind.Platform)) externalAncestor = PlatformAncestor;
                 return info.Supers.Where(r => r.Kind == TypeRefKind.Project).SelectMany(r => r.Fqns).ToList();
             }
 
@@ -361,6 +452,28 @@ namespace MdExplorer.Features.Services.CodeGraph
                 if (argc < 0) return ms;
                 var fit = ms.Where(m => m.Arity == argc || (m.Varargs && argc >= m.Arity - 1)).ToList();
                 return fit.Count > 0 ? fit : ms;
+            }
+
+            /// <summary>
+            /// Gli argomenti di tipo con cui <paramref name="from"/> estende (anche alla lontana) <paramref name="target"/>:
+            /// <c>class Tikz extends AbstractUGraphic&lt;TikzGraphics&gt;</c> → [TikzGraphics] letti nel file di Tikz. Un
+            /// argomento che è a sua volta un parametro di tipo di una classe intermedia si sostituisce risalendo.
+            /// </summary>
+            public (IReadOnlyList<string> Args, FileContext Ctx, IReadOnlyCollection<string> TypeParams)? ArgsFor(string from, string target)
+            {
+                if (from == target || !Types.TryGetValue(from, out var info)) return null;
+                foreach (var sup in info.Supers.Where(r => r.Kind == TypeRefKind.Project))
+                    foreach (var f in sup.Fqns)
+                    {
+                        if (f == target) return sup.Args is { Count: > 0 } ? (sup.Args, sup.ArgsCtx, info.TypeParams) : null;
+                        if (ArgsFor(f, target) is var (args, ctx, tps) && Types.TryGetValue(f, out var mid))
+                        {
+                            // l'argomento è un parametro della classe intermedia (class Mid<X> extends Base<X>): lo si sostituisce
+                            var mapped = args.Select(a => mid.TypeParams.IndexOf(a.Trim()) is var i && i >= 0 && sup.Args != null && i < sup.Args.Count ? sup.Args[i] : a).ToList();
+                            return mapped.SequenceEqual(args) ? (args, ctx, tps) : (mapped, sup.ArgsCtx, info.TypeParams);
+                        }
+                    }
+                return null;
             }
 
             /// <summary>Il tipo di un campo visto da un tipo: il suo, poi quelli delle madri del perimetro.</summary>
@@ -372,7 +485,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     var t = queue.Dequeue();
                     if (!visited.Add(t) || !Types.TryGetValue(t, out var info)) continue;
-                    if (info.FieldTypeNames.TryGetValue(field, out var head)) return Resolve(info.Ctx, head);
+                    if (info.FieldTypes.TryGetValue(field, out var text)) return ResolveText(info.Ctx, text, info.TypeParams);
                     foreach (var s in info.Supers.Where(r => r.Kind == TypeRefKind.Project).SelectMany(r => r.Fqns)) queue.Enqueue(s);
                 }
                 return null;
@@ -481,6 +594,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         }
 
         /// <summary>I nomi di tipo dentro un nodo tipo, generici e array compresi (<c>Map&lt;String, Hit[]&gt;</c> → Map, String, Hit); mai i primitivi.</summary>
+        /// <summary>I parametri di tipo dichiarati (<c>class Box&lt;T, U&gt;</c>, <c>&lt;R&gt; R map()</c>) in ordine.</summary>
+        private static IEnumerable<string> TypeParamsOf(Node decl)
+            => decl.NamedChildren.FirstOrDefault(c => c.Type == "type_parameters")?.NamedChildren
+                   .Where(c => c.Type == "type_parameter")
+                   .Select(c => c.NamedChildren.FirstOrDefault(x => x.Type is "type_identifier" or "identifier")?.Text)
+                   .Where(n => n != null) ?? Enumerable.Empty<string>();
+
         private static IEnumerable<string> TypeNames(Node typeNode)
             => typeNode == null ? Enumerable.Empty<string>()
                : Walk(typeNode).Where(n => n.Type == "type_identifier").Select(n => n.Text).Distinct(StringComparer.Ordinal);
@@ -627,7 +747,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var throws = m.NamedChildren.FirstOrDefault(c => c.Type == "throws");
                 foreach (var t in TypeNames(throws)) Reference(id, t, Line(m));
                 var body = BodyOf(m);
-                if (body != null) WalkBody(body, id, fqn, Locals(m));
+                if (body != null) WalkBody(body, id, fqn, Locals(m), m);
             }
 
             private void EmitParameters(Node decl, string ownerId)
@@ -655,59 +775,89 @@ namespace MdExplorer.Features.Services.CodeGraph
             // ---- bodies: calls, new
 
             /// <summary>
-            /// Le variabili di un metodo (o di un inizializzatore) con il nome del loro tipo: parametri, variabili locali
-            /// (<c>var x = new T()</c> compreso), for-each, catch, parametri tipizzati delle lambda. Una mappa piatta per
-            /// metodo (Java non lascia ridichiarare una locale nello stesso metodo); un nome dichiarato con due tipi
-            /// diversi (in due lambda, in due blocchi) non si sa: resta senza tipo.
+            /// Le variabili visibili in un punto, con il loro tipo come scritto: ognuna vale nel blocco in cui è dichiarata
+            /// e dalla sua dichiarazione in poi. Due variabili con lo stesso nome in blocchi diversi (<c>if</c>/<c>else</c>)
+            /// restano distinte: per una chiamata vale la dichiarazione più interna che la precede.
             /// </summary>
-            private static Dictionary<string, string> Locals(Node scope)
+            private sealed class LocalScope
             {
-                var locals = new Dictionary<string, string>(StringComparer.Ordinal);
-                var clash = new HashSet<string>(StringComparer.Ordinal);
-                void Add(string name, string type)
+                private readonly Dictionary<string, List<(int From, int To, int Decl, string Type)>> _byName = new(StringComparer.Ordinal);
+
+                public void Add(string name, string type, Node scope, Node decl)
                 {
-                    if (name == null || type == null || clash.Contains(name)) return;
-                    if (locals.TryGetValue(name, out var known) && known != type) { locals.Remove(name); clash.Add(name); return; }
-                    locals[name] = type;
+                    if (name == null || string.IsNullOrWhiteSpace(type) || scope == null) return;
+                    if (!_byName.TryGetValue(name, out var list)) _byName[name] = list = new();
+                    list.Add(((int)scope.StartIndex, (int)scope.EndIndex, (int)decl.StartIndex, type));
                 }
+
+                public bool TryGet(string name, Node at, out string type)
+                {
+                    type = null;
+                    if (!_byName.TryGetValue(name, out var list)) return false;
+                    var pos = (int)at.StartIndex;
+                    var best = list.Where(d => d.From <= pos && pos <= d.To && d.Decl <= pos).OrderByDescending(d => d.From).ThenByDescending(d => d.Decl).FirstOrDefault();
+                    type = best.Type;
+                    return type != null;
+                }
+
+                public IEnumerable<string> Names => _byName.Keys;
+            }
+
+            private static LocalScope Locals(Node scope)
+            {
+                var locals = new LocalScope();
+                static string Dims(Node n) => n.NamedChildren.Any(c => c.Type == "dimensions") ? "[]" : "";
+                static string Created(Node v) => v.NamedChildren.FirstOrDefault(c => c.Type == "object_creation_expression") is Node created ? created.NamedChildren.FirstOrDefault(IsTypeNode)?.Text : null;
                 foreach (var n in Walk(scope))
                 {
                     switch (n.Type)
                     {
-                        case "formal_parameter":
-                            Add(NameOf(n), TypeNames(n.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault());
+                        case "formal_parameter":   // di un metodo o di una lambda: vale nel metodo / nella lambda
+                            locals.Add(NameOf(n), n.NamedChildren.FirstOrDefault(IsTypeNode)?.Text + Dims(n), n.Parent?.Parent, n.Parent);
                             break;
                         case "spread_parameter":
-                            Add(n.NamedChildren.FirstOrDefault(c => c.Type == "variable_declarator")?.NamedChildren.FirstOrDefault(c => c.Type == "identifier")?.Text,
-                                TypeNames(n.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault());
+                            locals.Add(n.NamedChildren.FirstOrDefault(c => c.Type == "variable_declarator")?.NamedChildren.FirstOrDefault(c => c.Type == "identifier")?.Text,
+                                n.NamedChildren.FirstOrDefault(IsTypeNode)?.Text + "[]", n.Parent?.Parent, n.Parent);
                             break;
                         case "local_variable_declaration":
                         {
-                            var declared = TypeNames(n.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault();
+                            var declared = n.NamedChildren.FirstOrDefault(IsTypeNode)?.Text;
                             foreach (var v in n.NamedChildren.Where(c => c.Type == "variable_declarator"))
-                            {
-                                var type = declared;
-                                if (type == "var")   // var x = new T(): il tipo è quello creato; altrimenti non si sa
-                                    type = v.NamedChildren.FirstOrDefault(c => c.Type == "object_creation_expression") is Node created
-                                        ? TypeNames(created.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault() : null;
-                                Add(NameOf(v), type);
-                            }
+                                // var x = new T(): il tipo è quello creato; altrimenti non si sa
+                                locals.Add(NameOf(v), declared == "var" ? Created(v) : declared == null ? null : declared + Dims(v), n.Parent, n);
                             break;
                         }
                         case "enhanced_for_statement":
-                            Add(n.NamedChildren.FirstOrDefault(c => c.Type == "identifier")?.Text, TypeNames(n.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault());
+                        {
+                            var t = n.NamedChildren.FirstOrDefault(IsTypeNode)?.Text;
+                            if (t != "var") locals.Add(n.NamedChildren.FirstOrDefault(c => c.Type == "identifier")?.Text, t, n, n);
                             break;
-                        case "catch_formal_parameter":
-                            Add(n.NamedChildren.FirstOrDefault(c => c.Type == "identifier")?.Text,
-                                TypeNames(n.NamedChildren.FirstOrDefault(c => c.Type == "catch_type")).FirstOrDefault());
+                        }
+                        case "resource":   // try (InputStream is = …): vale nel try
+                        {
+                            var t = n.NamedChildren.FirstOrDefault(IsTypeNode)?.Text;
+                            locals.Add(n.NamedChildren.FirstOrDefault(c => c.Type == "identifier")?.Text, t == "var" ? Created(n) : t, n.Parent?.Parent, n);
+                            break;
+                        }
+                        case "catch_formal_parameter":   // catch (A | B e): il primo tipo, vale nel catch
+                            locals.Add(n.NamedChildren.FirstOrDefault(c => c.Type == "identifier")?.Text,
+                                TypeNames(n.NamedChildren.FirstOrDefault(c => c.Type == "catch_type")).FirstOrDefault(), n.Parent, n);
                             break;
                     }
                 }
                 return locals;
             }
 
-            private void WalkBody(Node body, string ownerId, string ownerFqn, Dictionary<string, string> locals)
+            // I parametri di tipo visibili dal corpo che si sta leggendo (della classe e del metodo): T non è un tipo.
+            private IReadOnlyCollection<string> _typeParams = Array.Empty<string>();
+
+            private IReadOnlyCollection<string> TypeParamsFor(string ownerFqn, Node member)
+                => (ownerFqn != null && _index.Types.TryGetValue(ownerFqn, out var info) ? info.TypeParams : new List<string>())
+                   .Concat(member == null ? Enumerable.Empty<string>() : TypeParamsOf(member)).ToHashSet(StringComparer.Ordinal);
+
+            private void WalkBody(Node body, string ownerId, string ownerFqn, LocalScope locals, Node member = null)
             {
+                _typeParams = TypeParamsFor(ownerFqn, member);
                 foreach (var n in Walk(body))
                 {
                     if (n.Type == "method_invocation")
@@ -716,7 +866,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         if (nameNode == null) continue;
                         var obj = n.NamedChildren.FirstOrDefault();
                         var argc = n.NamedChildren.FirstOrDefault(c => c.Type == "argument_list")?.NamedChildren.Count ?? -1;
-                        ResolveCall(ownerId, ownerFqn, obj == nameNode ? null : obj, nameNode.Text, argc, locals, Line(n));
+                        ResolveCall(ownerId, ownerFqn, obj == nameNode ? null : obj, nameNode.Text, argc, locals, Line(n), n);
                     }
                     else if (n.Type == "explicit_constructor_invocation")
                     {
@@ -742,85 +892,305 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
 
             /// <summary>
-            /// Una chiamata: prima il ricevente scritto nel codice (tipo di variabile, campo, <c>new T()</c>, classe per le
-            /// statiche, <c>super</c>), poi — per <c>m()</c> senza ricevente — la gerarchia della classe, le classi che la
-            /// contengono e gli import statici; il nome su tutto il perimetro solo quando il codice non dice di più.
+            /// Una chiamata: prima il ricevente scritto nel codice (tipo di variabile, campo, risultato di un'altra chiamata,
+            /// cast, <c>new T()</c>, classe per le statiche, <c>super</c>), poi — per <c>m()</c> senza ricevente — la gerarchia
+            /// della classe, le classi che la contengono e gli import statici; il nome su tutto il perimetro solo quando il
+            /// codice non dice di più.
             /// </summary>
-            private void ResolveCall(string ownerId, string ownerFqn, Node obj, string name, int argc, Dictionary<string, string> locals, int line)
+            private void ResolveCall(string ownerId, string ownerFqn, Node obj, string name, int argc, LocalScope locals, int line, Node at)
             {
                 if (obj == null || obj.Type == "this")
                 {
-                    // la classe e le sue madri, poi le classi che la contengono (annidate, anonime)
-                    string inheritedFrom = null;
-                    for (var scope = ownerFqn; scope != null; scope = OuterOf(scope))
-                    {
-                        var own = _index.FindMethod(scope, name, argc, out var extAncestor);
-                        if (own != null) { MethodEdges(ownerId, own, "extracted", line); return; }
-                        inheritedFrom ??= extAncestor;
-                        if (obj != null) break;   // this.m(): solo la classe, non quelle che la contengono
-                    }
-                    if (obj == null)
-                    {
-                        if (_ctx.StaticImports.TryGetValue(name, out var holder)) { CallOnType(ownerId, Holder(holder), name, argc, line); return; }
-                        foreach (var w in _ctx.StaticWildcards)
-                            if (_index.TypesByFqn.ContainsKey(w) && _index.FindMethod(w, name, argc, out _) is List<MethodEntry> st) { MethodEdges(ownerId, st, "extracted", line); return; }
-                    }
-                    // non dichiarato nel perimetro, ma la classe estende una libreria: è suo, ereditato
+                    var implicitTargets = ImplicitTargets(ownerFqn, obj, name, argc, out var holder, out var inheritedFrom, at);
+                    if (implicitTargets != null) { MethodEdges(ownerId, implicitTargets, "extracted", line); return; }
+                    if (holder != null) { CallOnType(ownerId, holder, name, argc, line); return; }
+                    if (inheritedFrom == PerimeterIndex.PlatformAncestor || ObjectMethods.Contains(name)) return;   // ereditato dalla piattaforma, o di Object
                     if (inheritedFrom != null) { Edge(ownerId, External("method", inheritedFrom + "." + name, name), "calls", "inferred", line); return; }
                     CallByName(ownerId, name, line);
                     return;
                 }
                 if (obj.Type == "super")
                 {
-                    if (ownerFqn != null && _index.FindMethod(ownerFqn, name, argc, out var ext, skipSelf: true) is List<MethodEntry> sup) { MethodEdges(ownerId, sup, "extracted", line); return; }
-                    if (ownerFqn != null && _index.Types.TryGetValue(ownerFqn, out var oi) && oi.Supers.FirstOrDefault(r => r.Kind == TypeRefKind.External) is TypeRef e)
-                    { Edge(ownerId, External("method", e.Fqns[0] + "." + name, name), "calls", "inferred", line); return; }
-                    if (ownerFqn != null && _index.Types.TryGetValue(ownerFqn, out var oi2) && oi2.Supers.Count == 0) return;   // super di Object: piattaforma
-                    CallByName(ownerId, name, line);
-                    return;
+                    string ext = null;
+                    if (ownerFqn != null && _index.FindMethod(ownerFqn, name, argc, out ext, skipSelf: true) is List<MethodEntry> sup) { MethodEdges(ownerId, sup, "extracted", line); return; }
+                    if (ext != null && ext != PerimeterIndex.PlatformAncestor) { Edge(ownerId, External("method", ext + "." + name, name), "calls", "inferred", line); return; }
+                    return;   // super di Object (toString, equals…): piattaforma
                 }
-                var receiver = ReceiverType(obj, ownerFqn, locals);
+                var receiver = ReceiverType(obj, ownerFqn, locals, 0);
                 if (receiver == null) { CallByName(ownerId, name, line); return; }
                 CallOnType(ownerId, receiver, name, argc, line);
             }
 
+            /// <summary>
+            /// <c>m()</c> o <c>this.m()</c>: la classe e le madri, poi (solo senza <c>this</c>) le classi che la contengono e
+            /// gli import statici. Restituisce i metodi trovati nel perimetro, oppure il tipo che li porta (<paramref name="holder"/>,
+            /// import statico di una libreria) o la madre di libreria da cui è ereditato.
+            /// </summary>
+            private List<MethodEntry> ImplicitTargets(string ownerFqn, Node obj, string name, int argc, out TypeRef holder, out string inheritedFrom, Node at = null)
+            {
+                holder = null; inheritedFrom = null;
+                // dentro una classe anonima (new TextBlock() { … }) m() è prima di tutto suo o del tipo che crea
+                for (var p = at?.Parent; p != null; p = p.Parent)
+                {
+                    if (TypeDeclarations.Contains(p.Type) || p.Type is "method_declaration" && p.Parent?.Parent?.Type != "object_creation_expression") break;
+                    if (p.Type != "class_body" || p.Parent?.Type != "object_creation_expression") continue;
+                    // un metodo dichiarato nel corpo anonimo non è un simbolo del grafo: niente arco, ma nemmeno un'attribuzione per nome
+                    if (p.NamedChildren.Any(c => c.Type == "method_declaration" && NameOf(c) == name)) { holder = TypeRef.Platform; return null; }
+                    var created = Known(_index.ResolveText(_ctx, p.Parent.NamedChildren.FirstOrDefault(IsTypeNode)?.Text, _typeParams));
+                    if (created == null) break;
+                    if (created.Kind == TypeRefKind.Project)
+                        foreach (var fqn in created.Fqns)
+                        {
+                            var found = _index.FindMethod(fqn, name, argc, out var anonExt);
+                            if (found != null) return found;
+                            if (anonExt != null) { inheritedFrom = anonExt; return null; }
+                        }
+                    else if (created.Kind == TypeRefKind.Platform) { if (obj != null) { holder = created; return null; } }
+                    else { if (obj != null) { holder = created; return null; } }
+                    if (obj != null) return null;
+                    break;
+                }
+                for (var scope = ownerFqn; scope != null; scope = OuterOf(scope))
+                {
+                    var own = _index.FindMethod(scope, name, argc, out var extAncestor);
+                    if (own != null) return own;
+                    inheritedFrom ??= extAncestor;
+                    if (obj != null) break;   // this.m(): solo la classe, non quelle che la contengono
+                }
+                if (obj != null) return null;
+                if (_ctx.StaticImports.TryGetValue(name, out var h))
+                {
+                    var r = Holder(h);
+                    if (r.Kind == TypeRefKind.Project && _index.FindMethod(r.Fqns[0], name, argc, out _) is List<MethodEntry> st) return st;
+                    holder = r; return null;
+                }
+                foreach (var w in _ctx.StaticWildcards)
+                    if (_index.TypesByFqn.ContainsKey(w) && _index.FindMethod(w, name, argc, out _) is List<MethodEntry> st) return st;
+                if (inheritedFrom == null)
+                {
+                    // import static org.junit.Assert.*: un metodo che non è del perimetro viene da lì
+                    var foreign = _ctx.StaticWildcards.Where(w => !_index.TypesByFqn.ContainsKey(w)).ToList();
+                    if (foreign.Count == 1) holder = Holder(foreign[0]);
+                    else if (foreign.Count > 1 && foreign.All(IsPlatform)) holder = TypeRef.Platform;
+                }
+                return null;
+            }
+
             private TypeRef Holder(string fqn)
                 => _index.TypesByFqn.ContainsKey(fqn) ? new TypeRef(TypeRefKind.Project, new[] { fqn }, "extracted")
-                 : IsPlatform(fqn) ? TypeRef.Platform : new TypeRef(TypeRefKind.External, new[] { fqn }, "extracted");
+                 : IsPlatform(fqn) ? new TypeRef(TypeRefKind.Platform, new[] { fqn.Split('.').Last() }, "extracted")
+                 : new TypeRef(TypeRefKind.External, new[] { fqn }, "extracted");
 
-            /// <summary>Il tipo del ricevente quando il codice lo scrive; null quando non lo dice (catene di chiamate, lambda senza tipo…).</summary>
-            private TypeRef ReceiverType(Node obj, string ownerFqn, Dictionary<string, string> locals)
+            /// <summary>
+            /// Il tipo di un'espressione usata come ricevente, quando il codice lo dice: variabile, campo (anche di un altro
+            /// oggetto o di una classe), risultato di una chiamata (il tipo di ritorno), cast, elemento di array,
+            /// <c>new T()</c>, letterali. Null quando non lo dice (lambda senza tipo, parametri di tipo, catene oltre <see cref="MaxChainDepth"/>).
+            /// </summary>
+            private TypeRef ReceiverType(Node obj, string ownerFqn, LocalScope locals, int depth)
             {
+                if (obj == null || depth > MaxChainDepth) return null;
                 switch (obj.Type)
                 {
+                    case "this":
+                        return ownerFqn != null ? new TypeRef(TypeRefKind.Project, new[] { ownerFqn }, "extracted") : null;
                     case "identifier":
-                        if (locals.TryGetValue(obj.Text, out var local)) return _index.Resolve(_ctx, local);
+                    {
+                        if (locals.TryGet(obj.Text, obj, out var local)) return Known(_index.ResolveText(_ctx, local, _typeParams));
                         for (var scope = ownerFqn; scope != null; scope = OuterOf(scope))
-                            if (_index.FieldType(scope, obj.Text) is TypeRef field) return field;
+                            if (_index.FieldType(scope, obj.Text) is TypeRef field) return Known(field);
+                        if (_ctx.StaticImports.TryGetValue(obj.Text, out var holderOfField))   // import static a.B.CAMPO
+                        {
+                            var hr = Holder(holderOfField);
+                            return hr.Kind == TypeRefKind.Project ? Known(_index.FieldType(hr.Fqns[0], obj.Text)) : hr.Kind == TypeRefKind.Platform ? TypeRef.Platform : TypeRef.LibraryValue;
+                        }
                         // non è una variabile: un nome di tipo (chiamata statica), se lo è
                         if (char.IsUpper(obj.Text[0]))
                         {
                             var asType = _index.Resolve(_ctx, obj.Text);
+                            if (asType.Kind == TypeRefKind.Platform) return new TypeRef(TypeRefKind.Platform, new[] { obj.Text }, "extracted");
                             return asType.Kind == TypeRefKind.External && asType.Confidence != "extracted" ? null : asType;
                         }
                         return null;
+                    }
                     case "field_access":
                     {
                         var target = obj.NamedChildren.FirstOrDefault();
                         var field = obj.NamedChildren.LastOrDefault(c => c.Type == "identifier")?.Text;
-                        if (target?.Type == "this" && field != null)
-                            for (var scope = ownerFqn; scope != null; scope = OuterOf(scope))
-                                if (_index.FieldType(scope, field) is TypeRef f) return f;
+                        if (field == null || target == null) return null;
+                        var baseType = ReceiverType(target, ownerFqn, locals, depth + 1);
+                        if (baseType != null) return FieldOf(baseType, field);
+                        // a.b.Foo scritto per intero (javax.imageio.ImageIO.read(…), net.x.Debug.LOG)
+                        var dotted = obj.Text.Replace(" ", string.Empty);
+                        if (_index.TypesByFqn.ContainsKey(dotted)) return new TypeRef(TypeRefKind.Project, new[] { dotted }, "extracted");
+                        if (IsPlatform(dotted)) return new TypeRef(TypeRefKind.Platform, new[] { dotted.Split('.').Last() }, "extracted");
                         return null;
                     }
+                    case "method_invocation":
+                        return TypeOfInvocation(obj, ownerFqn, locals, depth + 1);
                     case "object_creation_expression":
+                        return Known(_index.ResolveText(_ctx, obj.NamedChildren.FirstOrDefault(IsTypeNode)?.Text, _typeParams));
+                    case "array_creation_expression":
+                        return TypeRef.Platform;
+                    case "cast_expression":
+                        return Known(_index.ResolveText(_ctx, obj.NamedChildren.FirstOrDefault(IsTypeNode)?.Text, _typeParams));
+                    case "parenthesized_expression":
+                        return ReceiverType(obj.NamedChildren.FirstOrDefault(), ownerFqn, locals, depth + 1);
+                    case "array_access":
                     {
-                        var head = TypeNames(obj.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault();
-                        return head == null ? null : _index.Resolve(_ctx, head);
+                        var arr = ReceiverType(obj.NamedChildren.FirstOrDefault(), ownerFqn, locals, depth + 1);
+                        return arr != null && arr.IsArray ? arr with { IsArray = false } : null;
                     }
-                    case "string_literal": return TypeRef.Platform;
+                    case "string_literal": case "class_literal": case "character_literal": case "text_block":
+                        return TypeRef.Platform;
                     default: return null;
                 }
+            }
+
+            /// <summary>
+            /// Quanto si risale una catena (<c>a.b().c().d()</c>): ogni anello conta due livelli. 100 = 50 anelli; il limite
+            /// c'è solo contro un'espressione patologica (8, la prima stesura, fermava i <c>sb.append(…)</c> da dieci anelli).
+            /// </summary>
+            private const int MaxChainDepth = 100;
+
+            /// <summary>Uno sconosciuto (parametro di tipo, <c>var</c> senza <c>new</c>) è «il codice non lo dice»: null.</summary>
+            private static TypeRef Known(TypeRef r) => r == null || r.Kind == TypeRefKind.Unknown ? null : r;
+
+            /// <summary>Il campo <paramref name="field"/> di un valore di tipo noto.</summary>
+            private TypeRef FieldOf(TypeRef owner, string field)
+            {
+                if (owner.IsArray) return field == "length" ? TypeRef.Platform : null;
+                switch (owner.Kind)
+                {
+                    case TypeRefKind.Platform: return TypeRef.Platform;        // System.out, Color.RED…
+                    case TypeRefKind.External: return TypeRef.LibraryValue;
+                    case TypeRefKind.Project:
+                        foreach (var fqn in owner.Fqns)
+                            if (_index.FieldType(fqn, field) is TypeRef f) return Known(f);
+                        // un nome di classe annidata (Outer.Inner.metodo()) o una costante di enum
+                        foreach (var fqn in owner.Fqns)
+                            if (_index.TypesByFqn.ContainsKey(fqn + "." + field)) return new TypeRef(TypeRefKind.Project, new[] { fqn + "." + field }, owner.Confidence);
+                        return null;
+                }
+                return null;
+            }
+
+            /// <summary>
+            /// Il tipo del risultato di <c>a.b(…)</c>: si risolve la chiamata come per gli archi (senza scriverne) e si prende
+            /// il tipo di ritorno dei metodi trovati, letto nel file che li dichiara; un parametro di tipo della classe si
+            /// sostituisce con l'argomento del ricevente (<c>Box&lt;Foo&gt;.get()</c> → Foo). Per la piattaforma, i metodi
+            /// che restituiscono un elemento (<c>List&lt;Foo&gt;.get</c>, <c>Map&lt;K,V&gt;.get</c>, <c>next</c>,
+            /// <c>orElse</c>…) danno l'argomento; tutti gli altri restano piattaforma. Null quando non si sa.
+            /// </summary>
+            private TypeRef TypeOfInvocation(Node inv, string ownerFqn, LocalScope locals, int depth)
+            {
+                var nameNode = inv.NamedChildren.LastOrDefault(c => c.Type == "identifier");
+                if (nameNode == null) return null;
+                var name = nameNode.Text;
+                var obj = inv.NamedChildren.FirstOrDefault();
+                if (obj == nameNode) obj = null;
+                var argc = inv.NamedChildren.FirstOrDefault(c => c.Type == "argument_list")?.NamedChildren.Count ?? -1;
+                List<MethodEntry> ms;
+                TypeRef receiver = null;
+                if (obj == null || obj.Type == "this")
+                {
+                    ms = ImplicitTargets(ownerFqn, obj, name, argc, out var holder, out var inheritedFrom);
+                    if (ms == null)
+                    {
+                        if (holder != null) return holder.Kind == TypeRefKind.Platform ? TypeRef.Platform : holder.Kind == TypeRefKind.External ? TypeRef.LibraryValue : null;
+                        if (inheritedFrom == PerimeterIndex.PlatformAncestor || ObjectMethods.Contains(name)) return TypeRef.Platform;
+                        return inheritedFrom != null ? TypeRef.LibraryValue : null;
+                    }
+                }
+                else if (obj.Type == "super")
+                {
+                    string ext = null;
+                    ms = ownerFqn == null ? null : _index.FindMethod(ownerFqn, name, argc, out ext, skipSelf: true);
+                    if (ms == null) return ext == PerimeterIndex.PlatformAncestor || ObjectMethods.Contains(name) ? TypeRef.Platform : ext != null ? TypeRef.LibraryValue : null;
+                }
+                else
+                {
+                    receiver = ReceiverType(obj, ownerFqn, locals, depth + 1);
+                    if (receiver == null) return null;
+                    switch (receiver.Kind)
+                    {
+                        case TypeRefKind.Platform: return PlatformResult(receiver, name);
+                        case TypeRefKind.External: return TypeRef.LibraryValue;
+                        case TypeRefKind.Unknown: return null;
+                    }
+                    if (receiver.IsArray) return name == "clone" ? receiver : TypeRef.Platform;
+                    ms = new List<MethodEntry>();
+                    var fromLibrary = false;
+                    foreach (var fqn in receiver.Fqns)
+                    {
+                        var found = _index.FindMethod(fqn, name, argc, out var ext);
+                        if (found != null) ms.AddRange(found);
+                        else if (ext == PerimeterIndex.PlatformAncestor || ObjectMethods.Contains(name)) return TypeRef.Platform;
+                        else if (ext != null) fromLibrary = true;
+                    }
+                    if (ms.Count == 0) return fromLibrary ? TypeRef.LibraryValue : null;
+                }
+                // i tipi di ritorno: devono dire la stessa cosa, sennò non si sa
+                TypeRef result = null;
+                foreach (var m in ms)
+                {
+                    var r = ReturnOf(m, receiver, receiver?.Fqns.FirstOrDefault() ?? ownerFqn);
+                    if (r == null) return null;
+                    if (result == null) result = r;
+                    else if (result.Kind != r.Kind || !result.Fqns.SequenceEqual(r.Fqns)) return null;
+                }
+                return result == null ? null : result with { Confidence = Weaker(result.Confidence, receiver?.Confidence ?? "extracted") };
+            }
+
+            private TypeRef ReturnOf(MethodEntry m, TypeRef receiver, string fromFqn)
+            {
+                if (m.ReturnText == null || m.OwnerFqn == null || !_index.Types.TryGetValue(m.OwnerFqn, out var owner)) return null;
+                var text = m.ReturnText.Trim();
+                var head = text.Split('<')[0].Split('[')[0].Trim();
+                var idx = owner.TypeParams.IndexOf(head);
+                if (idx < 0) return Known(_index.ResolveText(owner.Ctx, text, m.TypeParams));
+                var array = text.EndsWith("[]", StringComparison.Ordinal) ? "[]" : "";
+                // T dichiarato dalla classe del metodo. Box<Foo>.get(): l'argomento del ricevente, letto dove è scritto
+                if (fromFqn == m.OwnerFqn)
+                    return receiver?.Args != null && idx < receiver.Args.Count && receiver.ArgsCtx != null
+                        ? Known(_index.ResolveText(receiver.ArgsCtx, receiver.Args[idx] + array, _typeParams)) : null;
+                // ereditato: class Tikz extends AbstractUGraphic<TikzGraphics> e O getGraphicObject() → TikzGraphics
+                if (fromFqn != null && _index.ArgsFor(fromFqn, m.OwnerFqn) is var (args, ctx, tps) && idx < args.Count)
+                    return Known(_index.ResolveText(ctx, args[idx] + array, tps));
+                return null;
+            }
+
+            private static readonly HashSet<string> MapLike = new(StringComparer.Ordinal)
+                { "Map", "HashMap", "TreeMap", "LinkedHashMap", "ConcurrentHashMap", "ConcurrentMap", "SortedMap", "NavigableMap", "EnumMap", "WeakHashMap", "IdentityHashMap", "Hashtable" };
+            private static readonly HashSet<string> ElementOfFirst = new(StringComparer.Ordinal)
+                { "get", "getFirst", "getLast", "next", "previous", "peek", "peekFirst", "peekLast", "poll", "pollFirst", "pollLast", "pop", "element",
+                  "first", "last", "orElse", "orElseThrow", "orElseGet", "take", "join", "getNow", "firstElement", "lastElement", "elementAt", "floor", "ceiling", "higher", "lower", "removeFirst", "removeLast" };
+            private static readonly HashSet<string> KeepsArgs = new(StringComparer.Ordinal)
+                { "iterator", "listIterator", "descendingIterator", "subList", "headSet", "tailSet", "subSet", "unmodifiableList", "reversed" };
+
+            /// <summary>Il risultato di un metodo della piattaforma: l'elemento per gli accessor dei contenitori, altrimenti piattaforma.</summary>
+            private TypeRef PlatformResult(TypeRef receiver, string name)
+            {
+                var type = receiver.PlatformName ?? string.Empty;
+                var args = receiver.Args ?? Array.Empty<string>();
+                TypeRef Arg(int i) => i < args.Count && receiver.ArgsCtx != null ? Known(_index.ResolveText(receiver.ArgsCtx, args[i], _typeParams)) : null;
+                if (receiver.IsArray) return TypeRef.Platform;
+                if (MapLike.Contains(type) || type.EndsWith("Map", StringComparison.Ordinal) && args.Count == 2)
+                {
+                    switch (name)
+                    {
+                        case "get": case "getOrDefault": case "remove": case "put": case "putIfAbsent": case "computeIfAbsent": case "computeIfPresent": case "compute": case "merge": case "replace":
+                            return Arg(1);
+                        case "values": return args.Count == 2 ? new TypeRef(TypeRefKind.Platform, new[] { "Collection" }, "extracted", new[] { args[1] }, receiver.ArgsCtx) : TypeRef.Platform;
+                        case "keySet": case "navigableKeySet": return args.Count >= 1 ? new TypeRef(TypeRefKind.Platform, new[] { "Set" }, "extracted", new[] { args[0] }, receiver.ArgsCtx) : TypeRef.Platform;
+                        case "firstKey": case "lastKey": case "ceilingKey": case "floorKey": case "higherKey": case "lowerKey": return Arg(0);
+                    }
+                    return TypeRef.Platform;
+                }
+                if (type is "Map.Entry" or "Entry")
+                    return name == "getKey" ? Arg(0) : name == "getValue" ? Arg(1) : TypeRef.Platform;
+                if (args.Count >= 1 && ElementOfFirst.Contains(name)) return Arg(0);
+                if (args.Count >= 1 && KeepsArgs.Contains(name)) return receiver with { Fqns = new[] { name.Contains("terator") ? "Iterator" : type } };
+                return TypeRef.Platform;
             }
 
             /// <summary>Una chiamata su un tipo noto: i suoi metodi (e delle madri), external per le librerie, niente per la piattaforma.</summary>
@@ -834,6 +1204,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                         Edge(ownerId, External("method", receiver.Fqns[0] + "." + name, name), "calls", receiver.Confidence, line);
                         return;
                 }
+                if (receiver.IsArray) return;   // clone(), length: dell'array, piattaforma
                 var found = false;
                 foreach (var fqn in receiver.Fqns)
                 {
@@ -854,7 +1225,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     else if (extAncestor != null)
                     {
                         found = true;
-                        Edge(ownerId, External("method", extAncestor + "." + name, name), "calls", "inferred", line);
+                        if (extAncestor != PerimeterIndex.PlatformAncestor) Edge(ownerId, External("method", extAncestor + "." + name, name), "calls", "inferred", line);
                     }
                 }
                 // un tipo del perimetro senza quel metodo né madri esterne: è di Object (toString, equals…) → piattaforma
