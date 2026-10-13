@@ -131,22 +131,132 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.IsTrue(foo.Edges.Any(e => e.SourceId == fooType.Id && e.TargetId == logger.Id && e.Relation == "imports"));
             Assert.IsTrue(foo.Edges.Any(e => e.SourceId == foo.Symbols.Single(s => s.Name == "log").Id && e.TargetId == logger.Id && e.Relation == "references"));
 
-            // Chiamate: this.run() extracted; helper.run(path) per nome → i due overload ambiguous; Helper.now() statica extracted;
-            // Base.staticOne() extracted; log.info external ambiguous; new Helper() instantiates extracted (importato).
+            // Chiamate (D38): this.run() extracted; helper.run(path) col tipo del campo (Helper) e un argomento → solo
+            // run(String), extracted; Helper.now() statica extracted; Base.staticOne() extracted; log.info sul tipo del
+            // campo (org.slf4j.Logger, libreria) → external Logger.info extracted; List.of è piattaforma: niente arco;
+            // new Helper() instantiates extracted (importato).
             var runFoo = foo.Symbols.Single(s => s.Kind == "method" && s.Name == "run");
             Assert.IsTrue(foo.Edges.Any(e => e.SourceId == bar.Id && e.TargetId == runFoo.Id && e.Relation == "calls" && e.Confidence == "extracted"));
-            var helperRuns = helper.Symbols.Where(s => s.Kind == "method" && s.Name == "run").Select(s => s.Id).ToList();
-            Assert.AreEqual(2, foo.Edges.Count(e => e.SourceId == bar.Id && helperRuns.Contains(e.TargetId) && e.Relation == "calls" && e.Confidence == "ambiguous"), "helper.run: due overload + Foo.run = per nome");
+            var runString = helper.Symbols.Single(s => s.QualifiedName == "com.acme.util.Helper.run(String)");
+            var runStringInt = helper.Symbols.Single(s => s.QualifiedName == "com.acme.util.Helper.run(String, int)");
+            Assert.IsTrue(foo.Edges.Any(e => e.SourceId == bar.Id && e.TargetId == runString.Id && e.Relation == "calls" && e.Confidence == "extracted"), "helper.run(path): tipo del campo + un argomento");
+            Assert.IsFalse(foo.Edges.Any(e => e.SourceId == bar.Id && e.TargetId == runStringInt.Id), "l'overload a due argomenti non è chiamato");
             Assert.IsTrue(foo.Edges.Any(e => e.SourceId == bar.Id && e.TargetId == now.Id && e.Relation == "calls" && e.Confidence == "extracted"));
             var staticOne = baseS.Symbols.Single(s => s.Name == "staticOne");
             Assert.IsTrue(foo.Edges.Any(e => e.SourceId == bar.Id && e.TargetId == staticOne.Id && e.Relation == "calls" && e.Confidence == "extracted"));
-            var info = foo.Symbols.Single(s => s.Kind == "external" && s.QualifiedName == "log.info");
-            Assert.IsTrue(foo.Edges.Any(e => e.SourceId == bar.Id && e.TargetId == info.Id && e.Relation == "calls" && e.Confidence == "ambiguous"));
+            var info = foo.Symbols.Single(s => s.Kind == "external" && s.QualifiedName == "org.slf4j.Logger.info");
+            Assert.IsTrue(foo.Edges.Any(e => e.SourceId == bar.Id && e.TargetId == info.Id && e.Relation == "calls" && e.Confidence == "extracted"));
+            Assert.IsFalse(foo.Symbols.Any(s => s.Kind == "external" && s.Name == "of"), "List.of: piattaforma, niente nodo");
             var helperField = foo.Symbols.Single(s => s.Name == "helper");
             Assert.IsTrue(foo.Edges.Any(e => e.SourceId == helperField.Id && e.TargetId == helperType.Id && e.Relation == "instantiates" && e.Confidence == "extracted"));
 
             foreach (var (file, script) in result.Scripts)
                 Assert.AreEqual(script.RecordCount, CodeScriptParser.Parse(CodeScriptWriter.Serialize(script), file.LogicalPath).RecordCount);
+        }
+
+        /// <summary>D38: le chiamate si risolvono con quello che il codice scrive, prima del nome.</summary>
+        [TestMethod]
+        public void Resolve_calls_through_declared_types_hierarchy_imports_and_interfaces()
+        {
+            InstallGrammarFromNuGet();
+            Directory.CreateDirectory(Path.Combine(_src, "repo"));
+            Directory.CreateDirectory(Path.Combine(_src, "other"));
+            File.WriteAllText(Path.Combine(_src, "repo", "Repo.java"),
+                "package com.acme.repo;\n\npublic interface Repo {\n    void save(Object o);\n}\n");
+            File.WriteAllText(Path.Combine(_src, "repo", "UserRepo.java"),
+                "package com.acme.repo;\n\npublic class UserRepo implements Repo {\n    public void save(Object o) { }\n    public void flush() { }\n    public int size() { return 0; }\n}\n");
+            File.WriteAllText(Path.Combine(_src, "repo", "Audit.java"),
+                "package com.acme.repo;\n\npublic class Audit {\n    public static void trace(String s) { }\n}\n");
+            File.WriteAllText(Path.Combine(_src, "repo", "Parent.java"),
+                "package com.acme.repo;\n\npublic class Parent {\n    protected UserRepo users;\n    public Parent(int n) { }\n    protected void helperOfParent() { }\n}\n");
+            // due tipi omonimi «Item» nel perimetro
+            File.WriteAllText(Path.Combine(_src, "repo", "Item.java"), "package com.acme.repo;\n\npublic class Item { public void touch() { } }\n");
+            File.WriteAllText(Path.Combine(_src, "other", "Item.java"), "package com.acme.other;\n\npublic class Item { public void touch() { } }\n");
+            File.WriteAllText(Path.Combine(_src, "app", "Service.java"),
+                "package com.acme.app;\n\n" +
+                "import java.util.List;\nimport java.util.ArrayList;\nimport java.io.IOException;\n" +
+                "import com.acme.repo.Repo;\nimport com.acme.repo.UserRepo;\nimport com.acme.repo.Parent;\nimport org.lib.Client;\nimport org.lib.User;\n" +
+                "import static com.acme.repo.Audit.trace;\n\n" +
+                "public class Service extends Parent {\n" +
+                "    private Repo repo;\n\n" +
+                "    public Service() { super(1); }\n" +
+                "    public Service(int n) { this(); }\n\n" +
+                "    public void work(UserRepo direct, Client client) {\n" +
+                "        repo.save(this);\n" +
+                "        direct.flush();\n" +
+                "        var local = new UserRepo();\n" +
+                "        local.flush();\n" +
+                "        List<String> names = new ArrayList<>();\n" +
+                "        names.add(\"x\");\n" +
+                "        client.send(names);\n" +
+                "        helperOfParent();\n" +
+                "        this.users.flush();\n" +
+                "        trace(\"done\");\n" +
+                "        for (UserRepo r : others()) { r.size(); }\n" +
+                "        try { } catch (IOException e) { e.printStackTrace(); }\n" +
+                "        User u = null;\n" +
+                "        unknownThing.mystery();\n" +
+                "    }\n\n" +
+                "    private List<UserRepo> others() { return null; }\n\n" +
+                "    class Inner {\n        void go() { others(); }\n    }\n" +
+                "}\n");
+
+            var extractor = new TreeSitterJavaExtractor(_store, NullLogger<TreeSitterJavaExtractor>.Instance);
+            var result = extractor.Extract(Request());
+            Assert.AreEqual(0, result.Warnings.Count, string.Join("; ", result.Warnings));
+            var all = result.Scripts.SelectMany(x => x.Script.Symbols).ToList();
+            var svc = result.Scripts.Single(x => x.File.LogicalPath.EndsWith("/Service.java")).Script;
+            string Id(string qn) => all.Single(x => x.QualifiedName == qn).Id;
+            var work = Id("com.acme.app.Service.work(UserRepo, Client)");
+            ScriptEdge Call(string from, string to) => svc.Edges.SingleOrDefault(e => e.SourceId == from && e.TargetId == to && e.Relation == "calls");
+
+            // campo di tipo interfaccia: il metodo dell'interfaccia (extracted) e chi la implementa (inferred)
+            Assert.AreEqual("extracted", Call(work, Id("com.acme.repo.Repo.save(Object)"))?.Confidence, "repo.save → Repo.save");
+            Assert.AreEqual("inferred", Call(work, Id("com.acme.repo.UserRepo.save(Object)"))?.Confidence, "…e l'implementazione");
+            // parametro, var = new T(), campo ereditato via this.campo: tutti verso UserRepo.flush, extracted
+            Assert.AreEqual("extracted", Call(work, Id("com.acme.repo.UserRepo.flush()"))?.Confidence);
+            // metodo ereditato da una madre del perimetro, senza ricevente
+            Assert.AreEqual("extracted", Call(work, Id("com.acme.repo.Parent.helperOfParent()"))?.Confidence);
+            // variabile del for-each
+            Assert.AreEqual("extracted", Call(work, Id("com.acme.repo.UserRepo.size()"))?.Confidence);
+            // import statico
+            Assert.AreEqual("extracted", Call(work, Id("com.acme.repo.Audit.trace(String)"))?.Confidence);
+            // libreria: il nodo external Tipo.metodo, mai il metodo omonimo del perimetro
+            var send = svc.Symbols.Single(x => x.Kind == "external" && x.QualifiedName == "org.lib.Client.send");
+            Assert.AreEqual("extracted", Call(work, send.Id)?.Confidence);
+            // piattaforma: names.add, e.printStackTrace → niente archi, niente nodi
+            Assert.IsFalse(svc.Symbols.Any(x => x.Kind == "external" && (x.Name == "add" || x.Name == "printStackTrace")), "java.* non fa nodi");
+            // ricevente sconosciuto: per nome, con il nome normalizzato «?.mystery» (mai il testo della chiamata)
+            Assert.IsTrue(svc.Symbols.Any(x => x.Kind == "external" && x.QualifiedName == "?.mystery"));
+            Assert.IsFalse(svc.Symbols.Any(x => x.Kind == "external" && x.QualifiedName.Contains("unknownThing")));
+            // this() e super(n): i costruttori
+            var ctorDefault = Id("com.acme.app.Service.Service()");
+            Assert.AreEqual("extracted", Call(Id("com.acme.app.Service.Service(int)"), ctorDefault)?.Confidence, "this()");
+            Assert.AreEqual("extracted", Call(ctorDefault, Id("com.acme.repo.Parent.Parent(int)"))?.Confidence, "super(1)");
+            // classe interna: others() è della classe che la contiene
+            Assert.AreEqual("extracted", Call(Id("com.acme.app.Service.Inner.go()"), Id("com.acme.app.Service.others()"))?.Confidence);
+            // import esterno vince sull'assenza nel perimetro: User è org.lib.User (external), non un tipo inventato
+            Assert.IsTrue(svc.Symbols.Any(x => x.Kind == "external" && x.QualifiedName == "org.lib.User"));
+        }
+
+        /// <summary>D38: due tipi omonimi senza import che scelga → un arco ambiguous per ciascuno, mai il primo a caso.</summary>
+        [TestMethod]
+        public void Link_every_same_named_type_as_ambiguous_instead_of_picking_one()
+        {
+            InstallGrammarFromNuGet();
+            Directory.CreateDirectory(Path.Combine(_src, "a"));
+            Directory.CreateDirectory(Path.Combine(_src, "b"));
+            File.WriteAllText(Path.Combine(_src, "a", "Item.java"), "package com.acme.a;\n\npublic class Item { }\n");
+            File.WriteAllText(Path.Combine(_src, "b", "Item.java"), "package com.acme.b;\n\npublic class Item { }\n");
+            File.WriteAllText(Path.Combine(_src, "app", "Uses.java"), "package com.acme.app;\n\npublic class Uses {\n    void make() { Object o = new Item(); }\n}\n");
+
+            var result = new TreeSitterJavaExtractor(_store, NullLogger<TreeSitterJavaExtractor>.Instance).Extract(Request());
+            var uses = result.Scripts.Single(x => x.File.LogicalPath.EndsWith("/Uses.java")).Script;
+            var items = result.Scripts.SelectMany(x => x.Script.Symbols).Where(x => x.Name == "Item" && x.Kind == "class").Select(x => x.Id).ToList();
+            Assert.AreEqual(2, items.Count);
+            var edges = uses.Edges.Where(e => e.Relation == "instantiates").ToList();
+            CollectionAssert.AreEquivalent(items, edges.Select(e => e.TargetId).ToList());
+            Assert.IsTrue(edges.All(e => e.Confidence == "ambiguous"));
         }
 
         [TestMethod]

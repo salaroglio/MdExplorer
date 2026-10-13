@@ -18,16 +18,20 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// sintassi: un nome di tipo si risolve nell'ordine tipi del file, import, stesso package, omonimo unico nel
     /// perimetro (<c>inferred</c>), più omonimi (<c>ambiguous</c>); <c>java.lang</c> e gli import <c>java.*</c>/
     /// <c>javax.*</c> non fanno nodi (sarebbero rumore: String, List, Override…); il resto è <c>external</c>.
-    /// Le chiamate: <c>x()</c> e <c>this.x()</c> su un metodo della classe sono <c>extracted</c>, <c>Tipo.x()</c>
-    /// statiche su un tipo del perimetro <c>extracted</c>, <c>obj.x()</c> per nome con la confidenza, <c>new T()</c>
-    /// è <c>instantiates</c>. Gli stereotipi Spring danno un kind proprio come i decoratori Angular:
+    /// Le chiamate (D38, F11) si risolvono con quello che il codice scrive, prima del nome: il tipo del ricevente
+    /// (variabile locale, parametro, campo anche ereditato, <c>new T()</c>, <c>Tipo.x()</c> statica), la gerarchia
+    /// della classe (madri e interfacce del perimetro), le classi che la contengono, gli import statici; solo se tutto
+    /// questo non dice niente, il nome su tutto il perimetro (<c>inferred</c>/<c>ambiguous</c>). Un ricevente di
+    /// piattaforma (<c>java.*</c>) non fa archi, uno di una libreria va al suo nodo external <c>Tipo.metodo</c>, mai al
+    /// metodo omonimo del progetto. Una chiamata su un'interfaccia va al metodo dell'interfaccia e, <c>inferred</c>, a
+    /// quello delle classi del perimetro che la implementano. <c>new T()</c> è <c>instantiates</c>. Gli stereotipi Spring danno un kind proprio come i decoratori Angular:
     /// <c>@Service</c>/<c>@Repository</c> → service, <c>@Component</c>/<c>@Controller</c>/<c>@RestController</c> → component.
     /// </summary>
     public sealed class TreeSitterJavaExtractor : ICodeExtractor
     {
         public string LanguageId => CodeLanguages.Java;
         public string ExtractorName => "tree-sitter-java";
-        public string ExtractorVersion => "2";
+        public string ExtractorVersion => "3";   // 3: risoluzione delle chiamate per tipo e gerarchia (D38)
         /// <summary>
         /// Oltre questo numero di omonimi un nome non si risolve più «a tutti i candidati»: sarebbero archi a caso (in
         /// PlantUML <c>add</c> ha decine di omonimi). Si emette un solo arco <c>ambiguous</c> verso un nodo external
@@ -76,6 +80,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             }
             var index = new PerimeterIndex();
             foreach (var pf in parsed) index.Collect(pf);
+            index.Link();
 
             var toEmit = new HashSet<string>(request.FilesToEmit.Select(f => f.LogicalPath), StringComparer.Ordinal);
             foreach (var pf in parsed)
@@ -119,31 +124,130 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         // ------------------------------------------------------------------ perimeter index
 
+        /// <summary>
+        /// Che cosa sa il file dei nomi di tipo: i suoi tipi, il package, gli import (singoli, <c>.*</c>, statici). È il
+        /// contesto in cui si risolve un nome scritto in quel file, anche quando lo si risolve da un altro (i campi e le
+        /// madri di una classe si leggono con il contesto del file che la dichiara).
+        /// </summary>
+        private sealed class FileContext
+        {
+            public string Package = string.Empty;
+            public readonly Dictionary<string, string> FileTypes = new(StringComparer.Ordinal);       // simple → fqn
+            public readonly Dictionary<string, string> Imports = new(StringComparer.Ordinal);         // simple → fqn (import a.b.C)
+            public readonly List<string> WildcardPackages = new();                                      // import a.b.*
+            public readonly Dictionary<string, string> StaticImports = new(StringComparer.Ordinal);   // membro → fqn del tipo (import static a.b.C.m)
+            public readonly List<string> StaticWildcards = new();                                       // import static a.b.C.*
+            public readonly List<(string Fqn, int Line)> ImportEdges = new();
+
+            public static FileContext Of(Node root, string package)
+            {
+                var ctx = new FileContext { Package = package };
+                foreach (var imp in root.NamedChildren.Where(c => c.Type == "import_declaration"))
+                {
+                    var scoped = imp.NamedChildren.FirstOrDefault(c => c.Type is "scoped_identifier" or "identifier")?.Text;
+                    if (scoped == null) continue;
+                    var wildcard = imp.NamedChildren.Any(c => c.Type == "asterisk");
+                    var isStatic = imp.Text.StartsWith("import static", StringComparison.Ordinal);
+                    if (isStatic)
+                    {
+                        // import static a.b.C.m → m da C; import static a.b.C.* → tutti i membri statici di C
+                        if (wildcard) { ctx.StaticWildcards.Add(scoped); ctx.ImportEdges.Add((scoped, Line(imp))); continue; }
+                        var dot = scoped.LastIndexOf('.');
+                        if (dot <= 0) continue;
+                        ctx.StaticImports[scoped.Substring(dot + 1)] = scoped.Substring(0, dot);
+                        ctx.ImportEdges.Add((scoped.Substring(0, dot), Line(imp)));
+                        continue;
+                    }
+                    if (wildcard) { ctx.WildcardPackages.Add(scoped); continue; }
+                    ctx.Imports[scoped.Split('.').Last()] = scoped;
+                    ctx.ImportEdges.Add((scoped, Line(imp)));
+                }
+                foreach (var decl in root.NamedChildren.Where(c => TypeDeclarations.Contains(c.Type))) ctx.CollectFileTypes(decl, null);
+                return ctx;
+            }
+
+            private void CollectFileTypes(Node decl, string outerFqn)
+            {
+                var name = NameOf(decl);
+                if (name == null) return;
+                var fqn = outerFqn != null ? outerFqn + "." + name : (Package.Length == 0 ? name : Package + "." + name);
+                FileTypes[name] = fqn;
+                var body = BodyOf(decl);
+                if (body == null) return;
+                foreach (var m in body.NamedChildren.Where(c => TypeDeclarations.Contains(c.Type))) CollectFileTypes(m, fqn);
+            }
+        }
+
+        private enum TypeRefKind { Project, External, Platform, Unknown }
+
+        /// <summary>
+        /// Un nome di tipo risolto: tipi del perimetro (più d'uno se omonimi), un external con il suo nome qualificato, la
+        /// piattaforma (<c>java.*</c>: nessun nodo), o sconosciuto. La confidenza dice quanto lo dice il codice.
+        /// </summary>
+        private sealed record TypeRef(TypeRefKind Kind, IReadOnlyList<string> Fqns, string Confidence)
+        {
+            public static readonly TypeRef Unknown = new(TypeRefKind.Unknown, Array.Empty<string>(), "ambiguous");
+            public static readonly TypeRef Platform = new(TypeRefKind.Platform, Array.Empty<string>(), "extracted");
+        }
+
+        private sealed record MethodEntry(string Id, int Arity, bool Varargs);
+
+        private sealed class TypeInfo
+        {
+            public string Fqn, Id;
+            public bool IsInterface;
+            public FileContext Ctx;
+            public readonly List<string> SuperNames = new();                                          // extends + implements, nome di testa
+            public readonly Dictionary<string, string> FieldTypeNames = new(StringComparer.Ordinal);  // campo → nome di tipo di testa
+            public List<TypeRef> Supers = new();
+        }
+
         private sealed class PerimeterIndex
         {
             public readonly Dictionary<string, string> TypesByFqn = new(StringComparer.Ordinal);                         // fqn → id
             public readonly Dictionary<string, List<(string Id, string Fqn)>> TypesByName = new(StringComparer.Ordinal); // simple name → candidati
             public readonly Dictionary<string, List<string>> MethodsByName = new(StringComparer.Ordinal);                // nome → ids (tutti i tipi)
-            public readonly Dictionary<string, Dictionary<string, List<string>>> MethodsByOwner = new(StringComparer.Ordinal); // fqn tipo → nome → ids
+            public readonly Dictionary<string, Dictionary<string, List<MethodEntry>>> MethodsByOwner = new(StringComparer.Ordinal); // fqn tipo → nome → metodi
+            public readonly Dictionary<string, List<MethodEntry>> CtorsByOwner = new(StringComparer.Ordinal);           // fqn tipo → costruttori
+            public readonly Dictionary<string, TypeInfo> Types = new(StringComparer.Ordinal);
+            public readonly Dictionary<string, List<string>> Implementors = new(StringComparer.Ordinal);                // fqn → fqn che lo estendono/implementano
+            private readonly Dictionary<ParsedFile, FileContext> _contexts = new();
+
+            public FileContext ContextOf(ParsedFile pf) => _contexts[pf];
 
             public void Collect(ParsedFile pf)
             {
+                var ctx = FileContext.Of(pf.Tree.RootNode, pf.Package);
+                _contexts[pf] = ctx;
                 foreach (var node in pf.Tree.RootNode.NamedChildren)
-                    if (TypeDeclarations.Contains(node.Type)) CollectType(pf, node, null);
+                    if (TypeDeclarations.Contains(node.Type)) CollectType(pf, ctx, node, null);
             }
 
-            private void CollectType(ParsedFile pf, Node decl, string outerFqn)
+            private void CollectType(ParsedFile pf, FileContext ctx, Node decl, string outerFqn)
             {
                 var name = NameOf(decl);
                 if (name == null) return;
                 var fqn = outerFqn != null ? outerFqn + "." + name : (pf.Package.Length == 0 ? name : pf.Package + "." + name);
-                var id = StableId(KindOf(decl), fqn);
+                var kind = KindOf(decl);
+                var id = StableId(kind, fqn);
                 TypesByFqn[fqn] = id;
                 if (!TypesByName.TryGetValue(name, out var list)) TypesByName[name] = list = new();
                 list.Add((id, fqn));
+                var info = new TypeInfo { Fqn = fqn, Id = id, IsInterface = kind == "interface", Ctx = ctx };
+                Types[fqn] = info;
+                foreach (var t in TypeNames(decl.NamedChildren.FirstOrDefault(c => c.Type == "superclass")).Take(1)) info.SuperNames.Add(t);
+                foreach (var clause in decl.NamedChildren.Where(c => c.Type is "super_interfaces" or "extends_interfaces"))
+                {
+                    var tl = clause.NamedChildren.FirstOrDefault(c => c.Type == "type_list") ?? clause;
+                    foreach (var t in tl.NamedChildren.Where(IsTypeNode))
+                        if (TypeNames(t).FirstOrDefault() is string head) info.SuperNames.Add(head);
+                }
+                if (decl.Type == "record_declaration")
+                    foreach (var p in decl.NamedChildren.FirstOrDefault(c => c.Type == "formal_parameters")?.NamedChildren.Where(c => c.Type == "formal_parameter") ?? Enumerable.Empty<Node>())
+                        if (NameOf(p) is string pn && TypeNames(p.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault() is string pt) info.FieldTypeNames[pn] = pt;
                 var body = BodyOf(decl);
                 if (body == null) return;
-                foreach (var m in body.NamedChildren)
+                foreach (var m in body.NamedChildren.SelectMany(c => c.Type == "enum_body_declarations" ? c.NamedChildren : new[] { c }))
                 {
                     if (m.Type == "method_declaration")
                     {
@@ -154,11 +258,136 @@ namespace MdExplorer.Features.Services.CodeGraph
                         ml.Add(mid);
                         if (!MethodsByOwner.TryGetValue(fqn, out var byName)) MethodsByOwner[fqn] = byName = new(StringComparer.Ordinal);
                         if (!byName.TryGetValue(mname, out var ol)) byName[mname] = ol = new();
-                        ol.Add(mid);
+                        var (arity, varargs) = Arity(m);
+                        ol.Add(new MethodEntry(mid, arity, varargs));
                     }
-                    else if (TypeDeclarations.Contains(m.Type)) CollectType(pf, m, fqn);
+                    else if (m.Type == "constructor_declaration" && NameOf(m) is string cname)
+                    {
+                        if (!CtorsByOwner.TryGetValue(fqn, out var cl)) CtorsByOwner[fqn] = cl = new();
+                        var (arity, varargs) = Arity(m);
+                        cl.Add(new MethodEntry(StableId("constructor", fqn + "." + cname + ParameterTypeList(m)), arity, varargs));
+                    }
+                    else if (m.Type is "field_declaration" or "constant_declaration")
+                    {
+                        var head = TypeNames(m.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault();
+                        if (head == null) continue;
+                        foreach (var v in m.NamedChildren.Where(c => c.Type == "variable_declarator"))
+                            if (NameOf(v) is string fname) info.FieldTypeNames[fname] = head;
+                    }
+                    else if (TypeDeclarations.Contains(m.Type)) CollectType(pf, ctx, m, fqn);
                 }
             }
+
+            /// <summary>Dopo la raccolta: le madri di ogni tipo risolte nel contesto del suo file, e chi le estende.</summary>
+            public void Link()
+            {
+                foreach (var info in Types.Values)
+                {
+                    info.Supers = info.SuperNames.Select(n => Resolve(info.Ctx, n)).ToList();
+                    foreach (var sup in info.Supers.Where(r => r.Kind == TypeRefKind.Project))
+                        foreach (var f in sup.Fqns)
+                        {
+                            if (!Implementors.TryGetValue(f, out var l)) Implementors[f] = l = new();
+                            l.Add(info.Fqn);
+                        }
+                }
+            }
+
+            /// <summary>
+            /// Un nome di tipo semplice scritto in un file, nell'ordine in cui lo risolve Java: tipi del file, import singolo
+            /// (anche esterno: vince su un omonimo del perimetro), stesso package, <c>java.lang</c>, import <c>.*</c>; poi,
+            /// per un perimetro senza import completi, l'omonimo unico (<c>inferred</c>) o tutti gli omonimi
+            /// (<c>ambiguous</c>, mai uno a caso); sconosciuto = external nel package più probabile, senza certezza.
+            /// </summary>
+            public TypeRef Resolve(FileContext ctx, string simple)
+            {
+                if (string.IsNullOrEmpty(simple)) return TypeRef.Unknown;
+                if (ctx.FileTypes.TryGetValue(simple, out var f)) return Project(f, "extracted");
+                if (ctx.Imports.TryGetValue(simple, out var imported))
+                {
+                    if (TypesByFqn.ContainsKey(imported)) return Project(imported, "extracted");
+                    return IsPlatform(imported) ? TypeRef.Platform : new TypeRef(TypeRefKind.External, new[] { imported }, "extracted");
+                }
+                var samePackage = ctx.Package.Length == 0 ? simple : ctx.Package + "." + simple;
+                if (TypesByFqn.ContainsKey(samePackage)) return Project(samePackage, "extracted");
+                if (JavaLang.Contains(simple)) return TypeRef.Platform;
+                var fromWildcards = ctx.WildcardPackages.Select(p => p + "." + simple).Where(TypesByFqn.ContainsKey).ToList();
+                if (fromWildcards.Count > 0) return new TypeRef(TypeRefKind.Project, fromWildcards, fromWildcards.Count == 1 ? "extracted" : "ambiguous");
+                if (TypesByName.TryGetValue(simple, out var list))
+                    return new TypeRef(TypeRefKind.Project, list.Select(x => x.Fqn).ToList(), list.Count == 1 ? "inferred" : "ambiguous");
+                var foreign = ctx.WildcardPackages.Where(p => !IsPlatform(p)).ToList();
+                if (foreign.Count == 0 && ctx.WildcardPackages.Count > 0) return TypeRef.Platform;   // import java.util.*: è quasi certo un tipo della piattaforma
+                if (foreign.Count == 1) return new TypeRef(TypeRefKind.External, new[] { foreign[0] + "." + simple }, "inferred");
+                if (foreign.Count > 1) return new TypeRef(TypeRefKind.External, new[] { "?." + simple }, "ambiguous");
+                // né import né perimetro: lo stesso package, fuori dal perimetro (o un parametro di tipo): non è certo
+                return new TypeRef(TypeRefKind.External, new[] { samePackage }, "inferred");
+            }
+
+            private static TypeRef Project(string fqn, string confidence) => new(TypeRefKind.Project, new[] { fqn }, confidence);
+
+            /// <summary>
+            /// I metodi <paramref name="name"/> visibili da un tipo: il tipo stesso, poi le madri e le interfacce del
+            /// perimetro (il più vicino vince), filtrati per numero di argomenti quando questo ne lascia almeno uno.
+            /// <paramref name="externalAncestor"/> è la prima madre fuori dal perimetro, se non lo si trova nel perimetro.
+            /// </summary>
+            public List<MethodEntry> FindMethod(string fqn, string name, int argc, out string externalAncestor, bool skipSelf = false)
+            {
+                externalAncestor = null;
+                var visited = new HashSet<string>(StringComparer.Ordinal);
+                var queue = new Queue<string>();
+                if (skipSelf) { visited.Add(fqn); foreach (var s in SupersOf(fqn, ref externalAncestor)) queue.Enqueue(s); }
+                else queue.Enqueue(fqn);
+                while (queue.Count > 0)
+                {
+                    var t = queue.Dequeue();
+                    if (!visited.Add(t)) continue;
+                    if (MethodsByOwner.TryGetValue(t, out var byName) && byName.TryGetValue(name, out var ms) && ms.Count > 0)
+                        return ByArity(ms, argc);
+                    foreach (var s in SupersOf(t, ref externalAncestor)) queue.Enqueue(s);
+                }
+                return null;
+            }
+
+            private IEnumerable<string> SupersOf(string fqn, ref string externalAncestor)
+            {
+                if (!Types.TryGetValue(fqn, out var info)) return Enumerable.Empty<string>();
+                var ext = info.Supers.FirstOrDefault(r => r.Kind == TypeRefKind.External);
+                if (externalAncestor == null && ext != null) externalAncestor = ext.Fqns[0];
+                return info.Supers.Where(r => r.Kind == TypeRefKind.Project).SelectMany(r => r.Fqns).ToList();
+            }
+
+            public static List<MethodEntry> ByArity(List<MethodEntry> ms, int argc)
+            {
+                if (argc < 0) return ms;
+                var fit = ms.Where(m => m.Arity == argc || (m.Varargs && argc >= m.Arity - 1)).ToList();
+                return fit.Count > 0 ? fit : ms;
+            }
+
+            /// <summary>Il tipo di un campo visto da un tipo: il suo, poi quelli delle madri del perimetro.</summary>
+            public TypeRef FieldType(string fqn, string field)
+            {
+                var visited = new HashSet<string>(StringComparer.Ordinal);
+                var queue = new Queue<string>(new[] { fqn });
+                while (queue.Count > 0)
+                {
+                    var t = queue.Dequeue();
+                    if (!visited.Add(t) || !Types.TryGetValue(t, out var info)) continue;
+                    if (info.FieldTypeNames.TryGetValue(field, out var head)) return Resolve(info.Ctx, head);
+                    foreach (var s in info.Supers.Where(r => r.Kind == TypeRefKind.Project).SelectMany(r => r.Fqns)) queue.Enqueue(s);
+                }
+                return null;
+            }
+        }
+
+        private static bool IsPlatform(string fqn) => fqn.StartsWith("java.", StringComparison.Ordinal) || fqn.StartsWith("javax.", StringComparison.Ordinal) || fqn.StartsWith("jakarta.", StringComparison.Ordinal);
+
+        /// <summary>Quanti parametri e se l'ultimo è varargs: per scegliere fra gli overload con il numero di argomenti.</summary>
+        private static (int Arity, bool Varargs) Arity(Node decl)
+        {
+            var prms = decl.NamedChildren.FirstOrDefault(c => c.Type == "formal_parameters");
+            if (prms == null) return (0, false);
+            var list = prms.NamedChildren.Where(p => p.Type is "formal_parameter" or "spread_parameter").ToList();
+            return (list.Count, list.Any(p => p.Type == "spread_parameter"));
         }
 
         // ------------------------------------------------------------------ shared syntax helpers
@@ -266,13 +495,11 @@ namespace MdExplorer.Features.Services.CodeGraph
             private readonly CodeScript _script = new();
             private readonly HashSet<string> _externals = new(StringComparer.Ordinal);
             private readonly Dictionary<string, ScriptEdge> _edges = new(StringComparer.Ordinal);
-            private readonly Dictionary<string, string> _imports = new(StringComparer.Ordinal);   // simple name → fqn
-            private readonly Dictionary<string, string> _fileTypes = new(StringComparer.Ordinal); // simple name → fqn dei tipi di questo file
-            private readonly List<(string Fqn, int Line)> _importEdges = new();
+            private readonly FileContext _ctx;
 
             public FileEmitter(TreeSitterJavaExtractor owner, ParsedFile pf, PerimeterIndex index)
             {
-                _owner = owner; _pf = pf; _index = index;
+                _owner = owner; _pf = pf; _index = index; _ctx = index.ContextOf(pf);
             }
 
             public CodeScript Emit()
@@ -284,36 +511,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                     ExtractorVersion = _owner.ExtractorVersion, GeneratedAt = DateTime.UtcNow.ToString("o"),
                 };
                 var root = _pf.Tree.RootNode;
-                foreach (var imp in root.NamedChildren.Where(c => c.Type == "import_declaration")) CollectImport(imp);
-                foreach (var decl in root.NamedChildren.Where(c => TypeDeclarations.Contains(c.Type))) CollectFileTypes(decl, null);
                 foreach (var decl in root.NamedChildren.Where(c => TypeDeclarations.Contains(c.Type))) EmitType(decl, null, null);
                 return _script;
-            }
-
-            private void CollectFileTypes(Node decl, string outerFqn)
-            {
-                var name = NameOf(decl);
-                if (name == null) return;
-                var fqn = outerFqn != null ? outerFqn + "." + name : (_pf.Package.Length == 0 ? name : _pf.Package + "." + name);
-                _fileTypes[name] = fqn;
-                var body = BodyOf(decl);
-                if (body == null) return;
-                foreach (var m in body.NamedChildren.Where(c => TypeDeclarations.Contains(c.Type))) CollectFileTypes(m, fqn);
-            }
-
-            // ---- import
-
-            private void CollectImport(Node imp)
-            {
-                if (imp.NamedChildren.Any(c => c.Type == "asterisk")) return;                         // import a.b.*: niente da agganciare
-                var scoped = imp.NamedChildren.FirstOrDefault(c => c.Type is "scoped_identifier" or "identifier")?.Text;
-                if (scoped == null) return;
-                var isStatic = imp.Text.StartsWith("import static", StringComparison.Ordinal);
-                var fqn = isStatic ? scoped.Substring(0, Math.Max(0, scoped.LastIndexOf('.'))) : scoped;
-                if (fqn.Length == 0) return;
-                var simple = fqn.Split('.').Last();
-                _imports[simple] = fqn;
-                _importEdges.Add((fqn, Line(imp)));
             }
 
             // ---- types
@@ -329,7 +528,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 else
                 {
                     // Gli import del file si agganciano ai tipi di primo livello (in Java il file non è un modulo).
-                    foreach (var (ifqn, line) in _importEdges)
+                    foreach (var (ifqn, line) in _ctx.ImportEdges)
                     {
                         var target = ResolveImported(ifqn);
                         if (target != null) Edge(typeId, target, "imports", "extracted", line);
@@ -338,7 +537,7 @@ namespace MdExplorer.Features.Services.CodeGraph
 
                 // extends / implements
                 var superclass = decl.NamedChildren.FirstOrDefault(c => c.Type == "superclass");
-                foreach (var t in TypeNames(superclass).Take(1)) Edge(typeId, ResolveType(t), "inherits", ConfidenceOfType(t), Line(superclass));
+                foreach (var t in TypeNames(superclass).Take(1)) TypeEdges(typeId, t, "inherits", Line(superclass));
                 foreach (var clause in decl.NamedChildren.Where(c => c.Type is "super_interfaces" or "extends_interfaces"))
                 {
                     var relation = clause.Type == "super_interfaces" ? "implements" : "inherits";
@@ -346,7 +545,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     foreach (var t in list.NamedChildren.Where(IsTypeNode))
                     {
                         var head = TypeNames(t).FirstOrDefault();
-                        if (head != null) Edge(typeId, ResolveType(head), relation, ConfidenceOfType(head), Line(t));
+                        if (head != null) TypeEdges(typeId, head, relation, Line(t));
                     }
                 }
 
@@ -397,7 +596,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     case "field_declaration": case "constant_declaration": EmitField(m, typeId, fqn); break;
                     case "class_declaration": case "interface_declaration": case "enum_declaration": case "record_declaration": case "annotation_type_declaration":
                         EmitType(m, typeId, fqn); break;
-                    case "static_initializer": case "block": WalkBody(m, typeId, fqn); break;
+                    case "static_initializer": case "block": WalkBody(m, typeId, fqn, Locals(m)); break;
                 }
             }
 
@@ -411,7 +610,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     var fid = Declare(v, "field", name, fqn + "." + name, Signature(field), typeNode?.Text, Visibility(field), typeId, isStatic: HasModifier(field, "static"));
                     Edge(typeId, fid, "contains", "extracted", Line(v));
                     foreach (var t in TypeNames(typeNode)) Reference(fid, t, Line(field));
-                    WalkBody(v, fid, fqn);   // inizializzatore: new X(), chiamate
+                    WalkBody(v, fid, fqn, Locals(v));   // inizializzatore: new X(), chiamate
                 }
             }
 
@@ -428,7 +627,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var throws = m.NamedChildren.FirstOrDefault(c => c.Type == "throws");
                 foreach (var t in TypeNames(throws)) Reference(id, t, Line(m));
                 var body = BodyOf(m);
-                if (body != null) WalkBody(body, id, fqn);
+                if (body != null) WalkBody(body, id, fqn, Locals(m));
             }
 
             private void EmitParameters(Node decl, string ownerId)
@@ -455,7 +654,59 @@ namespace MdExplorer.Features.Services.CodeGraph
 
             // ---- bodies: calls, new
 
-            private void WalkBody(Node body, string ownerId, string ownerFqn)
+            /// <summary>
+            /// Le variabili di un metodo (o di un inizializzatore) con il nome del loro tipo: parametri, variabili locali
+            /// (<c>var x = new T()</c> compreso), for-each, catch, parametri tipizzati delle lambda. Una mappa piatta per
+            /// metodo (Java non lascia ridichiarare una locale nello stesso metodo); un nome dichiarato con due tipi
+            /// diversi (in due lambda, in due blocchi) non si sa: resta senza tipo.
+            /// </summary>
+            private static Dictionary<string, string> Locals(Node scope)
+            {
+                var locals = new Dictionary<string, string>(StringComparer.Ordinal);
+                var clash = new HashSet<string>(StringComparer.Ordinal);
+                void Add(string name, string type)
+                {
+                    if (name == null || type == null || clash.Contains(name)) return;
+                    if (locals.TryGetValue(name, out var known) && known != type) { locals.Remove(name); clash.Add(name); return; }
+                    locals[name] = type;
+                }
+                foreach (var n in Walk(scope))
+                {
+                    switch (n.Type)
+                    {
+                        case "formal_parameter":
+                            Add(NameOf(n), TypeNames(n.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault());
+                            break;
+                        case "spread_parameter":
+                            Add(n.NamedChildren.FirstOrDefault(c => c.Type == "variable_declarator")?.NamedChildren.FirstOrDefault(c => c.Type == "identifier")?.Text,
+                                TypeNames(n.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault());
+                            break;
+                        case "local_variable_declaration":
+                        {
+                            var declared = TypeNames(n.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault();
+                            foreach (var v in n.NamedChildren.Where(c => c.Type == "variable_declarator"))
+                            {
+                                var type = declared;
+                                if (type == "var")   // var x = new T(): il tipo è quello creato; altrimenti non si sa
+                                    type = v.NamedChildren.FirstOrDefault(c => c.Type == "object_creation_expression") is Node created
+                                        ? TypeNames(created.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault() : null;
+                                Add(NameOf(v), type);
+                            }
+                            break;
+                        }
+                        case "enhanced_for_statement":
+                            Add(n.NamedChildren.FirstOrDefault(c => c.Type == "identifier")?.Text, TypeNames(n.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault());
+                            break;
+                        case "catch_formal_parameter":
+                            Add(n.NamedChildren.FirstOrDefault(c => c.Type == "identifier")?.Text,
+                                TypeNames(n.NamedChildren.FirstOrDefault(c => c.Type == "catch_type")).FirstOrDefault());
+                            break;
+                    }
+                }
+                return locals;
+            }
+
+            private void WalkBody(Node body, string ownerId, string ownerFqn, Dictionary<string, string> locals)
             {
                 foreach (var n in Walk(body))
                 {
@@ -463,82 +714,211 @@ namespace MdExplorer.Features.Services.CodeGraph
                     {
                         var nameNode = n.NamedChildren.LastOrDefault(c => c.Type == "identifier");
                         if (nameNode == null) continue;
-                        var mname = nameNode.Text;
                         var obj = n.NamedChildren.FirstOrDefault();
-                        var line = Line(n);
-                        var implicitThis = obj == null || obj == nameNode || obj.Type == "this";
-                        if (implicitThis)
-                        {
-                            if (OwnMethods(ownerFqn, mname, out var own)) { foreach (var id in own) Edge(ownerId, id, "calls", own.Count == 1 ? "extracted" : "inferred", line); continue; }
-                            CallByName(ownerId, mname, "this." + mname, line);
-                            continue;
-                        }
-                        if (obj.Type == "identifier" && ResolveTypeFqn(obj.Text) is string staticFqn && _index.MethodsByOwner.TryGetValue(staticFqn, out var ofStatic) && ofStatic.TryGetValue(mname, out var statics))
-                        {
-                            foreach (var id in statics) Edge(ownerId, id, "calls", statics.Count == 1 ? "extracted" : "inferred", line);
-                            continue;
-                        }
-                        CallByName(ownerId, mname, obj.Text + "." + mname, line);
+                        var argc = n.NamedChildren.FirstOrDefault(c => c.Type == "argument_list")?.NamedChildren.Count ?? -1;
+                        ResolveCall(ownerId, ownerFqn, obj == nameNode ? null : obj, nameNode.Text, argc, locals, Line(n));
+                    }
+                    else if (n.Type == "explicit_constructor_invocation")
+                    {
+                        // this(...) / super(...): il costruttore della classe o della madre del perimetro
+                        var who = n.NamedChildren.FirstOrDefault();
+                        var argc = n.NamedChildren.FirstOrDefault(c => c.Type == "argument_list")?.NamedChildren.Count ?? -1;
+                        if (ownerFqn == null || who == null) continue;
+                        var targets = who.Type == "this" ? new[] { ownerFqn }
+                            : _index.Types.TryGetValue(ownerFqn, out var info) ? info.Supers.Where(r => r.Kind == TypeRefKind.Project && !_index.Types[r.Fqns[0]].IsInterface).SelectMany(r => r.Fqns).Take(1).ToArray() : Array.Empty<string>();
+                        foreach (var t in targets)
+                            if (_index.CtorsByOwner.TryGetValue(t, out var ctors))
+                            {
+                                var fit = PerimeterIndex.ByArity(ctors, argc);
+                                foreach (var c in fit) Edge(ownerId, c.Id, "calls", fit.Count == 1 ? "extracted" : "inferred", Line(n));
+                            }
                     }
                     else if (n.Type == "object_creation_expression")
                     {
-                        var typeNode = n.NamedChildren.FirstOrDefault(IsTypeNode);
-                        var head = TypeNames(typeNode).FirstOrDefault();
-                        if (head == null) continue;
-                        var target = ResolveType(head);
-                        if (target != null) Edge(ownerId, target, "instantiates", ConfidenceOfType(head), Line(n));
+                        var head = TypeNames(n.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault();
+                        if (head != null) TypeEdges(ownerId, head, "instantiates", Line(n));
                     }
                 }
             }
 
-            private bool OwnMethods(string ownerFqn, string name, out List<string> ids)
+            /// <summary>
+            /// Una chiamata: prima il ricevente scritto nel codice (tipo di variabile, campo, <c>new T()</c>, classe per le
+            /// statiche, <c>super</c>), poi — per <c>m()</c> senza ricevente — la gerarchia della classe, le classi che la
+            /// contengono e gli import statici; il nome su tutto il perimetro solo quando il codice non dice di più.
+            /// </summary>
+            private void ResolveCall(string ownerId, string ownerFqn, Node obj, string name, int argc, Dictionary<string, string> locals, int line)
             {
-                ids = null;
-                return ownerFqn != null && _index.MethodsByOwner.TryGetValue(ownerFqn, out var byName) && byName.TryGetValue(name, out ids) && ids.Count > 0;
+                if (obj == null || obj.Type == "this")
+                {
+                    // la classe e le sue madri, poi le classi che la contengono (annidate, anonime)
+                    string inheritedFrom = null;
+                    for (var scope = ownerFqn; scope != null; scope = OuterOf(scope))
+                    {
+                        var own = _index.FindMethod(scope, name, argc, out var extAncestor);
+                        if (own != null) { MethodEdges(ownerId, own, "extracted", line); return; }
+                        inheritedFrom ??= extAncestor;
+                        if (obj != null) break;   // this.m(): solo la classe, non quelle che la contengono
+                    }
+                    if (obj == null)
+                    {
+                        if (_ctx.StaticImports.TryGetValue(name, out var holder)) { CallOnType(ownerId, Holder(holder), name, argc, line); return; }
+                        foreach (var w in _ctx.StaticWildcards)
+                            if (_index.TypesByFqn.ContainsKey(w) && _index.FindMethod(w, name, argc, out _) is List<MethodEntry> st) { MethodEdges(ownerId, st, "extracted", line); return; }
+                    }
+                    // non dichiarato nel perimetro, ma la classe estende una libreria: è suo, ereditato
+                    if (inheritedFrom != null) { Edge(ownerId, External("method", inheritedFrom + "." + name, name), "calls", "inferred", line); return; }
+                    CallByName(ownerId, name, line);
+                    return;
+                }
+                if (obj.Type == "super")
+                {
+                    if (ownerFqn != null && _index.FindMethod(ownerFqn, name, argc, out var ext, skipSelf: true) is List<MethodEntry> sup) { MethodEdges(ownerId, sup, "extracted", line); return; }
+                    if (ownerFqn != null && _index.Types.TryGetValue(ownerFqn, out var oi) && oi.Supers.FirstOrDefault(r => r.Kind == TypeRefKind.External) is TypeRef e)
+                    { Edge(ownerId, External("method", e.Fqns[0] + "." + name, name), "calls", "inferred", line); return; }
+                    if (ownerFqn != null && _index.Types.TryGetValue(ownerFqn, out var oi2) && oi2.Supers.Count == 0) return;   // super di Object: piattaforma
+                    CallByName(ownerId, name, line);
+                    return;
+                }
+                var receiver = ReceiverType(obj, ownerFqn, locals);
+                if (receiver == null) { CallByName(ownerId, name, line); return; }
+                CallOnType(ownerId, receiver, name, argc, line);
             }
 
-            private void CallByName(string ownerId, string name, string externalName, int line)
+            private TypeRef Holder(string fqn)
+                => _index.TypesByFqn.ContainsKey(fqn) ? new TypeRef(TypeRefKind.Project, new[] { fqn }, "extracted")
+                 : IsPlatform(fqn) ? TypeRef.Platform : new TypeRef(TypeRefKind.External, new[] { fqn }, "extracted");
+
+            /// <summary>Il tipo del ricevente quando il codice lo scrive; null quando non lo dice (catene di chiamate, lambda senza tipo…).</summary>
+            private TypeRef ReceiverType(Node obj, string ownerFqn, Dictionary<string, string> locals)
+            {
+                switch (obj.Type)
+                {
+                    case "identifier":
+                        if (locals.TryGetValue(obj.Text, out var local)) return _index.Resolve(_ctx, local);
+                        for (var scope = ownerFqn; scope != null; scope = OuterOf(scope))
+                            if (_index.FieldType(scope, obj.Text) is TypeRef field) return field;
+                        // non è una variabile: un nome di tipo (chiamata statica), se lo è
+                        if (char.IsUpper(obj.Text[0]))
+                        {
+                            var asType = _index.Resolve(_ctx, obj.Text);
+                            return asType.Kind == TypeRefKind.External && asType.Confidence != "extracted" ? null : asType;
+                        }
+                        return null;
+                    case "field_access":
+                    {
+                        var target = obj.NamedChildren.FirstOrDefault();
+                        var field = obj.NamedChildren.LastOrDefault(c => c.Type == "identifier")?.Text;
+                        if (target?.Type == "this" && field != null)
+                            for (var scope = ownerFqn; scope != null; scope = OuterOf(scope))
+                                if (_index.FieldType(scope, field) is TypeRef f) return f;
+                        return null;
+                    }
+                    case "object_creation_expression":
+                    {
+                        var head = TypeNames(obj.NamedChildren.FirstOrDefault(IsTypeNode)).FirstOrDefault();
+                        return head == null ? null : _index.Resolve(_ctx, head);
+                    }
+                    case "string_literal": return TypeRef.Platform;
+                    default: return null;
+                }
+            }
+
+            /// <summary>Una chiamata su un tipo noto: i suoi metodi (e delle madri), external per le librerie, niente per la piattaforma.</summary>
+            private void CallOnType(string ownerId, TypeRef receiver, string name, int argc, int line)
+            {
+                switch (receiver.Kind)
+                {
+                    case TypeRefKind.Platform: return;
+                    case TypeRefKind.Unknown: CallByName(ownerId, name, line); return;
+                    case TypeRefKind.External:
+                        Edge(ownerId, External("method", receiver.Fqns[0] + "." + name, name), "calls", receiver.Confidence, line);
+                        return;
+                }
+                var found = false;
+                foreach (var fqn in receiver.Fqns)
+                {
+                    var ms = _index.FindMethod(fqn, name, argc, out var extAncestor);
+                    if (ms != null)
+                    {
+                        found = true;
+                        MethodEdges(ownerId, ms, Weaker(receiver.Confidence, ms.Count == 1 ? "extracted" : "inferred"), line);
+                        // su un'interfaccia (o una classe astratta) chi la implementa nel perimetro: inferred, ma solo se sono
+                        // poche. Oltre MaxAmbiguousCandidates resta l'arco al contratto: in PlantUML drawU() ha centinaia di
+                        // implementazioni e faceva 53.000 archi (misurato il 13/10), rumore per chi legge e per le descrizioni.
+                        var impls = ImplementorsOf(fqn)
+                            .SelectMany(impl => _index.MethodsByOwner.TryGetValue(impl, out var byName) && byName.TryGetValue(name, out var im) ? PerimeterIndex.ByArity(im, argc) : Enumerable.Empty<MethodEntry>())
+                            .Take(MaxAmbiguousCandidates + 1).ToList();
+                        if (impls.Count <= MaxAmbiguousCandidates)
+                            foreach (var im in impls) Edge(ownerId, im.Id, "calls", "inferred", line);
+                    }
+                    else if (extAncestor != null)
+                    {
+                        found = true;
+                        Edge(ownerId, External("method", extAncestor + "." + name, name), "calls", "inferred", line);
+                    }
+                }
+                // un tipo del perimetro senza quel metodo né madri esterne: è di Object (toString, equals…) → piattaforma
+                if (!found && !ObjectMethods.Contains(name)) CallByName(ownerId, name, line);
+            }
+
+            private static readonly HashSet<string> ObjectMethods = new(StringComparer.Ordinal)
+                { "toString", "equals", "hashCode", "getClass", "notify", "notifyAll", "wait", "clone", "finalize", "name", "ordinal", "values", "valueOf", "compareTo" };
+
+            private IEnumerable<string> ImplementorsOf(string fqn)
+            {
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                var queue = new Queue<string>(new[] { fqn });
+                while (queue.Count > 0)
+                {
+                    var t = queue.Dequeue();
+                    if (!_index.Implementors.TryGetValue(t, out var subs)) continue;
+                    foreach (var sub in subs) if (seen.Add(sub)) { yield return sub; queue.Enqueue(sub); }
+                }
+            }
+
+            private void MethodEdges(string ownerId, List<MethodEntry> ms, string confidence, int line)
+            {
+                var conf = ms.Count == 1 ? confidence : Weaker(confidence, "inferred");
+                foreach (var m in ms) Edge(ownerId, m.Id, "calls", conf, line);
+            }
+
+            private static string Weaker(string a, string b) => ConfidenceRank(a) <= ConfidenceRank(b) ? a : b;
+
+            /// <summary>La classe che contiene <paramref name="fqn"/>, se è un tipo del perimetro (annidate); null altrimenti.</summary>
+            private string OuterOf(string fqn)
+            {
+                var dot = fqn.LastIndexOf('.');
+                if (dot <= 0) return null;
+                var outer = fqn.Substring(0, dot);
+                return _index.Types.ContainsKey(outer) ? outer : null;
+            }
+
+            /// <summary>L'ultima risorsa: il nome su tutto il perimetro. Mai il testo della chiamata come nome del nodo.</summary>
+            private void CallByName(string ownerId, string name, int line)
             {
                 if (_index.MethodsByName.TryGetValue(name, out var ms) && ms.Count <= MaxAmbiguousCandidates)
                 {
                     var conf = ms.Count == 1 ? "inferred" : "ambiguous";
                     foreach (var id in ms) Edge(ownerId, id, "calls", conf, line);
                 }
-                else if (ms != null)
-                    Edge(ownerId, External("method", "?." + name, name), "calls", "ambiguous", line);   // troppi omonimi
-                else Edge(ownerId, External("method", externalName, name), "calls", "ambiguous", line);
+                else Edge(ownerId, External("method", "?." + name, name), "calls", "ambiguous", line);
             }
 
             // ---- resolution
 
-            /// <summary>Il fqn di un nome semplice: tipi del file, import, stesso package, omonimo unico nel perimetro; null se sconosciuto.</summary>
-            private string ResolveTypeFqn(string simple)
+            /// <summary>Gli archi verso un nome di tipo: uno per candidato del perimetro, l'external, o niente (piattaforma).</summary>
+            private void TypeEdges(string sourceId, string simple, string relation, int line)
             {
-                if (_fileTypes.TryGetValue(simple, out var f)) return f;
-                if (_imports.TryGetValue(simple, out var i) && _index.TypesByFqn.ContainsKey(i)) return i;
-                var samePackage = _pf.Package.Length == 0 ? simple : _pf.Package + "." + simple;
-                if (_index.TypesByFqn.ContainsKey(samePackage)) return samePackage;
-                if (_index.TypesByName.TryGetValue(simple, out var list) && list.Count == 1) return list[0].Fqn;
-                return null;
-            }
-
-            /// <summary>L'id del tipo, oppure external; null per java.lang e per gli import java.*/javax.* (niente nodo).</summary>
-            private string ResolveType(string simple)
-            {
-                var fqn = ResolveTypeFqn(simple);
-                if (fqn != null && _index.TypesByFqn.TryGetValue(fqn, out var id)) return id;
-                if (_index.TypesByName.TryGetValue(simple, out var list) && list.Count > 1) return list[0].Id;
-                if (_imports.TryGetValue(simple, out var imported))
-                    return IsPlatform(imported) ? null : External("type", imported, simple);
-                if (JavaLang.Contains(simple)) return null;
-                return External("type", _pf.Package.Length == 0 ? simple : _pf.Package + "." + simple, simple);
-            }
-
-            private string ConfidenceOfType(string simple)
-            {
-                if (ResolveTypeFqn(simple) is string fqn && _index.TypesByFqn.ContainsKey(fqn))
-                    return _fileTypes.ContainsKey(simple) || _imports.ContainsKey(simple) || (_index.TypesByName.TryGetValue(simple, out var l) && l.Count == 1 && l[0].Fqn == fqn && fqn == (_pf.Package.Length == 0 ? simple : _pf.Package + "." + simple)) ? "extracted" : "inferred";
-                return _index.TypesByName.TryGetValue(simple, out var list) && list.Count > 1 ? "ambiguous" : "extracted";
+                var r = _index.Resolve(_ctx, simple);
+                switch (r.Kind)
+                {
+                    case TypeRefKind.Project:
+                        foreach (var fqn in r.Fqns) Edge(sourceId, _index.TypesByFqn[fqn], relation, r.Confidence, line);
+                        break;
+                    case TypeRefKind.External:
+                        Edge(sourceId, External("type", r.Fqns[0], simple), relation, r.Confidence, line);
+                        break;
+                }
             }
 
             private string ResolveImported(string fqn)
@@ -547,13 +927,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 return IsPlatform(fqn) ? null : External("type", fqn, fqn.Split('.').Last());
             }
 
-            private static bool IsPlatform(string fqn) => fqn.StartsWith("java.", StringComparison.Ordinal) || fqn.StartsWith("javax.", StringComparison.Ordinal) || fqn.StartsWith("jakarta.", StringComparison.Ordinal);
-
-            private void Reference(string sourceId, string simpleType, int line)
-            {
-                var target = ResolveType(simpleType);
-                if (target != null) Edge(sourceId, target, "references", ConfidenceOfType(simpleType), line);
-            }
+            private void Reference(string sourceId, string simpleType, int line) => TypeEdges(sourceId, simpleType, "references", line);
 
             private string External(string what, string qualifiedName, string name)
             {
