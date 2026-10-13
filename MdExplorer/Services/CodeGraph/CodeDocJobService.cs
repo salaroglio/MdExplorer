@@ -33,6 +33,12 @@ namespace MdExplorer.Services.CodeGraph
         /// riscritta anche se c'è già. <paramref name="logicalPath"/> è il percorso del grafo (program/x.ps1, @backend/…).
         /// </summary>
         Task<CodeSymbolDescribeOutcome> DescribeFileAsync(string projectPath, string logicalPath, CancellationToken ct = default);
+
+        /// <summary>
+        /// Correzione di una descrizione scritta dall'agente che parla con l'utente (D34, MCP <c>code_set_description</c>):
+        /// senza LLM, il testo è già quello giusto. Aggiorna lo script <c>.doc.ttl</c> e lo ricarica in Fuseki.
+        /// </summary>
+        Task<CodeDescriptionEditOutcome> SetDescriptionAsync(CodeDescriptionEdit edit, CancellationToken ct = default);
         void Cancel(string connectionId);
     }
 
@@ -42,6 +48,27 @@ namespace MdExplorer.Services.CodeGraph
         public int Rejected { get; set; }
         public string FirstRejected { get; set; }
         public string Engine { get; set; }
+        public string Error { get; set; }
+    }
+
+    /// <summary>Che cosa correggere: <c>Path</c> (il file) oppure <c>SymbolId</c> (il simbolo e i suoi parametri), mai tutti e due.</summary>
+    public sealed class CodeDescriptionEdit
+    {
+        // string? : nel servizio (Nullable=annotations) un string non-nullable in un DTO è [Required] implicito
+        public string? ProjectPath { get; set; }
+        public string? Path { get; set; }
+        public string? SymbolId { get; set; }
+        public string? Summary { get; set; }
+        public string? ReturnsDescription { get; set; }
+        public string? Remarks { get; set; }
+        public Dictionary<string, string?>? Parameters { get; set; }
+        public string? WrittenBy { get; set; }
+    }
+
+    public sealed class CodeDescriptionEditOutcome
+    {
+        public string Path { get; set; }
+        public string Script { get; set; }
         public string Error { get; set; }
     }
 
@@ -297,6 +324,49 @@ namespace MdExplorer.Services.CodeGraph
             outcome.Described = result.Described > 0; outcome.Rejected = result.Rejected; outcome.FirstRejected = result.FirstRejected;
             outcome.Error = result.Error ?? result.LoadError;
             _logger.LogInformation("[CodeDoc] file {File}: {Outcome}", logicalPath, outcome.Error ?? "descritto");
+            return outcome;
+        }
+
+        public async Task<CodeDescriptionEditOutcome> SetDescriptionAsync(CodeDescriptionEdit edit, CancellationToken ct = default)
+        {
+            var outcome = new CodeDescriptionEditOutcome();
+            var byFile = !string.IsNullOrWhiteSpace(edit.Path);
+            var bySymbol = !string.IsNullOrWhiteSpace(edit.SymbolId);
+            if (byFile == bySymbol) { outcome.Error = "indica path (la descrizione del file) oppure symbolId (un simbolo e i suoi parametri), uno solo dei due"; return outcome; }
+
+            var logicalPath = edit.Path?.Replace('\\', '/').TrimStart('/');
+            if (bySymbol)
+            {
+                var symbol = await _store.DescribeAsync(edit.ProjectPath, edit.SymbolId, ct);
+                if (symbol == null) { outcome.Error = $"simbolo '{edit.SymbolId}' non trovato nel grafo"; return outcome; }
+                if (string.IsNullOrEmpty(symbol.Path)) { outcome.Error = $"'{symbol.QualifiedName}' non ha un file sorgente (è esterno al progetto)"; return outcome; }
+                logicalPath = symbol.Path;
+            }
+            outcome.Path = logicalPath;
+            var astPath = CodeScriptWriter.ScriptPathFor(edit.ProjectPath, logicalPath, CodeScriptKind.Ast);
+            if (!File.Exists(astPath)) { outcome.Error = $"manca lo script AST di {logicalPath}: prima «Analizza il codice»"; return outcome; }
+            var ast = CodeScriptParser.Parse(File.ReadAllText(astPath, Encoding.UTF8), CodeGraphPaths.ToProjectRelative(edit.ProjectPath, astPath));
+            var docPath = CodeScriptWriter.ScriptPathFor(edit.ProjectPath, ast.Header.Source, CodeScriptKind.Doc);
+            // uno script illeggibile non si riscrive alla cieca: si perderebbero le altre descrizioni
+            CodeScript existing;
+            try { existing = CodeDocPlanner.ReadScriptOrNull(docPath, CodeGraphPaths.ToProjectRelative(edit.ProjectPath, docPath)); }
+            catch (CodeScriptFormatException ex) { outcome.Error = "lo script delle descrizioni non si legge, correggilo o rigeneralo con «Descrivi»: " + ex.Message; return outcome; }
+
+            var writtenBy = string.IsNullOrWhiteSpace(edit.WrittenBy) ? "code_set_description" : edit.WrittenBy.Trim();
+            CodeScript doc;
+            try
+            {
+                doc = bySymbol
+                    ? CodeDocEditor.EditSymbol(ast, existing, edit.SymbolId, edit.Summary, edit.ReturnsDescription, edit.Remarks, edit.Parameters, writtenBy)
+                    : CodeDocEditor.EditFile(ast, existing, edit.Summary, writtenBy);
+            }
+            catch (CodeDocEditException ex) { outcome.Error = ex.Message; return outcome; }
+
+            CodeScriptWriter.WriteIfChanged(docPath, CodeScriptWriter.Serialize(doc));
+            outcome.Script = CodeGraphPaths.ToProjectRelative(edit.ProjectPath, docPath);
+            var load = await _store.LoadScriptAsync(edit.ProjectPath, docPath, ct);
+            if (load.Error != null) outcome.Error = "script scritto ma non caricato nel grafo: " + load.Error;
+            _logger.LogInformation("[CodeDoc] descrizione corretta ({Target}) da {Who}: {Outcome}", bySymbol ? edit.SymbolId : logicalPath, writtenBy, outcome.Error ?? "ok");
             return outcome;
         }
 

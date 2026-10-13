@@ -7,7 +7,8 @@ namespace MdExplorer.Mcp;
 /// <summary>
 /// Gruppo <c>code</c>: il grafo del codice (sprint 2026-10-09). I tool leggono SOLO il database di MdExplorer
 /// (D15), mai i sorgenti né gli script: rispondono in millisecondi e portano <c>path:line</c> per aprire il punto
-/// giusto quando serve davvero il codice. Acceso di default nei progetti con una cartella «ambiente di sviluppo»
+/// giusto quando serve davvero il codice. Unica scrittura: <c>code_set_description</c> (D34), che passa dal backend,
+/// il quale aggiorna lo script <c>.doc.ttl</c> e il grafo. Acceso di default nei progetti con una cartella «ambiente di sviluppo»
 /// che ha dei linguaggi scelti.
 /// </summary>
 [McpServerToolType]
@@ -170,6 +171,49 @@ public sealed class CodeTools : McpToolsBase
         var (client, path, error) = await ProjectAsync(project);
         if (error != null) return error;
         return await GetAsync(client, $"/api/coderoots?projectPath={Uri.EscapeDataString(path)}", "code_roots", project, "");
+    }
+
+    [McpServerTool, Description(
+        "Fix or complete a description in the code graph (WRITE) — the only code_* tool that writes. Use it when the user says a " +
+        "description is wrong or missing, or asks you to describe something: read the source first, then write what it really does. " +
+        "Target EITHER `file` (what the whole file is for, 1-2 sentences in `summary`: its purpose, NOT a list of its functions) OR `symbol` (a class/method/function: `summary` = " +
+        "what it does, `returnsDescription`, `remarks`, and `parameters` = {parameterName: description} for its call parameters). " +
+        "Omitted fields stay as they are; an empty string removes `returnsDescription`, `remarks` or one parameter's description. " +
+        "`summary` is required the first time and when the existing description was written for an older signature. " +
+        "MdExplorer updates the versioned description script (.mde-code/…/*.doc.ttl) and the graph: never edit those files by hand. " +
+        "Write in the language of the file's comments, Italian if there are none.")]
+    public async Task<string> code_set_description(
+        [Description("Project name.")] string project,
+        [Description("Symbol id from code_find_symbol (or an exact qualified name). Leave empty when describing a file.")] string symbol = null,
+        [Description("The file's logical path, as `path` in any code_* result. Leave empty when describing a symbol.")] string file = null,
+        [Description("File: what it is for. Symbol: what it does, when to use it, its effects.")] string summary = null,
+        [Description("Symbol only: what it returns and what that means, edge cases included.")] string returnsDescription = null,
+        [Description("Symbol only: a warning for callers (threads, performance, preconditions).")] string remarks = null,
+        [Description("Symbol only: {parameterName: description} for the parameters to write; names exactly as in code_describe.")] Dictionary<string, string> parameters = null)
+    {
+        var (client, path, error) = await ProjectAsync(project);
+        if (error != null) return error;
+        if (string.IsNullOrWhiteSpace(symbol) == string.IsNullOrWhiteSpace(file)) return "Give either `symbol` or `file`, exactly one.";
+        string symbolId = null;
+        if (!string.IsNullOrWhiteSpace(symbol))
+        {
+            var id = await ResolveSingleIdAsync(client, path, symbol);
+            if (id.Error != null) return id.Error;
+            symbolId = id.Id;
+        }
+        try
+        {
+            var payload = new { projectPath = path, path = file, symbolId, summary, returnsDescription, remarks, parameters, writtenBy = "code_set_description" };
+            var content = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
+            var resp = await client.PostAsync("/api/codegraph/set-description", content);
+            var body = await resp.Content.ReadAsStringAsync();
+            await LogToolCall("code_set_description", project, symbol ?? file, body);
+            return resp.IsSuccessStatusCode ? body : $"Error: MdExplorer answered {(int)resp.StatusCode}: {body}";
+        }
+        catch (HttpRequestException ex)
+        {
+            return $"Error connecting to MdExplorer: {ex.Message}";
+        }
     }
 
     /// <summary>Un id già dato passa com'è; un nome si risolve, e se i candidati sono più d'uno si chiede di scegliere.</summary>

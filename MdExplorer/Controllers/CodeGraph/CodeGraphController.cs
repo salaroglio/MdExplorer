@@ -67,6 +67,20 @@ namespace MdExplorer.Controllers.CodeGraph
             var outcome = await job.DescribeSymbolAsync(request.ProjectPath, request.SymbolId, ct);
             return outcome.Error != null ? StatusCode(422, outcome) : Ok(outcome);
         });
+        /// <summary>
+        /// POST /api/codegraph/set-description {projectPath, path | symbolId, summary, returnsDescription, remarks, parameters, writtenBy}
+        /// — la correzione di una descrizione scritta dall'agente (D34, MCP <c>code_set_description</c>): niente LLM, aggiorna
+        /// lo script <c>.doc.ttl</c> e Fuseki. Campo <c>null</c> = com'è, stringa vuota = togli. 422 con il motivo se non si può.
+        /// </summary>
+        [HttpPost("set-description")]
+        public Task<IActionResult> SetDescription([FromBody] MdExplorer.Services.CodeGraph.CodeDescriptionEdit request, CancellationToken ct) => Guarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
+            var outcome = await job.SetDescriptionAsync(request, ct);
+            return outcome.Error != null ? StatusCode(422, outcome) : Ok(outcome);
+        });
+
         public class DescribeRequest : FolderRequest { public string ConnectionId { get; set; } public bool Force { get; set; } }
         public class CancelRequest { public string ConnectionId { get; set; } }
 
