@@ -447,8 +447,18 @@ export class MdFileService {
     nodes.forEach(node => this.compactSingleNode(node));
   }
 
+  /** Una cartella marcata «program» (ambiente di sviluppo) sta sempre su una riga sua: mai dentro una catena compattata. */
+  private static isProgram(node: { developmentTags?: string[] } | null | undefined): boolean {
+    return !!node?.developmentTags?.includes('program');
+  }
+
   private compactSingleNode(node: MdFile): void {
     if (node.type !== 'folder' || !node.childrens?.length) {
+      return;
+    }
+    // Una cartella program non comincia una catena (la sua riga, l'icona e le voci del grafo restano sue)
+    if (MdFileService.isProgram(node)) {
+      node.childrens.forEach(child => this.compactSingleNode(child as MdFile));
       return;
     }
 
@@ -457,16 +467,16 @@ export class MdFileService {
     // segmenti intermedi (es. `scripts/` sotto `login.e2e` in `login.e2e / esecuzioni / <data>`),
     // e senza il flag il loro occhio non poteva comparire (bug segnalato il 28/09/2026).
     const segments: CompactSegment[] = [
-      { name: node.name, fullPath: node.fullPath, level: node.level, hasExtraContent: node.hasExtraContent, hasToc: node.hasToc }
+      { name: node.name, fullPath: node.fullPath, level: node.level, hasExtraContent: node.hasExtraContent, hasToc: node.hasToc, developmentTags: node.developmentTags }
     ];
     let current = node;
     let lastCompactedLevel = node.level;
 
-    // Segui la catena finché c'è esattamente 1 figlio che è una cartella
-    while (current.childrens?.length === 1 && current.childrens[0].type === 'folder') {
+    // Segui la catena finché c'è esattamente 1 figlio che è una cartella (e non è una cartella program)
+    while (current.childrens?.length === 1 && current.childrens[0].type === 'folder' && !MdFileService.isProgram(current.childrens[0])) {
       current = current.childrens[0] as MdFile;
       lastCompactedLevel++;
-      segments.push({ name: current.name, fullPath: current.fullPath, level: lastCompactedLevel, hasExtraContent: current.hasExtraContent, hasToc: current.hasToc });
+      segments.push({ name: current.name, fullPath: current.fullPath, level: lastCompactedLevel, hasExtraContent: current.hasExtraContent, hasToc: current.hasToc, developmentTags: current.developmentTags });
     }
 
     // Se abbiamo compresso almeno 2 livelli
@@ -831,6 +841,8 @@ export class MdFileService {
     // La coda mostra i figli dell'ultimo segmento: il suo occhio è quello dell'ultimo segmento.
     tailNode.hasExtraContent = segments[segments.length - 1].hasExtraContent ?? compactNode.hasExtraContent;
     tailNode.hasToc = segments[segments.length - 1].hasToc ?? compactNode.hasToc;
+    // La riga della coda è il suo primo segmento: i tag sono i suoi (come per ogni riga compattata)
+    tailNode.developmentTags = tailFirstSeg.developmentTags;
 
     if (tailSegments.length > 1) {
       tailNode.isCompacted = true;
@@ -1138,6 +1150,55 @@ export class MdFileService {
   SetLandingPage(file: MdFile) {
     const url = '../api/mdfiles/SetLandingPage';
     return this.http.post<MdFile>(url, file);
+  }
+
+  /**
+   * I tag di una cartella sono cambiati (dopo SetDevelopmentTags): si scrivono sul nodo vero dell'albero o sul suo
+   * segmento, e una cartella appena marcata «program» che sta dentro una riga compattata esce dalla catena — la catena
+   * si spezza prima e dopo di lei — così la sua riga mostra l'icona e le voci del grafo del codice.
+   */
+  applyDevelopmentTags(folderFullPath: string, tags: string[]): void {
+    const target = (folderFullPath || '').toLowerCase();
+    let chain = this.findCompactChain(this.dataStore.mdFiles, target);
+    if (chain) { chain.compactNode.compactedSegments![chain.index].developmentTags = tags; }
+    if (tags.includes('program') && chain && chain.compactNode.compactedSegments!.length > 1) {
+      // prima: spezza subito sopra (la cartella diventa la testa della coda)
+      if (chain.index > 0) {
+        this.breakCompactFolderAt(this.dataStore.mdFiles, chain.compactNode.compactedSegments![chain.index - 1].fullPath);
+        chain = this.findCompactChain(this.dataStore.mdFiles, target);
+      }
+      // poi: spezza subito sotto, se dopo di lei la catena continua
+      if (chain && chain.index === 0 && chain.compactNode.compactedSegments!.length > 1) {
+        this.breakCompactFolderAt(this.dataStore.mdFiles, chain.compactNode.compactedSegments![0].fullPath);
+      }
+    }
+    const node = this.findFolderByFullPath(this.dataStore.mdFiles, target);
+    if (node) { node.developmentTags = tags; }
+    this._mdFiles.next([...this.dataStore.mdFiles]);
+  }
+
+  /** La riga compattata che contiene la cartella (anche come primo o ultimo segmento) e la sua posizione nella catena. */
+  private findCompactChain(nodes: MdFile[], target: string): { compactNode: MdFile; index: number } | null {
+    for (const node of nodes ?? []) {
+      if (node.type !== 'folder') { continue; }
+      const index = node.isCompacted ? (node.compactedSegments ?? []).findIndex(s => s.fullPath.toLowerCase() === target) : -1;
+      if (index >= 0) { return { compactNode: node, index }; }
+      const inChildren = this.findCompactChain(node.childrens as MdFile[], target);
+      if (inChildren) { return inChildren; }
+    }
+    return null;
+  }
+
+  /** La riga (non compattata, o compattata che comincia da lì) della cartella. */
+  private findFolderByFullPath(nodes: MdFile[], target: string): MdFile | null {
+    for (const node of nodes ?? []) {
+      if (node.type !== 'folder') { continue; }
+      if (!node.isCompacted && (node.fullPath || '').toLowerCase() === target) { return node; }
+      if (node.isCompacted && node.compactedSegments?.[0]?.fullPath.toLowerCase() === target) { return node; }
+      const inChildren = this.findFolderByFullPath(node.childrens as MdFile[], target);
+      if (inChildren) { return inChildren; }
+    }
+    return null;
   }
 
   setDevelopmentTags(folder: MdFile, projectRoot: string, tags: string[]) {

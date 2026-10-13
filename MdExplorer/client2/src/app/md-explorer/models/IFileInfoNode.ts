@@ -5,6 +5,7 @@ export interface CompactSegment {
   level: number;      // Level in original tree
   hasExtraContent?: boolean; // This folder holds non-.md files or markdown-empty subfolders (the eye reveals them)
   hasToc?: boolean;          // This folder has its <name>.md.directory
+  developmentTags?: string[]; // This folder's own tags (program…): a program folder is never inside a chain
 }
 
 // implementation of this interface is MDFile

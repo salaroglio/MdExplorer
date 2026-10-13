@@ -31136,6 +31136,10 @@ class MdTreeComponent {
       // intermedi il proprio da compactedSegments. Il reveal di un intermedio spezza la catena
       // in quel punto (addFileToParent → breakCompactFolderAt): prima del 28/09/2026 l'occhio
       // c'era solo sull'ultimo, e `scripts/` sotto `login.e2e` restava irraggiungibile.
+      // I tag del segmento: senza, il menu non sapeva che la cartella è già program (e «togli» la rimarcava)
+      if (idx >= 0) {
+        segmentItem.developmentTags = node.compactedSegments[idx].developmentTags ?? (idx === 0 ? node.developmentTags : undefined);
+      }
       if (idx >= 0) {
         segmentItem.hasExtraContent = this.mdFileService.getFolderExtraContent(segment.fullPath) ?? (idx === node.compactedSegments.length - 1 ? node.hasExtraContent : !!node.compactedSegments[idx].hasExtraContent);
         segmentItem.extraLoaded = this.folderHasRevealedExtras(segmentItem);
@@ -32870,6 +32874,9 @@ class MdTreeComponent {
       next: response => {
         console.log('setDevelopmentTags success', response);
         node.developmentTags = newTags;
+        // il nodo può essere quello sintetico di un segmento: i tag vanno sull'albero vero, e una cartella appena
+        // marcata program esce dalla riga compattata
+        this.mdFileService.applyDevelopmentTags(node.fullPath, newTags);
         const action = newTags.includes(tag) ? 'added' : 'removed';
         this.snackBar.open(this.translate.instant('MD_TREE.TAG_TOGGLED', {
           tag,
@@ -47155,4 +47162,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.bdd746d578ae39b9.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.dff486bc68f66dd5.js.map

@@ -12279,8 +12279,17 @@ class MdFileService {
   compactFolders(nodes) {
     nodes.forEach(node => this.compactSingleNode(node));
   }
+  /** Una cartella marcata «program» (ambiente di sviluppo) sta sempre su una riga sua: mai dentro una catena compattata. */
+  static isProgram(node) {
+    return !!node?.developmentTags?.includes('program');
+  }
   compactSingleNode(node) {
     if (node.type !== 'folder' || !node.childrens?.length) {
+      return;
+    }
+    // Una cartella program non comincia una catena (la sua riga, l'icona e le voci del grafo restano sue)
+    if (MdFileService.isProgram(node)) {
+      node.childrens.forEach(child => this.compactSingleNode(child));
       return;
     }
     // Raccogli i segmenti della catena
@@ -12292,12 +12301,13 @@ class MdFileService {
       fullPath: node.fullPath,
       level: node.level,
       hasExtraContent: node.hasExtraContent,
-      hasToc: node.hasToc
+      hasToc: node.hasToc,
+      developmentTags: node.developmentTags
     }];
     let current = node;
     let lastCompactedLevel = node.level;
-    // Segui la catena finché c'è esattamente 1 figlio che è una cartella
-    while (current.childrens?.length === 1 && current.childrens[0].type === 'folder') {
+    // Segui la catena finché c'è esattamente 1 figlio che è una cartella (e non è una cartella program)
+    while (current.childrens?.length === 1 && current.childrens[0].type === 'folder' && !MdFileService.isProgram(current.childrens[0])) {
       current = current.childrens[0];
       lastCompactedLevel++;
       segments.push({
@@ -12305,7 +12315,8 @@ class MdFileService {
         fullPath: current.fullPath,
         level: lastCompactedLevel,
         hasExtraContent: current.hasExtraContent,
-        hasToc: current.hasToc
+        hasToc: current.hasToc,
+        developmentTags: current.developmentTags
       });
     }
     // Se abbiamo compresso almeno 2 livelli
@@ -12639,6 +12650,8 @@ class MdFileService {
     // La coda mostra i figli dell'ultimo segmento: il suo occhio è quello dell'ultimo segmento.
     tailNode.hasExtraContent = segments[segments.length - 1].hasExtraContent ?? compactNode.hasExtraContent;
     tailNode.hasToc = segments[segments.length - 1].hasToc ?? compactNode.hasToc;
+    // La riga della coda è il suo primo segmento: i tag sono i suoi (come per ogni riga compattata)
+    tailNode.developmentTags = tailFirstSeg.developmentTags;
     if (tailSegments.length > 1) {
       tailNode.isCompacted = true;
       tailNode.compactedSegments = tailSegments;
@@ -12906,6 +12919,73 @@ class MdFileService {
   SetLandingPage(file) {
     const url = '../api/mdfiles/SetLandingPage';
     return this.http.post(url, file);
+  }
+  /**
+   * I tag di una cartella sono cambiati (dopo SetDevelopmentTags): si scrivono sul nodo vero dell'albero o sul suo
+   * segmento, e una cartella appena marcata «program» che sta dentro una riga compattata esce dalla catena — la catena
+   * si spezza prima e dopo di lei — così la sua riga mostra l'icona e le voci del grafo del codice.
+   */
+  applyDevelopmentTags(folderFullPath, tags) {
+    const target = (folderFullPath || '').toLowerCase();
+    let chain = this.findCompactChain(this.dataStore.mdFiles, target);
+    if (chain) {
+      chain.compactNode.compactedSegments[chain.index].developmentTags = tags;
+    }
+    if (tags.includes('program') && chain && chain.compactNode.compactedSegments.length > 1) {
+      // prima: spezza subito sopra (la cartella diventa la testa della coda)
+      if (chain.index > 0) {
+        this.breakCompactFolderAt(this.dataStore.mdFiles, chain.compactNode.compactedSegments[chain.index - 1].fullPath);
+        chain = this.findCompactChain(this.dataStore.mdFiles, target);
+      }
+      // poi: spezza subito sotto, se dopo di lei la catena continua
+      if (chain && chain.index === 0 && chain.compactNode.compactedSegments.length > 1) {
+        this.breakCompactFolderAt(this.dataStore.mdFiles, chain.compactNode.compactedSegments[0].fullPath);
+      }
+    }
+    const node = this.findFolderByFullPath(this.dataStore.mdFiles, target);
+    if (node) {
+      node.developmentTags = tags;
+    }
+    this._mdFiles.next([...this.dataStore.mdFiles]);
+  }
+  /** La riga compattata che contiene la cartella (anche come primo o ultimo segmento) e la sua posizione nella catena. */
+  findCompactChain(nodes, target) {
+    for (const node of nodes ?? []) {
+      if (node.type !== 'folder') {
+        continue;
+      }
+      const index = node.isCompacted ? (node.compactedSegments ?? []).findIndex(s => s.fullPath.toLowerCase() === target) : -1;
+      if (index >= 0) {
+        return {
+          compactNode: node,
+          index
+        };
+      }
+      const inChildren = this.findCompactChain(node.childrens, target);
+      if (inChildren) {
+        return inChildren;
+      }
+    }
+    return null;
+  }
+  /** La riga (non compattata, o compattata che comincia da lì) della cartella. */
+  findFolderByFullPath(nodes, target) {
+    for (const node of nodes ?? []) {
+      if (node.type !== 'folder') {
+        continue;
+      }
+      if (!node.isCompacted && (node.fullPath || '').toLowerCase() === target) {
+        return node;
+      }
+      if (node.isCompacted && node.compactedSegments?.[0]?.fullPath.toLowerCase() === target) {
+        return node;
+      }
+      const inChildren = this.findFolderByFullPath(node.childrens, target);
+      if (inChildren) {
+        return inChildren;
+      }
+    }
+    return null;
   }
   setDevelopmentTags(folder, projectRoot, tags) {
     const url = '../api/mdfiles/SetDevelopmentTags';
@@ -18654,8 +18734,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.13.3',
-  buildTime: '2026.10.13 16:29:44'
+  version: '2026.10.13.4',
+  buildTime: '2026.10.13 18:14:59'
 };
 
 /***/ }),
@@ -18689,4 +18769,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.e0a2c64ef6da5556.js.map
+//# sourceMappingURL=main.5cbe3464f2d2763e.js.map
