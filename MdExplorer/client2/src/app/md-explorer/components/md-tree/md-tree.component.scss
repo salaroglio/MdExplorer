@@ -466,3 +466,33 @@ button.mat-mdc-icon-button.not-installed-muted {
 :host-context(body.milan-theme) .folder-name.extra-revealed {
   color: #a5d6a7; // green 200
 }
+
+// Radici di codice esterne (R9): in fondo all'albero, in sola lettura. Separate dal progetto da una linea; una radice
+// non collegata è attenuata e dice il suo stato.
+.code-root-node {
+  cursor: pointer;
+}
+
+.code-root-node.mat-tree-node:not(.generic-file)[aria-level="1"] {
+  border-top: 1px solid var(--mde-disabled-text);
+}
+
+.code-root-icon {
+  margin-right: 4px;
+}
+
+.code-root-name {
+  font-weight: 500;
+}
+
+.code-root-unlinked .code-root-name,
+.code-root-unlinked .code-root-icon {
+  color: var(--mde-disabled-text);
+}
+
+.code-root-status {
+  margin-left: 8px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--mde-disabled-text);
+}

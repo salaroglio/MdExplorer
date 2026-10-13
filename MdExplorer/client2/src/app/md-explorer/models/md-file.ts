@@ -61,4 +61,8 @@ export class MdFile implements IFileInfoNode {
   appArgs?: string[];
   appIcon?: string;
   appDescription?: string;
+
+  /** Radice di codice esterna nell'albero (type 'codeRoot'): lo stato su questa macchina e il motivo se non è collegata. */
+  codeRootStatus?: string;
+  codeRootReason?: string;
 }

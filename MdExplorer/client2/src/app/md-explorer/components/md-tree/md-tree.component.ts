@@ -17,7 +17,7 @@ import { NewDirectoryComponent } from '../dialogs/new-directory/new-directory.co
 import { DevEnvironmentDialogComponent, DevEnvironmentDialogData, DevEnvironmentDialogResult } from '../dialogs/dev-environment/dev-environment-dialog.component';
 import { CodeRootsDialogComponent, CodeRootsDialogData, CodeRootsDialogResult } from '../dialogs/code-roots/code-roots-dialog.component';
 import { CodeRootsReminderDialogComponent, CodeRootsReminderData } from '../dialogs/code-roots/code-roots-reminder-dialog.component';
-import { CodeRootsService } from '../../services/code-roots.service';
+import { CodeRoot, CodeRootsService } from '../../services/code-roots.service';
 import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markdown.component';
@@ -115,7 +115,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private _transformer = (node: IFileInfoNode, level: number) => {
     return {
-      expandable: (!!node.childrens && node.childrens.length > 0) || node.type == "folder" || node.type == "externalAppRoot" || node.type == "externalAppCategory",
+      expandable: (!!node.childrens && node.childrens.length > 0) || node.type == "folder" || node.type == "externalAppRoot" || node.type == "externalAppCategory"
+        || node.type == "codeRootFolder" || (node.type == "codeRoot" && node.codeRootStatus === 'Linked'),
       name: node.name,
       level: level,
       path: node.path,
@@ -148,7 +149,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       appExecutable: node.appExecutable,
       appArgs: node.appArgs,
       appIcon: node.appIcon,
-      appDescription: node.appDescription
+      appDescription: node.appDescription,
+      // Radice di codice esterna
+      codeRootStatus: node.codeRootStatus,
+      codeRootReason: node.codeRootReason
     };
   }
   // trackBy per fullPath: l'expansionModel del FlatTreeControl di default usa
@@ -181,6 +185,10 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   isExternalAppCategory = (_: number, node: IFileInfoNode) => node.type == "externalAppCategory";
   isExternalApp = (_: number, node: IFileInfoNode) => node.type == "externalApp";
   isExternalAppNotInstalled = (_: number, node: IFileInfoNode) => node.type == "externalAppNotInstalled";
+  // Radici di codice esterne (R9): la radice @alias, le sue cartelle e i suoi file, in sola lettura
+  isCodeRoot = (_: number, node: IFileInfoNode) => node.type == "codeRoot";
+  isCodeRootFolder = (_: number, node: IFileInfoNode) => node.type == "codeRootFolder";
+  isCodeRootFile = (_: number, node: IFileInfoNode) => node.type == "codeRootFile";
 
   isImageIcon(icon: string | undefined): boolean {
     if (!icon) return false;
@@ -423,7 +431,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       filter((path): path is string => !!path),
       distinctUntilChanged(),
       takeUntil(this.destroy$),
-    ).subscribe(path => this.remindUnlinkedCodeRoots(path));
+    ).subscribe(path => { this.loadCodeRootNodes(path); this.remindUnlinkedCodeRoots(path); });
 
     // Subscribe to P2P availability
     this.p2pService.isAvailable$.pipe(takeUntil(this.destroy$)).subscribe(available => {
@@ -480,6 +488,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   // stack sincrono (raffica) collassano in un solo render nel microtask successivo,
   // evitando il rendering rientrante che corrompe il differ del MatTree.
   private _pendingTreeData: any[] | null = null;
+  // L'ultimo albero del progetto: le radici esterne si ridisegnano senza aspettare un'emissione del dataStore
+  private lastProjectTreeData: any[] = [];
   private _treeRenderScheduled = false;
 
   private scheduleTreeRender(): void {
@@ -489,12 +499,13 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       this._treeRenderScheduled = false;
       const data = this._pendingTreeData;
       this._pendingTreeData = null;
-      if (!data || data.length === 0) { return; }
+      if (!data || (data.length === 0 && this.codeRootNodes.length === 0)) { return; }
 
       // Inizializza ricorsivamente tutte le proprietà
       this.initializeNodeProperties(data);
-      // Una NUOVA array per il change detection con OnPush
-      this.dataSource.data = [...data];
+      this.lastProjectTreeData = data;
+      // Una NUOVA array per il change detection con OnPush; le radici esterne in fondo, dopo il progetto
+      this.dataSource.data = [...data, ...this.codeRootNodes];
 
       // Restore expansion state if we have saved state (from branch switch)
       if (this.expansionStateBeforeRefresh !== null) {
@@ -2580,6 +2591,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     const data: CodeRootsDialogData = { projectRoot: root };
     this.dialog.open(CodeRootsDialogComponent, { width: '720px', data })
       .afterClosed().subscribe((result?: CodeRootsDialogResult) => {
+        // collegata, scollegata, aggiunta: l'albero lo deve dire subito
+        this.loadCodeRootNodes(root);
         if (result?.open === 'graph') { this.openCodeGraphFolder(root, result.folder, result.folder); }
         if (result?.open === 'report') { this.openCodeGraphReportAt(root); }
       });
@@ -2601,6 +2614,80 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     await this.router.navigate(['/main/navigation/document']);
     this.mdFileService.setSelectedMdFileFromSideNav(report);
     this.navService.setNewNavigation(report);
+  }
+
+  // ── Radici di codice esterne nell'albero (sprint 2026-10-12, R9) ──
+  // Nodi annidati tenuti QUI, fuori dal dataStore dei documenti: niente indicizzazione, niente FileSystemWatcher,
+  // niente crea/rinomina/sposta. I figli si chiedono al backend a ogni apertura (non c'è un osservatore che li tenga
+  // aggiornati); fullPath = percorso assoluto, unico e stabile per l'espansione, path = percorso logico @alias/….
+  private codeRootNodes: MdFile[] = [];
+  private codeRootNodesByFullPath = new Map<string, MdFile>();
+
+  private loadCodeRootNodes(projectRoot: string): void {
+    this.codeRootsService.list(projectRoot).subscribe({
+      next: roots => {
+        if (this.projectsService.currentProjects$.value?.path !== projectRoot) { return; }
+        this.codeRootNodesByFullPath.clear();
+        this.codeRootNodes = roots.map(r => this.codeRootNode(r));
+        this.renderCodeRootNodes();
+      },
+      error: err => this.snackBar.open(this.translate.instant('CODE_ROOTS.REMINDER_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 }),
+    });
+  }
+
+  private codeRootNode(r: CodeRoot): MdFile {
+    const linked = r.status === 'Linked';
+    const node = new MdFile('@' + r.alias, '@' + r.alias, 0, linked);
+    node.type = 'codeRoot';
+    node.relativePath = '@' + r.alias;
+    // collegata: la cartella vera (chiave dell'espansione); non collegata: l'alias, che non è un percorso
+    node.fullPath = linked && r.rootPath ? r.rootPath : '@' + r.alias;
+    node.codeRootStatus = r.status;
+    node.codeRootReason = r.reason;
+    node.childrens = [];
+    this.codeRootNodesByFullPath.set(node.fullPath, node);
+    return node;
+  }
+
+  private renderCodeRootNodes(): void {
+    this._pendingTreeData = this.lastProjectTreeData;
+    this.scheduleTreeRender();
+  }
+
+  /** Clic su @alias o su una sua cartella: apre (chiedendo i figli al backend) o chiude. Non collegata → la finestra. */
+  onCodeRootFolderClick(flat: MdFile): void {
+    if (flat.type === 'codeRoot' && flat.codeRootStatus !== 'Linked') { this.openCodeRootsDialog(); return; }
+    if (this.treeControl.isExpanded(flat)) { this.treeControl.collapse(flat); return; }
+    const nested = this.codeRootNodesByFullPath.get(flat.fullPath);
+    const root = this.getProjectRoot();
+    if (!nested || !root) { return; }
+    this.codeRootsService.browse(root, flat.path).subscribe({
+      next: entries => {
+        nested.childrens = entries.map(e => {
+          const child = new MdFile(e.name, e.path, flat.level + 1, e.isFolder);
+          child.type = e.isFolder ? 'codeRootFolder' : 'codeRootFile';
+          child.relativePath = e.path;
+          child.fullPath = e.fullPath;
+          child.isTextFile = e.isText;
+          child.childrens = [];
+          if (e.isFolder) { this.codeRootNodesByFullPath.set(e.fullPath, child); }
+          // un file che non si è potuto leggere lo dice (tooltip sulla riga), non sparisce
+          if (e.unreadable) { child.codeRootReason = e.unreadable; }
+          return child;
+        });
+        this.treeControl.expand(flat);
+        this.renderCodeRootNodes();
+      },
+      error: err => this.snackBar.open(this.translate.instant('MD_TREE.CODE_ROOT_BROWSE_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 }),
+    });
+  }
+
+  codeRootStatusLabel(node: MdFile): string {
+    return this.translate.instant('CODE_ROOTS.STATUS_' + (node.codeRootStatus || '').toUpperCase());
+  }
+
+  isCodeRootItem(item: MdFile): boolean {
+    return item?.type === 'codeRoot' || item?.type === 'codeRootFolder' || item?.type === 'codeRootFile';
   }
 
   /**

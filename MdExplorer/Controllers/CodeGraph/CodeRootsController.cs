@@ -52,6 +52,20 @@ namespace MdExplorer.Controllers.CodeGraph
             return Ok(new { path, absolutePath = resolver.Resolve(path) });
         }, projectPath);
 
+        /// <summary>
+        /// GET /api/coderoots/browse?projectPath&amp;path — i figli diretti di una cartella di una radice (<c>@alias/…</c>),
+        /// per l'albero in sola lettura (R9): cartelle prima, poi file, con il percorso logico e se si aprono come testo.
+        /// </summary>
+        [HttpGet("browse")]
+        public Task<IActionResult> Browse([FromQuery] string projectPath, [FromQuery] string path, CancellationToken ct) => Guarded(async () =>
+        {
+            var resolver = await _roots.CreateResolverAsync(projectPath, ct);
+            return Ok(CodeRootBrowser.List(resolver, path).Select(e => new
+            {
+                name = e.Name, path = e.LogicalPath, fullPath = e.AbsolutePath, isFolder = e.IsFolder, isText = e.IsText, unreadable = e.Unreadable,
+            }));
+        }, projectPath);
+
         /// <summary>GET /api/coderoots/changes?projectPath&amp;alias — ramo e file modificati del repository della radice (sola lettura).</summary>
         [HttpGet("changes")]
         public Task<IActionResult> Changes([FromQuery] string projectPath, [FromQuery] string alias, CancellationToken ct) => Guarded(async () =>

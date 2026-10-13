@@ -25,6 +25,18 @@ export interface CodeRootChanges {
   files: { status: string; path: string }[];
 }
 
+/** Un figlio di una cartella di una radice, per l'albero in sola lettura (R9). */
+export interface CodeRootEntry {
+  name: string;
+  /** Il percorso logico @alias/…: si apre con questo e con questo si chiedono i figli. */
+  path: string;
+  fullPath: string;
+  isFolder: boolean;
+  isText: boolean;
+  /** Perché il file non si è potuto leggere; null se letto. */
+  unreadable: string | null;
+}
+
 /**
  * Le radici di codice esterne: il codice che sta FUORI dalla cartella del progetto di documentazione. L'identità
  * (alias, repository) è nel .development.yml, su Git; dove sta su questa macchina è nel database dell'utente.
@@ -67,6 +79,11 @@ export class CodeRootsService {
     if (!key || this.remindedThisSession.has(key)) { return false; }
     this.remindedThisSession.add(key);
     return true;
+  }
+
+  /** I figli diretti di una cartella di una radice (@alias o @alias/…): cartelle prima, poi file. */
+  browse(projectPath: string, path: string): Observable<CodeRootEntry[]> {
+    return this.http.get<CodeRootEntry[]>(`${this.api}/browse`, { params: new HttpParams().set('projectPath', projectPath).set('path', path) });
   }
 
   changes(projectPath: string, alias: string): Observable<CodeRootChanges> {

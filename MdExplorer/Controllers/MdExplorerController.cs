@@ -41,6 +41,8 @@ using MdExplorer.Abstractions.Entities.EngineDB;
 using Microsoft.Extensions.DependencyInjection;
 using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Features.Services.SourceMapping;
+using MdExplorer.Features.Services.CodeGraph;
+using MdExplorer.Services.CodeGraph;
 
 namespace MdExplorer.Controllers
 {
@@ -53,6 +55,7 @@ namespace MdExplorer.Controllers
         private readonly IYamlDefaultGenerator _yamlDefaultGenerator;
         private readonly MarkdownSourceMapService _sourceMapService;
         private readonly MdExplorer.Services.AgentRun.IAgentWorktreeManager _worktree;
+        private readonly ICodeRootService _codeRoots;
 
         public MdExplorerController(ILogger<MdExplorerController> logger,
             IOptions<MdExplorerAppSettings> options,
@@ -67,6 +70,7 @@ namespace MdExplorer.Controllers
             IWorkLink[] modifiers,
             MarkdownSourceMapService sourceMapService,
             MdExplorer.Services.AgentRun.IAgentWorktreeManager worktree,
+            ICodeRootService codeRoots,
             IDatabaseManager databaseManager = null
             ) : base(logger, options, hubContext, session, engineDB, commandRunner,modifiers, helper, databaseManager)
         {
@@ -76,6 +80,7 @@ namespace MdExplorer.Controllers
             _yamlDefaultGenerator = yamlDefaultGenerator;
             _sourceMapService = sourceMapService;
             _worktree = worktree;
+            _codeRoots = codeRoots;
         }
 
         /// <summary>
@@ -117,6 +122,13 @@ namespace MdExplorer.Controllers
             bool isDetached = source == "detached";
 
             _logger.LogInformation($"🔍 [MdExplorer] Navigation source: {(isIframeLinkClick ? "iframe link click" : "Angular navigation")}");
+
+            // Un file di una radice di codice esterna (@alias/…, aperto dall'albero in sola lettura, R9): sempre come
+            // sorgente colorato, anche un .md — è codice di un altro repository, non un documento del progetto.
+            if (CodeRootPaths.IsLogical(relativePathFile))
+            {
+                return await ShowCodeRootFile(relativePathFile, rootPathSystem, connectionId, theme, isDetached);
+            }
 
             // A text file opened as the document (a click in the md-tree, a detached window):
             // colored source, not raw bytes. What a page asks for — an image, a link to a .json —
@@ -764,7 +776,45 @@ namespace MdExplorer.Controllers
         /// The document page for a text file: the same box as <c>```text(path)</c>, colored by
         /// Prism, with the app's theme. Read-only: nothing is cached, indexed or written.
         /// </summary>
-        private async Task<IActionResult> ShowTextFile(string fullPath, string rootPathSystem, string connectionId, string theme, bool isDetached)
+        /// <summary>
+        /// Un file di una radice esterna: risolto dal risolutore unico (radice non collegata, <c>..</c> che esce, file
+        /// binario = pagina che dice perché, mai un file a caso).
+        /// </summary>
+        private async Task<IActionResult> ShowCodeRootFile(string relativePathFile, string rootPathSystem, string connectionId, string theme, bool isDetached)
+        {
+            var logicalPath = relativePathFile.Replace('\\', '/');
+            string fullPath;
+            try
+            {
+                fullPath = (await _codeRoots.CreateResolverAsync(GetProjectPath(), HttpContext.RequestAborted)).Resolve(logicalPath);
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or FormatException)
+            {
+                return CodeRootMessagePage(ex.Message, rootPathSystem, connectionId, theme);
+            }
+            if (!System.IO.File.Exists(fullPath))
+            {
+                return CodeRootMessagePage($"{logicalPath}: il file non c'è ({fullPath}).", rootPathSystem, connectionId, theme);
+            }
+            if (!TextFileView.IsText(fullPath))
+            {
+                return CodeRootMessagePage($"{logicalPath}: non è un file di testo, qui non si può mostrare.", rootPathSystem, connectionId, theme);
+            }
+            return await ShowTextFile(fullPath, rootPathSystem, connectionId, theme, isDetached, logicalPath);
+        }
+
+        private ContentResult CodeRootMessagePage(string message, string fullPathForBase, string connectionId, string theme)
+        {
+            var body = $@"<div class=""mde-text-file-view""><p class=""mde-text-file-too-big"">{HttpUtility.HtmlEncode(message)}</p></div>";
+            var doc = new XmlDocument();
+            CreateHTMLBody(body, doc, fullPathForBase, connectionId, GetProjectPath(), theme, sourceHash: "", viewKind: "text");
+            var html = doc.DocumentElement != null && doc.DocumentElement.GetAttribute("_html_fallback") == "true"
+                ? doc.DocumentElement.InnerText
+                : doc.InnerXml;
+            return new ContentResult { ContentType = "text/html; charset=utf-8", Content = html };
+        }
+
+        private async Task<IActionResult> ShowTextFile(string fullPath, string rootPathSystem, string connectionId, string theme, bool isDetached, string logicalPath = null)
         {
             var size = new FileInfo(fullPath).Length;
             string body;
@@ -783,7 +833,8 @@ namespace MdExplorer.Controllers
             {
                 Path = fullPath,
                 Name = Path.GetFileName(fullPath),
-                RelativePath = Path.GetRelativePath(rootPathSystem, fullPath),
+                // Un file di una radice esterna si chiama col suo percorso logico, non con un ../../ dal progetto.
+                RelativePath = logicalPath ?? Path.GetRelativePath(rootPathSystem, fullPath),
                 FullPath = fullPath,
                 FullDirectoryPath = Path.GetDirectoryName(fullPath)
             };

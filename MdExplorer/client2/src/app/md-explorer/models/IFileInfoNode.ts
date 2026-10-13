@@ -53,5 +53,9 @@ export interface IFileInfoNode {
   appArgs?: string[];
   appIcon?: string;
   appDescription?: string;
+
+  // Radice di codice esterna (type 'codeRoot'): stato su questa macchina e motivo se non è collegata
+  codeRootStatus?: string;
+  codeRootReason?: string;
 }
 

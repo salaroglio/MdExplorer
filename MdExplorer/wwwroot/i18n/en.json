@@ -702,7 +702,8 @@
     "E2E_TESTS": "E2E tests…",
     "CODE_GRAPH": "Code graph",
     "DEV_ENV_SETTINGS": "Development environment…",
-    "CODE_ROOTS": "External code roots…"
+    "CODE_ROOTS": "External code roots…",
+    "CODE_ROOT_BROWSE_FAILED": "Cannot open the folder: {{error}}"
   },
   "CODE_ROOTS": {
     "TITLE": "External code roots",

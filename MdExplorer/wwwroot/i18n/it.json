@@ -702,7 +702,8 @@
     "E2E_TESTS": "Test e2e…",
     "CODE_GRAPH": "Grafo del codice",
     "DEV_ENV_SETTINGS": "Ambiente di sviluppo…",
-    "CODE_ROOTS": "Radici di codice esterne…"
+    "CODE_ROOTS": "Radici di codice esterne…",
+    "CODE_ROOT_BROWSE_FAILED": "Non riesco ad aprire la cartella: {{error}}"
   },
   "CODE_ROOTS": {
     "TITLE": "Radici di codice esterne",

@@ -110,8 +110,14 @@
       <span>{{ 'MD_TREE.MARK_DEV_ENV' | translate }}</span>
     </button>
 
+    <!-- Radice esterna nell'albero (R9): copia del percorso logico @alias/… e la finestra delle radici -->
+    <button *ngIf="item.type==='codeRootFolder' || item.type==='codeRootFile'" mat-menu-item (click)="getLinkFromNode(item)">
+      <mat-icon>link</mat-icon>
+      <span>{{ 'MD_TREE.COPY_PATH' | translate }}</span>
+    </button>
+
     <!-- Radici di codice esterne: il codice FUORI dal progetto (sprint 2026-10-12, F5) -->
-    <button *ngIf="item.name==='root'"
+    <button *ngIf="item.name==='root' || isCodeRootItem(item)"
             mat-menu-item
             (click)="openCodeRootsDialog()">
       <mat-icon>device_hub</mat-icon>
@@ -270,6 +276,52 @@
                  (contextmenu)="onRightClick($event, node)"
                  (click)="node.isTextFile && getNode(node)"
                  [attr.data-fullpath]="node.fullPath"
+                 [ngClass]="{ 'generic-file': true, 'generic-text-file': node.isTextFile, 'selected': isNodeSelected(node) }">
+    <button mat-icon-button color="basic" [style.cursor]="node.isTextFile ? 'pointer' : 'default'">
+      <mat-icon class="mat-icon-rtl-mirror generic-file-icon">{{ node.isTextFile ? 'description' : 'insert_drive_file' }}</mat-icon>
+    </button>
+    <div class="node-text generic-file-name" [style.cursor]="node.isTextFile ? 'pointer' : 'default'" style="padding: 2px;">{{node.name}}</div>
+  </mat-tree-node>
+
+  <!-- Radici di codice esterne (sprint 2026-10-12, R9): in fondo all'albero, in sola lettura. La radice @alias e le
+       sue cartelle si aprono chiedendo i figli al backend; un file di testo si apre come sorgente colorato; niente
+       trascinamento né crea/rinomina. Una radice non collegata mostra lo stato e al clic apre la finestra delle radici. -->
+  <mat-tree-node *matTreeNodeDef="let node;when: isCodeRoot"
+                 matTreeNodePadding
+                 class="code-root-node"
+                 (contextmenu)="onRightClick($event, node)"
+                 (click)="onCodeRootFolderClick(node)"
+                 [attr.data-fullpath]="node.fullPath"
+                 [matTooltip]="node.codeRootReason || ''"
+                 [ngClass]="{ 'code-root-unlinked': node.codeRootStatus !== 'Linked' }">
+    <button mat-icon-button color="primary">
+      <mat-icon class="mat-icon-rtl-mirror">{{ node.codeRootStatus !== 'Linked' ? 'link_off' : (treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right') }}</mat-icon>
+    </button>
+    <mat-icon class="code-root-icon">device_hub</mat-icon>
+    <div class="node-text code-root-name">{{node.name}}</div>
+    <span *ngIf="node.codeRootStatus !== 'Linked'" class="code-root-status">{{ codeRootStatusLabel(node) }}</span>
+  </mat-tree-node>
+
+  <mat-tree-node *matTreeNodeDef="let node;when: isCodeRootFolder"
+                 matTreeNodePadding
+                 class="code-root-node"
+                 (contextmenu)="onRightClick($event, node)"
+                 (click)="onCodeRootFolderClick(node)"
+                 [attr.data-fullpath]="node.fullPath">
+    <button mat-icon-button color="primary">
+      <mat-icon class="mat-icon-rtl-mirror">{{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}</mat-icon>
+    </button>
+    <mat-icon class="code-root-folder-icon">{{ treeControl.isExpanded(node) ? 'folder_open' : 'folder' }}</mat-icon>
+    <div class="node-text">{{node.name}}</div>
+  </mat-tree-node>
+
+  <mat-tree-node *matTreeNodeDef="let node;when: isCodeRootFile"
+                 matTreeNodePadding
+                 class="code-root-node"
+                 (contextmenu)="onRightClick($event, node)"
+                 (click)="node.isTextFile && getNode(node)"
+                 [attr.data-fullpath]="node.fullPath"
+                 [matTooltip]="node.codeRootReason || ''"
                  [ngClass]="{ 'generic-file': true, 'generic-text-file': node.isTextFile, 'selected': isNodeSelected(node) }">
     <button mat-icon-button color="basic" [style.cursor]="node.isTextFile ? 'pointer' : 'default'">
       <mat-icon class="mat-icon-rtl-mirror generic-file-icon">{{ node.isTextFile ? 'description' : 'insert_drive_file' }}</mat-icon>
