@@ -127,11 +127,13 @@ namespace MdExplorer.Features.Services.CodeGraph
         public int ExternalSymbols { get; set; }
         public int Edges { get; set; }
         public int DescribedSymbols { get; set; }
+        /// <summary>I file con la loro code:FileDescription (a che cosa servono).</summary>
+        public int DescribedFiles { get; set; }
         public Dictionary<string, int> SymbolsByLanguage { get; set; } = new();
         public Dictionary<string, int> SymbolsByKind { get; set; } = new();
         public Dictionary<string, int> EdgesByRelation { get; set; } = new();
         public List<(CodeSymbolView Symbol, int Degree)> MostConnected { get; set; } = new();
-        public List<(string Path, int Symbols)> LargestFiles { get; set; } = new();
+        public List<(string Path, int Symbols, string Summary)> LargestFiles { get; set; } = new();
     }
 
     /// <summary>Quello che serve al report: la panoramica più ciò che manca.</summary>

@@ -115,6 +115,21 @@ namespace MdExplorer.Features.Services.CodeGraph
         public Task<List<CodeSymbolView>> OutlineAsync(string projectPath, string path, CancellationToken ct = default)
             => SymbolsWhereAsync(GraphsOf(projectPath), $"?s code:path {Lit(path)} .", "ORDER BY ?ls ?kind", ct);
 
+        /// <summary>A che cosa serve un file (la sua code:FileDescription, scritta dall'LLM); null se non è ancora descritto.</summary>
+        public async Task<string> FileSummaryAsync(string projectPath, string path, CancellationToken ct = default)
+            => (await FileSummariesWhereAsync(GraphsOf(projectPath), $"FILTER(?p = {Lit(path)})", ct)).Values.FirstOrDefault();
+
+        /// <summary>Le code:FileDescription dei file il cui percorso passa il filtro (su ?p), per percorso.</summary>
+        private async Task<Dictionary<string, string>> FileSummariesWhereAsync(ProjectGraphs g, string pathFilter, CancellationToken ct)
+        {
+            var map = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var r in await RowsAsync(
+                $"SELECT ?p ?sum WHERE {{ GRAPH {g.DataIri} {{ ?f a code:File ; code:path ?p . {pathFilter} " +
+                "?d a code:FileDescription ; code:describes ?f ; code:summary ?sum } }", ct))
+                map[Str(r, "p")] = Str(r, "sum");
+            return map;
+        }
+
         // ------------------------------------------------------------------ vicini, impatto, cammino
 
         private sealed class EdgeRow
@@ -235,12 +250,13 @@ namespace MdExplorer.Features.Services.CodeGraph
             var g = GraphsOf(projectPath);
             var o = new CodeOverview();
             var counts = (await RowsAsync(
-                $"SELECT (COUNT(DISTINCT ?f) AS ?files) (COUNT(DISTINCT ?sym) AS ?symbols) (COUNT(DISTINCT ?ext) AS ?externals) (COUNT(DISTINCT ?e) AS ?edges) (COUNT(DISTINCT ?d) AS ?described) WHERE {{ GRAPH {g.DataIri} {{ " +
-                "{ ?f a code:File } UNION { ?sym a code:Symbol ; code:kind ?k . FILTER(?k != \"external\") } UNION { ?ext a code:Symbol ; code:kind \"external\" } UNION { ?e a code:Edge } UNION { ?d a code:Description } } }", ct)).FirstOrDefault();
+                $"SELECT (COUNT(DISTINCT ?f) AS ?files) (COUNT(DISTINCT ?sym) AS ?symbols) (COUNT(DISTINCT ?ext) AS ?externals) (COUNT(DISTINCT ?e) AS ?edges) (COUNT(DISTINCT ?d) AS ?described) (COUNT(DISTINCT ?fd) AS ?describedFiles) WHERE {{ GRAPH {g.DataIri} {{ " +
+                "{ ?f a code:File } UNION { ?sym a code:Symbol ; code:kind ?k . FILTER(?k != \"external\") } UNION { ?ext a code:Symbol ; code:kind \"external\" } UNION { ?e a code:Edge } UNION { ?d a code:Description } UNION { ?fd a code:FileDescription } } }", ct)).FirstOrDefault();
             if (counts != null)
             {
                 o.Files = Count(counts, "files"); o.Symbols = Count(counts, "symbols"); o.ExternalSymbols = Count(counts, "externals");
                 o.Edges = Count(counts, "edges"); o.DescribedSymbols = Count(counts, "described");
+                o.DescribedFiles = Count(counts, "describedFiles");
             }
             foreach (var r in await RowsAsync($"SELECT ?lang (COUNT(?s) AS ?n) WHERE {{ GRAPH {g.DataIri} {{ ?s a code:Symbol ; code:kind ?k ; code:language ?lang . FILTER(?k != \"external\") }} }} GROUP BY ?lang", ct))
                 o.SymbolsByLanguage[Str(r, "lang") ?? "?"] = Count(r, "n");
@@ -256,8 +272,10 @@ namespace MdExplorer.Features.Services.CodeGraph
             foreach (var r in degrees)
                 if (symbols.TryGetValue(SymbolId(r["s"]), out var s)) o.MostConnected.Add((s, Count(r, "n")));
 
-            foreach (var r in await RowsAsync($"SELECT ?p ?n WHERE {{ GRAPH {g.DataIri} {{ ?f a code:File ; code:path ?p ; code:symbolCount ?n }} }} ORDER BY DESC(?n) LIMIT 10", ct))
-                o.LargestFiles.Add((Str(r, "p"), Count(r, "n")));
+            foreach (var r in await RowsAsync(
+                $"SELECT ?p ?n ?sum WHERE {{ GRAPH {g.DataIri} {{ ?f a code:File ; code:path ?p ; code:symbolCount ?n . " +
+                "OPTIONAL { ?d a code:FileDescription ; code:describes ?f ; code:summary ?sum } } } ORDER BY DESC(?n) LIMIT 10", ct))
+                o.LargestFiles.Add((Str(r, "p"), Count(r, "n"), Str(r, "sum")));
             return o;
         }
 
@@ -318,10 +336,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 input.Edges.Add(new CodeGraphViewInput.EdgeInput { Source = SymbolId(r["a"]), Target = SymbolId(r["b"]), Relation = Str(r, "rel"), Confidence = Str(r, "conf"), TargetKind = Str(r, "tk"), TargetName = Str(r, "tn"), TargetQualifiedName = Str(r, "tq") });
 
             // a che cosa serve ogni file (code:FileDescription, scritta dall'LLM): l'accordion del box, anche a file chiuso
-            foreach (var r in await RowsAsync(
-                $"SELECT ?p ?sum WHERE {{ GRAPH {g.DataIri} {{ ?f a code:File ; code:path ?p . FILTER(STRSTARTS(?p, {prefixLit})) " +
-                "?d a code:FileDescription ; code:describes ?f ; code:summary ?sum } }", ct))
-                input.FileSummaries[Str(r, "p")] = Str(r, "sum");
+            foreach (var kv in await FileSummariesWhereAsync(g, $"FILTER(STRSTARTS(?p, {prefixLit}))", ct))
+                input.FileSummaries[kv.Key] = kv.Value;
 
             var known = new HashSet<string>(input.Files.Select(f => f.Path), StringComparer.Ordinal);
             input.Expanded.UnionWith((expandedFiles ?? Array.Empty<string>()).Where(known.Contains));

@@ -335,14 +335,19 @@ namespace MdExplorer.Controllers.CodeGraph
             return s == null ? NotFound(new { error = $"simbolo '{id}' non trovato" }) : Ok(View(s, await LocatorAsync(projectPath, ct)));
         });
 
-        /// <summary>GET /api/codegraph/outline?projectPath&amp;path — i simboli di un file, in ordine di riga.</summary>
+        /// <summary>
+        /// GET /api/codegraph/outline?projectPath&amp;path — a che cosa serve il file (<c>summary</c>, la sua code:FileDescription,
+        /// null se non è ancora descritto) e i suoi simboli in ordine di riga.
+        /// </summary>
         [HttpGet("outline")]
         public Task<IActionResult> Outline([FromQuery] string projectPath, [FromQuery] string path, CancellationToken ct = default) => Guarded(async () =>
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(path)) return BadRequest(new { error = "path è obbligatorio (relativo al progetto, con /)" });
+            var logical = path.Replace('\\', '/').TrimStart('/');
             var at = await LocatorAsync(projectPath, ct);
-            return Ok((await _store.OutlineAsync(projectPath, path.Replace('\\', '/').TrimStart('/'), ct)).Select(x => View(x, at)));
+            var symbols = await _store.OutlineAsync(projectPath, logical, ct);
+            return Ok(new { path = logical, summary = await _store.FileSummaryAsync(projectPath, logical, ct), symbols = symbols.Select(x => View(x, at)) });
         });
 
         /// <summary>GET /api/codegraph/neighbors?projectPath&amp;id&amp;relation&amp;direction=out|in&amp;depth=1&amp;limit=50</summary>
@@ -386,9 +391,9 @@ namespace MdExplorer.Controllers.CodeGraph
             var at = await LocatorAsync(projectPath, ct);
             return Ok(new
             {
-                o.Files, o.Symbols, o.ExternalSymbols, o.Edges, o.DescribedSymbols, o.SymbolsByLanguage, o.SymbolsByKind, o.EdgesByRelation,
+                o.Files, o.Symbols, o.ExternalSymbols, o.Edges, o.DescribedSymbols, o.DescribedFiles, o.SymbolsByLanguage, o.SymbolsByKind, o.EdgesByRelation,
                 mostConnected = o.MostConnected.Select(m => new { degree = m.Degree, symbol = View(m.Symbol, at) }),
-                largestFiles = o.LargestFiles.Select(f => new { path = f.Path, symbols = f.Symbols }),
+                largestFiles = o.LargestFiles.Select(f => new { path = f.Path, symbols = f.Symbols, summary = f.Summary }),
             });
         });
 

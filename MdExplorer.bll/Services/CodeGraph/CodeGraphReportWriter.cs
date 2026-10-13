@@ -42,7 +42,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             sb.AppendLine("## TL;DR");
             sb.AppendLine($"Il grafo del codice di questo progetto ha {o.Files} file, {o.Symbols} simboli e {o.Edges} archi, generato da MdExplorer il {DateTime.Now:dd/MM/yyyy HH:mm}. Questo report è rigenerato a ogni analisi e a ogni giro di descrizioni: dice che cosa c'è e che cosa manca.");
             sb.AppendLine();
-            sb.AppendLine($"- {o.DescribedSymbols} simboli descritti, {undescribed} ancora senza descrizione, {stale.Count} descrizioni da rivedere (firma cambiata).");
+            sb.AppendLine($"- {o.DescribedSymbols} simboli descritti e {o.DescribedFiles} file su {o.Files} con la loro utilità, {undescribed} ancora senza descrizione, {stale.Count} descrizioni da rivedere (firma cambiata).");
             sb.AppendLine($"- {ambiguous} archi ambigui e {inferred} inferiti: le chiamate che l'analisi ha risolto per nome, non con certezza.");
             sb.AppendLine($"- Il simbolo più connesso è {(o.MostConnected.Count > 0 ? "`" + o.MostConnected[0].Symbol.QualifiedName + "`" : "nessuno")}; il file più grosso è {(o.LargestFiles.Count > 0 ? "`" + o.LargestFiles[0].Path + "`" : "nessuno")}.");
             sb.AppendLine();
@@ -64,9 +64,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             sb.AppendLine();
             sb.AppendLine("## I file più grossi");
             sb.AppendLine();
-            sb.AppendLine("| File | Simboli |");
-            sb.AppendLine("|---|---|");
-            foreach (var (filePath, n) in o.LargestFiles) sb.AppendLine($"| {filePath} | {n} |");
+            sb.AppendLine("| File | Simboli | A che cosa serve |");
+            sb.AppendLine("|---|---|---|");
+            foreach (var (filePath, n, summary) in o.LargestFiles) sb.AppendLine($"| {filePath} | {n} | {(summary ?? "—").Replace("|", "\\|").Replace('\n', ' ')} |");
             sb.AppendLine();
             sb.AppendLine("## Senza descrizione");
             sb.AppendLine();

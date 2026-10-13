@@ -241,6 +241,11 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual(0, outcome.Failed, outcome.FirstError);
             var file = (await _store.BuildViewAsync(_project, "src", null, null, null, null)).Nodes.Single(n => n.Kind == "file");
             Assert.AreEqual("Importa i file in Neo4j per il motore di ricerca.", file.Summary, "il box del file la legge da Fuseki");
+            Assert.AreEqual("Importa i file in Neo4j per il motore di ricerca.", await _store.FileSummaryAsync(_project, file.Path), "code_outline la restituisce");
+            Assert.IsNull(await _store.FileSummaryAsync(_project, file.Path + ".bak"), "solo il file esatto");
+            var overview = await _store.OverviewAsync(_project);
+            Assert.AreEqual(1, overview.DescribedFiles);
+            Assert.AreEqual("Importa i file in Neo4j per il motore di ricerca.", overview.LargestFiles.Single(f => f.Path == file.Path).Summary, "code_overview la mostra accanto al file");
 
             File.WriteAllText(AstPath, Ttl(AstHeader.Replace("\"sourceHash\":\"abc\"", "\"sourceHash\":\"v2\"") + "\n" + AstBody));
             Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Failed);

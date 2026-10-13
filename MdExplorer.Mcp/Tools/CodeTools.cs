@@ -81,8 +81,9 @@ public sealed class CodeTools : McpToolsBase
     }
 
     [McpServerTool, Description(
-        "Outline of one source file: every symbol declared in it (classes, members, functions) in line order, with kind, signature, " +
-        "parentId (to rebuild the tree) and description. Cheaper than reading the file when you only need its shape.")]
+        "Outline of one source file: `summary` = what the file is for (1-2 sentences written when the code was described; null if not described yet), " +
+        "then `symbols` = every symbol declared in it (classes, members, functions) in line order, with kind, signature, " +
+        "parentId (to rebuild the tree) and description. Cheaper than reading the file when you only need its purpose and shape.")]
     public async Task<string> code_outline(
         [Description("Project name.")] string project,
         [Description("The file's logical path, with '/': relative to the project root (e.g. 'MdExplorer.bll/Services/X.cs') or, for code checked out outside the project, '@alias/…' (e.g. '@backend/Api/Foo.cs'). The `path` field of any code_* result works as is.")] string path)
@@ -147,8 +148,8 @@ public sealed class CodeTools : McpToolsBase
     }
 
     [McpServerTool, Description(
-        "Overview of the project's code graph: files, symbols by language and kind, edges by relation, how many symbols have a " +
-        "description, the most connected symbols (the 'god nodes') and the largest files. Start here to get the shape of an unknown codebase.")]
+        "Overview of the project's code graph: files, symbols by language and kind, edges by relation, how many symbols and files have a " +
+        "description, the most connected symbols (the 'god nodes') and the largest files with what each is for (`summary`). Start here to get the shape of an unknown codebase.")]
     public async Task<string> code_overview(
         [Description("Project name.")] string project)
     {

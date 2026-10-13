@@ -38,6 +38,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         Task<List<CodeSymbolView>> ResolveAsync(string projectPath, string idOrName, int limit = 10, CancellationToken ct = default);
         Task<CodeSymbolView> DescribeAsync(string projectPath, string symbolId, CancellationToken ct = default);
         Task<List<CodeSymbolView>> OutlineAsync(string projectPath, string path, CancellationToken ct = default);
+        /// <summary>A che cosa serve il file (code:FileDescription); null se non è ancora descritto.</summary>
+        Task<string> FileSummaryAsync(string projectPath, string path, CancellationToken ct = default);
         Task<List<CodeEdgeView>> NeighborsAsync(string projectPath, string symbolId, string relation, string direction, int depth, int limit, CancellationToken ct = default);
         Task<List<CodeEdgeView>> ImpactAsync(string projectPath, string symbolId, int depth, int limit, CancellationToken ct = default);
         Task<List<CodeEdgeView>> ShortestPathAsync(string projectPath, string fromId, string toId, CancellationToken ct = default);
