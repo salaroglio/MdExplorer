@@ -48,7 +48,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             Assert.AreEqual("Quante righe leggere.", doc.ParameterDocs.Single(p => p.SymbolId == "f1" && p.ParameterName == "n").Description);
             Assert.AreEqual("La classe.", doc.SymbolDocs.Single(d => d.SymbolId == "c1").Summary, "gli altri simboli restano");
             Assert.AreEqual("Il file.", doc.FileDoc.Summary, "la descrizione del file resta");
-            Assert.IsFalse(doc.ParameterDocs.Any(p => p.SymbolId == "zz"), "le descrizioni di simboli spariti si tolgono, come in «Descrivi»");
+            Assert.IsFalse(doc.ParameterDocs.Any(p => p.SymbolId == "zz"), "le descrizioni di simboli spariti si tolgono, come in «Analizza il codice con Mark»");
             Assert.AreEqual("code_set_description", doc.Header.WrittenBy);
             Assert.AreEqual("src/Foo.cs", doc.Header.Source);
         }
@@ -73,7 +73,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var ast = Ast();
             var doc = CodeDocEditor.EditSymbol(ast, Existing(ast, "firma-vecchia"), "f1", "Nuovo testo.", null, null, null, "w");
             Assert.AreEqual(Hash(ast, "f1"), doc.SymbolDocs.Single(d => d.SymbolId == "f1").SignatureHash);
-            Assert.AreEqual(0, CodeDocPlanner.Select(ast, doc, force: false).Count(c => c.Symbol.Id == "f1"), "«Descrivi» non la rifà");
+            Assert.AreEqual(0, CodeDocPlanner.Select(ast, doc, force: false).Count(c => c.Symbol.Id == "f1"), "«Analizza il codice con Mark» non la rifà");
         }
 
         [TestMethod]

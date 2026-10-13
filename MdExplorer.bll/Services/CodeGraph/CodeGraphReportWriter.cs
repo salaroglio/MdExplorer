@@ -73,7 +73,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (undescribed == 0) sb.AppendLine("Tutti i simboli hanno una descrizione.");
             else
             {
-                sb.AppendLine($"{undescribed} simboli. «Descrivi il codice con Mark» nella finestra Ambiente di sviluppo li completa. I primi {undescribedList.Count}:");
+                sb.AppendLine($"{undescribed} simboli. «Analizza il codice con Mark» nella finestra Ambiente di sviluppo li completa. I primi {undescribedList.Count}:");
                 sb.AppendLine();
                 foreach (var r in undescribedList) sb.AppendLine($"- {r[0]} `{r[1]}` — {r[2]}:{r[3]}");
             }

@@ -64,7 +64,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             input.FileSummaries[Main] = "Avvia l'importazione notturna.";
             var m = CodeGraphViewData.Build(input);
             Assert.AreEqual("Avvia l'importazione notturna.", Node(m, "file:" + Main).Summary, "l'accordion del file mostra la descrizione anche a file chiuso");
-            Assert.IsNull(Node(m, "file:" + Lib).Summary, "non ancora descritto: l'accordion offre «Descrivi il file con Mark»");
+            Assert.IsNull(Node(m, "file:" + Lib).Summary, "non ancora descritto: l'accordion offre «Analizza il file con Mark»");
         }
 
         [TestMethod]

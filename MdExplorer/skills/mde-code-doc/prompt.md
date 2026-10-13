@@ -1,8 +1,8 @@
 ---
-description: "Prompt usato dall'azione «Descrivi il codice» del grafo del codice: per ogni simbolo di un file sorgente scrive la descrizione funzionale, quella di ogni parametro di ingresso e quella del valore di uscita."
+description: "Prompt usato dall'azione «Analizza il codice con Mark» del grafo del codice: per ogni simbolo di un file sorgente scrive la descrizione funzionale, quella di ogni parametro di ingresso e quella del valore di uscita."
 mde:
   origin: mdexplorer
-  version: 4
+  version: 5
   updatePolicy: replace
 ---
 

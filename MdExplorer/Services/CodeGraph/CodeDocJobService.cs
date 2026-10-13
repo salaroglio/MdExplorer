@@ -106,7 +106,7 @@ namespace MdExplorer.Services.CodeGraph
         {
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             if (!_running.TryAdd(connectionId, cts))
-                throw new InvalidOperationException("Una descrizione del codice è già in corso per questa finestra: aspetta che finisca o annullala.");
+                throw new InvalidOperationException("Un'analisi del codice con Mark è già in corso per questa finestra: aspetta che finisca o annullala.");
             await Task.Yield();
             var token = cts.Token;
             var described = 0; var files = 0; var rejectedTotal = 0;
@@ -350,7 +350,7 @@ namespace MdExplorer.Services.CodeGraph
             // uno script illeggibile non si riscrive alla cieca: si perderebbero le altre descrizioni
             CodeScript existing;
             try { existing = CodeDocPlanner.ReadScriptOrNull(docPath, CodeGraphPaths.ToProjectRelative(edit.ProjectPath, docPath)); }
-            catch (CodeScriptFormatException ex) { outcome.Error = "lo script delle descrizioni non si legge, correggilo o rigeneralo con «Descrivi»: " + ex.Message; return outcome; }
+            catch (CodeScriptFormatException ex) { outcome.Error = "lo script delle descrizioni non si legge, correggilo o rigeneralo con «Analizza il codice con Mark»: " + ex.Message; return outcome; }
 
             var writtenBy = string.IsNullOrWhiteSpace(edit.WrittenBy) ? "code_set_description" : edit.WrittenBy.Trim();
             CodeScript doc;

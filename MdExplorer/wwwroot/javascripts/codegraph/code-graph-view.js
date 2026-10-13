@@ -12,8 +12,8 @@
  *   la scheda di chi li chiama li nomina.
  * - Tasto destro, MarkAgent (D27): «Chiedi a MarkAgent» manda `mde-mark.askAboutSymbol` al genitore (Angular,
  *   MarkDiagramService: la domanda va nella sessione del tab MarkAgent, la risposta nella finestra di Mark);
- *   «Descrivi con Mark» chiede POST /api/codegraph/describe-symbol per quel solo simbolo e aggiorna la scheda.
- * - Tasto destro su un FILE (12/10): MarkAgent spiega il file e i suoi legami; «Descrivi il file con Mark» scrive a che
+ *   «Analizza con Mark» chiede POST /api/codegraph/describe-symbol per quel solo simbolo e aggiorna la scheda.
+ * - Tasto destro su un FILE (12/10): MarkAgent spiega il file e i suoi legami; «Analizza il file con Mark» scrive a che
  *   cosa serve il file (code:FileDescription, POST /api/codegraph/describe-file). Tasto destro su un ARCO: MarkAgent
  *   spiega che cosa vuol dire quel legame (quali punti, se certo o dedotto) — le sigle extracted/inferred non dicevano niente.
  * - ACCORDION dei file (12/10): il «▸» a sinistra del box apre sotto il file a che cosa serve, in breve (la sua
@@ -259,7 +259,7 @@
     // ---- accordion dei file
 
     function descriptionText(n) {
-        return n.summary || 'Nessuna descrizione ancora. Tasto destro sul file → «Descrivi il file con Mark», oppure «Descrivi» sulla cartella.';
+        return n.summary || 'Nessuna descrizione ancora. Tasto destro sul file → «Analizza il file con Mark», oppure «Analizza il codice con Mark» sulla cartella.';
     }
 
     /** Il testo spezzato in righe larghe al massimo DESC_WIDTH (unità del grafo: il riquadro scala con lo zoom come le righe). */
@@ -344,13 +344,13 @@
         const items = [];
         if (n.kind === 'file') {
             items.push(['ask', 'Chiedi a MarkAgent di spiegare «' + n.name + '» e i suoi legami', () => askMarkAgentAboutFile(n)]);
-            items.push(['describe', n.summary ? 'Riscrivi la descrizione del file con Mark' : 'Descrivi il file con Mark', () => describeFile(n)]);
+            items.push(['describe', n.summary ? 'Rifai l\'analisi del file con Mark' : 'Analizza il file con Mark', () => describeFile(n)]);
             items.push(['desc', descOpen.has(n.path) ? 'Chiudi l\'utilità del file' : 'Mostra l\'utilità del file', () => toggleDesc(n)]);
             items.push(['toggle', n.expanded ? 'Chiudi i simboli' : 'Mostra i simboli', () => toggle(n)]);
             items.push(['open', 'Apri il file', () => openSource(n)]);
         } else {
             items.push(['ask', 'Chiedi a MarkAgent di «' + n.name + '»', () => askMarkAgent(n)]);
-            if (n.kind !== 'module') items.push(['describe', n.summary ? 'Riscrivi la descrizione con Mark' : 'Descrivi con Mark', () => describeSymbol(n)]);
+            if (n.kind !== 'module') items.push(['describe', n.summary ? 'Rifai l\'analisi con Mark' : 'Analizza con Mark', () => describeSymbol(n)]);
             items.push(['hide', 'Nascondi «' + n.name + '» dal grafo', () => { hidden.set(n.id, n.name); saveHidden(); if (selected && selected.id === n.id) select(null); load(); }]);
             if (hasToggle(n)) items.push(['toggle', n.expanded ? 'Chiudi le chiamate' : 'Segui le chiamate (' + n.hidden + ')', () => toggle(n)]);
             items.push(['open', 'Apri il sorgente', () => openSource(n)]);
@@ -461,12 +461,12 @@
         }, '*');
     }
 
-    /** «Descrivi il file con Mark»: a che cosa serve il file (code:FileDescription); poi l'accordion si apre e la mostra. */
+    /** «Analizza il file con Mark»: a che cosa serve il file (code:FileDescription); poi l'accordion si apre e la mostra. */
     function describeFile(n) {
         return describeOn(n, '/api/codegraph/describe-file', { projectPath, path: n.path }, () => { descOpen.add(n.path); saveDescInUrl(); });
     }
 
-    /** «Descrivi con Mark» su un simbolo: si aspetta la fine, poi la scheda e il grafo mostrano la descrizione nuova. */
+    /** «Analizza con Mark» su un simbolo: si aspetta la fine, poi la scheda e il grafo mostrano la descrizione nuova. */
     function describeSymbol(n) { return describeOn(n, '/api/codegraph/describe-symbol', { projectPath, symbolId: n.id }); }
 
     async function describeOn(n, endpoint, body, onDone) {
@@ -474,19 +474,19 @@
         const card = document.getElementById('cg-card');
         const note = document.createElement('p');
         note.className = 'cg-muted';
-        note.textContent = 'Mark sta descrivendo «' + n.name + '»… (può volerci un minuto)';
+        note.textContent = 'Mark sta analizzando «' + n.name + '»… (può volerci un minuto)';
         card.appendChild(note);
         const btn = document.getElementById('cg-describe'); if (btn) btn.disabled = true;
         try {
             const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
             const answer = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(answer.error || ('Errore ' + res.status));
-            note.textContent = 'Descritto da ' + (answer.engine || 'Mark') + (answer.rejected ? ' (' + answer.rejected + ' righe della risposta scartate)' : '') + '.';
+            note.textContent = 'Analizzato da ' + (answer.engine || 'Mark') + (answer.rejected ? ' (' + answer.rejected + ' righe della risposta scartate)' : '') + '.';
             if (onDone) onDone();
             await load();   // la scheda si ricostruisce sul nodo aggiornato, con la descrizione
         } catch (e) {
             note.className = 'cg-warn';
-            note.textContent = 'Descrizione non riuscita: ' + e.message;
+            note.textContent = 'Analisi non riuscita: ' + e.message;
             if (btn) btn.disabled = false;
         }
     }
@@ -532,9 +532,9 @@
         let html = '<div class="cg-kind">' + esc(n.kind) + '</div><h3>' + esc(n.qualifiedName || n.name) + '</h3>';
         if (n.signature) html += '<code class="cg-sig">' + esc(n.signature) + '</code>';
         if (n.summary) html += '<p class="cg-summary">' + esc(n.summary) + '</p>';
-        else if (n.kind === 'file') html += '<p class="cg-muted">Il file non ha ancora una descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Descrivi il file con Mark</button></p>';
+        else if (n.kind === 'file') html += '<p class="cg-muted">Il file non ha ancora una descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Analizza il file con Mark</button></p>';
         else if (n.kind === 'module') html += '<p class="cg-muted">Lo script stesso: il codice fuori dalle funzioni, quello che gira quando lo si lancia. A che cosa serve lo dice la descrizione del file (tasto destro sul file).</p>';
-        else if (n.kind !== 'file' && !n.external) html += '<p class="cg-muted">Nessuna descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Descrivi con Mark</button></p>';
+        else if (n.kind !== 'file' && !n.external) html += '<p class="cg-muted">Nessuna descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Analizza con Mark</button></p>';
         if (n.uncalled) html += '<p class="cg-warn">Nessun simbolo del perimetro la chiama: è codice morto, oppure un punto d\'ingresso (chiamata da fuori, da un evento, per riflessione).</p>';
         if (n.path) html += '<div class="cg-path">' + esc(n.path) + (n.line ? ':' + n.line : '') + '</div>';
         if (n.kind !== 'file' && !n.external) html += '<button id="cg-open" class="cg-btn">Apri il sorgente</button> ';
