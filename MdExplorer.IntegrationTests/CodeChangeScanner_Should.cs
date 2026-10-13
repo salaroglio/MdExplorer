@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -34,7 +34,7 @@ namespace MdExplorer.IntegrationTests
             File.WriteAllText(Path.Combine(_src, "bin", "Gen.cs"), "class Gen {}");   // ignorato da .gitignore
             File.WriteAllText(Path.Combine(_project, ".gitignore"), "bin/\n");
             _git = new NativeGitRunner(NullLogger<NativeGitRunner>.Instance);
-            _scanner = new CodeChangeScanner(_git, NullLogger<CodeChangeScanner>.Instance);
+            _scanner = new CodeChangeScanner(_git, NullLogger<CodeChangeScanner>.Instance, new MdExplorer.Features.Services.FixedUiLanguage("it"));
         }
 
         [TestCleanup]

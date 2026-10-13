@@ -32,7 +32,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var ast = Ast();
             var script = CodeDocPlanner.Select(ast, null, force: false).Single(c => c.Symbol.Id == "m1");
             Assert.IsTrue(script.ParametersOnly);
-            StringAssert.Contains(CodeDocPlanner.BuildPrompt("SKILL", "program/cobol.ps1", "param($Path)", new[] { script }), "\"onlyParameters\":true");
+            StringAssert.Contains(CodeDocPlanner.BuildPrompt("SKILL", "program/cobol.ps1", "param($Path)", new[] { script }, "it"), "\"onlyParameters\":true");
 
             var doc = new CodeScript { Header = new CodeScriptHeader { Schema = 2, Kind = CodeScriptKind.Doc, Source = "program/cobol.ps1" } };
             doc.ParameterDocs.Add(new ScriptParameterDoc { SymbolId = "m1", ParameterName = "Path", Description = "Il programma COBOL." });

@@ -87,13 +87,16 @@ namespace MdExplorer.Services.CodeGraph
         private readonly ICodeGraphStore _store;
         private readonly CodeGraphReportWriter _report;
         private readonly ILogger<CodeDocJobService> _logger;
+        private readonly MdExplorer.Features.Services.IUiLanguage _language;
         private readonly ICodeRootService _roots;
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
 
         public CodeDocJobService(IServiceScopeFactory scopeFactory, IHubContext<MonitorMDHub> hub,
-            MdExplorer.Services.LlmSessions.OneShotReadOnlySession llm, ICodeGraphStore store, CodeGraphReportWriter report, ICodeRootService roots, ILogger<CodeDocJobService> logger)
+            MdExplorer.Services.LlmSessions.OneShotReadOnlySession llm, ICodeGraphStore store, CodeGraphReportWriter report, ICodeRootService roots,
+            MdExplorer.Features.Services.IUiLanguage language, ILogger<CodeDocJobService> logger)
         {
             _roots = roots;
+            _language = language;
             _scopeFactory = scopeFactory; _hub = hub; _llm = llm; _store = store; _report = report; _logger = logger;
         }
 
@@ -220,7 +223,7 @@ namespace MdExplorer.Services.CodeGraph
                 // la descrizione del file si chiede una volta, nella prima domanda
                 var askThis = askFile && !fileAsked;
                 fileAsked |= askThis;
-                var prompt = CodeDocPlanner.BuildPrompt(skillBody, ast.Header.Source, text, batch, askThis);
+                var prompt = CodeDocPlanner.BuildPrompt(skillBody, ast.Header.Source, text, batch, _language.Current, askThis);
                 string answer;
                 try
                 {

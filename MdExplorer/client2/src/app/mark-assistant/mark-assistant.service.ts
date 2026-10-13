@@ -977,13 +977,13 @@ export class MarkAssistantService {
    */
   private searchFooter(evt: any): string {
     if (!Array.isArray(evt.keywords)) return '';
-    if (evt.keywords.length === 0) return '\n\n---\n*Nessuna ricerca nel progetto: MarkAgent non ha indicato parole da cercare.*';
+    if (evt.keywords.length === 0) return `\n\n---\n*${this.translate.instant('MARK.DIAGRAM.SEARCH_NONE')}*`;
     const words = evt.keywords.map((k: string) => `«${k}»`).join(', ');
     const sources: string[] = Array.isArray(evt.sources) ? evt.sources : [];
     const found = sources.length
-      ? `documenti: ${sources.map(s => '`' + s + '`').join(', ')}`
-      : 'nessun documento trovato';
-    return `\n\n---\n*Cercato nel progetto: ${words} — ${found}.*`;
+      ? this.translate.instant('MARK.DIAGRAM.SEARCH_SOURCES', { list: sources.map(s => '`' + s + '`').join(', ') })
+      : this.translate.instant('MARK.DIAGRAM.SEARCH_NO_DOCUMENTS');
+    return `\n\n---\n*${this.translate.instant('MARK.DIAGRAM.SEARCH_DONE', { words, found })}*`;
   }
 
   /** Svuota il fumetto dopo qualche secondo dalla risposta. */

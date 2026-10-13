@@ -1586,7 +1586,11 @@
       "DISCARD": "Lascia stare",
       "DISCARDED": "Va bene, non ho toccato nulla.",
       "NEW_CONVERSATION": "Nuova conversazione",
-      "NEW_CONVERSATION_DONE": "Ricominciamo da capo: la prossima domanda su questo documento parte da zero."
+      "NEW_CONVERSATION_DONE": "Ricominciamo da capo: la prossima domanda su questo documento parte da zero.",
+      "SEARCH_NONE": "Nessuna ricerca nel progetto: MarkAgent non ha indicato parole da cercare.",
+      "SEARCH_DONE": "Cercato nel progetto: {{words}} — {{found}}.",
+      "SEARCH_SOURCES": "documenti: {{list}}",
+      "SEARCH_NO_DOCUMENTS": "nessun documento trovato"
     },
     "CODE": {
       "NO_LINKS": "nessuno fra i file disegnati",

@@ -1586,7 +1586,11 @@
       "DISCARD": "Leave it",
       "DISCARDED": "All right, I changed nothing.",
       "NEW_CONVERSATION": "New conversation",
-      "NEW_CONVERSATION_DONE": "Starting over: the next question on this document starts from scratch."
+      "NEW_CONVERSATION_DONE": "Starting over: the next question on this document starts from scratch.",
+      "SEARCH_NONE": "No search in the project: MarkAgent gave no words to search for.",
+      "SEARCH_DONE": "Searched in the project: {{words}} — {{found}}.",
+      "SEARCH_SOURCES": "documents: {{list}}",
+      "SEARCH_NO_DOCUMENTS": "no documents found"
     },
     "CODE": {
       "NO_LINKS": "none among the files drawn",

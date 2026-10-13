@@ -120,9 +120,19 @@ namespace MdExplorer.Features.Services.CodeGraph
             return list;
         }
 
-        /// <summary>Il prompt: la skill, il sorgente, i simboli da descrivere (JSON Lines) e il formato della risposta.</summary>
-        public static string BuildPrompt(string skillBody, string sourceRelativePath, string sourceText, IReadOnlyList<CodeDocCandidate> candidates, bool askFile = false)
+        /// <summary>
+        /// Il prompt: la skill, il sorgente, i simboli da descrivere (JSON Lines), la lingua e il formato della risposta. La
+        /// lingua la decide chi chiama (quella dell'interfaccia): «la lingua dei commenti» lasciata al modello dava descrizioni
+        /// in italiano su codice commentato in inglese.
+        /// </summary>
+        public static string BuildPrompt(string skillBody, string sourceRelativePath, string sourceText, IReadOnlyList<CodeDocCandidate> candidates, string language, bool askFile = false)
         {
+            var languageName = language switch
+            {
+                "it" => "italiano",
+                "en" => "inglese (English)",
+                _ => throw new ArgumentException($"Lingua delle descrizioni '{language}' non prevista: it oppure en.", nameof(language)),
+            };
             if (sourceText.Length > MaxSourceChars) sourceText = sourceText.Substring(0, MaxSourceChars) + "\n/* … troncato … */";
             var sb = new StringBuilder();
             sb.Append(skillBody.Trim()).Append("\n\n");
@@ -139,6 +149,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                     parameters = c.Parameters.Select(p => new { name = p.Name, type = p.ParameterType, direction = p.Direction, defaultValue = p.DefaultValue }),
                 }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping })).Append('\n');
             }
+            sb.Append("\n---- LINGUA ----\nScrivi summary, returnsDescription, remarks, description dei parametri e la descrizione del file in ").Append(languageName).Append(".\n");
             sb.Append("\n---- RISPOSTA ----\n");
             return sb.ToString();
         }

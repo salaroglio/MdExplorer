@@ -10901,11 +10901,16 @@ class MarkAssistantService {
    */
   searchFooter(evt) {
     if (!Array.isArray(evt.keywords)) return '';
-    if (evt.keywords.length === 0) return '\n\n---\n*Nessuna ricerca nel progetto: MarkAgent non ha indicato parole da cercare.*';
+    if (evt.keywords.length === 0) return `\n\n---\n*${this.translate.instant('MARK.DIAGRAM.SEARCH_NONE')}*`;
     const words = evt.keywords.map(k => `«${k}»`).join(', ');
     const sources = Array.isArray(evt.sources) ? evt.sources : [];
-    const found = sources.length ? `documenti: ${sources.map(s => '`' + s + '`').join(', ')}` : 'nessun documento trovato';
-    return `\n\n---\n*Cercato nel progetto: ${words} — ${found}.*`;
+    const found = sources.length ? this.translate.instant('MARK.DIAGRAM.SEARCH_SOURCES', {
+      list: sources.map(s => '`' + s + '`').join(', ')
+    }) : this.translate.instant('MARK.DIAGRAM.SEARCH_NO_DOCUMENTS');
+    return `\n\n---\n*${this.translate.instant('MARK.DIAGRAM.SEARCH_DONE', {
+      words,
+      found
+    })}*`;
   }
   /** Svuota il fumetto dopo qualche secondo dalla risposta. */
   fadeThinkingAway() {
@@ -18649,8 +18654,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.13.1',
-  buildTime: '2026.10.13 10:22:44'
+  version: '2026.10.13.2',
+  buildTime: '2026.10.13 14:55:21'
 };
 
 /***/ }),
@@ -18684,4 +18689,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.df59a3650645968d.js.map
+//# sourceMappingURL=main.e833ef65a1235d0c.js.map

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -24,18 +24,21 @@ namespace MdExplorer.Controllers.CodeGraph
         private readonly MdExplorer.Services.CodeGraph.ICodeAnalysisService _analysis;
         private readonly MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore _grammars;
         private readonly MdExplorer.Features.Services.CodeGraph.Grammars.IGrammarDownloader _grammarDownloader;
+        private readonly MdExplorer.Features.Services.IUiLanguage _language;
         private readonly ILogger<CodeGraphController> _logger;
 
         public CodeGraphController(ICodeGraphStore store,
             MdExplorer.Services.CodeGraph.ICodeAnalysisService analysis,
             MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore grammars,
             MdExplorer.Features.Services.CodeGraph.Grammars.IGrammarDownloader grammarDownloader,
+            MdExplorer.Features.Services.IUiLanguage language,
             ILogger<CodeGraphController> logger)
         {
             _store = store;
             _analysis = analysis;
             _grammars = grammars;
             _grammarDownloader = grammarDownloader;
+            _language = language;
             _logger = logger;
         }
 
@@ -436,15 +439,18 @@ namespace MdExplorer.Controllers.CodeGraph
 
         /// <summary>
         /// GET /api/codegraph/view?projectPath&amp;folder&amp;symbol&amp;theme — la pagina HTML che il visualizzatore carica nell'iframe
-        /// (D17): il disegno vive in wwwroot/javascripts/codegraph, come ogni JS del contenuto.
+        /// (D17): il disegno vive in wwwroot/javascripts/codegraph, come ogni JS del contenuto. La lingua dell'interfaccia va
+        /// in &lt;html lang&gt;: lo script ne prende i testi (it, en).
         /// </summary>
         [HttpGet("view")]
         public IActionResult View([FromQuery] string projectPath, [FromQuery] string folder = "", [FromQuery] string symbol = null, [FromQuery] string theme = "light")
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             var isDark = string.Equals(theme, "dark", StringComparison.OrdinalIgnoreCase);
-            var title = System.Net.WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(folder) ? "Grafo del codice" : "Grafo del codice · " + folder.Replace('\\', '/').Trim('/'));
-            var html = "<!doctype html><html lang=\"it\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
+            var lang = _language.Current;
+            var name = lang == "it" ? "Grafo del codice" : "Code graph";
+            var title = System.Net.WebUtility.HtmlEncode(string.IsNullOrWhiteSpace(folder) ? name : name + " · " + folder.Replace('\\', '/').Trim('/'));
+            var html = "<!doctype html><html lang=\"" + lang + "\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
                        "<title>" + title + "</title>" +
                        "<link rel=\"stylesheet\" href=\"/javascripts/codegraph/code-graph-view.css\">" +
                        "<script src=\"/javascripts/lib/force-graph.min.js\"></script>" +

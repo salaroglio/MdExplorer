@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using MdExplorer.Features.Services.CodeGraph;
@@ -26,8 +27,11 @@ namespace MdExplorer.Features.Tests.CodeGraph
             var ast = Ast();
             Assert.IsTrue(CodeDocPlanner.NeedsFileDoc(null, force: false), "mai descritto");
             var cands = CodeDocPlanner.Select(ast, null, false);
-            StringAssert.Contains(CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands, askFile: true), "\"type\":\"fileDoc\"");
-            Assert.IsFalse(CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands).Contains("fileDoc"), "non chiesto: non si nomina");
+            StringAssert.Contains(CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands, "it", askFile: true), "\"type\":\"fileDoc\"");
+            Assert.IsFalse(CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands, "it").Contains("fileDoc"), "non chiesto: non si nomina");
+            StringAssert.Contains(CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands, "en"), "---- LINGUA ----\nScrivi summary, returnsDescription, remarks, description dei parametri e la descrizione del file in inglese (English).");
+            StringAssert.Contains(CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands, "it"), "la descrizione del file in italiano.");
+            Assert.ThrowsException<ArgumentException>(() => CodeDocPlanner.BuildPrompt("SKILL", "src/Foo.cs", "class Foo {}", cands, "de"), "una lingua non prevista non si indovina");
             Assert.AreEqual(1, CodeDocPlanner.Batches("class Foo {}", new List<CodeDocCandidate>(), askFile: true).Count, "solo il file: una domanda");
             Assert.AreEqual(0, CodeDocPlanner.Batches("class Foo {}", new List<CodeDocCandidate>()).Count);
 

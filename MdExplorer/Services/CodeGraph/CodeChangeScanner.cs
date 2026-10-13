@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -49,12 +49,17 @@ namespace MdExplorer.Services.CodeGraph
 
         private readonly INativeGitRunner _git;
         private readonly ILogger<CodeChangeScanner> _logger;
+        private readonly MdExplorer.Features.Services.IUiLanguage _language;
 
-        public CodeChangeScanner(INativeGitRunner git, ILogger<CodeChangeScanner> logger)
+        public CodeChangeScanner(INativeGitRunner git, ILogger<CodeChangeScanner> logger, MdExplorer.Features.Services.IUiLanguage language)
         {
             _git = git;
             _logger = logger;
+            _language = language;
         }
+
+        /// <summary>Il motivo, che la finestra «Ambiente di sviluppo» mostra così com'è, nella lingua dell'interfaccia.</summary>
+        private string L(string italian, string english) => _language.Current == "it" ? italian : english;
 
         public async Task<CodeScanResult> ScanAsync(string projectPath, string folderAbsolute, string previousCommit, CancellationToken ct = default, Func<string, string> toLogical = null)
         {
@@ -66,7 +71,7 @@ namespace MdExplorer.Services.CodeGraph
             if (!top.Ok)
             {
                 result.Mode = "hash";
-                result.Reason = top.ExitCode == NativeGitRunner.GitNotFoundExit ? "git non installato" : "la cartella non sta in un repository git";
+                result.Reason = top.ExitCode == NativeGitRunner.GitNotFoundExit ? L("git non installato", "git is not installed") : L("la cartella non sta in un repository git", "the folder is not in a git repository");
                 WalkWithoutGit(toLogical, folderAbsolute, result);
                 result.Candidates.AddRange(result.AllFiles);
                 return result;
@@ -90,7 +95,7 @@ namespace MdExplorer.Services.CodeGraph
 
             if (string.IsNullOrEmpty(previousCommit) || string.IsNullOrEmpty(result.HeadCommit))
             {
-                result.Reason = string.IsNullOrEmpty(previousCommit) ? "prima analisi" : "repository senza commit";
+                result.Reason = string.IsNullOrEmpty(previousCommit) ? L("prima analisi", "first analysis") : L("repository senza commit", "repository with no commits");
                 result.Candidates.AddRange(result.AllFiles);
                 return result;
             }
@@ -102,7 +107,7 @@ namespace MdExplorer.Services.CodeGraph
                 if (!diff.Ok)
                 {
                     // Il commit ricordato non esiste più (rebase, clone nuovo): si riparte da tutto, e si dice.
-                    result.Reason = $"il commit analizzato {previousCommit[..Math.Min(8, previousCommit.Length)]} non è più raggiungibile: analisi completa";
+                    result.Reason = L($"il commit analizzato {previousCommit[..Math.Min(8, previousCommit.Length)]} non è più raggiungibile: analisi completa", $"the analysed commit {previousCommit[..Math.Min(8, previousCommit.Length)]} can no longer be reached: full analysis");
                     result.Candidates.AddRange(result.AllFiles);
                     return result;
                 }
@@ -112,7 +117,7 @@ namespace MdExplorer.Services.CodeGraph
             if (status.Ok)
                 foreach (var path in ParsePorcelain(status.Stdout)) candidates.Add(Path.GetFullPath(Path.Combine(result.RepositoryRoot, path)));
 
-            result.Reason = $"git: {candidates.Count} percorsi cambiati da {previousCommit[..Math.Min(8, previousCommit.Length)]}";
+            result.Reason = L($"git: {candidates.Count} percorsi cambiati da {previousCommit[..Math.Min(8, previousCommit.Length)]}", $"git: {candidates.Count} paths changed since {previousCommit[..Math.Min(8, previousCommit.Length)]}");
             result.Candidates.AddRange(result.AllFiles.Where(f => candidates.Contains(f.AbsolutePath)));
             return result;
         }

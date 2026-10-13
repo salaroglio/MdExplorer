@@ -2,7 +2,7 @@
 description: "Prompt usato dall'azione «Analizza il codice con Mark» del grafo del codice: per ogni simbolo di un file sorgente scrive la descrizione funzionale, quella di ogni parametro di ingresso e quella del valore di uscita."
 mde:
   origin: mdexplorer
-  version: 6
+  version: 7
   updatePolicy: replace
 ---
 
@@ -65,7 +65,8 @@ Regole:
 - Niente code fence, niente testo prima o dopo, niente commenti: solo le righe JSON.
 - Omettere `returnsDescription` e `remarks` quando non servono; `summary` è sempre
   obbligatorio e mai vuoto.
-- Scrivi nella lingua dei commenti del file; se non ce ne sono, in italiano.
+- Scrivi nella lingua indicata nella sezione `---- LINGUA ----` della richiesta, anche se
+  il codice o i commenti sono in un'altra lingua.
 - Non inventare comportamenti che il sorgente non mostra: se un metodo delega tutto
   a un altro, dillo.
 

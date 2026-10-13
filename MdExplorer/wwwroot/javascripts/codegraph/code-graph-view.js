@@ -28,9 +28,184 @@
  * - Il clic su un simbolo apre la scheda con firma, parametri e la descrizione scritta dalla skill;
  *   «Apri il sorgente» naviga il visualizzatore sul file (messaggio `md-navigate` al genitore).
  * - I dati arrivano da GET /api/codegraph/graph (D15: solo il DB); niente sorgenti letti qui.
+ * - I testi stanno in CG_TEXTS, in italiano e in inglese; la lingua è quella dell'interfaccia, che il backend scrive in
+ *   <html lang>. Un testo che manca in una lingua si vede come la sua chiave (il test è CodeGraphViewTexts_Should).
  */
+const CG_TEXTS = {
+    it: {
+        loading: 'Carico il grafo…',
+        noAnswer: 'MdExplorer non risponde: {detail}',
+        error: 'Errore {status}',
+        noSymbols: 'Nessun simbolo per «{folder}»: apri «Ambiente di sviluppo» sulla cartella e lancia l\'analisi.',
+        wholeProject: 'tutto il progetto',
+        statusFiles: '{n} file',
+        statusFilesUndescribed: ' ({n} senza descrizione)',
+        statusCounts: ', {symbols} simboli mostrati, {links} archi',
+        statusUncalled: ' · {n} che nessuno chiama',
+        statusUndescribed: ' · {n} senza descrizione',
+        noDescription: 'Nessuna descrizione ancora. Tasto destro sul file → «Analizza il file con Mark», oppure «Analizza il codice con Mark» sulla cartella.',
+        filesPurpose: 'Utilità dei file',
+        filesPurposeClose: 'Chiudi le descrizioni dei file',
+        filesPurposeOpen: 'Mostra sotto ogni file a che cosa serve',
+        askFile: 'Chiedi a MarkAgent di spiegare «{name}» e i suoi legami',
+        redoFile: 'Rifai l\'analisi del file con Mark',
+        analyzeFile: 'Analizza il file con Mark',
+        closePurpose: 'Chiudi l\'utilità del file',
+        showPurpose: 'Mostra l\'utilità del file',
+        closeSymbols: 'Chiudi i simboli',
+        showSymbols: 'Mostra i simboli',
+        openFile: 'Apri il file',
+        askSymbol: 'Chiedi a MarkAgent di «{name}»',
+        redoSymbol: 'Rifai l\'analisi con Mark',
+        analyzeSymbol: 'Analizza con Mark',
+        hideSymbol: 'Nascondi «{name}» dal grafo',
+        closeCalls: 'Chiudi le chiamate',
+        followCalls: 'Segui le chiamate ({n})',
+        openSource: 'Apri il sorgente',
+        askLink: 'Chiedi a MarkAgent: che cosa vuol dire «{from} → {to}»?',
+        linkTip: ' — tasto destro: chiedi a MarkAgent',
+        'rel.calls': 'chiama',
+        'rel.imports': 'importa',
+        'rel.references': 'usa il tipo',
+        'rel.instantiates': 'crea',
+        'rel.inherits': 'eredita da',
+        'rel.implements': 'implementa',
+        'conf.extracted': 'scritto nel codice',
+        'conf.inferred': 'dedotto dal nome',
+        'conf.ambiguous': 'ambiguo: più candidati',
+        cannotOpen: 'Non si apre: {detail}',
+        analyzing: 'Mark sta analizzando «{name}»… (può volerci un minuto)',
+        analyzedBy: 'Analizzato da {engine}',
+        rejectedLines: ' ({n} righe della risposta scartate)',
+        analysisFailed: 'Analisi non riuscita: {detail}',
+        hiddenChip: 'Nascosti: {n}',
+        show: 'Mostra',
+        showAll: 'Mostra tutti',
+        moduleSummary: 'Lo script stesso: la sua descrizione è quella del file. I parametri con cui lo si lancia sono in «Dettagli».',
+        fileUndescribed: 'Il file non ha ancora una descrizione.',
+        moduleUndescribed: 'Lo script stesso: il codice fuori dalle funzioni, quello che gira quando lo si lancia. Non ha ancora una descrizione.',
+        symbolUndescribed: 'Nessuna descrizione.',
+        uncalled: 'Nessun simbolo del perimetro la chiama: è codice morto, oppure un punto d\'ingresso (chiamata da fuori, da un evento, per riflessione).',
+        details: 'Dettagli',
+        alsoCallsHidden: 'Chiama anche (nascoste):',
+        'ext.calls': 'Chiama fuori dal progetto',
+        'ext.instantiates': 'Crea oggetti esterni',
+        'ext.references': 'Usa tipi esterni',
+        'ext.inherits': 'Eredita da',
+        'ext.implements': 'Implementa',
+        'ext.imports': 'Importa',
+        outOfScope: 'Fuori dal perimetro · {n}',
+        loadingShort: 'Carico…',
+        parameter: 'Parametro',
+        type: 'Tipo',
+        description: 'Descrizione',
+        returns: 'Ritorna',
+        staleDescription: 'La descrizione è di una firma precedente: da rivedere.',
+        nothingElse: 'Niente altro da mostrare.',
+        legendUncalled: 'nessuno la chiama',
+        cannotCheckOutdated: 'Non riesco a controllare se il grafo è aggiornato: {detail}',
+        outdatedOne: '{n} file analizzato con una versione precedente dell\'estrattore',
+        outdatedMany: '{n} file analizzati con una versione precedente dell\'estrattore',
+        outdatedOld: 'Per questi file stai guardando il grafo vecchio.',
+        upgrade: 'Aggiorna l\'analisi',
+        whichFiles: 'Quali file',
+        upgrading: 'Aggiorno l\'analisi…',
+        upgradedOne: 'Analisi aggiornata: {n} file riparsato.',
+        upgradedMany: 'Analisi aggiornata: {n} file riparsati.',
+        upgradeFailed: 'Aggiornamento fallito: {detail}'
+    },
+    en: {
+        loading: 'Loading the graph…',
+        noAnswer: 'MdExplorer does not answer: {detail}',
+        error: 'Error {status}',
+        noSymbols: 'No symbols for «{folder}»: open «Development environment» on the folder and run the analysis.',
+        wholeProject: 'the whole project',
+        statusFiles: '{n} files',
+        statusFilesUndescribed: ' ({n} without a description)',
+        statusCounts: ', {symbols} symbols shown, {links} edges',
+        statusUncalled: ' · {n} that nobody calls',
+        statusUndescribed: ' · {n} without a description',
+        noDescription: 'No description yet. Right-click the file → «Analyze the file with Mark», or «Analyze the code with Mark» on the folder.',
+        filesPurpose: 'What the files are for',
+        filesPurposeClose: 'Close the descriptions of the files',
+        filesPurposeOpen: 'Show under each file what it is for',
+        askFile: 'Ask MarkAgent to explain «{name}» and its links',
+        redoFile: 'Analyze the file with Mark again',
+        analyzeFile: 'Analyze the file with Mark',
+        closePurpose: 'Close what the file is for',
+        showPurpose: 'Show what the file is for',
+        closeSymbols: 'Close the symbols',
+        showSymbols: 'Show the symbols',
+        openFile: 'Open the file',
+        askSymbol: 'Ask MarkAgent about «{name}»',
+        redoSymbol: 'Analyze with Mark again',
+        analyzeSymbol: 'Analyze with Mark',
+        hideSymbol: 'Hide «{name}» from the graph',
+        closeCalls: 'Close the calls',
+        followCalls: 'Follow the calls ({n})',
+        openSource: 'Open the source',
+        askLink: 'Ask MarkAgent: what does «{from} → {to}» mean?',
+        linkTip: ' — right-click: ask MarkAgent',
+        'rel.calls': 'calls',
+        'rel.imports': 'imports',
+        'rel.references': 'uses the type',
+        'rel.instantiates': 'creates',
+        'rel.inherits': 'inherits from',
+        'rel.implements': 'implements',
+        'conf.extracted': 'written in the code',
+        'conf.inferred': 'deduced from the name',
+        'conf.ambiguous': 'ambiguous: several candidates',
+        cannotOpen: 'It does not open: {detail}',
+        analyzing: 'Mark is analyzing «{name}»… (it can take a minute)',
+        analyzedBy: 'Analyzed by {engine}',
+        rejectedLines: ' ({n} lines of the answer rejected)',
+        analysisFailed: 'Analysis failed: {detail}',
+        hiddenChip: 'Hidden: {n}',
+        show: 'Show',
+        showAll: 'Show all',
+        moduleSummary: 'The script itself: its description is the one of the file. The parameters it is launched with are in «Details».',
+        fileUndescribed: 'The file has no description yet.',
+        moduleUndescribed: 'The script itself: the code outside the functions, what runs when it is launched. It has no description yet.',
+        symbolUndescribed: 'No description.',
+        uncalled: 'No symbol in scope calls it: it is dead code, or an entry point (called from outside, by an event, by reflection).',
+        details: 'Details',
+        alsoCallsHidden: 'Also calls (hidden):',
+        'ext.calls': 'Calls outside the project',
+        'ext.instantiates': 'Creates external objects',
+        'ext.references': 'Uses external types',
+        'ext.inherits': 'Inherits from',
+        'ext.implements': 'Implements',
+        'ext.imports': 'Imports',
+        outOfScope: 'Out of scope · {n}',
+        loadingShort: 'Loading…',
+        parameter: 'Parameter',
+        type: 'Type',
+        description: 'Description',
+        returns: 'Returns',
+        staleDescription: 'The description is of an earlier signature: to review.',
+        nothingElse: 'Nothing else to show.',
+        legendUncalled: 'nobody calls it',
+        cannotCheckOutdated: 'Cannot check whether the graph is up to date: {detail}',
+        outdatedOne: '{n} file analyzed with an earlier version of the extractor',
+        outdatedMany: '{n} files analyzed with an earlier version of the extractor',
+        outdatedOld: 'For these files you are looking at the old graph.',
+        upgrade: 'Update the analysis',
+        whichFiles: 'Which files',
+        upgrading: 'Updating the analysis…',
+        upgradedOne: 'Analysis updated: {n} file re-parsed.',
+        upgradedMany: 'Analysis updated: {n} files re-parsed.',
+        upgradeFailed: 'Update failed: {detail}'
+    }
+};
+
 (function () {
     'use strict';
+    const LANG = CG_TEXTS[document.documentElement.lang] ? document.documentElement.lang : 'en';
+    /** Il testo di una chiave nella lingua dell'interfaccia; {nome} nel testo si riempie da params. */
+    function T(key, params) {
+        const text = CG_TEXTS[LANG][key] || CG_TEXTS.en[key] || key;
+        return params ? text.replace(/\{(\w+)\}/g, (whole, name) => (params[name] !== undefined ? params[name] : whole)) : text;
+    }
     const qs = new URLSearchParams(location.search);
     const projectPath = qs.get('projectPath') || '';
     const folder = qs.get('folder') || '';
@@ -84,21 +259,22 @@
     async function load() {
         isDark = document.body.classList.contains('dark-theme');
         const status = document.getElementById('cg-status');
-        status.textContent = 'Carico il grafo…';
+        status.textContent = T('loading');
         let res;
-        try { res = await fetch(apiUrl()); } catch (e) { status.textContent = 'MdExplorer non risponde: ' + e.message; return; }
-        if (!res.ok) { status.textContent = 'Errore ' + res.status + ': ' + (await res.text()); return; }
+        try { res = await fetch(apiUrl()); } catch (e) { status.textContent = T('noAnswer', { detail: e.message }); return; }
+        if (!res.ok) { status.textContent = T('error', { status: res.status }) + ': ' + (await res.text()); return; }
         data = await res.json();
         if (!data.nodes.length) {
-            status.textContent = 'Nessun simbolo per «' + (folder || 'tutto il progetto') + '»: apri «Ambiente di sviluppo» sulla cartella e lancia l\'analisi.';
+            status.textContent = T('noSymbols', { folder: folder || T('wholeProject') });
             return;
         }
         const syms = data.nodes.filter(n => n.kind !== 'file' && !n.external);
         const uncalled = syms.filter(n => n.uncalled).length;
         const undescribed = syms.filter(n => !n.summary && n.kind !== 'module').length;
         const filesUndescribed = data.nodes.filter(n => n.kind === 'file' && !n.summary).length;
-        status.textContent = data.nodes.filter(n => n.kind === 'file').length + ' file' + (filesUndescribed ? ' (' + filesUndescribed + ' senza descrizione)' : '') + ', ' + syms.length + ' simboli mostrati, ' + data.links.length + ' archi' +
-            (uncalled ? ' · ' + uncalled + ' che nessuno chiama' : '') + (undescribed ? ' · ' + undescribed + ' senza descrizione' : '');
+        status.textContent = T('statusFiles', { n: data.nodes.filter(n => n.kind === 'file').length }) + (filesUndescribed ? T('statusFilesUndescribed', { n: filesUndescribed }) : '') +
+            T('statusCounts', { symbols: syms.length, links: data.links.length }) +
+            (uncalled ? T('statusUncalled', { n: uncalled }) : '') + (undescribed ? T('statusUndescribed', { n: undescribed }) : '');
         render();
         renderLegend();
         renderHidden();
@@ -190,7 +366,7 @@
             .linkWidth(l => Math.min(4, 1 + Math.log2(l.count || 1)))
             .linkLineDash(l => l.confidence === 'extracted' ? null : l.confidence === 'inferred' ? [6, 4] : [2, 4])
             .linkDirectionalArrowLength(6).linkDirectionalArrowRelPos(1)
-            .linkLabel(l => relationText(l) + ' — tasto destro: chiedi a MarkAgent')
+            .linkLabel(l => relationText(l) + T('linkTip'))
             .onLinkRightClick((l, ev) => showLinkMenu(l, ev))
             .onNodeClick((n, ev) => {
                 if (n.__acc) {
@@ -259,7 +435,7 @@
     // ---- accordion dei file
 
     function descriptionText(n) {
-        return n.summary || 'Nessuna descrizione ancora. Tasto destro sul file → «Analizza il file con Mark», oppure «Analizza il codice con Mark» sulla cartella.';
+        return n.summary || T('noDescription');
     }
 
     /** Il testo spezzato in righe larghe al massimo DESC_WIDTH (unità del grafo: il riquadro scala con lo zoom come le righe). */
@@ -305,8 +481,8 @@
         if (!btn) { btn = document.createElement('button'); btn.id = 'cg-desc-all'; btn.className = 'cg-chip'; document.getElementById('cg-header').appendChild(btn); }
         const files = data.nodes.filter(n => n.kind === 'file');
         const allOpen = files.length > 0 && files.every(f => descOpen.has(f.path));
-        btn.textContent = (allOpen ? '▾' : '▸') + ' Utilità dei file';
-        btn.title = allOpen ? 'Chiudi le descrizioni dei file' : 'Mostra sotto ogni file a che cosa serve';
+        btn.textContent = (allOpen ? '▾' : '▸') + ' ' + T('filesPurpose');
+        btn.title = allOpen ? T('filesPurposeClose') : T('filesPurposeOpen');
         btn.onclick = () => {
             if (allOpen) files.forEach(f => descOpen.delete(f.path)); else files.forEach(f => descOpen.add(f.path));
             saveDescInUrl(); render(); renderDescToggle();
@@ -343,18 +519,18 @@
         if (n.external) return;
         const items = [];
         if (n.kind === 'file') {
-            items.push(['ask', 'Chiedi a MarkAgent di spiegare «' + n.name + '» e i suoi legami', () => askMarkAgentAboutFile(n)]);
-            items.push(['describe', n.summary ? 'Rifai l\'analisi del file con Mark' : 'Analizza il file con Mark', () => describeFile(n)]);
-            items.push(['desc', descOpen.has(n.path) ? 'Chiudi l\'utilità del file' : 'Mostra l\'utilità del file', () => toggleDesc(n)]);
-            items.push(['toggle', n.expanded ? 'Chiudi i simboli' : 'Mostra i simboli', () => toggle(n)]);
-            items.push(['open', 'Apri il file', () => openSource(n)]);
+            items.push(['ask', T('askFile', { name: n.name }), () => askMarkAgentAboutFile(n)]);
+            items.push(['describe', n.summary ? T('redoFile') : T('analyzeFile'), () => describeFile(n)]);
+            items.push(['desc', descOpen.has(n.path) ? T('closePurpose') : T('showPurpose'), () => toggleDesc(n)]);
+            items.push(['toggle', n.expanded ? T('closeSymbols') : T('showSymbols'), () => toggle(n)]);
+            items.push(['open', T('openFile'), () => openSource(n)]);
         } else {
-            items.push(['ask', 'Chiedi a MarkAgent di «' + n.name + '»', () => askMarkAgent(n)]);
+            items.push(['ask', T('askSymbol', { name: n.name }), () => askMarkAgent(n)]);
             // sullo script stesso (module) l'analisi rifà la descrizione del file e i parametri del param() (D36)
-            items.push(['describe', n.summary ? 'Rifai l\'analisi con Mark' : 'Analizza con Mark', () => describeSymbol(n)]);
-            items.push(['hide', 'Nascondi «' + n.name + '» dal grafo', () => { hidden.set(n.id, n.name); saveHidden(); if (selected && selected.id === n.id) select(null); load(); }]);
-            if (hasToggle(n)) items.push(['toggle', n.expanded ? 'Chiudi le chiamate' : 'Segui le chiamate (' + n.hidden + ')', () => toggle(n)]);
-            items.push(['open', 'Apri il sorgente', () => openSource(n)]);
+            items.push(['describe', n.summary ? T('redoSymbol') : T('analyzeSymbol'), () => describeSymbol(n)]);
+            items.push(['hide', T('hideSymbol', { name: n.name }), () => { hidden.set(n.id, n.name); saveHidden(); if (selected && selected.id === n.id) select(null); load(); }]);
+            if (hasToggle(n)) items.push(['toggle', n.expanded ? T('closeCalls') : T('followCalls', { n: n.hidden }), () => toggle(n)]);
+            items.push(['open', T('openSource'), () => openSource(n)]);
         }
         openMenu(items, ev);
     }
@@ -363,7 +539,7 @@
     function showLinkMenu(l, ev) {
         hideMenu();
         if (!l.source || !l.target || typeof l.source !== 'object') return;
-        openMenu([['ask', 'Chiedi a MarkAgent: che cosa vuol dire «' + l.source.name + ' → ' + l.target.name + '»?', () => askMarkAgentAboutLink(l)]], ev);
+        openMenu([['ask', T('askLink', { from: l.source.name, to: l.target.name }), () => askMarkAgentAboutLink(l)]], ev);
     }
 
     function openMenu(items, ev) {
@@ -380,10 +556,10 @@
         menu.style.left = x + 'px'; menu.style.top = y + 'px';
     }
 
-    const REL_LABEL = { calls: 'chiama', imports: 'importa', references: 'usa il tipo', instantiates: 'crea', inherits: 'eredita da', implements: 'implementa' };
-    const CONF_LABEL = { extracted: 'scritto nel codice', inferred: 'dedotto dal nome', ambiguous: 'ambiguo: più candidati' };
+    const relLabel = r => (CG_TEXTS.en['rel.' + r] ? T('rel.' + r) : r);
+    const confLabel = c => (CG_TEXTS.en['conf.' + c] ? T('conf.' + c) : c);
     function relationText(l) {
-        return (REL_LABEL[l.relation] || l.relation) + ' · ' + (CONF_LABEL[l.confidence] || l.confidence) + (l.count > 1 ? ' · ×' + l.count : '');
+        return relLabel(l.relation) + ' · ' + confLabel(l.confidence) + (l.count > 1 ? ' · ×' + l.count : '');
     }
 
     /** I legami del file con gli altri nodi disegnati, in parole: vanno nella domanda, così MarkAgent sa di che cosa parliamo. */
@@ -413,7 +589,7 @@
             r.searchParams.set('projectPath', projectPath); r.searchParams.set('path', n.path);
             const res = await fetch(r);
             const body = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(body.error || ('Errore ' + res.status));
+            if (!res.ok) throw new Error(body.error || T('error', { status: res.status }));
             note.textContent = body.absolutePath + (n.line ? ':' + n.line : '');
             const o = new URL('/api/AppSettings/OpenFile', location.origin);
             o.searchParams.set('path', body.absolutePath);
@@ -421,10 +597,10 @@
             const opened = await fetch(o);
             const ob = await opened.json().catch(() => ({}));
             if (ob && ob.openUrl) window.open(ob.openUrl, '_blank');
-            else if (!opened.ok) throw new Error(ob.error || ('Errore ' + opened.status));
+            else if (!opened.ok) throw new Error(ob.error || T('error', { status: opened.status }));
         } catch (e) {
             note.className = 'cg-warn';
-            note.textContent = 'Non si apre: ' + e.message;
+            note.textContent = T('cannotOpen', { detail: e.message });
         }
     }
 
@@ -475,19 +651,19 @@
         const card = document.getElementById('cg-card');
         const note = document.createElement('p');
         note.className = 'cg-muted';
-        note.textContent = 'Mark sta analizzando «' + n.name + '»… (può volerci un minuto)';
+        note.textContent = T('analyzing', { name: n.name });
         card.appendChild(note);
         const btn = document.getElementById('cg-describe'); if (btn) btn.disabled = true;
         try {
             const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
             const answer = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(answer.error || ('Errore ' + res.status));
-            note.textContent = 'Analizzato da ' + (answer.engine || 'Mark') + (answer.rejected ? ' (' + answer.rejected + ' righe della risposta scartate)' : '') + '.';
+            if (!res.ok) throw new Error(answer.error || T('error', { status: res.status }));
+            note.textContent = T('analyzedBy', { engine: answer.engine || 'Mark' }) + (answer.rejected ? T('rejectedLines', { n: answer.rejected }) : '') + '.';
             if (onDone) onDone();
             await load();   // la scheda si ricostruisce sul nodo aggiornato, con la descrizione
         } catch (e) {
             note.className = 'cg-warn';
-            note.textContent = 'Analisi non riuscita: ' + e.message;
+            note.textContent = T('analysisFailed', { detail: e.message });
             if (btn) btn.disabled = false;
         }
     }
@@ -498,9 +674,9 @@
         if (!chip) { chip = document.createElement('span'); chip.id = 'cg-hidden'; document.getElementById('cg-header').appendChild(chip); }
         if (!hidden.size) { chip.innerHTML = ''; return; }
         const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-        chip.innerHTML = '<button id="cg-hidden-btn" class="cg-chip">Nascosti: ' + hidden.size + ' ▾</button><div id="cg-hidden-list" class="hidden">' +
-            Array.from(hidden, ([id, name]) => '<div><span>' + esc(name) + '</span> <button data-id="' + esc(id) + '" class="cg-btn cg-btn-secondary">Mostra</button></div>').join('') +
-            '<div><button id="cg-hidden-all" class="cg-btn">Mostra tutti</button></div></div>';
+        chip.innerHTML = '<button id="cg-hidden-btn" class="cg-chip">' + esc(T('hiddenChip', { n: hidden.size })) + ' ▾</button><div id="cg-hidden-list" class="hidden">' +
+            Array.from(hidden, ([id, name]) => '<div><span>' + esc(name) + '</span> <button data-id="' + esc(id) + '" class="cg-btn cg-btn-secondary">' + esc(T('show')) + '</button></div>').join('') +
+            '<div><button id="cg-hidden-all" class="cg-btn">' + esc(T('showAll')) + '</button></div></div>';
         document.getElementById('cg-hidden-btn').onclick = () => document.getElementById('cg-hidden-list').classList.toggle('hidden');
         chip.querySelectorAll('button[data-id]').forEach(b => b.onclick = () => { hidden.delete(b.dataset.id); saveHidden(); load(); });
         document.getElementById('cg-hidden-all').onclick = () => { hidden.clear(); saveHidden(); load(); };
@@ -532,26 +708,25 @@
         const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
         let html = '<div class="cg-kind">' + esc(n.kind) + '</div><h3>' + esc(n.qualifiedName || n.name) + '</h3>';
         if (n.signature) html += '<code class="cg-sig">' + esc(n.signature) + '</code>';
-        if (n.summary) html += '<p class="cg-summary">' + esc(n.summary) + '</p>' + (n.kind === 'module' ? '<p class="cg-muted">Lo script stesso: la sua descrizione è quella del file. I parametri con cui lo si lancia sono in «Dettagli».</p>' : '');
-        else if (n.kind === 'file') html += '<p class="cg-muted">Il file non ha ancora una descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Analizza il file con Mark</button></p>';
-        else if (n.kind === 'module') html += '<p class="cg-muted">Lo script stesso: il codice fuori dalle funzioni, quello che gira quando lo si lancia. Non ha ancora una descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Analizza con Mark</button></p>';
-        else if (n.kind !== 'file' && !n.external) html += '<p class="cg-muted">Nessuna descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Analizza con Mark</button></p>';
-        if (n.uncalled) html += '<p class="cg-warn">Nessun simbolo del perimetro la chiama: è codice morto, oppure un punto d\'ingresso (chiamata da fuori, da un evento, per riflessione).</p>';
+        if (n.summary) html += '<p class="cg-summary">' + esc(n.summary) + '</p>' + (n.kind === 'module' ? '<p class="cg-muted">' + esc(T('moduleSummary')) + '</p>' : '');
+        else if (n.kind === 'file') html += '<p class="cg-muted">' + esc(T('fileUndescribed')) + ' <button id="cg-describe" class="cg-btn cg-btn-secondary">' + esc(T('analyzeFile')) + '</button></p>';
+        else if (n.kind === 'module') html += '<p class="cg-muted">' + esc(T('moduleUndescribed')) + ' <button id="cg-describe" class="cg-btn cg-btn-secondary">' + esc(T('analyzeSymbol')) + '</button></p>';
+        else if (n.kind !== 'file' && !n.external) html += '<p class="cg-muted">' + esc(T('symbolUndescribed')) + ' <button id="cg-describe" class="cg-btn cg-btn-secondary">' + esc(T('analyzeSymbol')) + '</button></p>';
+        if (n.uncalled) html += '<p class="cg-warn">' + esc(T('uncalled')) + '</p>';
         if (n.path) html += '<div class="cg-path">' + esc(n.path) + (n.line ? ':' + n.line : '') + '</div>';
-        if (n.kind !== 'file' && !n.external) html += '<button id="cg-open" class="cg-btn">Apri il sorgente</button> ';
-        if (n.kind === 'file') html += '<button id="cg-open" class="cg-btn">Apri il file</button> <button id="cg-toggle" class="cg-btn">' + (n.expanded ? 'Chiudi i simboli' : 'Mostra i simboli') + '</button>';
-        if (n.kind !== 'file' && !n.external && hasToggle(n)) html += '<button id="cg-toggle" class="cg-btn cg-btn-secondary">' + (n.expanded ? 'Chiudi le chiamate' : 'Segui le chiamate (' + n.hidden + ')') + '</button> ';
-        if (n.kind !== 'file' && !n.external) html += '<button id="cg-detail" class="cg-btn cg-btn-secondary">Dettagli</button>';
+        if (n.kind !== 'file' && !n.external) html += '<button id="cg-open" class="cg-btn">' + esc(T('openSource')) + '</button> ';
+        if (n.kind === 'file') html += '<button id="cg-open" class="cg-btn">' + esc(T('openFile')) + '</button> <button id="cg-toggle" class="cg-btn">' + esc(n.expanded ? T('closeSymbols') : T('showSymbols')) + '</button>';
+        if (n.kind !== 'file' && !n.external && hasToggle(n)) html += '<button id="cg-toggle" class="cg-btn cg-btn-secondary">' + esc(n.expanded ? T('closeCalls') : T('followCalls', { n: n.hidden })) + '</button> ';
+        if (n.kind !== 'file' && !n.external) html += '<button id="cg-detail" class="cg-btn cg-btn-secondary">' + esc(T('details')) + '</button>';
         if (n.hiddenCalls && n.hiddenCalls.length)
-            html += '<div class="cg-muted">Chiama anche (nascoste): ' + n.hiddenCalls.map(h => '<code>' + esc(h) + '</code>').join(' ') + '</div>';
+            html += '<div class="cg-muted">' + esc(T('alsoCallsHidden')) + ' ' + n.hiddenCalls.map(h => '<code>' + esc(h) + '</code>').join(' ') + '</div>';
         if (n.externals && n.externals.length) {
             // ciò che è fuori dal perimetro non si disegna, ma si vede tutto qui: un nome sbagliato salta all'occhio
             const byRel = {};
             n.externals.forEach(x => { (byRel[x.relation] = byRel[x.relation] || []).push(x); });
-            const REL_IT = { calls: 'Chiama fuori dal progetto', instantiates: 'Crea oggetti esterni', references: 'Usa tipi esterni', inherits: 'Eredita da', implements: 'Implementa', imports: 'Importa' };
-            html += '<div class="cg-ext"><div class="cg-kind">Fuori dal perimetro · ' + n.externals.length + '</div>';
+            html += '<div class="cg-ext"><div class="cg-kind">' + esc(T('outOfScope', { n: n.externals.length })) + '</div>';
             Object.keys(byRel).forEach(rel => {
-                html += '<div class="cg-ext-group"><strong>' + esc(REL_IT[rel] || rel) + '</strong> ' +
+                html += '<div class="cg-ext-group"><strong>' + esc(CG_TEXTS.en['ext.' + rel] ? T('ext.' + rel) : rel) + '</strong> ' +
                     byRel[rel].map(x => '<code title="' + esc(x.qualifiedName + ' (' + x.confidence + ')') + '">' + esc(x.qualifiedName && x.qualifiedName.startsWith('.') ? x.qualifiedName : x.name) + '</code>').join(' ') + '</div>';
             });
             html += '</div>';
@@ -568,29 +743,29 @@
 
     async function loadDetail(n) {
         const body = document.getElementById('cg-detail-body');
-        body.textContent = 'Carico…';
+        body.textContent = T('loadingShort');
         const u = new URL('/api/codegraph/symbols/' + encodeURIComponent(n.id), location.origin); u.searchParams.set('projectPath', projectPath);
-        const res = await fetch(u); if (!res.ok) { body.textContent = 'Errore ' + res.status; return; }
+        const res = await fetch(u); if (!res.ok) { body.textContent = T('error', { status: res.status }); return; }
         const s = await res.json();
         const esc = x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
         let html = '';
         if (s.parameters && s.parameters.length) {
-            html += '<table class="cg-params"><thead><tr><th>Parametro</th><th>Tipo</th><th>Descrizione</th></tr></thead><tbody>';
+            html += '<table class="cg-params"><thead><tr><th>' + esc(T('parameter')) + '</th><th>' + esc(T('type')) + '</th><th>' + esc(T('description')) + '</th></tr></thead><tbody>';
             s.parameters.forEach(p => { html += '<tr><td>' + esc(p.name) + (p.direction && p.direction !== 'in' ? ' <em>' + esc(p.direction) + '</em>' : '') + '</td><td><code>' + esc(p.type) + '</code>' + (p.defaultValue != null ? ' = ' + esc(p.defaultValue) : '') + '</td><td>' + esc(p.description || '—') + '</td></tr>'; });
             html += '</tbody></table>';
         }
-        if (s.returnType) html += '<div><strong>Ritorna</strong> <code>' + esc(s.returnType) + '</code>' + (s.returnsDescription ? ': ' + esc(s.returnsDescription) : '') + '</div>';
+        if (s.returnType) html += '<div><strong>' + esc(T('returns')) + '</strong> <code>' + esc(s.returnType) + '</code>' + (s.returnsDescription ? ': ' + esc(s.returnsDescription) : '') + '</div>';
         if (s.remarks) html += '<div class="cg-remarks">⚠ ' + esc(s.remarks) + '</div>';
-        if (s.descriptionStale) html += '<div class="cg-stale">La descrizione è di una firma precedente: da rivedere.</div>';
+        if (s.descriptionStale) html += '<div class="cg-stale">' + esc(T('staleDescription')) + '</div>';
         if (s.writtenBy) html += '<div class="cg-muted">' + esc(s.writtenBy) + '</div>';
-        body.innerHTML = html || '<div class="cg-muted">Niente altro da mostrare.</div>';
+        body.innerHTML = html || '<div class="cg-muted">' + esc(T('nothingElse')) + '</div>';
     }
 
     function renderLegend() {
         const el = document.getElementById('cg-legend');
-        el.innerHTML = Object.keys(REL_COLORS).filter(k => k !== 'contains').map(k => '<span title="' + k + '"><i style="background:' + REL_COLORS[k] + '"></i>' + (REL_LABEL[k] || k) + '</span>').join('') +
-            '<span class="cg-sep"></span><span title="extracted">— ' + CONF_LABEL.extracted + '</span><span title="inferred">– – ' + CONF_LABEL.inferred + '</span><span title="ambiguous">·· ' + CONF_LABEL.ambiguous + '</span>' +
-            '<span class="cg-sep"></span><span><i class="cg-uncalled"></i>nessuno la chiama</span>' +
+        el.innerHTML = Object.keys(REL_COLORS).filter(k => k !== 'contains').map(k => '<span title="' + k + '"><i style="background:' + REL_COLORS[k] + '"></i>' + relLabel(k) + '</span>').join('') +
+            '<span class="cg-sep"></span><span title="extracted">— ' + confLabel('extracted') + '</span><span title="inferred">– – ' + confLabel('inferred') + '</span><span title="ambiguous">·· ' + confLabel('ambiguous') + '</span>' +
+            '<span class="cg-sep"></span><span><i class="cg-uncalled"></i>' + T('legendUncalled') + '</span>' +
             (data.folders.length > 1 ? '<span class="cg-sep"></span>' + data.folders.map(f => '<span><i style="background:' + folderColor(f) + '"></i>' + (f || '/') + '</span>').join('') : '');
     }
 
@@ -603,16 +778,16 @@
         const u = new URL('/api/codegraph/outdated', location.origin);
         u.searchParams.set('projectPath', projectPath); u.searchParams.set('folder', folder);
         let info;
-        try { const res = await fetch(u); if (!res.ok) throw new Error('Errore ' + res.status + ': ' + await res.text()); info = await res.json(); }
-        catch (e) { banner.className = 'cg-banner-error'; banner.textContent = 'Non riesco a controllare se il grafo è aggiornato: ' + e.message; return; }
+        try { const res = await fetch(u); if (!res.ok) throw new Error(T('error', { status: res.status }) + ': ' + await res.text()); info = await res.json(); }
+        catch (e) { banner.className = 'cg-banner-error'; banner.textContent = T('cannotCheckOutdated', { detail: e.message }); return; }
         if (!info.count) { banner.className = 'hidden'; return; }
         const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-        const what = info.changes.map(c => esc(c.language) + ': ' + esc(c.from) + ' → ' + esc(c.to) + ' (' + c.files + ' file)').join(', ');
+        const what = info.changes.map(c => esc(c.language) + ': ' + esc(c.from) + ' → ' + esc(c.to) + ' (' + esc(T('statusFiles', { n: c.files })) + ')').join(', ');
         banner.className = '';
-        banner.innerHTML = '<strong>⚠ ' + info.count + (info.count === 1 ? ' file analizzato' : ' file analizzati') + ' con una versione precedente dell\'estrattore</strong> — ' + what +
-            '. Per questi file stai guardando il grafo vecchio.' +
-            '<div class="cg-banner-actions"><button id="cg-upgrade" class="cg-btn">Aggiorna l\'analisi</button> ' +
-            '<button id="cg-upgrade-list" class="cg-btn cg-btn-secondary">Quali file</button></div><div id="cg-upgrade-files" class="hidden"></div>';
+        banner.innerHTML = '<strong>⚠ ' + esc(T(info.count === 1 ? 'outdatedOne' : 'outdatedMany', { n: info.count })) + '</strong> — ' + what +
+            '. ' + esc(T('outdatedOld')) +
+            '<div class="cg-banner-actions"><button id="cg-upgrade" class="cg-btn">' + esc(T('upgrade')) + '</button> ' +
+            '<button id="cg-upgrade-list" class="cg-btn cg-btn-secondary">' + esc(T('whichFiles')) + '</button></div><div id="cg-upgrade-files" class="hidden"></div>';
         document.getElementById('cg-upgrade-list').onclick = () => {
             const box = document.getElementById('cg-upgrade-files');
             box.innerHTML = info.scripts.map(s => '<code>' + esc(s.source) + '</code>').join(' ');
@@ -620,19 +795,19 @@
         };
         document.getElementById('cg-upgrade').onclick = async () => {
             const btn = document.getElementById('cg-upgrade');
-            btn.disabled = true; btn.textContent = 'Aggiorno l\'analisi…';
+            btn.disabled = true; btn.textContent = T('upgrading');
             try {
                 const res = await fetch('/api/codegraph/outdated/upgrade', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ projectPath, folder }) });
-                if (!res.ok) throw new Error('Errore ' + res.status + ': ' + await res.text());
+                if (!res.ok) throw new Error(T('error', { status: res.status }) + ': ' + await res.text());
                 const done = await res.json();
                 banner.className = 'cg-banner-ok';
-                banner.textContent = 'Analisi aggiornata: ' + done.reparsed + (done.reparsed === 1 ? ' file riparsato.' : ' file riparsati.');
+                banner.textContent = T(done.reparsed === 1 ? 'upgradedOne' : 'upgradedMany', { n: done.reparsed });
                 setTimeout(() => { banner.className = 'hidden'; }, 4000);
                 await load();
                 checkOutdated();
             } catch (e) {
                 banner.className = 'cg-banner-error';
-                banner.textContent = 'Aggiornamento fallito: ' + e.message;
+                banner.textContent = T('upgradeFailed', { detail: e.message });
             }
         };
     }
