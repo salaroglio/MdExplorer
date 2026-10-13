@@ -350,7 +350,8 @@
             items.push(['open', 'Apri il file', () => openSource(n)]);
         } else {
             items.push(['ask', 'Chiedi a MarkAgent di «' + n.name + '»', () => askMarkAgent(n)]);
-            if (n.kind !== 'module') items.push(['describe', n.summary ? 'Rifai l\'analisi con Mark' : 'Analizza con Mark', () => describeSymbol(n)]);
+            // sullo script stesso (module) l'analisi rifà la descrizione del file e i parametri del param() (D36)
+            items.push(['describe', n.summary ? 'Rifai l\'analisi con Mark' : 'Analizza con Mark', () => describeSymbol(n)]);
             items.push(['hide', 'Nascondi «' + n.name + '» dal grafo', () => { hidden.set(n.id, n.name); saveHidden(); if (selected && selected.id === n.id) select(null); load(); }]);
             if (hasToggle(n)) items.push(['toggle', n.expanded ? 'Chiudi le chiamate' : 'Segui le chiamate (' + n.hidden + ')', () => toggle(n)]);
             items.push(['open', 'Apri il sorgente', () => openSource(n)]);
@@ -531,9 +532,9 @@
         const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
         let html = '<div class="cg-kind">' + esc(n.kind) + '</div><h3>' + esc(n.qualifiedName || n.name) + '</h3>';
         if (n.signature) html += '<code class="cg-sig">' + esc(n.signature) + '</code>';
-        if (n.summary) html += '<p class="cg-summary">' + esc(n.summary) + '</p>';
+        if (n.summary) html += '<p class="cg-summary">' + esc(n.summary) + '</p>' + (n.kind === 'module' ? '<p class="cg-muted">Lo script stesso: la sua descrizione è quella del file. I parametri con cui lo si lancia sono in «Dettagli».</p>' : '');
         else if (n.kind === 'file') html += '<p class="cg-muted">Il file non ha ancora una descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Analizza il file con Mark</button></p>';
-        else if (n.kind === 'module') html += '<p class="cg-muted">Lo script stesso: il codice fuori dalle funzioni, quello che gira quando lo si lancia. A che cosa serve lo dice la descrizione del file (tasto destro sul file).</p>';
+        else if (n.kind === 'module') html += '<p class="cg-muted">Lo script stesso: il codice fuori dalle funzioni, quello che gira quando lo si lancia. Non ha ancora una descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Analizza con Mark</button></p>';
         else if (n.kind !== 'file' && !n.external) html += '<p class="cg-muted">Nessuna descrizione. <button id="cg-describe" class="cg-btn cg-btn-secondary">Analizza con Mark</button></p>';
         if (n.uncalled) html += '<p class="cg-warn">Nessun simbolo del perimetro la chiama: è codice morto, oppure un punto d\'ingresso (chiamata da fuori, da un evento, per riflessione).</p>';
         if (n.path) html += '<div class="cg-path">' + esc(n.path) + (n.line ? ':' + n.line : '') + '</div>';

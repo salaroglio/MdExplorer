@@ -178,6 +178,8 @@ public sealed class CodeTools : McpToolsBase
         "description is wrong or missing, or asks you to describe something: read the source first, then write what it really does. " +
         "Target EITHER `file` (what the whole file is for, 1-2 sentences in `summary`: its purpose, NOT a list of its functions) OR `symbol` (a class/method/function: `summary` = " +
         "what it does, `returnsDescription`, `remarks`, and `parameters` = {parameterName: description} for its call parameters). " +
+        "A script's own node (kind `module`, e.g. a PowerShell script with a param() block) IS the file: target it as `symbol` to write the " +
+        "`parameters` the script is launched with; its `summary` becomes the file's description, and it has no returnsDescription/remarks. " +
         "Omitted fields stay as they are; an empty string removes `returnsDescription`, `remarks` or one parameter's description. " +
         "`summary` is required the first time and when the existing description was written for an older signature. " +
         "MdExplorer updates the versioned description script (.mde-code/…/*.doc.ttl) and the graph: never edit those files by hand. " +

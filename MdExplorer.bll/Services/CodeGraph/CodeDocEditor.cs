@@ -15,6 +15,8 @@ namespace MdExplorer.Features.Services.CodeGraph
     /// insieme, oppure un simbolo e i suoi parametri. Parte DETERMINISTICA, senza LLM: chi scrive il testo è l'agente che
     /// parla con l'utente. Per ogni campo <c>null</c> = lascia com'è, stringa vuota = togli (non per <c>summary</c>, che è
     /// obbligatorio). Il risultato è lo script <c>.doc.ttl</c> completo da scrivere, con l'hash della firma di OGGI.
+    /// Lo script stesso (il <c>module</c>, D36) è il file: il suo <c>summary</c> è la descrizione del file e si correggono i
+    /// parametri del suo <c>param()</c>; ritorno e avvertenze non ne ha.
     /// </summary>
     public static class CodeDocEditor
     {
@@ -33,8 +35,9 @@ namespace MdExplorer.Features.Services.CodeGraph
             var symbol = ast.Symbols.FirstOrDefault(s => s.Id == symbolId)
                 ?? throw new CodeDocEditException($"il simbolo '{symbolId}' non è nello script AST di {ast.Header.Source}: rianalizza il codice.");
             var candidate = CodeDocPlanner.Select(ast, null, force: true).FirstOrDefault(c => c.Symbol.Id == symbolId)
-                ?? throw new CodeDocEditException($"«{symbol.Name}» è un {symbol.Kind}: i moduli, i campi e i nodi esterni non si descrivono. " +
-                                                  "Per dire a che cosa serve il file usa la descrizione del file.");
+                ?? throw new CodeDocEditException(symbol.Kind == "module"
+                    ? $"«{symbol.Name}» è lo script stesso e non ha parametri: per dire a che cosa serve usa la descrizione del file (file = {ast.Header.Source})."
+                    : $"«{symbol.Name}» è un {symbol.Kind}: i campi e i nodi esterni non si descrivono.");
             if (summary != null && summary.Trim().Length == 0)
                 throw new CodeDocEditException("summary non può essere vuoto: ometti il campo per lasciarlo com'è.");
 
@@ -45,6 +48,8 @@ namespace MdExplorer.Features.Services.CodeGraph
                 var known = candidate.Parameters.Count == 0 ? "nessuno" : string.Join(", ", candidate.Parameters.Select(p => p.Name));
                 throw new CodeDocEditException($"parametri che {symbol.QualifiedName} non ha: {string.Join(", ", unknown)}. Parametri: {known}.");
             }
+
+            if (candidate.ParametersOnly) return EditScript(ast, existing, candidate, summary, returnsDescription, remarks, parameters, writtenBy);
 
             var doc = Copy(ast, existing, writtenBy);
             var old = doc.SymbolDocs.FirstOrDefault(d => d.SymbolId == symbolId);
@@ -65,13 +70,33 @@ namespace MdExplorer.Features.Services.CodeGraph
             doc.SymbolDocs.RemoveAll(d => d.SymbolId == symbolId);
             doc.SymbolDocs.Add(updated);
 
+            SetParameters(doc, symbolId, parameters);
+            return doc;
+        }
+
+        /// <summary>Lo script stesso: summary = la descrizione del file, poi i parametri del param(). Nessun symbolDoc.</summary>
+        private static CodeScript EditScript(CodeScript ast, CodeScript existing, CodeDocCandidate script, string summary, string returnsDescription,
+            string remarks, IReadOnlyDictionary<string, string> parameters, string writtenBy)
+        {
+            if (returnsDescription != null || remarks != null)
+                throw new CodeDocEditException($"«{script.Symbol.Name}» è lo script stesso: non ha returnsDescription né remarks. " +
+                                               "A che cosa serve va in summary (è la descrizione del file), i parametri in parameters.");
+            if (summary == null && (parameters == null || parameters.Count == 0))
+                throw new CodeDocEditException($"niente da scrivere per «{script.Symbol.Name}»: dai summary (a che cosa serve lo script) o parameters.");
+            var doc = Copy(ast, existing, writtenBy);
+            if (summary != null) doc.FileDoc = new ScriptFileDoc { Summary = summary.Trim() };
+            SetParameters(doc, script.Symbol.Id, parameters);
+            return doc;
+        }
+
+        private static void SetParameters(CodeScript doc, string symbolId, IReadOnlyDictionary<string, string> parameters)
+        {
             foreach (var (name, text) in parameters ?? new Dictionary<string, string>())
             {
                 doc.ParameterDocs.RemoveAll(p => p.SymbolId == symbolId && p.ParameterName == name);
                 if (text == null || text.Trim().Length == 0) continue;
                 doc.ParameterDocs.Add(new ScriptParameterDoc { SymbolId = symbolId, ParameterName = name, Description = text.Trim() });
             }
-            return doc;
         }
 
         private static string Field(string given, string old)

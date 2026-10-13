@@ -190,7 +190,9 @@ namespace MdExplorer.Features.Services.CodeGraph
                 model.Nodes.Add(new CodeGraphViewModel.ViewNode
                 {
                     Id = s.Id, Kind = s.Kind, Name = s.Name, QualifiedName = s.QualifiedName, Path = s.Path, Line = s.LineStart, Signature = s.Signature,
-                    Summary = s.Summary, ParentId = from, Folder = FolderOf(s.Path ?? string.Empty),
+                    // lo script stesso (module) è il file: la sua descrizione è quella del file (D36)
+                    Summary = s.Summary ?? (s.Kind == "module" && s.Path != null && input.FileSummaries.TryGetValue(s.Path, out var fileSummary) ? fileSummary : null),
+                    ParentId = from, Folder = FolderOf(s.Path ?? string.Empty),
                     Expanded = input.Opened.Contains(id),
                     Depth = depth[id],
                     HiddenCalls = allChildren.Where(input.HiddenSymbols.Contains).Select(c => symbols.TryGetValue(c, out var hs) ? hs.Name : c).ToList(),

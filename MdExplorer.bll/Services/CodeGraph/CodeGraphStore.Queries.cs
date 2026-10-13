@@ -107,7 +107,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             var g = GraphsOf(projectPath);
             var s = (await SymbolsWhereAsync(g, $"BIND({Iri(Symbol(symbolId))} AS ?s)", string.Empty, ct)).FirstOrDefault();
-            if (s != null) await FillParametersAsync(g, s, ct);
+            if (s == null) return null;
+            await FillParametersAsync(g, s, ct);
+            // lo script stesso (module) è il file: a che cosa serve lo dice la descrizione del file (D36)
+            if (s.Kind == "module" && s.Summary == null && s.Path != null)
+                s.Summary = (await FileSummariesWhereAsync(g, $"FILTER(?p = {Lit(s.Path)})", ct)).Values.FirstOrDefault();
             return s;
         }
 

@@ -14,6 +14,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         public ScriptSymbol Symbol { get; init; }
         public IReadOnlyList<ScriptParameter> Parameters { get; init; }
         public string SignatureHash { get; init; }
+        /// <summary>
+        /// Lo script stesso (il <c>module</c>) con il suo <c>param()</c>: a che cosa serve lo dice la descrizione del file
+        /// (D31), qui si chiedono SOLO i parametri con cui lo si lancia (D36). Niente <c>symbolDoc</c>, quindi niente hash
+        /// della firma: è da rifare quando un parametro non ha descrizione.
+        /// </summary>
+        public bool ParametersOnly { get; init; }
     }
 
     /// <summary>
@@ -25,7 +31,8 @@ namespace MdExplorer.Features.Services.CodeGraph
     {
         /// <summary>
         /// I kind che hanno senso descrivere: non i moduli, non i nodi external. Il file nel suo insieme ha la sua voce,
-        /// <see cref="ScriptFileDoc"/> (vedi <see cref="NeedsFileDoc"/>), per ogni linguaggio.
+        /// <see cref="ScriptFileDoc"/> (vedi <see cref="NeedsFileDoc"/>), per ogni linguaggio. Il <c>module</c> è il file
+        /// stesso: se ha parametri (il <c>param()</c> di uno script PowerShell) si descrivono quelli, e basta (D36).
         /// </summary>
         private static readonly HashSet<string> Describable = new(StringComparer.Ordinal)
         {
@@ -46,7 +53,8 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         /// <summary>
         /// Chi va descritto: i simboli descrivibili dello script AST che non hanno una descrizione, o la cui firma è
-        /// cambiata da quando sono stati descritti (hash diverso). Con <paramref name="force"/> tutti.
+        /// cambiata da quando sono stati descritti (hash diverso); il module con parametri quando un parametro non ha
+        /// descrizione (<see cref="CodeDocCandidate.ParametersOnly"/>). Con <paramref name="force"/> tutti.
         /// </summary>
         public static List<CodeDocCandidate> Select(CodeScript ast, CodeScript existingDoc, bool force)
         {
@@ -54,8 +62,15 @@ namespace MdExplorer.Features.Services.CodeGraph
             var list = new List<CodeDocCandidate>();
             foreach (var s in ast.Symbols)
             {
-                if (!Describable.Contains(s.Kind)) continue;
                 var prms = ast.Parameters.Where(p => p.SymbolId == s.Id).OrderBy(p => p.Position).ToList();
+                if (s.Kind == "module")
+                {
+                    if (prms.Count == 0) continue;
+                    var missing = prms.Any(p => existingDoc == null || !existingDoc.ParameterDocs.Any(d => d.SymbolId == s.Id && d.ParameterName == p.Name));
+                    if (force || missing) list.Add(new CodeDocCandidate { Symbol = s, Parameters = prms, SignatureHash = SignatureHash(s, prms), ParametersOnly = true });
+                    continue;
+                }
+                if (!Describable.Contains(s.Kind)) continue;
                 var hash = SignatureHash(s, prms);
                 if (!force && docs.TryGetValue(s.Id, out var d) && string.Equals(d.SignatureHash, hash, StringComparison.OrdinalIgnoreCase)) continue;
                 list.Add(new CodeDocCandidate { Symbol = s, Parameters = prms, SignatureHash = hash });
@@ -120,6 +135,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 {
                     symbolId = c.Symbol.Id, kind = c.Symbol.Kind, qualifiedName = c.Symbol.QualifiedName, signature = c.Symbol.Signature,
                     returnType = c.Symbol.ReturnType, lineStart = c.Symbol.LineStart,
+                    onlyParameters = c.ParametersOnly ? true : (bool?)null,
                     parameters = c.Parameters.Select(p => new { name = p.Name, type = p.ParameterType, direction = p.Direction, defaultValue = p.DefaultValue }),
                 }, new JsonSerializerOptions { DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping })).Append('\n');
             }
@@ -160,6 +176,7 @@ namespace MdExplorer.Features.Services.CodeGraph
                 foreach (var d in one.SymbolDocs)
                 {
                     if (!byId.TryGetValue(d.SymbolId, out var c)) { rejected.Add($"riga {lineNo}: symbolId '{d.SymbolId}' non richiesto"); continue; }
+                    if (c.ParametersOnly) { rejected.Add($"riga {lineNo}: symbolDoc per lo script stesso ('{d.SymbolId}'): a che cosa serve lo dice fileDoc, qui solo i parameterDoc"); continue; }
                     d.SignatureHash = c.SignatureHash;
                     result.SymbolDocs.RemoveAll(x => x.SymbolId == d.SymbolId);
                     result.SymbolDocs.Add(d);
@@ -190,13 +207,29 @@ namespace MdExplorer.Features.Services.CodeGraph
             return merged;
         }
 
-        /// <summary>Toglie le descrizioni di simboli che l'AST non ha più (metodi cancellati): si segnalano, non si tengono per sempre.</summary>
+        /// <summary>
+        /// Toglie le descrizioni di simboli che l'AST non ha più (metodi cancellati) e di parametri che il simbolo non ha
+        /// più (rinominati, tolti): si segnalano, non si tengono per sempre.
+        /// </summary>
         public static int DropOrphans(CodeScript doc, CodeScript ast)
         {
             var alive = new HashSet<string>(ast.Symbols.Select(s => s.Id), StringComparer.Ordinal);
+            var aliveParams = new HashSet<(string, string)>(ast.Parameters.Select(p => (p.SymbolId, p.Name)));
             var n = doc.SymbolDocs.RemoveAll(d => !alive.Contains(d.SymbolId));
-            n += doc.ParameterDocs.RemoveAll(p => !alive.Contains(p.SymbolId));
+            n += doc.ParameterDocs.RemoveAll(p => !aliveParams.Contains((p.SymbolId, p.ParameterName)));
             return n;
+        }
+
+        /// <summary>
+        /// Quante voci ha scritto una risposta, per i conti della finestra: i simboli descritti, lo script di cui sono
+        /// arrivati i parametri (non ha un symbolDoc) e il file.
+        /// </summary>
+        public static int CountDescribed(CodeScript fresh, IEnumerable<CodeDocCandidate> asked)
+        {
+            var paramsOnly = new HashSet<string>(asked.Where(c => c.ParametersOnly).Select(c => c.Symbol.Id), StringComparer.Ordinal);
+            return fresh.SymbolDocs.Count
+                   + fresh.ParameterDocs.Select(p => p.SymbolId).Distinct(StringComparer.Ordinal).Count(paramsOnly.Contains)
+                   + (fresh.FileDoc != null ? 1 : 0);
         }
 
         public static CodeScript ReadScriptOrNull(string path, string relativeName)

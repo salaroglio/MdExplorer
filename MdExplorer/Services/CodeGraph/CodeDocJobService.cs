@@ -238,7 +238,7 @@ namespace MdExplorer.Services.CodeGraph
                 result.Rejected += rejected.Count;
                 result.FirstRejected ??= rejected.FirstOrDefault();
                 foreach (var r in rejected) _logger.LogWarning("[CodeDoc] {File}: risposta scartata — {Why}", ast.Header.Source, r);
-                freshCount += fresh.SymbolDocs.Count + (fresh.FileDoc != null ? 1 : 0);
+                freshCount += CodeDocPlanner.CountDescribed(fresh, batch);
                 merged = CodeDocPlanner.Merge(merged, fresh);
             }
             if (merged == null || freshCount == 0)
@@ -272,7 +272,9 @@ namespace MdExplorer.Services.CodeGraph
 
             // force: dal tasto destro si vuole QUESTO simbolo descritto, anche se una descrizione c'è già
             var candidates = CodeDocPlanner.Select(ast, existing, force: true).Where(c => c.Symbol.Id == symbolId).ToList();
-            if (candidates.Count == 0) { outcome.Error = $"«{symbol.Name}» è un {symbol.Kind}: i moduli, i campi e i nodi esterni non si descrivono (il file ha la sua descrizione: tasto destro sul file)"; return outcome; }
+            // lo script stesso (module) è il file: si rifà la descrizione del file, e i parametri del param() se ne ha (D36)
+            var isScript = symbol.Kind == "module";
+            if (candidates.Count == 0 && !isScript) { outcome.Error = $"«{symbol.Name}» è un {symbol.Kind}: i campi e i nodi esterni non si descrivono"; return outcome; }
 
             MarkAgentEngine engine; string model;
             using (var scope = _scopeFactory.CreateScope())
@@ -287,7 +289,7 @@ namespace MdExplorer.Services.CodeGraph
             try { skillBody = LoadPromptBody(projectPath, "mde-code-doc"); }
             // prompt mancante o progetto senza harness: il messaggio dice già come rimediare (mai un 500 con la traccia)
             catch (Exception ex) when (ex is FileNotFoundException or InvalidOperationException) { outcome.Error = ex.Message; return outcome; }
-            var result = await DescribeFileAsync(projectPath, await _roots.CreateResolverAsync(projectPath, ct), ast, candidates, existing, docPath, engine, model, skillBody, writtenBy, ct);
+            var result = await DescribeFileAsync(projectPath, await _roots.CreateResolverAsync(projectPath, ct), ast, candidates, existing, docPath, engine, model, skillBody, writtenBy, ct, askFile: isScript);
             outcome.Described = result.Described > 0; outcome.Rejected = result.Rejected; outcome.FirstRejected = result.FirstRejected;
             outcome.Error = result.Error ?? result.LoadError;
             _logger.LogInformation("[CodeDoc] simbolo {Symbol}: {Outcome}", symbol.QualifiedName, outcome.Error ?? "descritto");

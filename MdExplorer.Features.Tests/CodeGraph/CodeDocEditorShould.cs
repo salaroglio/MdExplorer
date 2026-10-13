@@ -88,7 +88,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
             }
             Refused(() => CodeDocEditor.EditSymbol(ast, current, "f1", null, null, null, new Dictionary<string, string> { ["pth"] = "x" }, "w"), "pth");
             Refused(() => CodeDocEditor.EditSymbol(ast, current, "f1", null, null, null, new Dictionary<string, string> { ["pth"] = "x" }, "w"), "path, n");
-            Refused(() => CodeDocEditor.EditSymbol(ast, current, "m1", "x", null, null, null, "w"), "module");
+            Refused(() => CodeDocEditor.EditSymbol(ast, current, "m1", "x", null, null, null, "w"), "non ha parametri");
             Refused(() => CodeDocEditor.EditSymbol(ast, current, "nope", "x", null, null, null, "w"), "rianalizza");
             Refused(() => CodeDocEditor.EditSymbol(ast, current, "f1", " ", null, null, null, "w"), "summary");
             Refused(() => CodeDocEditor.EditSymbol(ast, null, "f1", null, "x", null, null, "w"), "non ha ancora una descrizione");

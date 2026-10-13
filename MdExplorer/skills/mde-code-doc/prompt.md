@@ -2,7 +2,7 @@
 description: "Prompt usato dall'azione «Analizza il codice con Mark» del grafo del codice: per ogni simbolo di un file sorgente scrive la descrizione funzionale, quella di ogni parametro di ingresso e quella del valore di uscita."
 mde:
   origin: mdexplorer
-  version: 5
+  version: 6
   updatePolicy: replace
 ---
 
@@ -43,6 +43,11 @@ che cosa rappresenta, che valori accetta, che cosa succede se manca o è vuoto.
 Usa esattamente il `name` dato: un parametro non elencato non esiste. I parametri
 NON sono un campo della riga `symbolDoc`: mai `"parameterDoc"` né `"parameters"`
 dentro `symbolDoc`, nemmeno vuoto o `null`.
+
+**Lo script stesso** — un simbolo con `"onlyParameters":true` (kind `module`: il codice
+fuori dalle funzioni, per esempio il `param()` in cima a uno script PowerShell): a che cosa
+serve lo dice la descrizione del file, quindi per lui scrivi SOLO le righe `parameterDoc`,
+una per parametro (i parametri con cui si lancia lo script), e nessuna riga `symbolDoc`.
 
 Formato della risposta — JSON Lines, un oggetto per riga, NIENT'ALTRO:
 
