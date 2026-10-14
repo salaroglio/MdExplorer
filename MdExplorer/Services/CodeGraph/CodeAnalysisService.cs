@@ -81,6 +81,21 @@ namespace MdExplorer.Services.CodeGraph
         Task<List<CodeFolderAnalysisOutcome>> RefreshAfterTurnAsync(string projectPath, CancellationToken ct = default);
         /// <summary>Gli script AST delle cartelle <c>program</c> (sotto <paramref name="folderPrefix"/>) scritti da un estrattore diverso da quello di oggi.</summary>
         Task<List<CodeOutdatedScript>> ListOutdatedScriptsAsync(string projectPath, string folderPrefix, CancellationToken ct = default);
+        /// <summary>
+        /// Le cartelle <c>program</c> con dei linguaggi scelti, interne e radici esterne, con lo stato di collegamento:
+        /// le stesse che <see cref="AnalyzeProjectAsync"/> analizza (<c>code_inventory</c>, punto 4b del 14/10).
+        /// </summary>
+        Task<List<CodeProgramFolder>> ListProgramsAsync(string projectPath, CancellationToken ct = default);
+    }
+
+    public sealed class CodeProgramFolder
+    {
+        /// <summary>Il percorso logico: <c>program/x</c> o <c>@alias</c>. È anche il prefisso dei percorsi dei suoi file.</summary>
+        public string Folder { get; set; }
+        public List<string> Languages { get; set; } = new();
+        public bool Linked { get; set; } = true;
+        /// <summary>Perché una radice esterna non è collegata su questa macchina.</summary>
+        public string Reason { get; set; }
     }
 
     /// <summary>
@@ -186,6 +201,20 @@ namespace MdExplorer.Services.CodeGraph
         }
 
         // ------------------------------------------------------------------ analisi
+
+        public async Task<List<CodeProgramFolder>> ListProgramsAsync(string projectPath, CancellationToken ct = default)
+        {
+            var list = new List<CodeProgramFolder>();
+            var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
+            if (!File.Exists(path)) return list;
+            var config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path);
+            list.AddRange(config.Folders.Where(f => f.CodeGraph?.Languages?.Count > 0 && f.Tags?.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) == true)
+                .Select(f => new CodeProgramFolder { Folder = NormalizeRelative(f.Path), Languages = f.CodeGraph.Languages.ToList() }));
+            list.AddRange((await _roots.ListAsync(projectPath, ct))
+                .Where(r => r.Languages.Count > 0 && r.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)))
+                .Select(r => new CodeProgramFolder { Folder = "@" + r.Alias, Languages = r.Languages.ToList(), Linked = r.Status == CodeRootStatus.Linked, Reason = r.Status == CodeRootStatus.Linked ? null : r.Reason }));
+            return list;
+        }
 
         public async Task<List<CodeFolderAnalysisOutcome>> AnalyzeProjectAsync(string projectPath, bool includeExtractorChanges, CancellationToken ct = default)
         {

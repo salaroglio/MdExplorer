@@ -60,6 +60,16 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Summary { get; set; }
     }
 
+    /// <summary>I conteggi di una cartella <c>program</c> nel grafo (punto 4b del 14/10, <c>code_inventory</c>).</summary>
+    public sealed class CodeProgramCounts
+    {
+        public int Files { get; set; }
+        public int DescribedFiles { get; set; }
+        /// <summary>I simboli del programma, senza gli <c>external</c>.</summary>
+        public int Symbols { get; set; }
+        public int DescribedSymbols { get; set; }
+    }
+
     /// <summary>Lo stato dello scanner per una cartella <c>program</c> (D14): che commit ha analizzato e in che modo.</summary>
     public sealed class CodeScanState
     {

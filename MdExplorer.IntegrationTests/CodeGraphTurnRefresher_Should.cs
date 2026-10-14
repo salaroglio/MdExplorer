@@ -31,6 +31,7 @@ namespace MdExplorer.IntegrationTests
             public Task<CodeFolderAnalysisOutcome> AnalyzeFolderAsync(string p, string f, bool i, CancellationToken ct = default) => throw new NotImplementedException();
             public Task<List<CodeFolderAnalysisOutcome>> AnalyzeProjectAsync(string p, bool i, CancellationToken ct = default) => throw new NotImplementedException();
             public Task<List<CodeOutdatedScript>> ListOutdatedScriptsAsync(string p, string f, CancellationToken ct = default) => throw new NotImplementedException();
+            public Task<List<CodeProgramFolder>> ListProgramsAsync(string p, CancellationToken ct = default) => throw new NotImplementedException();
         }
 
         [TestMethod]

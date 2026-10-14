@@ -12,7 +12,7 @@ using static MdExplorer.Features.Services.CodeGraph.CodeGraphIris;
 namespace MdExplorer.Features.Services.CodeGraph
 {
     /// <summary>
-    /// Gli script del grafo del codice come ABox Turtle (schema 2; D21 del grafo, R4 delle radici esterne, 12/10/2026):
+    /// Gli script del grafo del codice in Turtle (D21 del grafo, R4 delle radici esterne, 12/10/2026; schema 3 dal 14/10, il programma nell'id):
     /// chi fa <c>git pull</c> ha le triple vere, le legge con Jena, le valida con SHACL, le carica dove vuole.
     /// <list type="bullet">
     /// <item>Prima riga: <c># mde-code-script: {json}</c>, l'intestazione per i controlli veloci («va rifatto?») senza

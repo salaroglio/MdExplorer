@@ -50,6 +50,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         Task<List<CodeEdgeView>> ImpactAsync(string projectPath, string symbolId, int depth, int limit, CancellationToken ct = default);
         Task<List<CodeEdgeView>> ShortestPathAsync(string projectPath, string fromId, string toId, CancellationToken ct = default);
         Task<CodeOverview> OverviewAsync(string projectPath, CancellationToken ct = default);
+        /// <summary>Quanto di una cartella <c>program</c> è nel grafo: file e simboli scansionati, quanti con una descrizione.</summary>
+        Task<CodeProgramCounts> ProgramCountsAsync(string projectPath, string programFolder, CancellationToken ct = default);
         Task<CodeGraphViewModel> BuildViewAsync(string projectPath, string folderPrefix, IReadOnlyCollection<string> expandedFiles, IReadOnlyCollection<string> openedSymbols, IReadOnlyCollection<string> hiddenSymbols, string focusSymbolId, CancellationToken ct = default);
         Task<CodeReportData> GetReportDataAsync(string projectPath, CancellationToken ct = default);
     }

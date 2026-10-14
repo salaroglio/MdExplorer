@@ -283,6 +283,23 @@ namespace MdExplorer.Features.Services.CodeGraph
             return o;
         }
 
+        public async Task<CodeProgramCounts> ProgramCountsAsync(string projectPath, string programFolder, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            // i percorsi logici del programma cominciano con la sua cartella (program/…, @backend/…)
+            var under = $"FILTER(STRSTARTS(?p, {CodeGraphIris.Lit(programFolder.TrimEnd('/') + "/")}))";
+            var r = (await RowsAsync(
+                $"SELECT (COUNT(DISTINCT ?f) AS ?files) (COUNT(DISTINCT ?fd) AS ?describedFiles) (COUNT(DISTINCT ?s) AS ?symbols) (COUNT(DISTINCT ?d) AS ?described) WHERE {{ GRAPH {g.DataIri} {{ " +
+                $"{{ ?f a code:File ; code:path ?p . {under} }} " +
+                $"UNION {{ ?fd a code:FileDescription ; code:describes ?df . ?df code:path ?p . {under} }} " +
+                $"UNION {{ ?s a code:Symbol ; code:kind ?k ; code:path ?p . FILTER(?k != \"external\") {under} }} " +
+                $"UNION {{ ?d a code:Description ; code:describes ?ds . ?ds code:path ?p . {under} }} }} }}", ct)).FirstOrDefault();
+            return r == null ? new CodeProgramCounts() : new CodeProgramCounts
+            {
+                Files = Count(r, "files"), DescribedFiles = Count(r, "describedFiles"), Symbols = Count(r, "symbols"), DescribedSymbols = Count(r, "described"),
+            };
+        }
+
         // ------------------------------------------------------------------ ricerca a testo pieno
 
         /// <summary>Un termine per Lucene: via i caratteri speciali della sua sintassi.</summary>

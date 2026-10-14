@@ -149,6 +149,19 @@ public sealed class CodeTools : McpToolsBase
     }
 
     [McpServerTool, Description(
+        "What is in the project's code graph, per program folder: languages, whether the folder is linked on this machine, how many files " +
+        "and symbols were scanned and how many already have a description, when it was last scanned; plus the description jobs running now " +
+        "(file reached out of the total). Use it for 'what programs are in the graph?', 'how far did the description get?', 'is it done?'. " +
+        "The code graph is MdExplorer's own: answer ONLY from code_* tools, never with SPARQL or an HTTP call to a Fuseki server.")]
+    public async Task<string> code_inventory(
+        [Description("Project name.")] string project)
+    {
+        var (client, path, error) = await ProjectAsync(project);
+        if (error != null) return error;
+        return await GetAsync(client, Q(path, "inventory"), "code_inventory", project, "");
+    }
+
+    [McpServerTool, Description(
         "Overview of the project's code graph: files, symbols by language and kind, edges by relation, how many symbols and files have a " +
         "description, the most connected symbols (the 'god nodes') and the largest files with what each is for (`summary`). Start here to get the shape of an unknown codebase.")]
     public async Task<string> code_overview(

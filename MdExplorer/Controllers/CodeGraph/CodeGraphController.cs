@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -400,6 +401,40 @@ namespace MdExplorer.Controllers.CodeGraph
         });
 
         /// <summary>GET /api/codegraph/overview?projectPath — di che cosa è fatto il codice.</summary>
+        /// <summary>
+        /// GET /api/codegraph/inventory?projectPath — che cosa c'è nel grafo del codice di questo progetto (punto 4b del
+        /// 14/10): per ogni cartella <c>program</c> i linguaggi, se è collegata, file e simboli scansionati e quanti sono
+        /// descritti (contati in Fuseki, veri anche dopo un riavvio), l'ultima scansione; poi le descrizioni in corso.
+        /// </summary>
+        [HttpGet("inventory")]
+        public Task<IActionResult> Inventory([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            var programs = new List<object>();
+            foreach (var p in await _analysis.ListProgramsAsync(projectPath, ct))
+            {
+                var counts = await _store.ProgramCountsAsync(projectPath, p.Folder, ct);
+                var scan = await _store.GetScanStateAsync(projectPath, p.Folder, ct);
+                programs.Add(new
+                {
+                    folder = p.Folder, languages = p.Languages, linked = p.Linked, reason = p.Reason,
+                    files = counts.Files, describedFiles = counts.DescribedFiles, symbols = counts.Symbols, describedSymbols = counts.DescribedSymbols,
+                    lastScan = scan == null ? null : new { at = scan.ScannedAt, mode = scan.Mode, commit = scan.AnalyzedCommit },
+                });
+            }
+            var jobs = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>().Running(projectPath);
+            return Ok(new
+            {
+                graph = CodeGraphIris.DataGraph(CodeGraphIris.ProjectHash(projectPath)),
+                programs,
+                descriptionsRunning = jobs.Select(j => new
+                {
+                    folder = j.Folder, engine = j.Engine, startedAt = j.StartedAt, fileIndex = j.FileIndex, fileTotal = j.FileTotal,
+                    currentFile = j.CurrentFile, filesDescribed = j.FilesDescribed, symbolsDescribed = j.SymbolsDescribed, filesFailed = j.FilesFailed,
+                }),
+            });
+        });
+
         [HttpGet("overview")]
         public Task<IActionResult> Overview([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
         {

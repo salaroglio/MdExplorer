@@ -22,6 +22,8 @@ namespace MdExplorer.Services.CodeGraph
     {
         /// <summary>«Descrivi il codice» su una cartella program: un lavoro per connessione, progressi via SignalR <c>codeDocProgress</c>.</summary>
         Task RunDescribeAsync(string connectionId, string projectPath, string folderRelative, bool force, CancellationToken ct = default);
+        /// <summary>Le descrizioni in corso nel progetto, con il file a cui sono arrivate (<c>code_inventory</c>, punto 4b del 14/10).</summary>
+        IReadOnlyList<CodeDocJobProgress> Running(string projectPath);
         /// <summary>
         /// «Descrivi con Mark» su UN simbolo, dal tasto destro del grafo (D27): lo descrive (o ridescrive) da solo e
         /// aspetta la fine; niente SignalR, la pagina del grafo è nell'iframe e aspetta la risposta.
@@ -65,6 +67,21 @@ namespace MdExplorer.Services.CodeGraph
         public string? WrittenBy { get; set; }
     }
 
+    /// <summary>A che punto è una descrizione in corso. Vive in memoria: un riavvio la ferma (punto 2c, da fare).</summary>
+    public sealed class CodeDocJobProgress
+    {
+        public string ProjectPath { get; set; }
+        public string Folder { get; set; }
+        public string Engine { get; set; }
+        public string StartedAt { get; set; }
+        public int FileIndex { get; set; }
+        public int FileTotal { get; set; }
+        public string CurrentFile { get; set; }
+        public int FilesDescribed { get; set; }
+        public int SymbolsDescribed { get; set; }
+        public int FilesFailed { get; set; }
+    }
+
     public sealed class CodeDescriptionEditOutcome
     {
         public string Path { get; set; }
@@ -90,6 +107,7 @@ namespace MdExplorer.Services.CodeGraph
         private readonly MdExplorer.Features.Services.IUiLanguage _language;
         private readonly ICodeRootService _roots;
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
+        private readonly ConcurrentDictionary<string, CodeDocJobProgress> _progress = new();
 
         public CodeDocJobService(IServiceScopeFactory scopeFactory, IHubContext<MonitorMDHub> hub,
             MdExplorer.Services.LlmSessions.OneShotReadOnlySession llm, ICodeGraphStore store, CodeGraphReportWriter report, ICodeRootService roots,
@@ -99,6 +117,9 @@ namespace MdExplorer.Services.CodeGraph
             _language = language;
             _scopeFactory = scopeFactory; _hub = hub; _llm = llm; _store = store; _report = report; _logger = logger;
         }
+
+        public IReadOnlyList<CodeDocJobProgress> Running(string projectPath)
+            => _progress.Values.Where(p => string.Equals(p.ProjectPath, projectPath, StringComparison.OrdinalIgnoreCase)).ToList();
 
         public void Cancel(string connectionId)
         {
@@ -138,6 +159,8 @@ namespace MdExplorer.Services.CodeGraph
 
                 var resolver = await _roots.CreateResolverAsync(projectPath, token);
                 var astScripts = Directory.EnumerateFiles(scriptsFolder, "*" + CodeGraphPaths.AstScriptSuffix, SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal).ToList();
+                var progress = new CodeDocJobProgress { ProjectPath = projectPath, Folder = folderRelative, Engine = engineLabel, StartedAt = DateTime.UtcNow.ToString("o"), FileTotal = astScripts.Count };
+                _progress[connectionId] = progress;
                 await SendAsync(connectionId, new { phase = "started", provider = engineLabel, fileTotal = astScripts.Count, folder = folderRelative });
 
                 for (var i = 0; i < astScripts.Count; i++)
@@ -157,6 +180,7 @@ namespace MdExplorer.Services.CodeGraph
 
                     var candidates = CodeDocPlanner.Select(ast, existing, force);
                     var askFile = CodeDocPlanner.NeedsFileDoc(existing, force);
+                    progress.FileIndex = i + 1; progress.CurrentFile = ast.Header.Source;
                     await SendAsync(connectionId, new { phase = "describing", file = ast.Header.Source, fileIndex = i + 1, fileTotal = astScripts.Count, symbols = candidates.Count });
                     if (candidates.Count == 0 && !askFile)
                     {
@@ -166,8 +190,9 @@ namespace MdExplorer.Services.CodeGraph
 
                     var result = await DescribeFileAsync(projectPath, resolver, ast, candidates, existing, docPath, engine, model, skillBody, writtenBy, token, askFile);
                     rejectedTotal += result.Rejected;
-                    if (result.Error != null) { await SendAsync(connectionId, new { phase = "file-failed", file = ast.Header.Source, detail = result.Error }); continue; }
+                    if (result.Error != null) { progress.FilesFailed++; await SendAsync(connectionId, new { phase = "file-failed", file = ast.Header.Source, detail = result.Error }); continue; }
                     files++; described += result.Described;
+                    progress.FilesDescribed = files; progress.SymbolsDescribed = described;
                     await SendAsync(connectionId, new { phase = "file-done", file = ast.Header.Source, described = result.Described, rejected = result.Rejected, loaded = result.Loaded, error = result.LoadError });
                 }
                 try { await _report.WriteAsync(projectPath, new List<string> { $"{folderRelative}: descritti {described} simboli in {files} file, {rejectedTotal} righe scartate" }); }
@@ -187,6 +212,7 @@ namespace MdExplorer.Services.CodeGraph
             finally
             {
                 _running.TryRemove(connectionId, out _);
+                _progress.TryRemove(connectionId, out _);
                 cts.Dispose();
             }
         }

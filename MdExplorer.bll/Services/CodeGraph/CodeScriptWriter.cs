@@ -4,7 +4,7 @@ using System.Text;
 
 namespace MdExplorer.Features.Services.CodeGraph
 {
-    /// <summary>L'inverso di <see cref="CodeScriptParser"/>: scrive uno <see cref="CodeScript"/> come ABox Turtle (schema 2).</summary>
+    /// <summary>L'inverso di <see cref="CodeScriptParser"/>: scrive uno <see cref="CodeScript"/> come script Turtle del codice (schema 3).</summary>
     public static class CodeScriptWriter
     {
         public static string Serialize(CodeScript script) => CodeScriptTurtle.Write(script);

@@ -78,10 +78,12 @@ namespace MdExplorer.IntegrationTests
                 new[]
                 {
                     ".claude/agents/mde-skillcreator.md",
+                    ".claude/commands/mde-code-doc.md",
                     ".claude/commands/mde-codegen-graph.md",
                     ".claude/commands/mde-mark-folder-synthesis.md",
                     ".claude/commands/mde-mark-summarize.md",
                     ".claude/skills/mde-agent/SKILL.md",
+                    ".claude/skills/mde-code/SKILL.md",
                     ".claude/skills/mde-doc/SKILL.md",
                     ".claude/skills/mde-e2e-signals/SKILL.md",
                     ".claude/skills/mde-e2e/SKILL.md",
