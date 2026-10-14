@@ -22,6 +22,10 @@ export interface CodeFolderLanguages {
   detected: DetectedLanguage[];
   /** 'git' oppure 'hash' (cartella fuori da un repository). */
   scanMode: string;
+  /** 'all' = la descrizione parte da sola dopo le scansioni; 'onDemand' = solo a richiesta (punto 2b del 14/10). */
+  describe: 'all' | 'onDemand';
+  /** Quante descrizioni insieme, dalle preferenze dell'utente. */
+  descriptionParallel: number;
 }
 
 export interface CodeFolderAnalysisOutcome {
@@ -87,8 +91,8 @@ export class CodeGraphService {
     return this.http.get<CodeFolderLanguages>('../api/codegraph/languages', { params });
   }
 
-  saveLanguages(projectPath: string, folderPath: string, languages: string[]): Observable<any> {
-    return this.http.post('../api/codegraph/languages', { projectPath, folderPath, languages });
+  saveLanguages(projectPath: string, folderPath: string, languages: string[], describe?: 'all' | 'onDemand' | null): Observable<any> {
+    return this.http.post('../api/codegraph/languages', { projectPath, folderPath, languages, describe: describe ?? null });
   }
 
   analyze(projectPath: string, folderPath?: string): Observable<{ folder?: CodeFolderAnalysisOutcome; folders?: CodeFolderAnalysisOutcome[]; status: CodeGraphStatus }> {

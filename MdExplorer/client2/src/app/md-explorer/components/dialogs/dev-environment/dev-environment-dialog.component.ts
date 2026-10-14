@@ -114,10 +114,13 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
         this.scanMode = res.scanMode;
         this.selected = new Set(res.selected ?? []);
         this.configured = (res.selected?.length ?? 0) > 0;
+        this.descriptionMode = this.configured ? res.describe : null;
+        this.descriptionParallel = res.descriptionParallel || 3;
         // Prima volta: si propongono i linguaggi rilevati che hanno un estrattore pronto.
         if (this.selected.size === 0) {
           this.detected.filter(d => d.availability === 'ready').forEach(d => this.selected.add(d.id));
         }
+        this.updateEstimate();
         this.loading = false;
       },
       error: (err) => {
@@ -131,6 +134,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
 
   toggle(id: string, checked: boolean): void {
     if (checked) { this.selected.add(id); } else { this.selected.delete(id); }
+    this.updateEstimate();
   }
 
   isReady(d: DetectedLanguage): boolean { return d.availability === 'ready'; }
@@ -157,6 +161,24 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
 
   get selectedList(): string[] { return Array.from(this.selected); }
 
+  /**
+   * «Descrivi tutto» o «Solo su richiesta» (punto 2b del 14/10/2026). Alla prima configurazione non c'è una scelta
+   * preimpostata: la descrizione costa ore e quota del motore, la decide l'utente.
+   */
+  descriptionMode: 'all' | 'onDemand' | null = null;
+  descriptionParallel = 3;
+  /** I file dei linguaggi scelti e la stima per «descrivi tutto» (20-60 s a file, N insieme): calcolati al cambio, non in un getter. */
+  estimate = { files: 0, low: '', high: '' };
+
+  private updateEstimate(): void {
+    const files = this.detected.filter(d => this.selected.has(d.id)).reduce((n, d) => n + d.files, 0);
+    const hours = (secondsPerFile: number) => files * secondsPerFile / 3600 / Math.max(1, this.descriptionParallel);
+    const fmt = (h: number) => h < 1 ? `${Math.max(1, Math.round(h * 60))} min` : `${Math.round(h)} h`;
+    this.estimate = { files, low: fmt(hours(20)), high: fmt(hours(60)) };
+  }
+
+  get needsDescriptionChoice(): boolean { return this.hasReadySelection && this.descriptionMode == null; }
+
   get hasReadySelection(): boolean {
     return this.detected.some(d => this.selected.has(d.id) && this.isReady(d));
   }
@@ -167,7 +189,7 @@ export class DevEnvironmentDialogComponent implements OnInit, OnDestroy {
     this.saving = true;
     this.errorMessage = '';
     const languages = this.selectedList;
-    this.codeGraph.saveLanguages(this.data.projectRoot, this.data.folderPath, languages).subscribe({
+    this.codeGraph.saveLanguages(this.data.projectRoot, this.data.folderPath, languages, this.descriptionMode).subscribe({
       next: () => {
         this.saving = false;
         if (languages.length === 0) { this.dialogRef.close({ languages }); return; }

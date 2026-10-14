@@ -326,6 +326,27 @@ namespace MdExplorer.Service.Models
     {
         /// <summary>Gli id del catalogo (<c>csharp</c>, <c>typescript</c>, …): solo questi linguaggi si analizzano.</summary>
         public List<string> Languages { get; set; } = new List<string>();
+
+        /// <summary>
+        /// La descrizione del codice (punto 2b del 14/10/2026): `codeGraph.describe`: <c>all</c> = parte da sola dopo una scansione che ha riletto
+        /// dei file, o finché la cartella non è descritta tutta; <c>onDemand</c> = solo quando la chiede l'utente. Assente =
+        /// <c>onDemand</c>, il comportamento di prima. Vedi <see cref="CodeDescriptionModes"/>.
+        /// </summary>
+        public string Describe { get; set; }
+    }
+
+    public static class CodeDescriptionModes
+    {
+        public const string All = "all";
+        public const string OnDemand = "onDemand";
+
+        /// <summary>Il modo scritto nel .development.yml; un valore sconosciuto è un errore che dice che cosa scrivere.</summary>
+        public static string Parse(string value, string where)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return OnDemand;
+            if (value == All || value == OnDemand) return value;
+            throw new System.InvalidOperationException($"{where}: codeGraph.describe vale «{value}», ma può essere solo «{All}» o «{OnDemand}». Correggilo nel .development.yml o dalla finestra «Ambiente di sviluppo».");
+        }
     }
 
     /// <summary>

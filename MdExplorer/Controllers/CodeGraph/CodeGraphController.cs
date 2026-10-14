@@ -234,7 +234,7 @@ namespace MdExplorer.Controllers.CodeGraph
         public class GenerateRequest { public string ProjectPath { get; set; } }
         // FolderPath annullabile: con <Nullable>annotations</Nullable> una string non annullabile diventa [Required] e «analizza tutto il progetto» (FolderPath assente) rispondeva 400
         public class FolderRequest { public string ProjectPath { get; set; } public string? FolderPath { get; set; } }
-        public class LanguagesRequest : FolderRequest { public System.Collections.Generic.List<string> Languages { get; set; } }
+        public class LanguagesRequest : FolderRequest { public System.Collections.Generic.List<string> Languages { get; set; } public string? Describe { get; set; } }
 
         /// <summary>
         /// GET /api/codegraph/languages?projectPath=…&amp;folderPath=… — per la finestra «Ambiente di sviluppo» (D16):
@@ -248,8 +248,14 @@ namespace MdExplorer.Controllers.CodeGraph
             if (bad != null) return bad;
             var rel = ToRelative(projectPath, folderPath);
             if (rel == null) return BadRequest(new { error = "folderPath è obbligatorio e deve stare dentro il progetto" });
-            try { return Ok(await _analysis.GetLanguagesAsync(projectPath, rel, ct)); }
+            try
+            {
+                var result = await _analysis.GetLanguagesAsync(projectPath, rel, ct);
+                result.DescriptionParallel = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>().Parallelism();
+                return Ok(result);
+            }
             catch (DirectoryNotFoundException ex) { return BadRequest(new { error = ex.Message }); }
+            catch (InvalidOperationException ex) { return BadRequest(new { error = ex.Message }); }   // .development.yml o preferenza sbagliati: lo si dice
         }
 
         /// <summary>POST /api/codegraph/languages {projectPath, folderPath, languages[]} — salva la scelta in .development.yml.</summary>
@@ -262,7 +268,7 @@ namespace MdExplorer.Controllers.CodeGraph
             if (rel == null) return BadRequest(new { error = "folderPath è obbligatorio e deve stare dentro il progetto" });
             try
             {
-                _analysis.SaveLanguages(request.ProjectPath, rel, request.Languages ?? new System.Collections.Generic.List<string>());
+                _analysis.SaveLanguages(request.ProjectPath, rel, request.Languages ?? new System.Collections.Generic.List<string>(), request.Describe);
                 // D28: gli strumenti code_* arrivano a MarkAgent subito. Il gruppo `code` entra nella lista del progetto
                 // e nella registrazione MCP; la sessione MarkAgent (Claude Code) si riavvia da sola alla domanda dopo,
                 // riprendendo la conversazione, perché i suoi gruppi non sono più quelli del progetto.

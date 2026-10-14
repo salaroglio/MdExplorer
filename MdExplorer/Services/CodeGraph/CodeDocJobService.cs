@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Ad.Tools.Dal.Extensions;
 using MdExplorer.Abstractions.DB;
 using MdExplorer.Features.Services.CodeGraph;
 using MdExplorer.Hubs;
@@ -40,6 +41,8 @@ namespace MdExplorer.Services.CodeGraph
         IReadOnlyList<CodeDocJobProgress> Running(string projectPath);
         /// <summary>«Ferma» dal pannello dei lavori in sfondo, da QUALUNQUE finestra (l'annullamento per connessione vale solo per quella che l'ha lanciata).</summary>
         bool Stop(string projectPath, string folder);
+        /// <summary>Quante descrizioni insieme, dalla preferenza dell'utente (3 se non l'ha toccata).</summary>
+        int Parallelism();
         /// <summary>
         /// «Descrivi con Mark» su UN simbolo, dal tasto destro del grafo (D27): lo descrive (o ridescrive) da solo e
         /// aspetta la fine; niente SignalR, la pagina del grafo è nell'iframe e aspetta la risposta.
@@ -127,6 +130,12 @@ namespace MdExplorer.Services.CodeGraph
         private readonly ICodeRootService _roots;
         private readonly ConcurrentDictionary<string, CancellationTokenSource> _running = new();
         private readonly ConcurrentDictionary<string, CodeDocJobProgress> _progress = new();
+        private readonly SemaphoreSlim _saveGate = new(1, 1);
+
+        /// <summary>La preferenza dell'utente «descrizioni del codice in parallelo» (punto 2b del 14/10).</summary>
+        public const string ParallelSettingName = "CodeDescriptionParallel";
+        public const int DefaultParallel = 3;
+        public const int MaxParallel = 8;
 
         public CodeDocJobService(IServiceScopeFactory scopeFactory, IHubContext<MonitorMDHub> hub,
             MdExplorer.Services.LlmSessions.OneShotReadOnlySession llm, ICodeGraphStore store, CodeGraphReportWriter report, ICodeRootService roots,
@@ -190,6 +199,11 @@ namespace MdExplorer.Services.CodeGraph
                 (engine, model) = MdExplorer.Service.ProjectsManager.ProjectEngine(scope.ServiceProvider.GetService<IUserSettingsDB>(), projectPath);
             var whyNot = MdExplorer.Services.LlmSessions.ReadOnlyEngineSessions.WhyNot(engine);
             if (whyNot != null) throw new InvalidOperationException(whyNot);
+            // anche il prompt: senza harness non è installato, e lo si dice qui invece che come traccia fallita dopo
+            string skillBody;
+            try { skillBody = LoadPromptBody(projectPath, "mde-code-doc"); }
+            catch (IOException ex) { throw new InvalidOperationException($"Il prompt mde-code-doc non c'è nel progetto ({ex.Message}): riapri il progetto perché MdExplorer lo reinstalli.", ex); }
+            var promptVersion = PromptVersion(projectPath, "mde-code-doc");
 
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             lock (_progress)
@@ -207,11 +221,11 @@ namespace MdExplorer.Services.CodeGraph
                 // subito, non dopo il primo await: due richieste ravvicinate sulla stessa cartella partivano tutte e due
                 _progress[connectionId] = new CodeDocJobProgress { ProjectPath = projectPath, Folder = normalized, StartedAt = DateTime.UtcNow.ToString("o") };
             }
-            return RunDescribeCoreAsync(connectionId, projectPath, normalized, force, cts, resume, scriptsFolder, engine, model);
+            return RunDescribeCoreAsync(connectionId, projectPath, normalized, force, cts, resume, scriptsFolder, engine, model, skillBody, promptVersion);
         }
 
         private async Task RunDescribeCoreAsync(string connectionId, string projectPath, string folderRelative, bool force, CancellationTokenSource cts, CodeDescriptionRun resume,
-            string scriptsFolder, MarkAgentEngine engine, string model)
+            string scriptsFolder, MarkAgentEngine engine, string model, string skillBody, string promptVersion)
         {
             await Task.Yield();
             var token = cts.Token;
@@ -220,8 +234,7 @@ namespace MdExplorer.Services.CodeGraph
             try
             {
                 var engineLabel = MdExplorer.Services.LlmSessions.ReadOnlyEngineSessions.Label(engine, model);
-                var skillBody = LoadPromptBody(projectPath, "mde-code-doc");
-                var writtenBy = $"mde-code-doc {PromptVersion(projectPath, "mde-code-doc")} / {engineLabel}";
+                var writtenBy = $"mde-code-doc {promptVersion} / {engineLabel}";
 
                 var resolver = await _roots.CreateResolverAsync(projectPath, token);
                 var astScripts = Directory.EnumerateFiles(scriptsFolder, "*" + CodeGraphPaths.AstScriptSuffix, SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal).ToList();
@@ -239,42 +252,99 @@ namespace MdExplorer.Services.CodeGraph
                 await SaveRunAsync(projectPath, run, token);
                 await SendAsync(connectionId, new { phase = "started", provider = engineLabel, fileTotal = astScripts.Count, folder = folderRelative, resumedAt = resume == null ? (int?)null : start + 1 });
 
-                for (var i = start; i < astScripts.Count; i++)
+                // Più file insieme (punto 2b del 14/10): N sessioni LLM indipendenti, N dalle preferenze dell'utente.
+                // «Arrivata al file X» = tutti i file prima di X sono finiti (il punto più basso ancora aperto), così una
+                // ripresa non salta niente; i file già fatti dopo X si risaltano da soli (hash della firma).
+                var parallel = ReadParallelism();
+                var finished = new bool[astScripts.Count];
+                var low = start;
+                var sync = new object();
+                var sinceSave = 0;
+                using var slots = new SemaphoreSlim(parallel, parallel);
+                var inFlight = new List<Task>();
+                Exception firstFailure = null;
+                using var failFast = CancellationTokenSource.CreateLinkedTokenSource(token);
+
+                async Task OneFileAsync(int i)
                 {
-                    token.ThrowIfCancellationRequested();
+                    var t = failFast.Token;
                     var astPath = astScripts[i];
                     var astRel = CodeGraphPaths.ToProjectRelative(projectPath, astPath);
-                    CodeScript ast;
-                    try { ast = CodeScriptParser.Parse(File.ReadAllText(astPath, Encoding.UTF8), astRel); }
-                    catch (CodeScriptFormatException ex) { await SendAsync(connectionId, new { phase = "file-skipped", file = astRel, detail = ex.Message }); continue; }
-
-                    var docPath = CodeScriptWriter.ScriptPathFor(projectPath, ast.Header.Source, CodeScriptKind.Doc);
-                    var docRel = CodeGraphPaths.ToProjectRelative(projectPath, docPath);
-                    CodeScript existing = null;
-                    try { existing = CodeDocPlanner.ReadScriptOrNull(docPath, docRel); }
-                    catch (CodeScriptFormatException ex) { _logger.LogWarning("[CodeDoc] doc esistente non leggibile, si riscrive: {Why}", ex.Message); }
-
-                    var candidates = CodeDocPlanner.Select(ast, existing, force);
-                    var askFile = CodeDocPlanner.NeedsFileDoc(existing, force);
-                    progress.FileIndex = i + 1; progress.CurrentFile = ast.Header.Source;
-                    run.FileIndex = i + 1; run.CurrentFile = ast.Header.Source;
-                    await SaveRunAsync(projectPath, run, token);
-                    await SendAsync(connectionId, new { phase = "describing", file = ast.Header.Source, fileIndex = i + 1, fileTotal = astScripts.Count, symbols = candidates.Count });
-                    if (candidates.Count == 0 && !askFile)
+                    var describedHere = false;
+                    try
                     {
-                        if (existing != null && CodeDocPlanner.DropOrphans(existing, ast) > 0) { CodeScriptWriter.WriteIfChanged(docPath, CodeScriptWriter.Serialize(existing)); await _store.LoadScriptAsync(projectPath, docPath, token); }
-                        continue;
-                    }
+                        CodeScript ast;
+                        try { ast = CodeScriptParser.Parse(File.ReadAllText(astPath, Encoding.UTF8), astRel); }
+                        catch (CodeScriptFormatException ex) { await SendAsync(connectionId, new { phase = "file-skipped", file = astRel, detail = ex.Message }); return; }
 
-                    var result = await DescribeFileAsync(projectPath, resolver, ast, candidates, existing, docPath, engine, model, skillBody, writtenBy, token, askFile);
-                    rejectedTotal += result.Rejected;
-                    if (result.Error != null) { progress.FilesFailed++; await SendAsync(connectionId, new { phase = "file-failed", file = ast.Header.Source, detail = result.Error }); continue; }
-                    files++; described += result.Described;
-                    progress.FilesDescribed = files; progress.SymbolsDescribed = described;
-                    run.FilesDescribed++;
-                    if (i == astScripts.Count - 1) await SaveRunAsync(projectPath, run, token);
-                    await SendAsync(connectionId, new { phase = "file-done", file = ast.Header.Source, described = result.Described, rejected = result.Rejected, loaded = result.Loaded, error = result.LoadError });
+                        var docPath = CodeScriptWriter.ScriptPathFor(projectPath, ast.Header.Source, CodeScriptKind.Doc);
+                        var docRel = CodeGraphPaths.ToProjectRelative(projectPath, docPath);
+                        CodeScript existing = null;
+                        try { existing = CodeDocPlanner.ReadScriptOrNull(docPath, docRel); }
+                        catch (CodeScriptFormatException ex) { _logger.LogWarning("[CodeDoc] doc esistente non leggibile, si riscrive: {Why}", ex.Message); }
+
+                        var candidates = CodeDocPlanner.Select(ast, existing, force);
+                        var askFile = CodeDocPlanner.NeedsFileDoc(existing, force);
+                        await SendAsync(connectionId, new { phase = "describing", file = ast.Header.Source, fileIndex = i + 1, fileTotal = astScripts.Count, symbols = candidates.Count });
+                        if (candidates.Count == 0 && !askFile)
+                        {
+                            if (existing != null && CodeDocPlanner.DropOrphans(existing, ast) > 0) { CodeScriptWriter.WriteIfChanged(docPath, CodeScriptWriter.Serialize(existing)); await _store.LoadScriptAsync(projectPath, docPath, t); }
+                            return;
+                        }
+
+                        var result = await DescribeFileAsync(projectPath, resolver, ast, candidates, existing, docPath, engine, model, skillBody, writtenBy, t, askFile);
+                        lock (sync) rejectedTotal += result.Rejected;
+                        if (result.Error != null) { lock (sync) progress.FilesFailed++; await SendAsync(connectionId, new { phase = "file-failed", file = ast.Header.Source, detail = result.Error }); return; }
+                        lock (sync)
+                        {
+                            files++; described += result.Described;
+                            progress.FilesDescribed = files; progress.SymbolsDescribed = described;
+                            run.FilesDescribed++;
+                        }
+                        describedHere = true;
+                        await SendAsync(connectionId, new { phase = "file-done", file = ast.Header.Source, described = result.Described, rejected = result.Rejected, loaded = result.Loaded, error = result.LoadError });
+                    }
+                    finally
+                    {
+                        bool save;
+                        lock (sync)
+                        {
+                            finished[i] = true;
+                            while (low < astScripts.Count && finished[low]) low++;
+                            run.FileIndex = low; progress.FileIndex = low;
+                            run.CurrentFile = low < astScripts.Count ? SourceOf(projectPath, astScripts[low]) : null;
+                            progress.CurrentFile = run.CurrentFile;
+                            // la traccia a ogni file descritto; per i file già a posto ogni 100 (15.000 scritture per niente, sennò)
+                            save = describedHere || ++sinceSave >= 100;
+                            if (save) sinceSave = 0;
+                        }
+                        if (save && !t.IsCancellationRequested) await SaveRunAsync(projectPath, run, t);
+                    }
                 }
+
+                try
+                {
+                    for (var i = start; i < astScripts.Count; i++)
+                    {
+                        await slots.WaitAsync(failFast.Token);
+                        var index = i;
+                        inFlight.Add(Task.Run(async () =>
+                        {
+                            try { await OneFileAsync(index); }
+                            catch (OperationCanceledException) { }
+                            catch (Exception ex) { lock (sync) firstFailure ??= ex; failFast.Cancel(); }
+                            finally { slots.Release(); }
+                        }));
+                    }
+                }
+                catch (OperationCanceledException) when (!token.IsCancellationRequested && firstFailure != null) { }
+                finally
+                {
+                    // chi è già in volo finisce (o si ferma col token) prima di chiudere la traccia
+                    await Task.WhenAll(inFlight);
+                }
+                if (firstFailure != null) throw firstFailure;
+                token.ThrowIfCancellationRequested();
                 try { await _report.WriteAsync(projectPath, new List<string> { $"{folderRelative}: descritti {described} simboli in {files} file, {rejectedTotal} righe scartate" }); }
                 catch (Exception ex) { _logger.LogWarning(ex, "[CodeDoc] report non scritto"); }
                 run.Status = CodeDescriptionRun.Done; run.CurrentFile = null;
@@ -302,12 +372,44 @@ namespace MdExplorer.Services.CodeGraph
         }
 
         /// <summary>Nel grafo di stato, e a TUTTE le finestre (<c>codeDescriptionStatus</c>): il pannello dei lavori in sfondo (2d).</summary>
+        /// <remarks>Una scrittura alla volta: con più file insieme l'ultima deve essere davvero l'ultima.</remarks>
         private async Task SaveRunAsync(string projectPath, CodeDescriptionRun run, CancellationToken token)
         {
-            run.UpdatedAt = DateTime.UtcNow.ToString("o");
-            await _store.UpsertDescriptionRunAsync(projectPath, run, token);
+            await _saveGate.WaitAsync(token);
+            try
+            {
+                run.UpdatedAt = DateTime.UtcNow.ToString("o");
+                await _store.UpsertDescriptionRunAsync(projectPath, run, token);
+            }
+            finally { _saveGate.Release(); }
             try { await _hub.Clients.All.SendAsync(StatusEvent, new { projectPath, run = run }); }
             catch (Exception ex) { _logger.LogWarning(ex, "[CodeDoc] SignalR codeDescriptionStatus non inviato"); }
+        }
+
+        /// <summary>
+        /// Quante descrizioni insieme: la preferenza dell'utente, 3 se non l'ha mai toccata. Un valore fuori da 1-8 è un
+        /// errore che dice dove correggerlo, non un numero aggiustato in silenzio.
+        /// </summary>
+        public int Parallelism() => ReadParallelism();
+
+        private int ReadParallelism()
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            int? value;
+            db.BeginTransaction();
+            try { value = db.GetDal<MdExplorer.Abstractions.Entities.UserDB.Setting>().GetList().FirstOrDefault(x => x.Name == ParallelSettingName)?.ValueInt; }
+            finally { db.Commit(); }
+            if (value == null) return DefaultParallel;
+            if (value < 1 || value > MaxParallel)
+                throw new InvalidOperationException($"«Descrizioni del codice in parallelo» vale {value}: dev'essere fra 1 e {MaxParallel}. Correggilo nelle impostazioni dell'applicazione.");
+            return value.Value;
+        }
+
+        private static string SourceOf(string projectPath, string astScriptPath)
+        {
+            var rel = CodeGraphPaths.ToProjectRelative(projectPath, astScriptPath);
+            return rel.Substring(CodeGraphPaths.ScriptsFolderName.Length + 1, rel.Length - CodeGraphPaths.ScriptsFolderName.Length - 1 - CodeGraphPaths.AstScriptSuffix.Length);
         }
 
         /// <summary>

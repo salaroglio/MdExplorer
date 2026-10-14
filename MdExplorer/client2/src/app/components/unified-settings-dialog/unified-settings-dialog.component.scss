@@ -394,3 +394,12 @@
 // Stato di Java sotto il campo del percorso
 .java-status { display: flex; align-items: center; gap: 8px; margin: -8px 0 16px; font-size: 13px;
   .java-ok { color: #188038; } .java-bad { color: #d93025; } button { margin-left: auto; } }
+
+// Etichetta esplicita sopra un campo (regola: <label> sopra ogni mat-form-field)
+.field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  margin: 8px 0 4px;
+  color: var(--mde-text-secondary);
+}

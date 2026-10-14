@@ -29,3 +29,13 @@
 .describe .outcome-title { display: flex; align-items: center; gap: 6px; font-weight: 600; color: #2e7d32; }
 .describe-log { max-height: 160px; overflow: auto; font-size: 12px; opacity: 0.85; margin-top: 4px; }
 .describe-log div { padding: 1px 0; }
+
+// «Descrivi tutto / Solo su richiesta» (punto 2b del 14/10)
+.describe-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.mode-name { font-weight: 500; }
+.mode-hint { display: block; font-size: 12px; color: var(--mde-text-secondary); white-space: normal; }

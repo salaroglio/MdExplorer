@@ -48,6 +48,20 @@
         </div>
       </div>
 
+      <ng-container *ngIf="hasReadySelection">
+        <label class="field-label" id="describe-mode-label">{{ 'DEV_ENV.DESCRIPTION_LABEL' | translate }}</label>
+        <mat-radio-group class="describe-mode" aria-labelledby="describe-mode-label" [(ngModel)]="descriptionMode" [disabled]="saving || analyzing">
+          <mat-radio-button value="all">
+            <span class="mode-name">{{ 'DEV_ENV.DESCRIPTION_ALL' | translate }}</span>
+            <span class="mode-hint">{{ 'DEV_ENV.DESCRIPTION_ALL_HINT' | translate: { files: estimate.files, low: estimate.low, high: estimate.high, parallel: descriptionParallel } }}</span>
+          </mat-radio-button>
+          <mat-radio-button value="onDemand">
+            <span class="mode-name">{{ 'DEV_ENV.DESCRIPTION_ON_DEMAND' | translate }}</span>
+            <span class="mode-hint">{{ 'DEV_ENV.DESCRIPTION_ON_DEMAND_HINT' | translate }}</span>
+          </mat-radio-button>
+        </mat-radio-group>
+      </ng-container>
+
       <div class="scan-mode" *ngIf="scanMode">
         <mat-icon>{{ scanMode === 'git' ? 'account_tree' : 'fingerprint' }}</mat-icon>
         <span>{{ (scanMode === 'git' ? 'DEV_ENV.SCAN_GIT' : 'DEV_ENV.SCAN_HASH') | translate }}</span>
@@ -73,6 +87,7 @@
         <li class="warn" *ngIf="outcome.load?.firstError">{{ outcome.load?.firstError }}</li>
       </ul>
       <p class="reason">{{ outcome.reason }}</p>
+      <p class="reason" *ngIf="descriptionMode === 'all'">{{ 'DEV_ENV.DESCRIPTION_STARTED_HINT' | translate }}</p>
     </div>
 
     <div class="describe" *ngIf="describing || describeLog.length > 0 || describeDone">
@@ -111,7 +126,8 @@
       {{ 'DEV_ENV.OPEN_REPORT' | translate }}
     </button>
     <button mat-button (click)="close()" [disabled]="saving || analyzing">{{ 'COMMON.CANCEL' | translate }}</button>
-    <button mat-raised-button color="primary" (click)="confirm()" [disabled]="loading || saving || analyzing">
+    <button mat-raised-button color="primary" (click)="confirm()" [disabled]="loading || saving || analyzing || needsDescriptionChoice"
+            [title]="needsDescriptionChoice ? ('DEV_ENV.DESCRIPTION_REQUIRED' | translate) : ''">
       <mat-icon>play_arrow</mat-icon>
       {{ (hasReadySelection ? 'DEV_ENV.SAVE_AND_ANALYZE' : 'DEV_ENV.SAVE') | translate }}
     </button>

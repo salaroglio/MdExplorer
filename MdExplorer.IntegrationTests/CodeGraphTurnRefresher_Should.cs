@@ -27,7 +27,8 @@ namespace MdExplorer.IntegrationTests
                 return new List<CodeFolderAnalysisOutcome> { new() { Folder = "@backend", Reparsed = 1 } };
             }
             public Task<CodeFolderLanguages> GetLanguagesAsync(string p, string f, CancellationToken ct = default) => throw new NotImplementedException();
-            public void SaveLanguages(string p, string f, IReadOnlyList<string> l) => throw new NotImplementedException();
+            public void SaveLanguages(string p, string f, IReadOnlyList<string> l, string d = null) => throw new NotImplementedException();
+            public string DescriptionModeOf(string p, string f) => throw new NotImplementedException();
             public Task<CodeFolderAnalysisOutcome> AnalyzeFolderAsync(string p, string f, bool i, CancellationToken ct = default) => throw new NotImplementedException();
             public Task<List<CodeFolderAnalysisOutcome>> AnalyzeProjectAsync(string p, bool i, CancellationToken ct = default) => throw new NotImplementedException();
             public Task<List<CodeOutdatedScript>> ListOutdatedScriptsAsync(string p, string f, CancellationToken ct = default) => throw new NotImplementedException();

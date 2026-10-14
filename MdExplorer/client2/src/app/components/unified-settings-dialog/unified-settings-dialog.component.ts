@@ -59,6 +59,8 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     });
   }
   localGraphvizDotPath: string = '';
+  /** Descrizioni del codice in parallelo (punto 2b del 14/10/2026): la legge CodeDocJobService, 3 se assente. */
+  codeDescriptionParallel: number = 3;
   fileChangeNotificationEnabled: boolean = true;
   teamsChatEnabled: boolean = true;
   isElectronEnvironment: boolean = false;
@@ -223,6 +225,7 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
         this.javaPath = settings.find(_ => _.name === 'JavaPath')?.valueString || '';
         this.probeJava();
         this.localGraphvizDotPath = settings.find(_ => _.name === 'LocalGraphvizDotPath')?.valueString || '';
+        this.codeDescriptionParallel = settings.find(_ => _.name === 'CodeDescriptionParallel')?.valueInt ?? 3;
         // Teams chat defaults to enabled when the setting is missing.
         this.teamsChatEnabled = (settings.find(_ => _.name === 'TeamsChatEnabled')?.valueInt ?? 1) === 1;
 
@@ -240,7 +243,17 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     this.fileChangeNotificationService.setEnabled(this.fileChangeNotificationEnabled);
   }
 
+  get codeParallelValid(): boolean {
+    const n = Number(this.codeDescriptionParallel);
+    return Number.isInteger(n) && n >= 1 && n <= 8;
+  }
+
   saveApplicationSettings(): void {
+    // un valore fuori da 1-8 non si salva: il backend lo rifiuterebbe al primo «descrivi»
+    if (!this.codeParallelValid) {
+      this.snackBar.open(this.translate.instant('UNIFIED_SETTINGS.CODE_PARALLEL_INVALID'), 'OK', { duration: 4000 });
+      return;
+    }
     this.updateSetting('EditorPath', this.vscodePath);
     this.updateSetting('IntelliJPath', this.intellijPath);
     this.updateSetting('JiraServer', this.jiraServer);
@@ -248,6 +261,7 @@ export class UnifiedSettingsDialogComponent implements OnInit, OnDestroy {
     this.updateSetting('PlantumlLocalPath', this.plantumlLocalPath);
     this.updateSetting('JavaPath', this.javaPath);
     this.updateSetting('LocalGraphvizDotPath', this.localGraphvizDotPath);
+    this.updateSettingInt('CodeDescriptionParallel', Number(this.codeDescriptionParallel));
     this.updateSettingInt('TeamsChatEnabled', this.teamsChatEnabled ? 1 : 0);
     this.updateSetting('ThemeMode', this.currentThemeMode);
 

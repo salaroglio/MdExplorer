@@ -59,6 +59,10 @@ namespace MdExplorer.Services.CodeGraph
         public List<string> Selected { get; set; } = new();
         public IReadOnlyList<DetectedLanguage> Detected { get; set; } = Array.Empty<DetectedLanguage>();
         public string ScanMode { get; set; }
+        /// <summary><c>all</c> o <c>onDemand</c> (<see cref="CodeDescriptionModes"/>).</summary>
+        public string Describe { get; set; }
+        /// <summary>Quante descrizioni insieme (preferenza dell'utente): la finestra ci stima il tempo di «descrivi tutto».</summary>
+        public int DescriptionParallel { get; set; }
     }
 
     public interface ICodeAnalysisService
@@ -66,7 +70,10 @@ namespace MdExplorer.Services.CodeGraph
         /// <summary>I linguaggi rilevati nella cartella (per estensione, dopo gli ignore) e quelli scelti in <c>.development.yml</c>.</summary>
         Task<CodeFolderLanguages> GetLanguagesAsync(string projectPath, string folderRelative, CancellationToken ct = default);
         /// <summary>Salva la scelta in <c>.development.yml</c> (voce della cartella, <c>codeGraph.languages</c>). Lista vuota = toglie la voce.</summary>
-        void SaveLanguages(string projectPath, string folderRelative, IReadOnlyList<string> languages);
+        /// <param name="descriptionMode"><c>all</c>, <c>onDemand</c> o null = lascia quello che c'è.</param>
+        void SaveLanguages(string projectPath, string folderRelative, IReadOnlyList<string> languages, string descriptionMode = null);
+        /// <summary>Il modo di descrizione della cartella program (o radice <c>@alias</c>): <c>all</c> o <c>onDemand</c>.</summary>
+        string DescriptionModeOf(string projectPath, string folderRelative);
         /// <summary>
         /// Scanner → estrattori → script → caricatore, per una cartella. <paramref name="includeExtractorChanges"/>: rifare
         /// anche gli script dei file non cambiati scritti da un altro estrattore o versione (sì quando l'analisi la chiede
@@ -125,12 +132,45 @@ namespace MdExplorer.Services.CodeGraph
         private readonly ICodeRootService _roots;
         private readonly SemaphoreSlim _gate = new(1, 1);
         private readonly IHubContext<MonitorMDHub> _hub;
+        private readonly IServiceProvider _services;
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, CodeScanInProgress> _scanning = new();
 
         public CodeAnalysisService(ICodeChangeScanner scanner, ICodeExtractorRegistry extractors, ICodeGraphStore store,
-            CodeGraphReportWriter report, ICodeRootService roots, IHubContext<MonitorMDHub> hub, ILogger<CodeAnalysisService> logger)
+            CodeGraphReportWriter report, ICodeRootService roots, IHubContext<MonitorMDHub> hub, IServiceProvider services, ILogger<CodeAnalysisService> logger)
         {
-            _scanner = scanner; _extractors = extractors; _store = store; _report = report; _roots = roots; _hub = hub; _logger = logger;
+            _scanner = scanner; _extractors = extractors; _store = store; _report = report; _roots = roots; _hub = hub; _services = services; _logger = logger;
+        }
+
+        /// <summary>
+        /// «Descrivi tutto» (punto 2b del 14/10): dopo una scansione di una cartella in modo <c>all</c> la descrizione parte
+        /// da sola se la cartella non è ancora descritta tutta o se la scansione ha riletto dei file. MAI se c'è una
+        /// descrizione interrotta, fermata o fallita: quella la decide l'utente dal pannello. Un motore che manca diventa
+        /// una traccia «fallita» col motivo, visibile nel pannello, non un log e basta.
+        /// </summary>
+        private async Task MaybeDescribeAsync(string projectPath, string folder, CodeFolderAnalysisOutcome outcome)
+        {
+            if (DescriptionModeOf(projectPath, folder) != CodeDescriptionModes.All) return;
+            // risolto qui e non nel costruttore: il servizio delle descrizioni è registrato dopo, e un ciclo di dipendenze
+            // fra i due singleton non deve nascere per una chiamata sola
+            var jobs = (ICodeDocJobService)_services.GetService(typeof(ICodeDocJobService));
+            if (jobs.Running(projectPath).Any(p => p.Folder == folder)) return;
+            var last = (await _store.GetDescriptionRunsAsync(projectPath)).FirstOrDefault(r => r.ProgramFolder == folder);
+            if (last != null && last.Status != CodeDescriptionRun.Done) return;
+            if (last != null && outcome.Reparsed == 0) return;
+            try
+            {
+                _ = jobs.RunDescribeAsync("auto:" + projectPath + "|" + folder, projectPath, folder, force: false);
+                _logger.LogInformation("[CodeGraph] '{Folder}': descrizione partita da sola (modo all, {Reparsed} file riletti)", folder, outcome.Reparsed);
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning("[CodeGraph] '{Folder}': la descrizione automatica non parte — {Why}", folder, ex.Message);
+                await _store.UpsertDescriptionRunAsync(projectPath, new CodeDescriptionRun
+                {
+                    ProgramFolder = folder, Status = CodeDescriptionRun.Failed, Engine = string.Empty, StartedAt = DateTime.UtcNow.ToString("o"),
+                    UpdatedAt = DateTime.UtcNow.ToString("o"), Error = ex.Message,
+                });
+            }
         }
 
         public IReadOnlyList<CodeScanInProgress> Scanning(string projectPath)
@@ -195,13 +235,31 @@ namespace MdExplorer.Services.CodeGraph
                 Selected = scope.Languages,
                 Detected = CodeLanguageDetector.Detect(scan.AllFiles.Select(f => f.AbsolutePath), _extractors),
                 ScanMode = scan.Mode,
+                Describe = DescriptionModeOf(projectPath, folderRelative),
             };
         }
 
-        public void SaveLanguages(string projectPath, string folderRelative, IReadOnlyList<string> languages)
+        public string DescriptionModeOf(string projectPath, string folderRelative)
+        {
+            folderRelative = NormalizeRelative(folderRelative);
+            var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
+            if (!File.Exists(path)) return CodeDescriptionModes.OnDemand;
+            var config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path);
+            FolderCodeGraphConfig cg;
+            if (CodeRootPaths.IsLogical(folderRelative))
+            {
+                var (alias, _) = CodeRootPaths.Parse(folderRelative);
+                cg = config.CodeRoots?.FirstOrDefault(r => r.Alias == alias)?.CodeGraph;
+            }
+            else cg = config.Folders.FirstOrDefault(f => string.Equals(NormalizeRelative(f.Path), folderRelative, StringComparison.OrdinalIgnoreCase))?.CodeGraph;
+            return CodeDescriptionModes.Parse(cg?.Describe, $"'{folderRelative}'");
+        }
+
+        public void SaveLanguages(string projectPath, string folderRelative, IReadOnlyList<string> languages, string descriptionMode = null)
         {
             folderRelative = NormalizeRelative(folderRelative);
             foreach (var l in languages) CodeLanguages.Require(l);   // un id ignoto è un errore, non una riga ignorata
+            if (descriptionMode != null) CodeDescriptionModes.Parse(descriptionMode, $"'{folderRelative}'");
 
             var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
             var config = File.Exists(path) ? MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path) : new DevelopmentConfig();
@@ -211,7 +269,7 @@ namespace MdExplorer.Services.CodeGraph
                 var (alias, _) = CodeRootPaths.Parse(folderRelative);
                 var root = config.CodeRoots?.FirstOrDefault(r => r.Alias == alias)
                     ?? throw new InvalidOperationException($"La radice «@{alias}» non è dichiarata: collegala prima di scegliere i linguaggi.");
-                root.CodeGraph = languages.Count == 0 ? null : new FolderCodeGraphConfig { Languages = languages.Distinct(StringComparer.OrdinalIgnoreCase).ToList() };
+                root.CodeGraph = languages.Count == 0 ? null : new FolderCodeGraphConfig { Languages = languages.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), Describe = descriptionMode ?? root.CodeGraph?.Describe };
                 File.WriteAllText(path, new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build().Serialize(config));
                 _logger.LogInformation("[CodeGraph] '@{Alias}': linguaggi = {Langs}", alias, languages.Count == 0 ? "(nessuno)" : string.Join(", ", languages));
                 return;
@@ -223,7 +281,7 @@ namespace MdExplorer.Services.CodeGraph
                 entry = new DevelopmentFolder { Path = folderRelative, Tags = new List<string> { "program" } };
                 config.Folders.Add(entry);
             }
-            entry.CodeGraph = languages.Count == 0 ? null : new FolderCodeGraphConfig { Languages = languages.Distinct(StringComparer.OrdinalIgnoreCase).ToList() };
+            entry.CodeGraph = languages.Count == 0 ? null : new FolderCodeGraphConfig { Languages = languages.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), Describe = descriptionMode ?? entry.CodeGraph?.Describe };
 
             var serializer = new SerializerBuilder().WithNamingConvention(CamelCaseNamingConvention.Instance).Build();
             File.WriteAllText(path, serializer.Serialize(config));
@@ -410,6 +468,11 @@ namespace MdExplorer.Services.CodeGraph
                 {
                     _scanning.TryRemove(scanKey, out _);
                     await AnnounceScanAsync(projectPath, folderRelative, outcome.Error == null ? "done" : "failed", outcome);
+                    if (outcome.Error == null)
+                    {
+                        try { await MaybeDescribeAsync(projectPath, folderRelative, outcome); }
+                        catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] '{Folder}': controllo della descrizione automatica fallito", folderRelative); outcome.Warnings.Add("descrizione automatica: " + ex.Message); }
+                    }
                 }
             }
         }

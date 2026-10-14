@@ -82,6 +82,13 @@
               </button>
             </div>
 
+            <label class="field-label" for="code-description-parallel">{{ 'UNIFIED_SETTINGS.CODE_PARALLEL_LABEL' | translate }}</label>
+            <mat-form-field appearance="outline">
+              <input matInput id="code-description-parallel" type="number" min="1" max="8" step="1" [(ngModel)]="codeDescriptionParallel">
+              <mat-hint>{{ 'UNIFIED_SETTINGS.CODE_PARALLEL_HINT' | translate }}</mat-hint>
+              <mat-error>{{ 'UNIFIED_SETTINGS.CODE_PARALLEL_INVALID' | translate }}</mat-error>
+            </mat-form-field>
+
             <mat-form-field appearance="outline">
               <mat-label>{{ 'UNIFIED_SETTINGS.GRAPHVIZ_PATH' | translate }}</mat-label>
               <input matInput [(ngModel)]="localGraphvizDotPath" [placeholder]="'UNIFIED_SETTINGS.GRAPHVIZ_PLACEHOLDER' | translate">
