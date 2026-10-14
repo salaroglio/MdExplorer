@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using MdExplorer.Features.Services.CodeGraph;
 using MdExplorer.Features.Utilities;
 using MdExplorer.Service.Models;
+using MdExplorer.Hubs;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
@@ -86,6 +88,15 @@ namespace MdExplorer.Services.CodeGraph
         /// le stesse che <see cref="AnalyzeProjectAsync"/> analizza (<c>code_inventory</c>, punto 4b del 14/10).
         /// </summary>
         Task<List<CodeProgramFolder>> ListProgramsAsync(string projectPath, CancellationToken ct = default);
+        /// <summary>Le scansioni in corso nel progetto (pannello dei lavori in sfondo, punto 2d del 14/10).</summary>
+        IReadOnlyList<CodeScanInProgress> Scanning(string projectPath);
+    }
+
+    public sealed class CodeScanInProgress
+    {
+        public string ProjectPath { get; set; }
+        public string Folder { get; set; }
+        public string StartedAt { get; set; }
     }
 
     public sealed class CodeProgramFolder
@@ -113,11 +124,30 @@ namespace MdExplorer.Services.CodeGraph
         private readonly ILogger<CodeAnalysisService> _logger;
         private readonly ICodeRootService _roots;
         private readonly SemaphoreSlim _gate = new(1, 1);
+        private readonly IHubContext<MonitorMDHub> _hub;
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, CodeScanInProgress> _scanning = new();
 
         public CodeAnalysisService(ICodeChangeScanner scanner, ICodeExtractorRegistry extractors, ICodeGraphStore store,
-            CodeGraphReportWriter report, ICodeRootService roots, ILogger<CodeAnalysisService> logger)
+            CodeGraphReportWriter report, ICodeRootService roots, IHubContext<MonitorMDHub> hub, ILogger<CodeAnalysisService> logger)
         {
-            _scanner = scanner; _extractors = extractors; _store = store; _report = report; _roots = roots; _logger = logger;
+            _scanner = scanner; _extractors = extractors; _store = store; _report = report; _roots = roots; _hub = hub; _logger = logger;
+        }
+
+        public IReadOnlyList<CodeScanInProgress> Scanning(string projectPath)
+            => _scanning.Values.Where(s => string.Equals(s.ProjectPath, projectPath, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        /// <summary>A tutte le finestre (<c>codeScanStatus</c>): il pannello dei lavori in sfondo filtra per progetto.</summary>
+        private async Task AnnounceScanAsync(string projectPath, string folder, string phase, CodeFolderAnalysisOutcome outcome = null)
+        {
+            try
+            {
+                await _hub.Clients.All.SendAsync("codeScanStatus", new
+                {
+                    projectPath, folder, phase,
+                    files = outcome?.FilesInPerimeter, reparsed = outcome?.Reparsed, error = outcome?.Error,
+                });
+            }
+            catch (Exception ex) { _logger.LogWarning(ex, "[CodeGraph] SignalR codeScanStatus non inviato"); }
         }
 
         /// <summary>
@@ -268,6 +298,14 @@ namespace MdExplorer.Services.CodeGraph
             folderRelative = NormalizeRelative(folderRelative);
             var outcome = new CodeFolderAnalysisOutcome { Folder = folderRelative };
             await _gate.WaitAsync(ct);
+            // dopo un turno di MarkAgent (targeted) la rianalisi è di pochi file: nel pannello sarebbe solo uno sfarfallio
+            var shown = !targeted;
+            var scanKey = projectPath + "|" + folderRelative;
+            if (shown)
+            {
+                _scanning[scanKey] = new CodeScanInProgress { ProjectPath = projectPath, Folder = folderRelative, StartedAt = DateTime.UtcNow.ToString("o") };
+                await AnnounceScanAsync(projectPath, folderRelative, "started");
+            }
             try
             {
                 // Script di uno schema ritirato: via dal disco e via lo stato dello scanner, PRIMA di leggerlo, così questa
@@ -365,7 +403,15 @@ namespace MdExplorer.Services.CodeGraph
                 outcome.Error = ex.Message;
                 return outcome;
             }
-            finally { _gate.Release(); }
+            finally
+            {
+                _gate.Release();
+                if (shown)
+                {
+                    _scanning.TryRemove(scanKey, out _);
+                    await AnnounceScanAsync(projectPath, folderRelative, outcome.Error == null ? "done" : "failed", outcome);
+                }
+            }
         }
 
         public async Task<List<CodeOutdatedScript>> ListOutdatedScriptsAsync(string projectPath, string folderPrefix, CancellationToken ct = default)

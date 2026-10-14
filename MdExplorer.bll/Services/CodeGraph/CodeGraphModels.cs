@@ -84,6 +84,12 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string CurrentFile { get; set; }
         public int FilesDescribed { get; set; }
         public string Error { get; set; }
+        /// <summary>
+        /// Solo in memoria, non nel grafo: quando e da quale file è partita QUESTA sessione (una ripresa riparte dal mezzo),
+        /// per la velocità e il tempo che manca nel pannello dei lavori in sfondo (punto 2d).
+        /// </summary>
+        public string SessionStartedAt { get; set; }
+        public int SessionStartIndex { get; set; }
     }
 
     /// <summary>I conteggi di una cartella <c>program</c> nel grafo (punto 4b del 14/10, <c>code_inventory</c>).</summary>

@@ -330,22 +330,6 @@ app-promptlab {
   color: #fff !important;
 }
 
-// Building knowledge snackbar — UNA sola istanza in basso a destra durante
-// l'indicizzazione del progetto. Hosting: MatSnackBar.openFromComponent
-// con IndexingProgressSnackComponent (vedi md-tree.component.ts).
-// Lo stile interno del componente è in indexing-progress-snack.component.scss;
-// qui modelliamo SOLO il contenitore esterno Material (dimensioni, padding).
-.mat-snack-bar-container.indexing-progress-snackbar,
-.mat-mdc-snack-bar-container.indexing-progress-snackbar {
-  background: var(--mde-bg-primary, #fff) !important;
-  color: var(--mde-text-primary, #212121) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
-  padding: 14px 18px !important;
-  min-width: 320px !important;
-  border-left: 4px solid var(--mde-icon-accent-blue);
-}
-
 // Warning snackbar (for YAML auto-generated)
 .mat-snack-bar-container.warning-snackbar,
 .mat-mdc-snack-bar-container.warning-snackbar {

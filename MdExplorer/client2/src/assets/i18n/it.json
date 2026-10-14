@@ -2330,15 +2330,26 @@
     "PROCEED": "Avvia senza salvare",
     "SAVE_FAILED": "Non sono riuscito a salvare: l'agente non è partito."
   },
-  "CODE_GRAPH": {
-    "INTERRUPTED_TITLE": "Descrizione del codice interrotta",
-    "INTERRUPTED_STOPPED": "La descrizione di «{{folder}}» si è fermata al file {{index}} di {{total}} ({{when}}, {{described}} file descritti, motore {{engine}}): MdExplorer è stato chiuso o si è interrotto mentre lavorava. Continuare da quel file?",
-    "INTERRUPTED_FAILED": "La descrizione di «{{folder}}» si è fermata con un errore al file {{index}} di {{total}} ({{when}}): {{error}}. Continuare da quel file?",
-    "INTERRUPTED_CONTINUE": "Continua",
-    "INTERRUPTED_DISMISS": "Lascia stare",
-    "INTERRUPTED_RESUMED": "Descrizione di «{{folder}}» ripresa dal file {{index}}",
-    "INTERRUPTED_CHECK_FAILED": "Non riesco a sapere se una descrizione del codice si è interrotta: {{error}}",
-    "INTERRUPTED_ACTION_FAILED": "Descrizione interrotta: operazione non riuscita — {{error}}",
-    "INTERRUPTED_NO_CONNECTION": "la finestra non è ancora collegata al servizio, riprova fra un momento"
+  "BACKGROUND_WORK": {
+    "TITLE": "Costruzione della conoscenza",
+    "EXPAND": "Mostra i lavori in sfondo",
+    "COLLAPSE": "Riduci a icona",
+    "KIND": {
+      "indexing": "Indicizzazione dei documenti",
+      "scan": "Scansione del codice",
+      "description": "Descrizione del codice"
+    },
+    "FILES": "file",
+    "SCANNING": "Leggo il codice con il parser…",
+    "SCAN_DONE": "Fatto: {{files}} file, {{reparsed}} riletti",
+    "DESCRIPTION_DONE": "Finita: {{described}} file descritti su {{total}}",
+    "INTERRUPTED": "Si è fermata al file {{index}} di {{total}} ({{when}}, {{described}} file descritti): MdExplorer è stato chiuso o si è interrotto mentre lavorava.",
+    "STOPPED": "Fermata da te al file {{index}} di {{total}} ({{when}}).",
+    "FAILED": "Fermata da un errore al file {{index}} di {{total}}: {{error}}",
+    "RESUME": "Riprendi",
+    "DISMISS": "Lascia stare",
+    "STOP": "Ferma",
+    "CLOSE": "Chiudi",
+    "ACTION_FAILED": "Lavori in sfondo: operazione non riuscita — {{error}}"
   }
 }

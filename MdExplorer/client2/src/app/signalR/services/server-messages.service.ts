@@ -44,6 +44,10 @@ export class MdServerMessagesService {
   public markFolderProgress$ = new Subject<any>();
   /** Grafo del codice: progressi di «Descrivi il codice» (F4). */
   public codeDocProgress$ = new Subject<any>();
+  /** Stato di una descrizione del codice, a TUTTE le finestre: il pannello dei lavori in sfondo filtra per progetto (punto 2d). */
+  public codeDescriptionStatus$ = new Subject<any>();
+  /** Inizio e fine della scansione di una cartella program, a tutte le finestre (punto 2d). */
+  public codeScanStatus$ = new Subject<any>();
 
   // Observable for the "Ask to MarkAgent" diagram explanation stream
   // (MarkDiagramController). Phases: start | chunk | done | error.
@@ -250,9 +254,8 @@ export class MdServerMessagesService {
       // parsingProjectStart/Stop NON aprono più la MatDialog modale "Building knowledge"
       // (era il blocker UX: backdrop modale → utente inibito per tutta l'indicizzazione).
       // Dopo il refactor del 2026-05-23 la pipeline è davvero async (Task.Yield in
-      // IndexingPipelineService.RunAsync) e mostriamo il progresso con una snackbar
-      // custom (IndexingProgressSnackComponent) montata da md-tree.component.ts via
-      // addParsingProjectStartListener (sotto).
+      // IndexingPipelineService.RunAsync) e il progresso è una riga del pannello dei lavori in sfondo
+      // (BackgroundWorkService + BackgroundWorkPanelComponent, punto 2d del 14/10/2026).
       this.hubConnection.on('openingApplication', (data) => {
         this.openingApplicationProvider.show(data);
       });
@@ -300,6 +303,12 @@ export class MdServerMessagesService {
       });
       this.hubConnection.on('codeDocProgress', (data) => {
         this.codeDocProgress$.next(data);
+      });
+      this.hubConnection.on('codeDescriptionStatus', (data) => {
+        this.codeDescriptionStatus$.next(data);
+      });
+      this.hubConnection.on('codeScanStatus', (data) => {
+        this.codeScanStatus$.next(data);
       });
 
       // "Ask to MarkAgent" diagram explanation, streamed chunk by chunk

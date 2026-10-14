@@ -18111,6 +18111,10 @@ class MdServerMessagesService {
     this.markFolderProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     /** Grafo del codice: progressi di «Descrivi il codice» (F4). */
     this.codeDocProgress$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    /** Stato di una descrizione del codice, a TUTTE le finestre: il pannello dei lavori in sfondo filtra per progetto (punto 2d). */
+    this.codeDescriptionStatus$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
+    /** Inizio e fine della scansione di una cartella program, a tutte le finestre (punto 2d). */
+    this.codeScanStatus$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
     // Observable for the "Ask to MarkAgent" diagram explanation stream
     // (MarkDiagramController). Phases: start | chunk | done | error.
     this.markDiagramExplain$ = new rxjs__WEBPACK_IMPORTED_MODULE_7__.Subject();
@@ -18201,9 +18205,8 @@ class MdServerMessagesService {
         // parsingProjectStart/Stop NON aprono più la MatDialog modale "Building knowledge"
         // (era il blocker UX: backdrop modale → utente inibito per tutta l'indicizzazione).
         // Dopo il refactor del 2026-05-23 la pipeline è davvero async (Task.Yield in
-        // IndexingPipelineService.RunAsync) e mostriamo il progresso con una snackbar
-        // custom (IndexingProgressSnackComponent) montata da md-tree.component.ts via
-        // addParsingProjectStartListener (sotto).
+        // IndexingPipelineService.RunAsync) e il progresso è una riga del pannello dei lavori in sfondo
+        // (BackgroundWorkService + BackgroundWorkPanelComponent, punto 2d del 14/10/2026).
         this.hubConnection.on('openingApplication', data => {
           this.openingApplicationProvider.show(data);
         });
@@ -18245,6 +18248,12 @@ class MdServerMessagesService {
         });
         this.hubConnection.on('codeDocProgress', data => {
           this.codeDocProgress$.next(data);
+        });
+        this.hubConnection.on('codeDescriptionStatus', data => {
+          this.codeDescriptionStatus$.next(data);
+        });
+        this.hubConnection.on('codeScanStatus', data => {
+          this.codeScanStatus$.next(data);
         });
         // "Ask to MarkAgent" diagram explanation, streamed chunk by chunk
         this.hubConnection.on('markDiagramExplain', data => {
@@ -18734,8 +18743,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.14.1',
-  buildTime: '2026.10.14 10:18:53'
+  version: '2026.10.14.2',
+  buildTime: '2026.10.14 10:35:49'
 };
 
 /***/ }),
@@ -18769,4 +18778,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.6a6b028d3f9080cb.js.map
+//# sourceMappingURL=main.48c801976db6b40c.js.map

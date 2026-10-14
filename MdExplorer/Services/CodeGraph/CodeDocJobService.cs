@@ -29,8 +29,17 @@ namespace MdExplorer.Services.CodeGraph
         Task RunDescribeAsync(string connectionId, string projectPath, string folderRelative, bool force, CancellationToken ct = default, CodeDescriptionRun resume = null);
         /// <summary>Le descrizioni interrotte del progetto: traccia «in corso» senza un lavoro vivo (MdExplorer chiuso o caduto), o fallite.</summary>
         Task<List<CodeDescriptionRun>> InterruptedAsync(string projectPath, CancellationToken ct = default);
+        /// <summary>
+        /// Le descrizioni del pannello dei lavori in sfondo (punto 2d): quelle in corso (vive, con la sessione) e quelle da
+        /// riprendere — interrotte, fallite o fermate dall'utente. Le finite no.
+        /// </summary>
+        Task<List<CodeDescriptionRun>> BackgroundAsync(string projectPath, CancellationToken ct = default);
+        /// <summary>Da riprendere: traccia non finita senza un lavoro vivo — interrotta, fallita o fermata dall'utente.</summary>
+        Task<List<CodeDescriptionRun>> ResumableAsync(string projectPath, CancellationToken ct = default);
         /// <summary>Le descrizioni in corso nel progetto, con il file a cui sono arrivate (<c>code_inventory</c>, punto 4b del 14/10).</summary>
         IReadOnlyList<CodeDocJobProgress> Running(string projectPath);
+        /// <summary>«Ferma» dal pannello dei lavori in sfondo, da QUALUNQUE finestra (l'annullamento per connessione vale solo per quella che l'ha lanciata).</summary>
+        bool Stop(string projectPath, string folder);
         /// <summary>
         /// «Descrivi con Mark» su UN simbolo, dal tasto destro del grafo (D27): lo descrive (o ridescrive) da solo e
         /// aspetta la fine; niente SignalR, la pagina del grafo è nell'iframe e aspetta la risposta.
@@ -87,6 +96,8 @@ namespace MdExplorer.Services.CodeGraph
         public int FilesDescribed { get; set; }
         public int SymbolsDescribed { get; set; }
         public int FilesFailed { get; set; }
+        /// <summary>La traccia di questo lavoro (null finché non è partito davvero).</summary>
+        public CodeDescriptionRun Run { get; set; }
     }
 
     public sealed class CodeDescriptionEditOutcome
@@ -105,6 +116,7 @@ namespace MdExplorer.Services.CodeGraph
     public sealed class CodeDocJobService : ICodeDocJobService
     {
         private const string ProgressEvent = "codeDocProgress";
+        private const string StatusEvent = "codeDescriptionStatus";
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IHubContext<MonitorMDHub> _hub;
         private readonly MdExplorer.Services.LlmSessions.OneShotReadOnlySession _llm;
@@ -131,6 +143,26 @@ namespace MdExplorer.Services.CodeGraph
         public void Cancel(string connectionId)
         {
             if (_running.TryGetValue(connectionId, out var cts)) cts.Cancel();
+        }
+
+        public bool Stop(string projectPath, string folder)
+        {
+            var hit = _progress.FirstOrDefault(kv => kv.Value.Folder == folder && string.Equals(kv.Value.ProjectPath, projectPath, StringComparison.OrdinalIgnoreCase));
+            if (hit.Key == null || !_running.TryGetValue(hit.Key, out var cts)) return false;
+            cts.Cancel();
+            return true;
+        }
+
+        public async Task<List<CodeDescriptionRun>> BackgroundAsync(string projectPath, CancellationToken ct = default)
+        {
+            var live = Running(projectPath).Where(p => p.Run != null).Select(p => p.Run).ToList();
+            return live.Concat(await ResumableAsync(projectPath, ct)).ToList();
+        }
+
+        public async Task<List<CodeDescriptionRun>> ResumableAsync(string projectPath, CancellationToken ct = default)
+        {
+            var liveFolders = Running(projectPath).Select(p => p.Folder).ToHashSet(StringComparer.Ordinal);
+            return (await _store.GetDescriptionRunsAsync(projectPath, ct)).Where(r => r.Status != CodeDescriptionRun.Done && !liveFolders.Contains(r.ProgramFolder)).ToList();
         }
 
         public async Task<List<CodeDescriptionRun>> InterruptedAsync(string projectPath, CancellationToken ct = default)
@@ -201,7 +233,9 @@ namespace MdExplorer.Services.CodeGraph
                 {
                     ProgramFolder = folderRelative, Status = CodeDescriptionRun.Running, Engine = engineLabel, Force = force,
                     StartedAt = resume?.StartedAt ?? progress.StartedAt, FileIndex = start, FileTotal = astScripts.Count, FilesDescribed = resume?.FilesDescribed ?? 0,
+                    SessionStartedAt = progress.StartedAt, SessionStartIndex = start,
                 };
+                progress.Run = run;
                 await SaveRunAsync(projectPath, run, token);
                 await SendAsync(connectionId, new { phase = "started", provider = engineLabel, fileTotal = astScripts.Count, folder = folderRelative, resumedAt = resume == null ? (int?)null : start + 1 });
 
@@ -238,6 +272,7 @@ namespace MdExplorer.Services.CodeGraph
                     files++; described += result.Described;
                     progress.FilesDescribed = files; progress.SymbolsDescribed = described;
                     run.FilesDescribed++;
+                    if (i == astScripts.Count - 1) await SaveRunAsync(projectPath, run, token);
                     await SendAsync(connectionId, new { phase = "file-done", file = ast.Header.Source, described = result.Described, rejected = result.Rejected, loaded = result.Loaded, error = result.LoadError });
                 }
                 try { await _report.WriteAsync(projectPath, new List<string> { $"{folderRelative}: descritti {described} simboli in {files} file, {rejectedTotal} righe scartate" }); }
@@ -266,10 +301,13 @@ namespace MdExplorer.Services.CodeGraph
             }
         }
 
-        private Task SaveRunAsync(string projectPath, CodeDescriptionRun run, CancellationToken token)
+        /// <summary>Nel grafo di stato, e a TUTTE le finestre (<c>codeDescriptionStatus</c>): il pannello dei lavori in sfondo (2d).</summary>
+        private async Task SaveRunAsync(string projectPath, CodeDescriptionRun run, CancellationToken token)
         {
             run.UpdatedAt = DateTime.UtcNow.ToString("o");
-            return _store.UpsertDescriptionRunAsync(projectPath, run, token);
+            await _store.UpsertDescriptionRunAsync(projectPath, run, token);
+            try { await _hub.Clients.All.SendAsync(StatusEvent, new { projectPath, run = run }); }
+            catch (Exception ex) { _logger.LogWarning(ex, "[CodeDoc] SignalR codeDescriptionStatus non inviato"); }
         }
 
         /// <summary>

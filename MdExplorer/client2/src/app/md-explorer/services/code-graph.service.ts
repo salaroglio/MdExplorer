@@ -56,10 +56,10 @@ export interface CodeGraphStatus {
  * Il grafo del codice: parla SOLO col backend .NET (`/api/codegraph`), che a sua volta legge il DB dedicato.
  * `folderPath` può essere assoluto (il fullPath del nodo dell'albero) o relativo alla radice del progetto.
  */
-/** La traccia di una descrizione interrotta (punto 2c del 14/10/2026). */
-export interface InterruptedDescription {
+/** La traccia di una descrizione del codice (punti 2c-2d del 14/10/2026). */
+export interface DescriptionRun {
   programFolder: string;
-  status: 'running' | 'failed';
+  status: 'running' | 'done' | 'cancelled' | 'failed';
   engine: string;
   startedAt: string;
   updatedAt: string;
@@ -68,6 +68,14 @@ export interface InterruptedDescription {
   currentFile?: string;
   filesDescribed: number;
   error?: string;
+  /** Solo per un lavoro vivo: da quando e da quale file è partita questa sessione (per la stima del tempo). */
+  sessionStartedAt?: string;
+  sessionStartIndex?: number;
+}
+
+export interface BackgroundWork {
+  descriptions: { state: 'running' | 'interrupted' | 'failed' | 'stopped'; run: DescriptionRun }[];
+  scans: { folder: string; startedAt: string }[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -95,17 +103,22 @@ export class CodeGraphService {
     return this.http.post('../api/codegraph/describe', { projectPath, folderPath, connectionId, force });
   }
 
-  /** Le descrizioni interrotte (MdExplorer chiuso o caduto, o fallite): all'apertura del progetto si chiede se continuare. */
-  interruptedDescriptions(projectPath: string): Observable<InterruptedDescription[]> {
-    return this.http.get<InterruptedDescription[]>('../api/codegraph/describe/interrupted', { params: new HttpParams().set('projectPath', projectPath) });
+  /** Il pannello dei lavori in sfondo: descrizioni in corso o da riprendere, scansioni in corso (punto 2d). */
+  background(projectPath: string): Observable<BackgroundWork> {
+    return this.http.get<BackgroundWork>('../api/codegraph/background', { params: new HttpParams().set('projectPath', projectPath) });
   }
 
-  /** «Continua»: riparte dal file a cui era arrivata. */
+  /** «Ferma» una descrizione in corso, da qualunque finestra: la traccia resta, da riprendere. */
+  stopDescribe(projectPath: string, folder: string): Observable<any> {
+    return this.http.post('../api/codegraph/describe/stop', { projectPath, folder });
+  }
+
+  /** «Riprendi»: riparte dal file a cui era arrivata. */
   resumeDescribe(projectPath: string, folder: string, connectionId: string): Observable<any> {
     return this.http.post('../api/codegraph/describe/resume', { projectPath, folder, connectionId });
   }
 
-  /** «Lascia stare»: l'interruzione non si chiede più. */
+  /** «Lascia stare»: la traccia si toglie. */
   dismissDescribe(projectPath: string, folder: string): Observable<any> {
     return this.http.post('../api/codegraph/describe/dismiss', { projectPath, folder });
   }

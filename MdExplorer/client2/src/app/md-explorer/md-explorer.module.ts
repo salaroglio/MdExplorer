@@ -55,7 +55,7 @@ import { AppStoreComponent } from './components/app-store/app-store.component';
 import { InstallWizardDialogComponent } from './components/dialogs/install-wizard/install-wizard.component';
 import { BulkExportProgressDialogComponent } from './components/dialogs/bulk-export-progress/bulk-export-progress-dialog.component';
 import { AppShowComponent } from './components/app-show/app-show.component';
-import { IndexingProgressSnackComponent } from './components/indexing-progress-snack/indexing-progress-snack.component';
+import { BackgroundWorkPanelComponent } from './components/background-work-panel/background-work-panel.component';
 import { AiSelectionDialogComponent } from './components/dialogs/ai-selection-dialog/ai-selection-dialog.component';
 import { MarkSearchComponent } from './components/mark-search/mark-search.component';
 import { AgentLaunchDialogComponent } from './components/agent-launch-dialog/agent-launch-dialog.component';
@@ -137,7 +137,7 @@ const routes: Routes = [
     InstallWizardDialogComponent,
     BulkExportProgressDialogComponent,
     AppShowComponent,
-    IndexingProgressSnackComponent,
+    BackgroundWorkPanelComponent,
     AiSelectionDialogComponent,
     MarkSearchComponent,
     AgentLaunchDialogComponent,

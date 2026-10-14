@@ -14306,17 +14306,6 @@ app-promptlab {
   color: #fff !important;
 }
 
-.mat-snack-bar-container.indexing-progress-snackbar,
-.mat-mdc-snack-bar-container.indexing-progress-snackbar {
-  background: var(--mde-bg-primary, #fff) !important;
-  color: var(--mde-text-primary, #212121) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18) !important;
-  padding: 14px 18px !important;
-  min-width: 320px !important;
-  border-left: 4px solid var(--mde-icon-accent-blue);
-}
-
 .mat-snack-bar-container.warning-snackbar,
 .mat-mdc-snack-bar-container.warning-snackbar {
   background: #fff3cd !important;
@@ -14385,4 +14374,4 @@ app-promptlab {
   -webkit-app-region: no-drag;
 }
 
-/*# sourceMappingURL=styles.2dff89ed6a2c4a4b.css.map*/
+/*# sourceMappingURL=styles.2e23d6a59a835114.css.map*/

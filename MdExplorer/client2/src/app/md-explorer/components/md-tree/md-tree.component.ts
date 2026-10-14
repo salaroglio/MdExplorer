@@ -18,8 +18,6 @@ import { DevEnvironmentDialogComponent, DevEnvironmentDialogData, DevEnvironment
 import { CodeRootsDialogComponent, CodeRootsDialogData, CodeRootsDialogResult } from '../dialogs/code-roots/code-roots-dialog.component';
 import { CodeRootsReminderDialogComponent, CodeRootsReminderData } from '../dialogs/code-roots/code-roots-reminder-dialog.component';
 import { CodeRoot, CodeRootsService } from '../../services/code-roots.service';
-import { CodeGraphService, InterruptedDescription } from '../../services/code-graph.service';
-import { ConfirmDialogComponent, ConfirmDialogData } from '../../../commons/components/confirm-dialog/confirm-dialog.component';
 import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markdown.component';
@@ -45,8 +43,6 @@ import { FileEventsService } from '../../services/file-events.service';
 import { HttpClient } from '@angular/common/http';
 import { TranslateService } from '@ngx-translate/core';
 import { MarkAssistantService } from '../../../mark-assistant/mark-assistant.service';
-import { IndexingProgressService } from '../../services/indexing-progress.service';
-import { IndexingProgressSnackComponent } from '../indexing-progress-snack/indexing-progress-snack.component';
 
 const TREE_DATA: IFileInfoNode[] = [];
 
@@ -82,7 +78,6 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
   
   // Contatore delle directory indicizzate
   private indexedFoldersCount = 0;
-  private currentSnackbarRef: any = null;
 
   // State preservation for tree expansion during branch switch
   private expansionStateBeforeRefresh: Set<string> | null = null;
@@ -226,9 +221,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private http: HttpClient,
     private translate: TranslateService,
     private markAssistant: MarkAssistantService,
-    private indexingProgressService: IndexingProgressService,
-    private codeRootsService: CodeRootsService,
-    private codeGraphService: CodeGraphService
+    private codeRootsService: CodeRootsService
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.pipe(takeUntil(this.destroy$)).subscribe(_ => {
@@ -267,16 +260,9 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       this.changeDetectorRef.markForCheck();
     });
 
-    // Building knowledge progress — UNA sola snackbar custom (basso a destra) per tutta
-    // l'indicizzazione. Lo stato (percent / processed / total) è pilotato da
-    // IndexingProgressService e popolato dall'evento SignalR knowledgeProgress.
-    // Prima qui c'era un MatSnackBar.open() ripetuto per ogni folderIndexingComplete
-    // → "scoppiettare" di snackbar. Adesso una sola istanza, vive da parsingProjectStart
-    // a parsingProjectStop + 1.5s.
-    this.mdServerMessages.parsingProjectStart$.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.indexingProgressService.reset();
-      this.openIndexingSnackbar();
-    });
+    // L'avanzamento «Costruzione della conoscenza» non sta più qui: è una riga del pannello dei lavori in sfondo
+    // (BackgroundWorkService + BackgroundWorkPanelComponent, punto 2d del 14/10/2026), che ascolta parsingProjectStart,
+    // knowledgeProgress e parsingProjectStop. La MatSnackBar di prima la chiudeva qualunque altro avviso.
 
     // Folder spinner sulla tree (independent dal progresso globale)
     this.mdServerMessages.folderIndexingStart$.pipe(takeUntil(this.destroy$)).subscribe(data => {
@@ -293,27 +279,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
         node.indexingStatus = 'completed';
         this.changeDetectorRef.markForCheck();
       }
-      // Non aprire più snackbar qui — il progresso ora è unificato via knowledgeProgress
-      // sul componente IndexingProgressSnackComponent.
-    });
-
-    // Avanzamento globale "Building knowledge" alimentato dal backend dopo
-    // ogni cartella nella fase ParseLinks.
-    this.mdServerMessages.knowledgeProgress$.pipe(takeUntil(this.destroy$)).subscribe(data => {
-      const processed = data?.processed ?? 0;
-      const total = data?.total ?? 0;
-      const percent = data?.percent ?? 0;
-      this.indexingProgressService.setProgress(processed, total, percent);
-    });
-
-    // Fine indicizzazione: forza 100% e auto-dismiss dopo 1.5s
-    this.mdServerMessages.parsingProjectStop$.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.indexingProgressService.setComplete();
-      setTimeout(() => {
-        if (this.currentSnackbarRef) {
-          this.currentSnackbarRef.dismiss();
-        }
-      }, 1500);
+      // Il progresso globale è una riga del pannello dei lavori in sfondo (BackgroundWorkService).
     });
 
     // Mark Actions — recursive "Riassumi documentazione" job emits a `toc-ready`
@@ -434,7 +400,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       filter((path): path is string => !!path),
       distinctUntilChanged(),
       takeUntil(this.destroy$),
-    ).subscribe(path => { this.loadCodeRootNodes(path); this.remindUnlinkedCodeRoots(path); this.askInterruptedDescriptions(path); });
+    ).subscribe(path => { this.loadCodeRootNodes(path); this.remindUnlinkedCodeRoots(path); });
 
     // Subscribe to P2P availability
     this.p2pService.isAvailable$.pipe(takeUntil(this.destroy$)).subscribe(available => {
@@ -1735,40 +1701,6 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
   
-  // Gestione intelligente delle notifiche di indicizzazione
-  /**
-   * Apre la snackbar custom "Building knowledge" in basso a destra.
-   * No-op se ne esiste già una. Il contenuto (IndexingProgressSnackComponent)
-   * si abbevera da IndexingProgressService — non vanno chiamati update qui:
-   * la progress avanza via setProgress() / setComplete() del service.
-   *
-   * Stile: la classe `.indexing-progress-snackbar` in styles.scss controlla
-   * margine, width e padding del contenitore Material.
-   */
-  private openIndexingSnackbar(): void {
-    if (this.currentSnackbarRef) return;
-
-    this.currentSnackbarRef = this.snackBar.openFromComponent(
-      IndexingProgressSnackComponent,
-      {
-        duration: 0, // Vive finché parsingProjectStop non innesca dismiss
-        horizontalPosition: 'right',
-        verticalPosition: 'bottom',
-        panelClass: ['indexing-progress-snackbar']
-      }
-    );
-
-    this.currentSnackbarRef.afterDismissed().subscribe(() => {
-      this.currentSnackbarRef = null;
-    });
-  }
-
-  // RIMOSSI: showIndexingSnackbar e updateSnackbarContent.
-  // Prima venivano chiamati per ogni folderIndexingComplete (1 snackbar nuova
-  // o un update con dismiss+riapri di fallback) → flicker visivo.
-  // Adesso la snackbar è UNA sola, aperta a parsingProjectStart, aggiornata
-  // tramite IndexingProgressService dal knowledgeProgress event.
-
   // ── Event Queue with debounce + batching ──
 
   private enqueueEvent(handler: () => void, label: string = ''): void {
@@ -2457,11 +2389,6 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     // Pulisci event queue e batch timer
     this.clearEventQueue();
 
-    // Chiudi snackbar attiva
-    if (this.currentSnackbarRef) {
-      this.currentSnackbarRef.dismiss();
-    }
-
     // Unsubscribe scroll listener
     this.scrollSub?.unsubscribe();
   }
@@ -2588,48 +2515,6 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       // un .development.yml che non si legge non deve bloccare l'apertura: lo si dice
       error: err => this.snackBar.open(this.translate.instant('CODE_ROOTS.REMINDER_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 }),
-    });
-  }
-
-  /**
-   * Una descrizione del codice che si è interrotta (MdExplorer chiuso o caduto, o fallita) non riparte da sola: all'apertura
-   * del progetto si chiede, una cartella alla volta (punto 2c del 14/10/2026). «Continua» riparte dal file a cui era
-   * arrivata; «Lascia stare» toglie la traccia; chiudere la finestra senza scegliere la richiede alla prossima apertura.
-   */
-  private askInterruptedDescriptions(projectRoot: string): void {
-    this.codeGraphService.interruptedDescriptions(projectRoot).subscribe({
-      next: runs => this.askNextInterrupted(projectRoot, runs ?? []),
-      error: err => this.snackBar.open(this.translate.instant('CODE_GRAPH.INTERRUPTED_CHECK_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 }),
-    });
-  }
-
-  private askNextInterrupted(projectRoot: string, runs: InterruptedDescription[]): void {
-    const run = runs[0];
-    if (!run || this.projectsService.currentProjects$.value?.path !== projectRoot) { return; }
-    const when = run.updatedAt ? new Date(run.updatedAt).toLocaleString() : '';
-    const message = this.translate.instant(run.status === 'failed' ? 'CODE_GRAPH.INTERRUPTED_FAILED' : 'CODE_GRAPH.INTERRUPTED_STOPPED', {
-      folder: run.programFolder, index: run.fileIndex, total: run.fileTotal, when, described: run.filesDescribed, engine: run.engine, error: run.error ?? '',
-    });
-    const data: ConfirmDialogData = {
-      title: this.translate.instant('CODE_GRAPH.INTERRUPTED_TITLE'),
-      message,
-      confirmText: this.translate.instant('CODE_GRAPH.INTERRUPTED_CONTINUE'),
-      cancelText: this.translate.instant('CODE_GRAPH.INTERRUPTED_DISMISS'),
-    };
-    this.dialog.open(ConfirmDialogComponent, { width: '560px', data }).afterClosed().subscribe(result => {
-      const next = () => this.askNextInterrupted(projectRoot, runs.slice(1));
-      const failed = (err: any) => this.snackBar.open(this.translate.instant('CODE_GRAPH.INTERRUPTED_ACTION_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 });
-      if (result === true) {
-        const connectionId = this.mdServerMessages.connectionId;
-        if (!connectionId) { failed(this.translate.instant('CODE_GRAPH.INTERRUPTED_NO_CONNECTION')); return; }
-        this.codeGraphService.resumeDescribe(projectRoot, run.programFolder, connectionId).subscribe({
-          next: () => { this.snackBar.open(this.translate.instant('CODE_GRAPH.INTERRUPTED_RESUMED', { folder: run.programFolder, index: run.fileIndex }), 'OK', { duration: 5000 }); next(); },
-          error: failed,
-        });
-      } else if (result === false) {
-        this.codeGraphService.dismissDescribe(projectRoot, run.programFolder).subscribe({ next, error: failed });
-      }
-      // chiusa senza scegliere: la si richiede alla prossima apertura del progetto
     });
   }
 

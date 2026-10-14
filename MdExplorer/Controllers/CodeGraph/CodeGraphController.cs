@@ -121,6 +121,28 @@ namespace MdExplorer.Controllers.CodeGraph
             return Ok(await job.InterruptedAsync(projectPath, ct));
         });
 
+        /// <summary>
+        /// GET /api/codegraph/background?projectPath — il pannello dei lavori in sfondo (punto 2d del 14/10), alla sua
+        /// apertura e a ogni riconnessione; dopo, gli eventi <c>codeDescriptionStatus</c> e <c>codeScanStatus</c>.
+        /// <c>state</c>: <c>running</c> (lavoro vivo), <c>interrupted</c> (MdExplorer chiuso a metà), <c>failed</c>,
+        /// <c>stopped</c> (fermata dall'utente) — le ultime tre con «Riprendi» e «Lascia stare».
+        /// </summary>
+        [HttpGet("background")]
+        public Task<IActionResult> Background([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
+            var live = job.Running(projectPath).Select(p => p.Folder).ToHashSet();
+            var descriptions = (await job.BackgroundAsync(projectPath, ct)).Select(r => new
+            {
+                state = live.Contains(r.ProgramFolder) ? "running"
+                    : r.Status == MdExplorer.Features.Services.CodeGraph.CodeDescriptionRun.Failed ? "failed"
+                    : r.Status == MdExplorer.Features.Services.CodeGraph.CodeDescriptionRun.Cancelled ? "stopped" : "interrupted",
+                run = r,
+            });
+            return Ok(new { descriptions, scans = _analysis.Scanning(projectPath) });
+        });
+
         /// <summary>POST /api/codegraph/describe/resume {projectPath, folder, connectionId} — «Continua»: dal file a cui era arrivata.</summary>
         [HttpPost("describe/resume")]
         public Task<IActionResult> ResumeDescribe([FromBody] ResumeRequest request, CancellationToken ct = default) => Guarded(async () =>
@@ -128,8 +150,8 @@ namespace MdExplorer.Controllers.CodeGraph
             var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
             if (string.IsNullOrWhiteSpace(request.ConnectionId)) return BadRequest(new { error = "connectionId è obbligatorio" });
             var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
-            var run = (await job.InterruptedAsync(request.ProjectPath, ct)).FirstOrDefault(r => r.ProgramFolder == request.Folder);
-            if (run == null) return NotFound(new { error = $"nessuna descrizione interrotta per '{request.Folder}'" });
+            var run = (await job.ResumableAsync(request.ProjectPath, ct)).FirstOrDefault(r => r.ProgramFolder == request.Folder);
+            if (run == null) return NotFound(new { error = $"nessuna descrizione da riprendere per '{request.Folder}'" });
             try { _ = job.RunDescribeAsync(request.ConnectionId, request.ProjectPath, run.ProgramFolder, run.Force, CancellationToken.None, run); }
             catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
             return Ok(new { started = true, folder = run.ProgramFolder, fromFile = run.CurrentFile, fileIndex = run.FileIndex });
@@ -144,6 +166,16 @@ namespace MdExplorer.Controllers.CodeGraph
             await _store.RemoveDescriptionRunAsync(request.ProjectPath, request.Folder, ct);
             return Ok(new { dismissed = request.Folder });
         });
+
+        /// <summary>POST /api/codegraph/describe/stop {projectPath, folder} — «Ferma» dal pannello: la traccia resta, da riprendere.</summary>
+        [HttpPost("describe/stop")]
+        public IActionResult StopDescribe([FromBody] ResumeRequest request)
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            if (string.IsNullOrWhiteSpace(request.Folder)) return BadRequest(new { error = "folder è obbligatorio" });
+            var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
+            return job.Stop(request.ProjectPath, request.Folder) ? Ok(new { stopping = request.Folder }) : NotFound(new { error = $"nessuna descrizione in corso per '{request.Folder}'" });
+        }
 
         /// <summary>POST /api/codegraph/describe/cancel {connectionId}</summary>
         [HttpPost("describe/cancel")]

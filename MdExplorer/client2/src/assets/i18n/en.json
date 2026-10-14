@@ -2330,15 +2330,26 @@
     "PROCEED": "Start without saving",
     "SAVE_FAILED": "Could not save: the agent did not start."
   },
-  "CODE_GRAPH": {
-    "INTERRUPTED_TITLE": "Code description interrupted",
-    "INTERRUPTED_STOPPED": "The description of “{{folder}}” stopped at file {{index}} of {{total}} ({{when}}, {{described}} files described, engine {{engine}}): MdExplorer was closed or stopped while it was working. Continue from that file?",
-    "INTERRUPTED_FAILED": "The description of “{{folder}}” stopped with an error at file {{index}} of {{total}} ({{when}}): {{error}}. Continue from that file?",
-    "INTERRUPTED_CONTINUE": "Continue",
-    "INTERRUPTED_DISMISS": "Leave it",
-    "INTERRUPTED_RESUMED": "Description of “{{folder}}” resumed from file {{index}}",
-    "INTERRUPTED_CHECK_FAILED": "Cannot tell whether a code description was interrupted: {{error}}",
-    "INTERRUPTED_ACTION_FAILED": "Interrupted description: the operation failed — {{error}}",
-    "INTERRUPTED_NO_CONNECTION": "this window is not connected to the service yet, try again in a moment"
+  "BACKGROUND_WORK": {
+    "TITLE": "Building knowledge",
+    "EXPAND": "Show background work",
+    "COLLAPSE": "Minimize",
+    "KIND": {
+      "indexing": "Indexing documents",
+      "scan": "Scanning code",
+      "description": "Describing code"
+    },
+    "FILES": "files",
+    "SCANNING": "Reading the code with the parser…",
+    "SCAN_DONE": "Done: {{files}} files, {{reparsed}} re-read",
+    "DESCRIPTION_DONE": "Finished: {{described}} of {{total}} files described",
+    "INTERRUPTED": "It stopped at file {{index}} of {{total}} ({{when}}, {{described}} files described): MdExplorer was closed or stopped while it was working.",
+    "STOPPED": "Stopped by you at file {{index}} of {{total}} ({{when}}).",
+    "FAILED": "Stopped by an error at file {{index}} of {{total}}: {{error}}",
+    "RESUME": "Resume",
+    "DISMISS": "Leave it",
+    "STOP": "Stop",
+    "CLOSE": "Close",
+    "ACTION_FAILED": "Background work: the operation failed — {{error}}"
   }
 }
