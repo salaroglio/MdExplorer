@@ -150,7 +150,8 @@ public sealed class CodeTools : McpToolsBase
 
     [McpServerTool, Description(
         "What is in the project's code graph, per program folder: languages, whether the folder is linked on this machine, how many files " +
-        "and symbols were scanned and how many already have a description, when it was last scanned, the last description run (`interrupted` = " +
+        "and symbols were scanned and how many already have a description, when it was last scanned, the programs it USES according to its build " +
+        "files (`uses`: pom.xml / Gradle / .csproj, with the line that says so; `linked` = calls into it reach that program's real symbols), the last description run (`interrupted` = " +
         "MdExplorer was closed while describing, or it failed: the user is asked at project open whether to continue); plus the description jobs " +
         "running now (file reached out of the total). Use it for 'what programs are in the graph?', 'how far did the description get?', 'is it done?'. " +
         "The code graph is MdExplorer's own: answer ONLY from code_* tools, never with SPARQL or an HTTP call to a Fuseki server.")]

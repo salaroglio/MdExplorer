@@ -57,6 +57,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         Task<CodeOverview> OverviewAsync(string projectPath, CancellationToken ct = default);
         /// <summary>Quanto di una cartella <c>program</c> è nel grafo: file e simboli scansionati, quanti con una descrizione.</summary>
         Task<CodeProgramCounts> ProgramCountsAsync(string projectPath, string programFolder, CancellationToken ct = default);
+        /// <summary>I simboli dichiarati (non external) da una cartella program: id, tipo, nome qualificato, linguaggio (ponti, 3b).</summary>
+        Task<List<(string Id, string Kind, string QualifiedName, string Language)>> DeclaredSymbolsAsync(string projectPath, string programFolder, CancellationToken ct = default);
         Task<CodeGraphViewModel> BuildViewAsync(string projectPath, string folderPrefix, IReadOnlyCollection<string> expandedFiles, IReadOnlyCollection<string> openedSymbols, IReadOnlyCollection<string> hiddenSymbols, string focusSymbolId, CancellationToken ct = default);
         Task<CodeReportData> GetReportDataAsync(string projectPath, CancellationToken ct = default);
     }
@@ -376,14 +378,14 @@ namespace MdExplorer.Features.Services.CodeGraph
             var g = GraphsOf(projectPath);
             var iri = CodeGraphIris.Iri(CodeGraphIris.Scan(g.Hash, programFolder));
             var row = (await RowsAsync(
-                $"SELECT ?folder ?root ?commit ?mode ?at ?cand ?rep WHERE {{ GRAPH {g.StateIri} {{ {iri} a code:ScanState ; code:programFolder ?folder ; code:mode ?mode ; code:scannedAt ?at ; code:candidates ?cand ; code:reparsed ?rep . " +
-                $"OPTIONAL {{ {iri} code:repositoryRoot ?root }} OPTIONAL {{ {iri} code:analyzedCommit ?commit }} }} }}", ct)).FirstOrDefault();
+                $"SELECT ?folder ?root ?commit ?mode ?at ?cand ?rep ?bridges WHERE {{ GRAPH {g.StateIri} {{ {iri} a code:ScanState ; code:programFolder ?folder ; code:mode ?mode ; code:scannedAt ?at ; code:candidates ?cand ; code:reparsed ?rep . " +
+                $"OPTIONAL {{ {iri} code:repositoryRoot ?root }} OPTIONAL {{ {iri} code:analyzedCommit ?commit }} OPTIONAL {{ {iri} code:bridges ?bridges }} }} }}", ct)).FirstOrDefault();
             if (row == null) return null;
             return new CodeScanState
             {
                 ProgramFolder = SparqlResults.Str(row, "folder"), RepositoryRoot = SparqlResults.Str(row, "root"), AnalyzedCommit = SparqlResults.Str(row, "commit"),
                 Mode = SparqlResults.Str(row, "mode"), ScannedAt = SparqlResults.Str(row, "at"),
-                Candidates = SparqlResults.Count(row, "cand"), Reparsed = SparqlResults.Count(row, "rep"),
+                Candidates = SparqlResults.Count(row, "cand"), Reparsed = SparqlResults.Count(row, "rep"), Bridges = SparqlResults.Str(row, "bridges"),
             };
         }
 

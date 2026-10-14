@@ -113,6 +113,8 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string ScannedAt { get; set; }
         public int Candidates { get; set; }
         public int Reparsed { get; set; }
+        /// <summary>I ponti attivi all'ultima analisi («dipendenza@linguaggio;…», punto 3b): se cambiano, il programma si riscrive.</summary>
+        public string Bridges { get; set; }
     }
 
     public sealed class CodeSymbolView

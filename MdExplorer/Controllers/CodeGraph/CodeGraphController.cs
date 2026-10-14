@@ -490,6 +490,7 @@ namespace MdExplorer.Controllers.CodeGraph
             var docJobs = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
             var runs = await _store.GetDescriptionRunsAsync(projectPath, ct);
             var interrupted = (await docJobs.InterruptedAsync(projectPath, ct)).Select(r => r.ProgramFolder).ToHashSet();
+            var (bridges, bridgeWarnings) = await _analysis.BridgesAsync(projectPath, ct);
             foreach (var p in await _analysis.ListProgramsAsync(projectPath, ct))
             {
                 var counts = await _store.ProgramCountsAsync(projectPath, p.Folder, ct);
@@ -499,7 +500,13 @@ namespace MdExplorer.Controllers.CodeGraph
                 {
                     folder = p.Folder, languages = p.Languages, linked = p.Linked, reason = p.Reason,
                     files = counts.Files, describedFiles = counts.DescribedFiles, symbols = counts.Symbols, describedSymbols = counts.DescribedSymbols,
-                    lastScan = scan == null ? null : new { at = scan.ScannedAt, mode = scan.Mode, commit = scan.AnalyzedCommit },
+                    lastScan = scan == null ? null : new { at = scan.ScannedAt, mode = scan.Mode, commit = scan.AnalyzedCommit, bridges = scan.Bridges },
+                    // i programmi da cui questo dipende secondo il build; «linked» = il ponte è attivo nel grafo dall'ultima analisi
+                    uses = bridges.Where(b => b.From == p.Folder).Select(b => new
+                    {
+                        program = b.To, language = b.Language, evidence = b.Evidence,
+                        linked = (scan?.Bridges ?? string.Empty).Split(';').Contains(b.To + "@" + b.Language),
+                    }),
                     lastDescription = lastRun == null ? null : new
                     {
                         status = interrupted.Contains(lastRun.ProgramFolder) ? "interrupted" : lastRun.Status, lastRun.Engine, lastRun.StartedAt, lastRun.UpdatedAt,
@@ -512,6 +519,7 @@ namespace MdExplorer.Controllers.CodeGraph
             {
                 graph = CodeGraphIris.DataGraph(CodeGraphIris.ProjectHash(projectPath)),
                 programs,
+                bridgeWarnings,
                 descriptionsRunning = jobs.Select(j => new
                 {
                     folder = j.Folder, engine = j.Engine, startedAt = j.StartedAt, fileIndex = j.FileIndex, fileTotal = j.FileTotal,

@@ -218,6 +218,7 @@ namespace MdExplorer.Features.Services.CodeGraph
               .Append(" ; code:reparsed ").Append(Int(state.Reparsed));
             if (state.RepositoryRoot != null) sb.Append(" ; code:repositoryRoot ").Append(Lit(state.RepositoryRoot));
             if (state.AnalyzedCommit != null) sb.Append(" ; code:analyzedCommit ").Append(Lit(state.AnalyzedCommit));
+            if (!string.IsNullOrEmpty(state.Bridges)) sb.Append(" ; code:bridges ").Append(Lit(state.Bridges));
             sb.Append(" . } }\n");
             return sb.ToString();
         }

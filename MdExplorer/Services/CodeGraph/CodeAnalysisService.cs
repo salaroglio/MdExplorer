@@ -28,6 +28,8 @@ namespace MdExplorer.Services.CodeGraph
         public int ScriptsRemoved { get; set; }
         /// <summary>Script di uno schema ritirato cancellati prima di questa analisi (descrizioni comprese: si rifanno).</summary>
         public int ScriptsRetired { get; set; }
+        /// <summary>I programmi da cui questo dipende secondo il build, collegati in questa analisi (punto 3b del 14/10).</summary>
+        public List<CodeBridge> Bridges { get; set; } = new();
         /// <summary>
         /// Script di file NON cambiati scritti da un altro estrattore o da un'altra sua versione, lasciati com'erano perché
         /// l'analisi non li includeva (all'apertura del progetto): la pagina del grafo lo dice e chiede di aggiornarli.
@@ -95,6 +97,8 @@ namespace MdExplorer.Services.CodeGraph
         /// le stesse che <see cref="AnalyzeProjectAsync"/> analizza (<c>code_inventory</c>, punto 4b del 14/10).
         /// </summary>
         Task<List<CodeProgramFolder>> ListProgramsAsync(string projectPath, CancellationToken ct = default);
+        /// <summary>I ponti fra programmi letti dai file di build (punto 3b del 14/10), con gli avvisi di ciò che non si legge.</summary>
+        Task<(List<CodeBridge> Bridges, List<string> Warnings)> BridgesAsync(string projectPath, CancellationToken ct = default);
         /// <summary>Le scansioni in corso nel progetto (pannello dei lavori in sfondo, punto 2d del 14/10).</summary>
         IReadOnlyList<CodeScanInProgress> Scanning(string projectPath);
     }
@@ -304,26 +308,95 @@ namespace MdExplorer.Services.CodeGraph
             return list;
         }
 
+        private sealed class BridgeSet
+        {
+            /// <summary>«dipendenza@linguaggio» ordinati: nello stato dello scanner, per sapere quando cambiano.</summary>
+            public string Signature = string.Empty;
+            public Dictionary<string, List<CodeSourceFile>> Files = new();
+            public Dictionary<string, string> ForeignIds = new(StringComparer.Ordinal);
+        }
+
+        /// <summary>Tutti i ponti del progetto, dai file di build delle cartelle program (e radici collegate).</summary>
+        public async Task<(List<CodeBridge> Bridges, List<string> Warnings)> BridgesAsync(string projectPath, CancellationToken ct = default)
+        {
+            var locations = new List<CodeProgramLocation>();
+            foreach (var p in await ListProgramsAsync(projectPath, ct))
+                if (p.Linked) locations.Add(new CodeProgramLocation(p.Folder, (await ScopeOfAsync(projectPath, p.Folder, ct)).FolderAbs));
+            var warnings = new List<string>();
+            return (CodeBuildBridges.Find(locations, warnings), warnings);
+        }
+
+        /// <summary>
+        /// I ponti di una cartella per i linguaggi scelti: per ogni dipendenza i suoi file (da risolvere, non da scrivere) e
+        /// gli id dei suoi simboli nel grafo. Una dipendenza mai scansionata, non collegata o con id non ricavabili NON fa
+        /// ponte, e l'esito lo dice: niente archi verso nodi che non esistono.
+        /// </summary>
+        private async Task<BridgeSet> BridgesForAsync(string projectPath, string folder, List<string> languages, CodeFolderAnalysisOutcome outcome, CancellationToken ct)
+        {
+            var set = new BridgeSet();
+            var (all, warnings) = await BridgesAsync(projectPath, ct);
+            outcome.Warnings.AddRange(warnings.Select(w => "ponti: " + w));
+            var active = new List<string>();
+            foreach (var bridge in all.Where(b => b.From == folder && languages.Contains(b.Language, StringComparer.OrdinalIgnoreCase)))
+            {
+                var label = $"{bridge.To}@{bridge.Language}";
+                if (await _store.GetScanStateAsync(projectPath, bridge.To, ct) == null)
+                {
+                    outcome.Warnings.Add($"ponte verso {bridge.To} ({bridge.Evidence}) rimandato: {bridge.To} non è ancora stato analizzato; si fa alla prossima analisi");
+                    continue;
+                }
+                var depScope = await ScopeOfAsync(projectPath, bridge.To, ct);
+                if (depScope.Unusable != null) { outcome.Warnings.Add($"ponte verso {bridge.To} non fatto: {depScope.Unusable}"); continue; }
+                var declared = await _store.DeclaredSymbolsAsync(projectPath, bridge.To, ct);
+                var foreign = CodeProgramScope.ForeignIds(declared, bridge.To, bridge.Language, out var mismatches);
+                if (mismatches > 0)
+                {
+                    outcome.Warnings.Add($"ponte verso {bridge.To} non fatto: {mismatches} simboli {bridge.Language} con un id che non si ricava dal nome qualificato");
+                    continue;
+                }
+                var scan = await _scanner.ScanAsync(projectPath, depScope.FolderAbs, previousCommit: null, ct, depScope.ToLogical);
+                var files = scan.AllFiles.Where(f => CodeLanguages.ForFile(f.AbsolutePath)?.Id == bridge.Language).ToList();
+                if (!set.Files.TryGetValue(bridge.Language, out var list)) set.Files[bridge.Language] = list = new List<CodeSourceFile>();
+                list.AddRange(files);
+                foreach (var kv in foreign) set.ForeignIds[kv.Key] = kv.Value;
+                outcome.Bridges.Add(bridge);
+                active.Add(label);
+            }
+            set.Signature = string.Join(";", active.Distinct().OrderBy(x => x, StringComparer.Ordinal));
+            return set;
+        }
+
+        /// <summary>Le dipendenze prima di chi le usa (i ponti richiedono che la dipendenza sia già nel grafo); i cicli restano come sono.</summary>
+        private static List<string> DependenciesFirst(List<string> keys, List<CodeBridge> bridges)
+        {
+            var ordered = new List<string>();
+            var state = new Dictionary<string, int>(StringComparer.Ordinal);
+            void Visit(string k)
+            {
+                if (state.TryGetValue(k, out var st)) return;   // 1 = in visita (ciclo), 2 = fatto
+                state[k] = 1;
+                foreach (var dep in bridges.Where(b => b.From == k).Select(b => b.To).Where(keys.Contains)) Visit(dep);
+                state[k] = 2;
+                ordered.Add(k);
+            }
+            foreach (var k in keys) Visit(k);
+            return ordered;
+        }
+
         public async Task<List<CodeFolderAnalysisOutcome>> AnalyzeProjectAsync(string projectPath, bool includeExtractorChanges, CancellationToken ct = default)
         {
             var outcomes = new List<CodeFolderAnalysisOutcome>();
-            var path = Path.Combine(projectPath, MdExplorer.Utilities.DevelopmentConfigCleanup.FileName);
-            if (!File.Exists(path)) return outcomes;
-            var config = MdExplorer.Utilities.DevelopmentConfigCleanup.ReadStrict(path);
-            foreach (var folder in config.Folders.Where(f => f.CodeGraph?.Languages?.Count > 0 &&
-                                                              f.Tags?.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase)) == true))
+            var programs = await ListProgramsAsync(projectPath, ct);
+            // Le radici esterne non collegate restano col loro grafo (gli script sono su Git) e l'esito dice perché, come
+            // avviso — un collega senza il codice non ha un errore.
+            foreach (var p in programs.Where(p => !p.Linked))
+                outcomes.Add(new CodeFolderAnalysisOutcome { Folder = p.Folder, Languages = p.Languages, Warnings = { $"{p.Folder} non analizzata su questa macchina: {p.Reason}" } });
+            // Le dipendenze prima (punto 3b): il ponte verso un programma richiede che sia già nel grafo.
+            var (bridges, _) = await BridgesAsync(projectPath, ct);
+            foreach (var key in DependenciesFirst(programs.Where(p => p.Linked).Select(p => p.Folder).ToList(), bridges))
             {
                 ct.ThrowIfCancellationRequested();
-                outcomes.Add(await AnalyzeFolderAsync(projectPath, folder.Path, includeExtractorChanges, ct));
-            }
-            // Le radici esterne con dei linguaggi: quelle collegate si analizzano; quelle no restano col loro grafo (gli
-            // script sono su Git) e l'esito dice perché, come avviso — un collega senza il codice non ha un errore.
-            foreach (var root in (await _roots.ListAsync(projectPath, ct)).Where(r => r.Languages.Count > 0 &&
-                                                                                      r.Tags.Any(t => string.Equals(t, "program", StringComparison.OrdinalIgnoreCase))))
-            {
-                ct.ThrowIfCancellationRequested();
-                if (root.Status == CodeRootStatus.Linked) outcomes.Add(await AnalyzeFolderAsync(projectPath, "@" + root.Alias, includeExtractorChanges, ct));
-                else outcomes.Add(new CodeFolderAnalysisOutcome { Folder = "@" + root.Alias, Languages = root.Languages.ToList(), Warnings = { $"@{root.Alias} non analizzata su questa macchina: {root.Reason}" } });
+                outcomes.Add(await AnalyzeFolderAsync(projectPath, key, includeExtractorChanges, ct));
             }
             return outcomes;
         }
@@ -390,6 +463,12 @@ namespace MdExplorer.Services.CodeGraph
                 var candidates = scan.Candidates.Where(f => chosen.Contains(CodeLanguages.ForFile(f.AbsolutePath)?.Id ?? string.Empty)).ToList();
                 outcome.Candidates = candidates.Count;
 
+                // 1b) I ponti del build (punto 3b): i programmi da cui questo dipende entrano fra i file da risolvere, e gli
+                // archi verso di loro vanno ai loro simboli. Se i ponti sono cambiati, tutto il programma si riscrive.
+                var bridgeSet = await BridgesForAsync(projectPath, folderRelative, languages, outcome, ct);
+                var bridgesChanged = !string.Equals(previous?.Bridges ?? string.Empty, bridgeSet.Signature, StringComparison.Ordinal);
+                if (bridgesChanged) outcome.Warnings.Add($"ponti cambiati ({(string.IsNullOrEmpty(bridgeSet.Signature) ? "nessuno" : bridgeSet.Signature)}): il programma si riscrive tutto");
+
                 // 2) Per linguaggio: hash di conferma, estrazione, scrittura.
                 var written = new List<string>();
                 foreach (var languageId in languages)
@@ -412,14 +491,17 @@ namespace MdExplorer.Services.CodeGraph
                     var candidatePaths = new HashSet<string>(candidates.Select(f => f.AbsolutePath), StringComparer.Ordinal);
                     var outdated = all.Where(f => !candidatePaths.Contains(f.AbsolutePath) && ScriptFromOtherExtractor(projectPath, f, extractor)).ToList();
                     if (!includeExtractorChanges) outcome.OutdatedScripts += outdated.Count;
-                    var toEmit = all.Where(f => candidatePaths.Contains(f.AbsolutePath) || (includeExtractorChanges && outdated.Contains(f)))
-                                    .Where(f => NeedsReparse(projectPath, f, extractor)).ToList();
+                    var toEmit = bridgesChanged
+                        ? all
+                        : all.Where(f => candidatePaths.Contains(f.AbsolutePath) || (includeExtractorChanges && outdated.Contains(f)))
+                             .Where(f => NeedsReparse(projectPath, f, extractor)).ToList();
                     if (toEmit.Count == 0) continue;
-                    var extracted = extractor.Extract(new CodeExtractionRequest { ProjectPath = projectPath, AllFiles = all, FilesToEmit = toEmit }, ct);
+                    var resolveWith = bridgeSet.Files.TryGetValue(lang.Id, out var bridged) ? all.Concat(bridged).ToList() : all;
+                    var extracted = extractor.Extract(new CodeExtractionRequest { ProjectPath = projectPath, AllFiles = resolveWith, FilesToEmit = toEmit }, ct);
                     outcome.Warnings.AddRange(extracted.Warnings);
                     foreach (var (file, script) in extracted.Scripts)
                     {
-                        CodeProgramScope.Apply(script, folderRelative);
+                        CodeProgramScope.Apply(script, folderRelative, bridgeSet.ForeignIds);
                         var scriptPath = CodeScriptWriter.ScriptPathFor(projectPath, file.LogicalPath, CodeScriptKind.Ast);
                         if (CodeScriptWriter.WriteIfChanged(scriptPath, CodeScriptWriter.Serialize(script))) written.Add(scriptPath);
                         outcome.Reparsed++;
@@ -440,6 +522,7 @@ namespace MdExplorer.Services.CodeGraph
                 else outcome.Load = await _store.LoadProjectAsync(projectPath, ct);
                 await _store.UpsertScanStateAsync(projectPath, new CodeScanState
                 {
+                    Bridges = bridgeSet.Signature,
                     ProgramFolder = folderRelative, RepositoryRoot = scan.RepositoryRoot, AnalyzedCommit = scan.HeadCommit, Mode = scan.Mode,
                     ScannedAt = DateTime.UtcNow.ToString("o"), Candidates = outcome.Candidates, Reparsed = outcome.Reparsed,
                 }, ct);
