@@ -9285,6 +9285,7 @@ __webpack_require__.r(__webpack_exports__);
 
 const _c0 = ["wrapRef"];
 const _c1 = ["textRef"];
+const _c2 = ["userInputRef"];
 function MarkAssistantComponent_ng_container_3_Template(rf, ctx) {
   if (rf & 1) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementContainerStart"](0);
@@ -9465,57 +9466,57 @@ function MarkAssistantComponent_ng_container_5_div_42_Template(rf, ctx) {
 }
 function MarkAssistantComponent_ng_container_5_div_44_Template(rf, ctx) {
   if (rf & 1) {
-    const _r37 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
+    const _r38 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](0, "div", 51)(1, "span", 52);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](2, ">");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "input", 53);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](3, "input", 53, 54);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("ngModelChange", function MarkAssistantComponent_ng_container_5_div_44_Template_input_ngModelChange_3_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r37);
-      const ctx_r36 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r36.userInput = $event);
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r38);
+      const ctx_r37 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r37.userInput = $event);
     })("keydown.enter", function MarkAssistantComponent_ng_container_5_div_44_Template_input_keydown_enter_3_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r37);
-      const ctx_r38 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r38.onSubmitInput($event));
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r38);
+      const ctx_r39 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r39.onSubmitInput($event));
     })("click", function MarkAssistantComponent_ng_container_5_div_44_Template_input_click_3_listener($event) {
       return $event.stopPropagation();
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](4, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](5, "async");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](5, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](6, "async");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]();
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](6, "button", 54);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MarkAssistantComponent_ng_container_5_div_44_Template_button_click_6_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r37);
-      const ctx_r40 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
-      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r40.onSubmitInput($event));
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](7, "button", 55);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("click", function MarkAssistantComponent_ng_container_5_div_44_Template_button_click_7_listener($event) {
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r38);
+      const ctx_r41 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r41.onSubmitInput($event));
     });
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](7, "async");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](8, "translate");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](9, "\u25B6");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](8, "async");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](9, "translate");
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtext"](10, "\u25B6");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()();
   }
   if (rf & 2) {
     const ctx_r12 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx_r12.userInput)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](4, 5, "MARK.INPUT.PLACEHOLDER"))("disabled", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](5, 7, ctx_r12.isResponding$));
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](7, 9, ctx_r12.isResponding$) || !(ctx_r12.userInput == null ? null : ctx_r12.userInput.trim()))("title", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](8, 11, "MARK.INPUT.SEND"));
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("ngModel", ctx_r12.userInput)("placeholder", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](5, 5, "MARK.INPUT.PLACEHOLDER"))("disabled", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](6, 7, ctx_r12.isResponding$));
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵadvance"](4);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵproperty"]("disabled", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](8, 9, ctx_r12.isResponding$) || !(ctx_r12.userInput == null ? null : ctx_r12.userInput.trim()))("title", _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipeBind1"](9, 11, "MARK.INPUT.SEND"));
   }
 }
 function MarkAssistantComponent_ng_container_5_Template(rf, ctx) {
   if (rf & 1) {
-    const _r42 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
+    const _r43 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵgetCurrentView"]();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementContainerStart"](0);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](1, "div", 4, 5);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵlistener"]("mousedown", function MarkAssistantComponent_ng_container_5_Template_div_mousedown_1_listener($event) {
-      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r42);
-      const ctx_r41 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r41.onDragStart($event));
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r43);
+      const ctx_r42 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r42.onDragStart($event));
     })("click", function MarkAssistantComponent_ng_container_5_Template_div_click_1_listener() {
-      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r42);
-      const ctx_r43 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
-      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r43.onDialogClick());
+      _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵrestoreView"](_r43);
+      const ctx_r44 = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵnextContext"]();
+      return _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵresetView"](ctx_r44.onDialogClick());
     });
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](3, "async");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](4, "async");
@@ -9558,7 +9559,7 @@ function MarkAssistantComponent_ng_container_5_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementEnd"]()()();
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](42, MarkAssistantComponent_ng_container_5_div_42_Template, 2, 1, "div", 29);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](43, "async");
-    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](44, MarkAssistantComponent_ng_container_5_div_44_Template, 10, 13, "div", 30);
+    _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵtemplate"](44, MarkAssistantComponent_ng_container_5_div_44_Template, 11, 13, "div", 30);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](45, "async");
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelementStart"](46, "div", 31);
     _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵpipe"](47, "async");
@@ -9611,6 +9612,7 @@ const DRAG_CLICK_THRESHOLD = 5;
 class MarkAssistantComponent {
   constructor(mark) {
     this.mark = mark;
+    this.focusSub = null;
     /**
      * Il fumetto sta sopra la box, ma Mark si può trascinare ovunque: se è vicino
      * al bordo alto lo spazio sopra non c'è e il pensiero finirebbe fuori schermo.
@@ -9700,6 +9702,8 @@ class MarkAssistantComponent {
     // Una sola conversione markdown, quella del servizio, condivisa con la finestra
     // staccata: due pipeline separate divergerebbero, e lo hanno gia' fatto.
     this.renderedText$ = this.mark.renderedText$;
+    // la casella esiste solo in 'playing': si aspetta che Angular l'abbia disegnata
+    this.focusSub = this.mark.focusInput$.subscribe(() => setTimeout(() => this.userInputRef?.nativeElement.focus(), 350));
     this.loadPosition();
     this.loadSize();
     // Mentre la risposta arriva in streaming, resta incollato in fondo — ma solo
@@ -9720,6 +9724,7 @@ class MarkAssistantComponent {
     this.mark.undock();
   }
   ngOnDestroy() {
+    this.focusSub?.unsubscribe();
     document.removeEventListener('mousemove', this.onDragMove);
     document.removeEventListener('mouseup', this.onDragEnd);
     document.removeEventListener('pointermove', this.onResizeMove);
@@ -9924,11 +9929,13 @@ class MarkAssistantComponent {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵviewQuery"](_c0, 5);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵviewQuery"](_c1, 5);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵviewQuery"](_c2, 5);
         }
         if (rf & 2) {
           let _t;
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵloadQuery"]()) && (ctx.wrapRef = _t.first);
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵloadQuery"]()) && (ctx.textRef = _t.first);
+          _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵqueryRefresh"](_t = _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵloadQuery"]()) && (ctx.userInputRef = _t.first);
         }
       },
       hostBindings: function MarkAssistantComponent_HostBindings(rf, ctx) {
@@ -9940,7 +9947,7 @@ class MarkAssistantComponent {
       },
       decls: 7,
       vars: 12,
-      consts: [[1, "mark-dim"], [4, "ngIf"], [1, "mark-spotlight"], [1, "mark-pointer"], [1, "mark-dialog-wrap", 3, "mousedown", "click"], ["wrapRef", ""], ["class", "think-bubble", 3, "on", "below", 4, "ngIf"], [1, "antenna"], ["class", "close-mini", 3, "title", "click", "mousedown", 4, "ngIf"], [1, "mark-dialog-box"], [1, "rivet", "rivet-tl"], [1, "rivet", "rivet-tr"], [1, "rivet", "rivet-bl"], [1, "rivet", "rivet-br"], ["class", "resize-handle", 3, "title", "pointerdown", "dblclick", 4, "ngIf"], [1, "led-area"], [1, "led"], [1, "led-label"], [1, "freq-display"], ["class", "skip-btn undock-btn", 3, "title", "click", 4, "ngIf"], ["class", "skip-btn", "title", "Skip", 3, "click", 4, "ngIf"], [1, "dialog-content"], ["src", "/assets/mark.png", "alt", "Mark", "draggable", "false", 1, "face-portrait"], [1, "dialog-text-area"], [1, "dialog-name"], [1, "dialog-text"], ["textRef", ""], [1, "dialog-text-body", 3, "innerHTML"], ["class", "cursor", 4, "ngIf"], ["class", "user-actions-area", 3, "click", 4, "ngIf"], ["class", "user-input-area", 4, "ngIf"], [1, "continue-arrow"], [1, "think-bubble"], [1, "think-body"], ["class", "think-line", 3, "current", 4, "ngFor", "ngForOf"], [1, "think-tail", "think-tail-1"], [1, "think-tail", "think-tail-2"], [1, "think-tail", "think-tail-3"], [1, "think-line"], [1, "think-mark"], [1, "close-mini", 3, "title", "click", "mousedown"], [1, "resize-handle", 3, "title", "pointerdown", "dblclick"], [1, "skip-btn", "undock-btn", 3, "title", "click"], ["title", "Skip", 1, "skip-btn", 3, "click"], [1, "cursor"], [1, "user-actions-area", 3, "click"], ["type", "button", "class", "action-btn", 3, "disabled", "click", 4, "ngFor", "ngForOf"], ["type", "button", 1, "action-btn", 3, "disabled", "click"], ["class", "action-icon", 4, "ngIf"], [1, "action-label"], [1, "action-icon"], [1, "user-input-area"], [1, "prompt-prefix"], ["type", "text", "autocomplete", "off", "spellcheck", "false", "aria-label", "Mark input", 1, "user-input", 3, "ngModel", "placeholder", "disabled", "ngModelChange", "keydown.enter", "click"], ["type", "button", 1, "send-btn", 3, "disabled", "title", "click"]],
+      consts: [[1, "mark-dim"], [4, "ngIf"], [1, "mark-spotlight"], [1, "mark-pointer"], [1, "mark-dialog-wrap", 3, "mousedown", "click"], ["wrapRef", ""], ["class", "think-bubble", 3, "on", "below", 4, "ngIf"], [1, "antenna"], ["class", "close-mini", 3, "title", "click", "mousedown", 4, "ngIf"], [1, "mark-dialog-box"], [1, "rivet", "rivet-tl"], [1, "rivet", "rivet-tr"], [1, "rivet", "rivet-bl"], [1, "rivet", "rivet-br"], ["class", "resize-handle", 3, "title", "pointerdown", "dblclick", 4, "ngIf"], [1, "led-area"], [1, "led"], [1, "led-label"], [1, "freq-display"], ["class", "skip-btn undock-btn", 3, "title", "click", 4, "ngIf"], ["class", "skip-btn", "title", "Skip", 3, "click", 4, "ngIf"], [1, "dialog-content"], ["src", "/assets/mark.png", "alt", "Mark", "draggable", "false", 1, "face-portrait"], [1, "dialog-text-area"], [1, "dialog-name"], [1, "dialog-text"], ["textRef", ""], [1, "dialog-text-body", 3, "innerHTML"], ["class", "cursor", 4, "ngIf"], ["class", "user-actions-area", 3, "click", 4, "ngIf"], ["class", "user-input-area", 4, "ngIf"], [1, "continue-arrow"], [1, "think-bubble"], [1, "think-body"], ["class", "think-line", 3, "current", 4, "ngFor", "ngForOf"], [1, "think-tail", "think-tail-1"], [1, "think-tail", "think-tail-2"], [1, "think-tail", "think-tail-3"], [1, "think-line"], [1, "think-mark"], [1, "close-mini", 3, "title", "click", "mousedown"], [1, "resize-handle", 3, "title", "pointerdown", "dblclick"], [1, "skip-btn", "undock-btn", 3, "title", "click"], ["title", "Skip", 1, "skip-btn", 3, "click"], [1, "cursor"], [1, "user-actions-area", 3, "click"], ["type", "button", "class", "action-btn", 3, "disabled", "click", 4, "ngFor", "ngForOf"], ["type", "button", 1, "action-btn", 3, "disabled", "click"], ["class", "action-icon", 4, "ngIf"], [1, "action-label"], [1, "action-icon"], [1, "user-input-area"], [1, "prompt-prefix"], ["type", "text", "autocomplete", "off", "spellcheck", "false", "aria-label", "Mark input", 1, "user-input", 3, "ngModel", "placeholder", "disabled", "ngModelChange", "keydown.enter", "click"], ["userInputRef", ""], ["type", "button", 1, "send-btn", 3, "disabled", "title", "click"]],
       template: function MarkAssistantComponent_Template(rf, ctx) {
         if (rf & 1) {
           _angular_core__WEBPACK_IMPORTED_MODULE_2__["ɵɵelement"](0, "div", 0);
@@ -10025,24 +10032,25 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "MarkAssistantService": () => (/* binding */ MarkAssistantService)
 /* harmony export */ });
 /* harmony import */ var _home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./node_modules/@babel/runtime/helpers/esm/asyncToGenerator.js */ 1670);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/core */ 2560);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @angular/core */ 2560);
 /* harmony import */ var marked__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! marked */ 4611);
-/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! @angular/router */ 124);
+/* harmony import */ var _angular_router__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! @angular/router */ 124);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! rxjs */ 6317);
 /* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! rxjs */ 635);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs */ 6562);
-/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! rxjs */ 4363);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! rxjs/operators */ 116);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_13__ = __webpack_require__(/*! rxjs/operators */ 7260);
-/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! rxjs/operators */ 9295);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! rxjs */ 228);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! rxjs */ 6562);
+/* harmony import */ var rxjs__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! rxjs */ 4363);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_12__ = __webpack_require__(/*! rxjs/operators */ 116);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_14__ = __webpack_require__(/*! rxjs/operators */ 7260);
+/* harmony import */ var rxjs_operators__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! rxjs/operators */ 9295);
 /* harmony import */ var _lessons__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./lessons */ 6708);
 /* harmony import */ var _lessons_folder_actions__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./lessons/folder-actions */ 4773);
 /* harmony import */ var _handlers__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./handlers */ 3512);
-/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_17__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
 /* harmony import */ var _md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ../md-explorer/services/projects.service */ 9753);
 /* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ../signalR/services/server-messages.service */ 8635);
 /* harmony import */ var _mark_actions_service__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./mark-actions.service */ 572);
-/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_18__ = __webpack_require__(/*! @angular/platform-browser */ 4497);
+/* harmony import */ var _angular_platform_browser__WEBPACK_IMPORTED_MODULE_19__ = __webpack_require__(/*! @angular/platform-browser */ 4497);
 
 
 
@@ -10146,6 +10154,9 @@ class MarkAssistantService {
      * the dialog text.
      */
     this._actions = new rxjs__WEBPACK_IMPORTED_MODULE_8__.BehaviorSubject(null);
+    /** Chiede al componente di mettere il cursore nella casella (conversazione sul grafo: si comincia scrivendo). */
+    this._focusInput = new rxjs__WEBPACK_IMPORTED_MODULE_10__.Subject();
+    this.focusInput$ = this._focusInput.asObservable();
     this.actions$ = this._actions.asObservable();
     /**
      * True when Mark is detached into a separate Electron BrowserWindow.
@@ -10266,7 +10277,7 @@ class MarkAssistantService {
       // were still docked. Without actions$/continueArrow$/state$ in this list
       // an undock during an active "Prosegui" step would strand the user — the
       // dialog text would be there but the button to advance wouldn't.
-      const sub = (0,rxjs__WEBPACK_IMPORTED_MODULE_10__.combineLatest)([_this.text$, _this.staticMode$, _this.isResponding$, _this.actions$, _this.continueArrow$, _this.state$,
+      const sub = (0,rxjs__WEBPACK_IMPORTED_MODULE_11__.combineLatest)([_this.text$, _this.staticMode$, _this.isResponding$, _this.actions$, _this.continueArrow$, _this.state$,
       // Senza questo, la cronaca del pensiero resterebbe ferma alla prima riga
       // nella finestra staccata: e' li' che l'attesa sembra un guasto.
       _this.thinking$]).subscribe(() => {
@@ -10390,7 +10401,7 @@ class MarkAssistantService {
    * title-bar always brings him back on demand.
    */
   subscribeRouteChanges() {
-    this.router.events.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.filter)(e => e instanceof _angular_router__WEBPACK_IMPORTED_MODULE_12__.NavigationEnd)).subscribe(e => {
+    this.router.events.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.filter)(e => e instanceof _angular_router__WEBPACK_IMPORTED_MODULE_13__.NavigationEnd)).subscribe(e => {
       if (this.currentState === 'hidden') return;
       const ctx = this.currentLesson?.context ?? 'always';
       if (!this.isContextActive(ctx, e.urlAfterRedirects)) {
@@ -10418,7 +10429,7 @@ class MarkAssistantService {
     // mdProjects is a BehaviorSubject seeded with [] at service construction.
     // skip(1) ignores that init emit and waits for the first real fetch result
     // (triggered by ProjectsComponent.ngOnInit -> fetchProjects()).
-    this.projectsService.mdProjects.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_13__.skip)(1), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_11__.filter)(p => p !== null && p !== undefined), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_14__.take)(1)).subscribe(projects => {
+    this.projectsService.mdProjects.pipe((0,rxjs_operators__WEBPACK_IMPORTED_MODULE_14__.skip)(1), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_12__.filter)(p => p !== null && p !== undefined), (0,rxjs_operators__WEBPACK_IMPORTED_MODULE_15__.take)(1)).subscribe(projects => {
       if (this.autoStartChecked) return;
       this.autoStartChecked = true;
       const hasNoProjects = !projects || projects.length === 0;
@@ -10791,6 +10802,29 @@ class MarkAssistantService {
     }
     return false;
   }
+  /**
+   * Una conversazione sul grafo del codice (vista guidata, passo 1 del 14/10/2026): il pop-up si apre con una riga
+   * di presentazione, le domande pronte come pulsanti e il cursore nella casella. Quello che l'utente scrive va
+   * all'inoltratore registrato da MarkDiagramService, come le domande di seguito su un box.
+   */
+  beginGraphConversation(projectPath, label, intro, suggestions) {
+    this.diagramKind = 'point';
+    this.diagramConversation = {
+      documentPath: projectPath,
+      boxName: label
+    };
+    this.takeOverDialog();
+    this.clearThinkingTimer();
+    this._thinking.next([]);
+    this.diagramBoxInFlight = null;
+    this.diagramAnswerStarted = false;
+    this.diagramSub?.unsubscribe();
+    this.diagramSub = null;
+    this._text.next(intro);
+    this._actions.next(suggestions);
+    this._continueArrow.next(false);
+    this._focusInput.next();
+  }
   /** An event of a point's explanation, in the shape of the server's (markDiagramExplain). */
   emitDiagramEvent(evt) {
     if (!this.diagramConversation) return;
@@ -11009,7 +11043,7 @@ class MarkAssistantService {
       // Meglio un testo spoglio che una box vuota.
       html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\n/g, '<br>');
     }
-    return this.sanitizer.sanitize(_angular_core__WEBPACK_IMPORTED_MODULE_15__.SecurityContext.HTML, html) ?? '';
+    return this.sanitizer.sanitize(_angular_core__WEBPACK_IMPORTED_MODULE_16__.SecurityContext.HTML, html) ?? '';
   }
   diagramKey(documentPath, boxName) {
     return `${documentPath}::${boxName}`;
@@ -11191,7 +11225,7 @@ class MarkAssistantService {
         yield _this9.sleep(300);
       }
       try {
-        const reply = yield (0,rxjs__WEBPACK_IMPORTED_MODULE_16__.firstValueFrom)(handler.handle(trimmed, ctx));
+        const reply = yield (0,rxjs__WEBPACK_IMPORTED_MODULE_17__.firstValueFrom)(handler.handle(trimmed, ctx));
         yield _this9.typewriter(reply);
       } catch (err) {
         console.warn('[Mark] Input handler error:', err);
@@ -11217,18 +11251,18 @@ class MarkAssistantService {
     }).apply(this, arguments);
   }
   translateKey(key, params) {
-    return (0,rxjs__WEBPACK_IMPORTED_MODULE_16__.firstValueFrom)(this.translate.get(key, params));
+    return (0,rxjs__WEBPACK_IMPORTED_MODULE_17__.firstValueFrom)(this.translate.get(key, params));
   }
   sleep(ms) {
     return new Promise(r => setTimeout(r, ms));
   }
   static {
     this.ɵfac = function MarkAssistantService_Factory(t) {
-      return new (t || MarkAssistantService)(_angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵinject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_17__.TranslateService), _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵinject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_5__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵinject"](_angular_router__WEBPACK_IMPORTED_MODULE_12__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_15__.Injector), _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_6__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵinject"](_mark_actions_service__WEBPACK_IMPORTED_MODULE_7__.MarkActionsService), _angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵinject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_18__.DomSanitizer));
+      return new (t || MarkAssistantService)(_angular_core__WEBPACK_IMPORTED_MODULE_16__["ɵɵinject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_18__.TranslateService), _angular_core__WEBPACK_IMPORTED_MODULE_16__["ɵɵinject"](_md_explorer_services_projects_service__WEBPACK_IMPORTED_MODULE_5__.ProjectsService), _angular_core__WEBPACK_IMPORTED_MODULE_16__["ɵɵinject"](_angular_router__WEBPACK_IMPORTED_MODULE_13__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_16__["ɵɵinject"](_angular_core__WEBPACK_IMPORTED_MODULE_16__.Injector), _angular_core__WEBPACK_IMPORTED_MODULE_16__["ɵɵinject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_6__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_16__["ɵɵinject"](_mark_actions_service__WEBPACK_IMPORTED_MODULE_7__.MarkActionsService), _angular_core__WEBPACK_IMPORTED_MODULE_16__["ɵɵinject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_19__.DomSanitizer));
     };
   }
   static {
-    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_15__["ɵɵdefineInjectable"]({
+    this.ɵprov = /*@__PURE__*/_angular_core__WEBPACK_IMPORTED_MODULE_16__["ɵɵdefineInjectable"]({
       token: MarkAssistantService,
       factory: MarkAssistantService.ɵfac,
       providedIn: 'root'
@@ -11295,11 +11329,12 @@ class MarkDiagramService {
     // ──────────────────────────────────────────────────────────────────────
     /** The symbol being talked about: follow-up questions go to it. */
     this.symbolContext = null;
+    this.graphContext = null;
     this.setupIframeListener();
     // Si registra come inoltratore delle domande di seguito: è questo servizio a
     // conoscere MarkAssistantService, non il contrario — vedi il commento su
     // registerDiagramFollowUpSender.
-    this.mark.registerDiagramFollowUpSender(q => this.symbolContext ? this.runSymbol(this.symbolContext, q) : this.pointContext ? this.runPoint(this.pointContext, q) : this.askFollowUp(q));
+    this.mark.registerDiagramFollowUpSender(q => this.graphContext ? this.runGraph(this.graphContext, q) : this.symbolContext ? this.runSymbol(this.symbolContext, q) : this.pointContext ? this.runPoint(this.pointContext, q) : this.askFollowUp(q));
     this.mark.registerDiagramEditActions(() => this.applyEdit(), () => this.discardEdit());
     this.mark.registerDiagramNewConversation(() => this.newConversation());
   }
@@ -11309,6 +11344,10 @@ class MarkDiagramService {
       if (!data) return;
       if (data.type === 'mde-mark.askAboutPoint' && data.context?.point?.label) {
         this.askAboutPoint(data.context);
+        return;
+      }
+      if ((data.type === 'mde-mark.graphOpened' || data.type === 'mde-mark.askAboutGraph') && data.context?.projectPath) {
+        this.openGraphConversation(data.context, data.type === 'mde-mark.graphOpened');
         return;
       }
       if (data.type === 'mde-mark.askAboutSymbol' && data.context?.symbol?.id) {
@@ -11343,6 +11382,7 @@ class MarkDiagramService {
   ask(context) {
     this.pointContext = null;
     this.symbolContext = null;
+    this.graphContext = null;
     const connectionId = this.serverMessages.connectionId;
     if (!connectionId) {
       // Without SignalR there is no channel for the answer. Say so in the
@@ -11365,6 +11405,7 @@ class MarkDiagramService {
    */
   askAboutPoint(context) {
     this.symbolContext = null;
+    this.graphContext = null;
     this.pointContext = context;
     const cached = this.mark.beginDiagramExplanation({
       documentPath: context.documentPath,
@@ -11434,12 +11475,112 @@ class MarkDiagramService {
     })();
   }
   /**
+   * La pagina del grafo del codice si è aperta (mde-mark.graphOpened) o l'utente ha premuto «Chiedi a MarkAgent»
+   * (mde-mark.askAboutGraph). All'apertura il pop-up compare da solo SOLO la prima volta: la preferenza sta nel DB del
+   * backend (MarkCodeGraphIntroShown), non nel browser, perché Electron cambia porta a ogni avvio.
+   */
+  openGraphConversation(context, fromPageOpen) {
+    var _this2 = this;
+    return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      if (fromPageOpen) {
+        try {
+          const intro = yield (0,rxjs__WEBPACK_IMPORTED_MODULE_4__.firstValueFrom)(_this2.http.get('../api/AppSettings/GetMarkCodeGraphIntro'));
+          if (intro.shown) return;
+          yield (0,rxjs__WEBPACK_IMPORTED_MODULE_4__.firstValueFrom)(_this2.http.post('../api/AppSettings/SetMarkCodeGraphIntroShown', {}));
+        } catch (err) {
+          // senza la preferenza non si sa se è la prima volta: meglio non aprire da soli che aprire sempre
+          console.warn('[MarkDiagram] preferenza del pop-up sul grafo non letta', err);
+          return;
+        }
+      }
+      _this2.pointContext = null;
+      _this2.symbolContext = null;
+      _this2.graphContext = context;
+      const where = context.folder || _this2.translate.instant('MARK.CODE.GRAPH_WHOLE_PROJECT');
+      const ask = key => () => _this2.runGraph(context, _this2.translate.instant(key, {
+        folder: where
+      }));
+      _this2.mark.beginGraphConversation(context.projectPath, _this2.translate.instant('MARK.CODE.GRAPH_LABEL', {
+        folder: where
+      }), _this2.translate.instant('MARK.CODE.GRAPH_INTRO', {
+        folder: where
+      }), [{
+        labelKey: 'MARK.CODE.GRAPH_SUGGEST_PURPOSE',
+        icon: '🎯',
+        handler: ask('MARK.CODE.GRAPH_SUGGEST_PURPOSE_Q')
+      }, {
+        labelKey: 'MARK.CODE.GRAPH_SUGGEST_ENTRIES',
+        icon: '🚪',
+        handler: ask('MARK.CODE.GRAPH_SUGGEST_ENTRIES_Q')
+      }, {
+        labelKey: 'MARK.CODE.GRAPH_SUGGEST_PARTS',
+        icon: '🧩',
+        handler: ask('MARK.CODE.GRAPH_SUGGEST_PARTS_Q')
+      }, {
+        labelKey: 'MARK.CODE.GRAPH_SUGGEST_PROGRAMS',
+        icon: '🔗',
+        handler: ask('MARK.CODE.GRAPH_SUGGEST_PROGRAMS_Q')
+      }]);
+    })();
+  }
+  /** Una domanda sul grafo: nella sessione del tab MarkAgent, con i tool code_* e l'obbligo di dire da dove viene ogni cosa. */
+  runGraph(context, question) {
+    var _this3 = this;
+    return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
+      const run = ++_this3.pointRun;
+      const channelId = `mark-graph-${run}`;
+      const box = _this3.translate.instant('MARK.CODE.GRAPH_LABEL', {
+        folder: context.folder || _this3.translate.instant('MARK.CODE.GRAPH_WHOLE_PROJECT')
+      });
+      const emit = evt => {
+        if (run === _this3.pointRun) _this3.mark.emitDiagramEvent({
+          box,
+          ...evt
+        });
+      };
+      const prompt = _this3.translate.instant('MARK.CODE.GRAPH_PROMPT', {
+        projectPath: context.projectPath,
+        folder: context.folder || _this3.translate.instant('MARK.CODE.GRAPH_WHOLE_PROJECT'),
+        question
+      });
+      _this3.mark.beginDiagramFollowUp(false);
+      emit({
+        phase: 'start'
+      });
+      try {
+        emit({
+          phase: 'status',
+          message: _this3.translate.instant('MARK.CODE.GRAPH_ASKING')
+        });
+        const answer = yield _this3.aiChat.askOnChannel(channelId, prompt, chunk => emit({
+          phase: 'chunk',
+          text: chunk
+        }));
+        emit({
+          phase: 'done',
+          text: answer,
+          sources: [],
+          followUp: true
+        });
+      } catch (err) {
+        console.warn('[MarkDiagram] graph question failed', err);
+        emit({
+          phase: 'error',
+          message: err?.error?.message || err?.error || err?.message || _this3.translate.instant('MARK.CODE.FAILED')
+        });
+      } finally {
+        _this3.aiChat.clearChannelHistory(channelId);
+      }
+    })();
+  }
+  /**
    * Asks MarkAgent about a function/method/class of the code graph. One turn on a channel of the AI
    * chat — the same CLI session as the MarkAgent tab (single engine, single session): MarkAgent has
    * the code_* MCP tools and reads the source itself; the prompt only says WHICH symbol and WHERE.
    */
   askAboutSymbol(context) {
     this.pointContext = null;
+    this.graphContext = null;
     this.symbolContext = context;
     const cached = this.mark.beginDiagramExplanation({
       documentPath: context.symbol.path || context.projectPath,
@@ -11451,13 +11592,13 @@ class MarkDiagramService {
     this.runSymbol(context, null);
   }
   runSymbol(context, question) {
-    var _this2 = this;
+    var _this4 = this;
     return (0,_home_carlo_Documents_sviluppo_MdExplorer_MdExplorer_client2_node_modules_babel_runtime_helpers_esm_asyncToGenerator_js__WEBPACK_IMPORTED_MODULE_0__["default"])(function* () {
-      const run = ++_this2.pointRun;
+      const run = ++_this4.pointRun;
       const channelId = `mark-symbol-${run}`;
       const box = context.symbol.qualifiedName;
       const emit = evt => {
-        if (run === _this2.pointRun) _this2.mark.emitDiagramEvent({
+        if (run === _this4.pointRun) _this4.mark.emitDiagramEvent({
           box,
           ...evt
         });
@@ -11471,14 +11612,14 @@ class MarkDiagramService {
         id: s.id,
         where,
         signature: s.signature || '',
-        summary: s.summary || _this2.translate.instant('MARK.CODE.NO_SUMMARY')
+        summary: s.summary || _this4.translate.instant('MARK.CODE.NO_SUMMARY')
       };
       // Un file o un arco del grafo (tasto destro, 12/10/2026): prompt propri, la stessa sessione e la stessa finestra.
       const subject = s.kind === 'file' ? 'FILE' : s.kind === 'relation' ? 'RELATION' : null;
       const r = context.relation;
       const subjectParams = {
         ...params,
-        links: context.links && context.links.length ? context.links.join('\n') : _this2.translate.instant('MARK.CODE.NO_LINKS'),
+        links: context.links && context.links.length ? context.links.join('\n') : _this4.translate.instant('MARK.CODE.NO_LINKS'),
         relation: r?.relation ?? '',
         confidence: r?.confidence ?? '',
         count: r?.count ?? 1,
@@ -11487,29 +11628,29 @@ class MarkDiagramService {
         to: r?.to ?? '',
         toKind: r?.toKind ?? ''
       };
-      const prompt = question === null ? _this2.translate.instant(subject ? `MARK.CODE.ASK_${subject}_PROMPT` : 'MARK.CODE.ASK_PROMPT', subjectParams) : _this2.translate.instant(subject ? `MARK.CODE.FOLLOW_UP_${subject}_PROMPT` : 'MARK.CODE.FOLLOW_UP_PROMPT', {
+      const prompt = question === null ? _this4.translate.instant(subject ? `MARK.CODE.ASK_${subject}_PROMPT` : 'MARK.CODE.ASK_PROMPT', subjectParams) : _this4.translate.instant(subject ? `MARK.CODE.FOLLOW_UP_${subject}_PROMPT` : 'MARK.CODE.FOLLOW_UP_PROMPT', {
         ...subjectParams,
         question
       });
-      if (question !== null) _this2.mark.beginDiagramFollowUp(false);
+      if (question !== null) _this4.mark.beginDiagramFollowUp(false);
       emit({
         phase: 'start'
       });
       try {
         emit({
           phase: 'status',
-          message: _this2.translate.instant('MARK.CODE.ASKING', {
+          message: _this4.translate.instant('MARK.CODE.ASKING', {
             name: s.name
           })
         });
-        const answer = yield _this2.aiChat.askOnChannel(channelId, prompt, chunk => emit({
+        const answer = yield _this4.aiChat.askOnChannel(channelId, prompt, chunk => emit({
           phase: 'chunk',
           text: chunk
         }));
+        // niente keywords: il grafo del codice non cerca nei documenti, e il piè di pagina «nessuna ricerca» sarebbe falso
         emit({
           phase: 'done',
           text: answer,
-          keywords: [],
           sources: s.path ? [s.path] : [],
           followUp: question !== null
         });
@@ -11517,10 +11658,10 @@ class MarkDiagramService {
         console.warn('[MarkDiagram] symbol explanation failed', err);
         emit({
           phase: 'error',
-          message: err?.error?.message || err?.error || err?.message || _this2.translate.instant('MARK.CODE.FAILED')
+          message: err?.error?.message || err?.error || err?.message || _this4.translate.instant('MARK.CODE.FAILED')
         });
       } finally {
-        _this2.aiChat.clearChannelHistory(channelId);
+        _this4.aiChat.clearChannelHistory(channelId);
       }
     })();
   }
@@ -18785,8 +18926,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.14.4',
-  buildTime: '2026.10.14 10:48:19'
+  version: '2026.10.14.6',
+  buildTime: '2026.10.14 11:25:04'
 };
 
 /***/ }),
@@ -18820,4 +18961,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.6ad2b0b2e0dc3c11.js.map
+//# sourceMappingURL=main.402f91d3cb392600.js.map

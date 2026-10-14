@@ -134,6 +134,7 @@
     <div class="user-input-area" *ngIf="(state$ | async) === 'playing'">
       <span class="prompt-prefix">&gt;</span>
       <input type="text"
+             #userInputRef
              class="user-input"
              [(ngModel)]="userInput"
              [placeholder]="'MARK.INPUT.PLACEHOLDER' | translate"

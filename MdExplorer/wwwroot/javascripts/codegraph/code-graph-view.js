@@ -45,6 +45,8 @@ const CG_TEXTS = {
         statusUndescribed: ' · {n} senza descrizione',
         noDescription: 'Nessuna descrizione ancora. Tasto destro sul file → «Analizza il file con Mark», oppure «Analizza il codice con Mark» sulla cartella.',
         filesPurpose: 'Utilità dei file',
+        askGraph: '💬 Chiedi a MarkAgent',
+        askGraphTip: 'Fai una domanda su questo codice: a che cosa serve, dove sta una cosa, che cosa rompo se la cambio',
         filesPurposeClose: 'Chiudi le descrizioni dei file',
         filesPurposeOpen: 'Mostra sotto ogni file a che cosa serve',
         askFile: 'Chiedi a MarkAgent di spiegare «{name}» e i suoi legami',
@@ -127,6 +129,8 @@ const CG_TEXTS = {
         statusUndescribed: ' · {n} without a description',
         noDescription: 'No description yet. Right-click the file → «Analyze the file with Mark», or «Analyze the code with Mark» on the folder.',
         filesPurpose: 'What the files are for',
+        askGraph: '💬 Ask MarkAgent',
+        askGraphTip: 'Ask a question about this code: what it is for, where something is, what breaks if you change it',
         filesPurposeClose: 'Close the descriptions of the files',
         filesPurposeOpen: 'Show under each file what it is for',
         askFile: 'Ask MarkAgent to explain «{name}» and its links',
@@ -638,6 +642,24 @@ const CG_TEXTS = {
         }, '*');
     }
 
+    /**
+     * La conversazione sul grafo (vista guidata da MarkAgent, passo 1 del 14/10/2026): la casella e le domande pronte
+     * stanno nel pop-up di MarkAgent, in Angular, nella sessione del tab (motore e sessione unici). <c>opened</c>:
+     * l'apertura della pagina — Angular mostra il pop-up solo la prima volta; il pulsante lo mostra sempre.
+     */
+    function askMarkAgentAboutGraph(opened) {
+        window.parent.postMessage({ type: opened ? 'mde-mark.graphOpened' : 'mde-mark.askAboutGraph', context: { projectPath, folder } }, '*');
+    }
+
+    function renderAskGraph() {
+        if (document.getElementById('cg-ask-graph')) return;
+        const btn = document.createElement('button');
+        btn.id = 'cg-ask-graph'; btn.className = 'cg-chip';
+        btn.textContent = T('askGraph'); btn.title = T('askGraphTip');
+        btn.onclick = () => askMarkAgentAboutGraph(false);
+        document.getElementById('cg-header').appendChild(btn);
+    }
+
     /** «Analizza il file con Mark»: a che cosa serve il file (code:FileDescription); poi l'accordion si apre e la mostra. */
     function describeFile(n) {
         return describeOn(n, '/api/codegraph/describe-file', { projectPath, path: n.path }, () => { descOpen.add(n.path); saveDescInUrl(); });
@@ -812,5 +834,5 @@ const CG_TEXTS = {
         };
     }
 
-    document.addEventListener('DOMContentLoaded', () => { load(); checkOutdated(); });
+    document.addEventListener('DOMContentLoaded', () => { renderAskGraph(); load(); checkOutdated(); askMarkAgentAboutGraph(true); });
 })();

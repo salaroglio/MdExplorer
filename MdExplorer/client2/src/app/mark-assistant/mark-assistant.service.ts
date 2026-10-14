@@ -2,7 +2,7 @@ import { Injectable, Injector, SecurityContext } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 import { marked } from 'marked';
 import { NavigationEnd, Router } from '@angular/router';
-import { BehaviorSubject, Observable, Subscription, combineLatest, firstValueFrom, map } from 'rxjs';
+import { BehaviorSubject, Observable, Subscription, combineLatest, firstValueFrom, map, Subject } from 'rxjs';
 import { filter, skip, take } from 'rxjs/operators';
 import { TranslateService } from '@ngx-translate/core';
 import { ProjectsService } from '../md-explorer/services/projects.service';
@@ -95,6 +95,9 @@ export class MarkAssistantService {
    * the dialog text.
    */
   private readonly _actions = new BehaviorSubject<MarkAction[] | null>(null);
+  /** Chiede al componente di mettere il cursore nella casella (conversazione sul grafo: si comincia scrivendo). */
+  private readonly _focusInput = new Subject<void>();
+  readonly focusInput$: Observable<void> = this._focusInput.asObservable();
   readonly actions$: Observable<MarkAction[] | null> = this._actions.asObservable();
 
   /**
@@ -812,6 +815,27 @@ export class MarkAssistantService {
       });
     }
     return false;
+  }
+
+  /**
+   * Una conversazione sul grafo del codice (vista guidata, passo 1 del 14/10/2026): il pop-up si apre con una riga
+   * di presentazione, le domande pronte come pulsanti e il cursore nella casella. Quello che l'utente scrive va
+   * all'inoltratore registrato da MarkDiagramService, come le domande di seguito su un box.
+   */
+  beginGraphConversation(projectPath: string, label: string, intro: string, suggestions: MarkAction[]): void {
+    this.diagramKind = 'point';
+    this.diagramConversation = { documentPath: projectPath, boxName: label };
+    this.takeOverDialog();
+    this.clearThinkingTimer();
+    this._thinking.next([]);
+    this.diagramBoxInFlight = null;
+    this.diagramAnswerStarted = false;
+    this.diagramSub?.unsubscribe();
+    this.diagramSub = null;
+    this._text.next(intro);
+    this._actions.next(suggestions);
+    this._continueArrow.next(false);
+    this._focusInput.next();
   }
 
   /** An event of a point's explanation, in the shape of the server's (markDiagramExplain). */

@@ -26,6 +26,8 @@ const DRAG_CLICK_THRESHOLD = 5;
 export class MarkAssistantComponent implements OnInit, OnDestroy {
   @ViewChild('wrapRef', { static: false }) wrapRef!: ElementRef<HTMLElement>;
   @ViewChild('textRef', { static: false }) textRef!: ElementRef<HTMLElement>;
+  @ViewChild('userInputRef', { static: false }) userInputRef?: ElementRef<HTMLInputElement>;
+  private focusSub: Subscription | null = null;
 
   state$!: Observable<MarkState>;
   text$!: Observable<string>;
@@ -96,6 +98,8 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
     // Una sola conversione markdown, quella del servizio, condivisa con la finestra
     // staccata: due pipeline separate divergerebbero, e lo hanno gia' fatto.
     this.renderedText$ = this.mark.renderedText$;
+    // la casella esiste solo in 'playing': si aspetta che Angular l'abbia disegnata
+    this.focusSub = this.mark.focusInput$.subscribe(() => setTimeout(() => this.userInputRef?.nativeElement.focus(), 350));
 
     this.loadPosition();
     this.loadSize();
@@ -121,6 +125,7 @@ export class MarkAssistantComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.focusSub?.unsubscribe();
     document.removeEventListener('mousemove', this.onDragMove);
     document.removeEventListener('mouseup', this.onDragEnd);
     document.removeEventListener('pointermove', this.onResizeMove);

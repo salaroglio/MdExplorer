@@ -61,6 +61,13 @@ export interface MarkSymbolContext {
   relation?: { relation: string; confidence: string; count: number; from: string; fromKind: string; to: string; toKind: string };
 }
 
+/** La pagina «Grafo del codice» (vista guidata da MarkAgent, passo 1 del 14/10/2026). */
+export interface MarkGraphContext {
+  projectPath: string;
+  /** La cartella program mostrata; vuota = tutto il progetto. */
+  folder: string;
+}
+
 /**
  * "Ask to MarkAgent" — bridge between the markdown iframe and Mark's dialog.
  *
@@ -88,7 +95,8 @@ export class MarkDiagramService {
     // conoscere MarkAssistantService, non il contrario — vedi il commento su
     // registerDiagramFollowUpSender.
     this.mark.registerDiagramFollowUpSender(q =>
-      this.symbolContext ? this.runSymbol(this.symbolContext, q)
+      this.graphContext ? this.runGraph(this.graphContext, q)
+        : this.symbolContext ? this.runSymbol(this.symbolContext, q)
         : this.pointContext ? this.runPoint(this.pointContext, q) : this.askFollowUp(q));
     this.mark.registerDiagramEditActions(
       () => this.applyEdit(),
@@ -103,6 +111,10 @@ export class MarkDiagramService {
       if (!data) return;
       if (data.type === 'mde-mark.askAboutPoint' && data.context?.point?.label) {
         this.askAboutPoint(data.context as MarkPointContext);
+        return;
+      }
+      if ((data.type === 'mde-mark.graphOpened' || data.type === 'mde-mark.askAboutGraph') && data.context?.projectPath) {
+        this.openGraphConversation(data.context as MarkGraphContext, data.type === 'mde-mark.graphOpened');
         return;
       }
       if (data.type === 'mde-mark.askAboutSymbol' && data.context?.symbol?.id) {
@@ -132,6 +144,7 @@ export class MarkDiagramService {
   ask(context: MarkDiagramContext): void {
     this.pointContext = null;
     this.symbolContext = null;
+    this.graphContext = null;
     const connectionId = this.serverMessages.connectionId;
     if (!connectionId) {
       // Without SignalR there is no channel for the answer. Say so in the
@@ -172,6 +185,7 @@ export class MarkDiagramService {
    */
   askAboutPoint(context: MarkPointContext): void {
     this.symbolContext = null;
+    this.graphContext = null;
     this.pointContext = context;
     const cached = this.mark.beginDiagramExplanation(
       { documentPath: context.documentPath, box: { name: context.point.label } }, 'point');
@@ -219,6 +233,64 @@ export class MarkDiagramService {
 
   /** The symbol being talked about: follow-up questions go to it. */
   private symbolContext: MarkSymbolContext | null = null;
+  private graphContext: MarkGraphContext | null = null;
+
+  /**
+   * La pagina del grafo del codice si è aperta (mde-mark.graphOpened) o l'utente ha premuto «Chiedi a MarkAgent»
+   * (mde-mark.askAboutGraph). All'apertura il pop-up compare da solo SOLO la prima volta: la preferenza sta nel DB del
+   * backend (MarkCodeGraphIntroShown), non nel browser, perché Electron cambia porta a ogni avvio.
+   */
+  async openGraphConversation(context: MarkGraphContext, fromPageOpen: boolean): Promise<void> {
+    if (fromPageOpen) {
+      try {
+        const intro = await firstValueFrom(this.http.get<{ shown: boolean }>('../api/AppSettings/GetMarkCodeGraphIntro'));
+        if (intro.shown) return;
+        await firstValueFrom(this.http.post('../api/AppSettings/SetMarkCodeGraphIntroShown', {}));
+      } catch (err) {
+        // senza la preferenza non si sa se è la prima volta: meglio non aprire da soli che aprire sempre
+        console.warn('[MarkDiagram] preferenza del pop-up sul grafo non letta', err);
+        return;
+      }
+    }
+    this.pointContext = null;
+    this.symbolContext = null;
+    this.graphContext = context;
+    const where = context.folder || this.translate.instant('MARK.CODE.GRAPH_WHOLE_PROJECT');
+    const ask = (key: string) => () => this.runGraph(context, this.translate.instant(key, { folder: where }));
+    this.mark.beginGraphConversation(
+      context.projectPath,
+      this.translate.instant('MARK.CODE.GRAPH_LABEL', { folder: where }),
+      this.translate.instant('MARK.CODE.GRAPH_INTRO', { folder: where }),
+      [
+        { labelKey: 'MARK.CODE.GRAPH_SUGGEST_PURPOSE', icon: '🎯', handler: ask('MARK.CODE.GRAPH_SUGGEST_PURPOSE_Q') },
+        { labelKey: 'MARK.CODE.GRAPH_SUGGEST_ENTRIES', icon: '🚪', handler: ask('MARK.CODE.GRAPH_SUGGEST_ENTRIES_Q') },
+        { labelKey: 'MARK.CODE.GRAPH_SUGGEST_PARTS', icon: '🧩', handler: ask('MARK.CODE.GRAPH_SUGGEST_PARTS_Q') },
+        { labelKey: 'MARK.CODE.GRAPH_SUGGEST_PROGRAMS', icon: '🔗', handler: ask('MARK.CODE.GRAPH_SUGGEST_PROGRAMS_Q') },
+      ]);
+  }
+
+  /** Una domanda sul grafo: nella sessione del tab MarkAgent, con i tool code_* e l'obbligo di dire da dove viene ogni cosa. */
+  private async runGraph(context: MarkGraphContext, question: string): Promise<void> {
+    const run = ++this.pointRun;
+    const channelId = `mark-graph-${run}`;
+    const box = this.translate.instant('MARK.CODE.GRAPH_LABEL', { folder: context.folder || this.translate.instant('MARK.CODE.GRAPH_WHOLE_PROJECT') });
+    const emit = (evt: any) => { if (run === this.pointRun) this.mark.emitDiagramEvent({ box, ...evt }); };
+    const prompt = this.translate.instant('MARK.CODE.GRAPH_PROMPT', {
+      projectPath: context.projectPath, folder: context.folder || this.translate.instant('MARK.CODE.GRAPH_WHOLE_PROJECT'), question,
+    });
+    this.mark.beginDiagramFollowUp(false);
+    emit({ phase: 'start' });
+    try {
+      emit({ phase: 'status', message: this.translate.instant('MARK.CODE.GRAPH_ASKING') });
+      const answer = await this.aiChat.askOnChannel(channelId, prompt, chunk => emit({ phase: 'chunk', text: chunk }));
+      emit({ phase: 'done', text: answer, sources: [], followUp: true });
+    } catch (err: any) {
+      console.warn('[MarkDiagram] graph question failed', err);
+      emit({ phase: 'error', message: err?.error?.message || err?.error || err?.message || this.translate.instant('MARK.CODE.FAILED') });
+    } finally {
+      this.aiChat.clearChannelHistory(channelId);
+    }
+  }
 
   /**
    * Asks MarkAgent about a function/method/class of the code graph. One turn on a channel of the AI
@@ -227,6 +299,7 @@ export class MarkDiagramService {
    */
   askAboutSymbol(context: MarkSymbolContext): void {
     this.pointContext = null;
+    this.graphContext = null;
     this.symbolContext = context;
     const cached = this.mark.beginDiagramExplanation(
       { documentPath: context.symbol.path || context.projectPath, box: { name: context.symbol.qualifiedName } }, 'point');
@@ -263,7 +336,8 @@ export class MarkDiagramService {
     try {
       emit({ phase: 'status', message: this.translate.instant('MARK.CODE.ASKING', { name: s.name }) });
       const answer = await this.aiChat.askOnChannel(channelId, prompt, chunk => emit({ phase: 'chunk', text: chunk }));
-      emit({ phase: 'done', text: answer, keywords: [], sources: s.path ? [s.path] : [], followUp: question !== null });
+      // niente keywords: il grafo del codice non cerca nei documenti, e il piè di pagina «nessuna ricerca» sarebbe falso
+      emit({ phase: 'done', text: answer, sources: s.path ? [s.path] : [], followUp: question !== null });
     } catch (err: any) {
       console.warn('[MarkDiagram] symbol explanation failed', err);
       emit({ phase: 'error', message: err?.error?.message || err?.error || err?.message || this.translate.instant('MARK.CODE.FAILED') });

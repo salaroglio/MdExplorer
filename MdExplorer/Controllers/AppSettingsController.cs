@@ -81,6 +81,57 @@ namespace MdExplorer.Service.Controllers
 
         public class LanguageRequest { public string Language { get; set; } }
 
+        private const string CodeGraphIntroSettingName = "MarkCodeGraphIntroShown";
+
+        /// <summary>
+        /// GET /api/AppSettings/GetMarkCodeGraphIntro — {shown}: se il pop-up di MarkAgent si è già aperto da solo sulla
+        /// pagina del grafo del codice (vista guidata, 14/10/2026). Solo la prima volta: dopo lo si apre col pulsante.
+        /// </summary>
+        [HttpGet]
+        public IActionResult GetMarkCodeGraphIntro()
+        {
+            _session.BeginTransaction();
+            try
+            {
+                var shown = _session.GetDal<Setting>().GetList().FirstOrDefault(x => x.Name == CodeGraphIntroSettingName)?.ValueInt == 1;
+                _session.Commit();
+                return Ok(new { shown });
+            }
+            catch
+            {
+                _session.Rollback();
+                throw;
+            }
+        }
+
+        /// <summary>POST /api/AppSettings/SetMarkCodeGraphIntroShown — il pop-up si è aperto da solo: non succede più.</summary>
+        [HttpPost]
+        public IActionResult SetMarkCodeGraphIntroShown()
+        {
+            _session.BeginTransaction();
+            try
+            {
+                var dal = _session.GetDal<Setting>();
+                var existing = dal.GetList().FirstOrDefault(x => x.Name == CodeGraphIntroSettingName);
+                if (existing != null)
+                {
+                    _session.Evict(existing);
+                    _session.CreateSQLQuery("UPDATE Setting SET ValueInt = 1 WHERE Name = :name").SetParameter("name", CodeGraphIntroSettingName).ExecuteUpdate();
+                }
+                else
+                {
+                    dal.Save(new Setting { Name = CodeGraphIntroSettingName, Description = "Il pop-up di MarkAgent si è già aperto da solo sul grafo del codice", ValueInt = 1 });
+                }
+                _session.Commit();
+            }
+            catch
+            {
+                _session.Rollback();
+                throw;
+            }
+            return Ok(new { shown = true });
+        }
+
         /// <summary>GET /api/AppSettings/GetLanguage — {language}: null se l'utente non ha mai scelto (primo avvio).</summary>
         [HttpGet]
         public IActionResult GetLanguage()
