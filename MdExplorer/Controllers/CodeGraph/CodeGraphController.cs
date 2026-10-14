@@ -528,6 +528,18 @@ namespace MdExplorer.Controllers.CodeGraph
             });
         });
 
+        /// <summary>
+        /// GET /api/codegraph/map?projectPath&amp;folder — la mappa per livelli (vista guidata, passo 2 del 14/10): senza
+        /// folder i programmi del progetto, con folder le sue sottocartelle; frecce sommate per relazione e certezza.
+        /// </summary>
+        [HttpGet("map")]
+        public Task<IActionResult> Map([FromQuery] string projectPath, [FromQuery] string folder = "", CancellationToken ct = default) => Guarded(async () =>
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            var programs = (await _analysis.ListProgramsAsync(projectPath, ct)).Select(p => p.Folder).ToList();
+            return Ok(await _store.MapAsync(projectPath, folder, programs, ct));
+        });
+
         [HttpGet("overview")]
         public Task<IActionResult> Overview([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
         {
@@ -582,7 +594,8 @@ namespace MdExplorer.Controllers.CodeGraph
                        "<title>" + title + "</title>" +
                        "<link rel=\"stylesheet\" href=\"/javascripts/codegraph/code-graph-view.css\">" +
                        "<script src=\"/javascripts/lib/force-graph.min.js\"></script>" +
-                       "<script src=\"/javascripts/codegraph/code-graph-view.js\"></script></head>" +
+                       "<script src=\"/javascripts/codegraph/code-graph-view.js\"></script>" +
+                       "<script src=\"/javascripts/codegraph/code-graph-map.js\"></script></head>" +
                        "<body class=\"" + (isDark ? "dark-theme" : "light-theme") + "\"><div id=\"cg-root\">" +
                        "<div id=\"cg-header\"><h2>" + title + "</h2><span id=\"cg-status\"></span></div>" +
                        "<div id=\"cg-main\"><div id=\"cg-graph\"></div><div id=\"cg-banner\" class=\"hidden\"></div><div id=\"cg-card\" class=\"hidden\"></div></div>" +

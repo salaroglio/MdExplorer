@@ -54,3 +54,8 @@ body.dark-theme #cg-hidden-list { background: #111827; border-color: rgba(255,25
 #cg-hidden-list.hidden { display: none; }
 #cg-hidden-list > div { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 #cg-hidden-list .cg-btn { margin: 4px 0; }
+
+/* Mappa per livelli (vista guidata, passo 2 del 14/10/2026) */
+.cg-crumb { color: inherit; text-decoration: none; opacity: .75; }
+.cg-crumb:hover { text-decoration: underline; opacity: 1; }
+#cg-card .cg-btn { display: block; width: 100%; text-align: left; margin: 4px 0; }

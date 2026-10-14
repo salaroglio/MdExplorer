@@ -57,6 +57,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         Task<CodeOverview> OverviewAsync(string projectPath, CancellationToken ct = default);
         /// <summary>Quanto di una cartella <c>program</c> è nel grafo: file e simboli scansionati, quanti con una descrizione.</summary>
         Task<CodeProgramCounts> ProgramCountsAsync(string projectPath, string programFolder, CancellationToken ct = default);
+        /// <summary>
+        /// La mappa per livelli (passo 2 della vista guidata): <paramref name="folder"/> vuota = i programmi
+        /// (<paramref name="programs"/>), altrimenti le sottocartelle della cartella con le frecce sommate.
+        /// </summary>
+        Task<CodeGraphMap> MapAsync(string projectPath, string folder, IReadOnlyList<string> programs, CancellationToken ct = default);
         /// <summary>I simboli dichiarati (non external) da una cartella program: id, tipo, nome qualificato, linguaggio (ponti, 3b).</summary>
         Task<List<(string Id, string Kind, string QualifiedName, string Language)>> DeclaredSymbolsAsync(string projectPath, string programFolder, CancellationToken ct = default);
         Task<CodeGraphViewModel> BuildViewAsync(string projectPath, string folderPrefix, IReadOnlyCollection<string> expandedFiles, IReadOnlyCollection<string> openedSymbols, IReadOnlyCollection<string> hiddenSymbols, string focusSymbolId, CancellationToken ct = default);

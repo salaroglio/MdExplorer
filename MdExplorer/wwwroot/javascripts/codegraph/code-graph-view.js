@@ -825,6 +825,7 @@ const CG_TEXTS = {
                 banner.className = 'cg-banner-ok';
                 banner.textContent = T(done.reparsed === 1 ? 'upgradedOne' : 'upgradedMany', { n: done.reparsed });
                 setTimeout(() => { banner.className = 'hidden'; }, 4000);
+                if (MODE !== 'files') { location.reload(); return; }   // la mappa si ridisegna dal backend
                 await load();
                 checkOutdated();
             } catch (e) {
@@ -834,5 +835,8 @@ const CG_TEXTS = {
         };
     }
 
-    document.addEventListener('DOMContentLoaded', () => { renderAskGraph(); load(); checkOutdated(); askMarkAgentAboutGraph(true); });
+    // Vista a file (scaletta) solo con ?view=files o ?symbol=…: altrimenti la pagina è la mappa per livelli (code-graph-map.js)
+    const MODE = qs.get('view') || (qs.get('symbol') ? 'files' : 'map');
+    if (MODE === 'files') document.addEventListener('DOMContentLoaded', () => { renderAskGraph(); load(); checkOutdated(); askMarkAgentAboutGraph(true); });
+    else document.addEventListener('DOMContentLoaded', () => checkOutdated());   // l'avviso D25 vale anche sulla mappa
 })();

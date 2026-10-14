@@ -92,6 +92,48 @@ namespace MdExplorer.Features.Services.CodeGraph
         public int SessionStartIndex { get; set; }
     }
 
+    /// <summary>
+    /// La mappa per livelli del grafo del codice (vista guidata, passo 2 del 14/10/2026): invece di migliaia di nodi, le
+    /// parti del livello corrente (i programmi, oppure le sottocartelle di una cartella) con le frecce SOMMATE fra loro.
+    /// </summary>
+    public sealed class CodeGraphMap
+    {
+        /// <summary><c>programs</c> (tutto il progetto) o <c>folders</c> (dentro una cartella).</summary>
+        public string Level { get; set; }
+        /// <summary>La cartella mostrata, dopo aver compattato le catene con un figlio solo; vuota = il progetto.</summary>
+        public string Folder { get; set; }
+        public List<CodeGraphMapGroup> Groups { get; set; } = new();
+        public List<CodeGraphMapLink> Links { get; set; } = new();
+        public int Files { get; set; }
+        public int Symbols { get; set; }
+        /// <summary>Le cartelle raccolte in «+N altre» (oltre le più grandi).</summary>
+        public int HiddenGroups { get; set; }
+        /// <summary>Quelle cartelle, dalla più grande: cliccando «+N altre» si vedono e ci si entra.</summary>
+        public List<CodeGraphMapGroup> More { get; set; } = new();
+    }
+
+    public sealed class CodeGraphMapGroup
+    {
+        /// <summary>Id nel disegno: la cartella, oppure <c>__files</c> (i file sciolti qui), <c>__more</c>, <c>__out</c> (fuori da qui).</summary>
+        public string Id { get; set; }
+        public string Label { get; set; }
+        /// <summary><c>program</c>, <c>folder</c>, <c>files</c>, <c>more</c>, <c>outside</c>.</summary>
+        public string Kind { get; set; }
+        /// <summary>Dove si entra cliccando (percorso logico); null se non ci si entra.</summary>
+        public string Folder { get; set; }
+        public int Files { get; set; }
+        public int Symbols { get; set; }
+    }
+
+    public sealed class CodeGraphMapLink
+    {
+        public string From { get; set; }
+        public string To { get; set; }
+        public int Count { get; set; }
+        public Dictionary<string, int> ByRelation { get; set; } = new();
+        public Dictionary<string, int> ByConfidence { get; set; } = new();
+    }
+
     /// <summary>I conteggi di una cartella <c>program</c> nel grafo (punto 4b del 14/10, <c>code_inventory</c>).</summary>
     public sealed class CodeProgramCounts
     {
