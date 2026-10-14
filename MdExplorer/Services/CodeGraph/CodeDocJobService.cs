@@ -21,7 +21,14 @@ namespace MdExplorer.Services.CodeGraph
     public interface ICodeDocJobService
     {
         /// <summary>«Descrivi il codice» su una cartella program: un lavoro per connessione, progressi via SignalR <c>codeDocProgress</c>.</summary>
-        Task RunDescribeAsync(string connectionId, string projectPath, string folderRelative, bool force, CancellationToken ct = default);
+        /// <remarks>
+        /// <paramref name="resume"/>: la traccia di una descrizione interrotta (punto 2c del 14/10): si riparte dal file a cui
+        /// era arrivata (rifatto: la sua risposta poteva essere a metà), con lo stesso <c>force</c>. Mai da sola: lo chiede
+        /// l'utente dall'avviso all'apertura del progetto.
+        /// </remarks>
+        Task RunDescribeAsync(string connectionId, string projectPath, string folderRelative, bool force, CancellationToken ct = default, CodeDescriptionRun resume = null);
+        /// <summary>Le descrizioni interrotte del progetto: traccia «in corso» senza un lavoro vivo (MdExplorer chiuso o caduto), o fallite.</summary>
+        Task<List<CodeDescriptionRun>> InterruptedAsync(string projectPath, CancellationToken ct = default);
         /// <summary>Le descrizioni in corso nel progetto, con il file a cui sono arrivate (<c>code_inventory</c>, punto 4b del 14/10).</summary>
         IReadOnlyList<CodeDocJobProgress> Running(string projectPath);
         /// <summary>
@@ -126,44 +133,79 @@ namespace MdExplorer.Services.CodeGraph
             if (_running.TryGetValue(connectionId, out var cts)) cts.Cancel();
         }
 
-        public async Task RunDescribeAsync(string connectionId, string projectPath, string folderRelative, bool force, CancellationToken ct = default)
+        public async Task<List<CodeDescriptionRun>> InterruptedAsync(string projectPath, CancellationToken ct = default)
         {
+            var live = Running(projectPath).Select(p => p.Folder).ToHashSet(StringComparer.Ordinal);
+            return (await _store.GetDescriptionRunsAsync(projectPath, ct))
+                .Where(r => r.Status == CodeDescriptionRun.Failed || (r.Status == CodeDescriptionRun.Running && !live.Contains(r.ProgramFolder)))
+                .ToList();
+        }
+
+        /// <summary>
+        /// NON async: i rifiuti («già in corso») devono arrivare a chi chiama, che lancia il lavoro senza aspettarlo. In un
+        /// metodo async finivano nel Task scartato dal controller e la seconda richiesta non diceva niente (14/10/2026).
+        /// </summary>
+        public Task RunDescribeAsync(string connectionId, string projectPath, string folderRelative, bool force, CancellationToken ct = default, CodeDescriptionRun resume = null)
+        {
+            // Anche le precondizioni qui: una ripresa dall'avviso all'apertura non ascolta SignalR, e «ripresa» seguito da
+            // niente era peggio di un rifiuto col motivo (14/10/2026).
+            var normalized = CodeAnalysisService.NormalizeRelative(folderRelative);
+            var scriptsFolder = Path.Combine(CodeGraphPaths.GetScriptsRoot(projectPath), normalized.Replace('/', Path.DirectorySeparatorChar));
+            if (!Directory.Exists(scriptsFolder))
+                throw new InvalidOperationException($"Nessuno script AST in {scriptsFolder}: prima «Analizza il codice».");
+            MarkAgentEngine engine; string model;
+            using (var scope = _scopeFactory.CreateScope())
+                (engine, model) = MdExplorer.Service.ProjectsManager.ProjectEngine(scope.ServiceProvider.GetService<IUserSettingsDB>(), projectPath);
+            var whyNot = MdExplorer.Services.LlmSessions.ReadOnlyEngineSessions.WhyNot(engine);
+            if (whyNot != null) throw new InvalidOperationException(whyNot);
+
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            if (!_running.TryAdd(connectionId, cts))
-                throw new InvalidOperationException("Un'analisi del codice con Mark è già in corso per questa finestra: aspetta che finisca o annullala.");
+            lock (_progress)
+            {
+                if (Running(projectPath).Any(p => p.Folder == normalized))
+                {
+                    cts.Dispose();
+                    throw new InvalidOperationException($"La descrizione di '{normalized}' è già in corso: aspetta che finisca o annullala.");
+                }
+                if (!_running.TryAdd(connectionId, cts))
+                {
+                    cts.Dispose();
+                    throw new InvalidOperationException("Un'analisi del codice con Mark è già in corso per questa finestra: aspetta che finisca o annullala.");
+                }
+                // subito, non dopo il primo await: due richieste ravvicinate sulla stessa cartella partivano tutte e due
+                _progress[connectionId] = new CodeDocJobProgress { ProjectPath = projectPath, Folder = normalized, StartedAt = DateTime.UtcNow.ToString("o") };
+            }
+            return RunDescribeCoreAsync(connectionId, projectPath, normalized, force, cts, resume, scriptsFolder, engine, model);
+        }
+
+        private async Task RunDescribeCoreAsync(string connectionId, string projectPath, string folderRelative, bool force, CancellationTokenSource cts, CodeDescriptionRun resume,
+            string scriptsFolder, MarkAgentEngine engine, string model)
+        {
             await Task.Yield();
             var token = cts.Token;
             var described = 0; var files = 0; var rejectedTotal = 0;
+            CodeDescriptionRun run = null;
             try
             {
-                folderRelative = CodeAnalysisService.NormalizeRelative(folderRelative);
-                var scriptsFolder = Path.Combine(CodeGraphPaths.GetScriptsRoot(projectPath), folderRelative.Replace('/', Path.DirectorySeparatorChar));
-                if (!Directory.Exists(scriptsFolder))
-                {
-                    await SendAsync(connectionId, new { phase = "error", message = "no-scripts", detail = $"Nessuno script AST in {scriptsFolder}: prima «Analizza il codice»." });
-                    return;
-                }
-
-                MarkAgentEngine engine; string model;
-                using (var scope = _scopeFactory.CreateScope())
-                    (engine, model) = MdExplorer.Service.ProjectsManager.ProjectEngine(scope.ServiceProvider.GetService<IUserSettingsDB>(), projectPath);
-                var whyNot = MdExplorer.Services.LlmSessions.ReadOnlyEngineSessions.WhyNot(engine);
-                if (whyNot != null)
-                {
-                    await SendAsync(connectionId, new { phase = "error", message = "no-engine", detail = whyNot });
-                    return;
-                }
                 var engineLabel = MdExplorer.Services.LlmSessions.ReadOnlyEngineSessions.Label(engine, model);
                 var skillBody = LoadPromptBody(projectPath, "mde-code-doc");
                 var writtenBy = $"mde-code-doc {PromptVersion(projectPath, "mde-code-doc")} / {engineLabel}";
 
                 var resolver = await _roots.CreateResolverAsync(projectPath, token);
                 var astScripts = Directory.EnumerateFiles(scriptsFolder, "*" + CodeGraphPaths.AstScriptSuffix, SearchOption.AllDirectories).OrderBy(f => f, StringComparer.Ordinal).ToList();
-                var progress = new CodeDocJobProgress { ProjectPath = projectPath, Folder = folderRelative, Engine = engineLabel, StartedAt = DateTime.UtcNow.ToString("o"), FileTotal = astScripts.Count };
-                _progress[connectionId] = progress;
-                await SendAsync(connectionId, new { phase = "started", provider = engineLabel, fileTotal = astScripts.Count, folder = folderRelative });
+                var start = resume == null ? 0 : ResumeIndex(projectPath, astScripts, resume);
+                var progress = _progress[connectionId];
+                progress.Engine = engineLabel; progress.FileTotal = astScripts.Count; progress.FileIndex = start;
+                // la traccia, così un'interruzione si vede anche dopo un riavvio
+                run = new CodeDescriptionRun
+                {
+                    ProgramFolder = folderRelative, Status = CodeDescriptionRun.Running, Engine = engineLabel, Force = force,
+                    StartedAt = resume?.StartedAt ?? progress.StartedAt, FileIndex = start, FileTotal = astScripts.Count, FilesDescribed = resume?.FilesDescribed ?? 0,
+                };
+                await SaveRunAsync(projectPath, run, token);
+                await SendAsync(connectionId, new { phase = "started", provider = engineLabel, fileTotal = astScripts.Count, folder = folderRelative, resumedAt = resume == null ? (int?)null : start + 1 });
 
-                for (var i = 0; i < astScripts.Count; i++)
+                for (var i = start; i < astScripts.Count; i++)
                 {
                     token.ThrowIfCancellationRequested();
                     var astPath = astScripts[i];
@@ -181,6 +223,8 @@ namespace MdExplorer.Services.CodeGraph
                     var candidates = CodeDocPlanner.Select(ast, existing, force);
                     var askFile = CodeDocPlanner.NeedsFileDoc(existing, force);
                     progress.FileIndex = i + 1; progress.CurrentFile = ast.Header.Source;
+                    run.FileIndex = i + 1; run.CurrentFile = ast.Header.Source;
+                    await SaveRunAsync(projectPath, run, token);
                     await SendAsync(connectionId, new { phase = "describing", file = ast.Header.Source, fileIndex = i + 1, fileTotal = astScripts.Count, symbols = candidates.Count });
                     if (candidates.Count == 0 && !askFile)
                     {
@@ -193,20 +237,25 @@ namespace MdExplorer.Services.CodeGraph
                     if (result.Error != null) { progress.FilesFailed++; await SendAsync(connectionId, new { phase = "file-failed", file = ast.Header.Source, detail = result.Error }); continue; }
                     files++; described += result.Described;
                     progress.FilesDescribed = files; progress.SymbolsDescribed = described;
+                    run.FilesDescribed++;
                     await SendAsync(connectionId, new { phase = "file-done", file = ast.Header.Source, described = result.Described, rejected = result.Rejected, loaded = result.Loaded, error = result.LoadError });
                 }
                 try { await _report.WriteAsync(projectPath, new List<string> { $"{folderRelative}: descritti {described} simboli in {files} file, {rejectedTotal} righe scartate" }); }
                 catch (Exception ex) { _logger.LogWarning(ex, "[CodeDoc] report non scritto"); }
+                run.Status = CodeDescriptionRun.Done; run.CurrentFile = null;
+                await SaveRunAsync(projectPath, run, token);
                 await SendAsync(connectionId, new { phase = "done", files, described, rejected = rejectedTotal });
                 _logger.LogInformation("[CodeDoc] '{Folder}': {Files} file, {Described} simboli descritti, {Rejected} righe scartate", folderRelative, files, described, rejectedTotal);
             }
             catch (OperationCanceledException)
             {
+                await CloseRunAsync(projectPath, run, CodeDescriptionRun.Cancelled, null);
                 await SendAsync(connectionId, new { phase = "cancelled", files, described });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[CodeDoc] fallito per '{Folder}'", folderRelative);
+                await CloseRunAsync(projectPath, run, CodeDescriptionRun.Failed, ex.Message);
                 await SendAsync(connectionId, new { phase = "error", message = ex.GetType().Name, detail = ex.Message });
             }
             finally
@@ -215,6 +264,39 @@ namespace MdExplorer.Services.CodeGraph
                 _progress.TryRemove(connectionId, out _);
                 cts.Dispose();
             }
+        }
+
+        private Task SaveRunAsync(string projectPath, CodeDescriptionRun run, CancellationToken token)
+        {
+            run.UpdatedAt = DateTime.UtcNow.ToString("o");
+            return _store.UpsertDescriptionRunAsync(projectPath, run, token);
+        }
+
+        /// <summary>
+        /// L'esito nella traccia, dentro un catch: se anche questo fallisce (Fuseki caduto) la traccia resta «in corso» e
+        /// all'apertura seguente si vede come interruzione — che è vero. Lo si scrive nel log.
+        /// </summary>
+        private async Task CloseRunAsync(string projectPath, CodeDescriptionRun run, string status, string error)
+        {
+            if (run == null) return;
+            run.Status = status; run.Error = error;
+            try { await SaveRunAsync(projectPath, run, CancellationToken.None); }
+            catch (Exception ex) { _logger.LogWarning(ex, "[CodeDoc] traccia '{Folder}' non chiusa come {Status}: resterà un'interruzione", run.ProgramFolder, status); }
+        }
+
+        /// <summary>
+        /// Da dove riprendere: il file a cui era arrivata, cercato per percorso (la lista può essere cambiata nel frattempo);
+        /// se non c'è più, la stessa posizione. Senza <c>force</c> i file già descritti si saltano comunque.
+        /// </summary>
+        private static int ResumeIndex(string projectPath, List<string> astScripts, CodeDescriptionRun resume)
+        {
+            if (resume.CurrentFile != null)
+            {
+                var target = Path.GetFullPath(CodeScriptWriter.ScriptPathFor(projectPath, resume.CurrentFile, CodeScriptKind.Ast));
+                var at = astScripts.FindIndex(f => string.Equals(Path.GetFullPath(f), target, StringComparison.Ordinal));
+                if (at >= 0) return at;
+            }
+            return Math.Clamp(resume.FileIndex - 1, 0, Math.Max(0, astScripts.Count - 1));
         }
 
         private sealed class FileResult

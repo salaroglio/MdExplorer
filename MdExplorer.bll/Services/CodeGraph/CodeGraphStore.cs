@@ -37,6 +37,11 @@ namespace MdExplorer.Features.Services.CodeGraph
         /// quanti script ha tolto.
         /// </summary>
         Task<int> RetireOldScriptsAsync(string projectPath, CancellationToken ct = default);
+        /// <summary>La traccia dell'ultima descrizione di ogni cartella program (punto 2c del 14/10).</summary>
+        Task<List<CodeDescriptionRun>> GetDescriptionRunsAsync(string projectPath, CancellationToken ct = default);
+        Task UpsertDescriptionRunAsync(string projectPath, CodeDescriptionRun run, CancellationToken ct = default);
+        /// <summary>«Lascia stare»: la traccia si toglie e l'interruzione non si chiede più.</summary>
+        Task RemoveDescriptionRunAsync(string projectPath, string programFolder, CancellationToken ct = default);
 
         /// <summary>Ricerca a testo pieno (jena-text) su nomi, nomi qualificati, descrizioni e descrizioni dei parametri.</summary>
         Task<IReadOnlyList<CodeSymbolHit>> SearchSymbolsAsync(string projectPath, string query, int limit = 20, CancellationToken ct = default);
@@ -386,6 +391,34 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             var g = GraphsOf(projectPath);
             await UpdateAsync(CodeTripleWriter.ScanStateUpsert(g.State, CodeGraphIris.Scan(g.Hash, state.ProgramFolder), state), ct);
+        }
+
+        public async Task<List<CodeDescriptionRun>> GetDescriptionRunsAsync(string projectPath, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var rows = await RowsAsync(
+                $"SELECT ?folder ?status ?engine ?force ?started ?updated ?idx ?tot ?done ?cur ?err WHERE {{ GRAPH {g.StateIri} {{ ?r a {CodeOntology.ClassDescriptionRun} ; " +
+                "code:programFolder ?folder ; code:status ?status ; code:engine ?engine ; code:force ?force ; code:startedAt ?started ; code:updatedAt ?updated ; " +
+                "code:fileIndex ?idx ; code:fileTotal ?tot ; code:filesDescribed ?done . OPTIONAL { ?r code:currentFile ?cur } OPTIONAL { ?r code:error ?err } } } ORDER BY ?folder", ct);
+            return rows.Select(r => new CodeDescriptionRun
+            {
+                ProgramFolder = SparqlResults.Str(r, "folder"), Status = SparqlResults.Str(r, "status"), Engine = SparqlResults.Str(r, "engine"),
+                Force = SparqlResults.Bool(r, "force"), StartedAt = SparqlResults.Str(r, "started"), UpdatedAt = SparqlResults.Str(r, "updated"),
+                FileIndex = SparqlResults.Count(r, "idx"), FileTotal = SparqlResults.Count(r, "tot"), FilesDescribed = SparqlResults.Count(r, "done"),
+                CurrentFile = SparqlResults.Str(r, "cur"), Error = SparqlResults.Str(r, "err"),
+            }).ToList();
+        }
+
+        public async Task UpsertDescriptionRunAsync(string projectPath, CodeDescriptionRun run, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            await UpdateAsync(CodeTripleWriter.DescriptionRunUpsert(g.State, CodeGraphIris.DescriptionRun(g.Hash, run.ProgramFolder), run), ct);
+        }
+
+        public async Task RemoveDescriptionRunAsync(string projectPath, string programFolder, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            await UpdateAsync(CodeTripleWriter.DescriptionRunRemove(g.State, CodeGraphIris.DescriptionRun(g.Hash, programFolder)), ct);
         }
 
         public async Task<int> RetireOldScriptsAsync(string projectPath, CancellationToken ct = default)

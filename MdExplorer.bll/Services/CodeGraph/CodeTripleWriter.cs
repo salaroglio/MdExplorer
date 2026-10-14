@@ -225,6 +225,31 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static string ScanStateRemove(string stateGraph, string scanIri)
             => "DELETE WHERE { GRAPH " + Iri(stateGraph) + " { " + Iri(scanIri) + " ?p ?o } }\n";
 
+        public static string DescriptionRunUpsert(string stateGraph, string runIri, CodeDescriptionRun run)
+        {
+            var g = Iri(stateGraph);
+            var s = Iri(runIri);
+            var sb = new StringBuilder();
+            sb.Append("DELETE WHERE { GRAPH ").Append(g).Append(" { ").Append(s).Append(" ?p ?o } } ;\n");
+            sb.Append("INSERT DATA { GRAPH ").Append(g).Append(" { ").Append(s).Append(" a ").Append(CodeOntology.ClassDescriptionRun)
+              .Append(" ; code:programFolder ").Append(Lit(run.ProgramFolder))
+              .Append(" ; code:status ").Append(Lit(run.Status))
+              .Append(" ; code:engine ").Append(Lit(run.Engine ?? string.Empty))
+              .Append(" ; code:force ").Append(Bool(run.Force))
+              .Append(" ; code:startedAt ").Append(Lit(run.StartedAt ?? string.Empty))
+              .Append(" ; code:updatedAt ").Append(Lit(run.UpdatedAt ?? DateTime.UtcNow.ToString("o")))
+              .Append(" ; code:fileIndex ").Append(Int(run.FileIndex))
+              .Append(" ; code:fileTotal ").Append(Int(run.FileTotal))
+              .Append(" ; code:filesDescribed ").Append(Int(run.FilesDescribed));
+            if (run.CurrentFile != null) sb.Append(" ; code:currentFile ").Append(Lit(run.CurrentFile));
+            if (run.Error != null) sb.Append(" ; code:error ").Append(Lit(run.Error));
+            sb.Append(" . } }\n");
+            return sb.ToString();
+        }
+
+        public static string DescriptionRunRemove(string stateGraph, string runIri)
+            => "DELETE WHERE { GRAPH " + Iri(stateGraph) + " { " + Iri(runIri) + " ?p ?o } }\n";
+
         public static string ScanStatesRemoveAll(string stateGraph)
             => "DELETE WHERE { GRAPH " + Iri(stateGraph) + " { ?s a " + CodeOntology.ClassScanState + " ; ?p ?o } }\n";
     }

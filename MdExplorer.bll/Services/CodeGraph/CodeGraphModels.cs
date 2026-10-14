@@ -60,6 +60,32 @@ namespace MdExplorer.Features.Services.CodeGraph
         public string Summary { get; set; }
     }
 
+    /// <summary>
+    /// L'ultima descrizione di una cartella <c>program</c> (punto 2c del 14/10/2026). Sta nel grafo di stato, non su Git:
+    /// dice che cosa è successo su QUESTA macchina. Una traccia <see cref="Running"/> senza un lavoro vivo è una
+    /// descrizione interrotta (MdExplorer chiuso o caduto): non riparte da sola, si chiede all'utente.
+    /// </summary>
+    public sealed class CodeDescriptionRun
+    {
+        public const string Running = "running";
+        public const string Done = "done";
+        public const string Cancelled = "cancelled";
+        public const string Failed = "failed";
+
+        public string ProgramFolder { get; set; }
+        public string Status { get; set; }
+        public string Engine { get; set; }
+        public bool Force { get; set; }
+        public string StartedAt { get; set; }
+        public string UpdatedAt { get; set; }
+        /// <summary>Il file a cui era arrivata (1-based) sul totale; <see cref="CurrentFile"/> il suo percorso logico.</summary>
+        public int FileIndex { get; set; }
+        public int FileTotal { get; set; }
+        public string CurrentFile { get; set; }
+        public int FilesDescribed { get; set; }
+        public string Error { get; set; }
+    }
+
     /// <summary>I conteggi di una cartella <c>program</c> nel grafo (punto 4b del 14/10, <c>code_inventory</c>).</summary>
     public sealed class CodeProgramCounts
     {

@@ -1432,7 +1432,7 @@
     "OPENING_APP": "MdExplorer sta aprendo un'applicazione",
     "CHECK_COMPUTER": "Controlla sul tuo computer",
     "CLOSE_BEFORE_COMMIT": "Ricorda di chiudere l'applicazione prima del commit",
-    "INDEXING_DOCS": "Building knowledge",
+    "INDEXING_DOCS": "Costruzione della conoscenza",
     "RULE_BROKEN": "Regola # 1 violata!",
     "FILE_RENAME_SUGGESTION": "Suggerimento Rinomina File",
     "CURRENT": "Attuale:",
@@ -2329,5 +2329,16 @@
     "PUBLISH": "Pubblica e avvia",
     "PROCEED": "Avvia senza salvare",
     "SAVE_FAILED": "Non sono riuscito a salvare: l'agente non è partito."
+  },
+  "CODE_GRAPH": {
+    "INTERRUPTED_TITLE": "Descrizione del codice interrotta",
+    "INTERRUPTED_STOPPED": "La descrizione di «{{folder}}» si è fermata al file {{index}} di {{total}} ({{when}}, {{described}} file descritti, motore {{engine}}): MdExplorer è stato chiuso o si è interrotto mentre lavorava. Continuare da quel file?",
+    "INTERRUPTED_FAILED": "La descrizione di «{{folder}}» si è fermata con un errore al file {{index}} di {{total}} ({{when}}): {{error}}. Continuare da quel file?",
+    "INTERRUPTED_CONTINUE": "Continua",
+    "INTERRUPTED_DISMISS": "Lascia stare",
+    "INTERRUPTED_RESUMED": "Descrizione di «{{folder}}» ripresa dal file {{index}}",
+    "INTERRUPTED_CHECK_FAILED": "Non riesco a sapere se una descrizione del codice si è interrotta: {{error}}",
+    "INTERRUPTED_ACTION_FAILED": "Descrizione interrotta: operazione non riuscita — {{error}}",
+    "INTERRUPTED_NO_CONNECTION": "la finestra non è ancora collegata al servizio, riprova fra un momento"
   }
 }

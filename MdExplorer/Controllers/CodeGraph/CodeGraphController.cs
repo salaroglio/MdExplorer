@@ -107,6 +107,44 @@ namespace MdExplorer.Controllers.CodeGraph
             return Ok(new { started = true, folder = rel });
         }
 
+        public class ResumeRequest { public string? ProjectPath { get; set; } public string? Folder { get; set; } public string? ConnectionId { get; set; } }
+
+        /// <summary>
+        /// GET /api/codegraph/describe/interrupted?projectPath — le descrizioni interrotte (punto 2c del 14/10): «in corso»
+        /// senza un lavoro vivo (MdExplorer chiuso o caduto) o fallite. All'apertura del progetto la pagina le chiede.
+        /// </summary>
+        [HttpGet("describe/interrupted")]
+        public Task<IActionResult> InterruptedDescriptions([FromQuery] string projectPath, CancellationToken ct = default) => Guarded(async () =>
+        {
+            var bad = ValidateProject(projectPath); if (bad != null) return bad;
+            var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
+            return Ok(await job.InterruptedAsync(projectPath, ct));
+        });
+
+        /// <summary>POST /api/codegraph/describe/resume {projectPath, folder, connectionId} — «Continua»: dal file a cui era arrivata.</summary>
+        [HttpPost("describe/resume")]
+        public Task<IActionResult> ResumeDescribe([FromBody] ResumeRequest request, CancellationToken ct = default) => Guarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            if (string.IsNullOrWhiteSpace(request.ConnectionId)) return BadRequest(new { error = "connectionId è obbligatorio" });
+            var job = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
+            var run = (await job.InterruptedAsync(request.ProjectPath, ct)).FirstOrDefault(r => r.ProgramFolder == request.Folder);
+            if (run == null) return NotFound(new { error = $"nessuna descrizione interrotta per '{request.Folder}'" });
+            try { _ = job.RunDescribeAsync(request.ConnectionId, request.ProjectPath, run.ProgramFolder, run.Force, CancellationToken.None, run); }
+            catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+            return Ok(new { started = true, folder = run.ProgramFolder, fromFile = run.CurrentFile, fileIndex = run.FileIndex });
+        });
+
+        /// <summary>POST /api/codegraph/describe/dismiss {projectPath, folder} — «Lascia stare»: la traccia si toglie, non si chiede più.</summary>
+        [HttpPost("describe/dismiss")]
+        public Task<IActionResult> DismissDescribe([FromBody] ResumeRequest request, CancellationToken ct = default) => Guarded(async () =>
+        {
+            var bad = ValidateProject(request?.ProjectPath); if (bad != null) return bad;
+            if (string.IsNullOrWhiteSpace(request.Folder)) return BadRequest(new { error = "folder è obbligatorio" });
+            await _store.RemoveDescriptionRunAsync(request.ProjectPath, request.Folder, ct);
+            return Ok(new { dismissed = request.Folder });
+        });
+
         /// <summary>POST /api/codegraph/describe/cancel {connectionId}</summary>
         [HttpPost("describe/cancel")]
         public IActionResult CancelDescribe([FromBody] CancelRequest request)
@@ -411,15 +449,24 @@ namespace MdExplorer.Controllers.CodeGraph
         {
             var bad = ValidateProject(projectPath); if (bad != null) return bad;
             var programs = new List<object>();
+            var docJobs = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>();
+            var runs = await _store.GetDescriptionRunsAsync(projectPath, ct);
+            var interrupted = (await docJobs.InterruptedAsync(projectPath, ct)).Select(r => r.ProgramFolder).ToHashSet();
             foreach (var p in await _analysis.ListProgramsAsync(projectPath, ct))
             {
                 var counts = await _store.ProgramCountsAsync(projectPath, p.Folder, ct);
                 var scan = await _store.GetScanStateAsync(projectPath, p.Folder, ct);
+                var lastRun = runs.FirstOrDefault(r => r.ProgramFolder == p.Folder);
                 programs.Add(new
                 {
                     folder = p.Folder, languages = p.Languages, linked = p.Linked, reason = p.Reason,
                     files = counts.Files, describedFiles = counts.DescribedFiles, symbols = counts.Symbols, describedSymbols = counts.DescribedSymbols,
                     lastScan = scan == null ? null : new { at = scan.ScannedAt, mode = scan.Mode, commit = scan.AnalyzedCommit },
+                    lastDescription = lastRun == null ? null : new
+                    {
+                        status = interrupted.Contains(lastRun.ProgramFolder) ? "interrupted" : lastRun.Status, lastRun.Engine, lastRun.StartedAt, lastRun.UpdatedAt,
+                        lastRun.FileIndex, lastRun.FileTotal, lastRun.CurrentFile, lastRun.FilesDescribed, lastRun.Error,
+                    },
                 });
             }
             var jobs = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.CodeGraph.ICodeDocJobService>().Running(projectPath);

@@ -56,6 +56,20 @@ export interface CodeGraphStatus {
  * Il grafo del codice: parla SOLO col backend .NET (`/api/codegraph`), che a sua volta legge il DB dedicato.
  * `folderPath` può essere assoluto (il fullPath del nodo dell'albero) o relativo alla radice del progetto.
  */
+/** La traccia di una descrizione interrotta (punto 2c del 14/10/2026). */
+export interface InterruptedDescription {
+  programFolder: string;
+  status: 'running' | 'failed';
+  engine: string;
+  startedAt: string;
+  updatedAt: string;
+  fileIndex: number;
+  fileTotal: number;
+  currentFile?: string;
+  filesDescribed: number;
+  error?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CodeGraphService {
   constructor(private http: HttpClient) { }
@@ -79,6 +93,21 @@ export class CodeGraphService {
 
   describe(projectPath: string, folderPath: string, connectionId: string, force = false): Observable<any> {
     return this.http.post('../api/codegraph/describe', { projectPath, folderPath, connectionId, force });
+  }
+
+  /** Le descrizioni interrotte (MdExplorer chiuso o caduto, o fallite): all'apertura del progetto si chiede se continuare. */
+  interruptedDescriptions(projectPath: string): Observable<InterruptedDescription[]> {
+    return this.http.get<InterruptedDescription[]>('../api/codegraph/describe/interrupted', { params: new HttpParams().set('projectPath', projectPath) });
+  }
+
+  /** «Continua»: riparte dal file a cui era arrivata. */
+  resumeDescribe(projectPath: string, folder: string, connectionId: string): Observable<any> {
+    return this.http.post('../api/codegraph/describe/resume', { projectPath, folder, connectionId });
+  }
+
+  /** «Lascia stare»: l'interruzione non si chiede più. */
+  dismissDescribe(projectPath: string, folder: string): Observable<any> {
+    return this.http.post('../api/codegraph/describe/dismiss', { projectPath, folder });
   }
 
   cancelDescribe(connectionId: string): Observable<any> {

@@ -38,5 +38,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public const string ClassFileDescription = "code:FileDescription";
         public const string ClassScript = "code:Script";
         public const string ClassScanState = "code:ScanState";
+        /// <summary>La traccia dell'ultima descrizione di una cartella program (punto 2c del 14/10): da qui si sa se si è interrotta.</summary>
+        public const string ClassDescriptionRun = "code:DescriptionRun";
     }
 }

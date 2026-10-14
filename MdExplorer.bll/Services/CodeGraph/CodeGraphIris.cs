@@ -44,6 +44,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static string ParamDoc(string symbolId, string parameterName) => $"urn:mde:pdoc:{symbolId}:{Enc(parameterName)}";
         public static string Script(string projectHash, string scriptRelativePath) => $"urn:mde:script:{projectHash}:{Enc(scriptRelativePath)}";
         public static string Scan(string projectHash, string programFolder) => $"urn:mde:scan:{projectHash}:{Enc(programFolder)}";
+        public static string DescriptionRun(string projectHash, string programFolder) => $"urn:mde:descrun:{projectHash}:{Enc(programFolder)}";
 
         /// <summary>La proprietà diretta di una relazione: <c>code:calls</c>, <c>code:implements</c>…</summary>
         public static string RelationProperty(string relation) => "code:" + relation;

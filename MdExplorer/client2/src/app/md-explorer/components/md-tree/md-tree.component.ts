@@ -18,6 +18,8 @@ import { DevEnvironmentDialogComponent, DevEnvironmentDialogData, DevEnvironment
 import { CodeRootsDialogComponent, CodeRootsDialogData, CodeRootsDialogResult } from '../dialogs/code-roots/code-roots-dialog.component';
 import { CodeRootsReminderDialogComponent, CodeRootsReminderData } from '../dialogs/code-roots/code-roots-reminder-dialog.component';
 import { CodeRoot, CodeRootsService } from '../../services/code-roots.service';
+import { CodeGraphService, InterruptedDescription } from '../../services/code-graph.service';
+import { ConfirmDialogComponent, ConfirmDialogData } from '../../../commons/components/confirm-dialog/confirm-dialog.component';
 import { NewMarkdownComponent } from '../dialogs/new-markdown/new-markdown.component';
 import { Clipboard } from '@angular/cdk/clipboard';
 import { DeleteMarkdownComponent } from '../dialogs/delete-markdown/delete-markdown.component';
@@ -225,7 +227,8 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
     private translate: TranslateService,
     private markAssistant: MarkAssistantService,
     private indexingProgressService: IndexingProgressService,
-    private codeRootsService: CodeRootsService
+    private codeRootsService: CodeRootsService,
+    private codeGraphService: CodeGraphService
   ) {
     this.dataSource.data = TREE_DATA;
     this.mdFileService.serverSelectedMdFile.pipe(takeUntil(this.destroy$)).subscribe(_ => {
@@ -431,7 +434,7 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       filter((path): path is string => !!path),
       distinctUntilChanged(),
       takeUntil(this.destroy$),
-    ).subscribe(path => { this.loadCodeRootNodes(path); this.remindUnlinkedCodeRoots(path); });
+    ).subscribe(path => { this.loadCodeRootNodes(path); this.remindUnlinkedCodeRoots(path); this.askInterruptedDescriptions(path); });
 
     // Subscribe to P2P availability
     this.p2pService.isAvailable$.pipe(takeUntil(this.destroy$)).subscribe(available => {
@@ -2585,6 +2588,48 @@ export class MdTreeComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       // un .development.yml che non si legge non deve bloccare l'apertura: lo si dice
       error: err => this.snackBar.open(this.translate.instant('CODE_ROOTS.REMINDER_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 }),
+    });
+  }
+
+  /**
+   * Una descrizione del codice che si è interrotta (MdExplorer chiuso o caduto, o fallita) non riparte da sola: all'apertura
+   * del progetto si chiede, una cartella alla volta (punto 2c del 14/10/2026). «Continua» riparte dal file a cui era
+   * arrivata; «Lascia stare» toglie la traccia; chiudere la finestra senza scegliere la richiede alla prossima apertura.
+   */
+  private askInterruptedDescriptions(projectRoot: string): void {
+    this.codeGraphService.interruptedDescriptions(projectRoot).subscribe({
+      next: runs => this.askNextInterrupted(projectRoot, runs ?? []),
+      error: err => this.snackBar.open(this.translate.instant('CODE_GRAPH.INTERRUPTED_CHECK_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 }),
+    });
+  }
+
+  private askNextInterrupted(projectRoot: string, runs: InterruptedDescription[]): void {
+    const run = runs[0];
+    if (!run || this.projectsService.currentProjects$.value?.path !== projectRoot) { return; }
+    const when = run.updatedAt ? new Date(run.updatedAt).toLocaleString() : '';
+    const message = this.translate.instant(run.status === 'failed' ? 'CODE_GRAPH.INTERRUPTED_FAILED' : 'CODE_GRAPH.INTERRUPTED_STOPPED', {
+      folder: run.programFolder, index: run.fileIndex, total: run.fileTotal, when, described: run.filesDescribed, engine: run.engine, error: run.error ?? '',
+    });
+    const data: ConfirmDialogData = {
+      title: this.translate.instant('CODE_GRAPH.INTERRUPTED_TITLE'),
+      message,
+      confirmText: this.translate.instant('CODE_GRAPH.INTERRUPTED_CONTINUE'),
+      cancelText: this.translate.instant('CODE_GRAPH.INTERRUPTED_DISMISS'),
+    };
+    this.dialog.open(ConfirmDialogComponent, { width: '560px', data }).afterClosed().subscribe(result => {
+      const next = () => this.askNextInterrupted(projectRoot, runs.slice(1));
+      const failed = (err: any) => this.snackBar.open(this.translate.instant('CODE_GRAPH.INTERRUPTED_ACTION_FAILED', { error: err?.error?.error || err?.message || err }), 'OK', { duration: 8000 });
+      if (result === true) {
+        const connectionId = this.mdServerMessages.connectionId;
+        if (!connectionId) { failed(this.translate.instant('CODE_GRAPH.INTERRUPTED_NO_CONNECTION')); return; }
+        this.codeGraphService.resumeDescribe(projectRoot, run.programFolder, connectionId).subscribe({
+          next: () => { this.snackBar.open(this.translate.instant('CODE_GRAPH.INTERRUPTED_RESUMED', { folder: run.programFolder, index: run.fileIndex }), 'OK', { duration: 5000 }); next(); },
+          error: failed,
+        });
+      } else if (result === false) {
+        this.codeGraphService.dismissDescribe(projectRoot, run.programFolder).subscribe({ next, error: failed });
+      }
+      // chiusa senza scegliere: la si richiede alla prossima apertura del progetto
     });
   }
 

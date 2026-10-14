@@ -2329,5 +2329,16 @@
     "PUBLISH": "Publish and start",
     "PROCEED": "Start without saving",
     "SAVE_FAILED": "Could not save: the agent did not start."
+  },
+  "CODE_GRAPH": {
+    "INTERRUPTED_TITLE": "Code description interrupted",
+    "INTERRUPTED_STOPPED": "The description of “{{folder}}” stopped at file {{index}} of {{total}} ({{when}}, {{described}} files described, engine {{engine}}): MdExplorer was closed or stopped while it was working. Continue from that file?",
+    "INTERRUPTED_FAILED": "The description of “{{folder}}” stopped with an error at file {{index}} of {{total}} ({{when}}): {{error}}. Continue from that file?",
+    "INTERRUPTED_CONTINUE": "Continue",
+    "INTERRUPTED_DISMISS": "Leave it",
+    "INTERRUPTED_RESUMED": "Description of “{{folder}}” resumed from file {{index}}",
+    "INTERRUPTED_CHECK_FAILED": "Cannot tell whether a code description was interrupted: {{error}}",
+    "INTERRUPTED_ACTION_FAILED": "Interrupted description: the operation failed — {{error}}",
+    "INTERRUPTED_NO_CONNECTION": "this window is not connected to the service yet, try again in a moment"
   }
 }
