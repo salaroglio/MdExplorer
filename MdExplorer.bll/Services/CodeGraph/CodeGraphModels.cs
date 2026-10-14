@@ -20,8 +20,8 @@ namespace MdExplorer.Features.Services.CodeGraph
     public sealed class CodeScriptLoadOutcome
     {
         public bool ScriptsFolderMissing { get; set; }
-        /// <summary>Script JSON Lines convertiti in Turtle in questo giro (una volta sola per progetto).</summary>
-        public int Converted { get; set; }
+        /// <summary>Script di uno schema ritirato cancellati in questo giro (<see cref="ICodeGraphStore.RetireOldScriptsAsync"/>).</summary>
+        public int Retired { get; set; }
         public List<CodeScriptResult> Results { get; } = new();
         public int Loaded => Results.Count(r => r.Loaded);
         public int Skipped => Results.Count(r => r.Skipped);

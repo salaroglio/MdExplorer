@@ -130,7 +130,7 @@ namespace MdExplorer.Features.Tests.CodeGraph
         [TestMethod]
         public async Task Reject_a_newer_schema_asking_to_update_mdexplorer()
         {
-            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody).Replace("\"schema\":2", "\"schema\":99"));
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody).Replace($"\"schema\":{CodeScriptParser.CurrentSchema}", "\"schema\":99"));
             var outcome = await _store.LoadProjectAsync(_project);
             Assert.AreEqual(1, outcome.Failed);
             StringAssert.Contains(outcome.FirstError, "schema 99");
@@ -138,23 +138,33 @@ namespace MdExplorer.Features.Tests.CodeGraph
         }
 
         [TestMethod]
-        public async Task Convert_json_lines_scripts_to_turtle_once_keeping_the_descriptions()
+        public async Task Retire_scripts_of_an_older_schema_and_the_scan_state()
         {
-            var legacyAst = Path.Combine(_project, ".mde-code", "src", "Demo", "Foo.cs.ast.jsonl");
+            // 14/10/2026, schema 3: il programma è nell'id dei simboli; gli script di prima (Turtle 2, JSON Lines) si
+            // cancellano e si rifanno, e lo stato dello scanner va via con loro (l'analisi seguente è completa).
             var legacyDoc = Path.Combine(_project, ".mde-code", "src", "Demo", "Foo.cs.doc.jsonl");
-            File.WriteAllText(legacyAst, AstHeader + "\n" + AstBody);
             File.WriteAllText(legacyDoc, DocScript);
+            var oldTurtle = Path.Combine(_project, ".mde-code", "src", "Demo", "Old.cs.ast.ttl");
+            File.WriteAllText(oldTurtle, Ttl(AstHeader + "\n" + AstBody).Replace($"\"schema\":{CodeScriptParser.CurrentSchema}", "\"schema\":2"));
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody));
+            await _store.UpsertScanStateAsync(_project, new CodeScanState { ProgramFolder = "src", Mode = "git", AnalyzedCommit = "abc123", Candidates = 1, Reparsed = 1 });
 
             var outcome = await _store.LoadProjectAsync(_project);
-            Assert.AreEqual(2, outcome.Converted);
+            Assert.AreEqual(2, outcome.Retired);
             Assert.AreEqual(0, outcome.Failed, outcome.FirstError);
-            Assert.IsFalse(File.Exists(legacyAst)); Assert.IsFalse(File.Exists(legacyDoc));
-            Assert.IsTrue(File.ReadAllText(AstPath).StartsWith("# mde-code-script: "));
-            var described = await _store.DescribeAsync(_project, "s-foo-ingest");
-            Assert.AreEqual("Porta un file dentro Neo4j e torna quanti nodi ha scritto.", described.Summary, "le descrizioni di Mark non si perdono");
-            Assert.AreEqual("Percorso assoluto del file da leggere.", described.Parameters[0].Description);
+            Assert.IsFalse(File.Exists(legacyDoc)); Assert.IsFalse(File.Exists(oldTurtle));
+            Assert.IsTrue(File.Exists(AstPath), "lo script dello schema attuale resta");
+            Assert.IsNull(await _store.GetScanStateAsync(_project, "src"), "senza stato l'analisi seguente è completa");
 
-            Assert.AreEqual(0, (await _store.LoadProjectAsync(_project)).Converted, "una volta sola");
+            Assert.AreEqual(0, await _store.RetireOldScriptsAsync(_project), "una volta sola");
+        }
+
+        [TestMethod]
+        public async Task Keep_scripts_of_a_newer_schema_on_retirement()
+        {
+            File.WriteAllText(AstPath, Ttl(AstHeader + "\n" + AstBody).Replace($"\"schema\":{CodeScriptParser.CurrentSchema}", "\"schema\":99"));
+            Assert.AreEqual(0, await _store.RetireOldScriptsAsync(_project));
+            Assert.IsTrue(File.Exists(AstPath), "l'ha scritto un MdExplorer più nuovo: non si cancella");
         }
 
         [TestMethod]

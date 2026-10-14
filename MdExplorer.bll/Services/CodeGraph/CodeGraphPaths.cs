@@ -12,10 +12,10 @@ namespace MdExplorer.Features.Services.CodeGraph
     public static class CodeGraphPaths
     {
         public const string ScriptsFolderName = ".mde-code";
-        /// <summary>Gli script sono ABox Turtle (schema 2, dal 12/10/2026).</summary>
+        /// <summary>Gli script sono Turtle (schema 3, dal 14/10/2026: il programma è nell'id dei simboli).</summary>
         public const string AstScriptSuffix = ".ast.ttl";
         public const string DocScriptSuffix = ".doc.ttl";
-        /// <summary>Il vecchio formato JSON Lines: si riconosce solo per convertirlo (<see cref="CodeScriptLegacy"/>).</summary>
+        /// <summary>Il vecchio formato JSON Lines: si riconosce solo per cancellarlo (<see cref="ICodeGraphStore.RetireOldScriptsAsync"/>).</summary>
         public const string LegacyAstSuffix = ".ast.jsonl";
         public const string LegacyDocSuffix = ".doc.jsonl";
 

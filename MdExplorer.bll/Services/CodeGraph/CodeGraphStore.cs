@@ -31,6 +31,12 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         Task<CodeScanState> GetScanStateAsync(string projectPath, string programFolder, CancellationToken ct = default);
         Task UpsertScanStateAsync(string projectPath, CodeScanState state, CancellationToken ct = default);
+        /// <summary>
+        /// Cancella gli script di uno schema ritirato (Turtle più vecchio di <see cref="CodeScriptParser.CurrentSchema"/>,
+        /// JSON Lines) e, se ce n'erano, lo stato dello scanner del progetto: l'analisi seguente è completa. Restituisce
+        /// quanti script ha tolto.
+        /// </summary>
+        Task<int> RetireOldScriptsAsync(string projectPath, CancellationToken ct = default);
 
         /// <summary>Ricerca a testo pieno (jena-text) su nomi, nomi qualificati, descrizioni e descrizioni dei parametri.</summary>
         Task<IReadOnlyList<CodeSymbolHit>> SearchSymbolsAsync(string projectPath, string query, int limit = 20, CancellationToken ct = default);
@@ -115,9 +121,8 @@ namespace MdExplorer.Features.Services.CodeGraph
             await gate.WaitAsync(ct);
             try
             {
-                // Gli script JSON Lines di prima del 12/10/2026 diventano Turtle, una volta sola (descrizioni comprese):
-                // spariscono dal disco, quindi qui sotto le loro triple escono dal grafo e quelle dei .ttl entrano.
-                outcome.Converted = CodeScriptLegacy.ConvertProject(projectPath, _logger);
+                // Gli script di uno schema ritirato spariscono dal disco: qui sotto le loro triple escono dal grafo.
+                outcome.Retired = await RetireOldScriptsCoreAsync(projectPath, g, ct);
                 var known = await ReadScriptStatesAsync(g, ct);
 
                 var onDisk = Directory.Exists(root)
@@ -379,6 +384,43 @@ namespace MdExplorer.Features.Services.CodeGraph
         {
             var g = GraphsOf(projectPath);
             await UpdateAsync(CodeTripleWriter.ScanStateUpsert(g.State, CodeGraphIris.Scan(g.Hash, state.ProgramFolder), state), ct);
+        }
+
+        public async Task<int> RetireOldScriptsAsync(string projectPath, CancellationToken ct = default)
+        {
+            var g = GraphsOf(projectPath);
+            var gate = GateFor(projectPath);
+            await gate.WaitAsync(ct);
+            try { return await RetireOldScriptsCoreAsync(projectPath, g, ct); }
+            finally { gate.Release(); }
+        }
+
+        /// <summary>
+        /// Schema 3 (14/10/2026): il programma è nell'id di ogni simbolo (<see cref="CodeProgramScope"/>). Gli script di
+        /// prima hanno gli id vecchi e non si convertono: gli AST si rifanno dal sorgente, le descrizioni si rifanno con
+        /// l'LLM (deciso dall'utente: niente migrazione). Lo stato dello scanner va via con loro, sennò il commit ricordato
+        /// direbbe «niente di cambiato».
+        /// </summary>
+        private async Task<int> RetireOldScriptsCoreAsync(string projectPath, ProjectGraphs g, CancellationToken ct)
+        {
+            var root = CodeGraphPaths.GetScriptsRoot(projectPath);
+            if (!Directory.Exists(root)) return 0;
+            var retired = 0;
+            foreach (var f in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories).ToList())
+            {
+                // Solo più VECCHI: uno schema più nuovo l'ha scritto un MdExplorer aggiornato (arriva con Git) e il lettore
+                // lo dice («Aggiorna MdExplorer»); un'intestazione che non si legge la segnala il caricamento.
+                var old = CodeGraphPaths.IsLegacyScript(f)
+                    || ((CodeGraphPaths.IsAstScript(f) || CodeGraphPaths.IsDocScript(f)) && CodeScriptTurtle.ReadHeaderLine(f) is { } h && h.Schema < CodeScriptParser.CurrentSchema);
+                if (!old) continue;
+                File.Delete(f);
+                retired++;
+            }
+            if (retired == 0) return 0;
+            await UpdateAsync(CodeTripleWriter.ScanStatesRemoveAll(g.State), ct);
+            _logger.LogInformation("[CodeGraph] '{Project}': {Count} script di uno schema ritirato cancellati (schema attuale {Schema}); stato dello scanner azzerato, la prossima analisi è completa",
+                projectPath, retired, CodeScriptParser.CurrentSchema);
+            return retired;
         }
     }
 }

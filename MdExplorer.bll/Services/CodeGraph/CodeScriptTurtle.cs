@@ -116,7 +116,7 @@ namespace MdExplorer.Features.Services.CodeGraph
             if (headerLine.Schema != CodeScriptParser.CurrentSchema)
                 throw new CodeScriptFormatException(scriptPath, 1, headerLine.Schema > CodeScriptParser.CurrentSchema
                     ? $"schema {headerLine.Schema} più nuovo di quello che questo MdExplorer sa leggere ({CodeScriptParser.CurrentSchema}). Aggiorna MdExplorer."
-                    : $"schema {headerLine.Schema} non valido per uno script Turtle (atteso {CodeScriptParser.CurrentSchema}).");
+                    : $"schema {headerLine.Schema} ritirato (atteso {CodeScriptParser.CurrentSchema}): lo script si cancella alla prossima analisi e si rifà.");
 
             var graph = new Graph();
             try { new TurtleParser().Load(graph, new StringReader(content)); }

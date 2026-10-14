@@ -24,6 +24,8 @@ namespace MdExplorer.Services.CodeGraph
         public int Candidates { get; set; }
         public int Reparsed { get; set; }
         public int ScriptsRemoved { get; set; }
+        /// <summary>Script di uno schema ritirato cancellati prima di questa analisi (descrizioni comprese: si rifanno).</summary>
+        public int ScriptsRetired { get; set; }
         /// <summary>
         /// Script di file NON cambiati scritti da un altro estrattore o da un'altra sua versione, lasciati com'erano perché
         /// l'analisi non li includeva (all'apertura del progetto): la pagina del grafo lo dice e chiede di aggiornarli.
@@ -239,6 +241,9 @@ namespace MdExplorer.Services.CodeGraph
             await _gate.WaitAsync(ct);
             try
             {
+                // Script di uno schema ritirato: via dal disco e via lo stato dello scanner, PRIMA di leggerlo, così questa
+                // analisi è completa (il commit ricordato direbbe «niente di cambiato» e il grafo resterebbe vuoto).
+                outcome.ScriptsRetired = await _store.RetireOldScriptsAsync(projectPath, ct);
                 var scope = await ScopeOfAsync(projectPath, folderRelative, ct);
                 var languages = scope.Languages;
                 outcome.Languages = languages.ToList();
@@ -289,6 +294,7 @@ namespace MdExplorer.Services.CodeGraph
                     outcome.Warnings.AddRange(extracted.Warnings);
                     foreach (var (file, script) in extracted.Scripts)
                     {
+                        CodeProgramScope.Apply(script, folderRelative);
                         var scriptPath = CodeScriptWriter.ScriptPathFor(projectPath, file.LogicalPath, CodeScriptKind.Ast);
                         if (CodeScriptWriter.WriteIfChanged(scriptPath, CodeScriptWriter.Serialize(script))) written.Add(scriptPath);
                         outcome.Reparsed++;

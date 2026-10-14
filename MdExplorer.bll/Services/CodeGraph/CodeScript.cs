@@ -122,10 +122,12 @@ namespace MdExplorer.Features.Services.CodeGraph
     public static class CodeScriptParser
     {
         /// <summary>
-        /// Lo schema che questo MdExplorer scrive: 2 = ABox Turtle (D21 del grafo, R4 delle radici esterne, 12/10/2026).
-        /// Lo schema 1 era il JSON Lines: si legge ancora, solo per convertirlo (<see cref="CodeScriptLegacy"/>).
+        /// Lo schema che questo MdExplorer scrive: 3 = Turtle con il programma nell'id di ogni simbolo
+        /// (<see cref="CodeProgramScope"/>, 14/10/2026). Il 2 (Turtle, 12/10) e l'1 (JSON Lines) sono ritirati: gli script
+        /// si cancellano e si rifanno (<see cref="ICodeGraphStore.RetireOldScriptsAsync"/>). Il JSON Lines resta solo
+        /// come formato delle risposte dell'LLM (<see cref="CodeDocPlanner"/>).
         /// </summary>
-        public const int CurrentSchema = 2;
+        public const int CurrentSchema = 3;
         public const int LegacyJsonSchema = 1;
 
         private static readonly HashSet<string> HeaderFields = new(StringComparer.Ordinal)
@@ -151,7 +153,7 @@ namespace MdExplorer.Features.Services.CodeGraph
         public static readonly string[] Confidences = { "extracted", "inferred", "ambiguous" };
         public static readonly string[] Directions = { "in", "out", "ref", "params", "this" };
 
-        /// <summary>Uno script, Turtle (schema 2) o JSON Lines (schema 1, da convertire): il formato si riconosce dalla prima riga.</summary>
+        /// <summary>Uno script Turtle, o il JSON Lines delle risposte dell'LLM: il formato si riconosce dalla prima riga.</summary>
         public static CodeScript Parse(string content, string scriptPath)
         {
             if (content == null) throw new ArgumentNullException(nameof(content));

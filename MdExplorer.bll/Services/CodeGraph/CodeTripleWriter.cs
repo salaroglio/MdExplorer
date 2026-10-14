@@ -224,5 +224,8 @@ namespace MdExplorer.Features.Services.CodeGraph
 
         public static string ScanStateRemove(string stateGraph, string scanIri)
             => "DELETE WHERE { GRAPH " + Iri(stateGraph) + " { " + Iri(scanIri) + " ?p ?o } }\n";
+
+        public static string ScanStatesRemoveAll(string stateGraph)
+            => "DELETE WHERE { GRAPH " + Iri(stateGraph) + " { ?s a " + CodeOntology.ClassScanState + " ; ?p ?o } }\n";
     }
 }
