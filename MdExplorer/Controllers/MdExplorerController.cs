@@ -228,6 +228,24 @@ namespace MdExplorer.Controllers
                 }
             }
 
+            // Un file che non c'è nella cartella: succede con il lavoro di un agente appena approvato, che è
+            // pubblicato ma arriva qui solo con un pull. Prima era la pagina d'errore di ASP.NET, senza una parola utile.
+            if (!System.IO.File.Exists(fullPathFile))
+            {
+                _logger.LogWarning("[MdExplorer] file non trovato nella cartella del progetto: {Path}", fullPathFile);
+                var shown = System.Net.WebUtility.HtmlEncode(relativePathFile);
+                return new ContentResult
+                {
+                    StatusCode = StatusCodes.Status404NotFound,
+                    ContentType = "text/html; charset=utf-8",
+                    Content = "<!doctype html><html><head><meta charset=\"utf-8\"></head>" +
+                              "<body style=\"font-family:sans-serif;padding:24px;line-height:1.5\">" +
+                              $"<h3>Il file non c'è nella tua cartella</h3><p><code>{shown}</code></p>" +
+                              "<p>Se è il lavoro di un agente appena approvato, è già pubblicato nel repository: " +
+                              "scarica gli aggiornamenti (pull) dalla barra git e riaprilo.</p></body></html>",
+                };
+            }
+
             var markdownTxt = string.Empty;
             using (var fs = new FileStream(fullPathFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             using (var sr = new StreamReader(fs, Encoding.UTF8))
