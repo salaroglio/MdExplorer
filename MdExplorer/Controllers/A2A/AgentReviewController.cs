@@ -245,6 +245,9 @@ namespace MdExplorer.Controllers.A2A
             // sessione fallisse, l'utente si troverebbe a modificare un worktree che l'agente
             // può ancora ripulire.
             _sessions.Open(r.ProjectPath, r.AgentName, $"revisione di {r.PublishedBranch}");
+            // Da qui il posto lo protegge la sessione. La prenotazione serviva solo fino a qui: lasciata lì, a sessione
+            // chiusa il posto risultava «sta lavorando» per ore e non si poteva più entrare nella copia dell'agente.
+            _worktree.ReleaseSlot(worktreePath);
 
             var opened = CrossPlatformProcess.OpenFolder(worktreePath);
             if (!opened)

@@ -750,25 +750,33 @@ namespace MdExplorer.Services.AgentRun
                 }
 
                 var path = await AcquireSlotUnlockedAsync(projectPath, name, ct);
+                try
+                {
+                    // Il posto arriva da un altro lavoro: va ripulito, altrimenti il check-out
+                    // si porterebbe dietro i file dell'agente precedente. Ma prima ciò che non è
+                    // committato si salva sul suo ramo: ripulire non deve mai voler dire perdere.
+                    var unsaved = await SaveUnfinishedWorkUnlockedAsync(path, ct);
+                    if (unsaved != null) throw new InvalidOperationException(unsaved);
+                    await GitAsync(path, new[] { "reset", "--hard" }, ct);
+                    await GitAsync(path, new[] { "clean", "-fd" }, ct);
 
-                // Il posto arriva da un altro lavoro: va ripulito, altrimenti il check-out
-                // si porterebbe dietro i file dell'agente precedente. Ma prima ciò che non è
-                // committato si salva sul suo ramo: ripulire non deve mai voler dire perdere.
-                var unsaved = await SaveUnfinishedWorkUnlockedAsync(path, ct);
-                if (unsaved != null) throw new InvalidOperationException(unsaved);
-                await GitAsync(path, new[] { "reset", "--hard" }, ct);
-                await GitAsync(path, new[] { "clean", "-fd" }, ct);
+                    var (cc, _, ce) = await GitAsync(path, new[] { "checkout", localBranch }, ct);
+                    if (cc != 0)
+                        throw new InvalidOperationException(
+                            $"Non riesco a rimettere il branch '{localBranch}' sul posto {path}: {Describe(cc, ce)}. " +
+                            "Se il branch risulta già in uso, un altro posto lo sta tenendo aperto.");
 
-                var (cc, _, ce) = await GitAsync(path, new[] { "checkout", localBranch }, ct);
-                if (cc != 0)
-                    throw new InvalidOperationException(
-                        $"Non riesco a rimettere il branch '{localBranch}' sul posto {path}: {Describe(cc, ce)}. " +
-                        "Se il branch risulta già in uso, un altro posto lo sta tenendo aperto.");
-
-                var subProblem = await SyncSubmodulesAsync(path, ct);
-                if (subProblem != null)
-                    throw new InvalidOperationException(subProblem);
-                return path;
+                    var subProblem = await SyncSubmodulesAsync(path, ct);
+                    if (subProblem != null)
+                        throw new InvalidOperationException(subProblem);
+                    return path;
+                }
+                catch
+                {
+                    // Non si entra: la prenotazione non deve restare, o il posto risulta «sta lavorando» per ore.
+                    _leases.TryRemove(path, out _);
+                    throw;
+                }
             }
             finally { gate.Release(); }
         }
@@ -827,6 +835,10 @@ namespace MdExplorer.Services.AgentRun
 
             var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
             await gate.WaitAsync(ct);
+            // Il posto prenotato qui si libera a fine turno da chi lo usa; se la preparazione fallisce il turno non
+            // parte, e la prenotazione va tolta subito: altrimenti il posto risulta «sta lavorando» per ore.
+            string acquired = null;
+            var prepared = false;
             try
             {
                 // RETE SOTTO LA RETE: con una sessione d'intervento aperta l'agente e' gia' in
@@ -853,6 +865,7 @@ namespace MdExplorer.Services.AgentRun
                 string worktreePath;
                 try { worktreePath = await AcquireSlotUnlockedAsync(projectPath, agentName, ct); }
                 catch (DesksBusyException busy) { return WorktreePrepareResult.BusyDesk(busy.Message); }
+                acquired = worktreePath;
 
                 // Prima di ripulire: ciò che c'è sopra e non è committato si salva sul suo ramo.
                 var unsaved = await SaveUnfinishedWorkUnlockedAsync(worktreePath, ct);
@@ -909,13 +922,18 @@ namespace MdExplorer.Services.AgentRun
                 }
 
                 _logger.LogInformation("[Worktree] preparato per '{Agent}': branch '{Branch}' da origin/{Base}", agentName, branch, resolvedBase);
+                prepared = true;
                 return WorktreePrepareResult.Ok(worktreePath);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 return WorktreePrepareResult.Fail(ex.Message);
             }
-            finally { gate.Release(); }
+            finally
+            {
+                if (acquired != null && !prepared) _leases.TryRemove(acquired, out _);
+                gate.Release();
+            }
         }
 
         public async Task RemoveWorktreeAsync(string projectPath, string agentName, CancellationToken ct = default)

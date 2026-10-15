@@ -182,6 +182,25 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Free_the_workplace_when_preparing_it_fails()
+        {
+            // Una preparazione fallita (qui il fetch) lasciava il posto prenotato: per sei ore risultava «sta lavorando»
+            // e non si poteva entrare nella copia dell'agente (demo del 15/10).
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+
+            using var ctx = new AgentCityContext();
+            var (_, path) = SetupGitProject(ctx, "pool-prepara-fallita");
+            var m = Manager(ctx);
+            Git(path, $"remote set-url origin \"{Path.Combine(Path.GetTempPath(), "mde-non-esiste-" + Guid.NewGuid().ToString("N"))}\"");
+
+            var a = await m.PrepareForRunAsync(path, "alfa", "att1");
+
+            Assert.IsFalse(a.Success, "senza origin il fetch fallisce");
+            Assert.IsFalse((await m.ListSlotsAsync(path)).Any(x => x.Running),
+                "una preparazione fallita non deve lasciare il posto prenotato");
+        }
+
+        [TestMethod]
         public async Task Rebuild_the_work_when_its_workplace_was_recycled()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
