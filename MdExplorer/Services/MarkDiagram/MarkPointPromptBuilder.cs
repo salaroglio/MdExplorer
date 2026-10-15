@@ -23,8 +23,11 @@ namespace MdExplorer.Services.MarkDiagram
 
     public static class MarkPointPromptBuilder
     {
-        /// <summary>Soft cap on the deck given whole: a deck is short, the budget goes to the project.</summary>
-        public const int MaxDeckChars = 20000;
+        /// <summary>
+        /// Soft cap on the deck given whole: a deck is short, the budget goes to the project. Speaker notes
+        /// make a deck longer: past the cap MarkAgent reads the slide of the point and its neighbours.
+        /// </summary>
+        public const int MaxDeckChars = 40000;
 
         /// <summary>At most this many documents the point links to, each read whole up to <see cref="MaxDeckChars"/>.</summary>
         public const int MaxLinkedDocuments = 3;
@@ -144,7 +147,7 @@ namespace MdExplorer.Services.MarkDiagram
                 sb.AppendLine(deckText);
                 sb.AppendLine("---");
                 if (deckTruncated)
-                    sb.AppendLine("ATTENZIONE: la presentazione è stata troncata perché troppo lunga.");
+                    sb.AppendLine("ATTENZIONE: la presentazione è troppo lunga e qui ne vedi una parte: la slide del punto, intera con le note del relatore, e le slide vicine (o l'inizio, se la slide non si trova per titolo).");
             }
             sb.AppendLine();
 

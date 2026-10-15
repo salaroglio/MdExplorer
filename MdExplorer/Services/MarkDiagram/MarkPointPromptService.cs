@@ -113,7 +113,7 @@ namespace MdExplorer.Services.MarkDiagram
             }
         }
 
-        /// <summary>The deck, given whole up to <see cref="MarkPointPromptBuilder.MaxDeckChars"/>. Empty when it cannot be read: the prompt says so.</summary>
+        /// <summary>The deck, given whole up to <see cref="MarkPointPromptBuilder.MaxDeckChars"/>, otherwise the slide of the point and its neighbours (<see cref="DeckExcerpt"/>). Empty when it cannot be read: the prompt says so.</summary>
         private string ReadDeck(MarkDiagramContextDto context, string projectPath, out bool truncated)
         {
             truncated = false;
@@ -123,13 +123,7 @@ namespace MdExplorer.Services.MarkDiagram
                 _logger.LogWarning("[MarkPoint] Presentazione non leggibile: {Path}", context.DocumentPath);
                 return string.Empty;
             }
-            var text = File.ReadAllText(full);
-            if (text.Length > MarkPointPromptBuilder.MaxDeckChars)
-            {
-                truncated = true;
-                text = text.Substring(0, MarkPointPromptBuilder.MaxDeckChars);
-            }
-            return text;
+            return DeckExcerpt.Take(File.ReadAllText(full), context.Point?.SlideTitle, MarkPointPromptBuilder.MaxDeckChars, out truncated);
         }
     }
 }
