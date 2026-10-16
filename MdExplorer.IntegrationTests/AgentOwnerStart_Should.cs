@@ -238,6 +238,68 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Let_the_owner_start_a_step_held_under_the_email_they_had_before()
+        {
+            // 15/10/2026: Marco cambia email con la scheda «da avviare»; il passo restava della vecchia e «avvia» rifiutava.
+            using var ctx = new AgentCityContext();
+            _ctx = ctx;
+            var path = Setup(ctx, "sched-email-cambiata");
+            var held = await LaunchAndWaitForHold(ctx, path);
+            Assert.AreEqual("io@test.local", Round(path, held).EventsOf("scheda").Single().By);
+
+            // Nuova email: in git e nella tabella delle responsabilità.
+            ctx.SetGitEmail(path, "io-nuovo@test.local");
+            var doc = Path.Combine(path, "ownership.md");
+            File.WriteAllText(doc, File.ReadAllText(doc).Replace("io@test.local", "io-nuovo@test.local"));
+            ctx.Factory.Services.GetRequiredService<IAgentWorkflowExecutor>().Reconcile(path, refresh: false);
+
+            var (status, body) = await ctx.PostJson($"/api/A2A/mailbox/to-start/{held.Id}/start", "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+            await WaitFor(() => Events(Round(path, held), "scheda").LastOrDefault() == RoundEventType.Done);
+            Assert.AreEqual("io-nuovo@test.local", Round(path, held).EventsOf("scheda").Single(e => e.Type == RoundEventType.Started).By);
+        }
+
+        [TestMethod]
+        public async Task Let_one_of_the_team_take_a_step_held_by_someone_who_no_longer_answers_for_it()
+        {
+            using var ctx = new AgentCityContext();
+            _ctx = ctx;
+            var path = Setup(ctx, "sched-prendo-io");
+            var held = await LaunchAndWaitForHold(ctx, path);
+            var q = "?projectPath=" + System.Uri.EscapeDataString(path);
+
+            // Il tecnico ora è di un team: io con l'email nuova e una collega. La vecchia email non c'è più.
+            ctx.SetGitEmail(path, "io-nuovo@test.local");
+            var doc = Path.Combine(path, "ownership.md");
+            File.WriteAllText(doc, File.ReadAllText(doc).Replace("| Ambito di tecnico | Io | io@test.local | tecnico |",
+                "| Ambito di tecnico | Io | io-nuovo@test.local | tecnico |\n| Collaudo tecnico | Lia | lia@test.local | tecnico |"));
+            ctx.Factory.Services.GetRequiredService<IAgentWorkflowExecutor>().Reconcile(path, refresh: false);
+
+            var (_, rounds) = await ctx.GetJson("/api/A2A/workflow/rounds" + q);
+            var roundId = rounds.RootElement.GetProperty("rounds")[0].GetProperty("id").GetString();
+            var scheda = rounds.RootElement.GetProperty("rounds")[0].GetProperty("steps").EnumerateArray().Single(x => x.GetProperty("step").GetString() == "scheda");
+            Assert.IsTrue(scheda.GetProperty("canTake").GetBoolean(), "rispondo dell'agente: posso prenderlo");
+
+            var (refused, _) = await ctx.PostJson($"/api/A2A/mailbox/to-start/{held.Id}/start", "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.Conflict, refused, "prima di prenderlo non è mio");
+
+            var (taken, takenBody) = await ctx.PostJson($"/api/A2A/workflow/rounds/{roundId}/steps/scheda/take{q}", "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, taken, takenBody);
+            var assigned = Round(path, held).EventsOf("scheda").Last(e => e.Type == RoundEventType.Assigned);
+            Assert.AreEqual("io-nuovo@test.local", assigned.Owner, "il registro dice chi l'ha preso");
+
+            var (again, _) = await ctx.PostJson($"/api/A2A/workflow/rounds/{roundId}/steps/scheda/take{q}", "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.Conflict, again, "ormai è di qualcuno");
+
+            // Il vecchio incarico è stato ritirato quando il passo è rimasto senza responsabile; preso, ne nasce uno mio.
+            var mine = (await ctx.WaitForMessages(m => m.Any(x => x.ToAgent == "tecnico" && x.Id != held.Id
+                && x.State == AgentMessage.StateEnum.Pending && x.DeferredReason == AgentMessage.DeferredReasonEnum.AwaitingOwner)))
+                .Single(x => x.ToAgent == "tecnico" && x.Id != held.Id && x.State == AgentMessage.StateEnum.Pending);
+            var (started, startedBody) = await ctx.PostJson($"/api/A2A/mailbox/to-start/{mine.Id}/start", "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, started, startedBody);
+        }
+
+        [TestMethod]
         public async Task Record_the_reason_when_the_owner_does_not_start_the_step()
         {
             using var ctx = new AgentCityContext();

@@ -13,6 +13,11 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         public string Problem { get; init; }
         /// <summary>Il passo aspetta che qualcuno scelga tra più responsabili (non è un errore del workflow).</summary>
         public bool NeedsChoice { get; init; }
+        /// <summary>
+        /// Il passo è di una persona che non risponde più dell'agente (ha cambiato email, è uscita dal team) e l'agente ha più
+        /// responsabili: lo prende uno di loro («Prendo io»). Vuoto negli altri casi.
+        /// </summary>
+        public IReadOnlyList<string> CanTake { get; init; } = Array.Empty<string>();
     }
 
     /// <summary>
@@ -26,6 +31,8 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
     /// <item>il responsabile del passo da cui viene, se è dello stesso agente (risalendo il workflow);</item>
     /// <item>l'unico responsabile dell'agente.</item>
     /// </list>
+    /// Se la persona così trovata non risponde più dell'agente: l'unico responsabile, se è uno; altrimenti lo prende uno del
+    /// team (<see cref="StepOwner.CanTake"/>).
     /// Altrimenti non si sa, e non si indovina: il passo aspetta che qualcuno scelga.
     /// </summary>
     public static class StepOwners
@@ -37,14 +44,18 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             var chosen = Chosen(wf, round, step, new HashSet<string>(StringComparer.Ordinal));
             if (chosen != null)
             {
-                if (!team.Contains(chosen, StringComparer.OrdinalIgnoreCase))
-                    return new StepOwner
-                    {
-                        Problem = $"«{step.Label}» è di {chosen}, che non risponde più dell'agente '{step.Agent}' " +
-                                  $"({(team.Count == 0 ? "non ne risponde nessuno" : "ne rispondono " + string.Join(", ", team))}): " +
-                                  "chi ne risponde lo deve prendere, o va corretto il documento delle responsabilità.",
-                    };
-                return new StepOwner { Email = chosen.ToLowerInvariant() };
+                if (team.Contains(chosen, StringComparer.OrdinalIgnoreCase))
+                    return new StepOwner { Email = chosen.ToLowerInvariant() };
+                // Chi era scritto nel registro non risponde più dell'agente (email cambiata, uscito dal team: 15/10/2026).
+                // Con un solo responsabile il passo è suo: non c'è niente da scegliere, e ogni computer arriva a lui.
+                if (team.Count == 1) return new StepOwner { Email = team[0].ToLowerInvariant() };
+                return new StepOwner
+                {
+                    Problem = $"«{step.Label}» è di {chosen}, che non risponde più dell'agente '{step.Agent}' " +
+                              $"({(team.Count == 0 ? "non ne risponde nessuno" : "ne rispondono " + string.Join(", ", team))}): " +
+                              (team.Count == 0 ? "va corretto il documento delle responsabilità." : "uno di loro lo prende con «Prendo io»."),
+                    CanTake = team.Select(e => e.ToLowerInvariant()).ToList(),
+                };
             }
             if (team.Count == 1) return new StepOwner { Email = team[0].ToLowerInvariant() };
             if (team.Count == 0)

@@ -64,6 +64,12 @@ namespace MdExplorer.Services.AgentRun
         /// </summary>
         void PassTo(AgentMessage held, string toEmail, string note);
 
+        /// <summary>
+        /// «Prendo io»: il passo era di chi non risponde più dell'agente e l'agente ha un team; lo prende chi ne risponde, da
+        /// questo computer. Il registro lo scrive, e il passo riparte da qui (da avviare, o da approvare).
+        /// </summary>
+        void TakeOver(string projectPath, string roundId, string stepId);
+
         /// <summary>Il responsabile ha avviato un passo «da avviare».</summary>
         void OnOwnerStarted(AgentMessage message);
 
@@ -132,6 +138,8 @@ namespace MdExplorer.Services.AgentRun
         public string Agent { get; init; }
         /// <summary>Chi ne risponde, se si sa.</summary>
         public string Owner { get; init; }
+        /// <summary>Il passo è di chi non risponde più dell'agente e io posso prenderlo («Prendo io»).</summary>
+        public bool CanTake { get; init; }
         /// <summary>waiting · tostart · declined · working · approval · approved · rejected · done · failed</summary>
         public string State { get; init; }
         public string Note { get; init; }
@@ -502,6 +510,34 @@ namespace MdExplorer.Services.AgentRun
             _logger.LogInformation("[Workflow] giro {Round}: «{Step}» passato da {Me} a {To}", held.WorkflowRound, step.Label, me, to);
         }
 
+        public void TakeOver(string projectPath, string roundId, string stepId)
+        {
+            var wf = Workflow(projectPath, out _) ?? throw new InvalidOperationException("Il progetto non ha un workflow attivo.");
+            var step = wf.Step(stepId) ?? throw new InvalidOperationException($"Il passo '{stepId}' non è nel workflow.");
+            var me = Me(projectPath);
+            Locked(projectPath, () =>
+            {
+                var round = RoundLedger.Load(_store.Root(projectPath), roundId);
+                var now = OwnerOf(projectPath, wf, round, step);
+                if (now.Email != null)
+                    throw new InvalidOperationException($"«{step.Label}» è di {now.Email}: si prende solo un passo di chi non ne risponde più.");
+                if (!now.CanTake.Any(e => Same(e, me)))
+                    throw new InvalidOperationException(now.CanTake.Count == 0
+                        ? now.Problem
+                        : $"«{step.Label}» lo prende chi risponde dell'agente '{step.Agent}' ({string.Join(", ", now.CanTake)}), e tu ({me}) no.");
+                var view = WorkflowScheduler.View(wf, round, step);
+                Write(projectPath, roundId, step, new RoundEvent
+                {
+                    Type = RoundEventType.Assigned, At = DateTime.UtcNow, By = me, Owner = me, Round = view.Round, Attempt = view.Attempt,
+                    Note = "preso da chi ne risponde: chi lo aveva non risponde più dell'agente",
+                }, $"giro {roundId}: «{step.Label}» preso da {me}");
+            });
+            _logger.LogInformation("[Workflow] giro {Round}: «{Step}» preso da {Me}", roundId, step.Label, me);
+            // Il passo ora è mio: si riprende da qui (incarico da avviare, consegna da approvare) e si valuta il giro.
+            Reconcile(projectPath, refresh: false);
+            Evaluate(projectPath, roundId);
+        }
+
         public string NotYours(AgentMessage message)
         {
             if (message?.WorkflowRound == null) return null;
@@ -609,6 +645,7 @@ namespace MdExplorer.Services.AgentRun
             {
                 Id = round.Header.Id + "/" + step.Id, Round = round.Header.Id, Step = step.Id, Label = step.Label,
                 Agent = step.Agent, Owner = owner.Email, State = state,
+                CanTake = owner.CanTake.Any(e => Same(e, Me(projectPath))),
                 Note = state is "declined" or "rejected" or "failed" ? view.Last?.Note : null,
                 Silent = state is "approval" or "approved" or "done" && Silent(round, step, wrote),
             };

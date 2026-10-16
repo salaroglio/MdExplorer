@@ -54,9 +54,23 @@ namespace MdExplorer.Controllers.A2A
                     id = r.Id, title = r.Title, values = r.Values, startedAt = r.StartedAt, startedBy = r.StartedBy,
                     lastActivityAt = r.LastActivityAt, finished = r.Finished, stopped = r.Stopped, stepsDone = r.StepsDone, stepsTotal = r.StepsTotal,
                     runs = r.Runs,
-                    steps = r.Steps.Select(p => new { messageId = p.Id, step = p.Step, label = p.Label, agent = p.Agent, owner = p.Owner, state = p.State, note = p.Note, silent = p.Silent }),
+                    steps = r.Steps.Select(p => new { messageId = p.Id, step = p.Step, label = p.Label, agent = p.Agent, owner = p.Owner, state = p.State, note = p.Note, silent = p.Silent, canTake = p.CanTake }),
                 }),
             });
+        }
+
+        /// <summary>
+        /// «Prendo io»: il passo era di chi non risponde più dell'agente (email cambiata, uscito dal team) e l'agente ha più
+        /// responsabili. Lo prende chi lo chiede, se ne risponde; il registro lo scrive e il passo riparte da questo computer.
+        /// </summary>
+        [HttpPost("rounds/{roundId}/steps/{stepId}/take")]
+        public IActionResult Take(string roundId, string stepId, [FromQuery] string? projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath))
+                return BadRequest(new { error = "projectPath è obbligatorio." });
+            try { _executor.TakeOver(projectPath, roundId, stepId); }
+            catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+            return Ok(new { roundId, stepId, taken = true });
         }
 
         /// <param name="projectPath">La cartella del progetto.</param>

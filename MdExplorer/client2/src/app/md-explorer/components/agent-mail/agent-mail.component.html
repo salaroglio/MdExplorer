@@ -125,6 +125,10 @@
               <span class="step-owner">{{ w.owner || w.agent }}</span>
               <span class="flexExpand"></span>
               <span class="step-silent" *ngIf="w.silent" [title]="'AGENT_MAIL.STEP_SILENT_TIP' | translate">{{ 'AGENT_MAIL.STEP_SILENT' | translate }}</span>
+              <button mat-stroked-button class="btn-take-step" *ngIf="w.canTake && !showArchive" (click)="takeStep(selected, w)"
+                      [matTooltip]="'AGENT_MAIL.STEP_TAKE_TIP' | translate">
+                <mat-icon>pan_tool</mat-icon> {{ 'AGENT_MAIL.STEP_TAKE' | translate }}
+              </button>
               <span class="step-state">{{ ('AGENT_MAIL.AWAITED_' + w.state) | translate }}</span>
             </div>
           </div>

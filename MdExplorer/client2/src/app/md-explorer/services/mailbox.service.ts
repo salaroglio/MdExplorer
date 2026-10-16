@@ -80,6 +80,10 @@ export interface AwaitedWork {
   owner?: string | null;
   /** Il turno che ha consegnato il passo non ti ha scritto: il messaggio non arriverà. */
   silent?: boolean;
+  /** L'id del passo nel workflow (nei passi di un giro). */
+  step?: string;
+  /** Il passo è di chi non risponde più dell'agente e tu, che ne rispondi, puoi prenderlo («Prendo io»). */
+  canTake?: boolean;
 }
 
 /** Un giro del workflow, visto dalla posta: una voce con i suoi passi e i turni dei suoi messaggi. */
@@ -232,6 +236,13 @@ export class MailboxService {
   }
 
   /** Archivia un giro concluso, con i suoi messaggi; o lo riporta in posta. */
+  /** «Prendo io»: un passo di chi non risponde più dell'agente passa a te, che ne rispondi. */
+  takeStep(projectPath: string, roundId: string, stepId: string): Observable<{ taken: boolean }> {
+    const params = new HttpParams().set('projectPath', projectPath);
+    return this.http.post<{ taken: boolean }>(
+      `/api/A2A/workflow/rounds/${encodeURIComponent(roundId)}/steps/${encodeURIComponent(stepId)}/take`, null, { params });
+  }
+
   archiveRound(projectPath: string, roundId: string, archive: boolean): Observable<{ archived: boolean; messages: number }> {
     const params = new HttpParams().set('projectPath', projectPath);
     return this.http.post<{ archived: boolean; messages: number }>(

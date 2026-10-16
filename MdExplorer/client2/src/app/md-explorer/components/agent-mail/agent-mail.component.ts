@@ -591,6 +591,18 @@ export class AgentMailComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** «Prendo io» su un passo del giro che era di chi non risponde più dell'agente. */
+  takeStep(item: MailItem, step: AwaitedWork): void {
+    if (!item?.round || !step?.step) return;
+    this.mailbox.takeStep(this.data?.projectPath || '', item.round.id, step.step).subscribe({
+      next: () => {
+        this.snackBar.open(this.translate.instant('AGENT_MAIL.STEP_TAKEN', { step: step.label }), 'OK', { duration: 4000 });
+        this.reload();
+      },
+      error: (err) => this.showError(err),
+    });
+  }
+
   toggleArchive(): void {
     this.showArchive = !this.showArchive;
     this.selected = null;

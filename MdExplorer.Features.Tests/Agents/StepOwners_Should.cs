@@ -111,6 +111,19 @@ namespace MdExplorer.Features.Tests.Agents
             Assert.IsNull(owner.Email);
             Assert.IsFalse(owner.NeedsChoice);
             StringAssert.Contains(owner.Problem, "paolo@x.it, che non risponde più dell'agente 'sviluppatore'");
+            CollectionAssert.AreEquivalent(new[] { "mario@x.it", "lucia@x.it" }, owner.CanTake.ToList(), "lo prende uno del team: «Prendo io»");
+        }
+
+        [TestMethod]
+        public void Give_the_step_to_the_only_responsible_when_the_one_in_the_ledger_changed_email()
+        {
+            // 15/10/2026: Marco aveva cambiato email a giro aperto; il passo restava della vecchia e nessuno poteva avviarlo.
+            var round = Round(Launched, Pressed("lucia@x.it"),
+                ("collauda", "collaudatore", new RoundEvent { Type = RoundEventType.Held, By = "qa-vecchia@x.it" }));
+            var owner = Owner(round, "collauda");
+            Assert.AreEqual("qa@x.it", owner.Email, "un solo responsabile: il passo è suo");
+            Assert.IsNull(owner.Problem);
+            Assert.AreEqual(0, owner.CanTake.Count);
         }
 
         [TestMethod]
