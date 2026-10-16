@@ -23,6 +23,12 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
     {
         public const string Folder = ".mde/giri";
         public const string HeaderFile = "giro.json";
+        /// <summary>
+        /// Il workflow con cui il giro è nato, testo com'era (16/10/2026): il giro va avanti con quello anche se il workflow
+        /// cambia. Non è <c>.json</c> di proposito: i passi sono i <c>*.json</c> della cartella, e un computer con una versione
+        /// di MdExplorer di prima questo file lo ignora senza confonderlo con un passo.
+        /// </summary>
+        public const string WorkflowSnapshotFile = "workflow.snapshot";
 
         private static readonly Regex RoundId = new(@"^[a-z0-9]+(-[a-z0-9]+)*$", RegexOptions.Compiled);
 
@@ -66,6 +72,27 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             Directory.CreateDirectory(folder);
             WriteAtomically(file, JsonSerializer.Serialize(header, Strict));
             return header;
+        }
+
+        /// <summary>Salva il workflow con cui nasce il giro. Una volta sola: la versione del giro non cambia più.</summary>
+        public static void SaveWorkflowSnapshot(string projectRoot, string roundId, string workflowJson)
+        {
+            var folder = RoundFolder(projectRoot, roundId);
+            if (!File.Exists(Path.Combine(folder, HeaderFile)))
+                throw new InvalidOperationException($"Il giro '{roundId}' non esiste: va aperto prima di salvarne il workflow.");
+            var file = Path.Combine(folder, WorkflowSnapshotFile);
+            if (File.Exists(file)) return;
+            // Il testo esatto, senza l'a capo che gli altri file del registro aggiungono: è una copia, non un file nostro.
+            var aside = file + ".scrittura";
+            File.WriteAllText(aside, workflowJson ?? throw new ArgumentNullException(nameof(workflowJson)), new UTF8Encoding(false));
+            File.Move(aside, file, overwrite: true);
+        }
+
+        /// <summary>Il workflow con cui il giro è nato, o null per un giro aperto prima che si salvasse (vale quello attuale).</summary>
+        public static string LoadWorkflowSnapshot(string projectRoot, string roundId)
+        {
+            var file = Path.Combine(RoundFolder(projectRoot, roundId), WorkflowSnapshotFile);
+            return File.Exists(file) ? File.ReadAllText(file) : null;
         }
 
         /// <summary>

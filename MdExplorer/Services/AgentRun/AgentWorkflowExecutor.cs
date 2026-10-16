@@ -226,6 +226,7 @@ namespace MdExplorer.Services.AgentRun
                 var now = DateTime.UtcNow;
                 var id = RoundLedger.NewRoundId(jsonPath, now);
                 RoundLedger.Open(_store.Root(projectPath), new RoundHeader { Id = id, Workflow = jsonPath, StartedAt = now, StartedBy = Me(projectPath) });
+                SnapshotWorkflow(projectPath, id, jsonPath);
                 Write(projectPath, id, launch, new RoundEvent { Type = RoundEventType.Started, At = now, By = Me(projectPath), Run = runId },
                     $"giro {id}: «{launch.Label}» lanciato");
                 _logger.LogInformation("[Workflow] giro {Round} aperto: {Agent} lanciato a mano (passo '{Step}')", id, agentName, launch.Id);
@@ -237,7 +238,7 @@ namespace MdExplorer.Services.AgentRun
         {
             var link = triggerMessageId != null ? LinkOfMessage(triggerMessageId.Value) : LinkOfRun(projectPath, runId);
             if (link == null) return;
-            var wf = Workflow(projectPath, out _);
+            var wf = WorkflowFor(projectPath, link.RoundId);
             var step = wf?.Step(link.Step);
             if (step == null) return;
 
@@ -270,7 +271,7 @@ namespace MdExplorer.Services.AgentRun
             if (type == null) return;
             var link = LinkOfRun(request.ProjectPath, request.RunId);
             if (link == null) return;
-            var step = Workflow(request.ProjectPath, out _)?.Step(link.Step);
+            var step = WorkflowFor(request.ProjectPath, link.RoundId)?.Step(link.Step);
             if (step == null) return;
 
             Locked(request.ProjectPath, () => Write(request.ProjectPath, link.RoundId, step, new RoundEvent
@@ -285,7 +286,7 @@ namespace MdExplorer.Services.AgentRun
         {
             var link = request == null ? null : LinkOfRun(request.ProjectPath, request.RunId);
             if (link == null) return false;
-            var wf = Workflow(request.ProjectPath, out _);
+            var wf = WorkflowFor(request.ProjectPath, link.RoundId);
             var step = wf?.Step(link.Step);
             if (step == null) return false;
 
@@ -314,7 +315,7 @@ namespace MdExplorer.Services.AgentRun
             var link = request == null ? null : LinkOfRun(request.ProjectPath, request.RunId);
             linked = link != null;
             if (link == null) return null;
-            var wf = Workflow(request.ProjectPath, out _);
+            var wf = WorkflowFor(request.ProjectPath, link.RoundId);
             var step = wf?.Step(link.Step);
             var until = step == null ? null : wf.LoopOf(step.Id, WorkflowLoopKind.UntilApproved);
             if (until?.Max == null) return null;
@@ -327,9 +328,9 @@ namespace MdExplorer.Services.AgentRun
 
         public IReadOnlyList<ReplyTarget> ReplyTargets(string projectPath, AgentMessage answered, string replyId)
         {
-            var wf = Workflow(projectPath, out _);
-            var link = wf == null || answered == null ? null : LinkOfRun(projectPath, answered.RunId);
-            if (link == null) return Array.Empty<ReplyTarget>();
+            var link = answered == null ? null : LinkOfRun(projectPath, answered.RunId);
+            var wf = link == null ? null : WorkflowFor(projectPath, link.RoundId);
+            if (wf == null) return Array.Empty<ReplyTarget>();
             return wf.Steps.Where(s => s.Trigger?.Kind == WorkflowTriggerKind.Reply && s.Trigger.FromStep == link.Step
                                        && string.Equals(s.Trigger.ReplyId, replyId, StringComparison.OrdinalIgnoreCase))
                 .Select(s => new ReplyTarget { Step = s.Id, Label = s.Label, Agent = s.Agent, Owners = Team(projectPath, s.Agent) })
@@ -403,6 +404,7 @@ namespace MdExplorer.Services.AgentRun
                 var now = DateTime.UtcNow;
                 var id = RoundLedger.NewRoundId(jsonPath, now);
                 RoundLedger.Open(_store.Root(projectPath), new RoundHeader { Id = id, Workflow = jsonPath, StartedAt = now, StartedBy = Me(projectPath) });
+                SnapshotWorkflow(projectPath, id, jsonPath);
                 foreach (var e in origin.EventsOf(source.Id).Where(e => e.Type != RoundEventType.Replied))
                     RoundLedger.Append(_store.Root(projectPath), id, source.Id, source.Agent, e);
                 Write(projectPath, id, source, replied, $"giro {id}: «{chosen.Label}» (dalla ricerca del giro {origin.Header.Id})");
@@ -416,7 +418,7 @@ namespace MdExplorer.Services.AgentRun
         public void OnOwnerStarted(AgentMessage message)
         {
             if (message?.WorkflowRound == null) return;
-            var step = Workflow(message.ProjectPath, out _)?.Step(message.WorkflowStep);
+            var step = WorkflowFor(message.ProjectPath, message.WorkflowRound)?.Step(message.WorkflowStep);
             if (step == null) return;
             Locked(message.ProjectPath, () => Write(message.ProjectPath, message.WorkflowRound, step, new RoundEvent
             {
@@ -429,7 +431,7 @@ namespace MdExplorer.Services.AgentRun
         public void OnOwnerDeclined(AgentMessage message, string reason)
         {
             if (message?.WorkflowRound == null) return;
-            var step = Workflow(message.ProjectPath, out _)?.Step(message.WorkflowStep);
+            var step = WorkflowFor(message.ProjectPath, message.WorkflowRound)?.Step(message.WorkflowStep);
             if (step == null) return;
             Locked(message.ProjectPath, () => Write(message.ProjectPath, message.WorkflowRound, step, new RoundEvent
             {
@@ -449,9 +451,12 @@ namespace MdExplorer.Services.AgentRun
             {
                 try
                 {
+                    var rwf = WorkflowFor(projectPath, id);
+                    if (rwf == null) continue;
                     Locked(projectPath, () =>
                     {
                         var round = RoundLedger.Load(_store.Root(projectPath), id);
+                        var wf = rwf;   // il workflow con cui è nato il giro
                         var views = WorkflowScheduler.Views(wf, round);
                         var me = Me(projectPath);
                         foreach (var step in wf.Steps)
@@ -484,7 +489,7 @@ namespace MdExplorer.Services.AgentRun
         {
             if (held?.WorkflowRound == null) throw new InvalidOperationException("Questo incarico non è di un giro del workflow: non c'è un passo da passare.");
             var projectPath = held.ProjectPath;
-            var wf = Workflow(projectPath, out _) ?? throw new InvalidOperationException("Il progetto non ha un workflow attivo.");
+            var wf = WorkflowFor(projectPath, held.WorkflowRound) ?? throw new InvalidOperationException("Il progetto non ha un workflow attivo.");
             var step = wf.Step(held.WorkflowStep) ?? throw new InvalidOperationException($"Il passo '{held.WorkflowStep}' non è nel workflow.");
             var to = (toEmail ?? "").Trim().ToLowerInvariant();
             var me = Me(projectPath);
@@ -512,7 +517,7 @@ namespace MdExplorer.Services.AgentRun
 
         public void TakeOver(string projectPath, string roundId, string stepId)
         {
-            var wf = Workflow(projectPath, out _) ?? throw new InvalidOperationException("Il progetto non ha un workflow attivo.");
+            var wf = WorkflowFor(projectPath, roundId) ?? throw new InvalidOperationException("Il progetto non ha un workflow attivo.");
             var step = wf.Step(stepId) ?? throw new InvalidOperationException($"Il passo '{stepId}' non è nel workflow.");
             var me = Me(projectPath);
             Locked(projectPath, () =>
@@ -552,7 +557,7 @@ namespace MdExplorer.Services.AgentRun
 
         private string NotYours(string projectPath, string roundId, string stepId)
         {
-            var wf = Workflow(projectPath, out _);
+            var wf = WorkflowFor(projectPath, roundId);
             var step = wf?.Step(stepId);
             if (step == null) return null;
             var owner = OwnerOf(projectPath, wf, RoundLedger.Load(_store.Root(projectPath), roundId), step);
@@ -572,9 +577,11 @@ namespace MdExplorer.Services.AgentRun
                 foreach (var round in RoundsOfRun(projectPath, runId, source.Id)
                              .Where(r => r.EventsOf(source.Id).Any(e => e.Type == RoundEventType.Replied)))
                 {
-                    var views = WorkflowScheduler.Views(wf, round);
-                    foreach (var step in wf.Steps.Where(s => s.Id != source.Id && s.Trigger?.Kind != WorkflowTriggerKind.Launch))
-                        result.Add(Progress(projectPath, wf, round, step, views[step.Id], wrote));
+                    var rwf = WorkflowFor(projectPath, round.Header.Id);
+                    if (rwf == null) continue;
+                    var views = WorkflowScheduler.Views(rwf, round);
+                    foreach (var step in rwf.Steps.Where(s => s.Id != source.Id && s.Trigger?.Kind != WorkflowTriggerKind.Launch))
+                        result.Add(Progress(projectPath, rwf, round, step, views[step.Id], wrote));
                 }
             return result;
         }
@@ -590,21 +597,23 @@ namespace MdExplorer.Services.AgentRun
                 RoundState round;
                 try { round = RoundLedger.Load(_store.Root(projectPath), id); }
                 catch (Exception ex) { _logger.LogError(ex, "[Workflow] giro {Round} illeggibile", id); continue; }
-                var views = WorkflowScheduler.Views(wf, round);
-                var steps = wf.Steps.Select(step => Progress(projectPath, wf, round, step, views[step.Id], wrote)).ToList();
+                var rwf = WorkflowFor(projectPath, id);
+                if (rwf == null) continue;
+                var views = WorkflowScheduler.Views(rwf, round);
+                var steps = rwf.Steps.Select(step => Progress(projectPath, rwf, round, step, views[step.Id], wrote)).ToList();
                 var closed = new[] { "approved", "done", "declined", "failed" };
                 var events = round.Steps.Values.SelectMany(r => r.Events).ToList();
                 var variables = round.Variables;
                 result.Add(new RoundSummary
                 {
-                    Id = id, Title = wf.Title, StartedAt = round.Header.StartedAt, StartedBy = round.Header.StartedBy,
-                    Values = wf.Variables.Keys.Where(variables.ContainsKey).Select(k => variables[k]).ToList(),
+                    Id = id, Title = rwf.Title, StartedAt = round.Header.StartedAt, StartedBy = round.Header.StartedBy,
+                    Values = rwf.Variables.Keys.Where(variables.ContainsKey).Select(k => variables[k]).ToList(),
                     LastActivityAt = events.Count > 0 ? events.Max(e => e.At) : round.Header.StartedAt,
                     Steps = steps,
                     StepsTotal = steps.Count,
                     StepsDone = steps.Count(s => s.State is "approved" or "done"),
                     Finished = steps.All(s => closed.Contains(s.State)),
-                    Stopped = !steps.All(s => closed.Contains(s.State)) && WorkflowScheduler.IsStopped(wf, round, views),
+                    Stopped = !steps.All(s => closed.Contains(s.State)) && WorkflowScheduler.IsStopped(rwf, round, views),
                     Runs = events.Where(e => !string.IsNullOrEmpty(e.Run)).Select(e => e.Run.Replace("-", "")).Distinct().ToList(),
                 });
             }
@@ -742,7 +751,7 @@ namespace MdExplorer.Services.AgentRun
         {
             try
             {
-                var wf = Workflow(projectPath, out _);
+                var wf = WorkflowFor(projectPath, roundId);
                 if (wf == null) return;
                 Locked(projectPath, () =>
                 {
@@ -929,6 +938,34 @@ namespace MdExplorer.Services.AgentRun
         }
 
         // ---- di contorno ----
+
+        /// <summary>
+        /// Il workflow di un giro (16/10/2026): quello con cui è nato, salvato nel registro, così un workflow cambiato a giro
+        /// aperto non ferma i passi rimasti (le variabili nuove dei brief non c'erano quando il giro è partito). Un giro aperto
+        /// prima che si salvasse usa quello attuale, come prima. Con il workflow spento (nessun documento) non lavora niente.
+        /// </summary>
+        private WorkflowDescriptor WorkflowFor(string projectPath, string roundId)
+        {
+            var current = Workflow(projectPath, out _);
+            if (current == null || string.IsNullOrWhiteSpace(roundId) || !_store.IsAvailable(projectPath)) return current;
+            string json;
+            try { json = RoundLedger.LoadWorkflowSnapshot(_store.Root(projectPath), roundId); }
+            catch (ArgumentException) { return current; }   // id non di un giro: chi chiama lo dirà
+            if (json == null) return current;
+            var parsed = WorkflowParser.Parse(json);
+            if (parsed.IsValid) return parsed.Descriptor;
+            var first = parsed.Issues.First(i => i.Severity == WorkflowSeverity.Error);
+            if (_told.TryAdd($"{projectPath}|{roundId}|snapshot", 0))
+                _logger.LogError("[Workflow] giro {Round}: il workflow con cui è nato non si legge ({Problem}): il giro è fermo.", roundId, first);
+            return null;
+        }
+
+        /// <summary>Salva nel giro appena aperto il workflow com'è adesso: è quello con cui il giro andrà avanti.</summary>
+        private void SnapshotWorkflow(string projectPath, string roundId, string jsonPath)
+        {
+            var full = Path.Combine(projectPath, jsonPath.Replace('/', Path.DirectorySeparatorChar));
+            RoundLedger.SaveWorkflowSnapshot(_store.Root(projectPath), roundId, File.ReadAllText(full));
+        }
 
         private WorkflowDescriptor Workflow(string projectPath, out string jsonPath)
         {

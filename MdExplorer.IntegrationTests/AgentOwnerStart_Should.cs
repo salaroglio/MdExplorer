@@ -300,6 +300,27 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Finish_an_open_round_with_the_workflow_it_was_born_with()
+        {
+            // 15/10/2026: il workflow cambiato a giro aperto aggiungeva variabili ai brief e i passi rimasti si fermavano.
+            using var ctx = new AgentCityContext();
+            _ctx = ctx;
+            var path = Setup(ctx, "sched-versione", WorkflowWithSynthesis);
+            var held = await LaunchAndWaitForHold(ctx, path);
+            Assert.IsNotNull(RoundLedger.LoadWorkflowSnapshot(Ledger(path), held.WorkflowRound), "il giro salva il workflow con cui nasce");
+
+            // Il workflow cambia: la sintesi ora vuole {bando}, che questo giro non ha.
+            File.WriteAllText(Path.Combine(path, "prova.workflow.json"), WorkflowWithSynthesis
+                .Replace("\"title\": \"Prova\",", "\"title\": \"Prova\", \"variables\": { \"bando\": \"il bando\" },")
+                .Replace("Scrivi la sintesi.", "Scrivi la sintesi sul bando {bando}."));
+
+            var (status, body) = await ctx.PostJson($"/api/A2A/mailbox/to-start/{held.Id}/start", "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+            await WaitFor(() => Events(Round(path, held), "sintesi").LastOrDefault() == RoundEventType.Done, 30000);
+            StringAssert.Contains(ctx.Runner.LastRequest.ComposedPrompt, "Scrivi la sintesi.", "il brief di quando il giro è nato");
+        }
+
+        [TestMethod]
         public async Task Record_the_reason_when_the_owner_does_not_start_the_step()
         {
             using var ctx = new AgentCityContext();

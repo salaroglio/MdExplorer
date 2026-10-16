@@ -420,5 +420,27 @@ namespace MdExplorer.Features.Tests.Agents
 
             Assert.IsTrue(WorkflowScheduler.IsStopped(wf, round, WorkflowScheduler.Views(wf, round)));
         }
+
+        [TestMethod]
+        public void Keep_the_workflow_a_round_was_born_with_next_to_its_steps()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "giri-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var id = RoundLedger.NewRoundId("gara/gara.workflow.json", T0, new Random(2));
+                Assert.ThrowsException<InvalidOperationException>(() => RoundLedger.SaveWorkflowSnapshot(root, id, Gara), "prima si apre il giro");
+                RoundLedger.Open(root, new RoundHeader { Id = id, Workflow = "gara/gara.workflow.json", StartedAt = T0, StartedBy = "am@test.local" });
+                Assert.IsNull(RoundLedger.LoadWorkflowSnapshot(root, id), "un giro di prima non ha la sua copia: vale l'attuale");
+
+                RoundLedger.SaveWorkflowSnapshot(root, id, Gara);
+                RoundLedger.SaveWorkflowSnapshot(root, id, "{ cambiato }");
+                Assert.AreEqual(Gara, RoundLedger.LoadWorkflowSnapshot(root, id), "la versione del giro non cambia più");
+
+                RoundLedger.Append(root, id, "ricerca", "account-manager", new RoundEvent { Type = RoundEventType.Started, At = T0 });
+                var round = RoundLedger.Load(root, id);
+                CollectionAssert.AreEqual(new[] { "ricerca" }, round.Steps.Keys.ToList(), "la copia non è un passo");
+            }
+            finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+        }
     }
 }
