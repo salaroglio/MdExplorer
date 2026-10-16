@@ -70,6 +70,47 @@ namespace MdExplorer.Services.TeamChat
                 SenderEmail = message.SenderEmail,
             }, Json));
 
+        private sealed class SealedUser
+        {
+            public string UserId { get; set; }
+            public string UserName { get; set; }
+            public string UserEmail { get; set; }
+        }
+
+        /// <summary>
+        /// Chi è in stanza, come lo vede il relay: nome, email e id veri in una busta in <c>userName</c>,
+        /// email vuota, e come <c>userId</c> uno pseudonimo che il relay non sa rovesciare.
+        /// </summary>
+        public static (string UserId, string UserName, string UserEmail) SealUser(ChatRoomKey key, ChatUserInfo user)
+            => (FederationCrypto.ChatPseudonym(key.RoomSecret, key.RoomId, user.UserEmail),
+                FederationCrypto.EncryptChat(key.RoomSecret, key.RoomId, JsonSerializer.Serialize(new SealedUser
+                {
+                    UserId = user.UserId,
+                    UserName = user.UserName,
+                    UserEmail = user.UserEmail,
+                }, Json)),
+                "");
+
+        /// <summary>Apre, sul posto, chi è in stanza come arriva dal relay; i client di prima mandano in chiaro.</summary>
+        public static ChatUserInfo OpenUser(ChatRoomKey key, ChatUserInfo user)
+        {
+            if (user == null || !FederationCrypto.IsChatEnvelope(user.UserName)) return user;
+            try
+            {
+                if (key == null) throw new FederationCryptoException("nessuna chiave per la stanza");
+                var plain = JsonSerializer.Deserialize<SealedUser>(FederationCrypto.DecryptChat(key.RoomSecret, key.RoomId, user.UserName), Json);
+                user.UserId = plain?.UserId ?? user.UserId;
+                user.UserName = plain?.UserName ?? "";
+                user.UserEmail = plain?.UserEmail ?? "";
+            }
+            catch (System.Exception ex) when (ex is FederationCryptoException or JsonException)
+            {
+                user.UserName = "?";
+                user.UserEmail = "";
+            }
+            return user;
+        }
+
         /// <summary>
         /// Apre il messaggio come è arrivato dal relay, sul posto. Un messaggio di prima della cifratura
         /// (in chiaro) resta com'è; una busta che non si apre diventa <see cref="Unreadable"/>, mai il testo cifrato.

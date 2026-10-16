@@ -293,12 +293,20 @@ namespace MdExplorer.Services.TeamChat
         {
             var url = $"{_vpsApiUrl}/rooms/{roomId}/presence/{connectionId}";
 
+            var key = _keys.Find(roomId);
+            if (key == null)
+            {
+                _logger.LogWarning("Room {RoomId} has no project key: presence not sent to the relay", roomId);
+                return;
+            }
+            // Il relay vede una busta e uno pseudonimo, non nome ed email.
+            var (sealedId, sealedName, sealedEmail) = ChatEnvelope.SealUser(key, user);
             var json = JsonSerializer.Serialize(new
             {
                 oderId = user.OderId,
-                userId = user.UserId,
-                userName = user.UserName,
-                userEmail = user.UserEmail,
+                userId = sealedId,
+                userName = sealedName,
+                userEmail = sealedEmail,
                 online = true,
                 lastSeen = user.LastSeen
             }, _jsonOptions);
@@ -428,12 +436,20 @@ namespace MdExplorer.Services.TeamChat
         {
             var url = $"{_vpsApiUrl}/rooms/{roomId}/project-users/{oderId}";
 
+            var key = _keys.Find(roomId);
+            if (key == null)
+            {
+                _logger.LogWarning("Room {RoomId} has no project key: presence not sent to the relay", roomId);
+                return;
+            }
+            // Il relay vede una busta e uno pseudonimo, non nome ed email.
+            var (sealedId, sealedName, sealedEmail) = ChatEnvelope.SealUser(key, user);
             var json = JsonSerializer.Serialize(new
             {
                 oderId = user.OderId,
-                userId = user.UserId,
-                userName = user.UserName,
-                userEmail = user.UserEmail,
+                userId = sealedId,
+                userName = sealedName,
+                userEmail = sealedEmail,
                 online = true,
                 lastSeen = user.LastSeen
             }, _jsonOptions);

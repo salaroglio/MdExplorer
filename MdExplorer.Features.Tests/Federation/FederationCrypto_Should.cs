@@ -37,6 +37,16 @@ namespace MdExplorer.Features.Tests.Federation
         }
 
         [TestMethod]
+        public void Give_a_stable_pseudonym_per_room_that_is_not_the_email_hash()
+        {
+            var p = FederationCrypto.ChatPseudonym(Secret, Room, "anna@example.com");
+            Assert.AreEqual(16, p.Length);
+            Assert.AreEqual(p, FederationCrypto.ChatPseudonym(Secret, Room, " Anna@Example.com "), "stessa persona, stesso id: il relay spegne le sue sessioni vecchie");
+            Assert.AreNotEqual(p, FederationCrypto.ChatPseudonym(Secret, "altrastanza00000", "anna@example.com"), "un id diverso in ogni stanza");
+            Assert.AreNotEqual(p, FederationCrypto.ChatPseudonym("altro-segreto", Room, "anna@example.com"), "senza il segreto non si ricostruisce");
+        }
+
+        [TestMethod]
         public void Round_trip_empty_and_unicode()
         {
             Assert.AreEqual("", FederationCrypto.Decrypt(Secret, Room, FederationCrypto.Encrypt(Secret, Room, "")));

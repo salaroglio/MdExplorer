@@ -40,6 +40,7 @@ namespace MdExplorer.Features.Federation
         // loro: una busta della chat non si apre come busta della città, e viceversa.
         private const string ChatPrefix = "mdchat.v1.";
         private static readonly byte[] ChatInfo = Encoding.UTF8.GetBytes("mdchat-v1");
+        private static readonly byte[] PseudonymInfo = Encoding.UTF8.GetBytes("mdchat-pseudonym");
 
         private const int KeyLen = 32;    // AES-256
         private const int NonceLen = 12;  // 96-bit, raccomandato per GCM
@@ -100,6 +101,18 @@ namespace MdExplorer.Features.Federation
         /// <summary>Apre una busta <c>mdchat.v1....</c>, fail-loud come <see cref="Decrypt"/>.</summary>
         public static string DecryptChat(string roomSecret, string roomId, string envelope)
             => Open(roomSecret, roomId, envelope, ChatInfo, ChatPrefix);
+
+        /// <summary>
+        /// Uno pseudonimo stabile per stanza: HMAC-SHA256(chiave dal segreto, <paramref name="value"/>), 16 hex.
+        /// Al relay serve un id fisso per persona (spegne le sue sessioni vecchie), ma un hash dell'email si
+        /// rovescia provando le email; senza il segreto lo pseudonimo no.
+        /// </summary>
+        public static string ChatPseudonym(string roomSecret, string roomId, string value)
+        {
+            var key = DeriveKey(roomSecret, roomId, PseudonymInfo);
+            var mac = HMACSHA256.HashData(key, Encoding.UTF8.GetBytes((value ?? "").Trim().ToLowerInvariant()));
+            return Convert.ToHexString(mac, 0, 8).ToLowerInvariant();
+        }
 
         /// <summary>true se <paramref name="text"/> è una busta della chat (i messaggi di prima erano in chiaro).</summary>
         public static bool IsChatEnvelope(string text)

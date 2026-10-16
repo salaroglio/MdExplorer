@@ -446,7 +446,7 @@ namespace MdExplorer.Services.TeamChat
                 {
                     foreach (var userElement in usersElement.EnumerateArray())
                     {
-                        var user = ParseUser(userElement);
+                        var user = ChatEnvelope.OpenUser(_keys.Find(roomId), ParseUser(userElement));
                         if (user != null)
                             users.Add(user);
                     }
