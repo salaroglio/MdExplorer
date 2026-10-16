@@ -42683,7 +42683,10 @@ class MailboxService {
       params
     });
   }
-  /** Archivia tutti i messaggi in posta del progetto. */
+  /**
+   * Archivia tutto ciò che è chiuso nella posta del progetto: messaggi e giri conclusi o fermi. Restano (e la risposta li
+   * conta) i giri in corso, gli incarichi da avviare, i lavori da approvare e i messaggi con pulsanti da premere.
+   */
   archiveAll(projectPath) {
     const params = new _angular_common_http__WEBPACK_IMPORTED_MODULE_0__.HttpParams().set('projectPath', projectPath);
     return this.http.post('/api/A2A/mailbox/inbox/archive-all', null, {
@@ -48088,4 +48091,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.9a4b41fa981234f1.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.b7088e09a81d3721.js.map

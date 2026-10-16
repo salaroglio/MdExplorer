@@ -183,6 +183,61 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Archive_everything_closed_and_say_what_is_left()
+        {
+            // 15/10/2026: archive-all rispose 0 con giri e incarichi ancora in posta (archiviava solo i messaggi a te).
+            using var ctx = new AgentCityContext();
+            _ctx = ctx;
+            var path = Setup(ctx, "sched-archivia-tutto", WorkflowWithSynthesis);
+            var held = await LaunchAndWaitForHold(ctx, path);
+            var q = "?projectPath=" + System.Uri.EscapeDataString(path);
+
+            // Tre messaggi a me: uno del giro in corso, uno con pulsanti da premere, uno qualunque. Si archivia solo il terzo.
+            var (_, open) = await ctx.GetJson("/api/A2A/workflow/rounds" + q);
+            var roundRun = open.RootElement.GetProperty("rounds")[0].GetProperty("runs")[0].GetString();
+            var mailbox = ctx.Factory.Services.GetRequiredService<IAgentMailbox>();
+            EnqueueResult Mail(string body, string run = null, string replies = null)
+            {
+                var r = mailbox.Enqueue(new EnqueueRequest { ProjectPath = path, FromAgent = "capo", ToAgent = "user", Body = body, RunId = run, Replies = replies });
+                Assert.IsTrue(r.Accepted, r.RejectionReason);
+                return r;
+            }
+            Mail("[INFO] dal giro in corso", roundRun);
+            await Task.Delay(2200);   // la posta rifiuta due messaggi dello stesso agente a meno di 2 s (anti-raffica)
+            Mail("[DOMANDA] procedo?", replies: System.Text.Json.JsonSerializer.Serialize(new[] { new MdExplorer.Features.Agents.ResolvedReply
+                { Id = "si", Label = "Sì", Description = "vai", Message = "sì" } }));
+            await Task.Delay(2200);
+            Mail("[INFO] un avviso qualunque");
+
+            var (status, body) = await ctx.PostJson("/api/A2A/mailbox/inbox/archive-all" + q, "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);
+            using (var first = System.Text.Json.JsonDocument.Parse(body))
+            {
+                Assert.AreEqual(0, first.RootElement.GetProperty("rounds").GetInt32(), "il giro è in corso: resta");
+                Assert.AreEqual(1, first.RootElement.GetProperty("messages").GetInt32(), "solo l'avviso qualunque");
+                var left = first.RootElement.GetProperty("remaining");
+                Assert.AreEqual(1, left.GetProperty("messagesInRoundsInProgress").GetInt32(), "il messaggio del giro in corso resta");
+                Assert.AreEqual(1, left.GetProperty("messagesAwaitingChoice").GetInt32(), "la domanda coi pulsanti resta");
+                Assert.AreEqual(1, left.GetProperty("roundsInProgress").GetInt32());
+                Assert.AreEqual(1, left.GetProperty("toStart").GetInt32(), "la scheda da avviare resta, e lo dice");
+            }
+            var (_, rounds) = await ctx.GetJson("/api/A2A/workflow/rounds" + q);
+            Assert.IsFalse(rounds.RootElement.GetProperty("rounds")[0].GetProperty("archived").GetBoolean());
+
+            await ctx.PostJson($"/api/A2A/mailbox/to-start/{held.Id}/decline", "{\"reason\":\"non adesso\"}");
+            var (status2, body2) = await ctx.PostJson("/api/A2A/mailbox/inbox/archive-all" + q, "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, status2, body2);
+            using (var second = System.Text.Json.JsonDocument.Parse(body2))
+            {
+                Assert.AreEqual(1, second.RootElement.GetProperty("rounds").GetInt32(), "ora il giro è fermo: si archivia");
+                Assert.AreEqual(0, second.RootElement.GetProperty("remaining").GetProperty("roundsInProgress").GetInt32());
+                Assert.AreEqual(0, second.RootElement.GetProperty("remaining").GetProperty("toStart").GetInt32());
+            }
+            var (_, after) = await ctx.GetJson("/api/A2A/workflow/rounds" + q);
+            Assert.IsTrue(after.RootElement.GetProperty("rounds")[0].GetProperty("archived").GetBoolean());
+        }
+
+        [TestMethod]
         public async Task Record_the_reason_when_the_owner_does_not_start_the_step()
         {
             using var ctx = new AgentCityContext();

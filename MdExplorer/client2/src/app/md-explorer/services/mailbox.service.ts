@@ -238,10 +238,13 @@ export class MailboxService {
       `/api/A2A/mailbox/rounds/${encodeURIComponent(roundId)}/${archive ? 'archive' : 'unarchive'}`, null, { params });
   }
 
-  /** Archivia tutti i messaggi in posta del progetto. */
-  archiveAll(projectPath: string): Observable<{ archived: number }> {
+  /**
+   * Archivia tutto ciò che è chiuso nella posta del progetto: messaggi e giri conclusi o fermi. Restano (e la risposta li
+   * conta) i giri in corso, gli incarichi da avviare, i lavori da approvare e i messaggi con pulsanti da premere.
+   */
+  archiveAll(projectPath: string): Observable<ArchiveAllResult> {
     const params = new HttpParams().set('projectPath', projectPath);
-    return this.http.post<{ archived: number }>('/api/A2A/mailbox/inbox/archive-all', null, { params });
+    return this.http.post<ArchiveAllResult>('/api/A2A/mailbox/inbox/archive-all', null, { params });
   }
 
   markRead(messageId: string): Observable<{ read: boolean; readAt: string }> {
@@ -306,4 +309,11 @@ export interface MemFact {
   confidence: number;
   tags: string[];
   shared: boolean;
+}
+
+export interface ArchiveAllResult {
+  archived: number;
+  messages: number;
+  rounds: number;
+  remaining: { roundsInProgress: number; messagesInRoundsInProgress: number; messagesAwaitingChoice: number; toStart: number; todo: number };
 }

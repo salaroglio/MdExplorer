@@ -290,7 +290,13 @@ namespace MdExplorer.Controllers.A2A
             }
         }
 
-        /// <summary>Archivia tutti i messaggi <c>to:user</c> in posta di un progetto: l'elenco si svuota in un gesto.</summary>
+        /// <summary>
+        /// Archivia tutto ciò che è CHIUSO nella posta del progetto (16/10/2026): i messaggi a te e i giri conclusi o fermi, con i
+        /// loro messaggi. Niente che aspetti qualcuno sparisce: restano i giri in corso con i loro messaggi, gli incarichi da
+        /// avviare, i lavori da approvare e i messaggi con pulsanti ancora da premere. La risposta dice quanto ha archiviato per
+        /// tipo e quanto resta, così uno «0» non fa credere che la posta sia vuota (prima archiviava solo i messaggi a te, e
+        /// con giri e incarichi in posta rispondeva 0).
+        /// </summary>
         [HttpPost("inbox/archive-all")]
         public IActionResult ArchiveAll([FromQuery] string? projectPath)
         {
@@ -298,20 +304,49 @@ namespace MdExplorer.Controllers.A2A
                 return BadRequest(new { error = "projectPath è obbligatorio." });
             try
             {
-                var dal = _session.GetDal<AgentMessage>();
+                var rounds = _workflow.Rounds(projectPath);
+                var alreadyArchived = ArchivedRoundIds(projectPath);
+                var closedRounds = rounds.Where(r => (r.Finished || r.Stopped) && !alreadyArchived.Contains(r.Id)).ToList();
+                var openRounds = rounds.Where(r => !r.Finished && !r.Stopped).ToList();
+                string Run(string run) => run.Replace("-", "").ToLowerInvariant();
+                var openRuns = openRounds.SelectMany(r => r.Runs).Select(Run).ToHashSet();
+
+                // Prima di aprire la transazione: Answered legge per conto suo.
                 _session.BeginTransaction();
                 var inMail = FilterByProject(
-                    dal.GetList().Where(m => m.ToAgent == ConversationHopGuard.UserRecipient && m.ArchivedAt == null).ToList(),
+                    _session.GetDal<AgentMessage>().GetList().Where(m => m.ToAgent == ConversationHopGuard.UserRecipient && m.ArchivedAt == null).ToList(),
                     projectPath).ToList();
+                _session.Commit();
+                var inOpenRound = inMail.Where(m => m.RunId != null && openRuns.Contains(Run(m.RunId))).Select(m => m.Id).ToHashSet();
+                var awaitingChoice = inMail.Where(m => !inOpenRound.Contains(m.Id) && HasReplies(m) && !Answered(m)).Select(m => m.Id).ToHashSet();
+                var toArchive = inMail.Where(m => !inOpenRound.Contains(m.Id) && !awaitingChoice.Contains(m.Id)).Select(m => m.Id).ToHashSet();
+
                 var now = DateTime.UtcNow;
-                foreach (var message in inMail)
+                _session.BeginTransaction();
+                var marks = _session.GetDal<ArchivedRound>();
+                foreach (var r in closedRounds)
+                    marks.Save(new ArchivedRound { ProjectPath = projectPath, RoundId = r.Id, ArchivedAt = now });
+                var dal = _session.GetDal<AgentMessage>();
+                var messages = dal.GetList().Where(m => toArchive.Contains(m.Id)).ToList();
+                foreach (var message in messages)
                 {
                     message.ArchivedAt = now;
                     message.ReadAt ??= now;
                     dal.Save(message);
                 }
                 _session.Commit();
-                return Ok(new { archived = inMail.Count });
+
+                var remaining = new
+                {
+                    roundsInProgress = openRounds.Count(r => !alreadyArchived.Contains(r.Id)),
+                    messagesInRoundsInProgress = inOpenRound.Count,
+                    messagesAwaitingChoice = awaitingChoice.Count,
+                    toStart = AwaitingOwner(projectPath).Count,
+                    todo = TodoCount(projectPath),
+                };
+                _logger.LogInformation("[Mailbox] archivia tutto in {Project}: {Messages} messaggi, {Rounds} giri; restano {Remaining}",
+                    projectPath, messages.Count, closedRounds.Count, remaining);
+                return Ok(new { archived = messages.Count, messages = messages.Count, rounds = closedRounds.Count, remaining });
             }
             catch (Exception ex)
             {
@@ -319,6 +354,15 @@ namespace MdExplorer.Controllers.A2A
                 _logger.LogError(ex, "[Mailbox] ArchiveAll fallito per {Project}", projectPath);
                 return StatusCode(500, new { error = ex.Message });
             }
+        }
+
+        private HashSet<string> ArchivedRoundIds(string projectPath)
+        {
+            _session.BeginTransaction();
+            var ids = _session.GetDal<ArchivedRound>().GetList().ToList()
+                .Where(a => AgentPathComparer.Equals(a.ProjectPath, projectPath)).Select(a => a.RoundId).ToHashSet(StringComparer.Ordinal);
+            _session.Commit();
+            return ids;
         }
 
         /// <summary>Marca un messaggio <c>to:user</c> come letto (toglie dal badge).</summary>
