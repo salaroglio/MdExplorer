@@ -77,6 +77,28 @@ mde_type: ownership
         }
 
         [TestMethod]
+        public async Task Tell_the_agent_when_the_request_waits_for_a_computer_that_is_off()
+        {
+            using var ctx = new AgentCityContext();
+            var (_, path) = ctx.SeedProject("intervention-spento");
+            SetupOwnership(ctx, path);
+            var token = ctx.MintRunToken("analyst", path, ctx.SeedConversation(path).ToString());
+
+            ctx.FederationSender.Result = MdExplorer.Services.Federation.RelayDelivery.Queued;
+            var resp = await PostIntervention(ctx, token, "WSAA-TOT", "Genera il Java dal workflow.");
+            var body = await resp.Content.ReadAsStringAsync();
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, resp.StatusCode, body);
+            using var json = System.Text.Json.JsonDocument.Parse(body);
+            Assert.AreEqual("queued", json.RootElement.GetProperty("delivery").GetString());
+            StringAssert.Contains(json.RootElement.GetProperty("note").GetString(), "7 days");
+
+            ctx.FederationSender.Result = MdExplorer.Services.Federation.RelayDelivery.Delivered;
+            var again = await (await PostIntervention(ctx, token, "WSAA-TOT", "E i test?")).Content.ReadAsStringAsync();
+            using var json2 = System.Text.Json.JsonDocument.Parse(again);
+            Assert.AreEqual("delivered", json2.RootElement.GetProperty("delivery").GetString());
+        }
+
+        [TestMethod]
         public async Task Fail_loud_on_an_unknown_scope()
         {
             using var ctx = new AgentCityContext();

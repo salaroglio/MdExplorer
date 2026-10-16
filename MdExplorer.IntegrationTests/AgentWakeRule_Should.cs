@@ -120,12 +120,33 @@ namespace MdExplorer.IntegrationTests
         }
 
         [TestMethod]
+        public async Task Tell_the_person_when_the_message_waits_on_the_relay_for_a_computer_that_is_off()
+        {
+            // 16/10/2026: «accodato» (computer del collega spento) valeva come «consegnato» e nessuno lo sapeva.
+            if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
+            using var ctx = new AgentCityContext();
+            var (key, _) = City(ctx, "computer-spento");
+            ctx.FederationSender.Result = MdExplorer.Services.Federation.RelayDelivery.Queued;
+
+            await GatewayRpc.SendMessage(ctx.Client, key, "suo", "al lavoro");
+
+            var msgs = await ctx.WaitForMessages(m => m.Any(x => x.ToAgent == "suo" && x.State == AgentMessage.StateEnum.Processed));
+            Assert.AreEqual(1, ctx.Dispatches().Count(d => d.TargetAgent == "suo"), "partito una volta: il relay lo tiene");
+            await ctx.WaitForMessages(m => m.Any(x => x.FromAgent == "suo" && x.ToAgent == ConversationHopGuard.UserRecipient));
+            var notice = ctx.Messages().Single(m => m.FromAgent == "suo" && m.ToAgent == ConversationHopGuard.UserRecipient);
+            StringAssert.Contains(notice.Body, "marco@pentagroup.test");
+            StringAssert.Contains(notice.Body, "spento");
+            StringAssert.Contains(notice.Body, "7 giorni");
+            Assert.AreEqual(0, ctx.Runner.Calls, "nessun ripiego su questo computer");
+        }
+
+        [TestMethod]
         public async Task Wait_and_tell_the_person_once_when_the_road_is_down_then_leave_by_itself()
         {
             if (!GitAvail()) { Assert.Inconclusive("git non disponibile."); return; }
             using var ctx = new AgentCityContext();
             var (key, _) = City(ctx, "strada-chiusa");
-            ctx.FederationSender.Result = false;
+            ctx.FederationSender.Result = MdExplorer.Services.Federation.RelayDelivery.NotSent;
 
             await GatewayRpc.SendMessage(ctx.Client, key, "suo", "al lavoro");
 
@@ -143,7 +164,7 @@ namespace MdExplorer.IntegrationTests
             StringAssert.Contains(notice.Body, "marco@pentagroup.test");
             StringAssert.Contains(notice.Body, "riparte da solo");
 
-            ctx.FederationSender.Result = true;
+            ctx.FederationSender.Result = MdExplorer.Services.Federation.RelayDelivery.Delivered;
             msgs = await ctx.WaitForMessages(m => m.Any(x => x.ToAgent == "suo" && x.State == AgentMessage.StateEnum.Processed));
             Assert.AreEqual(AgentMessage.StateEnum.Processed, msgs.First(x => x.ToAgent == "suo").State);
             Assert.AreEqual(parked.Id.ToString(), ctx.FederationSender.LastPayload.RequestId);

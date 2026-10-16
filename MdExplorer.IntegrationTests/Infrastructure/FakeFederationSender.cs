@@ -16,9 +16,9 @@ namespace MdExplorer.IntegrationTests.Infrastructure
         public FederatedResultPayload LastResultPayload { get; private set; }
 
         /// <summary>Esito che il fake restituisce (default: consegnato).</summary>
-        public bool Result { get; set; } = true;
+        public RelayDelivery Result { get; set; } = RelayDelivery.Delivered;
 
-        public Task<bool> SendFederatedRequestAsync(string projectPath, string targetOwnerId, FederatedRequestPayload payload)
+        public Task<RelayDelivery> SendFederatedRequestAsync(string projectPath, string targetOwnerId, FederatedRequestPayload payload)
         {
             LastProjectPath = projectPath;
             LastTargetOwnerId = targetOwnerId;
@@ -26,7 +26,7 @@ namespace MdExplorer.IntegrationTests.Infrastructure
             return Task.FromResult(Result);
         }
 
-        public Task<bool> SendFederatedResultAsync(string projectPath, string targetOwnerId, FederatedResultPayload payload)
+        public Task<RelayDelivery> SendFederatedResultAsync(string projectPath, string targetOwnerId, FederatedResultPayload payload)
         {
             LastProjectPath = projectPath;
             LastTargetOwnerId = targetOwnerId;
@@ -37,7 +37,7 @@ namespace MdExplorer.IntegrationTests.Infrastructure
         /// <summary>I campanelli del workflow spediti: a chi, e per quale giro.</summary>
         public System.Collections.Concurrent.ConcurrentQueue<(string ProjectPath, string TargetOwnerId, WorkflowNewsPayload Payload)> Bells { get; } = new();
 
-        public Task<bool> SendWorkflowNewsAsync(string projectPath, string targetOwnerId, WorkflowNewsPayload payload)
+        public Task<RelayDelivery> SendWorkflowNewsAsync(string projectPath, string targetOwnerId, WorkflowNewsPayload payload)
         {
             Bells.Enqueue((projectPath, targetOwnerId, payload));
             return Task.FromResult(Result);

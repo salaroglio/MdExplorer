@@ -458,7 +458,7 @@ namespace MdExplorer.Controllers.A2A
             _session.Commit();
 
             var sent = await _federationSender.SendFederatedRequestAsync(claims.ProjectPath, targetOwnerId, payload);
-            if (!sent)
+            if (sent == RelayDelivery.NotSent)
                 return StatusCode(503, new { error = "Nessuna connessione federata attiva per il progetto (città accesa e relay raggiungibile?)." });
 
             // Send riuscito: solo ora l'hop è consumato e la correlazione persistita. Ri-leggo la
@@ -491,6 +491,8 @@ namespace MdExplorer.Controllers.A2A
                 federationId = fedId.ToString(),
                 targetAgent,
                 targetOwner = entry.GitEmail,
+                delivery = DeliveryId(sent),
+                note = DeliveryNote(sent, entry.GitEmail),
             });
         }
 
@@ -623,14 +625,24 @@ namespace MdExplorer.Controllers.A2A
             };
 
             var sent = await _federationSender.SendFederatedResultAsync(claims.ProjectPath, targetOwnerId, payload);
-            if (!sent)
+            if (sent == RelayDelivery.NotSent)
                 return StatusCode(503, new { error = "Nessuna connessione federata attiva per il progetto (città accesa e relay raggiungibile?)." });
 
             _logger.LogInformation("[A2A/federation/result] {Agent} → esito '{Verdict}' per req {Req} verso {Owner}",
                 claims.AgentName, payload.Verdict, payload.RequestId, conv.RemoteOwner);
-            return Ok(new { reported = true, requestId = payload.RequestId, verdict = payload.Verdict });
+            return Ok(new { reported = true, requestId = payload.RequestId, verdict = payload.Verdict,
+                            delivery = DeliveryId(sent), note = DeliveryNote(sent, conv.RemoteOwner) });
         }
 
+
+        /// <summary>Per l'agente che ha spedito: «delivered» (il collega ha il computer acceso) o «queued» (spento).</summary>
+        private static string DeliveryId(RelayDelivery d) => d == RelayDelivery.Queued ? "queued" : "delivered";
+
+        /// <summary>Quello che l'agente deve sapere, e dire alla persona, quando la busta aspetta sul relay.</summary>
+        private static string DeliveryNote(RelayDelivery d, string owner) => d == RelayDelivery.Queued
+            ? $"The computer of {owner} is off right now: the request waits on the relay and arrives when MdExplorer starts there. " +
+              "If it does not start within 7 days the relay drops it. Tell the person; do not say it has been received."
+            : null;
 
         private RunTokenClaims ResolveClaims()
         {

@@ -77,23 +77,56 @@ namespace MdExplorer.Services.Federation
     }
 
     /// <summary>
+    /// Che cosa ha fatto il relay di una busta (16/10/2026). Prima era un sì/no e «accodata» valeva come «consegnata»:
+    /// ma una busta accodata aspetta che l'altro computer si accenda, e dopo 7 giorni il relay la butta.
+    /// </summary>
+    public enum RelayDelivery
+    {
+        /// <summary>Non partita: nessuna connessione attiva, il relay ha detto no o non ha risposto in tempo.</summary>
+        NotSent,
+        /// <summary>Consegnata adesso alla città di destinazione, che è accesa.</summary>
+        Delivered,
+        /// <summary>La città di destinazione è spenta: la busta aspetta sul relay (fino a 7 giorni) e arriva quando si accende.</summary>
+        Queued,
+    }
+
+    /// <summary>Come si legge la risposta del relay a <c>send</c>.</summary>
+    public static class RelayAck
+    {
+        /// <summary>
+        /// <c>{ok:true, status:"delivered"}</c> o <c>{ok:true, status:"queued"}</c>. Un ok senza uno stato che si conosce vale
+        /// «accodata»: la cosa più prudente da dire, mai una consegna che non si sa.
+        /// </summary>
+        public static RelayDelivery ReadSend(System.Text.Json.JsonElement ack)
+        {
+            if (ack.ValueKind != System.Text.Json.JsonValueKind.Object
+                || !(ack.TryGetProperty("ok", out var ok) && ok.ValueKind == System.Text.Json.JsonValueKind.True))
+                return RelayDelivery.NotSent;
+            return ack.TryGetProperty("status", out var status) && status.ValueKind == System.Text.Json.JsonValueKind.String
+                   && status.GetString() == "delivered"
+                ? RelayDelivery.Delivered
+                : RelayDelivery.Queued;
+        }
+    }
+
+    /// <summary>
     /// Spedisce una richiesta di intervento federata a un'altra città sulla stessa stanza-repo
     /// (§12.6): cifra il payload col room secret e lo emette al relay (<c>send</c> mirato per
-    /// ownerId). Ritorna false se il progetto non ha una connessione federata attiva.
+    /// ownerId). Dice se la busta è consegnata, accodata o non partita (<see cref="RelayDelivery"/>).
     /// </summary>
     public interface IFederationSender
     {
-        Task<bool> SendFederatedRequestAsync(string projectPath, string targetOwnerId, FederatedRequestPayload payload);
+        Task<RelayDelivery> SendFederatedRequestAsync(string projectPath, string targetOwnerId, FederatedRequestPayload payload);
 
         /// <summary>
         /// Spedisce l'esito di ritorno di un intervento delegato (Fase 7a): stesso tunnel cifrato
         /// della richiesta, payload distinto (<see cref="FederatedResultPayload"/>). false se il
         /// progetto non ha una connessione federata attiva.
         /// </summary>
-        Task<bool> SendFederatedResultAsync(string projectPath, string targetOwnerId, FederatedResultPayload payload);
+        Task<RelayDelivery> SendFederatedResultAsync(string projectPath, string targetOwnerId, FederatedResultPayload payload);
 
         /// <summary>Il campanello del workflow verso il computer di un collega: «novità nel registro dei giri».</summary>
-        Task<bool> SendWorkflowNewsAsync(string projectPath, string targetOwnerId, WorkflowNewsPayload payload);
+        Task<RelayDelivery> SendWorkflowNewsAsync(string projectPath, string targetOwnerId, WorkflowNewsPayload payload);
 
         /// <summary>
         /// Chiude e ricostruisce la connessione della stanza del progetto (test impersonazione):
@@ -516,30 +549,30 @@ namespace MdExplorer.Services.Federation
         /// <summary>
         /// Spedisce una richiesta federata (§12.6): cifra il payload col room secret del progetto
         /// e lo emette al relay (<c>send</c> mirato per <paramref name="targetOwnerId"/>) sulla
-        /// connessione della stanza. false se il progetto non ha una connessione federata attiva.
+        /// connessione della stanza. <see cref="RelayDelivery.NotSent"/> se il progetto non ha una connessione federata attiva.
         /// </summary>
-        public Task<bool> SendFederatedRequestAsync(string projectPath, string targetOwnerId, FederatedRequestPayload payload)
+        public Task<RelayDelivery> SendFederatedRequestAsync(string projectPath, string targetOwnerId, FederatedRequestPayload payload)
             => SendEnvelopeAsync(projectPath, targetOwnerId, System.Text.Json.JsonSerializer.Serialize(payload));
 
         /// <inheritdoc/>
-        public Task<bool> SendFederatedResultAsync(string projectPath, string targetOwnerId, FederatedResultPayload payload)
+        public Task<RelayDelivery> SendFederatedResultAsync(string projectPath, string targetOwnerId, FederatedResultPayload payload)
             => SendEnvelopeAsync(projectPath, targetOwnerId, System.Text.Json.JsonSerializer.Serialize(payload));
 
         /// <inheritdoc/>
-        public Task<bool> SendWorkflowNewsAsync(string projectPath, string targetOwnerId, WorkflowNewsPayload payload)
+        public Task<RelayDelivery> SendWorkflowNewsAsync(string projectPath, string targetOwnerId, WorkflowNewsPayload payload)
             => SendEnvelopeAsync(projectPath, targetOwnerId, System.Text.Json.JsonSerializer.Serialize(payload));
 
         // Core condiviso: cifra il JSON già serializzato del payload TIPATO col room secret del
         // progetto e lo emette al relay. Serializzare qui su `object` perderebbe le proprietà
         // (System.Text.Json guarda il tipo statico), perciò ogni overload serializza il proprio
         // tipo concreto e passa qui la stringa.
-        private async Task<bool> SendEnvelopeAsync(string projectPath, string targetOwnerId, string payloadJson)
+        private async Task<RelayDelivery> SendEnvelopeAsync(string projectPath, string targetOwnerId, string payloadJson)
         {
             var city = _snapshot.FirstOrDefault(c => AgentPathComparer.Equals(c.ProjectPath, projectPath));
             if (city == null || !_rooms.TryGetValue(city.RoomId, out var conn))
             {
                 _logger.LogWarning("[Federation] send federato: nessuna connessione attiva per '{Project}'.", projectPath);
-                return false;
+                return RelayDelivery.NotSent;
             }
 
             string secret;
@@ -551,17 +584,19 @@ namespace MdExplorer.Services.Federation
             if (string.IsNullOrWhiteSpace(secret))
             {
                 _logger.LogWarning("[Federation] send federato: room secret assente per '{Project}'.", projectPath);
-                return false;
+                return RelayDelivery.NotSent;
             }
 
             var envelope = FederationCrypto.Encrypt(secret, city.RoomId, payloadJson);
             try
             {
-                // true SOLO se il relay ackka la presa in carico (consegnata o accodata).
-                var acked = await conn.SendAsync(targetOwnerId, envelope);
-                if (!acked)
+                // Il relay dice se l'ha consegnata (città accesa) o accodata (città spenta, fino a 7 giorni).
+                var outcome = await conn.SendAsync(targetOwnerId, envelope);
+                if (outcome == RelayDelivery.NotSent)
                     _logger.LogWarning("[Federation] send federato per '{Project}': il relay non ha confermato (perso/ok:false/timeout).", projectPath);
-                return acked;
+                else if (outcome == RelayDelivery.Queued)
+                    _logger.LogInformation("[Federation] send federato per '{Project}': la città {Owner} è spenta, la busta aspetta sul relay.", projectPath, targetOwnerId);
+                return outcome;
             }
             catch (Exception ex)
             {
@@ -569,7 +604,7 @@ namespace MdExplorer.Services.Federation
                 // RoomConnection esiste ma il socket è giù (relay caduto, mid-reconnect):
                 // il chiamante deve vedere un 503 ritentabile, non un 500 generico.
                 _logger.LogWarning(ex, "[Federation] send federato fallito per '{Project}' (socket non attivo?)", projectPath);
-                return false;
+                return RelayDelivery.NotSent;
             }
         }
 
@@ -884,27 +919,21 @@ namespace MdExplorer.Services.Federation
             /// entro il timeout ⇒ false: il chiamante non deve credere spedito ciò che non lo è
             /// (altrimenti brucia un hop per nulla).
             /// </summary>
-            public async Task<bool> SendAsync(string toOwnerId, string envelope)
+            public async Task<RelayDelivery> SendAsync(string toOwnerId, string envelope)
             {
                 var socket = _socket;
                 if (socket == null || !socket.Connected)
                     throw new InvalidOperationException("connessione alla stanza non attiva: impossibile spedire.");
 
-                var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var tcs = new TaskCompletionSource<RelayDelivery>(TaskCreationOptions.RunContinuationsAsynchronously);
                 await socket.EmitAsync("send", response =>
                 {
-                    try
-                    {
-                        var el = response.GetValue<System.Text.Json.JsonElement>(0);
-                        var ok = el.TryGetProperty("ok", out var okEl)
-                                 && okEl.ValueKind == System.Text.Json.JsonValueKind.True;
-                        tcs.TrySetResult(ok);
-                    }
-                    catch { tcs.TrySetResult(false); }
+                    try { tcs.TrySetResult(RelayAck.ReadSend(response.GetValue<System.Text.Json.JsonElement>(0))); }
+                    catch { tcs.TrySetResult(RelayDelivery.NotSent); }
                 }, new { toOwnerId, envelope });
 
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                using (cts.Token.Register(() => tcs.TrySetResult(false)))
+                using (cts.Token.Register(() => tcs.TrySetResult(RelayDelivery.NotSent)))
                     return await tcs.Task;
             }
 

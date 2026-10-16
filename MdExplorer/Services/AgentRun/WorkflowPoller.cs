@@ -203,7 +203,10 @@ namespace MdExplorer.Services.AgentRun
             {
                 var ok = await _sender.SendWorkflowNewsAsync(projectPath, FederationRoom.ComputeUserId(email),
                     new WorkflowNewsPayload { Round = roundId, FromOwner = me });
-                if (!ok) _logger.LogInformation("[Giri] campanello per {Email} non consegnato: lo vedrà al prossimo controllo", email);
+                if (ok == MdExplorer.Services.Federation.RelayDelivery.NotSent)
+                    _logger.LogInformation("[Giri] campanello per {Email} non consegnato: lo vedrà al prossimo controllo", email);
+                else if (ok == MdExplorer.Services.Federation.RelayDelivery.Queued)
+                    _logger.LogInformation("[Giri] {Email} ha il computer spento: il campanello aspetta sul relay", email);
             }
         }
     }

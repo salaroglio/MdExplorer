@@ -29,8 +29,11 @@ namespace MdExplorer.Services.AgentRun
     /// </summary>
     public interface IAgentMessageForwarder
     {
-        /// <summary>True when the road took the message (delivered, or kept for a computer that is off).</summary>
-        Task<bool> ForwardAsync(AgentMessage message, AgentOwnerVerdict owner, CancellationToken ct = default);
+        /// <summary>
+        /// What the road did with the message: delivered to the colleague's computer, queued on the relay because that
+        /// computer is off (it arrives when it starts, within 7 days), or not sent.
+        /// </summary>
+        Task<MdExplorer.Services.Federation.RelayDelivery> ForwardAsync(AgentMessage message, AgentOwnerVerdict owner, CancellationToken ct = default);
     }
 
     public sealed class AgentMessageForwarder : IAgentMessageForwarder
@@ -49,7 +52,7 @@ namespace MdExplorer.Services.AgentRun
             _logger = logger;
         }
 
-        public async Task<bool> ForwardAsync(AgentMessage message, AgentOwnerVerdict owner, CancellationToken ct = default)
+        public async Task<MdExplorer.Services.Federation.RelayDelivery> ForwardAsync(AgentMessage message, AgentOwnerVerdict owner, CancellationToken ct = default)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
             if (owner == null || owner.Kind != AgentOwnerKind.SomeoneElse || string.IsNullOrWhiteSpace(owner.OwnerEmail))
@@ -104,11 +107,11 @@ namespace MdExplorer.Services.AgentRun
                 Message = message.Body,
                 Topics = AgentTopics.Split(message.Topics)?.ToList(),
             });
-            if (!sent)
+            if (sent == MdExplorer.Services.Federation.RelayDelivery.NotSent)
             {
                 _logger.LogWarning("[Forward] '{To}' lavora sul computer di {Owner}, ma il collegamento tra le città non è attivo: messaggio {Id} non partito.",
                     message.ToAgent, owner.OwnerEmail, message.Id);
-                return false;
+                return sent;
             }
 
             // Sent: the conversation remembers who it went to. The hop was already counted when the message
@@ -130,9 +133,10 @@ namespace MdExplorer.Services.AgentRun
                 db.Commit();
             }
 
-            _logger.LogInformation("[Forward] {From} → '{To}' sul computer di {Owner} (ambito '{Scope}', richiesta {Id}).",
-                message.FromAgent, message.ToAgent, owner.OwnerEmail, owner.Scope, message.Id);
-            return true;
+            _logger.LogInformation("[Forward] {From} → '{To}' sul computer di {Owner} (ambito '{Scope}', richiesta {Id}): {Outcome}.",
+                message.FromAgent, message.ToAgent, owner.OwnerEmail, owner.Scope, message.Id,
+                sent == MdExplorer.Services.Federation.RelayDelivery.Queued ? "computer spento, aspetta sul relay" : "consegnato");
+            return sent;
         }
     }
 }

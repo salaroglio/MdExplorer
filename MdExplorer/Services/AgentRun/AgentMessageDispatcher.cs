@@ -291,9 +291,16 @@ namespace MdExplorer.Services.AgentRun
             {
                 // Di un altro: il messaggio va al suo computer, dove lui lo accetta e il suo agente parte.
                 // Qui la consegna è conclusa. Se la strada non c'è, aspetta — mai un ripiego su questo computer.
-                if (owner.Kind == AgentOwnerKind.SomeoneElse && await ForwardToOwnerAsync(snapshot, owner, ct))
+                var road = owner.Kind == AgentOwnerKind.SomeoneElse
+                    ? await ForwardToOwnerAsync(snapshot, owner, ct)
+                    : MdExplorer.Services.Federation.RelayDelivery.NotSent;
+                if (road != MdExplorer.Services.Federation.RelayDelivery.NotSent)
                 {
                     MarkProcessed(messageId);
+                    // Accodato: il computer del collega è spento. Lo si dice alla persona, che altrimenti lo crederebbe
+                    // già arrivato; e dopo 7 giorni il relay lo butta.
+                    if (road == MdExplorer.Services.Federation.RelayDelivery.Queued)
+                        TellQueuedForOwner(snapshot, owner);
                     return;
                 }
                 ParkForOwner(messageId, snapshot, owner);
@@ -840,8 +847,10 @@ namespace MdExplorer.Services.AgentRun
                     Reason = reason,
                 };
                 var ok = await _federationSender.SendFederatedResultAsync(projectPath, targetOwner, payload);
-                if (!ok)
+                if (ok == MdExplorer.Services.Federation.RelayDelivery.NotSent)
                     _logger.LogWarning("[Dispatcher] esito not-ready per req {Req} non spedito (relay non raggiungibile?).", rc.RequestId);
+                else if (ok == MdExplorer.Services.Federation.RelayDelivery.Queued)
+                    _logger.LogInformation("[Dispatcher] esito not-ready per req {Req} accodato: il computer d'origine è spento.", rc.RequestId);
             }
             catch (Exception ex)
             {
@@ -923,13 +932,36 @@ namespace MdExplorer.Services.AgentRun
         /// dopo una breve attesa. <b>Non</b> tocca <see cref="AgentMessage.Attempts"/> — il
         /// parcheggio non è un fallimento (come lo shutdown, §7).
         /// </summary>
-        private async Task<bool> ForwardToOwnerAsync(AgentMessage snapshot, AgentOwnerVerdict owner, CancellationToken ct)
+        private async Task<MdExplorer.Services.Federation.RelayDelivery> ForwardToOwnerAsync(AgentMessage snapshot, AgentOwnerVerdict owner, CancellationToken ct)
         {
             try { return await _forwarder.ForwardAsync(snapshot, owner, ct); }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[Dispatcher] inoltro di {Id} verso il computer di {Owner} fallito.", snapshot.Id, owner.OwnerEmail);
-                return false;
+                return MdExplorer.Services.Federation.RelayDelivery.NotSent;
+            }
+        }
+
+        /// <summary>
+        /// Il messaggio è partito ma il computer di chi risponde dell'agente è spento: aspetta sul relay. La persona lo sa
+        /// da qui, con il limite dei 7 giorni, invece di credere che l'agente del collega ci stia già lavorando.
+        /// </summary>
+        private void TellQueuedForOwner(AgentMessage snapshot, AgentOwnerVerdict owner)
+        {
+            try
+            {
+                _mailbox.Enqueue(new EnqueueRequest
+                {
+                    ProjectPath = snapshot.ProjectPath,
+                    FromAgent = snapshot.ToAgent,
+                    ToAgent = ConversationHopGuard.UserRecipient,
+                    Body = $"[INFO] Il messaggio per «{snapshot.ToAgent}» è partito, ma il computer di {owner.OwnerEmail} adesso è spento: "
+                         + "aspetta sul relay e arriva quando riapre MdExplorer. Se non lo riapre entro 7 giorni il relay lo butta.",
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Dispatcher] avviso «accodato» per {Id} non scritto in posta.", snapshot.Id);
             }
         }
 
