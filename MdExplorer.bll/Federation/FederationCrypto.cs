@@ -36,6 +36,10 @@ namespace MdExplorer.Features.Federation
         // secret ma con etichetta distinta, così il relay può custodire/confrontare il token
         // di join SENZA mai poter derivare la chiave di cifratura (buste chiuse, R15).
         private static readonly byte[] JoinInfo = Encoding.UTF8.GetBytes("mdfed-join");
+        // I messaggi della chat del progetto (16/10/2026) usano lo stesso segreto con un'etichetta
+        // loro: una busta della chat non si apre come busta della città, e viceversa.
+        private const string ChatPrefix = "mdchat.v1.";
+        private static readonly byte[] ChatInfo = Encoding.UTF8.GetBytes("mdchat-v1");
 
         private const int KeyLen = 32;    // AES-256
         private const int NonceLen = 12;  // 96-bit, raccomandato per GCM
@@ -45,7 +49,9 @@ namespace MdExplorer.Features.Federation
         /// Deriva la chiave simmetrica dal room secret e dal roomId (salt). Punto unico di
         /// verità: la stessa derivazione DEVE valere su tutte le città per interoperare.
         /// </summary>
-        public static byte[] DeriveKey(string roomSecret, string roomId)
+        public static byte[] DeriveKey(string roomSecret, string roomId) => DeriveKey(roomSecret, roomId, Info);
+
+        private static byte[] DeriveKey(string roomSecret, string roomId, byte[] info)
         {
             if (string.IsNullOrEmpty(roomSecret))
                 throw new ArgumentException("room secret assente: senza segreto non si può derivare la chiave.", nameof(roomSecret));
@@ -54,7 +60,7 @@ namespace MdExplorer.Features.Federation
 
             var ikm = Encoding.UTF8.GetBytes(roomSecret);
             var salt = Encoding.UTF8.GetBytes(roomId);
-            return HKDF.DeriveKey(HashAlgorithmName.SHA256, ikm, KeyLen, salt, Info);
+            return HKDF.DeriveKey(HashAlgorithmName.SHA256, ikm, KeyLen, salt, info);
         }
 
         /// <summary>
@@ -78,10 +84,32 @@ namespace MdExplorer.Features.Federation
 
         /// <summary>Cifra <paramref name="plaintext"/> in una busta <c>mdfed.v1....</c>.</summary>
         public static string Encrypt(string roomSecret, string roomId, string plaintext)
+            => Seal(roomSecret, roomId, plaintext, Info, Prefix);
+
+        /// <summary>
+        /// Apre una busta <c>mdfed.v1....</c>. Fail-loud: versione ignota, formato corrotto o
+        /// tag non valido (manomissione / secret errato) → <see cref="FederationCryptoException"/>.
+        /// </summary>
+        public static string Decrypt(string roomSecret, string roomId, string envelope)
+            => Open(roomSecret, roomId, envelope, Info, Prefix);
+
+        /// <summary>Cifra un messaggio della chat del progetto in una busta <c>mdchat.v1....</c>.</summary>
+        public static string EncryptChat(string roomSecret, string roomId, string plaintext)
+            => Seal(roomSecret, roomId, plaintext, ChatInfo, ChatPrefix);
+
+        /// <summary>Apre una busta <c>mdchat.v1....</c>, fail-loud come <see cref="Decrypt"/>.</summary>
+        public static string DecryptChat(string roomSecret, string roomId, string envelope)
+            => Open(roomSecret, roomId, envelope, ChatInfo, ChatPrefix);
+
+        /// <summary>true se <paramref name="text"/> è una busta della chat (i messaggi di prima erano in chiaro).</summary>
+        public static bool IsChatEnvelope(string text)
+            => text != null && text.StartsWith(ChatPrefix, StringComparison.Ordinal);
+
+        private static string Seal(string roomSecret, string roomId, string plaintext, byte[] info, string prefix)
         {
             if (plaintext == null) throw new ArgumentNullException(nameof(plaintext));
 
-            var key = DeriveKey(roomSecret, roomId);
+            var key = DeriveKey(roomSecret, roomId, info);
             var plainBytes = Encoding.UTF8.GetBytes(plaintext);
 
             var nonce = RandomNumberGenerator.GetBytes(NonceLen);
@@ -97,22 +125,18 @@ namespace MdExplorer.Features.Federation
             Buffer.BlockCopy(tag, 0, envelope, NonceLen, TagLen);
             Buffer.BlockCopy(cipher, 0, envelope, NonceLen + TagLen, cipher.Length);
 
-            return Prefix + Convert.ToBase64String(envelope);
+            return prefix + Convert.ToBase64String(envelope);
         }
 
-        /// <summary>
-        /// Apre una busta <c>mdfed.v1....</c>. Fail-loud: versione ignota, formato corrotto o
-        /// tag non valido (manomissione / secret errato) → <see cref="FederationCryptoException"/>.
-        /// </summary>
-        public static string Decrypt(string roomSecret, string roomId, string envelope)
+        private static string Open(string roomSecret, string roomId, string envelope, byte[] info, string prefix)
         {
             if (string.IsNullOrEmpty(envelope))
                 throw new FederationCryptoException("Busta vuota.");
-            if (!envelope.StartsWith(Prefix, StringComparison.Ordinal))
-                throw new FederationCryptoException($"Versione della busta non riconosciuta: attesa '{Version}'. Aggiornare la città più vecchia.");
+            if (!envelope.StartsWith(prefix, StringComparison.Ordinal))
+                throw new FederationCryptoException($"Versione della busta non riconosciuta: attesa '{prefix.TrimEnd('.')}'. Aggiornare la città più vecchia.");
 
             byte[] raw;
-            try { raw = Convert.FromBase64String(envelope.Substring(Prefix.Length)); }
+            try { raw = Convert.FromBase64String(envelope.Substring(prefix.Length)); }
             catch (FormatException ex) { throw new FederationCryptoException("Busta corrotta: base64 non valido.", ex); }
 
             if (raw.Length < NonceLen + TagLen)
@@ -125,7 +149,7 @@ namespace MdExplorer.Features.Federation
             Buffer.BlockCopy(raw, NonceLen, tag, 0, TagLen);
             Buffer.BlockCopy(raw, NonceLen + TagLen, cipher, 0, cipher.Length);
 
-            var key = DeriveKey(roomSecret, roomId);
+            var key = DeriveKey(roomSecret, roomId, info);
             var plain = new byte[cipher.Length];
             try
             {

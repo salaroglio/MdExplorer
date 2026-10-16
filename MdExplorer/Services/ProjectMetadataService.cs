@@ -23,6 +23,13 @@ namespace MdExplorer.Services
         void SetParticipants(string projectPath, IList<ProjectParticipant> participants);
         AgentCityConfig GetAgentCity(string projectPath);
         AgentCityConfig SetAgentCity(string projectPath, AgentCityConfig config);
+
+        /// <summary>
+        /// Il segreto del PROGETTO (<c>agentCity.roomSecret</c>), che apre la sua stanza sul relay per la
+        /// città e per la chat. Se manca lo genera e lo scrive in <c>.development.yml</c> senza accendere la
+        /// città: <c>Created</c> = true vuol dire che va committato e pushato perché i colleghi lo abbiano.
+        /// </summary>
+        (string Secret, bool Created) EnsureRoomSecret(string projectPath);
         ProjectIconConfig GetIcon(string projectPath);
         string GetIconAbsolutePath(string projectPath);
         void SetIcon(string projectPath, byte[] pngBytes);
@@ -366,6 +373,40 @@ namespace MdExplorer.Services
             File.WriteAllText(filePath, serializer.Serialize(root));
             _logger.LogInformation("AgentCity config updated in {FilePath} (enabled={Enabled})", filePath, config.Enabled);
             return root.AgentCity;
+        }
+
+        public (string Secret, bool Created) EnsureRoomSecret(string projectPath)
+        {
+            if (string.IsNullOrEmpty(projectPath))
+                throw new ArgumentException("projectPath is required", nameof(projectPath));
+            if (!Directory.Exists(projectPath))
+                throw new DirectoryNotFoundException($"Project path does not exist: {projectPath}");
+
+            var existing = GetAgentCity(projectPath)?.RoomSecret;
+            if (!string.IsNullOrWhiteSpace(existing))
+                return (existing, false);
+
+            var filePath = Path.Combine(projectPath, FileName);
+            var deserializer = new DeserializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .IgnoreUnmatchedProperties()
+                .Build();
+            var yaml = File.Exists(filePath) ? File.ReadAllText(filePath) : null;
+            var root = string.IsNullOrWhiteSpace(yaml)
+                ? new DevelopmentConfig()
+                : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
+
+            // Solo il segreto: la città resta com'è (spenta se non c'era).
+            root.AgentCity ??= new AgentCityConfig { Enabled = false };
+            root.AgentCity.RoomSecret = GenerateRoomSecret();
+
+            var serializer = new SerializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .ConfigureDefaultValuesHandling(YamlDotNet.Serialization.DefaultValuesHandling.OmitNull)
+                .Build();
+            File.WriteAllText(filePath, serializer.Serialize(root));
+            _logger.LogInformation("Room secret del progetto creato in {FilePath}: va committato e pushato", filePath);
+            return (root.AgentCity.RoomSecret, true);
         }
 
         // Lista manutenzione normalizzata: trim, niente vuoti/duplicati (case-insensitive),

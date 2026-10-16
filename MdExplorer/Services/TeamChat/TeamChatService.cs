@@ -22,8 +22,9 @@ namespace MdExplorer.Services.TeamChat
         private readonly ILogger<TeamChatService> _logger;
         private readonly HttpClient _httpClient;
         private readonly string _vpsApiUrl;
-        private readonly string _apiKey;
         private readonly VpsChatStreamingService _streamingService;
+        private readonly IChatRoomKeys _keys;
+        private readonly MdExplorer.Services.Federation.IProjectRelaySettingsService _relaySettings;
 
         // Track presence per room: roomId -> (connectionId -> userInfo)
         private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ChatUserInfo>> _roomPresence = new();
@@ -43,17 +44,21 @@ namespace MdExplorer.Services.TeamChat
             ILogger<TeamChatService> logger,
             IHttpClientFactory httpClientFactory,
             IConfiguration configuration,
-            VpsChatStreamingService streamingService)
+            VpsChatStreamingService streamingService,
+            IChatRoomKeys keys,
+            MdExplorer.Services.Federation.IProjectRelaySettingsService relaySettings)
         {
             _logger = logger;
             _httpClient = httpClientFactory.CreateClient("MdChat");
             _streamingService = streamingService;
+            _keys = keys;
+            _relaySettings = relaySettings;
 
             // Get VPS Chat configuration
             _vpsApiUrl = configuration["MdChat:ApiUrl"]
                 ?? "https://errantia.net/mdchat/api";
-            _apiKey = configuration["MdChat:ApiKey"]
-                ?? throw new InvalidOperationException("MdChat:ApiKey is required in configuration");
+            // Niente più chiave globale obbligatoria: si entra nella stanza col segreto del progetto
+            // (X-Room-Token); la chiave master del relay si manda solo se c'è, per registrare la stanza.
 
             _logger.LogInformation("TeamChatService initialized with VPS API URL: {Url}", _vpsApiUrl);
         }
@@ -124,12 +129,19 @@ namespace MdExplorer.Services.TeamChat
         }
 
         /// <summary>
-        /// Create an HttpRequestMessage with API Key header
+        /// Richiesta al relay per una stanza: il join token del progetto e, se c'è, la chiave master
+        /// (per progetto, poi globale) che registra la stanza la prima volta. Senza chiave della stanza
+        /// non si parte: vuol dire che nessuno ha aperto la chat da quel progetto.
         /// </summary>
-        private HttpRequestMessage CreateRequest(HttpMethod method, string url, HttpContent content = null)
+        private HttpRequestMessage CreateRequest(HttpMethod method, string url, string roomId, HttpContent content = null)
         {
+            var key = _keys.Find(roomId)
+                ?? throw new InvalidOperationException($"Stanza {roomId} senza chiave del progetto: la chat va aperta da un progetto con il room secret.");
             var request = new HttpRequestMessage(method, url);
-            request.Headers.Add("X-API-Key", _apiKey);
+            request.Headers.Add("X-Room-Token", key.JoinToken);
+            var master = _relaySettings.ResolveApiKey(key.ProjectPath);
+            if (!string.IsNullOrWhiteSpace(master))
+                request.Headers.Add("X-API-Key", master);
             if (content != null)
             {
                 request.Content = content;
@@ -146,20 +158,20 @@ namespace MdExplorer.Services.TeamChat
 
             var url = $"{_vpsApiUrl}/rooms/{roomId}/messages";
 
-            var json = JsonSerializer.Serialize(new
-            {
-                content = message.Content,
-                senderName = message.SenderName,
-                senderEmail = message.SenderEmail,
-                timestamp = message.Timestamp,
-                type = message.Type
-            }, _jsonOptions);
-
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             try
             {
-                using var request = CreateRequest(HttpMethod.Post, url, content);
+                // Il relay riceve una busta chiusa: testo, nome ed email stanno dentro, cifrati.
+                var json = JsonSerializer.Serialize(new
+                {
+                    content = ChatEnvelope.Seal(_keys.Find(roomId) ?? throw new InvalidOperationException($"Stanza {roomId} senza chiave del progetto."), message),
+                    senderName = "",
+                    senderEmail = "",
+                    timestamp = message.Timestamp,
+                    type = message.Type
+                }, _jsonOptions);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                using var request = CreateRequest(HttpMethod.Post, url, roomId, content);
                 var response = await _httpClient.SendAsync(request);
                 response.EnsureSuccessStatusCode();
 
@@ -189,7 +201,7 @@ namespace MdExplorer.Services.TeamChat
 
             try
             {
-                using var request = CreateRequest(HttpMethod.Get, url);
+                using var request = CreateRequest(HttpMethod.Get, url, roomId);
                 var response = await _httpClient.SendAsync(request);
 
                 if (!response.IsSuccessStatusCode)
@@ -212,8 +224,9 @@ namespace MdExplorer.Services.TeamChat
                     return new List<ChatMessageDto>();
                 }
 
+                var key = _keys.Find(roomId);
                 return messages
-                    .Select(kvp => new ChatMessageDto
+                    .Select(kvp => ChatEnvelope.Open(key, new ChatMessageDto
                     {
                         Id = kvp.Key,
                         Content = kvp.Value.Content,
@@ -221,7 +234,7 @@ namespace MdExplorer.Services.TeamChat
                         SenderEmail = kvp.Value.SenderEmail,
                         Timestamp = kvp.Value.Timestamp,
                         Type = kvp.Value.Type ?? "message"
-                    })
+                    }))
                     .OrderBy(m => m.Timestamp)
                     .ToList();
             }
@@ -229,6 +242,32 @@ namespace MdExplorer.Services.TeamChat
             {
                 _logger.LogError(ex, "Failed to get messages from VPS for room {RoomId}", roomId);
                 return new List<ChatMessageDto>();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<ChatRoomCheck> CheckRoomAsync(string roomId)
+        {
+            try
+            {
+                using var request = CreateRequest(HttpMethod.Get, $"{_vpsApiUrl}/rooms/{roomId}/presence", roomId);
+                using var response = await _httpClient.SendAsync(request);
+                if (response.IsSuccessStatusCode) return new ChatRoomCheck { Ok = true };
+
+                string code = null;
+                try
+                {
+                    using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+                    if (doc.RootElement.TryGetProperty("code", out var c) && c.ValueKind == JsonValueKind.String) code = c.GetString();
+                }
+                catch (JsonException) { /* relay vecchio: niente codice */ }
+                _logger.LogWarning("[Chat] il relay rifiuta la stanza {RoomId}: {Status} {Code}", roomId, (int)response.StatusCode, code);
+                return new ChatRoomCheck { Ok = false, Code = code ?? $"http-{(int)response.StatusCode}" };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Chat] relay irraggiungibile per la stanza {RoomId}", roomId);
+                return new ChatRoomCheck { Ok = false, Code = "unreachable" };
             }
         }
 
@@ -268,7 +307,7 @@ namespace MdExplorer.Services.TeamChat
 
             try
             {
-                using var request = CreateRequest(HttpMethod.Put, url, content);
+                using var request = CreateRequest(HttpMethod.Put, url, roomId, content);
                 var response = await _httpClient.SendAsync(request);
                 response.EnsureSuccessStatusCode();
             }
@@ -284,7 +323,7 @@ namespace MdExplorer.Services.TeamChat
 
             try
             {
-                using var request = CreateRequest(HttpMethod.Delete, url);
+                using var request = CreateRequest(HttpMethod.Delete, url, roomId);
                 var response = await _httpClient.SendAsync(request);
                 // Don't throw on failure - presence cleanup is best effort
             }
@@ -307,6 +346,14 @@ namespace MdExplorer.Services.TeamChat
             user.Online = true;
             user.LastSeen = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             roomUsers[oderId] = user;
+
+            // Sul relay solo se il progetto ha già il suo segreto (GitChatController l'ha registrato):
+            // senza, il conteggio resta locale a questa macchina.
+            if (_keys.Find(roomId) == null)
+            {
+                _logger.LogDebug("Room {RoomId} has no project key: project users stay local", roomId);
+                return;
+            }
 
             // Update in VPS
             await UpdateVpsProjectUser(roomId, oderId, user);
@@ -344,7 +391,8 @@ namespace MdExplorer.Services.TeamChat
             }
 
             // Remove from VPS
-            await RemoveVpsProjectUser(roomId, oderId);
+            if (_keys.Find(roomId) != null)
+                await RemoveVpsProjectUser(roomId, oderId);
 
             // Unsubscribe from SSE if no more users
             if (roomEmpty)
@@ -394,7 +442,7 @@ namespace MdExplorer.Services.TeamChat
 
             try
             {
-                using var request = CreateRequest(HttpMethod.Put, url, content);
+                using var request = CreateRequest(HttpMethod.Put, url, roomId, content);
                 var response = await _httpClient.SendAsync(request);
                 response.EnsureSuccessStatusCode();
             }
@@ -410,7 +458,7 @@ namespace MdExplorer.Services.TeamChat
 
             try
             {
-                using var request = CreateRequest(HttpMethod.Delete, url);
+                using var request = CreateRequest(HttpMethod.Delete, url, roomId);
                 var response = await _httpClient.SendAsync(request);
             }
             catch (Exception ex)

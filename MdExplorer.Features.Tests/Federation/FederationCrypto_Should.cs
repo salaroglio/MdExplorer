@@ -20,6 +20,23 @@ namespace MdExplorer.Features.Tests.Federation
         }
 
         [TestMethod]
+        public void Round_trip_a_chat_message_that_the_city_cannot_open()
+        {
+            var envelope = FederationCrypto.EncryptChat(Secret, Room, "ciao dalla chat");
+            StringAssert.StartsWith(envelope, "mdchat.v1.");
+            Assert.IsTrue(FederationCrypto.IsChatEnvelope(envelope));
+            Assert.AreEqual("ciao dalla chat", FederationCrypto.DecryptChat(Secret, Room, envelope));
+
+            // Etichette diverse: una busta della chat non è una busta della città, e viceversa.
+            Assert.ThrowsException<FederationCryptoException>(() => FederationCrypto.Decrypt(Secret, Room, envelope));
+            var city = FederationCrypto.Encrypt(Secret, Room, "presenza");
+            Assert.ThrowsException<FederationCryptoException>(() => FederationCrypto.DecryptChat(Secret, Room, city));
+            // E con un segreto diverso non si apre.
+            Assert.ThrowsException<FederationCryptoException>(() => FederationCrypto.DecryptChat("altro", Room, envelope));
+            Assert.IsFalse(FederationCrypto.IsChatEnvelope("un messaggio di prima, in chiaro"));
+        }
+
+        [TestMethod]
         public void Round_trip_empty_and_unicode()
         {
             Assert.AreEqual("", FederationCrypto.Decrypt(Secret, Room, FederationCrypto.Encrypt(Secret, Room, "")));

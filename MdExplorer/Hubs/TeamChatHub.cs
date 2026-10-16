@@ -18,6 +18,7 @@ namespace MdExplorer.Hubs
     {
         private readonly ILogger<TeamChatHub> _logger;
         private readonly ITeamChatService _chatService;
+        private readonly IChatRoomKeys _roomKeys;
 
         // Track which connectionId is in which room
         private static readonly ConcurrentDictionary<string, string> _connectionRooms = new();
@@ -27,10 +28,12 @@ namespace MdExplorer.Hubs
 
         public TeamChatHub(
             ILogger<TeamChatHub> logger,
-            ITeamChatService chatService)
+            ITeamChatService chatService,
+            IChatRoomKeys roomKeys)
         {
             _logger = logger;
             _chatService = chatService;
+            _roomKeys = roomKeys;
         }
 
         /// <summary>
@@ -49,6 +52,11 @@ namespace MdExplorer.Hubs
         public async Task JoinRoom(string roomId, ChatUserInfo user)
         {
             var connectionId = Context.ConnectionId;
+
+            // La chiave della stanza la registra room-info (dal progetto): senza, la chat sarebbe muta
+            // in silenzio (messaggi non letti né spediti). Succede se il servizio è ripartito sotto la UI.
+            if (_roomKeys.Find(roomId) == null)
+                throw new HubException("La stanza non ha la chiave del progetto: riapri la chat dal progetto.");
 
             _logger.LogInformation("Client {ConnectionId} joining room {RoomId} as {UserName}",
                 connectionId, roomId, user.UserName);

@@ -21,7 +21,7 @@ namespace MdExplorer.Services.TeamChat
         private readonly ILogger<VpsChatStreamingService> _logger;
         private readonly IHubContext<TeamChatHub> _hubContext;
         private readonly string _vpsWebSocketUrl;
-        private readonly string _apiKey;
+        private readonly IChatRoomKeys _keys;
 
         // Single Socket.io connection (shared across all rooms)
         private SocketIOClient.SocketIO _socket;
@@ -44,15 +44,16 @@ namespace MdExplorer.Services.TeamChat
         public VpsChatStreamingService(
             ILogger<VpsChatStreamingService> logger,
             IHubContext<TeamChatHub> hubContext,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            IChatRoomKeys keys)
         {
             _logger = logger;
             _hubContext = hubContext;
+            _keys = keys;
 
             _vpsWebSocketUrl = configuration["MdChat:WebSocketUrl"]
                 ?? "wss://errantia.net/mdchat";
-            _apiKey = configuration["MdChat:ApiKey"]
-                ?? throw new InvalidOperationException("MdChat:ApiKey is required");
+            // Niente chiave master: il socket entra in ogni stanza col join token del progetto ('subscribe').
 
             _logger.LogInformation("VpsChatStreamingService initialized with URL: {Url}", _vpsWebSocketUrl);
         }
@@ -94,14 +95,6 @@ namespace MdExplorer.Services.TeamChat
                     _socket = new SocketIOClient.SocketIO(baseUrl, new SocketIOOptions
                     {
                         Path = "/mdchat/socket.io",
-                        Auth = new Dictionary<string, string>
-                        {
-                            ["apiKey"] = _apiKey
-                        },
-                        ExtraHeaders = new Dictionary<string, string>
-                        {
-                            ["X-API-Key"] = _apiKey
-                        },
                         Reconnection = true,
                         ReconnectionAttempts = 10,
                         ReconnectionDelay = 1000,
@@ -220,13 +213,32 @@ namespace MdExplorer.Services.TeamChat
                     return;
                 }
 
+                var key = _keys.Find(roomId);
+                if (key == null)
+                {
+                    _logger.LogWarning("Cannot subscribe to {Channel} for room {RoomId}: no project key for the room", channel, roomId);
+                    return;
+                }
                 var data = new Dictionary<string, string>
                 {
                     ["channel"] = channel,
-                    ["roomId"] = roomId
+                    ["roomId"] = roomId,
+                    ["joinToken"] = key.JoinToken
                 };
-                await _socket.EmitAsync("subscribe", data);
-                _logger.LogDebug("Subscribed to {Channel} for room {RoomId}", channel, roomId);
+                // L'ack dice se il relay ci ha iscritti: un rifiuto (stanza non registrata, token
+                // sbagliato) altrimenti sarebbe una chat muta senza una riga di log.
+                await _socket.EmitAsync("subscribe", response =>
+                {
+                    try
+                    {
+                        var ack = response.GetValue<JsonElement>(0);
+                        if (ack.TryGetProperty("ok", out var ok) && ok.ValueKind == JsonValueKind.True)
+                            _logger.LogDebug("Subscribed to {Channel} for room {RoomId}", channel, roomId);
+                        else
+                            _logger.LogWarning("Relay refused subscription to {Channel} for room {RoomId}: {Ack}", channel, roomId, ack.ToString());
+                    }
+                    catch (Exception ex) { _logger.LogWarning(ex, "Cannot read subscribe ack for room {RoomId}", roomId); }
+                }, data);
             }
             catch (Exception ex)
             {
@@ -391,7 +403,7 @@ namespace MdExplorer.Services.TeamChat
                 }
 
                 var roomId = roomIdElement.GetString();
-                var message = ParseMessage(messageElement);
+                var message = ChatEnvelope.Open(_keys.Find(roomId), ParseMessage(messageElement));
 
                 if (message == null || string.IsNullOrEmpty(roomId))
                     return;

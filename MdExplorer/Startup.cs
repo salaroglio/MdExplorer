@@ -410,6 +410,7 @@ namespace MdExplorer
             // Register Team Chat services
             services.AddHttpClient("MdChat");
             // VpsChatStreamingService handles WebSocket connections for real-time cross-PC chat
+            services.AddSingleton<Services.TeamChat.IChatRoomKeys, Services.TeamChat.ChatRoomKeys>();
             services.AddSingleton<Services.TeamChat.VpsChatStreamingService>();
             services.AddSingleton<Services.TeamChat.ITeamChatService, Services.TeamChat.TeamChatService>();
 
