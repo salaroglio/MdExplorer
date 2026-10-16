@@ -254,8 +254,9 @@
               </div>
             </div>
 
-            <!-- Relay: indirizzo e chiave d'ingresso. Il room secret sopra viaggia col repo
-                 (apre UNA stanza); questa chiave apre il relay intero, quindi resta locale. -->
+            <!-- Relay: indirizzo e chiave master. Per entrare nella stanza basta il room secret sopra,
+                 che viaggia col repo; la chiave master apre il relay intero, serve solo a registrare
+                 la stanza la prima volta e resta locale. -->
             <div class="setting-item" *ngIf="agentCityEnabled">
               <label class="setting-label">{{ 'PROJECT_SETTINGS.RELAY_URL' | translate }}</label>
               <mat-form-field appearance="outline" style="width:100%">

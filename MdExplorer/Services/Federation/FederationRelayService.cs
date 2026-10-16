@@ -26,10 +26,41 @@ namespace MdExplorer.Services.Federation
         public string RelayUrl { get; init; }
     }
 
+    /// <summary>Come sta la connessione di una stanza col relay.</summary>
+    public enum RoomJoinState
+    {
+        /// <summary>Nessuna connessione aperta per il progetto (città spenta, niente origin o identità).</summary>
+        NoRoom,
+        /// <summary>Connessione aperta, esito del join non ancora arrivato.</summary>
+        Connecting,
+        /// <summary>Il relay ha ammesso la città nella stanza.</summary>
+        Joined,
+        /// <summary>Il relay ha risposto di no: chiave master sbagliata, stanza non registrata, token sbagliato.</summary>
+        Rejected,
+        /// <summary>Il relay non risponde.</summary>
+        Unreachable,
+    }
+
+    /// <summary>Stato della stanza di un progetto, con il motivo già leggibile dall'utente.</summary>
+    public sealed class RoomStatus
+    {
+        public RoomJoinState State { get; init; }
+        /// <summary>Codice del relay quando rifiuta (<c>room-not-registered</c>, <c>bad-token</c>), altrimenti null.</summary>
+        public string Code { get; init; }
+        public string Message { get; init; }
+    }
+
     /// <summary>Vista dello stato federato locale, per la UI/rubrica (§12.5).</summary>
     public interface IFederationState
     {
         IReadOnlyList<LocalCity> GetLocalCities();
+
+        /// <summary>
+        /// Riapre la connessione della stanza del progetto e aspetta, fino a <paramref name="timeout"/>,
+        /// che il relay dica se la ammette. È la «Verifica» delle impostazioni: lo stato vero, non
+        /// una deduzione dalla presenza di una chiave.
+        /// </summary>
+        Task<RoomStatus> CheckRoomAsync(string projectPath, TimeSpan timeout, CancellationToken ct = default);
 
         /// <summary>
         /// Le città REMOTE attualmente accese sulla stanza del progetto (§12.5), decifrate dal
@@ -112,8 +143,6 @@ namespace MdExplorer.Services.Federation
         // reinforce/erode della memoria (read-modify-write SPARQL, 7b) e i check-then-write dei
         // receiver non interleavano.
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Threading.SemaphoreSlim> _deliverGates = new();
-        /// <summary>Progetti già segnalati come "senza API key", per non ripetere il warning a ogni scan.</summary>
-        private readonly System.Collections.Generic.HashSet<string> _warnedNoApiKey = new(System.StringComparer.OrdinalIgnoreCase);
 
         public FederationRelayService(
             IServiceScopeFactory scopeFactory,
@@ -137,9 +166,9 @@ namespace MdExplorer.Services.Federation
                 .Replace("ws://", "http://")
                 .Replace("/mdchat", "")
                 .TrimEnd('/');
-            // NB: la API key NON si legge più qui. È per progetto (UserDB) con ricaduta sulla
-            // globale, e va risolta al momento di aprire la stanza: un cambio dalle impostazioni
-            // di progetto deve avere effetto al prossimo scan, senza riavviare il Service.
+            // NB: la chiave master del relay NON si legge qui. È facoltativa (serve solo a registrare
+            // una stanza nuova), per progetto con ricaduta sulla globale, e va risolta al momento di
+            // aprire la stanza: un cambio dalle impostazioni ha effetto al prossimo scan.
         }
 
         public IReadOnlyList<LocalCity> GetLocalCities() => _snapshot;
@@ -188,6 +217,33 @@ namespace MdExplorer.Services.Federation
         }
 
         /// <inheritdoc/>
+        public async Task<RoomStatus> CheckRoomAsync(string projectPath, TimeSpan timeout, CancellationToken ct = default)
+        {
+            await ReconnectProjectAsync(projectPath);
+            var until = DateTime.UtcNow + timeout;
+            while (true)
+            {
+                var status = CurrentRoomStatus(projectPath);
+                // NoRoom subito dopo il reconnect è normale: la scansione non ha ancora riaperto.
+                if (status.State is RoomJoinState.Joined or RoomJoinState.Rejected or RoomJoinState.Unreachable)
+                    return status;
+                if (DateTime.UtcNow >= until)
+                    return status.State == RoomJoinState.NoRoom
+                        ? new RoomStatus { State = RoomJoinState.NoRoom, Message = "La città di questo progetto non ha una stanza aperta: serve la città attiva, un origin git e l'email dell'identità." }
+                        : new RoomStatus { State = RoomJoinState.Unreachable, Message = $"Il relay non ha risposto entro {timeout.TotalSeconds:0} secondi." };
+                await Task.Delay(250, ct);
+            }
+        }
+
+        private RoomStatus CurrentRoomStatus(string projectPath)
+        {
+            var city = _snapshot.FirstOrDefault(c => AgentPathComparer.Equals(c.ProjectPath, projectPath));
+            if (city == null || !_rooms.TryGetValue(city.RoomId, out var conn))
+                return new RoomStatus { State = RoomJoinState.NoRoom };
+            return conn.Status;
+        }
+
+        /// <inheritdoc/>
         public bool IsRelayConnected(string projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
@@ -230,7 +286,7 @@ namespace MdExplorer.Services.Federation
             if (city != null && _rooms.TryRemove(city.RoomId, out var conn))
             {
                 try { conn.Dispose(); } catch { /* best effort */ }
-                _logger.LogInformation("[Federation] stanza {Room} chiusa per reconnect (cambio identità).", city.RoomId);
+                _logger.LogInformation("[Federation] stanza {Room} chiusa per riaprirla (cambio identità o verifica).", city.RoomId);
             }
             try { _rescanSignal.Release(); } catch { /* già al massimo */ }
             return Task.CompletedTask;
@@ -304,8 +360,8 @@ namespace MdExplorer.Services.Federation
         /// <summary>
         /// Trasmette gli annunci verso il relay (§12.5): apre/aggiorna una connessione Socket.IO
         /// per stanza sul namespace <c>/mdfed</c>, presenta il join token e spedisce l'annuncio
-        /// cifrato. Le stanze non più attive vengono chiuse. Dormiente senza annunci o senza API
-        /// key del relay (non blocca la UX: logga una volta e prosegue).
+        /// cifrato. Le stanze non più attive vengono chiuse. Si entra col join token (il room secret
+        /// sta in git); la chiave master del relay, se c'è, serve a registrare una stanza nuova.
         /// </summary>
         private Task TransmitPendingAsync(IReadOnlyList<FederationAnnounce> announces, CancellationToken ct)
         {
@@ -338,22 +394,11 @@ namespace MdExplorer.Services.Federation
             // Apri/aggiorna le connessioni delle stanze attive.
             foreach (var (roomId, announce) in desired)
             {
-                // La chiave è PER PROGETTO (UserDB, impostazioni di progetto) con ricaduta
-                // sulla globale MdChat:ApiKey. Senza chiave questa città resta dormiente —
-                // le altre no: il gate è per stanza, non più globale.
+                // Chiave master del relay: FACOLTATIVA. Per progetto (UserDB) con ricaduta sulla
+                // globale MdChat:ApiKey; senza, si entra col solo join token di una stanza già
+                // registrata. Se manca e la stanza è nuova, il rifiuto del relay lo dice (Status).
                 var apiKey = _relaySettings.ResolveApiKey(announce.ProjectPath);
-                if (string.IsNullOrWhiteSpace(apiKey))
-                {
-                    if (_warnedNoApiKey.Add(announce.ProjectPath))
-                        _logger.LogWarning(
-                            "[Federation] '{Project}' ha la città attiva ma nessuna API key del relay: impostala nelle impostazioni di progetto (sezione Città degli agenti). Questa città resta dormiente.",
-                            announce.ProjectPath);
-                    // Chiave rimossa mentre la stanza era aperta: chiudila, altrimenti resterebbe
-                    // collegata con una credenziale che l'utente ha revocato.
-                    CloseRoom(roomId, "chiave del relay rimossa");
-                    continue;
-                }
-                _warnedNoApiKey.Remove(announce.ProjectPath);   // chiave arrivata: riavvisa se sparisce
+                if (string.IsNullOrWhiteSpace(apiKey)) apiKey = null;
 
                 // Onora l'override per-progetto del relay: la connessione va sul relay
                 // dichiarato (scheme+host), non sempre su quello globale. Se assente/
@@ -610,6 +655,22 @@ namespace MdExplorer.Services.Federation
             private SocketIOClient.SocketIO _socket;
             private bool _disposed;
             private int _connectFailures;
+            private volatile RoomStatus _status = new() { State = RoomJoinState.Connecting };
+
+            /// <summary>L'ultimo esito noto della connessione: ammessa, rifiutata (col motivo), irraggiungibile.</summary>
+            public RoomStatus Status => _status;
+
+            /// <summary>Cambia lo stato e lo scrive nel log solo quando cambia: i rifiuti si ripetono a ogni reconnect.</summary>
+            private void SetStatus(RoomJoinState state, string message, string code = null)
+            {
+                var old = _status;
+                _status = new RoomStatus { State = state, Message = message, Code = code };
+                if (old.State == state && old.Code == code) return;
+                if (state == RoomJoinState.Joined)
+                    _logger.LogInformation("[Federation] stanza {Room}: {Message}", _announce?.RoomId, message);
+                else
+                    _logger.LogWarning("[Federation] stanza {Room}: {Message}", _announce?.RoomId, message);
+            }
 
             /// <summary>Invocato con la busta cifrata di un messaggio in arrivo (evento relay <c>deliver</c>).</summary>
             public Action<string> OnDeliver;
@@ -623,8 +684,8 @@ namespace MdExplorer.Services.Federation
             /// <summary>Snapshot delle presenze remote note: (ownerId, busta cifrata). Mai la mia città.</summary>
             public IReadOnlyList<KeyValuePair<string, string>> RemotePresenceEnvelopes => _remotePresence.ToArray();
 
-            /// <summary>true se il socket verso il relay è attualmente connesso (join/announce in corso).</summary>
-            public bool Connected => _socket?.Connected == true;
+            /// <summary>true se il socket verso il relay è connesso E il relay ha ammesso la città nella stanza.</summary>
+            public bool Connected => _socket?.Connected == true && _status.State == RoomJoinState.Joined;
 
             public RoomConnection(string baseUrl, string enginePath, string apiKey, FederationAnnounce announce, ILogger logger)
             {
@@ -642,7 +703,7 @@ namespace MdExplorer.Services.Federation
             /// </summary>
             public bool Matches(string baseUrl, string apiKey)
                 => string.Equals(_baseUrl, baseUrl, StringComparison.OrdinalIgnoreCase)
-                   && string.Equals(_apiKey, apiKey, StringComparison.Ordinal);
+                   && string.Equals(_apiKey, apiKey, StringComparison.Ordinal);   // null == null: entrambe senza chiave
 
             public void UpdateAnnounce(FederationAnnounce a)
             {
@@ -655,11 +716,12 @@ namespace MdExplorer.Services.Federation
             {
                 try
                 {
+                    // La chiave master va al relay solo se c'è: senza, si entra col join token.
                     var socket = new SocketIOClient.SocketIO(_baseUrl + "/mdfed", new SocketIOOptions
                     {
                         Path = _enginePath,
-                        Auth = new Dictionary<string, string> { ["apiKey"] = _apiKey },
-                        ExtraHeaders = new Dictionary<string, string> { ["X-API-Key"] = _apiKey },
+                        Auth = _apiKey == null ? null : new Dictionary<string, string> { ["apiKey"] = _apiKey },
+                        ExtraHeaders = _apiKey == null ? null : new Dictionary<string, string> { ["X-API-Key"] = _apiKey },
                         Reconnection = true,
                         ReconnectionAttempts = int.MaxValue,   // reconnect-forever (supera il cap a 10 della chat)
                         ReconnectionDelay = 2000,
@@ -669,6 +731,7 @@ namespace MdExplorer.Services.Federation
                     socket.OnConnected += (s, e) =>
                     {
                         System.Threading.Interlocked.Exchange(ref _connectFailures, 0);
+                        _status = new RoomStatus { State = RoomJoinState.Connecting };   // l'esito lo dà l'ack di 'join'
                         _ = JoinAndAnnounceAsync();
                     };
                     socket.OnDisconnected += (s, reason) =>
@@ -683,10 +746,13 @@ namespace MdExplorer.Services.Federation
                     // PERFETTAMENTE silenzioso: nessuna riga di log, città mai federata. Log
                     // throttlato: il primo fallimento e poi uno ogni 20.
                     socket.OnError += (s, err) =>
-                        _logger.LogWarning("[Federation] stanza {Room}: errore dal relay: {Error}", _announce?.RoomId, err);
+                        SetStatus(RoomJoinState.Rejected, err == "Invalid API key"
+                            ? "il relay ha rifiutato la chiave master: non è quella giusta (toglila o correggila nelle impostazioni del progetto)."
+                            : $"il relay ha rifiutato la connessione: {err}");
                     socket.OnReconnectError += (s, ex) =>
                     {
                         var n = System.Threading.Interlocked.Increment(ref _connectFailures);
+                        SetStatus(RoomJoinState.Unreachable, $"relay irraggiungibile: {ex.Message}");
                         if (n == 1 || n % 20 == 0)
                             _logger.LogWarning("[Federation] stanza {Room}: connessione al relay fallita (tentativo {N}): {Msg}",
                                 _announce?.RoomId, n, ex.Message);
@@ -737,7 +803,11 @@ namespace MdExplorer.Services.Federation
             private async Task ConnectAsync(SocketIOClient.SocketIO socket)
             {
                 try { await socket.ConnectAsync(); }
-                catch (Exception ex) { _logger.LogWarning(ex, "[Federation] connessione al relay fallita (riproverà)"); }
+                catch (Exception ex)
+                {
+                    SetStatus(RoomJoinState.Unreachable, $"relay irraggiungibile: {ex.Message}");
+                    _logger.LogWarning(ex, "[Federation] connessione al relay fallita (riproverà)");
+                }
             }
 
             private async Task JoinAndAnnounceAsync()
@@ -747,14 +817,28 @@ namespace MdExplorer.Services.Federation
                 if (socket == null || a == null) return;
                 try
                 {
-                    // L'ordine è garantito sul singolo socket: il server processa join prima di announce.
-                    // L'ack di 'join' porta il roster della stanza (chi è già acceso): lo assorbiamo
-                    // come stato iniziale della presenza remota, poi 'presence'/'offline' lo mantengono.
+                    // L'ack di 'join' dice se il relay ci ammette e porta il roster della stanza (chi è
+                    // già acceso): lo assorbiamo come stato iniziale della presenza remota, poi
+                    // 'presence'/'offline' lo mantengono. L'annuncio parte SOLO dopo un sì: prima si
+                    // ignorava il rifiuto e il log diceva «ok» a una città mai entrata.
+                    var admitted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                     await socket.EmitAsync("join", response =>
                     {
                         try
                         {
                             var ack = response.GetValue<System.Text.Json.JsonElement>(0);
+                            if (!(ack.TryGetProperty("ok", out var ok) && ok.ValueKind == System.Text.Json.JsonValueKind.True))
+                            {
+                                var code = ack.TryGetProperty("code", out var c) && c.ValueKind == System.Text.Json.JsonValueKind.String ? c.GetString() : null;
+                                var error = ack.TryGetProperty("error", out var e) && e.ValueKind == System.Text.Json.JsonValueKind.String ? e.GetString() : "rifiuto senza motivo";
+                                SetStatus(RoomJoinState.Rejected, DescribeRejection(code, error), code);
+                                admitted.TrySetResult(false);
+                                return;
+                            }
+                            var registered = ack.TryGetProperty("registered", out var r) && r.ValueKind == System.Text.Json.JsonValueKind.True;
+                            SetStatus(RoomJoinState.Joined, registered
+                                ? "stanza registrata sul relay con la chiave master: da ora chi ha il repo entra col solo room secret."
+                                : "il relay ha ammesso la città nella stanza.");
                             _remotePresence.Clear();
                             if (ack.TryGetProperty("roster", out var roster) && roster.ValueKind == System.Text.Json.JsonValueKind.Array)
                             {
@@ -767,15 +851,24 @@ namespace MdExplorer.Services.Federation
                             }
                         }
                         catch (Exception ex) { _logger.LogWarning(ex, "[Federation] parse roster di 'join' fallito"); }
+                        admitted.TrySetResult(true);
                     }, new { roomId = a.RoomId, ownerId = a.OwnerId, joinToken = a.JoinToken });
+                    if (!await admitted.Task) return;
                     await AnnounceAsync(socket, a);
-                    _logger.LogInformation("[Federation] stanza {Room}: join+announce verso il relay ok", a.RoomId);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "[Federation] join/announce stanza {Room} fallito", a.RoomId);
                 }
             }
+
+            /// <summary>Il rifiuto del relay detto all'utente con cosa fare.</summary>
+            private static string DescribeRejection(string code, string error) => code switch
+            {
+                "room-not-registered" => "la stanza non è ancora registrata sul relay. La prima volta serve la chiave master del relay: inseriscila nelle impostazioni del progetto (Città degli agenti), poi si può togliere.",
+                "bad-token" => "il relay conosce questa stanza con un altro room secret: controlla che agentCity.roomSecret in .development.yml sia quello del repo (fai il pull).",
+                _ => $"il relay ha rifiutato l'ingresso nella stanza: {error}",
+            };
 
             private async Task AnnounceAsync(SocketIOClient.SocketIO socket, FederationAnnounce a)
             {

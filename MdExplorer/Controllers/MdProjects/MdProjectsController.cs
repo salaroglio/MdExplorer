@@ -331,17 +331,26 @@ namespace MdExplorer.Service.Controllers.MdProjects
             }
         }
 
-        /// <summary>Bussa al relay con la chiave configurata e riporta cosa ha risposto.</summary>
+        /// <summary>
+        /// Riapre la stanza del progetto sul relay e riporta cosa ha risposto: ammessa, rifiutata
+        /// (stanza non registrata, token o chiave master sbagliati) o irraggiungibile.
+        /// </summary>
         [HttpPost]
         public async Task<IActionResult> TestRelaySettings([FromQuery] string path)
         {
             if (string.IsNullOrWhiteSpace(path))
                 return BadRequest(new { message = "path is required" });
 
-            var cfg = _projectMetadataService.GetAgentCity(path);
-            var result = await _relaySettings.TestAsync(path, cfg?.RelayUrl, HttpContext.RequestAborted);
-            return Ok(new { success = result.Success, statusCode = result.StatusCode, message = result.Message });
+            var federation = HttpContext.RequestServices.GetRequiredService<MdExplorer.Services.Federation.IFederationState>();
+            var status = await federation.CheckRoomAsync(path, TimeSpan.FromSeconds(20), HttpContext.RequestAborted);
+            var success = status.State == MdExplorer.Services.Federation.RoomJoinState.Joined;
+            if (status.State != MdExplorer.Services.Federation.RoomJoinState.NoRoom)
+                _relaySettings.RecordTest(path, success);
+            return Ok(new { success, state = status.State.ToString(), code = status.Code, message = Capitalize(status.Message) });
         }
+
+        private static string Capitalize(string s)
+            => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
 
         private static object ToRelayDto(MdExplorer.Services.Federation.RelaySettingsView view) => new
         {

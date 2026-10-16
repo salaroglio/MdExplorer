@@ -12,8 +12,8 @@ namespace MdExplorer.IntegrationTests
     /// <summary>
     /// Impostazioni del relay <b>per progetto</b> (UserDB, chiave cifrata). Esercita entità,
     /// mapping e migrazione col Service reale, e soprattutto la <b>catena di risoluzione</b>:
-    /// progetto → .development.yml → globale. La chiave sta qui e non in git perché apre il
-    /// relay intero, mentre il room secret apre una sola stanza.
+    /// progetto → .development.yml → globale. La chiave master sta qui e non in git perché apre il
+    /// relay intero; per entrare nella stanza basta il room secret, che sta in git.
     /// </summary>
     [TestClass]
     public class RelaySettings_Should
@@ -162,37 +162,5 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual("chiave-dalla-ui", Svc(ctx).ResolveApiKey(path));
         }
 
-        [TestMethod]
-        public async System.Threading.Tasks.Task Report_a_missing_key_instead_of_pretending_to_test()
-        {
-            using var ctx = new AgentCityContext();
-            var (_, path) = ctx.SeedProject("relay-test-nokey");
-            var svc = Svc(ctx);
-
-            var result = await svc.TestAsync(path, null);
-
-            Assert.IsFalse(result.Success);
-            StringAssert.Contains(result.Message, "Nessuna API key");
-        }
-
-        [TestMethod]
-        public async System.Threading.Tasks.Task Report_an_unreachable_relay_as_a_failure()
-        {
-            using var ctx = new AgentCityContext();
-            var (_, path) = ctx.SeedProject("relay-test-unreachable");
-            var svc = Svc(ctx);
-
-            // Porta chiusa su loopback: nessuna rete esterna, esito deterministico.
-            svc.Save(path, "ws://127.0.0.1:1/mdchat", "chiave", clearApiKey: false);
-            var result = await svc.TestAsync(path, null);
-
-            Assert.IsFalse(result.Success);
-            StringAssert.Contains(result.Message, "irraggiungibile");
-
-            // L'esito è registrato: la UI può mostrarlo anche dopo un riavvio.
-            var view = svc.Get(path, null);
-            Assert.IsNotNull(view.LastTestedAt);
-            Assert.AreEqual(false, view.LastTestSuccess);
-        }
     }
 }

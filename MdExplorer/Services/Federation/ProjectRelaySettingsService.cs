@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Ad.Tools.Dal.Extensions;
@@ -39,12 +38,12 @@ namespace MdExplorer.Services.Federation
     }
 
     /// <summary>
-    /// Impostazioni del relay <b>per progetto</b> (indirizzo + API key cifrata in UserDB).
+    /// Impostazioni del relay <b>per progetto</b> (indirizzo + chiave master cifrata in UserDB).
     /// <para>
-    /// La catena di risoluzione è la stessa per entrambi i valori: <b>progetto → .development.yml
-    /// → globale</b>. Il motivo per cui la chiave sta qui e non in git è di raggio: il room secret
-    /// apre <i>una stanza</i> ed è giusto che viaggi col repo per tutto il team, mentre la API key
-    /// apre <i>il relay</i> — tutte le stanze — quindi resta una credenziale locale della macchina.
+    /// La chiave del progetto è il <b>join token</b>, ricavato dal room secret che sta in git: chi ha
+    /// il repo entra nella sua stanza senza altro. La <b>chiave master</b> del relay (questa) è
+    /// facoltativa e serve una volta sola, per registrare sul relay una stanza nuova; resta una
+    /// credenziale locale della macchina perché apre il relay intero. Catena: progetto → globale.
     /// </para>
     /// </summary>
     public interface IProjectRelaySettingsService
@@ -52,7 +51,7 @@ namespace MdExplorer.Services.Federation
         /// <summary>Stato per la UI (chiave mai esposta).</summary>
         RelaySettingsView Get(string projectPath, string relayUrlFromDevelopmentYml);
 
-        /// <summary>API key effettiva: progetto → globale. <c>null</c> ⇒ dormiente.</summary>
+        /// <summary>Chiave master effettiva: progetto → globale. <c>null</c> ⇒ si entra col solo join token.</summary>
         string ResolveApiKey(string projectPath);
 
         /// <summary>URL relay effettivo: progetto → <c>.development.yml</c> → default globale.</summary>
@@ -67,41 +66,25 @@ namespace MdExplorer.Services.Federation
         /// <summary>Registra l'esito dell'ultima verifica di connessione.</summary>
         void RecordTest(string projectPath, bool success);
 
-        /// <summary>
-        /// Bussa davvero al relay con la chiave risolta e registra l'esito. Non deduce nulla dalla
-        /// presenza del valore: o il relay risponde, o si sa perché no.
-        /// </summary>
-        Task<RelayTestResult> TestAsync(string projectPath, string relayUrlFromDevelopmentYml, CancellationToken ct = default);
     }
 
-    /// <summary>Esito della verifica di connessione al relay.</summary>
-    public sealed class RelayTestResult
-    {
-        public bool Success { get; init; }
-        public int? StatusCode { get; init; }
-        /// <summary>Messaggio già leggibile dall'utente (la UI lo mostra così com'è).</summary>
-        public string Message { get; init; }
-    }
 
     public class ProjectRelaySettingsService : IProjectRelaySettingsService
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IRelayKeyProtector _keyProtector;
         private readonly IConfiguration _configuration;
-        private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<ProjectRelaySettingsService> _logger;
 
         public ProjectRelaySettingsService(
             IServiceScopeFactory scopeFactory,
             IRelayKeyProtector keyProtector,
             IConfiguration configuration,
-            IHttpClientFactory httpClientFactory,
             ILogger<ProjectRelaySettingsService> logger)
         {
             _scopeFactory = scopeFactory;
             _keyProtector = keyProtector;
             _configuration = configuration;
-            _httpClientFactory = httpClientFactory;
             _logger = logger;
         }
 
@@ -189,97 +172,6 @@ namespace MdExplorer.Services.Federation
                 db.Rollback();
                 throw;
             }
-        }
-
-        public async Task<RelayTestResult> TestAsync(
-            string projectPath, string relayUrlFromDevelopmentYml, CancellationToken ct = default)
-        {
-            var settings = Read(projectPath);
-            var (key, keySource) = ResolveKeyWithSource(settings);
-            if (string.IsNullOrWhiteSpace(key))
-                return new RelayTestResult
-                {
-                    Success = false,
-                    Message = "Nessuna API key configurata: la federazione resta dormiente.",
-                };
-
-            var (url, _) = ResolveUrlWithSource(settings, relayUrlFromDevelopmentYml);
-            var probe = BuildProbeUrl(url);
-            if (probe == null)
-                return new RelayTestResult
-                {
-                    Success = false,
-                    Message = $"Indirizzo del relay non valido: '{url}'.",
-                };
-
-            try
-            {
-                var client = _httpClientFactory.CreateClient();
-                client.Timeout = TimeSpan.FromSeconds(15);
-                using var request = new HttpRequestMessage(HttpMethod.Get, probe);
-                request.Headers.Add("X-API-Key", key);
-
-                using var response = await client.SendAsync(request, ct);
-                var code = (int)response.StatusCode;
-
-                // Il relay risponde 401 senza chiave e 403 con chiave errata: distinguerli dice
-                // all'utente COSA sbagliare. Qualsiasi altra risposta HTTP prova che il server
-                // c'è e ci riconosce (una stanza mai vista può legittimamente non essere 200).
-                var result = code switch
-                {
-                    401 => new RelayTestResult { Success = false, StatusCode = code, Message = "Il relay non ha ricevuto la chiave." },
-                    403 => new RelayTestResult { Success = false, StatusCode = code, Message = "Chiave rifiutata dal relay: non è quella giusta." },
-                    _ when code >= 500 => new RelayTestResult { Success = false, StatusCode = code, Message = $"Il relay ha risposto con un errore ({code})." },
-                    _ => new RelayTestResult { Success = true, StatusCode = code, Message = $"Relay raggiunto e chiave accettata (fonte: {Describe(keySource)})." },
-                };
-
-                RecordTestSafe(projectPath, result.Success);
-                return result;
-            }
-            catch (Exception ex)
-            {
-                RecordTestSafe(projectPath, false);
-                return new RelayTestResult
-                {
-                    Success = false,
-                    Message = $"Relay irraggiungibile: {ex.Message}",
-                };
-            }
-        }
-
-        private void RecordTestSafe(string projectPath, bool success)
-        {
-            try { RecordTest(projectPath, success); }
-            catch (Exception ex) { _logger.LogWarning(ex, "[Relay] impossibile registrare l'esito della verifica"); }
-        }
-
-        private static string Describe(RelaySettingSource source) => source switch
-        {
-            RelaySettingSource.Project => "impostazioni di questo progetto",
-            RelaySettingSource.Global => "configurazione globale dell'applicazione",
-            RelaySettingSource.DevelopmentYml => ".development.yml",
-            _ => "nessuna",
-        };
-
-        /// <summary>
-        /// Dall'URL websocket del relay all'endpoint REST da interrogare. Il relay espone la sua
-        /// API sotto lo stesso host/prefisso: <c>wss://host/mdchat</c> → <c>https://host/mdchat/api/…</c>.
-        /// </summary>
-        private static string BuildProbeUrl(string relayUrl)
-        {
-            if (string.IsNullOrWhiteSpace(relayUrl)) return null;
-
-            var http = relayUrl.Trim()
-                .Replace("wss://", "https://", StringComparison.OrdinalIgnoreCase)
-                .Replace("ws://", "http://", StringComparison.OrdinalIgnoreCase)
-                .TrimEnd('/');
-
-            if (!Uri.TryCreate(http, UriKind.Absolute, out var uri)) return null;
-            if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) return null;
-
-            // Prefisso vuoto (il relay sta sulla radice) o /mdchat: in entrambi i casi l'API sta
-            // sotto <prefisso>/api. La stanza è fittizia: ci interessa solo il gate della chiave.
-            return $"{http}/api/rooms/mde-relay-probe/presence";
         }
 
         // ---- risoluzione ---------------------------------------------------
