@@ -93,6 +93,8 @@ export interface MailRound {
   startedBy?: string | null;
   lastActivityAt: string;
   finished: boolean;
+  /** Non concluso ma fermo: nessun passo va più avanti senza far ripartire uno rifiutato. Si archivia come un concluso. */
+  stopped?: boolean;
   /** Archiviato nella tua posta (il registro del giro non cambia). */
   archived?: boolean;
   stepsDone: number;

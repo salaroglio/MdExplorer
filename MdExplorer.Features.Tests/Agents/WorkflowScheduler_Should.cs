@@ -353,5 +353,72 @@ namespace MdExplorer.Features.Tests.Agents
             }
             finally { Directory.Delete(anna, true); Directory.Delete(marco, true); }
         }
+
+        // ---- Giro fermo (16/10/2026): rifiuti che lasciano chi viene dopo ad aspettare per sempre ----
+
+        [TestMethod]
+        public void Call_a_round_stopped_when_declined_steps_leave_the_synthesis_waiting_forever()
+        {
+            // Il caso della prova del 15/10: Anna non avvia contratto e delivery, la sintesi li aspetta tutti e tre.
+            var wf = Parse(Gara);
+            var round = RoundStarted();
+            Approve(round, "tecnica", "responsabile-tecnico", "gara/schede/tecnica.md");
+            Add(round, "contratto", "responsabile-legale", RoundEventType.Held);
+            Add(round, "contratto", "responsabile-legale", RoundEventType.Declined, note: "non adesso");
+            Add(round, "delivery", "responsabile-delivery", RoundEventType.Held);
+            Add(round, "delivery", "responsabile-delivery", RoundEventType.Declined, note: "non adesso");
+
+            var views = WorkflowScheduler.Views(wf, round);
+            Assert.IsFalse(WorkflowScheduler.CanStillFinish(wf, round, views, wf.Step("sintesi")));
+            Assert.IsTrue(WorkflowScheduler.IsStopped(wf, round, views));
+        }
+
+        [TestMethod]
+        public void Not_call_it_stopped_while_someone_has_a_step_in_hand()
+        {
+            var wf = Parse(Gara);
+            var round = RoundStarted();
+            Approve(round, "tecnica", "responsabile-tecnico", "gara/schede/tecnica.md");
+            Add(round, "contratto", "responsabile-legale", RoundEventType.Held);
+            Add(round, "contratto", "responsabile-legale", RoundEventType.Declined, note: "non adesso");
+            Add(round, "delivery", "responsabile-delivery", RoundEventType.Held);   // da avviare: qualcuno ce l'ha davanti
+
+            var views = WorkflowScheduler.Views(wf, round);
+            Assert.IsFalse(WorkflowScheduler.IsStopped(wf, round, views), "delivery aspetta il suo responsabile: il giro non è fermo");
+            Assert.IsFalse(WorkflowScheduler.CanStillFinish(wf, round, views, wf.Step("sintesi")),
+                "ma la sintesi, che li aspetta tutti, non partirà finché contratto non riparte");
+        }
+
+        [TestMethod]
+        public void Not_call_it_stopped_when_the_synthesis_can_still_start()
+        {
+            var wf = Parse(Gara);
+            var round = RoundStarted();
+            Approve(round, "tecnica", "responsabile-tecnico", "gara/schede/tecnica.md");
+            Approve(round, "contratto", "responsabile-legale", "gara/schede/contrattuale.md");
+            Add(round, "delivery", "responsabile-delivery", RoundEventType.Held);
+            Add(round, "delivery", "responsabile-delivery", RoundEventType.Started);
+
+            var views = WorkflowScheduler.Views(wf, round);
+            Assert.IsTrue(WorkflowScheduler.CanStillFinish(wf, round, views, wf.Step("sintesi")));
+            Assert.IsFalse(WorkflowScheduler.IsStopped(wf, round, views));
+        }
+
+        [TestMethod]
+        public void Call_a_finished_round_stopped_too_so_nothing_is_left_to_wait_for()
+        {
+            // IsStopped dice «niente può più muoversi»: vale anche per un giro concluso; il riepilogo distingue i due.
+            var wf = Parse(Gara);
+            var round = RoundStarted();
+            foreach (var (step, agent, file) in new[] { ("tecnica", "responsabile-tecnico", "gara/schede/tecnica.md"),
+                         ("contratto", "responsabile-legale", "gara/schede/contrattuale.md"),
+                         ("delivery", "responsabile-delivery", "gara/schede/delivery.md") })
+                Approve(round, step, agent, file);
+            Add(round, "sintesi", "account-manager", RoundEventType.Started);
+            Add(round, "sintesi", "account-manager", RoundEventType.Delivered, files: new() { "gara/schede/sintesi.md" });
+            Add(round, "sintesi", "account-manager", RoundEventType.Approved);
+
+            Assert.IsTrue(WorkflowScheduler.IsStopped(wf, round, WorkflowScheduler.Views(wf, round)));
+        }
     }
 }

@@ -192,6 +192,61 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             return actions;
         }
 
+        /// <summary>
+        /// Un giro è <b>fermo</b> quando non può più andare avanti da solo né per un gesto che qualcuno ha davanti: nessun passo
+        /// in lavorazione, da avviare o da approvare, e nessun passo in attesa che possa ancora partire. Succede quando un passo
+        /// è stato rifiutato, non avviato o è fallito, e chi viene dopo lo aspetta; si sblocca solo se qualcuno lo fa ripartire.
+        /// Un giro fermo si può archiviare (prima restava in posta per sempre, 15/10/2026).
+        /// </summary>
+        public static bool IsStopped(WorkflowDescriptor wf, RoundState round, IReadOnlyDictionary<string, StepView> views)
+            => wf.Steps.All(step => views[step.Id].Status == StepStatus.Finished || !CanStillFinish(wf, round, views, step));
+
+        /// <summary>
+        /// Il passo può ancora finire senza che nessuno lo faccia ripartire? Sì se è finito o è in corso (da avviare, al lavoro,
+        /// da approvare); no se è rifiutato, non avviato o fallito; se non è ancora partito, dipende da cosa lo fa partire:
+        /// i passi che aspetta possono ancora finire, oppure il suo pulsante non è ancora stato premuto in questo giro (un altro
+        /// pulsante apre un giro nuovo). Un passo che parte solo da un lancio a mano non riparte dentro questo giro.
+        /// </summary>
+        public static bool CanStillFinish(WorkflowDescriptor wf, RoundState round, IReadOnlyDictionary<string, StepView> views, WorkflowStep step)
+            => CanStillFinish(wf, round, views, step, new HashSet<string>(StringComparer.Ordinal));
+
+        private static bool CanStillFinish(WorkflowDescriptor wf, RoundState round, IReadOnlyDictionary<string, StepView> views,
+            WorkflowStep step, HashSet<string> visiting)
+        {
+            switch (views[step.Id].Status)
+            {
+                case StepStatus.Finished:
+                case StepStatus.Held:
+                case StepStatus.Working:
+                case StepStatus.RoundApproved:
+                case StepStatus.Delivered:
+                    return true;
+                case StepStatus.NotStarted:
+                    break;
+                default:   // Rejected, Declined, Failed: fermo finché qualcuno non lo fa ripartire
+                    return false;
+            }
+            if (!visiting.Add(step.Id)) return false;   // un anello di attese non si sblocca da solo
+            try
+            {
+                var t = step.Trigger;
+                switch (t?.Kind)
+                {
+                    case WorkflowTriggerKind.Reply:
+                        if (round.EventsOf(t.FromStep).Any(e => e.Type == RoundEventType.Replied)) return false;
+                        var source = wf.Steps.FirstOrDefault(s => s.Id == t.FromStep);
+                        return source != null && CanStillFinish(wf, round, views, source, visiting);
+                    case WorkflowTriggerKind.After:
+                        var before = t.After.Select(id => wf.Steps.FirstOrDefault(s => s.Id == id)).ToList();
+                        bool Can(WorkflowStep b) => b != null && CanStillFinish(wf, round, views, b, visiting);
+                        return t.Wait == WorkflowWait.Any ? before.Any(Can) : before.All(Can);
+                    default:
+                        return false;
+                }
+            }
+            finally { visiting.Remove(step.Id); }
+        }
+
         /// <summary>Quello che fa partire il passo è successo?</summary>
         public static bool TriggerSatisfied(WorkflowDescriptor wf, RoundState round, IReadOnlyDictionary<string, StepView> views, WorkflowStep step)
         {

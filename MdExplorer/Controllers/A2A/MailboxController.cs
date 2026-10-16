@@ -230,8 +230,9 @@ namespace MdExplorer.Controllers.A2A
         }
 
         /// <summary>
-        /// Archivia un giro concluso, con tutti i suoi messaggi (P3): esce dalla sezione «Giri» e va nell'archivio. Un giro
-        /// ancora in corso no: avrebbe passi che aspettano qualcuno, e sparirebbero dalla vista.
+        /// Archivia un giro concluso o fermo, con tutti i suoi messaggi (P3): esce dalla sezione «Giri» e va nell'archivio. Un
+        /// giro ancora in corso no: avrebbe passi che aspettano qualcuno, e sparirebbero dalla vista. Fermo = nessun passo può
+        /// più andare avanti senza che qualcuno ne faccia ripartire uno rifiutato (15/10/2026).
         /// </summary>
         [HttpPost("rounds/{roundId}/archive")]
         public IActionResult ArchiveRound(string roundId, [FromQuery] string? projectPath)
@@ -239,7 +240,7 @@ namespace MdExplorer.Controllers.A2A
             if (string.IsNullOrWhiteSpace(projectPath)) return BadRequest(new { error = "projectPath è obbligatorio." });
             var round = _workflow.Rounds(projectPath).FirstOrDefault(r => r.Id == roundId);
             if (round == null) return NotFound(new { error = $"Il giro '{roundId}' non c'è nel registro di questo progetto." });
-            if (!round.Finished) return Conflict(new { error = $"Il giro è ancora in corso ({round.StepsDone} su {round.StepsTotal} passi): si archivia quando è concluso." });
+            if (!round.Finished && !round.Stopped) return Conflict(new { error = $"Il giro è ancora in corso ({round.StepsDone} su {round.StepsTotal} passi): si archivia quando è concluso o fermo." });
             return SetRoundArchived(projectPath, round, true);
         }
 

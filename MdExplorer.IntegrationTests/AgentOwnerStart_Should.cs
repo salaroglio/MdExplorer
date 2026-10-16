@@ -146,6 +146,42 @@ namespace MdExplorer.IntegrationTests
             StringAssert.Contains(body, "ancora in corso");
         }
 
+        private const string WorkflowWithSynthesis = @"{
+  ""mde_workflow"": 2, ""title"": ""Prova"",
+  ""steps"": [
+    { ""id"": ""incarica"", ""agent"": ""capo"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
+    { ""id"": ""scheda"", ""agent"": ""tecnico"", ""title"": ""Scheda tecnica"", ""trigger"": { ""after"": [""incarica""] }, ""start"": ""ask-owner"",
+      ""brief"": ""Scrivi la scheda tecnica."" },
+    { ""id"": ""sintesi"", ""agent"": ""capo"", ""title"": ""Sintesi"", ""trigger"": { ""after"": [""scheda""] }, ""start"": ""auto"",
+      ""brief"": ""Scrivi la sintesi."" }
+  ]
+}";
+
+        [TestMethod]
+        public async Task Archive_a_round_stopped_by_a_step_its_owner_did_not_start()
+        {
+            // 15/10/2026: la sintesi aspettava passi non avviati e il giro restava in posta per sempre, senza «Archivia».
+            using var ctx = new AgentCityContext();
+            _ctx = ctx;
+            var path = Setup(ctx, "sched-fermo", WorkflowWithSynthesis);
+            var held = await LaunchAndWaitForHold(ctx, path);
+            var q = "?projectPath=" + System.Uri.EscapeDataString(path);
+
+            var (_, before) = await ctx.GetJson("/api/A2A/workflow/rounds" + q);
+            Assert.IsFalse(before.RootElement.GetProperty("rounds")[0].GetProperty("stopped").GetBoolean(), "la scheda è da avviare: il giro è in corso");
+
+            var (declined, declinedBody) = await ctx.PostJson($"/api/A2A/mailbox/to-start/{held.Id}/decline", "{\"reason\":\"non adesso\"}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, declined, declinedBody);
+
+            var (_, after) = await ctx.GetJson("/api/A2A/workflow/rounds" + q);
+            var round = after.RootElement.GetProperty("rounds")[0];
+            Assert.IsFalse(round.GetProperty("finished").GetBoolean(), "la sintesi non è mai partita");
+            Assert.IsTrue(round.GetProperty("stopped").GetBoolean(), "la sintesi aspetta una scheda non avviata: fermo");
+
+            var (archived, archivedBody) = await ctx.PostJson($"/api/A2A/mailbox/rounds/{held.WorkflowRound}/archive{q}", "{}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, archived, archivedBody);
+        }
+
         [TestMethod]
         public async Task Record_the_reason_when_the_owner_does_not_start_the_step()
         {

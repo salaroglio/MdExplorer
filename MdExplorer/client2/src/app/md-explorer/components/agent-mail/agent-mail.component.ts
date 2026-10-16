@@ -253,7 +253,7 @@ export class AgentMailComponent implements OnInit, OnDestroy {
       const msgs = inRound.get(r.id) || [];
       const item: MailItem = {
         kind: 'round', id: r.id, when: r.lastActivityAt, from: [r.title, ...r.values].join(' · '),
-        preview: this.translate.instant(r.finished ? 'AGENT_MAIL.ROUND_FINISHED' : 'AGENT_MAIL.ROUND_PROGRESS', { done: r.stepsDone, total: r.stepsTotal }),
+        preview: this.translate.instant(r.finished ? 'AGENT_MAIL.ROUND_FINISHED' : r.stopped ? 'AGENT_MAIL.ROUND_STOPPED' : 'AGENT_MAIL.ROUND_PROGRESS', { done: r.stepsDone, total: r.stepsTotal }),
         unread: msgs.some(m => m.unread), round: r, roundMessages: msgs,
       };
       const rows: MailItem[] = [item];

@@ -110,6 +110,11 @@ namespace MdExplorer.Services.AgentRun
         public DateTime LastActivityAt { get; init; }
         /// <summary>Tutti i passi sono conclusi (approvati, conclusi, non avviati per scelta, falliti).</summary>
         public bool Finished { get; init; }
+        /// <summary>
+        /// Non concluso ma fermo: nessun passo può più andare avanti senza che qualcuno ne faccia ripartire uno rifiutato,
+        /// non avviato o fallito (<see cref="WorkflowScheduler.IsStopped"/>). Si può archiviare come un giro concluso.
+        /// </summary>
+        public bool Stopped { get; init; }
         public int StepsDone { get; init; }
         public int StepsTotal { get; init; }
         public IReadOnlyList<RoundProgress> Steps { get; init; } = Array.Empty<RoundProgress>();
@@ -563,6 +568,7 @@ namespace MdExplorer.Services.AgentRun
                     StepsTotal = steps.Count,
                     StepsDone = steps.Count(s => s.State is "approved" or "done"),
                     Finished = steps.All(s => closed.Contains(s.State)),
+                    Stopped = !steps.All(s => closed.Contains(s.State)) && WorkflowScheduler.IsStopped(wf, round, views),
                     Runs = events.Where(e => !string.IsNullOrEmpty(e.Run)).Select(e => e.Run.Replace("-", "")).Distinct().ToList(),
                 });
             }

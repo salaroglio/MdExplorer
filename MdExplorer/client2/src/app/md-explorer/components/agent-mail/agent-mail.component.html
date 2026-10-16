@@ -60,7 +60,7 @@
                 (click)="select(item)">
           <span class="row-branch" *ngIf="item.child" aria-hidden="true"></span>
           <span class="row-dot"></span>
-          <mat-icon class="row-icon">{{ item.kind === 'message' ? 'smart_toy' : item.kind === 'tostart' ? 'pending_actions' : item.kind === 'review' ? (item.request?.status === 'rejected' ? 'block' : 'rule') : item.kind === 'round' ? (item.round?.finished ? 'task_alt' : 'account_tree') : 'hub' }}</mat-icon>
+          <mat-icon class="row-icon">{{ item.kind === 'message' ? 'smart_toy' : item.kind === 'tostart' ? 'pending_actions' : item.kind === 'review' ? (item.request?.status === 'rejected' ? 'block' : 'rule') : item.kind === 'round' ? (item.round?.finished ? 'task_alt' : item.round?.stopped ? 'pause_circle' : 'account_tree') : 'hub' }}</mat-icon>
           <span class="row-main">
             <span class="row-top">
               <span class="row-from">{{ item.child ? ((item.request?.status === 'rejected' ? 'AGENT_MAIL.CHILD_STOPPED' : 'AGENT_MAIL.CHILD_REVIEW') | translate) : item.from }}</span>
@@ -103,12 +103,12 @@
         <!-- Un giro: i suoi passi e i suoi messaggi -->
         <div class="detail round" *ngIf="selected?.kind === 'round'">
           <div class="detail-head">
-            <mat-icon class="head-icon">{{ selected.round.finished ? 'task_alt' : 'account_tree' }}</mat-icon>
+            <mat-icon class="head-icon">{{ selected.round.finished ? 'task_alt' : selected.round.stopped ? 'pause_circle' : 'account_tree' }}</mat-icon>
             <span class="head-from">{{ selected.from }}</span>
-            <span class="head-kind">{{ (selected.round.finished ? 'AGENT_MAIL.ROUND_FINISHED' : 'AGENT_MAIL.ROUND_PROGRESS') | translate: { done: selected.round.stepsDone, total: selected.round.stepsTotal } }}</span>
+            <span class="head-kind">{{ (selected.round.finished ? 'AGENT_MAIL.ROUND_FINISHED' : selected.round.stopped ? 'AGENT_MAIL.ROUND_STOPPED' : 'AGENT_MAIL.ROUND_PROGRESS') | translate: { done: selected.round.stepsDone, total: selected.round.stepsTotal } }}</span>
             <span class="flexExpand"></span>
             <span class="head-when">{{ selected.round.startedAt | date:'medium' }}</span>
-            <button mat-stroked-button class="btn-archive-round" *ngIf="!showArchive && selected.round.finished" (click)="archiveRound(selected, true)"
+            <button mat-stroked-button class="btn-archive-round" *ngIf="!showArchive && (selected.round.finished || selected.round.stopped)" (click)="archiveRound(selected, true)"
                     [matTooltip]="'AGENT_MAIL.ROUND_ARCHIVE_TIP' | translate">
               <mat-icon>inventory_2</mat-icon> {{ 'AGENT_MAIL.ROUND_ARCHIVE' | translate }}
             </button>

@@ -8127,7 +8127,7 @@ function AgentMailComponent_ng_container_29_button_3_Template(rf, ctx) {
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", item_r9.child);
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](item_r9.kind === "message" ? "smart_toy" : item_r9.kind === "tostart" ? "pending_actions" : item_r9.kind === "review" ? (item_r9.request == null ? null : item_r9.request.status) === "rejected" ? "block" : "rule" : item_r9.kind === "round" ? (item_r9.round == null ? null : item_r9.round.finished) ? "task_alt" : "account_tree" : "hub");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](item_r9.kind === "message" ? "smart_toy" : item_r9.kind === "tostart" ? "pending_actions" : item_r9.kind === "review" ? (item_r9.request == null ? null : item_r9.request.status) === "rejected" ? "block" : "rule" : item_r9.kind === "round" ? (item_r9.round == null ? null : item_r9.round.finished) ? "task_alt" : (item_r9.round == null ? null : item_r9.round.stopped) ? "pause_circle" : "account_tree" : "hub");
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](item_r9.child ? _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind1"](9, 17, (item_r9.request == null ? null : item_r9.request.status) === "rejected" ? "AGENT_MAIL.CHILD_STOPPED" : "AGENT_MAIL.CHILD_REVIEW") : item_r9.from);
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
@@ -8408,15 +8408,15 @@ function AgentMailComponent_ng_container_32_div_2_Template(rf, ctx) {
   if (rf & 2) {
     const ctx_r31 = _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵnextContext"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](3);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](ctx_r31.selected.round.finished ? "task_alt" : "account_tree");
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](ctx_r31.selected.round.finished ? "task_alt" : ctx_r31.selected.round.stopped ? "pause_circle" : "account_tree");
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](ctx_r31.selected.from);
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind2"](8, 12, ctx_r31.selected.round.finished ? "AGENT_MAIL.ROUND_FINISHED" : "AGENT_MAIL.ROUND_PROGRESS", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpureFunction2"](26, _c3, ctx_r31.selected.round.stepsDone, ctx_r31.selected.round.stepsTotal)));
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind2"](8, 12, ctx_r31.selected.round.finished ? "AGENT_MAIL.ROUND_FINISHED" : ctx_r31.selected.round.stopped ? "AGENT_MAIL.ROUND_STOPPED" : "AGENT_MAIL.ROUND_PROGRESS", _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpureFunction2"](26, _c3, ctx_r31.selected.round.stepsDone, ctx_r31.selected.round.stepsTotal)));
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](4);
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵtextInterpolate"](_angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵpipeBind2"](12, 15, ctx_r31.selected.round.startedAt, "medium"));
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
-    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", !ctx_r31.showArchive && ctx_r31.selected.round.finished);
+    _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", !ctx_r31.showArchive && (ctx_r31.selected.round.finished || ctx_r31.selected.round.stopped));
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](1);
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵproperty"]("ngIf", ctx_r31.showArchive);
     _angular_core__WEBPACK_IMPORTED_MODULE_8__["ɵɵadvance"](2);
@@ -9663,7 +9663,7 @@ class AgentMailComponent {
         id: r.id,
         when: r.lastActivityAt,
         from: [r.title, ...r.values].join(' · '),
-        preview: this.translate.instant(r.finished ? 'AGENT_MAIL.ROUND_FINISHED' : 'AGENT_MAIL.ROUND_PROGRESS', {
+        preview: this.translate.instant(r.finished ? 'AGENT_MAIL.ROUND_FINISHED' : r.stopped ? 'AGENT_MAIL.ROUND_STOPPED' : 'AGENT_MAIL.ROUND_PROGRESS', {
           done: r.stepsDone,
           total: r.stepsTotal
         }),
@@ -48088,4 +48088,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.7af4d245e19607e2.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.9a4b41fa981234f1.js.map
