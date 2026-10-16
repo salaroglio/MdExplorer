@@ -93,6 +93,8 @@ export interface CityUser {
 export interface ImpersonationStatus {
   testMode: boolean;
   email: string;
+  /** Il nome (colonna «Responsabile» della tabella delle responsabilità, o user.name di git); null se non si sa. */
+  name?: string | null;
   ownerId: string;
   impersonated: boolean;
 }

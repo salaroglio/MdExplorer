@@ -365,7 +365,7 @@
   <!-- Banner impersonazione: sempre visibile mentre agisci come un altro utente -->
   <mat-toolbar-row *ngIf="identity?.impersonated" class="identity-banner">
     <mat-icon>warning</mat-icon>
-    <span>{{ 'IDENTITY.BANNER' | translate:{ email: identity?.email } }}</span>
+    <span>{{ 'IDENTITY.BANNER' | translate:{ email: (identity?.name ? identity?.name + ' (' + identity?.email + ')' : identity?.email) } }}</span>
     <span class="flexExpand"></span>
     <button mat-stroked-button (click)="backToMe()">{{ 'IDENTITY.BACK_TO_ME' | translate }}</button>
   </mat-toolbar-row>
@@ -386,7 +386,8 @@
 <mat-menu #identityMenu="matMenu">
   <div class="identity-menu" (click)="$event.stopPropagation()">
     <div class="identity-current">
-      {{ 'IDENTITY.YOU_ARE' | translate }} <strong>{{ identity?.email || '?' }}</strong>
+      {{ 'IDENTITY.YOU_ARE' | translate }} <strong>{{ identity?.name || identity?.email || '?' }}</strong>
+      <span *ngIf="identity?.name" class="identity-email">{{ identity?.email }}</span>
       <span *ngIf="identity?.impersonated" class="identity-badge">{{ 'IDENTITY.IMPERSONATING' | translate }}</span>
     </div>
     <label class="identity-testmode">
@@ -397,7 +398,9 @@
       <div class="identity-hint">{{ 'IDENTITY.PICK_HINT' | translate }}</div>
       <button mat-menu-item *ngFor="let u of cityUsers" (click)="actAs(u.email)" [disabled]="u.isMe">
         <mat-icon>{{ u.isMe ? 'person' : 'person_outline' }}</mat-icon>
-        <span class="identity-user-name">{{ u.displayName }}</span>
+        <span class="identity-user-name">{{ u.displayName }}
+          <span *ngIf="u.displayName !== u.email" class="identity-email">{{ u.email }}</span>
+        </span>
         <span class="presence-dot" [class.online]="u.online" [class.offline]="!u.online"
               [matTooltip]="(u.online ? 'IDENTITY.ONLINE' : 'IDENTITY.OFFLINE') | translate"></span>
       </button>

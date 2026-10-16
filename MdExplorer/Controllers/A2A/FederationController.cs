@@ -78,12 +78,14 @@ namespace MdExplorer.Controllers.A2A
                 .Select(email =>
                 {
                     var ownerId = MdExplorer.Features.Federation.FederationRoom.ComputeUserId(email);
+                    var isMe = string.Equals(email, me, StringComparison.OrdinalIgnoreCase);
                     return new
                     {
                         email,
                         ownerId,
-                        displayName = email,
-                        isMe = string.Equals(email, me, StringComparison.OrdinalIgnoreCase),
+                        // Il nome della colonna «Responsabile» (Anna, Marco): l'email da sola non dice chi è.
+                        displayName = NameOf(projectPath, email, entries, isMe && !_identity.Resolve(projectPath).Impersonated) ?? email,
+                        isMe,
                         online = onlineOwners.Contains(ownerId),
                     };
                 })
@@ -98,7 +100,32 @@ namespace MdExplorer.Controllers.A2A
             if (string.IsNullOrWhiteSpace(projectPath))
                 return BadRequest(new { error = "projectPath è obbligatorio." });
             var id = _identity.Resolve(projectPath);
-            return Ok(new { testMode = _identity.IsTestModeEnabled(), email = id.Email, ownerId = id.OwnerId, impersonated = id.Impersonated });
+            var name = NameOf(projectPath, id.Email, _ownership.GetActiveOwnership(projectPath), realMe: !id.Impersonated);
+            return Ok(new { testMode = _identity.IsTestModeEnabled(), email = id.Email, name, ownerId = id.OwnerId, impersonated = id.Impersonated });
+        }
+
+        /// <summary>
+        /// Il nome di chi ha questa email: la colonna «Responsabile» della tabella delle responsabilità (sta nel
+        /// progetto, uguale su tutti i computer, vale anche per chi si impersona); se l'email non c'è e si tratta
+        /// di me davvero (non impersonato), il <c>user.name</c> di git del progetto. Null se nessuno dei due lo dice.
+        /// </summary>
+        private static string NameOf(string projectPath, string email,
+            System.Collections.Generic.IEnumerable<MdExplorer.Features.Agents.OwnershipEntry> entries, bool realMe)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return null;
+            var fromTable = entries?
+                .Where(e => string.Equals(e.GitEmail?.Trim(), email.Trim(), StringComparison.OrdinalIgnoreCase))
+                .Select(e => e.Responsible?.Trim())
+                .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
+            if (fromTable != null) return fromTable;
+            if (!realMe) return null;
+            try
+            {
+                using var repo = new LibGit2Sharp.Repository(projectPath);
+                var gitName = repo.Config.Get<string>("user.name")?.Value?.Trim();
+                return string.IsNullOrWhiteSpace(gitName) ? null : gitName;
+            }
+            catch (LibGit2Sharp.RepositoryNotFoundException) { return null; }
         }
 
         /// <summary>Abilita/disabilita la modalità test identità (globale).</summary>
