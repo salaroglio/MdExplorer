@@ -127,6 +127,9 @@ namespace MdExplorer.IntegrationTests
             using var ctx = new AgentCityContext();
             var (key, _) = City(ctx, "computer-spento");
             ctx.FederationSender.Result = MdExplorer.Services.Federation.RelayDelivery.Queued;
+            // Interfaccia in italiano: l'avviso in posta segue la lingua (gli altri test girano in inglese, il default).
+            var (langStatus, langBody) = await ctx.PostJson("/api/AppSettings/SetLanguage", "{\"language\":\"it\"}");
+            Assert.AreEqual(System.Net.HttpStatusCode.OK, langStatus, langBody);
 
             await GatewayRpc.SendMessage(ctx.Client, key, "suo", "al lavoro");
 
@@ -162,7 +165,7 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(1, NoticesFrom(ctx, "suo"));
             var notice = ctx.Messages().First(m => m.FromAgent == "suo" && m.ToAgent == ConversationHopGuard.UserRecipient);
             StringAssert.Contains(notice.Body, "marco@pentagroup.test");
-            StringAssert.Contains(notice.Body, "riparte da solo");
+            StringAssert.Contains(notice.Body, "leaves by itself", "interfaccia in inglese (il default dei test)");
 
             ctx.FederationSender.Result = MdExplorer.Services.Federation.RelayDelivery.Delivered;
             msgs = await ctx.WaitForMessages(m => m.Any(x => x.ToAgent == "suo" && x.State == AgentMessage.StateEnum.Processed));
@@ -253,7 +256,7 @@ namespace MdExplorer.IntegrationTests
             Assert.AreEqual(0, ctx.Runner.Calls);
             StringAssert.Contains(
                 ctx.Messages().First(m => m.FromAgent == "orfano" && m.ToAgent == ConversationHopGuard.UserRecipient).Body,
-                "non ha un responsabile");
+                "has no owner");
 
             // Assegnato a me, il messaggio che aspettava parte da solo: non va rimandato.
             WriteOwnership(path, (Me, "mio"), ("marco@pentagroup.test", "suo"), (Me, "orfano"));

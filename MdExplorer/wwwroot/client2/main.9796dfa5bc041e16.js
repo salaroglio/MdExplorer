@@ -25,8 +25,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _mark_assistant_mark_diagram_service__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./mark-assistant/mark-diagram.service */ 4926);
 /* harmony import */ var _signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_9__ = __webpack_require__(/*! ./signalR/services/server-messages.service */ 8635);
 /* harmony import */ var _angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_15__ = __webpack_require__(/*! @angular/material/legacy-snack-bar */ 7402);
+/* harmony import */ var _ngx_translate_core__WEBPACK_IMPORTED_MODULE_16__ = __webpack_require__(/*! @ngx-translate/core */ 8699);
 /* harmony import */ var _mark_assistant_mark_assistant_component__WEBPACK_IMPORTED_MODULE_10__ = __webpack_require__(/*! ./mark-assistant/mark-assistant.component */ 9937);
 /* harmony import */ var _components_title_bar_title_bar_component__WEBPACK_IMPORTED_MODULE_11__ = __webpack_require__(/*! ./components/title-bar/title-bar.component */ 9063);
+
 
 
 
@@ -55,7 +57,7 @@ class AppComponent {
   constructor(titleService, currentFolder, route, router, aiNotificationService, urlHandlerService, fileChangeNotificationService, languageService, themeService, executionService,
   // Instantiated for its side effect: it installs the "Ask to MarkAgent"
   // postMessage listener before any document can be opened.
-  markDiagramService, serverMessages, snackBar) {
+  markDiagramService, serverMessages, snackBar, translate) {
     this.titleService = titleService;
     this.currentFolder = currentFolder;
     this.route = route;
@@ -69,6 +71,7 @@ class AppComponent {
     this.markDiagramService = markDiagramService;
     this.serverMessages = serverMessages;
     this.snackBar = snackBar;
+    this.translate = translate;
     this.title = 'client2';
     currentFolder.folderName.subscribe(data => {
       this.titleService.setTitle(data.currentFolder);
@@ -83,8 +86,10 @@ class AppComponent {
     // backend (FileSystemWatcherManager.CheckKgDriftBestEffortAsync) already
     // throttles by only emitting on actual mismatch.
     this.serverMessages.kgStale$.subscribe(evt => {
-      const filename = (evt?.sourceMdPath ?? '').split(/[\\\/]/).pop() || 'documento';
-      this.snackBar.open(`⚠️  Knowledge Graph non aggiornato per "${filename}". Rigenera il grafo.`, 'OK', {
+      const filename = (evt?.sourceMdPath ?? '').split(/[\\\/]/).pop() || this.translate.instant('APP.KG_STALE_DOCUMENT');
+      this.snackBar.open(this.translate.instant('APP.KG_STALE', {
+        filename
+      }), 'OK', {
         duration: 6000,
         panelClass: ['kg-stale-snack']
       });
@@ -93,11 +98,16 @@ class AppComponent {
     // toast globale così l'esito arriva anche se il dialog di lancio è chiuso.
     this.serverMessages.agentJobProgress$.subscribe(evt => {
       if (evt.phase === 'completed') {
-        this.snackBar.open(`🤖 Agente "${evt.agentName}" completato.`, 'OK', {
+        this.snackBar.open(this.translate.instant('APP.AGENT_COMPLETED', {
+          agent: evt.agentName
+        }), 'OK', {
           duration: 5000
         });
       } else if (evt.phase === 'failed') {
-        this.snackBar.open(`🤖 Agente "${evt.agentName}" fallito: ${evt.error || 'errore sconosciuto'}`, 'OK', {
+        this.snackBar.open(this.translate.instant('APP.AGENT_FAILED', {
+          agent: evt.agentName,
+          error: evt.error || this.translate.instant('APP.UNKNOWN_ERROR')
+        }), 'OK', {
           duration: 10000,
           panelClass: ['kg-stale-snack']
         });
@@ -106,7 +116,7 @@ class AppComponent {
   }
   static {
     this.ɵfac = function AppComponent_Factory(t) {
-      return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_13__.Title), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_1__.AppCurrentMetadataService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_14__.ActivatedRoute), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_14__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_ai_notification_service__WEBPACK_IMPORTED_MODULE_2__.AiNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_url_handler_service__WEBPACK_IMPORTED_MODULE_3__.UrlHandlerService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_4__.FileChangeNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_language_service__WEBPACK_IMPORTED_MODULE_5__.LanguageService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_theme_service__WEBPACK_IMPORTED_MODULE_6__.ThemeService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_execution_service__WEBPACK_IMPORTED_MODULE_7__.ExecutionService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_mark_assistant_mark_diagram_service__WEBPACK_IMPORTED_MODULE_8__.MarkDiagramService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_9__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_15__.MatLegacySnackBar));
+      return new (t || AppComponent)(_angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_platform_browser__WEBPACK_IMPORTED_MODULE_13__.Title), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_app_current_metadata_service__WEBPACK_IMPORTED_MODULE_1__.AppCurrentMetadataService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_14__.ActivatedRoute), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_router__WEBPACK_IMPORTED_MODULE_14__.Router), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_ai_notification_service__WEBPACK_IMPORTED_MODULE_2__.AiNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_url_handler_service__WEBPACK_IMPORTED_MODULE_3__.UrlHandlerService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_file_change_notification_service__WEBPACK_IMPORTED_MODULE_4__.FileChangeNotificationService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_language_service__WEBPACK_IMPORTED_MODULE_5__.LanguageService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_theme_service__WEBPACK_IMPORTED_MODULE_6__.ThemeService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_services_execution_service__WEBPACK_IMPORTED_MODULE_7__.ExecutionService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_mark_assistant_mark_diagram_service__WEBPACK_IMPORTED_MODULE_8__.MarkDiagramService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_signalR_services_server_messages_service__WEBPACK_IMPORTED_MODULE_9__.MdServerMessagesService), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_angular_material_legacy_snack_bar__WEBPACK_IMPORTED_MODULE_15__.MatLegacySnackBar), _angular_core__WEBPACK_IMPORTED_MODULE_12__["ɵɵdirectiveInject"](_ngx_translate_core__WEBPACK_IMPORTED_MODULE_16__.TranslateService));
     };
   }
   static {
@@ -18926,8 +18936,8 @@ __webpack_require__.r(__webpack_exports__);
 // Questo file è generato automaticamente dallo script update-version.js
 // Non modificarlo manualmente.
 const versionInfo = {
-  version: '2026.10.16.7',
-  buildTime: '2026.10.16 11:23:10'
+  version: '2026.10.16.8',
+  buildTime: '2026.10.16 12:30:54'
 };
 
 /***/ }),
@@ -18961,4 +18971,4 @@ _angular_platform_browser__WEBPACK_IMPORTED_MODULE_3__.platformBrowser().bootstr
 /******/ var __webpack_exports__ = __webpack_require__.O();
 /******/ }
 ]);
-//# sourceMappingURL=main.84310d3275aee927.js.map
+//# sourceMappingURL=main.9796dfa5bc041e16.js.map

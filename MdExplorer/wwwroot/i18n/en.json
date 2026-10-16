@@ -1,4 +1,11 @@
 {
+  "APP": {
+    "AGENT_COMPLETED": "🤖 Agent \"{{agent}}\" completed.",
+    "AGENT_FAILED": "🤖 Agent \"{{agent}}\" failed: {{error}}",
+    "UNKNOWN_ERROR": "unknown error",
+    "KG_STALE": "⚠️  Knowledge Graph out of date for \"{{filename}}\". Regenerate the graph.",
+    "KG_STALE_DOCUMENT": "document"
+  },
   "COMMON": {
     "OK": "OK",
     "CANCEL": "Cancel",
@@ -796,6 +803,7 @@
     "PUBLISH": "Publish"
   },
   "MAIN_CONTENT": {
+    "ERROR_WITH": "Error: {{error}}",
     "AGENT_BUSY_entering": "Opening the copy of {{agent}}…",
     "AGENT_BUSY_leaving": "Going back to your work…",
     "AGENT_BUSY_saving": "Committing and publishing the work in the copy of {{agent}}…",

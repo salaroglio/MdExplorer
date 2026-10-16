@@ -28122,7 +28122,9 @@ class MainContentComponent {
           });
           // TODO: Could show progress in P2P Manager or a dedicated component
         } else {
-          this.snackBar.open(`Errore: ${result.error}`, 'OK', {
+          this.snackBar.open(this.translate.instant('MAIN_CONTENT.ERROR_WITH', {
+            error: result.error
+          }), 'OK', {
             duration: 5000
           });
         }
@@ -48140,4 +48142,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.10677aee7dcfbf37.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.d105e2361553daae.js.map

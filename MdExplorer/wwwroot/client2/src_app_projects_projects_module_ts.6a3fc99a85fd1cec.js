@@ -1575,30 +1575,30 @@ class P2PManagerComponent {
   }
   downloadFile(fileInfo) {
     if (!fileInfo?.magnetUri) {
-      this.snackBar.open('Magnet link non disponibile', 'OK', {
+      this.snackBar.open('Magnet link not available', 'OK', {
         duration: 3000
       });
       return;
     }
-    this.snackBar.open('Avvio download...', '', {
+    this.snackBar.open('Starting download...', '', {
       duration: 2000
     });
     this.p2pService.download(fileInfo.magnetUri).subscribe({
       next: result => {
         if (result.success) {
-          this.snackBar.open(`Download avviato: ${result.name}`, 'OK', {
+          this.snackBar.open(`Download started: ${result.name}`, 'OK', {
             duration: 3000
           });
           this.selectedTab = 0; // Switch to Transfers tab
           this.refreshTransfers();
         } else {
-          this.snackBar.open('Errore: ' + result.error, 'OK', {
+          this.snackBar.open('Error: ' + result.error, 'OK', {
             duration: 3000
           });
         }
       },
       error: err => {
-        this.snackBar.open('Errore download: ' + err.message, 'OK', {
+        this.snackBar.open('Download error: ' + err.message, 'OK', {
           duration: 3000
         });
       }
@@ -9716,4 +9716,4 @@ class NgDialogAnimationService {
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_projects_projects_module_ts.1bf80ea699d493d6.js.map
+//# sourceMappingURL=src_app_projects_projects_module_ts.6a3fc99a85fd1cec.js.map

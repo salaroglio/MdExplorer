@@ -98,7 +98,7 @@ namespace MdExplorer.IntegrationTests
         public void Tell_the_user_through_the_mailbox_when_the_work_was_not_published()
         {
             var mailbox = new FakeMailbox();
-            var reporter = new AgentDeliveryReporter(mailbox, NullLogger<AgentDeliveryReporter>.Instance);
+            var reporter = new AgentDeliveryReporter(mailbox, NullLogger<AgentDeliveryReporter>.Instance, new MdExplorer.Features.Services.FixedUiLanguage("it"));
 
             reporter.ReportNotPublished("/progetto", "alfa",
                 new DeliveryAttempt { Error = "il push del ramo 'x' su origin è fallito (permesso negato)", WorktreePath = "/progetto/.worktrees/slot-1" },
@@ -117,7 +117,7 @@ namespace MdExplorer.IntegrationTests
         public void Stay_quiet_when_there_is_nothing_to_report()
         {
             var mailbox = new FakeMailbox();
-            var reporter = new AgentDeliveryReporter(mailbox, NullLogger<AgentDeliveryReporter>.Instance);
+            var reporter = new AgentDeliveryReporter(mailbox, NullLogger<AgentDeliveryReporter>.Instance, new MdExplorer.Features.Services.FixedUiLanguage("it"));
 
             reporter.ReportNotPublished("/progetto", "alfa", new DeliveryAttempt { NothingToDeliver = true });
             reporter.ReportNotPublished("/progetto", "alfa", null);

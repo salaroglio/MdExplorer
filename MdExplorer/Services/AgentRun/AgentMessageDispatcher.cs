@@ -69,6 +69,8 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentDeliveryReporter _deliveryReporter;
         private readonly IAgentWakeGuard _wakeGuard;
         private readonly IAgentMessageForwarder _forwarder;
+        /// <summary>La lingua dell'interfaccia: gli avvisi in posta la seguono (16/10/2026).</summary>
+        private readonly MdExplorer.Features.Services.IUiLanguage _language;
         private readonly IAgentMailbox _mailbox;
         private readonly IAgentWorkflowExecutor _workflow;
         private readonly MdExplorer.Services.IProjectMetadataService _projectMetadata;
@@ -107,8 +109,10 @@ namespace MdExplorer.Services.AgentRun
             MdExplorer.Services.Federation.IFederationSender federationSender,
             IHubContext<MonitorMDHub> hubContext,
             ILogger<AgentMessageDispatcher> logger,
-            IAgentWorkflowExecutor workflow)
+            IAgentWorkflowExecutor workflow,
+            MdExplorer.Features.Services.IUiLanguage language)
         {
+            _language = language;
             _workflow = workflow;
             _scopeFactory = scopeFactory;
             _wakeGuard = wakeGuard;
@@ -955,8 +959,11 @@ namespace MdExplorer.Services.AgentRun
                     ProjectPath = snapshot.ProjectPath,
                     FromAgent = snapshot.ToAgent,
                     ToAgent = ConversationHopGuard.UserRecipient,
-                    Body = $"[INFO] Il messaggio per «{snapshot.ToAgent}» è partito, ma il computer di {owner.OwnerEmail} adesso è spento: "
-                         + "aspetta sul relay e arriva quando riapre MdExplorer. Se non lo riapre entro 7 giorni il relay lo butta.",
+                    Body = MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
+                        $"[INFO] Il messaggio per «{snapshot.ToAgent}» è partito, ma il computer di {owner.OwnerEmail} adesso è spento: "
+                        + "aspetta sul relay e arriva quando riapre MdExplorer. Se non lo riapre entro 7 giorni il relay lo butta.",
+                        $"[INFO] The message for «{snapshot.ToAgent}» has left, but the computer of {owner.OwnerEmail} is off right now: "
+                        + "it waits on the relay and arrives when MdExplorer starts there again. If it does not within 7 days, the relay drops it."),
                 });
             }
             catch (Exception ex)
@@ -988,9 +995,13 @@ namespace MdExplorer.Services.AgentRun
                     ProjectPath = snapshot.ProjectPath,
                     FromAgent = snapshot.ToAgent,
                     ToAgent = ConversationHopGuard.UserRecipient,
-                    Body = owner.Explain() + (owner.Kind == AgentOwnerKind.SomeoneElse
-                        ? " Non riesco a mandargli il messaggio adesso: il collegamento tra le città non è attivo. Resta in attesa e riparte da solo."
-                        : " Il messaggio che gli era stato mandato resta in attesa."),
+                    Body = owner.Explain(_language.Current) + (owner.Kind == AgentOwnerKind.SomeoneElse
+                        ? MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
+                            " Non riesco a mandargli il messaggio adesso: il collegamento tra le città non è attivo. Resta in attesa e riparte da solo.",
+                            " I cannot send the message there right now: the link between the cities is not active. It waits and leaves by itself.")
+                        : MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
+                            " Il messaggio che gli era stato mandato resta in attesa.",
+                            " The message sent to it keeps waiting.")),
                     ContextId = snapshot.ConversationId.ToString(),
                 });
                 if (!told.Accepted)
@@ -1138,8 +1149,11 @@ namespace MdExplorer.Services.AgentRun
                 if (!alreadyTold)
                 {
                     _logger.LogWarning("[Dispatcher] '{Agent}' non parte: {Problem}", snapshot.ToAgent, problem);
-                    TellUser(snapshot, $"Non parto: {problem} Finché il workflow non si legge non so chi deve avviarmi. " +
-                                       "Il messaggio resta in attesa e riparte da solo quando il workflow è corretto.");
+                    TellUser(snapshot, MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
+                        $"Non parto: {problem} Finché il workflow non si legge non so chi deve avviarmi. " +
+                        "Il messaggio resta in attesa e riparte da solo quando il workflow è corretto.",
+                        $"I am not starting: {problem} Until the workflow can be read I do not know who must start me. " +
+                        "The message waits and leaves by itself when the workflow is fixed."));
                 }
                 return true;
             }

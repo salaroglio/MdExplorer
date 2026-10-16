@@ -504,7 +504,8 @@ namespace MdExplorer.Controllers.A2A
             }
             else
             {
-                body = AgentReplyResolver.QuoteFreeReply(request.Body, lastToUser.Body, proposed);
+                body = AgentReplyResolver.QuoteFreeReply(request.Body, lastToUser.Body, proposed,
+                    Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions.GetRequiredService<MdExplorer.Features.Services.IUiLanguage>(HttpContext.RequestServices).Current);
             }
 
             var result = _mailbox.Enqueue(new EnqueueRequest

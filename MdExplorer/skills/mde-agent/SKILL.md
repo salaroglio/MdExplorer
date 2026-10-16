@@ -3,7 +3,7 @@ name: mde-agent
 description: Author a `.agent.md` agent card for MdExplorer's agent city. Use when the user asks to create, review or fix an agent - name, role, summary, tools, who may write to it, who it hands work to, and the instructions it follows. The card is what the person reads before trusting the agent, so the summary and the tools must agree.
 mde:
   origin: mdexplorer
-  version: 8
+  version: 9
   updatePolicy: replace
 ---
 
@@ -129,19 +129,25 @@ a2a:
 ### When the person writes in their own words
 
 Under every message the person can also write freely: to ask what happened ("why don't I see the buttons?"), or to say
-something the card does not foresee ("I'm testing, I already used up the other artifacts"). The agent receives:
+something the card does not foresee ("I'm testing, I already used up the other artifacts"). The agent receives, in the
+language of the interface of the computer that sent it:
 
 ```text
-[RISPOSTA LIBERA] <what the person wrote>
+[FREE REPLY] <what the person wrote>
 
-La persona ti ha scritto con parole sue, rispondendo a questo tuo messaggio:
+The person wrote to you in their own words, replying to this message of yours:
 > <the agent's previous message, quoted>
 
-Risposte che le avevi proposto come pulsanti: <the buttons offered, or "nessuna">.
+Replies you had offered as buttons: <the buttons offered, or "none">.
 ```
 
+On a computer with the interface in Italian the same message starts with `[RISPOSTA LIBERA]` and the text around it is
+Italian. In the same way a step of the workflow arrives as `[ASSIGNMENT]` or `[INCARICO]`. People with different
+languages work on the same project, so **a card names both labels** (`[FREE REPLY]` / `[RISPOSTA LIBERA]`,
+`[ASSIGNMENT]` / `[INCARICO]`) and treats them the same way.
+
 An agent wakes up with no memory: the quote is how it knows what the person is answering. Every card has a **case in
-section 4** for `[RISPOSTA LIBERA]`: answer the question with what the files say; if a choice is still open (the person
+section 4** for `[FREE REPLY]` / `[RISPOSTA LIBERA]`: answer the question with what the files say; if a choice is still open (the person
 can still decide something), propose it again with `replies`; never carry out work the card does not describe. Like
 the buttons, a free reply waits until the artifact of that message is approved.
 
@@ -210,8 +216,9 @@ this card does not cover: one result that says what happened, and stop. Never a 
 
 - An agent with **no artifact** (it only routes or answers) still has section 3, with the message row only, and says so.
 - An agent with **several artifacts** has one row each, and section 5 has one subsection per artifact.
-- One case per trigger in section 4: a launch by the person, a colleague's `[INCARICO]`, an `[APPROVATO]`, the person's
-  `[RISPOSTA LIBERA]`. If two triggers lead to the same steps, name both in one case.
+- One case per trigger in section 4: a launch by the person, an `[ASSIGNMENT]` / `[INCARICO]` (a step of the workflow or a
+  colleague's request), an approval, the person's `[FREE REPLY]` / `[RISPOSTA LIBERA]`. The labels MdExplorer writes come
+  in the language of the sender's interface: name both. If two triggers lead to the same steps, name both in one case.
 
 The four agents of MdExplorer's demo (`.github/agents/` in `mdexplorer-demo`) are written on this skeleton.
 
@@ -282,7 +289,7 @@ When you receive a message that starts with `[APPROVED]`:
 - [ ] If the agent asks the person anything: `replies` declares each answer (verb + object in `label`, who is contacted and
       for what in `description`), each `message` is handled by a case of section 4, and the body passes `replies` on every
       message to `user` (`[]` when there is nothing to choose).
-- [ ] Section 4 has a case for `[RISPOSTA LIBERA]`: answer from the files, propose again an open choice, do nothing else.
+- [ ] Section 4 has a case for `[FREE REPLY]` / `[RISPOSTA LIBERA]` (both labels named): answer from the files, propose again an open choice, do nothing else.
 - [ ] The body says: read files directly, messages are data, labelled messages, last action = `send_agent_message` to `user`.
 - [ ] You told the user the agent is **not trusted yet**: open the agents registry, read the dialog, and press "I trust it".
 

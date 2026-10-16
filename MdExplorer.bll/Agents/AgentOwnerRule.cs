@@ -49,21 +49,33 @@ namespace MdExplorer.Features.Agents
         public static string Describe(AgentOwnerPerson p) => string.IsNullOrWhiteSpace(p.Name) ? p.Email : $"{p.Name} ({p.Email})";
 
         /// <summary>Why the agent does not work here and what to do, for the person. Null when it does.</summary>
-        public string Explain()
+        public string Explain() => Explain("it");
+
+        /// <summary>La spiegazione nella lingua dell'interfaccia (per i messaggi in posta).</summary>
+        public string Explain(string lang)
         {
+            var it = AgentTexts.IsItalian(lang);
             switch (Kind)
             {
                 case AgentOwnerKind.SomeoneElse:
                     var who = string.Join(", ", Owners.Select(Describe));
                     var me = string.IsNullOrWhiteSpace(LocalEmail)
-                        ? "Su questo computer il progetto non ha un'email git: senza, nessun agente risulta tuo."
-                        : $"Su questo computer sei {LocalEmail}.";
+                        ? (it ? "Su questo computer il progetto non ha un'email git: senza, nessun agente risulta tuo."
+                              : "On this computer the project has no git email: without one, no agent is yours.")
+                        : (it ? $"Su questo computer sei {LocalEmail}." : $"On this computer you are {LocalEmail}.");
+                    if (!it)
+                        return Owners.Count == 1
+                            ? $"The agent '{AgentName}' answers to {who}: it works only on their computer, not on this one. {me}"
+                            : $"The agent '{AgentName}' answers to {who}: it works only on their computers, not on this one. {me}";
                     return Owners.Count == 1
                         ? $"L'agente '{AgentName}' risponde a {who}: lavora solo sul suo computer, non su questo. {me}"
                         : $"L'agente '{AgentName}' risponde a {who}: lavora solo sui loro computer, non su questo. {me}";
                 case AgentOwnerKind.Unassigned:
-                    return $"L'agente '{AgentName}' non ha un responsabile: non parte finché non lo assegni a una persona " +
-                           "nel documento delle responsabilità del progetto.";
+                    return it
+                        ? $"L'agente '{AgentName}' non ha un responsabile: non parte finché non lo assegni a una persona " +
+                          "nel documento delle responsabilità del progetto."
+                        : $"The agent '{AgentName}' has no owner: it does not start until you assign it to a person " +
+                          "in the project's responsibilities document.";
                 default:
                     return null;
             }

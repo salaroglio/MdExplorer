@@ -1,4 +1,11 @@
 {
+  "APP": {
+    "AGENT_COMPLETED": "🤖 Agente \"{{agent}}\" completato.",
+    "AGENT_FAILED": "🤖 Agente \"{{agent}}\" fallito: {{error}}",
+    "UNKNOWN_ERROR": "errore sconosciuto",
+    "KG_STALE": "⚠️  Knowledge Graph non aggiornato per \"{{filename}}\". Rigenera il grafo.",
+    "KG_STALE_DOCUMENT": "documento"
+  },
   "COMMON": {
     "OK": "OK",
     "CANCEL": "Annulla",
@@ -796,6 +803,7 @@
     "PUBLISH": "Pubblica"
   },
   "MAIN_CONTENT": {
+    "ERROR_WITH": "Errore: {{error}}",
     "AGENT_BUSY_entering": "Sto aprendo la copia di {{agent}}…",
     "AGENT_BUSY_leaving": "Sto tornando al tuo lavoro…",
     "AGENT_BUSY_saving": "Sto committando e pubblicando il lavoro nella copia di {{agent}}…",

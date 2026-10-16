@@ -117,7 +117,7 @@ namespace MdExplorer.Features.Tests.Agents
         {
             var offered = new[] { new ResolvedReply { Id = "avvia-giro", Label = "Avvia il giro su NC-2027-014", Message = "avvia NC-2027-014" } };
 
-            var body = AgentReplyResolver.QuoteFreeReply("  perché non vedo i pulsanti?  ", "[ESITO] Tre procedure.\r\nNC-2027-014 compatibile", offered);
+            var body = AgentReplyResolver.QuoteFreeReply("  perché non vedo i pulsanti?  ", "[ESITO] Tre procedure.\r\nNC-2027-014 compatibile", offered, "it");
 
             StringAssert.StartsWith(body, "[RISPOSTA LIBERA] perché non vedo i pulsanti?");
             StringAssert.Contains(body, "> [ESITO] Tre procedure.\n> NC-2027-014 compatibile");
@@ -127,9 +127,31 @@ namespace MdExplorer.Features.Tests.Agents
         [TestMethod]
         public void Say_no_buttons_were_offered_when_there_were_none()
         {
-            var body = AgentReplyResolver.QuoteFreeReply("che è successo?", "[ESITO] Niente di nuovo.", null);
+            var body = AgentReplyResolver.QuoteFreeReply("che è successo?", "[ESITO] Niente di nuovo.", null, "it");
 
             StringAssert.Contains(body, "Risposte che le avevi proposto come pulsanti: nessuna.");
+        }
+
+        [TestMethod]
+        public void Write_the_free_reply_in_the_language_of_the_interface()
+        {
+            // 16/10/2026: con l'interfaccia in inglese il servizio scriveva lo stesso [RISPOSTA LIBERA] e il testo italiano.
+            var offered = new[] { new ResolvedReply { Id = "start-round", Label = "Start the round on NC-2027-014", Message = "start NC-2027-014" } };
+            var body = AgentReplyResolver.QuoteFreeReply("why no buttons?", "[RESULT] Three procedures.", offered, "en");
+
+            StringAssert.StartsWith(body, "[FREE REPLY] why no buttons?");
+            StringAssert.Contains(body, "The person wrote to you in their own words");
+            StringAssert.Contains(body, "«Start the round on NC-2027-014» (message: start NC-2027-014)");
+            Assert.IsFalse(body.Contains("persona"), "niente italiano");
+        }
+
+        [TestMethod]
+        public void Write_the_assignment_in_the_language_of_the_interface()
+        {
+            var it = AgentTexts.Assignment("it", "Scrivi la scheda.", "g1", "Scheda tecnica", 2, 3, new[] { "a.md" });
+            Assert.AreEqual("[INCARICO] Scrivi la scheda.\n\nGiro g1, passo «Scheda tecnica», giro 2, tentativo 3.\nFile da cui parti (approvati):\n- a.md", it);
+            var en = AgentTexts.Assignment("en", "Write the sheet.", "g1", "Technical sheet", 1, 1, System.Array.Empty<string>());
+            Assert.AreEqual("[ASSIGNMENT] Write the sheet.\n\nRound g1, step «Technical sheet».", en);
         }
     }
 }

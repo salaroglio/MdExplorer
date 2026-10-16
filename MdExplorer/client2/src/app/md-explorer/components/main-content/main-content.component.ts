@@ -1234,7 +1234,7 @@ export class MainContentComponent implements OnInit, AfterViewInit, OnDestroy {
           this.snackBar.open(this.translate.instant('MAIN_CONTENT.DOWNLOAD_STARTED', { filename }), 'OK', { duration: 3000 });
           // TODO: Could show progress in P2P Manager or a dedicated component
         } else {
-          this.snackBar.open(`Errore: ${result.error}`, 'OK', { duration: 5000 });
+          this.snackBar.open(this.translate.instant('MAIN_CONTENT.ERROR_WITH', { error: result.error }), 'OK', { duration: 5000 });
         }
       },
       error: (err) => {

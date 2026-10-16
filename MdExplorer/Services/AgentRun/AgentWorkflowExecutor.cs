@@ -179,6 +179,9 @@ namespace MdExplorer.Services.AgentRun
         /// <summary>Gli avvisi «bloccato» già dati: lo schedulatore ripete l'azione finché la causa resta, l'avviso no.</summary>
         private readonly ConcurrentDictionary<string, byte> _told = new();
 
+        /// <summary>La lingua dell'interfaccia: incarichi e avvisi in posta la seguono (16/10/2026).</summary>
+        private readonly MdExplorer.Features.Services.IUiLanguage _language;
+
         public AgentWorkflowExecutor(
             IServiceScopeFactory scopeFactory,
             MdExplorer.Services.IProjectMetadataService metadata,
@@ -189,8 +192,10 @@ namespace MdExplorer.Services.AgentRun
             MdExplorer.Services.IProjectOwnershipService ownership,
             IWorkflowBell bell,
             Microsoft.AspNetCore.SignalR.IHubContext<MdExplorer.Hubs.MonitorMDHub> hub,
-            ILogger<AgentWorkflowExecutor> logger)
+            ILogger<AgentWorkflowExecutor> logger,
+            MdExplorer.Features.Services.IUiLanguage language)
         {
+            _language = language;
             _bell = bell;
             _hub = hub;
             _ownership = ownership;
@@ -217,7 +222,9 @@ namespace MdExplorer.Services.AgentRun
             {
                 // Il registro dei giri vive in git: senza, il giro non si apre, e lo si dice invece di farlo sparire.
                 _logger.LogError("[Workflow] {Project} non è un repository git: il giro di «{Step}» non si apre.", projectPath, launch.Label);
-                TellUser(projectPath, agentName, $"Il workflow non può aprire il giro di «{launch.Label}»: il progetto non è un repository git, e il registro dei giri vive in git.");
+                TellUser(projectPath, agentName, MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
+                    $"Il workflow non può aprire il giro di «{launch.Label}»: il progetto non è un repository git, e il registro dei giri vive in git.",
+                    $"The workflow cannot open the round of «{launch.Label}»: the project is not a git repository, and the round log lives in git."));
                 return null;
             }
 
@@ -734,7 +741,8 @@ namespace MdExplorer.Services.AgentRun
                 if (_told.TryAdd($"{projectPath}|{roundId}|adopt|{delivered.Branch}", 0))
                 {
                     _logger.LogError("[Workflow] giro {Round}: {Why}", roundId, why);
-                    TellUser(projectPath, step.Agent, $"Il giro {roundId} non riesce a riprendere {why}.");
+                    TellUser(projectPath, step.Agent, MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
+                        $"Il giro {roundId} non riesce a riprendere {why}.", $"Round {roundId} cannot resume {why}."));
                 }
                 return;
             }
@@ -767,7 +775,8 @@ namespace MdExplorer.Services.AgentRun
                         if (_told.TryAdd($"{projectPath}|{roundId}|{s.Id}|owner|{owners[s.Id].Problem}", 0))
                         {
                             _logger.LogWarning("[Workflow] giro {Round}: {Problem}", roundId, owners[s.Id].Problem);
-                            TellUser(projectPath, s.Agent, $"Il giro {roundId} è fermo: {owners[s.Id].Problem}");
+                            TellUser(projectPath, s.Agent, MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
+                                $"Il giro {roundId} è fermo: {owners[s.Id].Problem}", $"Round {roundId} is stopped: {owners[s.Id].Problem}"));
                         }
                     foreach (var action in actions)
                         Execute(projectPath, roundId, action, startedBy: null, resumed: false);
@@ -789,7 +798,8 @@ namespace MdExplorer.Services.AgentRun
                 if (_told.TryAdd($"{projectPath}|{roundId}|{step.Id}|{action.Round}|{action.Attempt}|{action.Reason}", 0))
                 {
                     _logger.LogWarning("[Workflow] giro {Round}: {Reason}", roundId, action.Reason);
-                    TellUser(projectPath, step.Agent, $"Il giro {roundId} è fermo: {action.Reason}");
+                    TellUser(projectPath, step.Agent, MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
+                        $"Il giro {roundId} è fermo: {action.Reason}", $"Round {roundId} is stopped: {action.Reason}"));
                 }
                 return;
             }
@@ -800,7 +810,8 @@ namespace MdExplorer.Services.AgentRun
                 ProjectPath = projectPath,
                 FromAgent = ConversationHopGuard.UserRecipient,
                 ToAgent = step.Agent,
-                Body = Assignment(roundId, action),
+                Body = MdExplorer.Features.Agents.AgentTexts.Assignment(_language.Current, action.Brief, roundId, action.Step.Label,
+                    action.Round, action.Attempt, action.Inputs),
                 TriggerSource = "workflow",
                 AwaitOwner = hold,
                 ReworkNote = action.ReworkNote,
@@ -814,7 +825,9 @@ namespace MdExplorer.Services.AgentRun
                 // Senza l'incarico in coda, il passo non partirebbe mai e nessuno saprebbe perché.
                 _logger.LogError("[Workflow] giro {Round}: l'incarico per '{Agent}' (passo '{Step}') non è entrato in coda: {Why}",
                     roundId, step.Agent, step.Id, result.RejectionReason);
-                TellUser(projectPath, step.Agent, $"Il giro {roundId} non è riuscito a far partire «{step.Label}»: {result.RejectionReason}");
+                TellUser(projectPath, step.Agent, MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
+                    $"Il giro {roundId} non è riuscito a far partire «{step.Label}»: {result.RejectionReason}",
+                    $"Round {roundId} could not start «{step.Label}»: {result.RejectionReason}"));
                 return;
             }
 
@@ -835,21 +848,6 @@ namespace MdExplorer.Services.AgentRun
         }
 
         /// <summary>Il testo che l'agente riceve: l'incarico del workflow, dove si trova, i file da cui parte.</summary>
-        private static string Assignment(string roundId, SchedulerAction action)
-        {
-            var sb = new StringBuilder();
-            sb.Append("[INCARICO] ").Append(action.Brief?.Trim());
-            sb.Append("\n\nGiro ").Append(roundId).Append(", passo «").Append(action.Step.Label).Append('»');
-            if (action.Round > 1) sb.Append(", giro ").Append(action.Round);
-            if (action.Attempt > 1) sb.Append(", tentativo ").Append(action.Attempt);
-            sb.Append('.');
-            if (action.Inputs.Count > 0)
-            {
-                sb.Append("\nFile da cui parti (approvati):");
-                foreach (var f in action.Inputs) sb.Append("\n- ").Append(f);
-            }
-            return sb.ToString();
-        }
 
         private static string ResolveBrief(WorkflowStep step, IReadOnlyDictionary<string, string> variables)
             => step.Brief == null ? null

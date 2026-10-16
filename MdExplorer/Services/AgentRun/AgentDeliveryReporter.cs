@@ -24,8 +24,11 @@ namespace MdExplorer.Services.AgentRun
         private readonly IAgentMailbox _mailbox;
         private readonly ILogger<AgentDeliveryReporter> _logger;
 
-        public AgentDeliveryReporter(IAgentMailbox mailbox, ILogger<AgentDeliveryReporter> logger)
+        private readonly MdExplorer.Features.Services.IUiLanguage _language;
+
+        public AgentDeliveryReporter(IAgentMailbox mailbox, ILogger<AgentDeliveryReporter> logger, MdExplorer.Features.Services.IUiLanguage language)
         {
+            _language = language;
             _mailbox = mailbox;
             _logger = logger;
         }
@@ -34,11 +37,15 @@ namespace MdExplorer.Services.AgentRun
         {
             if (attempt?.Error == null) return;
 
-            var body =
+            var body = MdExplorer.Features.Agents.AgentTexts.Pick(_language.Current,
                 $"Ho finito il lavoro ma non sono riuscito a pubblicarlo: {attempt.Error}.\n\n" +
                 $"Il lavoro non è perso: sta nella cartella `{attempt.WorktreePath}`. " +
                 "Finché non viene pubblicato non compare tra le richieste da rivedere. " +
-                "Di solito basta avere un `origin` su cui si può scrivere (permessi o rete) e rilanciare l'agente.";
+                "Di solito basta avere un `origin` su cui si può scrivere (permessi o rete) e rilanciare l'agente.",
+                $"I finished the work but could not publish it: {attempt.Error}.\n\n" +
+                $"The work is not lost: it is in the folder `{attempt.WorktreePath}`. " +
+                "Until it is published it does not appear among the requests to review. " +
+                "Usually it is enough to have an `origin` you can write to (permissions or network) and launch the agent again.");
 
             try
             {
