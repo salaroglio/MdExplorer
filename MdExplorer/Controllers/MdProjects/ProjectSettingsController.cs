@@ -397,6 +397,10 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 _logger.LogInformation("[SetMarkAgentEngine] {ProjectPath} → {Engine} (linked={Linked})",
                     request.ProjectPath, MdExplorer.Utilities.MarkAgentEngines.IdOf(engine), linked);
 
+                // Una scelta personale diversa dal predefinito: le sue skill mde-* e il suo MCP (16/10/2026, P7).
+                if (!linked)
+                    MdExplorer.Service.ProjectsManager.ApplyPersonalEngine(HttpContext.RequestServices, request.ProjectPath, engine);
+
                 return Ok(new
                 {
                     engine = MdExplorer.Utilities.MarkAgentEngines.IdOf(engine),
@@ -775,7 +779,9 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 return Ok(new
                 {
                     target = MdExplorer.Utilities.HarnessSettings.IdOf(target),
-                    declared = declared.HasValue
+                    declared = declared.HasValue,
+                    // Il modello predefinito del progetto (harness.model), null = il default del motore.
+                    model = MdExplorer.Utilities.HarnessSettings.ReadModel(projectPath)
                 });
             }
             catch (InvalidOperationException ex)
@@ -807,10 +813,15 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 }
 
                 var services = HttpContext.RequestServices;
-                MdExplorer.Service.ProjectsManager.ApplyHarness(services, request.ProjectPath, target);
+                MdExplorer.Service.ProjectsManager.ApplyHarness(services, request.ProjectPath, target, request.Model, request.ChangeModel);
 
-                _logger.LogInformation("[SetHarness] {ProjectPath} → {Target}", request.ProjectPath, request.Target);
-                return Ok(new { target = MdExplorer.Utilities.HarnessSettings.IdOf(target) });
+                _logger.LogInformation("[SetHarness] {ProjectPath} → {Target}{Model}", request.ProjectPath, request.Target,
+                    request.ChangeModel ? $", modello {(string.IsNullOrWhiteSpace(request.Model) ? "(default del motore)" : request.Model)}" : "");
+                return Ok(new
+                {
+                    target = MdExplorer.Utilities.HarnessSettings.IdOf(target),
+                    model = MdExplorer.Utilities.HarnessSettings.ReadModel(request.ProjectPath)
+                });
             }
             catch (Exception ex)
             {
@@ -989,7 +1000,16 @@ namespace MdExplorer.Service.Controllers.MdProjects
     {
         public string? ProjectPath { get; set; }
 
-        /// <summary><c>copilot</c>, <c>opencode</c> oppure <c>none</c>.</summary>
+        /// <summary><c>copilot</c>, <c>opencode</c>, <c>claude</c> oppure <c>none</c>.</summary>
         public string? Target { get; set; }
+
+        /// <summary>Il modello predefinito del progetto; conta solo con <see cref="ChangeModel"/> (vuoto = default del motore).</summary>
+        public string? Model { get; set; }
+
+        /// <summary>
+        /// false (la sola scelta dell'harness): il modello scritto resta se il motore non cambia, sparisce se cambia.
+        /// true: si scrive <see cref="Model"/>.
+        /// </summary>
+        public bool ChangeModel { get; set; }
     }
 }

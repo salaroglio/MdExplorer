@@ -138,6 +138,8 @@ export class AgentLaunchDialogComponent implements OnInit {
   private defaultModelFor(engine: string | null): string {
     if (!engine || !this.engineInfo) return '';
     if (this.engineInfo.card?.engine === engine && this.engineInfo.card.model) return this.engineInfo.card.model;
+    // `provider: default` (o nessun provider) con un modello: il modello della scheda sul motore in vigore.
+    if (!this.engineInfo.card?.engine && this.engineInfo.card?.model && this.engineInfo.project?.engine === engine) return this.engineInfo.card.model;
     if (this.engineInfo.project?.engine === engine && this.engineInfo.project.model) return this.engineInfo.project.model;
     return '';
   }

@@ -147,5 +147,26 @@ namespace MdExplorer.IntegrationTests
             project.ClaudeCodeChatModel = "   ";
             Assert.AreEqual(MarkAgentEngines.ClaudeDefaultModel, MarkAgentEngines.ModelOf(project, MarkAgentEngine.Claude));
         }
+
+        [TestMethod]
+        public void Take_the_model_from_this_machine_then_from_the_project_default_then_from_the_engine()
+        {
+            // 16/10/2026, P1/P6: il modello segue lo stesso ordine del motore.
+            var dir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "mde-model-order", System.Guid.NewGuid().ToString("N"));
+            System.IO.Directory.CreateDirectory(dir);
+            try
+            {
+                System.IO.File.WriteAllText(System.IO.Path.Combine(dir, ".development.yml"), "harness:\n  target: claude\n  model: opus\n");
+                var project = new MdExplorer.Abstractions.Entities.UserDB.Project { Path = dir };
+
+                Assert.AreEqual("opus", MarkAgentEngines.ModelOf(project, MarkAgentEngine.Claude), "il predefinito del progetto");
+                Assert.IsNull(MarkAgentEngines.ModelOf(project, MarkAgentEngine.Copilot),
+                    "il modello del progetto è del SUO motore: un altro motore parte dal suo default");
+
+                project.ClaudeCodeChatModel = "haiku";
+                Assert.AreEqual("haiku", MarkAgentEngines.ModelOf(project, MarkAgentEngine.Claude), "la scelta di questa macchina vince");
+            }
+            finally { System.IO.Directory.Delete(dir, true); }
+        }
     }
 }

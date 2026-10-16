@@ -29,7 +29,6 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   markAgentEngine: MarkAgentEngineId = 'none';
   engineChoice: MarkAgentEngineId | 'linked' = 'linked';
   savingEngine: boolean = false;
-  showAdvancedEngine: boolean = false;
   /** Finché la risposta non arriva, un avviso di scollegamento sarebbe inventato. */
   engineSettingsLoaded: boolean = false;
 
@@ -81,6 +80,10 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   harness: HarnessTarget = 'none';
   harnessDeclared: boolean = true;
   private lastSavedHarness: HarnessTarget = 'none';
+  /** Il modello predefinito del progetto (harness.model): quello salvato e quello nel campo. */
+  harnessModel: string = '';
+  private lastSavedHarnessModel: string = '';
+  savingHarnessModel: boolean = false;
   savingHarness: boolean = false;
   vscodePath: string = '';
   intellijPath: string = '';
@@ -484,8 +487,8 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
   /**
    * Il motore in vigore è DAVVERO un altro rispetto all'ambiente del repository.
    * <br>Non basta che sia stato fissato a mano: fissare «Copilot CLI» su un progetto il cui
-   * ambiente è già Copilot non è un disaccoppiamento, e dirlo sarebbe una bugia (l'apertura del
-   * progetto riporta anzi quel valore a «segue l'ambiente»). Gli identificativi dell'ambiente e
+   * ambiente è già Copilot non è un disaccoppiamento, e dirlo sarebbe una bugia (la scelta resta
+   * tua, ma oggi coincide col predefinito). Gli identificativi dell'ambiente e
    * del motore coincidono — 'copilot', 'opencode', 'claude', 'none' — perché sono la stessa
    * scelta vista da due lati, quindi il confronto è diretto.
    */
@@ -495,12 +498,6 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
       && this.markAgentEngine !== (this.harness as string);
   }
 
-  /** Il motore in vigore legge PER INTERO le cartelle dell'ambiente dichiarato? */
-  get engineReadsHarness(): boolean {
-    if (this.harness === 'none') return true;
-    const read = ProjectSettingsComponent.HARNESS_READ_BY[this.markAgentEngine];
-    return !!read && read.includes(this.harness);
-  }
 
   /** Quanti token di strumenti entrano nel contesto con le caselle spuntate adesso. */
   get mcpTokensSelected(): number {
@@ -562,7 +559,27 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** "Ricollega": il motore torna a essere quello dell'ambiente. */
+  get harnessModelChanged(): boolean {
+    return (this.harnessModel || '').trim() !== (this.lastSavedHarnessModel || '').trim();
+  }
+
+  /** Scrive il modello predefinito in .development.yml: vale per il team, come il motore. */
+  saveHarnessModel(): void {
+    this.savingHarnessModel = true;
+    this.projectSettingsService.setHarnessModel(this.harness, (this.harnessModel || '').trim(), this.projectPath).subscribe({
+      next: (res) => {
+        this.harnessModel = this.lastSavedHarnessModel = res?.model || '';
+        this.savingHarnessModel = false;
+      },
+      error: (err) => {
+        console.error('Error saving the project default model:', err);
+        this.savingHarnessModel = false;
+        this.loadHarness();
+      }
+    });
+  }
+
+  /** "Usa il predefinito": la scelta personale si toglie e vale il predefinito del progetto. */
   relinkEngine(): void {
     this.engineChoice = 'linked';
     this.onEngineChange();
@@ -627,21 +644,6 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
     this.saveAgentWorktrees();
   }
 
-  /**
-   * Quali cartelle un motore legge PER INTERO (istruzioni, skill, agenti, comandi).
-   * Misurato il 13/09/2026: Claude Code 2.1.270 legge solo .claude/ e CLAUDE.md; Copilot CLI
-   * 1.0.82 cerca skill in .github/, .agents/ e .claude/, agenti in .github/ e .claude/, e di
-   * opencode legge solo AGENTS.md; opencode 1.18.30 legge tutto .opencode/, di .claude solo le
-   * skill e di .github niente.
-   * <br>Sprint: docs-internal/Sprints/2026-09-13-MarkAgent-Motore-OpenCode.md.
-   */
-  private static readonly HARNESS_READ_BY: Record<MarkAgentEngineId, HarnessTarget[]> = {
-    claude: ['claude'],
-    copilot: ['copilot', 'claude'],
-    opencode: ['opencode'],
-    none: [],
-  };
-
   /** Il nome del CLI, senza le cartelle: quelle appartengono all'ambiente, non al motore. */
   engineLabelKey(engine: MarkAgentEngineId): string {
     switch (engine) {
@@ -668,6 +670,7 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.harness = res?.target || 'none';
         this.harnessDeclared = !!res?.declared;
         this.lastSavedHarness = this.harness;
+        this.harnessModel = this.lastSavedHarnessModel = res?.model || '';
       },
       error: (err) => {
         console.error('Error loading harness setting:', err);
@@ -713,6 +716,8 @@ export class ProjectSettingsComponent implements OnInit, OnDestroy {
         this.harness = res?.target || this.harness;
         this.harnessDeclared = true;
         this.lastSavedHarness = this.harness;
+        // Cambiato il motore, il modello del progetto (che era del motore di prima) non c'è più.
+        this.harnessModel = this.lastSavedHarnessModel = res?.model || '';
         this.savingHarness = false;
         // Se il motore segue l'ambiente, ora è un altro: si rilegge invece di indovinarlo.
         this.loadMarkAgentEngine();

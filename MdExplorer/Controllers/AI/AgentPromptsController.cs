@@ -95,7 +95,8 @@ namespace MdExplorer.Controllers.AI
 
         /// <summary>
         /// What the launch dialog's engine selector starts from (sprint 2026-09-29-Motore-LLM-Unico, D12): the card's
-        /// <c>runtime:</c> if it declares one, otherwise the project's engine (the MarkAgent tab's).
+        /// <c>runtime:</c> if it declares one (<c>default</c> = none), otherwise the engine in force for the project on
+        /// this machine — the personal choice, else the project's default in git (2026-10-16, P1/P3).
         /// </summary>
         [HttpGet("engine")]
         public IActionResult Engine([FromQuery] string projectPath, [FromQuery] string agentFilePath)
@@ -115,7 +116,9 @@ namespace MdExplorer.Controllers.AI
                     provider = runtime.Provider,
                     engine = cardEngine,
                     model = runtime.Model,
-                    valid = string.IsNullOrWhiteSpace(runtime.Provider) || cardEngine != null,
+                    // `default` è valido: la scheda chiede il motore in vigore (scelta personale, poi progetto).
+                    valid = string.IsNullOrWhiteSpace(runtime.Provider) || cardEngine != null
+                            || MdExplorer.Services.AgentRun.AgentEngineChoice.IsDefault(runtime.Provider),
                 },
                 project = new
                 {

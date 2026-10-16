@@ -490,19 +490,84 @@ private static string ConfigFileSystemWatchers(IServiceCollection services, stri
         /// <c>IsPerInstallArtifact</c> keeps recognising them so they never get committed.
         /// </para>
         /// </summary>
-        public static void ApplyHarness(IServiceProvider serviceProvider, string projectPath, HarnessTarget harness)
+        public static void ApplyHarness(IServiceProvider serviceProvider, string projectPath, HarnessTarget harness,
+            string model = null, bool setModel = false)
         {
             if (string.IsNullOrWhiteSpace(projectPath) || !Directory.Exists(projectPath))
                 throw new DirectoryNotFoundException($"Project path does not exist: {projectPath}");
 
             // .development.yml deve esistere prima che ci si scriva l'harness dentro.
             EnsureBaseConfigurationFiles(projectPath);
-            HarnessSettings.Write(projectPath, harness);
+            HarnessSettings.Write(projectPath, harness, model, setModel);
 
             var fusekiEnabled = IsFusekiEnabled(serviceProvider, projectPath);
             InstallHarnessAssets(projectPath, harness, fusekiEnabled);
             RegisterMcpServerForHarness(projectPath, harness, McpGroupsArgument(serviceProvider, projectPath));
             EnsureGitignoreEntries(projectPath);
+        }
+
+        /// <summary>
+        /// Il motore scelto su QUESTA macchina, quando è diverso dal predefinito del progetto (16/10/2026,
+        /// P7): riceve le skill, gli agenti e i prompt <c>mde-*</c> nelle sue cartelle e la registrazione del
+        /// server MCP, così MarkAgent ha gli stessi strumenti che avrebbe col predefinito. Il file di
+        /// istruzioni no: è del team, sta in git, e lo decide il predefinito.
+        /// <para>
+        /// Le cartelle <c>mde-*</c> di quel layout vanno in <c>.git/info/exclude</c>, che resta su questa
+        /// macchina: il <c>.gitignore</c> del team non deve cambiare per una scelta personale, e senza
+        /// l'esclusione quei file comparirebbero da committare.
+        /// </para>
+        /// </summary>
+        public static void ApplyPersonalEngine(IServiceProvider serviceProvider, string projectPath, MdExplorer.Utilities.MarkAgentEngine engine)
+        {
+            try
+            {
+                var harness = MdExplorer.Utilities.MarkAgentEngines.HarnessFor(engine);
+                var declared = HarnessSettings.Read(projectPath) ?? HarnessTarget.None;
+                if (harness == HarnessTarget.None || harness == declared) return;
+
+                var layout = HarnessLayout.For(harness);
+                PreparePersonalEngineFiles(projectPath, layout, IsFusekiEnabled(serviceProvider, projectPath));
+                RegisterMcpServerForHarness(projectPath, harness, McpGroupsArgument(serviceProvider, projectPath));
+                Console.WriteLine($"[ProjectsManager] Motore personale {layout.Id} (predefinito del progetto: {HarnessSettings.IdOf(declared)}): skill mde-* e MCP installati, esclusi da git in .git/info/exclude.");
+            }
+            catch (Exception ex)
+            {
+                // Come l'installazione dell'harness: il progetto si apre lo stesso, il motivo resta nel log.
+                Console.WriteLine($"[ProjectsManager] Impossibile preparare il motore personale per {projectPath}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// La parte su disco di <see cref="ApplyPersonalEngine"/>: prima l'esclusione locale, poi i cataloghi
+        /// <c>mde-*</c> (così nessun file compare da committare nemmeno per un istante). Senza file di istruzioni.
+        /// </summary>
+        public static void PreparePersonalEngineFiles(string projectPath, HarnessLayout layout, bool fusekiEnabled)
+        {
+            ExcludeLocally(projectPath, layout.GitignorePatterns);
+            MdeSkillUpdater.EnsureCatalogsInstalled(projectPath, layout, fusekiEnabled);
+        }
+
+        /// <summary>Aggiunge a <c>.git/info/exclude</c> i pattern che mancano. Niente <c>.git</c> come cartella = niente da fare.</summary>
+        private static void ExcludeLocally(string projectPath, IEnumerable<string> patterns)
+        {
+            var gitDir = Path.Combine(projectPath, ".git");
+            if (!Directory.Exists(gitDir))
+            {
+                Console.WriteLine($"[ProjectsManager] {projectPath}: .git non è una cartella, nessuna esclusione locale scritta.");
+                return;
+            }
+            var excludePath = Path.Combine(gitDir, "info", "exclude");
+            Directory.CreateDirectory(Path.GetDirectoryName(excludePath));
+            var existing = File.Exists(excludePath) ? File.ReadAllText(excludePath) : string.Empty;
+            var lines = existing.Split('\n').Select(l => l.Trim()).ToHashSet();
+            var missing = patterns.Where(p => !lines.Contains(p)).ToList();
+            if (missing.Count == 0) return;
+
+            var block = new StringBuilder();
+            if (existing.Length > 0 && !existing.EndsWith("\n")) block.AppendLine();
+            block.AppendLine("# MdExplorer: skill mde-* del motore scelto su questa macchina (non del progetto)");
+            foreach (var p in missing) block.AppendLine(p);
+            File.AppendAllText(excludePath, block.ToString());
         }
 
         /// <summary>

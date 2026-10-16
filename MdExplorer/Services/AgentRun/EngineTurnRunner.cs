@@ -27,7 +27,8 @@ namespace MdExplorer.Services.AgentRun
         {
             error = null;
             var model = string.IsNullOrWhiteSpace(requestedModel) ? null : requestedModel.Trim();
-            if (string.IsNullOrWhiteSpace(requestedProvider))
+            // `provider: default` nella scheda = «usa il predefinito», come l'assenza del blocco (16/10/2026, P2).
+            if (string.IsNullOrWhiteSpace(requestedProvider) || IsDefault(requestedProvider))
             {
                 if (projectEngine == MarkAgentEngine.None)
                 {
@@ -40,12 +41,19 @@ namespace MdExplorer.Services.AgentRun
 
             if (!TryParseProvider(requestedProvider, out var engine))
             {
-                error = $"Motore '{requestedProvider.Trim()}' sconosciuto: i valori ammessi sono claude, copilot, opencode.";
+                error = $"Motore '{requestedProvider.Trim()}' sconosciuto: i valori ammessi sono claude, copilot, opencode, default.";
                 return null;
             }
             var fromProject = engine == projectEngine;
             return new AgentEngineChoice(engine, model ?? (fromProject ? projectModel : MarkAgentEngines.DefaultModelOf(engine)), fromProject);
         }
+
+        /// <summary>
+        /// <c>default</c>: la scheda chiede il motore in vigore per il progetto su questa macchina (la scelta
+        /// personale, altrimenti il predefinito del progetto).
+        /// </summary>
+        public static bool IsDefault(string provider)
+            => string.Equals((provider ?? string.Empty).Trim(), "default", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>The engine ids, plus the names cards already use ("copilot-cli", "claude-code").</summary>
         public static bool TryParseProvider(string provider, out MarkAgentEngine engine)

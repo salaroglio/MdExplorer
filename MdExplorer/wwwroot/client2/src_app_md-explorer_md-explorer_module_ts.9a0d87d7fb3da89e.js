@@ -7252,6 +7252,8 @@ class AgentLaunchDialogComponent {
   defaultModelFor(engine) {
     if (!engine || !this.engineInfo) return '';
     if (this.engineInfo.card?.engine === engine && this.engineInfo.card.model) return this.engineInfo.card.model;
+    // `provider: default` (o nessun provider) con un modello: il modello della scheda sul motore in vigore.
+    if (!this.engineInfo.card?.engine && this.engineInfo.card?.model && this.engineInfo.project?.engine === engine) return this.engineInfo.card.model;
     if (this.engineInfo.project?.engine === engine && this.engineInfo.project.model) return this.engineInfo.project.model;
     return '';
   }
@@ -48056,4 +48058,4 @@ DragDropModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_10_
 /***/ })
 
 }]);
-//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.d7cc888be6eb2ffe.js.map
+//# sourceMappingURL=src_app_md-explorer_md-explorer_module_ts.9a0d87d7fb3da89e.js.map

@@ -265,5 +265,17 @@ namespace MdExplorer.IntegrationTests
             OpenCodeSession.ThrowOnModelError(aborted.RootElement);
             OpenCodeSession.ThrowOnModelError(fine.RootElement);
         }
+
+        [TestMethod]
+        public void Read_provider_default_as_the_engine_in_force_for_the_project()
+        {
+            // 16/10/2026, P2: `provider: default` nella scheda = come nessun blocco.
+            var choice = AgentEngineChoice.Resolve(" Default ", "haiku", MarkAgentEngine.Claude, "opus", out var error);
+
+            Assert.IsNull(error);
+            Assert.AreEqual(MarkAgentEngine.Claude, choice.Engine);
+            Assert.AreEqual("haiku", choice.Model, "il modello della scheda vale sul motore in vigore");
+            Assert.IsTrue(choice.FromProject);
+        }
     }
 }

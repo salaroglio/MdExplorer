@@ -707,6 +707,26 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 requestedHarness = null;
             }
 
+            // Un progetto che dichiara già il suo harness: è il predefinito del TEAM, in git, e aprire il
+            // progetto non lo riscrive (16/10/2026, P4). Una scelta diversa nella finestra diventa la scelta
+            // personale di questa macchina, salvata più sotto nel Project dello UserDB.
+            MdExplorer.Utilities.MarkAgentEngine? personalEngine = null;
+            HarnessTarget? declaredHarness = null;
+            try { declaredHarness = HarnessSettings.Read(request.Path); }
+            catch (InvalidOperationException ex)
+            {
+                // Valore illeggibile in harness.target: lo dice l'apertura stessa più avanti (Resolve);
+                // qui vuol dire solo che non c'è un predefinito valido da proteggere.
+                logger?.LogWarning("🤖 {Error}", ex.Message);
+            }
+            if (declaredHarness.HasValue && requestedHarness.HasValue && requestedHarness.Value != declaredHarness.Value)
+            {
+                personalEngine = MdExplorer.Utilities.MarkAgentEngines.FromHarness(requestedHarness.Value);
+                logger?.LogInformation("🤖 Harness scelto all'apertura ({Requested}) diverso da quello del progetto ({Declared}): diventa la scelta personale, .development.yml non cambia",
+                    HarnessSettings.IdOf(requestedHarness.Value), HarnessSettings.IdOf(declaredHarness.Value));
+                requestedHarness = null;
+            }
+
             try
             {
                 // SOLO per il demo: la richiesta lo porta unicamente dal tour «Crea progetto demo», legata al
@@ -862,31 +882,32 @@ namespace MdExplorer.Service.Controllers.MdProjects
                 // Prima erano due booleani indipendenti con la regola "se sono accesi entrambi
                 // vince Claude", ripetuta qui e in MarkDiagramExplainService: due posti che
                 // potevano rispondere diversamente alla stessa domanda.
+                if (personalEngine.HasValue)
+                {
+                    var personalId = MdExplorer.Utilities.MarkAgentEngines.IdOf(personalEngine.Value);
+                    if (project.MarkAgentEngine != personalId)
+                    {
+                        // Transazione propria: quella dell'inizio di SetFolderProject e' gia' chiusa.
+                        _userSettingsDB.BeginTransaction();
+                        project.MarkAgentEngine = personalId;
+                        projectDal.Save(project);
+                        _userSettingsDB.Commit();
+                    }
+                }
+
                 var markAgentEngine = MdExplorer.Utilities.MarkAgentEngines.Resolve(
                     project.MarkAgentEngine, request.Path, out var markAgentEngineLinked);
                 logger?.LogInformation("🤖 Motore di MarkAgent: {Engine} (collegato all'harness={Linked})",
                     MdExplorer.Utilities.MarkAgentEngines.IdOf(markAgentEngine), markAgentEngineLinked);
 
-                // Il valore esplicito che coincide con l'harness e' un residuo della migrazione dai
-                // due booleani: si riporta a NULL, cosi' il progetto torna a SEGUIRE l'ambiente e chi
-                // domani cambia harness non si ritrova un motore rimasto indietro. Nessun cambio di
-                // comportamento: il motore risolto e' lo stesso, prima e dopo.
-                if (!markAgentEngineLinked
-                    && markAgentEngine == MdExplorer.Utilities.MarkAgentEngines.FromHarness(
-                        MdExplorer.Utilities.MarkAgentEngines.HarnessOf(request.Path)))
-                {
-                    logger?.LogInformation(
-                        "🤖 Motore {Engine} uguale a quello dell'harness: torna a seguire l'ambiente",
-                        MdExplorer.Utilities.MarkAgentEngines.IdOf(markAgentEngine));
-                    // Transazione propria: quella dell'inizio di SetFolderProject e' gia' stata
-                    // chiusa, e una scrittura fuori transazione sulla sessione condivisa del DB
-                    // utente rompe il Commit successivo di chiunque altro.
-                    _userSettingsDB.BeginTransaction();
-                    project.MarkAgentEngine = null;
-                    projectDal.Save(project);
-                    _userSettingsDB.Commit();
-                    markAgentEngineLinked = true;
-                }
+                // Una scelta personale che coincide col predefinito del progetto RESTA: e' una scelta, e
+                // se domani il team cambia predefinito questa macchina resta dov'era finche' non preme
+                // «usa il predefinito» (16/10/2026, P5). Prima qui la si cancellava.
+
+                // Un motore personale diverso dal predefinito riceve le sue skill mde-* e la sua
+                // registrazione MCP, fuori da git (P7).
+                if (!markAgentEngineLinked)
+                    ProjectsManager.ApplyPersonalEngine(_services, request.Path, markAgentEngine);
 
                 // Sonda di disponibilita': sincrona e deterministica. Se il progetto ha un motore,
                 // il client deve ricevere una disponibilita' VERA — niente valori provvisori, niente

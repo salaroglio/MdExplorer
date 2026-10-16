@@ -114,6 +114,13 @@ namespace MdExplorer.Service.Models
         /// esclusiva, e modellarla come lista prima che serva davvero sarebbe prematuro.
         /// </summary>
         public string Target { get; set; }
+
+        /// <summary>
+        /// Il modello predefinito del progetto per il motore di <see cref="Target"/> (es. <c>sonnet</c>,
+        /// <c>gpt-5</c>). Vuoto = il default del motore. Come <c>Target</c> è del team; ogni macchina può
+        /// scegliere altro nella sua scelta personale (UserDB), e la scheda di un agente altro ancora.
+        /// </summary>
+        public string Model { get; set; }
     }
 
     /// <summary>

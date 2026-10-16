@@ -4142,6 +4142,15 @@ class ProjectSettingsService {
       projectPath
     });
   }
+  /** Il modello predefinito del progetto, scritto in .development.yml accanto al motore (vuoto = default del motore). */
+  setHarnessModel(target, model, projectPath) {
+    return this.http.post('../api/ProjectSettings/SetHarness', {
+      target,
+      projectPath,
+      model,
+      changeModel: true
+    });
+  }
   /** Forces a full rebuild of the separate text index only (POST api/mdfiles/ReindexTextFiles). */
   reindexTextFiles(connectionId) {
     const url = '../api/mdfiles/ReindexTextFiles?connectionId=' + encodeURIComponent(connectionId || '');
@@ -8719,4 +8728,4 @@ ClipboardModule.ɵinj = /* @__PURE__ */_angular_core__WEBPACK_IMPORTED_MODULE_0_
 /***/ })
 
 }]);
-//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.8bd067f137896d43.js.map
+//# sourceMappingURL=default-src_app_commons_components_confirm-dialog_confirm-dialog_component_ts-src_app_git_git-89a190.401d60741e77fef5.js.map

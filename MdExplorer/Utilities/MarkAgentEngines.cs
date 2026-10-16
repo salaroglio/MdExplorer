@@ -109,20 +109,43 @@ namespace MdExplorer.Utilities
             engine == MarkAgentEngine.Claude ? ClaudeDefaultModel : null;
 
         /// <summary>
-        /// Il modello del progetto per quel motore: quello scelto nel tab MarkAgent (salvato nel progetto),
-        /// altrimenti il predefinito del motore. È la stessa risposta per ogni punto d'accesso all'LLM (D1).
+        /// Il modello in vigore per quel motore, nello stesso ordine del motore (16/10/2026, P1/P6):
+        /// la scelta personale di questa macchina (UserDB, dal tab MarkAgent), poi il predefinito del
+        /// progetto in git (<c>harness.model</c>) se il motore è quello del progetto, poi il default del
+        /// motore. È la stessa risposta per ogni punto d'accesso all'LLM (D1).
         /// </summary>
         public static string ModelOf(MdExplorer.Abstractions.Entities.UserDB.Project project, MarkAgentEngine engine)
         {
-            var chosen = engine switch
+            var chosen = PersonalModelOf(project, engine);
+            if (!string.IsNullOrWhiteSpace(chosen)) return chosen.Trim();
+
+            if (project?.Path != null && engine != MarkAgentEngine.None && engine == FromHarness(HarnessOf(project.Path)))
+            {
+                var projectModel = HarnessSettings.ReadModel(project.Path);
+                if (projectModel != null) return projectModel;
+            }
+            return DefaultModelOf(engine);
+        }
+
+        /// <summary>Il modello scelto su questa macchina per quel motore, o null.</summary>
+        public static string PersonalModelOf(MdExplorer.Abstractions.Entities.UserDB.Project project, MarkAgentEngine engine)
+            => engine switch
             {
                 MarkAgentEngine.Copilot => project?.CopilotChatModel,
                 MarkAgentEngine.Claude => project?.ClaudeCodeChatModel,
                 MarkAgentEngine.OpenCode => project?.OpenCodeChatModel,
                 _ => null,
             };
-            return string.IsNullOrWhiteSpace(chosen) ? DefaultModelOf(engine) : chosen.Trim();
-        }
+
+        /// <summary>L'harness i cui file legge un motore: l'inverso di <see cref="FromHarness"/>.</summary>
+        public static HarnessTarget HarnessFor(MarkAgentEngine engine) => engine switch
+        {
+            MarkAgentEngine.Copilot => HarnessTarget.Copilot,
+            MarkAgentEngine.OpenCode => HarnessTarget.OpenCode,
+            MarkAgentEngine.Claude => HarnessTarget.Claude,
+            MarkAgentEngine.None => HarnessTarget.None,
+            _ => throw new ArgumentOutOfRangeException(nameof(engine), engine, "Motore di MarkAgent sconosciuto."),
+        };
 
         public static MarkAgentEngine Resolve(string stored, string projectPath, out bool linked)
         {

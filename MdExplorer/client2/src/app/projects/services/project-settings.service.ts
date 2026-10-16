@@ -23,6 +23,8 @@ export type HarnessTarget = 'copilot' | 'opencode' | 'claude' | 'none';
 
 export interface HarnessSetting {
   target: HarnessTarget;
+  /** Il modello predefinito del progetto (harness.model in git); null = il default del motore. */
+  model?: string | null;
   /**
    * false = il progetto non dichiara ancora l'harness (creato prima che la scelta esistesse):
    * `target` è quello dedotto dalle cartelle presenti sul disco.
@@ -220,9 +222,15 @@ export class ProjectSettingsService {
    * Non rimuove quelli del precedente: sono file in un repository, possibilmente
    * personalizzati — la pulizia resta una scelta esplicita dell'utente.
    */
-  setHarness(target: HarnessTarget, projectPath: string): Observable<{ target: HarnessTarget }> {
-    return this.http.post<{ target: HarnessTarget }>('../api/ProjectSettings/SetHarness',
+  setHarness(target: HarnessTarget, projectPath: string): Observable<{ target: HarnessTarget; model?: string | null }> {
+    return this.http.post<{ target: HarnessTarget; model?: string | null }>('../api/ProjectSettings/SetHarness',
       { target, projectPath });
+  }
+
+  /** Il modello predefinito del progetto, scritto in .development.yml accanto al motore (vuoto = default del motore). */
+  setHarnessModel(target: HarnessTarget, model: string, projectPath: string): Observable<{ target: HarnessTarget; model?: string | null }> {
+    return this.http.post<{ target: HarnessTarget; model?: string | null }>('../api/ProjectSettings/SetHarness',
+      { target, projectPath, model, changeModel: true });
   }
 
   /** Forces a full rebuild of the separate text index only (POST api/mdfiles/ReindexTextFiles). */

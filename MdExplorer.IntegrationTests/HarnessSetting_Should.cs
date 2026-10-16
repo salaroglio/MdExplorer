@@ -171,5 +171,36 @@ namespace MdExplorer.IntegrationTests
             // (yamlAutoGeneration acceso, con la cartella dell'harness esclusa).
             Assert.ThrowsException<FileNotFoundException>(() => HarnessSettings.Write(_project, HarnessTarget.Copilot));
         }
+
+        [TestMethod]
+        public void Leave_the_team_default_alone_when_the_opening_dialog_chooses_another_harness()
+        {
+            // 16/10/2026, P4: aprire la gara sulla VM scegliendo Claude aveva scritto `harness: claude` in git.
+            SeedYml("folders: []\nharness:\n  target: copilot\n  model: gpt-5\n");
+
+            var resolved = HarnessSettings.Resolve(_project, HarnessTarget.Claude);
+
+            Assert.AreEqual(HarnessTarget.Copilot, resolved, "il predefinito del progetto resta quello del team");
+            Assert.AreEqual(HarnessTarget.Copilot, HarnessSettings.Read(_project));
+            Assert.AreEqual("gpt-5", HarnessSettings.ReadModel(_project));
+        }
+
+        [TestMethod]
+        public void Keep_the_default_model_only_while_the_engine_stays_the_same()
+        {
+            SeedYml("folders: []\n");
+
+            HarnessSettings.Write(_project, HarnessTarget.Claude, "opus", setModel: true);
+            Assert.AreEqual("opus", HarnessSettings.ReadModel(_project));
+
+            HarnessSettings.Write(_project, HarnessTarget.Claude);
+            Assert.AreEqual("opus", HarnessSettings.ReadModel(_project), "stesso motore: il modello resta");
+
+            HarnessSettings.Write(_project, HarnessTarget.Copilot);
+            Assert.IsNull(HarnessSettings.ReadModel(_project), "un modello è del suo motore: cambiato il motore, sparisce");
+
+            HarnessSettings.Write(_project, HarnessTarget.Copilot, "  ", setModel: true);
+            Assert.IsNull(HarnessSettings.ReadModel(_project), "vuoto = il default del motore");
+        }
     }
 }

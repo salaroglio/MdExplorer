@@ -71,8 +71,38 @@ namespace MdExplorer.Utilities
         }
 
         /// <summary>
+        /// Il modello predefinito del progetto (<c>harness.model</c>), o null se non è scritto.
+        /// </summary>
+        public static string ReadModel(string projectPath)
+        {
+            if (string.IsNullOrWhiteSpace(projectPath)) return null;
+            var filePath = Path.Combine(projectPath, FileName);
+            if (!File.Exists(filePath)) return null;
+            try
+            {
+                var yaml = File.ReadAllText(filePath);
+                if (string.IsNullOrWhiteSpace(yaml)) return null;
+                var model = new DeserializerBuilder()
+                    .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                    .IgnoreUnmatchedProperties()
+                    .Build()
+                    .Deserialize<DevelopmentConfig>(yaml)?.Harness?.Model;
+                return string.IsNullOrWhiteSpace(model) ? null : model.Trim();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[HarnessSettings] Cannot read {filePath}: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
         /// Persists the harness in <c>.development.yml</c>, preserving every other section
         /// through the typed round-trip.
+        /// <para>
+        /// <paramref name="model"/> is the project's default model. When it is not given, the model
+        /// already written stays only if the target does not change: a model belongs to its engine.
+        /// </para>
         /// </summary>
         /// <exception cref="FileNotFoundException">
         /// The file does not exist yet. We do NOT create it from scratch here: the embedded
@@ -80,7 +110,7 @@ namespace MdExplorer.Utilities
         /// (yamlAutoGeneration enabled, with the harness folder excluded), and writing a bare
         /// file would silently lose them. Lay the base configuration down first.
         /// </exception>
-        public static void Write(string projectPath, HarnessTarget target)
+        public static void Write(string projectPath, HarnessTarget target, string model = null, bool setModel = false)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
                 throw new ArgumentException("projectPath is required", nameof(projectPath));
@@ -103,7 +133,11 @@ namespace MdExplorer.Utilities
                 ? new DevelopmentConfig()
                 : (deserializer.Deserialize<DevelopmentConfig>(yaml) ?? new DevelopmentConfig());
 
-            root.Harness = new HarnessConfig { Target = IdOf(target) };
+            var previous = root.Harness;
+            var keptModel = setModel
+                ? (string.IsNullOrWhiteSpace(model) ? null : model.Trim())
+                : (string.Equals(previous?.Target, IdOf(target), StringComparison.OrdinalIgnoreCase) ? previous?.Model : null);
+            root.Harness = new HarnessConfig { Target = IdOf(target), Model = keptModel };
             ExcludeHarnessFolderFromYamlAutoGeneration(root, target);
 
             var serializer = new SerializerBuilder()
@@ -144,9 +178,11 @@ namespace MdExplorer.Utilities
         /// <summary>
         /// Effective harness for this project run.
         /// <list type="bullet">
-        /// <item><description><paramref name="requested"/> set (the creation dialog just chose)
-        /// → that choice wins and is persisted.</description></item>
-        /// <item><description>Otherwise the value declared in <c>.development.yml</c>.</description></item>
+        /// <item><description>The value declared in <c>.development.yml</c>: it is the TEAM's default and
+        /// opening the project never rewrites it (16/10/2026, P4). A different <paramref name="requested"/>
+        /// becomes this machine's personal choice — the caller saves it in UserDB.</description></item>
+        /// <item><description>No declaration and <paramref name="requested"/> set (the creation dialog
+        /// just chose) → that choice is persisted as the project's default.</description></item>
         /// <item><description>Otherwise — project created before the setting existed — it is
         /// deduced from the folders on disk ONCE, written down, and logged. From the second
         /// open onwards there is a single source of truth.</description></item>
@@ -154,14 +190,14 @@ namespace MdExplorer.Utilities
         /// </summary>
         public static HarnessTarget Resolve(string projectPath, HarnessTarget? requested)
         {
+            var declared = Read(projectPath);
+            if (declared.HasValue) return declared.Value;
+
             if (requested.HasValue)
             {
                 TryPersist(projectPath, requested.Value);
                 return requested.Value;
             }
-
-            var declared = Read(projectPath);
-            if (declared.HasValue) return declared.Value;
 
             var detected = DetectFromDisk(projectPath);
             Console.WriteLine(
