@@ -65,6 +65,11 @@ namespace MdExplorer.Abstractions.Models
         [JsonPropertyName("hasExtraContent")]
         public bool HasExtraContent { get; set; }
 
+        // For a revealed non-markdown file (Type "genericFile"): its content is text, so a click
+        // shows it colored in the document panel. Binary files stay not clickable.
+        [JsonPropertyName("isTextFile")]
+        public bool IsTextFile { get; set; }
+
         // External app embedding
         [JsonPropertyName("appId")]
         public string AppId { get; set; }

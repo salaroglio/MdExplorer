@@ -1,0 +1,58 @@
+/* Trascinare le voci di un elenco (slide-list-drag.js): la maniglia sta sulla pagina, non sulla
+   slide, e non si ingrandisce con lei. */
+
+.mde-list-handle {
+    position: fixed;
+    z-index: 40;
+    width: 22px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(128, 128, 128, 0.45);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.88);
+    color: #555;
+    font: 700 14px/1 system-ui, sans-serif;
+    letter-spacing: -2px;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    opacity: 0.85;
+}
+
+.mde-list-handle:hover {
+    opacity: 1;
+    color: #1a73e8;
+    border-color: #1a73e8;
+}
+
+.mde-list-handle[hidden],
+.mde-list-drop[hidden] {
+    display: none;
+}
+
+.mde-list-drop {
+    position: fixed;
+    z-index: 41;
+    height: 3px;
+    border-radius: 2px;
+    background: #1a73e8;
+    box-shadow: 0 0 6px rgba(26, 115, 232, 0.8);
+    pointer-events: none;
+}
+
+li.mde-list-dragging {
+    opacity: 0.35;
+}
+
+body.mde-list-dragging,
+body.mde-list-dragging * {
+    cursor: grabbing !important;
+    user-select: none !important;
+}
+
+html.reveal-print .mde-list-handle,
+html.print-pdf .mde-list-handle {
+    display: none !important;
+}

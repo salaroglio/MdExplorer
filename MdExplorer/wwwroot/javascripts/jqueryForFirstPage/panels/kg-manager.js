@@ -1,31 +1,28 @@
 /**
- * MdExplorer - Knowledge Graph (fullscreen, 2D + 3D)
- * ===================================================
- * Fullscreen interactive force-directed graph of links between markdown files.
- * Two view modes:
- *   - 2D (default): canvas, top-down map — best for "big picture" overview
- *   - 3D: WebGL, orbital — best for exploring clusters in depth
+ * MdExplorer - Knowledge Graph (fullscreen, 2D)
+ * ==============================================
+ * Fullscreen interactive force-directed graph of links between markdown files,
+ * drawn on a canvas as a top-down map. Files are grouped by folder inside a
+ * dashed circle; a circle can be dragged and takes its files with it.
+ * (The 3D view was removed on 2026-10-09: it was not used.)
  *
  * Backend:
  * - GET /api/tabcontroller/GetKnowledgeGraph?fullPathFile=...&depth=1&connectionid=...
  *
  * UMD globals required:
- * - THREE          (three@0.147)              — only for 3D
- * - ForceGraph3D   (3d-force-graph@1.73)      — only for 3D
- * - ForceGraph     (force-graph@1.51)         — for 2D
+ * - ForceGraph     (force-graph@1.51)
  *
  * Public API:
  * - window.openKnowledgeGraph()
  * - window.closeKnowledgeGraph()
  * - window.toggleKnowledgeGraph()
- * - window.MdeKnowledgeGraph.{open,close,toggle,refresh,resize,setMode}
+ * - window.MdeKnowledgeGraph.{open,close,toggle,refresh,resize,folders}
  */
 (function () {
     'use strict';
 
     let _overlay = null;
-    let _graph = null;          // active graph instance (2D or 3D)
-    let _mode = '2d';           // default
+    let _graph = null;          // active ForceGraph instance
     let _source = 'files';      // 'files' = links between markdown files (default, legacy)
                                  // 'concepts' = concept graph from Neo4j (.kg.md payloads)
     let _data = null;
@@ -36,6 +33,23 @@
     let _selectedNamespace = ''; // '' = all namespaces (for concept source)
     let _fullData = null;        // pristine concept graph; _data is the rendered (possibly focused) subset
     let _focusId = null;         // when set, isolate this node's directed neighborhood
+    let _handOverHalo = false;   // the mouse is over a folder circle (hand cursor), see bindHaloDrag
+
+    // ---- Progressive exploration (Files view) ----------------------------------
+    // K.G. fetches two levels of links but shows one. Every fetched node is in the pool; the
+    // visible ones are a subset. A visible node with hidden neighbours shows "+": the click
+    // reveals them (and fetches THEIR links, so the next level is ready) and turns into "−",
+    // which hides again what that node revealed, in cascade (user request 2026-10-09).
+    let _pool = null;        // { nodes: id → node, links: key → {source, target, linkType}, projectName }
+    let _visible = null;     // id → true
+    let _revealedBy = null;  // id → id of the node whose "+" revealed it
+    let _expanded = null;    // id → true: its "+" was pressed
+    let _fetched = null;     // id → true: the node's own links (depth 1) are in the pool
+    let _pending = null;     // id → true: that fetch is in flight
+    let _container = null;   // .kgBody of the live graph
+    let _boxLayer = null;    // the HTML layer of the boxes
+    let _gRef = null;        // { g } handed to the boxes
+    let _anim = null;        // the relayout animation in progress (see stepAnimation)
 
     // ---- Palette ------------------------------------------------------------
     const PALETTE = [
@@ -64,7 +78,7 @@
 
     function friendlyBucketLabel(b) {
         if (!b) return '';
-        if (b === '__root__') return 'root';
+        if (b === '__root__') return (_data && _data.projectName) || 'root';   // the project folder's name
         const parts = String(b).split(/[\\/]/).filter(function (p) { return p.length > 0; });
         return parts.length ? parts[parts.length - 1] : b;
     }
@@ -181,64 +195,349 @@
         '</div>';
     }
 
-    // ---- Cluster layout: assign each folder a slot on a ring ---------------
+    // ---- Folder layout: circles that CONTAIN their files ------------------------
+    //
+    // Each folder is a circle with a centre and a radius decided before the simulation runs,
+    // from the size of its boxes. A folder whose path is under another folder's path is drawn
+    // inside it; the parent's own files live in the ring around the children. The project root
+    // ("__root__", labelled with the project folder's name) and the external hosts are top-level
+    // circles like any other, never parents. The current document is a file like the others, inside
+    // the circle of its folder: that circle (its top-level ancestor, the "home") sits at the origin
+    // and the other top-level circles on a ring around it, each with the angular room its radius
+    // needs, so circles never overlap and a file is always inside its own circle and outside its
+    // siblings' and children's (user decisions 2026-10-09).
+
+    /** The nearest ancestor folder that is itself a bucket; null for a top-level one. */
+    function parentBucketOf(b, present) {
+        if (!b || b === '__root__' || b.charAt(0) !== '/') return null;
+        let p = b;
+        for (;;) {
+            const i = p.lastIndexOf('/');
+            if (i <= 0) return null;
+            p = p.substring(0, i);
+            if (present[p]) return p;
+        }
+    }
+
+    /** Half the diagonal of a box, or the drawn circle plus its label (Concepts view). */
+    function nodeExtent(n) {
+        return n._boxW ? Math.hypot(n._boxW / 2, n._boxH / 2) : nodeRadius(n) + 28;
+    }
+
+    /** Name order: the current document first, then the files by name (numbers in numeric order). */
+    function sortedMembers(f) {
+        return f.members.slice().sort(function (p, q) {
+            if (!!p.isCenter !== !!q.isCenter) return p.isCenter ? -1 : 1;
+            return displayName(p).localeCompare(displayName(q), undefined, { numeric: true, sensitivity: 'base' });
+        });
+    }
+
+    /**
+     * The grid of a folder's boxes: the columns/rows split with the smallest enclosing circle.
+     * Cells take the widest and tallest box, so no two boxes can overlap. Shared by sizeLayout
+     * (radius) and seedPositions (places), so what is drawn is exactly what was measured.
+     */
+    function gridFor(members) {
+        const n = members.length;
+        if (!n) return null;
+        const cellW = Math.max.apply(null, members.map(function (m) { return m._boxW || 2 * nodeExtent(m); })) + 16;
+        const cellH = Math.max.apply(null, members.map(function (m) { return m._boxH || 2 * nodeExtent(m); })) + 12;
+        let best = null;
+        for (let c = 1; c <= n; c++) {
+            const r = Math.ceil(n / c);
+            const W = c * cellW, H = r * cellH;
+            const R = Math.hypot(W, H) / 2;
+            if (!best || R < best.R) best = { cols: c, rows: r, cellW: cellW, cellH: cellH, W: W, H: H, R: R };
+        }
+        return best;
+    }
+
     function computeLayout(data) {
+        const present = Object.create(null);
         const buckets = [];
-        const seen = Object.create(null);
         for (let i = 0; i < data.nodes.length; i++) {
-            const n = data.nodes[i];
-            if (n.isCenter) continue;
-            const b = bucketFor(n);
-            if (!seen[b]) { seen[b] = true; buckets.push(b); }
+            const b = bucketFor(data.nodes[i]);
+            if (!present[b]) { present[b] = true; buckets.push(b); }
         }
-        const centers = Object.create(null);
-        const count = buckets.length;
-        const ringR = Math.max(260, 90 + count * 38);
-        for (let i = 0; i < count; i++) {
-            const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
-            centers[buckets[i]] = { x: Math.cos(angle) * ringR, y: Math.sin(angle) * ringR };
-        }
-        return { buckets: buckets, centers: centers, ringR: ringR };
+        const folders = Object.create(null);
+        buckets.forEach(function (b) {
+            folders[b] = { key: b, parent: null, children: [], members: [], cx: 0, cy: 0, r: 0, ringMid: 0, dx: 0, dy: 0 };
+        });
+        buckets.forEach(function (b) {
+            const p = parentBucketOf(b, present);
+            if (p) { folders[b].parent = p; folders[p].children.push(b); }
+        });
+        data.nodes.forEach(function (n) { folders[bucketFor(n)].members.push(n); });
+        const top = buckets.filter(function (b) { return !folders[b].parent; });
+        // The home circle: the top-level folder that holds the current document.
+        const center = data.nodes.find(function (n) { return n.isCenter; });
+        let home = center ? bucketFor(center) : null;
+        while (home && folders[home].parent) home = folders[home].parent;
+        const layout = { buckets: buckets, folders: folders, top: top, home: home, halos: Object.create(null) };
+        sizeLayout(layout);   // estimates until the boxes are measured; build2D calls it again
+        return layout;
     }
 
-    function clusterForce2D(alpha) {
+    /** Radii bottom-up from the boxes, then positions top-down. Safe to call again after measuring. */
+    /**
+     * Circles on a ring: the smallest ring radius on which the circles (radii), each with the
+     * angular room its size needs plus a gap, fit around a hole of radius `hole`. Returns the
+     * ring radius and one angle per circle, from the top, clockwise, with the slack shared out.
+     */
+    function ringPack(radii, hole, gap) {
+        const n = radii.length;
+        if (!n) return { rho: 0, angles: [] };
+        const maxR = Math.max.apply(null, radii);
+        if (n === 1 && !hole) return { rho: 0, angles: [-Math.PI / 2] };
+        let rho = Math.max(hole + maxR + gap, maxR + gap, 1);
+        const need = function () {
+            return radii.reduce(function (s, r) { return s + 2 * Math.asin(Math.min(1, (r + gap / 2) / rho)); }, 0);
+        };
+        for (let iter = 0; iter < 120 && n > 1 && need() > 2 * Math.PI; iter++) rho *= 1.04;
+        const slack = Math.max(0, 2 * Math.PI - need()) / n;
+        const angles = [];
+        let angle = -Math.PI / 2;
+        radii.forEach(function (r) {
+            const half = Math.asin(Math.min(1, (r + gap / 2) / rho)) + slack / 2;
+            angle += half;
+            angles.push(angle);
+            angle += half;
+        });
+        return { rho: rho, angles: angles };
+    }
+
+    function sizeLayout(layout) {
+        const PAD = 18;
+        const folders = layout.folders;
+
+        function radiusOf(f) {
+            f.children.forEach(function (c) { radiusOf(folders[c]); });
+            const ext = f.members.map(nodeExtent);
+            const maxExt = ext.length ? Math.max.apply(null, ext) : 0;
+            let inner = 0;   // radius taken by the children, packed on a ring (one child: at the centre)
+            if (f.children.length) {
+                const kids = f.children.map(function (c) { return folders[c]; });
+                const pack = ringPack(kids.map(function (k) { return k.r; }), 0, PAD);
+                kids.forEach(function (k, i) {
+                    k.dx = Math.cos(pack.angles[i]) * pack.rho;
+                    k.dy = Math.sin(pack.angles[i]) * pack.rho;
+                });
+                inner = kids.reduce(function (m, k) { return Math.max(m, pack.rho + k.r); }, 0);
+            }
+            let r;
+            if (!inner) {
+                const grid = gridFor(f.members);
+                r = Math.max(grid ? grid.R + PAD : 0, maxExt + PAD);
+                f.ringMid = 0;
+            } else if (!ext.length) {
+                r = inner + PAD;
+                f.ringMid = 0;
+            } else {
+                // the folder's own boxes live in the ring around the children: one box wide, long enough for all
+                const needed = ext.reduce(function (s, e) { return s + 2 * e * 1.15; }, 0);
+                f.ringMid = Math.max(inner + PAD + maxExt, needed / (2 * Math.PI));
+                r = f.ringMid + maxExt + PAD;
+            }
+            f.r = Math.max(r, 60);
+        }
+        layout.top.forEach(function (b) { radiusOf(folders[b]); });
+
+        // The home circle at the origin, the other top-level circles on a ring around it, angular room by radius.
+        const homeF = layout.home ? folders[layout.home] : null;
+        if (homeF) { homeF.cx = 0; homeF.cy = 0; }
+        const tops = layout.top.filter(function (b) { return b !== layout.home; }).map(function (b) { return folders[b]; });
+        const pack = ringPack(tops.map(function (f) { return f.r; }), homeF ? homeF.r + 24 : 0, 36);
+        const ringR = Math.max(pack.rho, tops.length ? 220 : 0);
+        tops.forEach(function (f, i) {
+            f.cx = Math.cos(pack.angles[i]) * ringR;
+            f.cy = Math.sin(pack.angles[i]) * ringR;
+        });
+        layout.ringR = ringR;
+
+        function place(f) {
+            f.children.forEach(function (c) {
+                const k = folders[c];
+                k.cx = f.cx + k.dx;
+                k.cy = f.cy + k.dy;
+                place(k);
+            });
+        }
+        layout.top.forEach(function (b) { place(folders[b]); });
+    }
+
+    /**
+     * The place of every node is decided here, not by a simulation: inside its circle, in name
+     * order (the current document first), on a centred grid (gridFor), read like a list; in a
+     * folder with children, around the ring between the children and the edge.
+     */
+    function seedPositions(data, layout, into) {
+        layout.buckets.forEach(function (b) {
+            const f = layout.folders[b];
+            const members = sortedMembers(f);
+            const n = members.length;
+            if (!n) return;
+            const grid = gridFor(members);
+            members.forEach(function (m, i) {
+                if (!into && m.fx != null) return;
+                let x, y;
+                if (f.ringMid) {
+                    const a = (i / n) * 2 * Math.PI - Math.PI / 2;
+                    x = f.cx + Math.cos(a) * f.ringMid;
+                    y = f.cy + Math.sin(a) * f.ringMid;
+                } else {
+                    const row = Math.floor(i / grid.cols), col = i % grid.cols;
+                    const inRow = Math.min(grid.cols, n - row * grid.cols);   // a short last row is centred too
+                    const rowW = inRow * grid.cellW;
+                    x = f.cx - rowW / 2 + grid.cellW * (col + 0.5);
+                    y = f.cy - grid.H / 2 + grid.cellH * (row + 0.5);
+                }
+                if (into) into[m.id] = { x: x, y: y };
+                else { m.x = x; m.y = y; }
+            });
+        });
+    }
+
+    /**
+     * Frame the whole picture: the folder circles (zoomToFit only looks at the nodes and would
+     * cut the circles) and the current document.
+     */
+    function fitToFolders(g, container, ms) {
+        if (!_layout || !_layout.top.length) { g.zoomToFit(ms, 60); return; }
+        let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+        _layout.top.forEach(function (b) {
+            const f = _layout.folders[b];
+            x0 = Math.min(x0, f.cx - f.r); x1 = Math.max(x1, f.cx + f.r);
+            y0 = Math.min(y0, f.cy - f.r - 24); y1 = Math.max(y1, f.cy + f.r);   // 24: the label above the circle
+        });
+        const rect = container.getBoundingClientRect();
+        const pad = 30;
+        const k = Math.min((rect.width - 2 * pad) / (x1 - x0), (rect.height - 2 * pad) / (y1 - y0));
+        g.centerAt((x0 + x1) / 2, (y0 + y1) / 2, ms);
+        g.zoom(Math.max(0.05, Math.min(k, 2)), ms);
+    }
+
+    /** Moves a circle, the circles inside it and all their nodes (pinned ones too). */
+    function shiftFolder(f, dx, dy) {
+        f.cx += dx; f.cy += dy;
+        f.members.forEach(function (n) {
+            if (isFinite(n.x)) { n.x += dx; n.y += dy; }
+            if (n.fx != null) { n.fx += dx; n.fy += dy; }
+        });
+        f.children.forEach(function (c) { shiftFolder(_layout.folders[c], dx, dy); });
+    }
+
+    /**
+     * The circles are rigid: while one is dragged, the siblings it runs into are pushed away
+     * with their files, and a child never leaves its parent. Position-level, run on every mouse
+     * move of a circle drag.
+     */
+    function pushCirclesApart(draggedKey) {
+        const folders = _layout.folders;
+        const GAPPX = 12;
+        const groups = [_layout.top].concat(_layout.buckets.map(function (b) { return folders[b].children; })
+            .filter(function (c) { return c.length > 1; }));
+        for (let iter = 0; iter < 30; iter++) {
+            let moved = false;
+            groups.forEach(function (group) {
+                for (let i = 0; i < group.length; i++) {
+                    for (let j = i + 1; j < group.length; j++) {
+                        const a = folders[group[i]], b = folders[group[j]];
+                        let ux = b.cx - a.cx, uy = b.cy - a.cy;
+                        let d = Math.hypot(ux, uy);
+                        if (d < 1e-6) { ux = 1; uy = 0; d = 1; }
+                        const min = a.r + b.r + GAPPX;
+                        if (d >= min) continue;
+                        const aFixed = group[i] === draggedKey, bFixed = group[j] === draggedKey;
+                        if (aFixed && bFixed) continue;
+                        const push = (min - d) + 0.5;
+                        const shareA = aFixed ? 0 : (bFixed ? 1 : 0.5), shareB = 1 - shareA;
+                        shiftFolder(a, -ux / d * push * shareA, -uy / d * push * shareA);
+                        shiftFolder(b,  ux / d * push * shareB,  uy / d * push * shareB);
+                        moved = true;
+                    }
+                }
+            });
+            _layout.buckets.forEach(function (b) {
+                const f = folders[b];
+                if (!f.parent) return;
+                const p = folders[f.parent];
+                const room = Math.max(0, p.r - f.r - 6);
+                const ox = f.cx - p.cx, oy = f.cy - p.cy, od = Math.hypot(ox, oy);
+                if (od > room + 0.5) { shiftFolder(f, ox / od * (room - od), oy / od * (room - od)); moved = true; }
+            });
+            if (!moved) break;
+        }
+    }
+
+    /** Every node of a folder and of the folders inside it. */
+    function descendantsOf(layout, b) {
+        const out = [];
+        (function walk(key) {
+            const f = layout.folders[key];
+            if (!f) return;
+            out.push.apply(out, f.members);
+            f.children.forEach(walk);
+        })(b);
+        return out;
+    }
+
+    /**
+     * The folder force is two constraints, not an attraction: a node that crosses the edge of
+     * its circle is pushed back in, a node inside a child's circle is pushed out. They do not
+     * fade with alpha. Nothing pulls a node that is already in place, so moving one node (or
+     * one circle) never moves the others, except to make room.
+     */
+    function folderForce2D() {
         if (!_data || !_layout) return;
-        const k = 0.09 * alpha;
-        const kC = 0.2 * alpha;
+        const FIRM = 0.35;
+        const folders = _layout.folders;
         const nodes = _data.nodes;
         for (let i = 0; i < nodes.length; i++) {
             const n = nodes[i];
-            if (n.isCenter) {
-                n.vx = (n.vx || 0) + (0 - (n.x || 0)) * kC;
-                n.vy = (n.vy || 0) + (0 - (n.y || 0)) * kC;
-                continue;
+            if (!isFinite(n.x) || !isFinite(n.y)) continue;
+            const f = folders[bucketFor(n)];
+            if (!f) continue;
+            const ext = nodeExtent(n);
+            const dx = n.x - f.cx, dy = n.y - f.cy;
+            const d = Math.hypot(dx, dy) || 1e-6;
+            const limit = f.r - ext - 4;
+            if (d > limit) {
+                const s = (d - limit) * FIRM / d;
+                n.vx = (n.vx || 0) - dx * s;
+                n.vy = (n.vy || 0) - dy * s;
             }
-            const c = _layout.centers[bucketFor(n)];
-            if (!c) continue;
-            n.vx = (n.vx || 0) + (c.x - (n.x || 0)) * k;
-            n.vy = (n.vy || 0) + (c.y - (n.y || 0)) * k;
+            for (let c = 0; c < f.children.length; c++) {
+                const g = folders[f.children[c]];
+                const ex = n.x - g.cx, ey = n.y - g.cy;
+                const dd = Math.hypot(ex, ey) || 1e-6;
+                const min = g.r + ext + 4;
+                if (dd < min) {
+                    const s = (min - dd) * FIRM / dd;
+                    n.vx = (n.vx || 0) + ex * s;
+                    n.vy = (n.vy || 0) + ey * s;
+                }
+            }
         }
     }
 
-    function clusterForce3D(alpha) {
-        if (!_data || !_layout) return;
-        const k = 0.06 * alpha;
-        const kC = 0.15 * alpha;
-        const nodes = _data.nodes;
-        for (let i = 0; i < nodes.length; i++) {
-            const n = nodes[i];
-            if (n.isCenter) {
-                n.vx = (n.vx || 0) + (0 - (n.x || 0)) * kC;
-                n.vy = (n.vy || 0) + (0 - (n.y || 0)) * kC;
-                continue;
-            }
-            const c = _layout.centers[bucketFor(n)];
-            if (!c) continue;
-            n.vx = (n.vx || 0) + (c.x - (n.x || 0)) * k;
-            n.vy = (n.vy || 0) + (c.y - (n.y || 0)) * k;
-            // leave z free; gentle pull toward z=0
-            n.vz = (n.vz || 0) + (0 - (n.z || 0)) * (k * 0.4);
+    /** Position-level version of the constraints, for the boxes settled by hand at engine stop. */
+    function clampIntoFolder(n) {
+        const f = _layout && _layout.folders[bucketFor(n)];
+        if (!f) return false;
+        const ext = nodeExtent(n);
+        let moved = false;
+        const dx = n.x - f.cx, dy = n.y - f.cy;
+        const d = Math.hypot(dx, dy) || 1e-6;
+        const limit = f.r - ext - 4;
+        if (d > limit) { n.x = f.cx + dx * limit / d; n.y = f.cy + dy * limit / d; moved = true; }
+        for (let c = 0; c < f.children.length; c++) {
+            const g = _layout.folders[f.children[c]];
+            const ex = n.x - g.cx, ey = n.y - g.cy;
+            const dd = Math.hypot(ex, ey) || 1e-6;
+            const min = g.r + ext + 4;
+            if (dd < min) { n.x = g.cx + ex * min / dd; n.y = g.cy + ey * min / dd; moved = true; }
         }
+        return moved;
     }
 
     function nodeColor(node) {
@@ -260,6 +559,293 @@
         return 6 + Math.min(8, (node.inDegree || 0) + (node.outDegree || 0));
     }
 
+    // ---- File boxes (2D "Files" view) ------------------------------------------
+    // Each file node is an HTML box laid over the canvas: ▸, the icon of its type and its
+    // name, with the TL;DR below when opened. The canvas keeps positions, links, zoom and
+    // pan; the boxes follow their node every frame and scale with the zoom, so the layout
+    // is the same at any zoom (the collision force works in unscaled box pixels).
+
+    const TEXT_EXTENSIONS = ['yaml', 'yml', 'xml', 'xsd', 'xslt', 'ttl', 'nt', 'n3', 'nq', 'rdf', 'owl',
+        'sql', 'cypher', 'sparql', 'cs', 'ts', 'js', 'java', 'kt', 'py', 'sh', 'bash', 'ps1',
+        'css', 'scss', 'txt', 'csv', 'log', 'html', 'htm', 'cob', 'cbl', 'cpy'];
+
+    /** The file name, not the path: the last segment on "/" or "\" (Windows paths on any OS). */
+    function displayName(node) {
+        if (node.isExternal) return node.label || node.externalUrl || node.id || '';
+        const src = node.relativePath || node.fullPath || node.label || node.id || '';
+        const parts = String(src).split(/[\\/]/).filter(function (p) { return p.length > 0; });
+        return parts.length ? parts[parts.length - 1] : String(src);
+    }
+
+    function extensionOf(name) {
+        const m = /\.([A-Za-z0-9]+)$/.exec(name || '');
+        return m ? m[1].toLowerCase() : '';
+    }
+
+    /** The kind of file, for its icon. The backend's node.kind wins when present. */
+    function fileKind(node) {
+        if (node.kind) return node.kind;
+        if (node.isExternal) return 'web';
+        const ext = extensionOf(displayName(node));
+        switch (ext) {
+            case 'md': return 'markdown';
+            case 'json': case 'jsonld': return 'json';
+            case 'doc': case 'docx': return 'word';
+            case 'ppt': case 'pptx': return 'powerpoint';
+            case 'xls': case 'xlsx': return 'excel';
+            case 'pdf': return 'pdf';
+            case 'png': case 'jpg': case 'jpeg': case 'gif': case 'svg': case 'webp': case 'bmp': return 'image';
+            default: return TEXT_EXTENSIONS.indexOf(ext) >= 0 ? 'text' : 'other';
+        }
+    }
+
+    function fileIconHtml(node) {
+        const kind = fileKind(node);
+        const ext = extensionOf(displayName(node));
+        const glyphs = {
+            markdown: 'M↓', json: '{ }', word: 'W', powerpoint: 'P', excel: 'X', pdf: 'PDF',
+            image: '🖼', web: '🌐', other: '📄'
+        };
+        const glyph = glyphs[kind] || (ext ? ext.toUpperCase().slice(0, 4) : '📄');
+        const title = kind === 'text' && ext ? ext.toUpperCase() : kind;
+        return '<span class="kgFileIcon kgFileIcon-' + escapeHtml(kind) + '" title="' + escapeHtml(title) + '">' + escapeHtml(glyph) + '</span>';
+    }
+
+    /**
+     * The boxes are built and measured BEFORE the graph exists (the folder circles are sized from
+     * them), so the handlers reach the graph through gRef.g, set once ForceGraph is created.
+     */
+    function buildBoxLayer(container, data, gRef) {
+        const layer = document.createElement('div');
+        layer.className = 'kgBoxLayer';
+        container.appendChild(layer);
+        data.nodes.forEach(function (node) {
+            const el = buildBox(node, container, gRef);
+            layer.appendChild(el);
+            node._box = el;
+            measureBox(node);
+        });
+        // The boxes cover the canvas: a wheel over a box still zooms the graph.
+        layer.addEventListener('wheel', function (e) {
+            const canvas = container.querySelector('canvas');
+            if (!canvas) return;
+            e.preventDefault();
+            canvas.dispatchEvent(new WheelEvent('wheel', e));
+        }, { passive: false });
+        return layer;
+    }
+
+    function buildBox(node, container, gRef) {
+        const el = document.createElement('div');
+        const missing = node.exists === false;
+        el.className = 'kgBox' + (node.isCenter ? ' kgBoxCenter' : '') + (missing ? ' kgBoxMissing' : '');
+        el.setAttribute('data-folder', bucketFor(node));
+        el.style.setProperty('--kg-accent', nodeColor(node));
+        const name = displayName(node);
+        const hasTldr = !!(node.tldr && String(node.tldr).trim());
+        const nameTitle = missing
+            ? 'File non trovato: ' + (node.relativePath || name)
+            : (node.relativePath || node.externalUrl || name);
+        el.innerHTML =
+            '<div class="kgBoxHead">' +
+                '<button type="button" class="kgBoxToggle" aria-expanded="false"' +
+                    (hasTldr ? ' title="TL;DR"' : ' disabled title="Nessun TL;DR"') + '>▸</button>' +
+                fileIconHtml(node) +
+                '<span class="kgBoxName" title="' + escapeHtml(nameTitle) + '">' + escapeHtml(name) + '</span>' +
+                '<button type="button" class="kgBoxExpand kgBoxExpandNone" aria-label="Mostra i collegamenti">+</button>' +
+            '</div>' +
+            (hasTldr ? '<div class="kgBoxBody">' + renderTldrHtml(node.tldr) + '</div>' : '');
+
+        const toggle = el.querySelector('.kgBoxToggle');
+        // The TL;DR opens as a balloon out of the flow (see .kgBoxBody): the box keeps the
+        // size of its head, so nothing is re-measured and the graph does not move.
+        toggle.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (toggle.disabled) return;
+            const open = el.classList.toggle('kgBoxOpen');
+            toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+        el.querySelectorAll('.kgFileIcon, .kgBoxName').forEach(function (target) {
+            target.addEventListener('click', function (e) {
+                e.stopPropagation();
+                handleNodeClick(node);
+            });
+        });
+        el.querySelector('.kgBoxExpand').addEventListener('click', function (e) {
+            e.stopPropagation();
+            toggleExpand(node);
+        });
+        el.querySelector('.kgBoxHead').addEventListener('mousedown', function (e) {
+            if (e.button !== 0 || !gRef.g || e.target.closest('.kgBoxToggle, .kgFileIcon, .kgBoxName, .kgBoxExpand')) return;
+            startBoxDrag(e, node, container, gRef.g);
+        });
+        return el;
+    }
+
+    /** The "+ / −" of every visible box, from the pool: hidden neighbours → "+", expanded → "−", fetching → "…". */
+    function updateExpandButtons() {
+        if (!_data || !_pool) return;
+        _data.nodes.forEach(function (n) {
+            const btn = n._box && n._box.querySelector('.kgBoxExpand');
+            if (!btn) return;
+            let text = '+', title = '', show = true, open = false, busy = false;
+            if (_expanded[n.id]) {
+                text = '−'; title = 'Nascondi i collegamenti mostrati da qui'; open = true;
+            } else if (_pending[n.id]) {
+                text = '…'; title = 'Cerco i collegamenti…'; busy = true;
+            } else {
+                const h = hiddenNeighbours(n.id).length;
+                if (h) title = h === 1 ? 'Mostra 1 collegamento' : 'Mostra ' + h + ' collegamenti';
+                else show = false;
+            }
+            btn.textContent = text;
+            btn.title = title;
+            btn.disabled = busy;
+            btn.classList.toggle('kgBoxExpandNone', !show);
+            btn.classList.toggle('kgBoxExpandOpen', open);
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+    }
+
+    /** Box size in unscaled pixels (offsetWidth ignores the zoom transform). */
+    function measureBox(node) {
+        const el = node._box;
+        if (!el) return;
+        node._boxW = el.offsetWidth;
+        node._boxH = el.offsetHeight;
+        const head = el.querySelector('.kgBoxHead');
+        node._boxHeadH = head ? head.offsetHeight : el.offsetHeight;
+    }
+
+    /** Head centered on the node; the TL;DR opens downward. */
+    function positionBoxes(g) {
+        if (!_data) return;
+        const k = g.zoom();
+        _data.nodes.forEach(function (node) {
+            const el = node._box;
+            if (!el || !isFinite(node.x) || !isFinite(node.y)) return;
+            const p = g.graph2ScreenCoords(node.x, node.y);
+            el.style.transform = 'translate(' + p.x + 'px,' + p.y + 'px) scale(' + k + ') translate(-50%,' + (-(node._boxHeadH || 0) / 2) + 'px)';
+        });
+    }
+
+    /** A dragged box stays where it is dropped (pinned), so boxes can be arranged by hand. */
+    function startBoxDrag(e, node, container, g) {
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = container.getBoundingClientRect();
+        const start = g.screen2GraphCoords(e.clientX - rect.left, e.clientY - rect.top);
+        const offX = (node.x || 0) - start.x;
+        const offY = (node.y || 0) - start.y;
+        node._box.classList.add('kgBoxDragging');
+        node._userPinned = true;
+        function move(ev) {
+            const p = g.screen2GraphCoords(ev.clientX - rect.left, ev.clientY - rect.top);
+            node.fx = p.x + offX;
+            node.fy = p.y + offY;
+            try { g.d3ReheatSimulation(); } catch (err) { /* noop */ }
+        }
+        function up() {
+            document.removeEventListener('mousemove', move);
+            document.removeEventListener('mouseup', up);
+            if (node._box) node._box.classList.remove('kgBoxDragging');
+        }
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', up);
+    }
+
+    function boxCenterOffsetY(n) { return ((n._boxH || 0) - (n._boxHeadH || 0)) / 2; }
+
+    /** Boxes must not overlap: two overlapping boxes are pushed apart along the axis where they overlap least. */
+    function boxCollideForce2D() {
+        if (!_data) return;
+        const nodes = _data.nodes;
+        const pad = 16, strength = 1.0;
+        for (let i = 0; i < nodes.length; i++) {
+            const a = nodes[i];
+            if (!a._boxW || typeof a.x !== 'number') continue;
+            for (let j = i + 1; j < nodes.length; j++) {
+                const b = nodes[j];
+                if (!b._boxW || typeof b.x !== 'number') continue;
+                const dx = b.x - a.x;
+                const dy = (b.y + boxCenterOffsetY(b)) - (a.y + boxCenterOffsetY(a));
+                const ox = (a._boxW + b._boxW) / 2 + pad - Math.abs(dx);
+                const oy = (a._boxH + b._boxH) / 2 + pad - Math.abs(dy);
+                if (ox <= 0 || oy <= 0) continue;
+                if (ox < oy) {
+                    const s = (dx >= 0 ? 1 : -1) * ox * strength / 2;
+                    a.vx = (a.vx || 0) - s;
+                    b.vx = (b.vx || 0) + s;
+                } else {
+                    const s = (dy >= 0 ? 1 : -1) * oy * strength / 2;
+                    a.vy = (a.vy || 0) - s;
+                    b.vy = (b.vy || 0) + s;
+                }
+            }
+        }
+    }
+
+    /**
+     * When the simulation stops the forces may still leave boxes overlapping (the folder pull
+     * wins over the collision): move the boxes themselves until none overlaps, keeping each one
+     * inside its folder circle and outside the children's. A pinned box (dragged by hand) stays
+     * where it is and the other one moves.
+     */
+    function settleBoxes() {
+        if (!_data) return;
+        const nodes = _data.nodes.filter(function (n) { return n._boxW && isFinite(n.x) && isFinite(n.y); });
+        const pad = 16;
+        for (let iter = 0; iter < 80; iter++) {
+            let moved = false;
+            for (let i = 0; i < nodes.length; i++) {
+                const n = nodes[i];
+                if (n.fx == null && clampIntoFolder(n)) moved = true;
+            }
+            for (let i = 0; i < nodes.length; i++) {
+                const a = nodes[i];
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const b = nodes[j];
+                    const dx = b.x - a.x;
+                    const dy = (b.y + boxCenterOffsetY(b)) - (a.y + boxCenterOffsetY(a));
+                    const ox = (a._boxW + b._boxW) / 2 + pad - Math.abs(dx);
+                    const oy = (a._boxH + b._boxH) / 2 + pad - Math.abs(dy);
+                    if (ox <= 0 || oy <= 0) continue;
+                    const aPinned = a.fx != null, bPinned = b.fx != null;
+                    if (aPinned && bPinned) continue;
+                    const horizontal = ox < oy;
+                    const push = (horizontal ? ox : oy) + 0.5;
+                    const sign = (horizontal ? dx : dy) >= 0 ? 1 : -1;
+                    const shareA = aPinned ? 0 : (bPinned ? 1 : 0.5);
+                    const shareB = 1 - shareA;
+                    if (horizontal) {
+                        a.x -= sign * push * shareA;
+                        b.x += sign * push * shareB;
+                    } else {
+                        a.y -= sign * push * shareA;
+                        b.y += sign * push * shareB;
+                    }
+                    moved = true;
+                }
+            }
+            if (!moved) break;
+        }
+    }
+
+    /** The arrow tip on the edge of the target box, not at its hidden center. */
+    function boxArrowRelPos(link) {
+        const s = link.source, t = link.target;
+        if (!s || !t || !isFinite(s.x) || !isFinite(s.y) || !isFinite(t.x) || !isFinite(t.y) || !t._boxW) return 0.92;
+        const dx = t.x - s.x, dy = t.y - s.y;
+        if (Math.hypot(dx, dy) < 1) return 1;
+        const halfW = t._boxW / 2 + 3;
+        const above = (t._boxHeadH || 0) / 2 + 3;
+        const below = t._boxH - (t._boxHeadH || 0) / 2 + 3;
+        const halfH = dy > 0 ? above : below;   // coming from above → top edge
+        const fx = dx !== 0 ? halfW / Math.abs(dx) : Infinity;
+        const fy = dy !== 0 ? halfH / Math.abs(dy) : Infinity;
+        return Math.max(0, Math.min(1, 1 - Math.min(fx, fy)));
+    }
+
     // ---- Helpers ------------------------------------------------------------
     function getDocumentPath() {
         const anchor = document.getElementById('KGAnchor');
@@ -275,50 +861,92 @@
         return /^[a-z][a-z0-9+\-.]*:(\/\/|[^\\/])/i.test(s) && !/^[a-zA-Z]:[\\/]/.test(s);
     }
 
-    function navigateToNode(node) {
+    // ---- Opening a file node ---------------------------------------------------
+    // What a click does is decided by the backend (node.openWith, KnowledgeGraphFiles), with
+    // the rules of the page: a .md or a text file opens in the page, the project's
+    // application extensions (.mdapplicationtoopen) with their application, a URL in the
+    // system browser, a missing file nowhere.
+    //
+    // "In the page" goes through Angular, as a click in the tree: the md-navigate message
+    // (MainContentComponent.handleMdNavigate). Navigating the iframe itself, as this graph
+    // used to, showed a .json as raw bytes (the colored view needs source=angular) and left it
+    // out of the title-bar arrows; through Angular the page is colored and the arrows get the
+    // entry (markdownfileisprocessed). Application and browser change no page: no entry.
+
+    function openFileNode(node) {
         if (!node || node.isCenter) return;
+        switch (node.openWith) {
+            case 'page':        openInPage(node); return;
+            case 'application': openWithApplication(node); return;
+            case 'browser':     openInSystemBrowser(node); return;
+            case 'none':        showNotice('File non trovato: ' + (node.relativePath || displayName(node))); return;
+            default:
+                console.error('[KG] node without a valid openWith — page and backend out of step:', node.openWith, node);
+        }
+    }
 
-        // External link: open in default browser / new window
-        if (node.isExternal && node.externalUrl) {
-            try {
-                const w = window.open(node.externalUrl, '_blank', 'noopener,noreferrer');
-                if (!w) {
-                    // popup blocked: fallback to anchor click
-                    const a = document.createElement('a');
-                    a.href = node.externalUrl;
-                    a.target = '_blank';
-                    a.rel = 'noopener noreferrer';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                }
-            } catch (e) {
-                console.error('[KG] failed to open external URL', e);
-            }
+    function openInPage(node) {
+        const rel = node.relativePath;
+        if (!rel) {
+            console.error('[KG] openWith=page without a relative path:', node);
             return;
         }
-
-        let rel = node.relativePath || '';
-        if (!rel) return;
-        if (isExternalUrl(rel) || isExternalUrl(node.fullPath)) {
-            console.warn('[KG] node points to an external URL but is not flagged as external:', rel);
-            return;
-        }
-        if (/^[a-zA-Z]:[\\/]/.test(rel) || rel.startsWith('/') || rel.startsWith('\\')) {
-            console.warn('[KG] refusing to navigate to non-relative path:', rel);
-            return;
-        }
-        rel = rel.replace(/^\.\/+/, '').replace(/\\/g, '/');
-        const conn = $('#MdBody').attr('connectionid');
-        let url = '/api/mdexplorer/' + rel;
-        if (conn) url += '?connectionid=' + encodeURIComponent(conn);
         closeOverlay();
-        window.location.href = url;
+        if (window.parent && window.parent !== window) {
+            // fullPath: the title-bar history tells entries apart by it.
+            window.parent.postMessage({ type: 'md-navigate', relativePath: rel, name: displayName(node), fullPath: node.fullPath }, '*');
+            return;
+        }
+        // A detached window has no Angular around it: it opens the file itself, as a detached
+        // window (same parameters, so the backend still skips the main window's side effects).
+        const current = new URLSearchParams(window.location.search);
+        const params = new URLSearchParams();
+        ['ConnectionId', 'connectionId', 'theme'].forEach(function (k) { if (current.get(k)) params.set(k, current.get(k)); });
+        params.set('time', String(Date.now() / 1000));
+        params.set('source', 'detached');
+        params.set('detached', 'true');
+        window.location.href = '/api/mdexplorer/' + rel.split('/').map(encodeURIComponent).join('/') + '?' + params.toString();
+    }
+
+    function openWithApplication(node) {
+        if (typeof openApplication !== 'function') {
+            console.error('[KG] openApplication (core/utilities.js) is not loaded');
+            return;
+        }
+        openApplication(node.fullPath);
+    }
+
+    function openInSystemBrowser(node) {
+        $.ajax({
+            url: '/api/MdFiles/OpenUrlInBrowser',
+            type: 'POST',
+            data: JSON.stringify({ url: node.externalUrl, connectionId: $('#MdBody').attr('connectionid') }),
+            contentType: 'application/json; charset=utf-8',
+            dataType: 'json'
+        }).fail(function (xhr) {
+            showNotice('Impossibile aprire il link (HTTP ' + (xhr ? xhr.status : '?') + ')');
+        });
+    }
+
+    /** A short notice inside the graph panel. */
+    function showNotice(message) {
+        if (!_overlay) return;
+        let notice = _overlay.querySelector('.kgNotice');
+        if (!notice) {
+            notice = document.createElement('div');
+            notice.className = 'kgNotice';
+            _overlay.appendChild(notice);
+        }
+        notice.textContent = message;
+        notice.classList.add('kgNoticeShown');
+        clearTimeout(notice._timer);
+        notice._timer = setTimeout(function () { notice.classList.remove('kgNoticeShown'); }, 4000);
     }
 
     function normalize(raw) {
         if (!raw || !raw.nodes) return { nodes: [], links: [] };
         return {
+            projectName: raw.projectName || '',
             nodes: raw.nodes.map(function (n) {
                 return {
                     id: n.id,
@@ -331,6 +959,9 @@
                     isExternal: !!n.isExternal,
                     externalUrl: n.externalUrl,
                     tldr: n.tldr,
+                    kind: n.kind || '',          // icon (backend: KnowledgeGraphFiles)
+                    openWith: n.openWith || '',  // page | application | browser | none
+                    exists: n.exists !== false,
                     inDegree: n.inDegree || 0,
                     outDegree: n.outDegree || 0
                 };
@@ -341,7 +972,7 @@
         };
     }
 
-    // ---- 3D label sprite ----------------------------------------------------
+    // ---- Canvas helpers -------------------------------------------------------
     function drawRoundedRect(ctx, x, y, w, h, r) {
         ctx.beginPath();
         ctx.moveTo(x + r, y);
@@ -356,97 +987,6 @@
         ctx.closePath();
     }
 
-    function buildLabelSprite3D(node) {
-        if (typeof THREE === 'undefined') return null;
-        const rawLabel = node.label || node.id || '';
-        const text = node.isExternal ? '🌐 ' + rawLabel : rawLabel;
-        const isCenter = !!node.isCenter;
-        const fontSize = isCenter ? 44 : 30;
-        const font = (isCenter ? 'bold ' : '600 ') + fontSize + 'px -apple-system, "Segoe UI", Inter, system-ui, sans-serif';
-        const padX = 18, padY = 10;
-        const m = document.createElement('canvas').getContext('2d');
-        m.font = font;
-        const textW = Math.ceil(m.measureText(text).width);
-        const ratio = (window.devicePixelRatio || 1);
-        const canvas = document.createElement('canvas');
-        canvas.width = (textW + padX * 2) * ratio;
-        canvas.height = (fontSize + padY * 2) * ratio;
-        const ctx = canvas.getContext('2d');
-        ctx.scale(ratio, ratio);
-        ctx.font = font;
-        ctx.textBaseline = 'middle';
-        const w = textW + padX * 2;
-        const h = fontSize + padY * 2;
-        const r = h / 2;
-        // Dark-aware pill
-        const pillBg     = isCenter ? CENTER_COLOR : (_isDark ? 'rgba(15,23,42,0.92)' : '#ffffff');
-        const pillStroke = isCenter ? CENTER_RING  : (_isDark ? 'rgba(255,255,255,0.22)' : 'rgba(15,23,42,0.18)');
-        const textColor  = isCenter ? '#451a03'    : (_isDark ? '#e6edf3' : '#0f172a');
-        ctx.fillStyle = pillBg;
-        ctx.strokeStyle = pillStroke;
-        ctx.lineWidth = isCenter ? 3 : 1.5;
-        drawRoundedRect(ctx, 0, 0, w, h, r);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = textColor;
-        ctx.fillText(text, padX, h / 2 + 1);
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.needsUpdate = true;
-        tex.minFilter = THREE.LinearFilter;
-        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
-        const sprite = new THREE.Sprite(mat);
-        const baseScale = isCenter ? 0.45 : 0.36;
-        sprite.scale.set(w * baseScale / 6, h * baseScale / 6, 1);
-        sprite.position.y = isCenter ? 16 : 11;
-        return sprite;
-    }
-
-    // ---- 3D builder ---------------------------------------------------------
-    function build3D(container, data) {
-        if (typeof ForceGraph3D !== 'function') {
-            console.error('[KG] ForceGraph3D not loaded');
-            return null;
-        }
-        const rect = container.getBoundingClientRect();
-        const w = Math.max(rect.width, 400);
-        const h = Math.max(rect.height, 400);
-        const g = ForceGraph3D()(container)
-            .width(w).height(h)
-            .backgroundColor(_isDark ? '#0b1220' : '#f8fafc')
-            .showNavInfo(false)
-            .nodeLabel(buildNodeTooltip)
-            .nodeColor(nodeColor)
-            .nodeVal(function (n) { return n.isCenter ? 14 : 3 + Math.min(10, (n.inDegree || 0) + (n.outDegree || 0)); })
-            .nodeOpacity(1)
-            .nodeResolution(24)
-            .nodeThreeObjectExtend(true)
-            .nodeThreeObject(buildLabelSprite3D)
-            .linkLabel(buildLinkTooltip)
-            .linkColor(linkColor)
-            .linkOpacity(0.55)
-            .linkWidth(1.1)
-            .linkCurvature(0.08)
-            .linkDirectionalArrowLength(4)
-            .linkDirectionalArrowRelPos(1)
-            .linkDirectionalArrowColor(linkColor)
-            .linkDirectionalParticles(2)
-            .linkDirectionalParticleSpeed(0.006)
-            .linkDirectionalParticleWidth(2)
-            .linkDirectionalParticleColor(linkColor)
-            .onNodeClick(handleNodeClick)
-            .onNodeHover(function (node) { container.style.cursor = node ? 'pointer' : null; })
-            .graphData(data);
-        try {
-            if (g.d3Force) {
-                const charge = g.d3Force('charge'); if (charge) charge.strength(-160);
-                const linkF  = g.d3Force('link');   if (linkF)  linkF.distance(70);
-                g.d3Force('cluster', clusterForce3D);
-            }
-        } catch (e) { /* noop */ }
-        setTimeout(function () { try { g.zoomToFit(500, 60); } catch (e) {} }, 700);
-        return g;
-    }
-
     // ---- 2D builder ---------------------------------------------------------
     function build2D(container, data) {
         if (typeof ForceGraph !== 'function') {
@@ -456,16 +996,32 @@
         const rect = container.getBoundingClientRect();
         const w = Math.max(rect.width, 400);
         const h = Math.max(rect.height, 400);
+        // Files view: nodes are HTML boxes (buildBoxLayer). Concepts keep the drawn circles.
+        const useBoxes = _source === 'files';
+
+        // Boxes first: the folder circles are sized from their measured boxes, and every node
+        // starts inside its own circle (the layer stays above the canvas by its z-index).
+        const gRef = { g: null };
+        const layer = useBoxes ? buildBoxLayer(container, data, gRef) : null;
+        _container = container; _boxLayer = layer; _gRef = gRef; _anim = null;
+        if (_layout) { sizeLayout(_layout); seedPositions(data, _layout); }
 
         const g = ForceGraph()(container)
             .width(w).height(h)
             .backgroundColor('rgba(0,0,0,0)') // transparent over our CSS gradient
             .nodeRelSize(6)
-            .nodeLabel(buildNodeTooltip)
+            .nodeLabel(useBoxes ? null : buildNodeTooltip)
             .nodeColor(nodeColor)
             .nodeVal(function (n) { return n.isCenter ? 14 : 3 + Math.min(10, (n.inDegree || 0) + (n.outDegree || 0)); })
             .nodeCanvasObjectMode(function () { return 'replace'; })
             .nodeCanvasObject(function (node, ctx, globalScale) {
+                if (useBoxes) return;   // the box is the node
+                // force-graph can draw the first frame before the simulation has placed the
+                // nodes (x/y undefined, measured 17/09/2026 on a slowed CPU). createRadialGradient
+                // throws on them, and the exception stops force-graph's render loop for good: the
+                // empty panel of the first K.G. after start. A node not placed yet is not drawn;
+                // the next frame has its position.
+                if (!isFinite(node.x) || !isFinite(node.y)) return;
                 const r = nodeRadius(node);
                 const isCenter = !!node.isCenter;
                 const color = nodeColor(node);
@@ -520,6 +1076,8 @@
                 ctx.fillText(text, node.x, pillY + padY);
             })
             .nodePointerAreaPaint(function (node, color, ctx) {
+                if (useBoxes) return;   // the box handles its own pointer
+                if (!isFinite(node.x) || !isFinite(node.y)) return;   // not placed yet (see nodeCanvasObject)
                 const r = nodeRadius(node);
                 ctx.beginPath();
                 ctx.arc(node.x, node.y, r + 2, 0, 2 * Math.PI);
@@ -531,78 +1089,92 @@
             .linkWidth(function (l) { return 1.4; })
             .linkCurvature(0.08)
             .linkDirectionalArrowLength(5)
-            .linkDirectionalArrowRelPos(0.92)
+            .linkDirectionalArrowRelPos(useBoxes ? boxArrowRelPos : 0.92)
             .linkDirectionalArrowColor(linkColor)
             .linkDirectionalParticles(2)
             .linkDirectionalParticleSpeed(0.006)
             .linkDirectionalParticleWidth(2)
             .linkDirectionalParticleColor(linkColor)
             .onNodeClick(handleNodeClick)
-            .onNodeHover(function (node) { container.style.cursor = node ? 'pointer' : null; })
-            .cooldownTicks(120)
+            // force-graph reports the hover from its render loop, after our mousemove: it must not wipe the hand.
+            .onNodeHover(function (node) { container.style.cursor = node ? 'pointer' : (_handOverHalo ? 'grab' : null); })
+            // Files view: the layout is settled in the warm-up, before the first frame; the
+            // cooldown only serves the drags (each reheat runs this many ticks of local tidying).
+            .warmupTicks(useBoxes ? 200 : 0)
+            .cooldownTicks(useBoxes ? 40 : 120)
             .onRenderFramePre(function (ctx, globalScale) {
+                stepAnimation();
                 drawClusterHalos2D(ctx, globalScale);
+            })
+            .onRenderFramePost(function () {
+                if (useBoxes) positionBoxes(g);
             })
             .graphData(data);
 
         try {
             if (g.d3Force) {
-                const charge = g.d3Force('charge'); if (charge) charge.strength(-280);
-                const linkF  = g.d3Force('link');   if (linkF)  linkF.distance(80);
-                g.d3Force('cluster', clusterForce2D);
+                // No global forces in the Files view: the circles decide where things are, the
+                // links are only drawn. Concepts keep charge and links to spread the circles.
+                const charge = g.d3Force('charge'); if (charge) charge.strength(useBoxes ? 0 : -280);
+                const linkF  = g.d3Force('link');   if (linkF) { linkF.distance(80); if (useBoxes) linkF.strength(0); }
+                g.d3Force('center', null);   // force-graph's default centering would drag the whole picture
+                g.d3Force('cluster', folderForce2D);
+                if (useBoxes) g.d3Force('boxCollide', boxCollideForce2D);
             }
         } catch (e) { /* noop */ }
+        gRef.g = g;
+        // ForceGraph empties the container when it is created: the measured layer goes back in, above the canvas.
+        if (layer) container.appendChild(layer);
+        g.fitAll = function (ms) { fitToFolders(g, container, ms); };
 
-        // Auto-fit on first stabilization
+        // Auto-fit on first stabilization. With boxes only the first time: opening or dragging
+        // a box reheats the simulation, and refitting then would move the view under the mouse.
+        // Files view: the warm-up already settled the boxes, so the picture is framed at once,
+        // without animation, and never refitted (a refit would move the view under the mouse).
+        let fitted = false;
+        if (useBoxes) {
+            settleBoxes();
+            try { g.fitAll(0); } catch (e) {}
+            fitted = true;
+            updateExpandButtons();
+        }
         g.onEngineStop(function () {
-            try { g.zoomToFit(400, 50); } catch (e) {}
+            if (useBoxes) settleBoxes();
+            if (fitted) return;
+            fitted = true;
+            try { g.fitAll(400); } catch (e) {}
         });
+        bindHaloDrag(container, g);
         return g;
     }
 
     // ---- Cluster halos (2D, drawn under nodes) -------------------------------
+    /**
+     * Draws the folder circles from the layout (fixed centre and radius, parents before their
+     * children so the children sit on top) and keeps them in _layout.halos (graph coordinates)
+     * for the mouse (see startHaloDrag). A circle's members are every node inside it, children included.
+     */
     function drawClusterHalos2D(ctx, globalScale) {
         if (!_data || !_layout) return;
-        const buckets = _layout.buckets;
-        for (let i = 0; i < buckets.length; i++) {
-            const b = buckets[i];
-            let cx = 0, cy = 0, count = 0;
-            const members = [];
-            for (let j = 0; j < _data.nodes.length; j++) {
-                const n = _data.nodes[j];
-                if (n.isCenter) continue;
-                if (bucketFor(n) !== b) continue;
-                if (typeof n.x !== 'number' || typeof n.y !== 'number') continue;
-                cx += n.x; cy += n.y; count++;
-                members.push(n);
-            }
-            if (!count) continue;
-            cx /= count; cy /= count;
-            let maxR = 0;
-            for (let j = 0; j < members.length; j++) {
-                const n = members[j];
-                const dx = n.x - cx, dy = n.y - cy;
-                const d = Math.sqrt(dx * dx + dy * dy) + nodeRadius(n) + 16;
-                if (d > maxR) maxR = d;
-            }
-            if (maxR < 36) maxR = 36;
-
+        const halos = Object.create(null);
+        _layout.halos = halos;
+        const fillA   = _isDark ? 0.16 : 0.13;
+        const strokeA = _isDark ? 0.38 : 0.30;
+        function draw(b) {
+            const f = _layout.folders[b];
+            if (!f || !isFinite(f.cx) || !isFinite(f.cy)) return;
+            halos[b] = { bucket: b, cx: f.cx, cy: f.cy, r: f.r, members: descendantsOf(_layout, b) };
             const color = PALETTE[hashStr(b) % PALETTE.length];
-            const fillA   = _isDark ? 0.16 : 0.13;
-            const strokeA = _isDark ? 0.38 : 0.30;
-
             ctx.save();
             ctx.fillStyle = hexToRgba(color, fillA);
             ctx.strokeStyle = hexToRgba(color, strokeA);
             ctx.lineWidth = 1.4 / globalScale;
             ctx.setLineDash([6 / globalScale, 5 / globalScale]);
             ctx.beginPath();
-            ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+            ctx.arc(f.cx, f.cy, f.r, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
             ctx.setLineDash([]);
-
-            // Folder label centered on top of the cluster
             const label = friendlyBucketLabel(b);
             if (label) {
                 const fs = 13 / globalScale;
@@ -610,14 +1182,135 @@
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
                 ctx.fillStyle = hexToRgba(color, _isDark ? 0.92 : 0.78);
-                ctx.fillText(label, cx, cy - maxR - 4 / globalScale);
+                ctx.fillText(label, f.cx, f.cy - f.r - 4 / globalScale);
             }
             ctx.restore();
+            f.children.forEach(draw);
         }
+        _layout.top.forEach(draw);
     }
 
-    function buildForMode(container, data, mode) {
-        return mode === '3d' ? build3D(container, data) : build2D(container, data);
+    // ---- Folder circles: drag one and its nodes follow -------------------------
+    /** The circle under a graph point; the smallest one where circles overlap. */
+    function haloAt(gx, gy) {
+        if (!_layout || !_layout.halos) return null;
+        const halos = _layout.halos;
+        let best = null;
+        for (const b in halos) {
+            const h = halos[b];
+            if (Math.hypot(gx - h.cx, gy - h.cy) > h.r) continue;
+            if (!best || h.r < best.r) best = h;
+        }
+        return best;
+    }
+
+    /** A node drawn on the canvas (Concepts view) under a graph point: its own drag and click win over the circle. */
+    function canvasNodeAt(gx, gy) {
+        if (!_data) return null;
+        for (let i = 0; i < _data.nodes.length; i++) {
+            const n = _data.nodes[i];
+            if (n._box || !isFinite(n.x) || !isFinite(n.y)) continue;
+            if (Math.hypot(gx - n.x, gy - n.y) <= nodeRadius(n) + 2) return n;
+        }
+        return null;
+    }
+
+    /**
+     * The mouse on the canvas: a hand over a circle, and a press on it starts the drag of
+     * the circle. Listened in the capture phase because the canvas's own mousedown
+     * (d3-zoom) would start a pan instead. The boxes of the Files view are HTML above the
+     * canvas, so a press on a box never gets here.
+     */
+    function bindHaloDrag(container, g) {
+        function graphPoint(ev) {
+            const rect = container.getBoundingClientRect();
+            return g.screen2GraphCoords(ev.clientX - rect.left, ev.clientY - rect.top);
+        }
+        container.addEventListener('mousemove', function (ev) {
+            if (ev.buttons || !(ev.target instanceof HTMLCanvasElement)) return;
+            const p = graphPoint(ev);
+            if (canvasNodeAt(p.x, p.y)) { _handOverHalo = false; return; }   // force-graph shows its pointer
+            const over = !!haloAt(p.x, p.y);
+            if (over) { container.style.cursor = 'grab'; _handOverHalo = true; }
+            else if (_handOverHalo) { container.style.cursor = ''; _handOverHalo = false; }
+        });
+        container.addEventListener('mousedown', function (ev) {
+            if (ev.button !== 0 || !(ev.target instanceof HTMLCanvasElement)) return;
+            const p = graphPoint(ev);
+            if (canvasNodeAt(p.x, p.y)) return;
+            const halo = haloAt(p.x, p.y);
+            if (!halo) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            startHaloDrag(ev, halo, container, g);
+        }, true);
+    }
+
+    /**
+     * Dragging a folder circle moves the circle, the circles inside it and every node in them
+     * by the same offset, so the folder force keeps the nodes in the new place; a child circle
+     * cannot leave its parent. Like a dragged box, the nodes stay where they are dropped (pinned).
+     * The simulation is reheated on every move, like the box drag: the outer ForceGraph
+     * exposes only d3ReheatSimulation (alpha back to 1), not resetCountdown/alphaTarget
+     * (verified in force-graph 1.51, 2026-10-09). The other nodes make room; a higher
+     * velocity decay while the mouse is down keeps them from being thrown around.
+     */
+    const DRAG_VELOCITY_DECAY = 0.75;   // force-graph default: 0.4
+    function startHaloDrag(e, halo, container, g) {
+        const rect = container.getBoundingClientRect();
+        const start = g.screen2GraphCoords(e.clientX - rect.left, e.clientY - rect.top);
+        const folders = _layout.folders;
+        const folder = folders[halo.bucket];
+        // The circle, the circles inside it and every node in them move together.
+        const circles = [];
+        (function walk(b) { const f = folders[b]; if (!f) return; circles.push({ f: f, cx: f.cx, cy: f.cy }); f.children.forEach(walk); })(halo.bucket);
+        const members = halo.members.map(function (n) { return { node: n, x: n.x, y: n.y }; });
+        const parent = folder && folder.parent ? folders[folder.parent] : null;
+        container.style.cursor = 'grabbing';
+        _handOverHalo = false;
+        members.forEach(function (m) { m.node._userPinned = true; if (m.node._box) m.node._box.classList.add('kgBoxDragging'); });
+        const restingDecay = g.d3VelocityDecay();
+        g.d3VelocityDecay(DRAG_VELOCITY_DECAY);
+        function move(ev) {
+            const p = g.screen2GraphCoords(ev.clientX - rect.left, ev.clientY - rect.top);
+            let dx = p.x - start.x, dy = p.y - start.y;
+            if (parent && folder) {
+                // A child circle stays inside its parent: the drag is clamped to the room there.
+                const room = Math.max(0, parent.r - folder.r - 6);
+                const ox = circles[0].cx + dx - parent.cx, oy = circles[0].cy + dy - parent.cy;
+                const od = Math.hypot(ox, oy);
+                if (od > room) {
+                    dx = parent.cx + ox * room / od - circles[0].cx;
+                    dy = parent.cy + oy * room / od - circles[0].cy;
+                }
+            }
+            circles.forEach(function (c) { c.f.cx = c.cx + dx; c.f.cy = c.cy + dy; });
+            members.forEach(function (m) { m.node.fx = m.x + dx; m.node.fy = m.y + dy; });
+            pushCirclesApart(halo.bucket);
+            g.d3ReheatSimulation();
+        }
+        function up() {
+            document.removeEventListener('mousemove', move);
+            document.removeEventListener('mouseup', up);
+            members.forEach(function (m) { if (m.node._box) m.node._box.classList.remove('kgBoxDragging'); });
+            container.style.cursor = '';
+            g.d3VelocityDecay(restingDecay);
+        }
+        document.addEventListener('mousemove', move);
+        document.addEventListener('mouseup', up);
+    }
+
+    /** The folder circles in screen pixels of the graph's container (what the e2e proofs grab). */
+    function foldersOnScreen() {
+        if (!_graph || !_layout || !_layout.halos) return [];
+        const out = [];
+        const halos = _layout.halos;
+        for (const b in halos) {
+            const h = halos[b];
+            const c = _graph.graph2ScreenCoords(h.cx, h.cy);
+            out.push({ folder: b, label: friendlyBucketLabel(b), parent: (_layout.folders[b] || {}).parent || null, cx: c.x, cy: c.y, r: h.r * _graph.zoom(), nodes: h.members.length });
+        }
+        return out;
     }
 
     // ---- Overlay ------------------------------------------------------------
@@ -630,10 +1323,6 @@
                 '<div class="kgViewTabs" role="tablist" aria-label="Source">' +
                     '<button type="button" class="kgViewTab" data-source="files"    role="tab" title="Links between markdown files (legacy view)">Files</button>' +
                     '<button type="button" class="kgViewTab" data-source="concepts" role="tab" title="Concept graph from .kg.md (Neo4j)">Concepts</button>' +
-                '</div>' +
-                '<div class="kgViewTabs" role="tablist" aria-label="Render mode" style="margin-left:8px">' +
-                    '<button type="button" class="kgViewTab" data-mode="2d" role="tab">2D</button>' +
-                    '<button type="button" class="kgViewTab" data-mode="3d" role="tab">3D</button>' +
                 '</div>' +
                 '<select class="kgNsPicker" style="margin-left:8px;display:none" title="Namespace filter (concepts only)">' +
                     '<option value="">All namespaces</option>' +
@@ -680,7 +1369,7 @@
                         '<span><i class="kgLine kgLinePum"></i>plantuml</span>' +
                     '</span>' +
                 '</div>' +
-                '<div class="kgHint" data-mode-hint="2d">drag to pan • scroll to zoom • click a node to open</div>' +
+                '<div class="kgHint">drag to pan • scroll to zoom • click a node to open</div>' +
             '</div>' +
             '<div class="kgLoading"><div class="kgSpinner"></div><div>Building graph…</div></div>';
         document.body.appendChild(o);
@@ -689,14 +1378,12 @@
             const btn = e.target.closest('button');
             if (!btn) return;
             const act = btn.getAttribute('data-act');
-            const mode = btn.getAttribute('data-mode');
             const source = btn.getAttribute('data-source');
             if (act === 'close') closeOverlay();
             else if (act === 'refresh') refresh();
             else if (act === 'sanity') toggleSanityPanel();
             else if (act === 'sanity-close') hideSanityPanel();
             else if (act === 'focus-clear') clearFocus();
-            else if (mode) setMode(mode);
             else if (source) setSource(source);
         });
         const nsPicker = o.querySelector('.kgNsPicker');
@@ -721,19 +1408,14 @@
         if (!_overlay) return;
         const tabs = _overlay.querySelectorAll('.kgViewTab');
         tabs.forEach(function (t) {
-            const m = t.getAttribute('data-mode');
             const s = t.getAttribute('data-source');
-            let active = false;
-            if (m && m === _mode) active = true;
-            else if (s && s === _source) active = true;
-            t.classList.toggle('kgViewTabActive', active);
+            t.classList.toggle('kgViewTabActive', !!s && s === _source);
         });
         const hint = _overlay.querySelector('.kgHint');
         if (hint) {
-            const sourceLbl = _source === 'concepts' ? 'concepts' : 'files';
-            hint.textContent = _mode === '3d'
-                ? 'drag to orbit • scroll to zoom • click a node — viewing ' + sourceLbl
-                : 'drag to pan • scroll to zoom • click a node — viewing ' + sourceLbl;
+            hint.textContent = _source === 'files'
+                ? 'pan: drag the background • zoom: scroll • ▸ TL;DR • + more links • click a name to open • drag a box or a folder circle to move it'
+                : 'drag to pan • scroll to zoom • click a node • drag a circle to move it with its concepts';
         }
         const nsPicker = _overlay.querySelector('.kgNsPicker');
         if (nsPicker) nsPicker.style.display = _source === 'concepts' ? '' : 'none';
@@ -851,24 +1533,11 @@
         const node = _data.nodes.find(function (n) { return n.id === nodeId; });
         if (!node) return;
         try {
-            if (_mode === '2d' && _graph.centerAt) {
+            if (_graph.centerAt) {
                 if (node.x != null && node.y != null) _graph.centerAt(node.x, node.y, 800);
                 if (_graph.zoom) _graph.zoom(3, 800);
-            } else if (_mode === '3d' && _graph.cameraPosition) {
-                const distance = 200;
-                const distRatio = 1 + distance / Math.hypot(node.x || 1, node.y || 1, node.z || 1);
-                _graph.cameraPosition({ x: (node.x || 0) * distRatio, y: (node.y || 0) * distRatio, z: (node.z || 0) * distRatio }, node, 1000);
             }
         } catch (e) { /* noop */ }
-    }
-
-    function setMode(mode) {
-        if (mode !== '2d' && mode !== '3d') return;
-        if (mode === _mode && _graph) return;
-        _mode = mode;
-        setActiveTab();
-        if (!_data || !_data.nodes || _data.nodes.length === 0) return;
-        renderActive();
     }
 
     function setSource(source) {
@@ -883,6 +1552,7 @@
         _layout = null;
         _fullData = null;
         _focusId = null;
+        resetExploration();
         loadAndRender();
     }
 
@@ -913,19 +1583,23 @@
         const body = _overlay.querySelector('.kgBody');
         if (!body) return;
         body.innerHTML = '';
+        // The picture stays hidden (kgSettling) until it is framed: no flash of an unfitted graph.
+        body.classList.add('kgSettling');
         // Wait two animation frames so the container has its final layout
         // (the overlay just entered the DOM and is still transitioning).
         requestAnimationFrame(function () {
             requestAnimationFrame(function () {
-                _graph = buildForMode(body, _data, _mode);
+                _graph = build2D(body, _data);
                 // Belt-and-suspenders: re-measure once the canvas is settled
                 // and re-fit, in case the initial container rect was stale.
                 setTimeout(function () {
                     try {
                         const r = body.getBoundingClientRect();
                         if (_graph && r.width > 0 && r.height > 0) _graph.width(r.width).height(r.height);
-                        if (_graph && _graph.zoomToFit) _graph.zoomToFit(400, 60);
+                        if (_graph && _graph.fitAll) _graph.fitAll(0);
+                        else if (_graph && _graph.zoomToFit) _graph.zoomToFit(400, 60);
                     } catch (e) { /* noop */ }
+                    requestAnimationFrame(function () { body.classList.remove('kgSettling'); });
                 }, 250);
             });
         });
@@ -939,12 +1613,17 @@
         const pathFile = getDocumentPath();
         if (!pathFile) { showError('Could not determine current document path.'); return; }
         showLoading(true);
-        const conn = $('#MdBody').attr('connectionid');
-        let url = '/api/tabcontroller/GetKnowledgeGraph?fullPathFile=' + encodeURIComponent(pathFile) + '&depth=1';
-        if (conn) url += '&connectionid=' + encodeURIComponent(conn);
-        $.get(url)
+        resetExploration();
+        // Two levels fetched, one shown: the second waits behind the "+" of the first.
+        $.get(graphUrl(pathFile, 2))
             .done(function (raw) {
-                const data = normalize(raw);
+                ingest(raw, true);
+                const center = Object.keys(_pool.nodes).filter(function (id) { return _pool.nodes[id].isCenter; })[0];
+                const dist = distancesFrom(center);
+                Object.keys(dist).forEach(function (id) {
+                    if (dist[id] <= 1) { _visible[id] = true; _fetched[id] = true; }   // depth 2 holds every link of level 1
+                });
+                const data = visibleData();
                 _data = data;
                 _layout = computeLayout(data);
                 showLoading(false);
@@ -958,6 +1637,229 @@
                 console.error('[KG] fetch failed', xhr && xhr.status, xhr && xhr.statusText);
                 showError('Failed to load Knowledge Graph (HTTP ' + (xhr ? xhr.status : '?') + ').');
             });
+    }
+
+    // ---- Progressive exploration: pool, visibility, expand / collapse ----------------
+
+    function graphUrl(pathFile, depth) {
+        const conn = $('#MdBody').attr('connectionid');
+        let url = '/api/tabcontroller/GetKnowledgeGraph?fullPathFile=' + encodeURIComponent(pathFile) + '&depth=' + depth;
+        if (conn) url += '&connectionid=' + encodeURIComponent(conn);
+        return url;
+    }
+
+    function resetExploration() {
+        _pool = null;
+        _visible = Object.create(null);
+        _revealedBy = Object.create(null);
+        _expanded = Object.create(null);
+        _fetched = Object.create(null);
+        _pending = Object.create(null);
+        _anim = null;
+    }
+
+    /** Merges a backend answer into the pool. Only the first answer names the centre; nodes already known keep their object (position, box). */
+    function ingest(raw, initial) {
+        const data = normalize(raw);
+        if (!_pool) _pool = { nodes: Object.create(null), links: Object.create(null), projectName: '' };
+        if (data.projectName && !_pool.projectName) _pool.projectName = data.projectName;
+        data.nodes.forEach(function (n) {
+            if (!initial) n.isCenter = false;
+            const old = _pool.nodes[n.id];
+            if (!old) { _pool.nodes[n.id] = n; return; }
+            if (!old.tldr && n.tldr) old.tldr = n.tldr;
+            if (!old.kind && n.kind) { old.kind = n.kind; old.openWith = n.openWith; }
+        });
+        data.links.forEach(function (l) {
+            const key = l.source + '|' + l.target + '|' + (l.linkType || '');
+            if (!_pool.links[key]) _pool.links[key] = { source: l.source, target: l.target, linkType: l.linkType };
+        });
+    }
+
+    function neighbourIds(id) {
+        const out = Object.create(null);
+        const links = _pool.links;
+        for (const k in links) {
+            const l = links[k];
+            if (l.source === id && l.target !== id) out[l.target] = true;
+            else if (l.target === id && l.source !== id) out[l.source] = true;
+        }
+        return Object.keys(out).filter(function (n) { return !!_pool.nodes[n]; });
+    }
+
+    function hiddenNeighbours(id) {
+        return neighbourIds(id).filter(function (n) { return !_visible[n]; });
+    }
+
+    /** Hops from the centre over the pool's links, both directions. */
+    function distancesFrom(centerId) {
+        const dist = Object.create(null);
+        if (!centerId) return dist;
+        dist[centerId] = 0;
+        let frontier = [centerId];
+        while (frontier.length) {
+            const next = [];
+            frontier.forEach(function (id) {
+                neighbourIds(id).forEach(function (n) {
+                    if (dist[n] === undefined) { dist[n] = dist[id] + 1; next.push(n); }
+                });
+            });
+            frontier = next;
+        }
+        return dist;
+    }
+
+    /** The visible subset, with fresh link objects (ForceGraph turns source/target into node objects). */
+    function visibleData() {
+        const nodes = Object.keys(_visible).map(function (id) { return _pool.nodes[id]; }).filter(Boolean);
+        const links = [];
+        for (const k in _pool.links) {
+            const l = _pool.links[k];
+            if (_visible[l.source] && _visible[l.target]) links.push({ source: l.source, target: l.target, linkType: l.linkType });
+        }
+        return { projectName: _pool.projectName, nodes: nodes, links: links };
+    }
+
+    function toggleExpand(node) {
+        if (_expanded[node.id]) collapseNode(node.id);
+        else expandNode(node.id);
+    }
+
+    function expandNode(id) {
+        const fresh = hiddenNeighbours(id);
+        if (!fresh.length) return;
+        fresh.forEach(function (n) { _visible[n] = true; _revealedBy[n] = id; });
+        _expanded[id] = true;
+        applyVisibility(id);
+        fresh.forEach(fetchNeighbourhood);   // the level beyond, ready before it is asked for
+    }
+
+    function hideRevealedBy(id) {
+        Object.keys(_revealedBy).forEach(function (n) {
+            if (_revealedBy[n] !== id) return;
+            if (_expanded[n]) { hideRevealedBy(n); delete _expanded[n]; }
+            delete _visible[n];
+            delete _revealedBy[n];
+        });
+    }
+
+    function collapseNode(id) {
+        hideRevealedBy(id);
+        delete _expanded[id];
+        applyVisibility(id);
+    }
+
+    /** Fetches a node's own links (depth 1) into the pool; its "+" appears when they arrive. External URLs have none. */
+    function fetchNeighbourhood(id) {
+        if (_fetched[id] || _pending[id]) return;
+        const node = _pool.nodes[id];
+        if (!node || node.isExternal || node.exists === false) { _fetched[id] = true; return; }
+        _pending[id] = true;
+        updateExpandButtons();
+        $.get(graphUrl(node.fullPath || id, 1))
+            .done(function (raw) {
+                if (!_pool) return;   // the panel was closed meanwhile
+                ingest(raw, false);
+                _fetched[id] = true;
+                delete _pending[id];
+                applyVisibility(null);   // a new link between two visible nodes is drawn at once
+            })
+            .fail(function (xhr) {
+                if (!_pool) return;
+                delete _pending[id];
+                updateExpandButtons();
+                showNotice('Collegamenti di ' + displayName(node) + ' non caricati (HTTP ' + (xhr ? xhr.status : '?') + ').');
+            });
+    }
+
+    /**
+     * Shows the visible subset on the live graph: boxes added or removed, links redrawn, and
+     * when the set of nodes changed a new layout, reached with a 350 ms flight: circles grow
+     * from where they were (a new one from the node that revealed it), new boxes fly in from
+     * that node, boxes pinned by hand keep their place relative to their circle.
+     */
+    function applyVisibility(expanderId) {
+        if (!_graph || !_pool || !_container) return;
+        const prevFolders = _layout ? _layout.folders : null;
+        const before = _data ? _data.nodes.slice() : [];
+        const data = visibleData();
+        const same = before.length === data.nodes.length && before.every(function (n) { return _visible[n.id]; });
+        const keep = Object.create(null);
+        data.nodes.forEach(function (n) { keep[n.id] = true; });
+        before.forEach(function (n) { if (!keep[n.id] && n._box) { n._box.remove(); n._box = null; } });
+        data.nodes.forEach(function (n) {
+            if (n._box) return;
+            const el = buildBox(n, _container, _gRef);
+            _boxLayer.appendChild(el);
+            n._box = el;
+            measureBox(n);
+        });
+        _data = data;
+        if (same) {
+            _graph.graphData(data);
+            updateExpandButtons();
+            return;
+        }
+        const oldPos = Object.create(null);
+        before.forEach(function (n) { oldPos[n.id] = { x: n.x, y: n.y }; });
+        const layout = computeLayout(data);
+        const targets = Object.create(null);
+        seedPositions(data, layout, targets);
+        data.nodes.forEach(function (n) {
+            // a box pinned by hand follows its circle instead of taking a grid place
+            const f = layout.folders[bucketFor(n)];
+            const old = prevFolders && prevFolders[f.key];
+            if (n._userPinned && old && oldPos[n.id] && isFinite(oldPos[n.id].x)) {
+                targets[n.id] = { x: oldPos[n.id].x + (f.cx - old.cx), y: oldPos[n.id].y + (f.cy - old.cy) };
+            }
+        });
+        const expander = expanderId ? _pool.nodes[expanderId] : null;
+        const origin = expander && isFinite(expander.x) ? { x: expander.x, y: expander.y } : null;
+        const anim = { start: performance.now(), dur: 350, nodes: [], folders: [] };
+        data.nodes.forEach(function (n) {
+            const to = targets[n.id];
+            let from = oldPos[n.id];
+            if (!from || !isFinite(from.x)) {
+                const f = layout.folders[bucketFor(n)];
+                from = origin || { x: f.cx, y: f.cy };
+            }
+            n.x = from.x; n.y = from.y; n.fx = from.x; n.fy = from.y;   // fixed while flying
+            anim.nodes.push({ n: n, x0: from.x, y0: from.y, x1: to.x, y1: to.y });
+        });
+        _layout = layout;
+        try { _graph.fitAll(anim.dur); } catch (e) { /* noop */ }   // framed on the destination
+        layout.buckets.forEach(function (b) {
+            const f = layout.folders[b];
+            const old = prevFolders && prevFolders[b];
+            const from = old ? { cx: old.cx, cy: old.cy, r: old.r }
+                : (origin ? { cx: origin.x, cy: origin.y, r: 0 } : { cx: f.cx, cy: f.cy, r: 0 });
+            anim.folders.push({ f: f, c0: from, c1: { cx: f.cx, cy: f.cy, r: f.r } });
+            f.cx = from.cx; f.cy = from.cy; f.r = from.r;
+        });
+        _anim = anim;
+        _graph.graphData(data);
+        _graph.d3ReheatSimulation();   // keeps the frames (and the box positioning) coming while flying
+        updateExpandButtons();
+    }
+
+    /** One frame of the relayout flight (called from onRenderFramePre). Ease-out cubic. */
+    function stepAnimation() {
+        if (!_anim) return;
+        const t = Math.min(1, (performance.now() - _anim.start) / _anim.dur);
+        const e = 1 - Math.pow(1 - t, 3);
+        _anim.nodes.forEach(function (a) {
+            a.n.x = a.n.fx = a.x0 + (a.x1 - a.x0) * e;
+            a.n.y = a.n.fy = a.y0 + (a.y1 - a.y0) * e;
+        });
+        _anim.folders.forEach(function (a) {
+            a.f.cx = a.c0.cx + (a.c1.cx - a.c0.cx) * e;
+            a.f.cy = a.c0.cy + (a.c1.cy - a.c0.cy) * e;
+            a.f.r  = a.c0.r  + (a.c1.r  - a.c0.r)  * e;
+        });
+        if (t < 1) { try { _graph.d3ReheatSimulation(); } catch (err) { /* noop */ } return; }
+        _anim.nodes.forEach(function (a) { if (!a.n._userPinned) { a.n.fx = null; a.n.fy = null; } });
+        _anim = null;
+        try { _graph.d3ReheatSimulation(); } catch (err) { /* noop */ }   // local tidying, then settleBoxes at engine stop
     }
 
     // ---- Concept graph (Neo4j) source -----------------------------------------
@@ -1136,7 +2038,7 @@
 
     function handleNodeClick(node) {
         if (_source === 'concepts') { focusOnNode(node); return; }
-        navigateToNode(node);
+        openFileNode(node);
     }
 
     function computeFocusSet(focusId, dir, maxDepth) {
@@ -1226,7 +2128,6 @@
 
     function openOverlay() {
         if (_overlay) return;
-        _mode = '2d'; // always start with 2D for the big-picture view
         _isDark = detectDark();
         _overlay = buildOverlay();
         if (_isDark) _overlay.classList.add('kgDark');
@@ -1252,6 +2153,8 @@
         _fullData = null;
         _focusId = null;
         _source = 'files';
+        resetExploration();
+        _container = null; _boxLayer = null; _gRef = null;
     }
 
     function refresh() {
@@ -1263,6 +2166,7 @@
         _layout = null;
         _fullData = null;
         _focusId = null;
+        resetExploration();
         loadAndRender();
     }
 
@@ -1275,6 +2179,6 @@
         toggle: window.toggleKnowledgeGraph,
         refresh: refresh,
         resize: resize,
-        setMode: setMode
+        folders: foldersOnScreen
     };
 })();

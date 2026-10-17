@@ -5,6 +5,8 @@ import { Participant, GitAuthor, CurrentGitUser } from '../models/participant';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { ProjectCreateConfigOptions } from '../../projects/dialogs/project-create-config/project-create-config.model';
 import { CompatibilityMode } from '../../models/compatibility-mode.model';
+import { MatLegacySnackBar as MatSnackBar } from '@angular/material/legacy-snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 
 interface ProjectOpenedResponse {
   success: boolean;
@@ -31,6 +33,19 @@ export class ProjectsService {
   // or to disable the chat with a "not installed" banner.
   copilotCliAutoConfig$ = new BehaviorSubject<{ autoSelect: boolean; available: boolean; defaultModel: string | null } | null>(null);
 
+  // Stessa cosa per Claude Code. Sono due flussi separati ma il backend garantisce che
+  // ne arrivi acceso al massimo UNO: la precedenza (quando entrambi i flag sono attivi
+  // vince Claude Code) è decisa là, in un punto solo, non contesa qui fra due
+  // sottoscrizioni che scriverebbero a turno sullo stesso stato della chat.
+  claudeCodeAutoConfig$ = new BehaviorSubject<{ autoSelect: boolean; available: boolean; defaultModel: string | null } | null>(null);
+
+  /**
+   * Terza gemella, per opencode. `available` qui è la sola presenza del CLI nel PATH: il
+   * server vero nasce al primo messaggio della chat, e accenderlo solo per rispondere
+   * «c'è» sarebbe un processo a vuoto.
+   */
+  openCodeAutoConfig$ = new BehaviorSubject<{ autoSelect: boolean; available: boolean; defaultModel: string | null } | null>(null);
+
   // Emette PRIMA che il progetto cambi (per mostrare skeleton loader)
   private projectChangingSubject = new Subject<void>();
   projectChanging$ = this.projectChangingSubject.asObservable();
@@ -41,6 +56,9 @@ export class ProjectsService {
 
   // Retry handle for the Copilot CLI availability re-check (see emitCopilotCliAutoConfig).
   private copilotCliRetryTimer: any = null;
+
+  // Idem per Claude Code (vedi emitClaudeCodeAutoConfig).
+  private claudeCodeRetryTimer: any = null;
 
   get mdProjects() {
     return this._mdProjects.asObservable();
@@ -75,13 +93,68 @@ export class ProjectsService {
     await this.http.post<any>(url, mdProject).toPromise();
   }
 
+  /**
+   * L'ambiente agentico con cui aprire UN percorso preciso, alla prossima apertura fatta da
+   * setNewFolderProject. Lo imposta il tour di Mark dopo il probe del computer, prima di clonare
+   * il progetto demo: la finestra di clone apre il progetto con setNewFolderProject e non sa
+   * niente di ambienti.
+   * Legato al percorso e consumato una volta sola: se il clone del demo fallisce, la scelta non
+   * finisce sul prossimo progetto che l'utente apre.
+   * Sprint: docs-internal/Sprints/2026-10-02-Demo-Ambiente-Agentico-Rilevato.md.
+   */
+  private pendingHarness: { path: string; harness: string } | null = null;
+
+  setHarnessForPath(path: string, harness: string): void {
+    this.pendingHarness = { path: ProjectsService.comparablePath(path), harness: harness };
+  }
+
+  /**
+   * Solo per il progetto demo: chiede alla prossima apertura di QUESTO percorso di preparare un `origin` locale su
+   * cui chi lo prova può scrivere (senza, «Autorizza» non ha dove pubblicare). Stesso schema dell'ambiente
+   * agentico: legato al percorso e consumato una volta sola, quindi non finisce sul prossimo progetto aperto.
+   * Il servizio lo onora solo se il progetto è davvero il clone del demo.
+   */
+  private pendingDemoOriginPath: string | null = null;
+
+  setDemoOriginForPath(path: string): void {
+    this.pendingDemoOriginPath = ProjectsService.comparablePath(path);
+  }
+
+  private takeDemoOriginFor(path: string): boolean {
+    const pending = this.pendingDemoOriginPath;
+    this.pendingDemoOriginPath = null;
+    return pending !== null && pending === ProjectsService.comparablePath(path);
+  }
+
+  private static comparablePath(path: string): string {
+    return (path || '').replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+  }
+
+  /** L'ambiente in attesa per questo percorso, tolto dall'attesa in ogni caso. */
+  private takeHarnessFor(path: string): string | null {
+    const pending = this.pendingHarness;
+    this.pendingHarness = null;
+    return pending && pending.path === ProjectsService.comparablePath(path) ? pending.harness : null;
+  }
+
   setNewFolderProject(path: string):void {
     this.projectChangingSubject.next(); // Notifica cambio progetto in corso
 
     // Close previous project if any
     this.notifyProjectClosed();
 
-    this.http.post<any>('../api/MdProjects/SetFolderProject', { path: path }).subscribe(async response => {
+    // Come nella creazione di un progetto: quando la richiesta porta un ambiente, il servizio lo
+    // scrive nel .development.yml e installa skill, istruzioni e server MCP per quello.
+    const request: { path: string; harness?: string; prepareDemoOrigin?: boolean } = { path: path };
+    const harness = this.takeHarnessFor(path);
+    if (harness) {
+      request.harness = harness;
+    }
+    if (this.takeDemoOriginFor(path)) {
+      request.prepareDemoOrigin = true;
+    }
+
+    this.http.post<any>('../api/MdProjects/SetFolderProject', request).subscribe(async response => {
       this.currentProjects$.next(response);
 
       // Update window title for Electron taskbar preview
@@ -98,6 +171,16 @@ export class ProjectsService {
 
       // Emit Copilot CLI auto-select hint for ai-chat to consume
       this.emitCopilotCliAutoConfig(response);
+      this.emitClaudeCodeAutoConfig(response);
+      this.emitOpenCodeAutoConfig(response);
+
+      // Solo il demo: se l'origin locale non si è potuto preparare gli agenti non potranno consegnare, e la persona
+      // deve saperlo subito (non solo nel log del servizio).
+      if (response.demoOrigin?.status === 'Failed') {
+        this.injector.get(MatSnackBar).open(
+          this.injector.get(TranslateService).instant('DEMO_ORIGIN.FAILED', { reason: response.demoOrigin.error }),
+          'OK', { duration: 30000 });
+      }
 
       // Update compatibility mode from response
       if (response.compatibilityMode) {
@@ -124,7 +207,9 @@ export class ProjectsService {
     const request = {
       path: config.projectPath,
       initializeGit: config.initializeGit,
-      addCopilotInstructions: config.addCopilotInstructions
+      // La scelta dell'harness viaggia SOLO alla creazione. Alla riapertura non si manda:
+      // decide il progetto, che se la porta scritta in .development.yml.
+      harness: config.harness
     };
 
     this.http.post<any>('../api/MdProjects/SetFolderProject', request).subscribe(async response => {
@@ -144,6 +229,8 @@ export class ProjectsService {
 
       // Emit Copilot CLI auto-select hint for ai-chat to consume
       this.emitCopilotCliAutoConfig(response);
+      this.emitClaudeCodeAutoConfig(response);
+      this.emitOpenCodeAutoConfig(response);
 
       // Update compatibility mode from response
       if (response.compatibilityMode) {
@@ -309,6 +396,65 @@ export class ProjectsService {
             }
           },
           error: () => { /* silent — leave provisional unavailable state */ }
+        });
+      }, 2000);
+    }
+  }
+
+  /**
+   * Gemella di emitCopilotCliAutoConfig per Claude Code.
+   *
+   * La ri-verifica qui è meno probabile che serva — la disponibilità di Claude Code è una
+   * scansione del PATH, non un processo da avviare, quindi non ha una cache fredda da
+   * scaldare — ma resta per simmetria e non costa nulla quando la prima risposta è già
+   * "disponibile".
+   */
+  /**
+   * Gemella delle due precedenti per opencode, senza la ri-verifica: la disponibilità è una
+   * scansione del PATH fatta dal backend, non una cache che si scalda.
+   */
+  private emitOpenCodeAutoConfig(response: any): void {
+    if (response == null) return;
+    if (typeof response.openCodeAutoSelect !== 'boolean') {
+      this.openCodeAutoConfig$.next(null);
+      return;
+    }
+    this.openCodeAutoConfig$.next({
+      autoSelect: response.openCodeAutoSelect === true,
+      available: response.openCodeAvailable === true,
+      // null = mai scelto: lo decide il server. Non si inventa un nome qui.
+      defaultModel: response.openCodeDefaultModel ?? null
+    });
+  }
+
+  private emitClaudeCodeAutoConfig(response: any): void {
+    if (this.claudeCodeRetryTimer) {
+      clearTimeout(this.claudeCodeRetryTimer);
+      this.claudeCodeRetryTimer = null;
+    }
+
+    if (response == null) return;
+    if (typeof response.claudeCodeAutoSelect !== 'boolean') {
+      this.claudeCodeAutoConfig$.next(null);
+      return;
+    }
+
+    const autoSelect = response.claudeCodeAutoSelect === true;
+    const available = response.claudeCodeAvailable === true;
+    const defaultModel = response.claudeCodeDefaultModel ?? null;
+
+    this.claudeCodeAutoConfig$.next({ autoSelect, available, defaultModel });
+
+    if (autoSelect && !available) {
+      this.claudeCodeRetryTimer = setTimeout(() => {
+        this.claudeCodeRetryTimer = null;
+        this.http.get<{ configured: boolean }>('../api/ClaudeCode/configured').subscribe({
+          next: r => {
+            if (r?.configured === true) {
+              this.claudeCodeAutoConfig$.next({ autoSelect: true, available: true, defaultModel });
+            }
+          },
+          error: () => { /* silenzio — resta lo stato provvisorio "non disponibile" */ }
         });
       }, 2000);
     }

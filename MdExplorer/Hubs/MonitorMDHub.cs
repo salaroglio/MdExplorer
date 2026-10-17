@@ -21,12 +21,17 @@ namespace MdExplorer.Hubs
         public MonitorMDHub(
             IDatabaseManager databaseManager,
             IFileSystemWatcherManager fileSystemWatcherManager,
-            ILogger<MonitorMDHub> logger)
+            ILogger<MonitorMDHub> logger,
+            MdExplorer.Services.MarkDiagram.IMarkDiagramExplainService diagramExplain)
         {
             _databaseManager = databaseManager;
             _fileSystemWatcherManager = fileSystemWatcherManager;
             _logger = logger;
+            _diagramExplain = diagramExplain;
         }
+
+        /// <summary>The diagram sessions of a closed connection go with it (sprint 2026-09-29-Motore-LLM-Unico, D8).</summary>
+        private readonly MdExplorer.Services.MarkDiagram.IMarkDiagramExplainService _diagramExplain;
 
         public string GetConnectionId()
         {
@@ -44,6 +49,10 @@ namespace MdExplorer.Hubs
             try
             {
                 _logger?.LogInformation($"🔌 Client disconnecting: {connectionId}");
+
+                // A CLI process per live diagram session: not left running after the page is gone.
+                try { await _diagramExplain.ForgetConnectionAsync(connectionId); }
+                catch (Exception ex) { _logger?.LogWarning(ex, "[MonitorMDHub] chiusura delle sessioni dei diagrammi fallita"); }
 
                 // Unregister FileSystemWatcher for this connection
                 if (_fileSystemWatcherManager.HasWatcher(connectionId))

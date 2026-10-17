@@ -37,4 +37,15 @@ public class SaveAnnotatedScreenshotRequest
     /// SignalR connection ID for sending notifications back to the client.
     /// </summary>
     public string ConnectionId { get; set; }
+    // The anchor, as TriggerPasteWizard handed it to the wizard. Absent = append at the end. All
+    // nullable on purpose: a non-nullable field is an implicit [Required] here, and the save
+    // without an anchor would turn into a 400 before entering the method.
+    public int? AnchorStartLine { get; set; }
+    public int? AnchorEndLine { get; set; }
+
+    /// <summary><c>before</c> | <c>after</c>.</summary>
+    public string? AnchorPosition { get; set; }
+
+    /// <summary>The anchor block's lines as they were at the right-click; re-checked before writing.</summary>
+    public string? AnchorExpectedText { get; set; }
 }

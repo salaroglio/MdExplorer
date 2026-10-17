@@ -179,11 +179,10 @@ function highlightSearchTerm(element, searchTerm) {
 
             parts.forEach((part, index) => {
                 if (index % 2 === 1) { // Parte che corrisponde alla ricerca
+                    // Niente stili inline: i colori vengono da .mdeSearchHighlight
+                    // (MdCustomCSS.css) e dalle override body.dark-theme (dark-theme.css)
                     const highlight = document.createElement('mark');
                     highlight.className = 'mdeSearchHighlight';
-                    highlight.style.backgroundColor = '#ffff00';
-                    highlight.style.padding = '2px';
-                    highlight.style.borderRadius = '2px';
                     highlight.textContent = part;
                     span.appendChild(highlight);
                     window.searchResults.push(highlight);
@@ -208,7 +207,7 @@ function navigateSearchResult(direction) {
 
     // Rimuovi evidenziazione corrente
     if (window.currentSearchIndex >= 0 && window.currentSearchIndex < window.searchResults.length) {
-        window.searchResults[window.currentSearchIndex].style.backgroundColor = '#ffff00';
+        window.searchResults[window.currentSearchIndex].classList.remove('current');
     }
 
     // Calcola il nuovo indice
@@ -236,8 +235,8 @@ function scrollToSearchResult(index) {
 
     const result = window.searchResults[index];
 
-    // Evidenzia il risultato corrente con un colore diverso
-    result.style.backgroundColor = '#ff9900';
+    // Evidenzia il risultato corrente con un colore diverso (via CSS .current)
+    result.classList.add('current');
 
     // Scrolla al risultato
     result.scrollIntoView({
@@ -257,13 +256,15 @@ function scrollToSearchResult(index) {
 function updateSearchResultCount() {
     const countElement = document.getElementById('searchResultCount');
 
+    // Niente colori inline: vincerebbero sul CSS del tema (nero su nero in dark).
+    // I colori vengono da .mdeSearchResultCount / .mdeNoResults nei fogli di stile.
     if (window.searchResults.length === 0) {
         countElement.textContent = 'Nessun risultato';
-        countElement.style.color = '#999';
+        countElement.classList.add('mdeNoResults');
     } else {
         const currentDisplay = window.currentSearchIndex + 1;
         countElement.textContent = `${currentDisplay} di ${window.searchResults.length}`;
-        countElement.style.color = '#333';
+        countElement.classList.remove('mdeNoResults');
     }
 }
 
@@ -285,6 +286,7 @@ function clearSearch() {
     const countElement = document.getElementById('searchResultCount');
     if (countElement) {
         countElement.textContent = '';
+        countElement.classList.remove('mdeNoResults');
     }
 }
 
@@ -341,7 +343,34 @@ function searchInDocument(term) {
     }
 
     searchInput.value = term;
+    searchInput.focus();
+    searchInput.select();
     performSearch();
+}
+
+/**
+ * Get the text currently selected in the document (trimmed).
+ * Returns '' if nothing is selected or the selection is only whitespace.
+ *
+ * @returns {string} Selected text
+ */
+function getSelectedText() {
+    const selection = window.getSelection();
+    return selection ? selection.toString().trim() : '';
+}
+
+/**
+ * Handle Ctrl+F: if the user has text selected, open the search bar
+ * pre-filled with that text and run the search immediately;
+ * otherwise fall back to the plain open/close toggle.
+ */
+function handleCtrlF() {
+    const selectedText = getSelectedText();
+    if (selectedText) {
+        searchInDocument(selectedText);
+    } else {
+        toggleSearch();
+    }
 }
 
 // ============================================================================
@@ -356,7 +385,9 @@ window.addEventListener('message', function(event) {
     console.log('[iframe] Message received:', event.data);
     if (event.data && event.data.action === 'toggleSearch') {
         console.log('[iframe] Triggering search from parent message');
-        toggleSearch();
+        // La selezione nell'iframe sopravvive anche quando il focus è sul
+        // parent Angular: se c'è testo selezionato, precompila e cerca subito
+        handleCtrlF();
     }
     if (event.data && event.data.action === 'searchInDocument' && event.data.term) {
         console.log('[iframe] Searching in document from parent message:', event.data.term);
@@ -373,6 +404,6 @@ document.addEventListener('keydown', function(event) {
         console.log('[iframe] Ctrl+F detected within iframe, preventing default and triggering search');
         event.preventDefault();
         event.stopPropagation();
-        toggleSearch();
+        handleCtrlF();
     }
 });

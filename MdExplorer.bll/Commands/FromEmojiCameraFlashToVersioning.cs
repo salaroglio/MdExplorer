@@ -2,6 +2,7 @@
 using FluentNHibernate.Mapping;
 using MdExplorer.Abstractions.Interfaces;
 using MdExplorer.Abstractions.Models;
+using MdExplorer.Features.Utilities;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -67,8 +68,15 @@ namespace MdExplorer.Features.Commands
         public string TransformInNewMDFromMD(string markdown, RequestInfo requestInfo)
         {
             var matches = GetMatches(markdown);
+            var regions = MarkdownCodeRegions.Of(markdown);
+            var increment = 0;
             foreach (Match item in matches)
             {
+                // A :camera_flash: in code stays text.
+                if (regions.IsCode(item.Index))
+                {
+                    continue;
+                }
                 var link = item.Groups[2].Value;
                 if (string.IsNullOrEmpty(link))
                 {
@@ -81,7 +89,10 @@ namespace MdExplorer.Features.Commands
                 //var markdown1 = markdown.Remove(indexStart, countEnd);
                 //var count = replace.Length;
                 //var markdown2 = markdown1.Insert(indexStart, replace.Replace("\n", "\r\n"));
-                markdown = markdown.Replace(item.Groups[0].Value, newToReplace);
+                // By position: a Replace would also rewrite the same line written in code.
+                var at = item.Index + increment;
+                markdown = markdown.Remove(at, item.Length).Insert(at, newToReplace);
+                increment += newToReplace.Length - item.Length;
             }
            return markdown;
         }

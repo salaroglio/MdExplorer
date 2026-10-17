@@ -24,15 +24,21 @@ namespace MdExplorer.Controllers.GitChat
         private readonly ILogger<GitChatController> _logger;
         private readonly ITeamChatService _chatService;
         private readonly IHubContext<TeamChatHub> _hubContext;
+        private readonly MdExplorer.Services.IProjectMetadataService _metadata;
+        private readonly IChatRoomKeys _roomKeys;
 
         public GitChatController(
             ILogger<GitChatController> logger,
             ITeamChatService chatService,
-            IHubContext<TeamChatHub> hubContext)
+            IHubContext<TeamChatHub> hubContext,
+            MdExplorer.Services.IProjectMetadataService metadata,
+            IChatRoomKeys roomKeys)
         {
             _logger = logger;
             _chatService = chatService;
             _hubContext = hubContext;
+            _metadata = metadata;
+            _roomKeys = roomKeys;
         }
 
         /// <summary>
@@ -79,8 +85,15 @@ namespace MdExplorer.Controllers.GitChat
                     var userEmail = repo.Config.Get<string>("user.email")?.Value ?? "anonymous@unknown";
                     var userId = ComputeUserId(userEmail);
 
-                    _logger.LogInformation("Chat room info requested for {RepositoryPath}, roomId: {RoomId}",
-                        repositoryPath, roomId);
+                    // La chiave della stanza è il segreto del PROGETTO, in git. Se manca si crea qui, al
+                    // primo ingresso nella chat: va committato e pushato perché i colleghi entrino.
+                    var (secret, created) = _metadata.EnsureRoomSecret(repositoryPath);
+                    _roomKeys.Register(roomId, repositoryPath, secret);
+                    var keyState = KeyState(repo, repositoryPath, secret);
+                    var relay = await _chatService.CheckRoomAsync(roomId);
+
+                    _logger.LogInformation("Chat room info requested for {RepositoryPath}, roomId: {RoomId}, key: {KeyState}{Created}, relay: {Relay}",
+                        repositoryPath, roomId, keyState, created ? " (creata ora)" : "", relay.Ok ? "ok" : relay.Code);
 
                     return Ok(new
                     {
@@ -88,6 +101,9 @@ namespace MdExplorer.Controllers.GitChat
                         roomId,
                         repositoryName,
                         remoteUrl,
+                        keyState,
+                        relayOk = relay.Ok,
+                        relayCode = relay.Code,
                         user = new
                         {
                             userId,
@@ -177,6 +193,12 @@ namespace MdExplorer.Controllers.GitChat
                     var normalizedUrl = NormalizeGitUrl(origin.Url);
                     var roomId = ComputeRoomId(normalizedUrl);
 
+                    // Il conteggio di chi ha il progetto aperto passa dal relay solo se il progetto ha
+                    // già il suo segreto: aprire un progetto non deve scrivere .development.yml.
+                    var secret = _metadata.GetAgentCity(dto.RepositoryPath)?.RoomSecret;
+                    if (!string.IsNullOrWhiteSpace(secret))
+                        _roomKeys.Register(roomId, dto.RepositoryPath, secret);
+
                     // Get user info from git config
                     var userName = repo.Config.Get<string>("user.name")?.Value ?? "Anonymous";
                     var userEmail = repo.Config.Get<string>("user.email")?.Value ?? "anonymous@unknown";
@@ -259,51 +281,32 @@ namespace MdExplorer.Controllers.GitChat
         /// Normalizes a Git URL to a consistent format for hashing
         /// Handles SSH, HTTPS, and various Git hosting formats
         /// </summary>
+        // Normalizzazione + room delegate all'UNICA sorgente di verità (bll FederationRoom):
+        // Team Chat e Federazione calcolano SEMPRE la stessa stanza per lo stesso repo, e un
+        // fix all'algoritmo non fa più divergere i due sottosistemi. NB: ComputeUserId resta
+        // locale (16 hex) — l'ownerId federato è un namespace diverso (/mdfed, 12 hex) e non
+        // deve coincidere con lo userId della chat.
         private static string NormalizeGitUrl(string url)
-        {
-            if (string.IsNullOrEmpty(url))
-                return string.Empty;
-
-            var normalized = url.Trim().ToLowerInvariant();
-
-            // Remove .git suffix
-            if (normalized.EndsWith(".git"))
-                normalized = normalized.Substring(0, normalized.Length - 4);
-
-            // Convert SSH format to standard format
-            // git@github.com:user/repo -> github.com/user/repo
-            var sshMatch = Regex.Match(normalized, @"^git@([^:]+):(.+)$");
-            if (sshMatch.Success)
-            {
-                normalized = $"{sshMatch.Groups[1].Value}/{sshMatch.Groups[2].Value}";
-            }
-
-            // Remove protocol prefix (https://, http://, ssh://)
-            normalized = Regex.Replace(normalized, @"^(https?|ssh|git)://", "");
-
-            // Remove trailing slashes
-            normalized = normalized.TrimEnd('/');
-
-            // Remove authentication info (user:pass@)
-            normalized = Regex.Replace(normalized, @"^[^@]+@", "");
-
-            return normalized;
-        }
+            => MdExplorer.Features.Federation.FederationRoom.NormalizeGitOrigin(url);
 
         /// <summary>
-        /// Computes a room ID from a normalized URL using SHA256
-        /// Returns first 16 characters of the hash
+        /// Dove sta il segreto del progetto rispetto ai colleghi: <c>shared</c> (nel ramo remoto),
+        /// <c>notPushed</c> (committato, non ancora pushato), <c>notCommitted</c> (solo nel file).
         /// </summary>
-        private static string ComputeRoomId(string normalizedUrl)
+        private static string KeyState(Repository repo, string repositoryPath, string secret)
         {
-            using (var sha256 = SHA256.Create())
-            {
-                var bytes = Encoding.UTF8.GetBytes(normalizedUrl);
-                var hash = sha256.ComputeHash(bytes);
-                var hashString = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
-                return hashString.Substring(0, 16);
-            }
+            var file = Path.GetRelativePath(repo.Info.WorkingDirectory, Path.Combine(repositoryPath, ".development.yml"))
+                .Replace('\\', '/');
+            static bool Has(Commit commit, string path, string secret)
+                => commit?[path]?.Target is Blob blob && blob.GetContentText().Contains(secret, StringComparison.Ordinal);
+
+            if (!Has(repo.Head?.Tip, file, secret)) return "notCommitted";
+            if (!Has(repo.Head?.TrackedBranch?.Tip, file, secret)) return "notPushed";
+            return "shared";
         }
+
+        private static string ComputeRoomId(string normalizedUrl)
+            => MdExplorer.Features.Federation.FederationRoom.RoomIdFromNormalized(normalizedUrl);
 
         /// <summary>
         /// Computes a user ID from email using SHA256

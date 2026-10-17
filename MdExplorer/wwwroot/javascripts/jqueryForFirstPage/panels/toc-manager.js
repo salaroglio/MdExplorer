@@ -59,8 +59,9 @@ function toggleTOC(documentPath) {
     }
 }
 
-/** Persist panel state to backend */
+/** Persist panel state to backend (not in a static export: no service) */
 function _savePanelState() {
+    if (window.mdeStaticExport) return;
     $.ajax({
         url: "/api/tabcontroller/SaveTOCData",
         type: "POST",

@@ -67,8 +67,26 @@
 
             <mat-form-field appearance="outline">
               <mat-label>{{ 'UNIFIED_SETTINGS.JAVA_PATH' | translate }}</mat-label>
-              <input matInput [(ngModel)]="javaPath" [placeholder]="'UNIFIED_SETTINGS.JAVA_PLACEHOLDER' | translate">
+              <input matInput [(ngModel)]="javaPath" (blur)="probeJava()" [placeholder]="'UNIFIED_SETTINGS.JAVA_PLACEHOLDER' | translate">
               <mat-hint>{{ 'UNIFIED_SETTINGS.JAVA_HINT' | translate }}</mat-hint>
+            </mat-form-field>
+            <div class="java-status">
+              <ng-container *ngIf="javaProbe">
+                <mat-icon [class.java-ok]="javaProbe.suitable" [class.java-bad]="!javaProbe.suitable">{{ javaProbe.suitable ? 'check_circle' : 'error' }}</mat-icon>
+                <span *ngIf="javaProbe.isRunnable">{{ 'UNIFIED_SETTINGS.JAVA_VERSION' | translate: { major: javaProbe.major, min: javaProbe.minimum } }}</span>
+                <span *ngIf="!javaProbe.isRunnable">{{ 'UNIFIED_SETTINGS.JAVA_NOT_RUNNABLE' | translate }}</span>
+              </ng-container>
+              <button mat-stroked-button type="button" (click)="detectJava()" [disabled]="javaDetecting">
+                <mat-icon>search</mat-icon>
+                {{ (javaDetecting ? 'UNIFIED_SETTINGS.JAVA_DETECTING' : 'UNIFIED_SETTINGS.JAVA_DETECT') | translate }}
+              </button>
+            </div>
+
+            <label class="field-label" for="code-description-parallel">{{ 'UNIFIED_SETTINGS.CODE_PARALLEL_LABEL' | translate }}</label>
+            <mat-form-field appearance="outline">
+              <input matInput id="code-description-parallel" type="number" min="1" max="8" step="1" [(ngModel)]="codeDescriptionParallel">
+              <mat-hint>{{ 'UNIFIED_SETTINGS.CODE_PARALLEL_HINT' | translate }}</mat-hint>
+              <mat-error>{{ 'UNIFIED_SETTINGS.CODE_PARALLEL_INVALID' | translate }}</mat-error>
             </mat-form-field>
 
             <mat-form-field appearance="outline">
@@ -206,7 +224,7 @@
                 [disabled]="!isModelLoaded">
           <mat-icon>edit</mat-icon> {{ 'UNIFIED_SETTINGS.SYSTEM_PROMPT' | translate }}
         </button>
-        <button mat-raised-button style="background-color: #10a37f; color: white;" (click)="toggleOpenAiConfig()">
+        <button mat-raised-button class="brand-openai-bg" (click)="toggleOpenAiConfig()">
           <mat-icon>psychology</mat-icon> {{ showOpenAiConfig ? ('UNIFIED_SETTINGS.HIDE' | translate) : '' }} {{ 'UNIFIED_SETTINGS.OPENAI' | translate }}
         </button>
         <button mat-raised-button color="warn" (click)="toggleGeminiConfig()">
@@ -244,7 +262,7 @@
               <mat-label>{{ 'UNIFIED_SETTINGS.OPENAI_API_KEY' | translate }}</mat-label>
               <input matInput type="password" [(ngModel)]="openAiApiKey" [placeholder]="'UNIFIED_SETTINGS.OPENAI_KEY_PLACEHOLDER' | translate">
             </mat-form-field>
-            <button mat-raised-button style="background-color: #10a37f; color: white;"
+            <button mat-raised-button class="brand-openai-bg"
                     (click)="saveOpenAiApiKey()" [disabled]="!openAiApiKey.trim()">
               <mat-icon>save</mat-icon> {{ 'UNIFIED_SETTINGS.SAVE_KEY' | translate }}
             </button>
@@ -257,7 +275,7 @@
                   <mat-card-title>{{ model.name }}</mat-card-title>
                 </mat-card-header>
                 <mat-card-actions>
-                  <button mat-raised-button style="background-color: #10a37f; color: white;"
+                  <button mat-raised-button class="brand-openai-bg"
                           *ngIf="!useOpenAi || selectedOpenAiModel !== model.id"
                           (click)="connectOpenAiModel(model.id)">{{ 'COMMON.CONNECT' | translate }}</button>
                   <button mat-button *ngIf="useOpenAi && selectedOpenAiModel === model.id"

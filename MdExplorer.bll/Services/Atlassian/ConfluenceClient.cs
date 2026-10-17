@@ -294,7 +294,7 @@ namespace MdExplorer.Features.Services.Atlassian
             catch (HttpRequestException ex)
             {
                 throw new AtlassianApiException(
-                    $"Could not reach Confluence at {BaseUrl(conn)}: {ex.Message}", null, ex);
+                    AtlassianNetworkDiagnostics.DescribeUnreachable("Confluence", BaseUrl(conn), ex), null, ex);
             }
 
             var content = await resp.Content.ReadAsStringAsync(ct);

@@ -1,8 +1,9 @@
-import { NgModule } from '@angular/core';
+import { NgModule, APP_INITIALIZER } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { Routes, RouterModule } from '@angular/router';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpClientModule, HttpClient, HTTP_INTERCEPTORS } from '@angular/common/http';
+import { LanguageService } from './services/language.service';
 import { ConnectionIdInterceptor } from './interceptors/connection-id.interceptor';
 import { TranslateModule, TranslateLoader } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
@@ -83,6 +84,8 @@ const routes: Routes = [
     MarkAssistantModule,
   ],
   providers: [
+    // the UI language comes from the backend before the first render (see LanguageService)
+    { provide: APP_INITIALIZER, useFactory: (languages: LanguageService) => () => languages.init(), deps: [LanguageService], multi: true },
     ParsingProjectProvider,
     ConnectionLostProvider,
     PlantumlWorkingProvider,

@@ -38,8 +38,10 @@ namespace MdExplorer.Features.Commands
 
         // Matches <pre><code class="language-X">...</code></pre> where X is one of the supported shells.
         // Non-greedy body; single-line class attribute. Supports both <pre> and <pre class="..."> prefixes.
+        // The <code> tag may carry extra attributes after the class: MarkdownSourceMapService
+        // (ai-selection feature) decorates code blocks with data-mde-line-start/end.
         private static readonly Regex FenceRegex = new(
-            @"<pre(?:\s+[^>]*)?><code\s+class=""language-(bash|sh|shell|powershell|pwsh|ps1|cmd|bat|batch)"">([\s\S]*?)</code></pre>",
+            @"<pre(?:\s+[^>]*)?><code\s+class=""language-(bash|sh|shell|powershell|pwsh|ps1|cmd|bat|batch)""(?:\s+[^>]*)?>([\s\S]*?)</code></pre>",
             RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         // Serialize the parameter list with camelCase property names so the iframe JS
@@ -112,6 +114,12 @@ namespace MdExplorer.Features.Commands
             return buffer.ToString();
         }
 
+        // Material Icons "content_copy", filled, inherits the button colour via currentColor —
+        // the same solid icon family as the Angular toolbar, so the two read alike.
+        // mde-exec-blocks.js swaps it for the check / close glyphs once the backend answers.
+        private const string CopyIconSvg =
+            @"<svg class=""mde-copy-icon"" xmlns=""http://www.w3.org/2000/svg"" width=""13"" height=""13"" viewBox=""0 0 24 24"" fill=""currentColor""><path d=""M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z""></path></svg>";
+
         private static string BuildRunnableHtml(
             string language,
             string blockId,
@@ -133,6 +141,7 @@ namespace MdExplorer.Features.Commands
                 $@"<div class=""mde-exec-toolbar"">" +
                 $@"<span class=""mde-exec-lang"">{HttpUtility.HtmlEncode(language)}</span>" +
                 paramsHtml +
+                $@"<button class=""mde-copy-btn"" type=""button"" aria-label=""Copy command"" title=""Copy the command with the current parameter values"">{CopyIconSvg}<span class=""mde-copy-label""> Copy</span></button>" +
                 $@"<span class=""mde-run-split"">" +
                 $@"<button class=""mde-run-btn"" type=""button"" aria-label=""Run""><span class=""mde-run-icon"">&#9654;</span><span class=""mde-run-label""> Run</span></button>" +
                 $@"<button class=""mde-run-caret"" type=""button"" aria-label=""More run options"" aria-haspopup=""true"">&#9662;</button>" +
@@ -185,6 +194,28 @@ namespace MdExplorer.Features.Commands
                 var button = $@"<button type=""button"" class=""mde-param-picker"" data-param-name=""{name}"" data-picker-type=""{pickerType}""><span class=""mde-param-picker-icon"">{icon}</span><span class=""mde-param-picker-label"">{HttpUtility.HtmlEncode(labelText)}</span></button>";
                 var hidden = $@"<input class=""mde-param-input"" type=""hidden"" data-param-name=""{name}"" value=""{defaultValueAttr}"">";
                 return $@"<label class=""mde-param mde-param-path""{title}>{nameSpan}{button}{hidden}</label>";
+            }
+
+            // Closed set of values: a dropdown instead of free text. The harvester in
+            // mde-exec-blocks.js reads <select> the same way it reads <input>.
+            if (p.Options != null && p.Options.Count > 0)
+            {
+                var options = p.Options;
+                // A default outside the declared set is still shown, first and selected: the
+                // value the script would actually run with must never be invisible.
+                if (!string.IsNullOrEmpty(defaultValue)
+                    && !options.Any(o => string.Equals(o, defaultValue, StringComparison.Ordinal)))
+                {
+                    options = new List<string> { defaultValue };
+                    options.AddRange(p.Options);
+                }
+                var optionsHtml = string.Concat(options.Select(o =>
+                {
+                    var selected = string.Equals(o, defaultValue, StringComparison.Ordinal) ? " selected" : string.Empty;
+                    return $@"<option value=""{HttpUtility.HtmlAttributeEncode(o)}""{selected}>{HttpUtility.HtmlEncode(o)}</option>";
+                }));
+                var select = $@"<select class=""mde-param-input mde-param-select"" data-param-name=""{name}"">{optionsHtml}</select>";
+                return $@"<label class=""mde-param mde-param-enum""{title}>{nameSpan}{select}</label>";
             }
 
             // Plain text / password variant.

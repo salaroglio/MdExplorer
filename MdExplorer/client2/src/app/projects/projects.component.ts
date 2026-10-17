@@ -74,7 +74,33 @@ export class ProjectsComponent implements OnInit, OnDestroy {
   public dataSource: Observable<MdProject[]>
   public dataSource1 = [{ name: 'Nome progetto', path: 'c:\folder\folder\folder' }]
 
+  /** Avvisi di avvio del servizio (Java e simili): api/Diagnostics/StartupNotices, chiusi uno per uno. */
+  startupNotices: any[] = [];
+
+  loadStartupNotices(): void {
+    this.http.get<any[]>('../api/Diagnostics/StartupNotices').subscribe({
+      next: n => this.startupNotices = n || [],
+      error: () => this.startupNotices = []
+    });
+  }
+
+  dismissNotice(n: any): void {
+    this.http.post(`../api/Diagnostics/StartupNotices/${n.id}/dismiss`, {}).subscribe({
+      next: () => this.startupNotices = this.startupNotices.filter(x => x.id !== n.id),
+      error: () => this.startupNotices = this.startupNotices.filter(x => x.id !== n.id)
+    });
+  }
+
+  noticeText(n: any): string {
+    const params = { ...(n.params || {}) };
+    if (params.problemKind) {
+      params.problem = this.translate.instant('PROJECTS.NOTICE_PROBLEM_' + String(params.problemKind).toUpperCase(), params);
+    }
+    return this.translate.instant('PROJECTS.NOTICE_' + String(n.kind || '').toUpperCase().replace(/-/g, '_'), params);
+  }
+
   ngOnInit(): void {
+    this.loadStartupNotices();
     // Check P2P availability
     this.p2pService.isAvailable$.subscribe(available => {
       this.isP2PAvailable = available;

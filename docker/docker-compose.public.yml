@@ -1,0 +1,42 @@
+# MdExplorer — public image consumer template
+#
+# Distribute THIS file to users who want to run MdExplorer from the published
+# image (no need to clone the source). Save it as "docker-compose.yml" in any
+# folder, then:
+#     docker compose up -d
+# and open http://127.0.0.1:5000/client2/index.html
+
+services:
+  mde:
+    image: ghcr.io/salaroglio/mdexplorer:latest
+    container_name: mde
+    restart: unless-stopped
+
+    # Loopback-only on the host — reachable solely from this PC's browser.
+    # Do NOT change to "5000:5000" without adding authentication: MdE has none.
+    ports:
+      - "127.0.0.1:5000:5000"
+
+    volumes:
+      # Your markdown projects. Edit the "./workspace" part if you keep your
+      # notes somewhere else (e.g. "~/Documents/notes:/workspace").
+      - ./workspace:/workspace
+      # Persistent app data (DB, indexes, model cache). Survives image updates.
+      - ./data:/data
+
+    environment:
+      ASPNETCORE_URLS: "http://0.0.0.0:5000"
+      ASPNETCORE_ENVIRONMENT: "Production"
+      MDE_DOCKER: "1"
+      MDE_CONTAINER_WORKSPACE: "/workspace"
+      # Required ONLY if you want the "Open in VS Code" button to work.
+      # Set to the absolute host path of ./workspace above.
+      #   Windows:  MDE_HOST_WORKSPACE=C:/Users/you/mde/workspace
+      #   macOS:    MDE_HOST_WORKSPACE=/Users/you/mde/workspace
+      #   Linux:    MDE_HOST_WORKSPACE=/home/you/mde/workspace
+      MDE_HOST_WORKSPACE: "${MDE_HOST_WORKSPACE:-${PWD}/workspace}"
+      # Optional: enables the in-app AI chat (Copilot CLI) without an
+      # interactive login. Fine-grained PAT with "Copilot Requests" permission
+      # (or classic PAT with user:email + read:org). Leave blank to log in via
+      # `docker compose exec mde copilot` → /login.
+      COPILOT_GITHUB_TOKEN: "${COPILOT_GITHUB_TOKEN:-}"

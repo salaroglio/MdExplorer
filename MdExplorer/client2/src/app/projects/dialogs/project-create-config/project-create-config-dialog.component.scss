@@ -43,6 +43,36 @@
   }
 }
 
+.group-label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.group-description {
+  margin-left: 0;
+  margin-bottom: 12px;
+}
+
+.harness-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.harness-radio {
+  .harness-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .harness-icon {
+    font-size: 18px;
+    height: 18px;
+    width: 18px;
+  }
+}
+
 mat-divider {
   margin: 20px 0;
 }

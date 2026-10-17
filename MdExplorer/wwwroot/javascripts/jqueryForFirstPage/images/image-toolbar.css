@@ -1,0 +1,218 @@
+/*
+ * MdExplorer — la barra dei pulsanti di un'immagine o di un diagramma
+ * ===================================================================
+ * Prima erano <button> nudi, uno accanto all'altro, con icone di misure diverse
+ * (PNG 24x24, il magnifier forzato a 16x16 da uno style inline, l'emoji della
+ * lampadina a 18px). Qui diventano una barra sola, con una maniglia per spostarla:
+ * capita spesso che compaia proprio sopra il punto del diagramma che si sta
+ * guardando.
+ *
+ * Lo spostamento e l'auto-nascondi stanno in image-transform.js.
+ */
+
+.mde-img-toolbar {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 5px;
+    border-radius: 8px;
+    background: rgba(252, 252, 252, 0.94);
+    border: 1px solid rgba(0, 0, 0, 0.14);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    /* Trascinando, il browser selezionerebbe il testo sotto. */
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* La maniglia: è l'unico punto da cui si trascina, così un clic su un pulsante
+   resta un clic e non diventa un movimento di un pixel. */
+.mde-img-toolbar .mde-img-toolbar-grip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 28px;
+    margin-right: 2px;
+    color: rgba(0, 0, 0, 0.45);
+    font-size: 13px;
+    line-height: 1;
+    cursor: grab;
+    border-radius: 4px;
+}
+
+.mde-img-toolbar .mde-img-toolbar-grip:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: rgba(0, 0, 0, 0.75);
+}
+
+/* Mentre si trascina la mano resta chiusa anche fuori dalla maniglia. */
+.mde-img-toolbar.mde-img-toolbar-dragging,
+.mde-img-toolbar.mde-img-toolbar-dragging .mde-img-toolbar-grip {
+    cursor: grabbing;
+}
+
+/* Tutti della stessa misura, comprese le voci che arrivano con le classi di
+   Bootstrap (sposta, ridimensiona, freccia della presentazione). */
+.mde-img-toolbar button {
+    box-sizing: border-box;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.mde-img-toolbar button:hover {
+    background: rgba(0, 0, 0, 0.09);
+}
+
+.mde-img-toolbar button:active {
+    background: rgba(0, 0, 0, 0.16);
+}
+
+/* L'icona dentro: una misura sola, qualunque sia il file di partenza. */
+.mde-img-toolbar button > img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    display: block;
+}
+
+/* La lampadina e la tavolozza della legenda sono emoji, non immagini: si pareggiano col font-size. */
+.mde-img-toolbar button .svg-light-toggle-icon,
+.mde-img-toolbar button .svg-legend-toggle-icon {
+    font-size: 17px;
+    line-height: 1;
+    display: inline-block;
+}
+
+/* Tema scuro: la barra non deve diventare una macchia bianca sul diagramma. */
+body.dark-theme .mde-img-toolbar {
+    background: rgba(42, 44, 51, 0.94);
+    border-color: rgba(255, 255, 255, 0.16);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+body.dark-theme .mde-img-toolbar .mde-img-toolbar-grip {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+body.dark-theme .mde-img-toolbar .mde-img-toolbar-grip:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
+}
+
+body.dark-theme .mde-img-toolbar button:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+body.dark-theme .mde-img-toolbar button:active {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+/* ⚠️ dark-theme.css mette un fondo CHIARO dietro ogni `button[alt]`, con
+   !important, proprio per far vedere queste icone nere. Dentro la barra quel
+   fondo diventa quattro targhette bianche su una barra scura: qui il fondo lo
+   fa la barra, e a farsi vedere ci pensano le icone, schiarite.
+   I selettori sono volutamente più specifici di quelli del tema (l'attributo in
+   più), altrimenti a parità di peso deciderebbe l'ordine di caricamento. */
+body.dark-theme .mde-img-toolbar button[alt],
+body.dark-theme .mde-img-toolbar button:not([alt]) {
+    background: transparent !important;
+    border: 0 !important;
+}
+
+body.dark-theme .mde-img-toolbar button[alt]:hover,
+body.dark-theme .mde-img-toolbar button:not([alt]):hover {
+    background: rgba(255, 255, 255, 0.14) !important;
+}
+
+/* Le icone nere su fondo scuro sparirebbero: si schiariscono, come fa il tema
+   con le altre immagini di interfaccia. */
+body.dark-theme .mde-img-toolbar button > img {
+    filter: invert(0.85) hue-rotate(180deg);
+}
+
+/* === Legenda dei colori (diagrammi interattivi, F7) ===
+   Un pannello dentro la barra, sotto i pulsanti; lo riempie _renderSvgLegend in
+   image-transform.js con i soli colori che il diagramma può mostrare. */
+.mde-img-toolbar .mde-svg-legend {
+    display: none;
+    margin: 4px 2px 2px;
+    padding: 6px 6px 2px;
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+    font: 12px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #333;
+    cursor: default;
+}
+
+.mde-img-toolbar.mde-svg-legend-open .mde-svg-legend {
+    display: block;
+}
+
+.mde-img-toolbar.mde-svg-legend-open button.mde-svg-legend-toggle {
+    background: rgba(0, 0, 0, 0.12);
+}
+
+.mde-svg-legend .mde-svg-legend-title {
+    margin: 2px 0 4px;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(0, 0, 0, 0.55);
+}
+
+/* Spazio tra la sezione dei box e quella delle frecce. */
+.mde-svg-legend .mde-svg-legend-row + .mde-svg-legend-title {
+    margin-top: 8px;
+}
+
+.mde-svg-legend .mde-svg-legend-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 3px 0;
+    white-space: nowrap;
+}
+
+.mde-svg-legend .mde-svg-legend-swatch {
+    flex: none;
+    box-sizing: border-box;
+}
+
+/* Box: il bordo colorato con l'alone, com'è sul diagramma. */
+.mde-svg-legend .mde-svg-legend-box {
+    width: 16px;
+    height: 12px;
+    border: 2px solid;
+    border-radius: 3px;
+    background: #fff;
+}
+
+/* Freccia: un tratto spesso del colore della linea evidenziata. */
+.mde-svg-legend .mde-svg-legend-line {
+    width: 18px;
+    height: 4px;
+    border-radius: 2px;
+}
+
+body.dark-theme .mde-img-toolbar .mde-svg-legend {
+    border-top-color: rgba(255, 255, 255, 0.14);
+    color: #e4e4e4;
+}
+
+body.dark-theme .mde-svg-legend .mde-svg-legend-title {
+    color: rgba(255, 255, 255, 0.55);
+}
+
+body.dark-theme .mde-img-toolbar.mde-svg-legend-open button.mde-svg-legend-toggle {
+    background: rgba(255, 255, 255, 0.16) !important;
+}

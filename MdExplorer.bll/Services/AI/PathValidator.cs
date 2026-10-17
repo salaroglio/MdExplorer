@@ -112,7 +112,8 @@ namespace MdExplorer.bll.Services.AI
         private void ValidateWorkspaceBoundary(string absolutePath)
         {
             // Ensure path is within workspace
-            if (!absolutePath.StartsWith(_workspaceRoot, StringComparison.OrdinalIgnoreCase))
+            // PathContainment: il prefisso senza separatore faceva passare una cartella sorella («/ws2» per «/ws»)
+            if (!MdExplorer.Features.Utilities.PathContainment.IsInside(_workspaceRoot, absolutePath))
             {
                 throw new SecurityException(
                     $"Path traversal detected. Path '{absolutePath}' is outside workspace root '{_workspaceRoot}'");

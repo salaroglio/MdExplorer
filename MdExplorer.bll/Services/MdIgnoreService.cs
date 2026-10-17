@@ -123,13 +123,8 @@ namespace MdExplorer.Features.Services
 
         private string GetRelativePath(string fullPath, string projectPath)
         {
-            if (fullPath.StartsWith(projectPath, StringComparison.OrdinalIgnoreCase))
-            {
-                var relativePath = fullPath.Substring(projectPath.Length).TrimStart(Path.DirectorySeparatorChar);
-                // Normalize path separators for consistent matching
-                return relativePath.Replace(Path.DirectorySeparatorChar, '/');
-            }
-            return fullPath;
+            // con «/» per il confronto con i pattern; una cartella sorella («/proj2» per «/proj») non è dentro
+            return MdExplorer.Features.Utilities.PathContainment.RelativeOrNull(projectPath, fullPath) ?? fullPath;
         }
 
         private bool IsPatternMatch(string path, string pattern)

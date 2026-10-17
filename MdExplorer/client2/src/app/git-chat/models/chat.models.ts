@@ -38,6 +38,11 @@ export interface RoomInfo {
   roomId?: string;
   repositoryName?: string;
   remoteUrl?: string;
+  /** Dove sta il segreto del progetto che apre la stanza: shared = pushato, i colleghi lo hanno. */
+  keyState?: 'shared' | 'notPushed' | 'notCommitted';
+  /** Il relay fa entrare nella stanza? relayCode dice perché no (room-not-registered, bad-token, …). */
+  relayOk?: boolean;
+  relayCode?: string;
   user?: {
     userId: string;
     userName: string;

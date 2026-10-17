@@ -151,11 +151,8 @@ export class PromptLabDistillationService implements OnDestroy {
 
     this.activeSubscriptions.set(cardId, sub);
 
-    // Ensure chat mode is set before sending
-    const provider = model?.toLowerCase().includes('llama') ? 'local' : 'copilotcli';
-    const modelId = model || 'claude-sonnet-4';
-    await this.aiChatService.setProviderAsync(provider, modelId);
-
+    // The engine is the project's, the MarkAgent tab's: PromptLab never switches it (sprint
+    // 2026-09-29-Motore-LLM-Unico, D7). The model parameter is no longer used.
     // Send the distillation request to the LLM
     this.aiChatService.sendMessageToChannel(distillationPrompt, channelId);
   }
