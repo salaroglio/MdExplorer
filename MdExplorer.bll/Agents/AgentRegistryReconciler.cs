@@ -61,13 +61,13 @@ namespace MdExplorer.Features.Agents
                 if (string.IsNullOrWhiteSpace(entry.Name))
                 {
                     // Nessun nome su cui agganciarsi: sempre frutto di un parse fallito.
-                    entry.RegistrationError = d.ParseError ?? "Nome agente mancante.";
+                    entry.RegistrationError = d.ParseError ?? MdExplorer.Features.Services.UiText.Say("Nome agente mancante.", "Agent name missing.");
                 }
                 else if (duplicateNames.Contains(entry.Name))
                 {
                     // Duplicato: prevale sulla regola del singolo (tutte escluse).
                     entry.RegistrationError =
-                        $"Nome '{entry.Name}' duplicato: più agenti lo dichiarano nel progetto — tutti esclusi.";
+                        MdExplorer.Features.Services.UiText.Say($"Nome '{entry.Name}' duplicato: più agenti lo dichiarano nel progetto — tutti esclusi.", $"Name '{entry.Name}' is duplicated: more than one agent declares it in the project — all excluded.");
                 }
                 else if (!string.IsNullOrEmpty(d.ParseError))
                 {

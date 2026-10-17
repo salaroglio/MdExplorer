@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -108,7 +109,7 @@ namespace MdExplorer.Services.AgentRun
             if ((request.Body?.Length ?? 0) > MaxBodyLength)
             {
                 _logger.LogWarning("[Mailbox] {From}->{To} rifiutato: corpo {Len} > {Max} byte", from, to, request.Body.Length, MaxBodyLength);
-                return new EnqueueResult { Accepted = false, RejectionReason = $"Messaggio troppo lungo ({request.Body.Length} caratteri): il limite è {MaxBodyLength}." };
+                return new EnqueueResult { Accepted = false, RejectionReason = UiText.Say($"Messaggio troppo lungo ({request.Body.Length} caratteri): il limite è {MaxBodyLength}.", $"Message too long ({request.Body.Length} characters): the limit is {MaxBodyLength}.") };
             }
 
             // Dedup anti-storm (§9 punto 2): stessa coppia+contesto entro 2s → scartato.
@@ -121,7 +122,7 @@ namespace MdExplorer.Services.AgentRun
             if (!fromScheduler && !_dedup.TryAccept(dedupKey, now))
             {
                 _logger.LogDebug("[Mailbox] dedup: {From}->{To} scartato (storm 2s)", from, to);
-                return new EnqueueResult { Accepted = false, RejectionReason = "Messaggio duplicato entro la finestra anti-storm (2s)." };
+                return new EnqueueResult { Accepted = false, RejectionReason = UiText.Say("Messaggio duplicato entro la finestra anti-storm (2s).", "Duplicate message within the anti-storm window (2s).") };
             }
 
             using var scope = _scopeFactory.CreateScope();
@@ -134,7 +135,7 @@ namespace MdExplorer.Services.AgentRun
                 if (conv.Status == AgentConversation.StatusEnum.Killed)
                 {
                     db.Commit();
-                    return new EnqueueResult { Accepted = false, RejectionReason = "La conversazione è stata terminata (killed)." };
+                    return new EnqueueResult { Accepted = false, RejectionReason = UiText.Say("La conversazione è stata terminata (killed).", "The conversation has been ended (killed).") };
                 }
 
                 // Riapertura umana di una conversazione esaurita (§9): solo user, hop azzerati.
@@ -143,7 +144,7 @@ namespace MdExplorer.Services.AgentRun
                     if (!string.Equals(from, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase))
                     {
                         db.Commit();
-                        return new EnqueueResult { Accepted = false, RejectionReason = "Conversazione esaurita (exhausted): solo l'utente può riaprirla." };
+                        return new EnqueueResult { Accepted = false, RejectionReason = UiText.Say("Conversazione esaurita (exhausted): solo l'utente può riaprirla.", "Conversation exhausted: only the user can reopen it.") };
                     }
                     conv.Status = AgentConversation.StatusEnum.Active;
                     conv.HopCount = 0;
@@ -156,7 +157,7 @@ namespace MdExplorer.Services.AgentRun
                     conv.LastActivityAt = now;
                     db.GetDal<AgentConversation>().Save(conv);
                     db.Commit();
-                    return new EnqueueResult { Accepted = false, RejectionReason = $"Limite hop raggiunto ({conv.HopLimit}): conversazione esaurita." };
+                    return new EnqueueResult { Accepted = false, RejectionReason = UiText.Say($"Limite hop raggiunto ({conv.HopLimit}): conversazione esaurita.", $"Hop limit reached ({conv.HopLimit}): conversation exhausted.") };
                 }
 
                 conv.HopCount = decision.NewHopCount;

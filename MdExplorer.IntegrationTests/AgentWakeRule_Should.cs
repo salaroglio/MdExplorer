@@ -273,7 +273,7 @@ namespace MdExplorer.IntegrationTests
             using var ctx = new AgentCityContext();
             var (_, path) = City(ctx, "lancio-a-mano");
 
-            foreach (var (agent, expected) in new[] { ("suo", "marco@pentagroup.test"), ("orfano", "non ha un responsabile") })
+            foreach (var (agent, expected) in new[] { ("suo", "marco@pentagroup.test"), ("orfano", "has no owner") })
             {
                 var (status, body) = await ctx.PostJson("/api/AgentPrompts/launch", JsonSerializer.Serialize(new
                 {
@@ -374,7 +374,7 @@ namespace MdExplorer.IntegrationTests
             ctx.Factory.Services.GetRequiredService<IProjectMetadataService>()
                 .SetAgentCity(path, new AgentCityConfig { Enabled = true, OwnershipDoc = "responsabilita.md" });
 
-            foreach (var (agent, expected) in new[] { ("suo", "marco@pentagroup.test"), ("orfano", "non ha un responsabile") })
+            foreach (var (agent, expected) in new[] { ("suo", "marco@pentagroup.test"), ("orfano", "has no owner") })
             {
                 var (status, body) = await ctx.PostJson("/api/A2A/agents/trust", JsonSerializer.Serialize(new { projectPath = path, agentName = agent }));
                 Assert.AreEqual(System.Net.HttpStatusCode.BadRequest, status, body);

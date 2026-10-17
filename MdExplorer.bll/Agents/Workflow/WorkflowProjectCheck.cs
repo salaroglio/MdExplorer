@@ -1,4 +1,5 @@
 using System;
+using MdExplorer.Features.Services;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -34,8 +35,10 @@ namespace MdExplorer.Features.Agents.Workflow
                 var step = wf.Steps[i];
                 var path = $"steps[{i}]";
                 if (step.Agent != null && !byName.ContainsKey(step.Agent))
-                    issues.Add(Error($"{path}.agent", $"nel progetto non c'è un agente '{step.Agent}'.",
-                        byName.Count == 0 ? "il progetto non ha agenti" : "agenti del progetto: " + string.Join(", ", byName.Keys.OrderBy(k => k))));
+                    issues.Add(Error($"{path}.agent", UiText.Say($"nel progetto non c'è un agente '{step.Agent}'.", $"the project has no agent '{step.Agent}'."),
+                        byName.Count == 0
+                            ? UiText.Say("il progetto non ha agenti", "the project has no agents")
+                            : UiText.Say("agenti del progetto: ", "agents of the project: ") + string.Join(", ", byName.Keys.OrderBy(k => k))));
 
                 for (var j = 0; j < step.Produces.Count; j++)
                 {
@@ -43,8 +46,9 @@ namespace MdExplorer.Features.Agents.Workflow
                     var slash = file.LastIndexOf('/');
                     var folder = slash < 0 ? "" : file.Substring(0, slash);
                     if (folder.Length > 0 && !folderExists(folder))
-                        issues.Add(Error($"{path}.produces[{j}]", $"la cartella '{folder}' non esiste.",
-                            "creala nel progetto, con un README.md: non tutti i motori creano le cartelle da soli"));
+                        issues.Add(Error($"{path}.produces[{j}]", UiText.Say($"la cartella '{folder}' non esiste.", $"the folder '{folder}' does not exist."),
+                            UiText.Say("creala nel progetto, con un README.md: non tutti i motori creano le cartelle da soli",
+                                "create it in the project, with a README.md: not every engine creates folders by itself")));
                 }
 
                 var t = step.Trigger;
@@ -60,8 +64,10 @@ namespace MdExplorer.Features.Agents.Workflow
                 var reply = declared.FirstOrDefault(rp => string.Equals(rp.Id, t.ReplyId, StringComparison.OrdinalIgnoreCase));
                 if (reply == null)
                 {
-                    issues.Add(Error($"{path}.trigger.reply", $"la scheda di '{source.Agent}' non dichiara la risposta '{t.ReplyId}'.",
-                        declared.Count == 0 ? "aggiungila in a2a.replies della scheda" : "risposte dichiarate: " + string.Join(", ", declared.Select(d => d.Id))));
+                    issues.Add(Error($"{path}.trigger.reply", UiText.Say($"la scheda di '{source.Agent}' non dichiara la risposta '{t.ReplyId}'.", $"the card of '{source.Agent}' does not declare the reply '{t.ReplyId}'."),
+                        declared.Count == 0
+                            ? UiText.Say("aggiungila in a2a.replies della scheda", "add it to a2a.replies in the card")
+                            : UiText.Say("risposte dichiarate: ", "declared replies: ") + string.Join(", ", declared.Select(d => d.Id))));
                     continue;
                 }
                 // I valori del pulsante diventano variabili del giro: ognuno deve essere dichiarato, o si perderebbe.
@@ -70,8 +76,11 @@ namespace MdExplorer.Features.Agents.Workflow
                     .SelectMany(x => Placeholder.Matches(x).Cast<Match>().Select(m => m.Groups[1].Value))
                     .Distinct(StringComparer.Ordinal);
                 foreach (var name in carried.Where(n => !wf.Variables.ContainsKey(n)))
-                    issues.Add(Error($"{path}.trigger.reply", $"il pulsante '{t.ReplyId}' porta il valore '{{{name}}}', che non è una variabile del workflow: ai passi successivi non arriverebbe.",
-                        $"dichiaralo in \"variables\": {{ \"{name}\": \"che cos'è\" }}"));
+                    issues.Add(Error($"{path}.trigger.reply",
+                        UiText.Say($"il pulsante '{t.ReplyId}' porta il valore '{{{name}}}', che non è una variabile del workflow: ai passi successivi non arriverebbe.",
+                            $"the button '{t.ReplyId}' carries the value '{{{name}}}', which is not a workflow variable: it would not reach the next steps."),
+                        UiText.Say($"dichiaralo in \"variables\": {{ \"{name}\": \"che cos'è\" }}",
+                            $"declare it in \"variables\": {{ \"{name}\": \"what it is\" }}")));
             }
             return issues;
         }

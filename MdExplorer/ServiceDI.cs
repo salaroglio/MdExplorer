@@ -27,7 +27,8 @@ namespace MdExplorer.Service
             // Grafo del codice (sprint 2026-10-09, D19): vive nel Fuseki del pacchetto, un dataset `code` e un grafo
             // nominato per progetto; lo store carica gli script di .mde-code/ ed è il modello di lettura per API e tool.
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.ICodeGraphStore, MdExplorer.Features.Services.CodeGraph.CodeGraphStore>();
-            services.AddSingleton<MdExplorer.Features.Services.IUiLanguage, MdExplorer.Services.UserSettingsUiLanguage>();
+            services.AddSingleton<MdExplorer.Services.UserSettingsUiLanguage>();
+            services.AddSingleton<MdExplorer.Features.Services.IUiLanguage>(sp => sp.GetRequiredService<MdExplorer.Services.UserSettingsUiLanguage>());
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.CodeGraphReportWriter>();
             services.AddSingleton<MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore>(sp =>
                 new MdExplorer.Features.Services.CodeGraph.Grammars.GrammarStore(MdExplorer.Utilities.CrossPlatformPath.GetAppDataPath()));

@@ -7,6 +7,7 @@ using System.Linq;
 using MdExplorer.Features.Agents.Workflow;
 using MdExplorer.Services.AgentRegistry;
 using Microsoft.AspNetCore.Mvc;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.A2A
 {
@@ -44,7 +45,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult Rounds([FromQuery] string? projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
             var archived = ArchivedRounds(projectPath);
             return Ok(new
             {
@@ -67,7 +68,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult Take(string roundId, string stepId, [FromQuery] string? projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
             try { _executor.TakeOver(projectPath, roundId, stepId); }
             catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
             return Ok(new { roundId, stepId, taken = true });
@@ -79,7 +80,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult Check([FromQuery] string? projectPath, [FromQuery] string? path)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
             WorkflowCheckResult result;
             try
             {

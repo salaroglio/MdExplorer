@@ -10,6 +10,7 @@ using MdExplorer.Features.Services.Fuseki;
 using MdExplorer.Services.AgentRegistry;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.A2A
 {
@@ -54,7 +55,7 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> Consolidate(Guid conversationId, [FromBody] ConsolidateRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
 
             var promote = (request.Promote ?? new List<PromoteFactDto>())
                 .Where(p => p != null)
@@ -80,13 +81,13 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> Facts([FromQuery] string projectPath, [FromQuery] string agent = null, [FromQuery] int limit = 200)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
 
             FusekiConnection conn;
             try { conn = await _fusekiResolver.ResolveAsync(projectPath); }
             catch (FusekiUnavailableException ax) { return StatusCode(409, new { error = ax.Message }); }
             if (conn == null)
-                return StatusCode(409, new { error = "La memoria (Fuseki) non è abilitata per questo progetto." });
+                return StatusCode(409, new { error = UiText.Say("La memoria (Fuseki) non è abilitata per questo progetto.", "Memory (Fuseki) is not enabled for this project.") });
 
             var graphToName = ResolveGraphNames(projectPath);   // grafo → nome agente
             var graphs = new List<string> { AgentMemoryGraphs.Shared };
@@ -120,7 +121,7 @@ namespace MdExplorer.Controllers.A2A
             }
             catch (FusekiRequestException fx)
             {
-                return StatusCode(502, new { error = $"Fuseki ha rifiutato la query: {fx.Message}" });
+                return StatusCode(502, new { error = UiText.Say($"Fuseki ha rifiutato la query: {fx.Message}", $"Fuseki rejected the query: {fx.Message}") });
             }
             catch (Exception ex)
             {
@@ -135,9 +136,9 @@ namespace MdExplorer.Controllers.A2A
         {
             if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath) ||
                 string.IsNullOrWhiteSpace(request.FactUri) || string.IsNullOrWhiteSpace(request.Graph))
-                return BadRequest(new { error = "projectPath, factUri, graph sono obbligatori." });
+                return BadRequest(new { error = UiText.Say("projectPath, factUri, graph sono obbligatori.", "projectPath, factUri and graph are required.") });
             if (request.Confidence < 0 || request.Confidence > 1)
-                return BadRequest(new { error = "confidence deve essere tra 0 e 1." });
+                return BadRequest(new { error = UiText.Say("confidence deve essere tra 0 e 1.", "confidence must be between 0 and 1.") });
 
             var (conn, error) = await GuardProjectGraphAsync(request.ProjectPath, request.Graph);
             if (conn == null) return error;
@@ -149,7 +150,7 @@ namespace MdExplorer.Controllers.A2A
             }
             catch (FusekiRequestException fx)
             {
-                return StatusCode(502, new { error = $"Fuseki ha rifiutato l'update: {fx.Message}" });
+                return StatusCode(502, new { error = UiText.Say($"Fuseki ha rifiutato l'update: {fx.Message}", $"Fuseki rejected the update: {fx.Message}") });
             }
         }
 
@@ -158,7 +159,7 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> DeleteFact([FromQuery] string projectPath, [FromQuery] string graph, [FromQuery] string factUri)
         {
             if (string.IsNullOrWhiteSpace(projectPath) || string.IsNullOrWhiteSpace(graph) || string.IsNullOrWhiteSpace(factUri))
-                return BadRequest(new { error = "projectPath, graph, factUri sono obbligatori." });
+                return BadRequest(new { error = UiText.Say("projectPath, graph, factUri sono obbligatori.", "projectPath, graph and factUri are required.") });
 
             var (conn, error) = await GuardProjectGraphAsync(projectPath, graph);
             if (conn == null) return error;
@@ -170,7 +171,7 @@ namespace MdExplorer.Controllers.A2A
             }
             catch (FusekiRequestException fx)
             {
-                return StatusCode(502, new { error = $"Fuseki ha rifiutato la delete: {fx.Message}" });
+                return StatusCode(502, new { error = UiText.Say($"Fuseki ha rifiutato la delete: {fx.Message}", $"Fuseki rejected the delete: {fx.Message}") });
             }
         }
 
@@ -179,12 +180,12 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> Diary([FromQuery] string projectPath, [FromQuery] string agent = null)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
             FusekiConnection conn;
             try { conn = await _fusekiResolver.ResolveAsync(projectPath); }
             catch (FusekiUnavailableException ax) { return StatusCode(409, new { error = ax.Message }); }
             if (conn == null)
-                return StatusCode(409, new { error = "La memoria (Fuseki) non è abilitata per questo progetto." });
+                return StatusCode(409, new { error = UiText.Say("La memoria (Fuseki) non è abilitata per questo progetto.", "Memory (Fuseki) is not enabled for this project.") });
 
             var graphToName = ResolveGraphNames(projectPath);
             var graphs = new List<string> { AgentMemoryGraphs.Shared };
@@ -232,11 +233,11 @@ namespace MdExplorer.Controllers.A2A
             try { conn = await _fusekiResolver.ResolveAsync(projectPath); }
             catch (FusekiUnavailableException ax) { return (null, StatusCode(409, new { error = ax.Message })); }
             if (conn == null)
-                return (null, StatusCode(409, new { error = "La memoria (Fuseki) non è abilitata per questo progetto." }));
+                return (null, StatusCode(409, new { error = UiText.Say("La memoria (Fuseki) non è abilitata per questo progetto.", "Memory (Fuseki) is not enabled for this project.") }));
 
             var allowed = new HashSet<string>(ResolveGraphNames(projectPath).Keys) { AgentMemoryGraphs.Shared };
             if (!allowed.Contains(graph))
-                return (null, BadRequest(new { error = "Il grafo indicato non appartiene a questo progetto." }));
+                return (null, BadRequest(new { error = UiText.Say("Il grafo indicato non appartiene a questo progetto.", "The given graph does not belong to this project.") }));
             return (conn, null);
         }
     }

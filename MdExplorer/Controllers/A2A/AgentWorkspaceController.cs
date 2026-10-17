@@ -7,6 +7,7 @@ using MdExplorer.Services.DatabaseManager;
 using MdExplorer.Services.FileSystemWatcherManager;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.A2A
 {
@@ -93,20 +94,23 @@ namespace MdExplorer.Controllers.A2A
         {
             if (string.IsNullOrWhiteSpace(body?.ProjectPath) || string.IsNullOrWhiteSpace(body.AgentName)
                 || string.IsNullOrWhiteSpace(body.ConnectionId))
-                return BadRequest(new { error = "projectPath, agentName e connectionId sono obbligatori." });
+                return BadRequest(new { error = UiText.Say("projectPath, agentName e connectionId sono obbligatori.", "projectPath, agentName and connectionId are required.") });
 
             var desk = (await _worktree.ListSlotsAsync(body.ProjectPath)).FirstOrDefault(
                 x => string.Equals(x.Agent, body.AgentName, StringComparison.OrdinalIgnoreCase));
             if (desk == null)
                 return UnprocessableEntity(new
                 {
-                    error = $"'{body.AgentName}' non ha una copia di lavoro in questo momento: la sua scrivania è passata a un " +
-                            "altro agente. Il suo lavoro si riapre dalla posta, con «Ci metto mano».",
+                    error = UiText.Say(
+                        $"'{body.AgentName}' non ha una copia di lavoro in questo momento: la sua scrivania è passata a un " +
+                        "altro agente. Il suo lavoro si riapre dalla posta, con «Ci metto mano».",
+                        $"'{body.AgentName}' has no working copy right now: its desk has passed to another agent. " +
+                        "Its work can be reopened from the mail, with «Take it over»."),
                 });
             if (desk.Running && !desk.Held)
                 return UnprocessableEntity(new
                 {
-                    error = $"'{body.AgentName}' sta lavorando adesso: aspetta che finisca, poi entra nella sua copia.",
+                    error = UiText.Say($"'{body.AgentName}' sta lavorando adesso: aspetta che finisca, poi entra nella sua copia.", $"'{body.AgentName}' is working right now: wait until it finishes, then enter its copy."),
                 });
 
             // Prima la sessione, poi la finestra: se la sessione fallisse, ci si troverebbe a lavorare in una
@@ -124,7 +128,7 @@ namespace MdExplorer.Controllers.A2A
                 _logger.LogError(ex, "[Workspace] ingresso nella copia di '{Agent}' fallito.", body.AgentName);
                 Back(body);
                 _sessions.Close(body.ProjectPath, body.AgentName, discardWork: false);
-                return UnprocessableEntity(new { error = $"Non riesco ad aprire la copia di '{body.AgentName}': {ex.Message}" });
+                return UnprocessableEntity(new { error = UiText.Say($"Non riesco ad aprire la copia di '{body.AgentName}': {ex.Message}", $"I can't open the copy of '{body.AgentName}': {ex.Message}") });
             }
 
             _logger.LogInformation("[Workspace] la finestra {Connection} lavora nella copia di '{Agent}': {Path}",
@@ -176,7 +180,7 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> Pending([FromBody] WorkspaceRequest body)
         {
             if (string.IsNullOrWhiteSpace(body?.ProjectPath) || string.IsNullOrWhiteSpace(body.AgentName))
-                return BadRequest(new { error = "projectPath e agentName sono obbligatori." });
+                return BadRequest(new { error = UiText.Say("projectPath e agentName sono obbligatori.", "projectPath and agentName are required.") });
             var desk = (await _worktree.ListSlotsAsync(body.ProjectPath)).FirstOrDefault(
                 x => string.Equals(x.Agent, body.AgentName, StringComparison.OrdinalIgnoreCase));
             if (desk == null) return Ok(Describe(new PendingWork(), body.AgentName));
@@ -195,7 +199,7 @@ namespace MdExplorer.Controllers.A2A
         {
             if (string.IsNullOrWhiteSpace(body?.ProjectPath) || string.IsNullOrWhiteSpace(body.AgentName)
                 || string.IsNullOrWhiteSpace(body.ConnectionId))
-                return BadRequest(new { error = "projectPath, agentName e connectionId sono obbligatori." });
+                return BadRequest(new { error = UiText.Say("projectPath, agentName e connectionId sono obbligatori.", "projectPath, agentName and connectionId are required.") });
 
             var published = new System.Collections.Generic.List<string>();
             var committed = new System.Collections.Generic.List<string>();
@@ -209,13 +213,13 @@ namespace MdExplorer.Controllers.A2A
                 if (work.Any && body.Authorized != true)
                     return Conflict(new
                     {
-                        error = $"Nella copia di '{body.AgentName}' c'è lavoro da salvare: serve la tua autorizzazione per committarlo e pubblicarlo.",
+                        error = UiText.Say($"Nella copia di '{body.AgentName}' c'è lavoro da salvare: serve la tua autorizzazione per committarlo e pubblicarlo.", $"There is unsaved work in the copy of '{body.AgentName}': your authorization is needed to commit and publish it."),
                         needsAuthorization = true,
                         pending = Describe(work, body.AgentName),
                     });
 
                 if (work.Dirty.Count > 0 && string.IsNullOrWhiteSpace(body.CommitMessage))
-                    return Conflict(new { error = "Manca il messaggio del commit." });
+                    return Conflict(new { error = UiText.Say("Manca il messaggio del commit.", "The commit message is missing.") });
 
                 // Prima i submodule, poi chi li contiene: il commit del padre registra la loro nuova versione.
                 foreach (var repo in work.Dirty.OrderByDescending(r => r.Depth))
@@ -225,7 +229,7 @@ namespace MdExplorer.Controllers.A2A
                         : System.IO.Path.Combine(desk.Path, repo.Path.Replace('/', System.IO.Path.DirectorySeparatorChar));
                     var problem = await _worktree.CommitAllAsync(dir, body.CommitMessage);
                     if (problem != null)
-                        return Conflict(new { error = $"Non riesco a committare in '{Name(repo)}': {problem}. Resti nella copia." });
+                        return Conflict(new { error = UiText.Say($"Non riesco a committare in '{Name(repo)}': {problem}. Resti nella copia.", $"I can't commit in '{Name(repo)}': {problem}. You stay in the copy.") });
                     committed.Add(Name(repo));
                 }
 
@@ -234,7 +238,7 @@ namespace MdExplorer.Controllers.A2A
                 if (left.Count > 0)
                     return Conflict(new
                     {
-                        error = $"Dopo il commit nella copia di '{body.AgentName}' restano {left.Count} file non committati. Resti nella copia.",
+                        error = UiText.Say($"Dopo il commit nella copia di '{body.AgentName}' restano {left.Count} file non committati. Resti nella copia.", $"After the commit in the copy of '{body.AgentName}', {left.Count} files are still uncommitted. You stay in the copy."),
                         uncommitted = left,
                     });
 
@@ -266,8 +270,11 @@ namespace MdExplorer.Controllers.A2A
         }
 
         private static string NotPublished(string agentName, string what, string why)
-            => $"Il lavoro nella copia di '{agentName}' è committato ma non riesco a pubblicarlo ('{what}': {why}). " +
-               "Resti nella copia: riprova quando il problema è risolto.";
+            => UiText.Say(
+                $"Il lavoro nella copia di '{agentName}' è committato ma non riesco a pubblicarlo ('{what}': {why}). " +
+                "Resti nella copia: riprova quando il problema è risolto.",
+                $"The work in the copy of '{agentName}' is committed but I can't publish it ('{what}': {why}). " +
+                "You stay in the copy: try again once the problem is solved.");
 
         /// <summary>
         /// Prima che un agente parta: che cosa, nella cartella della persona, l'agente NON vedrebbe. La sua copia
@@ -277,7 +284,7 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> ProjectPending([FromBody] WorkspaceRequest body)
         {
             if (string.IsNullOrWhiteSpace(body?.ProjectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
             var view = await _changes.GetAsync(body.ProjectPath, null);
             if (view?.Problem != null || view?.NotAGitRepository == true)
                 return Ok(new { uncommitted = Array.Empty<object>(), unpublished = Array.Empty<object>() });
@@ -300,12 +307,12 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> ProjectSave([FromBody] WorkspaceRequest body)
         {
             if (string.IsNullOrWhiteSpace(body?.ProjectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
 
             var view = await _changes.GetAsync(body.ProjectPath, null);
             var dirty = (view?.Repos ?? Array.Empty<RepoChanges>()).Where(r => r.Uncommitted.Count > 0).ToList();
             if (dirty.Count > 0 && string.IsNullOrWhiteSpace(body.CommitMessage))
-                return Conflict(new { error = "Manca il messaggio del commit." });
+                return Conflict(new { error = UiText.Say("Manca il messaggio del commit.", "The commit message is missing.") });
 
             foreach (var repo in dirty.OrderByDescending(r => r.Depth))
             {
@@ -314,7 +321,9 @@ namespace MdExplorer.Controllers.A2A
                     : System.IO.Path.Combine(body.ProjectPath, repo.Path.Replace('/', System.IO.Path.DirectorySeparatorChar));
                 var problem = await _worktree.CommitAllAsync(dir, body.CommitMessage);
                 if (problem != null)
-                    return Conflict(new { error = $"Non riesco a committare in '{(string.IsNullOrEmpty(repo.Path) ? "progetto" : repo.Label)}': {problem}. L'agente non è partito." });
+                    return Conflict(new { error = UiText.Say(
+                        $"Non riesco a committare in '{(string.IsNullOrEmpty(repo.Path) ? "progetto" : repo.Label)}': {problem}. L'agente non è partito.",
+                        $"I can't commit in '{(string.IsNullOrEmpty(repo.Path) ? "project" : repo.Label)}': {problem}. The agent did not start.") });
             }
 
             // origin può essere più avanti della cartella: è la condizione normale durante un giro, perché ogni
@@ -327,16 +336,19 @@ namespace MdExplorer.Controllers.A2A
                 if (!pulled.Success)
                     return Conflict(new
                     {
-                        error = "Committato, ma su origin c'è lavoro che non riesco a scaricare nella tua cartella: " +
-                                $"{pulled.Refused ?? pulled.Message} L'agente non è partito.",
+                        error = UiText.Say(
+                            "Committato, ma su origin c'è lavoro che non riesco a scaricare nella tua cartella: " +
+                            $"{pulled.Refused ?? pulled.Message} L'agente non è partito.",
+                            "Committed, but origin has work I can't download into your folder: " +
+                            $"{pulled.Refused ?? pulled.Message} The agent did not start."),
                     });
             }
 
             var pushed = await _push.PushEverythingAsync(body.ProjectPath, null);
             if (pushed.Refused != null)
-                return Conflict(new { error = $"Committato, ma non pubblicato: {pushed.Refused} L'agente non è partito." });
+                return Conflict(new { error = UiText.Say($"Committato, ma non pubblicato: {pushed.Refused} L'agente non è partito.", $"Committed, but not published: {pushed.Refused} The agent did not start.") });
             if (!pushed.Success)
-                return Conflict(new { error = "Committato, ma la pubblicazione si è interrotta: controlla il pannello «da pushare». L'agente non è partito." });
+                return Conflict(new { error = UiText.Say("Committato, ma la pubblicazione si è interrotta: controlla il pannello «da pushare». L'agente non è partito.", "Committed, but publishing was interrupted: check the «to push» panel. The agent did not start.") });
             return Ok(new { saved = true });
         }
 

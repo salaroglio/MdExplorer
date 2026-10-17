@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Features.Agents.Workflow
 {
@@ -61,11 +62,17 @@ namespace MdExplorer.Features.Agents.Workflow
         public static string NotForeseen(WorkflowDescriptor wf, string fromAgent, string toAgent)
         {
             var allowed = AssigneesOf(wf, fromAgent);
-            return $"Il workflow «{wf?.Title}» non prevede che '{fromAgent}' scriva a '{toAgent}'. " +
-                   (allowed.Count == 0
-                       ? $"Dopo '{fromAgent}' non viene nessun altro agente: scrive solo alla persona."
-                       : $"Dopo '{fromAgent}' vengono: {string.Join(", ", allowed)}.") +
-                   " Se il passaggio serve, va aggiunto al workflow.";
+            return UiText.Say(
+                $"Il workflow «{wf?.Title}» non prevede che '{fromAgent}' scriva a '{toAgent}'. " +
+                (allowed.Count == 0
+                    ? $"Dopo '{fromAgent}' non viene nessun altro agente: scrive solo alla persona."
+                    : $"Dopo '{fromAgent}' vengono: {string.Join(", ", allowed)}.") +
+                " Se il passaggio serve, va aggiunto al workflow.",
+                $"The workflow «{wf?.Title}» does not provide for '{fromAgent}' writing to '{toAgent}'. " +
+                (allowed.Count == 0
+                    ? $"No other agent comes after '{fromAgent}': it writes only to the person."
+                    : $"After '{fromAgent}' come: {string.Join(", ", allowed)}.") +
+                " If this handoff is needed, it must be added to the workflow.");
         }
 
         /// <summary>
@@ -80,7 +87,9 @@ namespace MdExplorer.Features.Agents.Workflow
             if (loop?.Max == null) return null;
             var left = Math.Max(0, loop.Max.Value - (rejections - 1));
             if (left == 0)
-                why = $"«{step.Label}» è già stato rifatto {loop.Max} {(loop.Max == 1 ? "volta" : "volte")}: è il massimo che il workflow dà al ciclo «{loop.Id}». Il lavoro resta fermo.";
+                why = UiText.Say(
+                    $"«{step.Label}» è già stato rifatto {loop.Max} {(loop.Max == 1 ? "volta" : "volte")}: è il massimo che il workflow dà al ciclo «{loop.Id}». Il lavoro resta fermo.",
+                    $"«{step.Label}» has already been redone {loop.Max} {(loop.Max == 1 ? "time" : "times")}: that is the most the workflow allows for the loop «{loop.Id}». The work stays stopped.");
             return left;
         }
 
@@ -110,14 +119,16 @@ namespace MdExplorer.Features.Agents.Workflow
                 var full = Path.Combine(projectRoot, json.Replace('/', Path.DirectorySeparatorChar));
                 if (!File.Exists(full))
                 {
-                    problem = $"il workflow '{json}' nominato da '{documentPath}' non esiste.";
+                    problem = UiText.Say($"il workflow '{json}' nominato da '{documentPath}' non esiste.", $"the workflow '{json}' named by '{documentPath}' does not exist.");
                     return null;
                 }
                 var parsed = WorkflowParser.Parse(File.ReadAllText(full));
                 if (!parsed.IsValid)
                 {
                     var errors = parsed.Issues.Where(i => i.Severity == WorkflowSeverity.Error).ToList();
-                    problem = $"il workflow '{json}' ha {errors.Count} {(errors.Count == 1 ? "errore" : "errori")}, il primo: {errors[0]}.";
+                    problem = UiText.Say(
+                        $"il workflow '{json}' ha {errors.Count} {(errors.Count == 1 ? "errore" : "errori")}, il primo: {errors[0]}.",
+                        $"the workflow '{json}' has {errors.Count} {(errors.Count == 1 ? "error" : "errors")}, the first: {errors[0]}.");
                     return null;
                 }
                 return parsed.Descriptor;
@@ -133,15 +144,15 @@ namespace MdExplorer.Features.Agents.Workflow
         public static string JsonPathOf(string projectRoot, string documentPath)
         {
             if (string.IsNullOrWhiteSpace(documentPath))
-                throw new InvalidOperationException("Nessun documento del workflow configurato (agentCity.workflowDoc).");
+                throw new InvalidOperationException(UiText.Say("Nessun documento del workflow configurato (agentCity.workflowDoc).", "No workflow document configured (agentCity.workflowDoc)."));
             var relative = documentPath.Trim().Replace('\\', '/').TrimStart('/');
             var full = Path.Combine(projectRoot, relative.Replace('/', Path.DirectorySeparatorChar));
             if (!File.Exists(full))
-                throw new InvalidOperationException($"Il documento del workflow '{relative}' non esiste (agentCity.workflowDoc).");
+                throw new InvalidOperationException(UiText.Say($"Il documento del workflow '{relative}' non esiste (agentCity.workflowDoc).", $"The workflow document '{relative}' does not exist (agentCity.workflowDoc)."));
 
             var m = FrontMatter.Match(File.ReadAllText(full));
             if (!m.Success)
-                throw new InvalidOperationException($"'{relative}' non ha il front matter: serve «mde_type: workflow» e «workflow: <file>.workflow.json».");
+                throw new InvalidOperationException(UiText.Say($"'{relative}' non ha il front matter: serve «mde_type: workflow» e «workflow: <file>.workflow.json».", $"'{relative}' has no front matter: it needs «mde_type: workflow» and «workflow: <file>.workflow.json»."));
             string type = null, json = null;
             foreach (var line in m.Groups[1].Value.Split('\n'))
             {
@@ -153,9 +164,9 @@ namespace MdExplorer.Features.Agents.Workflow
                 else if (key == "workflow") json = value;
             }
             if (type != "workflow")
-                throw new InvalidOperationException($"'{relative}' non è un documento del workflow: nel front matter serve «mde_type: workflow».");
+                throw new InvalidOperationException(UiText.Say($"'{relative}' non è un documento del workflow: nel front matter serve «mde_type: workflow».", $"'{relative}' is not a workflow document: the front matter needs «mde_type: workflow»."));
             if (string.IsNullOrWhiteSpace(json))
-                throw new InvalidOperationException($"'{relative}' non dice quale file è il workflow: nel front matter serve «workflow: <file>.workflow.json».");
+                throw new InvalidOperationException(UiText.Say($"'{relative}' non dice quale file è il workflow: nel front matter serve «workflow: <file>.workflow.json».", $"'{relative}' does not say which file is the workflow: the front matter needs «workflow: <file>.workflow.json»."));
 
             var folder = relative.Contains('/') ? relative.Substring(0, relative.LastIndexOf('/') + 1) : "";
             var combined = (folder + json.Replace('\\', '/')).Split('/');
@@ -165,7 +176,7 @@ namespace MdExplorer.Features.Agents.Workflow
                 if (p == "" || p == ".") continue;
                 if (p == "..")
                 {
-                    if (parts.Count == 0) throw new InvalidOperationException($"'{json}' esce dal progetto.");
+                    if (parts.Count == 0) throw new InvalidOperationException(UiText.Say($"'{json}' esce dal progetto.", $"'{json}' goes outside the project."));
                     parts.RemoveAt(parts.Count - 1);
                 }
                 else parts.Add(p);

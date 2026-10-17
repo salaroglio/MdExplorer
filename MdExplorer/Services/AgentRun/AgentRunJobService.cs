@@ -230,7 +230,7 @@ namespace MdExplorer.Services.AgentRun
                 .FirstOrDefault(e => e.IsCitizen && PathEquals(e.AgentFilePath, request.AgentFilePath));
             var owner = citizen == null ? null : _wakeGuard.Check(request.ProjectPath, citizen.Name);
             if (owner != null && !owner.CanWorkHere)
-                throw new InvalidOperationException(owner.Explain());
+                throw new InvalidOperationException(owner.Explain(MdExplorer.Features.Services.UiText.Current));
 
             var key = RunKey(request.AgentFilePath);
             var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);

@@ -218,9 +218,9 @@ namespace MdExplorer.Services.AgentRun
         private static void Require(string projectPath, string agentName)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                throw new ArgumentException("projectPath è obbligatorio", nameof(projectPath));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("projectPath è obbligatorio", "projectPath is required"), nameof(projectPath));
             if (string.IsNullOrWhiteSpace(agentName))
-                throw new ArgumentException("agentName è obbligatorio", nameof(agentName));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("agentName è obbligatorio", "agentName is required"), nameof(agentName));
         }
 
         private AgentWorktreeHold Find(string projectPath, string agentName)
@@ -245,7 +245,7 @@ namespace MdExplorer.Services.AgentRun
                 {
                     ProjectPath = projectPath,
                     AgentName = agentName,
-                    Reason = "stato della sessione non leggibile",
+                    Reason = MdExplorer.Features.Services.UiText.Say("stato della sessione non leggibile", "session state cannot be read"),
                 };
             }
         }

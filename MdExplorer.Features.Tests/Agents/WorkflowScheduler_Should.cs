@@ -182,7 +182,7 @@ namespace MdExplorer.Features.Tests.Agents
 
             var stop = WorkflowScheduler.Decide(wf, round, Pc("responsabile-tecnico")).Single();
             Assert.AreEqual(SchedulerActionKind.Blocked, stop.Kind, "max 1: rifatto una volta, al secondo rifiuto si ferma");
-            StringAssert.Contains(stop.Reason, "è il massimo del ciclo «rifacimento»");
+            StringAssert.Contains(stop.Reason, "the most the loop «rifacimento» allows");
         }
 
         [TestMethod]
@@ -247,7 +247,7 @@ namespace MdExplorer.Features.Tests.Agents
             Add(noValue, "ricerca", "account-manager", RoundEventType.Replied, reply: "avvia-giro", values: new() { ["altro"] = "x" });
             var blocked = WorkflowScheduler.Decide(wf, noValue, Pc("responsabile-tecnico")).Single();
             Assert.AreEqual(SchedulerActionKind.Blocked, blocked.Kind);
-            StringAssert.Contains(blocked.Reason, "manca il valore di {codice}");
+            StringAssert.Contains(blocked.Reason, "is missing the value of {codice}");
         }
 
         // ---- il registro su disco ----
@@ -282,7 +282,7 @@ namespace MdExplorer.Features.Tests.Agents
                 var tecnica = Path.Combine(RoundLedger.RoundFolder(root, id), "tecnica.json");
                 File.WriteAllText(tecnica, File.ReadAllText(tecnica).Replace("\"held\"", "\"in-attesa\""));
                 var ex = Assert.ThrowsException<InvalidDataException>(() => RoundLedger.Load(root, id));
-                StringAssert.Contains(ex.Message, "'in-attesa' non è un evento");
+                StringAssert.Contains(ex.Message, "'in-attesa' is not a step event");
 
                 File.WriteAllText(tecnica, File.ReadAllText(tecnica).Replace("\"in-attesa\"", "\"held\"").Replace("\"step\"", "\"colore\": \"blu\", \"step\""));
                 ex = Assert.ThrowsException<InvalidDataException>(() => RoundLedger.Load(root, id));
@@ -300,7 +300,7 @@ namespace MdExplorer.Features.Tests.Agents
             {
                 var ex = Assert.ThrowsException<InvalidOperationException>(() =>
                     RoundLedger.Append(root, "2026-10-06-gara-000000", "tecnica", "t", new RoundEvent { Type = RoundEventType.Held, At = T0 }));
-                StringAssert.Contains(ex.Message, "va aperto prima");
+                StringAssert.Contains(ex.Message, "must be opened before");
             }
             finally { Directory.Delete(root, true); }
         }

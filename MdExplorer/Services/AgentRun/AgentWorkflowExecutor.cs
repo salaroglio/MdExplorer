@@ -300,11 +300,11 @@ namespace MdExplorer.Services.AgentRun
             var round = RoundLedger.Load(_store.Root(request.ProjectPath), link.RoundId);
             var view = WorkflowScheduler.View(wf, round, step);
             if (view.Status != StepStatus.Rejected)
-                throw new InvalidOperationException($"«{step.Label}» non è fermo per un rifiuto ({view.Status}): non c'è niente da far ripartire.");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"«{step.Label}» non è fermo per un rifiuto ({view.Status}): non c'è niente da far ripartire.", $"«{step.Label}» is not stopped by a decline ({view.Status}): there is nothing to restart."));
             // Il limite c'è solo se l'autore l'ha scritto (W9).
             var until = wf.LoopOf(step.Id, WorkflowLoopKind.UntilApproved);
             if (until?.Max != null && view.RejectionsInRound > until.Max.Value)
-                throw new InvalidOperationException($"«{step.Label}» è già stato rifatto {until.Max} {(until.Max == 1 ? "volta" : "volte")}: è il massimo che il workflow dà al ciclo «{until.Id}». Il lavoro resta fermo.");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"«{step.Label}» è già stato rifatto {until.Max} {(until.Max == 1 ? "volta" : "volte")}: è il massimo che il workflow dà al ciclo «{until.Id}». Il lavoro resta fermo.", $"«{step.Label}» has already been redone {until.Max} {(until.Max == 1 ? "time" : "times")}: that is the most the workflow allows for the loop «{until.Id}». The work stays stopped."));
 
             var action = new SchedulerAction
             {
@@ -329,7 +329,7 @@ namespace MdExplorer.Services.AgentRun
             var view = WorkflowScheduler.View(wf, RoundLedger.Load(_store.Root(request.ProjectPath), link.RoundId), step);
             var left = Math.Max(0, until.Max.Value - (view.RejectionsInRound - 1));
             if (left == 0)
-                why = $"«{step.Label}» è già stato rifatto {until.Max} {(until.Max == 1 ? "volta" : "volte")}: è il massimo che il workflow dà al ciclo «{until.Id}». Il lavoro resta fermo.";
+                why = MdExplorer.Features.Services.UiText.Say($"«{step.Label}» è già stato rifatto {until.Max} {(until.Max == 1 ? "volta" : "volte")}: è il massimo che il workflow dà al ciclo «{until.Id}». Il lavoro resta fermo.", $"«{step.Label}» has already been redone {until.Max} {(until.Max == 1 ? "time" : "times")}: that is the most the workflow allows for the loop «{until.Id}». The work stays stopped.");
             return left;
         }
 
@@ -356,7 +356,7 @@ namespace MdExplorer.Services.AgentRun
                                    && string.Equals(s.Trigger.ReplyId, chosen.Id, StringComparison.OrdinalIgnoreCase)))
                 return false;
             if (chosen.Values == null)
-                throw new InvalidOperationException("Questo pulsante è di prima dello schedulatore e non porta i suoi valori: rilancia la ricerca per avere i pulsanti nuovi.");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Questo pulsante è di prima dello schedulatore e non porta i suoi valori: rilancia la ricerca per avere i pulsanti nuovi.", "This button predates the scheduler and does not carry its values: launch the search again to get the new buttons."));
 
             // Chi preme sceglie a chi va ogni passo di un agente con un team (W22); con un solo responsabile non c'è scelta.
             var assignments = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -367,13 +367,15 @@ namespace MdExplorer.Services.AgentRun
                 if (string.IsNullOrWhiteSpace(to))
                 {
                     if (t.NeedsChoice)
-                        throw new InvalidOperationException($"«{t.Label}»: l'agente '{t.Agent}' ha più responsabili " +
-                            $"({string.Join(", ", t.Owners.Select(o => o.Email))}): scegli a chi va.");
+                        throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                            $"«{t.Label}»: l'agente '{t.Agent}' ha più responsabili ({string.Join(", ", t.Owners.Select(o => o.Email))}): scegli a chi va.",
+                            $"«{t.Label}»: agent '{t.Agent}' has more than one owner ({string.Join(", ", t.Owners.Select(o => o.Email))}): choose who gets it."));
                     continue;
                 }
                 if (!t.Owners.Any(o => string.Equals(o.Email, to.Trim(), StringComparison.OrdinalIgnoreCase)))
-                    throw new InvalidOperationException($"«{t.Label}»: {to} non risponde dell'agente '{t.Agent}' " +
-                        $"(ne rispondono {(t.Owners.Count == 0 ? "nessuno" : string.Join(", ", t.Owners.Select(o => o.Email)))}).");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                        $"«{t.Label}»: {to} non risponde dell'agente '{t.Agent}' (ne rispondono {(t.Owners.Count == 0 ? "nessuno" : string.Join(", ", t.Owners.Select(o => o.Email)))}).",
+                        $"«{t.Label}»: {to} is not an owner of agent '{t.Agent}' (owners: {(t.Owners.Count == 0 ? "none" : string.Join(", ", t.Owners.Select(o => o.Email)))})."));
                 assignments[t.Step] = to.Trim().ToLowerInvariant();
             }
 
@@ -494,10 +496,10 @@ namespace MdExplorer.Services.AgentRun
 
         public void PassTo(AgentMessage held, string toEmail, string note)
         {
-            if (held?.WorkflowRound == null) throw new InvalidOperationException("Questo incarico non è di un giro del workflow: non c'è un passo da passare.");
+            if (held?.WorkflowRound == null) throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Questo incarico non è di un giro del workflow: non c'è un passo da passare.", "This assignment is not part of a workflow round: there is no step to hand over."));
             var projectPath = held.ProjectPath;
-            var wf = WorkflowFor(projectPath, held.WorkflowRound) ?? throw new InvalidOperationException("Il progetto non ha un workflow attivo.");
-            var step = wf.Step(held.WorkflowStep) ?? throw new InvalidOperationException($"Il passo '{held.WorkflowStep}' non è nel workflow.");
+            var wf = WorkflowFor(projectPath, held.WorkflowRound) ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Il progetto non ha un workflow attivo.", "The project has no active workflow."));
+            var step = wf.Step(held.WorkflowStep) ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Il passo '{held.WorkflowStep}' non è nel workflow.", $"Step '{held.WorkflowStep}' is not in the workflow."));
             var to = (toEmail ?? "").Trim().ToLowerInvariant();
             var me = Me(projectPath);
             Locked(projectPath, () =>
@@ -505,9 +507,9 @@ namespace MdExplorer.Services.AgentRun
                 var round = RoundLedger.Load(_store.Root(projectPath), held.WorkflowRound);
                 var now = OwnerOf(projectPath, wf, round, step);
                 if (!Same(now.Email, me))
-                    throw new InvalidOperationException($"«{step.Label}» non è tuo ({now.Email ?? now.Problem}): lo passa chi ne risponde.");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"«{step.Label}» non è tuo ({now.Email ?? now.Problem}): lo passa chi ne risponde.", $"«{step.Label}» is not yours ({now.Email ?? now.Problem}): its owner hands it over."));
                 var team = Team(projectPath, step.Agent);
-                if (Same(to, me)) throw new InvalidOperationException($"«{step.Label}» è già tuo.");
+                if (Same(to, me)) throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"«{step.Label}» è già tuo.", $"«{step.Label}» is already yours."));
                 if (!team.Any(o => Same(o.Email, to)))
                     throw new InvalidOperationException($"{(to.Length == 0 ? "Scegli a chi" : to + " non risponde dell'agente '" + step.Agent + "'")}: " +
                         $"«{step.Label}» si passa a chi ne risponde con te ({string.Join(", ", team.Where(o => !Same(o.Email, me)).Select(o => o.Email))}).");
@@ -524,15 +526,15 @@ namespace MdExplorer.Services.AgentRun
 
         public void TakeOver(string projectPath, string roundId, string stepId)
         {
-            var wf = WorkflowFor(projectPath, roundId) ?? throw new InvalidOperationException("Il progetto non ha un workflow attivo.");
-            var step = wf.Step(stepId) ?? throw new InvalidOperationException($"Il passo '{stepId}' non è nel workflow.");
+            var wf = WorkflowFor(projectPath, roundId) ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Il progetto non ha un workflow attivo.", "The project has no active workflow."));
+            var step = wf.Step(stepId) ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Il passo '{stepId}' non è nel workflow.", $"Step '{stepId}' is not in the workflow."));
             var me = Me(projectPath);
             Locked(projectPath, () =>
             {
                 var round = RoundLedger.Load(_store.Root(projectPath), roundId);
                 var now = OwnerOf(projectPath, wf, round, step);
                 if (now.Email != null)
-                    throw new InvalidOperationException($"«{step.Label}» è di {now.Email}: si prende solo un passo di chi non ne risponde più.");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"«{step.Label}» è di {now.Email}: si prende solo un passo di chi non ne risponde più.", $"«{step.Label}» belongs to {now.Email}: you can only take a step from someone who is no longer its owner."));
                 if (!now.CanTake.Any(e => Same(e, me)))
                     throw new InvalidOperationException(now.CanTake.Count == 0
                         ? now.Problem
@@ -570,7 +572,7 @@ namespace MdExplorer.Services.AgentRun
             var owner = OwnerOf(projectPath, wf, RoundLedger.Load(_store.Root(projectPath), roundId), step);
             if (Same(owner.Email, Me(projectPath))) return null;
             return owner.Email != null
-                ? $"«{step.Label}» è di {owner.Email}: lo decide chi ne risponde, dal suo computer."
+                ? MdExplorer.Features.Services.UiText.Say($"«{step.Label}» è di {owner.Email}: lo decide chi ne risponde, dal suo computer.", $"«{step.Label}» belongs to {owner.Email}: the owner decides, from their own computer.")
                 : owner.Problem;
         }
 
@@ -695,7 +697,7 @@ namespace MdExplorer.Services.AgentRun
             foreach (var m in held)
             {
                 m.State = AgentMessage.StateEnum.Failed;
-                m.Error = $"«{step.Label}» ora è di {who}: lo riprende il suo MdExplorer.";
+                m.Error = MdExplorer.Features.Services.UiText.Say($"«{step.Label}» ora è di {who}: lo riprende il suo MdExplorer.", $"«{step.Label}» now belongs to {who}: their MdExplorer picks it up.");
                 m.ProcessedAt = DateTime.UtcNow;
                 m.DeferredReason = null;
                 m.NextAttemptAt = null;
@@ -737,7 +739,7 @@ namespace MdExplorer.Services.AgentRun
             var head = Git(projectPath, "rev-parse", "--verify", "origin/" + delivered.Branch);
             if (fetch.Code != 0 || head.Code != 0)
             {
-                var why = $"la consegna di «{step.Label}» è sul ramo {delivered.Branch}, che su origin non si trova ({(fetch.Err + head.Err).Trim()})";
+                var why = MdExplorer.Features.Services.UiText.Say($"la consegna di «{step.Label}» è sul ramo {delivered.Branch}, che su origin non si trova ({(fetch.Err + head.Err).Trim()})", $"the delivery of «{step.Label}»: its branch {delivered.Branch} is not on origin ({(fetch.Err + head.Err).Trim()})");
                 if (_told.TryAdd($"{projectPath}|{roundId}|adopt|{delivered.Branch}", 0))
                 {
                     _logger.LogError("[Workflow] giro {Round}: {Why}", roundId, why);

@@ -9,6 +9,7 @@ using MdExplorer.Services.AgentRegistry;
 using MdExplorer.Services.AgentRun;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.A2A
 {
@@ -133,7 +134,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult MarkAllRead([FromQuery] string? projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
             try
             {
                 var dal = _session.GetDal<AgentMessage>();
@@ -179,12 +180,12 @@ namespace MdExplorer.Controllers.A2A
                 if (msg == null)
                 {
                     _session.Commit();
-                    return NotFound(new { error = $"Messaggio '{messageId}' non trovato." });
+                    return NotFound(new { error = UiText.Say($"Messaggio '{messageId}' non trovato.", $"Message '{messageId}' not found.") });
                 }
                 if (!string.Equals(msg.ToAgent, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase))
                 {
                     _session.Commit();
-                    return BadRequest(new { error = "Solo i messaggi indirizzati a 'user' si archiviano." });
+                    return BadRequest(new { error = UiText.Say("Solo i messaggi indirizzati a 'user' si archiviano.", "Only messages addressed to 'user' can be archived.") });
                 }
 
                 var now = DateTime.UtcNow;
@@ -210,7 +211,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult ArchiveMany([FromBody] ArchiveManyRequest? request)
         {
             var ids = (request?.MessageIds ?? new List<Guid>()).Distinct().ToList();
-            if (ids.Count == 0) return BadRequest(new { error = "Nessun messaggio da archiviare." });
+            if (ids.Count == 0) return BadRequest(new { error = UiText.Say("Nessun messaggio da archiviare.", "No messages to archive.") });
             try
             {
                 var dal = _session.GetDal<AgentMessage>();
@@ -237,10 +238,10 @@ namespace MdExplorer.Controllers.A2A
         [HttpPost("rounds/{roundId}/archive")]
         public IActionResult ArchiveRound(string roundId, [FromQuery] string? projectPath)
         {
-            if (string.IsNullOrWhiteSpace(projectPath)) return BadRequest(new { error = "projectPath è obbligatorio." });
+            if (string.IsNullOrWhiteSpace(projectPath)) return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
             var round = _workflow.Rounds(projectPath).FirstOrDefault(r => r.Id == roundId);
-            if (round == null) return NotFound(new { error = $"Il giro '{roundId}' non c'è nel registro di questo progetto." });
-            if (!round.Finished && !round.Stopped) return Conflict(new { error = $"Il giro è ancora in corso ({round.StepsDone} su {round.StepsTotal} passi): si archivia quando è concluso o fermo." });
+            if (round == null) return NotFound(new { error = UiText.Say($"Il giro '{roundId}' non c'è nel registro di questo progetto.", $"Round '{roundId}' is not in this project's ledger.") });
+            if (!round.Finished && !round.Stopped) return Conflict(new { error = UiText.Say($"Il giro è ancora in corso ({round.StepsDone} su {round.StepsTotal} passi): si archivia quando è concluso o fermo.", $"The round is still in progress ({round.StepsDone} of {round.StepsTotal} steps): it can be archived once it is finished or stopped.") });
             return SetRoundArchived(projectPath, round, true);
         }
 
@@ -248,9 +249,9 @@ namespace MdExplorer.Controllers.A2A
         [HttpPost("rounds/{roundId}/unarchive")]
         public IActionResult UnarchiveRound(string roundId, [FromQuery] string? projectPath)
         {
-            if (string.IsNullOrWhiteSpace(projectPath)) return BadRequest(new { error = "projectPath è obbligatorio." });
+            if (string.IsNullOrWhiteSpace(projectPath)) return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
             var round = _workflow.Rounds(projectPath).FirstOrDefault(r => r.Id == roundId);
-            if (round == null) return NotFound(new { error = $"Il giro '{roundId}' non c'è nel registro di questo progetto." });
+            if (round == null) return NotFound(new { error = UiText.Say($"Il giro '{roundId}' non c'è nel registro di questo progetto.", $"Round '{roundId}' is not in this project's ledger.") });
             return SetRoundArchived(projectPath, round, false);
         }
 
@@ -301,7 +302,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult ArchiveAll([FromQuery] string? projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
             try
             {
                 var rounds = _workflow.Rounds(projectPath);
@@ -377,12 +378,12 @@ namespace MdExplorer.Controllers.A2A
                 if (msg == null)
                 {
                     _session.Commit();
-                    return NotFound(new { error = $"Messaggio '{messageId}' non trovato." });
+                    return NotFound(new { error = UiText.Say($"Messaggio '{messageId}' non trovato.", $"Message '{messageId}' not found.") });
                 }
                 if (!string.Equals(msg.ToAgent, ConversationHopGuard.UserRecipient, StringComparison.OrdinalIgnoreCase))
                 {
                     _session.Commit();
-                    return BadRequest(new { error = "Solo i messaggi indirizzati a 'user' possono essere marcati come letti." });
+                    return BadRequest(new { error = UiText.Say("Solo i messaggi indirizzati a 'user' possono essere marcati come letti.", "Only messages addressed to 'user' can be marked as read.") });
                 }
 
                 if (msg.ReadAt == null)
@@ -412,11 +413,11 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult Reply([FromBody] MailboxReplyRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.ConversationId))
-                return BadRequest(new { error = "conversationId è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("conversationId è obbligatorio.", "conversationId is required.") });
             if (string.IsNullOrWhiteSpace(request.Body))
-                return BadRequest(new { error = "body è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("body è obbligatorio.", "body is required.") });
             if (!Guid.TryParse(request.ConversationId, out var convId))
-                return BadRequest(new { error = $"conversationId non valido: '{request.ConversationId}'." });
+                return BadRequest(new { error = UiText.Say($"conversationId non valido: '{request.ConversationId}'.", $"Invalid conversationId: '{request.ConversationId}'.") });
 
             _session.BeginTransaction();
             var conversation = _session.GetDal<AgentConversation>().GetList()
@@ -428,7 +429,7 @@ namespace MdExplorer.Controllers.A2A
             if (!string.IsNullOrWhiteSpace(request.MessageId))
             {
                 if (!Guid.TryParse(request.MessageId, out var mid))
-                    return BadRequest(new { error = $"messageId non valido: '{request.MessageId}'." });
+                    return BadRequest(new { error = UiText.Say($"messageId non valido: '{request.MessageId}'.", $"Invalid messageId: '{request.MessageId}'.") });
                 answeredId = mid;
             }
             AgentMessage lastToUser = null;
@@ -446,11 +447,11 @@ namespace MdExplorer.Controllers.A2A
             _session.Commit();
 
             if (conversation == null)
-                return NotFound(new { error = $"Conversazione '{convId}' non trovata." });
+                return NotFound(new { error = UiText.Say($"Conversazione '{convId}' non trovata.", $"Conversation '{convId}' not found.") });
             if (lastToUser == null)
                 return UnprocessableEntity(new { error = answeredId == null
-                    ? "In questo thread nessun agente ha scritto a 'user': non c'è un destinatario a cui rispondere."
-                    : $"Il messaggio {answeredId} non è un messaggio a te in questo thread." });
+                    ? UiText.Say("In questo thread nessun agente ha scritto a 'user': non c'è un destinatario a cui rispondere.", "No agent has written to 'user' in this thread: there is no one to reply to.")
+                    : UiText.Say($"Il messaggio {answeredId} non è un messaggio a te in questo thread.", $"Message {answeredId} is not a message to you in this thread.") });
 
             var toAgent = lastToUser.FromAgent;
 
@@ -464,18 +465,18 @@ namespace MdExplorer.Controllers.A2A
                     .FirstOrDefault(r => string.Equals(r.RunId, lastToUser.RunId, StringComparison.OrdinalIgnoreCase));
                 _session.Commit();
                 if (artifact?.Status == AgentMergeRequest.StatusEnum.Pending)
-                    return Conflict(new { error = $"Prima decidi sull'artefatto che '{toAgent}' ha consegnato con questo messaggio: finché non lo approvi, la risposta non parte." });
+                    return Conflict(new { error = UiText.Say($"Prima decidi sull'artefatto che '{toAgent}' ha consegnato con questo messaggio: finché non lo approvi, la risposta non parte.", $"First decide on the artifact '{toAgent}' delivered with this message: until you approve it, the reply is not sent.") });
                 if (artifact?.Status == AgentMergeRequest.StatusEnum.Rejected)
-                    return Conflict(new { error = $"Hai rifiutato l'artefatto di questo lavoro di '{toAgent}': è un ramo chiuso, non c'è niente a cui rispondere. Per riprovare, rilancia l'agente." });
+                    return Conflict(new { error = UiText.Say($"Hai rifiutato l'artefatto di questo lavoro di '{toAgent}': è un ramo chiuso, non c'è niente a cui rispondere. Per riprovare, rilancia l'agente.", $"You rejected the artifact of this work by '{toAgent}': it is a closed branch, there is nothing to reply to. To try again, launch the agent again.") });
             }
 
             // Ri-validazione del destinatario dalle fonti (§6/§7): la cache non è mai l'autorità.
             var recipient = _registry.RefreshCatalog(conversation.ProjectPath)
                 .FirstOrDefault(e => e.IsCitizen && string.Equals(e.Name, toAgent, StringComparison.OrdinalIgnoreCase));
             if (recipient == null)
-                return NotFound(new { error = $"L'agente '{toAgent}' non è più un cittadino del progetto: impossibile rispondergli." });
+                return NotFound(new { error = UiText.Say($"L'agente '{toAgent}' non è più un cittadino del progetto: impossibile rispondergli.", $"Agent '{toAgent}' is no longer a citizen of the project: you cannot reply to it.") });
             if (!recipient.Trusted)
-                return StatusCode(403, new { error = $"L'agente '{toAgent}' non è più trusted: impossibile rispondergli." });
+                return StatusCode(403, new { error = UiText.Say($"L'agente '{toAgent}' non è più trusted: impossibile rispondergli.", $"Agent '{toAgent}' is no longer trusted: you cannot reply to it.") });
 
             // Un pulsante invia il messaggio che la scheda dichiara: deve essere uno di quelli proposti, così come sono.
             // Il testo libero invece arriva all'agente con il suo messaggio di prima citato: si sveglia senza ricordi.
@@ -487,7 +488,7 @@ namespace MdExplorer.Controllers.A2A
             {
                 var chosen = proposed.FirstOrDefault(r => string.Equals(r.Message?.Trim(), request.Body.Trim(), StringComparison.Ordinal));
                 if (chosen == null)
-                    return UnprocessableEntity(new { error = $"'{request.Body.Trim()}' non è una delle risposte che '{toAgent}' ti ha proposto con quel messaggio." });
+                    return UnprocessableEntity(new { error = UiText.Say($"'{request.Body.Trim()}' non è una delle risposte che '{toAgent}' ti ha proposto con quel messaggio.", $"'{request.Body.Trim()}' is not one of the replies '{toAgent}' offered you with that message.") });
                 body = chosen.Message;
 
                 // Con un workflow il pulsante è una scelta che lo schedulatore esegue (W14): fa partire i passi che il
@@ -556,7 +557,7 @@ namespace MdExplorer.Controllers.A2A
             if (!string.IsNullOrWhiteSpace(request?.Provider))
             {
                 if (!MdExplorer.Services.AgentRun.AgentEngineChoice.TryParseProvider(request.Provider, out var engine))
-                    return BadRequest(new { error = $"Motore '{request.Provider}' sconosciuto: claude, copilot oppure opencode." });
+                    return BadRequest(new { error = UiText.Say($"Motore '{request.Provider}' sconosciuto: claude, copilot oppure opencode.", $"Unknown engine '{request.Provider}': claude, copilot or opencode.") });
                 provider = MdExplorer.Utilities.MarkAgentEngines.IdOf(engine);
             }
             return UpdateAwaiting(messageId, m =>
@@ -580,7 +581,7 @@ namespace MdExplorer.Controllers.A2A
             _session.BeginTransaction();
             var msg = _session.GetDal<AgentMessage>().GetList().FirstOrDefault(m => m.Id == messageId);
             _session.Commit();
-            if (msg == null) return NotFound(new { error = $"Messaggio {messageId} inesistente." });
+            if (msg == null) return NotFound(new { error = UiText.Say($"Messaggio {messageId} inesistente.", $"Message {messageId} does not exist.") });
             var targets = _workflow.ReplyTargets(msg.ProjectPath, msg, replyId);
             return Ok(new
             {
@@ -600,13 +601,13 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult PassAssignment(Guid messageId, [FromBody] PassAssignmentRequest? request)
         {
             if (string.IsNullOrWhiteSpace(request?.To))
-                return BadRequest(new { error = "Scegli a chi passarlo." });
+                return BadRequest(new { error = UiText.Say("Scegli a chi passarlo.", "Choose who to hand it to.") });
             _session.BeginTransaction();
             var msg = _session.GetDal<AgentMessage>().GetList().FirstOrDefault(m => m.Id == messageId);
             _session.Commit();
-            if (msg == null) return NotFound(new { error = $"Messaggio {messageId} inesistente." });
+            if (msg == null) return NotFound(new { error = UiText.Say($"Messaggio {messageId} inesistente.", $"Message {messageId} does not exist.") });
             if (msg.State != AgentMessage.StateEnum.Pending || msg.DeferredReason != AgentMessage.DeferredReasonEnum.AwaitingOwner)
-                return Conflict(new { error = "Questo incarico non aspetta più di essere avviato: forse l'ha già avviato o rifiutato qualcuno." });
+                return Conflict(new { error = UiText.Say("Questo incarico non aspetta più di essere avviato: forse l'ha già avviato o rifiutato qualcuno.", "This assignment is no longer waiting to be started: someone may have already started or declined it.") });
             try { _workflow.PassTo(msg, request.To, request.Note); }
             catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
             return Ok(new { messageId, toAgent = msg.ToAgent, state = "passato", to = request.To.Trim().ToLowerInvariant() });
@@ -620,12 +621,12 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult DeclineAssignment(Guid messageId, [FromBody] DeclineAssignmentRequest? request)
         {
             if (string.IsNullOrWhiteSpace(request?.Reason))
-                return BadRequest(new { error = "Scrivi perché non lo avvii: chi l'ha chiesto lo legge." });
+                return BadRequest(new { error = UiText.Say("Scrivi perché non lo avvii: chi l'ha chiesto lo legge.", "Write why you are not starting it: whoever asked for it will read this.") });
             return UpdateAwaiting(messageId, m =>
             {
                 m.State = AgentMessage.StateEnum.Failed;
                 m.OwnerDeclinedAt = DateTime.UtcNow;
-                m.Error = "Rifiutato dal responsabile: " + request.Reason.Trim();
+                m.Error = UiText.Say("Rifiutato dal responsabile: ", "Declined by the owner: ") + request.Reason.Trim();
                 m.ProcessedAt = DateTime.UtcNow;
                 m.DeferredReason = null;
                 m.NextAttemptAt = null;
@@ -638,7 +639,7 @@ namespace MdExplorer.Controllers.A2A
             var peek = _session.GetDal<AgentMessage>().GetList().FirstOrDefault(m => m.Id == messageId);
             _session.Commit();
             if (peek == null)
-                return NotFound(new { error = $"Messaggio {messageId} inesistente." });
+                return NotFound(new { error = UiText.Say($"Messaggio {messageId} inesistente.", $"Message {messageId} does not exist.") });
             // Di chi è il passo si chiede FUORI dalla transazione: la risposta legge altro (l'identità, nel database), e una
             // seconda transazione aperta dentro questa aspetterebbe il suo blocco fino al timeout.
             var notYours = _workflow.NotYours(peek);
@@ -651,7 +652,7 @@ namespace MdExplorer.Controllers.A2A
             if (msg == null || msg.State != AgentMessage.StateEnum.Pending || msg.DeferredReason != AgentMessage.DeferredReasonEnum.AwaitingOwner)
             {
                 _session.Commit();
-                return Conflict(new { error = "Questo incarico non aspetta più di essere avviato: forse l'ha già avviato o rifiutato qualcuno." });
+                return Conflict(new { error = UiText.Say("Questo incarico non aspetta più di essere avviato: forse l'ha già avviato o rifiutato qualcuno.", "This assignment is no longer waiting to be started: someone may have already started or declined it.") });
             }
             change(msg);
             dal.Save(msg);
@@ -870,7 +871,7 @@ namespace MdExplorer.Controllers.A2A
                         .ToList();
                 _session.Commit();
                 if (conv == null)
-                    return NotFound(new { error = $"Conversazione '{conversationId}' non trovata." });
+                    return NotFound(new { error = UiText.Say($"Conversazione '{conversationId}' non trovata.", $"Conversation '{conversationId}' not found.") });
 
                 var messages = threadMsgs
                     .Select(m => new
@@ -931,7 +932,7 @@ namespace MdExplorer.Controllers.A2A
                 if (conv == null)
                 {
                     _session.Commit();
-                    return NotFound(new { error = $"Conversazione '{conversationId}' non trovata." });
+                    return NotFound(new { error = UiText.Say($"Conversazione '{conversationId}' non trovata.", $"Conversation '{conversationId}' not found.") });
                 }
 
                 var wasKilled = conv.Status == AgentConversation.StatusEnum.Killed;
@@ -970,13 +971,13 @@ namespace MdExplorer.Controllers.A2A
                 if (conv == null)
                 {
                     _session.Commit();
-                    return NotFound(new { error = $"Conversazione '{conversationId}' non trovata." });
+                    return NotFound(new { error = UiText.Say($"Conversazione '{conversationId}' non trovata.", $"Conversation '{conversationId}' not found.") });
                 }
 
                 if (conv.Status != AgentConversation.StatusEnum.Exhausted)
                 {
                     _session.Commit();
-                    return UnprocessableEntity(new { error = $"Solo una conversazione 'exhausted' può essere riaperta (stato attuale: '{conv.Status}')." });
+                    return UnprocessableEntity(new { error = UiText.Say($"Solo una conversazione 'exhausted' può essere riaperta (stato attuale: '{conv.Status}').", $"Only an 'exhausted' conversation can be reopened (current state: '{conv.Status}').") });
                 }
 
                 conv.Status = AgentConversation.StatusEnum.Active;

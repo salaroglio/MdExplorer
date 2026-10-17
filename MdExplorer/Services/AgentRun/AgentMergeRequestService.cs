@@ -121,7 +121,7 @@ namespace MdExplorer.Services.AgentRun
                                       string triggerMessageId = null)
         {
             if (string.IsNullOrWhiteSpace(projectPath) || string.IsNullOrWhiteSpace(publishedBranch))
-                throw new ArgumentException("projectPath e publishedBranch sono obbligatori");
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("projectPath e publishedBranch sono obbligatori", "projectPath and publishedBranch are required"));
 
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
@@ -248,7 +248,7 @@ namespace MdExplorer.Services.AgentRun
         public async Task<AgentMergeRequest> ApproveAsync(Guid id, CancellationToken ct = default)
         {
             var request = Get(id)
-                ?? throw new InvalidOperationException($"Richiesta di merge {id} inesistente.");
+                ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Richiesta di merge {id} inesistente.", $"Merge request {id} does not exist."));
 
             if (request.Status != AgentMergeRequest.StatusEnum.Pending)
                 throw new InvalidOperationException(
@@ -272,7 +272,7 @@ namespace MdExplorer.Services.AgentRun
         public AgentMergeRequest Reject(Guid id, string note)
         {
             if (string.IsNullOrWhiteSpace(note))
-                throw new InvalidOperationException("Per rifiutare serve il motivo: è ciò che l'agente legge se il lavoro riparte.");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Per rifiutare serve il motivo: è ciò che l'agente legge se il lavoro riparte.", "To decline you need a reason: it is what the agent reads if the work restarts."));
             OnlyTheCurrentOwner(Get(id));
             // Rifiutare FERMA. Niente riparte da solo: se la risposta è sballata la causa è spesso nella scheda
             // dell'agente, e ripartire subito rifarebbe lo stesso errore prima che la persona possa correggerla.
@@ -329,9 +329,9 @@ namespace MdExplorer.Services.AgentRun
 
         public AgentMergeRequest Rework(Guid id)
         {
-            var request = Get(id) ?? throw new InvalidOperationException($"Richiesta {id} inesistente.");
+            var request = Get(id) ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Richiesta {id} inesistente.", $"Request {id} does not exist."));
             if (request.Status != AgentMergeRequest.StatusEnum.Rejected)
-                throw new InvalidOperationException("Si fa ripartire solo un lavoro rifiutato.");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("Si fa ripartire solo un lavoro rifiutato.", "Only declined work can be restarted."));
             OnlyTheCurrentOwner(request);
             // Un passo di un giro lo fa ripartire lo schedulatore: nuovo tentativo nel registro, incarico con il motivo.
             if (_workflow != null && _workflow.TryRework(request))
@@ -340,8 +340,9 @@ namespace MdExplorer.Services.AgentRun
                 return request;
             }
             if (WaitingTrigger(request) == null)
-                throw new InvalidOperationException(
-                    "Questo lavoro non l'aveva chiesto un altro agente: non c'è un incarico da rimettere in coda. Per riprovare, rilancia l'agente.");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say(
+                    "Questo lavoro non l'aveva chiesto un altro agente: non c'è un incarico da rimettere in coda. Per riprovare, rilancia l'agente.",
+                    "No other agent asked for this work: there is no assignment to put back in the queue. To try again, launch the agent again."));
             // Il workflow dice quante volte si rifà: oltre, il lavoro resta fermo. Lo decide il servizio, non il pulsante.
             if (ReworksLeft(request, out var notAgain) == 0)
                 throw new InvalidOperationException(notAgain);
@@ -355,9 +356,9 @@ namespace MdExplorer.Services.AgentRun
             {
                 var dal = db.GetDal<AgentMessage>();
                 var m = dal.GetList().FirstOrDefault(x => x.Id == triggerId)
-                    ?? throw new InvalidOperationException("L'incarico originale non c'è più: non posso rimetterlo in coda.");
+                    ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("L'incarico originale non c'è più: non posso rimetterlo in coda.", "The original assignment is gone: I cannot put it back in the queue."));
                 if (m.State != AgentMessage.StateEnum.Processed)
-                    throw new InvalidOperationException("L'incarico è già in coda o in lavorazione: il lavoro sta ripartendo.");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("L'incarico è già in coda o in lavorazione: il lavoro sta ripartendo.", "The assignment is already queued or in progress: the work is restarting."));
                 m.State = AgentMessage.StateEnum.Pending;
                 m.ProcessedAt = null;
                 m.NextAttemptAt = null;
@@ -397,7 +398,7 @@ namespace MdExplorer.Services.AgentRun
                 request.ProjectPath, metadata?.GetAgentCity(request.ProjectPath)?.WorkflowDoc, out var problem);
             if (problem != null)
             {
-                why = $"Il workflow del progetto non si legge ({problem}): finché non è corretto non so quante volte si può rifare.";
+                why = MdExplorer.Features.Services.UiText.Say($"Il workflow del progetto non si legge ({problem}): finché non è corretto non so quante volte si può rifare.", $"The project's workflow cannot be read ({problem}): until it is fixed I do not know how many times the work can be redone.");
                 return 0;
             }
             if (workflow == null) return null;
@@ -451,7 +452,7 @@ namespace MdExplorer.Services.AgentRun
             {
                 var dal = db.GetDal<AgentMergeRequest>();
                 var r = dal.GetList().FirstOrDefault(x => x.Id == id)
-                    ?? throw new InvalidOperationException($"Richiesta di merge {id} inesistente.");
+                    ?? throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Richiesta di merge {id} inesistente.", $"Merge request {id} does not exist."));
 
                 r.Status = status;
                 r.DecidedAt = DateTime.UtcNow;

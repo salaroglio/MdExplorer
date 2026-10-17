@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Features.Agents.Workflow
 {
@@ -32,20 +33,20 @@ namespace MdExplorer.Features.Agents.Workflow
         public static string Resolve(string projectRoot, string path)
         {
             if (string.IsNullOrWhiteSpace(projectRoot) || !Directory.Exists(projectRoot))
-                throw new ArgumentException($"La cartella del progetto '{projectRoot}' non esiste.");
+                throw new ArgumentException(UiText.Say($"La cartella del progetto '{projectRoot}' non esiste.", $"The project folder '{projectRoot}' does not exist."));
             if (string.IsNullOrWhiteSpace(path))
-                throw new ArgumentException("Manca il percorso del workflow.");
+                throw new ArgumentException(UiText.Say("Manca il percorso del workflow.", "The workflow path is missing."));
 
             var root = Path.GetFullPath(projectRoot).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
             var trimmed = path.Trim().Replace('\\', '/').TrimStart('/');
             var full = Path.GetFullPath(Path.IsPathRooted(path.Trim()) ? path.Trim() : Path.Combine(root, trimmed.Replace('/', Path.DirectorySeparatorChar)));
             var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
             if (!full.StartsWith(root, comparison))
-                throw new ArgumentException($"'{path}' è fuori dal progetto.");
+                throw new ArgumentException(UiText.Say($"'{path}' è fuori dal progetto.", $"'{path}' is outside the project."));
             if (!full.EndsWith(Extension, StringComparison.OrdinalIgnoreCase))
-                throw new ArgumentException($"'{path}' non è un workflow: il nome finisce con «{Extension}».");
+                throw new ArgumentException(UiText.Say($"'{path}' non è un workflow: il nome finisce con «{Extension}».", $"'{path}' is not a workflow: the name ends with «{Extension}»."));
             if (!File.Exists(full))
-                throw new FileNotFoundException($"Il workflow '{path}' non esiste nel progetto.", full);
+                throw new FileNotFoundException(UiText.Say($"Il workflow '{path}' non esiste nel progetto.", $"The workflow '{path}' does not exist in the project."), full);
             return full;
         }
     }

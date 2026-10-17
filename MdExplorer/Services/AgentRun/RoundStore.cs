@@ -53,7 +53,7 @@ namespace MdExplorer.Services.AgentRun
 
             var common = Git(projectPath, "rev-parse", "--path-format=absolute", "--git-common-dir");
             if (common.Code != 0)
-                throw new InvalidOperationException($"Il progetto non è un repository git, e il registro dei giri vive in git: {common.Err.Trim()}");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Il progetto non è un repository git, e il registro dei giri vive in git: {common.Err.Trim()}", $"The project is not a git repository, and the round log lives in git: {common.Err.Trim()}"));
             var root = Path.Combine(common.Out.Trim(), "mde-giri");
 
             if (!File.Exists(Path.Combine(root, ".git")))
@@ -68,7 +68,7 @@ namespace MdExplorer.Services.AgentRun
                 {
                     // Il ramo nasce da un commit vuoto: non ha niente in comune con il lavoro della persona.
                     var first = Git(projectPath, "commit-tree", EmptyTree, "-m", "registro dei giri del workflow");
-                    if (first.Code != 0) throw new InvalidOperationException($"Il ramo {Branch} non si crea: {first.Err.Trim()}");
+                    if (first.Code != 0) throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Il ramo {Branch} non si crea: {first.Err.Trim()}", $"Branch {Branch} cannot be created: {first.Err.Trim()}"));
                     Must(projectPath, "branch", Branch, first.Out.Trim());
                 }
                 else if (!hasLocal)
@@ -120,7 +120,7 @@ namespace MdExplorer.Services.AgentRun
             var rebase = Git(root, "rebase", "--quiet", "origin/" + Branch);
             if (rebase.Code == 0) return null;
             Git(root, "rebase", "--abort");
-            var why = $"il registro dei giri non si allinea con origin ({rebase.Err.Trim()}): due computer hanno scritto lo stesso file";
+            var why = MdExplorer.Features.Services.UiText.Say($"il registro dei giri non si allinea con origin ({rebase.Err.Trim()}): due computer hanno scritto lo stesso file", $"the round log cannot be aligned with origin ({rebase.Err.Trim()}): two computers wrote the same file");
             _logger.LogError("[Giri] {Why}", why);
             return why;
         }

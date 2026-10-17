@@ -9,6 +9,7 @@ using MdExplorer.Features.Agents;
 using MdExplorer.Services.AgentRegistry;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.A2A
 {
@@ -44,18 +45,18 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult WellKnownAgentCard(string projectKey, string agentName)
         {
             if (!Guid.TryParse(projectKey, out var pk))
-                return NotFound("projectKey non è un Guid valido.");
+                return NotFound(UiText.Say("projectKey non è un Guid valido.", "projectKey is not a valid Guid."));
 
             var project = _session.GetDal<Project>().GetList().ToList()
                 .FirstOrDefault(p => p.Id == pk);
             if (project == null || string.IsNullOrWhiteSpace(project.Path))
-                return NotFound($"Progetto {projectKey} non trovato.");
+                return NotFound(UiText.Say($"Progetto {projectKey} non trovato.", $"Project {projectKey} not found."));
 
             var entry = _registry.RefreshCatalog(project.Path)
                 .FirstOrDefault(e => e.IsCitizen &&
                     string.Equals(e.Name, agentName, StringComparison.OrdinalIgnoreCase));
             if (entry == null)
-                return NotFound($"Agente '{agentName}' non trovato o non cittadino nel progetto.");
+                return NotFound(UiText.Say($"Agente '{agentName}' non trovato o non cittadino nel progetto.", $"Agent '{agentName}' not found or not a citizen of the project."));
 
             return Ok(ToA2ACard(entry));
         }
@@ -93,7 +94,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult GetAgents([FromQuery] string projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest("projectPath è obbligatorio.");
+                return BadRequest(UiText.Say("projectPath è obbligatorio.", "projectPath is required."));
             // Ri-validazione dalle fonti (§6): la cache in-memory non è mai l'autorità —
             // gli aggiornamenti FSW sono per-connection e nei percorsi headless sarebbe
             // stale. La UI deve vedere lo stato attuale del filesystem + DB.
@@ -109,7 +110,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult Trust([FromBody] AgentTrustRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath) || string.IsNullOrWhiteSpace(request.AgentName))
-                return BadRequest("projectPath e agentName sono obbligatori.");
+                return BadRequest(UiText.Say("projectPath e agentName sono obbligatori.", "projectPath and agentName are required."));
 
             // Ognuno abilita i suoi agenti: quello di un altro lavora sul suo computer, quello di nessuno
             // non lavora. Abilitarli qui non avrebbe effetto, e lo farebbe credere.
@@ -118,7 +119,7 @@ namespace MdExplorer.Controllers.A2A
             var isLlm = string.Equals(asked?.Kind, AgentIdentity.KindEnum.Llm, StringComparison.OrdinalIgnoreCase);
             var owner = isLlm ? _wakeGuard.Check(request.ProjectPath, asked.Name) : null;
             if (owner != null && !owner.CanWorkHere)
-                return BadRequest(owner.Explain());
+                return BadRequest(owner.Explain(MdExplorer.Features.Services.UiText.Current));
 
             try
             {
@@ -137,7 +138,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult Untrust([FromBody] AgentTrustRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath) || string.IsNullOrWhiteSpace(request.AgentName))
-                return BadRequest("projectPath e agentName sono obbligatori.");
+                return BadRequest(UiText.Say("projectPath e agentName sono obbligatori.", "projectPath and agentName are required."));
             try
             {
                 var entry = _registry.UntrustAgent(request.ProjectPath, request.AgentName);

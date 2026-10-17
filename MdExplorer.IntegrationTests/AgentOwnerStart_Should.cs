@@ -143,7 +143,7 @@ namespace MdExplorer.IntegrationTests
             var held = await LaunchAndWaitForHold(ctx, path);
             var (status, body) = await ctx.PostJson($"/api/A2A/mailbox/rounds/{held.WorkflowRound}/archive?projectPath={System.Uri.EscapeDataString(path)}", "{}");
             Assert.AreEqual(System.Net.HttpStatusCode.Conflict, status, "un giro con passi che aspettano qualcuno non sparisce dalla posta");
-            StringAssert.Contains(body, "ancora in corso");
+            StringAssert.Contains(body, "still in progress");
         }
 
         private const string WorkflowWithSynthesis = @"{
@@ -352,7 +352,7 @@ namespace MdExplorer.IntegrationTests
             var (status, body) = await ctx.SendAuthenticated(token, "tecnico", "[INCARICO] scrivi la scheda tecnica");
 
             Assert.AreEqual(System.Net.HttpStatusCode.Conflict, status, body);
-            StringAssert.Contains(body, "non si legge");
+            StringAssert.Contains(body, "cannot be read");
             StringAssert.Contains(body, "strat");
             Assert.IsFalse(ctx.Messages().Any(m => m.ToAgent == "tecnico"));
         }

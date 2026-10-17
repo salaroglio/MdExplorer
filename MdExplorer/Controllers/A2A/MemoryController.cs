@@ -10,6 +10,7 @@ using MdExplorer.Features.Services.Fuseki;
 using MdExplorer.Services.AgentRegistry;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.A2A
 {
@@ -58,9 +59,9 @@ namespace MdExplorer.Controllers.A2A
         {
             var claims = ResolveClaims();
             if (claims == null)
-                return Unauthorized(new { error = "RunToken assente o non valido: la memoria è riservata agli agenti svegliati da un messaggio." });
+                return Unauthorized(new { error = UiText.Say("RunToken assente o non valido: la memoria è riservata agli agenti svegliati da un messaggio.", "RunToken missing or invalid: memory is reserved for agents woken by a message.") });
             if (request == null || string.IsNullOrWhiteSpace(request.Statement))
-                return BadRequest(new { error = "statement è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("statement è obbligatorio.", "statement is required.") });
 
             var (resolved, error) = await ResolveAgentAndFusekiAsync(claims);
             if (resolved == null)
@@ -84,7 +85,7 @@ namespace MdExplorer.Controllers.A2A
             }
             catch (FusekiRequestException fx)
             {
-                return StatusCode(502, new { error = $"Fuseki ha rifiutato la scrittura: {fx.Message}" });
+                return StatusCode(502, new { error = UiText.Say($"Fuseki ha rifiutato la scrittura: {fx.Message}", $"Fuseki rejected the write: {fx.Message}") });
             }
             catch (Exception ex)
             {
@@ -102,7 +103,7 @@ namespace MdExplorer.Controllers.A2A
         {
             var claims = ResolveClaims();
             if (claims == null)
-                return Unauthorized(new { error = "RunToken assente o non valido." });
+                return Unauthorized(new { error = UiText.Say("RunToken assente o non valido.", "RunToken missing or invalid.") });
 
             var (resolved, error) = await ResolveAgentAndFusekiAsync(claims);
             if (resolved == null)
@@ -127,7 +128,7 @@ namespace MdExplorer.Controllers.A2A
             }
             catch (FusekiRequestException fx)
             {
-                return StatusCode(502, new { error = $"Fuseki ha rifiutato la query: {fx.Message}" });
+                return StatusCode(502, new { error = UiText.Say($"Fuseki ha rifiutato la query: {fx.Message}", $"Fuseki rejected the query: {fx.Message}") });
             }
             catch (Exception ex)
             {
@@ -154,7 +155,7 @@ namespace MdExplorer.Controllers.A2A
             var entry = _registry.RefreshCatalog(claims.ProjectPath)
                 .FirstOrDefault(e => e.IsCitizen && string.Equals(e.Name, claims.AgentName, StringComparison.OrdinalIgnoreCase));
             if (entry == null || entry.IdentityId == null)
-                return (null, NotFound(new { error = $"Identità dell'agente '{claims.AgentName}' non risolvibile: memoria non disponibile." }));
+                return (null, NotFound(new { error = UiText.Say($"Identità dell'agente '{claims.AgentName}' non risolvibile: memoria non disponibile.", $"Cannot resolve the identity of agent '{claims.AgentName}': memory not available.") }));
 
             FusekiConnection conn;
             try
@@ -166,7 +167,7 @@ namespace MdExplorer.Controllers.A2A
                 return (null, StatusCode(409, new { error = ax.Message }));
             }
             if (conn == null)
-                return (null, StatusCode(409, new { error = "La memoria (Fuseki) non è abilitata per questo progetto." }));
+                return (null, StatusCode(409, new { error = UiText.Say("La memoria (Fuseki) non è abilitata per questo progetto.", "Memory (Fuseki) is not enabled for this project.") }));
 
             return (new Resolved { AgentIdentityId = entry.IdentityId.Value, Conn = conn }, null);
         }

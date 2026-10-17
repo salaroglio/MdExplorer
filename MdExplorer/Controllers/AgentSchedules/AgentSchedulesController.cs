@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 using System.Linq;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.AgentSchedules
 {
@@ -55,7 +56,7 @@ namespace MdExplorer.Controllers.AgentSchedules
             if (schedule == null)
                 return NotFound(new { error = $"Schedule not found: {id}" });
             if (schedule.TriggerType != "cron" || !schedule.Enabled || !schedule.Trusted)
-                return BadRequest(new { error = $"La pianificazione '{schedule.Name}' non è una pianificazione cron attiva e fidata." });
+                return BadRequest(new { error = UiText.Say($"La pianificazione '{schedule.Name}' non è una pianificazione cron attiva e fidata.", $"Schedule '{schedule.Name}' is not an active, trusted cron schedule.") });
 
             var runRequest = new MdExplorer.Services.AgentRun.AgentRunRequestModel
             {

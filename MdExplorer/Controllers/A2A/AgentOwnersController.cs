@@ -3,6 +3,7 @@ using System.Linq;
 using MdExplorer.Features.Agents;
 using MdExplorer.Services.AgentRun;
 using Microsoft.AspNetCore.Mvc;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.A2A
 {
@@ -25,7 +26,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult Get([FromQuery] string projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
             var view = _desk.Describe(projectPath);
             return Ok(new
             {
@@ -41,7 +42,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult AssignToMe([FromBody] AssignAgentRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.ProjectPath) || request.AgentNames == null || request.AgentNames.Count == 0)
-                return BadRequest(new { error = "projectPath e agentNames sono obbligatori." });
+                return BadRequest(new { error = UiText.Say("projectPath e agentNames sono obbligatori.", "projectPath and agentNames are required.") });
             try
             {
                 return Ok(new { agents = _desk.AssignToMe(request.ProjectPath, request.AgentNames).Select(Shape).ToList() });
@@ -61,7 +62,7 @@ namespace MdExplorer.Controllers.A2A
             ownerEmail = v.OwnerEmail,
             owners = v.Owners.Select(o => new { name = o.Name, email = o.Email }).ToList(),
             canWorkHere = v.CanWorkHere,
-            explanation = v.Explain(),
+            explanation = v.Explain(MdExplorer.Features.Services.UiText.Current),
         };
     }
 

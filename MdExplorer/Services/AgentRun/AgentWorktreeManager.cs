@@ -372,7 +372,7 @@ namespace MdExplorer.Services.AgentRun
         {
             var name = (agentName ?? string.Empty).Trim();
             if (name.Length == 0 || name == "." || name == ".." || !SafeAgentName.IsMatch(name))
-                throw new ArgumentException($"Nome agente non valido per un path di worktree: '{agentName}'.", nameof(agentName));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say($"Nome agente non valido per un path di worktree: '{agentName}'.", $"Agent name not valid for a worktree path: '{agentName}'."), nameof(agentName));
             return name;
         }
 
@@ -655,7 +655,7 @@ namespace MdExplorer.Services.AgentRun
         {
             var (code, text, err) = await GitAsync(worktreePath, new[] { "status", "--porcelain" }, ct);
             if (code != 0)
-                throw new InvalidOperationException($"Non riesco a leggere lo stato di '{worktreePath}': {Describe(code, err)}");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Non riesco a leggere lo stato di '{worktreePath}': {Describe(code, err)}", $"Cannot read the status of '{worktreePath}': {Describe(code, err)}"));
             return (text ?? string.Empty).Split('\n', StringSplitOptions.RemoveEmptyEntries)
                 .Select(l => l.TrimEnd('\r')).Where(l => l.Length > 0).ToList();
         }
@@ -671,7 +671,7 @@ namespace MdExplorer.Services.AgentRun
             from ??= "origin/" + await ResolveDefaultBranchAsync(worktreePath, ct);
             var (code, text, err) = await GitAsync(worktreePath, new[] { "rev-list", "--count", from + "..HEAD" }, ct);
             if (code != 0)
-                throw new InvalidOperationException($"Non riesco a contare i commit non pubblicati di '{worktreePath}': {Describe(code, err)}");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Non riesco a contare i commit non pubblicati di '{worktreePath}': {Describe(code, err)}", $"Cannot count the unpublished commits of '{worktreePath}': {Describe(code, err)}"));
             return int.TryParse((text ?? string.Empty).Trim(), out var n) ? n : 0;
         }
 
@@ -733,7 +733,7 @@ namespace MdExplorer.Services.AgentRun
         {
             var name = ValidateAgentName(agentName);
             if (string.IsNullOrWhiteSpace(localBranch))
-                throw new ArgumentException("Branch mancante: non so cosa rimettere sul posto.", nameof(localBranch));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("Branch mancante: non so cosa rimettere sul posto.", "Branch missing: I do not know what to put back."), nameof(localBranch));
 
             var gate = _repoGates.GetOrAdd(RepoKey(projectPath), _ => new SemaphoreSlim(1, 1));
             await gate.WaitAsync(ct);
@@ -1003,14 +1003,14 @@ namespace MdExplorer.Services.AgentRun
                     if (cc != 0)
                     {
                         _logger.LogError("[Worktree] commit del deliverable di '{Agent}' FALLITO ({Err}): handoff NON pubblicato per non perdere il lavoro dell'agente.", agentName, Describe(cc, ce));
-                        return new DeliveryAttempt { Error = $"il commit del lavoro è fallito ({FirstLine(Describe(cc, ce))})", WorktreePath = worktreePath };
+                        return new DeliveryAttempt { Error = MdExplorer.Features.Services.UiText.Say($"il commit del lavoro è fallito ({FirstLine(Describe(cc, ce))})", $"committing the work failed ({FirstLine(Describe(cc, ce))})"), WorktreePath = worktreePath };
                     }
                 }
 
                 var (bc, branchOut, _) = await GitAsync(worktreePath, new[] { "rev-parse", "--abbrev-ref", "HEAD" }, ct);
                 var (hc, shaOut, _) = await GitAsync(worktreePath, new[] { "rev-parse", "HEAD" }, ct);
                 if (bc != 0 || hc != 0)
-                    return new DeliveryAttempt { Error = "non riesco a leggere il ramo di lavoro dell'agente", WorktreePath = worktreePath };
+                    return new DeliveryAttempt { Error = MdExplorer.Features.Services.UiText.Say("non riesco a leggere il ramo di lavoro dell'agente", "cannot read the agent's working branch"), WorktreePath = worktreePath };
                 var branch = branchOut.Trim();
                 var headSha = shaOut.Trim();
                 if (string.IsNullOrWhiteSpace(branch) || branch == "HEAD")
@@ -1040,7 +1040,7 @@ namespace MdExplorer.Services.AgentRun
                 if (pc != 0)
                 {
                     _logger.LogWarning("[Worktree] push del branch '{Branch}' per '{Agent}' fallito: {Err}", published, agentName, Describe(pc, pe));
-                    return new DeliveryAttempt { Error = $"il push del ramo '{published}' su origin è fallito ({FirstLine(Describe(pc, pe))})", WorktreePath = worktreePath };
+                    return new DeliveryAttempt { Error = MdExplorer.Features.Services.UiText.Say($"il push del ramo '{published}' su origin è fallito ({FirstLine(Describe(pc, pe))})", $"pushing branch '{published}' to origin failed ({FirstLine(Describe(pc, pe))})"), WorktreePath = worktreePath };
                 }
 
                 _logger.LogInformation("[Worktree] deliverable di '{Agent}' pubblicato: {Branch}@{Sha} (locale: {Local})",

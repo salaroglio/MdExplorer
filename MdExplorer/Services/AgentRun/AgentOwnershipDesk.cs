@@ -88,7 +88,7 @@ namespace MdExplorer.Services.AgentRun
         {
             var city = _metadata.GetAgentCity(projectPath);
             if (city?.Enabled != true)
-                throw new InvalidOperationException("La città degli agenti è spenta in questo progetto: accendila nelle impostazioni del progetto.");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say("La città degli agenti è spenta in questo progetto: accendila nelle impostazioni del progetto.", "The agent city is off in this project: turn it on in the project settings."));
 
             var identity = _identity.Resolve(projectPath);
             if (string.IsNullOrWhiteSpace(identity.Email))
@@ -108,14 +108,14 @@ namespace MdExplorer.Services.AgentRun
             {
                 var agent = catalog.FirstOrDefault(e => e.IsCitizen && IsLlm(e) && string.Equals(e.Name, asked, StringComparison.OrdinalIgnoreCase));
                 if (agent == null)
-                    throw new InvalidOperationException($"L'agente '{asked}' non è tra gli agenti della città di questo progetto.");
+                    throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"L'agente '{asked}' non è tra gli agenti della città di questo progetto.", $"Agent '{asked}' is not one of the city agents of this project."));
 
                 var now = AgentOwnerRule.Decide(table, agent.Name, identity.Email);
                 if (now.Kind == AgentOwnerKind.Mine) continue;
                 if (now.Kind != AgentOwnerKind.Unassigned)
                     // Taking an agent from the person who answers for it is not a button: it is a change to
                     // the team's document, made where the team sees it.
-                    throw new InvalidOperationException(now.Explain() + " Per cambiare responsabile, o aggiungerne uno al team, modifica il documento delle responsabilità.");
+                    throw new InvalidOperationException(now.Explain(MdExplorer.Features.Services.UiText.Current) + MdExplorer.Features.Services.UiText.Say(" Per cambiare responsabile, o aggiungerne uno al team, modifica il documento delle responsabilità.", " To change owner, or add one to the team, edit the ownership document."));
                 toTake.Add(agent.Name);
             }
 

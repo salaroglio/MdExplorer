@@ -1,6 +1,7 @@
 using MdExplorer.Features.Agents;
 using MdExplorer.Services.AgentRun;
 using Microsoft.AspNetCore.Mvc;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.A2A
 {
@@ -23,7 +24,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult Running([FromQuery] string projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest("projectPath è obbligatorio.");
+                return BadRequest(UiText.Say("projectPath è obbligatorio.", "projectPath is required."));
             return Ok(AgentActivityBroadcaster.Payload(_board, projectPath));
         }
     }

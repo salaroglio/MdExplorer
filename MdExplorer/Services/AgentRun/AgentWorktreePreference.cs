@@ -152,7 +152,7 @@ namespace MdExplorer.Services.AgentRun
         public void SetSlots(string projectPath, int? slots)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                throw new ArgumentException("projectPath è obbligatorio", nameof(projectPath));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("projectPath è obbligatorio", "projectPath is required"), nameof(projectPath));
             if (slots != null && (slots < 1 || slots > MaxSlots))
                 throw new ArgumentOutOfRangeException(nameof(slots),
                     $"I posti devono stare fra 1 e {MaxSlots}: sono anche il tetto di quanti agenti girano insieme.");
@@ -189,7 +189,7 @@ namespace MdExplorer.Services.AgentRun
         public void Set(string projectPath, bool? enabled)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                throw new ArgumentException("projectPath è obbligatorio", nameof(projectPath));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("projectPath è obbligatorio", "projectPath is required"), nameof(projectPath));
 
             using var scope = _scopeFactory.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();

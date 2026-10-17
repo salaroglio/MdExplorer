@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Features.Agents
 {
@@ -160,7 +161,7 @@ namespace MdExplorer.Features.Agents
                     {
                         Tool = tool,
                         Access = ToolAccess.Allowed,
-                        Reason = "sola lettura: diritto di cittadinanza",
+                        Reason = UiText.Say("sola lettura: diritto di cittadinanza", "read-only: a right of every citizen"),
                     });
                     continue;
                 }
@@ -173,7 +174,7 @@ namespace MdExplorer.Features.Agents
                         {
                             Tool = tool,
                             Access = ToolAccess.Denied,
-                            Reason = "scrittura non dichiarata nel manifesto 'tools:' dell'agente",
+                            Reason = UiText.Say("scrittura non dichiarata nel manifesto 'tools:' dell'agente", "write not declared in the agent's 'tools:' manifest"),
                         });
                     }
                     else
@@ -183,8 +184,8 @@ namespace MdExplorer.Features.Agents
                             Tool = tool,
                             Access = trusted ? ToolAccess.Allowed : ToolAccess.ApprovalRequired,
                             Reason = trusted
-                                ? "scrittura dichiarata e agente fidato"
-                                : "scrittura dichiarata ma l'agente non è ancora fidato",
+                                ? UiText.Say("scrittura dichiarata e agente fidato", "write declared and agent trusted")
+                                : UiText.Say("scrittura dichiarata ma l'agente non è ancora fidato", "write declared but the agent is not trusted yet"),
                         });
                     }
                     continue;
@@ -197,8 +198,8 @@ namespace MdExplorer.Features.Agents
                         Tool = tool,
                         Access = trusted ? ToolAccess.Allowed : ToolAccess.ApprovalRequired,
                         Reason = trusted
-                            ? "azione verso l'esterno consentita a un agente fidato"
-                            : "azione verso l'esterno: richiede la fiducia dell'umano",
+                            ? UiText.Say("azione verso l'esterno consentita a un agente fidato", "outbound action allowed for a trusted agent")
+                            : UiText.Say("azione verso l'esterno: richiede la fiducia dell'umano", "outbound action: requires the person's trust"),
                     });
                     continue;
                 }
@@ -208,7 +209,7 @@ namespace MdExplorer.Features.Agents
                 {
                     Tool = tool,
                     Access = ToolAccess.Denied,
-                    Reason = "tool sconosciuto al catalogo: negato per difetto",
+                    Reason = UiText.Say("tool sconosciuto al catalogo: negato per difetto", "tool unknown to the catalog: denied by default"),
                 });
             }
 
@@ -236,7 +237,7 @@ namespace MdExplorer.Features.Agents
                     {
                         Tool = ManifestShell,
                         Access = ToolAccess.Unsupported,
-                        Reason = "questo runner non esegue comandi: l'agente dichiara 'shell' ma non l'avrà",
+                        Reason = UiText.Say("questo runner non esegue comandi: l'agente dichiara 'shell' ma non l'avrà", "this runner does not run commands: the agent declares 'shell' but will not get it"),
                     });
                 }
             }

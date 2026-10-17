@@ -1,3 +1,4 @@
+using MdExplorer.Features.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -44,7 +45,7 @@ namespace MdExplorer.Features.Agents
             var nameError = YamlAgentCardParser.ValidateAgentName(declared);
             if (nameError != null)
             {
-                error = $"fromAgent dichiarato non valido. {nameError}";
+                error = UiText.Say($"fromAgent dichiarato non valido. {nameError}", $"Declared fromAgent is not valid. {nameError}");
                 return null;
             }
             return declared;

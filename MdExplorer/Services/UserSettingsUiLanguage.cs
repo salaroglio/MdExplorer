@@ -7,30 +7,37 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MdExplorer.Services
 {
-    /// <summary>La lingua dell'interfaccia letta dal DB utente (impostazione «Language», scritta da AppSettings/SetLanguage).</summary>
+    /// <summary>
+    /// La lingua dell'interfaccia letta dal DB utente (impostazione «Language», scritta da AppSettings/SetLanguage).
+    /// Letta una volta e poi tenuta: gli errori la chiedono anche dentro una transazione del DB utente, e una seconda
+    /// sessione aperta lì dentro rischia «database is locked». SetLanguage la aggiorna con <see cref="Remember"/>.
+    /// </summary>
     public sealed class UserSettingsUiLanguage : IUiLanguage
     {
         private readonly IServiceScopeFactory _scopeFactory;
+        private volatile string _current;
         public UserSettingsUiLanguage(IServiceScopeFactory scopeFactory) { _scopeFactory = scopeFactory; }
 
-        public string Current
+        public string Current => _current ??= Read();
+
+        /// <summary>La lingua appena salvata da SetLanguage.</summary>
+        public void Remember(string language) => _current = language == "it" ? "it" : "en";
+
+        private string Read()
         {
-            get
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
+            db.BeginTransaction();
+            try
             {
-                using var scope = _scopeFactory.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<IUserSettingsDB>();
-                db.BeginTransaction();
-                try
-                {
-                    var value = db.GetDal<Setting>().GetList().FirstOrDefault(x => x.Name == "Language")?.ValueString;
-                    db.Commit();
-                    return value == "it" ? "it" : "en";
-                }
-                catch
-                {
-                    db.Rollback();
-                    throw;
-                }
+                var value = db.GetDal<Setting>().GetList().FirstOrDefault(x => x.Name == "Language")?.ValueString;
+                db.Commit();
+                return value == "it" ? "it" : "en";
+            }
+            catch
+            {
+                db.Rollback();
+                throw;
             }
         }
     }

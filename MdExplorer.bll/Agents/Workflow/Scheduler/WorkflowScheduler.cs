@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Features.Agents.Workflow.Scheduler
 {
@@ -178,7 +179,9 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
                             actions.Add(new SchedulerAction
                             {
                                 Kind = SchedulerActionKind.Blocked, Step = step, Round = view.Round, Attempt = view.Attempt,
-                                Reason = $"«{step.Label}» è già stato rifatto {until.Max} {(until.Max == 1 ? "volta" : "volte")} in questo giro: è il massimo del ciclo «{until.Id}». Resta fermo.",
+                                Reason = UiText.Say(
+                            $"«{step.Label}» è già stato rifatto {until.Max} {(until.Max == 1 ? "volta" : "volte")} in questo giro: è il massimo del ciclo «{until.Id}». Resta fermo.",
+                            $"«{step.Label}» has already been redone {until.Max} {(until.Max == 1 ? "time" : "times")} in this round: that is the most the loop «{until.Id}» allows. It stays stopped."),
                             });
                             break;
                         }
@@ -273,7 +276,7 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             var views = Views(wf, round);
             var v = views[step.Id];
             if (v.Status != StepStatus.Held)
-                throw new InvalidOperationException($"«{step.Label}» non è «da avviare» ({v.Status}): non c'è niente da riprendere.");
+                throw new InvalidOperationException(UiText.Say($"«{step.Label}» non è «da avviare» ({v.Status}): non c'è niente da riprendere.", $"«{step.Label}» is not «to start» ({v.Status}): there is nothing to resume."));
             var action = Begin(wf, step, views, round.Variables, v.Round, v.Attempt, v.Last?.Note);
             if (action.Kind == SchedulerActionKind.Start) action.Kind = SchedulerActionKind.Hold;   // era «da avviare»: lo resta
             return action;
@@ -297,7 +300,9 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
                 return new SchedulerAction
                 {
                     Kind = SchedulerActionKind.Blocked, Step = step, Round = round, Attempt = attempt,
-                    Reason = $"«{step.Label}» non può partire: nel giro manca il valore di {string.Join(", ", missing.Distinct().Select(n => "{" + n + "}"))}.",
+                    Reason = UiText.Say(
+                            $"«{step.Label}» non può partire: nel giro manca il valore di {string.Join(", ", missing.Distinct().Select(n => "{" + n + "}"))}.",
+                            $"«{step.Label}» cannot start: the round is missing the value of {string.Join(", ", missing.Distinct().Select(n => "{" + n + "}"))}."),
                 };
 
             var inputs = step.Trigger.Kind == WorkflowTriggerKind.After

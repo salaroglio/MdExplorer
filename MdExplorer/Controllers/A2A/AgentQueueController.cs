@@ -6,6 +6,7 @@ using MdExplorer.Abstractions.Entities.UserDB;
 using MdExplorer.Features.Agents;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.A2A
 {
@@ -34,7 +35,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult Queue(string name, [FromQuery] string? projectPath)
         {
             if (string.IsNullOrWhiteSpace(name))
-                return BadRequest(new { error = "name è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("name è obbligatorio.", "name is required.") });
 
             try
             {
@@ -117,12 +118,12 @@ namespace MdExplorer.Controllers.A2A
                 if (msg == null)
                 {
                     _session.Commit();
-                    return NotFound(new { error = $"Messaggio '{messageId}' non trovato." });
+                    return NotFound(new { error = UiText.Say($"Messaggio '{messageId}' non trovato.", $"Message '{messageId}' not found.") });
                 }
                 if (msg.State != AgentMessage.StateEnum.Pending)
                 {
                     _session.Commit();
-                    return UnprocessableEntity(new { error = $"Solo un messaggio 'pending' può essere forzato (stato: '{msg.State}')." });
+                    return UnprocessableEntity(new { error = UiText.Say($"Solo un messaggio 'pending' può essere forzato (stato: '{msg.State}').", $"Only a 'pending' message can be forced (state: '{msg.State}').") });
                 }
 
                 msg.NextAttemptAt = null;
@@ -153,7 +154,7 @@ namespace MdExplorer.Controllers.A2A
                 if (msg == null)
                 {
                     _session.Commit();
-                    return NotFound(new { error = $"Messaggio '{messageId}' non trovato." });
+                    return NotFound(new { error = UiText.Say($"Messaggio '{messageId}' non trovato.", $"Message '{messageId}' not found.") });
                 }
                 // Solo un messaggio ANCORA in coda (pending) si può scartare. Un 'delivered' è
                 // GIÀ in esecuzione (turno LLM partito): scartarlo non ferma il run e verrebbe
@@ -162,7 +163,7 @@ namespace MdExplorer.Controllers.A2A
                 if (msg.State != AgentMessage.StateEnum.Pending)
                 {
                     _session.Commit();
-                    return UnprocessableEntity(new { error = $"Solo un messaggio 'pending' può essere scartato (stato: '{msg.State}'): un messaggio già in consegna non si ferma dalla coda." });
+                    return UnprocessableEntity(new { error = UiText.Say($"Solo un messaggio 'pending' può essere scartato (stato: '{msg.State}'): un messaggio già in consegna non si ferma dalla coda.", $"Only a 'pending' message can be discarded (state: '{msg.State}'): a message already being delivered cannot be stopped from the queue.") });
                 }
 
                 msg.State = AgentMessage.StateEnum.Failed;

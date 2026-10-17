@@ -621,6 +621,13 @@ namespace MdExplorer
                 }
             });
 
+            // Gli errori della città nella lingua dell'interfaccia, anche quelli del bll (UiText, 17/10/2026).
+            // Letta subito, fuori da ogni transazione: un errore nasce anche dentro una transazione del DB utente, e
+            // aprire lì una seconda sessione per leggere la lingua la rompe (NHibernate.TransactionException).
+            var uiLanguage = app.ApplicationServices.GetRequiredService<MdExplorer.Features.Services.IUiLanguage>();
+            MdExplorer.Features.Services.UiText.Use(uiLanguage);
+            lifetime.ApplicationStarted.Register(() => _ = uiLanguage.Current);
+
             //#if !DEBUG
             lifetime.ApplicationStarted.Register(
           () =>

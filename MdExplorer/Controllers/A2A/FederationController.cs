@@ -10,6 +10,7 @@ using MdExplorer.Services.AgentRun;
 using MdExplorer.Services.Federation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.A2A
 {
@@ -58,10 +59,10 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult Users([FromQuery] string projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
             var entries = _ownership.GetActiveOwnership(projectPath);
             if (entries == null)
-                return StatusCode(409, new { error = "Città non attiva o senza documento di ownership valido." });
+                return StatusCode(409, new { error = UiText.Say("Città non attiva o senza documento di ownership valido.", "City not active or without a valid ownership document.") });
 
             var me = _identity.ResolveEmail(projectPath);
             // OwnerId delle città REMOTE accese ora sulla stanza (badge presenza): la mia macchina
@@ -98,7 +99,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult ImpersonationStatus([FromQuery] string projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
             var id = _identity.Resolve(projectPath);
             var name = NameOf(projectPath, id.Email, _ownership.GetActiveOwnership(projectPath), realMe: !id.Impersonated);
             return Ok(new { testMode = _identity.IsTestModeEnabled(), email = id.Email, name, ownerId = id.OwnerId, impersonated = id.Impersonated });
@@ -141,14 +142,14 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> Impersonate([FromBody] ImpersonateRequest body)
         {
             if (body == null || string.IsNullOrWhiteSpace(body.ProjectPath) || string.IsNullOrWhiteSpace(body.Email))
-                return BadRequest(new { error = "projectPath ed email sono obbligatori." });
+                return BadRequest(new { error = UiText.Say("projectPath ed email sono obbligatori.", "projectPath and email are required.") });
             if (!_identity.IsTestModeEnabled())
-                return StatusCode(409, new { error = "Abilita la modalità test identità prima di impersonare un utente." });
+                return StatusCode(409, new { error = UiText.Say("Abilita la modalità test identità prima di impersonare un utente.", "Enable identity test mode before impersonating a user.") });
 
             var entries = _ownership.GetActiveOwnership(body.ProjectPath);
             var known = entries?.Any(e => string.Equals(e.GitEmail, body.Email.Trim(), StringComparison.OrdinalIgnoreCase)) == true;
             if (!known)
-                return UnprocessableEntity(new { error = $"'{body.Email}' non è un padrone dell'ownership doc: impersonazione rifiutata." });
+                return UnprocessableEntity(new { error = UiText.Say($"'{body.Email}' non è un padrone dell'ownership doc: impersonazione rifiutata.", $"'{body.Email}' is not an owner in the ownership doc: impersonation refused.") });
 
             _identity.SetImpersonation(body.ProjectPath.Trim(), body.Email.Trim());
             await _federationSender.ReconnectProjectAsync(body.ProjectPath.Trim());   // riconnetti col nuovo ownerId
@@ -161,7 +162,7 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> StopImpersonation([FromQuery] string projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio.", "projectPath is required.") });
             _identity.ClearImpersonation(projectPath.Trim());
             await _federationSender.ReconnectProjectAsync(projectPath.Trim());
             var id = _identity.Resolve(projectPath.Trim());
@@ -260,9 +261,9 @@ namespace MdExplorer.Controllers.A2A
             var req = dal.GetList().FirstOrDefault(r => r.Id == id);
             _session.Commit();
             if (req == null)
-                return NotFound(new { error = $"Richiesta federata '{id}' non trovata." });
+                return NotFound(new { error = UiText.Say($"Richiesta federata '{id}' non trovata.", $"Federated request '{id}' not found.") });
             if (req.Status != FederationRequest.StatusEnum.Pending)
-                return UnprocessableEntity(new { error = $"Richiesta già decisa (stato: '{req.Status}')." });
+                return UnprocessableEntity(new { error = UiText.Say($"Richiesta già decisa (stato: '{req.Status}').", $"Request already decided (status: '{req.Status}').") });
 
             var targetAgent = string.IsNullOrWhiteSpace(body?.TargetAgent) ? req.TargetAgent : body.TargetAgent.Trim();
 
@@ -270,9 +271,9 @@ namespace MdExplorer.Controllers.A2A
             var citizen = _registry.RefreshCatalog(req.ProjectPath)
                 .FirstOrDefault(e => e.IsCitizen && string.Equals(e.Name, targetAgent, StringComparison.OrdinalIgnoreCase));
             if (citizen == null)
-                return NotFound(new { error = $"L'agente '{targetAgent}' non è un cittadino del progetto." });
+                return NotFound(new { error = UiText.Say($"L'agente '{targetAgent}' non è un cittadino del progetto.", $"The agent '{targetAgent}' is not a citizen of the project.") });
             if (!citizen.Trusted)
-                return StatusCode(403, new { error = $"L'agente '{targetAgent}' non è trusted: concedi il trust prima di autorizzare." });
+                return StatusCode(403, new { error = UiText.Say($"L'agente '{targetAgent}' non è trusted: concedi il trust prima di autorizzare.", $"The agent '{targetAgent}' is not trusted: grant trust before authorizing.") });
 
             // CLAIM ATOMICO (anti doppio-click / doppia UI): in UNA transazione ri-leggo la
             // richiesta, verifico che sia ancora pending, e la marco Approved insieme alla
@@ -283,7 +284,7 @@ namespace MdExplorer.Controllers.A2A
             if (reqFresh == null || reqFresh.Status != FederationRequest.StatusEnum.Pending)
             {
                 _session.Commit();
-                return UnprocessableEntity(new { error = "Richiesta già decisa (approvazione concorrente?)." });
+                return UnprocessableEntity(new { error = UiText.Say("Richiesta già decisa (approvazione concorrente?).", "Request already decided (concurrent approval?).") });
             }
             var conv = new AgentConversation
             {
@@ -351,12 +352,12 @@ namespace MdExplorer.Controllers.A2A
             if (req == null)
             {
                 _session.Commit();
-                return NotFound(new { error = $"Richiesta federata '{id}' non trovata." });
+                return NotFound(new { error = UiText.Say($"Richiesta federata '{id}' non trovata.", $"Federated request '{id}' not found.") });
             }
             if (req.Status != FederationRequest.StatusEnum.Pending)
             {
                 _session.Commit();
-                return UnprocessableEntity(new { error = $"Richiesta già decisa (stato: '{req.Status}')." });
+                return UnprocessableEntity(new { error = UiText.Say($"Richiesta già decisa (stato: '{req.Status}').", $"Request already decided (status: '{req.Status}').") });
             }
 
             req.Status = FederationRequest.StatusEnum.Rejected;

@@ -179,15 +179,15 @@ namespace MdExplorer.Features.Tests.Agents
         public void Refuse_an_unknown_key_with_its_path()
         {
             var r = ParseGaraWith(@"""start"": ""manual"",", @"""strat"": ""manual"",");
-            AssertError(r, "steps[0].strat", "chiave sconosciuta 'strat'");
-            AssertError(r, "steps[0].start", "manca 'start'");
+            AssertError(r, "steps[0].strat", "unknown key 'strat'");
+            AssertError(r, "steps[0].start", "'start' is missing");
         }
 
         [TestMethod]
         public void Explain_how_to_convert_a_version_1_file()
         {
             var r = ParseGaraWith(@"""mde_workflow"": 2", @"""mde_workflow"": 1");
-            AssertError(r, "mde_workflow", "versione 1 non più supportata");
+            AssertError(r, "mde_workflow", "version 1 is no longer supported");
             StringAssert.Contains(r.Issues.Single().Fix, "\"after\"");
         }
 
@@ -203,30 +203,30 @@ namespace MdExplorer.Features.Tests.Agents
       },
       ""start"": ""ask-owner"",
       ""brief"": ""Scrivi la scheda di fattibilità tecnica");
-            AssertError(r, "steps[2].trigger.assignment", "versione 1");
+            AssertError(r, "steps[2].trigger.assignment", "version 1");
         }
 
         [TestMethod]
         public void Refuse_a_start_that_does_not_fit_the_trigger()
         {
-            AssertError(ParseGaraWith(@"""start"": ""manual"",", @"""start"": ""auto"","), "steps[0].start", "non va con un trigger launch");
+            AssertError(ParseGaraWith(@"""start"": ""manual"",", @"""start"": ""auto"","), "steps[0].start", "does not go with trigger launch");
             AssertError(ParseGaraWith(@"""start"": ""ask-owner"",
       ""brief"": ""Scrivi la scheda di fattibilità tecnica", @"""start"": ""manual"",
-      ""brief"": ""Scrivi la scheda di fattibilità tecnica"), "steps[2].start", "non va con un trigger after");
+      ""brief"": ""Scrivi la scheda di fattibilità tecnica"), "steps[2].start", "does not go with trigger after");
         }
 
         [TestMethod]
         public void Ask_for_the_brief_of_every_step_the_person_does_not_launch()
         {
             var r = ParseGaraWith(@"""brief"": ""Scrivi la scheda di fattibilità tecnica sul bando {codice}."",", "");
-            AssertError(r, "steps[2].brief", "manca il testo dell'incarico");
+            AssertError(r, "steps[2].brief", "the assignment text is missing");
         }
 
         [TestMethod]
         public void Refuse_a_brief_that_uses_an_undeclared_variable()
         {
             var r = ParseGaraWith("sul bando {codice}.\"", "sul bando {codice} entro {scadenza}.\"");
-            AssertError(r, "steps[2].brief", "'{scadenza}' non è una variabile dichiarata");
+            AssertError(r, "steps[2].brief", "'{scadenza}' is not a declared variable");
         }
 
         [TestMethod]
@@ -235,11 +235,11 @@ namespace MdExplorer.Features.Tests.Agents
             var missing = ParseGaraWith(@"""contratto"",
           ""delivery""", @"""contratti"",
           ""delivery""");
-            AssertError(missing, "steps[5].trigger.after", "'contratti' non è l'id di nessun passo");
+            AssertError(missing, "steps[5].trigger.after", "'contratti' is not the id of any step");
 
             var cycle = ParseGaraWith(@"""reply"": ""avvia-giro"",
         ""to"": ""ricerca""", @"""after"": [""tecnica""]");
-            Assert.IsTrue(cycle.Issues.Any(i => i.Message.Contains("si fanno partire a vicenda")), Issues(cycle));
+            Assert.IsTrue(cycle.Issues.Any(i => i.Message.Contains("start each other")), Issues(cycle));
         }
 
         [TestMethod]
@@ -261,19 +261,19 @@ namespace MdExplorer.Features.Tests.Agents
         [TestMethod]
         public void Refuse_loops_that_mix_kinds_or_miss_their_values()
         {
-            AssertError(ParseGaraWith(@"""restart"": ""manual""", @"""restart"": ""manual"", ""times"": 2"), "loops[0]", "non tutti e due");
+            AssertError(ParseGaraWith(@"""restart"": ""manual""", @"""restart"": ""manual"", ""times"": 2"), "loops[0]", "not both");
             AssertError(ParseGaraWith(@"""until"": ""approved"",
-      ""restart"": ""manual""", @"""until"": ""approved"""), "loops[0].restart", "manca 'restart'");
+      ""restart"": ""manual""", @"""until"": ""approved"""), "loops[0].restart", "'restart' is missing");
             AssertError(ParseGaraWith(@"""until"": ""approved"",
-      ""restart"": ""manual""", @"""times"": 1"), "loops[0].times", "da 2 in su");
-            AssertError(ParseGaraWith(@"""restart"": ""manual""", @"""restart"": ""manual"", ""max"": 0"), "loops[0].max", "da 1 in su");
+      ""restart"": ""manual""", @"""times"": 1"), "loops[0].times", "from 2 up");
+            AssertError(ParseGaraWith(@"""restart"": ""manual""", @"""restart"": ""manual"", ""max"": 0"), "loops[0].max", "from 1 up");
         }
 
         [TestMethod]
         public void Refuse_paths_that_leave_the_project_or_use_backslashes()
         {
-            AssertError(ParseGaraWith("citta-degli-agenti/gara/schede/tecnica.md", @"citta-degli-agenti\\gara\\schede\\tecnica.md"), "steps[2].produces[0]", "barra '/'");
-            AssertError(ParseGaraWith("citta-degli-agenti/gara/schede/tecnica.md", "../fuori/tecnica.md"), "steps[2].produces[0]", "esce dal progetto");
+            AssertError(ParseGaraWith("citta-degli-agenti/gara/schede/tecnica.md", @"citta-degli-agenti\\gara\\schede\\tecnica.md"), "steps[2].produces[0]", "slash '/'");
+            AssertError(ParseGaraWith("citta-degli-agenti/gara/schede/tecnica.md", "../fuori/tecnica.md"), "steps[2].produces[0]", "goes outside the project");
         }
 
         [TestMethod]
@@ -281,9 +281,9 @@ namespace MdExplorer.Features.Tests.Agents
         {
             var r = WorkflowParser.Parse(@"{ ""mde_workflow"": 2, ""steps"": [
                 { ""id"": ""Ricerca"", ""agent"": ""x"", ""trigger"": { ""launch"": true }, ""start"": ""manual"", ""colore"": ""blu"" } ] }");
-            AssertError(r, "title", "manca 'title'");
-            AssertError(r, "steps[0].id", "non è kebab-case");
-            AssertError(r, "steps[0].colore", "chiave sconosciuta");
+            AssertError(r, "title", "'title' is missing");
+            AssertError(r, "steps[0].id", "is not kebab-case");
+            AssertError(r, "steps[0].colore", "unknown key");
         }
 
         // ---- progetto ----
@@ -298,13 +298,13 @@ namespace MdExplorer.Features.Tests.Agents
             var issues = WorkflowProjectCheck.Check(wf, agents, folder => folder != "citta-degli-agenti/gara/ricerche");
 
             string Msg(string path) => string.Join(" | ", issues.Where(i => i.Path == path).Select(i => i.Message));
-            StringAssert.Contains(Msg("steps[3].agent"), "non c'è un agente 'responsabile-legale'");
-            StringAssert.Contains(Msg("steps[0].produces[0]"), "'citta-degli-agenti/gara/ricerche' non esiste");
-            StringAssert.Contains(Msg("steps[1].trigger.reply"), "'{scadenza}', che non è una variabile del workflow");
+            StringAssert.Contains(Msg("steps[3].agent"), "the project has no agent 'responsabile-legale'");
+            StringAssert.Contains(Msg("steps[0].produces[0]"), "'citta-degli-agenti/gara/ricerche' does not exist");
+            StringAssert.Contains(Msg("steps[1].trigger.reply"), "'{scadenza}', which is not a workflow variable");
 
             agents[0].Replies = new List<AgentRegistryReply>();
             StringAssert.Contains(string.Join(" | ", WorkflowProjectCheck.Check(wf, agents, AllFolders).Select(i => i.Message)),
-                "non dichiara la risposta 'avvia-giro'");
+                "does not declare the reply 'avvia-giro'");
         }
 
         // ---- regola dei passi ----
@@ -331,7 +331,7 @@ namespace MdExplorer.Features.Tests.Agents
             Assert.IsNull(WorkflowStartPolicy.ApprovalStepFor(wf, "account-manager", "responsabile-legale"));
             StringAssert.Contains(WorkflowStartPolicy.NotForeseen(wf, "account-manager", "responsabile-qualita"),
                 "responsabile-tecnico, responsabile-legale, responsabile-delivery");
-            StringAssert.Contains(WorkflowStartPolicy.NotForeseen(wf, "responsabile-tecnico", "responsabile-legale"), "vengono: account-manager");
+            StringAssert.Contains(WorkflowStartPolicy.NotForeseen(wf, "responsabile-tecnico", "responsabile-legale"), "come: account-manager");
 
         }
 
@@ -347,7 +347,7 @@ namespace MdExplorer.Features.Tests.Agents
             Assert.AreEqual(2, WorkflowStartPolicy.ReworksLeft(capped, capped.Step("tecnica"), 1, out _));
             Assert.AreEqual(1, WorkflowStartPolicy.ReworksLeft(capped, capped.Step("tecnica"), 2, out _));
             Assert.AreEqual(0, WorkflowStartPolicy.ReworksLeft(capped, capped.Step("tecnica"), 3, out var why));
-            StringAssert.Contains(why, "già stato rifatto 2 volte");
+            StringAssert.Contains(why, "has already been redone 2 times");
         }
 
         [TestMethod]
@@ -385,7 +385,7 @@ namespace MdExplorer.Features.Tests.Agents
     }", @"""restart"": ""manual""
     },
     { ""id"": ""ancora"", ""steps"": [""tecnica""], ""until"": ""approved"", ""restart"": ""auto"" }");
-            Assert.IsTrue(twice.Issues.Any(i => i.Path == "loops[1].steps[0]" && i.Message.Contains("dello stesso tipo")), Issues(twice));
+            Assert.IsTrue(twice.Issues.Any(i => i.Path == "loops[1].steps[0]" && i.Message.Contains("of the same kind")), Issues(twice));
         }
     }
 }

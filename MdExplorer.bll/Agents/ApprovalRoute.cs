@@ -53,9 +53,9 @@ namespace MdExplorer.Features.Agents
                     var target = citizens.FirstOrDefault(e => Same(e.Name, name));
                     string reason = null;
                     if (target == null)
-                        reason = $"'{name}' non esiste fra gli agenti del progetto.";
+                        reason = MdExplorer.Features.Services.UiText.Say($"'{name}' non esiste fra gli agenti del progetto.", $"'{name}' is not one of the project's agents.");
                     else if (!target.Trusted && worksElsewhere?.Invoke(target) != true)
-                        reason = $"'{name}' non è fidato: concedi la fiducia nel registro.";
+                        reason = MdExplorer.Features.Services.UiText.Say($"'{name}' non è fidato: concedi la fiducia nel registro.", $"'{name}' is not trusted: grant trust in the registry.");
                     return new ApprovalRecipient
                     {
                         Name = target?.Name ?? name,

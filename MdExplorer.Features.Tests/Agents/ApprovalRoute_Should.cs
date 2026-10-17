@@ -73,9 +73,9 @@ namespace MdExplorer.Features.Tests.Agents
             var c = ApprovalRoute.Candidates(catalog, "tecnico").ToDictionary(x => x.Name);
 
             Assert.IsFalse(c["fantasma"].Available);
-            StringAssert.Contains(c["fantasma"].Reason, "non esiste");
+            StringAssert.Contains(c["fantasma"].Reason, "is not one of the project's agents");
             Assert.IsFalse(c["non-fidato"].Available);
-            StringAssert.Contains(c["non-fidato"].Reason, "non è fidato");
+            StringAssert.Contains(c["non-fidato"].Reason, "is not trusted");
         }
 
         [TestMethod]

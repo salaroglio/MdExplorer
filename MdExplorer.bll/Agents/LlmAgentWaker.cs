@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using MdExplorer.Features.Execution;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Features.Agents
 {
@@ -116,9 +117,9 @@ namespace MdExplorer.Features.Agents
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
             if (string.IsNullOrWhiteSpace(request.AgentName))
-                throw new ArgumentException("AgentName mancante — non posso coniare un token senza identità.", nameof(request));
+                throw new ArgumentException(UiText.Say("AgentName mancante — non posso coniare un token senza identità.", "AgentName missing — cannot mint a token without an identity."), nameof(request));
             if (string.IsNullOrWhiteSpace(request.AgentFileContent))
-                throw new ArgumentException("AgentFileContent vuoto — rifiuto di svegliare un agente senza corpo.", nameof(request));
+                throw new ArgumentException(UiText.Say("AgentFileContent vuoto — rifiuto di svegliare un agente senza corpo.", "AgentFileContent empty — refusing to wake an agent without a body."), nameof(request));
 
             // R2: il token è legato all'identità dell'agente svegliato e al contesto. Chi invierà
             // messaggi in uscita si autentica con questo token; il Service risale a queste claim.

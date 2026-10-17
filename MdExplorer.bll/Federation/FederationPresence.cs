@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MdExplorer.Features.Agents;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Features.Federation
 {
@@ -51,9 +52,9 @@ namespace MdExplorer.Features.Federation
         public static CityPresence Build(string roomId, string gitEmail, IReadOnlyList<AgentRosterEntry> trustedAgents)
         {
             if (string.IsNullOrWhiteSpace(roomId))
-                throw new ArgumentException("roomId assente: senza stanza non si può annunciare presenza.", nameof(roomId));
+                throw new ArgumentException(UiText.Say("roomId assente: senza stanza non si può annunciare presenza.", "roomId missing: presence cannot be announced without a room."), nameof(roomId));
             if (string.IsNullOrWhiteSpace(gitEmail))
-                throw new ArgumentException("gitEmail assente: la presenza richiede l'identità del padrone.", nameof(gitEmail));
+                throw new ArgumentException(UiText.Say("gitEmail assente: la presenza richiede l'identità del padrone.", "gitEmail missing: presence requires the owner's identity."), nameof(gitEmail));
 
             var email = gitEmail.Trim().ToLowerInvariant();
             var agents = (trustedAgents ?? Array.Empty<AgentRosterEntry>())

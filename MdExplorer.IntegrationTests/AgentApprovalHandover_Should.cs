@@ -164,18 +164,18 @@ namespace MdExplorer.IntegrationTests
         [TestMethod]
         public async Task Refuse_a_recipient_that_cannot_be_reached_before_merging()
         {
-            var (c, req, n) = Build(R("legale", available: false, reason: "'legale' non è fidato."), R("account-manager"));
+            var (c, req, n) = Build(R("legale", available: false, reason: "'legale' is not trusted."), R("account-manager"));
             var (status, body) = Read(await c.Approve(req.Request.Id, new AgentReviewController.ApproveRequest { Notify = "legale" }));
             Assert.AreEqual(422, status);
             Assert.AreEqual("recipient-unavailable", body.GetProperty("code").GetString());
-            StringAssert.Contains(body.GetProperty("error").GetString(), "non è fidato");
+            StringAssert.Contains(body.GetProperty("error").GetString(), "is not trusted");
             Assert.AreEqual(0, req.Approved, "un destinatario irraggiungibile non lascia un lavoro fuso a metà");
         }
 
         [TestMethod]
         public async Task Ask_the_person_when_the_only_recipient_is_unreachable()
         {
-            var (c, req, n) = Build(R("legale", available: false, reason: "'legale' non è fidato."));
+            var (c, req, n) = Build(R("legale", available: false, reason: "'legale' is not trusted."));
             var (status, body) = Read(await c.Approve(req.Request.Id));
             Assert.AreEqual(409, status);
             Assert.IsTrue(body.GetProperty("needsChoice").GetBoolean());

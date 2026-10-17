@@ -77,7 +77,7 @@ namespace MdExplorer.Features.Tests.Agents
             // agli agenti solo perché è comparso: qualcuno deve classificarlo prima.
             var d = AgentToolCatalog.Decide(new[] { "delete_everything" }, new[] { "write" }, trusted: true).Single();
             Assert.AreEqual(ToolAccess.Denied, d.Access);
-            StringAssert.Contains(d.Reason, "sconosciuto");
+            StringAssert.Contains(d.Reason, "unknown");
         }
 
         [TestMethod]

@@ -1,6 +1,7 @@
 using System;
 using System.Security.Cryptography;
 using System.Text;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Features.Federation
 {
@@ -55,9 +56,9 @@ namespace MdExplorer.Features.Federation
         private static byte[] DeriveKey(string roomSecret, string roomId, byte[] info)
         {
             if (string.IsNullOrEmpty(roomSecret))
-                throw new ArgumentException("room secret assente: senza segreto non si può derivare la chiave.", nameof(roomSecret));
+                throw new ArgumentException(UiText.Say("room secret assente: senza segreto non si può derivare la chiave.", "room secret missing: without a secret the key cannot be derived."), nameof(roomSecret));
             if (string.IsNullOrEmpty(roomId))
-                throw new ArgumentException("roomId assente: serve come salt della derivazione.", nameof(roomId));
+                throw new ArgumentException(UiText.Say("roomId assente: serve come salt della derivazione.", "roomId missing: it is the salt of the derivation."), nameof(roomId));
 
             var ikm = Encoding.UTF8.GetBytes(roomSecret);
             var salt = Encoding.UTF8.GetBytes(roomId);
@@ -73,9 +74,9 @@ namespace MdExplorer.Features.Federation
         public static string DeriveJoinToken(string roomSecret, string roomId)
         {
             if (string.IsNullOrEmpty(roomSecret))
-                throw new ArgumentException("room secret assente.", nameof(roomSecret));
+                throw new ArgumentException(UiText.Say("room secret assente.", "room secret missing."), nameof(roomSecret));
             if (string.IsNullOrEmpty(roomId))
-                throw new ArgumentException("roomId assente.", nameof(roomId));
+                throw new ArgumentException(UiText.Say("roomId assente.", "roomId missing."), nameof(roomId));
 
             var ikm = Encoding.UTF8.GetBytes(roomSecret);
             var salt = Encoding.UTF8.GetBytes(roomId);
@@ -144,16 +145,16 @@ namespace MdExplorer.Features.Federation
         private static string Open(string roomSecret, string roomId, string envelope, byte[] info, string prefix)
         {
             if (string.IsNullOrEmpty(envelope))
-                throw new FederationCryptoException("Busta vuota.");
+                throw new FederationCryptoException(UiText.Say("Busta vuota.", "Empty envelope."));
             if (!envelope.StartsWith(prefix, StringComparison.Ordinal))
-                throw new FederationCryptoException($"Versione della busta non riconosciuta: attesa '{prefix.TrimEnd('.')}'. Aggiornare la città più vecchia.");
+                throw new FederationCryptoException(UiText.Say($"Versione della busta non riconosciuta: attesa '{prefix.TrimEnd('.')}'. Aggiornare la città più vecchia.", $"Envelope version not recognized: expected '{prefix.TrimEnd('.')}'. Update the older city."));
 
             byte[] raw;
             try { raw = Convert.FromBase64String(envelope.Substring(prefix.Length)); }
-            catch (FormatException ex) { throw new FederationCryptoException("Busta corrotta: base64 non valido.", ex); }
+            catch (FormatException ex) { throw new FederationCryptoException(UiText.Say("Busta corrotta: base64 non valido.", "Corrupt envelope: invalid base64."), ex); }
 
             if (raw.Length < NonceLen + TagLen)
-                throw new FederationCryptoException("Busta troppo corta: nonce/tag mancanti.");
+                throw new FederationCryptoException(UiText.Say("Busta troppo corta: nonce/tag mancanti.", "Envelope too short: nonce/tag missing."));
 
             var nonce = new byte[NonceLen];
             var tag = new byte[TagLen];
@@ -173,7 +174,7 @@ namespace MdExplorer.Features.Federation
             {
                 // Tag non valido: la busta è stata manomessa OPPURE il room secret è sbagliato.
                 // In entrambi i casi non c'è un plaintext fidato da restituire.
-                throw new FederationCryptoException("Tag di autenticazione non valido: busta manomessa o room secret errato.", ex);
+                throw new FederationCryptoException(UiText.Say("Tag di autenticazione non valido: busta manomessa o room secret errato.", "Invalid authentication tag: envelope tampered with or wrong room secret."), ex);
             }
 
             return Encoding.UTF8.GetString(plain);

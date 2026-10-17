@@ -13,6 +13,7 @@ using MdExplorer.Services.Federation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.A2A
 {
@@ -102,12 +103,12 @@ namespace MdExplorer.Controllers.A2A
         {
             var claims = ResolveClaims();
             if (claims == null)
-                return Unauthorized(new { error = "RunToken assente o non valido: questo endpoint è riservato agli agenti svegliati da un messaggio." });
+                return Unauthorized(new { error = UiText.Say("RunToken assente o non valido: questo endpoint è riservato agli agenti svegliati da un messaggio.", "RunToken missing or invalid: this endpoint is reserved for agents woken by a message.") });
 
             if (request == null || string.IsNullOrWhiteSpace(request.ToAgent))
-                return BadRequest(new { error = "toAgent è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("toAgent è obbligatorio.", "toAgent is required.") });
             if (string.IsNullOrWhiteSpace(request.Message))
-                return BadRequest(new { error = "message è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("message è obbligatorio.", "message is required.") });
 
             var to = request.ToAgent.Trim();
 
@@ -128,7 +129,7 @@ namespace MdExplorer.Controllers.A2A
                                     && m.ReadAt == null);
                     _session.Commit();
                     if (unreadInThread >= MaxUnreadUserMessagesPerConversation)
-                        return StatusCode(429, new { error = $"Tetto messaggi verso l'umano raggiunto ({MaxUnreadUserMessagesPerConversation} non letti in questa conversazione): attendi che l'umano legga o risponda." });
+                        return StatusCode(429, new { error = UiText.Say($"Tetto messaggi verso l'umano raggiunto ({MaxUnreadUserMessagesPerConversation} non letti in questa conversazione): attendi che l'umano legga o risponda.", $"Limit of messages to the person reached ({MaxUnreadUserMessagesPerConversation} unread in this conversation): wait until the person reads or replies.") });
                 }
 
                 // Le risposte proposte alla persona: si risolvono ADESSO dalla scheda del mittente. Una risposta
@@ -183,32 +184,35 @@ namespace MdExplorer.Controllers.A2A
             var recipient = _registry.RefreshCatalog(claims.ProjectPath)
                 .FirstOrDefault(e => e.IsCitizen && string.Equals(e.Name, to, StringComparison.OrdinalIgnoreCase));
             if (recipient == null)
-                return NotFound(new { error = $"Destinatario '{to}' non trovato o non cittadino nel progetto." });
+                return NotFound(new { error = UiText.Say($"Destinatario '{to}' non trovato o non cittadino nel progetto.", $"Recipient '{to}' not found or not a citizen of the project.") });
             // L'agente di un collega qui non è abilitato e non deve esserlo: lavora sul computer del collega, e il
             // messaggio ci arriva (il dispatcher lo inoltra). Non fidato E di questo computer: non gli si scrive.
             var worksElsewhere = _wakeGuard.WorksElsewhere(claims.ProjectPath, recipient);
             if (!recipient.Trusted && !worksElsewhere)
-                return StatusCode(403, new { error = $"Destinatario '{to}' non è trusted: non è possibile inviargli messaggi." });
+                return StatusCode(403, new { error = UiText.Say($"Destinatario '{to}' non è trusted: non è possibile inviargli messaggi.", $"Recipient '{to}' is not trusted: messages cannot be sent to it.") });
 
             // Il filtro fine del destinatario (§6): la sua whitelist deve ammettere il mittente
             // CERTIFICATO dal token (non un nome dichiarato dal chiamante).
             if (!MessageAuthorization.IsSenderAccepted(recipient.AcceptsMessagesFrom, claims.AgentName))
-                return StatusCode(403, new { error = $"'{claims.AgentName}' non è tra i mittenti accettati da '{to}' (accepts_messages_from)." });
+                return StatusCode(403, new { error = UiText.Say($"'{claims.AgentName}' non è tra i mittenti accettati da '{to}' (accepts_messages_from).", $"'{claims.AgentName}' is not among the senders accepted by '{to}' (accepts_messages_from).") });
 
             // Il workflow del progetto, se c'è, è la regola di come si passa il lavoro: un passaggio che non descrive non
             // parte, e l'agente sa perché e cosa può fare. Si dice adesso, a chi scrive, non dopo nella coda.
             var workflow = MdExplorer.Features.Agents.Workflow.WorkflowDocument.LoadActive(
                 claims.ProjectPath, _projectMetadata.GetAgentCity(claims.ProjectPath)?.WorkflowDoc, out var workflowProblem);
             if (workflowProblem != null)
-                return Conflict(new { error = $"Il workflow del progetto non si legge ({workflowProblem}): finché non è corretto non so se questo passaggio è previsto. Dillo alla persona." });
+                return Conflict(new { error = UiText.Say($"Il workflow del progetto non si legge ({workflowProblem}): finché non è corretto non so se questo passaggio è previsto. Dillo alla persona.", $"The project workflow cannot be read ({workflowProblem}): until it is fixed I cannot tell whether this handoff is expected. Tell the person.") });
             if (workflow != null)
             {
                 // Con un workflow i passaggi li fa lo schedulatore (W14): l'agente fa il suo passo e scrive alla persona.
                 _logger.LogWarning("[A2A/send] {From} -> {To} rifiutato: con il workflow gli agenti non instradano", claims.AgentName, to);
                 return StatusCode(403, new
                 {
-                    error = $"Il progetto ha un workflow («{workflow.Title}»): i passaggi tra agenti li fa MdExplorer, non gli agenti. " +
-                            "Non scrivere a un collega: fai il tuo passo e scrivi alla persona (toAgent = user). Chi viene dopo lo fa partire lo schedulatore.",
+                    error = UiText.Say(
+                        $"Il progetto ha un workflow («{workflow.Title}»): i passaggi tra agenti li fa MdExplorer, non gli agenti. " +
+                        "Non scrivere a un collega: fai il tuo passo e scrivi alla persona (toAgent = user). Chi viene dopo lo fa partire lo schedulatore.",
+                        $"The project has a workflow («{workflow.Title}»): MdExplorer hands work between agents, not the agents. " +
+                        "Do not write to a colleague: do your step and write to the person (toAgent = user). The scheduler starts whoever comes next."),
                 });
             }
 
@@ -297,7 +301,7 @@ namespace MdExplorer.Controllers.A2A
         {
             var claims = ResolveClaims();
             if (claims == null)
-                return Unauthorized(new { error = "RunToken assente o non valido." });
+                return Unauthorized(new { error = UiText.Say("RunToken assente o non valido.", "RunToken missing or invalid.") });
 
             var colleagues = _registry.RefreshCatalog(claims.ProjectPath)
                 .Where(e => _wakeGuard.CanBeWrittenTo(claims.ProjectPath, e))
@@ -330,24 +334,24 @@ namespace MdExplorer.Controllers.A2A
         {
             var claims = ResolveClaims();
             if (claims == null)
-                return Unauthorized(new { error = "RunToken assente o non valido." });
+                return Unauthorized(new { error = UiText.Say("RunToken assente o non valido.", "RunToken missing or invalid.") });
             if (request == null || string.IsNullOrWhiteSpace(request.Scope))
-                return BadRequest(new { error = "scope è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("scope è obbligatorio.", "scope is required.") });
             if (string.IsNullOrWhiteSpace(request.Message))
-                return BadRequest(new { error = "message è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("message è obbligatorio.", "message is required.") });
 
             // Ownership del progetto (richiede federazione attiva + doc valido).
             var entries = _ownership.GetActiveOwnership(claims.ProjectPath);
             if (entries == null)
-                return StatusCode(409, new { error = "Città non attiva o senza documento di ownership valido." });
+                return StatusCode(409, new { error = UiText.Say("Città non attiva o senza documento di ownership valido.", "City not active or without a valid ownership document.") });
 
             var entry = OwnershipResolver.Resolve(entries, request.Scope);
             if (entry == null)
-                return NotFound(new { error = $"Ambito '{request.Scope}' non presente nell'ownership del progetto." });
+                return NotFound(new { error = UiText.Say($"Ambito '{request.Scope}' non presente nell'ownership del progetto.", $"Scope '{request.Scope}' is not in the project ownership.") });
 
             var targetAgent = OwnershipResolver.PickAgent(entry, request.PreferredAgent);
             if (string.IsNullOrWhiteSpace(targetAgent))
-                return UnprocessableEntity(new { error = $"L'ambito '{entry.Scope}' non elenca alcun agente." });
+                return UnprocessableEntity(new { error = UiText.Say($"L'ambito '{entry.Scope}' non elenca alcun agente.", $"Scope '{entry.Scope}' lists no agents.") });
 
             var targetOwnerId = FederationRoom.ComputeUserId(entry.GitEmail);
 
@@ -380,7 +384,7 @@ namespace MdExplorer.Controllers.A2A
                     if (conv.Status == AgentConversation.StatusEnum.Killed)
                     {
                         _session.Commit();
-                        return StatusCode(409, new { error = "La conversazione è terminata (killed)." });
+                        return StatusCode(409, new { error = UiText.Say("La conversazione è terminata (killed).", "The conversation has ended (killed).") });
                     }
                     // La richiesta federata è un fan-out: conta 1 hop (non esente). Qui si VALUTA
                     // soltanto (l'incremento vero avviene dopo il send, con re-read fresco).
@@ -390,7 +394,7 @@ namespace MdExplorer.Controllers.A2A
                         conv.Status = AgentConversation.StatusEnum.Exhausted;
                         dal.Save(conv);
                         _session.Commit();
-                        return StatusCode(409, new { error = $"Limite hop raggiunto ({conv.HopLimit}): conversazione esaurita." });
+                        return StatusCode(409, new { error = UiText.Say($"Limite hop raggiunto ({conv.HopLimit}): conversazione esaurita.", $"Hop limit reached ({conv.HopLimit}): conversation exhausted.") });
                     }
                     fedId = conv.FederationId ?? fedId;
                 }
@@ -459,7 +463,7 @@ namespace MdExplorer.Controllers.A2A
 
             var sent = await _federationSender.SendFederatedRequestAsync(claims.ProjectPath, targetOwnerId, payload);
             if (sent == RelayDelivery.NotSent)
-                return StatusCode(503, new { error = "Nessuna connessione federata attiva per il progetto (città accesa e relay raggiungibile?)." });
+                return StatusCode(503, new { error = UiText.Say("Nessuna connessione federata attiva per il progetto (città accesa e relay raggiungibile?).", "No active federated connection for the project (is the city on and the relay reachable?).") });
 
             // Send riuscito: solo ora l'hop è consumato e la correlazione persistita. Ri-leggo la
             // conversazione FRESCA e incremento di 1 (delta), NON riscrivo il valore assoluto
@@ -591,26 +595,26 @@ namespace MdExplorer.Controllers.A2A
         {
             var claims = ResolveClaims();
             if (claims == null)
-                return Unauthorized(new { error = "RunToken assente o non valido." });
+                return Unauthorized(new { error = UiText.Say("RunToken assente o non valido.", "RunToken missing or invalid.") });
             if (request == null || string.IsNullOrWhiteSpace(request.Verdict))
-                return BadRequest(new { error = "verdict è obbligatorio." });
+                return BadRequest(new { error = UiText.Say("verdict è obbligatorio.", "verdict is required.") });
 
             if (!Guid.TryParse(claims.ConversationId, out var convId))
-                return UnprocessableEntity(new { error = "Il RunToken non porta una conversazione valida." });
+                return UnprocessableEntity(new { error = UiText.Say("Il RunToken non porta una conversazione valida.", "The RunToken does not carry a valid conversation.") });
 
             AgentConversation conv;
             _session.BeginTransaction();
             conv = _session.GetDal<AgentConversation>().GetList().FirstOrDefault(c => c.Id == convId);
             _session.Commit();
             if (conv == null)
-                return NotFound(new { error = "Conversazione non trovata." });
+                return NotFound(new { error = UiText.Say("Conversazione non trovata.", "Conversation not found.") });
 
             // Deve essere il lato DESTINAZIONE di una federazione: RemoteOwner (l'origine) e
             // RequestId (il ponte di 7a) sono le due precondizioni per correlare l'esito.
             if (string.IsNullOrWhiteSpace(conv.RemoteOwner))
-                return UnprocessableEntity(new { error = "La conversazione non è federata: nessun esito da riportare." });
+                return UnprocessableEntity(new { error = UiText.Say("La conversazione non è federata: nessun esito da riportare.", "The conversation is not federated: no outcome to report.") });
             if (!conv.RequestId.HasValue)
-                return UnprocessableEntity(new { error = "La conversazione federata non porta un RequestId: impossibile correlare l'esito all'origine." });
+                return UnprocessableEntity(new { error = UiText.Say("La conversazione federata non porta un RequestId: impossibile correlare l'esito all'origine.", "The federated conversation has no RequestId: the outcome cannot be matched to its origin.") });
 
             var targetOwnerId = FederationRoom.ComputeUserId(conv.RemoteOwner);
 
@@ -626,7 +630,7 @@ namespace MdExplorer.Controllers.A2A
 
             var sent = await _federationSender.SendFederatedResultAsync(claims.ProjectPath, targetOwnerId, payload);
             if (sent == RelayDelivery.NotSent)
-                return StatusCode(503, new { error = "Nessuna connessione federata attiva per il progetto (città accesa e relay raggiungibile?)." });
+                return StatusCode(503, new { error = UiText.Say("Nessuna connessione federata attiva per il progetto (città accesa e relay raggiungibile?).", "No active federated connection for the project (is the city on and the relay reachable?).") });
 
             _logger.LogInformation("[A2A/federation/result] {Agent} → esito '{Verdict}' per req {Req} verso {Owner}",
                 claims.AgentName, payload.Verdict, payload.RequestId, conv.RemoteOwner);

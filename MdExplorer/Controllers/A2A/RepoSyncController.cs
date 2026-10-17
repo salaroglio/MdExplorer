@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.A2A
 {
@@ -61,7 +62,7 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> FetchAll([FromBody] RepoRequest body)
         {
             if (string.IsNullOrWhiteSpace(body?.ProjectPath))
-                return BadRequest(new { error = "Nessun progetto indicato." });
+                return BadRequest(new { error = UiText.Say("Nessun progetto indicato.", "No project given.") });
             return Ok(await _sync.FetchAllAsync(body.ProjectPath));
         }
 
@@ -69,7 +70,7 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> Push([FromBody] RepoRequest body)
         {
             if (string.IsNullOrWhiteSpace(body?.ProjectPath))
-                return BadRequest(new { error = "Nessun progetto indicato." });
+                return BadRequest(new { error = UiText.Say("Nessun progetto indicato.", "No project given.") });
             return Reply(await _sync.PushAsync(body.ProjectPath, EmptyToNull(body.Agent), body.Repo), "pubblica", body.Repo);
         }
 
@@ -95,7 +96,7 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> Upstream([FromQuery] string projectPath, [FromQuery] bool fetch = false)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest(new { error = "Nessun progetto indicato." });
+                return BadRequest(new { error = UiText.Say("Nessun progetto indicato.", "No project given.") });
             return Ok(await _sync.UpstreamStatusAsync(projectPath, fetch));
         }
 
@@ -117,7 +118,7 @@ namespace MdExplorer.Controllers.A2A
         private async Task<IActionResult> OnDiskAsync(RepoRequest body, string what, Func<Task<RepoActionResult>> action)
         {
             if (string.IsNullOrWhiteSpace(body?.ProjectPath))
-                return BadRequest(new { error = "Nessun progetto indicato." });
+                return BadRequest(new { error = UiText.Say("Nessun progetto indicato.", "No project given.") });
 
             RepoActionResult result;
             SetFileSystemWatcherEnabled(false, body.ConnectionId);

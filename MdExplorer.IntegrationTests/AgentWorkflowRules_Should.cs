@@ -61,8 +61,8 @@ namespace MdExplorer.IntegrationTests
             var (status, body) = await ctx.SendAuthenticated(token, "legale", "[INCARICO] scrivi la scheda contrattuale");
 
             Assert.AreEqual(System.Net.HttpStatusCode.Forbidden, status, body);
-            StringAssert.Contains(body, "i passaggi tra agenti li fa MdExplorer", "W14: con un workflow gli agenti non instradano");
-            StringAssert.Contains(body, "scrivi alla persona", "l'agente sa che cosa può fare");
+            StringAssert.Contains(body, "MdExplorer hands work between agents", "W14: con un workflow gli agenti non instradano");
+            StringAssert.Contains(body, "write to the person", "l'agente sa che cosa può fare");
             Assert.IsFalse(ctx.Messages().Any(m => m.ToAgent == "legale"), "un passaggio non previsto non entra nemmeno in coda");
         }
 
@@ -84,9 +84,9 @@ namespace MdExplorer.IntegrationTests
             svc.Reject(second.Id, "ancora senza RPO");
 
             Assert.AreEqual(0, svc.ReworksLeft(svc.Get(second.Id), out var why));
-            StringAssert.Contains(why, "già stato rifatto 1 volta");
+            StringAssert.Contains(why, "has already been redone 1 time");
             var ex = Assert.ThrowsException<InvalidOperationException>(() => svc.Rework(second.Id));
-            StringAssert.Contains(ex.Message, "è il massimo che il workflow dà al ciclo");
+            StringAssert.Contains(ex.Message, "the most the workflow allows for the loop");
             Assert.AreEqual(AgentMessage.StateEnum.Processed, ReadMessage(ctx, assignment).State, "oltre il massimo il lavoro resta fermo");
         }
 

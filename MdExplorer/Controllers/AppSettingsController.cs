@@ -181,6 +181,9 @@ namespace MdExplorer.Service.Controllers
                 _session.Rollback();
                 throw;
             }
+            // Il servizio la tiene in memoria (UserSettingsUiLanguage): da qui i suoi testi cambiano lingua.
+            Microsoft.Extensions.DependencyInjection.ServiceProviderServiceExtensions
+                .GetRequiredService<MdExplorer.Services.UserSettingsUiLanguage>(HttpContext.RequestServices).Remember(lang);
             _logger.LogInformation("[SetLanguage] lingua = {Lang}", lang);
             return Ok(new { language = lang });
         }

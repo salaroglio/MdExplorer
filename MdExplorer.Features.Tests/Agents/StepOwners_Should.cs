@@ -110,7 +110,7 @@ namespace MdExplorer.Features.Tests.Agents
             var owner = Owner(Round(Launched, Pressed("paolo@x.it")), "sviluppa");
             Assert.IsNull(owner.Email);
             Assert.IsFalse(owner.NeedsChoice);
-            StringAssert.Contains(owner.Problem, "paolo@x.it, che non risponde più dell'agente 'sviluppatore'");
+            StringAssert.Contains(owner.Problem, "paolo@x.it, who is no longer an owner of agent 'sviluppatore'");
             CollectionAssert.AreEquivalent(new[] { "mario@x.it", "lucia@x.it" }, owner.CanTake.ToList(), "lo prende uno del team: «Prendo io»");
         }
 

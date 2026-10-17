@@ -1,4 +1,5 @@
 using System;
+using MdExplorer.Features.Services;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -51,20 +52,29 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
                 if (team.Count == 1) return new StepOwner { Email = team[0].ToLowerInvariant() };
                 return new StepOwner
                 {
-                    Problem = $"«{step.Label}» è di {chosen}, che non risponde più dell'agente '{step.Agent}' " +
-                              $"({(team.Count == 0 ? "non ne risponde nessuno" : "ne rispondono " + string.Join(", ", team))}): " +
-                              (team.Count == 0 ? "va corretto il documento delle responsabilità." : "uno di loro lo prende con «Prendo io»."),
+                    Problem = UiText.Say(
+                        $"«{step.Label}» è di {chosen}, che non risponde più dell'agente '{step.Agent}' " +
+                        $"({(team.Count == 0 ? "non ne risponde nessuno" : "ne rispondono " + string.Join(", ", team))}): " +
+                        (team.Count == 0 ? "va corretto il documento delle responsabilità." : "uno di loro lo prende con «Prendo io»."),
+                        $"«{step.Label}» belongs to {chosen}, who is no longer an owner of agent '{step.Agent}' " +
+                        $"({(team.Count == 0 ? "it has no owner" : "owners: " + string.Join(", ", team))}): " +
+                        (team.Count == 0 ? "the responsibilities document must be fixed." : "one of them takes it with «I'll take it».")),
                     CanTake = team.Select(e => e.ToLowerInvariant()).ToList(),
                 };
             }
             if (team.Count == 1) return new StepOwner { Email = team[0].ToLowerInvariant() };
             if (team.Count == 0)
-                return new StepOwner { Problem = $"«{step.Label}»: l'agente '{step.Agent}' non ha un responsabile nel documento delle responsabilità." };
+                return new StepOwner { Problem = UiText.Say(
+                    $"«{step.Label}»: l'agente '{step.Agent}' non ha un responsabile nel documento delle responsabilità.",
+                    $"«{step.Label}»: agent '{step.Agent}' has no owner in the responsibilities document.") };
             return new StepOwner
             {
                 NeedsChoice = true,
-                Problem = $"«{step.Label}»: l'agente '{step.Agent}' ha più responsabili ({string.Join(", ", team)}) e nessuno ha scelto a chi va. " +
-                          "Lo sceglie chi fa partire il passo; se parte da solo, l'autore del workflow lo deve far venire da un passo dello stesso agente.",
+                Problem = UiText.Say(
+                    $"«{step.Label}»: l'agente '{step.Agent}' ha più responsabili ({string.Join(", ", team)}) e nessuno ha scelto a chi va. " +
+                    "Lo sceglie chi fa partire il passo; se parte da solo, l'autore del workflow lo deve far venire da un passo dello stesso agente.",
+                    $"«{step.Label}»: agent '{step.Agent}' has more than one owner ({string.Join(", ", team)}) and no one has chosen who gets it. " +
+                    "Whoever starts the step chooses; if it starts by itself, the workflow author must make it follow a step of the same agent."),
             };
         }
 

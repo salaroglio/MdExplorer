@@ -32,8 +32,9 @@ namespace MdExplorer.Services.AgentRun
             {
                 if (projectEngine == MarkAgentEngine.None)
                 {
-                    error = "Il progetto non ha un motore di MarkAgent e l'agente non ne dichiara uno: scegli il motore nel tab " +
-                            "MarkAgent, oppure scrivi 'runtime: provider: claude | copilot | opencode' nella scheda dell'agente.";
+                    error = MdExplorer.Features.Services.UiText.Say("Il progetto non ha un motore di MarkAgent e l'agente non ne dichiara uno: scegli il motore nel tab " +
+                            "MarkAgent, oppure scrivi 'runtime: provider: claude | copilot | opencode' nella scheda dell'agente.", "The project has no MarkAgent engine and the agent does not declare one: choose the engine in the MarkAgent " +
+                            "tab, or write 'runtime: provider: claude | copilot | opencode' in the agent's card.");
                     return null;
                 }
                 return new AgentEngineChoice(projectEngine, model ?? projectModel, true);
@@ -41,7 +42,7 @@ namespace MdExplorer.Services.AgentRun
 
             if (!TryParseProvider(requestedProvider, out var engine))
             {
-                error = $"Motore '{requestedProvider.Trim()}' sconosciuto: i valori ammessi sono claude, copilot, opencode, default.";
+                error = MdExplorer.Features.Services.UiText.Say($"Motore '{requestedProvider.Trim()}' sconosciuto: i valori ammessi sono claude, copilot, opencode, default.", $"Unknown engine '{requestedProvider.Trim()}': allowed values are claude, copilot, opencode, default.");
                 return null;
             }
             var fromProject = engine == projectEngine;

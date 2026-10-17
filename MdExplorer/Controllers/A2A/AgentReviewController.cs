@@ -8,6 +8,7 @@ using MdExplorer.Services.AgentRun;
 using MdExplorer.Utilities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.A2A
 {
@@ -50,7 +51,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult Pending([FromQuery] string projectPath)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio" });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio", "projectPath is required") });
 
             // Da decidere, più i lavori rifiutati che qualcuno aspetta: sono fermi, e a farli ripartire è la persona.
             var list = _requests.Pending(projectPath).Concat(_requests.Stopped(projectPath)).Select(r => ToDto(r)).ToList();
@@ -66,7 +67,7 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> Artifacts([FromBody] ArtifactsRequest body)
         {
             if (string.IsNullOrWhiteSpace(body?.ProjectPath))
-                return BadRequest(new { error = "projectPath è obbligatorio" });
+                return BadRequest(new { error = UiText.Say("projectPath è obbligatorio", "projectPath is required") });
 
             var pending = _requests.Pending(body.ProjectPath)
                 .Select(r => new { Request = r, Files = _requests.FilesOf(r) })
@@ -131,7 +132,7 @@ namespace MdExplorer.Controllers.A2A
             {
                 var request = _requests.Get(id);
                 if (request == null)
-                    return UnprocessableEntity(new { error = $"Richiesta di merge {id} inesistente." });
+                    return UnprocessableEntity(new { error = UiText.Say($"Richiesta di merge {id} inesistente.", $"Merge request {id} does not exist.") });
 
                 var candidates = _notifier.CandidatesFor(request.ProjectPath, request.AgentName);
                 string recipient = null;
@@ -145,7 +146,7 @@ namespace MdExplorer.Controllers.A2A
                         if (chosen == null)
                             return UnprocessableEntity(new
                             {
-                                error = $"'{body.Notify}' non è tra i destinatari di '{request.AgentName}'.",
+                                error = UiText.Say($"'{body.Notify}' non è tra i destinatari di '{request.AgentName}'.", $"'{body.Notify}' is not among the recipients of '{request.AgentName}'."),
                                 code = "recipient-unknown",
                                 candidates = candidates.Select(ToCandidateDto).ToList(),
                             });
@@ -169,7 +170,8 @@ namespace MdExplorer.Controllers.A2A
                         {
                             error = candidates.Count == 1
                                 ? candidates[0].Reason
-                                : $"'{request.AgentName}' può passare il lavoro a più colleghi: scegli a chi, o approva senza avvisare nessuno.",
+                                : UiText.Say($"'{request.AgentName}' può passare il lavoro a più colleghi: scegli a chi, o approva senza avvisare nessuno.",
+                                    $"'{request.AgentName}' can hand the work to several colleagues: choose who, or approve without notifying anyone."),
                             code = "choose-recipient",
                             needsChoice = true,
                             candidates = candidates.Select(ToCandidateDto).ToList(),
@@ -224,7 +226,7 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> Take(Guid id)
         {
             var r = _requests.Get(id);
-            if (r == null) return NotFound(new { error = "Richiesta inesistente." });
+            if (r == null) return NotFound(new { error = UiText.Say("Richiesta inesistente.", "Request does not exist.") });
 
             // I posti di lavoro sono pochi e si riciclano: quello dove l'agente ha prodotto
             // questo lavoro può essere già passato a un altro. Il lavoro però è un branch, quindi
@@ -270,7 +272,7 @@ namespace MdExplorer.Controllers.A2A
         public IActionResult Release(Guid id, [FromQuery] bool discard = false)
         {
             var r = _requests.Get(id);
-            if (r == null) return NotFound(new { error = "Richiesta inesistente." });
+            if (r == null) return NotFound(new { error = UiText.Say("Richiesta inesistente.", "Request does not exist.") });
 
             var result = _sessions.Close(r.ProjectPath, r.AgentName, discard);
             return Ok(new { result.Closed, result.Requeued, result.Message });

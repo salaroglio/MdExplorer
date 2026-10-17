@@ -4,6 +4,7 @@ using MdExplorer.Services.AgentRun;
 using MdExplorer.Services.Git;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.A2A
 {
@@ -40,7 +41,7 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> PushAll([FromBody] PushAllRequest body)
         {
             if (body == null || string.IsNullOrWhiteSpace(body.ProjectPath))
-                return BadRequest(new { error = "Nessun progetto indicato." });
+                return BadRequest(new { error = UiText.Say("Nessun progetto indicato.", "No project given.") });
 
             var result = await _push.PushEverythingAsync(body.ProjectPath, EmptyToNull(body.Agent));
 
@@ -100,7 +101,7 @@ namespace MdExplorer.Controllers.A2A
         public async Task<IActionResult> Discard([FromBody] DiscardRequest body)
         {
             if (body == null || string.IsNullOrWhiteSpace(body.Path))
-                return BadRequest(new { error = "Percorso mancante." });
+                return BadRequest(new { error = UiText.Say("Percorso mancante.", "Path missing.") });
             try
             {
                 var what = await _changes.DiscardAsync(

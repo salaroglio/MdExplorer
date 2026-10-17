@@ -633,7 +633,7 @@ namespace MdExplorer.Services.AgentRun
                 : new[] { "diff", "-M", "--" }.Concat(paths).ToArray();
             var res = await _git.RunAsync(dir, args, ct);
             if (!res.Ok && string.IsNullOrEmpty(res.Stdout))
-                throw new InvalidOperationException($"Differenza non calcolabile per '{relativePath}': {res.Describe()}");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Differenza non calcolabile per '{relativePath}': {res.Describe()}", $"Cannot compute the diff for '{relativePath}': {res.Describe()}"));
             return res.Stdout ?? string.Empty;
         }
 
@@ -658,7 +658,7 @@ namespace MdExplorer.Services.AgentRun
             var source = await ResolveBaseRefAsync(dir, ct) ?? "HEAD";
             var res = await _git.RunAsync(dir, new[] { "checkout", source, "--", safe }, ct);
             if (!res.Ok)
-                throw new InvalidOperationException($"Ripristino di '{relativePath}' fallito: {res.Describe()}");
+                throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"Ripristino di '{relativePath}' fallito: {res.Describe()}", $"Restoring '{relativePath}' failed: {res.Describe()}"));
             return "ripristinato da " + source;
         }
 
@@ -750,11 +750,11 @@ namespace MdExplorer.Services.AgentRun
             var safe = SafeRelative(root, repoPath);
             var dir = Path.Combine(root, safe.Replace('/', Path.DirectorySeparatorChar));
             if (!Directory.Exists(dir))
-                throw new ArgumentException($"Il repository '{repoPath}' non esiste sul disco.", nameof(repoPath));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say($"Il repository '{repoPath}' non esiste sul disco.", $"Repository '{repoPath}' does not exist on disk."), nameof(repoPath));
 
             var probe = await _git.RunAsync(dir, new[] { "rev-parse", "--is-inside-work-tree" }, ct);
             if (!probe.Ok)
-                throw new ArgumentException($"'{repoPath}' non è un repository git.", nameof(repoPath));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say($"'{repoPath}' non è un repository git.", $"'{repoPath}' is not a git repository."), nameof(repoPath));
 
             return dir;
         }
@@ -1062,7 +1062,7 @@ namespace MdExplorer.Services.AgentRun
         private static string SafeRelative(string root, string relativePath)
         {
             if (string.IsNullOrWhiteSpace(relativePath))
-                throw new ArgumentException("Percorso mancante.", nameof(relativePath));
+                throw new ArgumentException(MdExplorer.Features.Services.UiText.Say("Percorso mancante.", "Path missing."), nameof(relativePath));
 
             var normalized = relativePath.Replace('\\', '/').TrimStart('/');
             var full = Path.GetFullPath(Path.Combine(root, normalized));

@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Features.Agents.Workflow.Scheduler
 {
@@ -43,7 +44,7 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         public static string RoundFolder(string projectRoot, string roundId)
         {
             if (string.IsNullOrWhiteSpace(roundId) || !RoundId.IsMatch(roundId))
-                throw new ArgumentException($"'{roundId}' non è l'id di un giro (minuscole, cifre e trattini).");
+                throw new ArgumentException(UiText.Say($"'{roundId}' non è l'id di un giro (minuscole, cifre e trattini).", $"'{roundId}' is not a round id (lowercase letters, digits and hyphens)."));
             return Path.Combine(projectRoot, Folder.Replace('/', Path.DirectorySeparatorChar), roundId);
         }
 
@@ -68,7 +69,7 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             var folder = RoundFolder(projectRoot, header.Id);
             var file = Path.Combine(folder, HeaderFile);
             if (File.Exists(file))
-                throw new InvalidOperationException($"Il giro '{header.Id}' esiste già.");
+                throw new InvalidOperationException(UiText.Say($"Il giro '{header.Id}' esiste già.", $"The round '{header.Id}' already exists."));
             Directory.CreateDirectory(folder);
             WriteAtomically(file, JsonSerializer.Serialize(header, Strict));
             return header;
@@ -79,7 +80,7 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         {
             var folder = RoundFolder(projectRoot, roundId);
             if (!File.Exists(Path.Combine(folder, HeaderFile)))
-                throw new InvalidOperationException($"Il giro '{roundId}' non esiste: va aperto prima di salvarne il workflow.");
+                throw new InvalidOperationException(UiText.Say($"Il giro '{roundId}' non esiste: va aperto prima di salvarne il workflow.", $"The round '{roundId}' does not exist: it must be opened before saving its workflow."));
             var file = Path.Combine(folder, WorkflowSnapshotFile);
             if (File.Exists(file)) return;
             // Il testo esatto, senza l'a capo che gli altri file del registro aggiungono: è una copia, non un file nostro.
@@ -103,12 +104,12 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         {
             if (evt == null) throw new ArgumentNullException(nameof(evt));
             if (!RoundEventType.All.Contains(evt.Type))
-                throw new ArgumentException($"'{evt.Type}' non è un evento di un passo.");
+                throw new ArgumentException(UiText.Say($"'{evt.Type}' non è un evento di un passo.", $"'{evt.Type}' is not a step event."));
             var folder = RoundFolder(projectRoot, roundId);
             if (!File.Exists(Path.Combine(folder, HeaderFile)))
-                throw new InvalidOperationException($"Il giro '{roundId}' non esiste: va aperto prima di scriverci.");
+                throw new InvalidOperationException(UiText.Say($"Il giro '{roundId}' non esiste: va aperto prima di scriverci.", $"The round '{roundId}' does not exist: it must be opened before writing to it."));
             if (string.IsNullOrWhiteSpace(stepId) || !RoundId.IsMatch(stepId) || stepId + ".json" == HeaderFile)
-                throw new ArgumentException($"'{stepId}' non è l'id di un passo.");
+                throw new ArgumentException(UiText.Say($"'{stepId}' non è l'id di un passo.", $"'{stepId}' is not a step id."));
 
             var file = Path.Combine(folder, stepId + ".json");
             var record = File.Exists(file) ? ReadStep(file) : new StepRecord { Step = stepId, Agent = agent };
@@ -123,17 +124,17 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             var folder = RoundFolder(projectRoot, roundId);
             var headerFile = Path.Combine(folder, HeaderFile);
             if (!File.Exists(headerFile))
-                throw new InvalidOperationException($"Il giro '{roundId}' non esiste ({Relative(projectRoot, headerFile)}).");
+                throw new InvalidOperationException(UiText.Say($"Il giro '{roundId}' non esiste ({Relative(projectRoot, headerFile)}).", $"The round '{roundId}' does not exist ({Relative(projectRoot, headerFile)})."));
 
             var state = new RoundState { Header = Read<RoundHeader>(headerFile) };
             if (state.Header.Id != roundId)
-                throw new InvalidDataException($"{Relative(projectRoot, headerFile)}: l'id dentro ('{state.Header.Id}') non è quello della cartella ('{roundId}').");
+                throw new InvalidDataException(UiText.Say($"{Relative(projectRoot, headerFile)}: l'id dentro ('{state.Header.Id}') non è quello della cartella ('{roundId}').", $"{Relative(projectRoot, headerFile)}: the id inside ('{state.Header.Id}') is not the folder's ('{roundId}')."));
             foreach (var file in Directory.EnumerateFiles(folder, "*.json").Where(f => Path.GetFileName(f) != HeaderFile).OrderBy(f => f, StringComparer.Ordinal))
             {
                 var record = ReadStep(file);
                 var expected = Path.GetFileNameWithoutExtension(file);
                 if (record.Step != expected)
-                    throw new InvalidDataException($"{Relative(projectRoot, file)}: il passo dentro ('{record.Step}') non è quello del nome del file.");
+                    throw new InvalidDataException(UiText.Say($"{Relative(projectRoot, file)}: il passo dentro ('{record.Step}') non è quello del nome del file.", $"{Relative(projectRoot, file)}: the step inside ('{record.Step}') is not the one in the file name."));
                 state.Steps[record.Step] = record;
             }
             return state;
@@ -157,7 +158,7 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             var record = Read<StepRecord>(file);
             var unknown = record.Events?.FirstOrDefault(e => !RoundEventType.All.Contains(e?.Type));
             if (unknown != null)
-                throw new InvalidDataException($"{file}: '{unknown.Type}' non è un evento di un passo.");
+                throw new InvalidDataException(UiText.Say($"{file}: '{unknown.Type}' non è un evento di un passo.", $"{file}: '{unknown.Type}' is not a step event."));
             record.Events ??= new List<RoundEvent>();
             return record;
         }
@@ -167,11 +168,11 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
             try
             {
                 return JsonSerializer.Deserialize<T>(File.ReadAllText(file), Strict)
-                       ?? throw new InvalidDataException($"{file}: è vuoto.");
+                       ?? throw new InvalidDataException(UiText.Say($"{file}: è vuoto.", $"{file}: is empty."));
             }
             catch (JsonException ex)
             {
-                throw new InvalidDataException($"{file}: non si legge ({ex.Message}).", ex);
+                throw new InvalidDataException(UiText.Say($"{file}: non si legge ({ex.Message}).", $"{file}: cannot be read ({ex.Message})."), ex);
             }
         }
 

@@ -123,7 +123,7 @@ namespace MdExplorer.IntegrationTests
 
             var (unchosen, why) = await Press(ctx, conversation, null);
             Assert.AreEqual(System.Net.HttpStatusCode.UnprocessableEntity, unchosen, "con un team non si indovina");
-            StringAssert.Contains(why, "scegli a chi va");
+            StringAssert.Contains(why, "choose who gets it");
 
             var (status, body) = await Press(ctx, conversation, Marco);
             Assert.AreEqual(System.Net.HttpStatusCode.OK, status, body);

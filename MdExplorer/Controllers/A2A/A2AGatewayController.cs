@@ -12,6 +12,7 @@ using MdExplorer.Services.AgentRegistry;
 using MdExplorer.Services.AgentRun;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using MdExplorer.Features.Services;
 
 namespace MdExplorer.Controllers.A2A
 {
@@ -53,25 +54,25 @@ namespace MdExplorer.Controllers.A2A
                 : null;
 
             if (method != "message/send")
-                return JsonRpc(idNode, error: (-32601, $"Metodo '{method}' non supportato (solo 'message/send')."));
+                return JsonRpc(idNode, error: (-32601, UiText.Say($"Metodo '{method}' non supportato (solo 'message/send').", $"Method '{method}' not supported (only 'message/send').")));
             if (!body.TryGetProperty("params", out var paramsEl) || paramsEl.ValueKind != JsonValueKind.Object)
-                return JsonRpc(idNode, error: (-32602, "params mancante o non valido."));
+                return JsonRpc(idNode, error: (-32602, UiText.Say("params mancante o non valido.", "params missing or invalid.")));
 
             // --- risoluzione progetto (projectKey = Guid del Project) ---
             if (!Guid.TryParse(projectKey, out var pk))
-                return JsonRpc(idNode, error: (-32602, "projectKey non è un Guid valido."));
+                return JsonRpc(idNode, error: (-32602, UiText.Say("projectKey non è un Guid valido.", "projectKey is not a valid Guid.")));
             var projectPath = ResolveProjectPath(pk);
             if (projectPath == null)
-                return JsonRpc(idNode, error: (-32001, $"Progetto {projectKey} non trovato."));
+                return JsonRpc(idNode, error: (-32001, UiText.Say($"Progetto {projectKey} non trovato.", $"Project {projectKey} not found.")));
 
             // --- ri-validazione del destinatario dalle fonti (§7): cittadino, trusted ---
             var catalog = _registry.RefreshCatalog(projectPath);
             var entry = catalog
                 .FirstOrDefault(e => e.IsCitizen && string.Equals(e.Name, agentName, StringComparison.OrdinalIgnoreCase));
             if (entry == null)
-                return JsonRpc(idNode, error: (-32001, $"Agente '{agentName}' non trovato o non cittadino."));
+                return JsonRpc(idNode, error: (-32001, UiText.Say($"Agente '{agentName}' non trovato o non cittadino.", $"Agent '{agentName}' not found or not a citizen.")));
             if (!entry.Trusted)
-                return JsonRpc(idNode, error: (-32002, $"Agente '{agentName}' non è trusted: conferma il trust prima di inviargli messaggi."));
+                return JsonRpc(idNode, error: (-32002, UiText.Say($"Agente '{agentName}' non è trusted: conferma il trust prima di inviargli messaggi.", $"Agent '{agentName}' is not trusted: confirm trust before sending it messages.")));
             // Da Fase 3 step 4b il dispatcher sveglia anche gli agenti LLM: nessuna restrizione di Kind qui.
 
             // --- estrazione messaggio + contesto ---
@@ -87,12 +88,12 @@ namespace MdExplorer.Controllers.A2A
             // Un nome di cittadino non è spendibile qui: i cittadini si parlano sul canale
             // autenticato (RunToken, tool SendAgentMessage), dove il mittente è certificato.
             if (catalog.Any(e => e.IsCitizen && string.Equals(e.Name, fromAgent, StringComparison.OrdinalIgnoreCase)))
-                return JsonRpc(idNode, error: (-32005, $"fromAgent '{fromAgent}' è un cittadino del progetto: i messaggi tra cittadini passano dal canale autenticato (tool SendAgentMessage), non dal gateway."));
+                return JsonRpc(idNode, error: (-32005, UiText.Say($"fromAgent '{fromAgent}' è un cittadino del progetto: i messaggi tra cittadini passano dal canale autenticato (tool SendAgentMessage), non dal gateway.", $"fromAgent '{fromAgent}' is a citizen of the project: messages between citizens go through the authenticated channel (tool SendAgentMessage), not the gateway.")));
 
             // Filtro fine del destinatario (§6) fail-fast; il backstop autoritativo è nel
             // dispatcher alla consegna, comune a ogni percorso di accodamento.
             if (!MdExplorer.Features.Agents.MessageAuthorization.IsSenderAccepted(entry.AcceptsMessagesFrom, fromAgent))
-                return JsonRpc(idNode, error: (-32003, $"'{fromAgent}' non è tra i mittenti accettati da '{agentName}' (accepts_messages_from)."));
+                return JsonRpc(idNode, error: (-32003, UiText.Say($"'{fromAgent}' non è tra i mittenti accettati da '{agentName}' (accepts_messages_from).", $"'{fromAgent}' is not among the senders accepted by '{agentName}' (accepts_messages_from).")));
 
             // --- ACCODAMENTO nella mailbox (§8) ---
             var enqueue = _mailbox.Enqueue(new EnqueueRequest
