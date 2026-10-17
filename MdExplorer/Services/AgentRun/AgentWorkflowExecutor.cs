@@ -320,12 +320,8 @@ namespace MdExplorer.Services.AgentRun
             if (until?.Max != null && view.RejectionsInRound > until.Max.Value)
                 throw new InvalidOperationException(MdExplorer.Features.Services.UiText.Say($"«{step.Label}» è già stato rifatto {until.Max} {(until.Max == 1 ? "volta" : "volte")}: è il massimo che il workflow dà al ciclo «{until.Id}». Il lavoro resta fermo.", $"«{step.Label}» has already been redone {until.Max} {(until.Max == 1 ? "time" : "times")}: that is the most the workflow allows for the loop «{until.Id}». The work stays stopped."));
 
-            var action = new SchedulerAction
-            {
-                Kind = SchedulerActionKind.Start, Step = step, Round = view.Round, Attempt = view.Attempt + 1,
-                Brief = ResolveBrief(step, round.Variables), ReworkNote = request.Note,
-                Inputs = Array.Empty<string>(),
-            };
+            // Lo stesso incarico, con gli stessi ingressi risolti: prima ripartiva senza i file da cui il passo parte.
+            var action = WorkflowScheduler.Rework(wf, round, step, request.Note);
             Locked(request.ProjectPath, () => Execute(request.ProjectPath, link.RoundId, action, startedBy: Me(request.ProjectPath), resumed: false));
             return true;
         }
@@ -826,8 +822,7 @@ namespace MdExplorer.Services.AgentRun
                 ProjectPath = projectPath,
                 FromAgent = ConversationHopGuard.UserRecipient,
                 ToAgent = step.Agent,
-                Body = MdExplorer.Features.Agents.AgentTexts.Assignment(_language.Current, action.Brief, roundId, action.Step.Label,
-                    action.Round, action.Attempt, action.Inputs),
+                Body = MdExplorer.Features.Agents.AgentTexts.Assignment(_language.Current, action, roundId),
                 TriggerSource = "workflow",
                 AwaitOwner = hold,
                 ReworkNote = action.ReworkNote,
@@ -862,13 +857,6 @@ namespace MdExplorer.Services.AgentRun
                     step = step.Label, projectPath,
                 });
         }
-
-        /// <summary>Il testo che l'agente riceve: l'incarico del workflow, dove si trova, i file da cui parte.</summary>
-
-        private static string ResolveBrief(WorkflowStep step, IReadOnlyDictionary<string, string> variables)
-            => step.Brief == null ? null
-               : System.Text.RegularExpressions.Regex.Replace(step.Brief, @"\{([^{}\s]+)\}",
-                   m => variables.TryGetValue(m.Groups[1].Value, out var v) ? v : m.Value);
 
         // ---- registro e git ----
 

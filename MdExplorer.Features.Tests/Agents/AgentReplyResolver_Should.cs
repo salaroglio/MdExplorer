@@ -148,10 +148,17 @@ namespace MdExplorer.Features.Tests.Agents
         [TestMethod]
         public void Write_the_assignment_in_the_language_of_the_interface()
         {
-            var it = AgentTexts.Assignment("it", "Scrivi la scheda.", "g1", "Scheda tecnica", 2, 3, new[] { "a.md" });
-            Assert.AreEqual("[INCARICO] Scrivi la scheda.\n\nGiro g1, passo «Scheda tecnica», giro 2, tentativo 3.\nFile da cui parti (approvati):\n- a.md", it);
-            var en = AgentTexts.Assignment("en", "Write the sheet.", "g1", "Technical sheet", 1, 1, System.Array.Empty<string>());
-            Assert.AreEqual("[ASSIGNMENT] Write the sheet.\n\nRound g1, step «Technical sheet».", en);
+            var action = new MdExplorer.Features.Agents.Workflow.Scheduler.SchedulerAction
+            {
+                Step = new MdExplorer.Features.Agents.Workflow.WorkflowStep { Id = "tecnica", Title = "Scheda tecnica" },
+                Round = 2, Attempt = 3, Skill = "scheda-tecnica", SkillDescription = "Scrive la scheda.", Brief = "Breve.",
+            };
+            Assert.AreEqual("[INCARICO] Lavoro «scheda-tecnica» della tua scheda: Scrive la scheda.\n\nIndicazioni del workflow: Breve.\n\nGiro g1, passo «Scheda tecnica», giro 2, tentativo 3.",
+                AgentTexts.Assignment("it", action, "g1"));
+            action.Round = action.Attempt = 1;
+            action.Brief = null;
+            Assert.AreEqual("[ASSIGNMENT] Job «scheda-tecnica» of your card: Scrive la scheda.\n\nRound g1, step «Scheda tecnica».",
+                AgentTexts.Assignment("en", action, "g1"));
         }
     }
 }

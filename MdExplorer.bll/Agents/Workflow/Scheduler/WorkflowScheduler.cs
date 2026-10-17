@@ -44,6 +44,32 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         public RoundEvent Last { get; set; }
         /// <summary>I file consegnati nell'ultimo giro approvato: gli ingressi dei passi che vengono dopo.</summary>
         public IReadOnlyList<string> ApprovedFiles { get; set; } = Array.Empty<string>();
+        /// <summary>Il commit approvato di quella consegna (M1): la versione che la persona ha visto. Null se il registro non l'ha.</summary>
+        public string ApprovedCommit { get; set; }
+    }
+
+    /// <summary>Un ingresso dell'incarico, risolto per il giro: un testo, oppure i file approvati di altri passi.</summary>
+    public class AssignmentInput
+    {
+        /// <summary>L'id dell'ingresso nella skill.</summary>
+        public string Id { get; set; }
+        /// <summary>Che cos'è, dalla scheda.</summary>
+        public string Description { get; set; }
+        /// <summary>Il testo con le variabili del giro sostituite; null se l'ingresso riceve file.</summary>
+        public string Text { get; set; }
+        public List<AssignmentFile> Files { get; } = new();
+    }
+
+    /// <summary>Un file che un ingresso riceve: l'uscita approvata di un passo, nella versione approvata.</summary>
+    public class AssignmentFile
+    {
+        public string Path { get; set; }
+        /// <summary>Il passo che l'ha consegnato, e la sua uscita.</summary>
+        public string Step { get; set; }
+        public string StepLabel { get; set; }
+        public string Output { get; set; }
+        /// <summary>Il commit approvato; null se il registro non l'ha (giri di prima di M1).</summary>
+        public string Commit { get; set; }
     }
 
     public enum SchedulerActionKind
@@ -63,10 +89,15 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         public WorkflowStep Step { get; set; }
         public int Round { get; set; } = 1;
         public int Attempt { get; set; } = 1;
-        /// <summary>Il brief con le variabili sostituite.</summary>
+        /// <summary>Il lavoro della scheda che il passo fa, e che cosa fa (dalla scheda).</summary>
+        public string Skill { get; set; }
+        public string SkillDescription { get; set; }
+        /// <summary>Il brief con le variabili sostituite: ciò che il workflow aggiunge al lavoro. Null se non c'è.</summary>
         public string Brief { get; set; }
-        /// <summary>I file dei passi da cui questo dipende (approvati), dalla radice del progetto.</summary>
-        public IReadOnlyList<string> Inputs { get; set; } = Array.Empty<string>();
+        /// <summary>Gli ingressi del lavoro, nell'ordine della scheda, risolti per il giro.</summary>
+        public IReadOnlyList<AssignmentInput> Inputs { get; set; } = Array.Empty<AssignmentInput>();
+        /// <summary>Le uscite che il lavoro consegna, dalla scheda.</summary>
+        public IReadOnlyList<WorkflowOutput> Outputs { get; set; } = Array.Empty<WorkflowOutput>();
         /// <summary>Per un rifacimento: il motivo del rifiuto, che l'agente riceve.</summary>
         public string ReworkNote { get; set; }
         /// <summary><see cref="SchedulerActionKind.Blocked"/>: perché.</summary>
@@ -108,6 +139,9 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
                                                          && events.Any(a => a.Type == RoundEventType.Approved && a.Round == e.Round && a.Attempt == e.Attempt))
                                              .LastOrDefault();
             view.ApprovedFiles = lastApprovedDelivery?.Files?.ToList() ?? (IReadOnlyList<string>)Array.Empty<string>();
+            view.ApprovedCommit = lastApprovedDelivery == null ? null
+                : events.LastOrDefault(a => a.Type == RoundEventType.Approved && a.Round == lastApprovedDelivery.Round
+                                            && a.Attempt == lastApprovedDelivery.Attempt)?.Commit ?? lastApprovedDelivery.Commit;
 
             view.Status = last.Type switch
             {
@@ -287,51 +321,133 @@ namespace MdExplorer.Features.Agents.Workflow.Scheduler
         }
 
         /// <summary>
-        /// Avviare un passo: il brief con le variabili e gli ingressi. Se manca una variabile (del brief o di un ingresso) il passo non parte e si dice
-        /// quale: un agente che riceve «{codice}» tra parentesi lavorerebbe sul niente.
+        /// Un passo rifiutato che la persona fa ripartire: lo stesso incarico, al tentativo dopo, con il motivo del rifiuto.
+        /// Se non si può comporre (un ingresso non c'è più) si dice perché invece di partire sul niente.
+        /// </summary>
+        public static SchedulerAction Rework(WorkflowDescriptor wf, RoundState round, WorkflowStep step, string note)
+        {
+            var views = Views(wf, round);
+            var v = views[step.Id];
+            var action = Begin(wf, step, views, round.Variables, v.Round, v.Attempt + 1, note);
+            if (action.Kind == SchedulerActionKind.Blocked) throw new InvalidOperationException(action.Reason);
+            action.Kind = SchedulerActionKind.Start;   // chi preme «Fai ripartire» l'ha già avviato
+            return action;
+        }
+
+        /// <summary>
+        /// Avviare un passo: l'incarico composto da MDE (sprint workflow v3, F3) — il lavoro della scheda, i suoi ingressi
+        /// risolti (testi con le variabili del giro, file approvati dei passi da cui vengono con il loro commit), le uscite
+        /// attese e il brief in aggiunta. Se manca una variabile o un file il passo non parte e si dice perché: un agente che
+        /// riceve «{codice}» tra parentesi, o un ingresso vuoto, lavorerebbe sul niente.
         /// </summary>
         private static SchedulerAction Begin(WorkflowDescriptor wf, WorkflowStep step, IReadOnlyDictionary<string, StepView> views,
             IReadOnlyDictionary<string, string> variables, int round, int attempt, string reworkNote)
         {
+            var skill = SkillOf(wf, step);
             var missing = new List<string>();
-            var brief = step.Brief == null ? null : Placeholder.Replace(step.Brief, m =>
+            string Fill(string text) => text == null ? null : Placeholder.Replace(text, m =>
             {
                 if (variables.TryGetValue(m.Groups[1].Value, out var v)) return v;
                 missing.Add(m.Groups[1].Value);
                 return m.Value;
             });
-            // Anche un ingresso scritto con le variabili ne ha bisogno: senza, il lavoro riceverebbe «{codice}».
-            missing.AddRange(step.Inputs.Values.Where(i => i.Text != null)
-                .SelectMany(i => Placeholder.Matches(i.Text).Select(m => m.Groups[1].Value))
-                .Where(n => !variables.ContainsKey(n)));
-            if (missing.Count > 0)
+
+            var brief = Fill(step.Brief);
+            var inputs = new List<AssignmentInput>();
+            var empty = new List<string>();
+            foreach (var declared in skill.Inputs ?? new List<Yaml.Models.AgentCardInput>())
+            {
+                if (!step.Inputs.TryGetValue(declared.Id, out var value))
+                    throw new InvalidOperationException($"step '{step.Id}' has no value for input '{declared.Id}': the workflow was not bound to its cards.");
+                var input = new AssignmentInput { Id = declared.Id, Description = declared.Description };
+                if (value.Text != null) input.Text = Fill(value.Text);
+                else
+                {
+                    var why = FilesOf(wf, step, views, value, input.Files);
+                    if (input.Files.Count == 0) empty.Add(UiText.Say($"l'ingresso «{declared.Id}» non ha file ({why})", $"input «{declared.Id}» has no file ({why})"));
+                    else if (why != null) empty.Add(UiText.Say($"l'ingresso «{declared.Id}» è incompleto ({why})", $"input «{declared.Id}» is incomplete ({why})"));
+                }
+                inputs.Add(input);
+            }
+
+            if (missing.Count > 0 || empty.Count > 0)
+            {
+                var reasons = new List<string>();
+                if (missing.Count > 0)
+                    reasons.Add(UiText.Say($"nel giro manca il valore di {string.Join(", ", missing.Distinct().Select(n => "{" + n + "}"))}",
+                                           $"the round is missing the value of {string.Join(", ", missing.Distinct().Select(n => "{" + n + "}"))}"));
+                reasons.AddRange(empty);
                 return new SchedulerAction
                 {
                     Kind = SchedulerActionKind.Blocked, Step = step, Round = round, Attempt = attempt,
-                    Reason = UiText.Say(
-                            $"«{step.Label}» non può partire: nel giro manca il valore di {string.Join(", ", missing.Distinct().Select(n => "{" + n + "}"))}.",
-                            $"«{step.Label}» cannot start: the round is missing the value of {string.Join(", ", missing.Distinct().Select(n => "{" + n + "}"))}."),
+                    Reason = UiText.Say($"«{step.Label}» non può partire: {string.Join("; ", reasons)}.",
+                                        $"«{step.Label}» cannot start: {string.Join("; ", reasons)}."),
                 };
+            }
 
-            var inputs = step.Trigger.Kind == WorkflowTriggerKind.After
-                ? step.Trigger.After.SelectMany(a => InputsOf(wf, views, a)).Distinct().ToList()
-                : new List<string>();
             return new SchedulerAction
             {
                 Kind = step.Start == WorkflowStart.AskOwner ? SchedulerActionKind.Hold : SchedulerActionKind.Start,
-                Step = step, Round = round, Attempt = attempt, Brief = brief, Inputs = inputs, ReworkNote = reworkNote,
+                Step = step, Round = round, Attempt = attempt, Skill = skill.Id, SkillDescription = skill.Description,
+                Brief = brief, Inputs = inputs, Outputs = step.Outputs.ToList(), ReworkNote = reworkNote,
             };
         }
 
-        /// <summary>
-        /// I file di un passo da cui si dipende, solo se è finito (con «il primo» gli altri possono non esserlo): quelli
-        /// consegnati e approvati, o in mancanza quelli dichiarati.
-        /// </summary>
-        private static IEnumerable<string> InputsOf(WorkflowDescriptor wf, IReadOnlyDictionary<string, StepView> views, string stepId)
+        /// <summary>Il lavoro della scheda che il passo fa. Il workflow deve essere unito alle schede (<see cref="WorkflowBinder"/>).</summary>
+        private static Yaml.Models.AgentCardSkill SkillOf(WorkflowDescriptor wf, WorkflowStep step)
         {
-            if (!views.TryGetValue(stepId, out var v) || v.Status != StepStatus.Finished) return Enumerable.Empty<string>();
-            if (v.ApprovedFiles.Count > 0) return v.ApprovedFiles;
-            return wf.Step(stepId)?.Produces.Where(p => !p.Contains('*')) ?? Enumerable.Empty<string>();
+            if (wf.Cards == null)
+                throw new InvalidOperationException("the workflow is not bound to its agents' cards: read it with WorkflowFile, not WorkflowParser alone.");
+            if (!wf.Cards.Agents.TryGetValue(step.Agent, out var card) || card.Skill(step.Skill) == null)
+                throw new InvalidOperationException($"step '{step.Id}': the card of '{step.Agent}' has no job '{step.Skill}', but the workflow was bound to it.");
+            return card.Skill(step.Skill);
         }
+
+        /// <summary>
+        /// I file che un ingresso riceve: per ogni <c>passo.uscita</c>, i file di quell'uscita nella consegna approvata del
+        /// passo, con il suo commit. Un'uscita con «*» prende i file consegnati in quel giro che corrispondono; una senza
+        /// «*» che il passo non ha toccato resta il suo file. Torna il motivo di ciò che manca, o null.
+        /// <para>
+        /// Un passo non ancora finito si salta solo se il passo parte «al primo» (<c>wait: any</c>) e lo aspettava: lì è
+        /// voluto che gli altri non ci siano. In ogni altro caso manca qualcosa, e si dice che cosa.
+        /// </para>
+        /// </summary>
+        private static string FilesOf(WorkflowDescriptor wf, WorkflowStep step, IReadOnlyDictionary<string, StepView> views,
+            WorkflowInput value, List<AssignmentFile> files)
+        {
+            var problems = new List<string>();
+            var firstOnly = step.Trigger?.Kind == WorkflowTriggerKind.After && step.Trigger.Wait == WorkflowWait.Any;
+            foreach (var reference in value.From)
+            {
+                var dot = reference.IndexOf('.');
+                var source = wf.Step(reference.Substring(0, dot));
+                var output = source?.Outputs.FirstOrDefault(o => o.Id == reference.Substring(dot + 1));
+                if (output == null)
+                    throw new InvalidOperationException($"step '{step.Id}': '{reference}' is not an output of the workflow, but the workflow was bound.");
+                if (!views.TryGetValue(source.Id, out var view) || view.Status != StepStatus.Finished)
+                {
+                    if (!(firstOnly && step.Trigger.After.Contains(source.Id)))
+                        problems.Add(UiText.Say($"«{source.Label}» non è ancora approvato", $"«{source.Label}» is not approved yet"));
+                    continue;
+                }
+                var found = view.ApprovedFiles.Where(f => Matches(output.Path, f)).ToList();
+                if (found.Count == 0 && !output.Path.Contains('*')) found.Add(output.Path);
+                if (found.Count == 0)
+                {
+                    problems.Add(UiText.Say($"«{source.Label}» non ha consegnato nessun file per «{output.Id}» ({output.Path})",
+                                            $"«{source.Label}» delivered no file for «{output.Id}» ({output.Path})"));
+                    continue;
+                }
+                files.AddRange(found.Select(f => new AssignmentFile
+                {
+                    Path = f, Step = source.Id, StepLabel = source.Label, Output = output.Id, Commit = view.ApprovedCommit,
+                }));
+            }
+            return problems.Count == 0 ? null : string.Join("; ", problems);
+        }
+
+        /// <summary>Il file consegnato corrisponde al percorso dell'uscita? «*» vale per una parte del nome, non per le cartelle.</summary>
+        public static bool Matches(string pattern, string path)
+            => Regex.IsMatch(path ?? "", "^" + Regex.Escape(pattern).Replace(@"\*", "[^/]*") + "$");
     }
 }

@@ -30,14 +30,14 @@ namespace MdExplorer.Features.Tests.Agents
         private RoundState NewRound() => new() { Header = new RoundHeader { Id = "2026-10-06-gara-abc123", Workflow = "gara/gara.workflow.json", StartedAt = T0 } };
 
         private void Add(RoundState round, string step, string agent, string type, int roundNo = 1, int attempt = 1,
-            string note = null, string reply = null, Dictionary<string, string> values = null, List<string> files = null)
+            string note = null, string reply = null, Dictionary<string, string> values = null, List<string> files = null, string commit = null)
         {
             if (!round.Steps.TryGetValue(step, out var record))
                 round.Steps[step] = record = new StepRecord { Step = step, Agent = agent };
             record.Events.Add(new RoundEvent
             {
                 Type = type, At = T0.AddMinutes(++_tick), By = "io@test.local", Round = roundNo, Attempt = attempt,
-                Note = note, Reply = reply, Values = values, Files = files,
+                Note = note, Reply = reply, Values = values, Files = files, Commit = commit,
             });
         }
 
@@ -123,8 +123,8 @@ namespace MdExplorer.Features.Tests.Agents
             var summary = WorkflowScheduler.Decide(wf, round, Pc("account-manager")).Single();
             Assert.AreEqual(SchedulerActionKind.Start, summary.Kind, "auto: parte da sola");
             Assert.AreEqual("Scrivi la sintesi sul bando NC-1.", summary.Brief);
-            CollectionAssert.AreEquivalent(new[] { "gara/schede/tecnica.md", "gara/schede/contrattuale.md", "gara/schede/delivery.md" },
-                summary.Inputs.ToList(), "riceve i file approvati dei passi da cui dipende");
+            CollectionAssert.AreEqual(new[] { "gara/schede/tecnica.md", "gara/schede/contrattuale.md", "gara/schede/delivery.md" },
+                Files(summary, "schede"), "riceve i file approvati delle uscite che il workflow gli collega");
         }
 
         [TestMethod]
@@ -208,7 +208,7 @@ namespace MdExplorer.Features.Tests.Agents
 
             var summary = WorkflowScheduler.Decide(wf, round, Pc("account-manager")).Single();
             Assert.AreEqual("sintesi", summary.Step.Id);
-            CollectionAssert.AreEqual(new[] { "gara/schede/contrattuale.md" }, summary.Inputs.ToList());
+            CollectionAssert.AreEqual(new[] { "gara/schede/contrattuale.md" }, Files(summary, "schede"), "«al primo»: gli altri non ci sono, ed è voluto");
         }
 
         [TestMethod]
@@ -422,6 +422,101 @@ namespace MdExplorer.Features.Tests.Agents
                 CollectionAssert.AreEqual(new[] { "ricerca" }, round.Steps.Keys.ToList(), "la copia non è un passo");
             }
             finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+        }
+
+        private static List<string> Files(SchedulerAction action, string input)
+            => action.Inputs.Single(i => i.Id == input).Files.Select(f => f.Path).ToList();
+
+        [TestMethod]
+        public void Compose_the_assignment_from_the_job_its_inputs_and_its_outputs()
+        {
+            // Workflow v3, F3: l'incarico lo compone MDE dalla scheda e dal workflow; il brief si aggiunge.
+            var wf = Parse(Gara);
+            var round = RoundStarted();
+            foreach (var (step, agent, file) in new[] { ("tecnica", "responsabile-tecnico", "tecnica.md"), ("contratto", "responsabile-legale", "contrattuale.md"), ("delivery", "responsabile-delivery", "delivery.md") })
+            {
+                Add(round, step, agent, RoundEventType.Started);
+                Add(round, step, agent, RoundEventType.Delivered, files: new() { "gara/schede/" + file, "gara/appunti.md" }, commit: "c-" + step);
+                Add(round, step, agent, RoundEventType.Approved, commit: "c-" + step);
+            }
+
+            var summary = WorkflowScheduler.Decide(wf, round, Pc("account-manager")).Single();
+            Assert.AreEqual("sintesi-gara", summary.Skill);
+            Assert.AreEqual("NC-1", summary.Inputs.Single(i => i.Id == "codice").Text, "la variabile del giro");
+            Assert.AreEqual("la ricerca", summary.Inputs.Single(i => i.Id == "ricerca").Text, "il testo fisso");
+            Assert.AreEqual("c-contratto", summary.Inputs.Single(i => i.Id == "schede").Files[1].Commit, "ogni file con il suo commit approvato");
+            CollectionAssert.AreEqual(new[] { "sintesi", "registro" }, summary.Outputs.Select(o => o.Id).ToList());
+
+            Assert.AreEqual(@"[INCARICO] Lavoro «sintesi-gara» della tua scheda: Scrive la sintesi per decidere se partecipare.
+
+Ingressi:
+- codice (il codice del bando): NC-1
+- ricerca (la tua ricerca): la ricerca
+- schede (le schede approvate dei responsabili):
+  - gara/schede/tecnica.md — uscita «scheda» di «tecnica», approvata nel commit c-tecnica
+  - gara/schede/contrattuale.md — uscita «scheda» di «contratto», approvata nel commit c-contratto
+  - gara/schede/delivery.md — uscita «scheda» di «delivery», approvata nel commit c-delivery
+
+Consegni:
+- sintesi: gara/schede/sintesi.md (scrivi)
+- registro: gara/registro.md (aggiorni)
+
+Indicazioni del workflow: Scrivi la sintesi sul bando NC-1.
+
+Giro g1, passo «sintesi».".Replace("\r\n", "\n"), MdExplorer.Features.Agents.AgentTexts.Assignment("it", summary, "g1"));
+        }
+
+        [TestMethod]
+        public void Give_an_output_with_a_star_the_file_delivered_in_the_round()
+        {
+            // Decisione 3 dello sprint: chi riceve un'uscita con «*» prende il file consegnato in quel giro, non il modello.
+            const string json = @"{
+  ""mde_workflow"": 3, ""title"": ""Stella"",
+  ""steps"": [
+    { ""id"": ""cerca"", ""agent"": ""account-manager"", ""skill"": ""cerca-bandi"", ""trigger"": { ""launch"": true }, ""start"": ""manual"" },
+    { ""id"": ""leggi"", ""agent"": ""lettore"", ""skill"": ""leggi"", ""trigger"": { ""after"": [""cerca""] }, ""start"": ""auto"",
+      ""inputs"": { ""ricerca"": { ""from"": ""cerca.ricerca"" } } }
+  ]
+}";
+            var cards = GaraV3.CardSet();
+            cards.Agents["lettore"] = new WorkflowCard { Path = ".github/agents/lettore.agent.md" };
+            cards.Agents["lettore"].Skills.Add(new MdExplorer.Features.Yaml.Models.AgentCardSkill
+            {
+                Id = "leggi", Inputs = new List<MdExplorer.Features.Yaml.Models.AgentCardInput> { new() { Id = "ricerca", Description = "la ricerca" } },
+            });
+            var wf = Parse(json, cards);
+
+            var round = NewRound();
+            Add(round, "cerca", "account-manager", RoundEventType.Started);
+            Add(round, "cerca", "account-manager", RoundEventType.Delivered, files: new() { "gara/ricerche/ricerca-2027-03-08.md", "gara/ricerche/sub/ricerca-x.md" });
+            Add(round, "cerca", "account-manager", RoundEventType.Approved);
+            CollectionAssert.AreEqual(new[] { "gara/ricerche/ricerca-2027-03-08.md" }, Files(WorkflowScheduler.Decide(wf, round, Everyone).Single(), "ricerca"),
+                "il «*» vale per il nome, non per le cartelle");
+
+            var nothing = NewRound();
+            Add(nothing, "cerca", "account-manager", RoundEventType.Started);
+            Add(nothing, "cerca", "account-manager", RoundEventType.Delivered, files: new() { "gara/registro.md" });
+            Add(nothing, "cerca", "account-manager", RoundEventType.Approved);
+            var blocked = WorkflowScheduler.Decide(wf, nothing, Everyone).Single();
+            Assert.AreEqual(SchedulerActionKind.Blocked, blocked.Kind, "senza il file l'agente lavorerebbe sul niente");
+            StringAssert.Contains(blocked.Reason, "delivered no file for «ricerca» (gara/ricerche/ricerca-*.md)");
+        }
+
+        [TestMethod]
+        public void Rework_with_the_same_inputs_and_the_reason_of_the_decline()
+        {
+            var wf = Parse(Gara);
+            var round = RoundStarted();
+            Add(round, "tecnica", "responsabile-tecnico", RoundEventType.Held);
+            Add(round, "tecnica", "responsabile-tecnico", RoundEventType.Started);
+            Add(round, "tecnica", "responsabile-tecnico", RoundEventType.Delivered, files: new() { "gara/schede/tecnica.md" });
+            Add(round, "tecnica", "responsabile-tecnico", RoundEventType.Rejected, note: "manca il RPO");
+
+            var again = WorkflowScheduler.Rework(wf, round, wf.Step("tecnica"), "manca il RPO");
+            Assert.AreEqual(SchedulerActionKind.Start, again.Kind, "chi preme «Fai ripartire» l'ha già avviato");
+            Assert.AreEqual(2, again.Attempt);
+            Assert.AreEqual("manca il RPO", again.ReworkNote);
+            Assert.AreEqual("NC-1", again.Inputs.Single(i => i.Id == "codice").Text, "prima ripartiva senza ingressi");
         }
     }
 }

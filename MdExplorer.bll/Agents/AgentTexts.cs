@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
+using MdExplorer.Features.Agents.Workflow.Scheduler;
 
 namespace MdExplorer.Features.Agents
 {
@@ -23,19 +25,57 @@ namespace MdExplorer.Features.Agents
 
         public static string Pick(string lang, string it, string en) => IsItalian(lang) ? it : en;
 
-        /// <summary>L'incarico di un passo del workflow: il brief, il giro e il passo, e i file approvati da cui parte.</summary>
-        public static string Assignment(string lang, string brief, string roundId, string stepLabel, int round, int attempt, IReadOnlyList<string> inputs)
+        /// <summary>
+        /// L'incarico di un passo del workflow, composto da MDE (workflow v3, F3): il lavoro della scheda, gli ingressi
+        /// risolti (i file con il commit approvato), le uscite da consegnare, il brief del workflow, il giro e il passo.
+        /// </summary>
+        public static string Assignment(string lang, SchedulerAction action, string roundId)
         {
             var it = IsItalian(lang);
-            var text = (it ? AssignmentIt : AssignmentEn) + " " + (brief ?? "").Trim()
-                + (it ? $"\n\nGiro {roundId}, passo «{stepLabel}»" : $"\n\nRound {roundId}, step «{stepLabel}»");
-            if (round > 1) text += it ? $", giro {round}" : $", round {round}";
-            if (attempt > 1) text += it ? $", tentativo {attempt}" : $", attempt {attempt}";
-            text += ".";
-            if (inputs != null && inputs.Count > 0)
-                text += (it ? "\nFile da cui parti (approvati):" : "\nFiles you start from (approved):")
-                        + string.Concat(inputs.Select(f => "\n- " + f));
-            return text;
+            string Say(string i, string e) => it ? i : e;
+            var description = (action.SkillDescription ?? "").Trim().TrimEnd('.');
+            var text = new StringBuilder((it ? AssignmentIt : AssignmentEn) + " "
+                + Say($"Lavoro «{action.Skill}» della tua scheda", $"Job «{action.Skill}» of your card")
+                + (description.Length > 0 ? ": " + description : "") + ".");
+
+            if (action.Inputs.Count > 0)
+            {
+                text.Append(Say("\n\nIngressi:", "\n\nInputs:"));
+                foreach (var input in action.Inputs)
+                {
+                    var head = "\n- " + input.Id + (string.IsNullOrWhiteSpace(input.Description) ? "" : $" ({input.Description.Trim()})");
+                    if (input.Text != null) { text.Append(head + ": " + input.Text); continue; }
+                    text.Append(head + ":");
+                    foreach (var f in input.Files)
+                        text.Append($"\n  - {f.Path} — " + Say($"uscita «{f.Output}» di «{f.StepLabel}», approvata", $"output «{f.Output}» of «{f.StepLabel}», approved")
+                                    + (f.Commit == null ? "" : Say($" nel commit {f.Commit}", $" in commit {f.Commit}")));
+                }
+            }
+
+            if (action.Outputs.Count > 0)
+            {
+                text.Append(Say("\n\nConsegni:", "\n\nYou deliver:"));
+                foreach (var o in action.Outputs)
+                {
+                    var verb = o.Action switch
+                    {
+                        "updates" => Say("aggiorni", "you update"),
+                        "downloads" => Say("scarichi", "you download"),
+                        _ => Say("scrivi", "you write"),
+                    };
+                    text.Append($"\n- {o.Id}: {o.Path} ({verb})"
+                        + (o.Path.Contains('*') ? Say("; il «*» del nome lo completi tu", "; you fill in the «*» of the name") : "")
+                        + (string.IsNullOrWhiteSpace(o.Note) ? "" : " — " + o.Note.Trim()));
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(action.Brief))
+                text.Append(Say("\n\nIndicazioni del workflow: ", "\n\nWorkflow notes: ") + action.Brief.Trim());
+
+            text.Append(Say($"\n\nGiro {roundId}, passo «{action.Step.Label}»", $"\n\nRound {roundId}, step «{action.Step.Label}»"));
+            if (action.Round > 1) text.Append(Say($", giro {action.Round}", $", round {action.Round}"));
+            if (action.Attempt > 1) text.Append(Say($", tentativo {action.Attempt}", $", attempt {action.Attempt}"));
+            return text.Append('.').ToString();
         }
 
         /// <summary>La persona ha scritto con parole sue a un messaggio che proponeva pulsanti.</summary>
